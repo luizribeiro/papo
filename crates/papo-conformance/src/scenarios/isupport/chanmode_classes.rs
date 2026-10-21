@@ -1,5 +1,5 @@
 use papo::event::{ModeChange, ModeChanged};
-use papo::{ModeAction, ModeArg};
+use papo::{ModeAction, ModeArg, ModeValue};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
@@ -62,8 +62,8 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
     for peer in [&alice, &bob] {
         let state = peer.state();
         let channel_state = state.channel(&channel).unwrap();
-        assert_eq!(channel_state.mode('k'), Some(Some(KEY)));
-        assert_eq!(channel_state.mode('l'), Some(Some(LIMIT)));
+        assert_eq!(channel_state.mode('k'), Some(ModeValue::Value(KEY)));
+        assert_eq!(channel_state.mode('l'), Some(ModeValue::Value(LIMIT)));
         assert_eq!(channel_state.mode('n'), None);
         assert_eq!(channel_state.mode('b'), None);
     }

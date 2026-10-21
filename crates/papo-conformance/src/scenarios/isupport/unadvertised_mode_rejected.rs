@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use papo::{Error, InvalidInput, Isupport, ModeAction, isupport::Advertised};
+use papo::{Error, InvalidInput, Isupport, ModeAction, ModeValue, isupport::Advertised};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
@@ -51,7 +51,7 @@ async fn unadvertised_mode_rejected(s: Scenario) -> papo_testing::Result<()> {
     for peer in [&alice, &bob] {
         let state = peer.state();
         let channel_state = state.channel(&channel).unwrap();
-        assert_eq!(channel_state.mode('m'), Some(None));
+        assert_eq!(channel_state.mode('m'), Some(ModeValue::Set));
         assert_eq!(channel_state.mode(letter), None);
     }
     Ok(())

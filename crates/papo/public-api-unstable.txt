@@ -26,6 +26,7 @@ pub use papo::ModeAction
 pub use papo::ModeArg
 pub use papo::ModeChange
 pub use papo::ModeListEntry
+pub use papo::ModeValue
 pub use papo::NetworkConfig
 pub use papo::NetworkId
 pub use papo::NetworkState

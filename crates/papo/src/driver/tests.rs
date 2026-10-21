@@ -4659,7 +4659,7 @@ async fn action_confirmation_is_enqueued_after_state_changes() {
     assert_eq!(events.receiver.len(), 1);
     assert_eq!(
         client.state().channel("#papo").unwrap().mode('t'),
-        Some(None)
+        Some(crate::ModeValue::Set)
     );
     assert!(matches!(events.next().await, Some(Event::ModeChanged(_))));
 

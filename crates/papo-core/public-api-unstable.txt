@@ -853,6 +853,27 @@ impl core::marker::Unpin for papo_core::ModeArg
 impl core::marker::UnsafeUnpin for papo_core::ModeArg
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::ModeArg
 impl core::panic::unwind_safe::UnwindSafe for papo_core::ModeArg
+pub enum papo_core::ModeValue<'a>
+pub papo_core::ModeValue::Set
+pub papo_core::ModeValue::Value(&'a str)
+impl<'a> papo_core::ModeValue<'a>
+pub const fn papo_core::ModeValue<'a>::value(self) -> core::option::Option<&'a str>
+impl<'a> core::clone::Clone for papo_core::ModeValue<'a>
+pub fn papo_core::ModeValue<'a>::clone(&self) -> Self
+impl<'a> core::cmp::Eq for papo_core::ModeValue<'a>
+impl<'a> core::cmp::PartialEq for papo_core::ModeValue<'a>
+pub fn papo_core::ModeValue<'a>::eq(&self, &Self) -> bool
+impl<'a> core::fmt::Debug for papo_core::ModeValue<'a>
+pub fn papo_core::ModeValue<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for papo_core::ModeValue<'a>
+impl<'a> core::marker::StructuralPartialEq for papo_core::ModeValue<'a>
+impl<'a> core::marker::Freeze for papo_core::ModeValue<'a>
+impl<'a> core::marker::Send for papo_core::ModeValue<'a>
+impl<'a> core::marker::Sync for papo_core::ModeValue<'a>
+impl<'a> core::marker::Unpin for papo_core::ModeValue<'a>
+impl<'a> core::marker::UnsafeUnpin for papo_core::ModeValue<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_core::ModeValue<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo_core::ModeValue<'a>
 #[non_exhaustive] pub enum papo_core::MsgRef
 pub papo_core::MsgRef::Any
 pub papo_core::MsgRef::Msgid(alloc::string::String)
@@ -1417,7 +1438,7 @@ pub const fn papo_core::Channel::is_synced(&self) -> bool
 pub fn papo_core::Channel::list(&self, papo_core::ListMode) -> core::option::Option<&[papo_core::ModeListEntry]>
 pub fn papo_core::Channel::member(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::Member>
 pub fn papo_core::Channel::members(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::Member>
-pub fn papo_core::Channel::mode(&self, char) -> core::option::Option<core::option::Option<&str>>
+pub fn papo_core::Channel::mode(&self, char) -> core::option::Option<papo_core::ModeValue<'_>>
 pub fn papo_core::Channel::modes(&self) -> impl core::iter::traits::iterator::Iterator<Item = (char, core::option::Option<&str>)>
 pub fn papo_core::Channel::name(&self) -> &papo::ChannelName
 pub fn papo_core::Channel::topic(&self) -> core::option::Option<&str>

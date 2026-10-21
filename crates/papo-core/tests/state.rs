@@ -5,8 +5,8 @@ mod support;
 use std::time::{Duration, Instant, UNIX_EPOCH};
 
 use papo_core::{
-    Account, Away, Config, Conversation, Event, ModeAction, ModeArg, ModeChange, Rank, RateLimit,
-    ResponseMatcher, Source, StateLimit, Subject, WhoOnJoin,
+    Account, Away, Config, Conversation, Event, ModeAction, ModeArg, ModeChange, ModeValue, Rank,
+    RateLimit, ResponseMatcher, Source, StateLimit, Subject, WhoOnJoin,
 };
 use papo_proto::{AccountName, Casemapping, ChannelName, InvalidIdentifier, Line, Nick};
 use support::Transcript;
@@ -902,9 +902,11 @@ fn tracks_the_channel_join_burst_and_live_mode_changes() {
         .server(":ergo.test 333 emily #papo alice 1723501612")
         .inspect(|session| {
             let channel = session.state().channel("#papo").unwrap();
-            assert_eq!(channel.mode('k'), Some(Some("swordfish")));
-            assert_eq!(channel.mode('l'), Some(Some("10")));
-            assert_eq!(channel.mode('n'), Some(None));
+            assert_eq!(channel.mode('k'), Some(ModeValue::Value("swordfish")));
+            assert_eq!(channel.mode('k').unwrap().value(), Some("swordfish"));
+            assert_eq!(channel.mode('l'), Some(ModeValue::Value("10")));
+            assert_eq!(channel.mode('n'), Some(ModeValue::Set));
+            assert_eq!(channel.mode('n').unwrap().value(), None);
             assert_eq!(
                 channel.created_at(),
                 Some(UNIX_EPOCH + Duration::from_secs(1_723_501_539))
@@ -928,7 +930,7 @@ fn tracks_the_channel_join_burst_and_live_mode_changes() {
             let channel = session.state().channel("#papo").unwrap();
             assert_eq!(channel.mode('k'), None);
             assert_eq!(channel.mode('l'), None);
-            assert_eq!(channel.mode('m'), Some(None));
+            assert_eq!(channel.mode('m'), Some(ModeValue::Set));
             assert_eq!(channel.mode('b'), None);
         })
         .server(":ergo.test 324 emily #papo +n")
@@ -1074,7 +1076,7 @@ fn distinguishes_prefix_rank_and_channel_mode_argument_branches() {
             assert_eq!(channel.member("frank").unwrap().rank(), Some(Rank::Op));
             assert!(!channel.member("frank").unwrap().has(Rank::Voice));
             assert_eq!(channel.mode('l'), None);
-            assert_eq!(channel.mode('m'), Some(None));
+            assert_eq!(channel.mode('m'), Some(ModeValue::Set));
         })
         .ignore_rest();
 }
@@ -1167,8 +1169,8 @@ fn another_capability_waits_for_end_of_names_before_syncing() {
         .inspect(|session| {
             let channel = session.state().channel("#papo").unwrap();
             assert!(channel.is_synced());
-            assert_eq!(channel.mode('n'), Some(None));
-            assert_eq!(channel.mode('k'), Some(Some("secret")));
+            assert_eq!(channel.mode('n'), Some(ModeValue::Set));
+            assert_eq!(channel.mode('k'), Some(ModeValue::Value("secret")));
             assert_eq!(channel.created_at(), Some(UNIX_EPOCH + Duration::from_secs(1_760_529_342)));
         })
         .no_event();

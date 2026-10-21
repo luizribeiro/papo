@@ -866,6 +866,26 @@ pub enum ModeArg {
     Value(String),
 }
 
+/// The stored value of a channel mode.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ModeValue<'a> {
+    /// The mode is set without an argument.
+    Set,
+    /// The mode is set with an argument.
+    Value(&'a str),
+}
+
+impl<'a> ModeValue<'a> {
+    /// Returns the mode argument, if it has one.
+    #[must_use]
+    pub const fn value(self) -> Option<&'a str> {
+        match self {
+            Self::Set => None,
+            Self::Value(value) => Some(value),
+        }
+    }
+}
+
 /// Stable identifier assigned to one user-originated request.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct RequestId(u64);

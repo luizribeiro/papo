@@ -1,4 +1,4 @@
-use papo::{Error, Feature, Refusal};
+use papo::{Error, Feature, Refusal, isupport::LimitValue};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
@@ -17,7 +17,7 @@ async fn maxlist_limit(s: Scenario) -> papo_testing::Result<()> {
         .into_iter()
         .find(|limit| limit.name.contains('b'))
         .and_then(|limit| limit.limit);
-    let Some(maximum) = maximum else {
+    let Some(LimitValue::Limited(maximum)) = maximum else {
         return s.skip("server does not advertise a finite MAXLIST for bans");
     };
     let shared_quiet_list = state.supports(Feature::Quiet)

@@ -23,8 +23,8 @@ use papo_proto::{
 
 use crate::{
     Authorship, Capabilities, Config, Conversation, Event, Handled, LastSeen, ListMode,
-    MetadataValue, ModeArg, ModeChange, ModeListEntry, NameKey, Outbox, ReadMarker, Source,
-    StateLimit, Subject, WhoOnJoin,
+    MetadataValue, ModeArg, ModeChange, ModeListEntry, ModeValue, NameKey, Outbox, ReadMarker,
+    Source, StateLimit, Subject, WhoOnJoin,
     conversation::classify_target,
     monitor::{Monitor, presence_nicks},
     typing::{Typer, TypingTable},
@@ -1163,10 +1163,12 @@ impl Channel {
         self.topic_set_at
     }
 
-    /// Returns a stored non-list mode's argument, distinguishing flags from absent modes.
+    /// Returns a stored non-list mode and its value, if set.
     #[must_use]
-    pub fn mode(&self, mode: char) -> Option<Option<&str>> {
-        self.modes.get(&mode).map(|argument| argument.as_deref())
+    pub fn mode(&self, mode: char) -> Option<ModeValue<'_>> {
+        self.modes
+            .get(&mode)
+            .map(|argument| argument.as_deref().map_or(ModeValue::Set, ModeValue::Value))
     }
 
     /// Iterates over stored non-list modes in unspecified order.

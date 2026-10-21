@@ -86,7 +86,7 @@ pub use papo_core::Secret;
 #[doc(inline)]
 pub use papo_core::{
     Account, Away, Cap, Capabilities, Channel, Conversation, Feature, Member, ModeAction, ModeArg,
-    ModeChange, Rank, Typer, User,
+    ModeChange, ModeValue, Rank, Typer, User,
 };
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]

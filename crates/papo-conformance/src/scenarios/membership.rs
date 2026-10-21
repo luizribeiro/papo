@@ -1,5 +1,5 @@
 use papo::{
-    Account, DisconnectCause, Error, Event, ModeAction, ModeArg, Rank, Refusal, Source,
+    Account, DisconnectCause, Error, Event, ModeAction, ModeArg, ModeValue, Rank, Refusal, Source,
     isupport::LimitValue,
 };
 use papo_conformance_macros::scenario;
@@ -1281,7 +1281,7 @@ async fn channel_mode_refusals(s: Scenario) -> papo_testing::Result<()> {
     alice.mode(&channel).add('n').await?;
     assert_eq!(
         alice.state().channel(&channel).unwrap().mode('n'),
-        Some(None)
+        Some(ModeValue::Set)
     );
 
     let blocked = "this sender is outside the channel";
@@ -1431,8 +1431,8 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
     for peer in [&alice, &bob] {
         let state = peer.state();
         let channel_state = state.channel(&channel).unwrap();
-        assert_eq!(channel_state.mode('k'), Some(Some(key)));
-        assert_eq!(channel_state.mode('s'), Some(None));
+        assert_eq!(channel_state.mode('k'), Some(ModeValue::Value(key)));
+        assert_eq!(channel_state.mode('s'), Some(ModeValue::Set));
     }
 
     assert_refusal(
