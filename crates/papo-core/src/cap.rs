@@ -47,6 +47,18 @@ impl From<String> for Cap {
     }
 }
 
+impl From<Cap> for String {
+    fn from(name: Cap) -> Self {
+        name.0.into_owned()
+    }
+}
+
+impl AsRef<str> for Cap {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
+
 impl std::fmt::Display for Cap {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str(self.as_str())
@@ -364,6 +376,11 @@ mod tests {
         assert_eq!(draft.to_string(), "draft/chathistory");
         assert_eq!(final_name.to_string(), "chathistory");
         assert_eq!(HashSet::from([draft, final_name]).len(), 1);
+        assert_eq!(
+            String::from(Cap::from("draft/chathistory")),
+            "draft/chathistory"
+        );
+        assert_eq!(Cap::from("chathistory").as_ref(), "chathistory");
     }
 
     #[test]
