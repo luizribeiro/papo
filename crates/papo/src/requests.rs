@@ -8,6 +8,8 @@ use papo_proto::{
 
 use crate::Error;
 
+pub(crate) const WHOX_FIELDS: &str = "%tcuhnfar,152";
+
 /// Information returned by a `WHOIS` request.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -216,7 +218,7 @@ pub(crate) fn who(
         .filter_map(|line| {
             let message = line.as_ref();
             if extended {
-                let reply = WhoxReply::parse(&message, "%tcuhnfar")?;
+                let reply = WhoxReply::parse(&message, WHOX_FIELDS)?;
                 let flags = reply.flags(isupport)?;
                 Some(WhoEntry {
                     channel: reply.channel.map(|channel| mapping.channel(channel)),

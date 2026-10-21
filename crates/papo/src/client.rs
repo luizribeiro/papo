@@ -751,6 +751,9 @@ impl Client {
 
     /// Requests the users matching a channel or mask.
     ///
+    /// When the argument names a joined channel, the reply refreshes that channel's member facts
+    /// in [`crate::State`] and emits [`crate::Event::MembersRefreshed`] at numeric `315`.
+    ///
     /// # Errors
     ///
     /// Returns [`Error::Server`] with [`crate::Refusal::TryAgain`] or
@@ -765,7 +768,10 @@ impl Client {
             let state = client.state();
             let extended = state.isupport().whox();
             let message = if extended {
-                Line::new("WHO", [mask.to_string(), "%tcuhnfar".into()])
+                Line::new(
+                    "WHO",
+                    [mask.to_string(), crate::requests::WHOX_FIELDS.into()],
+                )
             } else {
                 Line::new("WHO", [mask.to_string()])
             };

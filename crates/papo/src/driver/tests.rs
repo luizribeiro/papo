@@ -3197,8 +3197,8 @@ async fn structured_requests_resolve_fail_and_abort() {
         let client = client.clone();
         async move { client.who(test_mask("#papo")).await }
     });
-    client_line(&mut server, b"@label=1 WHO #papo %tcuhnfar\r\n").await;
-    server_line(&mut server, b"@label=1 :ergo.test BATCH +who-42 labeled-response\r\n@batch=who-42 :ergo.test 354 papo-driver 0 #papo ~alice client.example alice H@B alice :Alice Example\r\n@batch=who-42 :ergo.test 354 papo-driver 0 #papo ~dan user.example dan G+* 0 :Dan Away\r\n@batch=who-42 :ergo.test 315 papo-driver #papo :End of WHO list\r\n:ergo.test BATCH -who-42\r\n").await;
+    client_line(&mut server, b"@label=1 WHO #papo %tcuhnfar,152\r\n").await;
+    server_line(&mut server, b"@label=1 :ergo.test BATCH +who-42 labeled-response\r\n@batch=who-42 :ergo.test 354 papo-driver 152 #papo ~alice client.example alice H@B alice :Alice Example\r\n@batch=who-42 :ergo.test 354 papo-driver 152 #papo ~dan user.example dan G+* 0 :Dan Away\r\n@batch=who-42 :ergo.test 315 papo-driver #papo :End of WHO list\r\n:ergo.test BATCH -who-42\r\n").await;
     let who = within(who).await.unwrap().unwrap();
     assert_structured_who(&who);
 
@@ -3855,6 +3855,61 @@ async fn typed_requests_match_unlabelled_responses() {
             .await
             .is_err()
     );
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn manual_who_refreshes_joined_member_state_at_numeric_315() {
+    let (mut server, client, mut events, driver) = scripted(
+        config()
+            .rate_limit(papo_core::RateLimit::unlimited())
+            .who_on_join(crate::WhoOnJoin::Never),
+    );
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":ergo.test 005 papo-driver WHOX PREFIX=(ov)@+ :are supported\r\n:papo-driver!papo@localhost JOIN #papo * :Papo Client\r\n:ergo.test 353 papo-driver = #papo :@papo-driver +dan\r\n:ergo.test 366 papo-driver #papo :End of /NAMES list\r\n",
+    )
+    .await;
+    assert!(matches!(events.next().await, Some(Event::Joined(_))));
+    assert!(matches!(events.next().await, Some(Event::ChannelSynced(_))));
+    client_line(&mut server, b"MODE #papo\r\n").await;
+
+    let mut who = tokio::spawn({
+        let client = client.clone();
+        async move { client.who(test_channel("#papo")).await }
+    });
+    client_line(&mut server, b"WHO #papo %tcuhnfar,152\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test 354 papo-driver 152 #papo ~dan account/dan dan G+ dan :Daniel Garcia\r\n",
+    )
+    .await;
+    assert!(
+        tokio::time::timeout(Duration::from_millis(1), &mut who)
+            .await
+            .is_err()
+    );
+    server_line(
+        &mut server,
+        b":ergo.test 315 papo-driver #papo :End of WHO list\r\n",
+    )
+    .await;
+    assert_eq!(within(who).await.unwrap().unwrap()[0].nick, "dan");
+    assert!(matches!(
+        events.next().await,
+        Some(Event::MembersRefreshed(refreshed)) if refreshed.channel == "#papo"
+    ));
+    let state = client.state();
+    let dan = state.user("dan").unwrap();
+    assert!(matches!(dan.account(), crate::Account::LoggedIn(account) if account == "dan"));
+    assert_eq!(dan.away(), &crate::Away::Away { message: None });
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
