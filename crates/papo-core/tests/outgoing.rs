@@ -44,6 +44,14 @@ fn drain(session: &mut Session) -> Vec<String> {
         .collect()
 }
 
+fn fill_labelled_requests(session: &mut Session, now: Instant, count: usize) {
+    for index in 0..count {
+        session
+            .request(now, Line::new("WHOIS", [format!("operator{index}")]))
+            .unwrap();
+    }
+}
+
 #[test]
 fn splits_a_six_hundred_byte_privmsg_at_the_literal_budget() {
     let now = Instant::now();
@@ -142,6 +150,36 @@ fn plain_split_text_allows_urgent_traffic_at_the_512_byte_boundary() {
     assert_eq!(
         session.poll_transmit().unwrap(),
         b"PRIVMSG #papo :deployment complete\r\n"
+    );
+}
+
+#[test]
+fn text_confirmations_obey_the_literal_pending_limit() {
+    let now = Instant::now();
+    let mut exact_line = multiline_session(now, "max-bytes=4096,max-lines=100", true);
+    fill_labelled_requests(&mut exact_line, now, 255);
+    let text = format!("{}ready!", "deployment status ".repeat(23));
+    let relayed = format!(":papo!papo@{} PRIVMSG #papo :{text}\r\n", "h".repeat(63));
+    assert_eq!(relayed.len(), 512);
+    let sent = exact_line
+        .send_text_detailed(now, TextKind::Privmsg, "#papo", &text, &[])
+        .unwrap();
+    assert_eq!(sent.confirmations, 1);
+
+    let hundred_lines = vec!["Regional deployment remains healthy"; 100].join("\n");
+    let mut exact_multiline = multiline_session(now, "max-bytes=4096,max-lines=100", true);
+    fill_labelled_requests(&mut exact_multiline, now, 255);
+    let sent = exact_multiline
+        .send_text_detailed(now, TextKind::Notice, "#papo", &hundred_lines, &[])
+        .unwrap();
+    assert_eq!(sent.confirmations, 1);
+
+    let hundred_one_lines = format!("{hundred_lines}\nRegional deployment remains healthy");
+    let mut over = multiline_session(now, "max-bytes=4096,max-lines=100", true);
+    fill_labelled_requests(&mut over, now, 255);
+    assert_eq!(
+        over.send_text_detailed(now, TextKind::Notice, "#papo", &hundred_one_lines, &[]),
+        Err(RequestError::PendingLimit)
     );
 }
 
