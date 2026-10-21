@@ -80,6 +80,7 @@ impl ReplyRateLimiter {
 pub struct BotConfig {
     prefix: String,
     mention: bool,
+    ignore_bots: bool,
     replies: ReplyRateLimiter,
 }
 
@@ -90,6 +91,7 @@ impl BotConfig {
         Self {
             prefix: prefix.into(),
             mention: true,
+            ignore_bots: true,
             replies: ReplyRateLimiter::configured(2, Duration::from_secs(5)),
         }
     }
@@ -98,6 +100,16 @@ impl BotConfig {
     #[must_use]
     pub const fn mention(mut self, enabled: bool) -> Self {
         self.mention = enabled;
+        self
+    }
+
+    /// Enables or disables ignoring commands from users known to be bots.
+    ///
+    /// This is enabled by default. A `bot` message tag is authoritative for its message; cached
+    /// [`papo::User::is_bot`] state is used when the tag is absent.
+    #[must_use]
+    pub const fn ignore_bots(mut self, enabled: bool) -> Self {
+        self.ignore_bots = enabled;
         self
     }
 
@@ -147,6 +159,11 @@ impl Command {
         if !message.is_live()
             || message.authorship == papo::Authorship::Own
             || message.kind != MessageKind::Privmsg
+            || config.ignore_bots
+                && (message.is_bot
+                    || message.actor.nick().is_some_and(|nick| {
+                        client.state().user(nick).is_some_and(papo::User::is_bot)
+                    }))
         {
             return None;
         }
@@ -536,6 +553,54 @@ mod tests {
         let command = BotConfig::new("!").command(&client, &incoming).unwrap();
         assert_eq!(command.account(), None);
         assert!(!command.account_in(["emily"]));
+        driver.abort();
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn ignores_tagged_and_cached_bots_by_default() {
+        let transcript = concat!(
+            ":ergo.test CAP * LS :message-tags\r\n",
+            ":ergo.test CAP papo{bot} ACK :message-tags\r\n",
+            ":ergo.test 001 papo{bot} :Welcome to the Ergo test network\r\n",
+            ":ergo.test 005 papo{bot} CASEMAPPING=rfc1459 CHANTYPES=# :are supported\r\n",
+            ":papo{bot}!papo@localhost JOIN #papo\r\n",
+            ":ergo.test 353 papo{bot} = #papo :@papo{bot} emily!~emily@localhost\r\n",
+            ":ergo.test 366 papo{bot} #papo :End of NAMES list\r\n",
+            "@bot :weatherbot!weather@services.example PRIVMSG #papo :!forecast\r\n",
+            "@bot :emily!~emily@localhost PRIVMSG #Papo :!ping\r\n",
+            ":emily!~emily@localhost PRIVMSG #papo :!ping\r\n",
+        );
+        let (client, mut events, driver) = Client::builder("irc.example")
+            .nick(Casemapping::Rfc1459.nick("papo{bot}"))
+            .stream(TranscriptStream::new(transcript))
+            .build();
+        let driver = tokio::spawn(driver);
+        let mut messages = Vec::new();
+        while messages.len() < 3 {
+            if let Some(papo::Event::Message(message)) = events.next().await {
+                messages.push(message);
+            }
+        }
+
+        let config = BotConfig::new("!");
+        assert!(client.state().user("weatherbot").is_none());
+        assert!(messages[0].is_bot);
+        assert!(config.command(&client, &messages[0]).is_none());
+        assert!(
+            BotConfig::new("!")
+                .ignore_bots(false)
+                .command(&client, &messages[0])
+                .is_some()
+        );
+        assert!(client.state().user("emily").unwrap().is_bot());
+        assert!(!messages[2].is_bot);
+        assert!(config.command(&client, &messages[2]).is_none());
+        assert!(
+            BotConfig::new("!")
+                .ignore_bots(false)
+                .command(&client, &messages[2])
+                .is_some()
+        );
         driver.abort();
     }
 
