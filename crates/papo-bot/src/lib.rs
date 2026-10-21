@@ -4,8 +4,10 @@
 //!
 //! # Writing a bot
 //!
-//! Pass each message to [`BotConfig::command`]. It accepts live `PRIVMSG` commands addressed by
-//! prefix or mention and ignores known bots by default. Authorize privileged commands with
+//! Pass the receiving [`Client`] and each [`papo::Message`] event payload to
+//! [`BotConfig::command`]. It accepts live `PRIVMSG` commands addressed by prefix or mention and
+//! ignores known bots by default. Unlike raw `papo` event handling, it rejects replayed messages
+//! itself, so callers need no [`papo::Message::is_live`] guard. Authorize privileged commands with
 //! [`Command::account_in`], which checks the message's account tag; a nickname alone is not an
 //! identity. [`Command::reply`] applies the configuration's shared reply limit. Its default is two
 //! calls per conversation every five seconds, and [`ReplyStatus::Dropped`] reports a limited
@@ -164,7 +166,9 @@ impl BotConfig {
         self
     }
 
-    /// Parses a live private message as a bot command.
+    /// Parses `message` as a live command using `client`'s nickname and cached user state.
+    ///
+    /// Replayed messages are ignored.
     #[must_use]
     pub fn command(&self, client: &Client, message: &ChatMessage) -> Option<Command> {
         Command::parse(client, message, self)
