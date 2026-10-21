@@ -139,7 +139,6 @@ pub use ext::persistence::Persistence;
 pub use ext::webpush::{PushKeys, WebPush};
 pub use isupport::Isupport;
 pub use message_ref::MessageRef;
-pub use metadata::{MetadataValue, Visibility};
 pub use mode::{BanTarget, Extban, KickbanOutcome, ModesApplied, SetModes};
 #[doc(inline)]
 pub use papo_core::Secret;
@@ -155,6 +154,7 @@ pub use papo_core::{BouncerNetwork, NetworkConfig, NetworkId, NetworkState};
 pub use papo_core::{CtcpReplies, InvalidRateLimit, RateLimit, Sasl, WhoOnJoin};
 #[doc(inline)]
 pub use papo_core::{ListMode, ModeListEntry, Refusal, StateLimit};
+pub use papo_core::{MetadataValue, Visibility};
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use papo_core::{PersistenceSetting, PersistenceStatus};

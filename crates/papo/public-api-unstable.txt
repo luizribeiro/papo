@@ -1008,8 +1008,6 @@ impl core::marker::UnsafeUnpin for papo::isupport::Isupport
 impl core::panic::unwind_safe::RefUnwindSafe for papo::isupport::Isupport
 impl core::panic::unwind_safe::UnwindSafe for papo::isupport::Isupport
 pub mod papo::metadata
-pub use papo::metadata::MetadataValue
-pub use papo::metadata::Visibility
 pub mod papo::metadata::keys
 pub const papo::metadata::keys::AVATAR: &str
 pub const papo::metadata::keys::BLOCKED: &str
@@ -1021,28 +1019,6 @@ pub const papo::metadata::keys::MUTED: &str
 pub const papo::metadata::keys::PINNED: &str
 pub const papo::metadata::keys::PRONOUNS: &str
 pub const papo::metadata::keys::STATUS: &str
-pub struct papo::metadata::Metadata
-impl papo::Metadata
-pub fn papo::Metadata::clear(&self) -> papo::RequestFuture<()>
-pub fn papo::Metadata::clear_on(&self, impl core::convert::AsRef<str>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::get<I, S>(&self, impl core::convert::AsRef<str>, I) -> papo::RequestFuture<std::collections::hash::map::HashMap<papo::MetadataKey, papo::MetadataValue>> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
-pub fn papo::Metadata::list(&self, impl core::convert::AsRef<str>) -> papo::RequestFuture<std::collections::hash::map::HashMap<papo::MetadataKey, papo::MetadataValue>>
-pub fn papo::Metadata::remove(&self, impl core::convert::Into<papo::MetadataKey>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::remove_on(&self, impl core::convert::AsRef<str>, impl core::convert::Into<papo::MetadataKey>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::set(&self, impl core::convert::Into<papo::MetadataKey>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::set_on(&self, impl core::convert::AsRef<str>, impl core::convert::Into<papo::MetadataKey>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::subscribe<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
-pub fn papo::Metadata::sync(&self, impl core::convert::AsRef<str>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::unsubscribe<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
-impl core::fmt::Debug for papo::Metadata
-pub fn papo::Metadata::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Freeze for papo::Metadata
-impl core::marker::Send for papo::Metadata
-impl core::marker::Sync for papo::Metadata
-impl core::marker::Unpin for papo::Metadata
-impl core::marker::UnsafeUnpin for papo::Metadata
-impl core::panic::unwind_safe::RefUnwindSafe for papo::Metadata
-impl core::panic::unwind_safe::UnwindSafe for papo::Metadata
 pub mod papo::numeric
 pub const papo::numeric::ERR_BADCHANMASK: u16
 pub const papo::numeric::ERR_BADCHANNELKEY: u16

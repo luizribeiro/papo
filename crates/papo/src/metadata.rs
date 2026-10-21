@@ -1,7 +1,4 @@
-//! Metadata APIs and registered key names.
-
-pub use crate::ext::metadata::Metadata;
-pub use papo_core::{MetadataValue, Visibility};
+//! Registered metadata key names.
 
 /// Registered metadata keys.
 pub mod keys {
