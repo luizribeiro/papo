@@ -92,49 +92,61 @@ pub(super) async fn wait_synced(events: &mut Events, channels: &[String]) {
 }
 
 pub(super) async fn wait_message(events: &mut Events, text: &str) -> Message {
-    loop {
-        match events.next().await {
-            Some(Event::Message(message)) if message.text == text => return *message,
-            Some(Event::Disconnected(disconnected)) => {
-                panic!("message failed: {disconnected}")
-            }
-            Some(_) => {}
-            None => panic!("driver stopped while waiting for {text}"),
-        }
-    }
+    wait_for(events, text, |event| match event {
+        Event::Message(message) if message.text == text => Some(*message),
+        _ => None,
+    })
+    .await
 }
 
 pub(super) async fn wait_message_starting_with(events: &mut Events, text: &str) -> Message {
-    loop {
-        match events.next().await {
-            Some(Event::Message(message)) if message.text.starts_with(text) => return *message,
-            Some(Event::Disconnected(disconnected)) => {
-                panic!("message failed: {disconnected}")
-            }
-            Some(_) => {}
-            None => panic!("driver stopped while waiting for {text}"),
-        }
-    }
+    wait_for(events, text, |event| match event {
+        Event::Message(message) if message.text.starts_with(text) => Some(*message),
+        _ => None,
+    })
+    .await
 }
 
 pub(super) async fn wait_op(events: &mut Events, channel: &str, nick: &str) {
+    wait_for(events, format!("+o {nick}"), |event| match event {
+        Event::ModeChanged(changed)
+            if matches!(&changed.subject, papo::Subject::Channel(name) if name == channel)
+                && changed.changes.iter().any(|change| {
+                    change.action == ModeAction::Add
+                        && change.mode == 'o'
+                        && matches!(&change.arg, Some(ModeArg::Nick(value)) if value == nick)
+                }) =>
+        {
+            Some(())
+        }
+        _ => None,
+    })
+    .await;
+}
+
+pub(super) async fn wait_join(events: &mut Events, nick: &str) {
+    wait_for(events, format!("{nick} to join"), |event| {
+        matches!(event, Event::Joined(ref joined) if joined.nick == nick).then_some(())
+    })
+    .await;
+}
+
+async fn wait_for<T>(
+    events: &mut Events,
+    expected: impl std::fmt::Display,
+    mut match_event: impl FnMut(Event) -> Option<T>,
+) -> T {
     loop {
         match events.next().await {
-            Some(Event::ModeChanged(changed))
-                if matches!(&changed.subject, papo::Subject::Channel(name) if name == channel)
-                    && changed.changes.iter().any(|change| {
-                        change.action == ModeAction::Add
-                            && change.mode == 'o'
-                            && matches!(change.arg.clone(), Some(ModeArg::Nick(value)) if value == nick)
-                    }) =>
-            {
-                return;
-            }
             Some(Event::Disconnected(disconnected)) => {
-                panic!("mode failed: {disconnected}")
+                panic!("waiting for {expected} failed: {disconnected}")
             }
-            Some(_) => {}
-            None => panic!("driver stopped while waiting for +o {nick}"),
+            Some(event) => {
+                if let Some(value) = match_event(event) {
+                    return value;
+                }
+            }
+            None => panic!("driver stopped while waiting for {expected}"),
         }
     }
 }

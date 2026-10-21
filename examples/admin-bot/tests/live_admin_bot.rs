@@ -7,7 +7,9 @@ use std::time::Duration;
 
 use papo::MessageKind;
 use papo_test_server::{create_account, from_env, unique};
-use support::{AdminBot, PASSWORD, connect, wait_message, wait_message_starting_with, wait_op};
+use support::{
+    AdminBot, PASSWORD, connect, wait_join, wait_message, wait_message_starting_with, wait_op,
+};
 use tokio::time::{sleep, timeout};
 
 #[tokio::test(flavor = "current_thread")]
@@ -96,13 +98,4 @@ async fn keeps_running_after_action_refusals() {
     })
     .await
     .expect("live admin bot refusal test did not finish within 20 seconds");
-}
-
-async fn wait_join(events: &mut papo::Events, nick: &str) {
-    while let Some(event) = events.next().await {
-        if matches!(event, papo::Event::Joined(joined) if joined.nick == nick) {
-            return;
-        }
-    }
-    panic!("driver stopped before {nick} joined");
 }
