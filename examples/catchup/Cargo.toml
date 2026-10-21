@@ -5,19 +5,19 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 version.workspace = true
-publish.workspace = true
+publish = false
 
 [[bin]]
 name = "catchup"
 path = "src/main.rs"
 
 [dependencies]
-papo = { path = "../../crates/papo", version = "=0.0.0" }
-papo-proto = { path = "../../crates/papo-proto", version = "=0.0.0" }
+papo = { path = "../../crates/papo", version = "=0.1.0" }
+papo-proto = { path = "../../crates/papo-proto", version = "=0.1.0" }
 tokio = { version = "1.53.3", features = ["macros", "rt"] }
 
 [dev-dependencies]
-papo-test-server = { path = "../../crates/papo-test-server", version = "=0.0.0" }
+papo-test-server = { path = "../../crates/papo-test-server", version = "=0.1.0" }
 tokio = { version = "1.53.3", features = ["time"] }
 
 [lints]

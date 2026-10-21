@@ -534,7 +534,7 @@ checksum = "7c87def4c32ab89d880effc9e097653c8da5d6ef28e6b539d313baaacfbafcbe"
 
 [[package]]
 name = "papo"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "futures-core",
  "futures-io",
@@ -560,7 +560,7 @@ dependencies = [
 
 [[package]]
 name = "papo-admin-bot"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "papo",
  "papo-bot",
@@ -571,7 +571,7 @@ dependencies = [
 
 [[package]]
 name = "papo-bot"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "futures-io",
  "papo",
@@ -582,7 +582,7 @@ dependencies = [
 
 [[package]]
 name = "papo-browser-worker"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "papo",
  "wasm-bindgen",
@@ -592,7 +592,7 @@ dependencies = [
 
 [[package]]
 name = "papo-catchup"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "papo",
  "papo-proto",
@@ -602,7 +602,7 @@ dependencies = [
 
 [[package]]
 name = "papo-conformance"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "papo",
  "papo-conformance-macros",
@@ -616,7 +616,7 @@ dependencies = [
 
 [[package]]
 name = "papo-conformance-macros"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -625,7 +625,7 @@ dependencies = [
 
 [[package]]
 name = "papo-core"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "base64",
  "hmac",
@@ -638,7 +638,7 @@ dependencies = [
 
 [[package]]
 name = "papo-create-account"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "papo",
  "papo-test-server",
@@ -647,7 +647,7 @@ dependencies = [
 
 [[package]]
 name = "papo-graceful-shutdown"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "papo",
  "papo-test-server",
@@ -656,7 +656,7 @@ dependencies = [
 
 [[package]]
 name = "papo-lurker"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "papo",
  "papo-proto",
@@ -666,14 +666,14 @@ dependencies = [
 
 [[package]]
 name = "papo-parse-example"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "papo-proto",
 ]
 
 [[package]]
 name = "papo-ping-bot"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "papo",
  "papo-test-server",
@@ -682,7 +682,7 @@ dependencies = [
 
 [[package]]
 name = "papo-proto"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "precis-profiles",
  "proptest",
@@ -691,7 +691,7 @@ dependencies = [
 
 [[package]]
 name = "papo-react-bot"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "papo",
  "papo-test-server",
@@ -700,21 +700,21 @@ dependencies = [
 
 [[package]]
 name = "papo-sts-store"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "papo",
 ]
 
 [[package]]
 name = "papo-test-server"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "serde_json",
 ]
 
 [[package]]
 name = "papo-testing"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "papo",
  "tokio",

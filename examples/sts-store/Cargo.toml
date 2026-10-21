@@ -5,10 +5,10 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 version.workspace = true
-publish.workspace = true
+publish = false
 
 [dependencies]
-papo = { path = "../../crates/papo", version = "=0.0.0" }
+papo = { path = "../../crates/papo", version = "=0.1.0" }
 
 [lints]
 workspace = true

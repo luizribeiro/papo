@@ -5,7 +5,11 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 version.workspace = true
-publish.workspace = true
+publish = true
+description = "IRC protocol parsing and construction for papo"
+readme = "../../README.md"
+keywords = ["irc", "ircv3", "protocol", "parser"]
+categories = ["network-programming", "parser-implementations"]
 
 [package.metadata.docs.rs]
 all-features = true

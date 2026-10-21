@@ -8,12 +8,12 @@ version.workspace = true
 publish = false
 
 [dependencies]
-papo = { path = "../papo", version = "=0.0.0", default-features = false, features = ["tls-ring", "unstable", "websocket"] }
-papo-core = { path = "../papo-core", version = "=0.0.0" }
-papo-conformance-macros = { path = "../papo-conformance-macros", version = "=0.0.0" }
-papo-proto = { path = "../papo-proto", version = "=0.0.0" }
-papo-test-server = { path = "../papo-test-server", version = "=0.0.0" }
-papo-testing = { path = "../papo-testing", version = "=0.0.0" }
+papo = { path = "../papo", version = "=0.1.0", default-features = false, features = ["tls-ring", "unstable", "websocket"] }
+papo-core = { path = "../papo-core", version = "=0.1.0" }
+papo-conformance-macros = { path = "../papo-conformance-macros", version = "=0.1.0" }
+papo-proto = { path = "../papo-proto", version = "=0.1.0" }
+papo-test-server = { path = "../papo-test-server", version = "=0.1.0" }
+papo-testing = { path = "../papo-testing", version = "=0.1.0" }
 tokio = { version = "1.53.3", features = ["io-util", "rt", "time"] }
 toml = { version = "1.1.8", default-features = false, features = ["parse", "serde"] }
 
