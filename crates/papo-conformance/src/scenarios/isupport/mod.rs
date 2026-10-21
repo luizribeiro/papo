@@ -6,6 +6,7 @@ mod chanmode_classes;
 mod channellen_limit;
 mod chantypes_detection;
 mod isupport_snapshot;
+mod maxlist_limit;
 mod modes_limit;
 mod nicklen_limit;
 mod prefix_above_rank_refused;
@@ -27,6 +28,8 @@ pub(crate) use channellen_limit::__papo_scenario_spec_channellen_limit;
 pub(crate) use chantypes_detection::__papo_scenario_spec_chantypes_detection;
 #[cfg(all(target_os = "wasi", not(target_env = "p1")))]
 pub(crate) use isupport_snapshot::__papo_scenario_spec_isupport_snapshot;
+#[cfg(all(target_os = "wasi", not(target_env = "p1")))]
+pub(crate) use maxlist_limit::__papo_scenario_spec_maxlist_limit;
 #[cfg(all(target_os = "wasi", not(target_env = "p1")))]
 pub(crate) use modes_limit::__papo_scenario_spec_modes_limit;
 #[cfg(all(target_os = "wasi", not(target_env = "p1")))]
