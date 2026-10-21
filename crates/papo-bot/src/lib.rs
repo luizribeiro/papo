@@ -1,6 +1,40 @@
 //! Command parsing, addressing, and reply-rate helpers for bots built with [`papo`]. Most users
 //! want `papo` alone; use `papo-bot` directly when an application needs its opinionated command
 //! layer.
+//!
+//! # Writing a bot
+//!
+//! Pass each message to [`BotConfig::command`]. It accepts live `PRIVMSG` commands addressed by
+//! prefix or mention and ignores known bots by default. Authorize privileged commands with
+//! [`Command::account_in`], which checks the message's account tag; a nickname alone is not an
+//! identity. [`Command::reply`] applies the configuration's shared reply limit. Its default is two
+//! calls per conversation every five seconds, and [`ReplyStatus::Dropped`] reports a limited
+//! reply; use [`ReplyRateLimiter`] to choose another budget.
+//!
+//! Move slow asynchronous work out of the event loop so events keep being read. A [`Client`] is
+//! cheap to clone into a spawned task:
+//!
+//! ```no_run
+//! use papo::{Client, Event};
+//! use papo_bot::BotConfig;
+//!
+//! # async fn lookup(_client: &Client, query: String) -> String { query }
+//! # async fn handle(client: &Client, commands: &BotConfig, event: Event) {
+//! let Event::Message(message) = event else { return };
+//! let Some(command) = commands.command(client, &message) else { return };
+//! if command.name() == "lookup" && command.account_in(["alice"]) {
+//!     let client = client.clone();
+//!     let command = command.clone();
+//!     let query = command.rest().to_owned();
+//!     tokio::spawn(async move {
+//!         let answer = lookup(&client, query).await;
+//!         if let Err(error) = command.reply(answer).await {
+//!             eprintln!("could not reply: {error}");
+//!         }
+//!     });
+//! }
+//! # }
+//! ```
 
 use std::{
     collections::{HashMap, VecDeque},
