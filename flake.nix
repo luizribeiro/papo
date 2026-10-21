@@ -382,7 +382,7 @@
           };
           doctests = cargoHook {
             name = "doctests-hook";
-            text = "cargo test --doc --workspace --locked";
+            text = "cargo test --doc --workspace --all-features --locked";
             stages = [ "pre-push" ];
           };
           docs = cargoHook {
