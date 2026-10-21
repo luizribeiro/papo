@@ -256,13 +256,15 @@
               export WASI_SDK_PATH=${wasiSdk}
               cargo check -p papo-proto -p papo-core --all-targets --target wasm32-wasip1 --locked
               cargo check -p papo --example custom_stream --no-default-features --target wasm32-wasip1 --locked
+              cargo check -p papo-bot --target wasm32-wasip1 --locked
               cargo check -p papo-proto -p papo-core --all-targets --target wasm32-wasip2 --locked
               cargo check -p papo-proto --all-targets --all-features --target wasm32-wasip2 --locked
-              cargo check -p papo --tests --target wasm32-wasip2 --locked
+              cargo check -p papo -p papo-bot --tests --target wasm32-wasip2 --locked
               cargo check -p papo-proto -p papo-core --target wasm32-unknown-unknown --locked
               cargo check -p papo --target wasm32-unknown-unknown --no-default-features --locked
               cargo check -p papo --target wasm32-unknown-unknown --locked
               cargo check -p papo --target wasm32-unknown-unknown --all-features --locked
+              cargo check -p papo-bot --target wasm32-unknown-unknown --locked
               PAPO_BROWSER_WS=ws://127.0.0.1 cargo check -p papo --tests --target wasm32-unknown-unknown --locked
               cargo check -p papo -p papo-conformance --target wasm32-wasip2 --locked
               cargo test -p papo-conformance --lib --target wasm32-wasip2 --locked registered_scenarios_are_complete_and_sorted
@@ -276,7 +278,7 @@
               export WASI_SDK_PATH=${wasiSdk}
               ${cargoWasip3}/bin/cargo-wasip3 check -p papo-proto -p papo-core --all-targets --locked
               ${cargoWasip3}/bin/cargo-wasip3 check -p papo-proto --all-targets --all-features --locked
-              ${cargoWasip3}/bin/cargo-wasip3 check -p papo -p papo-conformance --locked
+              ${cargoWasip3}/bin/cargo-wasip3 check -p papo -p papo-bot -p papo-conformance --locked
               ${cargoWasip3}/bin/cargo-wasip3 test -p papo-conformance --lib --locked registered_scenarios_are_complete_and_sorted
             '';
           };
@@ -311,20 +313,26 @@
                     --rustdoc-json "$target/doc/$crate.json" \
                     --color=never -s | bash nix/normalize-public-api.sh > "$actual"
                 fi
-                if [[ "$package" == papo ]] && grep -Eq 'papo_(core|proto)::' "$actual"; then
-                  echo "public API contains a foreign papo-core or papo-proto path" >&2
+                if [[ "$package" =~ ^papo(-bot)?$ ]] && grep -Eq 'papo_(core|proto)::' "$actual"; then
+                  echo "$package public API contains a foreign papo-core or papo-proto path" >&2
                   grep -En 'papo_(core|proto)::' "$actual" >&2
+                  return 1
+                fi
+                if [[ "$package" == papo-bot ]] && grep -Eq 'papo::(client|event_impl|error)::' "$actual"; then
+                  echo "papo-bot public API contains a private papo module path" >&2
+                  grep -En 'papo::(client|event_impl|error)::' "$actual" >&2
                   return 1
                 fi
                 diff -u "$expected" "$actual"
                 rm -f "$actual"
               }
-              stable=bot,websocket,tls-aws-lc,tls-ring
+              stable=websocket,tls-aws-lc,tls-ring
               check_api papo-proto papo_proto "" crates/papo-proto/public-api.txt target/public-api/papo-proto
               check_api papo-core papo_core "" crates/papo-core/public-api.txt target/public-api/papo-core-stable
               check_api papo-core papo_core unstable crates/papo-core/public-api-unstable.txt target/public-api/papo-core-unstable
               check_api papo papo "$stable" crates/papo/public-api.txt target/public-api/papo-stable
               check_api papo papo "$stable,unstable" crates/papo/public-api-unstable.txt target/public-api/papo-unstable
+              check_api papo-bot papo_bot "" crates/papo-bot/public-api.txt target/public-api/papo-bot
             '';
           };
           plain-tests = cargoHook {
@@ -358,6 +366,7 @@
             text = ''
               cargo test --workspace --locked --target wasm32-wasip2
               cargo test -p papo-proto --all-features --locked --target wasm32-wasip2
+              cargo test -p papo-bot --locked --target wasm32-wasip2
             '';
             stages = [ "pre-push" ];
           };
