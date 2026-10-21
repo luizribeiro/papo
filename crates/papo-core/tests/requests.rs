@@ -610,6 +610,65 @@ fn kick_refusals_resolve_only_the_named_concurrent_request() {
 }
 
 #[test]
+fn invite_refusals_resolve_only_the_named_concurrent_request() {
+    let now = Instant::now();
+    let cases: [(&[&str], &str); 4] = [
+        (
+            &[":irc.solanum.test 403 papo #rust :No such channel"],
+            ":irc.solanum.test 403 papo #papo :No such channel",
+        ),
+        (
+            &[":irc.unreal.test 442 papo #rust :You're not on that channel"],
+            ":irc.unreal.test 442 papo #papo :You're not on that channel",
+        ),
+        (
+            &[":ergo.test 482 papo #rust :You're not a channel operator"],
+            ":ergo.test 482 papo #papo :You're not a channel operator",
+        ),
+        (
+            &[
+                ":irc.unreal.test 443 papo carol #rust :is already on channel",
+                ":irc.unreal.test 443 papo alice #papo :is already on channel",
+            ],
+            ":irc.unreal.test 443 papo carol #papo :is already on channel",
+        ),
+    ];
+
+    for (unrelated, refusal) in cases {
+        let mut session = Session::new(Config::default().nick("papo"));
+        let invite = session
+            .request_with_matcher(
+                now,
+                Line::new("INVITE", ["carol", "#papo"]),
+                ResponseMatcher::Invite {
+                    channel: "#papo".into(),
+                    nick: "carol".into(),
+                },
+            )
+            .unwrap();
+        let mode = session
+            .request_with_matcher(
+                now,
+                Line::new("MODE", ["#review", "+m"]),
+                ResponseMatcher::Mode("#review".into()),
+            )
+            .unwrap();
+
+        for line in unrelated {
+            session.handle_line(now, line.as_bytes());
+            assert_no_response(&mut session);
+        }
+        session.handle_line(now, refusal.as_bytes());
+        assert_eq!(response_id(&mut session), invite);
+
+        session.handle_line(now, b":papo!papo@localhost MODE #review +m");
+        assert_no_response(&mut session);
+        session.handle_line(now, b":ergo.test PONG ergo.test :papo-mode-1");
+        assert_eq!(response_id(&mut session), mode);
+    }
+}
+
+#[test]
 fn concurrent_unlabelled_whois_uses_targets_then_fifo_order() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
