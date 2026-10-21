@@ -156,7 +156,6 @@ impl Isupport {
 
     /// Returns the server's Web Push VAPID public key.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     #[must_use]
     pub fn vapid(&self) -> Option<&str> {
         self.inner.vapid()
@@ -259,7 +258,6 @@ impl Isupport {
     /// expose authentication secrets. Non-HTTPS endpoints are ignored.
     #[must_use]
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub fn filehost(&self) -> Option<&str> {
         ["draft/FILEHOST", "soju.im/FILEHOST"]
             .into_iter()

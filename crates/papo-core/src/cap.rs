@@ -117,7 +117,6 @@ pub enum Request {
     Superseded(&'static str),
     /// Requested only when the application enables the corresponding feature.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     OptIn(&'static str, Feature),
 }
 
@@ -139,13 +138,11 @@ pub struct CapInfo {
 macro_rules! capability_constant {
     (#[cfg(feature = $feature:literal)] [cap] $constant:ident = $value:literal; $doc:literal) => {
         #[cfg(feature = $feature)]
-        #[cfg_attr(docsrs, doc(cfg(feature = $feature)))]
         #[doc = $doc]
         pub const $constant: Cap = Cap::new($value);
     };
     (#[cfg(feature = $feature:literal)] $constant:ident = $value:literal; $doc:literal) => {
         #[cfg(feature = $feature)]
-        #[cfg_attr(docsrs, doc(cfg(feature = $feature)))]
         #[doc = $doc]
         pub const $constant: &str = $value;
     };

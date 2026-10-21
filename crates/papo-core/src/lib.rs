@@ -106,7 +106,6 @@ use papo_proto::{
 use account_registration::{AccountRegistration, PendingRegistration, RegistrationPolicy};
 use batch::{BatchAction, BatchEvent, Batches, DispatchContext};
 #[cfg(feature = "unstable")]
-#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use bouncer::{BouncerNetwork, NetworkConfig, NetworkId, NetworkState};
 use caps::Caps;
 pub use features::{Feature, Unsupported, UnsupportedReason};
@@ -462,7 +461,6 @@ pub struct Config {
     pub disabled_caps: Vec<String>,
     /// Optional extension features explicitly enabled by the application.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub enabled_features: BTreeSet<Feature>,
     /// Alternative nicknames to try when the requested nickname collides while connecting.
     pub alt_nicks: Vec<String>,
@@ -494,7 +492,6 @@ pub struct Config {
     pub metadata_subscriptions: Vec<String>,
     /// Upstream bouncer network selected before the connection completes.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub bouncer_network: Option<NetworkId>,
     registration_on_connect: Option<PendingRegistration>,
 }
@@ -598,7 +595,6 @@ impl Default for Config {
 impl Config {
     /// Enables an unstable extension feature before connecting.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     #[must_use]
     pub fn enable(mut self, feature: Feature) -> Self {
         self.enabled_features.insert(feature);
@@ -1462,14 +1458,12 @@ pub struct StandardReply {
     pub description: String,
     /// Classification recorded using the negotiated unstable features.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     #[doc(hidden)]
     pub refusal: Refusal,
 }
 
 /// An account's configured persistence preference.
 #[cfg(feature = "unstable")]
-#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum PersistenceSetting {
@@ -1485,7 +1479,6 @@ pub enum PersistenceSetting {
 impl PersistenceSetting {
     /// Returns the wire token for this setting.
     #[must_use]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::On => "ON",
@@ -1506,7 +1499,6 @@ impl PersistenceSetting {
 
 /// Server-reported account persistence state.
 #[cfg(feature = "unstable")]
-#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct PersistenceStatus {
@@ -1810,15 +1802,12 @@ pub enum RequestError {
     },
     /// A relayed nickname contains none of the server-advertised separator characters.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     InvalidRelayNickname,
     /// A web push endpoint is not a nonempty HTTPS URL.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     InvalidWebPushEndpoint,
     /// A web push key is not valid URL-safe base64.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     InvalidWebPushKey,
 }
 
@@ -2035,11 +2024,9 @@ pub enum Event {
     },
     /// The server reported the account's persistence state.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     PersistenceStatus(PersistenceStatus),
     /// An upstream bouncer network was added, updated, or removed.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     #[non_exhaustive]
     BouncerNetworkChanged {
         /// Bouncer-assigned network identifier.
@@ -2547,7 +2534,6 @@ pub enum StateLimit {
     MetadataKeys,
     /// Upstream bouncer networks.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     BouncerNetworks,
 }
 
@@ -3658,7 +3644,6 @@ impl Session {
     /// Reports whether the server will restore joined channels for this account.
     #[must_use]
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub fn server_rejoins_channels(&self) -> bool {
         self.state
             .persistence()

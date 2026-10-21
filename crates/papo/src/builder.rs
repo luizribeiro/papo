@@ -160,7 +160,6 @@ impl Builder {
 
     /// Selects an upstream bouncer network before the connection completes.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub fn bouncer_network(mut self, id: crate::NetworkId) -> Self {
         self.config = self.config.enable(crate::Feature::Bouncer);
         self.config.bouncer_network = Some(id);
@@ -169,7 +168,6 @@ impl Builder {
 
     /// Enables an unstable extension feature for capability negotiation.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub fn enable(mut self, feature: crate::Feature) -> Self {
         self.config = self.config.enable(feature);
         self

@@ -976,7 +976,6 @@ impl State {
 
     /// Iterates over upstream networks reported by the bouncer.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub fn bouncer_networks(&self) -> impl Iterator<Item = &BouncerNetwork> {
         self.bouncer_networks.values()
     }

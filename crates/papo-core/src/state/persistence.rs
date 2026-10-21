@@ -32,7 +32,6 @@ impl State {
     /// Returns the server-reported account persistence status.
     #[must_use]
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub const fn persistence(&self) -> Option<PersistenceStatus> {
         self.persistence
     }

@@ -1,7 +1,6 @@
 use crate::{BouncerNetwork, Client, Error, NetworkConfig, NetworkId, driver::CoreRequest};
 
 /// Handle for upstream bouncer network management.
-#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub struct Bouncer {
     client: Client,
 }
@@ -15,7 +14,6 @@ impl std::fmt::Debug for Bouncer {
 impl Client {
     /// Returns a handle for upstream bouncer network management.
     #[must_use]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub fn bouncer(&self) -> Bouncer {
         Bouncer {
             client: self.clone(),

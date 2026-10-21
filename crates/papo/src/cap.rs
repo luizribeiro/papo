@@ -14,5 +14,4 @@ pub use papo_core::cap::{
     CHANNEL_RENAME, EXTENDED_ISUPPORT, MESSAGE_REDACTION, NO_IMPLICIT_NAMES, PRE_AWAY, WHOAMI,
 };
 #[cfg(feature = "unstable")]
-#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use papo_core::cap::{PERSISTENCE, RELAYMSG, WEBPUSH};

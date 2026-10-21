@@ -5,7 +5,6 @@ use papo_core::{BatchAbandonReason, StateLimit};
 
 /// An upstream bouncer network was added, updated, or removed.
 #[cfg(feature = "unstable")]
-#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct BouncerNetworkChanged {

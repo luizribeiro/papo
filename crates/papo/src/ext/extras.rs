@@ -49,7 +49,6 @@ impl Client {
     /// [`crate::Refusal::Other`]. It can also return [`crate::Error::TooManyPendingRequests`],
     /// [`crate::Error::Timeout`], or [`crate::Error::Disconnected`].
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub fn relay(
         &self,
         channel: impl AsRef<str>,

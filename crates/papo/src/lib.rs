@@ -186,7 +186,6 @@ pub use error::{
 pub use event_impl::{Authorship, Event, Message, MessageKind, Origin, Source, Tags};
 pub use ext::accounts::{AccountCreation, NewAccount};
 #[cfg(feature = "unstable")]
-#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use ext::bouncer::Bouncer;
 pub use ext::history::{
     ConversationInput, History, HistoryItem, HistoryPage, HistoryReference, HistoryRequest,
@@ -195,10 +194,8 @@ pub use ext::history::{
 pub use ext::metadata::Metadata;
 pub use ext::monitor::Monitor;
 #[cfg(feature = "unstable")]
-#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use ext::persistence::Persistence;
 #[cfg(feature = "unstable")]
-#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use ext::webpush::{PushKeys, WebPush};
 pub use isupport_impl::Isupport;
 pub use message_ref::MessageRef;
@@ -211,7 +208,6 @@ pub use papo_core::{
     ModeChange, ModeValue, Rank, Typer, User,
 };
 #[cfg(feature = "unstable")]
-#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use papo_core::{BouncerNetwork, NetworkConfig, NetworkId, NetworkState};
 #[doc(inline)]
 pub use papo_core::{CtcpReplies, InvalidRateLimit, RateLimit, Sasl, WhoOnJoin};
@@ -219,7 +215,6 @@ pub use papo_core::{CtcpReplies, InvalidRateLimit, RateLimit, Sasl, WhoOnJoin};
 pub use papo_core::{ListMode, ModeListEntry, Refusal, StateLimit};
 pub use papo_core::{MetadataValue, Visibility};
 #[cfg(feature = "unstable")]
-#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use papo_core::{PersistenceSetting, PersistenceStatus};
 #[doc(inline)]
 pub use papo_core::{Unsupported, UnsupportedReason};
@@ -246,7 +241,6 @@ pub enum Subject {
 /// Payloads carried by [`Event`].
 pub mod event {
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub use crate::event_impl::BouncerNetworkChanged;
     pub use crate::event_impl::{
         AccountChanged, AwayChanged, BatchAbandonReason, CapsChanged, CasemappingChanged,

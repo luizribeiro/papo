@@ -190,55 +190,42 @@ pub enum Refusal {
     InvalidUtf8,
     /// A bouncer network identifier does not exist.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     InvalidNetwork,
     /// A bouncer network attribute value is invalid.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     InvalidAttribute,
     /// A bouncer network attribute cannot be changed.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     ReadOnlyAttribute,
     /// A bouncer does not recognize a network attribute.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     UnknownAttribute,
     /// A required bouncer network attribute is missing.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     MissingAttribute,
     /// Relay messaging is disabled by server configuration.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     RelayDisabled,
     /// The session lacks permission to relay a message.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     RelayPrivilegesNeeded,
     /// The supplied relay message is blank.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     BlankRelayMessage,
     /// The supplied relay nickname is invalid.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     InvalidRelayNickname,
     /// The relayed sender is banned from the channel.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     BannedRelaySender,
     /// Web Push parameters are invalid.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     InvalidWebPushParameters,
     /// The account has reached its Web Push registration limit.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     WebPushRegistrationLimit,
     /// Persistence parameters are invalid.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     InvalidPersistenceParameters,
     /// A refusal without a more specific classification.
     ///

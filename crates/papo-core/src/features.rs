@@ -44,22 +44,18 @@ pub enum Feature {
     AccountCreation,
     /// Upstream network management on an IRC bouncer.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     Bouncer,
     /// `IRCv3` draft account persistence, requiring `draft/persistence`.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     Persistence,
     /// `IRCv3` draft Web Push, requiring `draft/webpush` or Soju's vendor
     /// capability `soju.im/webpush`.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     WebPush,
     /// `IRCv3` draft channel renaming, requiring `draft/channel-rename`.
     ChannelRename,
     /// `IRCv3` draft relay messages, requiring `draft/relaymsg`.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     Relay,
     /// Published `IRCv3` labelled responses, requiring `labeled-response`.
     LabeledResponse,

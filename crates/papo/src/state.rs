@@ -249,14 +249,12 @@ impl State {
     /// Returns the upstream network bound to this bouncer connection.
     #[must_use]
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub const fn bouncer_network(&self) -> Option<&papo_core::NetworkId> {
         self.bouncer_network.as_ref()
     }
 
     /// Iterates over upstream networks reported by the bouncer.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub fn bouncer_networks(&self) -> impl Iterator<Item = &papo_core::BouncerNetwork> {
         self.core.bouncer_networks()
     }
@@ -270,7 +268,6 @@ impl State {
     /// Returns the most recently reported account persistence status.
     #[must_use]
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub fn persistence(&self) -> Option<crate::PersistenceStatus> {
         self.core.persistence()
     }
@@ -341,7 +338,6 @@ impl State {
     /// expose authentication secrets. Non-HTTPS endpoints are ignored.
     #[must_use]
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub fn filehost(&self) -> Option<&str> {
         self.isupport.filehost()
     }

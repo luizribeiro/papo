@@ -18,15 +18,12 @@ pub mod keys {
     pub const STATUS: &str = "status";
     /// Whether a user or channel is pinned in a Soju-compatible client.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub const PINNED: &str = "soju.im/pinned";
     /// Whether a user or channel is muted in a Soju-compatible client.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub const MUTED: &str = "soju.im/muted";
     /// Whether a user or channel is blocked in a Soju-compatible client.
     #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub const BLOCKED: &str = "soju.im/blocked";
 }
 
