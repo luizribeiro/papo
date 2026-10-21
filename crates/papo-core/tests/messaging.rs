@@ -167,15 +167,23 @@ fn wire(session: &mut Session) -> Option<String> {
         .map(|line| String::from_utf8(line).unwrap())
 }
 
+fn connected_ctcp(replies: CtcpReplies) -> Transcript {
+    Transcript::new(Config::default().wanted_caps([] as [&str; 0]).ctcp(replies))
+        .connect_default()
+        .server(":ergo.test CAP * LS :")
+        .client("CAP END")
+        .welcome(":ergo.test 001 papo :Welcome to Ergo")
+        .server(":ergo.test 376 papo :End of MOTD")
+        .event(|event| matches!(event, Event::Connected(_)))
+}
+
 #[test]
 fn answers_supported_ctcp_queries_and_applies_safety_rules() {
     let now = Instant::now();
-    let replies = CtcpReplies {
-        version: Some("papo test build".into()),
-        ping: true,
-        time: None,
-        source: Some("https://example.invalid/papo".into()),
-    };
+    let mut replies = CtcpReplies::default()
+        .version(Some("papo test build"))
+        .rate(RateLimit::unlimited());
+    replies.source = Some("https://example.invalid/papo".into());
     let mut session = Session::new(
         Config::default()
             .rate_limit(RateLimit::unlimited())
@@ -214,12 +222,9 @@ fn answers_supported_ctcp_queries_and_applies_safety_rules() {
 
 #[test]
 fn reports_ctcp_queries_replies_and_actions_while_auto_answering() {
-    let replies = CtcpReplies {
-        version: Some("papo test build".into()),
-        ping: true,
-        time: None,
-        source: None,
-    };
+    let replies = CtcpReplies::default()
+        .version(Some("papo test build"))
+        .rate(RateLimit::unlimited());
     Transcript::new(
         Config::default()
             .nick("papo")
@@ -259,14 +264,9 @@ fn does_not_answer_own_ctcp_queries() {
 }
 
 #[test]
-fn honors_disabled_ping_and_time_replies() {
+fn disabled_ctcp_replies_answer_nothing() {
     let now = Instant::now();
-    let replies = CtcpReplies {
-        version: None,
-        ping: false,
-        time: None,
-        source: None,
-    };
+    let replies = CtcpReplies::off();
     let mut session = Session::new(
         Config::default()
             .rate_limit(RateLimit::unlimited())
@@ -277,19 +277,51 @@ fn honors_disabled_ping_and_time_replies() {
         b":alice!~a@cloak PRIVMSG papo :\x01PING 1731513600\x01",
     );
     assert_eq!(wire(&mut session), None);
-    session.handle_line(now, b":bob!~b@cloak PRIVMSG papo :\x01TIME\x01");
+    session.handle_line(now, b":bob!~b@cloak PRIVMSG papo :\x01VERSION\x01");
     assert_eq!(wire(&mut session), None);
+}
+
+#[test]
+fn disabling_version_still_answers_ping() {
+    connected_ctcp(CtcpReplies::default().version(None))
+        .server(":alice!~a@cloak PRIVMSG papo :\x01VERSION\x01")
+        .no_client()
+        .event(|event| matches!(event, Event::Line(_)))
+        .server(":bob!~b@cloak PRIVMSG papo :\x01PING 1731513600\x01")
+        .client("NOTICE bob :\x01PING 1731513600\x01")
+        .event(|event| matches!(event, Event::Line(_)));
+}
+
+#[test]
+fn caps_ctcp_replies_across_several_senders() {
+    let replies = CtcpReplies::default()
+        .version(Some("papo test build"))
+        .rate(RateLimit::new(2, std::time::Duration::from_secs(2)).unwrap());
+    connected_ctcp(replies)
+        .server(":alice!~a@cloak PRIVMSG papo :\x01VERSION\x01")
+        .client("NOTICE alice :\x01VERSION papo test build\x01")
+        .event(|event| matches!(event, Event::Line(_)))
+        .server(":bob!~b@cloak PRIVMSG papo :\x01PING 1731513600\x01")
+        .client("NOTICE bob :\x01PING 1731513600\x01")
+        .event(|event| matches!(event, Event::Line(_)))
+        .server(":carol!~c@cloak PRIVMSG papo :\x01VERSION\x01")
+        .no_client()
+        .event(|event| matches!(event, Event::Line(_)))
+        .advance(std::time::Duration::from_secs(1))
+        .server(":dan!~d@cloak PRIVMSG papo :\x01PING 1731513601\x01")
+        .no_client()
+        .event(|event| matches!(event, Event::Line(_)))
+        .advance(std::time::Duration::from_secs(1))
+        .server(":erin!~e@cloak PRIVMSG papo :\x01VERSION\x01")
+        .client("NOTICE erin :\x01VERSION papo test build\x01")
+        .event(|event| matches!(event, Event::Line(_)));
 }
 
 #[test]
 fn answers_time_with_the_injected_wall_clock_value() {
     let now = Instant::now();
-    let replies = CtcpReplies {
-        version: None,
-        ping: false,
-        time: Some("Thu Oct 15 16:30:00 2026 EDT".into()),
-        source: None,
-    };
+    let mut replies = CtcpReplies::off();
+    replies.time = Some("Thu Oct 15 16:30:00 2026 EDT".into());
     let mut session = Session::new(
         Config::default()
             .rate_limit(RateLimit::unlimited())
@@ -305,7 +337,11 @@ fn answers_time_with_the_injected_wall_clock_value() {
 #[test]
 fn ctcp_source_bound_evicts_only_when_full() {
     let now = Instant::now();
-    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    let mut session = Session::new(
+        Config::default()
+            .rate_limit(RateLimit::unlimited())
+            .ctcp(CtcpReplies::default().rate(RateLimit::unlimited())),
+    );
     for index in 0..1024 {
         session.handle_line(
             now,

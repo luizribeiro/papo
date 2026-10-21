@@ -1350,9 +1350,15 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Connection
 impl core::panic::unwind_safe::UnwindSafe for papo_core::Connection
 pub struct papo_core::CtcpReplies
 pub papo_core::CtcpReplies::ping: bool
+pub papo_core::CtcpReplies::rate: papo_core::RateLimit
 pub papo_core::CtcpReplies::source: core::option::Option<alloc::string::String>
 pub papo_core::CtcpReplies::time: core::option::Option<alloc::string::String>
 pub papo_core::CtcpReplies::version: core::option::Option<alloc::string::String>
+impl papo_core::CtcpReplies
+pub fn papo_core::CtcpReplies::off() -> Self
+pub const fn papo_core::CtcpReplies::ping(self, bool) -> Self
+pub const fn papo_core::CtcpReplies::rate(self, papo_core::RateLimit) -> Self
+pub fn papo_core::CtcpReplies::version(self, core::option::Option<&str>) -> Self
 impl core::clone::Clone for papo_core::CtcpReplies
 pub fn papo_core::CtcpReplies::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::CtcpReplies

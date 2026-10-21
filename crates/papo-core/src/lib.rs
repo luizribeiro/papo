@@ -248,6 +248,8 @@ pub struct CtcpReplies {
     pub time: Option<String>,
     /// SOURCE reply, or `None` to disable it.
     pub source: Option<String>,
+    /// Overall reply budget shared across all senders.
+    pub rate: RateLimit,
 }
 
 /// Away state to announce when connecting.
@@ -267,7 +269,44 @@ impl Default for CtcpReplies {
             ping: true,
             time: None,
             source: None,
+            rate: RateLimit::new(2, Duration::from_secs(2))
+                .expect("the default CTCP reply rate is valid"),
         }
+    }
+}
+
+impl CtcpReplies {
+    /// Disables every automatic CTCP reply.
+    #[must_use]
+    pub fn off() -> Self {
+        Self {
+            version: None,
+            ping: false,
+            time: None,
+            source: None,
+            ..Self::default()
+        }
+    }
+
+    /// Sets the VERSION reply, or disables it with `None`.
+    #[must_use]
+    pub fn version(mut self, text: Option<&str>) -> Self {
+        self.version = text.map(str::to_owned);
+        self
+    }
+
+    /// Enables or disables PING replies.
+    #[must_use]
+    pub const fn ping(mut self, enabled: bool) -> Self {
+        self.ping = enabled;
+        self
+    }
+
+    /// Sets the overall reply budget shared across all senders.
+    #[must_use]
+    pub const fn rate(mut self, rate: RateLimit) -> Self {
+        self.rate = rate;
+        self
     }
 }
 
@@ -2037,6 +2076,7 @@ pub struct Session {
     caps: Caps,
     casemapping_baseline: Casemapping,
     casemapping_change_emitted: bool,
+    ctcp_rate_limit: RateLimiter,
     ctcp_sources: VecDeque<(String, Instant)>,
     framer: Framer,
     isupport: IsupportState,
@@ -2073,6 +2113,7 @@ impl std::fmt::Debug for Session {
                 "casemapping_change_emitted",
                 &self.casemapping_change_emitted,
             )
+            .field("ctcp_rate_limit", &self.ctcp_rate_limit)
             .field("ctcp_sources", &self.ctcp_sources)
             .field("framer", &self.framer)
             .field("isupport", &self.isupport)
@@ -2287,6 +2328,7 @@ impl Session {
         let isupport = IsupportState::new(config.decoding);
         let sasl = SaslSession::new(&config, entropy);
         let rate_limit = RateLimiter::new(config.rate_limit);
+        let ctcp_rate_limit = RateLimiter::new(config.ctcp.rate);
         let state = State::new(&config);
         let batches = Batches::new(&config);
         Self {
@@ -2299,6 +2341,7 @@ impl Session {
             caps: Caps::default(),
             casemapping_baseline: remembered_casemapping,
             casemapping_change_emitted: false,
+            ctcp_rate_limit,
             ctcp_sources: VecDeque::new(),
             framer: Framer::default(),
             isupport,
@@ -2335,6 +2378,7 @@ impl Session {
         self.framer.reset();
         self.outbox.reset_connection();
         self.batches.reset();
+        self.ctcp_rate_limit.reset(now);
         self.ctcp_sources.clear();
         self.requests.clear();
         self.unlabelled_requests.clear();
@@ -3566,6 +3610,10 @@ impl Session {
                 .is_some_and(|deadline| now < deadline)
         });
         if self.ctcp_sources.iter().any(|(source, _)| source == nick) {
+            return true;
+        }
+        self.ctcp_rate_limit.advance(now);
+        if !self.ctcp_rate_limit.take(false) {
             return true;
         }
         if self.ctcp_sources.len() == MAX_CTCP_SOURCES {
