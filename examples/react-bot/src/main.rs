@@ -23,6 +23,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         if !message.is_live() {
             continue;
         }
+        // Reactions are optional, so a refusal does not stop the bot.
         let _ = client.react(&message, "👍").await;
     }
     Ok(())
