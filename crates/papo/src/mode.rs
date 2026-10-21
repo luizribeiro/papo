@@ -1,9 +1,11 @@
 use std::future::IntoFuture;
 
-use papo_core::ResponseMatcher;
-use papo_proto::{AccountName, Casemapping, Isupport, Line, Mask, ModeKind, Nick};
+use papo_core::{Response, ResponseMatcher};
+use papo_proto::{
+    AccountName, Casemapping, Command, Isupport, Line, Mask, ModeChanges, ModeKind, Nick, Source,
+};
 
-use crate::{Client, Error, InvalidInput, ModeChange, RequestFuture};
+use crate::{Client, Error, InvalidInput, ModeAction, ModeArg, ModeChange, RequestFuture};
 
 /// A validated extended-ban value.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -222,16 +224,21 @@ impl IntoFuture for SetModes {
                 .map(|change| change.resolve(&state))
                 .collect::<Result<Vec<_>, _>>()?;
             let messages = encode(state.isupport().inner(), &self.target, &changes)?;
-            for message in messages {
+            let maximum = state.isupport().modes().unwrap_or(changes.len()).max(1);
+            let requested = changes
+                .iter()
+                .map(|change| change.typed(&state))
+                .collect::<Result<Vec<_>, _>>()?;
+            let mut applied = Vec::new();
+            for (message, requested) in messages.into_iter().zip(requested.chunks(maximum)) {
                 let response = self
                     .client
                     .correlated(message, Some(ResponseMatcher::Mode(self.target.clone())))
                     .await?;
                 crate::requests::empty(&response)?;
+                applied.extend(confirmed(&response, &state, &self.target, requested));
             }
-            Ok(ModesApplied {
-                applied: Vec::new(),
-            })
+            Ok(ModesApplied { applied })
         })
     }
 }
@@ -312,6 +319,25 @@ impl Change {
             other => other,
         };
         Ok(Self { arg, ..self })
+    }
+
+    fn typed(&self, state: &crate::State) -> Result<ModeChange, Error> {
+        let mode = validate(state.isupport().inner(), self)?;
+        let kind = mode_kind(state.isupport().inner(), mode);
+        let arg = self.arg.as_ref().map(|argument| match kind {
+            ModeKind::Prefix(_) => ModeArg::Nick(state.nickname(argument.text())),
+            ModeKind::List => ModeArg::Mask(state.mask(argument.text())),
+            _ => ModeArg::Value(argument.text().to_owned()),
+        });
+        Ok(ModeChange {
+            mode,
+            action: if self.set {
+                ModeAction::Add
+            } else {
+                ModeAction::Remove
+            },
+            arg,
+        })
     }
 }
 
@@ -432,6 +458,69 @@ fn mode_kind(isupport: &Isupport, mode: char) -> ModeKind {
         ModeKind::NoArg
     } else {
         ModeKind::Unknown
+    }
+}
+
+fn confirmed(
+    response: &Response,
+    state: &crate::State,
+    target: &str,
+    requested: &[ModeChange],
+) -> Vec<ModeChange> {
+    let mut remaining = requested.to_vec();
+    let mut applied = Vec::new();
+    for line in &response.lines {
+        let line = line.as_ref();
+        let own_echo = matches!(line.source(), Some(Source::User { nick, .. }) if state.nickname(nick) == *state.nick());
+        if !own_echo
+            || line.command() != Command::Mode
+            || !line
+                .param(0)
+                .is_some_and(|echoed| same_target(state, target, echoed))
+        {
+            continue;
+        }
+        let Some(modestring) = line.param(1) else {
+            continue;
+        };
+        for change in
+            ModeChanges::parse(modestring, line.params().skip(2), state.isupport().inner())
+        {
+            let echoed = crate::event_impl::typed_mode_change(
+                change.action,
+                change.mode,
+                change.arg,
+                change.kind,
+                state.casemapping(),
+            );
+            if let Some(index) = remaining
+                .iter()
+                .position(|candidate| same_change(state, candidate, &echoed))
+            {
+                applied.push(remaining.remove(index));
+            }
+        }
+    }
+    applied
+}
+
+fn same_target(state: &crate::State, left: &str, right: &str) -> bool {
+    if state.isupport().is_channel(left) {
+        state.casemapping().channel(left) == right
+    } else {
+        state.nickname(left) == right
+    }
+}
+
+fn same_change(state: &crate::State, left: &ModeChange, right: &ModeChange) -> bool {
+    if left.mode != right.mode || left.action != right.action {
+        return false;
+    }
+    match (&left.arg, &right.arg) {
+        (Some(ModeArg::Mask(left)), Some(ModeArg::Mask(right))) => {
+            state.same_list_entry(left, right)
+        }
+        (left, right) => left == right,
     }
 }
 

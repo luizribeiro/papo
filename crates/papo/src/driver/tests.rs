@@ -3757,7 +3757,14 @@ async fn mode_helpers_await_every_command_and_return_refusals() {
         b"@label=1 :papo-driver!papo@localhost MODE #papo +b *!*@spam.example\r\n",
     )
     .await;
-    within(modes).await.unwrap().unwrap();
+    let result = within(modes).await.unwrap().unwrap();
+    assert_eq!(result.applied.len(), 3);
+    assert!(
+        matches!(result.applied[0].arg, Some(crate::ModeArg::Nick(ref nick)) if nick == "alice")
+    );
+    assert!(
+        matches!(result.applied[2].arg, Some(crate::ModeArg::Mask(ref mask)) if mask == "*!*@spam.example")
+    );
 
     let refused = tokio::spawn({
         let client = client.clone();
