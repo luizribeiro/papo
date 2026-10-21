@@ -152,6 +152,8 @@ pub struct SendTextResult {
     pub request: Option<RequestId>,
     /// Write-completion identifier when no server response is expected.
     pub transmit: Option<TransmitToken>,
+    /// Number of server confirmations expected for the request.
+    pub confirmations: usize,
     /// Whether the text was divided into multiple message lines.
     pub split: bool,
 }
@@ -2664,7 +2666,8 @@ impl Session {
             return Err(RequestError::PendingLimit);
         }
         let id = RequestId(self.next_request_id);
-        let label = labelled.then(|| encode_label(self.next_request_id));
+        let label_prefix = labelled.then(|| encode_label(self.next_request_id));
+        let mut labels = Vec::new();
         let mut lines = Vec::new();
         let mut batch_count = 0;
         if let Some(limits) = multiline.filter(|_| text.contains('\n') || segments.len() > 1) {
@@ -2688,10 +2691,9 @@ impl Session {
                         open = open.with_tag(key, value);
                     }
                 }
-                if batch_count == 0
-                    && let Some(label) = &label
-                {
-                    open = open.with_tag("label", label);
+                if let Some(label) = text_label(label_prefix.as_deref(), batch_count) {
+                    open = open.with_tag("label", &label);
+                    labels.push(label);
                 }
                 lines.push(open.to_line()?.into_bytes());
                 for (offset, segment) in segments[start..end].iter().enumerate() {
@@ -2718,16 +2720,18 @@ impl Session {
                         message = message.with_tag(key, value);
                     }
                 }
-                if index == 0
-                    && let Some(label) = &label
-                {
-                    message = message.with_tag("label", label);
+                if let Some(label) = text_label(label_prefix.as_deref(), index) {
+                    message = message.with_tag("label", &label);
+                    labels.push(label);
                 }
                 lines.push(message.to_line()?.into_bytes());
             }
         }
+        if self.requests.len().saturating_add(labels.len()) > MAX_PENDING_REQUESTS {
+            return Err(RequestError::PendingLimit);
+        }
         self.next_request_id = self.next_request_id.wrapping_add(1);
-        if let Some(label) = label {
+        for label in labels.iter().cloned() {
             self.requests.insert(label, (id, None, true, None, false));
         }
         let transmit =
@@ -2735,6 +2739,7 @@ impl Session {
         Ok(SendTextResult {
             request: labelled.then_some(id),
             transmit,
+            confirmations: labels.len(),
             split: segments.len() > 1,
         })
     }
@@ -4030,6 +4035,16 @@ fn sent_info(message: &LineRef<'_>) -> Option<SentInfo> {
     Some(SentInfo {
         msgid: message.tag("msgid")?.into_owned(),
         time: message.tag("time").map(std::borrow::Cow::into_owned),
+    })
+}
+
+fn text_label(prefix: Option<&str>, index: usize) -> Option<String> {
+    prefix.map(|prefix| {
+        if index == 0 {
+            prefix.to_owned()
+        } else {
+            format!("{prefix}-{index}")
+        }
     })
 }
 

@@ -390,9 +390,81 @@ fn invalid_multiline_limits_fall_back_to_plain_lines() {
         drain(&mut labelled),
         [
             "@label=0 PRIVMSG #papo :hello everyone\r\n",
-            "PRIVMSG #papo :welcome back\r\n",
+            "@label=0-1 PRIVMSG #papo :welcome back\r\n",
         ]
     );
+}
+
+#[test]
+fn labels_and_confirms_every_multiline_batch() {
+    let now = Instant::now();
+    let mut session = multiline_session(now, "max-bytes=4096,max-lines=1", true);
+    let sent = session
+        .send_text_detailed(
+            now,
+            TextKind::Notice,
+            "#papo",
+            "deployment started\ndeployment finished",
+            &[],
+        )
+        .unwrap();
+    assert_eq!(sent.confirmations, 2);
+    assert_eq!(
+        drain(&mut session),
+        [
+            "@label=0 BATCH +b0-0 draft/multiline #papo\r\n",
+            "@batch=b0-0 NOTICE #papo :deployment started\r\n",
+            "BATCH -b0-0\r\n",
+            "@label=0-1 BATCH +b0-1 draft/multiline #papo\r\n",
+            "@batch=b0-1 NOTICE #papo :deployment finished\r\n",
+            "BATCH -b0-1\r\n",
+        ]
+    );
+
+    for (label, batch, msgid, time, text) in [
+        (
+            "0",
+            "echo-a",
+            "RfcBTzyxY120004",
+            "01.000",
+            "deployment started",
+        ),
+        (
+            "0-1",
+            "echo-b",
+            "RfcBTzyxY120005",
+            "02.000",
+            "deployment finished",
+        ),
+    ] {
+        session.handle_line(
+            now,
+            format!("@label={label};msgid={msgid};time=2026-10-15T12:00:{time} :papo!~papo@localhost BATCH +{batch} draft/multiline #papo").as_bytes(),
+        );
+        session.handle_line(
+            now,
+            format!("@batch={batch} :papo!~papo@localhost NOTICE #papo :{text}").as_bytes(),
+        );
+        session.handle_line(
+            now,
+            format!(":papo!~papo@localhost BATCH -{batch}").as_bytes(),
+        );
+    }
+
+    let responses = std::iter::from_fn(|| session.poll_event())
+        .filter_map(|event| match event {
+            Event::Response(response) => Some(response),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(responses.len(), 2);
+    assert!(
+        responses
+            .iter()
+            .all(|response| response.id == sent.request.unwrap())
+    );
+    assert_eq!(responses[0].sent().unwrap().msgid, "RfcBTzyxY120004");
+    assert_eq!(responses[1].sent().unwrap().msgid, "RfcBTzyxY120005");
 }
 
 #[test]
