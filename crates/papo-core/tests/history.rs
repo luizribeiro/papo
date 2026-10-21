@@ -524,7 +524,7 @@ fn tracks_read_markers_monotonically_through_join_bursts() {
         now,
         b"@label=remote :ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z",
     );
-    let Some(Event::ReadMarker(marker)) = session.poll_event() else {
+    let Some(Event::ReadMarkerChanged(marker)) = session.poll_event() else {
         panic!("expected read marker")
     };
     assert!(matches!(&marker.conversation, Conversation::Channel(channel) if channel == "#papo"));
@@ -551,7 +551,7 @@ fn tracks_read_markers_monotonically_through_join_bursts() {
         now,
         b":ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:43.000Z",
     );
-    let Some(Event::ReadMarker(newer)) = session.poll_event() else {
+    let Some(Event::ReadMarkerChanged(newer)) = session.poll_event() else {
         panic!("expected newer read marker")
     };
     assert_eq!(
@@ -563,14 +563,14 @@ fn tracks_read_markers_monotonically_through_join_bursts() {
     assert!(matches!(session.poll_event(), Some(Event::Joined { .. })));
     session.handle_line(now, b":ergo.test MARKREAD #joined *");
     assert!(
-        matches!(session.poll_event(), Some(Event::ReadMarker(marker)) if matches!(&marker.conversation, Conversation::Channel(channel) if channel == "#joined") && marker.time.is_none())
+        matches!(session.poll_event(), Some(Event::ReadMarkerChanged(marker)) if matches!(&marker.conversation, Conversation::Channel(channel) if channel == "#joined") && marker.time.is_none())
     );
     session.handle_line(
         now,
         b":ergo.test MARKREAD Alice timestamp=2025-10-15T11:55:44.000Z",
     );
     assert!(
-        matches!(session.poll_event(), Some(Event::ReadMarker(marker)) if matches!(&marker.conversation, Conversation::Private(nick) if nick == "Alice"))
+        matches!(session.poll_event(), Some(Event::ReadMarkerChanged(marker)) if matches!(&marker.conversation, Conversation::Private(nick) if nick == "Alice"))
     );
     for target in ["*", "$opers"] {
         session.handle_line(

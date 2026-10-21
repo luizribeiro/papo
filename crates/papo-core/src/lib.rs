@@ -1883,7 +1883,7 @@ pub enum Event {
     /// Targets that received messages during a requested time range.
     HistoryTargets(Vec<(Conversation, std::time::SystemTime)>),
     /// A conversation's read marker advanced or was first reported.
-    ReadMarker(ReadMarker),
+    ReadMarkerChanged(ReadMarker),
     /// Users departed because connectivity between two servers was lost.
     ///
     /// This event is emitted for an empty batch. Non-`QUIT` lines are delivered as

@@ -34,7 +34,7 @@ pub use connection::{
     CapsChanged, CasemappingChanged, Connected, Disconnected, FeaturesChanged, Motd,
 };
 pub use conversation::{
-    Reacted, ReadMarker, Redacted, StandardReply, StandardReplyKind, TagMsg, TypingChanged,
+    Reacted, ReadMarkerChanged, Redacted, StandardReply, StandardReplyKind, TagMsg, TypingChanged,
 };
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
@@ -708,7 +708,7 @@ pub enum Event {
     /// A completed history or playback batch.
     History(Box<crate::HistoryPage>),
     /// A conversation's read marker advanced or was first reported.
-    ReadMarker(ReadMarker),
+    ReadMarkerChanged(ReadMarkerChanged),
     /// Users departed because connectivity between two servers was lost.
     ///
     /// Non-`QUIT` lines in the batch are delivered as separate [`Event::Message`] values.
@@ -818,7 +818,7 @@ event_accessors! {
     (Redacted, as_redacted, Redacted),
     (TypingChanged, as_typing_changed, TypingChanged),
     (TagMsg, as_tag_msg, TagMsg),
-    (ReadMarker, as_read_marker, ReadMarker),
+    (ReadMarkerChanged, as_read_marker_changed, ReadMarkerChanged),
     (StandardReply, as_standard_reply, StandardReply),
     (Joined, as_joined, Joined),
     (ChannelSynced, as_channel_synced, ChannelSynced),
@@ -1058,10 +1058,12 @@ pub(crate) fn from_core(
                 end,
             };
         }
-        papo_core::Event::ReadMarker(marker) => Event::ReadMarker(ReadMarker {
-            conversation: marker.conversation,
-            time: marker.time,
-        }),
+        papo_core::Event::ReadMarkerChanged(marker) => {
+            Event::ReadMarkerChanged(ReadMarkerChanged {
+                conversation: marker.conversation,
+                time: marker.time,
+            })
+        }
         papo_core::Event::Netsplit {
             servers,
             quits,
@@ -2554,8 +2556,8 @@ mod tests {
             time: Some(UNIX_EPOCH + Duration::from_secs(42)),
         };
         assert!(matches!(
-            forwarded(papo_core::Event::ReadMarker(marker.clone())),
-            Event::ReadMarker(mapped)
+            forwarded(papo_core::Event::ReadMarkerChanged(marker.clone())),
+            Event::ReadMarkerChanged(mapped)
                 if mapped.conversation == marker.conversation && mapped.time == marker.time
         ));
     }

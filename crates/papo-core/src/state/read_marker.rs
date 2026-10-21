@@ -49,7 +49,7 @@ impl State {
         if advances {
             let marker = ReadMarker { conversation, time };
             self.read_markers.insert(key, marker.clone());
-            outbox.event(Event::ReadMarker(marker));
+            outbox.event(Event::ReadMarkerChanged(marker));
         }
         true
     }

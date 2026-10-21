@@ -93,7 +93,7 @@ pub struct TagMsg {
 /// A conversation's read marker changed.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
-pub struct ReadMarker {
+pub struct ReadMarkerChanged {
     /// Conversation to which the marker applies.
     pub conversation: Conversation,
     /// The marker time, or `None` when the server reports `*`.

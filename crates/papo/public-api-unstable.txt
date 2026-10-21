@@ -722,24 +722,24 @@ impl core::marker::Unpin for papo::event::Reacted
 impl core::marker::UnsafeUnpin for papo::event::Reacted
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Reacted
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Reacted
-#[non_exhaustive] pub struct papo::event::ReadMarker
-pub papo::event::ReadMarker::conversation: papo::Conversation
-pub papo::event::ReadMarker::time: core::option::Option<std::time::SystemTime>
-impl core::clone::Clone for papo::event::ReadMarker
-pub fn papo::event::ReadMarker::clone(&self) -> Self
-impl core::cmp::Eq for papo::event::ReadMarker
-impl core::cmp::PartialEq for papo::event::ReadMarker
-pub fn papo::event::ReadMarker::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::event::ReadMarker
-pub fn papo::event::ReadMarker::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::event::ReadMarker
-impl core::marker::Freeze for papo::event::ReadMarker
-impl core::marker::Send for papo::event::ReadMarker
-impl core::marker::Sync for papo::event::ReadMarker
-impl core::marker::Unpin for papo::event::ReadMarker
-impl core::marker::UnsafeUnpin for papo::event::ReadMarker
-impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ReadMarker
-impl core::panic::unwind_safe::UnwindSafe for papo::event::ReadMarker
+#[non_exhaustive] pub struct papo::event::ReadMarkerChanged
+pub papo::event::ReadMarkerChanged::conversation: papo::Conversation
+pub papo::event::ReadMarkerChanged::time: core::option::Option<std::time::SystemTime>
+impl core::clone::Clone for papo::event::ReadMarkerChanged
+pub fn papo::event::ReadMarkerChanged::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::ReadMarkerChanged
+impl core::cmp::PartialEq for papo::event::ReadMarkerChanged
+pub fn papo::event::ReadMarkerChanged::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::ReadMarkerChanged
+pub fn papo::event::ReadMarkerChanged::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::ReadMarkerChanged
+impl core::marker::Freeze for papo::event::ReadMarkerChanged
+impl core::marker::Send for papo::event::ReadMarkerChanged
+impl core::marker::Sync for papo::event::ReadMarkerChanged
+impl core::marker::Unpin for papo::event::ReadMarkerChanged
+impl core::marker::UnsafeUnpin for papo::event::ReadMarkerChanged
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ReadMarkerChanged
+impl core::panic::unwind_safe::UnwindSafe for papo::event::ReadMarkerChanged
 #[non_exhaustive] pub struct papo::event::RealnameChanged
 pub papo::event::RealnameChanged::nick: papo::Nick
 pub papo::event::RealnameChanged::realname: alloc::string::String
@@ -1343,7 +1343,7 @@ pub papo::Event::Parted(papo::event::Parted)
 pub papo::Event::PersistenceChanged(papo::PersistenceStatus)
 pub papo::Event::Quit(papo::event::Quit)
 pub papo::Event::Reacted(papo::event::Reacted)
-pub papo::Event::ReadMarker(papo::event::ReadMarker)
+pub papo::Event::ReadMarkerChanged(papo::event::ReadMarkerChanged)
 pub papo::Event::RealnameChanged(papo::event::RealnameChanged)
 pub papo::Event::Redacted(papo::event::Redacted)
 pub papo::Event::StandardReply(papo::event::StandardReply)
@@ -1415,7 +1415,7 @@ pub const fn papo::Event::as_quit(&self) -> core::option::Option<&papo::event::Q
 impl papo::Event
 pub const fn papo::Event::as_reacted(&self) -> core::option::Option<&papo::event::Reacted>
 impl papo::Event
-pub const fn papo::Event::as_read_marker(&self) -> core::option::Option<&papo::event::ReadMarker>
+pub const fn papo::Event::as_read_marker_changed(&self) -> core::option::Option<&papo::event::ReadMarkerChanged>
 impl papo::Event
 pub const fn papo::Event::as_realname_changed(&self) -> core::option::Option<&papo::event::RealnameChanged>
 impl papo::Event

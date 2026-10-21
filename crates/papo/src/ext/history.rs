@@ -1679,7 +1679,7 @@ mod tests {
             Some(UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000))
         );
         assert!(
-            matches!(events.next().await, Some(Event::ReadMarker(marker)) if matches!(&marker.conversation, crate::Conversation::Channel(channel) if channel == "#papo"))
+            matches!(events.next().await, Some(Event::ReadMarkerChanged(marker)) if matches!(&marker.conversation, crate::Conversation::Channel(channel) if channel == "#papo"))
         );
         abort_task(task).await;
     }

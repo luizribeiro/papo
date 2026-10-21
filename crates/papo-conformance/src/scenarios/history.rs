@@ -368,7 +368,7 @@ async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
     let (mut alice, account) = s.connect_as_account_with_key("alice").await?;
     let channel = s.channel_name();
     alice.join(&channel).await?;
-    let initial = alice.wait_for(Event::as_read_marker).await?;
+    let initial = alice.wait_for(Event::as_read_marker_changed).await?;
     assert_eq!(
         conversation_name(&initial.conversation),
         Some(channel.as_str())
@@ -377,7 +377,7 @@ async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
 
     let time = read_marker_time();
     alice.mark_read(&channel, time).await?;
-    let stored = alice.wait_for(Event::as_read_marker).await?;
+    let stored = alice.wait_for(Event::as_read_marker_changed).await?;
     assert_eq!(
         conversation_name(&stored.conversation),
         Some(channel.as_str())
@@ -389,7 +389,7 @@ async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
     let synced = phone
         .wait_for(|event| {
             if let Some(marker) = event
-                .as_read_marker()
+                .as_read_marker_changed()
                 .filter(|marker| conversation_name(&marker.conversation) == Some(channel.as_str()))
             {
                 early_marker = Some(marker.clone());
@@ -403,7 +403,7 @@ async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
     assert!(phone.state().channel(&channel).is_some());
     let replayed = match early_marker {
         Some(marker) => marker,
-        None => phone.wait_for(Event::as_read_marker).await?,
+        None => phone.wait_for(Event::as_read_marker_changed).await?,
     };
     assert_eq!(
         conversation_name(&replayed.conversation),

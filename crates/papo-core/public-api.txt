@@ -567,7 +567,7 @@ pub papo_core::Event::Quit::channels: alloc::vec::Vec<papo::ChannelName>
 pub papo_core::Event::Quit::envelope: papo_core::LineEnvelope
 pub papo_core::Event::Quit::nick: papo::Nick
 pub papo_core::Event::Quit::reason: core::option::Option<alloc::string::String>
-pub papo_core::Event::ReadMarker(papo_core::ReadMarker)
+pub papo_core::Event::ReadMarkerChanged(papo_core::ReadMarker)
 pub papo_core::Event::RealnameChanged
 pub papo_core::Event::RealnameChanged::nick: papo::Nick
 pub papo_core::Event::RealnameChanged::realname: alloc::string::String
