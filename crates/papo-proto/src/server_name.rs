@@ -98,20 +98,49 @@ impl From<&Self> for ServerName {
 }
 #[cfg(test)]
 mod tests {
-    use std::collections::{BTreeSet, HashSet};
+    use std::{
+        cmp::Ordering,
+        collections::HashSet,
+        hash::{DefaultHasher, Hash, Hasher},
+    };
 
     use super::ServerName;
 
     #[test]
     fn compares_ascii_case_insensitively() {
-        let original = ServerName::from("irc.Example.NET");
-        let folded = ServerName::from("IRC.example.net");
+        let original = ServerName::from("Irc.Libera.Chat");
+        let folded = ServerName::from("irc.libera.chat");
+        let ergo = ServerName::from("ergo.test");
+        let different = ServerName::from("services.");
 
         assert_eq!(original, folded);
-        assert_eq!(original, "IRC.EXAMPLE.NET");
-        assert_eq!(original.to_string(), "irc.Example.NET");
+        assert_ne!(original, different);
+        assert!(<ServerName as PartialEq<str>>::eq(
+            &original,
+            "irc.libera.chat"
+        ));
+        assert!(!<ServerName as PartialEq<str>>::eq(&original, "services."));
+        assert!(<ServerName as PartialEq<&str>>::eq(
+            &original,
+            &"irc.libera.chat"
+        ));
+        assert!(!<ServerName as PartialEq<&str>>::eq(
+            &original,
+            &"services."
+        ));
         assert_eq!(HashSet::from([original.clone(), folded.clone()]).len(), 1);
-        assert_eq!(BTreeSet::from([original, folded]).len(), 1);
+        assert_eq!(hash(&original), hash("irc.libera.chat"));
+        assert_eq!(original.partial_cmp(&folded), Some(Ordering::Equal));
+        assert_eq!(ergo.partial_cmp(&different), Some(Ordering::Less));
+    }
+
+    #[test]
+    fn preserves_original_spelling() {
+        let name = ServerName::from("Irc.Libera.Chat");
+
+        assert_eq!(name.as_ref(), "Irc.Libera.Chat");
+        assert_eq!(name.to_string(), "Irc.Libera.Chat");
+        assert_eq!(name.into_string(), "Irc.Libera.Chat");
     }
 
     #[test]
@@ -121,5 +150,11 @@ mod tests {
 
         assert_eq!(owned, ServerName::from(&text));
         assert_eq!(owned, ServerName::from(&owned));
+    }
+
+    fn hash(value: &(impl Hash + ?Sized)) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        value.hash(&mut hasher);
+        hasher.finish()
     }
 }

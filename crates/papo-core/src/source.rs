@@ -96,4 +96,16 @@ mod tests {
         assert_eq!(server.nick(), None);
         assert!(matches!(server, Source::Server { name } if name == "IRC.EXAMPLE.NET"));
     }
+
+    #[test]
+    fn displays_user_nicks_and_server_names() {
+        let mapping = Casemapping::Rfc1459;
+        let full_user = Source::from_prefix("alice!~alice@staff.example", mapping);
+        let bare_user = Source::from_prefix("Alice[bot]", mapping);
+        let server = Source::from_prefix("Irc.Libera.Chat", mapping);
+
+        assert_eq!(full_user.to_string(), "alice");
+        assert_eq!(bare_user.to_string(), "Alice[bot]");
+        assert_eq!(server.to_string(), "Irc.Libera.Chat");
+    }
 }
