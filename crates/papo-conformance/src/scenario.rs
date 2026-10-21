@@ -1,15 +1,13 @@
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use papo::{Builder, Client, Endpoint, IntoEndpoint, Sasl};
-use papo_test_server::{ServerInfo, create_account};
+use papo_test_server::{ServerInfo, create_account, unique};
 
 use papo_testing::{Error, Result, skipped};
 
 use crate::Peer;
 
 const ACCOUNT_PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
-static NEXT_NAME: AtomicU64 = AtomicU64::new(0);
 
 /// A live-server test scenario that owns every connected peer.
 #[derive(Clone)]
@@ -216,16 +214,11 @@ impl Scenario {
 }
 
 fn unique_name(label: &str) -> String {
-    let counter = NEXT_NAME.fetch_add(1, Ordering::Relaxed);
-    let suffix = format!("-{counter}");
-    let available = 32_usize.saturating_sub(suffix.len());
-    let mut name: String = label
+    let label: String = label
         .chars()
         .filter(|character| character.is_ascii_alphanumeric() || matches!(character, '-' | '_'))
-        .take(available)
         .collect();
-    name.push_str(&suffix);
-    name
+    unique(&label)
 }
 
 #[cfg(test)]
@@ -236,7 +229,10 @@ mod tests {
     fn names_are_readable_unique_and_bounded() {
         let first = unique_name("alice");
         let second = unique_name("alice");
+        let process =
+            std::env::var("PAPO_TEST_PID").unwrap_or_else(|_| std::process::id().to_string());
         assert!(first.starts_with("alice-"));
+        assert!(first.contains(&format!("-{process}-")));
         assert_ne!(first, second);
         assert!(unique_name("a very long display label with spaces").len() <= 32);
     }
