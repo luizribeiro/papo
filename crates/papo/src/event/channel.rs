@@ -34,6 +34,14 @@ pub struct ChannelSynced {
     pub channel: ChannelName,
 }
 
+/// A channel's member facts were refreshed by a `WHO` sweep.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct MembersRefreshed {
+    /// The refreshed channel.
+    pub channel: ChannelName,
+}
+
 /// A user left a shared channel with `PART`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]

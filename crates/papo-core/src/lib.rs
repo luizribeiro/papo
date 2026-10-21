@@ -1881,6 +1881,11 @@ pub enum Event {
         /// The synchronized channel.
         channel: ChannelName,
     },
+    /// A channel's member facts were refreshed by a `WHO` sweep.
+    MembersRefreshed {
+        /// The refreshed channel.
+        channel: ChannelName,
+    },
     /// A user left a shared channel with `PART`.
     Parted {
         /// Identity, time, and account tags from the line.

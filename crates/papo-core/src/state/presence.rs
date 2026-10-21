@@ -239,7 +239,11 @@ impl State {
     ) -> Option<Handled> {
         if message.command() == Command::Numeric(Numeric::RPL_ENDOFWHO) {
             let channel = self.casemapping.channel(message.param(1)?);
-            return self.who_sweeps.remove(&channel).then_some(Handled::Yes);
+            if self.who_sweeps.remove(&channel) {
+                outbox.event(Event::MembersRefreshed { channel });
+                return Some(Handled::Yes);
+            }
+            return None;
         }
         if let Some(reply) = WhoxReply::parse(message, WHOX_FIELDS) {
             return self.handle_whox_reply(&reply, isupport, outbox);

@@ -130,11 +130,11 @@ pub mod event {
     pub use crate::event_impl::{
         AccountChanged, AwayChanged, BatchAbandonReason, CapsChanged, CasemappingChanged,
         ChannelRenamed, ChannelSynced, Connected, Ctcp, Departed, Disconnected, FeaturesChanged,
-        HostChanged, Invited, Joined, Kicked, MetadataChanged, ModeChange, ModeChanged,
-        MonitorOffline, MonitorOnline, Motd, Netjoin, Netsplit, NickChanged, Parted, Quit, Reacted,
-        ReadMarker, RealnameChanged, Redacted, Source, SplitServers, StandardReply,
-        StandardReplyKind, StateLimit, TagMsg, TopicChanged, TypingChanged, TypingReason,
-        Visibility, Warning,
+        HostChanged, Invited, Joined, Kicked, MembersRefreshed, MetadataChanged, ModeChange,
+        ModeChanged, MonitorOffline, MonitorOnline, Motd, Netjoin, Netsplit, NickChanged, Parted,
+        Quit, Reacted, ReadMarker, RealnameChanged, Redacted, Source, SplitServers, StandardReply,
+        StandardReplyKind, StateLimit, TagMsg, TopicChanged, TypingChanged, TypingReason, Visibility,
+        Warning,
     };
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]

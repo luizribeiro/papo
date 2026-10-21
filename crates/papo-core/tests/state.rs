@@ -1264,6 +1264,7 @@ fn sweeps_joined_channels_with_a_rate_limited_whox_query() {
     .server(":ergo.test 354 emily 152 #papo em 127.0.0.1 emily H@ emily :Emily Garcia")
     .server(":ergo.test 354 emily 152 #papo ~dan account/dan dan GB+ dan :Daniel Garcia")
     .server(":ergo.test 315 emily #papo :End of WHO list")
+    .event(|event| matches!(event, Event::MembersRefreshed { channel } if channel == "#papo"))
     .inspect(|session| {
         let dan = session.state().user("dan").unwrap();
         assert_eq!(
@@ -1276,6 +1277,9 @@ fn sweeps_joined_channels_with_a_rate_limited_whox_query() {
         assert_eq!(dan.away(), &Away::Away { message: None });
         assert!(dan.is_bot());
     })
+    .server(":alice!~alice@staff.example JOIN #papo alice :Alice Smith")
+    .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "alice"))
+    .no_client()
     .no_event();
 }
 
@@ -1318,6 +1322,7 @@ fn below_members_sweeps_only_below_the_literal_boundary() {
     .client("WHO #small %tcuhnfar,152")
     .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#small"))
     .server(":ergo.test 315 emily #small :End of WHO list")
+    .event(|event| matches!(event, Event::MembersRefreshed { channel } if channel == "#small"))
     .server(":emily!em@127.0.0.1 JOIN #boundary")
     .event(|event| matches!(event, Event::Joined { channel, .. } if channel == "#boundary"))
     .server(":ergo.test 353 emily = #boundary :@emily +dan")
@@ -1341,6 +1346,7 @@ fn falls_back_to_plain_who_without_whox() {
         .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#papo"))
         .server(":ergo.test 352 emily #papo ~dan account/dan ergo.test dan GB+ :0 Daniel Garcia")
         .server(":ergo.test 315 emily #papo :End of WHO list")
+        .event(|event| matches!(event, Event::MembersRefreshed { channel } if channel == "#papo"))
         .inspect(|session| {
             let dan = session.state().user("dan").unwrap();
             assert_eq!(dan.account(), &Account::Unknown);
@@ -1446,6 +1452,7 @@ fn whox_replies_require_our_token_and_an_active_sweep() {
         .server(":ergo.test 354 emily 999 #papo dan cloak.example dan H dan :Daniel Garcia")
         .event(|event| matches!(event, Event::Line(message) if message.as_ref().raw_command() == "354"))
         .server(":ergo.test 315 emily #papo :End of WHO list")
+        .event(|event| matches!(event, Event::MembersRefreshed { channel } if channel == "#papo"))
         .server(":ergo.test 354 emily 152 #papo alice users.example alice H alice :Alice Smith")
         .event(|event| matches!(event, Event::Line(message) if message.as_ref().raw_command() == "354"))
         .inspect(|session| {

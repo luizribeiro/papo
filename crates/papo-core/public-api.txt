@@ -477,6 +477,8 @@ pub papo_core::Event::Kicked::subject_authorship: papo_core::Authorship
 pub papo_core::Event::Line(papo_core::ReceivedLine)
 pub papo_core::Event::Malformed
 pub papo_core::Event::Malformed::line: alloc::vec::Vec<u8>
+pub papo_core::Event::MembersRefreshed
+pub papo_core::Event::MembersRefreshed::channel: papo::ChannelName
 pub papo_core::Event::MetadataChanged
 pub papo_core::Event::MetadataChanged::key: alloc::string::String
 pub papo_core::Event::MetadataChanged::subject: papo_core::Subject

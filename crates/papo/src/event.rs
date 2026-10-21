@@ -27,7 +27,8 @@ mod user;
 
 pub use crate::metadata::Visibility;
 pub use channel::{
-    ChannelRenamed, ChannelSynced, Invited, Joined, Kicked, ModeChanged, Parted, TopicChanged,
+    ChannelRenamed, ChannelSynced, Invited, Joined, Kicked, MembersRefreshed, ModeChanged, Parted,
+    TopicChanged,
 };
 pub use connection::{
     CapsChanged, CasemappingChanged, Connected, Disconnected, FeaturesChanged, Motd,
@@ -743,6 +744,8 @@ pub enum Event {
     Joined(Joined),
     /// Initial channel membership synchronization completed.
     ChannelSynced(ChannelSynced),
+    /// A channel's member facts were refreshed by a `WHO` sweep.
+    MembersRefreshed(MembersRefreshed),
     /// A user left a shared channel with `PART`.
     Parted(Parted),
     /// A user was removed from a shared channel with `KICK`.
@@ -827,6 +830,7 @@ event_accessors! {
     (StandardReply, as_standard_reply, StandardReply),
     (Joined, as_joined, Joined),
     (ChannelSynced, as_channel_synced, ChannelSynced),
+    (MembersRefreshed, as_members_refreshed, MembersRefreshed),
     (Parted, as_parted, Parted),
     (Kicked, as_kicked, Kicked),
     (Invited, as_invited, Invited),
@@ -1157,6 +1161,9 @@ pub(crate) fn from_core(
         }
         papo_core::Event::ChannelSynced { channel } => {
             Event::ChannelSynced(ChannelSynced { channel })
+        }
+        papo_core::Event::MembersRefreshed { channel } => {
+            Event::MembersRefreshed(MembersRefreshed { channel })
         }
         papo_core::Event::Parted {
             envelope,
@@ -2227,6 +2234,16 @@ mod tests {
                 channel: Casemapping::default().channel("#papo")
             }),
             Event::ChannelSynced(synced) if synced.channel == "#papo"
+        ));
+    }
+
+    #[test]
+    fn maps_members_refreshed() {
+        assert!(matches!(
+            forwarded(papo_core::Event::MembersRefreshed {
+                channel: Casemapping::default().channel("#papo")
+            }),
+            Event::MembersRefreshed(refreshed) if refreshed.channel == "#papo"
         ));
     }
 
