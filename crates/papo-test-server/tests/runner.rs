@@ -148,6 +148,44 @@ fn plain_binary_does_not_start_a_server() {
     fs::remove_dir_all(directory).unwrap();
 }
 
+#[test]
+fn offline_papo_unit_test_does_not_start_a_server() {
+    let directory = directory();
+    let binary = executable(&directory, "papo-deadbeef", "exit 0");
+    let status = runner(&binary)
+        .arg("builder::tests::fills_every_session_configuration_field")
+        .arg("--exact")
+        .env("PAPO_TEST_SERVER_BIN", directory.join("must-not-run"))
+        .status()
+        .unwrap();
+    assert!(status.success());
+    fs::remove_dir_all(directory).unwrap();
+}
+
+#[test]
+fn live_papo_unit_test_starts_a_server() {
+    let directory = directory();
+    let helper = executable(
+        &directory,
+        "server-helper",
+        r"printf '%s\n' 127.0.0.1:6667 127.0.0.1:6697 ws://127.0.0.1:8097/ wss://localhost:8098/ fixture-ca.pem '' '' '' ''
+read -r _ || true",
+    );
+    let binary = executable(
+        &directory,
+        "papo-deadbeef",
+        "test \"$PAPO_TEST_PLAINTEXT\" = 127.0.0.1:6667",
+    );
+    let status = runner(&binary)
+        .arg("transport::websocket::live::rejects_a_partial_line_at_shutdown")
+        .arg("--exact")
+        .env("PAPO_TEST_SERVER_BIN", helper)
+        .status()
+        .unwrap();
+    assert!(status.success());
+    fs::remove_dir_all(directory).unwrap();
+}
+
 fn runner(binary: &Path) -> Command {
     let mut command = Command::new("bash");
     command
