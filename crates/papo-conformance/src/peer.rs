@@ -3,7 +3,7 @@ use std::{collections::VecDeque, ops::Deref, time::Duration};
 use papo::{Client, Event, Events};
 use tokio::time::timeout;
 
-use crate::{Error, FixtureError, Result};
+use papo_testing::{Error, FixtureError, Result};
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
 const EVENT_HISTORY: usize = 20;
@@ -220,9 +220,8 @@ impl Peer {
         )
     }
 
-    /// Returns the retained events from oldest to newest.
-    #[must_use]
-    pub fn recent_events(&self) -> impl ExactSizeIterator<Item = &Event> {
+    #[cfg(test)]
+    fn recent_events(&self) -> impl ExactSizeIterator<Item = &Event> {
         self.recent.iter()
     }
 

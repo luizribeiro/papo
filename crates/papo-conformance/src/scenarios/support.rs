@@ -1,6 +1,7 @@
 use papo::event::ModeChanged;
 use papo::{Account, AccountName, Conversation, Error, Event, Message, Refusal, State, Subject};
-use papo_testing::Peer;
+
+use crate::Peer;
 
 pub(super) const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
 

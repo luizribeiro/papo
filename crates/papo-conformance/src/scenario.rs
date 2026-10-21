@@ -4,7 +4,9 @@ use std::sync::{Arc, Mutex};
 use papo::{Builder, Client, Endpoint, IntoEndpoint, Sasl};
 use papo_test_server::{ServerInfo, create_account};
 
-use crate::{Error, Peer, Result, skipped};
+use papo_testing::{Error, Result, skipped};
+
+use crate::Peer;
 
 const ACCOUNT_PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
 static NEXT_NAME: AtomicU64 = AtomicU64::new(0);
@@ -147,6 +149,7 @@ impl Scenario {
 
     /// Returns a unique, readable channel name.
     #[must_use]
+    #[allow(clippy::unused_self)]
     pub fn channel_name(&self) -> String {
         format!("#{}", unique_name("channel"))
     }
@@ -156,6 +159,7 @@ impl Scenario {
     /// # Errors
     ///
     /// Always returns the runner's typed skip marker.
+    #[allow(clippy::unused_self)]
     pub fn skip<T>(&self, reason: impl Into<String>) -> Result<T> {
         Err(skipped(reason))
     }

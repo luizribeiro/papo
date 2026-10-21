@@ -1,10 +1,9 @@
 use papo::{Error, Event, Fallback, Feature, MessageKind, Origin, Refusal, UnsupportedReason};
 use papo_conformance_macros::scenario;
 use papo_proto::Typing;
-use papo_testing::Peer;
 
 use super::support::{conversation_name, message_text};
-use crate::Scenario;
+use crate::{Peer, Scenario};
 
 async fn fixture_pair(context: &Scenario) -> papo_testing::Result<(Peer, Peer, String)> {
     let mut alice = context.connect("alice").await?;

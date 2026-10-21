@@ -1,9 +1,8 @@
 use papo::{Nick, isupport::Advertised};
 use papo_conformance_macros::scenario;
-use papo_testing::Peer;
 
-use crate::Scenario;
 use crate::scenarios::support::message_text;
+use crate::{Peer, Scenario};
 
 const RECIPIENT_NAMES: [&str; 5] = ["bob", "carol", "dave", "erin", "frank"];
 

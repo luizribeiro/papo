@@ -590,7 +590,7 @@ async fn register_over(
     Ok(())
 }
 
-fn assert_connected(alice: &papo_testing::Peer, label: &str) {
+fn assert_connected(alice: &crate::Peer, label: &str) {
     let state = alice.state();
     assert!(state.is_connected());
     assert!(state.nick().starts_with(label));

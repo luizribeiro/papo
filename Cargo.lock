@@ -860,7 +860,6 @@ name = "papo-testing"
 version = "0.0.0"
 dependencies = [
  "papo",
- "papo-test-server",
  "tokio",
 ]
 

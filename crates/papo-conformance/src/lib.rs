@@ -23,7 +23,11 @@ use papo_core::{Capabilities, Sasl};
 use papo_test_server::{ServerInfo, from_env};
 use tokio::{runtime::Builder, task::JoinHandle, time::timeout};
 
+mod peer;
+mod scenario;
 mod scenarios;
+
+use peer::Peer;
 
 const TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -71,7 +75,7 @@ struct CapRequirement {
 struct Scenario<S = ServerInfo> {
     server: S,
     name: &'static str,
-    fixture: Option<papo_testing::Scenario>,
+    fixture: Option<scenario::Scenario>,
     json: bool,
 }
 
@@ -187,7 +191,7 @@ fn trial(
     Trial::ignorable_test(spec.name, move || {
         let result = catch_scenario_panic(|| {
             runtime().block_on((spec.run)(Scenario {
-                fixture: Some(papo_testing::Scenario::new(server.clone())),
+                fixture: Some(scenario::Scenario::new(server.clone())),
                 server,
                 name: spec.name,
                 json,
@@ -306,7 +310,7 @@ impl Scenario {
 }
 
 impl Deref for Scenario {
-    type Target = papo_testing::Scenario;
+    type Target = scenario::Scenario;
 
     fn deref(&self) -> &Self::Target {
         self.fixture

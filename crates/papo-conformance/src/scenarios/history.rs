@@ -2,10 +2,9 @@ use std::time::{Duration, SystemTime};
 
 use papo::{Error, Event, HistoryItem, MessageKind, Origin, Sent};
 use papo_conformance_macros::scenario;
-use papo_testing::Peer;
 
-use crate::Scenario;
 use crate::scenarios::support::conversation_name;
+use crate::{Peer, Scenario};
 
 fn read_marker_time() -> SystemTime {
     SystemTime::UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000)

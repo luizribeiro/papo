@@ -1,8 +1,8 @@
 use papo::{ModeAction, ModeArg, Refusal};
 use papo_conformance_macros::scenario;
 
-use crate::Scenario;
 use crate::scenarios::support::{assert_refusal, join_seen_by, message_text, wait_channel_mode};
+use crate::{Peer, Scenario};
 
 #[derive(Clone, Copy)]
 enum Dialect {
@@ -21,7 +21,7 @@ impl Dialect {
     }
 }
 
-fn pick_dialect(alice: &papo_testing::Peer) -> Option<Dialect> {
+fn pick_dialect(alice: &Peer) -> Option<Dialect> {
     let state = alice.state();
     let support = state.isupport();
     let has_q_list = support

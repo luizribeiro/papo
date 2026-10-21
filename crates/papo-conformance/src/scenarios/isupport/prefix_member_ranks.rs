@@ -2,10 +2,9 @@ use papo::isupport::{Advertised, Prefix};
 use papo::{ModeAction, ModeArg, Nick, Rank, State};
 use papo_conformance_macros::scenario;
 use papo_test_server::DeploymentProfile;
-use papo_testing::Peer;
 
-use crate::Scenario;
 use crate::scenarios::support::{channel_mode, join_seen_by, wait_channel_mode};
+use crate::{Peer, Scenario};
 
 /// grants every status mode an operator may set and reports member prefixes in rank order
 #[scenario(

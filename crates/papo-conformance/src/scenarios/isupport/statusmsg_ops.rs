@@ -1,9 +1,8 @@
 use papo::{ModeAction, ModeArg, Origin};
 use papo_conformance_macros::scenario;
-use papo_testing::Peer;
 
-use crate::Scenario;
 use crate::scenarios::support::{join_seen_by, message_text, wait_channel_mode};
+use crate::{Peer, Scenario};
 
 struct StatusmsgPeers {
     alice: Peer,
