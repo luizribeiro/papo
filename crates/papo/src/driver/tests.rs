@@ -2461,6 +2461,83 @@ async fn server_error_before_welcome_is_a_connection_failure() {
     ));
 }
 
+async fn assert_pre_welcome_refusal_backoff(line: Option<&'static [u8]>, expected: &'static str) {
+    let (first_stream, mut first_server) = tokio::io::duplex(4096);
+    let (second_stream, mut second_server) = tokio::io::duplex(4096);
+    let (third_stream, mut third_server) = tokio::io::duplex(4096);
+    let streams = Arc::new(Mutex::new(VecDeque::from([
+        Box::new(first_stream) as super::BoxConnection,
+        Box::new(second_stream) as super::BoxConnection,
+        Box::new(third_stream) as super::BoxConnection,
+    ])));
+    let calls = Arc::new(AtomicUsize::new(0));
+    let connector: super::Connector = Arc::new({
+        let calls = Arc::clone(&calls);
+        move |_, _| {
+            calls.fetch_add(1, Ordering::Relaxed);
+            let stream = streams.lock().unwrap().pop_front().unwrap();
+            Box::pin(async move { Ok(stream) })
+        }
+    });
+    let (_client, mut events, driver) = Driver::with_connector_and_entropy(
+        Ok(ConnectionPlan {
+            address: "irc://irc.example.net".parse().unwrap(),
+            tls: TlsConfig::default(),
+        }),
+        Session::new(config()),
+        super::DEFAULT_CHANNEL_CAPACITY,
+        None,
+        super::PostConnect::default(),
+        Reconnect::exponential(),
+        Box::new(papo_core::sts::MemoryStsStore::new()),
+        connector,
+        Box::new(|| 0),
+    );
+    let driver = tokio::spawn(driver);
+
+    for (server, delay) in [
+        (&mut first_server, Duration::from_secs(60)),
+        (&mut second_server, Duration::from_secs(96)),
+    ] {
+        welcome_burst(server).await;
+        if let Some(line) = line {
+            server_line(server, line).await;
+        } else {
+            within(server.shutdown()).await.unwrap();
+        }
+        assert!(matches!(
+            events.next().await,
+            Some(Event::Disconnected(crate::Disconnected {
+                cause: crate::DisconnectCause::Connect(ref error),
+                reconnect_in: Some(actual),
+            })) if error.kind() == crate::ConnectErrorKind::Server
+                && std::error::Error::source(error)
+                    .is_some_and(|source| source.to_string() == expected)
+                && actual == delay
+        ));
+        tokio::time::advance(delay.checked_sub(Duration::from_nanos(1)).unwrap()).await;
+        assert_eq!(
+            calls.load(Ordering::Relaxed),
+            if delay.as_secs() == 60 { 1 } else { 2 }
+        );
+        tokio::time::advance(Duration::from_nanos(1)).await;
+    }
+
+    welcome_burst(&mut third_server).await;
+    assert_eq!(calls.load(Ordering::Relaxed), 3);
+    abort_task(driver).await;
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn pre_welcome_server_refusals_retry_slowly_and_keep_their_text() {
+    assert_pre_welcome_refusal_backoff(
+        Some(b"ERROR :Too many clients from your network\r\n"),
+        "Too many clients from your network",
+    )
+    .await;
+    assert_pre_welcome_refusal_backoff(None, "server closed the connection").await;
+}
+
 #[tokio::test(flavor = "current_thread")]
 async fn webirc_rejection_is_a_specific_connection_failure() {
     let settings = config().webirc(papo_core::WebIrc {
