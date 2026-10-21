@@ -928,8 +928,7 @@ mod tests {
             InvalidInput::TlsConfig("invalid PEM".into()),
             InvalidInput::UnknownCapability("example/cap".into()),
             InvalidInput::ZeroEventCapacity,
-            InvalidInput::ReplyLimit(0),
-            InvalidInput::ReplyWindow,
+            InvalidInput::RateLimit(crate::InvalidRateLimit::EmptyBurst),
             InvalidInput::BinarySecret,
             InvalidInput::InvalidMessage("embedded CR".into()),
             InvalidInput::InvalidName {

@@ -14,31 +14,31 @@ const MAX_RATE_TARGETS: usize = 1024;
 /// A shared sliding-window reply limiter keyed by return address.
 #[derive(Clone, Debug)]
 pub struct ReplyRateLimiter {
-    max: usize,
-    window: Duration,
+    burst: usize,
+    refill: Duration,
     targets: Arc<Mutex<HashMap<String, VecDeque<Instant>>>>,
 }
 
 impl ReplyRateLimiter {
-    /// Creates a limiter allowing `max` replies per address during `window`.
+    /// Creates a limiter allowing `burst` replies per return address during `refill`.
     ///
     /// # Errors
     ///
-    /// Returns [`crate::InvalidInput`] when `max` or `window` is zero.
-    pub fn new(max: usize, window: Duration) -> Result<Self, crate::InvalidInput> {
-        if max == 0 {
-            return Err(crate::InvalidInput::ReplyLimit(max));
+    /// Returns [`crate::InvalidRateLimit`] when `burst` or `refill` is zero.
+    pub fn new(burst: usize, refill: Duration) -> Result<Self, crate::InvalidRateLimit> {
+        if burst == 0 {
+            return Err(crate::InvalidRateLimit::EmptyBurst);
         }
-        if window.is_zero() {
-            return Err(crate::InvalidInput::ReplyWindow);
+        if refill.is_zero() {
+            return Err(crate::InvalidRateLimit::ZeroRefill);
         }
-        Ok(Self::configured(max, window))
+        Ok(Self::configured(burst, refill))
     }
 
-    fn configured(max: usize, window: Duration) -> Self {
+    fn configured(burst: usize, refill: Duration) -> Self {
         Self {
-            max,
-            window,
+            burst,
+            refill,
             targets: Arc::default(),
         }
     }
@@ -55,14 +55,14 @@ impl ReplyRateLimiter {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         targets.retain(|_, replies| {
-            replies.retain(|sent| now.saturating_duration_since(*sent) < self.window);
+            replies.retain(|sent| now.saturating_duration_since(*sent) < self.refill);
             !replies.is_empty()
         });
         if !targets.contains_key(target) && targets.len() == MAX_RATE_TARGETS {
             return false;
         }
         let replies = targets.entry(target.to_owned()).or_default();
-        if replies.len() >= self.max {
+        if replies.len() >= self.burst {
             return false;
         }
         replies.push_back(now);
@@ -534,7 +534,7 @@ mod tests {
     fn rejects_an_empty_reply_budget() {
         assert!(matches!(
             ReplyRateLimiter::new(0, Duration::from_secs(5)),
-            Err(crate::InvalidInput::ReplyLimit(0))
+            Err(crate::InvalidRateLimit::EmptyBurst)
         ));
     }
 
@@ -542,7 +542,7 @@ mod tests {
     fn rejects_an_empty_reply_window() {
         assert!(matches!(
             ReplyRateLimiter::new(2, Duration::ZERO),
-            Err(crate::InvalidInput::ReplyWindow)
+            Err(crate::InvalidRateLimit::ZeroRefill)
         ));
     }
 

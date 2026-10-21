@@ -2,7 +2,7 @@ use std::time::Duration;
 use web_time::Instant;
 
 /// Why an outbound rate-limit configuration is invalid.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum InvalidRateLimit {
     /// The bucket cannot hold any tokens.

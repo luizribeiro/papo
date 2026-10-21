@@ -720,6 +720,8 @@ impl core::fmt::Debug for papo_core::InvalidRateLimit
 pub fn papo_core::InvalidRateLimit::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo_core::InvalidRateLimit
 pub fn papo_core::InvalidRateLimit::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_core::InvalidRateLimit
+pub fn papo_core::InvalidRateLimit::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo_core::InvalidRateLimit
 impl core::marker::StructuralPartialEq for papo_core::InvalidRateLimit
 impl core::marker::Freeze for papo_core::InvalidRateLimit

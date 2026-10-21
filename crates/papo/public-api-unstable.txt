@@ -109,7 +109,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::bot::Command
 pub struct papo::bot::ReplyRateLimiter
 impl papo::bot::ReplyRateLimiter
 pub fn papo::bot::ReplyRateLimiter::check(&self, &str) -> bool
-pub fn papo::bot::ReplyRateLimiter::new(usize, core::time::Duration) -> core::result::Result<Self, papo::InvalidInput>
+pub fn papo::bot::ReplyRateLimiter::new(usize, core::time::Duration) -> core::result::Result<Self, papo::InvalidRateLimit>
 impl core::clone::Clone for papo::bot::ReplyRateLimiter
 pub fn papo::bot::ReplyRateLimiter::clone(&self) -> Self
 impl core::fmt::Debug for papo::bot::ReplyRateLimiter
@@ -1585,11 +1585,10 @@ pub papo::InvalidInput::InvalidWebPushKey
 pub papo::InvalidInput::MetadataValueTooLong
 pub papo::InvalidInput::MetadataValueTooLong::actual: usize
 pub papo::InvalidInput::MetadataValueTooLong::maximum: usize
+pub papo::InvalidInput::RateLimit(papo::InvalidRateLimit)
 pub papo::InvalidInput::Reaction
 pub papo::InvalidInput::Reaction::actual: usize
 pub papo::InvalidInput::Reaction::maximum: usize
-pub papo::InvalidInput::ReplyLimit(usize)
-pub papo::InvalidInput::ReplyWindow
 pub papo::InvalidInput::TlsConfig(alloc::string::String)
 pub papo::InvalidInput::TooManyMetadataSubscriptions
 pub papo::InvalidInput::TooManyMetadataSubscriptions::actual: usize
@@ -1606,6 +1605,8 @@ impl core::cmp::PartialEq for papo::InvalidInput
 pub fn papo::InvalidInput::eq(&self, &Self) -> bool
 impl core::convert::From<papo::InvalidInput> for papo::Error
 pub fn papo::Error::from(papo::InvalidInput) -> Self
+impl core::convert::From<papo::InvalidRateLimit> for papo::InvalidInput
+pub fn papo::InvalidInput::from(papo::InvalidRateLimit) -> Self
 impl core::error::Error for papo::InvalidInput
 pub fn papo::InvalidInput::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
 impl core::fmt::Debug for papo::InvalidInput

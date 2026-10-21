@@ -32,12 +32,9 @@ pub enum InvalidInput {
     /// The event queue capacity is zero.
     #[error("event queue capacity must be positive")]
     ZeroEventCapacity,
-    /// A bot reply limiter permits no replies.
-    #[error("reply limit {0} must be positive")]
-    ReplyLimit(usize),
-    /// A bot reply limiter never replenishes its budget.
-    #[error("reply window must be positive")]
-    ReplyWindow,
+    /// A rate-limit configuration is invalid.
+    #[error(transparent)]
+    RateLimit(#[from] crate::InvalidRateLimit),
     /// A byte secret was supplied to a text-only protocol field.
     #[error("byte secret cannot be used as text")]
     BinarySecret,
@@ -442,6 +439,16 @@ fn parse_authority(authority: &str, default_port: u16) -> Result<(String, u16), 
 #[cfg(all(test, not(browser)))]
 mod tests {
     use super::{Endpoint, EndpointKind, InvalidInput, Protocol, ServerAddress};
+
+    #[test]
+    fn wraps_rate_limit_errors() {
+        let error = InvalidInput::from(crate::InvalidRateLimit::ZeroRefill);
+        assert_eq!(
+            error,
+            InvalidInput::RateLimit(crate::InvalidRateLimit::ZeroRefill)
+        );
+        assert_eq!(error.to_string(), "rate-limit refill must be positive");
+    }
 
     #[test]
     fn typed_constructors_preserve_transport_details() {
