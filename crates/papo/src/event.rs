@@ -1394,8 +1394,8 @@ mod tests {
 
     use super::{
         Authorship, Conversation, CoreEvent, Event, Message as ChatMessage, MessageId, MessageKind,
-        MetadataChanged, ModeAction, ModeArg, Origin, Source, StandardReplyKind, Visibility, Warning,
-        from_core as from_core_with_mapping, incoming,
+        MetadataChanged, ModeAction, ModeArg, Origin, Source, StandardReplyKind, Visibility,
+        Warning, ctcp_parts, from_core as from_core_with_mapping, incoming,
     };
     use papo_core::{
         Account, BatchAbandonReason, Capabilities, Config, Feature, Session,
@@ -1475,6 +1475,20 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn distinguishes_ctcp_queries_and_replies() {
+        let query = Line::privmsg("#papo", "\x01VERSION\x01");
+        let (_, _, reply) = ctcp_parts(&query.as_ref()).unwrap();
+        assert!(!reply);
+
+        let response = Line::new("NOTICE", ["#papo", "\x01VERSION papo-0.1\x01"]);
+        let (_, _, reply) = ctcp_parts(&response.as_ref()).unwrap();
+        assert!(reply);
+
+        let unrelated = Line::new("FAIL", ["PRIVMSG", "\x01VERSION\x01"]);
+        assert!(ctcp_parts(&unrelated.as_ref()).is_none());
     }
 
     #[test]

@@ -279,6 +279,10 @@ fn disabled_ctcp_replies_answer_nothing() {
     assert_eq!(wire(&mut session), None);
     session.handle_line(now, b":bob!~b@cloak PRIVMSG papo :\x01VERSION\x01");
     assert_eq!(wire(&mut session), None);
+    session.handle_line(now, b":carol!~c@cloak PRIVMSG papo :\x01TIME\x01");
+    assert_eq!(wire(&mut session), None);
+    session.handle_line(now, b":dan!~d@cloak PRIVMSG papo :\x01SOURCE\x01");
+    assert_eq!(wire(&mut session), None);
 }
 
 #[test]

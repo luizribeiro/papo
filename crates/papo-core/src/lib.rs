@@ -284,7 +284,7 @@ impl CtcpReplies {
             ping: false,
             time: None,
             source: None,
-            ..Self::default()
+            rate: Self::default().rate,
         }
     }
 

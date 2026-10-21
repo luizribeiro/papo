@@ -127,12 +127,11 @@ async fn tls_rejects_a_certificate_from_an_untrusted_ca() {
 }
 
 #[cfg(tls)]
+#[allow(clippy::field_reassign_with_default)]
 async fn tls_rejects_a_certificate_from_an_untrusted_ca_body() {
     let server = from_env();
-    let config = TlsConfig {
-        roots: TlsRoots::Ca(CLIENT_CERTIFICATE.to_vec()),
-        ..TlsConfig::default()
-    };
+    let mut config = TlsConfig::default();
+    config.roots = TlsRoots::Ca(CLIENT_CERTIFICATE.to_vec());
     let error = connect(
         "localhost",
         server.tls_addr().port(),
