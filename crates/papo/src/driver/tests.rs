@@ -29,6 +29,25 @@ fn test_account(value: &str) -> crate::AccountName {
     crate::Casemapping::default().account(value)
 }
 
+async fn assert_action_refusal(
+    server: &mut DuplexStream,
+    action: crate::RequestFuture<()>,
+    outgoing: &str,
+    incoming: &str,
+    numeric: u16,
+    refusal: crate::Refusal,
+) {
+    let action = tokio::spawn(action);
+    client_line(server, outgoing.as_bytes()).await;
+    server_line(server, incoming.as_bytes()).await;
+    let error = within(action).await.unwrap().unwrap_err();
+    assert!(matches!(
+        error,
+        Error::Server(error)
+            if error.numeric() == Some(numeric) && error.refusal() == refusal
+    ));
+}
+
 struct NeverWrite;
 
 impl AsyncWrite for NeverWrite {
@@ -3452,6 +3471,104 @@ async fn membership_actions_confirm_success_and_refusal() {
             .await
             .is_err()
     );
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn typed_numeric_refusals_reach_action_futures() {
+    let (mut server, client, mut events, driver) =
+        scripted(config().rate_limit(papo_core::RateLimit::unlimited()));
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+
+    for (channel, numeric, refusal, source, description) in [
+        (
+            "#invite",
+            473,
+            crate::Refusal::InviteOnlyChannel,
+            "ergo.test",
+            "Cannot join channel (+i)",
+        ),
+        (
+            "#banned",
+            474,
+            crate::Refusal::BannedFromChannel,
+            "irc.solanum.test",
+            "Cannot join channel (+b)",
+        ),
+        (
+            "#keyed",
+            475,
+            crate::Refusal::BadChannelKey,
+            "ergo.test",
+            "Cannot join channel (+k)",
+        ),
+    ] {
+        assert_action_refusal(
+            &mut server,
+            client.join(channel).into_future(),
+            &format!("JOIN {channel}\r\n"),
+            &format!(":{source} {numeric} papo-driver {channel} :{description}\r\n"),
+            numeric,
+            refusal,
+        )
+        .await;
+    }
+
+    for (channel, numeric, refusal, incoming) in [
+        (
+            "#papo",
+            441,
+            crate::Refusal::UserNotInChannel,
+            ":irc.solanum.test 441 papo-driver carol #papo :They aren't on that channel\r\n",
+        ),
+        (
+            "#staff",
+            482,
+            crate::Refusal::ChannelOperatorPrivilegesNeeded,
+            ":ergo.test 482 papo-driver #staff :You're not a channel operator\r\n",
+        ),
+    ] {
+        assert_action_refusal(
+            &mut server,
+            client.kick(channel, "carol", ""),
+            &format!("KICK {channel} carol\r\n"),
+            incoming,
+            numeric,
+            refusal,
+        )
+        .await;
+    }
+
+    for (nick, numeric, refusal, description) in [
+        (
+            "42papo",
+            432,
+            crate::Refusal::ErroneousNickname,
+            "Erroneous nickname",
+        ),
+        (
+            "alice",
+            433,
+            crate::Refusal::NicknameInUse,
+            "Nickname is already in use",
+        ),
+    ] {
+        assert_action_refusal(
+            &mut server,
+            client.set_nick(nick),
+            &format!("NICK {nick}\r\n"),
+            &format!(":ergo.test {numeric} papo-driver {nick} :{description}\r\n"),
+            numeric,
+            refusal,
+        )
+        .await;
+    }
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
