@@ -3,7 +3,7 @@
 mod support;
 
 use papo_core::{
-    Config, Event,
+    Config, Event, Feature,
     cap::{self, Cap},
 };
 use support::Transcript;
@@ -23,6 +23,7 @@ fn replays_recorded_ergo_registration() {
             Event::Connected(welcome) => {
                 assert_eq!(welcome.nick, "papo-fixture");
                 assert!(welcome.caps.contains_key("server-time"));
+                assert!(welcome.caps.contains_key("draft/chathistory"));
                 assert!(welcome.caps.contains_key(&cap::CHATHISTORY));
                 assert!(welcome.caps.contains_key(&Cap::from("chathistory")));
                 assert_eq!(
@@ -40,5 +41,6 @@ fn replays_recorded_ergo_registration() {
                 true
             }
             other => panic!("unexpected event during registration: {other:?}"),
-        });
+        })
+        .inspect(|session| assert_eq!(session.supports(Feature::History), Ok(())));
 }

@@ -115,7 +115,7 @@ impl Feature {
             Self::Typing => "typing notifications",
             Self::Redaction => cap::MESSAGE_REDACTION.constant_str(),
             Self::Multiline => "multiline messages",
-            Self::History => cap::canonical(cap::CHATHISTORY.constant_str()),
+            Self::History => cap::alias(cap::CHATHISTORY.constant_str(), 0),
             Self::ReadMarkers => cap::alias(cap::READ_MARKER.constant_str(), 0),
             Self::Metadata => "metadata",
             Self::Monitor => "monitoring",

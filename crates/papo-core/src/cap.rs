@@ -192,7 +192,7 @@ capabilities! {
     [cap] ACCOUNT_REGISTRATION = "draft/account-registration"; "Account registration."; name: "draft/account-registration"; aliases: ["account-registration"]; request: Request::Default("draft/account-registration"); features: [Feature::AccountCreation]; code: [crate::account_registration];
     #[cfg(feature = "unstable")] [cap] BOUNCER_NETWORKS = "soju.im/bouncer-networks"; "Bouncer network management."; name: "soju.im/bouncer-networks"; aliases: []; request: Request::OptIn("soju.im/bouncer-networks", Feature::Bouncer); features: [Feature::Bouncer]; code: [crate::bouncer];
     #[cfg(feature = "unstable")] [cap] BOUNCER_NETWORKS_NOTIFY = "soju.im/bouncer-networks-notify"; "Bouncer network change notifications."; name: "soju.im/bouncer-networks-notify"; aliases: []; request: Request::OptIn("soju.im/bouncer-networks-notify", Feature::Bouncer); features: []; code: [crate::bouncer];
-    [cap] CHATHISTORY = "draft/chathistory"; "Message history queries."; name: "chathistory"; aliases: ["draft/chathistory"]; request: Request::Default("draft/chathistory"); features: [Feature::History]; code: [crate::history, crate::batch];
+    [cap] CHATHISTORY = "draft/chathistory"; "Message history queries."; name: "draft/chathistory"; aliases: ["chathistory"]; request: Request::Default("draft/chathistory"); features: [Feature::History]; code: [crate::history, crate::batch];
     [cap] READ_MARKER = "draft/read-marker"; "Channel read markers."; name: "draft/read-marker"; aliases: ["read-marker"]; request: Request::Default("draft/read-marker"); features: [Feature::ReadMarkers]; code: [crate::history, crate::state::read_marker];
     #[cfg(feature = "unstable")] [cap] PERSISTENCE = "draft/persistence"; "Account persistence preferences."; name: "draft/persistence"; aliases: []; request: Request::OptIn("draft/persistence", Feature::Persistence); features: [Feature::Persistence]; code: [crate::persistence, crate::state::persistence];
     [cap] CHANNEL_RENAME = "draft/channel-rename"; "Channel renaming."; name: "draft/channel-rename"; aliases: []; request: Request::Default("draft/channel-rename"); features: [Feature::ChannelRename]; code: [crate::channel_rename, crate::state::rename];
@@ -204,6 +204,8 @@ capabilities! {
     [cap] WHOAMI = "draft/whoami"; "Current connection identity discovery."; name: "draft/whoami"; aliases: []; request: Request::Default("draft/whoami"); features: []; code: [crate::state];
     [cap] EXTENDED_ISUPPORT = "draft/extended-isupport"; "Extended ISUPPORT discovery."; name: "draft/extended-isupport"; aliases: []; request: Request::Default("draft/extended-isupport"); features: []; code: [crate::isupport];
 }
+
+pub(crate) const CHATHISTORY_BATCH: &str = "chathistory";
 
 const fn defaults_len() -> usize {
     let (mut index, mut count) = (0, 0);
@@ -474,7 +476,8 @@ mod tests {
 
     #[test]
     fn resolves_aliases_and_advertised_preferences() {
-        assert_eq!(canonical("draft/chathistory"), "chathistory");
+        assert_eq!(canonical("draft/chathistory"), "draft/chathistory");
+        assert_eq!(canonical("chathistory"), "draft/chathistory");
         assert_eq!(canonical("draft/metadata-2"), "draft/metadata-3");
         assert!(is_known("account-registration"));
         assert!(!is_known("example.org/unknown"));
@@ -530,7 +533,7 @@ mod tests {
 
         for name in [
             "draft/account-registration",
-            "chathistory",
+            "draft/chathistory",
             "draft/metadata-3",
             "no-implicit-names",
         ] {
