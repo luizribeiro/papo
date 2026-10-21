@@ -1545,8 +1545,6 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::InvalidInput
 impl core::panic::unwind_safe::UnwindSafe for papo::InvalidInput
 #[non_exhaustive] pub enum papo::MessageKind
 pub papo::MessageKind::Action
-pub papo::MessageKind::Ctcp
-pub papo::MessageKind::CtcpReply
 pub papo::MessageKind::Notice
 pub papo::MessageKind::Privmsg
 impl core::clone::Clone for papo::MessageKind

@@ -201,9 +201,11 @@ async fn message_accessors_use_captured_session_facts() {
     let action = next_message(&mut events).await;
     assert_eq!(action.kind(), MessageKind::Action);
     assert_eq!(action.text(), "waves");
+    assert_eq!(action.raw_text(), "waves");
     let action = next_message(&mut events).await;
     assert_eq!(action.kind(), MessageKind::Action);
     assert_eq!(action.text(), "tests a split message");
+    assert_eq!(action.raw_text(), "tests a split message");
     let version = events.next().await.unwrap();
     let version = version.as_ctcp().unwrap();
     assert_eq!(version.command, "VERSION");

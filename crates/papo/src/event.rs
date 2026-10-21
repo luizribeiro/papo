@@ -63,10 +63,6 @@ pub enum MessageKind {
     Notice,
     /// A CTCP `ACTION`.
     Action,
-    /// Another CTCP command sent with `PRIVMSG`.
-    Ctcp,
-    /// A CTCP response sent with `NOTICE`.
-    CtcpReply,
 }
 
 /// An incoming Client-to-Client Protocol query or reply.
@@ -154,7 +150,7 @@ pub struct Message {
     pub status: Option<Vec<char>>,
     /// Display text with IRC formatting removed.
     pub text: String,
-    /// The text parameter exactly as received.
+    /// Text with IRC formatting retained and the CTCP wrapper removed from an `ACTION`.
     pub raw_text: String,
     /// The semantic message kind.
     pub kind: MessageKind,
@@ -475,12 +471,11 @@ impl Message {
             {
                 (MessageKind::Action, ctcp.params.unwrap_or(""))
             }
-            Some(_) if plain == MessageKind::Privmsg => (MessageKind::Ctcp, raw_text),
-            Some(_) => (MessageKind::CtcpReply, raw_text),
+            Some(_) => return Err(raw),
             None => (plain, raw_text),
         };
         let text = strip_formatting(displayed).into_owned();
-        let raw_text = raw_text.to_owned();
+        let raw_text = displayed.to_owned();
         let Some(metadata) = message_metadata(
             &message,
             batch_type,
@@ -539,7 +534,7 @@ impl Message {
         &self.text
     }
 
-    /// Returns the text parameter exactly as received.
+    /// Returns text with formatting retained and the CTCP wrapper removed from an `ACTION`.
     #[must_use]
     pub fn raw_text(&self) -> &str {
         &self.raw_text
@@ -1576,7 +1571,7 @@ mod tests {
         assert_eq!(formatted.raw_text(), "hello \x02from Ergo\x02");
         assert_eq!(formatted.text(), "hello from Ergo");
         let action = chat("PRIVMSG", "\x01ACTION writes the specification\x01");
-        assert_eq!(action.raw_text(), "\x01ACTION writes the specification\x01");
+        assert_eq!(action.raw_text(), "writes the specification");
         assert_eq!(action.text(), "writes the specification");
     }
 
