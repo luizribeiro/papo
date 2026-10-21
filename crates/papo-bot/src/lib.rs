@@ -151,15 +151,7 @@ impl Command {
             return None;
         }
         let rest = body[name_end..].trim_start();
-        let account = message.account.clone().or_else(|| {
-            let Source::User { nick, .. } = &message.actor else {
-                return None;
-            };
-            match client.state().user(nick)?.account() {
-                papo::Account::LoggedIn(account) => Some(account.clone()),
-                _ => None,
-            }
-        });
+        let account = message.account.clone();
         Some(Self {
             actor: message.actor.clone(),
             client: client.clone(),
@@ -200,7 +192,11 @@ impl Command {
         &self.message
     }
 
-    /// Returns the sender's authenticated account, when known.
+    /// Returns the account tag attached to this message.
+    ///
+    /// This is `None` when the message has no account tag, including on servers without the
+    /// `account-tag` capability. For an explicit, stale-prone fallback, look up
+    /// `self.actor.nick()` with [`papo::State::user`] and inspect [`papo::User::account`].
     #[must_use]
     pub const fn account(&self) -> Option<&AccountName> {
         self.account.as_ref()
@@ -374,6 +370,20 @@ mod tests {
 
     struct IdleStream;
 
+    struct TranscriptStream {
+        input: Vec<u8>,
+        offset: usize,
+    }
+
+    impl TranscriptStream {
+        fn new(input: &str) -> Self {
+            Self {
+                input: input.as_bytes().to_vec(),
+                offset: 0,
+            }
+        }
+    }
+
     impl AsyncRead for IdleStream {
         fn poll_read(
             self: Pin<&mut Self>,
@@ -385,6 +395,40 @@ mod tests {
     }
 
     impl AsyncWrite for IdleStream {
+        fn poll_write(
+            self: Pin<&mut Self>,
+            _context: &mut Context<'_>,
+            buffer: &[u8],
+        ) -> Poll<io::Result<usize>> {
+            Poll::Ready(Ok(buffer.len()))
+        }
+
+        fn poll_flush(self: Pin<&mut Self>, _context: &mut Context<'_>) -> Poll<io::Result<()>> {
+            Poll::Ready(Ok(()))
+        }
+
+        fn poll_close(self: Pin<&mut Self>, _context: &mut Context<'_>) -> Poll<io::Result<()>> {
+            Poll::Ready(Ok(()))
+        }
+    }
+
+    impl AsyncRead for TranscriptStream {
+        fn poll_read(
+            mut self: Pin<&mut Self>,
+            _context: &mut Context<'_>,
+            buffer: &mut [u8],
+        ) -> Poll<io::Result<usize>> {
+            if self.offset == self.input.len() {
+                return Poll::Pending;
+            }
+            let count = buffer.len().min(self.input.len() - self.offset);
+            buffer[..count].copy_from_slice(&self.input[self.offset..self.offset + count]);
+            self.offset += count;
+            Poll::Ready(Ok(count))
+        }
+    }
+
+    impl AsyncWrite for TranscriptStream {
         fn poll_write(
             self: Pin<&mut Self>,
             _context: &mut Context<'_>,
@@ -453,6 +497,40 @@ mod tests {
         let unknown = parse(&message("#papo", "!op alice"), &BotConfig::new("!")).unwrap();
         assert_eq!(unknown.account(), None);
         assert!(!unknown.account_in(["emily"]));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn account_tag_absence_never_falls_back_to_state() {
+        let transcript = concat!(
+            ":ergo.test CAP * LS :account-notify account-tag\r\n",
+            ":ergo.test CAP papo{bot} ACK :account-notify account-tag\r\n",
+            ":ergo.test 001 papo{bot} :Welcome to the Ergo test network\r\n",
+            ":ergo.test 005 papo{bot} CASEMAPPING=rfc1459 CHANTYPES=# :are supported\r\n",
+            ":papo{bot}!papo@localhost JOIN #papo\r\n",
+            ":ergo.test 353 papo{bot} = #papo :@papo{bot} emily!~emily@localhost\r\n",
+            ":ergo.test 366 papo{bot} #papo :End of NAMES list\r\n",
+            ":emily!~emily@localhost ACCOUNT Emily\r\n",
+            ":emily!~emily@localhost PRIVMSG #papo :!op alice\r\n",
+        );
+        let (client, mut events, driver) = Client::builder("irc.example")
+            .nick(Casemapping::Rfc1459.nick("papo{bot}"))
+            .stream(TranscriptStream::new(transcript))
+            .build();
+        let driver = tokio::spawn(driver);
+        let incoming = loop {
+            if let Some(papo::Event::Message(message)) = events.next().await {
+                break message;
+            }
+        };
+
+        assert!(matches!(
+            client.state().user("emily").unwrap().account(),
+            papo::Account::LoggedIn(account) if account == "Emily"
+        ));
+        let command = BotConfig::new("!").command(&client, &incoming).unwrap();
+        assert_eq!(command.account(), None);
+        assert!(!command.account_in(["emily"]));
+        driver.abort();
     }
 
     #[test]
