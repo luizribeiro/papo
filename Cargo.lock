@@ -768,6 +768,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "papo-create-account"
+version = "0.0.0"
+dependencies = [
+ "papo",
+ "papo-core",
+ "papo-test-server",
+ "tokio",
+]
+
+[[package]]
 name = "papo-echo-bot"
 version = "0.0.0"
 dependencies = [
@@ -809,16 +819,6 @@ dependencies = [
  "precis-profiles",
  "proptest",
  "serde_json",
-]
-
-[[package]]
-name = "papo-register"
-version = "0.0.0"
-dependencies = [
- "papo",
- "papo-core",
- "papo-test-server",
- "tokio",
 ]
 
 [[package]]

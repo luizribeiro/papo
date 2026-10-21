@@ -1,4 +1,4 @@
-//! Register an Ergo account before completing connection registration.
+//! Create an Ergo account while connecting.
 
 use std::{env, error::Error, io};
 
@@ -45,7 +45,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
         if connected && let Some(account) = &logged_in {
             println!("logged in as {account}");
-            client.quit("account registration complete").await?;
+            client.quit("account creation complete").await?;
             return Ok(());
         }
     }

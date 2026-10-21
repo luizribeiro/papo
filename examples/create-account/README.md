@@ -1,4 +1,4 @@
-# Register
+# Create account
 
 This example creates an Ergo account during connection setup and prints the authenticated account.
 If the server requires email verification, it prints the server's instructions and reads the
@@ -11,7 +11,7 @@ Configuration comes from the environment:
 - `IRC_PLAINTEXT`: when set, start without TLS while still honoring STS;
 - `IRC_ACCOUNT`: the new account name and initial nickname;
 - `IRC_PASSWORD_FILE`: a file containing the new account password;
-- `IRC_EMAIL`: an optional registration email address;
+- `IRC_EMAIL`: an optional account-creation email address;
 - `IRC_CA_FILE`: an optional PEM file containing the trusted CA certificate.
 
 Run it from the repository root:
@@ -20,7 +20,7 @@ Run it from the repository root:
 IRC_SERVER=irc.example.test IRC_ACCOUNT=alice \
 IRC_PASSWORD_FILE=/run/credentials/irc-password \
 IRC_EMAIL=alice@example.test IRC_CA_FILE=/run/credentials/irc-ca.pem \
-cargo run -p papo-register
+cargo run -p papo-create-account
 ```
 
 Successful output is line-oriented:

@@ -13,7 +13,7 @@ members = [
   "examples/admin-bot",
   "examples/echo-bot",
   "examples/catchup",
-  "examples/register",
+  "examples/create-account",
   "examples/browser-worker",
   "examples/sts-store",
 ]

@@ -1,4 +1,4 @@
-//! Register-example output against the runner-managed Ergo server.
+//! Account-creation example output against the runner-managed Ergo server.
 #![cfg(not(target_family = "wasm"))]
 
 use std::{process::Command, time::Duration};
@@ -7,13 +7,13 @@ use papo_test_server::{from_env, unique};
 use tokio::time::timeout;
 
 #[tokio::test(flavor = "current_thread")]
-async fn registers_and_logs_in_during_connection_setup() {
+async fn creates_and_logs_in_during_connection_setup() {
     timeout(Duration::from_secs(10), async {
         let server = from_env();
-        let account = unique("papo-register");
+        let account = unique("papo-create-account");
         let password = std::env::temp_dir().join(format!("{account}.password"));
         std::fs::write(&password, "q7Hx-2mZp_9vLcT4wRfB\n").unwrap();
-        let output = Command::new(env!("CARGO_BIN_EXE_register"))
+        let output = Command::new(env!("CARGO_BIN_EXE_create-account"))
             .env("IRC_SERVER", server.plaintext_addr().ip().to_string())
             .env("IRC_PORT", server.plaintext_addr().port().to_string())
             .env("IRC_PLAINTEXT", "1")
@@ -34,5 +34,5 @@ async fn registers_and_logs_in_during_connection_setup() {
         );
     })
     .await
-    .expect("live registration example did not finish within 10 seconds");
+    .expect("live account-creation example did not finish within 10 seconds");
 }
