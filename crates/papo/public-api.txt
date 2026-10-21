@@ -1512,25 +1512,6 @@ impl core::marker::Unpin for papo::InvalidInput
 impl core::marker::UnsafeUnpin for papo::InvalidInput
 impl core::panic::unwind_safe::RefUnwindSafe for papo::InvalidInput
 impl core::panic::unwind_safe::UnwindSafe for papo::InvalidInput
-pub enum papo::LegacyModeAction
-pub papo::LegacyModeAction::Add
-pub papo::LegacyModeAction::Remove
-impl core::clone::Clone for papo::LegacyModeAction
-pub fn papo::LegacyModeAction::clone(&self) -> Self
-impl core::cmp::Eq for papo::LegacyModeAction
-impl core::cmp::PartialEq for papo::LegacyModeAction
-pub fn papo::LegacyModeAction::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::LegacyModeAction
-pub fn papo::LegacyModeAction::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Copy for papo::LegacyModeAction
-impl core::marker::StructuralPartialEq for papo::LegacyModeAction
-impl core::marker::Freeze for papo::LegacyModeAction
-impl core::marker::Send for papo::LegacyModeAction
-impl core::marker::Sync for papo::LegacyModeAction
-impl core::marker::Unpin for papo::LegacyModeAction
-impl core::marker::UnsafeUnpin for papo::LegacyModeAction
-impl core::panic::unwind_safe::RefUnwindSafe for papo::LegacyModeAction
-impl core::panic::unwind_safe::UnwindSafe for papo::LegacyModeAction
 #[non_exhaustive] pub enum papo::LegacyModeArg
 pub papo::LegacyModeArg::Mask(papo::Mask)
 pub papo::LegacyModeArg::Nick(papo::Nick)

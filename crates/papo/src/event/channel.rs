@@ -4,15 +4,6 @@ use crate::{Account, AccountName, Authorship, ChannelName, MessageId, Nick, Subj
 
 use super::Source;
 
-/// The operation applied to an IRC mode.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum LegacyModeAction {
-    /// Add or enable the mode.
-    Add,
-    /// Remove or disable the mode.
-    Remove,
-}
-
 /// A mode argument classified using the server's advertised rules.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
