@@ -180,26 +180,28 @@ fn defaults_cover_every_implemented_negotiable_capability() {
             "draft/oper-tag",
             "draft/metadata-2",
             "draft/account-registration",
-            #[cfg(feature = "unstable")]
-            "soju.im/bouncer-networks",
-            #[cfg(feature = "unstable")]
-            "soju.im/bouncer-networks-notify",
             "draft/chathistory",
             "draft/read-marker",
-            #[cfg(feature = "unstable")]
-            "draft/persistence",
             "draft/channel-rename",
-            #[cfg(feature = "unstable")]
-            "draft/relaymsg",
             "draft/message-redaction",
-            #[cfg(feature = "unstable")]
-            "draft/webpush",
             "draft/pre-away",
             "no-implicit-names",
             "draft/whoami",
             "draft/extended-isupport",
         ]
     );
+}
+
+#[cfg(feature = "unstable")]
+#[test]
+fn unstable_capabilities_require_explicit_feature_selection() {
+    let offered = "soju.im/bouncer-networks soju.im/bouncer-networks-notify draft/persistence draft/relaymsg draft/webpush";
+    Transcript::new(Config::default())
+        .connect_default()
+        .server(&format!("CAP * LS :{offered}"))
+        .client("CAP END")
+        .server("CAP papo NEW :draft/webpush")
+        .no_client();
 }
 
 #[test]

@@ -33,15 +33,15 @@
 //! | `ergo.chat/nope` | — | never | — | `caps` |
 //! | `soju.im/account-required` | — | never | — | `caps` |
 //! | `draft/account-registration` | account-registration | default | account creation | `account_registration` |
-//! | `soju.im/bouncer-networks` | — | default | bouncer networks | `bouncer` |
-//! | `soju.im/bouncer-networks-notify` | — | default | — | `bouncer` |
+//! | `soju.im/bouncer-networks` | — | opt-in | bouncer networks | `bouncer` |
+//! | `soju.im/bouncer-networks-notify` | — | opt-in | — | `bouncer` |
 //! | `chathistory` | draft/chathistory | default | chathistory | `history`, `batch` |
 //! | `draft/read-marker` | read-marker | default | read-marker | `history`, `state::read_marker` |
-//! | `draft/persistence` | — | default | persistence | `persistence`, `state::persistence` |
+//! | `draft/persistence` | — | opt-in | persistence | `persistence`, `state::persistence` |
 //! | `draft/channel-rename` | — | default | channel rename | `channel_rename`, `state::rename` |
-//! | `draft/relaymsg` | — | default | relaymsg | `relaymsg` |
+//! | `draft/relaymsg` | — | opt-in | relaymsg | `relaymsg` |
 //! | `draft/message-redaction` | — | default | draft/message-redaction | `outgoing`, `replies` |
-//! | `draft/webpush` | soju.im/webpush | default | webpush | `webpush` |
+//! | `draft/webpush` | soju.im/webpush | opt-in | webpush | `webpush` |
 //! | `draft/pre-away` | — | default | — | `state` |
 //! | `no-implicit-names` | draft/no-implicit-names | default | — | `state::membership` |
 //! | `draft/whoami` | — | default | — | `state` |
@@ -408,6 +408,10 @@ pub struct Config {
     pub wanted_caps: Vec<String>,
     /// Capability names explicitly disabled by the client.
     pub disabled_caps: Vec<String>,
+    /// Optional extension features explicitly enabled by the application.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    pub enabled_features: BTreeSet<Feature>,
     /// Alternative nicknames to try when the requested nickname collides while connecting.
     pub alt_nicks: Vec<String>,
     /// Whether to reclaim the configured nickname after a connection-time collision.
@@ -477,6 +481,8 @@ impl std::fmt::Debug for Config {
             .field("who_on_join", &self.who_on_join)
             .field("metadata_subscriptions", &self.metadata_subscriptions);
         #[cfg(feature = "unstable")]
+        debug.field("enabled_features", &self.enabled_features);
+        #[cfg(feature = "unstable")]
         debug.field("bouncer_network", &self.bouncer_network);
         debug
             .field("registration_on_connect", &self.registration_on_connect)
@@ -514,6 +520,15 @@ impl Default for Config {
                 .map(|name| (*name).to_owned())
                 .collect(),
             disabled_caps: Vec::new(),
+            #[cfg(feature = "unstable")]
+            enabled_features: [
+                Feature::Bouncer,
+                Feature::Persistence,
+                Feature::WebPush,
+                Feature::Relay,
+            ]
+            .into_iter()
+            .collect(),
             alt_nicks: Vec::new(),
             regain_nick: false,
             sasl: None,
@@ -536,6 +551,23 @@ impl Default for Config {
 }
 
 impl Config {
+    /// Enables an unstable extension feature before connecting.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    #[must_use]
+    pub fn enable(mut self, feature: Feature) -> Self {
+        self.enabled_features.insert(feature);
+        for info in cap::ALL {
+            if let cap::Request::OptIn(name, owner) = info.request
+                && owner == feature
+                && !self.wanted_caps.iter().any(|wanted| wanted == name)
+            {
+                self.wanted_caps.push(name.to_owned());
+            }
+        }
+        self
+    }
+
     /// Sets the incoming line decoding policy.
     #[must_use]
     pub const fn decoding(mut self, decoding: Decoding) -> Self {

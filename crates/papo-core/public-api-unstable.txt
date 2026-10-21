@@ -5,6 +5,7 @@ pub enum papo_core::cap::Request
 pub papo_core::cap::Request::Automatic
 pub papo_core::cap::Request::Default(&'static str)
 pub papo_core::cap::Request::Never
+pub papo_core::cap::Request::OptIn(&'static str, papo_core::Feature)
 pub papo_core::cap::Request::Superseded(&'static str)
 impl core::clone::Clone for papo_core::cap::Request
 pub fn papo_core::cap::Request::clone(&self) -> Self
@@ -1415,6 +1416,7 @@ pub papo_core::Config::ctcp: papo_core::CtcpReplies
 pub papo_core::Config::decoding: papo_core::Decoding
 pub papo_core::Config::device: core::option::Option<alloc::string::String>
 pub papo_core::Config::disabled_caps: alloc::vec::Vec<alloc::string::String>
+pub papo_core::Config::enabled_features: alloc::collections::btree::set::BTreeSet<papo_core::Feature>
 pub papo_core::Config::host: alloc::string::String
 pub papo_core::Config::max_batch_lines: usize
 pub papo_core::Config::max_channels: usize
@@ -1445,6 +1447,7 @@ pub fn papo_core::Config::create_account_on_connect(self, core::option::Option<i
 pub fn papo_core::Config::ctcp(self, papo_core::CtcpReplies) -> Self
 pub const fn papo_core::Config::decoding(self, papo_core::Decoding) -> Self
 pub fn papo_core::Config::device(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo_core::Config::enable(self, papo_core::Feature) -> Self
 pub fn papo_core::Config::host(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub const fn papo_core::Config::max_batch_lines(self, usize) -> Self
 pub const fn papo_core::Config::max_channels(self, usize) -> Self

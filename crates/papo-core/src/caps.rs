@@ -189,7 +189,15 @@ impl Caps {
             .iter()
             .map(String::as_str)
             .chain(config.sasl.as_ref().map(|_| cap::SASL.constant_str()))
-            .filter(|wanted| cap::requestable(wanted, &self.advertised, &config.wanted_caps))
+            .filter(|wanted| {
+                cap::requestable(
+                    wanted,
+                    &self.advertised,
+                    &config.wanted_caps,
+                    #[cfg(feature = "unstable")]
+                    &config.enabled_features,
+                )
+            })
             .filter(|wanted| !config.cap_disabled(wanted))
             .filter_map(|wanted| cap::advertised_spelling(wanted, &self.advertised))
             .filter(|name| announced.contains(*name))
@@ -244,7 +252,15 @@ impl Caps {
             .map(String::as_str)
             .chain(config.sasl.as_ref().map(|_| cap::SASL.constant_str()));
         let requested = wanted
-            .filter(|wanted| cap::requestable(wanted, &self.advertised, &config.wanted_caps))
+            .filter(|wanted| {
+                cap::requestable(
+                    wanted,
+                    &self.advertised,
+                    &config.wanted_caps,
+                    #[cfg(feature = "unstable")]
+                    &config.enabled_features,
+                )
+            })
             .filter(|wanted| !config.cap_disabled(wanted))
             .filter_map(|wanted| cap::advertised_spelling(wanted, &self.advertised))
             .filter(|name| seen.insert((*name).to_owned()))

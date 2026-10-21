@@ -255,6 +255,14 @@ impl Session {
     ///
     /// Returns the reason the feature is unavailable on this connection.
     pub fn supports(&self, feature: Feature) -> Result<(), UnsupportedReason> {
+        #[cfg(feature = "unstable")]
+        if matches!(
+            feature,
+            Feature::Bouncer | Feature::Persistence | Feature::WebPush | Feature::Relay
+        ) && !self.config.enabled_features.contains(&feature)
+        {
+            return Err(UnsupportedReason::DisabledByClient);
+        }
         let support = self.isupport.value();
         match feature {
             Feature::Monitor => match support.get("MONITOR") {

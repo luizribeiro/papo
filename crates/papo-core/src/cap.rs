@@ -115,6 +115,9 @@ pub enum Request {
     Never,
     /// Requested only when a preferred capability is unavailable.
     Superseded(&'static str),
+    /// Requested only when the application enables the corresponding feature.
+    #[cfg(feature = "unstable")]
+    OptIn(&'static str, Feature),
 }
 
 /// Registry information for one IRC capability.
@@ -187,15 +190,15 @@ capabilities! {
     [cap] NOPE = "ergo.chat/nope"; "Ergo capability-negotiation test trap."; name: "ergo.chat/nope"; aliases: []; request: Request::Never; features: []; code: [crate::caps];
     [cap] ACCOUNT_REQUIRED = "soju.im/account-required"; "Soju authentication requirement."; name: "soju.im/account-required"; aliases: []; request: Request::Never; features: []; code: [crate::caps];
     [cap] ACCOUNT_REGISTRATION = "draft/account-registration"; "Account registration."; name: "draft/account-registration"; aliases: ["account-registration"]; request: Request::Default("draft/account-registration"); features: [Feature::AccountCreation]; code: [crate::account_registration];
-    #[cfg(feature = "unstable")] [cap] BOUNCER_NETWORKS = "soju.im/bouncer-networks"; "Bouncer network management."; name: "soju.im/bouncer-networks"; aliases: []; request: Request::Default("soju.im/bouncer-networks"); features: [Feature::Bouncer]; code: [crate::bouncer];
-    #[cfg(feature = "unstable")] [cap] BOUNCER_NETWORKS_NOTIFY = "soju.im/bouncer-networks-notify"; "Bouncer network change notifications."; name: "soju.im/bouncer-networks-notify"; aliases: []; request: Request::Default("soju.im/bouncer-networks-notify"); features: []; code: [crate::bouncer];
+    #[cfg(feature = "unstable")] [cap] BOUNCER_NETWORKS = "soju.im/bouncer-networks"; "Bouncer network management."; name: "soju.im/bouncer-networks"; aliases: []; request: Request::OptIn("soju.im/bouncer-networks", Feature::Bouncer); features: [Feature::Bouncer]; code: [crate::bouncer];
+    #[cfg(feature = "unstable")] [cap] BOUNCER_NETWORKS_NOTIFY = "soju.im/bouncer-networks-notify"; "Bouncer network change notifications."; name: "soju.im/bouncer-networks-notify"; aliases: []; request: Request::OptIn("soju.im/bouncer-networks-notify", Feature::Bouncer); features: []; code: [crate::bouncer];
     [cap] CHATHISTORY = "draft/chathistory"; "Message history queries."; name: "chathistory"; aliases: ["draft/chathistory"]; request: Request::Default("draft/chathistory"); features: [Feature::History]; code: [crate::history, crate::batch];
     [cap] READ_MARKER = "draft/read-marker"; "Channel read markers."; name: "draft/read-marker"; aliases: ["read-marker"]; request: Request::Default("draft/read-marker"); features: [Feature::ReadMarkers]; code: [crate::history, crate::state::read_marker];
-    #[cfg(feature = "unstable")] [cap] PERSISTENCE = "draft/persistence"; "Account persistence preferences."; name: "draft/persistence"; aliases: []; request: Request::Default("draft/persistence"); features: [Feature::Persistence]; code: [crate::persistence, crate::state::persistence];
+    #[cfg(feature = "unstable")] [cap] PERSISTENCE = "draft/persistence"; "Account persistence preferences."; name: "draft/persistence"; aliases: []; request: Request::OptIn("draft/persistence", Feature::Persistence); features: [Feature::Persistence]; code: [crate::persistence, crate::state::persistence];
     [cap] CHANNEL_RENAME = "draft/channel-rename"; "Channel renaming."; name: "draft/channel-rename"; aliases: []; request: Request::Default("draft/channel-rename"); features: [Feature::ChannelRename]; code: [crate::channel_rename, crate::state::rename];
-    #[cfg(feature = "unstable")] [cap] RELAYMSG = "draft/relaymsg"; "Relayed messages."; name: "draft/relaymsg"; aliases: []; request: Request::Default("draft/relaymsg"); features: [Feature::Relay]; code: [crate::relaymsg];
+    #[cfg(feature = "unstable")] [cap] RELAYMSG = "draft/relaymsg"; "Relayed messages."; name: "draft/relaymsg"; aliases: []; request: Request::OptIn("draft/relaymsg", Feature::Relay); features: [Feature::Relay]; code: [crate::relaymsg];
     [cap] MESSAGE_REDACTION = "draft/message-redaction"; "Message redaction."; name: "draft/message-redaction"; aliases: []; request: Request::Default("draft/message-redaction"); features: [Feature::Redaction]; code: [crate::outgoing, crate::replies];
-    #[cfg(feature = "unstable")] [cap] WEBPUSH = "draft/webpush"; "Web Push subscriptions."; name: "draft/webpush"; aliases: ["soju.im/webpush"]; request: Request::Default("draft/webpush"); features: [Feature::WebPush]; code: [crate::webpush];
+    #[cfg(feature = "unstable")] [cap] WEBPUSH = "draft/webpush"; "Web Push subscriptions."; name: "draft/webpush"; aliases: ["soju.im/webpush"]; request: Request::OptIn("draft/webpush", Feature::WebPush); features: [Feature::WebPush]; code: [crate::webpush];
     [cap] PRE_AWAY = "draft/pre-away"; "Away state during registration."; name: "draft/pre-away"; aliases: []; request: Request::Default("draft/pre-away"); features: []; code: [crate::state];
     [cap] NO_IMPLICIT_NAMES = "no-implicit-names"; "Suppression of implicit names replies."; name: "no-implicit-names"; aliases: ["draft/no-implicit-names"]; request: Request::Default("no-implicit-names"); features: []; code: [crate::state::membership];
     [cap] WHOAMI = "draft/whoami"; "Current connection identity discovery."; name: "draft/whoami"; aliases: []; request: Request::Default("draft/whoami"); features: []; code: [crate::state];
@@ -288,6 +291,8 @@ pub(crate) fn request_spelling(name: &str) -> Option<&'static str> {
         .find(|info| info.name == canonical(name))
         .and_then(|info| match info.request {
             Request::Default(spelling) => Some(spelling),
+            #[cfg(feature = "unstable")]
+            Request::OptIn(spelling, _) => Some(spelling),
             Request::Automatic | Request::Never | Request::Superseded(_) => None,
         })
 }
@@ -363,6 +368,8 @@ pub fn markdown_table() -> String {
             Request::Automatic => "automatic",
             Request::Never => "never",
             Request::Superseded(_) => "fallback",
+            #[cfg(feature = "unstable")]
+            Request::OptIn(_, _) => "opt-in",
         };
         writeln!(
             table,
@@ -380,7 +387,12 @@ pub fn markdown_table() -> String {
     table
 }
 
-pub(crate) fn requestable(name: &str, advertised: &Capabilities, wanted: &[String]) -> bool {
+pub(crate) fn requestable(
+    name: &str,
+    advertised: &Capabilities,
+    wanted: &[String],
+    #[cfg(feature = "unstable")] enabled_features: &std::collections::BTreeSet<Feature>,
+) -> bool {
     let Some(info) = ALL.iter().find(|info| info.name == canonical(name)) else {
         return true;
     };
@@ -398,6 +410,8 @@ pub(crate) fn requestable(name: &str, advertised: &Capabilities, wanted: &[Strin
                 .any(|name| canonical(name) == canonical(preferred))
                 || advertised_spelling(preferred, advertised).is_none()
         }
+        #[cfg(feature = "unstable")]
+        Request::OptIn(_, feature) => enabled_features.contains(&feature),
         Request::Default(_) | Request::Automatic => true,
     }
 }

@@ -42,15 +42,15 @@ The project is early in development; the API is not yet stable.
 | `ergo.chat/nope` | — | never | — | `caps` |
 | `soju.im/account-required` | — | never | — | `caps` |
 | `draft/account-registration` | account-registration | default | account creation | `account_registration` |
-| `soju.im/bouncer-networks` | — | default | bouncer networks | `bouncer` |
-| `soju.im/bouncer-networks-notify` | — | default | — | `bouncer` |
+| `soju.im/bouncer-networks` | — | opt-in | bouncer networks | `bouncer` |
+| `soju.im/bouncer-networks-notify` | — | opt-in | — | `bouncer` |
 | `chathistory` | draft/chathistory | default | chathistory | `history`, `batch` |
 | `draft/read-marker` | read-marker | default | read-marker | `history`, `state::read_marker` |
-| `draft/persistence` | — | default | persistence | `persistence`, `state::persistence` |
+| `draft/persistence` | — | opt-in | persistence | `persistence`, `state::persistence` |
 | `draft/channel-rename` | — | default | channel rename | `channel_rename`, `state::rename` |
-| `draft/relaymsg` | — | default | relaymsg | `relaymsg` |
+| `draft/relaymsg` | — | opt-in | relaymsg | `relaymsg` |
 | `draft/message-redaction` | — | default | draft/message-redaction | `outgoing`, `replies` |
-| `draft/webpush` | soju.im/webpush | default | webpush | `webpush` |
+| `draft/webpush` | soju.im/webpush | opt-in | webpush | `webpush` |
 | `draft/pre-away` | — | default | — | `state` |
 | `no-implicit-names` | draft/no-implicit-names | default | — | `state::membership` |
 | `draft/whoami` | — | default | — | `state` |
