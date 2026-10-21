@@ -193,7 +193,7 @@ async fn message_accessors_use_captured_session_facts() {
     assert_eq!(message.origin(), Origin::Live);
     assert!(message.is_live());
 
-    server_line(&mut server, b":emily!~e@localhost NOTICE papo-driver :maintenance soon\r\n:emily!~e@localhost PRIVMSG #papo :\x01ACTION waves\x01\r\n:emily!~e@localhost PRIVMSG #papo :\x01VERSION\x01\r\n").await;
+    server_line(&mut server, b":emily!~e@localhost NOTICE papo-driver :maintenance soon\r\n:emily!~e@localhost PRIVMSG #papo :\x01ACTION waves\x01\r\n:dan!~d@cloak PRIVMSG #papo :\x01ACTION tests a split message\r\n:emily!~e@localhost PRIVMSG papo-driver :\x01VERSION\x01\r\n:dan!~d@cloak PRIVMSG papo-driver :\x01PING 1731513600\x01\r\n:soju.example NOTICE papo-driver :\x01VERSION soju 0.8.2\x01\r\n").await;
     let notice = next_message(&mut events).await;
     assert_eq!(notice.kind(), MessageKind::Notice);
     assert!(notice.is_private());
@@ -201,7 +201,23 @@ async fn message_accessors_use_captured_session_facts() {
     let action = next_message(&mut events).await;
     assert_eq!(action.kind(), MessageKind::Action);
     assert_eq!(action.text(), "waves");
-    assert_eq!(next_message(&mut events).await.kind(), MessageKind::Ctcp);
+    let action = next_message(&mut events).await;
+    assert_eq!(action.kind(), MessageKind::Action);
+    assert_eq!(action.text(), "tests a split message");
+    let version = events.next().await.unwrap();
+    let version = version.as_ctcp().unwrap();
+    assert_eq!(version.command, "VERSION");
+    assert_eq!(version.params, None);
+    assert!(!version.reply);
+    let ping = events.next().await.unwrap();
+    let ping = ping.as_ctcp().unwrap();
+    assert_eq!(ping.command, "PING");
+    assert_eq!(ping.params.as_deref(), Some("1731513600"));
+    let reply = events.next().await.unwrap();
+    let reply = reply.as_ctcp().unwrap();
+    assert_eq!(reply.command, "VERSION");
+    assert_eq!(reply.params.as_deref(), Some("soju 0.8.2"));
+    assert!(reply.reply);
 
     server_line(&mut server, b":PAPO-DRIVER!p@localhost PRIVMSG #papo :sent\r\nBATCH +history42 chathistory #papo\r\n@batch=history42 :dan!d@localhost PRIVMSG #papo :earlier\r\n").await;
     assert_eq!(next_message(&mut events).await.origin(), Origin::Echo);

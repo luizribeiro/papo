@@ -295,6 +295,36 @@ fn ctcp_parts(message: &LineRef<'_>) -> Option<(String, Option<String>, bool)> {
     })
 }
 
+pub(crate) fn incoming_from_core(
+    received: papo_core::ReceivedLine,
+    isupport: &Isupport,
+    received_at: SystemTime,
+) -> Event {
+    let conversation = received.conversation().cloned().filter(|_| {
+        ctcp_parts(&received.as_ref()).is_some() && received.as_ref().source().is_some()
+    });
+    let Some(conversation) = conversation else {
+        return Message::from_core(received, isupport, received_at)
+            .map_or_else(Event::Other, |message| Event::Message(Box::new(message)));
+    };
+    let status = received.status().map(<[char]>::to_vec);
+    let authorship = Authorship::from_core(received.authorship());
+    let (raw, batch_type, echo) = received.into_parts();
+    Event::Ctcp(
+        Ctcp::from_line(
+            raw,
+            batch_type.as_deref(),
+            echo,
+            authorship,
+            conversation,
+            status,
+            isupport,
+            received_at,
+        )
+        .unwrap_or_else(|_| unreachable!("validated CTCP line changed while moving ownership")),
+    )
+}
+
 pub(crate) fn incoming(
     line: ProtoLine,
     isupport: &Isupport,

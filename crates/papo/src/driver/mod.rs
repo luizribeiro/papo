@@ -1301,9 +1301,11 @@ where
             }
             event::CoreEvent::Line(message) => {
                 drop_bad_rejoin_key(session, defaults, &message.as_ref());
-                let event =
-                    crate::Message::from_core(message, session.isupport(), crate::rt::now_wall())
-                        .map_or_else(Event::Other, |message| Event::Message(Box::new(message)));
+                let event = crate::event_impl::incoming_from_core(
+                    message,
+                    session.isupport(),
+                    crate::rt::now_wall(),
+                );
                 if !enqueue_event(events, pending_events, event) {
                     return Ok(Some((
                         papo_core::CloseKind::Other,
