@@ -182,6 +182,20 @@ mod tests {
 
     use super::wire;
 
+    #[tokio::test(start_paused = true)]
+    async fn debug_identifies_the_fixture_without_exposing_its_state() {
+        let secret = "unique-wire-password-7462";
+        let (_client, _events, wire) = wire(
+            papo::Client::builder("irc://offline.test")
+                .nick("papo-wire")
+                .password(secret),
+        );
+
+        let debug = format!("{wire:?}");
+        assert_eq!(debug, "Wire { .. }");
+        assert!(!debug.contains(secret));
+    }
+
     async fn next_connected(events: &mut papo::Events) -> papo::event::Connected {
         loop {
             match events.next().await {
@@ -222,6 +236,29 @@ mod tests {
         ));
         wire.server("PING :ergo.example/12345").await;
         assert_eq!(wire.next_sent().await, "PONG :ergo.example/12345");
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn dropping_wire_stops_the_client_driver() {
+        let (_client, mut events, mut wire) = wire(
+            papo::Client::builder("irc://offline.test")
+                .nick("papo-wire")
+                .reconnect(papo::Reconnect::never()),
+        );
+        assert_eq!(wire.next_sent().await, "CAP LS 302");
+        assert_eq!(wire.next_sent().await, "NICK papo-wire");
+        assert_eq!(wire.next_sent().await, "USER papo-wire 0 * papo-wire");
+        wire.server(":offline.test CAP * LS :").await;
+        assert_eq!(wire.next_sent().await, "CAP END");
+        wire.server(":offline.test 001 papo-wire :Welcome to ErgoTest")
+            .await;
+        assert!(matches!(
+            events.next().await,
+            Some(papo::Event::Connected(_))
+        ));
+
+        drop(wire);
+        assert!(events.next().await.is_none());
     }
 
     #[tokio::test(start_paused = true)]
