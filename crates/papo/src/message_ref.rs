@@ -28,6 +28,52 @@ impl From<&Sent> for MessageRef {
     }
 }
 
+macro_rules! address_pairs {
+    ($($address:ty),+ $(,)?) => {
+        $(
+            impl<I: Into<MessageId>> From<($address, I)> for MessageRef {
+                fn from((address, msgid): ($address, I)) -> Self {
+                    Self {
+                        address: <$address as AsRef<str>>::as_ref(&address).to_owned(),
+                        msgid: Some(msgid.into()),
+                    }
+                }
+            }
+        )+
+    };
+}
+
+address_pairs!(
+    &str,
+    String,
+    &String,
+    crate::AccountName,
+    &crate::AccountName,
+    crate::ChannelName,
+    &crate::ChannelName,
+    crate::Nick,
+    &crate::Nick,
+    crate::Mask,
+    &crate::Mask,
+    crate::ServerName,
+    &crate::ServerName,
+);
+
+impl<I: Into<MessageId>> From<(Conversation, I)> for MessageRef {
+    fn from((conversation, msgid): (Conversation, I)) -> Self {
+        Self {
+            address: conversation_address(&conversation, None),
+            msgid: Some(msgid.into()),
+        }
+    }
+}
+
+impl<I: Into<MessageId>> From<(&Conversation, I)> for MessageRef {
+    fn from((conversation, msgid): (&Conversation, I)) -> Self {
+        Self::from((conversation.clone(), msgid))
+    }
+}
+
 fn conversation_address(conversation: &Conversation, status: Option<&[char]>) -> String {
     status
         .into_iter()
@@ -78,5 +124,20 @@ mod tests {
         let reference = MessageRef::from(&sent);
         assert_eq!(reference.address, "@#ops");
         assert_eq!(reference.msgid, Some("RfcBTzyxY120005".into()));
+    }
+
+    #[test]
+    fn references_accept_text_names_and_conversations() {
+        let mapping = crate::Casemapping::default();
+        let id = MessageId::from("RfcBTzyxY120006");
+        let references = [
+            MessageRef::from(("#papo", &id)),
+            MessageRef::from((mapping.channel("#papo"), &id)),
+            MessageRef::from((Conversation::Channel(mapping.channel("#papo")), &id)),
+        ];
+        for reference in references {
+            assert_eq!(reference.address, "#papo");
+            assert_eq!(reference.msgid, Some(id.clone()));
+        }
     }
 }
