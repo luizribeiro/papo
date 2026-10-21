@@ -47,6 +47,7 @@ pub const fn papo_bot::Command::message(&self) -> &papo::Message
 pub fn papo_bot::Command::name(&self) -> &str
 pub async fn papo_bot::Command::private_notice(&self, impl core::convert::Into<alloc::string::String>) -> core::result::Result<papo_bot::ReplyStatus, papo::Error>
 pub async fn papo_bot::Command::reply(&self, impl core::convert::Into<alloc::string::String>) -> core::result::Result<papo_bot::ReplyStatus, papo::Error>
+pub fn papo_bot::Command::rest(&self) -> &str
 impl core::clone::Clone for papo_bot::Command
 pub fn papo_bot::Command::clone(&self) -> Self
 impl core::fmt::Debug for papo_bot::Command

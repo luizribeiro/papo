@@ -131,6 +131,7 @@ pub struct Command {
     message: ChatMessage,
     name: String,
     args: Vec<String>,
+    rest: String,
     account: Option<AccountName>,
     replies: ReplyRateLimiter,
 }
@@ -144,11 +145,12 @@ impl Command {
             return None;
         }
         let body = addressed_body(client, message, config)?;
-        let mut words = split_args(body)?;
-        if words.is_empty() {
+        let name_end = body.find(char::is_whitespace).unwrap_or(body.len());
+        let name = &body[..name_end];
+        if name.is_empty() {
             return None;
         }
-        let name = words.remove(0).to_ascii_lowercase();
+        let rest = body[name_end..].trim_start();
         let account = message.account.clone().or_else(|| {
             let Source::User { nick, .. } = &message.actor else {
                 return None;
@@ -162,8 +164,9 @@ impl Command {
             actor: message.actor.clone(),
             client: client.clone(),
             message: message.clone(),
-            name,
-            args: words,
+            name: name.to_ascii_lowercase(),
+            args: split_args(rest),
+            rest: rest.to_owned(),
             account,
             replies: config.replies.clone(),
         })
@@ -176,9 +179,19 @@ impl Command {
     }
 
     /// Returns the parsed command arguments.
+    ///
+    /// Single and double quotes group a word only when they surround the whole word. Backslashes
+    /// escape characters only within such quotes. Unbalanced quotes and trailing backslashes are
+    /// literal text.
     #[must_use]
     pub fn args(&self) -> &[String] {
         &self.args
+    }
+
+    /// Returns the command body after its name, with leading whitespace removed.
+    #[must_use]
+    pub fn rest(&self) -> &str {
+        &self.rest
     }
 
     /// Returns the message that contained this command.
@@ -293,41 +306,51 @@ fn addressed_body<'a>(
     (client.state().nick() == address.trim()).then(|| body[1..].trim_start())
 }
 
-fn split_args(input: &str) -> Option<Vec<String>> {
+fn split_args(mut input: &str) -> Vec<String> {
     let mut words = Vec::new();
+    while !input.is_empty() {
+        input = input.trim_start();
+        if input.is_empty() {
+            break;
+        }
+        if let Some((word, consumed)) = quoted_word(input) {
+            words.push(word);
+            input = &input[consumed..];
+            continue;
+        }
+        let end = input.find(char::is_whitespace).unwrap_or(input.len());
+        words.push(input[..end].to_owned());
+        input = &input[end..];
+    }
+    words
+}
+
+fn quoted_word(input: &str) -> Option<(String, usize)> {
+    let quote = input
+        .chars()
+        .next()
+        .filter(|character| matches!(character, '\'' | '"'))?;
     let mut word = String::new();
-    let mut quote = None;
     let mut escaped = false;
-    let mut started = false;
-    for character in input.chars() {
+    for (offset, character) in input[quote.len_utf8()..].char_indices() {
+        let index = quote.len_utf8() + offset;
         if escaped {
             word.push(character);
             escaped = false;
         } else if character == '\\' {
             escaped = true;
-            started = true;
-        } else if quote == Some(character) {
-            quote = None;
-        } else if quote.is_none() && matches!(character, '\'' | '"') {
-            quote = Some(character);
-            started = true;
-        } else if quote.is_none() && character.is_whitespace() {
-            if started {
-                words.push(std::mem::take(&mut word));
-                started = false;
-            }
+        } else if character == quote
+            && input[index + character.len_utf8()..]
+                .chars()
+                .next()
+                .is_none_or(char::is_whitespace)
+        {
+            return Some((word, index + character.len_utf8()));
         } else {
             word.push(character);
-            started = true;
         }
     }
-    if quote.is_some() || escaped {
-        return None;
-    }
-    if started {
-        words.push(word);
-    }
-    Some(words)
+    None
 }
 
 #[cfg(all(test, not(all(target_arch = "wasm32", target_os = "unknown"))))]
@@ -407,6 +430,7 @@ mod tests {
         let command = parse(&message("#papo", "!EcHo hello world"), &BotConfig::new("!")).unwrap();
         assert_eq!(command.name(), "echo");
         assert_eq!(command.args(), ["hello", "world"]);
+        assert_eq!(command.rest(), "hello world");
         assert_eq!(command.message().text, "!EcHo hello world");
     }
 
@@ -432,11 +456,68 @@ mod tests {
     }
 
     #[test]
-    fn parses_mentions_quotes_escapes_and_empty_arguments() {
-        let incoming = message("#papo", "PAPO[bot]: EcHo 'Ergo Chat' one\\ two \"\"");
-        let command = parse(&incoming, &BotConfig::new("!")).unwrap();
-        assert_eq!(command.name(), "echo");
-        assert_eq!(command.args(), ["Ergo Chat", "one two", ""]);
+    fn quotes_group_only_complete_words() {
+        let kick = parse(
+            &message("#papo", "!kick bob don't spam"),
+            &BotConfig::new("!"),
+        )
+        .unwrap();
+        assert_eq!(kick.args(), ["bob", "don't", "spam"]);
+
+        let single = parse(&message("#papo", "!echo 'Ergo Chat'"), &BotConfig::new("!")).unwrap();
+        assert_eq!(single.args(), ["Ergo Chat"]);
+
+        let double = parse(
+            &message("#papo", "!echo \"Ergo Chat\" rocks"),
+            &BotConfig::new("!"),
+        )
+        .unwrap();
+        assert_eq!(double.args(), ["Ergo Chat", "rocks"]);
+        assert_eq!(double.rest(), "\"Ergo Chat\" rocks");
+
+        let say = parse(
+            &message("#papo", "!say he said \"hi\""),
+            &BotConfig::new("!"),
+        )
+        .unwrap();
+        assert_eq!(say.args(), ["he", "said", "hi"]);
+    }
+
+    #[test]
+    fn malformed_quotes_and_outside_escapes_stay_literal() {
+        let command = parse(
+            &message("#papo", "!say 'Ergo Chat one\\ two path\\ \"hi\"! \"Ergo\\"),
+            &BotConfig::new("!"),
+        )
+        .unwrap();
+        assert_eq!(
+            command.args(),
+            [
+                "'Ergo", "Chat", "one\\", "two", "path\\", "\"hi\"!", "\"Ergo\\"
+            ]
+        );
+
+        let escaped = parse(
+            &message("#papo", "!say \"Ergo\\ Chat\" \"Ergo\"Chat\" \"\""),
+            &BotConfig::new("!"),
+        )
+        .unwrap();
+        assert_eq!(escaped.args(), ["Ergo Chat", "Ergo\"Chat", ""]);
+    }
+
+    #[test]
+    fn rest_trims_only_whitespace_before_the_body() {
+        let command = parse(
+            &message("#papo", "!EcHo \t  'Ergo Chat'  "),
+            &BotConfig::new("!"),
+        )
+        .unwrap();
+        assert_eq!(command.rest(), "'Ergo Chat'  ");
+        assert_eq!(command.args(), ["Ergo Chat"]);
+
+        let empty = parse(&message("#papo", "!ping"), &BotConfig::new("!")).unwrap();
+        assert_eq!(empty.rest(), "");
+        assert!(empty.args().is_empty());
     }
 
     #[test]
