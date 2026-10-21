@@ -145,5 +145,23 @@ mod tests {
             assert_eq!(reference.address, "#papo");
             assert_eq!(reference.msgid, Some(id.clone()));
         }
+
+        for (reference, expected) in [
+            (
+                MessageRef::from((Conversation::Private(mapping.nick("emily")), &id)),
+                "emily",
+            ),
+            (
+                MessageRef::from((
+                    &Conversation::Broadcast(mapping.mask("$*.example.org")),
+                    &id,
+                )),
+                "$*.example.org",
+            ),
+            (MessageRef::from((Conversation::Server, &id)), "*"),
+        ] {
+            assert_eq!(reference.address, expected);
+            assert_eq!(reference.msgid, Some(id.clone()));
+        }
     }
 }
