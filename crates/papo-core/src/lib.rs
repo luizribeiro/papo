@@ -843,7 +843,7 @@ impl ResponseMatcher {
     }
 
     fn numeric_names_command(message: &LineRef<'_>, numeric: Numeric, command: &str) -> bool {
-        numeric.is_error()
+        (numeric.is_error() || numeric == Numeric::RPL_TRYAGAIN)
             && message
                 .param(1)
                 .is_some_and(|value| value.eq_ignore_ascii_case(command))
@@ -882,7 +882,11 @@ impl ResponseMatcher {
         let current_own_source = matches!(message.source(), Some(ProtoSource::User { nick, .. }) if names_equal(mapping, nick, state.nick()));
         match self {
             Self::Whois(nick) => {
-                if Self::standard_failure(message, "WHOIS") {
+                if Self::standard_failure(message, "WHOIS")
+                    || numeric.is_some_and(|numeric| {
+                        Self::numeric_names_command(message, numeric, "WHOIS")
+                    })
+                {
                     return Some(true);
                 }
                 let Command::Numeric(numeric) = message.command() else {
@@ -904,7 +908,10 @@ impl ResponseMatcher {
                     .then_some(numeric == Numeric::RPL_ENDOFWHOIS || numeric.is_error())
             }
             Self::Who(mask) => {
-                if Self::standard_failure(message, "WHO") {
+                if Self::standard_failure(message, "WHO")
+                    || numeric
+                        .is_some_and(|numeric| Self::numeric_names_command(message, numeric, "WHO"))
+                {
                     return Some(true);
                 }
                 numeric.and_then(|numeric| {
@@ -924,7 +931,11 @@ impl ResponseMatcher {
                 })
             }
             Self::Join(channel) => {
-                if Self::standard_failure(message, "JOIN") {
+                if Self::standard_failure(message, "JOIN")
+                    || numeric.is_some_and(|numeric| {
+                        Self::numeric_names_command(message, numeric, "JOIN")
+                    })
+                {
                     return Some(true);
                 }
                 let named = |index| Self::target_is(message, index, channel, mapping);
@@ -944,12 +955,17 @@ impl ResponseMatcher {
                 && Self::target_is(message, 0, channel, mapping))
                 || (numeric.is_some_and(Numeric::is_error)
                     && Self::target_is(message, 1, channel, mapping))
+                || numeric
+                    .is_some_and(|numeric| Self::numeric_names_command(message, numeric, "PART"))
                 || Self::standard_failure(message, "PART"))
             .then_some(true),
             Self::Mode(target) => ((message.command() == Command::Mode
                 && Self::target_is(message, 0, target, mapping))
-                || (numeric.is_some_and(Numeric::is_error)
-                    && Self::target_is(message, 1, target, mapping))
+                || numeric.is_some_and(|numeric| {
+                    matches!(numeric.code(), 472 | 501 | 502)
+                        || numeric.is_error() && Self::target_is(message, 1, target, mapping)
+                        || Self::numeric_names_command(message, numeric, "MODE")
+                })
                 || Self::standard_failure(message, "MODE"))
             .then_some(true),
             Self::Topic(channel) => {
@@ -959,6 +975,7 @@ impl ResponseMatcher {
                         named(1)
                             && (matches!(numeric, Numeric::RPL_NOTOPIC | Numeric::RPL_TOPIC)
                                 || numeric.is_error())
+                            || Self::numeric_names_command(message, numeric, "TOPIC")
                     })
                     || Self::standard_failure(message, "TOPIC"))
                 .then_some(true)
@@ -966,8 +983,12 @@ impl ResponseMatcher {
             Self::Kick { channel, nick } => {
                 let named = |index, expected| Self::target_is(message, index, expected, mapping);
                 ((message.command() == Command::Kick && named(0, channel) && named(1, nick))
-                    || numeric.is_some_and(Numeric::is_error)
-                        && (named(1, channel) || named(1, nick))
+                    || numeric.is_some_and(|numeric| match numeric.code() {
+                        401 => named(1, nick),
+                        403 | 442 | 482 => named(1, channel),
+                        441 | 484 => named(1, nick) && named(2, channel),
+                        _ => Self::numeric_names_command(message, numeric, "KICK"),
+                    })
                     || Self::standard_failure(message, "KICK"))
                 .then_some(true)
             }
@@ -975,15 +996,23 @@ impl ResponseMatcher {
                 let named = |index, expected| Self::target_is(message, index, expected, mapping);
                 (numeric.is_some_and(|numeric| {
                     (numeric == Numeric::RPL_INVITING && named(1, nick) && named(2, channel))
-                        || numeric.is_error() && (named(1, channel) || named(1, nick))
+                        || match numeric.code() {
+                            401 => named(1, nick),
+                            403 | 442 | 482 => named(1, channel),
+                            443 => named(1, nick) && named(2, channel),
+                            _ => Self::numeric_names_command(message, numeric, "INVITE"),
+                        }
                 }) || Self::standard_failure(message, "INVITE"))
                 .then_some(true)
             }
             Self::Nick(nick) => ((message.command() == Command::Nick
                 && own_source
                 && Self::target_is(message, 0, nick, mapping))
-                || (numeric.is_some_and(Numeric::is_error)
-                    && Self::target_is(message, 1, nick, mapping))
+                || numeric.is_some_and(|numeric| {
+                    numeric == Numeric::ERR_NONICKNAMEGIVEN
+                        || numeric.is_error() && Self::target_is(message, 1, nick, mapping)
+                        || Self::numeric_names_command(message, numeric, "NICK")
+                })
                 || Self::standard_failure(message, "NICK"))
             .then_some(true),
             Self::Away(away) => (numeric.is_some_and(|numeric| {
@@ -1013,6 +1042,9 @@ impl ResponseMatcher {
             .then_some(true),
             Self::Ping(token) => ((message.command() == Command::Pong
                 && message.params().any(|param| param == token))
+                || numeric == Some(Numeric::ERR_NOORIGIN)
+                || numeric
+                    .is_some_and(|numeric| Self::numeric_names_command(message, numeric, "PING"))
                 || Self::standard_failure(message, "PING"))
             .then_some(true),
             Self::List => {

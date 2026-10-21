@@ -176,6 +176,27 @@ fn assert_unlabelled(
     );
 }
 
+fn assert_unlabelled_refusal(
+    message: Line,
+    matcher: ResponseMatcher,
+    line: &str,
+    expected: Refusal,
+) {
+    let now = Instant::now();
+    let mode = matches!(matcher, ResponseMatcher::Mode(_));
+    let mut session = Session::new(Config::default().nick("papo"));
+    let id = session.request_with_matcher(now, message, matcher).unwrap();
+    session.handle_line(now, line.as_bytes());
+    if mode {
+        session.handle_line(now, b":ergo.test PONG ergo.test :papo-mode-0");
+    }
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Response(response))
+            if response.id == id && response.refusal() == Some(expected)
+    ));
+}
+
 fn response_id(session: &mut Session) -> RequestId {
     std::iter::from_fn(|| session.poll_event())
         .find_map(|event| match event {
@@ -304,6 +325,42 @@ fn matches_unlabelled_membership_and_nick_actions() {
 }
 
 #[test]
+fn typed_action_refusals_complete_unlabelled_requests() {
+    let cases = [
+        (
+            Line::join("#invite"),
+            ResponseMatcher::Join("#invite".into()),
+            ":ergo.test 473 papo #invite :Cannot join channel (+i)",
+            Refusal::InviteOnlyChannel,
+        ),
+        (
+            Line::new("KICK", ["#papo", "carol"]),
+            ResponseMatcher::Kick {
+                channel: "#papo".into(),
+                nick: "carol".into(),
+            },
+            ":irc.solanum.test 441 papo carol #papo :They aren't on that channel",
+            Refusal::UserNotInChannel,
+        ),
+        (
+            Line::new("MODE", ["#papo", "+z"]),
+            ResponseMatcher::Mode("#papo".into()),
+            ":irc.solanum.test 472 papo z :is unknown mode char to me",
+            Refusal::UnknownMode,
+        ),
+        (
+            Line::new("NICK", ["42papo"]),
+            ResponseMatcher::Nick("42papo".into()),
+            ":ergo.test 432 papo 42papo :Erroneous nickname",
+            Refusal::ErroneousNickname,
+        ),
+    ];
+    for (message, matcher, line, refusal) in cases {
+        assert_unlabelled_refusal(message, matcher, line, refusal);
+    }
+}
+
+#[test]
 fn matches_unlabelled_own_user_actions() {
     let mut session = Session::new(Config::default().nick("papo"));
     assert_unlabelled(
@@ -425,11 +482,15 @@ fn action_matchers_require_every_identity_field() {
         ":alice!alice@staff.example KICK #papo alice :Requested",
         ":alice!alice@staff.example KICK #rust spambot :Requested",
         ":ergo.test 332 papo #papo :An unrelated topic",
+        ":irc.solanum.test 441 papo spambot #rust :They aren't on that channel",
     ] {
         kick.handle_line(now, line.as_bytes());
         assert_no_response(&mut kick);
     }
-    kick.handle_line(now, b":ergo.test 401 papo spambot :No such nick/channel");
+    kick.handle_line(
+        now,
+        b":irc.solanum.test 441 papo spambot #papo :They aren't on that channel",
+    );
     assert_eq!(response_id(&mut kick), kick_id);
 
     let mut invite = Session::new(Config::default().nick("papo"));
