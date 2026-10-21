@@ -185,3 +185,104 @@ fn live_mode_changes_update_only_a_completed_list() {
     assert_eq!(entries.len(), 1);
     assert_eq!(entries[0].mask, "carol");
 }
+
+#[test]
+fn solanum_label_on_a_row_does_not_replace_the_unlabelled_end_numeric() {
+    let now = Instant::now();
+    let mut session = Session::new(
+        Config::default()
+            .wanted_caps(["labeled-response"])
+            .rate_limit(papo_core::RateLimit::unlimited()),
+    );
+    session.handle_connected(now);
+    session.handle_line(now, b"CAP * LS :labeled-response");
+    session.handle_line(now, b"CAP * ACK :labeled-response");
+    while session.poll_transmit().is_some() {}
+    while session.poll_event().is_some() {}
+    session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
+    while session.poll_event().is_some() {}
+
+    let id = request(&mut session, ListMode::Ban);
+    assert_eq!(
+        session.poll_transmit().unwrap(),
+        b"@label=0 MODE #papo b\r\n"
+    );
+    session.handle_line(
+        now,
+        b"@label=0 :solanum.example 367 papo #papo *!*@gateway.example services 1761048000",
+    );
+    assert!(
+        !std::iter::from_fn(|| session.poll_event())
+            .any(|event| matches!(event, Event::Response(_)))
+    );
+    session.handle_line(
+        now,
+        b":solanum.example 368 papo #papo :End of channel ban list",
+    );
+    assert_eq!(response(&mut session, id).mode_list.unwrap().len(), 1);
+}
+
+#[test]
+fn bouncer_and_nonmember_fetches_are_returned_without_tracking() {
+    let now = Instant::now();
+    let mut bouncer = Session::new(Config::default());
+    bouncer.handle_line(
+        now,
+        b":soju.example 005 papo BOUNCER_NETID=network-42 :are supported",
+    );
+    bouncer.handle_line(now, b":papo!~papo@localhost JOIN #papo");
+    let id = request(&mut bouncer, ListMode::Ban);
+    bouncer.handle_line(
+        now,
+        b":ergo.test 367 papo #papo *!*@gateway.example oper 1761048000",
+    );
+    bouncer.handle_line(now, b":ergo.test 368 papo #papo :End of channel ban list");
+    assert_eq!(response(&mut bouncer, id).mode_list.unwrap().len(), 1);
+    assert_eq!(
+        bouncer
+            .state()
+            .channel("#papo")
+            .unwrap()
+            .list(ListMode::Ban),
+        None
+    );
+
+    let mut nonmember = Session::new(Config::default());
+    let id = request(&mut nonmember, ListMode::Ban);
+    nonmember.handle_line(now, b":ergo.test 368 papo #papo :End of channel ban list");
+    assert_eq!(response(&mut nonmember, id).mode_list, Some(Vec::new()));
+    assert!(nonmember.state().channel("#papo").is_none());
+}
+
+#[test]
+fn a_refusal_invalidates_a_previously_fetched_list() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
+    let id = request(&mut session, ListMode::Ban);
+    session.handle_line(now, b":ergo.test 368 papo #papo :End of channel ban list");
+    _ = response(&mut session, id);
+    assert!(
+        session
+            .state()
+            .channel("#papo")
+            .unwrap()
+            .list(ListMode::Ban)
+            .is_some()
+    );
+
+    let id = request(&mut session, ListMode::Ban);
+    session.handle_line(
+        now,
+        b":ergo.test 482 papo #papo :You're not a channel operator",
+    );
+    assert!(response(&mut session, id).error().is_some());
+    assert_eq!(
+        session
+            .state()
+            .channel("#papo")
+            .unwrap()
+            .list(ListMode::Ban),
+        None
+    );
+}
