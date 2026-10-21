@@ -323,6 +323,7 @@
                   grep -En 'papo::(client|event_impl|error)::' "$actual" >&2
                   return 1
                 fi
+                awk -f nix/check-fieldless-enums.awk "$actual"
                 diff -u "$expected" "$actual"
                 rm -f "$actual"
               }
