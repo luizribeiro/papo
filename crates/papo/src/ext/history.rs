@@ -534,7 +534,7 @@ impl ConversationInput {
         let conversation = match self {
             Self::Text(target) => {
                 let (status, conversation) = state
-                    .parse_target(&target)
+                    .parse_target_inner(&target)
                     .map_err(|reason| crate::InvalidInput::invalid_name(target, reason))?;
                 if status.is_some() {
                     return Err(crate::InvalidInput::InvalidMessage(
@@ -788,7 +788,7 @@ impl Client {
         };
         if !target.is_empty() {
             self.state()
-                .parse_target(&target)
+                .parse_target_inner(&target)
                 .map_err(|reason| crate::InvalidInput::invalid_name(target.clone(), reason))?;
         }
         let response = self.history_response(query).await?;

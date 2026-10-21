@@ -55,6 +55,12 @@ fn everyday_api_is_nameable_from_the_facade() {
     let _: Option<&papo::User> = state.user("emily");
     let _: papo::ChannelName = state.channel_name("#papo");
     let _: papo::Nick = state.nickname("emily");
+    let conversation = state.conversation("Emily").unwrap();
+    assert_eq!(conversation, "emily");
+    assert_eq!(conversation.to_string(), "Emily");
+    let (status, conversation) = state.parse_target("#papo").unwrap();
+    assert_eq!(status, None);
+    assert_eq!(conversation, "#papo");
 
     let send: papo::SendMessage = client
         .privmsg(&channel, "hello from papo")

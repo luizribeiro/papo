@@ -2328,6 +2328,7 @@ pub fn papo::State::casemapping(&self) -> papo::Casemapping
 pub fn papo::State::channel(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo::Channel>
 pub fn papo::State::channel_name(&self, impl core::convert::AsRef<str>) -> papo::ChannelName
 pub fn papo::State::channels(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Channel>
+pub fn papo::State::conversation(&self, &str) -> core::result::Result<papo::Conversation, papo::InvalidInput>
 pub fn papo::State::features(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo::Feature> + '_
 pub fn papo::State::host(&self) -> core::option::Option<&str>
 pub const fn papo::State::is_connected(&self) -> bool
@@ -2342,6 +2343,7 @@ pub fn papo::State::monitored(&self) -> impl core::iter::traits::iterator::Itera
 pub fn papo::State::nick(&self) -> &papo::Nick
 pub fn papo::State::nickname(&self, impl core::convert::AsRef<str>) -> papo::Nick
 pub fn papo::State::parse_extban(&self, &papo::Mask) -> core::option::Option<papo::Extban>
+pub fn papo::State::parse_target(&self, &str) -> core::result::Result<(core::option::Option<alloc::vec::Vec<char>>, papo::Conversation), papo::InvalidInput>
 pub fn papo::State::read_marker(&self, impl core::convert::AsRef<str>) -> core::option::Option<std::time::SystemTime>
 pub fn papo::State::realname(&self) -> &str
 pub fn papo::State::same_list_entry(&self, &papo::Mask, impl core::convert::AsRef<str>) -> bool

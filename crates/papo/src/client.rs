@@ -199,7 +199,7 @@ impl IntoFuture for SendMessage {
                 }
             }
             state
-                .parse_target(&self.target)
+                .parse_target_inner(&self.target)
                 .map_err(|reason| InvalidInput::invalid_name(self.target.clone(), reason))?;
             if let Some(message) = &self.reply_to {
                 message
@@ -583,7 +583,7 @@ impl Client {
             let state = client.state();
             Self::require_feature(&state, Feature::Reactions)?;
             state
-                .parse_target(&target)
+                .parse_target_inner(&target)
                 .map(drop)
                 .and_then(|()| message.check())
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
@@ -628,7 +628,7 @@ impl Client {
             let snapshot = client.state();
             Self::require_feature(&snapshot, Feature::Typing)?;
             snapshot
-                .parse_target(&target)
+                .parse_target_inner(&target)
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
             let (result, receiver) = oneshot::channel();
             client
@@ -670,7 +670,7 @@ impl Client {
             let state = client.state();
             Self::require_feature(&state, Feature::Redaction)?;
             state
-                .parse_target(&target)
+                .parse_target_inner(&target)
                 .map(drop)
                 .and_then(|()| message.check())
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
@@ -693,7 +693,7 @@ impl Client {
     ) -> Result<Sent, Error> {
         let (status, conversation) = self
             .state()
-            .parse_target(target)
+            .parse_target_inner(target)
             .map_err(|reason| InvalidInput::invalid_name(target, reason))?;
         if !self.state().is_connected() {
             let mut message = match kind {

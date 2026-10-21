@@ -85,6 +85,14 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
         ConversationClass::Outgoing,
     ),
     (
+        "pub fn papo::State::conversation(&self, &str) -> core::result::Result<papo::Conversation, papo::InvalidInput>",
+        ConversationClass::State,
+    ),
+    (
+        "pub fn papo::State::parse_target(&self, &str) -> core::result::Result<(core::option::Option<alloc::vec::Vec<char>>, papo::Conversation), papo::InvalidInput>",
+        ConversationClass::State,
+    ),
+    (
         "pub fn papo::State::typing<'a>(&'a self, &'a papo::Conversation) -> impl core::iter::traits::iterator::Iterator<Item = &'a papo::Typer>",
         ConversationClass::State,
     ),

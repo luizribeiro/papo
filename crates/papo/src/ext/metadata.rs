@@ -73,7 +73,7 @@ impl Metadata {
         crate::RequestFuture::new(async move {
             let state = metadata.client.state();
             state
-                .parse_target(&target)
+                .parse_target_inner(&target)
                 .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
             for key in &keys {
                 key.check()
@@ -118,7 +118,7 @@ impl Metadata {
             metadata
                 .client
                 .state()
-                .parse_target(&target)
+                .parse_target_inner(&target)
                 .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
             metadata
                 .request(MetadataCommand::List {
@@ -298,7 +298,7 @@ impl Metadata {
             metadata
                 .client
                 .state()
-                .parse_target(&target)
+                .parse_target_inner(&target)
                 .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
             metadata.request(MetadataCommand::Sync { target }).await
         })

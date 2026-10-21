@@ -284,7 +284,7 @@ impl IntoFuture for SetModes {
         RequestFuture::new(async move {
             let state = self.client.state();
             state
-                .parse_target(&self.target)
+                .parse_target_inner(&self.target)
                 .map_err(|error| invalid(error.to_string()))?;
             let changes = self
                 .changes

@@ -34,11 +34,39 @@ pub struct State {
 }
 
 impl State {
-    pub(crate) fn parse_target(
+    pub(crate) fn parse_target_inner(
         &self,
         target: impl AsRef<str>,
     ) -> Result<(Option<Vec<char>>, crate::Conversation), crate::InvalidIdentifier> {
         self.core.parse_target(target)
+    }
+
+    /// Parses an IRC address using the server's advertised `STATUSMSG` and name rules.
+    ///
+    /// The returned status prefixes are separate from the conversation name.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `target` is not a valid address.
+    pub fn parse_target(
+        &self,
+        target: &str,
+    ) -> Result<(Option<Vec<char>>, crate::Conversation), crate::InvalidInput> {
+        self.core
+            .parse_target(target)
+            .map_err(|reason| crate::InvalidInput::invalid_name(target, reason))
+    }
+
+    /// Builds a conversation using the current or last-known server-defined name rules.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `text` is not a valid conversation name or includes a
+    /// `STATUSMSG` prefix.
+    pub fn conversation(&self, text: &str) -> Result<crate::Conversation, crate::InvalidInput> {
+        self.core
+            .conversation(text)
+            .map_err(|reason| crate::InvalidInput::invalid_name(text, reason))
     }
 
     pub(crate) fn from_session(session: &Session, connected: bool) -> Self {
@@ -456,6 +484,26 @@ mod name_tests {
         assert!(state.is_valid_channel("&staff"));
         assert!(state.is_valid_channel("#papo"));
         assert!(!state.is_valid_channel("papo"));
+    }
+
+    #[test]
+    fn exposes_conversation_and_status_parsing_with_facade_errors() {
+        let state = state_with_isupport(
+            ":ergo.test 005 papo CASEMAPPING=rfc1459 NICKLEN=32 CHANTYPES=# STATUSMSG=@ :are supported by this server",
+        );
+
+        let conversation = state.conversation("Alice[bot]").unwrap();
+        assert_eq!(conversation, "alice{bot}");
+        assert_eq!(conversation.to_string(), "Alice[bot]");
+        assert!(matches!(
+            state.parse_target("@#papo"),
+            Ok((Some(status), conversation))
+                if status == ['@'] && conversation == "#papo"
+        ));
+        assert!(matches!(
+            state.conversation("@#papo"),
+            Err(crate::InvalidInput::InvalidName { name, .. }) if name == "@#papo"
+        ));
     }
 
     #[test]
