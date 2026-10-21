@@ -54,7 +54,7 @@ impl State {
         connected: bool,
         core: Arc<papo_core::State>,
     ) -> Self {
-        let away = core.away();
+        let away = matches!(core.away(), papo_core::Away::Away { .. });
         let unsupported = FEATURES
             .iter()
             .copied()
@@ -154,7 +154,10 @@ impl State {
     /// sent through [`crate::Client::set_away`].
     #[must_use]
     pub fn away_message(&self) -> Option<&str> {
-        self.core.away_message()
+        match self.core.away() {
+            papo_core::Away::Away { message } => message.as_deref(),
+            _ => None,
+        }
     }
 
     /// Iterates over the client's user modes in unspecified order.

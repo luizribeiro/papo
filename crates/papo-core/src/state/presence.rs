@@ -85,21 +85,34 @@ impl State {
             let ProtoSource::User { nick, .. } = message.source()? else {
                 return Some(Handled::No);
             };
-            if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick)) {
-                let next = match away.message {
-                    None => Away::Present,
-                    Some("*") => Away::Away { message: None },
-                    Some(message) => Away::Away {
-                        message: Some(message.to_owned()),
-                    },
-                };
-                if user.away != next {
-                    user.away = next.clone();
-                    outbox.event(Event::AwayChanged {
-                        nick: self.casemapping.nick(nick),
-                        away: next,
-                    });
-                }
+            let next = match away.message {
+                None => Away::Present,
+                Some("*") => Away::Away { message: None },
+                Some(message) => Away::Away {
+                    message: Some(message.to_owned()),
+                },
+            };
+            let own_changed =
+                crate::names_equal(self.casemapping, nick, &self.nick) && self.away != next;
+            if own_changed {
+                self.away = next.clone();
+            }
+            let user_changed = self
+                .users
+                .get_mut(&self.casemapping.nick(nick))
+                .is_some_and(|user| {
+                    if user.away == next {
+                        false
+                    } else {
+                        user.away = next.clone();
+                        true
+                    }
+                });
+            if own_changed || user_changed {
+                outbox.event(Event::AwayChanged {
+                    nick: self.casemapping.nick(nick),
+                    away: next,
+                });
             }
             return Some(Handled::Yes);
         }
@@ -122,24 +135,20 @@ impl State {
                     }
                 }
             }
-            Command::Numeric(Numeric::RPL_UNAWAY) if self.away => {
-                self.away = false;
-                self.away_message = None;
+            Command::Numeric(Numeric::RPL_UNAWAY) if self.away != Away::Present => {
+                self.away = Away::Present;
                 outbox.event(Event::AwayChanged {
                     nick: self.nick.clone(),
                     away: Away::Present,
                 });
             }
-            Command::Numeric(Numeric::RPL_NOWAWAY) if !self.away => {
-                self.away = true;
-                if let Some(message) = own_away_message {
-                    self.away_message = Some(message.to_owned());
-                }
+            Command::Numeric(Numeric::RPL_NOWAWAY) if !matches!(self.away, Away::Away { .. }) => {
+                self.away = Away::Away {
+                    message: own_away_message.map(str::to_owned),
+                };
                 outbox.event(Event::AwayChanged {
                     nick: self.nick.clone(),
-                    away: Away::Away {
-                        message: self.away_message.clone(),
-                    },
+                    away: self.away.clone(),
                 });
             }
             Command::Numeric(Numeric::RPL_UNAWAY | Numeric::RPL_NOWAWAY) => {}

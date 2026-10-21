@@ -1766,8 +1766,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo_core::StandardReply
 pub struct papo_core::State
 impl papo_core::State
 pub const fn papo_core::State::account(&self) -> &papo_core::Account
-pub const fn papo_core::State::away(&self) -> bool
-pub fn papo_core::State::away_message(&self) -> core::option::Option<&str>
+pub const fn papo_core::State::away(&self) -> &papo_core::Away
 pub const fn papo_core::State::casemapping(&self) -> papo::Casemapping
 pub fn papo_core::State::channel(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::Channel>
 pub fn papo_core::State::channels(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::Channel>

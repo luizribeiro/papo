@@ -21,6 +21,7 @@ fn starts_with_configured_identity_and_empty_shared_state() {
             assert_eq!(state.username(), "em");
             assert_eq!(state.host(), None);
             assert_eq!(state.account(), &Account::LoggedOut);
+            assert_eq!(state.away(), &Away::Present);
         })
         .no_event();
 }
@@ -546,16 +547,15 @@ fn whois_away_reply_records_the_message() {
 #[test]
 fn uncorrelated_away_numerics_report_an_unspecified_message() {
     Transcript::new(Config::default().nick("emily"))
-        .inspect(|session| assert!(!session.state().away()))
+        .inspect(|session| assert_eq!(session.state().away(), &Away::Present))
         .server(":ergo.test 306 emily :You have been marked as being away")
         .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: None } } if nick == "emily"))
         .inspect(|session| {
-            assert!(session.state().away());
-            assert_eq!(session.state().away_message(), None);
+            assert_eq!(session.state().away(), &Away::Away { message: None });
         })
         .server(":ergo.test 305 emily :You are no longer marked as being away")
         .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Present } if nick == "emily"))
-        .inspect(|session| assert!(!session.state().away()))
+        .inspect(|session| assert_eq!(session.state().away(), &Away::Present))
         .no_event();
 }
 
@@ -576,8 +576,10 @@ fn own_away_confirmation_carries_the_requested_message() {
         .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message) } } if nick == "emily" && message == "Reviewing the release notes"))
         .inspect(|session| {
             assert_eq!(
-                session.state().away_message(),
-                Some("Reviewing the release notes")
+                session.state().away(),
+                &Away::Away {
+                    message: Some("Reviewing the release notes".into())
+                }
             );
         })
         .ignore_rest();
@@ -598,7 +600,9 @@ fn away_numerics_do_not_repeat_our_own_state_changes() {
         })
         .server(":ergo.test 306 emily :You have been marked as being away")
         .no_event()
-        .inspect(|session| assert!(session.state().away()))
+        .inspect(|session| {
+            assert_eq!(session.state().away(), &Away::Away { message: None });
+        })
         .server(":ergo.test 305 emily :You are no longer marked as being away")
         .event(|event| {
             matches!(
@@ -611,7 +615,7 @@ fn away_numerics_do_not_repeat_our_own_state_changes() {
         })
         .server(":ergo.test 305 emily :You are no longer marked as being away")
         .no_event()
-        .inspect(|session| assert!(!session.state().away()))
+        .inspect(|session| assert_eq!(session.state().away(), &Away::Present))
         .no_event();
 }
 

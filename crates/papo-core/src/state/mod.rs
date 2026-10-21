@@ -48,8 +48,7 @@ pub struct State {
     host: Option<String>,
     realname: String,
     account: Account,
-    away: bool,
-    away_message: Option<String>,
+    away: Away,
     user_modes: HashSet<char>,
     casemapping: Casemapping,
     isupport: Isupport,
@@ -271,8 +270,7 @@ impl State {
             host: None,
             realname: config.realname.clone(),
             account: Account::LoggedOut,
-            away: false,
-            away_message: None,
+            away: Away::Present,
             user_modes: HashSet::new(),
             casemapping,
             isupport: Isupport::default(),
@@ -876,19 +874,10 @@ impl State {
         &self.account
     }
 
-    /// Returns whether the session is marked away.
+    /// Returns the session's presence state.
     #[must_use]
-    pub const fn away(&self) -> bool {
-        self.away
-    }
-
-    /// Returns this session's confirmed away message.
-    ///
-    /// `None` means the session is not away or the server confirmed away state without echoing a
-    /// message that papo sent through the typed away action.
-    #[must_use]
-    pub fn away_message(&self) -> Option<&str> {
-        self.away_message.as_deref()
+    pub const fn away(&self) -> &Away {
+        &self.away
     }
 
     /// Returns a joined channel using the server's current casemapping.

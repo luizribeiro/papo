@@ -2,7 +2,7 @@
 
 mod support;
 
-use papo_core::{AwayOnConnect, Config, Event};
+use papo_core::{Away, AwayOnConnect, Config, Event};
 use support::Transcript;
 
 fn config(away: AwayOnConnect, cap: bool) -> Config {
@@ -31,6 +31,30 @@ fn sends_message_and_hidden_away_before_cap_end() {
             .client(line)
             .client("CAP END");
     }
+}
+
+#[test]
+fn hidden_pre_away_records_away_without_a_message() {
+    Transcript::new(config(AwayOnConnect::Hidden, true))
+        .connect_default()
+        .server("CAP * LS :draft/pre-away")
+        .client("CAP REQ :draft/pre-away")
+        .server("CAP * ACK :draft/pre-away")
+        .client("AWAY *")
+        .client("CAP END")
+        .server(":ergo.test 306 papo :You have been marked as being away")
+        .event(|event| {
+            matches!(
+                event,
+                Event::AwayChanged {
+                    away: Away::Away { message: None },
+                    ..
+                }
+            )
+        })
+        .inspect(|session| {
+            assert_eq!(session.state().away(), &Away::Away { message: None });
+        });
 }
 
 #[test]
