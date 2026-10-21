@@ -184,7 +184,7 @@ const CTCP_REPLY_INTERVAL: Duration = Duration::from_secs(2);
 pub use cap::DEFAULTS as DEFAULT_WANTED_CAPS;
 
 /// Enabled `IRCv3` capability names and their advertised values.
-pub type Capabilities = BTreeMap<String, Option<String>>;
+pub type Capabilities = BTreeMap<cap::Cap, Option<String>>;
 
 /// The IRC conversation to which a chat line belongs.
 ///
@@ -3999,7 +3999,7 @@ impl Session {
         self.caps
             .enabled()
             .keys()
-            .any(|name| cap::canonical(name) == cap::canonical(cap::NO_IMPLICIT_NAMES))
+            .any(|name| cap::canonical(name.as_str()) == cap::canonical(cap::NO_IMPLICIT_NAMES))
     }
 
     fn maybe_subscribe_metadata(&mut self, now: Instant) {

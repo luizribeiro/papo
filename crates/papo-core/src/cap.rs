@@ -1,7 +1,7 @@
 //! IRC capability names and their implementation homes.
 
 use std::{
-    borrow::Cow,
+    borrow::{Borrow, Cow},
     cmp::Ordering,
     hash::{Hash, Hasher},
 };
@@ -60,6 +60,12 @@ impl PartialEq for Cap {
 }
 
 impl Eq for Cap {}
+
+impl Borrow<str> for Cap {
+    fn borrow(&self) -> &str {
+        self.identity()
+    }
+}
 
 impl PartialOrd for Cap {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -267,11 +273,11 @@ pub fn advertised_spelling<'a>(wanted: &str, advertised: &'a Capabilities) -> Op
             .chain(info.aliases.iter().copied())
             .find_map(|name| {
                 advertised
-                    .get_key_value(name)
+                    .get_key_value(&Cap::from(name))
                     .map(|(name, _)| name.as_str())
             }),
         None => advertised
-            .get_key_value(wanted)
+            .get_key_value(&Cap::from(wanted))
             .map(|(name, _)| name.as_str()),
     }
 }
@@ -367,8 +373,8 @@ mod tests {
         assert!(is_known("account-registration"));
         assert!(!is_known("example.org/unknown"));
         let advertised = Capabilities::from([
-            ("draft/metadata-2".into(), None),
-            ("draft/metadata-3".into(), None),
+            (Cap::from("draft/metadata-2"), None),
+            (Cap::from("draft/metadata-3"), None),
         ]);
         assert_eq!(
             advertised_spelling(METADATA, &advertised),

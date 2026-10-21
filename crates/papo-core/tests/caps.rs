@@ -5,7 +5,7 @@ mod support;
 use std::time::Duration;
 
 use papo_core::sts::{ConnectionSecurity, StsAction};
-use papo_core::{CloseKind, Config, Connection, DEFAULT_WANTED_CAPS, Event, Session};
+use papo_core::{CloseKind, Config, Connection, DEFAULT_WANTED_CAPS, Event, Session, cap::Cap};
 use support::Transcript;
 
 #[test]
@@ -40,7 +40,10 @@ fn collects_values_selects_aliases_and_denies_the_trap() {
         session.caps().get("server-time"),
         Some(&Some("latest".to_owned()))
     );
-    assert_eq!(session.caps().get("draft/no-implicit-names"), Some(&None));
+    assert_eq!(
+        session.caps().get(&Cap::from("draft/no-implicit-names")),
+        Some(&None)
+    );
     assert!(session.caps().contains_key("cap-notify"));
 }
 

@@ -272,7 +272,7 @@ impl Session {
                         .caps
                         .advertised()
                         .keys()
-                        .any(|offered| cap::canonical(offered) == cap::canonical(required))
+                        .any(|offered| offered == &cap::Cap::from(*required))
             });
             return Err(if disabled {
                 UnsupportedReason::DisabledByClient

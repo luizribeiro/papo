@@ -5,7 +5,9 @@ use papo_proto::{LineRef, MAX_LINE_LEN};
 
 use crate::sts::{StsAction, StsDirective, decide};
 use crate::{
-    Capabilities, CloseKind, Config, Connection, Event, Handled, Outbox, cap, sasl::SaslSession,
+    Capabilities, CloseKind, Config, Connection, Event, Handled, Outbox,
+    cap::{self, Cap},
+    sasl::SaslSession,
 };
 
 const CAP_REQ_PREFIX_LEN: usize = b"CAP REQ :".len();
@@ -53,6 +55,7 @@ impl Caps {
                         requested.iter().any(|name| name == cap::EXTENDED_ISUPPORT);
                     let mut added = Capabilities::new();
                     for name in requested {
+                        let name = Cap::from(name);
                         let value = self.advertised.get(&name).cloned().flatten();
                         self.enabled.insert(name.clone(), value.clone());
                         added.insert(name, value);
@@ -105,11 +108,12 @@ impl Caps {
             if name == cap::STS {
                 continue;
             }
-            self.advertised.remove(name);
-            if let Some(value) = self.enabled.remove(name) {
-                removed.insert(name.to_owned(), value);
+            let name = Cap::from(name);
+            self.advertised.remove(&name);
+            if let Some(value) = self.enabled.remove(&name) {
+                removed.insert(name.clone(), value);
             }
-            if name == cap::SASL {
+            if name == Cap::from(cap::SASL) {
                 sasl_removed = true;
             }
         }
@@ -141,11 +145,12 @@ impl Caps {
                 continue;
             }
             let value = value.map(str::to_owned);
-            self.advertised.insert(name.to_owned(), value.clone());
+            self.advertised.insert(Cap::from(name), value.clone());
             announced.insert(name.to_owned());
-            if self.enabled.contains_key(name) {
-                self.enabled.insert(name.to_owned(), value.clone());
-                updated.insert(name.to_owned(), value);
+            let name = Cap::from(name);
+            if self.enabled.contains_key(&name) {
+                self.enabled.insert(name.clone(), value.clone());
+                updated.insert(name, value);
             }
         }
         if announced.contains(cap::STS) && self.handle_sts(connection, outbox) {
@@ -196,7 +201,7 @@ impl Caps {
                 .map_or((token, None), |(name, value)| (name, Some(value)));
             if !name.is_empty() {
                 self.advertised
-                    .insert(name.to_owned(), value.map(str::to_owned));
+                    .insert(Cap::from(name), value.map(str::to_owned));
             }
         }
         if continued {
@@ -217,7 +222,7 @@ impl Caps {
         }
         self.negotiating = true;
 
-        self.enabled.insert(cap::CAP_NOTIFY.to_owned(), None);
+        self.enabled.insert(Cap::from(cap::CAP_NOTIFY), None);
         let mut seen = BTreeSet::new();
         let wanted = config
             .wanted_caps
@@ -279,7 +284,7 @@ impl Caps {
     }
 
     pub(super) fn advertised_value(&self, name: &str) -> Option<&Option<String>> {
-        self.advertised.get(name)
+        self.advertised.get(&Cap::from(name))
     }
 
     pub(super) fn is_pending(&self, name: &str) -> bool {

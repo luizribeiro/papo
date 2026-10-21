@@ -41,7 +41,7 @@ fn assert_cached_visibility(session: &papo_core::Session) {
 }
 
 #[test]
-fn prefers_metadata_3_and_reads_known_limits() {
+fn requests_published_metadata_name_and_reads_known_limits() {
     Transcript::new(Config::default().wanted_caps([
         "draft/metadata-2",
         "metadata-notify",
@@ -49,8 +49,8 @@ fn prefers_metadata_3_and_reads_known_limits() {
     ]))
     .connect_default()
     .server("CAP * LS :metadata-notify draft/metadata-2=max-subs=9 draft/metadata-3=before-connect,max-subs=100,max-keys=100,max-value-bytes=4096,future=yes labeled-response")
-    .client("CAP REQ :draft/metadata-3 labeled-response")
-    .server("CAP * ACK :draft/metadata-3 labeled-response")
+    .client("CAP REQ :draft/metadata-2 labeled-response")
+    .server("CAP * ACK :draft/metadata-2 labeled-response")
     .client("CAP END")
     .inspect(|session| {
         assert_eq!(

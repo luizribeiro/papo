@@ -25,6 +25,8 @@ impl core::panic::unwind_safe::UnwindSafe for papo_core::cap::Request
 pub struct papo_core::cap::Cap(_)
 impl papo_core::cap::Cap
 pub const fn papo_core::cap::Cap::as_str(&self) -> &str
+impl core::borrow::Borrow<str> for papo_core::cap::Cap
+pub fn papo_core::cap::Cap::borrow(&self) -> &str
 impl core::clone::Clone for papo_core::cap::Cap
 pub fn papo_core::cap::Cap::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::cap::Cap
@@ -2243,5 +2245,5 @@ impl core::panic::unwind_safe::UnwindSafe for papo_core::WhoisChannel
 pub const papo_core::DEFAULT_WANTED_CAPS: &[&str]
 pub trait papo_core::Entropy
 pub fn papo_core::Entropy::fill(&mut self, &mut [u8])
-pub type papo::Capabilities = alloc::collections::btree::map::BTreeMap<alloc::string::String, core::option::Option<alloc::string::String>>
+pub type papo::Capabilities = alloc::collections::btree::map::BTreeMap<papo_core::cap::Cap, core::option::Option<alloc::string::String>>
 pub type papo_core::ResponseHistory = papo_core::HistoryPage
