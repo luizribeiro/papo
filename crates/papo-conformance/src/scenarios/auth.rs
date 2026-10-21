@@ -266,7 +266,15 @@ async fn account_creation_error(s: Scenario) -> papo_testing::Result<()> {
     covers = ["draft.persistence"]
 )]
 async fn persistence(s: Scenario) -> papo_testing::Result<()> {
-    let mut alice = s.connect_as_account("alice").await?;
+    let account = unique("alice");
+    create_account(&s.server, &account, PASSWORD)?;
+    let mut alice = s
+        .connect_with(
+            s.configure("alice")?
+                .sasl(Sasl::plain(account, PASSWORD))
+                .enable(papo::Feature::Persistence),
+        )
+        .await?;
     let initial = alice.persistence().get().await?;
     assert_eq!(alice.state().persistence(), Some(initial));
 

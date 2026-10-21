@@ -266,8 +266,12 @@ async fn draft_channel_rename(s: Scenario) -> papo_testing::Result<()> {
     covers = ["ergo.relaymsg"]
 )]
 async fn relay_message(s: Scenario) -> papo_testing::Result<()> {
-    let alice = s.connect("alice").await?;
-    let mut bob = s.connect("bob").await?;
+    let alice = s
+        .connect_with(s.configure("alice")?.enable(papo::Feature::Relay))
+        .await?;
+    let mut bob = s
+        .connect_with(s.configure("bob")?.enable(papo::Feature::Relay))
+        .await?;
     let channel = s.channel_name();
     let alice_nick = alice.nick();
     alice.join(&channel).await?;

@@ -77,7 +77,9 @@ fn snapshot_diff(expected: &str, actual: &str) -> String {
 /// the advertised ISUPPORT set matches the checked-in snapshot for this profile
 #[scenario(covers = ["base.isupport.snapshot"])]
 async fn isupport_snapshot(s: Scenario) -> papo_testing::Result<()> {
-    let alice = s.connect("alice").await?;
+    let alice = s
+        .connect_with(s.configure("alice")?.enable(papo::Feature::WebPush))
+        .await?;
     let state = alice.state();
     let support = state.isupport();
     let actual = render_snapshot(support.tokens());

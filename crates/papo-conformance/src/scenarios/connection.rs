@@ -62,7 +62,9 @@ async fn connect(s: Scenario) -> papo_testing::Result<()> {
     covers = ["core.cap-notify.new"]
 )]
 async fn cap_notify_new(s: Scenario) -> papo_testing::Result<()> {
-    let mut alice = s.connect("alice").await?;
+    let mut alice = s
+        .connect_with(s.configure("alice")?.enable(papo::Feature::Bouncer))
+        .await?;
     let connected = alice.wait_for(Event::as_connected).await?;
     let changed = alice
         .wait_for(|event| {
@@ -374,6 +376,7 @@ async fn bouncer_networks(s: Scenario) -> papo_testing::Result<()> {
                 .username(login.username())
                 .realname("papo bouncer control")
                 .password(login.password())
+                .enable(papo::Feature::Bouncer)
                 .request_caps(["batch", "soju.im/bouncer-networks"]),
             )
             .await?;

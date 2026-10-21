@@ -532,6 +532,12 @@ fn connect_client(
         .realname(realname)
         .tls_ca_pem(ca_pem);
     if let Some(wanted_caps) = wanted_caps {
+        for feature in wanted_caps
+            .iter()
+            .filter_map(|name| unstable_feature_for_cap(name))
+        {
+            builder = builder.enable(feature);
+        }
         builder = builder.request_caps(wanted_caps);
     }
     #[cfg(not(target_family = "wasm"))]
@@ -555,6 +561,18 @@ fn connect_client(
         events,
         driver: tokio::spawn(driver),
     })
+}
+
+fn unstable_feature_for_cap(name: &str) -> Option<papo::Feature> {
+    match name {
+        "soju.im/bouncer-networks" | "soju.im/bouncer-networks-notify" => {
+            Some(papo::Feature::Bouncer)
+        }
+        "draft/persistence" => Some(papo::Feature::Persistence),
+        "draft/relaymsg" => Some(papo::Feature::Relay),
+        "draft/webpush" | "soju.im/webpush" => Some(papo::Feature::WebPush),
+        _ => None,
+    }
 }
 
 async fn wait_connected(client: &Client, events: &mut Events) -> Result<Welcome, String> {
@@ -605,6 +623,7 @@ mod tests {
 
     use libtest_mimic::{Arguments, Completion, Failed, Trial};
 
+    use super::unstable_feature_for_cap;
     use super::{
         CapRequirement, Event, EventSource, Requirements, Scenario, expect_event,
         fixture_completion, json_string, known_failure_verdict, load_known_failures_from,
@@ -635,6 +654,21 @@ mod tests {
 
     struct ScriptedEvents {
         events: VecDeque<Event>,
+    }
+
+    #[test]
+    fn probe_capabilities_enable_their_unstable_features() {
+        for (name, expected) in [
+            ("soju.im/bouncer-networks", papo::Feature::Bouncer),
+            ("soju.im/bouncer-networks-notify", papo::Feature::Bouncer),
+            ("draft/persistence", papo::Feature::Persistence),
+            ("draft/relaymsg", papo::Feature::Relay),
+            ("draft/webpush", papo::Feature::WebPush),
+            ("soju.im/webpush", papo::Feature::WebPush),
+        ] {
+            assert_eq!(unstable_feature_for_cap(name), Some(expected));
+        }
+        assert_eq!(unstable_feature_for_cap("chathistory"), None);
     }
 
     impl EventSource for ScriptedEvents {
