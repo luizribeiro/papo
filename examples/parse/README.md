@@ -1,12 +1,17 @@
 # Parse IRC lines
 
-This example reads one IRC line per line from standard input and prints its typed command,
-parsed source, unescaped tags, and parameters. `PRIVMSG` and `NOTICE` output identifies CTCP
-lines; other text is printed with IRC formatting controls removed.
+This example reads IRC lines from standard input and prints each line's typed command, parsed
+source, unescaped tags, and parameters.
 
 Run it from the repository root:
 
 ```sh
 printf ':alice!~alice@users.example.test PRIVMSG #papo :hello\n' \
   | cargo run -p papo-parse-example --bin papo-parse
+```
+
+Sample output:
+
+```text
+command=Privmsg source=Some(User { nick: "alice", username: Some("~alice"), host: Some("users.example.test") }) tags=[] params=["#papo", "hello"]
 ```
