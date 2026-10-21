@@ -1,7 +1,4 @@
-use papo::{
-    Account, DisconnectCause, Error, Event, LegacyModeAction as ModeAction,
-    LegacyModeArg as ModeArg, Refusal, Source,
-};
+use papo::{Account, DisconnectCause, Error, Event, ModeAction, ModeArg, Refusal, Source};
 use papo_conformance_macros::scenario;
 use papo_test_server::DeploymentProfile;
 
@@ -445,8 +442,8 @@ async fn multi_prefix(s: Scenario) -> papo_testing::Result<()> {
         .iter()
         .find(|change| change.mode == 'v')
         .unwrap();
-    assert_eq!(papo::mode_action(voice), ModeAction::Add);
-    assert!(matches!(papo::mode_arg(voice), Some(ModeArg::Nick(nick)) if nick == alice_nick));
+    assert_eq!(voice.action, ModeAction::Add);
+    assert!(matches!(voice.arg.clone(), Some(ModeArg::Nick(nick)) if nick == alice_nick));
     bob.join(&channel).await?;
     let joined = alice.wait_for(Event::as_joined).await?;
     assert_eq!(joined.channel.as_ref(), channel);
@@ -505,8 +502,8 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
         .iter()
         .find(|change| change.mode == 'o')
         .unwrap();
-    assert_eq!(papo::mode_action(operator), ModeAction::Add);
-    assert!(matches!(papo::mode_arg(operator), Some(ModeArg::Nick(nick)) if nick == bob_nick));
+    assert_eq!(operator.action, ModeAction::Add);
+    assert!(matches!(operator.arg.clone(), Some(ModeArg::Nick(nick)) if nick == bob_nick));
     assert!(
         bob.state()
             .channel(&channel)
@@ -1296,16 +1293,17 @@ async fn user_modes(s: Scenario) -> papo_testing::Result<()> {
             .wait_for(|event| {
                 event.as_mode_changed().filter(|changed| {
                     subject_name(&changed.subject) == nick.as_ref()
-                        && changed.changes.iter().any(|change| {
-                            change.mode == 'i' && papo::mode_action(change) == ModeAction::Remove
-                        })
+                        && changed
+                            .changes
+                            .iter()
+                            .any(|change| change.mode == 'i' && change.action == ModeAction::Remove)
                 })
             })
             .await?;
         assert!(removed.changes.iter().any(|change| {
             change.mode == 'i'
-                && papo::mode_action(change) == ModeAction::Remove
-                && papo::mode_arg(change).is_none()
+                && change.action == ModeAction::Remove
+                && change.arg.clone().is_none()
         }));
     }
 
@@ -1314,17 +1312,16 @@ async fn user_modes(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| {
             event.as_mode_changed().filter(|changed| {
                 subject_name(&changed.subject) == nick.as_ref()
-                    && changed.changes.iter().any(|change| {
-                        change.mode == 'i' && papo::mode_action(change) == ModeAction::Add
-                    })
+                    && changed
+                        .changes
+                        .iter()
+                        .any(|change| change.mode == 'i' && change.action == ModeAction::Add)
             })
         })
         .await?;
     assert_eq!(subject_name(&added.subject), nick.as_ref());
     assert!(added.changes.iter().any(|change| {
-        change.mode == 'i'
-            && papo::mode_action(change) == ModeAction::Add
-            && papo::mode_arg(change).is_none()
+        change.mode == 'i' && change.action == ModeAction::Add && change.arg.clone().is_none()
     }));
     assert!(alice.state().user_modes().any(|mode| mode == 'i'));
 
@@ -1381,14 +1378,14 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
         .iter()
         .find(|change| change.mode == 'k')
         .unwrap();
-    assert_eq!(papo::mode_action(key_change), ModeAction::Add);
-    assert!(matches!(papo::mode_arg(key_change), Some(ModeArg::Value(value)) if value == key));
+    assert_eq!(key_change.action, ModeAction::Add);
+    assert!(matches!(key_change.arg.clone(), Some(ModeArg::Value(value)) if value == key));
     let secret_change = modes
         .changes
         .iter()
         .find(|change| change.mode == 's')
         .unwrap();
-    assert_eq!(papo::mode_action(secret_change), ModeAction::Add);
+    assert_eq!(secret_change.action, ModeAction::Add);
     assert_eq!(secret_change.arg, None);
     for peer in [&alice, &bob] {
         let state = peer.state();

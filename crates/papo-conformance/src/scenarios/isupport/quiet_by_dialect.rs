@@ -1,4 +1,4 @@
-use papo::{LegacyModeAction as ModeAction, LegacyModeArg as ModeArg, Refusal};
+use papo::{ModeAction, ModeArg, Refusal};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
@@ -72,9 +72,9 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(changed.changes.len(), 1);
         let change = &changed.changes[0];
         assert_eq!(change.mode, letter);
-        assert_eq!(papo::mode_action(change), ModeAction::Add);
+        assert_eq!(change.action, ModeAction::Add);
         assert!(
-            matches!(papo::mode_arg(change), Some(ModeArg::Mask(mask)) if mask == echoed_arg.as_str())
+            matches!(change.arg.clone(), Some(ModeArg::Mask(mask)) if mask == echoed_arg.as_str())
         );
     }
 
@@ -118,9 +118,9 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(removed.changes.len(), 1);
         let change = &removed.changes[0];
         assert_eq!(change.mode, letter);
-        assert_eq!(papo::mode_action(change), ModeAction::Remove);
+        assert_eq!(change.action, ModeAction::Remove);
         assert!(
-            matches!(papo::mode_arg(change), Some(ModeArg::Mask(mask)) if mask == echoed_arg.as_str())
+            matches!(change.arg.clone(), Some(ModeArg::Mask(mask)) if mask == echoed_arg.as_str())
         );
     }
 

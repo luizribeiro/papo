@@ -1,4 +1,4 @@
-use papo::{Error, LegacyModeAction as ModeAction, LegacyModeArg as ModeArg, Refusal};
+use papo::{Error, ModeAction, ModeArg, Refusal};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
@@ -74,8 +74,8 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
         );
         assert_eq!(promoted.changes.len(), 1);
         let change = &promoted.changes[0];
-        assert_eq!(papo::mode_action(change), ModeAction::Add);
-        assert!(matches!(papo::mode_arg(change), Some(ModeArg::Nick(nick)) if nick == bob_nick));
+        assert_eq!(change.action, ModeAction::Add);
+        assert!(matches!(change.arg.clone(), Some(ModeArg::Nick(nick)) if nick == bob_nick));
     }
     for peer in [&alice, &bob, &carol] {
         let state = peer.state();

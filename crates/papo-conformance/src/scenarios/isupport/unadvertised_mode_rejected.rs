@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use papo::{Error, InvalidInput, Isupport, LegacyModeAction as ModeAction, isupport::Advertised};
+use papo::{Error, InvalidInput, Isupport, ModeAction, isupport::Advertised};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
@@ -45,7 +45,7 @@ async fn unadvertised_mode_rejected(s: Scenario) -> papo_testing::Result<()> {
         );
         assert_eq!(changed.changes.len(), 1);
         let applied = &changed.changes[0];
-        assert_eq!(papo::mode_action(applied), ModeAction::Add);
+        assert_eq!(applied.action, ModeAction::Add);
         assert_eq!(applied.arg, None);
     }
     for peer in [&alice, &bob] {
