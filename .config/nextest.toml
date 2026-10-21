@@ -1,3 +1,10 @@
+[test-groups]
+local-server = { max-threads = 4 }
+
+[[profile.default.overrides]]
+filter = 'binary(/^live_/) | (binary(=papo) & test(/^transport::(live|websocket::live)::/))'
+test-group = 'local-server'
+
 [profile.mutants]
 
 # cargo-mutants selects this profile with NEXTEST_PROFILE=mutants.
