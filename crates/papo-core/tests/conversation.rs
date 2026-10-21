@@ -3,7 +3,40 @@
 mod support;
 
 use papo_core::{Config, Conversation, Event};
+use papo_proto::Casemapping;
 use support::Transcript;
+
+fn assert_text_comparison(conversation: &Conversation, equal: &str, unequal: &str) {
+    assert!(<Conversation as PartialEq<str>>::eq(conversation, equal));
+    assert!(!<Conversation as PartialEq<str>>::eq(conversation, unequal));
+    assert!(<Conversation as PartialEq<&str>>::eq(conversation, &equal));
+    assert!(!<Conversation as PartialEq<&str>>::eq(
+        conversation,
+        &unequal
+    ));
+}
+
+#[test]
+fn compares_every_conversation_kind_with_text() {
+    for mapping in [Casemapping::Rfc1459, Casemapping::Ascii] {
+        assert_text_comparison(
+            &Conversation::Channel(mapping.channel("#Papo")),
+            "#papo",
+            "#rust",
+        );
+    }
+    assert_text_comparison(
+        &Conversation::Private(Casemapping::Rfc1459.nick("bob")),
+        "Bob",
+        "alice",
+    );
+    assert_text_comparison(&Conversation::Server, "*", "#papo");
+    assert_text_comparison(
+        &Conversation::Broadcast(Casemapping::Rfc1459.mask("$*.Example.org")),
+        "$*.example.org",
+        "#papo",
+    );
+}
 
 #[test]
 fn classifies_server_broadcast_and_private_conversations() {
