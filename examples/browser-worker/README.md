@@ -12,6 +12,6 @@ examples/browser-worker/build.sh
 
 Serve `examples/browser-worker/dist` from localhost, open `index.html`, and enter an IRC WebSocket
 URL, nickname, and channel. Shared workers require a secure context, with localhost treated as
-secure by browsers. The example deliberately uses anonymous IRC registration; add SASL credentials
+secure by browsers. The example deliberately uses an anonymous IRC login; add SASL credentials
 through your application's protected configuration channel rather than embedding them in page or
 worker source.

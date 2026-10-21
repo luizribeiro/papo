@@ -68,7 +68,7 @@ pub const MESSAGE_REDACTION: &str = papo_core::cap::MESSAGE_REDACTION;
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub const WEBPUSH: &str = papo_core::cap::WEBPUSH;
-/// Away state during registration.
+/// Away state while connecting.
 pub const PRE_AWAY: &str = papo_core::cap::PRE_AWAY;
 /// Suppression of implicit names replies.
 pub const NO_IMPLICIT_NAMES: &str = papo_core::cap::NO_IMPLICIT_NAMES;

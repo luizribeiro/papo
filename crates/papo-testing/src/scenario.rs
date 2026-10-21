@@ -52,16 +52,16 @@ impl Scenario {
     ///
     /// # Errors
     ///
-    /// Returns the client's connection or registration failure.
+    /// Returns the client's connection failure.
     pub async fn connect(&self, label: &str) -> Result<Peer> {
         self.connect_with(self.configure(label)?).await
     }
 
-    /// Registers an account, authenticates it with SASL PLAIN, and connects it.
+    /// Creates an account, authenticates it with SASL PLAIN, and connects it.
     ///
     /// # Errors
     ///
-    /// Returns an error when the server cannot register the account or the
+    /// Returns an error when the server cannot create the account or the
     /// authenticated client cannot connect.
     pub async fn connect_as_account(&self, label: &str) -> Result<Peer> {
         Ok(self.connect_as_account_with_key(label).await?.0)
@@ -96,7 +96,7 @@ impl Scenario {
     ///
     /// # Errors
     ///
-    /// Returns the client's connection, authentication, or registration failure.
+    /// Returns the client's connection or authentication failure.
     pub async fn connect_account_session(
         &self,
         label: &str,
@@ -135,7 +135,7 @@ impl Scenario {
     ///
     /// # Errors
     ///
-    /// Returns the client's connection or registration failure.
+    /// Returns the client's connection failure.
     pub async fn connect_with(&self, builder: Builder) -> Result<Peer> {
         let (client, events) = builder.connect().await?;
         self.clients

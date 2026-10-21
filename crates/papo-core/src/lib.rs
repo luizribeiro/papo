@@ -258,7 +258,7 @@ pub struct CtcpReplies {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum AwayOnConnect {
-    /// Announce this message. Without `draft/pre-away`, it is sent after registration.
+    /// Announce this message. Without `draft/pre-away`, it is sent after connecting.
     Message(String),
     /// Announce hidden away state with `AWAY *`. Without `draft/pre-away`, it is skipped.
     Hidden,
@@ -312,7 +312,7 @@ impl CtcpReplies {
     }
 }
 
-/// Registration state captured when a session becomes ready for use.
+/// Connection state captured when a session becomes ready for use.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Welcome {
     /// The nickname assigned by the server.
@@ -368,15 +368,15 @@ pub struct Config {
     pub decoding: Decoding,
     /// Name casemapping remembered before a server advertises its rules.
     pub casemapping: Casemapping,
-    /// The nickname requested during registration.
+    /// The nickname requested while connecting.
     pub nick: String,
-    /// The username sent during registration.
+    /// The username sent while connecting.
     pub username: String,
-    /// The real name sent during registration.
+    /// The real name sent while connecting.
     pub realname: String,
-    /// The optional server password sent during registration.
+    /// The optional server password sent while connecting.
     pub password: Option<Secret>,
-    /// Gateway identity sent before registration begins.
+    /// Gateway identity sent before connecting begins.
     pub webirc: Option<WebIrc>,
     /// The maximum time to wait for the welcome numeric.
     pub welcome_timeout: Duration,
@@ -394,9 +394,9 @@ pub struct Config {
     pub wanted_caps: Vec<String>,
     /// Capability names explicitly disabled by the client.
     pub disabled_caps: Vec<String>,
-    /// Alternative nicknames to try when registration collides.
+    /// Alternative nicknames to try when the requested nickname collides while connecting.
     pub alt_nicks: Vec<String>,
-    /// Whether to reclaim the configured nickname after a registration collision.
+    /// Whether to reclaim the configured nickname after a connection-time collision.
     pub regain_nick: bool,
     /// SASL mechanisms to try in preference order.
     pub sasl: Option<Sasl>,
@@ -416,11 +416,11 @@ pub struct Config {
     pub request_timeout: Duration,
     /// Automatic CTCP reply policy.
     pub ctcp: CtcpReplies,
-    /// Away state announced during or immediately after registration.
+    /// Away state announced during or immediately after connecting.
     pub away_on_connect: Option<AwayOnConnect>,
     /// Metadata keys subscribed on every connection.
     pub metadata_subscriptions: Vec<String>,
-    /// Upstream bouncer network selected before registration completes.
+    /// Upstream bouncer network selected before the connection completes.
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub bouncer_network: Option<NetworkId>,
@@ -532,35 +532,35 @@ impl Config {
         self
     }
 
-    /// Sets the nickname requested during registration.
+    /// Sets the nickname requested while connecting.
     #[must_use]
     pub fn nick(mut self, nick: impl Into<String>) -> Self {
         self.nick = nick.into();
         self
     }
 
-    /// Sets the username sent during registration.
+    /// Sets the username sent while connecting.
     #[must_use]
     pub fn username(mut self, username: impl Into<String>) -> Self {
         self.username = username.into();
         self
     }
 
-    /// Sets the real name sent during registration.
+    /// Sets the real name sent while connecting.
     #[must_use]
     pub fn realname(mut self, realname: impl Into<String>) -> Self {
         self.realname = realname.into();
         self
     }
 
-    /// Sets the optional server password sent during registration.
+    /// Sets the optional server password sent while connecting.
     #[must_use]
     pub fn password(mut self, password: impl Into<Secret>) -> Self {
         self.password = Some(password.into());
         self
     }
 
-    /// Sets the gateway identity sent with `WEBIRC` before registration.
+    /// Sets the gateway identity sent with `WEBIRC` before connecting.
     #[must_use]
     pub fn webirc(mut self, webirc: WebIrc) -> Self {
         self.webirc = Some(webirc);
@@ -660,7 +660,7 @@ impl Config {
             .any(|disabled| cap::canonical(disabled) == cap::canonical(name))
     }
 
-    /// Sets the alternative nicknames tried during registration.
+    /// Sets the alternative nicknames tried while connecting.
     #[must_use]
     pub fn alt_nicks<I, S>(mut self, nicks: I) -> Self
     where
@@ -671,7 +671,7 @@ impl Config {
         self
     }
 
-    /// Sets the SASL mechanisms to try during registration.
+    /// Sets the SASL mechanisms to try while connecting.
     #[must_use]
     pub fn sasl(mut self, sasl: Sasl) -> Self {
         self.sasl = Some(sasl);
@@ -737,7 +737,7 @@ impl Config {
     /// Sets away state to announce while connecting.
     ///
     /// With `draft/pre-away`, both variants are sent before `CAP END`. Without it, a message is
-    /// sent after registration completes and hidden away state is skipped.
+    /// sent after connecting completes and hidden away state is skipped.
     #[must_use]
     pub fn away_on_connect(mut self, away: Option<AwayOnConnect>) -> Self {
         self.away_on_connect = away;
@@ -1454,7 +1454,7 @@ pub enum RequestError {
     Unsupported(Unsupported),
     /// The server cannot accept the supplied history reference.
     InvalidMessageReference,
-    /// Account registration requires an email address.
+    /// Account creation requires an email address.
     EmailRequired,
     /// The server requires the account name to match the current nickname.
     CustomAccountNameUnsupported,
@@ -1498,7 +1498,7 @@ pub enum CloseKind {
     SaslFailed,
     /// The server rejected the gateway's `WEBIRC` command.
     WebIrcRejected,
-    /// IRC registration did not complete before its deadline.
+    /// Connection registration did not complete before its deadline.
     WelcomeTimeout,
     /// A server line exceeded the protocol framing limit.
     LineTooLong,
@@ -1514,7 +1514,7 @@ pub enum CloseKind {
     PasswordIncorrect,
     /// The server banned the connection (`465`).
     Banned,
-    /// Every configured registration nickname was rejected.
+    /// Every configured connection nickname was rejected.
     NickCandidatesExhausted,
     /// Another protocol condition requires the connection to close.
     Other,
@@ -1742,7 +1742,7 @@ pub enum Event {
         /// A human-readable explanation suitable for diagnostics.
         reason: String,
     },
-    /// Configured authentication failed and registration is continuing.
+    /// Configured authentication failed and connecting is continuing.
     AuthenticationFailed {
         /// A human-readable explanation suitable for diagnostics.
         reason: String,
@@ -3120,7 +3120,7 @@ impl Session {
         RequestId(self.next_request_id)
     }
 
-    /// Reports whether connection registration has completed.
+    /// Reports whether the connection is ready for use.
     #[must_use]
     pub const fn is_connected(&self) -> bool {
         self.welcome_state.is_connected()

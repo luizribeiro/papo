@@ -49,7 +49,7 @@ pub enum Warning {
         /// The original bytes, excluding the line ending.
         line: Vec<u8>,
     },
-    /// Configured authentication failed and registration is continuing.
+    /// Configured authentication failed and connecting is continuing.
     #[non_exhaustive]
     AuthenticationFailed {
         /// A human-readable explanation suitable for diagnostics.

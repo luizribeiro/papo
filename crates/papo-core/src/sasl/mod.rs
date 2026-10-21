@@ -141,7 +141,7 @@ impl Sasl {
         }
     }
 
-    /// Allows registration to continue when every configured mechanism fails.
+    /// Allows connecting to continue when every configured mechanism fails.
     ///
     /// ```
     /// # use papo_core as papo;

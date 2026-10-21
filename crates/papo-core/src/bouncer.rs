@@ -57,11 +57,11 @@ pub struct BouncerNetwork {
     pub port: Option<u16>,
     /// Whether the upstream connection uses TLS.
     pub tls: Option<bool>,
-    /// Registration nickname.
+    /// Connection nickname.
     pub nickname: Option<Nick>,
-    /// Registration username.
+    /// Connection username.
     pub username: Option<String>,
-    /// Registration real name.
+    /// Connection real name.
     pub realname: Option<String>,
     /// Most recent connection error.
     pub error: Option<String>,
@@ -210,21 +210,21 @@ impl NetworkConfig {
         self
     }
 
-    /// Sets the registration nickname.
+    /// Sets the connection nickname.
     #[must_use]
     pub fn nickname(mut self, nickname: impl Into<Nick>) -> Self {
         self.nickname = Some(nickname.into());
         self
     }
 
-    /// Sets the registration username.
+    /// Sets the connection username.
     #[must_use]
     pub fn username(mut self, username: impl Into<String>) -> Self {
         self.username = Some(username.into());
         self
     }
 
-    /// Sets the registration real name.
+    /// Sets the connection real name.
     #[must_use]
     pub fn realname(mut self, realname: impl Into<String>) -> Self {
         self.realname = Some(realname.into());

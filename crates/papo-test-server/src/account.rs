@@ -6,7 +6,7 @@ use std::{
 
 use crate::{DeploymentProfile, ServerInfo};
 
-/// Creates an account through `IRCv3` account registration.
+/// Creates an account through `IRCv3` `draft/account-registration`.
 ///
 /// # Errors
 ///

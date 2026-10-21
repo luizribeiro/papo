@@ -78,7 +78,7 @@ pub enum Refusal {
     UnacceptablePassword,
     /// The server cannot send mail to the address.
     InvalidEmail,
-    /// The email address cannot be used for registration.
+    /// The email address cannot be used for account creation.
     UnacceptableEmail,
     /// The connection must complete before retrying (`451`).
     NotConnectedYet,

@@ -43,7 +43,7 @@ impl NewAccount {
     }
 }
 
-/// Outcome of an account registration request.
+/// Outcome of an account creation request.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum AccountCreation {

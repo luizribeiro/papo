@@ -86,7 +86,7 @@ impl Builder {
         builder
     }
 
-    /// Seeds the server-defined name comparison rules used before registration.
+    /// Seeds the server-defined name comparison rules used before connecting.
     ///
     /// A server advertisement replaces these rules for the active connection. The most recently
     /// advertised rules remain available while disconnected.
@@ -130,14 +130,14 @@ impl Builder {
         self
     }
 
-    /// Sets the username sent during registration.
+    /// Sets the username sent while connecting.
     pub fn username(mut self, username: impl Into<String>) -> Self {
         self.config.username = username.into();
         self.username_set = true;
         self
     }
 
-    /// Sets the real name sent during registration.
+    /// Sets the real name sent while connecting.
     pub fn realname(mut self, realname: impl Into<String>) -> Self {
         self.config.realname = realname.into();
         self.realname_set = true;
@@ -170,7 +170,7 @@ impl Builder {
         self
     }
 
-    /// Selects an upstream bouncer network before registration completes.
+    /// Selects an upstream bouncer network before the connection completes.
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub fn bouncer_network(mut self, id: crate::NetworkId) -> Self {
@@ -187,7 +187,7 @@ impl Builder {
         self
     }
 
-    /// Registers an account before connection registration completes.
+    /// Creates an account while connecting.
     ///
     /// ```
     /// let account = papo::NewAccount::new("correct horse battery staple")
@@ -448,13 +448,13 @@ impl Builder {
         self
     }
 
-    /// Sets the server-advertised bot user mode after registration.
+    /// Sets the server-advertised bot user mode after connecting.
     pub fn bot(mut self) -> Self {
         self.bot = true;
         self
     }
 
-    /// Adds channels to join after registration.
+    /// Adds channels to join after connecting.
     ///
     /// Repeated exact names are replaced by the last entry. Once the server's casemapping is
     /// known, names that compare equal under that mapping are also deduplicated before joining.
@@ -473,7 +473,7 @@ impl Builder {
         self
     }
 
-    /// Adds a keyed channel to join after registration.
+    /// Adds a keyed channel to join after connecting.
     ///
     /// This replaces an exact configured name. Once the server's casemapping is known, names
     /// that compare equal under that mapping are also deduplicated before joining.
@@ -522,14 +522,14 @@ impl Builder {
         self.build_with_connect(None)
     }
 
-    /// Connects in a spawned driver and waits for IRC registration.
+    /// Connects in a spawned driver and waits until the connection is ready.
     ///
     /// The [`crate::Event::Connected`] event remains available from the
-    /// returned event stream. When account registration requires email
+    /// returned event stream. When `draft/account-registration` requires email
     /// verification, this returns after [`crate::AccountCreation::VerificationRequired`]
-    /// because the server holds IRC registration open until verification.
+    /// because the server holds the connection open until verification.
     /// The first connection attempt fails fast; the configured reconnect policy applies only
-    /// after the first successful IRC registration.
+    /// after the first successful connection.
     ///
     /// # Errors
     ///

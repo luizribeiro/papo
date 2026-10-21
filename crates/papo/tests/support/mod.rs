@@ -3,7 +3,7 @@
 
 use std::{future::Future, time::Duration};
 
-/// Constructs a typed nickname for pre-registration test input.
+/// Constructs a typed nickname for pre-connect test input.
 pub fn nick(value: impl AsRef<str>) -> papo::Nick {
     papo::Casemapping::default().nick(value.as_ref())
 }
