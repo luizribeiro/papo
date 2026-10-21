@@ -71,7 +71,10 @@ async fn account_notify(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert!(matches!(
         outcome,
-        AccountCreation::Created { account: ref registered } if registered == &account
+        AccountCreation::Created {
+            account: ref registered,
+            ..
+        } if registered == &account
     ));
     let changed = bob.wait_for(Event::as_account_changed).await?;
 

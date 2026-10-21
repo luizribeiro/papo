@@ -212,7 +212,10 @@ async fn account_creation(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert!(matches!(
         &outcome,
-        AccountCreation::Created { account: registered } if registered == &account
+        AccountCreation::Created {
+            account: registered,
+            ..
+        } if registered == &account
     ));
     assert_eq!(alice.wait_for(Event::as_account_creation).await?, outcome);
     assert_eq!(

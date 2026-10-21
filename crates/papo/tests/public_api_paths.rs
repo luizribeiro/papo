@@ -89,25 +89,17 @@ fn path_check_finds_root_and_module_reexports() {
 }
 
 #[test]
-fn error_struct_like_variants_are_non_exhaustive() {
+fn struct_like_variants_are_non_exhaustive() {
     for (name, snapshot) in [
         ("papo", STABLE),
         ("papo unstable", UNSTABLE),
         ("papo-bot", BOT),
     ] {
-        let unsealed = unsealed_struct_variants(snapshot);
-        for enum_path in [
-            "papo::DisconnectCause::",
-            "papo::Error::",
-            "papo::InvalidInput::",
-        ] {
-            assert!(
-                unsealed
-                    .iter()
-                    .all(|variant| !variant.starts_with(enum_path)),
-                "{name} has struct-like variants without #[non_exhaustive]: {unsealed:?}"
-            );
-        }
+        assert_eq!(
+            unsealed_struct_variants(snapshot),
+            Vec::<&str>::new(),
+            "{name} has struct-like variants without #[non_exhaustive]"
+        );
     }
 }
 

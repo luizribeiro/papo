@@ -692,24 +692,26 @@ mod tests {
     fn expect_skips_non_matching_events() {
         let mut events = ScriptedEvents {
             events: [
-                Event::AccountCreation(papo::AccountCreation::Created {
-                    account: papo::Casemapping::default().account("first"),
-                }),
-                Event::AccountCreation(papo::AccountCreation::Created {
-                    account: papo::Casemapping::default().account("second"),
-                }),
+                Event::Warning(papo::event::Warning::Unsupported(papo::Unsupported::new(
+                    papo::Feature::History,
+                    papo::UnsupportedReason::NotOffered,
+                ))),
+                Event::Warning(papo::event::Warning::Unsupported(papo::Unsupported::new(
+                    papo::Feature::Monitor,
+                    papo::UnsupportedReason::NotOffered,
+                ))),
             ]
             .into(),
         };
         let event = runtime()
             .block_on(expect_event(
                 &mut events,
-                |event| matches!(event, Event::AccountCreation(papo::AccountCreation::Created { account }) if account == "second"),
+                |event| matches!(event, Event::Warning(papo::event::Warning::Unsupported(unsupported)) if unsupported.feature == papo::Feature::Monitor),
                 Duration::from_secs(1),
             ))
             .unwrap();
         assert!(
-            matches!(event, Event::AccountCreation(papo::AccountCreation::Created { account }) if account == "second")
+            matches!(event, Event::Warning(papo::event::Warning::Unsupported(unsupported)) if unsupported.feature == papo::Feature::Monitor)
         );
     }
 

@@ -41,6 +41,7 @@ pub enum HistoryItem {
     ///
     /// This includes unknown numerics, vendor commands, and new drafts. Match it only for display
     /// and logging; a future version may type it.
+    #[non_exhaustive]
     Other {
         /// The untyped wire line.
         line: Line,

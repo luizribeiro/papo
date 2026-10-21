@@ -1012,9 +1012,9 @@ pub mod papo::time
 pub use papo::time::format
 pub fn papo::time::now() -> std::time::SystemTime
 #[non_exhaustive] pub enum papo::AccountCreation
-pub papo::AccountCreation::Created
+#[non_exhaustive] pub papo::AccountCreation::Created
 pub papo::AccountCreation::Created::account: papo::AccountName
-pub papo::AccountCreation::VerificationRequired
+#[non_exhaustive] pub papo::AccountCreation::VerificationRequired
 pub papo::AccountCreation::VerificationRequired::account: papo::AccountName
 pub papo::AccountCreation::VerificationRequired::message: alloc::string::String
 impl core::clone::Clone for papo::AccountCreation
@@ -1184,7 +1184,7 @@ impl !core::panic::unwind_safe::UnwindSafe for papo::Error
 #[non_exhaustive] pub enum papo::Event
 pub papo::Event::AccountChanged(papo::event::AccountChanged)
 pub papo::Event::AccountCreation(papo::AccountCreation)
-pub papo::Event::AutoJoinFailed
+#[non_exhaustive] pub papo::Event::AutoJoinFailed
 pub papo::Event::AutoJoinFailed::channel: papo::ChannelName
 pub papo::Event::AutoJoinFailed::error: papo::ServerError
 pub papo::Event::AwayChanged(papo::event::AwayChanged)
@@ -1366,7 +1366,7 @@ pub papo::HistoryItem::Kicked(papo::event::Kicked)
 pub papo::HistoryItem::Message(papo::Message)
 pub papo::HistoryItem::ModeChanged(papo::event::ModeChanged)
 pub papo::HistoryItem::NickChanged(papo::event::NickChanged)
-pub papo::HistoryItem::Other
+#[non_exhaustive] pub papo::HistoryItem::Other
 pub papo::HistoryItem::Other::line: papo::Line
 pub papo::HistoryItem::Other::msgid: core::option::Option<papo::MessageId>
 pub papo::HistoryItem::Other::time: std::time::SystemTime

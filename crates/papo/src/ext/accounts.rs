@@ -48,11 +48,13 @@ impl NewAccount {
 #[non_exhaustive]
 pub enum AccountCreation {
     /// The account was created and authenticated.
+    #[non_exhaustive]
     Created {
         /// Created account name.
         account: crate::AccountName,
     },
     /// The server requires an out-of-band verification code.
+    #[non_exhaustive]
     VerificationRequired {
         /// Account awaiting verification.
         account: crate::AccountName,

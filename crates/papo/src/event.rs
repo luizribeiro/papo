@@ -723,6 +723,7 @@ pub enum Event {
     /// Server-defined name comparison rules changed between connections.
     CasemappingChanged(CasemappingChanged),
     /// A channel join configured or remembered by papo was refused.
+    #[non_exhaustive]
     AutoJoinFailed {
         /// The channel papo tried to join.
         channel: ChannelName,

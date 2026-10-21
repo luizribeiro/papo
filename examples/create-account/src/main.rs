@@ -22,13 +22,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     while let Some(event) = events.next().await {
         let created = match event {
-            Event::AccountCreation(AccountCreation::Created { account }) => account,
-            Event::AccountCreation(AccountCreation::VerificationRequired { account, message }) => {
+            Event::AccountCreation(AccountCreation::Created { account, .. }) => account,
+            Event::AccountCreation(AccountCreation::VerificationRequired {
+                account,
+                message,
+                ..
+            }) => {
                 eprintln!("{message}");
                 let mut code = String::new();
                 io::stdin().read_line(&mut code)?;
                 match client.verify_account(account, code.trim()).await? {
-                    AccountCreation::Created { account } => account,
+                    AccountCreation::Created { account, .. } => account,
                     _ => continue,
                 }
             }
