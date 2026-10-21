@@ -163,7 +163,7 @@ async fn shared_test_deadline_rejects_a_stalled_future() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn message_accessors_use_captured_session_facts() {
+async fn message_fields_use_captured_session_facts() {
     let (mut server, _client, mut events, driver) = scripted(config().max_batch_lines(0));
     let task = tokio::spawn(driver);
     welcome_burst(&mut server).await;
@@ -188,7 +188,10 @@ async fn message_accessors_use_captured_session_facts() {
     assert_eq!(message.msgid.as_deref(), Some("RfcBTzyxY120004"));
     assert_eq!(message.account.as_deref(), Some("emily"));
     assert!(message.is_bot);
-    assert_eq!(message.reply_to(), Some("RfcBTzyxY120003"));
+    assert_eq!(
+        message.reply_to().map(AsRef::as_ref),
+        Some("RfcBTzyxY120003")
+    );
     assert_eq!(
         message.time(),
         UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000)

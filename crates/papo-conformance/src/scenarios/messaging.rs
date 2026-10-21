@@ -565,7 +565,7 @@ async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| message_text(event, "acknowledged"))
         .await?;
     assert_eq!(reply.raw_text, "acknowledged");
-    assert_eq!(reply.reply_to(), Some(original_id.as_ref()));
+    assert_eq!(reply.reply_to(), Some(&original_id));
     assert_eq!(
         conversation_name(&reply.conversation),
         Some(channel.as_str())

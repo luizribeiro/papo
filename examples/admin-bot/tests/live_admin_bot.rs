@@ -32,7 +32,7 @@ async fn routes_authorizes_contextualizes_and_limits_commands() {
         let sent = wait_message(&mut user_events, "!ping").await;
         let msgid = (*sent.msgid.as_ref().expect("Ergo supplies msgid")).clone();
         let response = wait_message(&mut user_events, "pong").await;
-        assert_eq!(response.reply_to(), Some(msgid.as_ref()));
+        assert_eq!(response.reply_to(), Some(&msgid));
 
         user.privmsg(&channels[0], "!echo 'Ergo chat'")
             .await

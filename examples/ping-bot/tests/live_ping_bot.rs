@@ -39,7 +39,7 @@ async fn answers_channel_and_private_pings_then_shuts_down() {
         let sent = wait_message(&mut events, "!ping").await;
         let message_id = (*sent.msgid.as_ref().expect("Ergo supplies msgid")).clone();
         let response = wait_message(&mut events, "pong").await;
-        assert_eq!(response.reply_to(), Some(message_id.as_ref()));
+        assert_eq!(response.reply_to(), Some(&message_id));
 
         user.privmsg(&bot_nick, "!ping").await.unwrap();
         let sent = wait_message(&mut events, "!ping").await;
@@ -49,7 +49,7 @@ async fn answers_channel_and_private_pings_then_shuts_down() {
             response.conversation,
             papo::Conversation::Private(_)
         ));
-        assert_eq!(response.reply_to(), Some(message_id.as_ref()));
+        assert_eq!(response.reply_to(), Some(&message_id));
 
         bot.shutdown().await;
         user.quit("ping bot test complete").await.unwrap();

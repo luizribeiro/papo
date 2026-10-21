@@ -53,7 +53,7 @@ async fn reply_between_two_clients_carries_the_original_msgid() {
             message.text == "pong" && source_nick(message).as_deref() == Some(nick_b.as_str())
         })
         .await;
-        assert_eq!(response.reply_to(), Some(ping_msgid.as_ref()));
+        assert_eq!(response.reply_to(), Some(&ping_msgid));
 
         client_b.quit("live reply test complete").await.unwrap();
         client_a.quit("live reply test complete").await.unwrap();
@@ -205,7 +205,7 @@ async fn multiline_capability_preserves_plain_and_batched_message_ids() {
             message.raw_text == "reply through the multiline id"
         })
         .await;
-        assert_eq!(reply.reply_to(), Some(multiline_id.as_ref()));
+        assert_eq!(reply.reply_to(), Some(&multiline_id));
 
         client_b.quit("multiline id test complete").await.unwrap();
         client_a.quit("multiline id test complete").await.unwrap();

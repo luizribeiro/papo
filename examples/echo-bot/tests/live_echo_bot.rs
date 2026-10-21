@@ -36,7 +36,7 @@ async fn echoes_reacts_and_reports_typing_with_message_context() {
         let command = wait_message(&mut events, "!echo hello").await;
         let command_id = (*command.msgid.as_ref().expect("Ergo supplies msgid")).clone();
         let response = wait_message(&mut events, "hello").await;
-        assert_eq!(response.reply_to(), Some(command_id.as_ref()));
+        assert_eq!(response.reply_to(), Some(&command_id));
 
         let paste = "first line\nsecond line\nthird line";
         user.privmsg(&channel, paste).await.unwrap();
@@ -44,11 +44,11 @@ async fn echoes_reacts_and_reports_typing_with_message_context() {
         let paste_id = (*original.msgid.as_ref().expect("Ergo supplies msgid")).clone();
         let summary = format!("got 3 lines, {} bytes", paste.len());
         let counted = wait_message(&mut events, &summary).await;
-        assert_eq!(counted.reply_to(), Some(paste_id.as_ref()));
+        assert_eq!(counted.reply_to(), Some(&paste_id));
         wait_typing(&mut events, &channel, Typing::Active).await;
         let echoed = wait_message(&mut events, paste).await;
         assert_eq!(echoed.text, paste);
-        assert_eq!(echoed.reply_to(), Some(paste_id.as_ref()));
+        assert_eq!(echoed.reply_to(), Some(&paste_id));
         wait_typing(&mut events, &channel, Typing::Done).await;
 
         user.privmsg(&channel, "!react").await.unwrap();

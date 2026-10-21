@@ -169,8 +169,6 @@ pub struct Message {
     pub relayed_by: Option<Nick>,
     /// Whether the message carried the `bot` tag.
     pub is_bot: bool,
-    /// Whether the message carried the IRC operator tag.
-    pub is_oper: bool,
     /// IRC operator name, when the operator tag supplied one.
     pub oper: Option<String>,
     /// How the message relates to the current session.
@@ -192,7 +190,6 @@ struct MessageMetadata {
     #[cfg(feature = "unstable")]
     relayed_by: Option<Nick>,
     is_bot: bool,
-    is_oper: bool,
     oper: Option<String>,
     origin: Origin,
     tags: Tags,
@@ -504,7 +501,6 @@ impl Message {
             #[cfg(feature = "unstable")]
             relayed_by: metadata.relayed_by,
             is_bot: metadata.is_bot,
-            is_oper: metadata.is_oper,
             oper: metadata.oper,
             origin: metadata.origin,
             tags: metadata.tags,
@@ -549,8 +545,8 @@ impl Message {
 
     /// Returns the message identifier referenced by a reply tag.
     #[must_use]
-    pub fn reply_to(&self) -> Option<&str> {
-        self.reply_to.as_deref()
+    pub const fn reply_to(&self) -> Option<&MessageId> {
+        self.reply_to.as_ref()
     }
 
     /// Reports whether a bot may treat this as a newly received message.
@@ -609,7 +605,6 @@ fn message_metadata(
         #[cfg(feature = "unstable")]
         relayed_by,
         is_bot: tags.contains("bot"),
-        is_oper: oper_tag.is_some(),
         oper: oper_tag.and_then(|(_, value)| value.map(std::borrow::Cow::into_owned)),
         origin: if echo {
             Origin::Echo
@@ -1393,10 +1388,9 @@ mod tests {
     use std::time::{Duration, Instant, UNIX_EPOCH};
 
     use super::{
-        Authorship, Conversation, CoreEvent, Event, Message as ChatMessage, MessageKind,
-        MetadataChanged, ModeAction, ModeArg, Origin, Source, StandardReplyKind, Visibility,
+        Authorship, Conversation, CoreEvent, Event, Message as ChatMessage, MessageId, MessageKind,
+        MetadataChanged, ModeAction, ModeArg, Origin, Source, StandardReplyKind, Visibility, Warning,
         from_core as from_core_with_mapping, incoming,
-        Warning,
     };
     use papo_core::{
         Account, BatchAbandonReason, Capabilities, Config, Feature, Session,
@@ -1621,7 +1615,8 @@ mod tests {
         assert_eq!(tagged.msgid.as_deref(), Some("RfcBTzyxY120004"));
         assert_eq!(tagged.account.as_deref(), Some("emily"));
         assert!(tagged.is_bot);
-        assert_eq!(tagged.reply_to(), Some("RfcBTzyxY120003"));
+        let reply: Option<&MessageId> = tagged.reply_to();
+        assert_eq!(reply.unwrap(), "RfcBTzyxY120003");
         #[cfg(feature = "unstable")]
         assert_eq!(tagged.relayed_by.as_deref(), Some("bridge-bot"));
         assert!(!chat("PRIVMSG", "human message").is_bot);

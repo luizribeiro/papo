@@ -76,7 +76,6 @@ pub fn message(
         #[cfg(feature = "unstable")]
         relayed_by: None,
         is_bot: false,
-        is_oper: false,
         oper: None,
         origin: Origin::Live,
         tags: Tags::default(),
