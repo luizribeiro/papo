@@ -156,7 +156,7 @@ impl Builder {
 
     /// Sets the identity asserted through a trusted `WEBIRC` gateway.
     pub fn webirc(mut self, webirc: crate::WebIrc) -> Self {
-        if webirc.has_binary_secret() {
+        if webirc.password.expose().is_none() {
             self.invalid_input.get_or_insert(InvalidInput::BinarySecret);
         }
         self.config = self.config.webirc(webirc.into_core());

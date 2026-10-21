@@ -64,10 +64,13 @@ async fn arbitrary_builder_setter_input_is_rejected_or_registers_validly() {
         probe!(builder, a, _b, _c => builder.realname(a));
         probe!(builder, a, _b, _c => builder.password(a));
         probe!(builder, a, b, c => builder.webirc(
-            crate::WebIrc::new(c.clone(), a.clone(), b.clone())
-                .hostname(a)
-                .option(b, c.clone())
-                .flag(c)
+            crate::WebIrc {
+                password: c.clone().into(),
+                gateway: a.clone(),
+                client_ip: "192.0.2.42".parse().unwrap(),
+                client_hostname: Some(b.clone()),
+                options: vec![(b, Some(c.clone())), (c, None)],
+            }
         ));
         probe!(builder, a, b, _c => builder.sasl(crate::Sasl::plain(a, b)));
         #[cfg(feature = "unstable")]
