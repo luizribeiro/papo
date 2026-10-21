@@ -92,6 +92,26 @@ fn requests_echo_message_only_with_labeled_response() {
         .connect_default()
         .server("CAP * LS :echo-message labeled-response")
         .client("CAP END");
+
+    Transcript::new(Config::default().wanted_caps(["echo-message", "labeled-response"]))
+        .connect_default()
+        .server("CAP * LS :")
+        .client("CAP END")
+        .server("CAP papo NEW :echo-message")
+        .no_client()
+        .server("CAP papo NEW :labeled-response")
+        .client("CAP REQ :echo-message labeled-response")
+        .server("CAP papo ACK :echo-message labeled-response")
+        .event(|event| {
+            matches!(event, Event::CapsChanged { added, removed }
+                if added.contains_key("echo-message")
+                    && added.contains_key("labeled-response")
+                    && removed.is_empty())
+        })
+        .inspect(|session| {
+            assert!(session.caps().contains_key("echo-message"));
+            assert!(session.caps().contains_key("labeled-response"));
+        });
 }
 
 #[test]

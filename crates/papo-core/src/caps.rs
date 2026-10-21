@@ -151,6 +151,11 @@ impl Caps {
         if announced.contains(cap::STS) && self.handle_sts(connection, outbox) {
             return;
         }
+        if announced.contains(cap::LABELED_RESPONSE)
+            && self.advertised.contains_key(cap::ECHO_MESSAGE)
+        {
+            announced.insert(cap::ECHO_MESSAGE.to_owned());
+        }
         if !updated.is_empty() {
             outbox.event(Event::CapsChanged {
                 added: updated,
