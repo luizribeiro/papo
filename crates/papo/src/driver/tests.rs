@@ -3719,6 +3719,74 @@ async fn kickban_confirms_the_ban_before_returning_the_kick_result() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn kickban_uses_a_list_fallback_and_skips_an_already_tracked_ban() {
+    let (mut server, client, mut events, driver) =
+        scripted(config().wanted_caps(["labeled-response"]));
+    let driver = tokio::spawn(driver);
+    complete_connect_labelled(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":ergo.test 005 papo-driver CHANMODES=beI,k,l,imnst :are supported\r\n",
+    )
+    .await;
+
+    let fetched = tokio::spawn({
+        let client = client.clone();
+        async move { client.kickban("#papo", "alice", "flooding", "alice").await }
+    });
+    client_line(&mut server, b"@label=0 MODE #papo +b alice\r\n").await;
+    server_line(&mut server, b"@label=0 ACK\r\n").await;
+    client_line(&mut server, b"@label=1 MODE #papo b\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test 367 papo-driver #papo alice!*@* oper 1792573200\r\n:ergo.test 368 papo-driver #papo :End of channel ban list\r\n",
+    )
+    .await;
+    client_line(&mut server, b"@label=2 KICK #papo alice flooding\r\n").await;
+    server_line(
+        &mut server,
+        b"@label=2 :papo-driver!papo@localhost KICK #papo alice :flooding\r\n",
+    )
+    .await;
+    assert!(within(fetched).await.unwrap().unwrap().kick.is_ok());
+
+    server_line(
+        &mut server,
+        b":papo-driver!papo@localhost JOIN #papo\r\n:ergo.test 353 papo-driver = #papo :@papo-driver bob\r\n",
+    )
+    .await;
+    let list = tokio::spawn({
+        let client = client.clone();
+        async move { client.list_modes("#papo", crate::ListMode::Ban).await }
+    });
+    client_line(&mut server, b"@label=3 MODE #papo b\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test 367 papo-driver #papo bob!*@* oper 1792573200\r\n:ergo.test 368 papo-driver #papo :End of channel ban list\r\n",
+    )
+    .await;
+    assert_eq!(within(list).await.unwrap().unwrap().len(), 1);
+
+    let tracked = tokio::spawn({
+        let client = client.clone();
+        async move { client.kickban("#papo", "bob", "flooding", "bob").await }
+    });
+    client_line(&mut server, b"@label=4 KICK #papo bob flooding\r\n").await;
+    server_line(
+        &mut server,
+        b"@label=4 :papo-driver!papo@localhost KICK #papo bob :flooding\r\n",
+    )
+    .await;
+    assert!(within(tracked).await.unwrap().unwrap().kick.is_ok());
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn typed_numeric_refusals_reach_action_futures() {
     let (mut server, client, mut events, driver) =
         scripted(config().rate_limit(papo_core::RateLimit::unlimited()));
