@@ -1524,6 +1524,12 @@ fn classifies_numeric_refusals() {
             "400 papo PACK BOX :Could not find box to pack",
             Refusal::UnknownError,
         ),
+        ("401 papo alice :No such nick", Refusal::NoSuchNick),
+        (
+            "402 papo irc.example.net :No such server",
+            Refusal::NoSuchServer,
+        ),
+        ("403 papo #missing :No such channel", Refusal::NoSuchChannel),
         (
             "406 papo alice :There was no such nickname",
             Refusal::NoNicknameHistory,
@@ -1536,8 +1542,24 @@ fn classifies_numeric_refusals() {
         ("422 papo :MOTD File is missing", Refusal::MotdUnavailable),
         ("431 papo :No nickname given", Refusal::NicknameRequired),
         (
+            "432 papo 42bad :Erroneous nickname",
+            Refusal::ErroneousNickname,
+        ),
+        (
+            "433 papo alice :Nickname is already in use",
+            Refusal::NicknameInUse,
+        ),
+        (
             "441 papo alice #papo :They aren't on that channel",
             Refusal::UserNotInChannel,
+        ),
+        (
+            "442 papo #papo :You're not on that channel",
+            Refusal::NotOnChannel,
+        ),
+        (
+            "443 papo alice #papo :is already on channel",
+            Refusal::UserOnChannel,
         ),
         (
             "461 papo WHOIS :Not enough parameters",
@@ -1547,9 +1569,38 @@ fn classifies_numeric_refusals() {
             "462 papo :You may not reregister",
             Refusal::AlreadyConnected,
         ),
+        ("464 papo :Password incorrect", Refusal::PasswordIncorrect),
         (
             "465 papo :You are banned from this server",
             Refusal::BannedFromServer,
+        ),
+        (
+            "471 papo #papo :Cannot join channel (+l)",
+            Refusal::ChannelIsFull,
+        ),
+        (
+            "472 papo z :is unknown mode char to me",
+            Refusal::UnknownMode,
+        ),
+        (
+            "473 papo #papo :Cannot join channel (+i)",
+            Refusal::InviteOnlyChannel,
+        ),
+        (
+            "474 papo #papo :Cannot join channel (+b)",
+            Refusal::BannedFromChannel,
+        ),
+        (
+            "475 papo #papo :Cannot join channel (+k)",
+            Refusal::BadChannelKey,
+        ),
+        (
+            "481 papo :Permission Denied- You're not an IRC operator",
+            Refusal::NoPrivileges,
+        ),
+        (
+            "482 papo #papo :You're not channel operator",
+            Refusal::ChannelOperatorPrivilegesNeeded,
         ),
         (
             "483 papo :You cant kill a server!",
