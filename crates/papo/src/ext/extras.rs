@@ -86,8 +86,11 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn rename_and_relay_return_success_and_typed_failures() {
-        let settings =
-            config().wanted_caps(["draft/channel-rename", "draft/relaymsg", "labeled-response"]);
+        let settings = config().enable(crate::Feature::Relay).wanted_caps([
+            "draft/channel-rename",
+            "draft/relaymsg",
+            "labeled-response",
+        ]);
         let (mut server, client, mut events, driver) = scripted(settings);
         let driver = tokio::spawn(driver);
         complete_connect_caps(

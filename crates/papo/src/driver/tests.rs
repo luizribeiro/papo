@@ -1290,7 +1290,11 @@ fn reconnect_history_stops_at_the_literal_per_target_limit() {
 fn persistence_gates_rejoin_and_history_fetch() {
     for (effective, expected) in [(false, true), (true, false)] {
         let now = std::time::Instant::now();
-        let mut session = Session::new(config().wanted_caps(["draft/persistence"]));
+        let mut session = Session::new(
+            config()
+                .enable(papo_core::Feature::Persistence)
+                .wanted_caps(["draft/persistence"]),
+        );
         session.handle_connected(now);
         while session.poll_transmit().is_some() {}
         session.handle_bytes(now, b":ergo.test CAP * LS :draft/persistence\r\n");

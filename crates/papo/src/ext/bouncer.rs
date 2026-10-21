@@ -98,8 +98,11 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn lists_and_caches_bouncer_networks() {
-        let settings =
-            config().wanted_caps(["batch", "labeled-response", "soju.im/bouncer-networks"]);
+        let settings = config().enable(crate::Feature::Bouncer).wanted_caps([
+            "batch",
+            "labeled-response",
+            "soju.im/bouncer-networks",
+        ]);
         let (mut server, client, mut events, driver) = scripted(settings);
         let driver = tokio::spawn(driver);
         complete_connect_caps(
@@ -128,7 +131,9 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn adds_changes_and_removes_bouncer_networks() {
-        let settings = config().wanted_caps(["labeled-response", "soju.im/bouncer-networks"]);
+        let settings = config()
+            .enable(crate::Feature::Bouncer)
+            .wanted_caps(["labeled-response", "soju.im/bouncer-networks"]);
         let (mut server, client, mut events, driver) = scripted(settings);
         let driver = tokio::spawn(driver);
         complete_connect_caps(

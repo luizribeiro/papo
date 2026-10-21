@@ -110,7 +110,9 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn webpush_sends_keys_and_returns_typed_failures() {
-        let settings = config().wanted_caps(["draft/webpush", "labeled-response"]);
+        let settings = config()
+            .enable(crate::Feature::WebPush)
+            .wanted_caps(["draft/webpush", "labeled-response"]);
         let (mut server, client, mut events, driver) = scripted(settings);
         let driver = tokio::spawn(driver);
         complete_connect_caps(
@@ -175,7 +177,9 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn rejects_a_byte_authentication_secret() {
-        let settings = config().wanted_caps(["draft/webpush", "labeled-response"]);
+        let settings = config()
+            .enable(crate::Feature::WebPush)
+            .wanted_caps(["draft/webpush", "labeled-response"]);
         let (mut server, client, mut events, driver) = scripted(settings);
         let driver = tokio::spawn(driver);
         complete_connect(&mut server, &mut events).await;

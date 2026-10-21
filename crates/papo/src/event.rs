@@ -1961,7 +1961,11 @@ mod tests {
     #[test]
     fn maps_request_untracked() {
         let now = Instant::now();
-        let mut session = Session::new(Config::default().wanted_caps(["draft/persistence"]));
+        let mut session = Session::new(
+            Config::default()
+                .enable(papo_core::Feature::Persistence)
+                .wanted_caps(["draft/persistence"]),
+        );
         session.handle_connected(now);
         session.handle_line(now, b"CAP * LS :draft/persistence");
         session.handle_line(now, b"CAP * ACK :draft/persistence");

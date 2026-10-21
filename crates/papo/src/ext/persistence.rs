@@ -72,7 +72,9 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn reads_changes_and_caches_persistence() {
-        let settings = config().wanted_caps(["draft/persistence", "labeled-response"]);
+        let settings = config()
+            .enable(crate::Feature::Persistence)
+            .wanted_caps(["draft/persistence", "labeled-response"]);
         let (mut server, client, mut events, driver) = scripted(settings);
         let driver = tokio::spawn(driver);
         welcome_burst(&mut server).await;
