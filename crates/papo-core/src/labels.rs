@@ -140,7 +140,7 @@ impl Session {
     ) -> Result<RequestId, RequestError> {
         self.rate_limit.advance(now);
         let id = RequestId(self.next_request_id);
-        let sent = self.caps.enabled().contains_key(cap::ECHO_MESSAGE)
+        let sent = self.caps.enabled().contains_key(&cap::ECHO_MESSAGE)
             && matches!(
                 message.as_ref().command(),
                 Command::Privmsg | Command::Notice

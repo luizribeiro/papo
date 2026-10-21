@@ -157,9 +157,9 @@ impl Caps {
             return;
         }
         if announced.contains(cap::LABELED_RESPONSE)
-            && self.advertised.contains_key(cap::ECHO_MESSAGE)
+            && self.advertised.contains_key(&cap::ECHO_MESSAGE)
         {
-            announced.insert(cap::ECHO_MESSAGE.to_owned());
+            announced.insert(cap::ECHO_MESSAGE.to_string());
         }
         if !updated.is_empty() {
             outbox.event(Event::CapsChanged {
@@ -222,7 +222,7 @@ impl Caps {
         }
         self.negotiating = true;
 
-        self.enabled.insert(Cap::from(cap::CAP_NOTIFY), None);
+        self.enabled.insert(cap::CAP_NOTIFY, None);
         let mut seen = BTreeSet::new();
         let wanted = config
             .wanted_caps

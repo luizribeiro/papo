@@ -2726,7 +2726,7 @@ impl Session {
             return Err(RequestError::EmptyText);
         }
         let labelled = self.caps.enabled().contains_key(cap::LABELED_RESPONSE)
-            && self.caps.enabled().contains_key(cap::ECHO_MESSAGE);
+            && self.caps.enabled().contains_key(&cap::ECHO_MESSAGE);
         if labelled && self.requests.len() >= MAX_PENDING_REQUESTS {
             return Err(RequestError::PendingLimit);
         }

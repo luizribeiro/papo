@@ -428,7 +428,7 @@ fn is_history(kind: &str) -> bool {
     kind == cap::canonical(cap::CHATHISTORY)
         || kind == cap::CHATHISTORY
         || kind == "draft/chathistory-targets"
-        || kind == cap::EVENT_PLAYBACK
+        || kind == cap::EVENT_PLAYBACK.as_str()
 }
 
 fn is_aggregate(kind: &str) -> bool {

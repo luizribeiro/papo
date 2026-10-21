@@ -125,11 +125,22 @@ pub struct CapInfo {
     pub code: &'static [&'static str],
 }
 
+macro_rules! capability_constant {
+    ($(#[$meta:meta])* [cap] $constant:ident = $value:literal; $doc:literal) => {
+        $(#[$meta])* #[doc = $doc] pub const $constant: Cap = Cap::new($value);
+    };
+    ($(#[$meta:meta])* $constant:ident = $value:literal; $doc:literal) => {
+        $(#[$meta])* #[doc = $doc] pub const $constant: &str = $value;
+    };
+}
+
 macro_rules! capabilities {
-    ($($(#[$meta:meta])* $constant:ident = $value:literal; $doc:literal;
+    ($($(#[$meta:meta])* $([$kind:ident])? $constant:ident = $value:literal; $doc:literal;
         name: $name:literal; aliases: [$($alias:literal),*]; request: $request:expr;
         features: [$($feature:path),*]; code: [$($code:path),+];)*) => {
-        $($(#[$meta])* #[doc = $doc] pub const $constant: &str = $value;)*
+        $(capability_constant! {
+            $(#[$meta])* $([$kind])? $constant = $value; $doc
+        })*
 
         /// Every capability understood by papo.
         pub static ALL: &[CapInfo] = &[$($(#[$meta])* CapInfo {
@@ -142,12 +153,12 @@ macro_rules! capabilities {
 }
 
 capabilities! {
-    CAP_NOTIFY = "cap-notify"; "Capability change notifications."; name: "cap-notify"; aliases: []; request: Request::Default("cap-notify"); features: []; code: [crate::caps];
+    [cap] CAP_NOTIFY = "cap-notify"; "Capability change notifications."; name: "cap-notify"; aliases: []; request: Request::Default("cap-notify"); features: []; code: [crate::caps];
     MESSAGE_TAGS = "message-tags"; "`IRCv3` message tags."; name: "message-tags"; aliases: []; request: Request::Default("message-tags"); features: [Feature::MessageTags, Feature::Replies, Feature::Reactions, Feature::Typing]; code: [crate::features, crate::replies];
-    SERVER_TIME = "server-time"; "Server-assigned message timestamps."; name: "server-time"; aliases: []; request: Request::Default("server-time"); features: []; code: [crate::state::read_marker];
+    [cap] SERVER_TIME = "server-time"; "Server-assigned message timestamps."; name: "server-time"; aliases: []; request: Request::Default("server-time"); features: []; code: [crate::state::read_marker];
     BATCH = "batch"; "Batched messages."; name: "batch"; aliases: []; request: Request::Default("batch"); features: []; code: [crate::batch];
-    EVENT_PLAYBACK = "draft/event-playback"; "Replay of missed events."; name: "draft/event-playback"; aliases: []; request: Request::Default("draft/event-playback"); features: []; code: [crate::batch];
-    ECHO_MESSAGE = "echo-message"; "Echoes of sent messages."; name: "echo-message"; aliases: []; request: Request::Default("echo-message"); features: []; code: [crate::outgoing, crate::echo];
+    [cap] EVENT_PLAYBACK = "draft/event-playback"; "Replay of missed events."; name: "draft/event-playback"; aliases: []; request: Request::Default("draft/event-playback"); features: []; code: [crate::batch];
+    [cap] ECHO_MESSAGE = "echo-message"; "Echoes of sent messages."; name: "echo-message"; aliases: []; request: Request::Default("echo-message"); features: []; code: [crate::outgoing, crate::echo];
     ACCOUNT_TAG = "account-tag"; "Account tags on messages."; name: "account-tag"; aliases: []; request: Request::Default("account-tag"); features: [Feature::AccountTracking]; code: [crate::state::presence];
     EXTENDED_JOIN = "extended-join"; "Account and real-name fields on joins."; name: "extended-join"; aliases: []; request: Request::Default("extended-join"); features: []; code: [crate::state::membership];
     MULTI_PREFIX = "multi-prefix"; "Every membership prefix in names replies."; name: "multi-prefix"; aliases: []; request: Request::Default("multi-prefix"); features: []; code: [crate::state::membership];
@@ -342,7 +353,7 @@ pub(crate) fn requestable(name: &str, advertised: &Capabilities, wanted: &[Strin
     let Some(info) = ALL.iter().find(|info| info.name == canonical(name)) else {
         return true;
     };
-    if info.name == ECHO_MESSAGE {
+    if info.name == ECHO_MESSAGE.as_str() {
         return wanted
             .iter()
             .any(|name| canonical(name) == LABELED_RESPONSE)

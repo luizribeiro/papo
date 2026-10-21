@@ -85,13 +85,13 @@ pub const papo_core::cap::ACCOUNT_REQUIRED: &str
 pub const papo_core::cap::ACCOUNT_TAG: &str
 pub const papo_core::cap::AWAY_NOTIFY: &str
 pub const papo_core::cap::BATCH: &str
-pub const papo_core::cap::CAP_NOTIFY: &str
+pub const papo_core::cap::CAP_NOTIFY: papo_core::cap::Cap
 pub const papo_core::cap::CHANNEL_RENAME: &str
 pub const papo_core::cap::CHATHISTORY: &str
 pub const papo_core::cap::CHGHOST: &str
 pub const papo_core::cap::DEFAULTS: &[&str]
-pub const papo_core::cap::ECHO_MESSAGE: &str
-pub const papo_core::cap::EVENT_PLAYBACK: &str
+pub const papo_core::cap::ECHO_MESSAGE: papo_core::cap::Cap
+pub const papo_core::cap::EVENT_PLAYBACK: papo_core::cap::Cap
 pub const papo_core::cap::EXTENDED_ISUPPORT: &str
 pub const papo_core::cap::EXTENDED_JOIN: &str
 pub const papo_core::cap::EXTENDED_MONITOR: &str
@@ -109,7 +109,7 @@ pub const papo_core::cap::OPER_TAG: &str
 pub const papo_core::cap::PRE_AWAY: &str
 pub const papo_core::cap::READ_MARKER: &str
 pub const papo_core::cap::SASL: &str
-pub const papo_core::cap::SERVER_TIME: &str
+pub const papo_core::cap::SERVER_TIME: papo_core::cap::Cap
 pub const papo_core::cap::SETNAME: &str
 pub const papo_core::cap::STANDARD_REPLIES: &str
 pub const papo_core::cap::STS: &str

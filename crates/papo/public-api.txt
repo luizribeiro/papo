@@ -42,17 +42,18 @@ pub use papo::Visibility
 pub use papo::WhoOnJoin
 pub use papo::strip_formatting
 pub mod papo::cap
+pub use papo::cap::CAP_NOTIFY
+pub use papo::cap::ECHO_MESSAGE
+pub use papo::cap::EVENT_PLAYBACK
+pub use papo::cap::SERVER_TIME
 pub const papo::cap::ACCOUNT_NOTIFY: &str
 pub const papo::cap::ACCOUNT_REGISTRATION: &str
 pub const papo::cap::ACCOUNT_TAG: &str
 pub const papo::cap::AWAY_NOTIFY: &str
 pub const papo::cap::BATCH: &str
-pub const papo::cap::CAP_NOTIFY: &str
 pub const papo::cap::CHANNEL_RENAME: &str
 pub const papo::cap::CHATHISTORY: &str
 pub const papo::cap::CHGHOST: &str
-pub const papo::cap::ECHO_MESSAGE: &str
-pub const papo::cap::EVENT_PLAYBACK: &str
 pub const papo::cap::EXTENDED_ISUPPORT: &str
 pub const papo::cap::EXTENDED_JOIN: &str
 pub const papo::cap::EXTENDED_MONITOR: &str
@@ -68,7 +69,6 @@ pub const papo::cap::OPER_TAG: &str
 pub const papo::cap::PRE_AWAY: &str
 pub const papo::cap::READ_MARKER: &str
 pub const papo::cap::SASL: &str
-pub const papo::cap::SERVER_TIME: &str
 pub const papo::cap::SETNAME: &str
 pub const papo::cap::STANDARD_REPLIES: &str
 pub const papo::cap::STS: &str

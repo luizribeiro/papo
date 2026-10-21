@@ -1,17 +1,10 @@
 //! Capability names understood by papo.
 
-/// Capability change notifications.
-pub const CAP_NOTIFY: &str = papo_core::cap::CAP_NOTIFY;
+pub use papo_core::cap::{CAP_NOTIFY, ECHO_MESSAGE, EVENT_PLAYBACK, SERVER_TIME};
 /// `IRCv3` message tags.
 pub const MESSAGE_TAGS: &str = papo_core::cap::MESSAGE_TAGS;
-/// Server-assigned message timestamps.
-pub const SERVER_TIME: &str = papo_core::cap::SERVER_TIME;
 /// Batched messages.
 pub const BATCH: &str = papo_core::cap::BATCH;
-/// Replay of missed events.
-pub const EVENT_PLAYBACK: &str = papo_core::cap::EVENT_PLAYBACK;
-/// Echoes of sent messages.
-pub const ECHO_MESSAGE: &str = papo_core::cap::ECHO_MESSAGE;
 /// Account tags on messages.
 pub const ACCOUNT_TAG: &str = papo_core::cap::ACCOUNT_TAG;
 /// Account and real-name fields on joins.

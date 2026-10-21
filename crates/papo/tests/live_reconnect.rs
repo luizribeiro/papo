@@ -30,7 +30,7 @@ async fn fills_a_dropped_connection_gap_once_across_two_reconnects() {
                 "labeled-response",
                 "draft/chathistory",
             ])
-            .without_caps([cap::EVENT_PLAYBACK, cap::MULTILINE])
+            .without_caps([cap::EVENT_PLAYBACK.as_str(), cap::MULTILINE])
             .autojoin([&channel])
             .history_on_reconnect(true)
             .reconnect(Reconnect::exponential().max_delay(Duration::from_secs(5)));
