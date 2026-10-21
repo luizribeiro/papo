@@ -91,7 +91,7 @@ async fn wait_for(events: &mut Events, accepted: impl Fn(&ClientEvent) -> bool) 
     loop {
         match events.next().await {
             Some(event) if accepted(&event) => return,
-            Some(ClientEvent::Disconnected(disconnected)) if !disconnected.is_retrying() => {
+            Some(ClientEvent::Disconnected(disconnected)) if !disconnected.is_reconnecting() => {
                 panic!("browser client disconnected: {disconnected}")
             }
             Some(_) => {}

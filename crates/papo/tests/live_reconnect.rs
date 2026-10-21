@@ -56,7 +56,7 @@ async fn fills_a_dropped_connection_gap_once_across_two_reconnects() {
         wait_for(&mut events, "dropped connection", |event| {
             matches!(
                 event,
-                Event::Disconnected(disconnected) if disconnected.is_retrying()
+                Event::Disconnected(disconnected) if disconnected.is_reconnecting()
             )
         })
         .await;

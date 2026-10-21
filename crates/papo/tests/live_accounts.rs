@@ -109,7 +109,7 @@ async fn persistent_server_restores_channels_without_a_client_join() {
         wait_for(&mut events, |event| {
             matches!(
                 event,
-                Event::Disconnected(disconnected) if disconnected.is_retrying()
+                Event::Disconnected(disconnected) if disconnected.is_reconnecting()
             )
         })
         .await;

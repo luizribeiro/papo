@@ -656,7 +656,7 @@ async fn assert_failed_connection_progress(address: &str, attempts: usize) {
             .unwrap()
             .clone();
         if attempt == attempts {
-            assert!(!disconnected.is_retrying());
+            assert!(!disconnected.is_reconnecting());
         } else {
             assert_eq!(disconnected.reconnect_in, Some(Duration::from_millis(800)));
             tokio::time::advance(Duration::from_millis(800)).await;
@@ -717,7 +717,7 @@ async fn configuration_failures_are_terminal() {
 
         assert!(matches!(
             events.next().await,
-            Some(Event::Disconnected(disconnected)) if !disconnected.is_retrying()
+            Some(Event::Disconnected(disconnected)) if !disconnected.is_reconnecting()
         ));
         assert!(matches!(
             within(driver).await.unwrap(),
@@ -759,7 +759,7 @@ async fn registration_waiter_fails_after_one_connection_attempt() {
     ));
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(disconnected)) if !disconnected.is_retrying()
+        Some(Event::Disconnected(disconnected)) if !disconnected.is_reconnecting()
     ));
     assert!(within(driver).await.unwrap().is_ok());
     assert_eq!(calls.load(Ordering::Relaxed), 1);
@@ -869,7 +869,7 @@ async fn eof_reconnects_and_emits_reconnected() {
     within(first_server.shutdown()).await.unwrap();
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(disconnected)) if disconnected.is_retrying()
+        Some(Event::Disconnected(disconnected)) if disconnected.is_reconnecting()
     ));
     assert!(!client.state().is_connected());
 
@@ -1587,7 +1587,7 @@ async fn actions_fail_while_disconnected_and_are_not_sent_after_reconnect() {
     let driver = tokio::spawn(driver);
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(disconnected)) if disconnected.is_retrying()
+        Some(Event::Disconnected(disconnected)) if disconnected.is_reconnecting()
     ));
 
     assert!(matches!(
@@ -1669,7 +1669,7 @@ async fn restored_offline_part_is_not_rejoined_after_an_interrupted_part() {
     let driver = tokio::spawn(driver);
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(disconnected)) if disconnected.is_retrying()
+        Some(Event::Disconnected(disconnected)) if disconnected.is_reconnecting()
     ));
     assert!(matches!(
         within(client.part(test_channel("#papo"), "leaving while offline")).await,
@@ -1699,7 +1699,7 @@ async fn restored_offline_part_is_not_rejoined_after_an_interrupted_part() {
     within(first_server.shutdown()).await.unwrap();
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(disconnected)) if disconnected.is_retrying()
+        Some(Event::Disconnected(disconnected)) if disconnected.is_reconnecting()
     ));
 
     within(client.reconnect()).await.unwrap();
@@ -1737,12 +1737,12 @@ async fn quit_while_disconnected_stops_without_another_attempt() {
     let driver = tokio::spawn(driver);
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(disconnected)) if disconnected.is_retrying()
+        Some(Event::Disconnected(disconnected)) if disconnected.is_reconnecting()
     ));
     within(client.reconnect()).await.unwrap();
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(disconnected)) if disconnected.is_retrying()
+        Some(Event::Disconnected(disconnected)) if disconnected.is_reconnecting()
     ));
     assert_eq!(calls.load(Ordering::Relaxed), 2);
     within(client.quit("cancel reconnect")).await.unwrap();
@@ -1901,7 +1901,7 @@ async fn failed_connects_back_off_until_the_attempt_limit() {
     for expected in [true, true, false] {
         assert!(matches!(
             events.next().await,
-            Some(Event::Disconnected(disconnected)) if disconnected.is_retrying() == expected
+            Some(Event::Disconnected(disconnected)) if disconnected.is_reconnecting() == expected
         ));
     }
     assert!(matches!(
@@ -2080,7 +2080,7 @@ async fn transport_failure_under_stored_sts_retries() {
     ));
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(disconnected)) if !disconnected.is_retrying()
+        Some(Event::Disconnected(disconnected)) if !disconnected.is_reconnecting()
     ));
     assert_eq!(calls.load(Ordering::Relaxed), 2);
 }
@@ -2927,7 +2927,7 @@ async fn sts_upgrade_obeys_the_attempt_limit() {
     server_line(&mut server, b":ergo.test CAP * LS :sts=port=6697\r\n").await;
     assert!(matches!(
         events.next().await,
-        Some(Event::Disconnected(disconnected)) if !disconnected.is_retrying()
+        Some(Event::Disconnected(disconnected)) if !disconnected.is_reconnecting()
     ));
     assert!(matches!(
         within(driver).await.unwrap(),

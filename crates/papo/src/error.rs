@@ -407,7 +407,7 @@ impl Disconnected {
 
     /// Whether another connection attempt is scheduled.
     #[must_use]
-    pub const fn is_retrying(&self) -> bool {
+    pub const fn is_reconnecting(&self) -> bool {
         self.reconnect_in.is_some()
     }
 }
