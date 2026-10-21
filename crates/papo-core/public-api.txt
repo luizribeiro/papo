@@ -1828,7 +1828,6 @@ impl papo_core::Sasl
 pub fn papo_core::Sasl::any(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo_core::Secret>) -> Self
 pub fn papo_core::Sasl::authzid(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo_core::Sasl::external() -> Self
-pub fn papo_core::Sasl::has_binary_secret(&self) -> bool
 pub fn papo_core::Sasl::oauth_bearer(impl core::convert::Into<papo_core::Secret>) -> Self
 pub const fn papo_core::Sasl::optional(self) -> Self
 pub fn papo_core::Sasl::plain(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo_core::Secret>) -> Self

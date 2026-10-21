@@ -55,6 +55,7 @@ impl std::fmt::Debug for Mechanism {
 
 impl Sasl {
     /// Reports whether a configured credential contains bytes rather than text.
+    #[doc(hidden)]
     #[must_use]
     pub fn has_binary_secret(&self) -> bool {
         self.mechanisms.iter().any(|mechanism| match mechanism {

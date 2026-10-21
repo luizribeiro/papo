@@ -364,8 +364,6 @@ pub enum papo_proto::Typing
 pub papo_proto::Typing::Active
 pub papo_proto::Typing::Done
 pub papo_proto::Typing::Paused
-impl papo_proto::Typing
-pub fn papo_proto::Typing::parse(&papo_proto::LineRef<'_>) -> core::option::Option<Self>
 impl core::clone::Clone for papo_proto::Typing
 pub fn papo_proto::Typing::clone(&self) -> Self
 impl core::cmp::Eq for papo_proto::Typing

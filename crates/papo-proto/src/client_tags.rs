@@ -13,6 +13,7 @@ pub enum Typing {
 
 impl Typing {
     /// Parses the `+typing` tag from a line.
+    #[doc(hidden)]
     #[must_use]
     pub fn parse(line: &LineRef<'_>) -> Option<Self> {
         match line.tag("+typing")?.as_ref() {
