@@ -2,7 +2,7 @@ use std::time::SystemTime;
 
 use crate::{AccountName, Authorship, Away, ChannelName, MessageId, Nick};
 
-use super::Joined;
+use super::{Joined, Source};
 
 /// A user disconnected from the network.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -14,6 +14,8 @@ pub struct Quit {
     pub time: SystemTime,
     /// The actor's authenticated account, when tagged.
     pub account: Option<AccountName>,
+    /// The disconnected user.
+    pub actor: Source,
     /// The disconnected user's nickname.
     pub nick: Nick,
     /// The optional quit reason.
@@ -34,6 +36,8 @@ pub struct NickChanged {
     pub time: SystemTime,
     /// The actor's authenticated account, when tagged.
     pub account: Option<AccountName>,
+    /// The renamed user before the change.
+    pub actor: Source,
     /// The previous nickname.
     pub old: Nick,
     /// The new nickname.

@@ -2105,6 +2105,8 @@ pub enum Event {
     Parted {
         /// Identity, time, and account tags from the line.
         envelope: LineEnvelope,
+        /// The departing user's prefix.
+        actor: String,
         /// The departed channel.
         channel: ChannelName,
         /// The departing user's nickname.
@@ -2148,6 +2150,8 @@ pub enum Event {
     Quit {
         /// Identity, time, and account tags from the line.
         envelope: LineEnvelope,
+        /// The disconnected user's prefix.
+        actor: String,
         /// The disconnected user's nickname.
         nick: Nick,
         /// The optional quit reason.
@@ -2161,6 +2165,8 @@ pub enum Event {
     NickChanged {
         /// Identity, time, and account tags from the line.
         envelope: LineEnvelope,
+        /// The renamed user's prefix before the change.
+        actor: String,
         /// The previous nickname.
         old: Nick,
         /// The new nickname.

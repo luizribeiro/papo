@@ -596,6 +596,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Netsplit
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Netsplit
 #[non_exhaustive] pub struct papo::event::NickChanged
 pub papo::event::NickChanged::account: core::option::Option<papo::AccountName>
+pub papo::event::NickChanged::actor: papo::Source
 pub papo::event::NickChanged::authorship: papo::Authorship
 pub papo::event::NickChanged::msgid: core::option::Option<papo::MessageId>
 pub papo::event::NickChanged::new: papo::Nick
@@ -618,6 +619,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::NickChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::NickChanged
 #[non_exhaustive] pub struct papo::event::Parted
 pub papo::event::Parted::account: core::option::Option<papo::AccountName>
+pub papo::event::Parted::actor: papo::Source
 pub papo::event::Parted::authorship: papo::Authorship
 pub papo::event::Parted::channel: papo::ChannelName
 pub papo::event::Parted::msgid: core::option::Option<papo::MessageId>
@@ -641,6 +643,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Parted
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Parted
 #[non_exhaustive] pub struct papo::event::Quit
 pub papo::event::Quit::account: core::option::Option<papo::AccountName>
+pub papo::event::Quit::actor: papo::Source
 pub papo::event::Quit::authorship: papo::Authorship
 pub papo::event::Quit::channels: alloc::vec::Vec<papo::ChannelName>
 pub papo::event::Quit::msgid: core::option::Option<papo::MessageId>

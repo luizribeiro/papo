@@ -1637,7 +1637,7 @@ fn reports_parts_and_kicks_for_other_users_and_ourselves() {
         .server(":dan!dan@cloak.example JOIN #papo")
         .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "dan"))
         .server(":dan!dan@cloak.example PART #papo :Leaving")
-        .event(|event| matches!(event, Event::Parted { channel, nick, reason, .. } if channel == "#papo" && nick == "dan" && channel.casemapping() == Casemapping::Ascii && nick.casemapping() == Casemapping::Ascii && reason.as_deref() == Some("Leaving")))
+        .event(|event| matches!(event, Event::Parted { actor, channel, nick, reason, .. } if actor == "dan!dan@cloak.example" && channel == "#papo" && nick == "dan" && channel.casemapping() == Casemapping::Ascii && nick.casemapping() == Casemapping::Ascii && reason.as_deref() == Some("Leaving")))
         .server(":dan!dan@cloak.example JOIN #papo")
         .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "dan"))
         .server(":chanop!op@staff.example KICK #papo dan :Rule violation")
@@ -1665,15 +1665,17 @@ fn reports_nick_changes_and_quit_channels_before_removal() {
         .server(":dan!dan@cloak.example JOIN #rust")
         .event(|event| matches!(event, Event::Joined { .. }))
         .server(":dan!dan@cloak.example NICK :dan-away")
-        .event(|event| matches!(event, Event::NickChanged { old, new, .. } if old == "dan" && new == "dan-away" && old.casemapping() == Casemapping::Ascii && new.casemapping() == Casemapping::Ascii))
+        .event(|event| matches!(event, Event::NickChanged { actor, old, new, .. } if actor == "dan!dan@cloak.example" && old == "dan" && new == "dan-away" && old.casemapping() == Casemapping::Ascii && new.casemapping() == Casemapping::Ascii))
         .server(":emily!em@127.0.0.1 NICK :emily_")
         .event(|event| matches!(event, Event::NickChanged { old, new, .. } if old == "emily" && new == "emily_"))
         .server(":dan-away!dan@cloak.example QUIT :Client exited")
         .event(|event| match event {
-            Event::Quit { nick, reason, channels, .. } => {
+            Event::Quit { actor, nick, reason, channels, .. } => {
                 let mut channels = channels.clone();
                 channels.sort();
-                nick == "dan-away" && reason.as_deref() == Some("Client exited")
+                actor == "dan-away!dan@cloak.example"
+                    && nick == "dan-away"
+                    && reason.as_deref() == Some("Client exited")
                     && nick.casemapping() == Casemapping::Ascii
                     && channels
                         .iter()

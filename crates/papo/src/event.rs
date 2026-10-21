@@ -1067,6 +1067,7 @@ pub(crate) fn from_core(
                         msgid: envelope.msgid,
                         time: envelope.time,
                         account: envelope.account,
+                        actor: source::from_proto(message.source()?, casemapping),
                         nick: casemapping.nick(nick),
                         authorship: Authorship::from_core(authorship),
                         reason: message.param(0).map(str::to_owned),
@@ -1149,6 +1150,7 @@ pub(crate) fn from_core(
         }
         papo_core::Event::Parted {
             envelope,
+            actor,
             channel,
             nick,
             reason,
@@ -1159,6 +1161,7 @@ pub(crate) fn from_core(
                 msgid: envelope.msgid,
                 time: envelope.time,
                 account: envelope.account,
+                actor: source::from_prefix(actor, casemapping),
                 channel,
                 nick,
                 reason,
@@ -1203,6 +1206,7 @@ pub(crate) fn from_core(
         }),
         papo_core::Event::Quit {
             envelope,
+            actor,
             nick,
             reason,
             channels,
@@ -1213,6 +1217,7 @@ pub(crate) fn from_core(
                 msgid: envelope.msgid,
                 time: envelope.time,
                 account: envelope.account,
+                actor: source::from_prefix(actor, casemapping),
                 nick,
                 reason,
                 channels,
@@ -1221,6 +1226,7 @@ pub(crate) fn from_core(
         }
         papo_core::Event::NickChanged {
             envelope,
+            actor,
             old,
             new,
             authorship,
@@ -1230,6 +1236,7 @@ pub(crate) fn from_core(
                 msgid: envelope.msgid,
                 time: envelope.time,
                 account: envelope.account,
+                actor: source::from_prefix(actor, casemapping),
                 old,
                 new,
                 authorship: Authorship::from_core(authorship),
@@ -2243,6 +2250,7 @@ mod tests {
         assert!(matches!(
             forwarded(papo_core::Event::Parted {
                 envelope: papo_core::LineEnvelope::default(),
+                actor: "emily!~emily@cloak.example".into(),
                 channel: Casemapping::default().channel("#papo"),
                 nick: Casemapping::default().nick("emily"),
                 reason: Some("Leaving for lunch".into()),
@@ -2251,6 +2259,7 @@ mod tests {
             Event::Parted(parted)
                 if parted.channel == "#papo"
                     && parted.nick == "emily"
+                    && parted.actor.nick().is_some_and(|nick| nick == "emily")
                     && parted.reason.as_deref() == Some("Leaving for lunch")
         ));
     }
@@ -2280,6 +2289,7 @@ mod tests {
         assert!(matches!(
             forwarded(papo_core::Event::Quit {
                 envelope: papo_core::LineEnvelope::default(),
+                actor: "emily!~emily@cloak.example".into(),
                 nick: Casemapping::default().nick("emily"),
                 reason: Some("Client exited".into()),
                 channels: vec![
@@ -2289,7 +2299,9 @@ mod tests {
                 authorship: papo_core::Authorship::Other,
             }),
             Event::Quit(quit)
-                if quit.nick == "emily" && quit.reason.as_deref() == Some("Client exited")
+                if quit.nick == "emily"
+                    && quit.actor.nick().is_some_and(|nick| nick == "emily")
+                    && quit.reason.as_deref() == Some("Client exited")
                     && quit.channels == ["#papo", "#rust"]
         ));
     }
@@ -2299,11 +2311,14 @@ mod tests {
         assert!(matches!(
             forwarded(papo_core::Event::NickChanged {
                 envelope: papo_core::LineEnvelope::default(),
+                actor: "emily!~emily@cloak.example".into(),
                 old: Casemapping::default().nick("emily"),
                 new: Casemapping::default().nick("em"),
                 authorship: papo_core::Authorship::Other,
             }),
-            Event::NickChanged(changed) if changed.old == "emily" && changed.new == "em"
+            Event::NickChanged(changed)
+                if changed.actor.nick().is_some_and(|nick| nick == "emily")
+                    && changed.old == "emily" && changed.new == "em"
         ));
     }
 
@@ -2628,6 +2643,7 @@ mod tests {
                 msgid: None,
                 time: UNIX_EPOCH,
                 account: None,
+                actor: own_actor.clone(),
                 channel: mapping.channel("#papo"),
                 nick: mapping.nick("Papo[Bot]"),
                 reason: None,
@@ -2655,6 +2671,7 @@ mod tests {
                 msgid: None,
                 time: UNIX_EPOCH,
                 account: None,
+                actor: own_actor.clone(),
                 old: mapping.nick("Papo[Bot]"),
                 new: mapping.nick("papo-away"),
                 authorship: Authorship::Own,

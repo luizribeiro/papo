@@ -591,17 +591,20 @@ pub papo_core::Event::Netsplit::channels: alloc::vec::Vec<alloc::vec::Vec<papo::
 pub papo_core::Event::Netsplit::quits: alloc::vec::Vec<papo::Line>
 pub papo_core::Event::Netsplit::servers: [alloc::string::String; 2]
 pub papo_core::Event::NickChanged
+pub papo_core::Event::NickChanged::actor: alloc::string::String
 pub papo_core::Event::NickChanged::authorship: papo_core::Authorship
 pub papo_core::Event::NickChanged::envelope: papo_core::LineEnvelope
 pub papo_core::Event::NickChanged::new: papo::Nick
 pub papo_core::Event::NickChanged::old: papo::Nick
 pub papo_core::Event::Parted
+pub papo_core::Event::Parted::actor: alloc::string::String
 pub papo_core::Event::Parted::authorship: papo_core::Authorship
 pub papo_core::Event::Parted::channel: papo::ChannelName
 pub papo_core::Event::Parted::envelope: papo_core::LineEnvelope
 pub papo_core::Event::Parted::nick: papo::Nick
 pub papo_core::Event::Parted::reason: core::option::Option<alloc::string::String>
 pub papo_core::Event::Quit
+pub papo_core::Event::Quit::actor: alloc::string::String
 pub papo_core::Event::Quit::authorship: papo_core::Authorship
 pub papo_core::Event::Quit::channels: alloc::vec::Vec<papo::ChannelName>
 pub papo_core::Event::Quit::envelope: papo_core::LineEnvelope

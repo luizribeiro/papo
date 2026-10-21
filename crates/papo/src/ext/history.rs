@@ -328,6 +328,7 @@ fn parted(
         msgid: envelope.msgid,
         time: envelope.time,
         account: envelope.account,
+        actor: crate::event_impl::source::from_proto(message.source()?, mapping),
         channel: mapping.channel(message.param(0)?),
         authorship,
         nick: mapping.nick(nick),
@@ -347,6 +348,7 @@ fn quit(
         msgid: envelope.msgid,
         time: envelope.time,
         account: envelope.account,
+        actor: crate::event_impl::source::from_proto(message.source()?, mapping),
         nick: mapping.nick(source_nick(message)?),
         reason: message.param(0).map(str::to_owned),
         channels: match history_conversation {
@@ -393,6 +395,7 @@ fn nick_changed(
         msgid: envelope.msgid,
         time: envelope.time,
         account: envelope.account,
+        actor: crate::event_impl::source::from_proto(message.source()?, mapping),
         authorship,
         old: mapping.nick(old),
         new: mapping.nick(message.param(0)?),

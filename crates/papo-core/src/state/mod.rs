@@ -445,6 +445,7 @@ impl State {
                 let authorship = self.nick_authorship(nick);
                 outbox.event(Event::Parted {
                     envelope: crate::LineEnvelope::from_line(message),
+                    actor: message.raw_source().unwrap_or(nick).to_owned(),
                     channel: mapping.channel(channel),
                     nick: mapping.nick(nick),
                     reason: message.param(1).map(str::to_owned),
@@ -508,6 +509,7 @@ impl State {
             }
             outbox.event(Event::NickChanged {
                 envelope: crate::LineEnvelope::from_line(message),
+                actor: message.raw_source().unwrap_or(nick).to_owned(),
                 old: mapping.nick(nick),
                 new: mapping.nick(new_nick),
                 authorship,

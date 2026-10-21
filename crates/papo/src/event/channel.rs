@@ -52,6 +52,8 @@ pub struct Parted {
     pub time: SystemTime,
     /// The actor's authenticated account, when tagged.
     pub account: Option<AccountName>,
+    /// The departing user.
+    pub actor: Source,
     /// The departed channel.
     pub channel: ChannelName,
     /// The departing user's nickname.
