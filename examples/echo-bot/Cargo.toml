@@ -12,7 +12,7 @@ name = "echo-bot"
 path = "src/main.rs"
 
 [dependencies]
-papo = { path = "../../crates/papo", version = "=0.0.0", features = ["bot"] }
+papo = { path = "../../crates/papo", version = "=0.0.0" }
 tokio = { version = "1.53.3", features = ["macros", "rt"] }
 
 [dev-dependencies]

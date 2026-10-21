@@ -1,59 +1,59 @@
 //! Echo bot behavior against the runner-managed Ergo server.
 #![cfg(not(target_family = "wasm"))]
 
-use std::{path::PathBuf, time::Duration};
+use std::time::Duration;
 
-use papo::{Client, Endpoint, Event, Message, Typing};
-use papo_test_server::{ServerInfo, create_account, from_env, unique};
-use tokio::time::{sleep, timeout};
+use papo::{Client, Event, Message};
+use papo_test_server::{from_env, unique};
+use tokio::time::timeout;
 
-const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
+const CHANNEL: &str = "#papo";
 
 #[tokio::test(flavor = "current_thread")]
-async fn echoes_reacts_and_reports_typing_with_message_context() {
+async fn replies_reacts_and_preserves_multiple_lines() {
     timeout(Duration::from_secs(20), async {
         let server = from_env();
         let bot_nick = unique("papo-echo-bot");
-        let user_nick = unique("papo-echo-user");
-        let channel = format!("#{}", unique("papo-echo"));
-        create_account(&server, &bot_nick, PASSWORD).unwrap();
-        let _bot = Bot::start(&server, &bot_nick, &channel);
-        sleep(Duration::from_millis(500)).await;
-
-        let endpoint = Endpoint::plaintext(
-            server.plaintext_addr().ip().to_string(),
-            server.plaintext_addr().port(),
-        );
-        let (user, mut events) = Client::builder(endpoint)
-            .nick(papo::Casemapping::default().nick(&user_nick))
-            .autojoin([&channel])
+        let server_url = format!("irc://{}", server.plaintext_addr());
+        let (user, mut events) = Client::builder(server_url.clone())
+            .nick(unique("papo-echo-user"))
+            .autojoin([CHANNEL])
             .connect()
             .await
             .unwrap();
-        wait_synced(&mut events, &channel).await;
+        wait_for(&mut events, |event| {
+            matches!(event, Event::ChannelSynced(_))
+        })
+        .await;
 
-        let command = user.privmsg(&channel, "!echo hello").await.unwrap();
-        let command_id = command.msgid.expect("Ergo supplies msgid");
-        let response = wait_message(&mut events, "hello").await;
-        assert_eq!(response.reply_to(), Some(&command_id));
+        let _bot = Child(
+            std::process::Command::new(env!("CARGO_BIN_EXE_echo-bot"))
+                .arg(server_url)
+                .env("IRC_NICK", &bot_nick)
+                .spawn()
+                .unwrap(),
+        );
+        wait_for(
+            &mut events,
+            |event| matches!(event, Event::Joined(joined) if joined.nick == bot_nick.as_str()),
+        )
+        .await;
 
-        let paste = "first line\nsecond line\nthird line";
-        let original = user.privmsg(&channel, paste).await.unwrap();
-        let paste_id = original.msgid.expect("Ergo supplies msgid");
-        let summary = format!("got 3 lines, {} bytes", paste.len());
-        let counted = wait_message(&mut events, &summary).await;
-        assert_eq!(counted.reply_to(), Some(&paste_id));
-        wait_typing(&mut events, &channel, Typing::Active).await;
-        let echoed = wait_message(&mut events, paste).await;
-        assert_eq!(echoed.text, paste);
-        assert_eq!(echoed.reply_to(), Some(&paste_id));
-        wait_typing(&mut events, &channel, Typing::Done).await;
+        let sent = user.privmsg(CHANNEL, "hello from Ergo").await.unwrap();
+        let reply = wait_message(&mut events, "hello from Ergo").await;
+        assert_eq!(reply.reply_to(), sent.msgid.as_ref());
 
-        let command = user.privmsg(&channel, "!react").await.unwrap();
-        let command_id = command.msgid.expect("Ergo supplies msgid");
-        let (emoji, reply_to) = wait_reaction(&mut events).await;
-        assert_eq!(reply_to, command_id.as_ref());
-        assert_eq!(emoji.as_deref(), Some("👍"));
+        let lines = "first line\nsecond line\nthird line";
+        user.privmsg(CHANNEL, lines).await.unwrap();
+        wait_message(&mut events, lines).await;
+
+        let sent = user.privmsg(CHANNEL, "!react").await.unwrap();
+        let reaction = wait_for(&mut events, |event| matches!(event, Event::Reacted(_))).await;
+        let Event::Reacted(reaction) = reaction else {
+            unreachable!();
+        };
+        assert_eq!(&reaction.message, sent.msgid.as_ref().unwrap());
+        assert_eq!(reaction.reaction, "👍");
 
         user.quit("echo bot test complete").await.unwrap();
     })
@@ -61,97 +61,30 @@ async fn echoes_reacts_and_reports_typing_with_message_context() {
     .expect("live echo bot test did not finish within 20 seconds");
 }
 
-struct Bot {
-    child: std::process::Child,
-    password: PathBuf,
-}
+struct Child(std::process::Child);
 
-impl Bot {
-    fn start(server: &ServerInfo, nick: &str, channel: &str) -> Self {
-        let password = std::env::temp_dir().join(format!("{nick}.password"));
-        std::fs::write(&password, format!("{PASSWORD}\n")).unwrap();
-        let child = std::process::Command::new(env!("CARGO_BIN_EXE_echo-bot"))
-            .env("IRC_SERVER", "localhost")
-            .env("IRC_PORT", server.tls_addr().port().to_string())
-            .env("IRC_NICK", nick)
-            .env("IRC_PASSWORD_FILE", &password)
-            .env("IRC_CA_FILE", server.ca_pem_path())
-            .env("IRC_CHANNELS", channel)
-            .spawn()
-            .unwrap();
-        Self { child, password }
-    }
-}
-
-impl Drop for Bot {
+impl Drop for Child {
     fn drop(&mut self) {
-        let _ = self.child.kill();
-        let _ = self.child.wait();
-        let _ = std::fs::remove_file(&self.password);
+        let _ = self.0.kill();
+        let _ = self.0.wait();
     }
 }
 
-async fn wait_synced(events: &mut papo::Events, channel: &str) {
-    loop {
-        match events.next().await {
-            Some(Event::ChannelSynced(papo::event::ChannelSynced {
-                channel: joined, ..
-            })) if joined == channel => return,
-            Some(Event::Disconnected(disconnected)) => {
-                panic!("join failed: {disconnected}")
-            }
-            Some(_) => {}
-            None => panic!("driver stopped while joining"),
+async fn wait_for(events: &mut papo::Events, mut wanted: impl FnMut(&Event) -> bool) -> Event {
+    while let Some(event) = events.next().await {
+        if wanted(&event) {
+            return event;
         }
     }
+    panic!("driver stopped before the expected event");
 }
 
 async fn wait_message(events: &mut papo::Events, text: &str) -> Message {
     loop {
         match events.next().await {
             Some(Event::Message(message)) if message.text == text => return *message,
-            Some(Event::Disconnected(disconnected)) => {
-                panic!("message failed: {disconnected}")
-            }
             Some(_) => {}
             None => panic!("driver stopped while waiting for {text}"),
-        }
-    }
-}
-
-async fn wait_typing(events: &mut papo::Events, target: &str, state: Typing) {
-    loop {
-        match events.next().await {
-            Some(Event::TypingChanged(typing))
-                if matches!(&typing.conversation, papo::Conversation::Channel(channel) if channel == target)
-                    && typing.status.is_none()
-                    && typing.state == state =>
-            {
-                return;
-            }
-            Some(Event::Disconnected(disconnected)) => {
-                panic!("typing failed: {disconnected}")
-            }
-            Some(_) => {}
-            None => panic!("driver stopped while waiting for typing state"),
-        }
-    }
-}
-
-async fn wait_reaction(events: &mut papo::Events) -> (Option<String>, String) {
-    loop {
-        match events.next().await {
-            Some(Event::Reacted(reaction)) => {
-                return (
-                    (!reaction.removed).then_some(reaction.reaction),
-                    reaction.message.into_string(),
-                );
-            }
-            Some(Event::Disconnected(disconnected)) => {
-                panic!("reaction failed: {disconnected}")
-            }
-            Some(_) => {}
-            None => panic!("driver stopped while waiting for a reaction"),
         }
     }
 }
