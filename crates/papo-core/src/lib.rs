@@ -1204,6 +1204,10 @@ pub struct Response {
     pub history_targets: Option<Vec<(Conversation, std::time::SystemTime)>>,
     /// Channels parsed from `RPL_WHOISCHANNELS` using the current `PREFIX` token.
     pub whois_channels: Vec<WhoisChannel>,
+    /// Parsed channel list-mode entries, when this completed such a request.
+    pub mode_list: Option<Vec<ModeListEntry>>,
+    /// State bound that ended the request before its protocol terminator.
+    pub state_limit: Option<StateLimit>,
     sent: Option<SentInfo>,
 }
 
@@ -2643,6 +2647,7 @@ impl Session {
             .map(|(_, (id, _, _, _, _))| *id)
             .collect();
         for id in expired {
+            self.invalidate_list_request(id);
             self.requests
                 .retain(|_, (pending, _, _, _, _)| *pending != id);
             self.unlabelled_requests.retain(|request| request.id != id);
@@ -2656,6 +2661,9 @@ impl Session {
                 .and_then(|started| started.checked_add(self.config.request_timeout))
                 .is_some_and(|deadline| now >= deadline)
             {
+                if let ResponseMatcher::ListMode { channel, mode } = &request.matcher {
+                    self.state.invalidate_mode_list(channel, *mode);
+                }
                 self.away_messages.remove(&request.id);
                 self.outbox.event(Event::RequestTimedOut { id: request.id });
             } else {
@@ -2701,6 +2709,20 @@ impl Session {
         self.apply_close_request();
     }
 
+    fn invalidate_list_request(&mut self, id: RequestId) {
+        let list = self
+            .unlabelled_requests
+            .iter()
+            .find(|request| request.id == id)
+            .and_then(|request| match &request.matcher {
+                ResponseMatcher::ListMode { channel, mode } => Some((channel.clone(), *mode)),
+                _ => None,
+            });
+        if let Some((channel, mode)) = list {
+            self.state.invalidate_mode_list(&channel, mode);
+        }
+    }
+
     /// Marks the transport as disconnected and drops per-connection state.
     pub fn handle_disconnected(&mut self, _now: Instant) {
         self.framer.close();
@@ -2730,6 +2752,7 @@ impl Session {
         self.keepalive.handle_disconnected();
         self.monitor.handle_disconnected();
         self.nick_regain.reset();
+        self.state.invalidate_mode_lists();
         self.metadata_subscriptions_sent = false;
         let casemapping = self.state.casemapping();
         self.remembered_casemapping = casemapping;
@@ -3960,6 +3983,68 @@ impl Session {
         }
     }
 
+    pub(crate) fn finish_mode_list_response(
+        &mut self,
+        matcher: &ResponseMatcher,
+        response: &mut Response,
+    ) {
+        let ResponseMatcher::ListMode { channel, mode } = matcher else {
+            return;
+        };
+        let mapping = self.isupport.value().casemapping();
+        let row = match mode {
+            ListMode::Ban => 367,
+            ListMode::Except => 348,
+            ListMode::Invex => 346,
+            ListMode::Quiet => 728,
+        };
+        let entries: Vec<_> = response
+            .lines
+            .iter()
+            .filter_map(|line| {
+                let line = line.as_ref();
+                let Command::Numeric(numeric) = line.command() else {
+                    return None;
+                };
+                if numeric.code() != row {
+                    return None;
+                }
+                let offset = usize::from(*mode == ListMode::Quiet);
+                if offset == 1 && line.param(2) != Some("q") {
+                    return None;
+                }
+                Some(ModeListEntry {
+                    mask: mapping.mask(line.param(2 + offset)?),
+                    actor: line
+                        .param(3 + offset)
+                        .map(|actor| Source::from_prefix(actor, mapping)),
+                    time: line
+                        .param(4 + offset)
+                        .and_then(|value| value.parse().ok())
+                        .and_then(|seconds| {
+                            std::time::UNIX_EPOCH
+                                .checked_add(std::time::Duration::from_secs(seconds))
+                        }),
+                })
+            })
+            .collect();
+        response.mode_list = Some(entries.clone());
+        #[cfg(feature = "unstable")]
+        let bouncer_cap = self.caps.enabled().contains_key(&cap::BOUNCER_NETWORKS);
+        #[cfg(not(feature = "unstable"))]
+        let bouncer_cap = false;
+        let bouncer = bouncer_cap
+            || !matches!(
+                self.isupport.value().get("BOUNCER_NETID"),
+                papo_proto::Advertised::Absent
+            );
+        if response.error().is_some() || bouncer {
+            self.state.invalidate_mode_list(channel, *mode);
+        } else {
+            self.state.set_mode_list(channel, *mode, entries);
+        }
+    }
+
     fn history_targets(
         &self,
         targets: Vec<(String, std::time::SystemTime)>,
@@ -4063,6 +4148,8 @@ impl Session {
                 }),
                 history_targets: history_targets.map(|targets| self.history_targets(targets)),
                 whois_channels,
+                mode_list: None,
+                state_limit: None,
             }));
             for message in echoed.into_iter().flatten() {
                 let received = self.received_line(message, None);

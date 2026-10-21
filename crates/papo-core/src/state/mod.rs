@@ -357,6 +357,29 @@ impl State {
         self.account = Account::from_notify(account, self.casemapping);
     }
 
+    pub(crate) fn set_mode_list(
+        &mut self,
+        channel: &str,
+        mode: ListMode,
+        entries: Vec<ModeListEntry>,
+    ) {
+        if let Some(channel) = self.channels.get_mut(&self.casemapping.channel(channel)) {
+            channel.lists.insert(mode, entries);
+        }
+    }
+
+    pub(crate) fn invalidate_mode_list(&mut self, channel: &str, mode: ListMode) {
+        if let Some(channel) = self.channels.get_mut(&self.casemapping.channel(channel)) {
+            channel.lists.remove(&mode);
+        }
+    }
+
+    pub(crate) fn invalidate_mode_lists(&mut self) {
+        for channel in self.channels.values_mut() {
+            channel.lists.clear();
+        }
+    }
+
     pub(crate) fn sync_monitored_nick(
         &mut self,
         monitor: &Monitor,

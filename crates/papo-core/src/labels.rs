@@ -30,6 +30,8 @@ impl Session {
                 history: None,
                 history_targets: None,
                 whois_channels,
+                mode_list: None,
+                state_limit: None,
             }));
         }
         true
@@ -117,14 +119,18 @@ impl Session {
             let request = self.unlabelled_requests.remove(index).unwrap();
             self.away_messages.remove(&request.id);
             let whois_channels = parse_whois_channels(&request.lines, self.isupport.value());
-            self.outbox.event(Event::Response(Response {
+            let mut response = Response {
                 id: request.id,
                 sent: None,
                 lines: request.lines,
                 history: None,
                 history_targets: None,
                 whois_channels,
-            }));
+                mode_list: None,
+                state_limit: None,
+            };
+            self.finish_mode_list_response(&request.matcher, &mut response);
+            self.outbox.event(Event::Response(response));
         }
         true
     }

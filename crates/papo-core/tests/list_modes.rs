@@ -1,6 +1,6 @@
 //! Transcript coverage for channel list-mode requests.
 
-use std::time::Instant;
+use std::time::{Duration, Instant, UNIX_EPOCH};
 
 use papo_core::{Config, Event, ListMode, RequestId, ResponseMatcher, Session};
 use papo_proto::Line;
@@ -48,6 +48,7 @@ fn each_list_mode_waits_for_its_end_numeric() {
     for (mode, row, end, mask) in cases {
         let now = Instant::now();
         let mut session = Session::new(Config::default());
+        session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
         let id = request(&mut session, mode);
         let extra = if mode == ListMode::Quiet { " q" } else { "" };
         session.handle_line(
@@ -62,7 +63,19 @@ fn each_list_mode_waits_for_its_end_numeric() {
             now,
             format!(":solanum.example {end} papo #papo{extra} :End of mode list").as_bytes(),
         );
-        assert_eq!(response(&mut session, id).lines.len(), 2);
+        let response = response(&mut session, id);
+        let entries = response.mode_list.unwrap();
+        assert_eq!(response.lines.len(), 2);
+        assert_eq!(entries[0].mask, mask);
+        assert_eq!(entries[0].actor.as_ref().unwrap().to_string(), "oper");
+        assert_eq!(
+            entries[0].time,
+            UNIX_EPOCH.checked_add(Duration::from_hours(489_180))
+        );
+        assert_eq!(
+            session.state().channel("#papo").unwrap().list(mode),
+            Some(entries.as_slice())
+        );
     }
 }
 
@@ -70,7 +83,18 @@ fn each_list_mode_waits_for_its_end_numeric() {
 fn an_empty_ban_list_completes_at_368() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
+    session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
     let id = request(&mut session, ListMode::Ban);
     session.handle_line(now, b":ergo.test 368 papo #papo :End of channel ban list");
-    assert_eq!(response(&mut session, id).lines.len(), 1);
+    let response = response(&mut session, id);
+    assert_eq!(response.lines.len(), 1);
+    assert_eq!(response.mode_list, Some(Vec::new()));
+    assert_eq!(
+        session
+            .state()
+            .channel("#papo")
+            .unwrap()
+            .list(ListMode::Ban),
+        Some([].as_slice())
+    );
 }

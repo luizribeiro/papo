@@ -1953,6 +1953,8 @@ pub papo_core::Response::history: core::option::Option<papo_core::HistoryPage>
 pub papo_core::Response::history_targets: core::option::Option<alloc::vec::Vec<(papo::Conversation, std::time::SystemTime)>>
 pub papo_core::Response::id: papo_core::RequestId
 pub papo_core::Response::lines: alloc::vec::Vec<papo::Line>
+pub papo_core::Response::mode_list: core::option::Option<alloc::vec::Vec<papo_core::ModeListEntry>>
+pub papo_core::Response::state_limit: core::option::Option<papo_core::StateLimit>
 pub papo_core::Response::whois_channels: alloc::vec::Vec<papo_core::WhoisChannel>
 impl papo_core::Response
 pub fn papo_core::Response::error(&self) -> core::option::Option<papo_core::ServerError>
