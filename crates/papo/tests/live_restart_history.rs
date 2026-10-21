@@ -43,7 +43,7 @@ async fn retains_message(persistent: bool) -> bool {
     let page = client.history(&channel).latest(10).await.unwrap();
     let retained = page
         .messages()
-        .any(|message| message.text() == text && message.origin() == Origin::History);
+        .any(|message| message.text == text && message.origin == Origin::History);
     client.quit("restart history checked").await.unwrap();
     retained
 }

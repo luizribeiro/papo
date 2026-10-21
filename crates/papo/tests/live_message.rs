@@ -38,19 +38,22 @@ async fn reply_between_two_clients_carries_the_original_msgid() {
 
         client_a.privmsg(&channel, "!ping").await.unwrap();
         let incoming = wait_message(&mut events_b, |message| {
-            message.text() == "!ping" && source_nick(message).as_deref() == Some(nick_a.as_str())
+            message.text == "!ping" && source_nick(message).as_deref() == Some(nick_a.as_str())
         })
         .await;
         assert!(incoming.is_live());
-        assert!(!incoming.is_private());
-        let ping_msgid = incoming.msgid().expect("Ergo supplies msgid").to_owned();
+        assert!(!matches!(
+            incoming.conversation,
+            papo::Conversation::Private(_)
+        ));
+        let ping_msgid = (*incoming.msgid.as_ref().expect("Ergo supplies msgid")).clone();
         client_b.reply(&incoming, "pong").await.unwrap();
 
         let response = wait_message(&mut events_a, |message| {
-            message.text() == "pong" && source_nick(message).as_deref() == Some(nick_b.as_str())
+            message.text == "pong" && source_nick(message).as_deref() == Some(nick_b.as_str())
         })
         .await;
-        assert_eq!(response.reply_to(), Some(ping_msgid.as_str()));
+        assert_eq!(response.reply_to(), Some(ping_msgid.as_ref()));
 
         client_b.quit("live reply test complete").await.unwrap();
         client_a.quit("live reply test complete").await.unwrap();
@@ -79,15 +82,15 @@ async fn same_account_sessions_distinguish_echoes() {
             .await
             .unwrap();
         let echo = wait_message(&mut events_a, |message| {
-            message.text() == "from this device" && message.origin() == Origin::Echo
+            message.text == "from this device" && message.origin == Origin::Echo
         })
         .await;
         let other = wait_message(&mut events_b, |message| {
-            message.text() == "from this device" && message.origin() == Origin::Live
+            message.text == "from this device" && message.origin == Origin::Live
         })
         .await;
-        assert_eq!(echo.origin(), Origin::Echo);
-        assert_eq!(other.origin(), Origin::Live);
+        assert_eq!(echo.origin, Origin::Echo);
+        assert_eq!(other.origin, Origin::Live);
         assert!(other.is_live());
         assert_eq!(other.authorship, papo::Authorship::Own);
 
@@ -112,8 +115,8 @@ async fn reactions_reach_another_client_with_reply_context() {
 
         client_a.privmsg(&channel, "excellent news").await.unwrap();
         let incoming =
-            wait_message(&mut events_b, |message| message.text() == "excellent news").await;
-        let id = incoming.id().unwrap();
+            wait_message(&mut events_b, |message| message.text == "excellent news").await;
+        let id = incoming.msgid.as_ref().unwrap();
         client_b.react_to(&incoming, "🎉").await.unwrap();
         let reaction = wait_reaction(&mut events_a).await;
         assert_eq!(reaction.conversation, incoming.conversation);
@@ -144,8 +147,8 @@ async fn multiline_delivers_a_thousand_byte_message_whole() {
         let sent_text = text.clone();
         let sent_channel = channel.clone();
         let sent = tokio::spawn(async move { sender.privmsg(&sent_channel, &sent_text).await });
-        let incoming = wait_message(&mut events_b, |message| message.raw_text() == text).await;
-        assert_eq!(incoming.raw_text().len(), 1000);
+        let incoming = wait_message(&mut events_b, |message| message.raw_text == text).await;
+        assert_eq!(incoming.raw_text.len(), 1000);
         sent.await.unwrap().unwrap();
 
         client_b.quit("multiline test complete").await.unwrap();
@@ -176,10 +179,10 @@ async fn multiline_capability_preserves_plain_and_batched_message_ids() {
         let plain_id = plain.id.expect("plain echo supplies msgid");
         assert!(plain.time.is_some());
         let incoming = wait_message(&mut events_b, |message| {
-            message.raw_text() == "plain message with multiline enabled"
+            message.raw_text == "plain message with multiline enabled"
         })
         .await;
-        assert_eq!(incoming.id(), Some(&plain_id));
+        assert_eq!(incoming.msgid.as_ref(), Some(&plain_id));
 
         let multiline = client_a
             .privmsg(&channel, "first deployment line\nsecond deployment line")
@@ -188,10 +191,10 @@ async fn multiline_capability_preserves_plain_and_batched_message_ids() {
         let multiline_id = multiline.id.expect("multiline echo supplies msgid");
         assert!(multiline.time.is_some());
         let incoming = wait_message(&mut events_b, |message| {
-            message.raw_text() == "first deployment line\nsecond deployment line"
+            message.raw_text == "first deployment line\nsecond deployment line"
         })
         .await;
-        assert_eq!(incoming.id(), Some(&multiline_id));
+        assert_eq!(incoming.msgid.as_ref(), Some(&multiline_id));
 
         client_b
             .privmsg(&channel, "reply through the multiline id")
@@ -199,7 +202,7 @@ async fn multiline_capability_preserves_plain_and_batched_message_ids() {
             .await
             .unwrap();
         let reply = wait_message(&mut events_a, |message| {
-            message.raw_text() == "reply through the multiline id"
+            message.raw_text == "reply through the multiline id"
         })
         .await;
         assert_eq!(reply.reply_to(), Some(multiline_id.as_ref()));
@@ -287,8 +290,8 @@ async fn wait_message(
 }
 
 fn source_nick(message: &ChatMessage) -> Option<String> {
-    match message.source() {
-        Some(Source::User { nick, .. }) => Some(nick.into_string()),
+    match &message.actor {
+        Source::User { nick, .. } => Some(nick.to_string()),
         _ => None,
     }
 }

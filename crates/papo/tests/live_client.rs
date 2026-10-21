@@ -46,9 +46,9 @@ async fn registers_messages_itself_and_quits() {
         loop {
             match events.next().await.unwrap() {
                 Event::Message(message) => {
-                    if message.kind() == papo::MessageKind::Privmsg
+                    if message.kind == papo::MessageKind::Privmsg
                         && matches!(&message.conversation, papo::Conversation::Private(other) if other == nick.as_str())
-                        && message.raw_text() == "hello from papo's live client"
+                        && message.raw_text == "hello from papo's live client"
                     {
                         break;
                     }

@@ -50,21 +50,21 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
         assert_eq!(
             messages
                 .iter()
-                .map(|message| message.text())
+                .map(|message| message.text.as_str())
                 .collect::<Vec<_>>(),
             texts
         );
         assert_eq!(
             messages
                 .iter()
-                .map(|message| message.msgid())
+                .map(|message| message.msgid.as_deref())
                 .collect::<Vec<_>>(),
             sent.iter()
                 .map(|message| message.id.as_deref())
                 .collect::<Vec<_>>()
         );
         assert!(messages.iter().all(|message| {
-            message.origin() == Origin::History && !message.is_live() && message.msgid().is_some()
+            message.origin == Origin::History && !message.is_live() && message.msgid.is_some()
         }));
 
         let third = sent[2].id.as_deref().expect("Ergo supplies a msgid");
@@ -77,7 +77,7 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
         assert_eq!(
             chats(before.messages(), &texts)
                 .iter()
-                .map(|message| message.text())
+                .map(|message| message.text.as_str())
                 .collect::<Vec<_>>(),
             &texts[..2]
         );
@@ -98,7 +98,7 @@ fn chats<'a>(
     texts: &[&str],
 ) -> Vec<&'a ChatMessage> {
     messages
-        .filter(|message| texts.contains(&message.text()))
+        .filter(|message| texts.contains(&message.text.as_str()))
         .collect()
 }
 

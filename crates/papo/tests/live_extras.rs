@@ -140,8 +140,8 @@ async fn member_sees_channel_rename_and_relay_attribution() {
             .unwrap();
         loop {
             match member_events.next().await {
-                Some(Event::Message(message)) if message.text() == "Hello from Matrix" => {
-                    assert_eq!(message.relayed_by(), Some(operator_nick.as_str()));
+                Some(Event::Message(message)) if message.text == "Hello from Matrix" => {
+                    assert_eq!(message.relayed_by.as_deref(), Some(operator_nick.as_str()));
                     break;
                 }
                 Some(Event::Disconnected(disconnected)) => {
