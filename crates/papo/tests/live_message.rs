@@ -170,12 +170,7 @@ async fn multiline_capability_preserves_plain_and_batched_message_ids() {
                 .caps()
                 .contains_key(&papo::Cap::from(papo::cap::BATCH))
         );
-        assert!(
-            client_a
-                .state()
-                .caps()
-                .contains_key(&papo::Cap::from(papo::cap::MULTILINE))
-        );
+        assert!(client_a.state().caps().contains_key(&papo::cap::MULTILINE));
 
         let plain = client_a
             .privmsg(&channel, "plain message with multiline enabled")

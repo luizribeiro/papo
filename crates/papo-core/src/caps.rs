@@ -50,7 +50,7 @@ impl Caps {
                 if message.param(2) != Some("*")
                     && let Some(requested) = self.pending.pop_front()
                 {
-                    let sasl_acked = requested.iter().any(|name| name == cap::SASL);
+                    let sasl_acked = requested.iter().any(|name| name == cap::SASL.as_str());
                     let isupport_acked =
                         requested.iter().any(|name| name == cap::EXTENDED_ISUPPORT);
                     let mut added = Capabilities::new();
@@ -63,7 +63,7 @@ impl Caps {
                     if sasl_acked {
                         sasl.handle_cap_ack(
                             now,
-                            self.enabled.get(cap::SASL).and_then(Option::as_deref),
+                            self.enabled.get(&cap::SASL).and_then(Option::as_deref),
                             outbox,
                         );
                     }
@@ -81,7 +81,7 @@ impl Caps {
                 if self
                     .pending
                     .pop_front()
-                    .is_some_and(|request| request.iter().any(|name| name == cap::SASL))
+                    .is_some_and(|request| request.iter().any(|name| name == cap::SASL.as_str()))
                 {
                     sasl.unavailable("the server rejected the sasl capability", outbox);
                 }
@@ -113,7 +113,7 @@ impl Caps {
             if let Some(value) = self.enabled.remove(&name) {
                 removed.insert(name.clone(), value);
             }
-            if name == Cap::from(cap::SASL) {
+            if name == cap::SASL {
                 sasl_removed = true;
             }
         }
@@ -156,7 +156,7 @@ impl Caps {
         if announced.contains(cap::STS.as_str()) && self.handle_sts(connection, outbox) {
             return;
         }
-        if announced.contains(cap::LABELED_RESPONSE)
+        if announced.contains(cap::LABELED_RESPONSE.as_str())
             && self.advertised.contains_key(&cap::ECHO_MESSAGE)
         {
             announced.insert(cap::ECHO_MESSAGE.to_string());
@@ -173,7 +173,7 @@ impl Caps {
             .wanted_caps
             .iter()
             .map(String::as_str)
-            .chain(config.sasl.as_ref().map(|_| cap::SASL))
+            .chain(config.sasl.as_ref().map(|_| cap::SASL.constant_str()))
             .filter(|wanted| cap::requestable(wanted, &self.advertised, &config.wanted_caps))
             .filter(|wanted| !config.cap_disabled(wanted))
             .filter_map(|wanted| cap::advertised_spelling(wanted, &self.advertised))
@@ -228,7 +228,7 @@ impl Caps {
             .wanted_caps
             .iter()
             .map(String::as_str)
-            .chain(config.sasl.as_ref().map(|_| cap::SASL));
+            .chain(config.sasl.as_ref().map(|_| cap::SASL.constant_str()));
         let requested = wanted
             .filter(|wanted| cap::requestable(wanted, &self.advertised, &config.wanted_caps))
             .filter(|wanted| !config.cap_disabled(wanted))
@@ -237,7 +237,7 @@ impl Caps {
             .map(str::to_owned)
             .collect::<Vec<_>>();
         let requests = split_requests(requested);
-        if config.sasl.is_some() && !self.advertised.contains_key(cap::SASL) {
+        if config.sasl.is_some() && !self.advertised.contains_key(&cap::SASL) {
             sasl.unavailable("the server did not advertise sasl", outbox);
         }
         if !requests.is_empty() {

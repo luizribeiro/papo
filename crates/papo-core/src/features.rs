@@ -99,7 +99,7 @@ impl Feature {
 
     /// Returns a stable human-readable feature name.
     #[must_use]
-    pub const fn name(self) -> &'static str {
+    pub fn name(self) -> &'static str {
         match self {
             Self::MessageTags => "client-only message tags",
             Self::Replies => "replies",
@@ -123,7 +123,7 @@ impl Feature {
             Self::ChannelRename => "channel rename",
             #[cfg(feature = "unstable")]
             Self::Relay => "relaymsg",
-            Self::LabeledResponse => cap::LABELED_RESPONSE,
+            Self::LabeledResponse => cap::LABELED_RESPONSE.constant_str(),
             Self::AwayTracking => "away tracking",
             Self::AccountTracking => "account tracking",
             Self::HostTracking => "host tracking",
@@ -136,12 +136,12 @@ impl Feature {
                 [Some(cap::MESSAGE_TAGS), None]
             }
             Self::Redaction => [Some(cap::Cap::from(cap::MESSAGE_REDACTION)), None],
-            Self::Multiline => [Some(cap::Cap::from(cap::MULTILINE)), None],
+            Self::Multiline => [Some(cap::MULTILINE), None],
             Self::History => [Some(cap::Cap::from(cap::CHATHISTORY)), None],
             Self::ReadMarkers => [Some(cap::Cap::from(cap::READ_MARKER)), None],
             Self::Metadata => [Some(cap::Cap::from(cap::METADATA)), None],
             Self::SetName => [Some(cap::SETNAME), None],
-            Self::AccountCreation => [Some(cap::Cap::from(cap::ACCOUNT_REGISTRATION)), None],
+            Self::AccountCreation => [Some(cap::ACCOUNT_REGISTRATION), None],
             #[cfg(feature = "unstable")]
             Self::Bouncer => [Some(cap::Cap::from(cap::BOUNCER_NETWORKS)), None],
             #[cfg(feature = "unstable")]
@@ -151,7 +151,7 @@ impl Feature {
             Self::ChannelRename => [Some(cap::Cap::from(cap::CHANNEL_RENAME)), None],
             #[cfg(feature = "unstable")]
             Self::Relay => [Some(cap::Cap::from(cap::RELAYMSG)), None],
-            Self::LabeledResponse => [Some(cap::Cap::from(cap::LABELED_RESPONSE)), None],
+            Self::LabeledResponse => [Some(cap::LABELED_RESPONSE), None],
             Self::AwayTracking => [Some(cap::AWAY_NOTIFY), None],
             Self::AccountTracking => [Some(cap::ACCOUNT_NOTIFY), Some(cap::ACCOUNT_TAG)],
             Self::HostTracking => [Some(cap::CHGHOST), None],

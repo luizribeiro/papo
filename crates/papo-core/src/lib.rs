@@ -464,7 +464,7 @@ impl std::fmt::Debug for Config {
             .field("disabled_caps", &self.disabled_caps)
             .field("alt_nicks", &self.alt_nicks)
             .field("regain_nick", &self.regain_nick)
-            .field(cap::SASL, &self.sasl)
+            .field(cap::SASL.as_str(), &self.sasl)
             .field("device", &self.device)
             .field("max_channels", &self.max_channels)
             .field("max_members_per_channel", &self.max_members_per_channel)
@@ -2188,7 +2188,7 @@ impl std::fmt::Debug for Session {
             .field("next_request_id", &self.next_request_id)
             .field("next_transmit_token", &self.next_transmit_token)
             .field("welcome_state", &self.welcome_state)
-            .field(cap::SASL, &self.sasl)
+            .field(cap::SASL.as_str(), &self.sasl)
             .field("state", &self.state)
             .field("state_generation", &self.state_generation)
             .field("outbox", &self.outbox)
@@ -2725,7 +2725,7 @@ impl Session {
         if segments.is_empty() {
             return Err(RequestError::EmptyText);
         }
-        let labelled = self.caps.enabled().contains_key(cap::LABELED_RESPONSE)
+        let labelled = self.caps.enabled().contains_key(&cap::LABELED_RESPONSE)
             && self.caps.enabled().contains_key(&cap::ECHO_MESSAGE);
         if labelled && self.requests.len() >= MAX_PENDING_REQUESTS {
             return Err(RequestError::PendingLimit);
@@ -2922,7 +2922,7 @@ impl Session {
         let away_message = matches!(matcher, ResponseMatcher::Away(true))
             .then(|| message.as_ref().param(0).map(str::to_owned))
             .flatten();
-        if self.caps.enabled().contains_key(cap::LABELED_RESPONSE) {
+        if self.caps.enabled().contains_key(&cap::LABELED_RESPONSE) {
             let track_sync = matches!(matcher, ResponseMatcher::Join(_));
             if track_sync && self.unlabelled_requests.len() >= MAX_PENDING_REQUESTS {
                 return Err(RequestError::PendingLimit);
@@ -3232,11 +3232,11 @@ impl Session {
         let value = if registered {
             self.caps
                 .enabled()
-                .get(cap::ACCOUNT_REGISTRATION)
+                .get(&cap::ACCOUNT_REGISTRATION)
                 .map(Option::as_deref)
         } else {
             self.caps
-                .advertised_value(cap::ACCOUNT_REGISTRATION)
+                .advertised_value(cap::ACCOUNT_REGISTRATION.as_str())
                 .map(Option::as_deref)
         };
         let Some(value) = value else {
@@ -3257,7 +3257,7 @@ impl Session {
         }
         let password = password.into();
         if !registered {
-            if !self.caps.is_pending(cap::ACCOUNT_REGISTRATION) {
+            if !self.caps.is_pending(cap::ACCOUNT_REGISTRATION.as_str()) {
                 return self.require_feature(Feature::AccountCreation);
             }
             self.account_registration.begin(PendingRegistration {
@@ -3305,7 +3305,7 @@ impl Session {
             && !RegistrationPolicy::parse(
                 self.caps
                     .enabled()
-                    .get(cap::ACCOUNT_REGISTRATION)
+                    .get(&cap::ACCOUNT_REGISTRATION)
                     .and_then(Option::as_deref),
             )
             .before_connect
@@ -3344,13 +3344,13 @@ impl Session {
 
     /// Starts another SASL exchange with the configured credentials.
     pub fn reauthenticate(&mut self, now: Instant) {
-        let available = self.caps.enabled().contains_key(cap::SASL);
+        let available = self.caps.enabled().contains_key(&cap::SASL);
         self.sasl.reauthenticate(
             now,
             available,
             self.caps
                 .enabled()
-                .get(cap::SASL)
+                .get(&cap::SASL)
                 .and_then(Option::as_deref),
             &mut self.outbox,
         );
@@ -3639,7 +3639,7 @@ impl Session {
     }
 
     fn send_pending_registration(&mut self, now: Instant) {
-        if self.caps.enabled().contains_key(cap::ACCOUNT_REGISTRATION) {
+        if self.caps.enabled().contains_key(&cap::ACCOUNT_REGISTRATION) {
             if let Some(pending) = self.account_registration.take_pending() {
                 _ = self.send_register(
                     now,
@@ -3648,7 +3648,9 @@ impl Session {
                     &pending.password,
                 );
             }
-        } else if self.caps.is_negotiating() && !self.caps.is_pending(cap::ACCOUNT_REGISTRATION) {
+        } else if self.caps.is_negotiating()
+            && !self.caps.is_pending(cap::ACCOUNT_REGISTRATION.as_str())
+        {
             self.account_registration.cancel_pending();
         }
     }

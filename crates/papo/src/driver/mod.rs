@@ -936,7 +936,7 @@ where
                 Some(Command::Request { message, matcher, result }) => {
                     let requested = match matcher {
                         Some(matcher) => session.request_with_matcher(now(), message, matcher),
-                        None if session.caps().contains_key(crate::cap::LABELED_RESPONSE) => {
+                        None if session.caps().contains_key(&crate::cap::LABELED_RESPONSE) => {
                             session.request_silent(now(), message)
                         }
                         None => {

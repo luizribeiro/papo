@@ -75,12 +75,7 @@ async fn sasl_protocol_errors(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s
         .connect_with(s.configure("alice")?.request_caps(["sasl"]))
         .await?;
-    assert!(
-        alice
-            .state()
-            .caps()
-            .contains_key(&papo::Cap::from(papo::cap::SASL))
-    );
+    assert!(alice.state().caps().contains_key(&papo::cap::SASL));
     // SASL is driven raw here because the numeric wire outcomes are the behavior under test.
     alice
         .send_raw(papo::Line::new("AUTHENTICATE", ["PLAIN"]))

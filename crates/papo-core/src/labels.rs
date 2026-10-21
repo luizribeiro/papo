@@ -145,7 +145,7 @@ impl Session {
                 message.as_ref().command(),
                 Command::Privmsg | Command::Notice
             );
-        let labelled = self.caps.enabled().contains_key(cap::LABELED_RESPONSE);
+        let labelled = self.caps.enabled().contains_key(&cap::LABELED_RESPONSE);
         let label = labelled.then(|| encode_label(self.next_request_id));
         if labelled && self.requests.len() >= MAX_PENDING_REQUESTS {
             return Err(RequestError::PendingLimit);

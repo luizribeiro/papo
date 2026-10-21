@@ -10,16 +10,9 @@ pub const BATCH: &str = papo_core::cap::BATCH;
 pub use papo_core::cap::{
     ACCOUNT_NOTIFY, EXTENDED_MONITOR, INVITE_NOTIFY, OPER_TAG, STANDARD_REPLIES, STS,
 };
-/// Labelled request correlation.
-pub const LABELED_RESPONSE: &str = papo_core::cap::LABELED_RESPONSE;
-/// Multiline messages.
-pub const MULTILINE: &str = papo_core::cap::MULTILINE;
+pub use papo_core::cap::{ACCOUNT_REGISTRATION, LABELED_RESPONSE, MULTILINE, SASL};
 /// Client metadata.
 pub const METADATA: &str = papo_core::cap::METADATA;
-/// SASL authentication.
-pub const SASL: &str = papo_core::cap::SASL;
-/// Account registration.
-pub const ACCOUNT_REGISTRATION: &str = papo_core::cap::ACCOUNT_REGISTRATION;
 /// Message history queries.
 pub const CHATHISTORY: &str = papo_core::cap::CHATHISTORY;
 /// Channel read markers.

@@ -202,7 +202,7 @@ impl Builder {
             .config
             .wanted_caps
             .iter()
-            .any(|name| cap::canonical(name) == cap::canonical(cap::ACCOUNT_REGISTRATION))
+            .any(|name| cap::canonical(name) == cap::canonical(cap::ACCOUNT_REGISTRATION.as_str()))
         {
             self.config
                 .wanted_caps

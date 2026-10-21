@@ -30,6 +30,13 @@ impl Cap {
         }
     }
 
+    pub(crate) const fn constant_str(&self) -> &'static str {
+        match &self.0 {
+            Cow::Borrowed(name) => name,
+            Cow::Owned(_) => panic!("owned capability has no static spelling"),
+        }
+    }
+
     fn identity(&self) -> &str {
         canonical(self.as_str())
     }
@@ -170,16 +177,16 @@ capabilities! {
     [cap] EXTENDED_MONITOR = "extended-monitor"; "Extended monitor replies."; name: "extended-monitor"; aliases: []; request: Request::Default("extended-monitor"); features: []; code: [crate::monitor];
     [cap] INVITE_NOTIFY = "invite-notify"; "Invitation notifications."; name: "invite-notify"; aliases: []; request: Request::Default("invite-notify"); features: []; code: [crate::replies];
     [cap] STANDARD_REPLIES = "standard-replies"; "Structured standard replies."; name: "standard-replies"; aliases: []; request: Request::Default("standard-replies"); features: []; code: [crate::refusal, crate::replies];
-    LABELED_RESPONSE = "labeled-response"; "Labelled request correlation."; name: "labeled-response"; aliases: []; request: Request::Default("labeled-response"); features: [Feature::LabeledResponse]; code: [crate::outgoing, crate::labels];
-    MULTILINE = "draft/multiline"; "Multiline messages."; name: "draft/multiline"; aliases: []; request: Request::Default("draft/multiline"); features: [Feature::Multiline]; code: [crate::outgoing, crate::batch];
+    [cap] LABELED_RESPONSE = "labeled-response"; "Labelled request correlation."; name: "labeled-response"; aliases: []; request: Request::Default("labeled-response"); features: [Feature::LabeledResponse]; code: [crate::outgoing, crate::labels];
+    [cap] MULTILINE = "draft/multiline"; "Multiline messages."; name: "draft/multiline"; aliases: []; request: Request::Default("draft/multiline"); features: [Feature::Multiline]; code: [crate::outgoing, crate::batch];
     [cap] OPER_TAG = "draft/oper-tag"; "Operator tags on messages."; name: "draft/oper-tag"; aliases: []; request: Request::Default("draft/oper-tag"); features: []; code: [crate::replies];
     METADATA = "draft/metadata-2"; "Client metadata."; name: "draft/metadata-3"; aliases: ["draft/metadata-2"]; request: Request::Default("draft/metadata-2"); features: [Feature::Metadata]; code: [crate::metadata, crate::state::metadata];
     METADATA_NOTIFY = "metadata-notify"; "Legacy metadata notifications."; name: "metadata-notify"; aliases: []; request: Request::Superseded("draft/metadata-3"); features: []; code: [crate::metadata, crate::state::metadata];
-    SASL = "sasl"; "SASL authentication."; name: "sasl"; aliases: []; request: Request::Automatic; features: []; code: [crate::sasl];
+    [cap] SASL = "sasl"; "SASL authentication."; name: "sasl"; aliases: []; request: Request::Automatic; features: []; code: [crate::sasl];
     [cap] STS = "sts"; "Strict Transport Security policy."; name: "sts"; aliases: []; request: Request::Never; features: []; code: [crate::sts];
     [cap] NOPE = "ergo.chat/nope"; "Ergo capability-negotiation test trap."; name: "ergo.chat/nope"; aliases: []; request: Request::Never; features: []; code: [crate::caps];
     [cap] ACCOUNT_REQUIRED = "soju.im/account-required"; "Soju authentication requirement."; name: "soju.im/account-required"; aliases: []; request: Request::Never; features: []; code: [crate::caps];
-    ACCOUNT_REGISTRATION = "draft/account-registration"; "Account registration."; name: "draft/account-registration"; aliases: ["account-registration"]; request: Request::Default("draft/account-registration"); features: [Feature::AccountCreation]; code: [crate::account_registration];
+    [cap] ACCOUNT_REGISTRATION = "draft/account-registration"; "Account registration."; name: "draft/account-registration"; aliases: ["account-registration"]; request: Request::Default("draft/account-registration"); features: [Feature::AccountCreation]; code: [crate::account_registration];
     #[cfg(feature = "unstable")] BOUNCER_NETWORKS = "soju.im/bouncer-networks"; "Bouncer network management."; name: "soju.im/bouncer-networks"; aliases: []; request: Request::Default("soju.im/bouncer-networks"); features: [Feature::Bouncer]; code: [crate::bouncer];
     #[cfg(feature = "unstable")] BOUNCER_NETWORKS_NOTIFY = "soju.im/bouncer-networks-notify"; "Bouncer network change notifications."; name: "soju.im/bouncer-networks-notify"; aliases: []; request: Request::Default("soju.im/bouncer-networks-notify"); features: []; code: [crate::bouncer];
     CHATHISTORY = "draft/chathistory"; "Message history queries."; name: "chathistory"; aliases: ["draft/chathistory"]; request: Request::Default("chathistory"); features: [Feature::History]; code: [crate::history, crate::batch];
@@ -356,8 +363,8 @@ pub(crate) fn requestable(name: &str, advertised: &Capabilities, wanted: &[Strin
     if info.name == ECHO_MESSAGE.as_str() {
         return wanted
             .iter()
-            .any(|name| canonical(name) == LABELED_RESPONSE)
-            && advertised_spelling(LABELED_RESPONSE, advertised).is_some();
+            .any(|name| canonical(name) == LABELED_RESPONSE.constant_str())
+            && advertised_spelling(LABELED_RESPONSE.constant_str(), advertised).is_some();
     }
     match info.request {
         Request::Never => false,

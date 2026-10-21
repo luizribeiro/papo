@@ -234,7 +234,7 @@ impl Batches {
         for reference in &ancestors {
             let batch = self.open.get_mut(reference).expect("resolved ancestor");
             batch.lines = batch.lines.saturating_add(1);
-            if batch.kind == cap::MULTILINE {
+            if batch.kind == cap::MULTILINE.as_str() {
                 let concat = message
                     .tags()
                     .any(|(key, _)| key == "draft/multiline-concat");
@@ -260,7 +260,7 @@ impl Batches {
             .rev()
             .find(|reference| {
                 self.open[*reference].lines > self.max_lines
-                    || (self.open[*reference].kind == cap::MULTILINE
+                    || (self.open[*reference].kind == cap::MULTILINE.as_str()
                         && self.open[*reference].bytes > multiline_max_bytes)
             })
             .cloned()
@@ -439,7 +439,7 @@ fn is_aggregate(kind: &str) -> bool {
     is_history(kind)
         || cfg!(feature = "unstable") && kind == "soju.im/search"
         || bouncer
-        || kind == cap::MULTILINE
+        || kind == cap::MULTILINE.as_str()
         || matches!(
             kind,
             "netsplit" | "netjoin" | "metadata" | "metadata-subs" | "draft/isupport"
@@ -470,7 +470,7 @@ fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
             messages: std::mem::take(&mut batch.messages),
         }];
     }
-    if batch.kind == cap::MULTILINE {
+    if batch.kind == cap::MULTILINE.as_str() {
         return multiline(batch)
             .into_iter()
             .map(BatchEvent::Multiline)
