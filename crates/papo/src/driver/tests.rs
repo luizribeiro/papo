@@ -2809,6 +2809,40 @@ async fn unavailable_required_sasl_retries_at_the_refusal_minimum() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn timed_out_required_sasl_retries_at_the_refusal_minimum() {
+    let settings = config()
+        .welcome_timeout(Duration::from_secs(90))
+        .sasl(Sasl::plain("alice", "correct horse battery staple"));
+    let (mut server, _client, mut events, driver, calls) = reconnectable_stream(
+        settings,
+        Reconnect::exponential().refused_delay(Duration::from_secs(47)),
+    );
+    let driver = tokio::spawn(driver);
+    welcome_burst(&mut server).await;
+    server_line(&mut server, b":ergo.test CAP * LS :sasl=PLAIN\r\n").await;
+    client_line(&mut server, b"CAP REQ :sasl\r\n").await;
+    server_line(&mut server, b":ergo.test CAP * ACK :sasl\r\n").await;
+    client_line(&mut server, b"AUTHENTICATE PLAIN\r\n").await;
+    tokio::time::advance(Duration::from_secs(30)).await;
+    client_line(&mut server, b"AUTHENTICATE *\r\n").await;
+    tokio::time::advance(Duration::from_secs(30)).await;
+
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Disconnected(crate::Disconnected {
+            cause: crate::DisconnectCause::Connect(error),
+            reconnect_in: Some(delay),
+        })) if error.kind() == crate::ConnectErrorKind::SaslUnavailable
+            && std::error::Error::source(&error)
+                .is_some_and(|source| source.to_string().contains("timed out"))
+            && delay == Duration::from_secs(47)
+    ));
+    tokio::time::advance(Duration::from_secs(46)).await;
+    assert_eq!(calls.load(Ordering::Relaxed), 1);
+    abort_task(driver).await;
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn required_sasl_failure_does_not_reconnect() {
     let settings = config()
         .wanted_caps(["sasl"])
