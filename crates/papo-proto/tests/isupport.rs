@@ -370,13 +370,13 @@ fn extension_defaults_and_policies_are_typed() {
         "CLIENTTAGDENY=*,-typing,-example/react",
         "draft/ACCOUNTREQUIRED",
         "draft/CHATHISTORY=0",
-        "ACCOUNTEXTBAN=$a,~a",
+        "ACCOUNTEXTBAN=account,a",
         "MONITOR",
     ]);
     assert!(support.account_required());
     assert_eq!(support.chathistory(), Some(LimitValue::Unlimited));
     assert_eq!(support.monitor(), Some(LimitValue::Unlimited));
-    assert_eq!(support.accountextban(), vec!["$a", "~a"]);
+    assert_eq!(support.accountextban(), vec!["account", "a"]);
     assert!(!support.clienttagdeny().denies("+typing"));
     assert!(!support.clienttagdeny().denies("example/react"));
     assert!(support.clienttagdeny().denies("+draft/reply"));

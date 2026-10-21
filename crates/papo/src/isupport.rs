@@ -328,7 +328,7 @@ mod tests {
         for line in [
             ":ergo.test 005 papo-fixture AWAYLEN=390 BOT=B CASEMAPPING=ascii CHANLIMIT=#:100 CHANMODES=Ibe,k,fl,CEMRUimnstu CHANNELLEN=64 CHANTYPES=# CHATHISTORY=1000 ELIST=U EXCEPTS EXTBAN=,m FORWARD=f INVEX :are supported by this server",
             ":ergo.test 005 papo-fixture KICKLEN=390 MAXLIST=beI:100 MAXTARGETS=4 MODES=4 MONITOR=100 MSGREFTYPES=msgid,timestamp NETWORK=ErgoTest NICKLEN=32 PREFIX=(qaohv)~&@%+ SAFELIST SAFERATE STATUSMSG=~&@%+ TARGMAX=NAMES:1,LIST:1,KICK:,WHOIS:1,USERHOST:10,PRIVMSG:4,TAGMSG:4,NOTICE:4,MONITOR:100 :are supported by this server",
-            ":ergo.test 005 papo-fixture TOPICLEN=390 NAMELEN=150 UTF8ONLY WHOX draft/ACCOUNTREQUIRED ACCOUNTEXTBAN=$a,~a draft/ICON=https://cdn.example.net/ergo-{size}.png VAPID=BN2Zr6VZlaXr1w :are supported by this server",
+            ":ergo.test 005 papo-fixture TOPICLEN=390 NAMELEN=150 UTF8ONLY WHOX draft/ACCOUNTREQUIRED draft/ICON=https://cdn.example.net/ergo-{size}.png VAPID=BN2Zr6VZlaXr1w :are supported by this server",
         ] {
             inner.apply(&LineRef::parse(line).unwrap());
         }
@@ -394,7 +394,7 @@ mod tests {
                 types: "m"
             })
         );
-        assert_eq!(support.accountextban(), ["$a", "~a"]);
+        assert!(support.accountextban().is_empty());
         assert_eq!(support.elist(), Some("U"));
 
         let absent = super::Isupport::default();
