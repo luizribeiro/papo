@@ -572,6 +572,12 @@ pub struct History {
     pub(crate) target: Result<String, Error>,
 }
 
+impl std::fmt::Debug for History {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        crate::opaque_debug("History", formatter)
+    }
+}
+
 const DEFAULT_HISTORY_LIMIT: usize = 100;
 
 impl History {
@@ -717,6 +723,12 @@ impl From<&ChatMessage> for HistoryReference {
 pub struct HistoryRequest {
     client: Client,
     query: Result<HistoryQuery, Error>,
+}
+
+impl std::fmt::Debug for HistoryRequest {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        crate::opaque_debug("HistoryRequest", formatter)
+    }
 }
 
 impl HistoryRequest {

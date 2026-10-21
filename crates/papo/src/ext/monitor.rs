@@ -7,6 +7,12 @@ pub struct Monitor {
     client: Client,
 }
 
+impl std::fmt::Debug for Monitor {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        crate::opaque_debug("Monitor", formatter)
+    }
+}
+
 impl Client {
     /// Returns a handle for changing the desired monitor list.
     #[must_use]

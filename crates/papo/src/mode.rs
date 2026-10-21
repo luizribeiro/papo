@@ -117,6 +117,12 @@ pub struct SetModes {
     changes: Vec<Change>,
 }
 
+impl std::fmt::Debug for SetModes {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        crate::opaque_debug("SetModes", formatter)
+    }
+}
+
 /// Mode changes whose outcomes the server confirmed.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]

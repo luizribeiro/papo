@@ -5187,7 +5187,7 @@ async fn keyed_join_redacts_the_key_and_waits_for_channel_sync() {
         .join(test_channel("#ergo-ops"))
         .key("unique-dynamic-channel-key-4862");
     let debug = format!("{join:?}");
-    assert!(debug.contains("[REDACTED]"));
+    assert_eq!(debug, "JoinChannel { .. }");
     assert!(!debug.contains("unique-dynamic-channel-key-4862"));
 
     let join = tokio::spawn(async move { join.await });

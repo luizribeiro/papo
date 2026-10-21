@@ -39,23 +39,7 @@ pub struct Builder {
 
 impl fmt::Debug for Builder {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut debug = formatter.debug_struct("Builder");
-        debug
-            .field("address", &self.address)
-            .field("config", &self.config)
-            .field("event_capacity", &self.event_capacity)
-            .field("tls", &self.tls)
-            .field("connect_timeout", &self.connect_timeout)
-            .field("reconnect", &self.reconnect)
-            .field("sts_store", &"<STS store>");
-        #[cfg(not(browser))]
-        debug.field("stream", &self.stream.as_ref().map(|_| "<stream>"));
-        debug
-            .field("bot", &self.bot)
-            .field("autojoin", &self.autojoin)
-            .field("history_on_reconnect", &self.history_on_reconnect)
-            .field("invalid_input", &self.invalid_input)
-            .finish_non_exhaustive()
+        crate::opaque_debug("Builder", formatter)
     }
 }
 
@@ -1104,7 +1088,7 @@ mod tests {
     }
 
     #[test]
-    fn debug_redacts_every_builder_secret() {
+    fn debug_is_opaque_with_every_builder_secret() {
         let builder = Builder::new("irc.example.net")
             .password("unique-network-password-9134")
             .webirc(crate::WebIrc {
@@ -1119,7 +1103,7 @@ mod tests {
             .tls_client_cert(Vec::new(), "unique-tls-key-6305")
             .autojoin_with_key("#staff", "unique-channel-key-5294");
         let output = format!("{builder:?}");
-        assert!(output.contains("[REDACTED]"));
+        assert_eq!(output, "Builder { .. }");
         for secret in [
             "unique-network-password-9134",
             "unique-webirc-password-3186",

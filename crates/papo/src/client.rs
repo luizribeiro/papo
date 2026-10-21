@@ -88,13 +88,24 @@ pub struct SendMessage {
     invalid_input: Option<InvalidInput>,
 }
 
+impl std::fmt::Debug for SendMessage {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        crate::opaque_debug("SendMessage", formatter)
+    }
+}
+
 /// Builds a channel join request.
-#[derive(Debug)]
 #[must_use = "requests do nothing unless awaited"]
 pub struct JoinChannel {
     client: Client,
     channel: crate::ChannelName,
     key: Option<crate::Secret>,
+}
+
+impl std::fmt::Debug for JoinChannel {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        crate::opaque_debug("JoinChannel", formatter)
+    }
 }
 
 impl JoinChannel {

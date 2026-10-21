@@ -42,3 +42,27 @@ fn runtime_handles_have_opaque_debug_output() {
         "RequestFuture { .. }"
     );
 }
+
+#[test]
+fn request_builders_and_extension_handles_have_opaque_debug_output() {
+    let builder = Client::builder("irc://irc.example.net");
+    assert_eq!(format!("{builder:?}"), "Builder { .. }");
+
+    let (client, _events, _driver) = builder.build();
+    assert_eq!(
+        format!("{:?}", client.privmsg("#papo", "Hello")),
+        "SendMessage { .. }"
+    );
+    assert_eq!(
+        format!("{:?}", client.join("#papo").key("secret")),
+        "JoinChannel { .. }"
+    );
+    assert_eq!(format!("{:?}", client.mode("#papo")), "SetModes { .. }");
+    assert_eq!(format!("{:?}", client.history("#papo")), "History { .. }");
+    assert_eq!(
+        format!("{:?}", client.history("#papo").latest()),
+        "HistoryRequest { .. }"
+    );
+    assert_eq!(format!("{:?}", client.metadata()), "Metadata { .. }");
+    assert_eq!(format!("{:?}", client.monitor()), "Monitor { .. }");
+}

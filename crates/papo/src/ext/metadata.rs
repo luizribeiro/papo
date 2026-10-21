@@ -12,6 +12,12 @@ pub struct Metadata {
     client: Client,
 }
 
+impl std::fmt::Debug for Metadata {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        crate::opaque_debug("Metadata", formatter)
+    }
+}
+
 impl Client {
     /// Returns a handle for metadata requests and cached state.
     #[must_use]
