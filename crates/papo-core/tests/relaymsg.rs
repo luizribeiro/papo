@@ -11,15 +11,19 @@ fn registered(value: Option<&str>) -> Transcript {
         || "draft/relaymsg".to_owned(),
         |value| format!("draft/relaymsg={value}"),
     );
-    Transcript::new(Config::default().wanted_caps(["draft/relaymsg", "labeled-response"]))
-        .connect_default()
-        .server(&format!("CAP * LS :{advertised} labeled-response"))
-        .client("CAP REQ :draft/relaymsg labeled-response")
-        .server("CAP * ACK :draft/relaymsg labeled-response")
-        .client("CAP END")
-        .welcome(":ergo.test 001 bridge :Welcome to Ergo")
-        .server(":ergo.test 422 bridge :MOTD File is missing")
-        .event(|event| matches!(event, Event::Connected(_)))
+    Transcript::new(
+        Config::default()
+            .enable(Feature::Relay)
+            .wanted_caps(["draft/relaymsg", "labeled-response"]),
+    )
+    .connect_default()
+    .server(&format!("CAP * LS :{advertised} labeled-response"))
+    .client("CAP REQ :draft/relaymsg labeled-response")
+    .server("CAP * ACK :draft/relaymsg labeled-response")
+    .client("CAP END")
+    .welcome(":ergo.test 001 bridge :Welcome to Ergo")
+    .server(":ergo.test 422 bridge :MOTD File is missing")
+    .event(|event| matches!(event, Event::Connected(_)))
 }
 
 #[test]

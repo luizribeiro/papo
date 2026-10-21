@@ -11,15 +11,19 @@ const P256DH: &str = "AQIDBAUGBwgJCgsMDQ4P_w";
 const AUTH: &str = "-vv8_f7_";
 
 fn registered(cap: &str) -> Transcript {
-    Transcript::new(Config::default().wanted_caps([cap, "labeled-response"]))
-        .connect_default()
-        .server(&format!("CAP * LS :{cap} labeled-response"))
-        .client(&format!("CAP REQ :{cap} labeled-response"))
-        .server(&format!("CAP * ACK :{cap} labeled-response"))
-        .client("CAP END")
-        .welcome(":ergo.test 001 alice :Welcome to Ergo")
-        .server(":ergo.test 422 alice :MOTD File is missing")
-        .event(|event| matches!(event, Event::Connected(_)))
+    Transcript::new(
+        Config::default()
+            .enable(Feature::WebPush)
+            .wanted_caps([cap, "labeled-response"]),
+    )
+    .connect_default()
+    .server(&format!("CAP * LS :{cap} labeled-response"))
+    .client(&format!("CAP REQ :{cap} labeled-response"))
+    .server(&format!("CAP * ACK :{cap} labeled-response"))
+    .client("CAP END")
+    .welcome(":ergo.test 001 alice :Welcome to Ergo")
+    .server(":ergo.test 422 alice :MOTD File is missing")
+    .event(|event| matches!(event, Event::Connected(_)))
 }
 
 #[test]

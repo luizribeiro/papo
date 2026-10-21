@@ -3,12 +3,12 @@
 
 mod support;
 
-use papo_core::{Config, Event, NetworkConfig, NetworkId, NetworkState, StateLimit};
+use papo_core::{Config, Event, Feature, NetworkConfig, NetworkId, NetworkState, StateLimit};
 use papo_proto::Casemapping;
 use support::Transcript;
 
 fn registered() -> Transcript {
-    Transcript::new(Config::default().wanted_caps([
+    Transcript::new(Config::default().enable(Feature::Bouncer).wanted_caps([
         "batch",
         "labeled-response",
         "soju.im/bouncer-networks",
@@ -22,7 +22,9 @@ fn registered() -> Transcript {
 
 #[test]
 fn binds_the_configured_network_before_cap_end() {
-    let mut config = Config::default().wanted_caps(["soju.im/bouncer-networks"]);
+    let mut config = Config::default()
+        .enable(Feature::Bouncer)
+        .wanted_caps(["soju.im/bouncer-networks"]);
     config.bouncer_network = Some(NetworkId::new("42"));
     Transcript::new(config)
         .connect_default()

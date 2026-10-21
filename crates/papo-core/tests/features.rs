@@ -12,9 +12,17 @@ use support::{Transcript, unsupported_because};
 
 const CAPS: &str = "message-tags draft/message-redaction draft/multiline draft/chathistory draft/read-marker draft/metadata-2 setname draft/account-registration soju.im/bouncer-networks draft/persistence draft/webpush draft/channel-rename draft/relaymsg labeled-response away-notify account-notify account-tag chghost invite-notify";
 
+fn enable_extensions(config: Config) -> Config {
+    config
+        .enable(Feature::Bouncer)
+        .enable(Feature::Persistence)
+        .enable(Feature::WebPush)
+        .enable(Feature::Relay)
+}
+
 fn session(caps: &str) -> Session {
     session_with(
-        Config::default().wanted_caps(caps.split_whitespace()),
+        enable_extensions(Config::default()).wanted_caps(caps.split_whitespace()),
         caps,
         "",
     )
@@ -132,14 +140,14 @@ fn distinguishes_client_disabled_and_server_absent_features() {
         Feature::InviteTracking,
     ];
     let disabled = session_with(
-        Config::default()
+        enable_extensions(Config::default())
             .wanted_caps(CAPS.split_whitespace())
             .without_caps(CAPS.split_whitespace()),
         CAPS,
         "",
     );
     let absent = session_with(
-        Config::default().wanted_caps(CAPS.split_whitespace()),
+        enable_extensions(Config::default()).wanted_caps(CAPS.split_whitespace()),
         "",
         "",
     );
@@ -414,7 +422,7 @@ fn extension_requests_preserve_explicitly_disabled_reasons() {
         "labeled-response",
     ];
     Transcript::new(
-        Config::default()
+        enable_extensions(Config::default())
             .wanted_caps(caps)
             .without_caps(caps),
     )
