@@ -2418,6 +2418,7 @@ pub fn papo::SetModes::devoice(self, impl core::convert::AsRef<str>) -> Self
 pub fn papo::SetModes::halfop(self, impl core::convert::AsRef<str>) -> Self
 pub fn papo::SetModes::invite_exception(self, impl core::convert::Into<papo::BanTarget>) -> Self
 pub fn papo::SetModes::op(self, impl core::convert::AsRef<str>) -> Self
+pub fn papo::SetModes::quiet(self, impl core::convert::Into<papo::BanTarget>) -> Self
 pub fn papo::SetModes::remove(self, char) -> Self
 pub fn papo::SetModes::remove_ban_exception(self, impl core::convert::Into<papo::BanTarget>) -> Self
 pub fn papo::SetModes::remove_invite_exception(self, impl core::convert::Into<papo::BanTarget>) -> Self
