@@ -94,7 +94,7 @@ fn list_requests_ignore_other_dialects_targets_and_quiet_markers() {
     session.handle_line(now, b":ergo.test 368 papo #papo :End of channel ban list");
     let ban_response = response(&mut session, id);
     assert_eq!(ban_response.lines.len(), 1);
-    assert_eq!(ban_response.lines[0].as_ref().command().to_string(), "368");
+    assert_eq!(ban_response.lines[0].as_ref().command().as_str(), "368");
 
     let id = request(&mut session, ListMode::Quiet);
     session.handle_line(

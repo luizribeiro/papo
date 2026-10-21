@@ -1,4 +1,4 @@
-use std::fmt;
+use std::borrow::Cow;
 
 use crate::Numeric;
 
@@ -28,16 +28,17 @@ macro_rules! commands {
                 }
                 Self::Other(command)
             }
-        }
 
-        impl fmt::Display for Command<'_> {
-            fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+            /// Returns the uppercase token used on the wire.
+            #[must_use]
+            pub fn as_str(&self) -> Cow<'_, str> {
                 match self {
-                    $(Self::$variant => formatter.write_str($name),)+
-                    Self::Numeric(numeric) => numeric.fmt(formatter),
-                    Self::Other(command) => command
-                        .chars()
-                        .try_for_each(|character| write!(formatter, "{}", character.to_ascii_uppercase())),
+                    $(Self::$variant => Cow::Borrowed($name),)+
+                    Self::Numeric(numeric) => Cow::Owned(numeric.to_string()),
+                    Self::Other(command) if command.bytes().any(|byte| byte.is_ascii_lowercase()) => {
+                        Cow::Owned(command.to_ascii_uppercase())
+                    }
+                    Self::Other(command) => Cow::Borrowed(command),
                 }
             }
         }
@@ -186,7 +187,8 @@ mod tests {
         for &(command, name) in NAMED_COMMANDS {
             assert_eq!(Command::parse(name), command);
             assert_eq!(Command::parse(&name.to_ascii_lowercase()), command);
-            assert_eq!(command.to_string(), name);
+            assert_eq!(command.as_str(), name);
+            assert!(matches!(command.as_str(), std::borrow::Cow::Borrowed(_)));
         }
     }
 
@@ -198,6 +200,11 @@ mod tests {
         );
         assert_eq!(Command::parse("42"), Command::Other("42"));
         assert_eq!(Command::parse("1000"), Command::Other("1000"));
-        assert_eq!(Command::parse("future").to_string(), "FUTURE");
+        assert_eq!(Command::parse("005").as_str(), "005");
+        assert_eq!(Command::parse("future").as_str(), "FUTURE");
+        assert!(matches!(
+            Command::parse("FUTURE").as_str(),
+            std::borrow::Cow::Borrowed(_)
+        ));
     }
 }

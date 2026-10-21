@@ -165,9 +165,8 @@ pub papo_proto::Command::Who
 pub papo_proto::Command::Whois
 pub papo_proto::Command::Whowas
 impl<'a> papo_proto::Command<'a>
+pub fn papo_proto::Command<'a>::as_str(&self) -> alloc::borrow::Cow<'_, str>
 pub fn papo_proto::Command<'a>::parse(&'a str) -> Self
-impl core::fmt::Display for papo_proto::Command<'_>
-pub fn papo_proto::Command<'_>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl<'a> core::clone::Clone for papo_proto::Command<'a>
 pub fn papo_proto::Command<'a>::clone(&self) -> Self
 impl<'a> core::cmp::Eq for papo_proto::Command<'a>
