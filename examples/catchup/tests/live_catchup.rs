@@ -57,18 +57,13 @@ async fn prints_three_unread_messages_and_advances_the_marker() {
             newest = poster.privmsg(&channel, text).await.unwrap().server_time;
         }
 
-        let password = std::env::temp_dir().join(format!("{account}.password"));
-        std::fs::write(&password, format!("{PASSWORD}\n")).unwrap();
         let output = Command::new(env!("CARGO_BIN_EXE_catchup"))
-            .env("IRC_SERVER", server.plaintext_addr().ip().to_string())
-            .env("IRC_PORT", server.plaintext_addr().port().to_string())
-            .env("IRC_PLAINTEXT", "1")
+            .arg(format!("irc://{}", server.plaintext_addr()))
             .env("IRC_NICK", &account)
-            .env("IRC_PASSWORD_FILE", &password)
-            .env("IRC_CHANNELS", &channel)
+            .env("IRC_PASSWORD", PASSWORD)
+            .env("IRC_CHANNEL", &channel)
             .output()
             .unwrap();
-        std::fs::remove_file(password).unwrap();
         assert!(
             output.status.success(),
             "{}",
