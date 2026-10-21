@@ -8,11 +8,9 @@ const CHANNEL: &str = "#papo";
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let server = env::args()
-        .nth(1)
-        .map_or_else(|| env::var("IRC_SERVER"), Ok)?;
+    let url = env::args().nth(1).ok_or("usage: react-bot URL")?;
     let nick = env::var("IRC_NICK").unwrap_or_else(|_| "papo-react".into());
-    let (client, mut events) = Client::builder(server)
+    let (client, mut events) = Client::builder(url)
         .nick(nick)
         .autojoin([CHANNEL])
         .connect()
