@@ -1,106 +1,67 @@
-//! Run an authenticated command bot with account-based operator access.
+//! Parse bot commands and authorize an operator command by account.
 
-use std::{env, error::Error, io, time::Duration};
+use std::{env, error::Error};
 
-use papo::{
-    Client, Endpoint, Error as PapoError, Event, Sasl,
-    bot::{BotConfig, ReplyRateLimiter},
-};
+use papo::{Client, Event, bot::BotConfig};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let server = required("IRC_SERVER")?;
-    let nick = required("IRC_NICK")?;
-    let password_file = required("IRC_PASSWORD_FILE")?;
-    let channels = required("IRC_CHANNELS")?;
-    let admins = required("IRC_ADMINS")?;
-    let password = std::fs::read_to_string(password_file)?;
+    run().await
+}
 
-    let mut builder = Client::builder(endpoint(server)?)
-        .nick(&nick)
-        .sasl(Sasl::plain(&nick, password.trim_end_matches(['\r', '\n'])))
+async fn run() -> Result<(), Box<dyn Error>> {
+    let server = env::args()
+        .nth(1)
+        .map_or_else(|| env::var("IRC_SERVER"), Ok)?;
+    let nick = env::var("IRC_NICK").unwrap_or_else(|_| "papo-admin".into());
+    let admin = env::var("IRC_ADMIN")?;
+    let channel = env::var("IRC_CHANNEL").unwrap_or_else(|_| "#papo-admin".into());
+    let (client, mut events) = Client::builder(server)
+        .nick(nick)
         .bot()
-        .autojoin(channels.split(',').map(str::trim));
-    if let Some(ca_file) = env::var_os("IRC_CA_FILE") {
-        builder = builder.tls_ca_pem(std::fs::read(ca_file)?);
-    }
-    let (client, mut events) = builder.connect().await?;
-    let admins: Vec<_> = admins
-        .split(',')
-        .map(str::trim)
-        .filter(|name| !name.is_empty())
-        .map(str::to_owned)
-        .collect();
-    let config =
-        BotConfig::new("!").reply_limiter(ReplyRateLimiter::new(2, Duration::from_secs(5))?);
+        .autojoin([&channel])
+        .connect()
+        .await?;
+    let commands = BotConfig::new("!");
+
     while let Some(event) = events.next().await {
-        handle(&client, &event, &config, &admins).await?;
+        let Event::Message(message) = event else {
+            continue;
+        };
+        let Some(command) = commands.command(&client, &message) else {
+            continue;
+        };
+        let result = match (command.name(), command.args()) {
+            ("ping", []) => command.reply("pong").await.map(drop),
+            ("whois", [nick]) => {
+                let (command, nick) = (command.clone(), nick.clone());
+                tokio::spawn(async move {
+                    let text = command.client().whois(&nick).await.map_or_else(
+                        |error| format!("cannot look up {nick}: {error}"),
+                        |user| format!("{} is connected", user.nick),
+                    );
+                    let _ = command.reply(text).await;
+                });
+                Ok(())
+            }
+            ("op", [nick]) if command.account_in([&admin]) => {
+                match command.client().mode(&channel).op(nick).await {
+                    Ok(()) => Ok(()),
+                    Err(refusal) => command
+                        .reply(format!("cannot op {nick}: {refusal}"))
+                        .await
+                        .map(drop),
+                }
+            }
+            ("op", [nick]) => command
+                .reply(format!("cannot op {nick}: permission denied"))
+                .await
+                .map(drop),
+            _ => Ok(()),
+        };
+        if let Err(error) = result {
+            eprintln!("could not answer command: {error}");
+        }
     }
     Ok(())
-}
-
-fn endpoint(host: String) -> Result<Endpoint, Box<dyn Error>> {
-    let port = env::var("IRC_PORT").map_or(Ok(6697), |value| value.parse())?;
-    Ok(if env::var_os("IRC_PLAINTEXT").is_some() {
-        Endpoint::plaintext(host, port)
-    } else {
-        Endpoint::tls(host, port)
-    })
-}
-
-async fn handle(
-    client: &Client,
-    event: &Event,
-    config: &BotConfig,
-    admins: &[String],
-) -> Result<(), PapoError> {
-    let Some(command) = event
-        .as_message()
-        .and_then(|message| config.command(client, message))
-    else {
-        return Ok(());
-    };
-    match command.name() {
-        "ping" => {
-            let _ = command.reply("pong").await?;
-        }
-        "echo" if !command.args().is_empty() => {
-            let _ = command.reply(command.args().join(" ")).await?;
-        }
-        "echo" => {
-            let _ = command
-                .private_notice("expected at least one command argument")
-                .await?;
-        }
-        "op" if command.args().len() != 1 => {
-            let _ = command
-                .private_notice("expected exactly one command argument")
-                .await?;
-        }
-        "op" if !command.account_in(admins) => {
-            let _ = command
-                .private_notice("permission denied: authenticated account required")
-                .await?;
-        }
-        "op" => {
-            let Some(channel) = command.channel() else {
-                let _ = command
-                    .private_notice("op requires a channel command")
-                    .await?;
-                return Ok(());
-            };
-            command
-                .client()
-                .mode(channel)
-                .op(command.args()[0].as_str())
-                .await?;
-        }
-        _ => {}
-    }
-    Ok(())
-}
-
-fn required(name: &str) -> io::Result<String> {
-    env::var(name)
-        .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, format!("{name} is required")))
 }
