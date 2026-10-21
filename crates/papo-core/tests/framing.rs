@@ -60,15 +60,13 @@ fn reports_strict_utf8_and_parse_failures_with_original_bytes() {
     session.handle_line(now, b":ergo.test");
     assert_eq!(
         session.poll_event(),
-        Some(Event::Malformed {
-            line: b":irc.example NOTICE nick :caf\xe9".to_vec()
-        })
+        Some(Event::__malformed(
+            b":irc.example NOTICE nick :caf\xe9".to_vec(),
+        ))
     );
     assert_eq!(
         session.poll_event(),
-        Some(Event::Malformed {
-            line: b":ergo.test".to_vec()
-        })
+        Some(Event::__malformed(b":ergo.test".to_vec()))
     );
 }
 

@@ -113,7 +113,7 @@ fn requests_echo_message_only_with_labeled_response() {
         .client("CAP REQ :echo-message labeled-response")
         .server("CAP papo ACK :echo-message labeled-response")
         .event(|event| {
-            matches!(event, Event::CapsChanged { added, removed }
+            matches!(event, Event::CapsChanged { added, removed, .. }
                 if added.contains_key("echo-message")
                     && added.contains_key("labeled-response")
                     && removed.is_empty())
@@ -388,14 +388,14 @@ fn enables_new_wanted_caps_and_updates_enabled_values() {
         .client("CAP END")
         .server("CAP papo NEW :batch server-time=latest")
         .event(|event| {
-            matches!(event, Event::CapsChanged { added, removed }
+            matches!(event, Event::CapsChanged { added, removed, .. }
             if added.get("server-time") == Some(&Some("latest".to_owned()))
                 && removed.is_empty())
         })
         .client("CAP REQ :batch")
         .server("CAP papo ACK :batch")
         .event(|event| {
-            matches!(event, Event::CapsChanged { added, removed }
+            matches!(event, Event::CapsChanged { added, removed, .. }
             if added.get("batch") == Some(&None) && removed.is_empty())
         })
         .inspect(|session| {
@@ -417,7 +417,7 @@ fn drops_deleted_caps_without_requesting_disable_and_can_enable_them_again() {
         .client("CAP END")
         .server("CAP papo DEL :server-time")
         .event(|event| {
-            matches!(event, Event::CapsChanged { added, removed }
+            matches!(event, Event::CapsChanged { added, removed, .. }
             if added.is_empty()
                 && removed.get("server-time") == Some(&Some("2026".to_owned())))
         })
@@ -427,7 +427,7 @@ fn drops_deleted_caps_without_requesting_disable_and_can_enable_them_again() {
         .client("CAP REQ :server-time")
         .server("CAP papo ACK :server-time")
         .event(|event| {
-            matches!(event, Event::CapsChanged { added, removed }
+            matches!(event, Event::CapsChanged { added, removed, .. }
             if added.get("server-time") == Some(&Some("2027".to_owned()))
                 && removed.is_empty())
         })
@@ -443,8 +443,8 @@ fn sts_on_plaintext_closes_for_a_tls_upgrade_without_more_output() {
     )
     .connect_default()
     .server("CAP * LS :sts=port=6697,duration=86400 batch")
-    .event(|event| matches!(event, Event::StsUpgrade { port: 6697 }))
-    .event(|event| matches!(event, Event::Close { kind: CloseKind::StsUpgrade, reason } if reason == "sts upgrade"))
+    .event(|event| matches!(event, Event::StsUpgrade { port: 6697, .. }))
+    .event(|event| matches!(event, Event::Close { kind: CloseKind::StsUpgrade, reason, .. } if reason == "sts upgrade"))
     .no_client();
 }
 
@@ -459,7 +459,7 @@ fn sts_on_tls_surfaces_persist_refresh_and_remove_actions() {
     .connect_default()
     .server("CAP * LS :sts=duration=3600,preload")
     .event(|event| {
-        matches!(event, Event::StsPolicy(StsAction::Persist { host, duration })
+        matches!(event, Event::StsPolicy(StsAction::Persist { host, duration, .. })
         if host == "irc.example.net"
             && *duration == Duration::from_secs(3_600))
     })
@@ -471,7 +471,7 @@ fn sts_on_tls_surfaces_persist_refresh_and_remove_actions() {
     })
     .server("CAP papo NEW :sts=duration=0")
     .event(|event| {
-        matches!(event, Event::StsPolicy(StsAction::Remove { host })
+        matches!(event, Event::StsPolicy(StsAction::Remove { host, .. })
         if host == "irc.example.net")
     })
     .server("CAP papo DEL :sts")
@@ -490,8 +490,8 @@ fn sts_upgrade_can_reconnect_the_same_session_securely() {
         .client("NICK papo")
         .client("USER papo 0 * papo")
         .server("CAP * LS :sts=port=6697")
-        .event(|event| matches!(event, Event::StsUpgrade { port: 6697 }))
-        .event(|event| matches!(event, Event::Close { kind: CloseKind::StsUpgrade, reason } if reason == "sts upgrade"))
+        .event(|event| matches!(event, Event::StsUpgrade { port: 6697, .. }))
+        .event(|event| matches!(event, Event::Close { kind: CloseKind::StsUpgrade, reason, .. } if reason == "sts upgrade"))
         .disconnect()
         .connect_with(Connection {
             host: "IRC.Example.NET.".to_owned(),
@@ -502,7 +502,7 @@ fn sts_upgrade_can_reconnect_the_same_session_securely() {
         .client("USER papo 0 * papo")
         .server("CAP * LS :sts=duration=86400")
         .event(|event| {
-            matches!(event, Event::StsPolicy(StsAction::Persist { host, duration })
+            matches!(event, Event::StsPolicy(StsAction::Persist { host, duration, .. })
                 if host == "irc.example.net" && *duration == Duration::from_hours(24))
         })
         .client("CAP END");

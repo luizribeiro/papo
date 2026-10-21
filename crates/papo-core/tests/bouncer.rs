@@ -119,7 +119,7 @@ fn merges_bounded_notification_batches_and_deletes_networks() {
             assert_eq!(network.name.as_deref(), Some("My Network"));
         })
         .server("BOUNCER NETWORK 42 *")
-        .event(|event| matches!(event, Event::BouncerNetworkChanged { id, network: None }
+        .event(|event| matches!(event, Event::BouncerNetworkChanged { id, network: None, .. }
             if id == "42"))
         .inspect(|session| assert_eq!(session.state().bouncer_networks().count(), 0))
         .no_event();
@@ -145,6 +145,7 @@ fn parses_each_network_attribute_and_rejects_nearby_commands() {
                 Event::BouncerNetworkChanged {
                     id,
                     network: Some(network),
+                ..
                 } if id == "network-42"
                     && network.name.as_deref() == Some("Example Net")
                     && network.state == Some(NetworkState::Connecting)
@@ -208,7 +209,8 @@ fn bounds_the_server_driven_network_cache() {
             matches!(
                 event,
                 Event::StateLimitReached {
-                    limit: StateLimit::BouncerNetworks
+                    limit: StateLimit::BouncerNetworks,
+                    ..
                 }
             )
         })

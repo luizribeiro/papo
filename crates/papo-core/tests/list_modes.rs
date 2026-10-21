@@ -10,10 +10,7 @@ fn request(session: &mut Session, now: Instant, mode: ListMode) -> RequestId {
         .request_with_matcher(
             now,
             Line::new("MODE", ["#papo", mode_letter(mode)]),
-            ResponseMatcher::ListMode {
-                channel: "#papo".into(),
-                mode,
-            },
+            ResponseMatcher::__list_mode("#papo".into(), mode),
         )
         .unwrap()
 }
@@ -159,7 +156,8 @@ fn one_thousand_and_one_rows_fail_without_retaining_the_last_row() {
     assert!(matches!(
         session.poll_event(),
         Some(Event::StateLimitReached {
-            limit: papo_core::StateLimit::ListEntries
+            limit: papo_core::StateLimit::ListEntries,
+            ..
         })
     ));
     let response = response(&mut session, id);
@@ -423,11 +421,9 @@ fn timeout_and_disconnect_invalidate_tracked_lists() {
         b":ergo.test 367 papo #papo *!*@gateway.example oper 1761048000",
     );
     session.handle_timeout(session.poll_timeout().unwrap() + Duration::from_secs(31));
-    assert!(
-        std::iter::from_fn(|| session.poll_event()).any(
-            |event| matches!(event, Event::RequestTimedOut { id: timed_out } if timed_out == id)
-        )
-    );
+    assert!(std::iter::from_fn(|| session.poll_event()).any(
+        |event| matches!(event, Event::RequestTimedOut { id: timed_out, .. } if timed_out == id)
+    ));
     assert_eq!(
         session
             .state()
@@ -515,7 +511,7 @@ fn labelled_timeout_and_overflow_forget_the_list_and_its_label() {
     session.handle_timeout(now + Duration::from_secs(2));
     assert!(
         std::iter::from_fn(|| session.poll_event())
-            .any(|event| matches!(event, Event::RequestTimedOut { id } if id == timed_out))
+            .any(|event| matches!(event, Event::RequestTimedOut { id, .. } if id == timed_out))
     );
     assert_eq!(
         session

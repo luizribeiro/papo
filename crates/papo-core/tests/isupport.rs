@@ -19,12 +19,7 @@ fn applies_multiple_005_lines_and_enforces_utf8only() {
             assert_eq!(session.isupport().get("UTF8ONLY"), Advertised::Bare);
         })
         .server_bytes(b":ergo.test NOTICE papo :caf\xe9")
-        .event(|event| {
-            event
-                == &Event::Malformed {
-                    line: b":ergo.test NOTICE papo :caf\xe9".to_vec(),
-                }
-        });
+        .event(|event| event == &Event::__malformed(b":ergo.test NOTICE papo :caf\xe9".to_vec()));
 }
 
 #[test]

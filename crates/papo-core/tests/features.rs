@@ -308,7 +308,7 @@ fn reports_capability_and_isupport_feature_changes_after_connect() {
         .server("CAP papo DEL :message-tags")
         .event(|event| matches!(event, Event::CapsChanged { .. }))
         .event(|event| {
-            matches!(event, Event::FeaturesChanged { added, removed }
+            matches!(event, Event::FeaturesChanged { added, removed, .. }
             if added.is_empty()
                 && removed == &[
                     Feature::MessageTags,
@@ -322,7 +322,7 @@ fn reports_capability_and_isupport_feature_changes_after_connect() {
         .server("CAP papo ACK :message-tags")
         .event(|event| matches!(event, Event::CapsChanged { .. }))
         .event(|event| {
-            matches!(event, Event::FeaturesChanged { added, removed }
+            matches!(event, Event::FeaturesChanged { added, removed, .. }
                 if added == &[
                     Feature::MessageTags,
                     Feature::Replies,
@@ -333,22 +333,22 @@ fn reports_capability_and_isupport_feature_changes_after_connect() {
         })
         .server(":irc.solanum.example 005 papo CLIENTTAGDENY=draft/react :are supported")
         .event(|event| {
-            matches!(event, Event::FeaturesChanged { added, removed }
+            matches!(event, Event::FeaturesChanged { added, removed, .. }
                 if added.is_empty() && removed == &[Feature::Reactions])
         })
         .server(":irc.solanum.example 005 papo -CLIENTTAGDENY :are supported")
         .event(|event| {
-            matches!(event, Event::FeaturesChanged { added, removed }
+            matches!(event, Event::FeaturesChanged { added, removed, .. }
                 if added == &[Feature::Reactions] && removed.is_empty())
         })
         .server(":irc.unreal.example 005 papo MONITOR=0 :are supported")
         .event(|event| {
-            matches!(event, Event::FeaturesChanged { added, removed }
+            matches!(event, Event::FeaturesChanged { added, removed, .. }
                 if added.is_empty() && removed == &[Feature::Monitor])
         })
         .server(":irc.unreal.example 005 papo MONITOR=100 :are supported")
         .event(|event| {
-            matches!(event, Event::FeaturesChanged { added, removed }
+            matches!(event, Event::FeaturesChanged { added, removed, .. }
                 if added == &[Feature::Monitor] && removed.is_empty())
         })
         .no_event();
@@ -370,11 +370,7 @@ fn fails_a_pending_request_when_its_feature_disappears() {
             session
                 .chathistory(
                     std::time::Instant::now(),
-                    HistoryQuery::Latest {
-                        target: "#papo".into(),
-                        after: None,
-                        limit: 50,
-                    },
+                    HistoryQuery::__latest("#papo".into(), None, 50),
                 )
                 .unwrap();
         })
@@ -382,7 +378,7 @@ fn fails_a_pending_request_when_its_feature_disappears() {
         .server("CAP papo DEL :draft/chathistory")
         .event(|event| matches!(event, Event::CapsChanged { .. }))
         .event(|event| {
-            matches!(event, Event::FeaturesChanged { added, removed }
+            matches!(event, Event::FeaturesChanged { added, removed, .. }
                 if added.is_empty() && removed == &[Feature::History])
         })
         .event(|event| {
@@ -413,11 +409,7 @@ fn failing_a_feature_request_keeps_other_join_tracking() {
         session
             .chathistory(
                 std::time::Instant::now(),
-                HistoryQuery::Latest {
-                    target: "#papo".into(),
-                    after: None,
-                    limit: 50,
-                },
+                HistoryQuery::__latest("#papo".into(), None, 50),
             )
             .unwrap();
         session
@@ -441,7 +433,7 @@ fn failing_a_feature_request_keeps_other_join_tracking() {
     .server(":ergo.test 366 papo #papo :End of /NAMES list")
     .client("MODE #papo")
     .client("WHO #papo")
-    .event(|event| matches!(event, Event::ChannelSynced { channel } if channel == "#papo"))
+    .event(|event| matches!(event, Event::ChannelSynced { channel, .. } if channel == "#papo"))
     .event(|event| matches!(event, Event::Response(response) if response.lines.len() == 2))
     .no_event();
 }

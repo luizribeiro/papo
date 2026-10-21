@@ -120,7 +120,7 @@ fn multiline_over_advertised_max_bytes_is_released() {
     assert_eq!(line(&mut session).as_ref().param(1), Some("67890"));
     assert!(matches!(
         session.poll_event(),
-        Some(Event::BatchAbandoned { reference, batch_type, reason })
+        Some(Event::BatchAbandoned { reference, batch_type, reason, .. })
             if reference == "m"
                 && batch_type == "draft/multiline"
                 && reason == BatchAbandonReason::ByteLimit
@@ -511,7 +511,7 @@ fn abandoned_outer_batch_flattens_completed_history_exactly() {
     );
     assert!(matches!(
         session.poll_event(),
-        Some(Event::BatchAbandoned { reference, batch_type, reason })
+        Some(Event::BatchAbandoned { reference, batch_type, reason, .. })
             if reference == "reply"
                 && batch_type == "labeled-response"
                 && reason == BatchAbandonReason::Timeout
@@ -602,7 +602,7 @@ fn netsplit_followed_by_netjoin_becomes_two_aggregate_events() {
     ));
     assert!(matches!(
         session.poll_event(),
-        Some(Event::Netjoin { servers, joins, authorship })
+        Some(Event::Netjoin { servers, joins, authorship, .. })
             if servers == ["irc.example", "irc.remote"] && joins.len() == 2
                 && authorship == [Authorship::Own, Authorship::Other]
     ));
@@ -677,7 +677,7 @@ fn rejects_a_batch_beyond_the_configured_open_limit() {
 
     assert!(matches!(
         session.poll_event(),
-        Some(Event::BatchAbandoned { reference, batch_type, reason })
+        Some(Event::BatchAbandoned { reference, batch_type, reason, .. })
             if reference == "c"
                 && batch_type == "chathistory"
                 && reason == BatchAbandonReason::OpenBatchLimit
@@ -705,7 +705,7 @@ fn abandons_history_on_the_first_line_beyond_its_limit() {
     }
     assert!(matches!(
         session.poll_event(),
-        Some(Event::BatchAbandoned { reference, batch_type, reason })
+        Some(Event::BatchAbandoned { reference, batch_type, reason, .. })
             if reference == "h"
                 && batch_type == "draft/event-playback"
                 && reason == BatchAbandonReason::LineLimit
@@ -727,7 +727,7 @@ fn unknown_batch_overflow_delivers_the_overflowing_line_before_abandonment() {
     assert_eq!(overflow.as_ref().param(1), Some("overflowing line"));
     assert!(matches!(
         session.poll_event(),
-        Some(Event::BatchAbandoned { reference, batch_type, reason })
+        Some(Event::BatchAbandoned { reference, batch_type, reason, .. })
             if reference == "sync"
                 && batch_type == "vendor/sync"
                 && reason == BatchAbandonReason::LineLimit
@@ -755,7 +755,7 @@ fn abandons_an_unclosed_batch_at_its_deadline() {
     assert_eq!(fallback.as_ref().param(1), Some("remembered"));
     assert!(matches!(
         session.poll_event(),
-        Some(Event::BatchAbandoned { reference, batch_type, reason })
+        Some(Event::BatchAbandoned { reference, batch_type, reason, .. })
             if reference == "h"
                 && batch_type == "chathistory"
                 && reason == BatchAbandonReason::Timeout
@@ -810,7 +810,7 @@ fn nested_batches_expiring_together_abandon_only_the_outer_batch() {
     assert_eq!(fallback.as_ref().param(1), Some("nested fallback"));
     assert!(matches!(
         session.poll_event(),
-        Some(Event::BatchAbandoned { reference, batch_type, reason })
+        Some(Event::BatchAbandoned { reference, batch_type, reason, .. })
             if reference == "outer"
                 && batch_type == "labeled-response"
                 && reason == BatchAbandonReason::Timeout
@@ -900,6 +900,6 @@ fn netjoin_for_our_nick_waits_for_requested_names() {
     session.handle_line(now, b":ergo.test 366 papo #papo :End of NAMES list");
     assert!(matches!(
         session.poll_event(),
-        Some(Event::ChannelSynced { channel }) if channel == "#papo"
+        Some(Event::ChannelSynced { channel, .. }) if channel == "#papo"
     ));
 }

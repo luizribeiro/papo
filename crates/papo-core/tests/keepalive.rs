@@ -27,7 +27,7 @@ fn closes_when_the_server_sends_error() {
     Transcript::new(Config::default())
         .connect_default()
         .server("ERROR :Closing link")
-        .event(|event| matches!(event, Event::Close { kind: CloseKind::ServerError, reason } if reason == "Closing link"))
+        .event(|event| matches!(event, Event::Close { kind: CloseKind::ServerError, reason, .. } if reason == "Closing link"))
         .server("PING :ignored-after-error")
         .no_client();
 }
@@ -37,7 +37,7 @@ fn closes_on_a_parameterless_error() {
     Transcript::new(Config::default())
         .connect_default()
         .server("ERROR")
-        .event(|event| matches!(event, Event::Close { kind: CloseKind::ServerError, reason } if reason == "server sent ERROR"))
+        .event(|event| matches!(event, Event::Close { kind: CloseKind::ServerError, reason, .. } if reason == "server sent ERROR"))
         .no_client();
 }
 
@@ -48,7 +48,7 @@ fn bounds_server_error_reasons_without_splitting_utf8() {
     Transcript::new(Config::default())
         .connect_default()
         .server(&format!("ERROR :{exact}"))
-        .event(|event| matches!(event, Event::Close { kind: CloseKind::ServerError, reason } if reason == exact));
+        .event(|event| matches!(event, Event::Close { kind: CloseKind::ServerError, reason, .. } if reason == exact));
 
     for (over, expected) in [
         ("K".repeat(257), "K".repeat(256)),
@@ -60,7 +60,7 @@ fn bounds_server_error_reasons_without_splitting_utf8() {
         Transcript::new(Config::default())
             .connect_default()
             .server(&format!("ERROR :{over}"))
-            .event(|event| matches!(event, Event::Close { kind: CloseKind::ServerError, reason } if reason == &expected));
+            .event(|event| matches!(event, Event::Close { kind: CloseKind::ServerError, reason, .. } if reason == &expected));
     }
 }
 
@@ -71,7 +71,7 @@ fn does_not_answer_invalid_pings() {
         .server(":ergo.test PING")
         .event(|event| matches!(event, Event::Line(message) if message.as_ref().command_is("PING")))
         .server("PING :bad\rtoken")
-        .event(|event| matches!(event, Event::Malformed { line } if line.as_slice() == b"PING :bad\rtoken"))
+        .event(|event| matches!(event, Event::Malformed { line, .. } if line.as_slice() == b"PING :bad\rtoken"))
         .no_client();
 }
 
@@ -107,7 +107,7 @@ fn closes_at_120_seconds_of_silence_but_any_pong_resets_the_timeout() {
         .advance(Duration::from_secs(59))
         .no_event()
         .advance(Duration::from_secs(1))
-        .event(|event| matches!(event, Event::Close { kind: CloseKind::PingTimeout, reason } if reason == "IRC connection timed out"))
+        .event(|event| matches!(event, Event::Close { kind: CloseKind::PingTimeout, reason, .. } if reason == "IRC connection timed out"))
         .no_client();
 
     Transcript::new(config)
