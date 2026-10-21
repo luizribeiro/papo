@@ -183,6 +183,64 @@ async fn shared_test_deadline_rejects_a_stalled_future() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn sasl_connection_reports_each_protocol_phase() {
+    let settings = config()
+        .wanted_caps(["sasl"])
+        .sasl(Sasl::plain("alice", "correct horse battery staple"));
+    let (mut server, _client, mut events, driver) = scripted(settings);
+    events.include_connecting.store(true, Ordering::Relaxed);
+    let task = tokio::spawn(driver);
+
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Connecting(crate::event::Connecting {
+            attempt: 1,
+            phase: crate::ConnectPhase::Capabilities,
+        }))
+    ));
+    welcome_burst(&mut server).await;
+    server_line(&mut server, b":ergo.test CAP * LS :sasl=PLAIN\r\n").await;
+    client_line(&mut server, b"CAP REQ :sasl\r\n").await;
+    server_line(&mut server, b":ergo.test CAP * ACK :sasl\r\n").await;
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Connecting(crate::event::Connecting {
+            phase: crate::ConnectPhase::Authenticating,
+            ..
+        }))
+    ));
+    client_line(&mut server, b"AUTHENTICATE PLAIN\r\n").await;
+    server_line(&mut server, b"AUTHENTICATE +\r\n").await;
+    client_line(
+        &mut server,
+        b"AUTHENTICATE AGFsaWNlAGNvcnJlY3QgaG9yc2UgYmF0dGVyeSBzdGFwbGU=\r\n",
+    )
+    .await;
+    server_line(
+        &mut server,
+        b":ergo.test 903 alice :SASL authentication successful\r\n",
+    )
+    .await;
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Connecting(crate::event::Connecting {
+            phase: crate::ConnectPhase::WaitingForWelcome,
+            ..
+        }))
+    ));
+    client_line(&mut server, b"CAP END\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n",
+    )
+    .await;
+    assert!(matches!(events.next().await, Some(Event::Connected(_))));
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn message_fields_use_captured_session_facts() {
     let (mut server, _client, mut events, driver) = scripted(config().max_batch_lines(0));
     let task = tokio::spawn(driver);
@@ -1021,6 +1079,7 @@ async fn write_timeout_resumes_before_the_next_line() {
         &mut registration,
         &mut defaults,
         &mut registered,
+        1,
         &mut registered_at,
         &mut sts,
         &mut sts_store,
@@ -1049,6 +1108,7 @@ async fn write_timeout_resumes_before_the_next_line() {
         &mut registration,
         &mut defaults,
         &mut registered,
+        1,
         &mut registered_at,
         &mut sts,
         &mut sts_store,

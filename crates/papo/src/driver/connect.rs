@@ -125,6 +125,7 @@ pub(super) async fn run_plan(
             &mut registration,
             &mut defaults,
             &mut registered,
+            attempts,
             &plan,
             sts_store,
             std::mem::take(&mut pending_events),
@@ -245,6 +246,7 @@ pub(super) async fn run_planned_connection(
     registration: &mut ConnectWait,
     defaults: &mut PostConnect,
     registered: &mut bool,
+    attempt: usize,
     plan: &ConnectionPlan,
     sts_store: Box<dyn StsStore + Send>,
     pending_events: VecDeque<Event>,
@@ -266,6 +268,7 @@ pub(super) async fn run_planned_connection(
         registration,
         defaults,
         registered,
+        attempt,
         Some(Connection {
             host: plan.address.host.clone(),
             security,

@@ -358,6 +358,8 @@ struct EventSink {
     connected: Arc<AtomicBool>,
     state: Arc<RwLock<Arc<State>>>,
     commands: mpsc::WeakSender<Command>,
+    #[cfg(test)]
+    include_connecting: Arc<AtomicBool>,
 }
 
 impl EventSink {
@@ -444,6 +446,8 @@ pub struct Events {
     receiver: mpsc::Receiver<Event>,
     disconnected: Option<oneshot::Receiver<VecDeque<Event>>>,
     pending: VecDeque<Event>,
+    #[cfg(test)]
+    include_connecting: Arc<AtomicBool>,
 }
 
 impl Events {
@@ -684,6 +688,8 @@ pub(crate) fn channels(capacity: usize, session: &Session) -> Channels {
     let (event_sender, event_receiver) = mpsc::channel(capacity);
     let (disconnect_sender, disconnect_receiver) = oneshot::channel();
     let connected = Arc::new(AtomicBool::new(false));
+    #[cfg(test)]
+    let include_connecting = Arc::new(AtomicBool::new(false));
     let state = Arc::new(RwLock::new(Arc::new(State::from_session(session, false))));
     let client = Client {
         commands: command_sender,
@@ -695,6 +701,8 @@ pub(crate) fn channels(capacity: usize, session: &Session) -> Channels {
         connected: Arc::clone(&connected),
         state,
         commands: client.commands.downgrade(),
+        #[cfg(test)]
+        include_connecting: Arc::clone(&include_connecting),
     };
     Channels {
         client,
@@ -702,6 +710,8 @@ pub(crate) fn channels(capacity: usize, session: &Session) -> Channels {
             receiver: event_receiver,
             disconnected: Some(disconnect_receiver),
             pending: VecDeque::new(),
+            #[cfg(test)]
+            include_connecting,
         },
         commands: command_receiver,
         event_sink: events,
@@ -737,6 +747,7 @@ where
         &mut registration,
         &mut defaults,
         &mut registered,
+        1,
         None,
         None,
         0,
@@ -805,6 +816,7 @@ async fn run_connection<S>(
     registration: &mut ConnectWait,
     defaults: &mut PostConnect,
     registered: &mut bool,
+    attempt: usize,
     connection: Option<Connection>,
     mut sts_store: Option<Box<dyn StsStore + Send>>,
     sts_port: u16,
@@ -859,6 +871,7 @@ where
             registration,
             defaults,
             registered,
+            attempt,
             &mut registered_at,
             &mut sts,
             &mut sts_store,
@@ -1256,6 +1269,7 @@ async fn drain<S>(
     registration: &mut ConnectWait,
     defaults: &mut PostConnect,
     registered: &mut bool,
+    attempt: usize,
     registered_at: &mut Option<Instant>,
     sts: &mut StsActions,
     sts_store: &mut Option<Box<dyn StsStore + Send>>,
@@ -1270,6 +1284,21 @@ where
     publish_state(events, session, true);
     if !drain_transmit(stream, session, pending_write, transmits, deadline).await? {
         return Ok(None);
+    }
+    while let Some(phase) = session.poll_connect_phase() {
+        let Some(phase) = crate::ConnectPhase::from_core(phase) else {
+            continue;
+        };
+        if !enqueue_event(
+            events,
+            pending_events,
+            Event::Connecting(crate::event::Connecting { attempt, phase }),
+        ) {
+            return Ok(Some((
+                papo_core::CloseKind::Other,
+                SLOW_CONSUMER_REASON.to_owned(),
+            )));
+        }
     }
     drop_closed_waiters(requests, sync_waiters, registration);
     let read_ahead = should_read_ahead(requests, sync_waiters, catchups, registration, quitting);
@@ -1664,6 +1693,10 @@ fn dedupe_autojoin(session: &Session, defaults: &mut PostConnect) {
 }
 
 fn enqueue_event(events: &EventSink, pending: &mut VecDeque<Event>, event: Event) -> bool {
+    #[cfg(test)]
+    if !events.include_connecting.load(Ordering::Relaxed) && matches!(event, Event::Connecting(_)) {
+        return true;
+    }
     let event = if pending.is_empty() {
         match events.regular.try_send(event) {
             Ok(()) | Err(mpsc::error::TrySendError::Closed(_)) => return true,

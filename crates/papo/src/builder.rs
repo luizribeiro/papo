@@ -555,6 +555,10 @@ impl Builder {
 
     /// Connects in a spawned driver and waits until the connection is ready.
     ///
+    /// To observe [`crate::Event::Connecting`] during the first attempt, use
+    /// [`Builder::build`] and poll its event stream while running the returned driver. This method
+    /// returns the event stream only after that attempt is ready.
+    ///
     /// The [`crate::Event::Connected`] event remains available from the
     /// returned event stream. When `draft/account-registration` requires email
     /// verification, this returns after [`crate::AccountCreation::VerificationRequired`]

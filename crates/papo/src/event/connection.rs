@@ -18,6 +18,19 @@ pub enum ConnectPhase {
     WaitingForWelcome,
 }
 
+impl ConnectPhase {
+    pub(crate) fn from_core(phase: papo_core::ConnectPhase) -> Option<Self> {
+        Some(match phase {
+            papo_core::ConnectPhase::Transport => Self::Transport,
+            papo_core::ConnectPhase::Tls => Self::Tls,
+            papo_core::ConnectPhase::Capabilities => Self::Capabilities,
+            papo_core::ConnectPhase::Authenticating => Self::Authenticating,
+            papo_core::ConnectPhase::WaitingForWelcome => Self::WaitingForWelcome,
+            _ => return None,
+        })
+    }
+}
+
 /// Progress while establishing an IRC connection.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
