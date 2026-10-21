@@ -434,7 +434,11 @@ pub(crate) fn requestable(
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
+    use std::{
+        cmp::Ordering,
+        collections::{HashSet, hash_map::DefaultHasher},
+        hash::{Hash, Hasher},
+    };
 
     use super::*;
 
@@ -442,12 +446,25 @@ mod tests {
     fn aliases_share_identity_and_keep_their_spelling() {
         let draft = Cap::from("draft/chathistory");
         let final_name = Cap::from("chathistory");
+        let different = Cap::from("server-time");
 
         assert_eq!(CHATHISTORY, draft);
         assert_eq!(draft, final_name);
+        assert_ne!(draft, different);
+        assert_eq!(draft.partial_cmp(&final_name), Some(Ordering::Equal));
+        assert_eq!(draft.cmp(&final_name), Ordering::Equal);
+        assert_eq!(draft.partial_cmp(&different), Some(draft.cmp(&different)));
         assert_eq!(draft.to_string(), "draft/chathistory");
         assert_eq!(final_name.to_string(), "chathistory");
-        assert_eq!(HashSet::from([draft, final_name]).len(), 1);
+        assert_eq!(HashSet::from([draft.clone(), final_name.clone()]).len(), 1);
+
+        let hash = |cap: &Cap| {
+            let mut hasher = DefaultHasher::new();
+            cap.hash(&mut hasher);
+            hasher.finish()
+        };
+        assert_eq!(hash(&draft), hash(&final_name));
+        assert_ne!(hash(&draft), hash(&different));
         assert_eq!(
             String::from(Cap::from("draft/chathistory")),
             "draft/chathistory"
@@ -473,5 +490,69 @@ mod tests {
             ),
             None
         );
+    }
+
+    #[test]
+    fn identifies_every_unstable_capability_spelling() {
+        for name in [
+            "soju.im/bouncer-networks",
+            "soju.im/bouncer-networks-notify",
+            "draft/persistence",
+            "draft/relaymsg",
+            "draft/webpush",
+            "soju.im/webpush",
+        ] {
+            assert!(is_unstable(name), "{name}");
+        }
+        assert!(!is_unstable("server-time"));
+    }
+
+    #[test]
+    fn requests_published_spellings_from_ergo_cap_ls() {
+        for (advertised, requested) in [
+            (
+                "draft/account-registration",
+                Some("draft/account-registration"),
+            ),
+            ("account-registration", Some("draft/account-registration")),
+            ("draft/chathistory", Some("draft/chathistory")),
+            ("chathistory", Some("draft/chathistory")),
+            ("draft/metadata-2", Some("draft/metadata-2")),
+            ("draft/metadata-3", Some("draft/metadata-2")),
+            ("no-implicit-names", Some("no-implicit-names")),
+            ("draft/no-implicit-names", Some("no-implicit-names")),
+            ("sasl", None),
+            ("ergo.chat/nope", None),
+            ("znc.in/playback", None),
+        ] {
+            assert_eq!(request_spelling(advertised), requested, "{advertised}");
+        }
+
+        for name in [
+            "draft/account-registration",
+            "chathistory",
+            "draft/metadata-3",
+            "no-implicit-names",
+        ] {
+            let info = ALL.iter().find(|info| info.name == name).unwrap();
+            assert!(!accepts_request_aliases(info), "{name}");
+        }
+
+        #[cfg(feature = "unstable")]
+        {
+            for name in [
+                "draft/persistence",
+                "draft/relaymsg",
+                "draft/webpush",
+                "soju.im/webpush",
+            ] {
+                assert_eq!(request_spelling(name), Some(canonical(name)), "{name}");
+            }
+            let webpush = ALL
+                .iter()
+                .find(|info| info.name == "draft/webpush")
+                .unwrap();
+            assert!(accepts_request_aliases(webpush));
+        }
     }
 }
