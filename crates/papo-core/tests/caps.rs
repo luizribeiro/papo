@@ -226,6 +226,23 @@ fn unstable_capabilities_require_explicit_feature_selection() {
 }
 
 #[test]
+fn naming_unstable_capabilities_does_not_opt_in_or_request_them_later() {
+    let offered = "soju.im/bouncer-networks soju.im/bouncer-networks-notify draft/persistence draft/relaymsg draft/webpush";
+    Transcript::new(Config::default().wanted_caps(offered.split_whitespace()))
+        .connect_default()
+        .server(&format!("CAP * LS :{offered}"))
+        .client("CAP END");
+
+    #[cfg(feature = "unstable")]
+    Transcript::new(Config::default().enable(Feature::WebPush))
+        .connect_default()
+        .server("CAP * LS :")
+        .client("CAP END")
+        .server("CAP papo NEW :draft/webpush")
+        .no_client();
+}
+
+#[test]
 fn requests_only_published_aliases_in_the_capability_namespace() {
     Transcript::new(Config::default())
         .connect_default()

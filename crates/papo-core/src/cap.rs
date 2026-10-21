@@ -405,6 +405,10 @@ pub(crate) fn requestable(
     wanted: &[String],
     #[cfg(feature = "unstable")] enabled_features: &std::collections::BTreeSet<Feature>,
 ) -> bool {
+    #[cfg(not(feature = "unstable"))]
+    if is_unstable(name) {
+        return false;
+    }
     let Some(info) = ALL.iter().find(|info| info.name == canonical(name)) else {
         return true;
     };

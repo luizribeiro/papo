@@ -679,17 +679,6 @@ impl Config {
         S: Into<String>,
     {
         self.wanted_caps = caps.into_iter().map(Into::into).collect();
-        #[cfg(feature = "unstable")]
-        for info in cap::ALL {
-            if let cap::Request::OptIn(_, feature) = info.request
-                && self
-                    .wanted_caps
-                    .iter()
-                    .any(|name| cap::canonical(name) == info.name)
-            {
-                self.enabled_features.insert(feature);
-            }
-        }
         self
     }
 

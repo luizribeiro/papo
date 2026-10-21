@@ -189,6 +189,7 @@ impl Caps {
             .iter()
             .map(String::as_str)
             .chain(config.sasl.as_ref().map(|_| cap::SASL.constant_str()))
+            .filter(|wanted| !cap::is_unstable(wanted))
             .filter(|wanted| {
                 cap::requestable(
                     wanted,
