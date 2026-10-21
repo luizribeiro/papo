@@ -122,6 +122,15 @@ impl SendMessage {
     ///
     /// The reply, reaction, and channel-context keys in [`crate::tags::keys`] are managed by
     /// typed methods; setting them here can conflict with those methods.
+    ///
+    /// # Errors
+    ///
+    /// A key without the client-only `+` prefix returns [`Error::InvalidInput`]. If
+    /// `message-tags` is unavailable, this returns [`Error::Unsupported`] for
+    /// [`Feature::MessageTags`] with [`UnsupportedReason::NotOffered`] or
+    /// [`UnsupportedReason::DisabledByClient`]. A key rejected by `CLIENTTAGDENY` returns the
+    /// same feature with [`UnsupportedReason::TagDenied`]. Other key grammar and encoded-size
+    /// failures return [`Error::InvalidInput`].
     #[must_use]
     pub fn tag(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.tags.push((key.into(), value.into()));
@@ -139,6 +148,24 @@ impl IntoFuture for SendMessage {
                 return Err(error.into());
             }
             let state = self.client.state();
+            for (key, _) in &self.tags {
+                if !key.starts_with('+') {
+                    return Err(InvalidInput::InvalidMessage(format!(
+                        "client-only message tag {key:?} must start with '+'"
+                    ))
+                    .into());
+                }
+            }
+            if !self.tags.is_empty() {
+                Client::require_feature(&state, Feature::MessageTags)?;
+                let denied = state.isupport().clienttagdeny();
+                if self.tags.iter().any(|(key, _)| denied.denies(key)) {
+                    return Err(Error::Unsupported(Unsupported::new(
+                        Feature::MessageTags,
+                        UnsupportedReason::TagDenied,
+                    )));
+                }
+            }
             state
                 .parse_target(&self.target)
                 .map_err(|reason| InvalidInput::invalid_name(self.target.clone(), reason))?;

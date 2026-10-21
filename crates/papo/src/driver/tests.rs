@@ -4043,7 +4043,7 @@ async fn message_builder_sends_reply_context_and_custom_tags() {
     .await;
     server_line(
         &mut server,
-        b":ergo.test 005 papo-driver CLIENTTAGDENY=*,-draft/reply,-channel-context :are supported\r\n",
+        b":ergo.test 005 papo-driver CLIENTTAGDENY=*,-draft/reply,-channel-context,-example.org/trace :are supported\r\n",
     )
     .await;
 
@@ -4087,6 +4087,115 @@ async fn message_builder_sends_reply_context_and_custom_tags() {
         within(action).await.unwrap().unwrap().id.unwrap(),
         "RfcBTzyxY120006"
     );
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn message_tag_without_client_prefix_is_invalid_input() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let task = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+
+    assert!(matches!(
+        within(
+            client
+                .privmsg("#papo", "deployment complete")
+                .tag("account", "alice")
+        )
+        .await,
+        Err(Error::InvalidInput(crate::InvalidInput::InvalidMessage(_)))
+    ));
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn message_tag_requires_server_support() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let task = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+
+    assert!(matches!(
+        within(
+            client
+                .privmsg("#papo", "deployment complete")
+                .tag("+example.org/trace", "98")
+        )
+        .await,
+        Err(Error::Unsupported(crate::Unsupported {
+            feature: crate::Feature::MessageTags,
+            reason: crate::UnsupportedReason::NotOffered,
+            ..
+        }))
+    ));
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn message_tag_reports_client_disabled_support() {
+    let config = config().without_caps(["message-tags"]);
+    let (mut server, client, _events, driver) = scripted(config);
+    let task = tokio::spawn(driver);
+    welcome_burst(&mut server).await;
+    server_line(&mut server, b":ergo.test CAP * LS :message-tags\r\n").await;
+    client_line(&mut server, b"CAP END\r\n").await;
+
+    assert!(matches!(
+        within(
+            client
+                .privmsg("#papo", "deployment complete")
+                .tag("+example.org/trace", "98")
+        )
+        .await,
+        Err(Error::Unsupported(crate::Unsupported {
+            feature: crate::Feature::MessageTags,
+            reason: crate::UnsupportedReason::DisabledByClient,
+            ..
+        }))
+    ));
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn message_tag_obeys_clienttagdeny() {
+    let config = config().wanted_caps(["message-tags"]);
+    let (mut server, client, mut events, driver) = scripted(config);
+    let task = tokio::spawn(driver);
+    complete_connect_caps(&mut server, &mut events, "message-tags", "message-tags").await;
+    server_line(
+        &mut server,
+        b":irc.solanum.example 005 papo-driver CLIENTTAGDENY=example.org/trace :are supported\r\n",
+    )
+    .await;
+    while !client
+        .state()
+        .isupport()
+        .clienttagdeny()
+        .denies("example.org/trace")
+    {
+        tokio::task::yield_now().await;
+    }
+
+    assert!(matches!(
+        within(
+            client
+                .privmsg("#papo", "deployment complete")
+                .tag("+example.org/trace", "98")
+        )
+        .await,
+        Err(Error::Unsupported(crate::Unsupported {
+            feature: crate::Feature::MessageTags,
+            reason: crate::UnsupportedReason::TagDenied,
+            ..
+        }))
+    ));
+
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
