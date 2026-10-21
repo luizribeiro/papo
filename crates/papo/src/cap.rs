@@ -1,24 +1,12 @@
 //! Capability names understood by papo.
 
+pub use papo_core::cap::{
+    ACCOUNT_TAG, AWAY_NOTIFY, CHGHOST, EXTENDED_JOIN, MESSAGE_TAGS, MULTI_PREFIX, SETNAME,
+    USERHOST_IN_NAMES,
+};
 pub use papo_core::cap::{CAP_NOTIFY, ECHO_MESSAGE, EVENT_PLAYBACK, SERVER_TIME};
-/// `IRCv3` message tags.
-pub const MESSAGE_TAGS: &str = papo_core::cap::MESSAGE_TAGS;
 /// Batched messages.
 pub const BATCH: &str = papo_core::cap::BATCH;
-/// Account tags on messages.
-pub const ACCOUNT_TAG: &str = papo_core::cap::ACCOUNT_TAG;
-/// Account and real-name fields on joins.
-pub const EXTENDED_JOIN: &str = papo_core::cap::EXTENDED_JOIN;
-/// Every membership prefix in names replies.
-pub const MULTI_PREFIX: &str = papo_core::cap::MULTI_PREFIX;
-/// User and host fields in names replies.
-pub const USERHOST_IN_NAMES: &str = papo_core::cap::USERHOST_IN_NAMES;
-/// Host-change notifications.
-pub const CHGHOST: &str = papo_core::cap::CHGHOST;
-/// Real-name changes.
-pub const SETNAME: &str = papo_core::cap::SETNAME;
-/// Away-state notifications.
-pub const AWAY_NOTIFY: &str = papo_core::cap::AWAY_NOTIFY;
 /// Account-change notifications.
 pub const ACCOUNT_NOTIFY: &str = papo_core::cap::ACCOUNT_NOTIFY;
 /// Extended monitor replies.

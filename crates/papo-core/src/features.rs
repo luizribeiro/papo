@@ -133,14 +133,14 @@ impl Feature {
     fn caps(self) -> [Option<cap::Cap>; 2] {
         match self {
             Self::MessageTags | Self::Replies | Self::Reactions | Self::Typing => {
-                [Some(cap::Cap::from(cap::MESSAGE_TAGS)), None]
+                [Some(cap::MESSAGE_TAGS), None]
             }
             Self::Redaction => [Some(cap::Cap::from(cap::MESSAGE_REDACTION)), None],
             Self::Multiline => [Some(cap::Cap::from(cap::MULTILINE)), None],
             Self::History => [Some(cap::Cap::from(cap::CHATHISTORY)), None],
             Self::ReadMarkers => [Some(cap::Cap::from(cap::READ_MARKER)), None],
             Self::Metadata => [Some(cap::Cap::from(cap::METADATA)), None],
-            Self::SetName => [Some(cap::Cap::from(cap::SETNAME)), None],
+            Self::SetName => [Some(cap::SETNAME), None],
             Self::AccountCreation => [Some(cap::Cap::from(cap::ACCOUNT_REGISTRATION)), None],
             #[cfg(feature = "unstable")]
             Self::Bouncer => [Some(cap::Cap::from(cap::BOUNCER_NETWORKS)), None],
@@ -152,12 +152,12 @@ impl Feature {
             #[cfg(feature = "unstable")]
             Self::Relay => [Some(cap::Cap::from(cap::RELAYMSG)), None],
             Self::LabeledResponse => [Some(cap::Cap::from(cap::LABELED_RESPONSE)), None],
-            Self::AwayTracking => [Some(cap::Cap::from(cap::AWAY_NOTIFY)), None],
+            Self::AwayTracking => [Some(cap::AWAY_NOTIFY), None],
             Self::AccountTracking => [
                 Some(cap::Cap::from(cap::ACCOUNT_NOTIFY)),
-                Some(cap::Cap::from(cap::ACCOUNT_TAG)),
+                Some(cap::ACCOUNT_TAG),
             ],
-            Self::HostTracking => [Some(cap::Cap::from(cap::CHGHOST)), None],
+            Self::HostTracking => [Some(cap::CHGHOST), None],
             Self::Monitor | Self::BotMode => [None, None],
         }
     }

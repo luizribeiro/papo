@@ -5973,11 +5973,7 @@ async fn client_exposes_capability_aliases_and_casemapping() {
             .caps()
             .contains_key(&crate::Cap::from("no-implicit-names"))
     );
-    assert!(
-        !state
-            .caps()
-            .contains_key(&crate::Cap::from(crate::cap::MESSAGE_TAGS))
-    );
+    assert!(!state.caps().contains_key(&crate::cap::MESSAGE_TAGS));
     assert_eq!(state.isupport().nicklen(), Some(27));
     assert!(state.is_connected());
     assert_eq!(state.nick(), "PAPO-DRIVER");

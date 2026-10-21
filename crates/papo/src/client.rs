@@ -186,10 +186,7 @@ impl IntoFuture for SendMessage {
             }
             let mut tags = self.tags;
             let mut fallbacks = Vec::new();
-            if state
-                .caps()
-                .contains_key(&crate::Cap::from(crate::cap::MESSAGE_TAGS))
-            {
+            if state.caps().contains_key(&crate::cap::MESSAGE_TAGS) {
                 let denied = state.isupport().clienttagdeny();
                 if let Some(message) = self.reply_to.as_ref()
                     && let Some(tag) = event_impl::allowed_alias(&denied, "+reply", "+draft/reply")

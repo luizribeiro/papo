@@ -154,18 +154,18 @@ macro_rules! capabilities {
 
 capabilities! {
     [cap] CAP_NOTIFY = "cap-notify"; "Capability change notifications."; name: "cap-notify"; aliases: []; request: Request::Default("cap-notify"); features: []; code: [crate::caps];
-    MESSAGE_TAGS = "message-tags"; "`IRCv3` message tags."; name: "message-tags"; aliases: []; request: Request::Default("message-tags"); features: [Feature::MessageTags, Feature::Replies, Feature::Reactions, Feature::Typing]; code: [crate::features, crate::replies];
+    [cap] MESSAGE_TAGS = "message-tags"; "`IRCv3` message tags."; name: "message-tags"; aliases: []; request: Request::Default("message-tags"); features: [Feature::MessageTags, Feature::Replies, Feature::Reactions, Feature::Typing]; code: [crate::features, crate::replies];
     [cap] SERVER_TIME = "server-time"; "Server-assigned message timestamps."; name: "server-time"; aliases: []; request: Request::Default("server-time"); features: []; code: [crate::state::read_marker];
     BATCH = "batch"; "Batched messages."; name: "batch"; aliases: []; request: Request::Default("batch"); features: []; code: [crate::batch];
     [cap] EVENT_PLAYBACK = "draft/event-playback"; "Replay of missed events."; name: "draft/event-playback"; aliases: []; request: Request::Default("draft/event-playback"); features: []; code: [crate::batch];
     [cap] ECHO_MESSAGE = "echo-message"; "Echoes of sent messages."; name: "echo-message"; aliases: []; request: Request::Default("echo-message"); features: []; code: [crate::outgoing, crate::echo];
-    ACCOUNT_TAG = "account-tag"; "Account tags on messages."; name: "account-tag"; aliases: []; request: Request::Default("account-tag"); features: [Feature::AccountTracking]; code: [crate::state::presence];
-    EXTENDED_JOIN = "extended-join"; "Account and real-name fields on joins."; name: "extended-join"; aliases: []; request: Request::Default("extended-join"); features: []; code: [crate::state::membership];
-    MULTI_PREFIX = "multi-prefix"; "Every membership prefix in names replies."; name: "multi-prefix"; aliases: []; request: Request::Default("multi-prefix"); features: []; code: [crate::state::membership];
-    USERHOST_IN_NAMES = "userhost-in-names"; "User and host fields in names replies."; name: "userhost-in-names"; aliases: []; request: Request::Default("userhost-in-names"); features: []; code: [crate::state::membership];
-    CHGHOST = "chghost"; "Host-change notifications."; name: "chghost"; aliases: []; request: Request::Default("chghost"); features: [Feature::HostTracking]; code: [crate::state::presence];
-    SETNAME = "setname"; "Real-name changes."; name: "setname"; aliases: []; request: Request::Default("setname"); features: [Feature::SetName]; code: [crate::state::presence];
-    AWAY_NOTIFY = "away-notify"; "Away-state notifications."; name: "away-notify"; aliases: []; request: Request::Default("away-notify"); features: [Feature::AwayTracking]; code: [crate::state::presence];
+    [cap] ACCOUNT_TAG = "account-tag"; "Account tags on messages."; name: "account-tag"; aliases: []; request: Request::Default("account-tag"); features: [Feature::AccountTracking]; code: [crate::state::presence];
+    [cap] EXTENDED_JOIN = "extended-join"; "Account and real-name fields on joins."; name: "extended-join"; aliases: []; request: Request::Default("extended-join"); features: []; code: [crate::state::membership];
+    [cap] MULTI_PREFIX = "multi-prefix"; "Every membership prefix in names replies."; name: "multi-prefix"; aliases: []; request: Request::Default("multi-prefix"); features: []; code: [crate::state::membership];
+    [cap] USERHOST_IN_NAMES = "userhost-in-names"; "User and host fields in names replies."; name: "userhost-in-names"; aliases: []; request: Request::Default("userhost-in-names"); features: []; code: [crate::state::membership];
+    [cap] CHGHOST = "chghost"; "Host-change notifications."; name: "chghost"; aliases: []; request: Request::Default("chghost"); features: [Feature::HostTracking]; code: [crate::state::presence];
+    [cap] SETNAME = "setname"; "Real-name changes."; name: "setname"; aliases: []; request: Request::Default("setname"); features: [Feature::SetName]; code: [crate::state::presence];
+    [cap] AWAY_NOTIFY = "away-notify"; "Away-state notifications."; name: "away-notify"; aliases: []; request: Request::Default("away-notify"); features: [Feature::AwayTracking]; code: [crate::state::presence];
     ACCOUNT_NOTIFY = "account-notify"; "Account-change notifications."; name: "account-notify"; aliases: []; request: Request::Default("account-notify"); features: [Feature::AccountTracking]; code: [crate::state::presence];
     EXTENDED_MONITOR = "extended-monitor"; "Extended monitor replies."; name: "extended-monitor"; aliases: []; request: Request::Default("extended-monitor"); features: []; code: [crate::monitor];
     INVITE_NOTIFY = "invite-notify"; "Invitation notifications."; name: "invite-notify"; aliases: []; request: Request::Default("invite-notify"); features: []; code: [crate::replies];
