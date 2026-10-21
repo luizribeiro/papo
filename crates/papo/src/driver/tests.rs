@@ -3578,6 +3578,63 @@ async fn typed_numeric_refusals_reach_action_futures() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn typed_mode_refusals_reach_action_futures() {
+    let (mut server, client, mut events, driver) =
+        scripted(config().rate_limit(papo_core::RateLimit::unlimited()));
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":ergo.test 005 papo-driver CHANMODES=beI,k,l,imnstz :are supported\r\n",
+    )
+    .await;
+    within(async {
+        while !matches!(
+            client.state().isupport().get("CHANMODES"),
+            crate::isupport::Advertised::Value("beI,k,l,imnstz")
+        ) {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await;
+
+    for (id, target, mode, numeric, refusal, incoming) in [
+        (
+            0,
+            "#papo",
+            'z',
+            472,
+            crate::Refusal::UnknownMode,
+            ":irc.solanum.test 472 papo-driver z :is unknown mode char to me",
+        ),
+        (
+            1,
+            "#staff",
+            'm',
+            482,
+            crate::Refusal::ChannelOperatorPrivilegesNeeded,
+            ":ergo.test 482 papo-driver #staff :You're not a channel operator",
+        ),
+    ] {
+        assert_action_refusal(
+            &mut server,
+            client.mode(target).add(mode).into_future(),
+            &format!("MODE {target} +{mode}\r\nPING :papo-mode-{id}\r\n"),
+            &format!("{incoming}\r\n:ergo.test PONG ergo.test :papo-mode-{id}\r\n"),
+            numeric,
+            refusal,
+        )
+        .await;
+    }
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn mode_helpers_await_every_command_and_return_refusals() {
     let (mut server, client, mut events, driver) =
         scripted(config().wanted_caps(["labeled-response"]));
