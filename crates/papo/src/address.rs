@@ -114,6 +114,14 @@ pub enum InvalidInput {
     InvalidWebPushKey,
 }
 
+#[doc(hidden)]
+impl Endpoint {
+    #[must_use]
+    pub const fn unwrap(self) -> Self {
+        self
+    }
+}
+
 impl InvalidInput {
     pub(crate) fn invalid_name(name: impl Into<String>, reason: crate::InvalidIdentifier) -> Self {
         Self::InvalidName {

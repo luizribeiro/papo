@@ -35,7 +35,8 @@ async fn registers_then_logs_in_with_sasl() {
         let address = Endpoint::plaintext(
             server.plaintext_addr().ip().to_string(),
             server.plaintext_addr().port(),
-        );
+        )
+        .unwrap();
         let account = unique("papo-account");
         let (registrar, mut registrar_events) = Client::builder(address.clone())
             .nick(support::nick(&account))
@@ -77,7 +78,7 @@ async fn persistent_server_restores_channels_without_a_client_join() {
         let server = from_env();
         let (proxy, disconnect, mut client_lines) =
             disconnecting_proxy(server.plaintext_addr()).await;
-        let address = Endpoint::plaintext(proxy.ip().to_string(), proxy.port());
+        let address = Endpoint::plaintext(proxy.ip().to_string(), proxy.port()).unwrap();
         let account = unique("papo-persistent");
         let channel = format!("#{}", unique("papo-persistent"));
         create_account(&server, &account, PASSWORD).unwrap();

@@ -18,7 +18,7 @@ async fn connects_with_sasl_and_applies_bot_defaults() {
         create_account(&server, &account, password).unwrap();
 
         let (client, mut events) =
-            Client::builder(Endpoint::tls("localhost", server.tls_addr().port()))
+            Client::builder(Endpoint::tls("localhost", server.tls_addr().port()).unwrap())
                 .nick(support::nick(&account))
                 .sasl(Sasl::plain(&account, password))
                 .tls_ca_pem(std::fs::read(server.ca_pem_path()).unwrap())
@@ -60,11 +60,12 @@ async fn connects_through_the_configured_websocket_url() {
     within(async {
         let server = from_env();
         let nick = unique("papo-builder-ws");
-        let (client, mut events) = Client::builder(Endpoint::websocket(server.websocket_url()))
-            .nick(support::nick(&nick))
-            .connect()
-            .await
-            .unwrap();
+        let (client, mut events) =
+            Client::builder(Endpoint::websocket(server.websocket_url()).unwrap())
+                .nick(support::nick(&nick))
+                .connect()
+                .await
+                .unwrap();
         wait_connected(&mut events, &nick).await;
         client
             .quit("WebSocket builder test complete")

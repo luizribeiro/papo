@@ -15,7 +15,8 @@ async fn typed_requests_round_trip_against_ergo() {
         let address = Endpoint::plaintext(
             server.plaintext_addr().ip().to_string(),
             server.plaintext_addr().port(),
-        );
+        )
+        .unwrap();
         let nick = unique("papo-requests");
         let channel = format!("#{}", unique("papo-requests"));
         let (client, mut events) = Client::builder(address)

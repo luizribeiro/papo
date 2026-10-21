@@ -16,7 +16,7 @@ async fn registers_messages_itself_and_quits() {
         let (client, mut events) = Client::builder(Endpoint::plaintext(
             server.plaintext_addr().ip().to_string(),
             server.plaintext_addr().port(),
-        ))
+        ).unwrap())
         .nick(support::nick(&nick))
         .username("papo")
         .realname("papo live client test")

@@ -17,10 +17,9 @@ async fn stale_credentials_end_reconnect_with_a_connect_cause() {
         let first = "q7Hx-2mZp_9vLcT4wRfB";
         let replacement = "r8Ky-3nAq_6wMdP5xTgC";
         register_account_at(server.plaintext_addr(), &account, first).unwrap();
-        let (client, mut events) = Client::builder(Endpoint::plaintext(
-            "localhost",
-            server.plaintext_addr().port(),
-        ))
+        let (client, mut events) = Client::builder(
+            Endpoint::plaintext("localhost", server.plaintext_addr().port()).unwrap(),
+        )
         .nick(support::nick(&account))
         .sasl(Sasl::plain(&account, first))
         .reconnect(
@@ -60,7 +59,7 @@ async fn quit_returns_within_its_bound_when_the_peer_stops_reading() {
         let proxy = server.fault_proxy().unwrap();
         let nick = unique("papo-black-hole");
         let (client, mut events) =
-            Client::builder(Endpoint::plaintext("localhost", proxy.address().port()))
+            Client::builder(Endpoint::plaintext("localhost", proxy.address().port()).unwrap())
                 .nick(support::nick(&nick))
                 .connect()
                 .await

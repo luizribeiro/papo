@@ -16,7 +16,8 @@ async fn prints_three_unread_messages_and_advances_the_marker() {
         let endpoint = Endpoint::plaintext(
             server.plaintext_addr().ip().to_string(),
             server.plaintext_addr().port(),
-        );
+        )
+        .unwrap();
         let channel = format!("#{}", unique("papo-catchup"));
         let account = unique("papo-catchup");
         let poster_nick = unique("papo-poster");

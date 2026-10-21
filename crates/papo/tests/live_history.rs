@@ -14,10 +14,13 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
         let server = from_env();
         let channel = format!("#{}", unique("papo-history"));
         let nick = unique("papo-history");
-        let (client, mut events) = Client::builder(Endpoint::plaintext(
-            server.plaintext_addr().ip().to_string(),
-            server.plaintext_addr().port(),
-        ))
+        let (client, mut events) = Client::builder(
+            Endpoint::plaintext(
+                server.plaintext_addr().ip().to_string(),
+                server.plaintext_addr().port(),
+            )
+            .unwrap(),
+        )
         .nick(support::nick(&nick))
         .request_caps([
             "message-tags",

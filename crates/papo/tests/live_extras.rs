@@ -17,7 +17,8 @@ async fn subscriber_receives_another_clients_metadata() {
         let address = Endpoint::plaintext(
             server.plaintext_addr().ip().to_string(),
             server.plaintext_addr().port(),
-        );
+        )
+        .unwrap();
         let channel = format!("#{}", unique("papo-metadata"));
         let writer_nick = unique("papo-metadata-writer");
         let reader_nick = unique("papo-metadata-reader");
@@ -74,7 +75,8 @@ async fn member_sees_channel_rename_and_relay_attribution() {
         let address = Endpoint::plaintext(
             server.plaintext_addr().ip().to_string(),
             server.plaintext_addr().port(),
-        );
+        )
+        .unwrap();
         let old_channel = format!("#{}", unique("papo-rename"));
         let new_channel = format!("#{}", unique("papo-renamed"));
         let operator_nick = unique("papo-relay-operator");

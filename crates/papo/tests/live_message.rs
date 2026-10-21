@@ -15,7 +15,8 @@ async fn reply_between_two_clients_carries_the_original_msgid() {
         let address = Endpoint::plaintext(
             server.plaintext_addr().ip().to_string(),
             server.plaintext_addr().port(),
-        );
+        )
+        .unwrap();
         let channel = format!("#{}", unique("papo-reply"));
         let nick_a = unique("papo-sender");
         let nick_b = unique("papo-replier");
@@ -68,7 +69,8 @@ async fn same_account_sessions_receive_own_live_messages() {
         let address = Endpoint::plaintext(
             server.plaintext_addr().ip().to_string(),
             server.plaintext_addr().port(),
-        );
+        )
+        .unwrap();
         let account = unique("papo-multiclient");
         let channel = format!("#{}", unique("papo-multiclient"));
         let password = "q7Hx-2mZp_9vLcT4wRfB";
@@ -102,7 +104,8 @@ async fn reactions_reach_another_client_with_reply_context() {
         let address = Endpoint::plaintext(
             server.plaintext_addr().ip().to_string(),
             server.plaintext_addr().port(),
-        );
+        )
+        .unwrap();
         let channel = format!("#{}", unique("papo-react"));
         let (client_a, mut events_a) =
             client(address.clone(), &unique("papo-react-a"), &channel).await;
@@ -131,7 +134,8 @@ async fn multiline_delivers_a_thousand_byte_message_whole() {
         let address = Endpoint::plaintext(
             server.plaintext_addr().ip().to_string(),
             server.plaintext_addr().port(),
-        );
+        )
+        .unwrap();
         let channel = format!("#{}", unique("papo-multiline"));
         let (client_a, _events_a) =
             client(address.clone(), &unique("papo-multi-a"), &channel).await;
@@ -159,7 +163,8 @@ async fn multiline_capability_preserves_plain_and_batched_message_ids() {
         let address = Endpoint::plaintext(
             server.plaintext_addr().ip().to_string(),
             server.plaintext_addr().port(),
-        );
+        )
+        .unwrap();
         let channel = format!("#{}", unique("papo-multiline-id"));
         let (client_a, mut events_a) =
             client(address.clone(), &unique("papo-multi-id-a"), &channel).await;
