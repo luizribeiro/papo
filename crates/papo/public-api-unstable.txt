@@ -1534,6 +1534,9 @@ pub papo::InvalidInput::InvalidPort(alloc::string::String)
 pub papo::InvalidInput::InvalidRelayNickname
 pub papo::InvalidInput::InvalidWebPushEndpoint
 pub papo::InvalidInput::InvalidWebPushKey
+pub papo::InvalidInput::KickReasonTooLong
+pub papo::InvalidInput::KickReasonTooLong::actual: usize
+pub papo::InvalidInput::KickReasonTooLong::maximum: usize
 pub papo::InvalidInput::MetadataValueTooLong
 pub papo::InvalidInput::MetadataValueTooLong::actual: usize
 pub papo::InvalidInput::MetadataValueTooLong::maximum: usize
@@ -1736,7 +1739,7 @@ pub fn papo::Client::clear_away(&self) -> papo::RequestFuture<()>
 pub fn papo::Client::clear_topic(&self, impl core::convert::AsRef<str>) -> papo::RequestFuture<()>
 pub fn papo::Client::invite(&self, impl core::convert::AsRef<str>, impl core::convert::AsRef<str>) -> papo::RequestFuture<()>
 pub fn papo::Client::join(&self, impl core::convert::AsRef<str>) -> papo::JoinChannel
-pub fn papo::Client::kick(&self, impl core::convert::AsRef<str>, impl core::convert::AsRef<str>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::kick(&self, impl core::convert::AsRef<str>, impl core::convert::AsRef<str>, impl core::convert::AsRef<str>) -> papo::RequestFuture<()>
 pub fn papo::Client::list(&self, papo::ListFilter) -> papo::RequestFuture<alloc::vec::Vec<papo::ListEntry>>
 pub fn papo::Client::nick(&self) -> papo::Nick
 pub fn papo::Client::notice(&self, impl core::convert::AsRef<str>, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage

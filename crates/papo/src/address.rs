@@ -73,6 +73,14 @@ pub enum InvalidInput {
     /// An account extended-ban name is empty, a logout marker, a glob, or invalid on the wire.
     #[error("invalid account extended-ban name {0:?}")]
     InvalidExtbanAccount(String),
+    /// A kick reason exceeds the server's advertised byte limit.
+    #[error("kick reason length {actual} exceeds limit {maximum}")]
+    KickReasonTooLong {
+        /// The server-advertised maximum length.
+        maximum: usize,
+        /// The supplied length in bytes.
+        actual: usize,
+    },
     /// A metadata value exceeds the server's advertised byte limit.
     #[error("metadata value length {actual} exceeds limit {maximum}")]
     MetadataValueTooLong {

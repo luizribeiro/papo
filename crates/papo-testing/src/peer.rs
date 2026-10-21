@@ -160,7 +160,7 @@ impl Peer {
         &self,
         channel: impl AsRef<str>,
         nick: impl AsRef<str>,
-        reason: impl Into<String>,
+        reason: impl AsRef<str>,
     ) -> papo::RequestFuture<()> {
         let mapping = self.client.state().casemapping();
         self.client.kick(

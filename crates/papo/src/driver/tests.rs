@@ -3567,6 +3567,66 @@ async fn membership_actions_confirm_success_and_refusal() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn kick_reasons_obey_advertised_byte_limits() {
+    let (mut server, client, mut events, driver) =
+        scripted(config().rate_limit(papo_core::RateLimit::unlimited()));
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+
+    for maximum in [390, 307, 300] {
+        server_line(
+            &mut server,
+            format!(":ergo.test 005 papo-driver KICKLEN={maximum} :are supported\r\n").as_bytes(),
+        )
+        .await;
+        within(async {
+            while client.state().isupport().kicklen() != Some(maximum) {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await;
+
+        let exact = format!("{}{}", "é".repeat(maximum / 2), "x".repeat(maximum % 2));
+        let kick = tokio::spawn({
+            let client = client.clone();
+            let exact = exact.clone();
+            async move { client.kick("#papo", "spambot", exact).await }
+        });
+        client_line(
+            &mut server,
+            format!("KICK #papo spambot {exact}\r\n").as_bytes(),
+        )
+        .await;
+        server_line(
+            &mut server,
+            format!(":papo-driver!papo@localhost KICK #papo spambot :{exact}\r\n").as_bytes(),
+        )
+        .await;
+        within(kick).await.unwrap().unwrap();
+
+        let too_long = format!("{exact}é");
+        assert!(matches!(
+            client.kick("#papo", "spambot", too_long).await,
+            Err(Error::InvalidInput(crate::InvalidInput::KickReasonTooLong {
+                maximum: advertised,
+                actual,
+            })) if advertised == maximum && actual > maximum
+        ));
+        assert!(
+            tokio::time::timeout(Duration::from_millis(1), server.read_u8())
+                .await
+                .is_err()
+        );
+    }
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn typed_numeric_refusals_reach_action_futures() {
     let (mut server, client, mut events, driver) =
         scripted(config().rate_limit(papo_core::RateLimit::unlimited()));

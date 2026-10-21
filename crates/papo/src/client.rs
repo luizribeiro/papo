@@ -863,19 +863,20 @@ impl Client {
         &self,
         channel: impl AsRef<str>,
         nick: impl AsRef<str>,
-        reason: impl Into<String>,
+        reason: impl AsRef<str>,
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
         let state = self.state();
         let channel = state.channel_name(channel.as_ref());
         let nick = state.nickname(nick.as_ref());
-        let reason = reason.into();
+        let reason = reason.as_ref().to_owned();
         crate::RequestFuture::new(async move {
             let state = client.state();
             channel
                 .check(state.isupport().inner())
                 .and_then(|()| nick.check(state.isupport().inner()))
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
+            validate_kick_reason(&state, &reason)?;
             let mut params = vec![channel.to_string(), nick.to_string()];
             if !reason.is_empty() {
                 params.push(reason);
@@ -1174,6 +1175,19 @@ impl Client {
             receiver.await.unwrap_or(Ok(()))
         })
     }
+}
+
+pub(crate) fn validate_kick_reason(state: &State, reason: &str) -> Result<(), Error> {
+    if let Some(maximum) = state.isupport().kicklen()
+        && reason.len() > maximum
+    {
+        return Err(InvalidInput::KickReasonTooLong {
+            maximum,
+            actual: reason.len(),
+        }
+        .into());
+    }
+    Ok(())
 }
 
 impl std::fmt::Debug for Client {
