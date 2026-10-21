@@ -217,6 +217,14 @@ impl SetModes {
         self.optional_list(true, crate::Feature::Quiet, target)
     }
 
+    /// Removes `target` from the channel quiet list.
+    ///
+    /// This is available when the server advertises `q` as a list mode, as Solanum does. Ergo
+    /// represents quiets as ban-list entries; use `.unban("m:*!*@host")` there.
+    pub fn unquiet(self, target: impl Into<BanTarget>) -> Self {
+        self.optional_list(false, crate::Feature::Quiet, target)
+    }
+
     /// Grants channel-operator privileges to `nick`.
     pub fn op(self, nick: impl AsRef<str>) -> Self {
         self.prefix(true, 'o', nick)
@@ -1014,15 +1022,16 @@ mod tests {
         let solanum = state(
             ":solanum.example 005 papo PREFIX=(ov)@+ CHANMODES=eIbq,k,flj,CFLPQcgimnprstz :supported",
         );
-        let change = Change {
-            set: true,
-            mode: Selector::Optional(Feature::Quiet),
-            arg: Some(Argument::Mask(solanum.mask("*!*@gateway.example"))),
-        };
-        assert!(matches!(
-            change.resolve(&solanum).unwrap().mode,
-            Selector::Letter('q')
-        ));
+        for set in [true, false] {
+            let change = Change {
+                set,
+                mode: Selector::Optional(Feature::Quiet),
+                arg: Some(Argument::Mask(solanum.mask("*!*@gateway.example"))),
+            };
+            let resolved = change.resolve(&solanum).unwrap();
+            assert_eq!(resolved.set, set);
+            assert!(matches!(resolved.mode, Selector::Letter('q')));
+        }
 
         let ergo = state(
             ":ergo.test 005 papo PREFIX=(qaohv)~&@%+ CHANMODES=Ibe,k,fl,CEMRUimnstu EXTBAN=,m :supported",

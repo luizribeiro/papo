@@ -4882,6 +4882,44 @@ async fn mode_changes_require_an_own_matching_mode_echo() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn unquiet_removes_a_solanum_quiet() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":solanum.example 005 papo-driver PREFIX=(ov)@+ CHANMODES=eIbq,k,flj,CFLPQcgimnprstz :are supported\r\n",
+    )
+    .await;
+
+    let modes = tokio::spawn({
+        let client = client.clone();
+        async move { client.mode("#papo").unquiet("*!*@gateway.example").await }
+    });
+    client_line(
+        &mut server,
+        b"MODE #papo -q *!*@gateway.example\r\nPING :papo-mode-0\r\n",
+    )
+    .await;
+    server_line(
+        &mut server,
+        b":papo-driver!papo@localhost MODE #papo -q *!*@gateway.example\r\n:solanum.example PONG solanum.example :papo-mode-0\r\n",
+    )
+    .await;
+    let result = within(modes).await.unwrap().unwrap();
+    assert!(matches!(
+        result.applied.as_slice(),
+        [change] if change.mode == 'q' && change.action == crate::ModeAction::Remove
+    ));
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn an_unconfirmed_first_mode_chunk_returns_its_transport_error() {
     let (mut server, client, mut events, driver) = scripted(config());
     let driver = tokio::spawn(driver);

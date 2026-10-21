@@ -2415,6 +2415,7 @@ pub fn papo::SetModes::remove_ban_exception(self, impl core::convert::Into<papo:
 pub fn papo::SetModes::remove_invite_exception(self, impl core::convert::Into<papo::BanTarget>) -> Self
 pub fn papo::SetModes::remove_with(self, char, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::SetModes::unban(self, impl core::convert::Into<papo::BanTarget>) -> Self
+pub fn papo::SetModes::unquiet(self, impl core::convert::Into<papo::BanTarget>) -> Self
 pub fn papo::SetModes::voice(self, impl core::convert::AsRef<str>) -> Self
 impl core::fmt::Debug for papo::SetModes
 pub fn papo::SetModes::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
