@@ -745,6 +745,60 @@ fn ranks_names_prefixes_independently_of_wire_order() {
 }
 
 #[test]
+fn solanum_prefix_without_halfop_reports_only_advertised_ranks() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":solanum.example 005 emily PREFIX=(ov)@+ :are supported")
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .server(":solanum.example 353 emily = #papo :@+emily +dan")
+        .inspect(|session| {
+            let channel = session.state().channel("#papo").unwrap();
+            let emily = channel.member("emily").unwrap();
+            assert_eq!(emily.prefixes(), ['@', '+']);
+            assert_eq!(emily.rank(), Some(Rank::Op));
+            assert!(emily.has(Rank::Op));
+            assert!(emily.has(Rank::Voice));
+            assert!(!emily.has(Rank::Halfop));
+            assert_eq!(channel.member("dan").unwrap().rank(), Some(Rank::Voice));
+        })
+        .ignore_rest();
+}
+
+#[test]
+fn inspircd_custom_prefix_does_not_invent_a_standard_rank() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":inspircd.example 005 emily PREFIX=(Yov)!@+ :are supported")
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .server(":inspircd.example 353 emily = #papo :@emily !service")
+        .inspect(|session| {
+            let channel = session.state().channel("#papo").unwrap();
+            let service = channel.member("service").unwrap();
+            assert_eq!(service.prefixes(), ['!']);
+            assert_eq!(service.rank(), None);
+            assert!(!service.has(Rank::Owner));
+            assert_eq!(channel.member("emily").unwrap().rank(), Some(Rank::Op));
+        })
+        .ignore_rest();
+}
+
+#[test]
+fn unreal_prefix_modes_map_owner_and_halfop_by_letter() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":irc.unreal.example 005 emily PREFIX=(qaohv)~&@%+ :are supported")
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .server(":irc.unreal.example 353 emily = #papo :~emily &alice %dan")
+        .inspect(|session| {
+            let channel = session.state().channel("#papo").unwrap();
+            let emily = channel.member("emily").unwrap();
+            assert_eq!(emily.rank(), Some(Rank::Owner));
+            assert!(emily.has(Rank::Owner));
+            assert!(!emily.has(Rank::Admin));
+            assert_eq!(channel.member("alice").unwrap().rank(), Some(Rank::Admin));
+            assert_eq!(channel.member("dan").unwrap().rank(), Some(Rank::Halfop));
+        })
+        .ignore_rest();
+}
+
+#[test]
 fn applies_membership_modes_in_advertised_rank_order() {
     Transcript::new(Config::default().nick("emily"))
         .server(":ergo.test 005 emily CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(qaohv)~&@%+ :are supported")
