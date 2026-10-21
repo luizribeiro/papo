@@ -73,7 +73,7 @@ impl State {
             isupport: Arc::new(Isupport::from_proto(session.isupport().clone())),
             #[cfg(feature = "unstable")]
             bouncer_network: match session.isupport().get("BOUNCER_NETID") {
-                papo_proto::Advertised::Value(id) => Some(papo_core::NetworkId::new(id)),
+                papo_proto::Advertised::Value(id) => Some(papo_core::NetworkId::from(id)),
                 _ => None,
             },
             unsupported,

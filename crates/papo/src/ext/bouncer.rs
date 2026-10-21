@@ -51,7 +51,7 @@ impl Bouncer {
                         && message
                             .param(0)
                             .is_some_and(|value| value.eq_ignore_ascii_case("ADDNETWORK")))
-                    .then(|| message.param(1).map(NetworkId::new))
+                    .then(|| message.param(1).map(NetworkId::from))
                     .flatten()
                 })
                 .ok_or_else(|| Error::unexpected_reply("BOUNCER ADDNETWORK"))
@@ -155,7 +155,7 @@ mod tests {
         .await;
         server_line(&mut server, b"@label=0 BOUNCER ADDNETWORK 44\r\n").await;
         let id = within(add).await.unwrap().unwrap();
-        assert_eq!(id.as_str(), "44");
+        assert_eq!(id, "44");
 
         let change = tokio::spawn({
             let client = client.clone();

@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{borrow::Borrow, collections::BTreeMap, ops::Deref};
 
 use papo_proto::escape_tag_value;
 use papo_proto::{Casemapping, Line, LineRef, Nick};
@@ -7,19 +7,72 @@ use web_time::Instant;
 use crate::{Feature, RequestError, RequestId, Secret, Session};
 
 /// Stable identifier assigned to a network by a bouncer.
+///
+/// Equality, ordering, and hashing use the exact received bytes.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct NetworkId(String);
 
 impl NetworkId {
-    /// Creates an identifier from its wire representation.
-    pub fn new(value: impl Into<String>) -> Self {
-        Self(value.into())
-    }
-
-    /// Returns the wire representation.
+    /// Returns the owned identifier text.
     #[must_use]
-    pub fn as_str(&self) -> &str {
+    pub fn into_string(self) -> String {
+        self.0
+    }
+}
+
+impl Deref for NetworkId {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl AsRef<str> for NetworkId {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl Borrow<str> for NetworkId {
+    fn borrow(&self) -> &str {
+        &self.0
+    }
+}
+
+impl PartialEq<str> for NetworkId {
+    fn eq(&self, other: &str) -> bool {
+        self.0 == other
+    }
+}
+
+impl PartialEq<&str> for NetworkId {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
+    }
+}
+
+impl From<&str> for NetworkId {
+    fn from(value: &str) -> Self {
+        Self(value.to_owned())
+    }
+}
+
+impl From<String> for NetworkId {
+    fn from(value: String) -> Self {
+        Self(value)
+    }
+}
+
+impl From<&String> for NetworkId {
+    fn from(value: &String) -> Self {
+        Self(value.clone())
+    }
+}
+
+impl From<&Self> for NetworkId {
+    fn from(value: &Self) -> Self {
+        value.clone()
     }
 }
 
@@ -81,7 +134,7 @@ impl NetworkUpdate {
         if !message.command_is("BOUNCER") || !message.param(0)?.eq_ignore_ascii_case("NETWORK") {
             return None;
         }
-        let id = NetworkId::new(message.param(1)?);
+        let id = NetworkId::from(message.param(1)?);
         let raw = message.param(2)?;
         if raw == "*" {
             return Some(Self {
@@ -320,7 +373,7 @@ impl Session {
             now,
             Line::new(
                 "BOUNCER",
-                ["CHANGENETWORK", id.as_str(), &config.attributes()?],
+                ["CHANGENETWORK", id.as_ref(), &config.attributes()?],
             ),
             Feature::Bouncer,
         )
@@ -338,7 +391,7 @@ impl Session {
     ) -> Result<RequestId, RequestError> {
         self.request_for_feature(
             now,
-            Line::new("BOUNCER", ["DELNETWORK", id.as_str()]),
+            Line::new("BOUNCER", ["DELNETWORK", id.as_ref()]),
             Feature::Bouncer,
         )
     }

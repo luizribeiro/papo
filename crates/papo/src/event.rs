@@ -2100,11 +2100,11 @@ mod tests {
     #[test]
     fn maps_bouncer_network_updates() {
         let event = forwarded(papo_core::Event::BouncerNetwork {
-            id: papo_core::NetworkId::new("42"),
+            id: papo_core::NetworkId::from("42"),
             network: None,
         });
         let changed = event.as_bouncer_network().unwrap();
-        assert_eq!(changed.id.as_str(), "42");
+        assert_eq!(changed.id, "42");
         assert!(changed.network.is_none());
     }
 

@@ -20,7 +20,7 @@ async fn arbitrary_bouncer_and_history_input_is_rejected_or_valid() {
             action(
                 client
                     .bouncer()
-                    .change(&crate::NetworkId::new(first.clone()), config()),
+                    .change(&crate::NetworkId::from(first.clone()), config()),
             )
         })
         .await;
@@ -28,7 +28,7 @@ async fn arbitrary_bouncer_and_history_input_is_rejected_or_valid() {
             action(
                 client
                     .bouncer()
-                    .remove(&crate::NetworkId::new(first.clone())),
+                    .remove(&crate::NetworkId::from(first.clone())),
             )
         })
         .await;

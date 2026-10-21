@@ -1793,8 +1793,9 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::NetworkConfig
 impl core::panic::unwind_safe::UnwindSafe for papo_core::NetworkConfig
 pub struct papo_core::NetworkId(_)
 impl papo_core::NetworkId
-pub fn papo_core::NetworkId::as_str(&self) -> &str
-pub fn papo_core::NetworkId::new(impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo_core::NetworkId::into_string(self) -> alloc::string::String
+impl core::borrow::Borrow<str> for papo_core::NetworkId
+pub fn papo_core::NetworkId::borrow(&self) -> &str
 impl core::clone::Clone for papo_core::NetworkId
 pub fn papo_core::NetworkId::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::NetworkId
@@ -1802,8 +1803,22 @@ impl core::cmp::Ord for papo_core::NetworkId
 pub fn papo_core::NetworkId::cmp(&self, &Self) -> core::cmp::Ordering
 impl core::cmp::PartialEq for papo_core::NetworkId
 pub fn papo_core::NetworkId::eq(&self, &Self) -> bool
+impl core::cmp::PartialEq<&str> for papo_core::NetworkId
+pub fn papo_core::NetworkId::eq(&self, &&str) -> bool
+impl core::cmp::PartialEq<str> for papo_core::NetworkId
+pub fn papo_core::NetworkId::eq(&self, &str) -> bool
 impl core::cmp::PartialOrd for papo_core::NetworkId
 pub fn papo_core::NetworkId::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::convert::AsRef<str> for papo_core::NetworkId
+pub fn papo_core::NetworkId::as_ref(&self) -> &str
+impl core::convert::From<&alloc::string::String> for papo_core::NetworkId
+pub fn papo_core::NetworkId::from(&alloc::string::String) -> Self
+impl core::convert::From<&papo_core::NetworkId> for papo_core::NetworkId
+pub fn papo_core::NetworkId::from(&Self) -> Self
+impl core::convert::From<&str> for papo_core::NetworkId
+pub fn papo_core::NetworkId::from(&str) -> Self
+impl core::convert::From<alloc::string::String> for papo_core::NetworkId
+pub fn papo_core::NetworkId::from(alloc::string::String) -> Self
 impl core::fmt::Debug for papo_core::NetworkId
 pub fn papo_core::NetworkId::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo_core::NetworkId
@@ -1811,6 +1826,9 @@ pub fn papo_core::NetworkId::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::
 impl core::hash::Hash for papo_core::NetworkId
 pub fn papo_core::NetworkId::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::StructuralPartialEq for papo_core::NetworkId
+impl core::ops::deref::Deref for papo_core::NetworkId
+pub type papo_core::NetworkId::Target = str
+pub fn papo_core::NetworkId::deref(&self) -> &Self::Target
 impl core::marker::Freeze for papo_core::NetworkId
 impl core::marker::Send for papo_core::NetworkId
 impl core::marker::Sync for papo_core::NetworkId

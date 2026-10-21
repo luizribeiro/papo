@@ -1002,7 +1002,7 @@ mod tests {
             .enable(crate::Feature::Persistence)
             .enable(crate::Feature::Relay)
             .enable(crate::Feature::WebPush)
-            .bouncer_network(crate::NetworkId::new("libera"));
+            .bouncer_network(crate::NetworkId::from("libera"));
         assert!(
             enabled
                 .config

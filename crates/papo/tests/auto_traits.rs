@@ -121,7 +121,7 @@ fn assert_extension_futures_are_send(client: &Client, mapping: papo::Casemapping
     {
         assert_send_static(client.persistence().get());
         assert_send_static(client.persistence().set(PersistenceSetting::On));
-        let network = NetworkId::new("42");
+        let network = NetworkId::from("42");
         assert_send_static(client.bouncer().networks());
         assert_send_static(client.bouncer().add(NetworkConfig::new("irc.libera.chat")));
         assert_send_static(

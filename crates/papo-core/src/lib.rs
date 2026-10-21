@@ -2713,7 +2713,7 @@ impl Session {
         let bouncer_network = {
             #[cfg(feature = "unstable")]
             {
-                self.config.bouncer_network.as_ref().map(NetworkId::as_str)
+                self.config.bouncer_network.as_ref().map(AsRef::as_ref)
             }
             #[cfg(not(feature = "unstable"))]
             None
@@ -3695,7 +3695,7 @@ impl Session {
         let bouncer_network = {
             #[cfg(feature = "unstable")]
             {
-                self.config.bouncer_network.as_ref().map(NetworkId::as_str)
+                self.config.bouncer_network.as_ref().map(AsRef::as_ref)
             }
             #[cfg(not(feature = "unstable"))]
             None

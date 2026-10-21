@@ -6477,10 +6477,7 @@ async fn public_state_accessors_report_the_registered_session() {
     assert_eq!(state.isupport().nicklen(), Some(27));
     #[cfg(feature = "unstable")]
     {
-        assert_eq!(
-            state.bouncer_network().map(papo_core::NetworkId::as_str),
-            Some("42")
-        );
+        assert_eq!(state.bouncer_network().map(AsRef::as_ref), Some("42"));
         assert_eq!(state.filehost(), Some("https://files.example.net/upload"));
     }
     assert!(

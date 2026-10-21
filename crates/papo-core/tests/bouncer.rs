@@ -7,6 +7,16 @@ use papo_core::{Config, Event, Feature, NetworkConfig, NetworkId, NetworkState, 
 use papo_proto::Casemapping;
 use support::Transcript;
 
+#[test]
+fn network_ids_have_the_identifier_value_shape() {
+    let owned = "libera".to_owned();
+    let from_borrowed = NetworkId::from(&owned);
+    assert_eq!(from_borrowed, "libera");
+    assert_eq!(AsRef::<str>::as_ref(&from_borrowed), "libera");
+    assert_eq!(NetworkId::from(&from_borrowed), from_borrowed);
+    assert_eq!(NetworkId::from(owned).into_string(), "libera");
+}
+
 fn registered() -> Transcript {
     Transcript::new(Config::default().enable(Feature::Bouncer).wanted_caps([
         "batch",
@@ -25,7 +35,7 @@ fn binds_the_configured_network_before_cap_end() {
     let mut config = Config::default()
         .enable(Feature::Bouncer)
         .wanted_caps(["soju.im/bouncer-networks"]);
-    config.bouncer_network = Some(NetworkId::new("42"));
+    config.bouncer_network = Some(NetworkId::from("42"));
     Transcript::new(config)
         .connect_default()
         .server("CAP * LS :soju.im/bouncer-networks")
@@ -66,7 +76,7 @@ fn sends_each_bouncer_network_operation() {
         .event(|event| matches!(event, Event::Response(response) if response.lines.len() == 1))
         .update(|session| {
             session
-                .bouncer_change(std::time::Instant::now(), &NetworkId::new("43"), &config)
+                .bouncer_change(std::time::Instant::now(), &NetworkId::from("43"), &config)
                 .unwrap();
         })
         .client(r"@label=2 BOUNCER CHANGENETWORK 43 host=irc.libera.chat;name=Libera\sChat;port=6697;tls=1;nickname=alice")
@@ -74,7 +84,7 @@ fn sends_each_bouncer_network_operation() {
         .event(|event| matches!(event, Event::Response(response) if response.lines.len() == 1))
         .update(|session| {
             session
-                .bouncer_remove(std::time::Instant::now(), &NetworkId::new("43"))
+                .bouncer_remove(std::time::Instant::now(), &NetworkId::from("43"))
                 .unwrap();
         })
         .client("@label=3 BOUNCER DELNETWORK 43")
@@ -100,7 +110,7 @@ fn merges_bounded_notification_batches_and_deletes_networks() {
         })
         .server("BOUNCER NETWORK 42 *")
         .event(|event| matches!(event, Event::BouncerNetwork { id, network: None }
-            if id.as_str() == "42"))
+            if id == "42"))
         .inspect(|session| assert_eq!(session.state().bouncer_networks().count(), 0))
         .no_event();
 }
@@ -125,7 +135,7 @@ fn parses_each_network_attribute_and_rejects_nearby_commands() {
                 Event::BouncerNetwork {
                     id,
                     network: Some(network),
-                } if id.to_string() == "network-42"
+                } if id == "network-42"
                     && network.name.as_deref() == Some("Example Net")
                     && network.state == Some(NetworkState::Connecting)
                     && network.host.as_deref() == Some("irc.example.org")
