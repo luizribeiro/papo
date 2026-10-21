@@ -28,7 +28,7 @@ async fn arbitrary_context_action_text_is_rejected_or_emits_valid_lines() {
         .await;
         check_action({
             let message = referenced_message();
-            move |client| action(client.react_to(&message, reaction))
+            move |client| action(client.react(&message, reaction))
         })
         .await;
     }

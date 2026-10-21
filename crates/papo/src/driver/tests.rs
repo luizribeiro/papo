@@ -4351,18 +4351,18 @@ async fn reactions_reject_empty_and_oversized_text() {
     let task = tokio::spawn(driver);
 
     assert!(matches!(
-        within(client.react("#papo", "RfcBTzyxY120004", "")).await,
+        within(client.react(("#papo", "RfcBTzyxY120004"), "")).await,
         Err(Error::InvalidInput(crate::InvalidInput::EmptyText))
     ));
     assert!(matches!(
-        within(client.react("#papo", "RfcBTzyxY120004", "x".repeat(4095))).await,
+        within(client.react(("#papo", "RfcBTzyxY120004"), "x".repeat(4095))).await,
         Err(Error::InvalidInput(crate::InvalidInput::Reaction {
             maximum: 4094,
             actual: 4095,
         }))
     ));
     assert!(matches!(
-        within(client.react("#papo", "RfcBTzyxY120004", "x".repeat(4094))).await,
+        within(client.react(("#papo", "RfcBTzyxY120004"), "x".repeat(4094))).await,
         Err(Error::Unsupported(_))
     ));
 
@@ -4570,8 +4570,7 @@ async fn redaction_requires_its_capability_and_propagates_fail() {
     let redacted = tokio::spawn(async move {
         sender
             .redact(
-                "#papo",
-                crate::MessageId::from("RfcBTzyxY120004"),
+                ("#papo", crate::MessageId::from("RfcBTzyxY120004")),
                 "duplicate message",
             )
             .await
@@ -4591,7 +4590,7 @@ async fn redaction_requires_its_capability_and_propagates_fail() {
     let sender = client.clone();
     let rejected = tokio::spawn(async move {
         sender
-            .redact("#papo", crate::MessageId::from("RfcBTzyxY120005"), "")
+            .redact(("#papo", crate::MessageId::from("RfcBTzyxY120005")), "")
             .await
     });
     client_line(&mut server, b"@label=1 REDACT #papo RfcBTzyxY120005\r\n").await;
@@ -4614,7 +4613,7 @@ async fn redaction_requires_its_capability_and_propagates_fail() {
         tokio::task::yield_now().await;
     }
     assert!(matches!(
-        within(client.redact("#papo", crate::MessageId::from("RfcBTzyxY120006"), "",)).await,
+        within(client.redact(("#papo", crate::MessageId::from("RfcBTzyxY120006")), "")).await,
         Err(Error::Unsupported(crate::Unsupported {
             feature: crate::Feature::Redaction,
             reason: crate::UnsupportedReason::NotOffered,

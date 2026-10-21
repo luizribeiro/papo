@@ -10,6 +10,12 @@ pub struct MessageRef {
     msgid: Option<MessageId>,
 }
 
+impl MessageRef {
+    pub(crate) fn into_parts(self) -> (String, Option<MessageId>) {
+        (self.address, self.msgid)
+    }
+}
+
 impl From<&Message> for MessageRef {
     fn from(message: &Message) -> Self {
         Self {

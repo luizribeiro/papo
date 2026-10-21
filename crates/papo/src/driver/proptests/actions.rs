@@ -22,11 +22,11 @@ async fn arbitrary_core_action_input_is_rejected_or_emits_valid_lines() {
         }
         check!({
             let (first, second, third) = (first.clone(), second.clone(), third.clone());
-            move |client: &crate::Client| client.react(first, second, third)
+            move |client: &crate::Client| client.react((first, second), third)
         });
         check!({
             let (first, second, third) = (first.clone(), second.clone(), third.clone());
-            move |client: &crate::Client| client.unreact(first, second, third)
+            move |client: &crate::Client| client.unreact((first, second), third)
         });
         check!({
             let first = first.clone();
@@ -34,7 +34,7 @@ async fn arbitrary_core_action_input_is_rejected_or_emits_valid_lines() {
         });
         check!({
             let (first, second, third) = (first.clone(), second.clone(), third.clone());
-            move |client: &crate::Client| client.redact(first, second, third)
+            move |client: &crate::Client| client.redact((first, second), third)
         });
         check!({
             let first = first.clone();

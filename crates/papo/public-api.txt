@@ -1676,10 +1676,9 @@ pub fn papo::Client::part(&self, impl core::convert::AsRef<str>, impl core::conv
 pub fn papo::Client::ping(&self) -> papo::RequestFuture<core::time::Duration>
 pub fn papo::Client::privmsg(&self, impl core::convert::AsRef<str>, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub fn papo::Client::quit(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Client::react(&self, impl core::convert::AsRef<str>, impl core::convert::Into<papo::MessageId>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Client::react_to(&self, &papo::Message, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::react(&self, impl core::convert::Into<papo::MessageRef>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::reconnect(&self) -> papo::RequestFuture<()>
-pub fn papo::Client::redact(&self, impl core::convert::AsRef<str>, impl core::convert::Into<papo::MessageId>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::redact(&self, impl core::convert::Into<papo::MessageRef>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::reply(&self, &papo::Message, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub fn papo::Client::request_raw(&self, impl core::convert::Into<papo::Line>) -> papo::RequestFuture<alloc::vec::Vec<papo::Line>>
 pub fn papo::Client::send_raw(&self, impl core::convert::Into<papo::Line>) -> papo::RequestFuture<()>
@@ -1689,7 +1688,7 @@ pub fn papo::Client::set_realname(&self, impl core::convert::Into<alloc::string:
 pub fn papo::Client::set_topic(&self, impl core::convert::AsRef<str>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::state(&self) -> alloc::rcs::arc::Arc<papo::State>
 pub fn papo::Client::typing(&self, impl core::convert::AsRef<str>, papo::Typing) -> papo::RequestFuture<()>
-pub fn papo::Client::unreact(&self, impl core::convert::AsRef<str>, impl core::convert::Into<papo::MessageId>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::unreact(&self, impl core::convert::Into<papo::MessageRef>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::who(&self, impl core::convert::AsRef<str>) -> papo::RequestFuture<alloc::vec::Vec<papo::WhoEntry>>
 pub fn papo::Client::whois(&self, impl core::convert::AsRef<str>) -> papo::RequestFuture<papo::Whois>
 impl papo::Client

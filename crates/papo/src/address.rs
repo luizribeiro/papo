@@ -64,7 +64,7 @@ pub enum InvalidInput {
         /// The supplied reaction length in bytes.
         actual: usize,
     },
-    /// A history or reply reference lacks a server message identifier.
+    /// A message reference lacks a server message identifier.
     #[error("the message reference has no server identifier")]
     UnusableMessageReference,
     /// An account operation omitted a required email address.

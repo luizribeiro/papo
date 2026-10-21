@@ -518,19 +518,14 @@ impl Client {
     /// Returns [`Error::Unsupported`] for [`Feature::Reactions`] with reason
     /// [`UnsupportedReason::NotOffered`], [`UnsupportedReason::DisabledByClient`], or
     /// [`UnsupportedReason::TagDenied`]. Encoding or driver failure returns
-    /// [`Error::InvalidInput`] or [`Error::Disconnected`].
+    /// [`Error::InvalidInput`] or [`Error::Disconnected`]. A reference without a server message
+    /// identifier returns [`InvalidInput::UnusableMessageReference`].
     pub fn react(
         &self,
-        target: impl AsRef<str>,
-        message: impl Into<crate::MessageId>,
+        message: impl Into<crate::MessageRef>,
         emoji: impl Into<String>,
     ) -> crate::RequestFuture<()> {
-        self.reaction(
-            target.as_ref().to_owned(),
-            message.into(),
-            emoji.into(),
-            "+draft/react",
-        )
+        self.reaction(message.into(), emoji.into(), "+draft/react")
     }
 
     /// Removes `emoji` as a reaction to `message`.
@@ -542,51 +537,28 @@ impl Client {
     /// Returns [`Error::Unsupported`] for [`Feature::Reactions`] with reason
     /// [`UnsupportedReason::NotOffered`], [`UnsupportedReason::DisabledByClient`], or
     /// [`UnsupportedReason::TagDenied`]. Encoding or driver failure returns
-    /// [`Error::InvalidInput`] or [`Error::Disconnected`].
+    /// [`Error::InvalidInput`] or [`Error::Disconnected`]. A reference without a server message
+    /// identifier returns [`InvalidInput::UnusableMessageReference`].
     pub fn unreact(
         &self,
-        target: impl AsRef<str>,
-        message: impl Into<crate::MessageId>,
+        message: impl Into<crate::MessageRef>,
         emoji: impl Into<String>,
     ) -> crate::RequestFuture<()> {
-        self.reaction(
-            target.as_ref().to_owned(),
-            message.into(),
-            emoji.into(),
-            "+draft/unreact",
-        )
-    }
-
-    /// Adds `emoji` as a reaction to `message` using its routing target.
-    ///
-    /// A reaction is usually an emoji but may be any nonempty text and is compared exactly.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Error::InvalidInput`] when the message has no identifier, or the same errors as
-    /// [`Client::react`].
-    pub fn react_to(
-        &self,
-        message: &crate::Message,
-        emoji: impl Into<String>,
-    ) -> crate::RequestFuture<()> {
-        let Some(id) = &message.msgid else {
-            return crate::RequestFuture::new(async {
-                Err(InvalidInput::UnusableMessageReference.into())
-            });
-        };
-        self.react(message.return_address(), id, emoji)
+        self.reaction(message.into(), emoji.into(), "+draft/unreact")
     }
 
     fn reaction(
         &self,
-        target: String,
-        message: crate::MessageId,
+        message: crate::MessageRef,
         emoji: String,
         reaction_tag: &'static str,
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
         crate::RequestFuture::new(async move {
+            let (target, message) = message.into_parts();
+            let Some(message) = message else {
+                return Err(InvalidInput::UnusableMessageReference.into());
+            };
             if emoji.is_empty() {
                 return Err(InvalidInput::EmptyText.into());
             }
@@ -669,18 +641,21 @@ impl Client {
     /// [`UnsupportedReason::NotOffered`] or [`UnsupportedReason::DisabledByClient`]. A refusal
     /// returns [`Error::Server`], currently classified as [`crate::Refusal::Other`]. It can also
     /// return [`Error::InvalidInput`], [`Error::TooManyPendingRequests`], [`Error::Timeout`], or
-    /// [`Error::Disconnected`].
+    /// [`Error::Disconnected`]. A reference without a server message identifier returns
+    /// [`InvalidInput::UnusableMessageReference`].
     pub fn redact(
         &self,
-        target: impl AsRef<str>,
-        message: impl Into<crate::MessageId>,
+        message: impl Into<crate::MessageRef>,
         reason: impl Into<String>,
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
-        let target = target.as_ref().to_owned();
         let message = message.into();
         let reason = reason.into();
         crate::RequestFuture::new(async move {
+            let (target, message) = message.into_parts();
+            let Some(message) = message else {
+                return Err(InvalidInput::UnusableMessageReference.into());
+            };
             let state = client.state();
             Self::require_feature(&state, Feature::Redaction)?;
             state

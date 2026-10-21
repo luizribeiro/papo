@@ -29,9 +29,9 @@ fn assert_event_stream<T: Stream<Item = Event>>() {}
 fn assert_message_request_futures(client: &Client, message: &ChatMessage) {
     let target = "#papo";
     let id = MessageId::from("RfcBTzyxY120004");
-    assert_send_static(client.react(target, &id, "👍"));
-    assert_send_static(client.unreact(target, &id, "👍"));
-    assert_send_static(client.react_to(message, "👍"));
+    assert_send_static(client.react((target, &id), "👍"));
+    assert_send_static(client.unreact((target, &id), "👍"));
+    assert_send_static(client.react(message, "👍"));
     assert_send_static(client.reply(message, "Acknowledged").into_future());
 }
 
@@ -76,7 +76,7 @@ fn request_futures_are_send() {
     assert_send_static(client.notice("emily", "maintenance soon").into_future());
     assert_send_static(client.action("#papo", "waves").into_future());
     assert_send_static(client.typing("#papo", Typing::Active));
-    assert_send_static(client.redact("#papo", MessageId::from("RfcBTzyxY120004"), ""));
+    assert_send_static(client.redact(("#papo", MessageId::from("RfcBTzyxY120004")), ""));
     assert_send_static(client.whois("emily"));
     assert_send_static(client.who(mapping.mask("#papo")));
     assert_send_static(client.join("#papo").into_future());
