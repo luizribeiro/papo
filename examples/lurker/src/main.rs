@@ -2,10 +2,7 @@
 
 use std::{collections::BTreeSet, env, error::Error, io, io::Write as _};
 
-use papo::{
-    Account, Client, Endpoint, Event, LegacyModeAction as ModeAction, LegacyModeArg as ModeArg,
-    Sasl,
-};
+use papo::{Account, Client, Endpoint, Event, ModeAction, ModeArg, Sasl};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -60,12 +57,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     .changes
                     .into_iter()
                     .map(|change| {
-                        let sign = if papo::mode_action(&change) == ModeAction::Add {
+                        let sign = if change.action == ModeAction::Add {
                             '+'
                         } else {
                             '-'
                         };
-                        let arg = match papo::mode_arg(&change) {
+                        let arg = match change.arg {
                             Some(ModeArg::Nick(value)) => value.into_string(),
                             Some(ModeArg::Mask(value)) => value.into_string(),
                             Some(ModeArg::Value(value)) => value,
