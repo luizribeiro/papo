@@ -1320,6 +1320,18 @@ pub(crate) fn typed_mode_change(
     }
 }
 
+#[doc(hidden)]
+#[must_use]
+pub fn mode_action(change: &ModeChange) -> LegacyModeAction {
+    change.action
+}
+
+#[doc(hidden)]
+#[must_use]
+pub fn mode_arg(change: &ModeChange) -> Option<LegacyModeArg> {
+    change.arg.clone()
+}
+
 #[allow(dead_code)]
 pub(crate) fn typed_core_mode_change(
     action: papo_core::ModeAction,
