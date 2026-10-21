@@ -14,7 +14,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let nick = env::var("IRC_NICK").unwrap_or_else(|_| "papo-ping".into());
     let (client, mut events) = Client::builder(server)
         .nick(nick)
-        .bot()
+        .bot(true)
         .autojoin([CHANNEL])
         .connect()
         .await?;

@@ -2621,9 +2621,12 @@ async fn bot_default_without_advertised_mode_sends_no_mode() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn advertised_bot_mode_without_bot_default_sends_no_mode() {
+async fn bot_false_with_advertised_mode_sends_no_mode() {
     assert_connect_output(
-        super::PostConnect::default(),
+        super::PostConnect {
+            bot: false,
+            ..super::PostConnect::default()
+        },
         Some(b":ergo.test 005 papo-driver BOT=B :are supported by this server\r\n"),
         b"",
     )

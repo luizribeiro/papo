@@ -1625,7 +1625,7 @@ pub fn papo::Builder::alt_nicks<I, S>(self, I) -> Self where I: core::iter::trai
 pub fn papo::Builder::autojoin<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
 pub fn papo::Builder::autojoin_with_key(self, impl core::convert::AsRef<str>, impl core::convert::Into<papo::Secret>) -> Self
 pub fn papo::Builder::away_on_connect(self, impl core::convert::Into<alloc::string::String>) -> Self
-pub fn papo::Builder::bot(self) -> Self
+pub fn papo::Builder::bot(self, bool) -> Self
 pub fn papo::Builder::build(self) -> (papo::Client, papo::Events, papo::Driver)
 pub const fn papo::Builder::casemapping(self, papo::Casemapping) -> Self
 pub async fn papo::Builder::connect(self) -> core::result::Result<(papo::Client, papo::Events), papo::Error>

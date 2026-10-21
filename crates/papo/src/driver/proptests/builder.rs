@@ -101,7 +101,7 @@ async fn arbitrary_builder_setter_input_is_rejected_or_registers_validly() {
         probe!(builder, a, _b, _c => builder.tls_extra_ca_pem(a.into_bytes()));
         probe!(builder, a, b, _c => builder.tls_client_cert(a.into_bytes(), b));
         probe!(builder, a, _b, _c => builder.tls_server_name(a));
-        probe!(builder, _a, _b, _c => builder.bot());
+        probe!(builder, a, _b, _c => builder.bot(a.len() % 2 == 0));
         probe!(builder, a, b, _c => builder.autojoin([a, b]));
         probe!(builder, a, b, _c => builder.autojoin_with_key(a, b));
         probe!(builder, a, _b, _c => builder.history_on_reconnect(a.len() % 2 == 0));

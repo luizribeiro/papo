@@ -466,9 +466,13 @@ impl Builder {
         self
     }
 
-    /// Sets the server-advertised bot user mode after connecting.
-    pub fn bot(mut self) -> Self {
-        self.bot = true;
+    /// Sets whether the server-advertised bot user mode is enabled after login.
+    ///
+    /// The default is `false`. When enabled, this is skipped if the server offers no bot mode.
+    /// After connecting, [`crate::State::supports`] with [`crate::Feature::BotMode`] reports
+    /// whether the server offers one.
+    pub fn bot(mut self, enabled: bool) -> Self {
+        self.bot = enabled;
         self
     }
 
@@ -1254,8 +1258,9 @@ mod tests {
             crate::WhoOnJoin::Always
         );
         let staff = crate::Casemapping::default().channel("#staff");
+        assert!(!Builder::new("irc.example.net").bot(false).bot);
         let builder = Builder::new("irc.example.net")
-            .bot()
+            .bot(true)
             .autojoin(["#papo", "#papo-bots"])
             .autojoin_with_key(staff, "private channel key")
             .who_on_join(crate::WhoOnJoin::BelowMembers(25))
