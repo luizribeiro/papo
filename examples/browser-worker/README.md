@@ -13,9 +13,3 @@ examples/browser-worker/build.sh
 Serve `examples/browser-worker/dist` from localhost, open `index.html`, and enter an IRC WebSocket
 URL and nickname. The page prints the events posted by the worker. Shared workers require a secure
 context, with localhost treated as secure by browsers.
-
-Sample output begins with the connected event:
-
-```text
-Connected(Connected { nick: "papo-browser", ... })
-```
