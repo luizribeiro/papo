@@ -1092,7 +1092,11 @@ async fn protected_topic(s: Scenario) -> papo_testing::Result<()> {
 }
 
 /// reports channel modes and round-trips the ban list
-#[scenario(covers = ["base.mode.channel.query", "base.mode.channel.ban"])]
+#[scenario(covers = [
+    "base.mode.channel.query",
+    "base.mode.channel.ban",
+    "papo.moderation.list-modes"
+])]
 async fn channel_mode_lists(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     let channel = s.channel_name();
@@ -1116,29 +1120,36 @@ async fn channel_mode_lists(s: Scenario) -> papo_testing::Result<()> {
     );
     assert!(current.param(2).is_some_and(|value| value.starts_with('+')));
 
-    let bans = alice
-        .request_raw(papo::Line::new("MODE", [&channel, "b"]))
-        .await?;
-    assert!(bans.iter().any(|line| {
-        line.numeric() == Some(367)
-            && line
-                .param(1)
-                .is_some_and(|name| mapping.channel(name) == channel_name)
-            && line
-                .param(2)
-                .is_some_and(|value| mapping.mask(value) == mask)
-    }));
-    assert!(
-        bans.iter().any(|line| line.numeric() == Some(368)),
-        "missing ban-list terminator: {bans:?}"
-    );
+    let bans = alice.list_modes(&channel, papo::ListMode::Ban).await?;
+    let entry = bans.iter().find(|entry| entry.mask == mask).unwrap();
+    assert!(entry.actor.is_some());
+    assert!(entry.time.is_some());
+    let tracked = alice
+        .state()
+        .channel(&channel)
+        .unwrap()
+        .list(papo::ListMode::Ban)
+        .map(<[_]>::len);
+    if DeploymentProfile::from_env()? == DeploymentProfile::SojuErgo {
+        assert_eq!(tracked, None);
+    } else {
+        assert_eq!(tracked, Some(1));
+    }
 
     alice.mode(&channel).unban(&mask).await?;
-    let cleared = alice
-        .request_raw(papo::Line::new("MODE", [&channel, "b"]))
-        .await?;
-    assert!(!cleared.iter().any(|line| line.numeric() == Some(367)));
-    assert!(cleared.iter().any(|line| line.numeric() == Some(368)));
+    let cleared = alice.list_modes(&channel, papo::ListMode::Ban).await?;
+    assert!(cleared.is_empty());
+    let tracked = alice
+        .state()
+        .channel(&channel)
+        .unwrap()
+        .list(papo::ListMode::Ban)
+        .map(<[_]>::len);
+    if DeploymentProfile::from_env()? == DeploymentProfile::SojuErgo {
+        assert_eq!(tracked, None);
+    } else {
+        assert_eq!(tracked, Some(0));
+    }
     Ok(())
 }
 
@@ -1161,45 +1172,33 @@ async fn channel_mode_exceptions(s: Scenario) -> papo_testing::Result<()> {
         .ban_exception(&mask)
         .invite_exception(&mask)
         .await?;
-    let support = alice.state().isupport().clone();
-    let except = support.excepts().unwrap();
-    let invex = support.invex().unwrap();
-
     // List-mode numerics are the public evidence for stored exception masks.
-    let exceptions = alice
-        .request_raw(papo::Line::new("MODE", [&channel, &except.to_string()]))
-        .await?;
-    assert!(exceptions.iter().any(|line| {
-        line.numeric() == Some(348)
-            && line
-                .param(2)
-                .is_some_and(|value| mapping.mask(value) == mask)
-    }));
     assert!(
-        exceptions.iter().any(|line| line.numeric() == Some(349)),
-        "missing exception-list terminator: {exceptions:?}"
+        alice
+            .list_modes(&channel, papo::ListMode::Except)
+            .await?
+            .iter()
+            .any(|entry| entry.mask == mask)
     );
-    let invitations = alice
-        .request_raw(papo::Line::new("MODE", [&channel, &invex.to_string()]))
-        .await?;
-    assert!(invitations.iter().any(|line| {
-        line.numeric() == Some(346)
-            && line
-                .param(2)
-                .is_some_and(|value| mapping.mask(value) == mask)
-    }));
-    assert!(invitations.iter().any(|line| line.numeric() == Some(347)));
+    assert!(
+        alice
+            .list_modes(&channel, papo::ListMode::Invex)
+            .await?
+            .iter()
+            .any(|entry| entry.mask == mask)
+    );
 
     alice
         .mode(&channel)
         .remove_ban_exception(&mask)
         .remove_invite_exception(&mask)
         .await?;
-    let cleared = alice
-        .request_raw(papo::Line::new("MODE", [&channel, &except.to_string()]))
-        .await?;
-    assert!(!cleared.iter().any(|line| line.numeric() == Some(348)));
-    assert!(cleared.iter().any(|line| line.numeric() == Some(349)));
+    assert!(
+        alice
+            .list_modes(&channel, papo::ListMode::Except)
+            .await?
+            .is_empty()
+    );
     Ok(())
 }
 
