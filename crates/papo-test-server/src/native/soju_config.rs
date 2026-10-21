@@ -1,6 +1,6 @@
 use std::{fs, io, net::SocketAddr, path::PathBuf};
 
-use crate::directory::TemporaryDirectory;
+use super::directory::TemporaryDirectory;
 
 pub(crate) struct Configuration {
     pub(crate) endpoints: [SocketAddr; 4],
@@ -9,7 +9,7 @@ pub(crate) struct Configuration {
 
 impl Configuration {
     pub(crate) fn new(directory: &TemporaryDirectory) -> io::Result<Self> {
-        Self::at_endpoints(directory, crate::ports::allocate_loopback()?)
+        Self::at_endpoints(directory, super::ports::allocate_loopback()?)
     }
 
     fn at_endpoints(
@@ -43,7 +43,7 @@ impl Configuration {
 mod tests {
     use std::{fs, net::SocketAddr};
 
-    use crate::directory::TemporaryDirectory;
+    use super::super::directory::TemporaryDirectory;
 
     use super::Configuration;
 

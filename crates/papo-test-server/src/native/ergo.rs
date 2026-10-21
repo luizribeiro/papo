@@ -2,7 +2,7 @@ use std::{env, io, process::Command};
 
 use serde_json::json;
 
-use crate::directory::TemporaryDirectory;
+use super::directory::TemporaryDirectory;
 
 const WEBIRC_PASSWORD_HASH: &str = "$2a$04$04hAlnfNNCBj4DZF1nKiRuX6Z.HVpSDJXEFV8gW9E/CbJ04v0M1OO";
 const OPER_PASSWORD_HASH: &str = "$2a$04$aSFvaLz6O6WDI7s6wA/YWugI4u1mOn47C6dxsW.TuuHhXrCfcVy/i";
@@ -18,7 +18,7 @@ pub(crate) struct Configuration {
 
 impl Configuration {
     pub(crate) fn new(directory: &TemporaryDirectory) -> io::Result<Self> {
-        let [plaintext, tls, websocket, secure_websocket] = crate::ports::allocate_loopback()?;
+        let [plaintext, tls, websocket, secure_websocket] = super::ports::allocate_loopback()?;
         Ok(Self::from_addresses(
             directory,
             [plaintext, tls, websocket, secure_websocket],
@@ -153,7 +153,7 @@ fn required_env(name: &str) -> io::Result<String> {
 mod tests {
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
-    use crate::directory::TemporaryDirectory;
+    use super::super::directory::TemporaryDirectory;
 
     use super::{Configuration, OPER_PASSWORD_HASH};
 

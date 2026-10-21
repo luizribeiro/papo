@@ -1,6 +1,6 @@
 use std::{env, fs, io};
 
-use crate::{atheme, directory::TemporaryDirectory};
+use super::{atheme, directory::TemporaryDirectory};
 
 pub(super) struct Configuration {
     pub(super) endpoints: [std::net::SocketAddr; 4],
@@ -22,7 +22,7 @@ impl Configuration {
         atheme_modules: &str,
     ) -> io::Result<Self> {
         let [plain, tls, websocket, secure_websocket, services] =
-            crate::ports::allocate_loopback()?;
+            super::ports::allocate_loopback()?;
         let config = Self {
             endpoints: [plain, tls, websocket, secure_websocket],
             services,
@@ -87,7 +87,7 @@ fn required_env(name: &str) -> io::Result<String> {
 mod tests {
     use std::fs;
 
-    use crate::directory::TemporaryDirectory;
+    use super::super::directory::TemporaryDirectory;
 
     #[test]
     fn writes_ircv3_tls_websocket_and_atheme_configuration() {

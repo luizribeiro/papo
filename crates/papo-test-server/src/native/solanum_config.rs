@@ -1,6 +1,6 @@
 use std::{env, fs, io};
 
-use crate::{atheme, directory::TemporaryDirectory};
+use super::{atheme, directory::TemporaryDirectory};
 
 pub(super) struct Configuration {
     pub(super) plaintext: std::net::SocketAddr,
@@ -22,7 +22,7 @@ impl Configuration {
         modules: &str,
         atheme_modules: &str,
     ) -> io::Result<Self> {
-        let [plaintext, tls, services] = crate::ports::allocate_loopback()?;
+        let [plaintext, tls, services] = super::ports::allocate_loopback()?;
         let config = Self {
             plaintext,
             tls,
@@ -89,7 +89,7 @@ fn required_env(name: &str) -> io::Result<String> {
 mod tests {
     use std::fs;
 
-    use crate::directory::TemporaryDirectory;
+    use super::super::directory::TemporaryDirectory;
 
     #[test]
     fn writes_tls_ircv3_and_atheme_configuration() {

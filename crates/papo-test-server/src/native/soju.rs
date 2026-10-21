@@ -6,8 +6,8 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{
-    TestServer as ErgoServer, certificate, directory::TemporaryDirectory,
+use super::{
+    certificate, directory::TemporaryDirectory, server::TestServer as ErgoServer,
     server::wait_until_ready_until, soju_config::Configuration,
 };
 

@@ -6,7 +6,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{atheme, certificate, directory::TemporaryDirectory};
+use super::{atheme, certificate, directory::TemporaryDirectory};
 
 pub(crate) struct Configuration {
     pub(crate) plaintext: std::net::SocketAddr,
@@ -19,7 +19,7 @@ pub(crate) struct Configuration {
 impl Configuration {
     fn with_paths(directory: &TemporaryDirectory, unreal: &str, modules: &str) -> io::Result<Self> {
         let [plaintext, tls, websocket, secure_websocket, services] =
-            crate::ports::allocate_loopback()?;
+            super::ports::allocate_loopback()?;
         let config = Self {
             plaintext,
             tls,
@@ -163,7 +163,7 @@ impl TestServer {
                 self.config.websocket,
                 self.config.secure_websocket,
             ];
-            return crate::server::wait_until_ready_until(
+            return super::server::wait_until_ready_until(
                 "UnrealIRCd",
                 endpoints,
                 deadline,
@@ -241,7 +241,7 @@ fn required_env(name: &str) -> io::Result<String> {
 mod tests {
     use std::{collections::HashSet, fs};
 
-    use crate::directory::TemporaryDirectory;
+    use super::super::directory::TemporaryDirectory;
 
     use super::Configuration;
 

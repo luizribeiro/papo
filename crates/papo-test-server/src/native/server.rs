@@ -7,7 +7,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{certificate, directory::TemporaryDirectory, ergo::Configuration};
+use super::{certificate, directory::TemporaryDirectory, ergo::Configuration};
 
 const START_ATTEMPTS: usize = 5;
 

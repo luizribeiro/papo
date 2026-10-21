@@ -7,18 +7,17 @@ use std::{
     time::{Duration, Instant},
 };
 
-use crate::{atheme, certificate, directory::TemporaryDirectory, solanum_config::Configuration};
+use super::{atheme, certificate, directory::TemporaryDirectory, inspircd_config::Configuration};
 
-/// A Solanum process linked to Atheme for the target runner.
+/// An `InspIRCd` process linked to Atheme for the target runner.
 pub struct TestServer {
     children: Vec<Child>,
     directory: TemporaryDirectory,
-    plaintext: SocketAddr,
-    tls: SocketAddr,
+    endpoints: [SocketAddr; 4],
 }
 
 impl TestServer {
-    /// Starts Solanum and Atheme and waits for their services link.
+    /// Starts `InspIRCd` and Atheme and waits for their services link.
     ///
     /// # Errors
     ///
@@ -36,15 +35,10 @@ impl TestServer {
         certificate::generate(directory.path())?;
         let config = Configuration::new(&directory)?;
         let ircd = Command::new(
-            env::var("SOLANUM_BIN").map_err(|_| io::Error::other("SOLANUM_BIN is unset"))?,
+            env::var("INSPIRCD_BIN").map_err(|_| io::Error::other("INSPIRCD_BIN is unset"))?,
         )
-        .args(["-foreground", "-configfile"])
-        .arg(directory.path().join("solanum.conf"))
-        .arg("-logfile")
-        .arg(directory.path().join("solanum.log"))
-        .arg("-pidfile")
-        .arg(directory.path().join("solanum.pid"))
-        .env("BANDB_DBPATH", directory.path().join("ban.db"))
+        .args(["--nofork", "--nopid", "--nolog", "--config"])
+        .arg(directory.path().join("inspircd.conf"))
         .current_dir(directory.path())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -52,8 +46,7 @@ impl TestServer {
         let mut server = Self {
             children: vec![ircd],
             directory,
-            plaintext: config.plaintext,
-            tls: config.tls,
+            endpoints: config.endpoints,
         };
         server.wait_for(false)?;
         server.children.push(
@@ -68,8 +61,8 @@ impl TestServer {
     fn wait_for(&mut self, services: bool) -> io::Result<()> {
         let deadline = Instant::now() + Duration::from_secs(10);
         if !services {
-            let endpoints = [self.plaintext, self.tls];
-            return crate::server::wait_until_ready_until("Solanum", endpoints, deadline, || {
+            let endpoints = self.endpoints;
+            return super::server::wait_until_ready_until("InspIRCd", endpoints, deadline, || {
                 for child in &mut self.children {
                     if let Some(status) = child.try_wait()? {
                         return Ok(Some(status));
@@ -96,18 +89,20 @@ impl TestServer {
             "test server did not start",
         ))
     }
-    /// Returns the plaintext and TLS listeners.
+
+    /// Returns the plaintext, TLS, WebSocket, and secure WebSocket listeners.
     #[must_use]
-    pub const fn endpoints(&self) -> [SocketAddr; 2] {
-        [self.plaintext, self.tls]
+    pub const fn endpoints(&self) -> [SocketAddr; 4] {
+        self.endpoints
     }
+
     /// Returns the generated CA certificate path.
     #[must_use]
     pub fn ca_pem_path(&self) -> PathBuf {
         self.directory.path().join("ca.pem")
     }
 
-    /// Returns the Solanum process identifier.
+    /// Returns the `InspIRCd` process identifier.
     #[must_use]
     pub fn process_id(&self) -> u32 {
         self.children[0].id()
@@ -128,7 +123,8 @@ mod tests {
     #[test]
     fn registers_an_account_through_linked_atheme() {
         let server = super::TestServer::start().unwrap();
-        let name = crate::unique("solanum-account");
-        crate::account::register_atheme(server.plaintext, &name, "q7Hx-2mZp_9vLcT4wRfB").unwrap();
+        let name = crate::unique("inspircd-account");
+        crate::account::register_atheme(server.endpoints[0], &name, "q7Hx-2mZp_9vLcT4wRfB")
+            .unwrap();
     }
 }

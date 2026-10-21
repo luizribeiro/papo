@@ -1,6 +1,6 @@
 use std::{env, fs, io, path::Path, process::Command};
 
-use crate::directory::TemporaryDirectory;
+use super::directory::TemporaryDirectory;
 
 pub(crate) fn write_config(
     directory: &Path,
@@ -60,7 +60,7 @@ pub(crate) fn linked(directory: &Path) -> bool {
 mod tests {
     use std::fs;
 
-    use crate::directory::TemporaryDirectory;
+    use super::super::directory::TemporaryDirectory;
 
     #[test]
     fn writes_protocol_and_uplink_configuration() {
