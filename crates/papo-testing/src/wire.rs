@@ -172,7 +172,29 @@ impl Drop for Wire {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use super::wire;
+
+    async fn next_connected(events: &mut papo::Events) -> papo::event::Connected {
+        loop {
+            match events.next().await {
+                Some(papo::Event::Connected(connected)) => return connected,
+                Some(_) => {}
+                None => panic!("driver stopped before connecting"),
+            }
+        }
+    }
+
+    async fn next_disconnected(events: &mut papo::Events) -> papo::Disconnected {
+        loop {
+            match events.next().await {
+                Some(papo::Event::Disconnected(disconnected)) => return disconnected,
+                Some(_) => {}
+                None => panic!("driver stopped before disconnecting"),
+            }
+        }
+    }
 
     #[tokio::test(start_paused = true)]
     async fn exchanges_complete_irc_lines() {
@@ -222,5 +244,52 @@ mod tests {
             }
         }
         assert_eq!(wire.next_sent().await, "PRIVMSG alice pong");
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn reconnects_after_the_pipe_closes() {
+        let (_client, mut events, mut wire) = wire(
+            papo::Client::builder("irc://offline.test")
+                .nick("papo-wire")
+                .rate_limit(papo::RateLimit::unlimited())
+                .reconnect(
+                    papo::Reconnect::exponential()
+                        .max_delay(Duration::from_secs(1))
+                        .max_attempts(2),
+                ),
+        );
+        wire.register(&[]).await;
+        assert!(!next_connected(&mut events).await.reconnected);
+
+        wire.close().await;
+        let delay = next_disconnected(&mut events)
+            .await
+            .retry_in
+            .expect("disconnect should retry");
+        tokio::time::advance(delay).await;
+        wire.register(&[]).await;
+        assert!(next_connected(&mut events).await.reconnected);
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn request_timeout_uses_the_paused_clock() {
+        let (client, _events, mut wire) = wire(
+            papo::Client::builder("irc://offline.test")
+                .nick("papo-wire")
+                .rate_limit(papo::RateLimit::unlimited())
+                .request_timeout(Duration::from_secs(10))
+                .reconnect(papo::Reconnect::never()),
+        );
+        wire.register(&[]).await;
+        let request = tokio::spawn({
+            let nick = client.state().nickname("alice");
+            async move { client.whois(nick).await }
+        });
+        assert_eq!(wire.next_sent().await, "WHOIS alice");
+
+        tokio::time::advance(Duration::from_secs(9)).await;
+        assert!(!request.is_finished());
+        tokio::time::advance(Duration::from_secs(1)).await;
+        assert!(matches!(request.await.unwrap(), Err(papo::Error::Timeout)));
     }
 }
