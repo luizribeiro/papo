@@ -22,32 +22,27 @@ async fn main() -> Result<(), Box<dyn Error>> {
         {
             continue;
         }
-        let marker = match client.fetch_read_marker(&channel).await {
-            Ok(marker) => marker.unwrap_or(UNIX_EPOCH),
-            Err(error) => {
-                eprintln!("could not fetch the read marker: {error}");
-                continue;
-            }
-        };
-        let history = match client.history(&channel).after(marker).limit(100).await {
-            Ok(history) => history,
-            Err(error) => {
-                eprintln!("could not fetch history: {error}");
-                continue;
-            }
-        };
-        let mut newest = None;
-        for message in history.messages() {
-            println!("{channel} {}", message.text);
-            newest = Some(message.time());
-        }
-        if let Some(time) = newest
-            && let Err(error) = client.mark_read(&channel, time).await
-        {
-            eprintln!("could not advance the read marker: {error}");
-            continue;
+        if let Err(error) = catch_up(&client, &channel).await {
+            eprintln!("could not catch up: {error}");
         }
         return Ok(());
+    }
+    Ok(())
+}
+
+async fn catch_up(client: &Client, channel: &str) -> Result<(), papo::Error> {
+    let marker = client
+        .fetch_read_marker(channel)
+        .await?
+        .unwrap_or(UNIX_EPOCH);
+    let history = client.history(channel).after(marker).limit(100).await?;
+    let mut newest = None;
+    for message in history.messages() {
+        println!("{channel} {}", message.text);
+        newest = Some(message.time());
+    }
+    if let Some(time) = newest {
+        client.mark_read(channel, time).await?;
     }
     Ok(())
 }
