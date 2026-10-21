@@ -3,18 +3,28 @@
 
 mod support;
 
+use std::collections::BTreeMap;
+
 use papo_core::{Config, Event, Feature, NetworkConfig, NetworkId, NetworkState, StateLimit};
 use papo_proto::Casemapping;
 use support::Transcript;
 
 #[test]
 fn network_ids_have_the_identifier_value_shape() {
-    let owned = "libera".to_owned();
+    let owned = "1".to_owned();
     let from_borrowed = NetworkId::from(&owned);
-    assert_eq!(from_borrowed, "libera");
-    assert_eq!(AsRef::<str>::as_ref(&from_borrowed), "libera");
+    assert!(PartialEq::<str>::eq(&from_borrowed, "1"));
+    assert!(!PartialEq::<str>::eq(&from_borrowed, "2"));
+    assert_eq!(from_borrowed, "1");
+    assert_ne!(from_borrowed, "2");
+    assert_eq!(AsRef::<str>::as_ref(&from_borrowed), "1");
+    assert_eq!(from_borrowed.to_string(), "1");
     assert_eq!(NetworkId::from(&from_borrowed), from_borrowed);
-    assert_eq!(NetworkId::from(owned).into_string(), "libera");
+    assert_eq!(NetworkId::from(owned).into_string(), "1");
+
+    let networks = BTreeMap::from([(NetworkId::from("1"), "irc.libera.chat")]);
+    assert_eq!(networks.get("1"), Some(&"irc.libera.chat"));
+    assert_eq!(networks.get("2"), None);
 }
 
 fn registered() -> Transcript {
