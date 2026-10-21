@@ -1230,11 +1230,9 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn public_builder_rejects_every_non_hostname_string() {
+    async fn public_builder_rejects_malformed_string_endpoints() {
         for input in [
             "",
-            "irc://irc.example.net",
-            "irc.example.net:6697",
             "irc.example.net/webirc",
             "alice@irc.example.net",
             "irc example.net",
@@ -1249,13 +1247,21 @@ mod tests {
     }
 
     #[test]
-    fn public_builder_accepts_owned_and_borrowed_hostnames() {
-        for builder in [
-            crate::Client::builder("irc.example.net"),
-            crate::Client::builder(String::from("irc.example.net")),
+    fn public_builder_accepts_owned_and_borrowed_server_addresses() {
+        for (builder, protocol, port) in [
+            (
+                crate::Client::builder("irc.example.net"),
+                Protocol::Ircs,
+                6697,
+            ),
+            (
+                crate::Client::builder(String::from("irc://irc.example.net:7000")),
+                Protocol::Irc,
+                7000,
+            ),
         ] {
             let address = builder.address.unwrap();
-            assert_eq!((address.protocol, address.port), (Protocol::Ircs, 6697));
+            assert_eq!((address.protocol, address.port), (protocol, port));
         }
     }
 

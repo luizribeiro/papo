@@ -263,35 +263,18 @@ impl private::Sealed for Endpoint {
 
 impl private::Sealed for &str {
     fn into_endpoint(self) -> Endpoint {
-        hostname(self.to_owned())
+        Endpoint(self.parse())
     }
 }
 
 impl private::Sealed for String {
     fn into_endpoint(self) -> Endpoint {
-        hostname(self)
+        Endpoint(self.parse())
     }
 }
 
 pub(crate) fn convert(value: impl IntoEndpoint) -> Endpoint {
     private::Sealed::into_endpoint(value)
-}
-
-fn hostname(host: String) -> Endpoint {
-    if host.is_empty()
-        || host.contains("://")
-        || host.contains([':', '/', '@', '?', '#'])
-        || host.chars().any(char::is_whitespace)
-    {
-        return Endpoint(Err(InvalidInput::InvalidHost(host)));
-    }
-    Endpoint(Ok(ServerAddress {
-        protocol: Protocol::Ircs,
-        host,
-        port: 6697,
-        explicit_port: false,
-        websocket_path: None,
-    }))
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]

@@ -269,8 +269,8 @@ impl Client {
 
     /// Starts configuring a client for `endpoint`.
     ///
-    /// A string is a hostname for TLS on port 6697. Use [`crate::Endpoint`]
-    /// for another port, plaintext, or WebSocket transport.
+    /// Strings accept hostnames and `irc://`, `ircs://`, `ws://`, and `wss://` URLs.
+    /// A bare hostname uses TLS on port 6697.
     ///
     /// ```
     /// let builder = papo::Client::builder("irc.example.net");
