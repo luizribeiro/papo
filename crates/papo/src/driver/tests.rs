@@ -2531,7 +2531,19 @@ async fn required_sasl_failure_does_not_reconnect() {
     welcome_burst(&mut server).await;
     server_line(&mut server, b":ergo.test CAP * LS :sasl=PLAIN\r\n").await;
     client_line(&mut server, b"CAP REQ :sasl\r\n").await;
-    server_line(&mut server, b":ergo.test CAP * NAK :sasl\r\n").await;
+    server_line(&mut server, b":ergo.test CAP * ACK :sasl\r\n").await;
+    client_line(&mut server, b"AUTHENTICATE PLAIN\r\n").await;
+    server_line(&mut server, b"AUTHENTICATE +\r\n").await;
+    client_line(
+        &mut server,
+        b"AUTHENTICATE AGFsaWNlAGNvcnJlY3QgaG9yc2UgYmF0dGVyeSBzdGFwbGU=\r\n",
+    )
+    .await;
+    server_line(
+        &mut server,
+        b":ergo.test 904 alice :SASL authentication failed\r\n",
+    )
+    .await;
 
     let Some(Event::Disconnected(disconnected)) = events.next().await else {
         panic!("expected login disconnect")

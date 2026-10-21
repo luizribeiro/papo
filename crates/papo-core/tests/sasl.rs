@@ -414,7 +414,7 @@ fn aborts_reauthentication_when_sasl_disappears_and_accepts_907() {
 }
 
 #[test]
-fn required_sasl_closes_when_unavailable_naked_or_failed() {
+fn required_sasl_distinguishes_unavailable_from_failed_login() {
     for transcript in [
         Transcript::new(
             Config::default()
@@ -422,7 +422,7 @@ fn required_sasl_closes_when_unavailable_naked_or_failed() {
         )
         .connect_default()
         .server("CAP * LS :")
-        .event(|event| matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason } if reason.contains("did not advertise"))),
+        .event(|event| matches!(event, Event::Close { kind: CloseKind::SaslUnavailable, reason } if reason.contains("did not advertise"))),
         Transcript::new(
             Config::default()
                 .sasl(Sasl::plain("alice", "hunter2")),
@@ -431,21 +431,45 @@ fn required_sasl_closes_when_unavailable_naked_or_failed() {
         .server("CAP * LS :sasl=PLAIN")
         .client("CAP REQ :sasl")
         .server("CAP * NAK :sasl")
-        .event(|event| matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason } if reason.contains("rejected"))),
-        Transcript::new(
-            Config::default()
-                .sasl(Sasl::plain("alice", "hunter2")),
-        )
+        .event(|event| matches!(event, Event::Close { kind: CloseKind::SaslUnavailable, reason } if reason.contains("rejected"))),
+    ] {
+        transcript.no_client();
+    }
+
+    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
         .connect_default()
         .server("CAP * LS :sasl=PLAIN")
         .client("CAP REQ :sasl")
         .server("CAP * ACK :sasl")
         .client("AUTHENTICATE PLAIN")
         .server(":ergo.test 904 alice :SASL authentication failed")
-        .event(|event| matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason } if reason.contains("PLAIN"))),
-    ] {
-        transcript.no_client();
-    }
+        .event(|event| {
+            matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason }
+                if reason.contains("PLAIN"))
+        })
+        .no_client();
+}
+
+#[test]
+fn required_sasl_timeout_is_unavailable_after_the_abort_deadline() {
+    Transcript::new(
+        Config::default()
+            .welcome_timeout(std::time::Duration::from_secs(90))
+            .sasl(Sasl::plain("alice", "hunter2")),
+    )
+    .connect_default()
+    .server("CAP * LS :sasl=PLAIN")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE PLAIN")
+    .advance(std::time::Duration::from_secs(30))
+    .client("AUTHENTICATE *")
+    .advance(std::time::Duration::from_secs(30))
+    .event(|event| {
+        matches!(event, Event::Close { kind: CloseKind::SaslUnavailable, reason }
+                if reason.contains("timed out") && reason.contains("did not acknowledge"))
+    })
+    .no_client();
 }
 
 #[test]

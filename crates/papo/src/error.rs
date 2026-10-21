@@ -522,6 +522,7 @@ impl Error {
     pub(crate) fn disconnected_close(kind: papo_core::CloseKind, message: String) -> Self {
         let connect_kind = match kind {
             papo_core::CloseKind::SaslFailed => Some(ConnectErrorKind::Sasl),
+            papo_core::CloseKind::SaslUnavailable => Some(ConnectErrorKind::SaslUnavailable),
             papo_core::CloseKind::WebIrcRejected => Some(ConnectErrorKind::WebIrcRejected),
             papo_core::CloseKind::WelcomeTimeout => Some(ConnectErrorKind::WelcomeTimedOut),
             papo_core::CloseKind::AccountRequired => Some(ConnectErrorKind::AccountRequired),

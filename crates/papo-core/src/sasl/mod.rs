@@ -174,6 +174,7 @@ pub(super) struct SaslSession {
     entropy: Option<Box<dyn Entropy + Send>>,
     require: bool,
     failures: Vec<String>,
+    failure_kind: FailureKind,
     deadline: Option<Instant>,
     aborting: bool,
     scram: Option<ScramClient>,
@@ -185,6 +186,13 @@ enum Completion {
     Pending,
     Success,
     Failed,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+enum FailureKind {
+    #[default]
+    Login,
+    Unavailable,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -211,6 +219,7 @@ impl std::fmt::Debug for SaslSession {
             .field("has_entropy", &self.entropy.is_some())
             .field("require", &self.require)
             .field("failures", &self.failures)
+            .field("failure_kind", &self.failure_kind)
             .field("deadline", &self.deadline)
             .field("aborting", &self.aborting)
             .field("has_scram", &self.scram.is_some())
@@ -241,6 +250,7 @@ impl SaslSession {
             entropy,
             require: config.sasl.as_ref().is_some_and(|sasl| sasl.required),
             failures: Vec::new(),
+            failure_kind: FailureKind::Login,
             deadline: None,
             aborting: false,
             scram: None,
@@ -260,6 +270,7 @@ impl SaslSession {
         self.account = None;
         self.challenge.clear();
         self.failures.clear();
+        self.failure_kind = FailureKind::Login;
         self.deadline = None;
         self.aborting = false;
         self.scram = None;
@@ -286,6 +297,7 @@ impl SaslSession {
 
     pub(super) fn cap_removed(&mut self, outbox: &mut Outbox) {
         if self.completion == Completion::Pending {
+            self.failure_kind = FailureKind::Unavailable;
             self.fail_all(
                 "the sasl capability disappeared during authentication",
                 outbox,
@@ -305,6 +317,7 @@ impl SaslSession {
         }
         self.reset_exchange();
         if !available {
+            self.failure_kind = FailureKind::Unavailable;
             self.fail_all("the server does not currently advertise sasl", outbox);
             return;
         }
@@ -321,6 +334,7 @@ impl SaslSession {
         self.completion = Completion::Pending;
         self.challenge.clear();
         self.failures.clear();
+        self.failure_kind = FailureKind::Login;
         self.deadline = None;
         self.aborting = false;
         self.scram = None;
@@ -471,6 +485,7 @@ impl SaslSession {
         if self.completion != Completion::Pending {
             return;
         }
+        self.failure_kind = FailureKind::Unavailable;
         self.fail_all(reason, outbox);
     }
 
@@ -491,8 +506,10 @@ impl SaslSession {
         if self.deadline.is_some_and(|deadline| now >= deadline) {
             self.deadline = None;
             if self.aborting {
+                self.failure_kind = FailureKind::Unavailable;
                 self.fail_all("the server did not acknowledge the SASL abort", outbox);
             } else if self.active.is_some() {
+                self.failure_kind = FailureKind::Unavailable;
                 self.abort(now, "SASL mechanism timed out after 30 seconds", outbox);
             }
         }
@@ -614,7 +631,14 @@ impl SaslSession {
         self.failures.push(reason.to_owned());
         let reason = format!("SASL failed: {}", self.failures.join("; "));
         if self.require {
-            outbox.close(crate::CloseKind::SaslFailed, reason);
+            outbox.close(
+                if self.failure_kind == FailureKind::Unavailable {
+                    crate::CloseKind::SaslUnavailable
+                } else {
+                    crate::CloseKind::SaslFailed
+                },
+                reason,
+            );
         } else {
             outbox.event(crate::Event::AuthenticationFailed { reason });
         }

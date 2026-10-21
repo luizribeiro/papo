@@ -375,6 +375,7 @@ pub papo_core::CloseKind::Other
 pub papo_core::CloseKind::PasswordIncorrect
 pub papo_core::CloseKind::PingTimeout
 pub papo_core::CloseKind::SaslFailed
+pub papo_core::CloseKind::SaslUnavailable
 pub papo_core::CloseKind::ServerError
 pub papo_core::CloseKind::StsUpgrade
 pub papo_core::CloseKind::WebIrcRejected
