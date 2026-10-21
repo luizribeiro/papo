@@ -471,7 +471,23 @@ mod tests {
 
     use crate::{Casemapping, Isupport, LineRef};
 
-    use super::{Address, InvalidIdentifier, MessageId, MetadataKey, Nick};
+    use super::{Address, InvalidIdentifier, Mask, MaskSource, MessageId, MetadataKey, Nick};
+
+    struct TestSource {
+        nick: Nick,
+        username: Option<&'static str>,
+        host: Option<&'static str>,
+        server: bool,
+    }
+
+    impl MaskSource for TestSource {
+        fn mask_parts(&self) -> Option<(&Nick, &str, &str)> {
+            if self.server {
+                return None;
+            }
+            Some((&self.nick, self.username?, self.host?))
+        }
+    }
 
     fn assert_contract<T>()
     where
@@ -498,6 +514,54 @@ mod tests {
         assert_contract::<Address>();
         assert_contract::<MetadataKey>();
         assert_contract::<MessageId>();
+    }
+
+    #[test]
+    fn mask_builders_return_each_shape_for_a_complete_user_source() {
+        let source = TestSource {
+            nick: Casemapping::Rfc1459.nick("Alice[bot]"),
+            username: Some("~alice"),
+            host: Some("staff.example"),
+            server: false,
+        };
+
+        assert_eq!(
+            Mask::exact(&source).unwrap().to_string(),
+            "Alice[bot]!~alice@staff.example"
+        );
+        assert_eq!(Mask::for_host(&source).unwrap(), "*!*@staff.example");
+        assert_eq!(
+            Mask::for_user_host(&source).unwrap(),
+            "*!~alice@staff.example"
+        );
+    }
+
+    #[test]
+    fn mask_builders_reject_only_incomplete_or_server_sources() {
+        for source in [
+            TestSource {
+                nick: Casemapping::Ascii.nick("irc.example.net"),
+                username: None,
+                host: None,
+                server: true,
+            },
+            TestSource {
+                nick: Casemapping::Ascii.nick("Alice"),
+                username: None,
+                host: Some("staff.example"),
+                server: false,
+            },
+            TestSource {
+                nick: Casemapping::Ascii.nick("Alice"),
+                username: Some("~alice"),
+                host: None,
+                server: false,
+            },
+        ] {
+            assert_eq!(Mask::exact(&source), None);
+            assert_eq!(Mask::for_host(&source), None);
+            assert_eq!(Mask::for_user_host(&source), None);
+        }
     }
 
     #[test]
