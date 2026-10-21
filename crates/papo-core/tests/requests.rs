@@ -1671,6 +1671,28 @@ fn abort_reports_when_a_labelled_privmsg_reached_the_transport() {
 }
 
 #[test]
+fn partially_transmitted_split_send_aborts_as_transmitted() {
+    let now = Instant::now();
+    let mut session = echo_session(now);
+    let text = "Production deployment remains healthy across all regions. ".repeat(12);
+    let sent = session
+        .send_text_detailed(now, TextKind::Privmsg, "#papo", &text, &[])
+        .unwrap();
+    assert_eq!(sent.confirmations, 2);
+    let id = sent.request.unwrap();
+
+    assert!(session.poll_transmit().is_some());
+    session.handle_disconnected(now);
+    let aborted = std::iter::from_fn(|| session.poll_event())
+        .filter_map(|event| match event {
+            Event::RequestAborted { id, transmitted } => Some((id, transmitted)),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(aborted, [(id, true)]);
+}
+
+#[test]
 fn split_send_timeout_and_disconnect_are_each_reported_once() {
     let now = Instant::now();
     let text = "Production deployment remains healthy across all regions. ".repeat(12);

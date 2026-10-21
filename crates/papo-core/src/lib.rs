@@ -2767,7 +2767,7 @@ impl Session {
                 self.outbox.transmit_tracked(
                     line,
                     (index == last).then_some(token).flatten(),
-                    (index == last).then_some(request).flatten(),
+                    request,
                 );
             }
         }
@@ -3014,10 +3014,12 @@ impl Session {
         let (Some(id), Some(now)) = (request, self.rate_limit.now) else {
             return;
         };
-        for (request_id, started, _, _, _) in self.requests.values_mut() {
-            if *request_id == id && started.is_none() {
-                *started = Some(now);
-            }
+        if let Some((_, started, _, _, _)) = self
+            .requests
+            .values_mut()
+            .find(|(request_id, started, _, _, _)| *request_id == id && started.is_none())
+        {
+            *started = Some(now);
         }
         for pending in &mut self.unlabelled_requests {
             if pending.id == id && pending.started.is_none() {
