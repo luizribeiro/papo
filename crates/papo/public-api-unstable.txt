@@ -1621,7 +1621,6 @@ impl core::marker::UnsafeUnpin for papo::MessageKind
 impl core::panic::unwind_safe::RefUnwindSafe for papo::MessageKind
 impl core::panic::unwind_safe::UnwindSafe for papo::MessageKind
 #[non_exhaustive] pub enum papo::Origin
-pub papo::Origin::Echo
 pub papo::Origin::History
 pub papo::Origin::Live
 pub papo::Origin::Replay

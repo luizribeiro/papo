@@ -123,11 +123,6 @@ impl Authorship {
 pub enum Origin {
     /// A newly received message.
     Live,
-    /// A server copy of a message sent by this client.
-    ///
-    /// Typed sends consume their correlated server copy, so this value is retained only for
-    /// compatibility and is not produced for incoming messages.
-    Echo,
     /// A message associated with a server batch.
     Replay,
     /// A message returned by an explicit history request.
