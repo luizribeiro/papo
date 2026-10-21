@@ -209,14 +209,7 @@ fn honors_the_server_advertised_history_limit() {
 fn caps_history_when_the_server_advertises_no_limit() {
     let (mut unlimited, now) = history_session("CHATHISTORY=0 MSGREFTYPES=msgid,timestamp");
     unlimited
-        .chathistory(
-            now,
-            HistoryQuery::Latest {
-                target: "#papo".into(),
-                after: None,
-                limit: 1_001,
-            },
-        )
+        .chathistory(now, HistoryQuery::__latest("#papo".into(), None, 1_001))
         .unwrap();
     assert_eq!(
         transmitted(&mut unlimited),
@@ -229,14 +222,7 @@ fn rejects_history_without_its_capability() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
     assert_eq!(
-        session.chathistory(
-            now,
-            HistoryQuery::Latest {
-                target: "#papo".into(),
-                after: None,
-                limit: 50,
-            }
-        ),
+        session.chathistory(now, HistoryQuery::__latest("#papo".into(), None, 50)),
         Err(unsupported_error(Feature::History))
     );
 }
@@ -245,14 +231,7 @@ fn rejects_history_without_its_capability() {
 fn rejects_open_ended_bounded_queries() {
     let (mut session, now) = history_session("CHATHISTORY=1000 MSGREFTYPES=msgid,timestamp");
     assert_eq!(
-        session.chathistory(
-            now,
-            HistoryQuery::Before {
-                target: "#papo".into(),
-                before: MsgRef::Any,
-                limit: 50,
-            }
-        ),
+        session.chathistory(now, HistoryQuery::__before("#papo".into(), MsgRef::Any, 50)),
         Err(RequestError::InvalidMessageReference)
     );
 }
@@ -261,14 +240,7 @@ fn rejects_open_ended_bounded_queries() {
 fn assembles_deduplicated_context_aware_pages() {
     let (mut session, now) = history_session("CHATHISTORY=1000 MSGREFTYPES=msgid,timestamp");
     session
-        .chathistory(
-            now,
-            HistoryQuery::Latest {
-                target: "#papo".into(),
-                after: None,
-                limit: 50,
-            },
-        )
+        .chathistory(now, HistoryQuery::__latest("#papo".into(), None, 50))
         .unwrap();
     let _ = session.poll_transmit();
     for line in [
@@ -306,14 +278,7 @@ fn empty_page_is_the_end_but_a_short_untagged_page_is_not() {
     let page = |lines: &[&str]| {
         let (mut session, now) = history_session("CHATHISTORY=1000 MSGREFTYPES=msgid,timestamp");
         session
-            .chathistory(
-                now,
-                HistoryQuery::Latest {
-                    target: "#papo".into(),
-                    after: None,
-                    limit: 10,
-                },
-            )
+            .chathistory(now, HistoryQuery::__latest("#papo".into(), None, 10))
             .unwrap();
         let _ = session.poll_transmit();
         for line in lines {
@@ -350,14 +315,7 @@ fn empty_page_is_the_end_but_a_short_untagged_page_is_not() {
 fn correlates_chathistory_failures() {
     let (mut session, now) = history_session("CHATHISTORY=1000 MSGREFTYPES=msgid,timestamp");
     session
-        .chathistory(
-            now,
-            HistoryQuery::Latest {
-                target: "#missing".into(),
-                after: None,
-                limit: 50,
-            },
-        )
+        .chathistory(now, HistoryQuery::__latest("#missing".into(), None, 50))
         .unwrap();
     session.handle_line(
         now,
@@ -375,11 +333,11 @@ fn reports_targets_with_parsed_server_times() {
     session
         .chathistory(
             now,
-            HistoryQuery::Targets {
-                from: UNIX_EPOCH + Duration::from_secs(1_760_529_301),
-                to: UNIX_EPOCH + Duration::from_secs(1_760_529_401),
-                limit: 20,
-            },
+            HistoryQuery::__targets(
+                UNIX_EPOCH + Duration::from_secs(1_760_529_301),
+                UNIX_EPOCH + Duration::from_secs(1_760_529_401),
+                20,
+            ),
         )
         .unwrap();
     assert!(transmitted(&mut session).contains("CHATHISTORY TARGETS "));
@@ -456,7 +414,7 @@ fn read_marker_silence_times_out_after_the_literal_request_timeout() {
     session.handle_timeout(now + Duration::from_secs(30));
     assert!(matches!(
         session.poll_event(),
-        Some(Event::RequestTimedOut { id: expired }) if expired == id
+        Some(Event::RequestTimedOut { id: expired, .. }) if expired == id
     ));
 }
 
@@ -481,14 +439,7 @@ fn rejects_explicitly_disabled_history_features_before_transmitting() {
         .update(|session| {
             let now = Instant::now();
             assert_eq!(
-                session.chathistory(
-                    now,
-                    HistoryQuery::Latest {
-                        target: "#papo".into(),
-                        after: None,
-                        limit: 50,
-                    },
-                ),
+                session.chathistory(now, HistoryQuery::__latest("#papo".into(), None, 50),),
                 Err(unsupported_because(
                     Feature::History,
                     UnsupportedReason::DisabledByClient,
@@ -576,7 +527,7 @@ fn tracks_read_markers_monotonically_through_join_bursts() {
     }
     session.handle_line(now, b":ergo.test 366 papo #joined :End of /NAMES list");
     assert!(
-        matches!(session.poll_event(), Some(Event::ChannelSynced { channel }) if channel == "#joined")
+        matches!(session.poll_event(), Some(Event::ChannelSynced { channel, .. }) if channel == "#joined")
     );
 }
 
