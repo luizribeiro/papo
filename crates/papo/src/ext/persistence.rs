@@ -6,6 +6,12 @@ pub struct Persistence {
     client: Client,
 }
 
+impl std::fmt::Debug for Persistence {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        crate::opaque_debug("Persistence", formatter)
+    }
+}
+
 impl Client {
     /// Returns a handle for account persistence requests and cached state.
     #[must_use]

@@ -7,6 +7,12 @@ pub struct WebPush {
     client: Client,
 }
 
+impl std::fmt::Debug for WebPush {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        crate::opaque_debug("WebPush", formatter)
+    }
+}
+
 /// Web Push encryption keys encoded with the URL-safe Base64 alphabet.
 ///
 /// The `p256dh` value is the encoded P-256 public key and `auth` is the encoded authentication

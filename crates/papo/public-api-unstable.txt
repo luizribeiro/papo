@@ -1761,6 +1761,8 @@ pub fn papo::Bouncer::add(&self, papo::NetworkConfig) -> papo::RequestFuture<pap
 pub fn papo::Bouncer::change(&self, &papo::NetworkId, papo::NetworkConfig) -> papo::RequestFuture<()>
 pub fn papo::Bouncer::networks(&self) -> papo::RequestFuture<alloc::vec::Vec<papo::BouncerNetwork>>
 pub fn papo::Bouncer::remove(&self, &papo::NetworkId) -> papo::RequestFuture<()>
+impl core::fmt::Debug for papo::Bouncer
+pub fn papo::Bouncer::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Freeze for papo::Bouncer
 impl core::marker::Send for papo::Bouncer
 impl core::marker::Sync for papo::Bouncer
@@ -2375,6 +2377,8 @@ pub struct papo::Persistence
 impl papo::Persistence
 pub fn papo::Persistence::get(&self) -> papo::RequestFuture<papo::PersistenceStatus>
 pub fn papo::Persistence::set(&self, papo::PersistenceSetting) -> papo::RequestFuture<papo::PersistenceStatus>
+impl core::fmt::Debug for papo::Persistence
+pub fn papo::Persistence::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Freeze for papo::Persistence
 impl core::marker::Send for papo::Persistence
 impl core::marker::Sync for papo::Persistence
@@ -2654,6 +2658,8 @@ pub struct papo::WebPush
 impl papo::WebPush
 pub fn papo::WebPush::register(&self, impl core::convert::Into<alloc::string::String>, papo::PushKeys) -> papo::RequestFuture<()>
 pub fn papo::WebPush::unregister(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+impl core::fmt::Debug for papo::WebPush
+pub fn papo::WebPush::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Freeze for papo::WebPush
 impl core::marker::Send for papo::WebPush
 impl core::marker::Sync for papo::WebPush

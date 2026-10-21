@@ -6,6 +6,12 @@ pub struct Bouncer {
     client: Client,
 }
 
+impl std::fmt::Debug for Bouncer {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        crate::opaque_debug("Bouncer", formatter)
+    }
+}
+
 impl Client {
     /// Returns a handle for upstream bouncer network management.
     #[must_use]

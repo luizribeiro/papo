@@ -66,3 +66,12 @@ fn request_builders_and_extension_handles_have_opaque_debug_output() {
     assert_eq!(format!("{:?}", client.metadata()), "Metadata { .. }");
     assert_eq!(format!("{:?}", client.monitor()), "Monitor { .. }");
 }
+
+#[cfg(feature = "unstable")]
+#[test]
+fn unstable_extension_handles_have_opaque_debug_output() {
+    let (client, _events, _driver) = Client::builder("irc://irc.example.net").build();
+    assert_eq!(format!("{:?}", client.bouncer()), "Bouncer { .. }");
+    assert_eq!(format!("{:?}", client.persistence()), "Persistence { .. }");
+    assert_eq!(format!("{:?}", client.webpush()), "WebPush { .. }");
+}
