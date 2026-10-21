@@ -64,6 +64,18 @@ fn unsealed_struct_variants(snapshot: &str) -> Vec<&str> {
         .collect()
 }
 
+fn wire_address_exposures(snapshot: &str) -> Vec<&str> {
+    snapshot
+        .lines()
+        .filter(|line| {
+            line.split(|character: char| {
+                !(character.is_ascii_alphanumeric() || "_:".contains(character))
+            })
+            .any(|word| word == "papo_proto::Address")
+        })
+        .collect()
+}
+
 #[test]
 fn public_types_have_one_path() {
     for (name, snapshot) in [
@@ -111,5 +123,30 @@ fn variant_check_distinguishes_struct_and_tuple_variants() {
     assert_eq!(
         unsealed_struct_variants(snapshot),
         ["example::Event::Changed"]
+    );
+}
+
+#[test]
+fn public_items_do_not_expose_wire_addresses() {
+    for (name, snapshot) in [
+        ("papo", STABLE),
+        ("papo unstable", UNSTABLE),
+        ("papo-bot", BOT),
+    ] {
+        assert_eq!(
+            wire_address_exposures(snapshot),
+            Vec::<&str>::new(),
+            "{name} exposes papo-proto's wire address type"
+        );
+    }
+}
+
+#[test]
+fn address_check_matches_types_not_names() {
+    let snapshot = "pub fn example::send(papo_proto::Address)\n\
+                    pub example::InvalidInput::EmptyAddress\n";
+    assert_eq!(
+        wire_address_exposures(snapshot),
+        ["pub fn example::send(papo_proto::Address)"]
     );
 }
