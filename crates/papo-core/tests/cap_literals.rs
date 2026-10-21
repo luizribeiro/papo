@@ -23,7 +23,7 @@ fn is_test_source(path: &Path) -> bool {
 }
 
 fn is_protocol_tag(path: &Path, line: &str, name: &str) -> bool {
-    name == papo_core::cap::BATCH
+    name == papo_core::cap::BATCH.as_str()
         && path.file_name().is_some_and(|name| name == "batch.rs")
         && (line.contains(".tag(")
             || line.contains("with_tag(")

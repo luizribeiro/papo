@@ -425,8 +425,8 @@ impl Batches {
 }
 
 fn is_history(kind: &str) -> bool {
-    kind == cap::canonical(cap::CHATHISTORY)
-        || kind == cap::CHATHISTORY
+    kind == cap::canonical(cap::CHATHISTORY.as_str())
+        || kind == cap::CHATHISTORY.as_str()
         || kind == "draft/chathistory-targets"
         || kind == cap::EVENT_PLAYBACK.as_str()
 }

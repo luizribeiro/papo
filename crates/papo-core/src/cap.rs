@@ -163,7 +163,7 @@ capabilities! {
     [cap] CAP_NOTIFY = "cap-notify"; "Capability change notifications."; name: "cap-notify"; aliases: []; request: Request::Default("cap-notify"); features: []; code: [crate::caps];
     [cap] MESSAGE_TAGS = "message-tags"; "`IRCv3` message tags."; name: "message-tags"; aliases: []; request: Request::Default("message-tags"); features: [Feature::MessageTags, Feature::Replies, Feature::Reactions, Feature::Typing]; code: [crate::features, crate::replies];
     [cap] SERVER_TIME = "server-time"; "Server-assigned message timestamps."; name: "server-time"; aliases: []; request: Request::Default("server-time"); features: []; code: [crate::state::read_marker];
-    BATCH = "batch"; "Batched messages."; name: "batch"; aliases: []; request: Request::Default("batch"); features: []; code: [crate::batch];
+    [cap] BATCH = "batch"; "Batched messages."; name: "batch"; aliases: []; request: Request::Default("batch"); features: []; code: [crate::batch];
     [cap] EVENT_PLAYBACK = "draft/event-playback"; "Replay of missed events."; name: "draft/event-playback"; aliases: []; request: Request::Default("draft/event-playback"); features: []; code: [crate::batch];
     [cap] ECHO_MESSAGE = "echo-message"; "Echoes of sent messages."; name: "echo-message"; aliases: []; request: Request::Default("echo-message"); features: []; code: [crate::outgoing, crate::echo];
     [cap] ACCOUNT_TAG = "account-tag"; "Account tags on messages."; name: "account-tag"; aliases: []; request: Request::Default("account-tag"); features: [Feature::AccountTracking]; code: [crate::state::presence];
@@ -180,8 +180,8 @@ capabilities! {
     [cap] LABELED_RESPONSE = "labeled-response"; "Labelled request correlation."; name: "labeled-response"; aliases: []; request: Request::Default("labeled-response"); features: [Feature::LabeledResponse]; code: [crate::outgoing, crate::labels];
     [cap] MULTILINE = "draft/multiline"; "Multiline messages."; name: "draft/multiline"; aliases: []; request: Request::Default("draft/multiline"); features: [Feature::Multiline]; code: [crate::outgoing, crate::batch];
     [cap] OPER_TAG = "draft/oper-tag"; "Operator tags on messages."; name: "draft/oper-tag"; aliases: []; request: Request::Default("draft/oper-tag"); features: []; code: [crate::replies];
-    METADATA = "draft/metadata-2"; "Client metadata."; name: "draft/metadata-3"; aliases: ["draft/metadata-2"]; request: Request::Default("draft/metadata-2"); features: [Feature::Metadata]; code: [crate::metadata, crate::state::metadata];
-    METADATA_NOTIFY = "metadata-notify"; "Legacy metadata notifications."; name: "metadata-notify"; aliases: []; request: Request::Superseded("draft/metadata-3"); features: []; code: [crate::metadata, crate::state::metadata];
+    [cap] METADATA = "draft/metadata-2"; "Client metadata."; name: "draft/metadata-3"; aliases: ["draft/metadata-2"]; request: Request::Default("draft/metadata-2"); features: [Feature::Metadata]; code: [crate::metadata, crate::state::metadata];
+    [cap] METADATA_NOTIFY = "metadata-notify"; "Legacy metadata notifications."; name: "metadata-notify"; aliases: []; request: Request::Superseded("draft/metadata-3"); features: []; code: [crate::metadata, crate::state::metadata];
     [cap] SASL = "sasl"; "SASL authentication."; name: "sasl"; aliases: []; request: Request::Automatic; features: []; code: [crate::sasl];
     [cap] STS = "sts"; "Strict Transport Security policy."; name: "sts"; aliases: []; request: Request::Never; features: []; code: [crate::sts];
     [cap] NOPE = "ergo.chat/nope"; "Ergo capability-negotiation test trap."; name: "ergo.chat/nope"; aliases: []; request: Request::Never; features: []; code: [crate::caps];
@@ -189,8 +189,8 @@ capabilities! {
     [cap] ACCOUNT_REGISTRATION = "draft/account-registration"; "Account registration."; name: "draft/account-registration"; aliases: ["account-registration"]; request: Request::Default("draft/account-registration"); features: [Feature::AccountCreation]; code: [crate::account_registration];
     #[cfg(feature = "unstable")] BOUNCER_NETWORKS = "soju.im/bouncer-networks"; "Bouncer network management."; name: "soju.im/bouncer-networks"; aliases: []; request: Request::Default("soju.im/bouncer-networks"); features: [Feature::Bouncer]; code: [crate::bouncer];
     #[cfg(feature = "unstable")] BOUNCER_NETWORKS_NOTIFY = "soju.im/bouncer-networks-notify"; "Bouncer network change notifications."; name: "soju.im/bouncer-networks-notify"; aliases: []; request: Request::Default("soju.im/bouncer-networks-notify"); features: []; code: [crate::bouncer];
-    CHATHISTORY = "draft/chathistory"; "Message history queries."; name: "chathistory"; aliases: ["draft/chathistory"]; request: Request::Default("draft/chathistory"); features: [Feature::History]; code: [crate::history, crate::batch];
-    READ_MARKER = "draft/read-marker"; "Channel read markers."; name: "draft/read-marker"; aliases: ["read-marker"]; request: Request::Default("draft/read-marker"); features: [Feature::ReadMarkers]; code: [crate::history, crate::state::read_marker];
+    [cap] CHATHISTORY = "draft/chathistory"; "Message history queries."; name: "chathistory"; aliases: ["draft/chathistory"]; request: Request::Default("draft/chathistory"); features: [Feature::History]; code: [crate::history, crate::batch];
+    [cap] READ_MARKER = "draft/read-marker"; "Channel read markers."; name: "draft/read-marker"; aliases: ["read-marker"]; request: Request::Default("draft/read-marker"); features: [Feature::ReadMarkers]; code: [crate::history, crate::state::read_marker];
     #[cfg(feature = "unstable")] PERSISTENCE = "draft/persistence"; "Account persistence preferences."; name: "draft/persistence"; aliases: []; request: Request::Default("draft/persistence"); features: [Feature::Persistence]; code: [crate::persistence, crate::state::persistence];
     CHANNEL_RENAME = "draft/channel-rename"; "Channel renaming."; name: "draft/channel-rename"; aliases: []; request: Request::Default("draft/channel-rename"); features: [Feature::ChannelRename]; code: [crate::channel_rename, crate::state::rename];
     #[cfg(feature = "unstable")] RELAYMSG = "draft/relaymsg"; "Relayed messages."; name: "draft/relaymsg"; aliases: []; request: Request::Default("draft/relaymsg"); features: [Feature::Relay]; code: [crate::relaymsg];
@@ -413,7 +413,7 @@ mod tests {
         let draft = Cap::from("draft/chathistory");
         let final_name = Cap::from("chathistory");
 
-        assert_eq!(Cap::from(CHATHISTORY), draft);
+        assert_eq!(CHATHISTORY, draft);
         assert_eq!(draft, final_name);
         assert_eq!(draft.to_string(), "draft/chathistory");
         assert_eq!(final_name.to_string(), "chathistory");
@@ -433,12 +433,12 @@ mod tests {
         assert!(!is_known("example.org/unknown"));
         let advertised = Capabilities::from([(Cap::from("draft/metadata-2"), None)]);
         assert_eq!(
-            advertised_spelling(METADATA, &advertised),
+            advertised_spelling(METADATA.as_str(), &advertised),
             Some("draft/metadata-2")
         );
         assert_eq!(
             advertised_spelling(
-                CHATHISTORY,
+                CHATHISTORY.as_str(),
                 &Capabilities::from([(Cap::from("chathistory"), None)])
             ),
             None

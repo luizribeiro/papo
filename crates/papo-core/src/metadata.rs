@@ -98,9 +98,7 @@ pub struct MetadataLimits {
 
 impl MetadataLimits {
     pub(crate) fn from_caps(caps: &Capabilities) -> Option<Self> {
-        let value = caps
-            .get(cap::canonical(cap::METADATA))
-            .or_else(|| caps.get(cap::METADATA))?;
+        let value = caps.get(&cap::METADATA)?;
         Some(Self::parse(value.as_deref()))
     }
 

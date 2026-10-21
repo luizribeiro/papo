@@ -23,7 +23,7 @@ fn replays_recorded_ergo_registration() {
             Event::Connected(welcome) => {
                 assert_eq!(welcome.nick, "papo-fixture");
                 assert!(welcome.caps.contains_key("server-time"));
-                assert!(welcome.caps.contains_key(&Cap::from(cap::CHATHISTORY)));
+                assert!(welcome.caps.contains_key(&cap::CHATHISTORY));
                 assert!(welcome.caps.contains_key(&Cap::from("chathistory")));
                 assert_eq!(
                     welcome

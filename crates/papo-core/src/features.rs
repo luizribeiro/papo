@@ -107,8 +107,8 @@ impl Feature {
             Self::Typing => "typing notifications",
             Self::Redaction => cap::MESSAGE_REDACTION,
             Self::Multiline => "multiline messages",
-            Self::History => cap::canonical(cap::CHATHISTORY),
-            Self::ReadMarkers => cap::alias(cap::READ_MARKER, 0),
+            Self::History => cap::canonical(cap::CHATHISTORY.constant_str()),
+            Self::ReadMarkers => cap::alias(cap::READ_MARKER.constant_str(), 0),
             Self::Metadata => "metadata",
             Self::Monitor => "monitoring",
             Self::SetName => "real-name changes",
@@ -137,9 +137,9 @@ impl Feature {
             }
             Self::Redaction => [Some(cap::Cap::from(cap::MESSAGE_REDACTION)), None],
             Self::Multiline => [Some(cap::MULTILINE), None],
-            Self::History => [Some(cap::Cap::from(cap::CHATHISTORY)), None],
-            Self::ReadMarkers => [Some(cap::Cap::from(cap::READ_MARKER)), None],
-            Self::Metadata => [Some(cap::Cap::from(cap::METADATA)), None],
+            Self::History => [Some(cap::CHATHISTORY), None],
+            Self::ReadMarkers => [Some(cap::READ_MARKER), None],
+            Self::Metadata => [Some(cap::METADATA), None],
             Self::SetName => [Some(cap::SETNAME), None],
             Self::AccountCreation => [Some(cap::ACCOUNT_REGISTRATION), None],
             #[cfg(feature = "unstable")]

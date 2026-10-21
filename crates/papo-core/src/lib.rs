@@ -2715,7 +2715,7 @@ impl Session {
         let multiline = self
             .caps
             .enabled()
-            .contains_key(cap::BATCH)
+            .contains_key(&cap::BATCH)
             .then(|| outgoing::multiline_limits(self.caps.enabled()))
             .flatten();
         let budget = multiline.map_or(self.text_budget(kind, target), |limits| {
@@ -2762,8 +2762,8 @@ impl Session {
                 }
                 lines.push(open.to_line()?.into_bytes());
                 for (offset, segment) in segments[start..end].iter().enumerate() {
-                    let mut inner =
-                        Line::new(kind.command(), [target, segment.text]).with_tag(cap::BATCH, &id);
+                    let mut inner = Line::new(kind.command(), [target, segment.text])
+                        .with_tag(cap::BATCH.as_str(), &id);
                     if offset > 0 && segments[offset + start - 1].concat {
                         inner = inner.with_tag("draft/multiline-concat", "");
                     }
