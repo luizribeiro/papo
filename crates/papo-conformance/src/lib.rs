@@ -449,7 +449,8 @@ async fn probe(
     let endpoint = Endpoint::plaintext(
         server.plaintext_addr().ip().to_string(),
         server.plaintext_addr().port(),
-    );
+    )
+    .unwrap();
     let wanted_caps = wanted_caps.into_iter().map(str::to_owned).collect();
     let mut connection = connect_client(
         server,

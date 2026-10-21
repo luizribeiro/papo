@@ -368,10 +368,9 @@ async fn bouncer_networks(s: Scenario) -> papo_testing::Result<()> {
         let address = s.server.plaintext_addr();
         let alice = s
             .connect_with(
-                Client::builder(Endpoint::plaintext(
-                    address.ip().to_string(),
-                    address.port(),
-                ))
+                Client::builder(
+                    Endpoint::plaintext(address.ip().to_string(), address.port()).unwrap(),
+                )
                 .nick(network_nick)
                 .username(login.username())
                 .realname("papo bouncer control")
@@ -480,7 +479,7 @@ async fn webirc(s: Scenario) -> papo_testing::Result<()> {
 /// registers over TLS with the configured test CA
 #[scenario(covers = ["core.tls.handshake"])]
 async fn tls(s: Scenario) -> papo_testing::Result<()> {
-    let endpoint = Endpoint::tls("localhost", s.server.tls_addr().port());
+    let endpoint = Endpoint::tls("localhost", s.server.tls_addr().port()).unwrap();
     let ca = fs::read(s.server.ca_pem_path())?;
     register_over(&s, endpoint, Some(ca)).await
 }
@@ -488,7 +487,7 @@ async fn tls(s: Scenario) -> papo_testing::Result<()> {
 /// rejects a TLS certificate outside the configured trust roots
 #[scenario(covers = ["core.tls.cert-verification-failure"])]
 async fn tls_certificate_rejected(s: Scenario) -> papo_testing::Result<()> {
-    let endpoint = Endpoint::tls("localhost", s.server.tls_addr().port());
+    let endpoint = Endpoint::tls("localhost", s.server.tls_addr().port()).unwrap();
     let Err(error) = s.connect_with(s.configure_at("alice", endpoint)?).await else {
         panic!("the private test CA was trusted by default")
     };
@@ -516,10 +515,9 @@ async fn sts(s: Scenario) -> papo_testing::Result<()> {
         let nick = papo_test_server::unique("alice-sts");
         let alice = s
             .connect_with(
-                Client::builder(Endpoint::plaintext(
-                    "localhost",
-                    server.plaintext_addr().port(),
-                ))
+                Client::builder(
+                    Endpoint::plaintext("localhost", server.plaintext_addr().port()).unwrap(),
+                )
                 .nick(&nick)
                 .request_caps(["sts"])
                 .tls_ca_pem(fs::read(server.ca_pem_path())?)
@@ -572,7 +570,7 @@ async fn register_over_environment(
     let ca = secure
         .then(|| fs::read(s.server.ca_pem_path()))
         .transpose()?;
-    register_over(s, Endpoint::websocket(address), ca).await
+    register_over(s, Endpoint::websocket(address).unwrap(), ca).await
 }
 
 async fn register_over(

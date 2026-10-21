@@ -37,7 +37,7 @@ impl Scenario {
         let address = self.server.plaintext_addr();
         self.configure_named_at(
             unique_name(label),
-            Endpoint::plaintext(address.ip().to_string(), address.port()),
+            Endpoint::plaintext(address.ip().to_string(), address.port()).unwrap(),
         )
     }
 
@@ -84,7 +84,7 @@ impl Scenario {
         let address = self.server.plaintext_addr();
         let builder = self.configure_named_at(
             account.clone(),
-            Endpoint::plaintext(address.ip().to_string(), address.port()),
+            Endpoint::plaintext(address.ip().to_string(), address.port()).unwrap(),
         )?;
         let builder = if self.server.bouncer().is_some() {
             builder
@@ -122,7 +122,7 @@ impl Scenario {
         let address = self.server.plaintext_addr();
         let builder = Self::builder_named_at(
             unique_name(label),
-            Endpoint::plaintext(address.ip().to_string(), address.port()),
+            Endpoint::plaintext(address.ip().to_string(), address.port()).unwrap(),
         );
         let builder = if let Some(bouncer) = self.server.bouncer() {
             let login = bouncer.network_login(&account)?;

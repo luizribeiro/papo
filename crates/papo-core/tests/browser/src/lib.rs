@@ -34,7 +34,7 @@ pub fn core_probe() -> usize {
 #[wasm_bindgen]
 #[cfg(feature = "driver")]
 pub async fn driver_probe(url: String) -> Result<(), wasm_bindgen::JsValue> {
-    let (client, _) = Client::builder(Endpoint::websocket(url))
+    let (client, _) = Client::builder(Endpoint::websocket(url).map_err(js_error)?)
         .nick("papo-browser-probe")
         .connect()
         .await
@@ -43,6 +43,6 @@ pub async fn driver_probe(url: String) -> Result<(), wasm_bindgen::JsValue> {
 }
 
 #[cfg(feature = "driver")]
-fn js_error(error: papo::Error) -> wasm_bindgen::JsValue {
+fn js_error(error: impl std::fmt::Display) -> wasm_bindgen::JsValue {
     wasm_bindgen::JsValue::from_str(&error.to_string())
 }
