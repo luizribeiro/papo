@@ -8,11 +8,9 @@ const CHANNEL: &str = "#papo";
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let server = env::args()
-        .nth(1)
-        .map_or_else(|| env::var("IRC_SERVER"), Ok)?;
+    let url = env::args().nth(1).ok_or("usage: lurker URL")?;
     let nick = env::var("IRC_NICK").unwrap_or_else(|_| "papo-lurker".into());
-    let (client, mut events) = Client::builder(server)
+    let (client, mut events) = Client::builder(url)
         .nick(nick)
         .autojoin([CHANNEL])
         .connect()
@@ -22,10 +20,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
         match event {
             Event::ChannelSynced(synced) => {
                 let state = client.state();
-                let mut members = state
-                    .channel(&synced.channel)
-                    .into_iter()
-                    .flat_map(papo::Channel::members)
+                let Some(channel) = state.channel(&synced.channel) else {
+                    continue;
+                };
+                let mut members = channel
+                    .members()
                     .map(|member| member.nick().to_string())
                     .collect::<Vec<_>>();
                 members.sort();
