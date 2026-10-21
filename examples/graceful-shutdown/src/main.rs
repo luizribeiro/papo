@@ -20,7 +20,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         signal = shutdown_signal() => {
             signal?;
             eprintln!("shutting down");
-            client.quit("shutting down").await?;
+            if let Err(error) = client.quit("shutting down").await {
+                eprintln!("could not quit: {error}");
+            }
         }
         () = async { while events.next().await.is_some() {} } => {}
     }

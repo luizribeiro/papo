@@ -31,9 +31,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 eprintln!("{message}");
                 let mut code = String::new();
                 io::stdin().read_line(&mut code)?;
-                match client.verify_account(account, code.trim()).await? {
-                    AccountCreation::Created { account, .. } => account,
-                    _ => continue,
+                match client.verify_account(account, code.trim()).await {
+                    Ok(AccountCreation::Created { account, .. }) => account,
+                    Ok(_) => continue,
+                    Err(error) => {
+                        eprintln!("could not verify the account: {error}");
+                        continue;
+                    }
                 }
             }
             _ => continue,

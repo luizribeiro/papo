@@ -25,9 +25,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         if !message.is_live() {
             continue;
         }
-        if let Err(error) = client.react(&message, "👍").await {
-            eprintln!("could not react: {error}");
-        }
+        let _ = client.react(&message, "👍").await;
     }
     Ok(())
 }
