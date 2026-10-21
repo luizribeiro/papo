@@ -894,6 +894,97 @@ impl Client {
         })
     }
 
+    /// Sets a channel ban and, only after confirming it, removes `nick` from the channel.
+    ///
+    /// The ban remains set when the kick is refused. Leaving or changing nickname during ban
+    /// confirmation produces [`Error::TargetGone`] in [`crate::KickbanOutcome::kick`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::Unconfirmed`] without sending `KICK` when the ban cannot be proved. A ban
+    /// refusal and the errors documented by [`Client::kick`] are returned before an outcome.
+    pub fn kickban(
+        &self,
+        channel: impl AsRef<str>,
+        nick: impl AsRef<str>,
+        reason: impl AsRef<str>,
+        ban: impl Into<crate::BanTarget>,
+    ) -> crate::RequestFuture<crate::KickbanOutcome> {
+        let client = self.clone();
+        let state = self.state();
+        let channel = state.channel_name(channel.as_ref());
+        let nick = state.nickname(nick.as_ref());
+        let reason = reason.as_ref().to_owned();
+        let ban = ban.into();
+        crate::RequestFuture::new(async move {
+            let state = client.state();
+            channel
+                .check(state.isupport().inner())
+                .and_then(|()| nick.check(state.isupport().inner()))
+                .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
+            validate_kick_reason(&state, &reason)?;
+            let ban = ban.resolve(&state)?;
+            let already_set = crate::mode::tracked_ban(&state, &channel, &ban);
+            let target_was_present = state
+                .channel(&channel)
+                .is_some_and(|joined| joined.member(&nick).is_some());
+            drop(state);
+
+            if !already_set {
+                let response = client
+                    .correlated(
+                        Line::new("MODE", [channel.as_ref(), "+b", ban.as_ref()]),
+                        Some(ResponseMatcher::Mode(channel.to_string())),
+                    )
+                    .await?;
+                let already_set_reply = response
+                    .error()
+                    .is_some_and(|error| error.refusal() == crate::Refusal::ListModeAlreadySet);
+                if let Some(error) = response.error()
+                    && !already_set_reply
+                {
+                    return Err(Error::server(error));
+                }
+                let state = client.state();
+                let confirmed = already_set_reply
+                    || crate::mode::confirmed_ban(&response.lines, &state, &channel, &ban)
+                    || crate::mode::tracked_ban(&state, &channel, &ban);
+                let needs_fetch = !confirmed
+                    && state
+                        .channel(&channel)
+                        .is_none_or(|joined| joined.list(crate::ListMode::Ban).is_none());
+                drop(state);
+                if !confirmed {
+                    if !needs_fetch {
+                        return Err(Error::Unconfirmed);
+                    }
+                    let entries = client.list_modes(&channel, crate::ListMode::Ban).await?;
+                    let state = client.state();
+                    if !entries
+                        .iter()
+                        .any(|entry| state.same_list_entry(&entry.mask, &ban))
+                    {
+                        return Err(Error::Unconfirmed);
+                    }
+                }
+                if target_was_present
+                    && client
+                        .state()
+                        .channel(&channel)
+                        .is_none_or(|joined| joined.member(&nick).is_none())
+                {
+                    return Ok(crate::KickbanOutcome {
+                        kick: Err(Error::TargetGone),
+                    });
+                }
+            }
+
+            Ok(crate::KickbanOutcome {
+                kick: client.kick(&channel, &nick, &reason).await,
+            })
+        })
+    }
+
     /// Invites `nick` to `channel`.
     ///
     /// # Errors

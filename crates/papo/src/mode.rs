@@ -74,7 +74,7 @@ impl From<Extban> for BanTarget {
 }
 
 impl BanTarget {
-    fn resolve(self, state: &crate::State) -> Result<Mask, Error> {
+    pub(crate) fn resolve(self, state: &crate::State) -> Result<Mask, Error> {
         match self.0 {
             Target::Text(value) => Ok(state.mask(value)),
             Target::Mask(value) => Ok(value),
@@ -650,6 +650,47 @@ fn same_change(state: &crate::State, left: &ModeChange, right: &ModeChange) -> b
     }
 }
 
+pub(crate) fn tracked_ban(
+    state: &crate::State,
+    channel: &papo_proto::ChannelName,
+    ban: &Mask,
+) -> bool {
+    state
+        .channel(channel)
+        .and_then(|joined| joined.list(crate::ListMode::Ban))
+        .is_some_and(|entries| {
+            entries
+                .iter()
+                .any(|entry| state.same_list_entry(&entry.mask, ban))
+        })
+}
+
+pub(crate) fn confirmed_ban(
+    lines: &[Line],
+    state: &crate::State,
+    channel: &papo_proto::ChannelName,
+    ban: &Mask,
+) -> bool {
+    lines.iter().any(|line| {
+        let line = line.as_ref();
+        line.command() == Command::Mode
+            && line
+                .param(0)
+                .is_some_and(|target| state.channel_name(target) == *channel)
+            && line.param(1).is_some_and(|modes| {
+                ModeChanges::parse(modes, line.params().skip(2), state.isupport().inner()).any(
+                    |change| {
+                        change.action == papo_proto::ModeAction::Add
+                            && change.mode == 'b'
+                            && change
+                                .arg
+                                .is_some_and(|argument| state.same_list_entry(ban, argument))
+                    },
+                )
+            })
+    })
+}
+
 fn invalid(message: impl Into<String>) -> Error {
     InvalidInput::InvalidMessage(message.into()).into()
 }
@@ -659,7 +700,7 @@ mod tests {
     use papo_core::{Config, Feature, Session, UnsupportedReason};
     use papo_proto::{Isupport, LineRef};
 
-    use super::{Argument, BanTarget, Change, Extban, Selector, Target, encode};
+    use super::{Argument, BanTarget, Change, Extban, Selector, Target, confirmed_ban, encode};
 
     fn isupport() -> Isupport {
         let mut support = Isupport::default();
@@ -674,6 +715,17 @@ mod tests {
         let mut session = Session::new(Config::default());
         session.handle_line(crate::rt::now_mono(), line.as_bytes());
         crate::State::from_session(&session, false)
+    }
+
+    #[test]
+    fn confirms_only_the_matching_canonical_ban_echo() {
+        let state =
+            state(":ergo.test 005 papo CHANMODES=beI,k,l,imnst CASEMAPPING=rfc1459 :supported");
+        let channel = state.channel_name("#Papo[");
+        let ban = state.mask("Alice");
+        let echo = |modes| papo_proto::Line::new("MODE", ["#papo{", modes, "alice!*@*"]);
+        assert!(confirmed_ban(&[echo("+b")], &state, &channel, &ban,));
+        assert!(!confirmed_ban(&[echo("-b")], &state, &channel, &ban,));
     }
 
     #[test]

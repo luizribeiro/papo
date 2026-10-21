@@ -1742,6 +1742,7 @@ pub fn papo::Client::clear_topic(&self, impl core::convert::AsRef<str>) -> papo:
 pub fn papo::Client::invite(&self, impl core::convert::AsRef<str>, impl core::convert::AsRef<str>) -> papo::RequestFuture<()>
 pub fn papo::Client::join(&self, impl core::convert::AsRef<str>) -> papo::JoinChannel
 pub fn papo::Client::kick(&self, impl core::convert::AsRef<str>, impl core::convert::AsRef<str>, impl core::convert::AsRef<str>) -> papo::RequestFuture<()>
+pub fn papo::Client::kickban(&self, impl core::convert::AsRef<str>, impl core::convert::AsRef<str>, impl core::convert::AsRef<str>, impl core::convert::Into<papo::BanTarget>) -> papo::RequestFuture<papo::KickbanOutcome>
 pub fn papo::Client::list(&self, papo::ListFilter) -> papo::RequestFuture<alloc::vec::Vec<papo::ListEntry>>
 pub fn papo::Client::nick(&self) -> papo::Nick
 pub fn papo::Client::notice(&self, impl core::convert::AsRef<str>, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
