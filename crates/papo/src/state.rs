@@ -24,6 +24,7 @@ use crate::Isupport;
 #[derive(Clone, Debug)]
 pub struct State {
     core: Arc<papo_core::State>,
+    typing: Arc<papo_core::TypingTable>,
     pub(crate) caps: Capabilities,
     pub(crate) isupport: Arc<Isupport>,
     #[cfg(feature = "unstable")]
@@ -31,6 +32,7 @@ pub struct State {
     unsupported: BTreeMap<Feature, UnsupportedReason>,
     connected: bool,
     generation: u64,
+    typing_generation: u64,
 }
 
 impl State {
@@ -70,7 +72,12 @@ impl State {
     }
 
     pub(crate) fn from_session(session: &Session, connected: bool) -> Self {
-        Self::from_session_with_core(session, connected, Arc::new(session.state().clone()))
+        Self::from_session_with_core(
+            session,
+            connected,
+            Arc::new(session.state().clone()),
+            Arc::clone(session.state().__typing_table()),
+        )
     }
 
     pub(crate) fn from_session_reusing(
@@ -83,13 +90,19 @@ impl State {
         } else {
             Arc::new(session.state().clone())
         };
-        Self::from_session_with_core(session, connected, core)
+        let typing = if previous.typing_generation == session.typing_generation() {
+            Arc::clone(&previous.typing)
+        } else {
+            Arc::clone(session.state().__typing_table())
+        };
+        Self::from_session_with_core(session, connected, core, typing)
     }
 
     fn from_session_with_core(
         session: &Session,
         connected: bool,
         core: Arc<papo_core::State>,
+        typing: Arc<papo_core::TypingTable>,
     ) -> Self {
         let unsupported = FEATURES
             .iter()
@@ -103,6 +116,7 @@ impl State {
             .collect();
         Self {
             core,
+            typing,
             caps: session.caps().clone(),
             isupport: Arc::new(Isupport::from_proto(session.isupport().clone())),
             #[cfg(feature = "unstable")]
@@ -113,6 +127,7 @@ impl State {
             unsupported,
             connected,
             generation: session.state_generation(),
+            typing_generation: session.typing_generation(),
         }
     }
 
@@ -135,7 +150,9 @@ impl State {
     }
 
     pub(crate) const fn matches(&self, session: &Session, connected: bool) -> bool {
-        self.generation == session.state_generation() && self.connected == connected
+        self.generation == session.state_generation()
+            && self.typing_generation == session.typing_generation()
+            && self.connected == connected
     }
 
     /// Reports whether the client currently has an open transport.
@@ -298,7 +315,7 @@ impl State {
         &'a self,
         conversation: &'a crate::Conversation,
     ) -> impl Iterator<Item = &'a crate::Typer> {
-        self.core.typing(conversation)
+        self.typing.get(conversation)
     }
 
     /// Returns the capabilities enabled on the current connection.
@@ -432,6 +449,24 @@ mod name_tests {
         session.handle_connected(now);
         let changed = State::from_session_reusing(&session, true, &reused);
         assert!(!Arc::ptr_eq(&reused.core, &changed.core));
+    }
+
+    #[test]
+    fn typing_transition_reuses_the_core_snapshot() {
+        let now = crate::rt::now_mono();
+        let mut session = Session::new(Config::default());
+        let initial = State::from_session(&session, false);
+
+        session.handle_line(
+            now,
+            b"@+typing=active :alice!~alice@cloak.example TAGMSG #papo",
+        );
+        let changed = State::from_session_reusing(&session, false, &initial);
+
+        assert!(Arc::ptr_eq(&initial.core, &changed.core));
+        assert!(!Arc::ptr_eq(&initial.typing, &changed.typing));
+        let conversation = changed.parse_target("#papo").unwrap().1;
+        assert_eq!(changed.typing(&conversation).count(), 1);
     }
 
     #[test]

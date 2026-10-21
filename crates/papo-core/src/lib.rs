@@ -129,6 +129,8 @@ pub use sasl::{Entropy, Sasl};
 pub use state::{Account, Away, Channel, Member, Rank, State, User};
 use state::{MetadataContext, StateSnapshot};
 use sts::ConnectionSecurity;
+#[doc(hidden)]
+pub use typing::TypingTable;
 pub use typing::{Typer, TypingChanged, TypingReason};
 use welcome::WelcomeState;
 
@@ -2560,6 +2562,7 @@ pub struct Session {
     sasl: SaslSession,
     state: State,
     state_generation: u64,
+    typing_generation: u64,
     outbox: Outbox,
 }
 
@@ -2600,6 +2603,7 @@ impl std::fmt::Debug for Session {
             .field(cap::SASL.as_str(), &self.sasl)
             .field("state", &self.state)
             .field("state_generation", &self.state_generation)
+            .field("typing_generation", &self.typing_generation)
             .field("outbox", &self.outbox)
             .finish()
     }
@@ -2836,6 +2840,7 @@ impl Session {
             sasl,
             state,
             state_generation: 0,
+            typing_generation: 0,
             outbox: Outbox::default(),
         }
     }
@@ -2876,6 +2881,7 @@ impl Session {
         self.state
             .reset(&self.config, Casemapping::default(), self.isupport.value());
         self.state_generation = self.state_generation.wrapping_add(1);
+        self.typing_generation = self.typing_generation.wrapping_add(1);
         self.keepalive
             .handle_connected(now, self.config.ping_interval, self.config.ping_timeout);
         self.outbox.connect_phase(ConnectPhase::Capabilities);
@@ -3082,6 +3088,7 @@ impl Session {
             .reset(&self.config, casemapping, self.isupport.value());
         self.sync_monitored_state();
         self.state_generation = self.state_generation.wrapping_add(1);
+        self.typing_generation = self.typing_generation.wrapping_add(1);
     }
 
     /// Validates and queues a user-originated raw message for transmission.
@@ -3644,6 +3651,13 @@ impl Session {
         self.state_generation
     }
 
+    /// Returns a counter that changes when visible typing state changes.
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn typing_generation(&self) -> u64 {
+        self.typing_generation
+    }
+
     /// Returns the identifier that the next tracked request will receive.
     #[doc(hidden)]
     #[must_use]
@@ -3874,6 +3888,7 @@ impl Session {
         let queued_events = self.outbox.events.len();
         let emit_response_events = self.response_emits_events(message);
         let before = self.snapshot_values_for(message);
+        let before_typing = self.state.__typing_table().clone();
         let was_connected = self.welcome_state.is_connected();
         let before_features = was_connected.then(|| self.supported_features());
         let registration_handled = self.welcome_state.handle_message(
@@ -4040,6 +4055,9 @@ impl Session {
         self.report_feature_changes(before_features);
         if before != self.snapshot_values_for(message) {
             self.state_generation = self.state_generation.wrapping_add(1);
+        }
+        if !before_typing.same_entries(self.state.__typing_table()) {
+            self.typing_generation = self.typing_generation.wrapping_add(1);
         }
     }
 

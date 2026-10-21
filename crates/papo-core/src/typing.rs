@@ -52,7 +52,8 @@ pub struct Typer {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct TypingTable {
+#[doc(hidden)]
+pub struct TypingTable {
     entries: VecDeque<(Conversation, Typer)>,
     deadlines: VecDeque<Deadline>,
 }
@@ -74,14 +75,16 @@ impl TypingTable {
         })
     }
 
-    pub(crate) fn get<'a>(
-        &'a self,
-        conversation: &'a Conversation,
-    ) -> impl Iterator<Item = &'a Typer> {
+    #[doc(hidden)]
+    pub fn get<'a>(&'a self, conversation: &'a Conversation) -> impl Iterator<Item = &'a Typer> {
         self.entries
             .iter()
             .filter(move |(candidate, _)| candidate == conversation)
             .map(|(_, typer)| typer)
+    }
+
+    pub(crate) fn same_entries(&self, other: &Self) -> bool {
+        self.entries == other.entries
     }
 
     fn notify(
@@ -330,8 +333,8 @@ impl Session {
         for change in TypingTable::expire(&mut self.state.typing, now) {
             self.outbox.event(Event::TypingChanged(change));
         }
-        if before != self.state.typing {
-            self.state_generation = self.state_generation.wrapping_add(1);
+        if !before.same_entries(&self.state.typing) {
+            self.typing_generation = self.typing_generation.wrapping_add(1);
         }
     }
 

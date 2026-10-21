@@ -25,11 +25,13 @@ fn notifications_update_state_in_start_order_without_refresh_churn() {
         _ = session.poll_event();
     }
     let generation = session.state_generation();
+    let typing_generation = session.typing_generation();
     session.handle_line(
         now + std::time::Duration::from_secs(3),
         b"@+typing=active :ALICE!~a@cloak TAGMSG #papo",
     );
     assert_eq!(session.state_generation(), generation);
+    assert_eq!(session.typing_generation(), typing_generation);
     assert_eq!(
         session.poll_timeout(),
         Some(now + std::time::Duration::from_secs(9))
@@ -45,13 +47,15 @@ fn notifications_update_state_in_start_order_without_refresh_churn() {
 
     session.handle_timeout(now + std::time::Duration::from_secs(8));
     assert_eq!(session.state_generation(), generation);
+    assert_eq!(session.typing_generation(), typing_generation);
     session.handle_timeout(now + std::time::Duration::from_secs(9));
     assert!(matches!(
         session.poll_event(),
         Some(Event::TypingChanged(change))
             if change.state == Typing::Done && change.reason == papo_core::TypingReason::TimedOut
     ));
-    assert_eq!(session.state_generation(), generation + 1);
+    assert_eq!(session.state_generation(), generation);
+    assert_eq!(session.typing_generation(), typing_generation + 1);
     let remaining: Vec<_> = session.state().typing(&conversation).collect();
     assert_eq!(remaining.len(), 1);
     assert_eq!(remaining[0].nick, "bob");
@@ -135,13 +139,16 @@ fn paused_typing_expires_after_thirty_seconds() {
     session.handle_connected(now);
     session.handle_line(now, b"@+typing=paused :alice!~a@cloak TAGMSG #papo");
     _ = session.poll_event();
+    let state_generation = session.state_generation();
+    let typing_generation = session.typing_generation();
     assert_eq!(
         session.poll_timeout(),
         Some(now + std::time::Duration::from_secs(30))
     );
 
     session.handle_timeout(now + std::time::Duration::from_secs(29));
-    assert_eq!(session.state_generation(), 2);
+    assert_eq!(session.state_generation(), state_generation);
+    assert_eq!(session.typing_generation(), typing_generation);
     session.handle_timeout(now + std::time::Duration::from_secs(30));
     assert!(matches!(
         session.poll_event(),
@@ -149,7 +156,8 @@ fn paused_typing_expires_after_thirty_seconds() {
             if change.state == Typing::Done
                 && change.reason == papo_core::TypingReason::TimedOut
     ));
-    assert_eq!(session.state_generation(), 3);
+    assert_eq!(session.state_generation(), state_generation);
+    assert_eq!(session.typing_generation(), typing_generation + 1);
 }
 
 #[test]

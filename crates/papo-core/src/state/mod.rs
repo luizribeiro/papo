@@ -281,7 +281,9 @@ impl State {
                 network,
             };
         }
-        StateSnapshot::Full(Box::new(self.clone()))
+        let mut state = self.clone();
+        state.typing = TypingTable::new();
+        StateSnapshot::Full(Box::new(state))
     }
 
     pub(crate) fn new(config: &Config) -> Self {
@@ -1047,6 +1049,12 @@ impl State {
     /// Iterates over users currently typing in `conversation`, in start order.
     pub fn typing<'a>(&'a self, conversation: &'a Conversation) -> impl Iterator<Item = &'a Typer> {
         self.typing.get(conversation)
+    }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __typing_table(&self) -> &Arc<TypingTable> {
+        &self.typing
     }
 }
 
