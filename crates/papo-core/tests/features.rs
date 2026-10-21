@@ -138,7 +138,11 @@ fn distinguishes_client_disabled_and_server_absent_features() {
         CAPS,
         "",
     );
-    let absent = session("");
+    let absent = session_with(
+        Config::default().wanted_caps(CAPS.split_whitespace()),
+        "",
+        "",
+    );
     for feature in features {
         assert_eq!(
             disabled.supports(feature),

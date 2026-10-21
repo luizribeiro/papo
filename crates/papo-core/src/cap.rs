@@ -274,6 +274,18 @@ pub const fn is_known(name: &str) -> bool {
     !same(canonical(name), name) || known_primary(name)
 }
 
+/// Reports whether a capability belongs to an opt-in unstable feature.
+#[doc(hidden)]
+#[must_use]
+pub const fn is_unstable(name: &str) -> bool {
+    same(name, "soju.im/bouncer-networks")
+        || same(name, "soju.im/bouncer-networks-notify")
+        || same(name, "draft/persistence")
+        || same(name, "draft/relaymsg")
+        || same(name, "draft/webpush")
+        || same(name, "soju.im/webpush")
+}
+
 pub(crate) const fn alias(name: &str, index: usize) -> &'static str {
     let canonical = canonical(name);
     let mut entry = 0;

@@ -176,7 +176,16 @@ impl Builder {
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
     pub fn bouncer_network(mut self, id: crate::NetworkId) -> Self {
+        self.config = self.config.enable(crate::Feature::Bouncer);
         self.config.bouncer_network = Some(id);
+        self
+    }
+
+    /// Enables an unstable extension feature for capability negotiation.
+    #[cfg(feature = "unstable")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
+    pub fn enable(mut self, feature: crate::Feature) -> Self {
+        self.config = self.config.enable(feature);
         self
     }
 
@@ -247,15 +256,17 @@ impl Builder {
         S: Into<String>,
     {
         for capability in caps.into_iter().map(Into::into) {
-            let canonical = cap::canonical(&capability);
+            let canonical = cap::canonical(&capability).to_owned();
             if !DEFAULT_WANTED_CAPS
                 .iter()
                 .any(|name| cap::canonical(name) == canonical)
+                && !cap::is_unstable(&capability)
             {
                 self.invalid_input
                     .get_or_insert(InvalidInput::UnknownCapability(capability));
                 continue;
             }
+            self.config = self.config.without_caps([capability]);
             self.config
                 .wanted_caps
                 .retain(|name| cap::canonical(name) != canonical);
@@ -919,7 +930,7 @@ mod tests {
     #[test]
     fn capabilities_extend_defaults_and_only_known_defaults_can_be_removed() {
         let builder = Builder::new("irc.example.net")
-            .request_caps(["message-tags", "soju.im/bouncer-networks"])
+            .request_caps(["message-tags", "example.com/custom-cap"])
             .without_caps(["away-notify"]);
         assert!(
             !builder
@@ -933,7 +944,7 @@ mod tests {
                 .config
                 .wanted_caps
                 .iter()
-                .any(|name| name == "soju.im/bouncer-networks")
+                .any(|name| name == "example.com/custom-cap")
         );
         let aliases = Builder::new("irc.example.net")
             .without_caps(["read-marker", "account-registration"])
@@ -941,22 +952,38 @@ mod tests {
         for removed in ["draft/read-marker", "draft/account-registration"] {
             assert!(!aliases.wanted_caps.iter().any(|name| name == removed));
         }
-        #[cfg(not(feature = "unstable"))]
-        assert!(matches!(
-            Builder::new("irc.example.net")
-                .without_caps(["soju.im/bouncer-networks"])
-                .invalid_input,
-            Some(InvalidInput::UnknownCapability(name)) if name == "soju.im/bouncer-networks"
-        ));
-        #[cfg(feature = "unstable")]
-        assert!(
-            !Builder::new("irc.example.net")
-                .without_caps(["soju.im/bouncer-networks"])
-                .config
-                .wanted_caps
-                .iter()
-                .any(|name| name == "soju.im/bouncer-networks")
+        let unstable = Builder::new("irc.example.net")
+            .without_caps(["soju.im/bouncer-networks", "soju.im/webpush"]);
+        assert_eq!(unstable.invalid_input, None);
+        assert_eq!(
+            unstable.config.disabled_caps,
+            ["soju.im/bouncer-networks", "soju.im/webpush"]
         );
+    }
+
+    #[cfg(feature = "unstable")]
+    #[test]
+    fn enables_unstable_features_and_bouncer_selection_before_connecting() {
+        let enabled = Builder::new("irc.example.net")
+            .enable(crate::Feature::Persistence)
+            .enable(crate::Feature::Relay)
+            .enable(crate::Feature::WebPush)
+            .bouncer_network(crate::NetworkId::new("libera"));
+        for capability in [
+            "soju.im/bouncer-networks",
+            "soju.im/bouncer-networks-notify",
+            "draft/persistence",
+            "draft/relaymsg",
+            "draft/webpush",
+        ] {
+            assert!(
+                enabled
+                    .config
+                    .wanted_caps
+                    .iter()
+                    .any(|name| name == capability)
+            );
+        }
     }
 
     #[test]
@@ -1055,11 +1082,6 @@ mod tests {
             (
                 Builder::new("irc.example.net").event_capacity(0),
                 InvalidInput::ZeroEventCapacity,
-            ),
-            #[cfg(not(feature = "unstable"))]
-            (
-                Builder::new("irc.example.net").without_caps(["soju.im/bouncer-networks"]),
-                InvalidInput::UnknownCapability("soju.im/bouncer-networks".into()),
             ),
             (
                 crate::Client::builder(crate::Endpoint::tls("irc.example.net", 0)),

@@ -88,6 +88,7 @@ async fn member_sees_channel_rename_and_relay_attribution() {
         let (operator, mut operator_events) = Client::builder(address.clone())
             .nick(support::nick(&operator_nick))
             .request_caps(capabilities)
+            .enable(papo::Feature::Relay)
             .autojoin([&old_channel])
             .connect()
             .await
@@ -96,6 +97,7 @@ async fn member_sees_channel_rename_and_relay_attribution() {
         let (member, mut member_events) = Client::builder(address)
             .nick(support::nick(&member_nick))
             .request_caps(capabilities)
+            .enable(papo::Feature::Relay)
             .autojoin([&old_channel])
             .connect()
             .await

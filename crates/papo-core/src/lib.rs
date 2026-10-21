@@ -521,14 +521,7 @@ impl Default for Config {
                 .collect(),
             disabled_caps: Vec::new(),
             #[cfg(feature = "unstable")]
-            enabled_features: [
-                Feature::Bouncer,
-                Feature::Persistence,
-                Feature::WebPush,
-                Feature::Relay,
-            ]
-            .into_iter()
-            .collect(),
+            enabled_features: BTreeSet::new(),
             alt_nicks: Vec::new(),
             regain_nick: false,
             sasl: None,
@@ -686,6 +679,17 @@ impl Config {
         S: Into<String>,
     {
         self.wanted_caps = caps.into_iter().map(Into::into).collect();
+        #[cfg(feature = "unstable")]
+        for info in cap::ALL {
+            if let cap::Request::OptIn(_, feature) = info.request
+                && self
+                    .wanted_caps
+                    .iter()
+                    .any(|name| cap::canonical(name) == info.name)
+            {
+                self.enabled_features.insert(feature);
+            }
+        }
         self
     }
 
