@@ -4,7 +4,7 @@ mod support;
 
 use std::{cell::Cell, time::Instant};
 
-use papo_core::{Account, Away, Config, Event};
+use papo_core::{Account, Away, Config, Event, Feature, UnsupportedReason};
 use papo_proto::{Casemapping, Line, Nick};
 use support::Transcript;
 
@@ -175,7 +175,7 @@ fn removing_before_registration_or_without_support_sends_nothing() {
         .server(":solanum.example 422 papo :MOTD File is missing")
         .event(|event| matches!(event, Event::Connected(_)))
         .update(|session| session.monitor_add(["alice"]))
-        .event(|event| matches!(event, Event::MonitorUnsupported))
+        .no_event()
         .update(|session| session.monitor_remove(["alice"]))
         .no_client();
 }
@@ -534,7 +534,7 @@ fn monitor_clear_requires_registration_and_server_support() {
         .update(papo_core::Session::monitor_clear)
         .no_client()
         .update(|session| session.monitor_add(["alice"]))
-        .event(|event| matches!(event, Event::MonitorUnsupported))
+        .no_event()
         .update(papo_core::Session::monitor_clear)
         .no_client();
 }
@@ -559,15 +559,42 @@ fn plain_monitor_presence_is_removed_after_offline() {
 #[test]
 fn reports_unsupported_monitor_only_once() {
     Transcript::new(Config::default())
+        .update(|session| session.monitor_add(["alice"]))
         .connect_default()
         .welcome(":solanum.example 001 papo :Welcome")
         .server(":solanum.example 422 papo :MOTD File is missing")
         .event(|event| matches!(event, Event::Connected(_)))
-        .update(|session| session.monitor_add(["alice"]))
-        .event(|event| matches!(event, Event::MonitorUnsupported))
+        .event(|event| {
+            matches!(event, Event::Unsupported(unsupported)
+            if unsupported.feature == Feature::Monitor
+                && unsupported.reason == UnsupportedReason::NotOffered)
+        })
         .no_client()
-        .update(|session| session.monitor_add(["bob"]))
+        .disconnect()
+        .connect_default()
+        .welcome(":solanum.example 001 papo :Welcome back")
+        .server(":solanum.example 422 papo :MOTD File is missing")
+        .event(|event| matches!(event, Event::Connected(_)))
         .no_event()
+        .no_client();
+}
+
+#[test]
+fn warns_when_monitor_limit_becomes_zero_after_reconnect() {
+    registered()
+        .update(|session| session.monitor_add(["alice"]))
+        .client("MONITOR + alice")
+        .disconnect()
+        .connect_default()
+        .welcome(":ergo.test 001 papo :Welcome back to Ergo")
+        .server(":ergo.test 005 papo MONITOR=0 :are supported")
+        .server(":ergo.test 376 papo :End of MOTD")
+        .event(|event| matches!(event, Event::Connected(_)))
+        .event(|event| {
+            matches!(event, Event::Unsupported(unsupported)
+            if unsupported.feature == Feature::Monitor
+                && unsupported.reason == UnsupportedReason::LimitZero)
+        })
         .no_client();
 }
 

@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{MetadataKey, Nick, Subject, Visibility};
+use crate::{MetadataKey, Nick, Subject, Unsupported, Visibility};
 use papo_core::{BatchAbandonReason, StateLimit};
 
 /// An upstream bouncer network was added, updated, or removed.
@@ -69,8 +69,8 @@ pub enum Warning {
         /// Nicknames the server did not add.
         nicks: Vec<Nick>,
     },
-    /// The server does not advertise `MONITOR` support.
-    MonitorUnsupported,
+    /// An automatic action could not use an optional server feature.
+    Unsupported(Unsupported),
 }
 
 impl fmt::Display for Warning {
@@ -98,7 +98,7 @@ impl fmt::Display for Warning {
                     "server monitor list is limited to {maximum} nicknames"
                 )
             }
-            Self::MonitorUnsupported => formatter.write_str("server does not support MONITOR"),
+            Self::Unsupported(unsupported) => unsupported.fmt(formatter),
         }
     }
 }
@@ -106,6 +106,7 @@ impl fmt::Display for Warning {
 #[cfg(all(test, not(browser)))]
 mod tests {
     use super::Warning;
+    use crate::Unsupported;
     use papo_core::{BatchAbandonReason, StateLimit};
 
     #[test]
@@ -129,7 +130,10 @@ mod tests {
                 maximum: 100,
                 nicks: vec![crate::Casemapping::default().nick("alice")],
             },
-            Warning::MonitorUnsupported,
+            Warning::Unsupported(Unsupported::new(
+                crate::Feature::Monitor,
+                crate::UnsupportedReason::NotOffered,
+            )),
         ];
 
         for warning in warnings {

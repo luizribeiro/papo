@@ -130,9 +130,9 @@ pub papo::event::Warning::Malformed::line: alloc::vec::Vec<u8>
 #[non_exhaustive] pub papo::event::Warning::MonitorListFull
 pub papo::event::Warning::MonitorListFull::maximum: usize
 pub papo::event::Warning::MonitorListFull::nicks: alloc::vec::Vec<papo::Nick>
-pub papo::event::Warning::MonitorUnsupported
 #[non_exhaustive] pub papo::event::Warning::StateLimitReached
 pub papo::event::Warning::StateLimitReached::kind: papo::StateLimit
+pub papo::event::Warning::Unsupported(papo::Unsupported)
 impl core::clone::Clone for papo::event::Warning
 pub fn papo::event::Warning::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Warning

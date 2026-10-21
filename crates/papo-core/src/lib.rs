@@ -1990,8 +1990,8 @@ pub enum Event {
         /// Nicknames the server did not add.
         nicks: Vec<Nick>,
     },
-    /// The server does not advertise MONITOR support.
-    MonitorUnsupported,
+    /// An automatic action could not use an optional server feature.
+    Unsupported(Unsupported),
     /// A user joined a channel shared with the session.
     Joined {
         /// Identity, time, and account tags from the line.

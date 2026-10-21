@@ -1354,7 +1354,9 @@ pub(crate) fn from_core(
                 nicks,
             })
         }
-        papo_core::Event::MonitorUnsupported => Event::Warning(Warning::MonitorUnsupported),
+        papo_core::Event::Unsupported(unsupported) => {
+            Event::Warning(Warning::Unsupported(unsupported))
+        }
         _ => return CoreEvent::Unknown,
     })
 }
@@ -2495,10 +2497,12 @@ mod tests {
     }
 
     #[test]
-    fn maps_monitor_unsupported() {
+    fn maps_unsupported_warning() {
+        let unsupported =
+            papo_core::Unsupported::new(Feature::Monitor, papo_core::UnsupportedReason::LimitZero);
         assert!(matches!(
-            forwarded(papo_core::Event::MonitorUnsupported),
-            Event::Warning(Warning::MonitorUnsupported)
+            forwarded(papo_core::Event::Unsupported(unsupported)),
+            Event::Warning(Warning::Unsupported(mapped)) if mapped == unsupported
         ));
     }
 

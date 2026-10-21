@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
-use papo_proto::{Casemapping, Isupport, LimitValue, LineRef, MAX_LINE_LEN, Nick};
+use papo_proto::{Advertised, Casemapping, Isupport, LimitValue, LineRef, MAX_LINE_LEN, Nick};
 
-use crate::{Event, Handled, Outbox};
+use crate::{Event, Feature, Handled, Outbox, Unsupported, UnsupportedReason};
 
 const MAX_DESIRED: usize = 10_000;
 const MONITOR_PAYLOAD_LEN: usize = MAX_LINE_LEN - "MONITOR + \r\n".len();
@@ -65,9 +65,15 @@ impl Monitor {
 
     pub(super) fn restore(&mut self, isupport: &Isupport, outbox: &mut Outbox) {
         self.presence.clear();
+        if matches!(isupport.get("MONITOR"), Advertised::Value("0")) {
+            if !self.desired.is_empty() {
+                self.warn_unsupported(UnsupportedReason::LimitZero, outbox);
+            }
+            return;
+        }
         let Some(limit) = isupport.monitor() else {
             if !self.desired.is_empty() {
-                self.warn_unsupported(outbox);
+                self.warn_unsupported(UnsupportedReason::NotOffered, outbox);
             }
             return;
         };
@@ -126,9 +132,6 @@ impl Monitor {
         }
         if !added.is_empty() {
             transmit_chunks("+", &added, outbox);
-        }
-        if registered && support.is_none() {
-            self.warn_unsupported(outbox);
         }
         if !unavailable.is_empty() {
             outbox.event(Event::MonitorListFull {
@@ -335,10 +338,13 @@ impl Monitor {
             .collect();
     }
 
-    fn warn_unsupported(&mut self, outbox: &mut Outbox) {
+    fn warn_unsupported(&mut self, reason: UnsupportedReason, outbox: &mut Outbox) {
         if !self.unsupported_warned {
             self.unsupported_warned = true;
-            outbox.event(Event::MonitorUnsupported);
+            outbox.event(Event::Unsupported(Unsupported::new(
+                Feature::Monitor,
+                reason,
+            )));
         }
     }
 }

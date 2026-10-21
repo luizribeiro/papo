@@ -716,7 +716,10 @@ mod tests {
     #[test]
     fn expect_times_out_after_only_non_matching_events() {
         let mut events = ScriptedEvents {
-            events: [Event::Warning(papo::event::Warning::MonitorUnsupported)].into(),
+            events: [Event::Warning(papo::event::Warning::Unsupported(
+                papo::Unsupported::new(papo::Feature::Monitor, papo::UnsupportedReason::NotOffered),
+            ))]
+            .into(),
         };
         let error = runtime()
             .block_on(expect_event(
