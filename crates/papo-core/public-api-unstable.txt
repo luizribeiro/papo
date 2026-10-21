@@ -2012,11 +2012,21 @@ pub fn papo_core::Secret::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::Secret
 impl core::cmp::PartialEq for papo_core::Secret
 pub fn papo_core::Secret::eq(&self, &Self) -> bool
+impl core::convert::From<&alloc::string::String> for papo_core::Secret
+pub fn papo_core::Secret::from(&alloc::string::String) -> Self
+impl core::convert::From<&str> for papo_core::Secret
+pub fn papo_core::Secret::from(&str) -> Self
+impl core::convert::From<alloc::borrow::Cow<'_, str>> for papo_core::Secret
+pub fn papo_core::Secret::from(alloc::borrow::Cow<'_, str>) -> Self
+impl core::convert::From<alloc::boxed::Box<str>> for papo_core::Secret
+pub fn papo_core::Secret::from(alloc::boxed::Box<str>) -> Self
+impl core::convert::From<alloc::string::String> for papo_core::Secret
+pub fn papo_core::Secret::from(alloc::string::String) -> Self
+impl core::convert::From<alloc::vec::Vec<u8>> for papo_core::Secret
+pub fn papo_core::Secret::from(alloc::vec::Vec<u8>) -> Self
 impl core::fmt::Debug for papo_core::Secret
 pub fn papo_core::Secret::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo_core::Secret
-impl<T: core::convert::Into<alloc::string::String>> core::convert::From<T> for papo_core::Secret
-pub fn papo_core::Secret::from(T) -> Self
 impl core::marker::Freeze for papo_core::Secret
 impl core::marker::Send for papo_core::Secret
 impl core::marker::Sync for papo_core::Secret

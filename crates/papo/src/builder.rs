@@ -437,8 +437,13 @@ impl Builder {
 
     /// Sets a PEM-encoded TLS client certificate chain and private key.
     ///
-    /// ```
-    /// # _ = papo::Client::builder("ircs://irc.example.net").tls_client_cert(Vec::new(), "key");
+    /// ```no_run
+    /// # fn configure(cert: &std::path::Path, key: &std::path::Path) -> std::io::Result<papo::Builder> {
+    /// use std::fs;
+    /// let builder = papo::Client::builder("ircs://irc.example.net")
+    ///     .tls_client_cert(fs::read(cert)?, fs::read(key)?);
+    /// # Ok(builder)
+    /// # }
     /// ```
     #[cfg(not(browser))]
     pub fn tls_client_cert(
