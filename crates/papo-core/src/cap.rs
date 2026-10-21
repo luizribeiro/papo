@@ -1,6 +1,83 @@
 //! IRC capability names and their implementation homes.
 
+use std::{
+    borrow::Cow,
+    cmp::Ordering,
+    hash::{Hash, Hasher},
+};
+
 use crate::{Capabilities, Feature};
+
+/// An IRC capability name.
+///
+/// Draft and final spellings of the same known capability compare and hash as
+/// equal. Formatting preserves the spelling supplied by the server or caller.
+#[derive(Clone, Debug)]
+pub struct Cap(Cow<'static, str>);
+
+impl Cap {
+    #[allow(dead_code)]
+    const fn new(name: &'static str) -> Self {
+        Self(Cow::Borrowed(name))
+    }
+
+    /// Returns the capability spelling supplied by the server or caller.
+    #[must_use]
+    pub const fn as_str(&self) -> &str {
+        match &self.0 {
+            Cow::Borrowed(name) => name,
+            Cow::Owned(name) => name.as_str(),
+        }
+    }
+
+    fn identity(&self) -> &str {
+        canonical(self.as_str())
+    }
+}
+
+impl From<&str> for Cap {
+    fn from(name: &str) -> Self {
+        Self(Cow::Owned(name.to_owned()))
+    }
+}
+
+impl From<String> for Cap {
+    fn from(name: String) -> Self {
+        Self(Cow::Owned(name))
+    }
+}
+
+impl std::fmt::Display for Cap {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}
+
+impl PartialEq for Cap {
+    fn eq(&self, other: &Self) -> bool {
+        self.identity() == other.identity()
+    }
+}
+
+impl Eq for Cap {}
+
+impl PartialOrd for Cap {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Cap {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.identity().cmp(other.identity())
+    }
+}
+
+impl Hash for Cap {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.identity().hash(state);
+    }
+}
 
 /// How papo requests a capability.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -267,7 +344,21 @@ pub(crate) fn requestable(name: &str, advertised: &Capabilities, wanted: &[Strin
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use super::*;
+
+    #[test]
+    fn aliases_share_identity_and_keep_their_spelling() {
+        let draft = Cap::from("draft/chathistory");
+        let final_name = Cap::from("chathistory");
+
+        assert_eq!(Cap::from(CHATHISTORY), draft);
+        assert_eq!(draft, final_name);
+        assert_eq!(draft.to_string(), "draft/chathistory");
+        assert_eq!(final_name.to_string(), "chathistory");
+        assert_eq!(HashSet::from([draft, final_name]).len(), 1);
+    }
 
     #[test]
     fn resolves_aliases_and_advertised_preferences() {

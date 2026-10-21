@@ -22,6 +22,35 @@ impl core::marker::Unpin for papo_core::cap::Request
 impl core::marker::UnsafeUnpin for papo_core::cap::Request
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::cap::Request
 impl core::panic::unwind_safe::UnwindSafe for papo_core::cap::Request
+pub struct papo_core::cap::Cap(_)
+impl papo_core::cap::Cap
+pub const fn papo_core::cap::Cap::as_str(&self) -> &str
+impl core::clone::Clone for papo_core::cap::Cap
+pub fn papo_core::cap::Cap::clone(&self) -> Self
+impl core::cmp::Eq for papo_core::cap::Cap
+impl core::cmp::Ord for papo_core::cap::Cap
+pub fn papo_core::cap::Cap::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for papo_core::cap::Cap
+pub fn papo_core::cap::Cap::eq(&self, &Self) -> bool
+impl core::cmp::PartialOrd for papo_core::cap::Cap
+pub fn papo_core::cap::Cap::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::convert::From<&str> for papo_core::cap::Cap
+pub fn papo_core::cap::Cap::from(&str) -> Self
+impl core::convert::From<alloc::string::String> for papo_core::cap::Cap
+pub fn papo_core::cap::Cap::from(alloc::string::String) -> Self
+impl core::fmt::Debug for papo_core::cap::Cap
+pub fn papo_core::cap::Cap::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo_core::cap::Cap
+pub fn papo_core::cap::Cap::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_core::cap::Cap
+pub fn papo_core::cap::Cap::hash<H: core::hash::Hasher>(&self, &mut H)
+impl core::marker::Freeze for papo_core::cap::Cap
+impl core::marker::Send for papo_core::cap::Cap
+impl core::marker::Sync for papo_core::cap::Cap
+impl core::marker::Unpin for papo_core::cap::Cap
+impl core::marker::UnsafeUnpin for papo_core::cap::Cap
+impl core::panic::unwind_safe::RefUnwindSafe for papo_core::cap::Cap
+impl core::panic::unwind_safe::UnwindSafe for papo_core::cap::Cap
 pub struct papo_core::cap::CapInfo
 pub papo_core::cap::CapInfo::aliases: &'static [&'static str]
 pub papo_core::cap::CapInfo::code: &'static [&'static str]
