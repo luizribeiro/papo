@@ -873,7 +873,7 @@ async fn kick_missing_member(s: Scenario) -> papo_testing::Result<()> {
         Error::Server(refusal) => refusal,
         other => return Err(other.into()),
     };
-    if refusal.refusal() != Refusal::Other || refusal.code() != "441" {
+    if refusal.refusal() != Refusal::UserNotInChannel || refusal.code() != "441" {
         return Err(std::io::Error::other(format!(
             "unexpected missing-member refusal: {refusal:?}"
         ))
