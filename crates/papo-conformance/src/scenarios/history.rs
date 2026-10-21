@@ -196,6 +196,9 @@ async fn terminal_history_page(s: Scenario) -> papo_testing::Result<()> {
             .collect::<Vec<_>>();
         let start = remaining.saturating_sub(10);
         assert_eq!(page_texts, texts[start..remaining]);
+        if start == 0 {
+            assert!(page.end, "the final history page must report the end");
+        }
         if page.end {
             assert_eq!(start, 0, "history ended while older messages remained");
             break;
