@@ -901,7 +901,20 @@ mod tests {
     }
 
     #[test]
-    fn account_registration_retains_one_default_capability() {
+    fn account_registration_adds_or_retains_one_capability() {
+        let added = Builder::new("irc.example.net")
+            .without_caps(["draft/account-registration"])
+            .create_account(NewAccount::new("realistic secret"))
+            .config;
+        assert_eq!(
+            added
+                .wanted_caps
+                .iter()
+                .filter(|name| name.as_str() == "draft/account-registration")
+                .count(),
+            1
+        );
+
         let added = Builder::new("irc.example.net")
             .request_caps(["message-tags"])
             .create_account(NewAccount::new("realistic secret"))
