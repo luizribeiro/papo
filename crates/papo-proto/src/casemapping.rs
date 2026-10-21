@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 #[cfg(feature = "precis")]
-use precis_profiles::{UsernameCaseMapped, precis_core::profile::PrecisFastInvocation as _};
+mod precis;
 
 use crate::{AccountName, ChannelName, Mask, Nick};
 
@@ -73,10 +73,7 @@ impl Casemapping {
     pub fn fold(self, name: &str) -> Cow<'_, str> {
         #[cfg(feature = "precis")]
         if matches!(self, Self::Precis) {
-            return UsernameCaseMapped::enforce(name).unwrap_or_else(|_| {
-                // Ergo rejects these names, but map keys still need one deterministic fold.
-                Self::Ascii.fold(name)
-            });
+            return precis::fold(name);
         }
 
         let changed = name
@@ -143,26 +140,5 @@ mod tests {
             Casemapping::Rfc1459.fold("#ergo{dev}"),
             Cow::Borrowed(_)
         ));
-    }
-
-    #[cfg(feature = "precis")]
-    #[test]
-    fn folds_unicode_nicks_with_ergo_precis_rules() {
-        assert_eq!(Casemapping::parse("rfc7613"), Some(Casemapping::Precis));
-        assert_eq!(Casemapping::Precis.fold("Ünïcode"), "ünïcode");
-        assert_eq!(Casemapping::Precis.fold("İstanbul"), "i\u{307}stanbul");
-        assert_eq!(Casemapping::Precis.nick("ÜNÏCODE"), "ünïcode");
-        assert_ne!(Casemapping::Precis.nick("İstanbul"), "istanbul");
-        assert!(matches!(
-            Casemapping::Precis.fold("ünïcode"),
-            Cow::Borrowed(_)
-        ));
-    }
-
-    #[cfg(feature = "precis")]
-    #[test]
-    fn folds_precis_rejections_as_ascii() {
-        assert_eq!(Casemapping::Precis.fold("Bad Nick"), "bad nick");
-        assert_eq!(Casemapping::Precis.fold("Bad\u{7}Nick"), "bad\u{7}nick");
     }
 }
