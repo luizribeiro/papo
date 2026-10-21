@@ -57,6 +57,15 @@ async fn prefix_member_ranks(s: Scenario) -> papo_testing::Result<()> {
     assert_carol_view(&s, &channel, &alice_nick, &bob_nick).await?;
     assert_dave_view(&s, &channel, &bob_nick, &allowed_symbols, has_halfop).await?;
 
+    if has_halfop {
+        alice.mode(&channel).dehalfop(&bob_nick).await?;
+        let changed = wait_channel_mode(&mut bob, &channel, 'h').await?;
+        assert!(
+            matches!(changed.changes.as_slice(), [change] if change.action == ModeAction::Remove)
+        );
+        assert!(!member_prefixes(&bob.state(), &channel, &bob_nick).contains(&'%'));
+    }
+
     bob.expect_none(|event| channel_mode(event, &channel))
         .await?;
     Ok(())

@@ -854,6 +854,28 @@ mod tests {
     }
 
     #[test]
+    fn rejects_exception_helpers_without_their_tokens() {
+        let state = state(
+            ":irc.inspircd.example 005 papo PREFIX=(ov)@+ CHANMODES=b,k,l,MRimnprst :supported",
+        );
+        for feature in [Feature::Excepts, Feature::Invex] {
+            let change = Change {
+                set: true,
+                mode: Selector::Optional(feature),
+                arg: Some(Argument::Mask(state.mask("reviewer!*@trusted.example"))),
+            };
+            assert!(matches!(
+                change.resolve(&state),
+                Err(crate::Error::Unsupported(crate::Unsupported {
+                    feature: actual,
+                    reason: UnsupportedReason::NotOffered,
+                    ..
+                })) if actual == feature
+            ));
+        }
+    }
+
+    #[test]
     fn resolves_quiet_only_for_a_dedicated_list_mode() {
         let solanum = state(
             ":solanum.example 005 papo PREFIX=(ov)@+ CHANMODES=eIbq,k,flj,CFLPQcgimnprstz :supported",
