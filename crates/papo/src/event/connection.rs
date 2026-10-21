@@ -1,7 +1,5 @@
 use crate::{Capabilities, Casemapping, Feature, Nick};
 
-pub use crate::Disconnected;
-
 /// A phase of establishing an IRC connection.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]

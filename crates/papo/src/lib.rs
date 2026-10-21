@@ -13,6 +13,13 @@
 //! types re-exported by this crate are part of `papo`'s public compatibility contract. The
 //! internal `papo-core` and `papo-proto` dependencies are pinned exactly so their implementations
 //! cannot change independently of this facade.
+//!
+//! # Public type paths
+//!
+//! Handles and types useful outside an [`Event`] are at the crate root. Types used only as event
+//! payloads are in [`event`]. Feature modules contain their feature-specific helpers. Each public
+//! type has one public path; for example, [`Disconnected`] is at the root while [`event::Motd`]
+//! and [`event::CasemappingChanged`] are event payloads.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
@@ -177,21 +184,16 @@ pub enum Subject {
 pub mod event {
     #[cfg(feature = "unstable")]
     #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-    pub use crate::PersistenceStatus;
+    pub use crate::event_impl::BouncerNetworkChanged;
     pub use crate::event_impl::{
         AccountChanged, AwayChanged, BatchAbandonReason, CapsChanged, CasemappingChanged,
-        ChannelRenamed, ChannelSynced, Connected, Ctcp, Disconnected, FeaturesChanged, HostChanged,
-        Invited, Joined, Kicked, MembersRefreshed, MetadataChanged, ModeChange, ModeChanged,
-        MonitorOffline, MonitorOnline, Motd, Netjoin, Netsplit, NickChanged, Parted, Quit, Reacted,
-        ReadMarkerChanged, RealnameChanged, Redacted, Source, SplitServers, StandardReply,
-        StandardReplyKind, StateLimit, TagMsg, TopicChanged, TypingChanged, TypingReason,
-        Visibility, Warning,
+        ChannelRenamed, ChannelSynced, Connected, Ctcp, FeaturesChanged, HostChanged, Invited,
+        Joined, Kicked, MembersRefreshed, MetadataChanged, ModeChanged, MonitorOffline,
+        MonitorOnline, Motd, Netjoin, Netsplit, NickChanged, Parted, Quit, Reacted,
+        ReadMarkerChanged, RealnameChanged, Redacted, SplitServers, StandardReply,
+        StandardReplyKind, TagMsg, TopicChanged, TypingChanged, TypingReason, Warning,
     };
-    #[cfg(feature = "unstable")]
-    #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-    pub use crate::event_impl::{BouncerNetworkChanged, PersistenceSetting};
     pub use crate::event_impl::{ConnectPhase, Connecting};
-    pub use crate::{ModeAction, ModeArg};
 }
 
 /// Strict Transport Security policy stores.

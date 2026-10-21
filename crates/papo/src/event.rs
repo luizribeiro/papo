@@ -8,7 +8,7 @@ use papo_proto::{
     MessageId, strip_formatting, time,
 };
 
-use crate::Client;
+use crate::{Client, Disconnected, ModeAction, ModeArg, ModeChange};
 
 #[path = "event/channel.rs"]
 mod channel;
@@ -25,23 +25,17 @@ mod tags;
 #[path = "event/user.rs"]
 mod user;
 
-pub use crate::metadata::Visibility;
 pub use channel::{
     ChannelRenamed, ChannelSynced, Invited, Joined, Kicked, MembersRefreshed, ModeChanged, Parted,
     TopicChanged,
 };
 pub use connection::{
-    CapsChanged, CasemappingChanged, ConnectPhase, Connected, Connecting, Disconnected,
-    FeaturesChanged, Motd,
+    CapsChanged, CasemappingChanged, ConnectPhase, Connected, Connecting, FeaturesChanged, Motd,
 };
 pub use conversation::{
     Reacted, ReadMarkerChanged, Redacted, StandardReply, StandardReplyKind, TagMsg, TypingChanged,
 };
-#[cfg(feature = "unstable")]
-#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-pub use papo_core::PersistenceSetting;
-pub use papo_core::{BatchAbandonReason, StateLimit, TypingReason};
-pub use papo_core::{ModeAction, ModeArg, ModeChange};
+pub use papo_core::{BatchAbandonReason, TypingReason};
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
 pub use server::BouncerNetworkChanged;
@@ -1354,9 +1348,10 @@ mod tests {
 
     use super::{
         Authorship, Conversation, CoreEvent, Event, Message as ChatMessage, MessageId, MessageKind,
-        MetadataChanged, ModeAction, ModeArg, Origin, Source, StandardReplyKind, Visibility,
-        Warning, ctcp_parts, from_core as from_core_with_mapping, incoming,
+        MetadataChanged, ModeAction, ModeArg, Origin, Source, StandardReplyKind, Warning,
+        ctcp_parts, from_core as from_core_with_mapping, incoming,
     };
+    use crate::Visibility;
     use papo_core::{
         Account, Away, BatchAbandonReason, Config, Feature, Session,
         StandardReply as CoreStandardReply, StateLimit,
@@ -2399,18 +2394,18 @@ mod tests {
     #[test]
     fn maps_state_limit_reached() {
         for (core, public) in [
-            (StateLimit::Channels, super::StateLimit::Channels),
-            (StateLimit::Members, super::StateLimit::Members),
-            (StateLimit::ListEntries, super::StateLimit::ListEntries),
+            (StateLimit::Channels, crate::StateLimit::Channels),
+            (StateLimit::Members, crate::StateLimit::Members),
+            (StateLimit::ListEntries, crate::StateLimit::ListEntries),
             (
                 StateLimit::MetadataTargets,
-                super::StateLimit::MetadataTargets,
+                crate::StateLimit::MetadataTargets,
             ),
-            (StateLimit::MetadataKeys, super::StateLimit::MetadataKeys),
+            (StateLimit::MetadataKeys, crate::StateLimit::MetadataKeys),
             #[cfg(feature = "unstable")]
             (
                 StateLimit::BouncerNetworks,
-                super::StateLimit::BouncerNetworks,
+                crate::StateLimit::BouncerNetworks,
             ),
         ] {
             assert!(matches!(

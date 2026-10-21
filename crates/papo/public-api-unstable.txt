@@ -89,15 +89,7 @@ pub use papo::cap::WEBPUSH
 pub use papo::cap::WHOAMI
 pub mod papo::event
 pub use papo::event::BatchAbandonReason
-pub use papo::event::ModeAction
-pub use papo::event::ModeArg
-pub use papo::event::ModeChange
-pub use papo::event::PersistenceSetting
-pub use papo::event::PersistenceStatus
-pub use papo::event::Source
-pub use papo::event::StateLimit
 pub use papo::event::TypingReason
-pub use papo::event::Visibility
 #[non_exhaustive] pub enum papo::event::ConnectPhase
 pub papo::event::ConnectPhase::Authenticating
 pub papo::event::ConnectPhase::Capabilities
@@ -372,31 +364,6 @@ impl core::marker::Unpin for papo::event::Ctcp
 impl core::marker::UnsafeUnpin for papo::event::Ctcp
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Ctcp
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Ctcp
-#[non_exhaustive] pub struct papo::event::Disconnected
-pub papo::event::Disconnected::cause: papo::DisconnectCause
-pub papo::event::Disconnected::reconnect_in: core::option::Option<core::time::Duration>
-impl papo::Disconnected
-pub const fn papo::Disconnected::is_reconnecting(&self) -> bool
-pub const fn papo::Disconnected::new(papo::DisconnectCause, core::option::Option<core::time::Duration>) -> Self
-impl core::clone::Clone for papo::Disconnected
-pub fn papo::Disconnected::clone(&self) -> Self
-impl core::cmp::Eq for papo::Disconnected
-impl core::cmp::PartialEq for papo::Disconnected
-pub fn papo::Disconnected::eq(&self, &Self) -> bool
-impl core::error::Error for papo::Disconnected
-pub fn papo::Disconnected::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
-impl core::fmt::Debug for papo::Disconnected
-pub fn papo::Disconnected::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for papo::Disconnected
-pub fn papo::Disconnected::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::Disconnected
-impl core::marker::Freeze for papo::Disconnected
-impl core::marker::Send for papo::Disconnected
-impl core::marker::Sync for papo::Disconnected
-impl core::marker::Unpin for papo::Disconnected
-impl core::marker::UnsafeUnpin for papo::Disconnected
-impl !core::panic::unwind_safe::RefUnwindSafe for papo::Disconnected
-impl !core::panic::unwind_safe::UnwindSafe for papo::Disconnected
 #[non_exhaustive] pub struct papo::event::FeaturesChanged
 pub papo::event::FeaturesChanged::added: alloc::vec::Vec<papo::Feature>
 pub papo::event::FeaturesChanged::removed: alloc::vec::Vec<papo::Feature>

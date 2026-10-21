@@ -1,5 +1,4 @@
-use papo::event::{ModeChange, ModeChanged};
-use papo::{ModeAction, ModeArg, ModeValue};
+use papo::{ModeAction, ModeArg, ModeChange, ModeValue, event::ModeChanged};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;

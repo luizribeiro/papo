@@ -1,4 +1,4 @@
-use papo::{Event, event::Visibility};
+use papo::{Event, Visibility};
 use papo_conformance_macros::scenario;
 
 use crate::{Scenario, scenarios::support::subject_name};
