@@ -1138,6 +1138,7 @@ pub const papo::tags::keys::REPLY: &str
 pub const papo::tags::keys::TYPING: &str
 pub mod papo::time
 pub use papo::time::format
+pub fn papo::time::now() -> std::time::SystemTime
 #[non_exhaustive] pub enum papo::AccountCreation
 pub papo::AccountCreation::Created
 pub papo::AccountCreation::Created::account: papo::AccountName

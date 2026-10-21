@@ -133,6 +133,19 @@ fn reads_a_monotonic_instant() {
 }
 
 #[wasm_bindgen_test]
+fn reads_the_public_wall_clock() {
+    let before = js_sys::Date::now();
+    let actual = papo::time::now()
+        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_secs_f64()
+        * 1_000.0;
+    let after = js_sys::Date::now();
+    assert!(actual >= before - 1.0);
+    assert!(actual <= after + 1.0);
+}
+
+#[wasm_bindgen_test]
 fn receives_the_local_ergo_websocket_url() {
     _ = rt::now_wall();
     let url = env!("PAPO_BROWSER_WS");

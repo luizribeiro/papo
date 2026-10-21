@@ -822,6 +822,7 @@ impl Client {
     /// Lists conversations that received messages during an inclusive time range.
     ///
     /// This sends the `IRCv3` [`CHATHISTORY TARGETS`] query.
+    /// Pass [`crate::time::now`] as `until` to include conversations through the current time.
     ///
     /// # Errors
     ///
@@ -861,6 +862,8 @@ impl Client {
     }
 
     /// Sets the server read marker for a conversation.
+    ///
+    /// Pass [`crate::time::now`] to mark the conversation read through the current time.
     ///
     /// # Errors
     ///
