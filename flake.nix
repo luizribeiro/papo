@@ -352,6 +352,11 @@
             '';
             stages = [ "pre-push" ];
           };
+          feature-parity = cargoHook {
+            name = "feature-parity-hook";
+            text = "scripts/check-feature-parity";
+            stages = [ "pre-push" ];
+          };
           browser-tests = cargoHook {
             name = "browser-tests-hook";
             runtimeInputs = browserTools;

@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+outputs=$(mktemp -d)
+trap 'rm -rf "$outputs"' EXIT
+run() { local output=$1; shift
+  CARGO_TERM_COLOR=never cargo test --quiet --locked -p papo-core --test feature_parity \
+    --no-default-features "$@" \
+    disabled_extensions_match_stable_behavior -- --exact --nocapture \
+    | sed -n '/PAPO_FEATURE_PARITY_BEGIN/,/PAPO_FEATURE_PARITY_END/p' \
+    >"$output"
+}
+cd "$(dirname "$0")/.."
+run "$outputs/stable"
+run "$outputs/unstable" --features unstable
+diff -u "$outputs/stable" "$outputs/unstable"
