@@ -10,18 +10,9 @@ pub use papo_core::cap::{
 };
 pub use papo_core::cap::{BATCH, CHATHISTORY, METADATA, READ_MARKER};
 pub use papo_core::cap::{CAP_NOTIFY, ECHO_MESSAGE, EVENT_PLAYBACK, SERVER_TIME};
-/// Account persistence preferences.
-#[cfg(feature = "unstable")]
-#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-pub const PERSISTENCE: &str = papo_core::cap::PERSISTENCE;
 pub use papo_core::cap::{
     CHANNEL_RENAME, EXTENDED_ISUPPORT, MESSAGE_REDACTION, NO_IMPLICIT_NAMES, PRE_AWAY, WHOAMI,
 };
-/// Relayed messages.
 #[cfg(feature = "unstable")]
 #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-pub const RELAYMSG: &str = papo_core::cap::RELAYMSG;
-/// Web Push subscriptions.
-#[cfg(feature = "unstable")]
-#[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
-pub const WEBPUSH: &str = papo_core::cap::WEBPUSH;
+pub use papo_core::cap::{PERSISTENCE, RELAYMSG, WEBPUSH};

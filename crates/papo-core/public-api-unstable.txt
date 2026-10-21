@@ -85,8 +85,8 @@ pub const papo_core::cap::ACCOUNT_REQUIRED: papo_core::cap::Cap
 pub const papo_core::cap::ACCOUNT_TAG: papo_core::cap::Cap
 pub const papo_core::cap::AWAY_NOTIFY: papo_core::cap::Cap
 pub const papo_core::cap::BATCH: papo_core::cap::Cap
-pub const papo_core::cap::BOUNCER_NETWORKS: &str
-pub const papo_core::cap::BOUNCER_NETWORKS_NOTIFY: &str
+pub const papo_core::cap::BOUNCER_NETWORKS: papo_core::cap::Cap
+pub const papo_core::cap::BOUNCER_NETWORKS_NOTIFY: papo_core::cap::Cap
 pub const papo_core::cap::CAP_NOTIFY: papo_core::cap::Cap
 pub const papo_core::cap::CHANNEL_RENAME: papo_core::cap::Cap
 pub const papo_core::cap::CHATHISTORY: papo_core::cap::Cap
@@ -108,17 +108,17 @@ pub const papo_core::cap::MULTI_PREFIX: papo_core::cap::Cap
 pub const papo_core::cap::NOPE: papo_core::cap::Cap
 pub const papo_core::cap::NO_IMPLICIT_NAMES: papo_core::cap::Cap
 pub const papo_core::cap::OPER_TAG: papo_core::cap::Cap
-pub const papo_core::cap::PERSISTENCE: &str
+pub const papo_core::cap::PERSISTENCE: papo_core::cap::Cap
 pub const papo_core::cap::PRE_AWAY: papo_core::cap::Cap
 pub const papo_core::cap::READ_MARKER: papo_core::cap::Cap
-pub const papo_core::cap::RELAYMSG: &str
+pub const papo_core::cap::RELAYMSG: papo_core::cap::Cap
 pub const papo_core::cap::SASL: papo_core::cap::Cap
 pub const papo_core::cap::SERVER_TIME: papo_core::cap::Cap
 pub const papo_core::cap::SETNAME: papo_core::cap::Cap
 pub const papo_core::cap::STANDARD_REPLIES: papo_core::cap::Cap
 pub const papo_core::cap::STS: papo_core::cap::Cap
 pub const papo_core::cap::USERHOST_IN_NAMES: papo_core::cap::Cap
-pub const papo_core::cap::WEBPUSH: &str
+pub const papo_core::cap::WEBPUSH: papo_core::cap::Cap
 pub const papo_core::cap::WHOAMI: papo_core::cap::Cap
 pub static papo_core::cap::ALL: &[papo_core::cap::CapInfo]
 pub fn papo_core::cap::advertised_spelling<'a>(&str, &'a papo::Capabilities) -> core::option::Option<&'a str>

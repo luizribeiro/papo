@@ -23,7 +23,7 @@ impl Session {
         let separators = self
             .caps
             .enabled()
-            .get(cap::RELAYMSG)
+            .get(&cap::RELAYMSG)
             .and_then(Option::as_deref)
             .unwrap_or("/");
         if !nick_with_separator

@@ -3910,7 +3910,7 @@ impl Session {
             .is_none_or(|(_, _, _, _, emit_events)| *emit_events);
         let queued_events = self.outbox.events.len();
         #[cfg(feature = "unstable")]
-        let bouncer_batch = batch_type == cap::BOUNCER_NETWORKS;
+        let bouncer_batch = batch_type == cap::BOUNCER_NETWORKS.as_str();
         #[cfg(not(feature = "unstable"))]
         let bouncer_batch = false;
         let context = DispatchContext::from_batch_type(batch_type);

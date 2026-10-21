@@ -71,18 +71,18 @@ pub use papo::cap::MULTILINE
 pub use papo::cap::MULTI_PREFIX
 pub use papo::cap::NO_IMPLICIT_NAMES
 pub use papo::cap::OPER_TAG
+pub use papo::cap::PERSISTENCE
 pub use papo::cap::PRE_AWAY
 pub use papo::cap::READ_MARKER
+pub use papo::cap::RELAYMSG
 pub use papo::cap::SASL
 pub use papo::cap::SERVER_TIME
 pub use papo::cap::SETNAME
 pub use papo::cap::STANDARD_REPLIES
 pub use papo::cap::STS
 pub use papo::cap::USERHOST_IN_NAMES
+pub use papo::cap::WEBPUSH
 pub use papo::cap::WHOAMI
-pub const papo::cap::PERSISTENCE: &str
-pub const papo::cap::RELAYMSG: &str
-pub const papo::cap::WEBPUSH: &str
 pub mod papo::event
 pub use papo::event::BatchAbandonReason
 pub use papo::event::ModeAction

@@ -433,7 +433,7 @@ fn is_history(kind: &str) -> bool {
 
 fn is_aggregate(kind: &str) -> bool {
     #[cfg(feature = "unstable")]
-    let bouncer = kind == cap::BOUNCER_NETWORKS;
+    let bouncer = kind == cap::BOUNCER_NETWORKS.as_str();
     #[cfg(not(feature = "unstable"))]
     let bouncer = false;
     is_history(kind)
@@ -458,7 +458,7 @@ fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
         return Vec::new();
     }
     #[cfg(feature = "unstable")]
-    if batch.kind == cap::BOUNCER_NETWORKS {
+    if batch.kind == cap::BOUNCER_NETWORKS.as_str() {
         return vec![BatchEvent::Bouncer(std::mem::take(&mut batch.messages))];
     }
     if batch.kind == "draft/isupport" {

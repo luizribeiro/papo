@@ -279,7 +279,7 @@ impl Caps {
     ) {
         if self.negotiating && authentication_finished && self.pending.is_empty() && !self.ended {
             #[cfg(feature = "unstable")]
-            if self.enabled.contains_key(cap::BOUNCER_NETWORKS)
+            if self.enabled.contains_key(&cap::BOUNCER_NETWORKS)
                 && let Some(id) = bouncer_network
             {
                 outbox.transmit_immediate("BOUNCER", ["BIND", id]);

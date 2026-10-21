@@ -567,8 +567,8 @@ fn message_metadata(
     let envelope = line_envelope(message, isupport.casemapping(), received_at);
     let reply_to = tag_owned(message, &["+reply", "+draft/reply"]).map(MessageId::from);
     #[cfg(feature = "unstable")]
-    let relayed_by =
-        tag_owned(message, &[crate::cap::RELAYMSG]).map(|nick| isupport.casemapping().nick(nick));
+    let relayed_by = tag_owned(message, &[crate::cap::RELAYMSG.as_str()])
+        .map(|nick| isupport.casemapping().nick(nick));
     let oper_tag = message.tags().find(|(key, _)| *key == "draft/oper");
     let replay = batch_type.is_some_and(|kind| !matches!(kind, "netsplit" | "netjoin"));
     Some(MessageMetadata {
