@@ -14,7 +14,11 @@ use papo::{
 
 const MAX_RATE_TARGETS: usize = 1024;
 
-/// A shared sliding-window reply limiter keyed by return address.
+/// A shared sliding-window limiter for reply calls in each conversation.
+///
+/// The budget counts calls, not the number of lines produced by a call or the number of senders
+/// in a conversation. Conversation names use the server's casemapping, so differently cased
+/// spellings of the same channel share one budget.
 #[derive(Clone, Debug)]
 pub struct ReplyRateLimiter {
     burst: usize,
@@ -23,7 +27,7 @@ pub struct ReplyRateLimiter {
 }
 
 impl ReplyRateLimiter {
-    /// Creates a limiter allowing `burst` replies per return address during `refill`.
+    /// Creates a limiter allowing `burst` reply calls per conversation during `refill`.
     ///
     /// # Errors
     ///
@@ -111,15 +115,17 @@ impl BotConfig {
     }
 }
 
-/// Whether a bot response was sent or dropped by its rate limiter.
+/// The outcome of attempting a bot response.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[must_use = "the reply may have been dropped by the rate limiter"]
+#[must_use = "the response may not have been sent"]
 #[non_exhaustive]
 pub enum ReplyStatus {
     /// The response was accepted by the client driver.
     Sent,
-    /// The response exceeded the per-address rate limit.
+    /// The response exceeded the conversation's rate limit.
     Dropped,
+    /// The command actor was a server and therefore had no private recipient.
+    NoRecipient,
 }
 
 /// A parsed command from a live private message.
@@ -264,7 +270,7 @@ impl Command {
         text: impl Into<String>,
     ) -> Result<ReplyStatus, papo::Error> {
         let Some(target) = self.message.actor.nick() else {
-            return Ok(ReplyStatus::Dropped);
+            return Ok(ReplyStatus::NoRecipient);
         };
         if !self.replies.check(&Conversation::Private(target.clone())) {
             return Ok(ReplyStatus::Dropped);
@@ -700,7 +706,7 @@ mod tests {
         let server = parse(&incoming, &BotConfig::new("!")).unwrap();
         assert_eq!(
             server.private_notice("pong").await.unwrap(),
-            ReplyStatus::Dropped
+            ReplyStatus::NoRecipient
         );
     }
 }
