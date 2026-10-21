@@ -2,7 +2,7 @@ use papo::{Account, DisconnectCause, Error, Event, ModeAction, ModeArg, Rank, Re
 use papo_conformance_macros::scenario;
 use papo_test_server::DeploymentProfile;
 
-use super::support::{assert_refusal, subject_name, wait_channel_mode};
+use super::support::{assert_refusal, join_seen_by, subject_name, wait_channel_mode};
 use crate::Scenario;
 
 /// exposes the joining account and real name to every channel member
@@ -789,6 +789,43 @@ async fn kick(s: Scenario) -> papo_testing::Result<()> {
     assert!(bob.state().channel(&channel).is_none());
     alice.expect_none(Event::as_kicked).await?;
     bob.expect_none(Event::as_kicked).await?;
+    Ok(())
+}
+
+/// confirms a ban before kicking both a present and rejoined member
+#[scenario(covers = ["papo.moderation.kickban-confirmed"])]
+async fn kickban(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
+    let channel = s.channel_name();
+    let bob_nick = bob.nick();
+    let ban = format!("repeat-{bob_nick}!*@gateway.example");
+    alice.join(&channel).await?;
+    join_seen_by(&bob, &mut alice, &channel).await?;
+
+    let first = alice
+        .kickban(&channel, &bob_nick, "repeated flooding", ban.as_str())
+        .await?;
+    first.kick?;
+    let kicked = bob.wait_for(Event::as_kicked).await?;
+    assert_eq!(kicked.nick, bob_nick);
+    assert!(
+        alice
+            .list_modes(&channel, papo::ListMode::Ban)
+            .await?
+            .iter()
+            .any(|entry| alice.state().same_list_entry(&entry.mask, &ban))
+    );
+
+    join_seen_by(&bob, &mut alice, &channel).await?;
+    let duplicate = alice
+        .kickban(&channel, &bob_nick, "ban already present", ban.as_str())
+        .await?;
+    duplicate.kick?;
+    let kicked = bob.wait_for(Event::as_kicked).await?;
+    assert_eq!(kicked.nick, bob_nick);
+    assert_eq!(kicked.reason.as_deref(), Some("ban already present"));
+    alice.mode(&channel).unban(ban).await?;
     Ok(())
 }
 

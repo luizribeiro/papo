@@ -12,6 +12,7 @@ ids = [
   "base.join.err-channel-full", "base.join.err-too-many-channels", "base.join.err-bad-chanmask", "base.join.partially-invalid",
   "base.part.basic", "base.part.multiple-channels", "base.part.err-not-on-channel", "base.kick.basic",
   "base.kick.multi-target-split", "base.kick.err-not-privileged", "base.kick.err-user-not-in-channel", "base.kick.default-comment",
+  "papo.moderation.kickban-confirmed",
   "base.invite.sender-ack", "base.invite.target-delivery", "base.invite.observer-notify", "base.invite.err-not-op",
   "base.invite.err-already-on-channel", "base.invite.exempts-ban", "base.topic.get", "base.topic.set",
   "base.topic.clear", "base.topic.protected-mode", "base.topic.whotime", "base.names.basic",
