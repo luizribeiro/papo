@@ -63,8 +63,10 @@ fn request_futures_are_send() {
     let (client, mut events, driver) = Client::builder("irc.example.net").build();
     assert_send_value(events.next());
 
-    assert_send_static(client.send_raw(Line::new("KILL", ["alice", "connection reset"])));
-    assert_send_static(client.request_raw(Line::new("MOTD", Vec::<String>::new())));
+    assert_send_static(
+        client.send_raw(Line::builder("KILL").with_params(["alice", "connection reset"])),
+    );
+    assert_send_static(client.request_raw(Line::builder("MOTD")));
     assert_send_static(client.reconnect());
     assert_send_static(
         client

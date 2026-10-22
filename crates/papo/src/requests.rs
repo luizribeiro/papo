@@ -337,32 +337,26 @@ mod tests {
     #[test]
     fn plain_who_filters_placeholder_channels_and_non_prefix_flags() {
         let isupport = Isupport::default();
-        let hidden = Line::new(
-            "352",
-            [
-                "papo",
-                "*",
-                "~alice",
-                "staff.example",
-                "ergo.test",
-                "alice",
-                "H@!",
-                "0 Alice Example",
-            ],
-        );
-        let visible = Line::new(
-            "352",
-            [
-                "papo",
-                "#rust",
-                "~bob",
-                "users.example",
-                "ergo.test",
-                "bob",
-                "G+?",
-                "0 Bob Example",
-            ],
-        );
+        let hidden = Line::builder("352").with_params([
+            "papo",
+            "*",
+            "~alice",
+            "staff.example",
+            "ergo.test",
+            "alice",
+            "H@!",
+            "0 Alice Example",
+        ]);
+        let visible = Line::builder("352").with_params([
+            "papo",
+            "#rust",
+            "~bob",
+            "users.example",
+            "ergo.test",
+            "bob",
+            "G+?",
+            "0 Bob Example",
+        ]);
 
         let hidden = plain_who(&hidden.as_ref(), &isupport).unwrap();
         let visible = plain_who(&visible.as_ref(), &isupport).unwrap();
@@ -388,7 +382,7 @@ mod tests {
         session
             .request_with_matcher(
                 now,
-                Line::new("MODE", ["#papo", "+t"]),
+                Line::builder("MODE").with_params(["#papo", "+t"]),
                 ResponseMatcher::Mode("#papo".into()),
             )
             .unwrap();
@@ -413,10 +407,12 @@ mod tests {
     #[test]
     fn list_retains_at_most_the_literal_entry_limit() {
         let lines = (0..10_001).map(|index| {
-            Line::new(
-                "322",
-                ["papo", &format!("#papo-{index}"), "42", "Ergonomic IRC"],
-            )
+            Line::builder("322").with_params([
+                "papo",
+                &format!("#papo-{index}"),
+                "42",
+                "Ergonomic IRC",
+            ])
         });
         let entries = list_entries(lines, &Isupport::default());
         assert_eq!(entries.len(), 10_000);
@@ -428,19 +424,16 @@ mod tests {
         let mut isupport = Isupport::default();
         isupport.apply_tokens(["CASEMAPPING=ascii"]);
         let channel = whois_channel("@#Papo[dev]", &isupport);
-        let who = Line::new(
-            "352",
-            [
-                "papo",
-                "#Papo[dev]",
-                "~alice",
-                "staff.example",
-                "ergo.test",
-                "Alice[bot]",
-                "H@",
-                "0 Alice Example",
-            ],
-        );
+        let who = Line::builder("352").with_params([
+            "papo",
+            "#Papo[dev]",
+            "~alice",
+            "staff.example",
+            "ergo.test",
+            "Alice[bot]",
+            "H@",
+            "0 Alice Example",
+        ]);
         let who = plain_who(&who.as_ref(), &isupport).unwrap();
 
         assert_eq!(channel.name.casemapping(), Casemapping::Ascii);
