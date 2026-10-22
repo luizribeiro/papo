@@ -554,27 +554,21 @@ pub(crate) fn incoming_from_core(
     }) {
         return Event::Other(received.into_line());
     }
-    let conversation = received.conversation().cloned().filter(|_| {
-        ctcp_parts(&received.as_ref()).is_some() && received.as_ref().source().is_some()
-    });
-    let Some(conversation) = conversation else {
-        return Message::from_core(received, isupport, received_at)
-            .map_or_else(Event::Other, |message| Event::Message(Box::new(message)));
+    let Some(conversation) = received.conversation().cloned() else {
+        return Event::Other(received.into_line());
     };
     let status = received.status().map(<[char]>::to_vec);
     let authorship = Authorship::from_core(received.authorship());
     let (raw, batch_type) = received.into_parts();
-    Event::Ctcp(
-        Ctcp::from_line(
-            raw,
-            batch_type.as_deref(),
-            authorship,
-            conversation,
-            status,
-            isupport,
-            received_at,
-        )
-        .unwrap_or_else(|_| unreachable!("validated CTCP line changed while moving ownership")),
+    message_event_from_line(
+        raw,
+        batch_type.as_deref(),
+        authorship,
+        conversation,
+        status,
+        isupport,
+        received_at,
+        false,
     )
 }
 
@@ -605,28 +599,6 @@ impl Message {
         Self::new_with_context(
             raw,
             None,
-            authorship,
-            conversation,
-            status,
-            isupport,
-            received_at,
-        )
-    }
-
-    pub(crate) fn from_core(
-        received: papo_core::ReceivedLine,
-        isupport: &Isupport,
-        received_at: SystemTime,
-    ) -> Result<Self, ProtoLine> {
-        let Some(conversation) = received.conversation().cloned() else {
-            return Err(received.into_line());
-        };
-        let status = received.status().map(<[char]>::to_vec);
-        let authorship = Authorship::from_core(received.authorship());
-        let (raw, batch_type) = received.into_parts();
-        Self::new_with_context(
-            raw,
-            batch_type.as_deref(),
             authorship,
             conversation,
             status,
@@ -910,7 +882,7 @@ impl ServerNotice {
     }
 }
 
-#[allow(dead_code, clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)]
 fn message_event_from_line(
     raw: ProtoLine,
     batch_type: Option<&str>,
@@ -919,6 +891,7 @@ fn message_event_from_line(
     status: Option<Vec<char>>,
     isupport: &Isupport,
     received_at: SystemTime,
+    route_server_notices: bool,
 ) -> Event {
     let server_notice = raw.as_ref().command_is("WALLOPS")
         || matches!(
@@ -927,6 +900,30 @@ fn message_event_from_line(
         )
         || matches!(raw.as_ref().source(), Some(papo_proto::Source::Server(_)));
     if server_notice {
+        if !route_server_notices {
+            let raw = match Ctcp::from_line(
+                raw,
+                batch_type,
+                authorship,
+                conversation.clone(),
+                status.clone(),
+                isupport,
+                received_at,
+            ) {
+                Ok(ctcp) => return Event::Ctcp(ctcp),
+                Err(raw) => raw,
+            };
+            return Message::new_with_context(
+                raw,
+                batch_type,
+                authorship,
+                conversation,
+                status,
+                isupport,
+                received_at,
+            )
+            .map_or_else(Event::Other, |message| Event::Message(Box::new(message)));
+        }
         return ServerNotice::from_line(
             raw,
             batch_type,
@@ -1983,9 +1980,9 @@ mod tests {
     use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
     use super::{
-        Authorship, Conversation, CoreEvent, Ctcp, Event, Message as ChatMessage, MessageId,
-        MessageKind, MetadataChanged, ModeAction, ModeArg, Source, StandardReplyKind, Warning,
-        ctcp_parts, from_core as from_core_with_mapping,
+        Authorship, Chat, Conversation, CoreEvent, Ctcp, Event, Message as ChatMessage, MessageId,
+        MessageKind, MetadataChanged, ModeAction, ModeArg, NoticeKind, Source, StandardReplyKind,
+        Warning, ctcp_parts, from_core as from_core_with_mapping, message_event_from_line,
     };
     use crate::Visibility;
     use papo_core::{
@@ -2016,6 +2013,49 @@ mod tests {
         received_at: std::time::SystemTime,
     ) -> ChatMessage {
         ChatMessage::new(message, isupport, nick, received_at).unwrap()
+    }
+
+    fn parse_event(
+        message: Line,
+        isupport: &Isupport,
+        nick: &str,
+        received_at: std::time::SystemTime,
+    ) -> Event {
+        let (status, conversation) =
+            papo_core::classify_conversation(&message.as_ref(), nick, isupport).unwrap();
+        message_event_from_line(
+            message,
+            None,
+            Authorship::Other,
+            conversation,
+            status,
+            isupport,
+            received_at,
+            false,
+        )
+    }
+
+    #[test]
+    fn routes_user_notices() {
+        let isupport = Isupport::default();
+        let user = parse_event(
+            Line::notice("papo", "maintenance soon").with_source("emily!~e@localhost"),
+            &isupport,
+            "papo",
+            UNIX_EPOCH,
+        );
+        assert!(matches!(user, Event::Notice(notice)
+            if notice.kind == NoticeKind::Text
+                && matches!(notice.conversation, Chat::Private(_))));
+
+        let action = parse_event(
+            Line::notice("#papo", "\x01ACTION nods hello\x01").with_source("emily!~e@localhost"),
+            &isupport,
+            "papo",
+            UNIX_EPOCH,
+        );
+        assert!(matches!(action, Event::Notice(notice)
+            if notice.kind == NoticeKind::Action && notice.text == "nods hello"));
     }
 
     fn chat(command: &str, text: &str) -> ChatMessage {
@@ -2564,11 +2604,11 @@ mod tests {
         assert_eq!(changed.authorship, Authorship::Own);
     }
 
-    fn mapped_message(event: papo_core::Event) -> ChatMessage {
+    fn mapped_message_event(event: papo_core::Event) -> Event {
         let CoreEvent::Line(message) = from_core(event) else {
             panic!("message was not mapped")
         };
-        ChatMessage::from_core(message, &Isupport::default(), UNIX_EPOCH).unwrap()
+        super::incoming_from_core(message, &Isupport::default(), UNIX_EPOCH)
     }
 
     fn batched_event(kind: &str, command: &str) -> Event {
@@ -2866,8 +2906,8 @@ mod tests {
         }
 
         for kind in ["draft/multiline", "netsplit", "netjoin"] {
-            let Event::Message(live) = batched_event(kind, "NOTICE papo :live batch") else {
-                panic!("expected live fallback message")
+            let Event::Notice(live) = batched_event(kind, "NOTICE papo :live batch") else {
+                panic!("expected live fallback notice")
             };
             assert_eq!(live.text, "live batch");
         }
@@ -2899,7 +2939,8 @@ mod tests {
         let now = Instant::now();
         let mut session = Session::new(Config::default().nick("Papo[bot]"));
         session.handle_line(now, b":papo{bot}!~p@host PRIVMSG #papo :sent");
-        let echo = mapped_message(session.poll_event().expect("expected echo"));
+        let event = mapped_message_event(session.poll_event().expect("expected echo"));
+        let echo = event.as_message().expect("expected own message");
         assert!(echo.is_own());
     }
 
