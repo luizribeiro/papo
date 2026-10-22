@@ -80,6 +80,10 @@ pub struct Ctcp {
     pub msgid: Option<MessageId>,
     /// Valid server time, or the local receipt time when none was supplied.
     pub time: SystemTime,
+    /// Valid server time, when supplied.
+    pub server_time: Option<SystemTime>,
+    /// Time at which the line was received.
+    pub received_at: SystemTime,
     /// The actor's authenticated account, when tagged.
     pub account: Option<AccountName>,
     /// All message tags in wire order.
@@ -134,6 +138,10 @@ pub struct Message {
     pub msgid: Option<MessageId>,
     /// Valid server time, or the local receipt time when none was supplied.
     pub time: SystemTime,
+    /// Valid server time, when supplied.
+    pub server_time: Option<SystemTime>,
+    /// Time at which the line was received.
+    pub received_at: SystemTime,
     /// The actor's authenticated account, when tagged.
     pub account: Option<AccountName>,
     /// The identifier referenced by a reply tag.
@@ -158,6 +166,8 @@ struct MessageMetadata {
     status: Option<Vec<char>>,
     msgid: Option<MessageId>,
     time: SystemTime,
+    server_time: Option<SystemTime>,
+    received_at: SystemTime,
     account: Option<AccountName>,
     reply_to: Option<MessageId>,
     channel_context: Option<ChannelName>,
@@ -204,6 +214,8 @@ impl Ctcp {
             reply,
             msgid: metadata.msgid,
             time: metadata.time,
+            server_time: metadata.server_time,
+            received_at: metadata.received_at,
             account: metadata.account,
             tags: metadata.tags,
         })
@@ -441,6 +453,8 @@ impl Message {
             kind,
             msgid: metadata.msgid,
             time: metadata.time,
+            server_time: metadata.server_time,
+            received_at: metadata.received_at,
             account: metadata.account,
             reply_to: metadata.reply_to,
             channel_context: metadata.channel_context,
@@ -550,6 +564,8 @@ fn message_metadata(
         status,
         msgid: envelope.msgid,
         time: envelope.time,
+        server_time: envelope.server_time,
+        received_at: envelope.received_at,
         account: envelope.account,
         reply_to,
         channel_context,
@@ -565,6 +581,7 @@ pub(crate) struct EventEnvelope {
     pub(crate) msgid: Option<MessageId>,
     pub(crate) time: SystemTime,
     pub(crate) server_time: Option<SystemTime>,
+    pub(crate) received_at: SystemTime,
     pub(crate) account: Option<AccountName>,
 }
 
@@ -579,6 +596,7 @@ pub(crate) fn line_envelope(
         msgid: tag_owned(line, &["msgid"]).map(MessageId::from),
         time: server_time.unwrap_or(received_at),
         server_time,
+        received_at,
         account: tag_owned(line, &["account"]).map(|account| casemapping.account(account)),
     }
 }
@@ -604,6 +622,7 @@ pub(crate) fn joined_from_line(
         msgid: envelope.msgid,
         time: envelope.time,
         server_time: envelope.server_time,
+        received_at: envelope.received_at,
         account,
         realname: join.realname.map(str::to_owned),
         channel: casemapping.channel(join.channel),
@@ -622,6 +641,7 @@ fn core_envelope(
         msgid: envelope.msgid().map(MessageId::from),
         time: envelope.server_time().unwrap_or(received_at),
         server_time: envelope.server_time(),
+        received_at,
         account: envelope
             .account()
             .map(|account| casemapping.account(account)),
@@ -968,6 +988,7 @@ pub(crate) fn from_core(
                     msgid: envelope.msgid,
                     time: envelope.time,
                     server_time: envelope.server_time,
+                    received_at: envelope.received_at,
                     account: envelope.account,
                     actor: tag.actor,
                     authorship: tag.authorship,
@@ -1001,6 +1022,7 @@ pub(crate) fn from_core(
                 msgid: envelope.msgid,
                 time: envelope.time,
                 server_time: envelope.server_time,
+                received_at: envelope.received_at,
                 account: envelope.account,
                 actor: source::from_prefix(redacted.actor, casemapping),
                 authorship: Authorship::from_core(redacted.authorship),
@@ -1110,6 +1132,7 @@ pub(crate) fn from_core(
                         msgid: envelope.msgid,
                         time: envelope.time,
                         server_time: envelope.server_time,
+                        received_at: envelope.received_at,
                         account: envelope.account,
                         actor: source::from_proto(message.source()?, casemapping),
                         nick: casemapping.nick(nick),
@@ -1185,6 +1208,7 @@ pub(crate) fn from_core(
                 msgid: envelope.msgid,
                 time: envelope.time,
                 server_time: envelope.server_time,
+                received_at: envelope.received_at,
                 account,
                 realname,
                 channel,
@@ -1213,6 +1237,7 @@ pub(crate) fn from_core(
                 msgid: envelope.msgid,
                 time: envelope.time,
                 server_time: envelope.server_time,
+                received_at: envelope.received_at,
                 account: envelope.account,
                 actor: source::from_prefix(actor, casemapping),
                 channel,
@@ -1236,6 +1261,7 @@ pub(crate) fn from_core(
                 msgid: envelope.msgid,
                 time: envelope.time,
                 server_time: envelope.server_time,
+                received_at: envelope.received_at,
                 account: envelope.account,
                 channel,
                 subject,
@@ -1273,6 +1299,7 @@ pub(crate) fn from_core(
                 msgid: envelope.msgid,
                 time: envelope.time,
                 server_time: envelope.server_time,
+                received_at: envelope.received_at,
                 account: envelope.account,
                 actor: source::from_prefix(actor, casemapping),
                 nick,
@@ -1294,6 +1321,7 @@ pub(crate) fn from_core(
                 msgid: envelope.msgid,
                 time: envelope.time,
                 server_time: envelope.server_time,
+                received_at: envelope.received_at,
                 account: envelope.account,
                 actor: source::from_prefix(actor, casemapping),
                 old,
@@ -1371,6 +1399,7 @@ pub(crate) fn from_core(
                 msgid: envelope.msgid,
                 time: envelope.time,
                 server_time: envelope.server_time,
+                received_at: envelope.received_at,
                 account: envelope.account,
                 subject: match subject {
                     papo_core::Subject::Channel(channel) => crate::Subject::Channel(channel),
@@ -1396,6 +1425,7 @@ pub(crate) fn from_core(
                 msgid: envelope.msgid,
                 time: envelope.time,
                 server_time: envelope.server_time,
+                received_at: envelope.received_at,
                 account: envelope.account,
                 channel,
                 topic,
@@ -1700,7 +1730,8 @@ mod tests {
         assert!(tagged.is_bot);
         let tagged_event = Event::Message(Box::new(tagged.clone()));
         assert_eq!(tagged_event.msgid().as_deref(), Some("RfcBTzyxY120004"));
-        assert_eq!(tagged_event.server_time(), Some(tagged.time));
+        assert_eq!(tagged_event.server_time(), tagged.server_time);
+        assert_eq!(tagged.received_at, received);
         assert_eq!(
             Event::Other(
                 Line::new("VENDOR", ["payload"])
@@ -2388,6 +2419,7 @@ mod tests {
         };
         assert_eq!(joined.msgid.as_deref(), Some("RfcBTzyxY120012"));
         assert_eq!(joined.time, received_at);
+        assert_eq!(joined.received_at, received_at);
         assert_eq!(Event::Joined(joined.clone()).server_time(), None);
         assert_eq!(joined.account, Account::Unknown);
     }
@@ -2802,6 +2834,7 @@ mod tests {
                 msgid: None,
                 time: UNIX_EPOCH,
                 server_time: None,
+                received_at: UNIX_EPOCH,
                 account: Account::Unknown,
                 realname: None,
                 channel: mapping.channel("#papo"),
@@ -2813,6 +2846,7 @@ mod tests {
                 msgid: None,
                 time: UNIX_EPOCH,
                 server_time: None,
+                received_at: UNIX_EPOCH,
                 account: None,
                 actor: own_actor.clone(),
                 channel: mapping.channel("#papo"),
@@ -2824,6 +2858,7 @@ mod tests {
                 msgid: None,
                 time: UNIX_EPOCH,
                 server_time: None,
+                received_at: UNIX_EPOCH,
                 account: None,
                 channel: mapping.channel("#papo"),
                 subject: mapping.nick("Papo[Bot]"),
@@ -2843,6 +2878,7 @@ mod tests {
                 msgid: None,
                 time: UNIX_EPOCH,
                 server_time: None,
+                received_at: UNIX_EPOCH,
                 account: None,
                 actor: own_actor.clone(),
                 old: mapping.nick("Papo[Bot]"),
@@ -2858,6 +2894,7 @@ mod tests {
                     msgid: None,
                     time: UNIX_EPOCH,
                     server_time: None,
+                    received_at: UNIX_EPOCH,
                     account: Account::Unknown,
                     realname: None,
                     channel: mapping.channel("#papo"),

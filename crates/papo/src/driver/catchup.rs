@@ -268,6 +268,7 @@ mod tests {
             msgid: Some("RfcBTzyxY120010".into()),
             time: SystemTime::UNIX_EPOCH,
             server_time: None,
+            received_at: SystemTime::UNIX_EPOCH,
             account: Some(mapping.account("emily")),
             actor: crate::Source::from_proto(
                 papo_proto::Source::__user("emily", Some("~e"), Some("cloak.example")),

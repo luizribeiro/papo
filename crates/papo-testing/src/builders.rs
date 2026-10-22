@@ -76,6 +76,8 @@ impl MessageBuilder {
             Some(server_time) => server_time,
             None => received_at,
         };
+        self.message.server_time = server_time;
+        self.message.received_at = received_at;
         self
     }
 
