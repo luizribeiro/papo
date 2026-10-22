@@ -31,6 +31,35 @@ macro_rules! disconnected {
 
 pub(crate) const TEST_DEADLINE: Duration = Duration::from_secs(5);
 
+impl Driver {
+    pub(super) fn with_stream<S>(
+        stream: S,
+        session: Session,
+    ) -> (super::Client, super::Events, Self)
+    where
+        S: super::ConnectionIo + 'static,
+    {
+        Self::with_stream_and_capacity(stream, session, super::DEFAULT_CHANNEL_CAPACITY)
+    }
+
+    fn with_stream_and_capacity<S>(
+        stream: S,
+        session: Session,
+        capacity: usize,
+    ) -> (super::Client, super::Events, Self)
+    where
+        S: super::ConnectionIo + 'static,
+    {
+        Self::with_stream_and_connect(
+            stream,
+            session,
+            capacity,
+            None,
+            super::PostConnect::default(),
+        )
+    }
+}
+
 pub(crate) async fn within<F: IntoFuture>(future: F) -> F::Output {
     within_duration(future, TEST_DEADLINE).await
 }

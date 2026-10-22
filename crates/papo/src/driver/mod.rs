@@ -471,26 +471,6 @@ impl std::fmt::Debug for Driver {
 }
 
 impl Driver {
-    #[cfg(all(test, not(browser)))]
-    fn with_stream<S>(stream: S, session: Session) -> (Client, Events, Self)
-    where
-        S: ConnectionIo + 'static,
-    {
-        Self::with_stream_and_capacity(stream, session, DEFAULT_CHANNEL_CAPACITY)
-    }
-
-    #[cfg(all(test, not(browser)))]
-    fn with_stream_and_capacity<S>(
-        stream: S,
-        session: Session,
-        capacity: usize,
-    ) -> (Client, Events, Self)
-    where
-        S: ConnectionIo + 'static,
-    {
-        Self::with_stream_and_connect(stream, session, capacity, None, PostConnect::default())
-    }
-
     pub(crate) fn with_stream_and_connect<S>(
         stream: S,
         session: Session,
