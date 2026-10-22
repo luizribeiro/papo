@@ -21,7 +21,7 @@
 //!
 //! ```no_run
 //! use papo::{Client, Event};
-//! use papo_bot::BotConfig;
+//! use papo_bot::{BotConfig, ReplyStatus};
 //!
 //! # async fn lookup(_client: &Client, query: String) -> String { query }
 //! # async fn handle(client: &Client, commands: &BotConfig, event: Event) {
@@ -33,8 +33,10 @@
 //!     let query = command.rest().to_owned();
 //!     tokio::spawn(async move {
 //!         let answer = lookup(&client, query).await;
-//!         if let Err(error) = command.reply(answer).await {
-//!             eprintln!("could not reply: {error}");
+//!         match command.reply(answer).await {
+//!             Ok(ReplyStatus::RecipientChanged) => eprintln!("the command sender changed nick"),
+//!             Ok(_) => {}
+//!             Err(error) => eprintln!("could not reply: {error}"),
 //!         }
 //!     });
 //! }
@@ -189,6 +191,8 @@ pub enum ReplyStatus {
     Dropped,
     /// The command actor was a server and therefore had no private recipient.
     NoRecipient,
+    /// An account-tagged command's nickname is no longer known to belong to that account.
+    RecipientChanged,
 }
 
 /// A parsed command from a live private message.
@@ -316,6 +320,11 @@ impl Command {
     /// [`papo::Refusal::NoSuchChannel`], [`papo::Refusal::InputTooLong`],
     /// [`papo::Refusal::TryAgain`], or [`papo::Refusal::Other`].
     pub async fn reply(&self, text: impl Into<String>) -> Result<ReplyStatus, papo::Error> {
+        if let Conversation::Private(target) = &self.message.conversation
+            && self.recipient_changed(target)
+        {
+            return Ok(ReplyStatus::RecipientChanged);
+        }
         if !self.replies.check(&self.message.conversation) {
             return Ok(ReplyStatus::Dropped);
         }
@@ -340,6 +349,9 @@ impl Command {
         let Some(target) = self.message.actor.nick() else {
             return Ok(ReplyStatus::NoRecipient);
         };
+        if self.recipient_changed(target) {
+            return Ok(ReplyStatus::RecipientChanged);
+        }
         if !self.replies.check(&Conversation::Private(target.clone())) {
             return Ok(ReplyStatus::Dropped);
         }
@@ -357,6 +369,16 @@ impl Command {
         }
         request.await?;
         Ok(ReplyStatus::Sent)
+    }
+
+    fn recipient_changed(&self, target: &papo::Nick) -> bool {
+        let Some(expected) = &self.account else {
+            return false;
+        };
+        !matches!(
+            self.client.state().user(target).map(papo::User::account),
+            Some(papo::Account::LoggedIn(current)) if current == expected
+        )
     }
 }
 
@@ -618,6 +640,58 @@ mod tests {
         let command = BotConfig::new("!").command(&client, &incoming).unwrap();
         assert_eq!(command.account(), None);
         assert!(!command.account_in(["emily"]));
+        driver.abort();
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn private_responses_stop_when_an_account_loses_its_nick() {
+        let transcript = concat!(
+            ":ergo.test CAP * LS :account-notify account-tag\r\n",
+            ":ergo.test CAP papo{bot} ACK :account-notify account-tag\r\n",
+            ":ergo.test 001 papo{bot} :Welcome to the Ergo test network\r\n",
+            ":ergo.test 005 papo{bot} CASEMAPPING=rfc1459 CHANTYPES=# :are supported\r\n",
+            ":papo{bot}!papo@localhost JOIN #papo\r\n",
+            ":ergo.test 353 papo{bot} = #papo :@papo{bot} alice!~alice@localhost mallory!~mallory@localhost carol!~carol@localhost\r\n",
+            ":ergo.test 366 papo{bot} #papo :End of NAMES list\r\n",
+            ":alice!~alice@localhost ACCOUNT alice\r\n",
+            ":carol!~carol@localhost ACCOUNT carol\r\n",
+            "@account=alice :alice!~alice@localhost PRIVMSG papo{bot} :!lookup payroll\r\n",
+            ":alice!~alice@localhost QUIT :Client exited\r\n",
+            ":mallory!~mallory@localhost NICK alice\r\n",
+            "@account=carol :carol!~carol@localhost PRIVMSG papo{bot} :!lookup handbook\r\n",
+        );
+        let stream = TranscriptStream::new(transcript);
+        let output = stream.output();
+        let (client, mut events, driver) = Client::builder("irc.example")
+            .nick(Casemapping::Rfc1459.nick("papo{bot}"))
+            .stream(stream)
+            .build();
+        let driver = tokio::spawn(driver);
+        let mut messages = Vec::new();
+        while messages.len() < 2 {
+            if let Some(papo::Event::Message(message)) = events.next().await {
+                messages.push(message);
+            }
+        }
+
+        let config = BotConfig::new("!");
+        let stale = config.command(&client, &messages[0]).unwrap();
+        assert_eq!(
+            stale.reply("classified").await.unwrap(),
+            ReplyStatus::RecipientChanged
+        );
+        assert_eq!(
+            stale.private_notice("classified").await.unwrap(),
+            ReplyStatus::RecipientChanged
+        );
+        let current = config.command(&client, &messages[1]).unwrap();
+        assert_eq!(current.reply("public").await.unwrap(), ReplyStatus::Sent);
+        tokio::task::yield_now().await;
+
+        let output = String::from_utf8(output.lock().unwrap().clone()).unwrap();
+        assert!(!output.contains("PRIVMSG alice :classified\r\n"));
+        assert!(!output.contains("NOTICE alice :classified\r\n"));
+        assert!(output.contains("PRIVMSG carol public\r\n"), "{output:?}");
         driver.abort();
     }
 

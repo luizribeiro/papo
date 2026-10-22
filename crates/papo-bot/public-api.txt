@@ -2,6 +2,7 @@ pub mod papo_bot
 #[non_exhaustive] pub enum papo_bot::ReplyStatus
 pub papo_bot::ReplyStatus::Dropped
 pub papo_bot::ReplyStatus::NoRecipient
+pub papo_bot::ReplyStatus::RecipientChanged
 pub papo_bot::ReplyStatus::Sent
 impl core::clone::Clone for papo_bot::ReplyStatus
 pub fn papo_bot::ReplyStatus::clone(&self) -> Self
