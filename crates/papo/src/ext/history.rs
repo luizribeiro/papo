@@ -66,53 +66,6 @@ variant_accessors! { HistoryItem;
     (field Other, line, as_other, Line),
 }
 
-impl HistoryItem {
-    /// Returns the server-assigned identifier of this history line, when supplied.
-    #[must_use]
-    pub const fn msgid(&self) -> Option<&crate::MessageId> {
-        match self {
-            Self::Message(event) => event.msgid.as_ref(),
-            Self::Reacted(event) => event.msgid.as_ref(),
-            Self::Redacted(event) => event.msgid.as_ref(),
-            Self::Joined(event) => event.msgid.as_ref(),
-            Self::Parted(event) => event.msgid.as_ref(),
-            Self::Quit(event) => event.msgid.as_ref(),
-            Self::Kicked(event) => event.msgid.as_ref(),
-            Self::NickChanged(event) => event.msgid.as_ref(),
-            Self::TopicChanged(event) => event.msgid.as_ref(),
-            Self::ModeChanged(event) => event.msgid.as_ref(),
-            Self::Other { msgid, .. } => msgid.as_ref(),
-        }
-    }
-
-    /// Returns the server time, or the local receipt time when none was supplied.
-    #[must_use]
-    pub const fn time(&self) -> SystemTime {
-        match self {
-            Self::Message(event) => event.time,
-            Self::Reacted(event) => event.time,
-            Self::Redacted(event) => event.time,
-            Self::Joined(event) => event.time,
-            Self::Parted(event) => event.time,
-            Self::Quit(event) => event.time,
-            Self::Kicked(event) => event.time,
-            Self::NickChanged(event) => event.time,
-            Self::TopicChanged(event) => event.time,
-            Self::ModeChanged(event) => event.time,
-            Self::Other { time, .. } => *time,
-        }
-    }
-
-    /// Returns the preferred exclusive cursor for paging after this line.
-    #[must_use]
-    pub fn reference(&self) -> HistoryReference {
-        self.msgid().map_or_else(
-            || HistoryReference::from(self.time()),
-            |msgid| HistoryReference(MsgRef::Msgid(msgid.to_string())),
-        )
-    }
-}
-
 fn other(line: Line, received_at: SystemTime) -> HistoryItem {
     let parsed = line.as_ref();
     let msgid = parsed.tag("msgid").map(|value| value.as_ref().into());
@@ -1106,10 +1059,10 @@ mod tests {
         assert!(matches!(&items[4], HistoryItem::Quit(quit)
             if quit.channels == ["#papo"] && quit.authorship == crate::Authorship::Other));
         let first_time = papo_proto::time::parse("2026-10-19T14:31:08.123Z").unwrap();
-        assert_eq!(items[0].msgid().map(AsRef::as_ref), Some("RfcBTzyxY120004"));
-        assert_eq!(items[0].time(), first_time);
         assert!(matches!(&items[0], HistoryItem::Message(message)
-            if message.account.as_deref() == Some("papo")));
+            if message.msgid.as_deref() == Some("RfcBTzyxY120004")
+                && message.time == first_time
+                && message.account.as_deref() == Some("papo")));
         assert!(matches!(&items[3], HistoryItem::NickChanged(changed)
             if changed.msgid.as_deref() == Some("RfcBTzyxY120007")
                 && changed.account.as_deref() == Some("papo")));
@@ -1130,12 +1083,11 @@ mod tests {
             UNIX_EPOCH,
             crate::Origin::History,
         );
-        assert_eq!(item.msgid(), None);
-        assert_eq!(item.time(), server_time);
-        assert!(matches!(item.reference().0, MsgRef::Timestamp(time) if time == server_time));
         let HistoryItem::Message(message) = item else {
             panic!("expected a chat message");
         };
+        assert_eq!(message.msgid, None);
+        assert_eq!(message.time, server_time);
         assert!(
             matches!(HistoryReference::from(&message).0, MsgRef::Timestamp(time) if time == server_time)
         );

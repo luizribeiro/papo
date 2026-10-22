@@ -1453,10 +1453,6 @@ impl papo::HistoryItem
 pub const fn papo::HistoryItem::as_redacted(&self) -> core::option::Option<&papo::event::Redacted>
 impl papo::HistoryItem
 pub const fn papo::HistoryItem::as_topic_changed(&self) -> core::option::Option<&papo::event::TopicChanged>
-impl papo::HistoryItem
-pub const fn papo::HistoryItem::msgid(&self) -> core::option::Option<&papo::MessageId>
-pub fn papo::HistoryItem::reference(&self) -> papo::HistoryReference
-pub const fn papo::HistoryItem::time(&self) -> std::time::SystemTime
 impl core::clone::Clone for papo::HistoryItem
 pub fn papo::HistoryItem::clone(&self) -> Self
 impl core::cmp::Eq for papo::HistoryItem
