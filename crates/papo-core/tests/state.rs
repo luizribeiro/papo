@@ -76,6 +76,10 @@ fn rejects_invalid_targets_and_unadvertised_status_prefixes() {
             let state = session.state();
             assert_eq!(state.parse_target(""), Err(InvalidIdentifier::Empty));
             assert_eq!(
+                state.parse_target("$*.example.org,alice"),
+                Err(InvalidIdentifier::InvalidCharacter(','))
+            );
+            assert_eq!(
                 state.parse_target("@#ops"),
                 Err(InvalidIdentifier::InvalidPrefix('@'))
             );

@@ -375,9 +375,14 @@ impl Mask {
     ///
     /// # Errors
     ///
-    /// Returns an error for an empty mask or wire delimiters.
+    /// Returns an error for an empty mask, wire delimiters, or a comma that would introduce
+    /// another target.
     pub fn check(&self) -> Result<(), InvalidIdentifier> {
-        check_parameter(self)
+        check_parameter(self)?;
+        if self.contains(',') {
+            return Err(InvalidIdentifier::InvalidCharacter(','));
+        }
+        Ok(())
     }
 }
 
@@ -711,6 +716,10 @@ mod tests {
         assert_eq!(
             Casemapping::default().mask("*!*@local host").check(),
             Err(InvalidIdentifier::InvalidCharacter(' '))
+        );
+        assert_eq!(
+            Casemapping::default().mask("$*.example.org,alice").check(),
+            Err(InvalidIdentifier::InvalidCharacter(','))
         );
         assert_eq!(MessageId::from("").check(), Err(InvalidIdentifier::Empty));
         assert_eq!(
