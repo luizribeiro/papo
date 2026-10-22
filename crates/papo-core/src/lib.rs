@@ -384,6 +384,15 @@ impl CtcpReplies {
     }
 }
 
+/// Builds the private `NOTICE` used to answer a CTCP query.
+#[doc(hidden)]
+#[must_use]
+pub fn __ctcp_reply(actor: &Source, command: &str, text: &str) -> Option<Line> {
+    let nick = actor.nick()?;
+    let body = Ctcp::build(command, (!text.is_empty()).then_some(text))?;
+    Some(Line::notice(nick.as_ref(), body))
+}
+
 /// Connection state captured when a session becomes ready for use.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Welcome {
@@ -4161,7 +4170,7 @@ impl Session {
         {
             return false;
         }
-        let (Some(ProtoSource::User { nick, .. }), Some(text)) =
+        let (Some(source @ ProtoSource::User { nick, .. }), Some(text)) =
             (message.source(), message.param(1))
         else {
             return false;
@@ -4176,11 +4185,16 @@ impl Session {
         if self.is_own_source(message) {
             return true;
         }
+        let live_query = matches!(context.batch_type(), None | Some("netsplit" | "netjoin"));
+        let private_to_us = message.param(0).is_some_and(|target| {
+            names_equal(self.isupport.value().casemapping(), target, self.nick())
+        });
+        if !live_query || !private_to_us {
+            return true;
+        }
         let response = match query.command.to_ascii_uppercase().as_str() {
-            "VERSION" => self.config.ctcp.version.as_deref(),
-            "PING" if self.config.ctcp.ping => query.params,
-            "TIME" => self.config.ctcp.time.as_deref(),
-            "SOURCE" => self.config.ctcp.source.as_deref(),
+            "VERSION" => self.config.ctcp.version.as_deref().map(Some),
+            "PING" if self.config.ctcp.ping => Some(query.params),
             _ => None,
         };
         let Some(response) = response else {
@@ -4202,8 +4216,15 @@ impl Session {
             self.ctcp_sources.pop_front();
         }
         self.ctcp_sources.push_back((nick.to_owned(), now));
-        if let Some(response) = Ctcp::build(query.command, Some(response)) {
-            self.outbox.transmit("NOTICE", [nick, response.as_str()]);
+        let actor = Source::from_proto(source, self.isupport.value().casemapping());
+        if let Some(reply) = __ctcp_reply(&actor, query.command, response.unwrap_or_default()) {
+            match reply.to_line() {
+                Ok(line) => self.outbox.transmit_raw(line.into_bytes()),
+                Err(error) => self.outbox.close(
+                    CloseKind::Other,
+                    format!("invalid outbound message: {error}"),
+                ),
+            }
         }
         true
     }
@@ -4271,6 +4292,10 @@ impl Session {
                 reason,
             }),
             BatchEvent::Line { line, batch_type } => {
+                let context = batch_type
+                    .clone()
+                    .map_or_else(DispatchContext::default, DispatchContext::from_batch_type);
+                self.handle_ctcp(now, &line.as_ref(), &context);
                 let received = self.received_line(line, batch_type);
                 self.outbox.event(Event::Line(received));
             }

@@ -182,7 +182,6 @@ fn answers_supported_ctcp_queries_and_applies_safety_rules() {
     let now = Instant::now();
     let replies = CtcpReplies::default()
         .version(Some("papo test build"))
-        .source(Some("https://example.invalid/papo"))
         .rate(RateLimit::unlimited());
     let mut session = Session::new(
         Config::default()
@@ -213,10 +212,35 @@ fn answers_supported_ctcp_queries_and_applies_safety_rules() {
     session.handle_line(now, b":carol!~c@cloak NOTICE papo :\x01VERSION\x01");
     assert_eq!(wire(&mut session), None);
 
-    session.handle_line(now, b":dave!~d@cloak PRIVMSG #papo :\x01SOURCE\x01");
+    session.handle_line(now, b":dave!~d@cloak PRIVMSG papo :\x01SOURCE\x01");
+    assert_eq!(wire(&mut session), None);
+    session.handle_line(now, b":erin!~e@cloak PRIVMSG papo :\x01CLIENTINFO\x01");
+    assert_eq!(wire(&mut session), None);
+    session.handle_line(now, b":frank!~f@cloak PRIVMSG papo :\x01PING\x01");
     assert_eq!(
         wire(&mut session).as_deref(),
-        Some("NOTICE dave :\x01SOURCE https://example.invalid/papo\x01\r\n")
+        Some("NOTICE frank \x01PING\x01\r\n")
+    );
+    let default_version = format!("papo {}", env!("CARGO_PKG_VERSION"));
+    assert_ctcp_combination(CtcpReplies::default(), Some(&default_version), true);
+}
+
+fn assert_ctcp_combination(replies: CtcpReplies, version: Option<&str>, ping: bool) {
+    let now = Instant::now();
+    let mut session = Session::new(
+        Config::default()
+            .rate_limit(RateLimit::unlimited())
+            .ctcp(replies.rate(RateLimit::unlimited())),
+    );
+    session.handle_line(now, b":alice!~a@cloak PRIVMSG papo :\x01VERSION\x01");
+    assert_eq!(
+        wire(&mut session),
+        version.map(|text| format!("NOTICE alice :\x01VERSION {text}\x01\r\n"))
+    );
+    session.handle_line(now, b":bob!~b@cloak PRIVMSG papo :\x01PING 1731513600\x01");
+    assert_eq!(
+        wire(&mut session),
+        ping.then(|| "NOTICE bob :\x01PING 1731513600\x01\r\n".to_owned())
     );
 }
 
@@ -329,6 +353,62 @@ fn disabling_version_still_answers_ping() {
 }
 
 #[test]
+fn channel_ctcp_queries_are_reported_without_automatic_replies() {
+    connected_ctcp(CtcpReplies::default().rate(RateLimit::unlimited()))
+        .server(":ergo.test 005 papo STATUSMSG=@+ :are supported")
+        .server(":alice!~a@cloak PRIVMSG #papo :\x01PING 1731513600\x01")
+        .no_client()
+        .event(|event| matches!(event, Event::Line(line) if line.as_ref().param(1) == Some("\x01PING 1731513600\x01")))
+        .server(":bob!~b@cloak PRIVMSG @#papo :\x01VERSION\x01")
+        .no_client()
+        .event(|event| matches!(event, Event::Line(line) if line.as_ref().param(0) == Some("@#papo")));
+}
+
+#[test]
+fn replay_batches_report_ctcp_queries_without_automatic_replies() {
+    connected_ctcp(CtcpReplies::default().rate(RateLimit::unlimited()))
+        .server(":soju.example BATCH +backlog chathistory papo")
+        .server("@batch=backlog :alice!~a@cloak PRIVMSG papo :\x01VERSION\x01")
+        .no_client()
+        .server(":soju.example BATCH -backlog")
+        .no_client()
+        .event(|event| matches!(event, Event::History { items, .. } if items.len() == 1))
+        .server(":znc.example BATCH +playback znc.in/playback")
+        .server("@batch=playback :bob!~b@cloak PRIVMSG papo :\x01PING 1731513600\x01")
+        .no_client()
+        .event(|event| matches!(event, Event::Line(line) if line.batch_type() == Some("znc.in/playback")))
+        .server(":znc.example BATCH -playback")
+        .no_client()
+        .server("@label=missing :ergo.test BATCH +reply labeled-response")
+        .server("@batch=reply :carol!~c@cloak PRIVMSG papo :\x01VERSION\x01")
+        .server(":ergo.test BATCH -reply")
+        .no_client()
+        .event(|event| matches!(event, Event::Line(line) if line.batch_type() == Some("labeled-response")));
+}
+
+#[test]
+fn connectivity_batches_keep_live_ctcp_queries_answerable() {
+    connected_ctcp(CtcpReplies::default().rate(RateLimit::unlimited()))
+        .server(":ergo.test BATCH +joined netjoin irc1.example irc2.example")
+        .server("@batch=joined :alice!~a@cloak PRIVMSG papo :\x01PING 1731513600\x01")
+        .no_client()
+        .server(":ergo.test BATCH -joined")
+        .client("NOTICE alice :\x01PING 1731513600\x01")
+        .event(|event| matches!(event, Event::Netjoin { .. }))
+        .event(|event| matches!(event, Event::Line(line) if line.batch_type() == Some("netjoin")))
+        .server(":ergo.test BATCH +split netsplit irc1.example irc2.example")
+        .server("@batch=split :bob!~b@cloak PRIVMSG papo :\x01VERSION\x01")
+        .no_client()
+        .server(":ergo.test BATCH -split")
+        .client(&format!(
+            "NOTICE bob :\x01VERSION papo {}\x01",
+            env!("CARGO_PKG_VERSION")
+        ))
+        .event(|event| matches!(event, Event::Netsplit { .. }))
+        .event(|event| matches!(event, Event::Line(line) if line.batch_type() == Some("netsplit")));
+}
+
+#[test]
 fn caps_ctcp_replies_across_several_senders() {
     let replies = CtcpReplies::default()
         .version(Some("papo test build"))
@@ -351,22 +431,6 @@ fn caps_ctcp_replies_across_several_senders() {
         .server(":erin!~e@cloak PRIVMSG papo :\x01VERSION\x01")
         .client("NOTICE erin :\x01VERSION papo test build\x01")
         .event(|event| matches!(event, Event::Line(_)));
-}
-
-#[test]
-fn answers_time_with_the_injected_wall_clock_value() {
-    let now = Instant::now();
-    let replies = CtcpReplies::off().time(Some("Thu Oct 15 16:30:00 2026 EDT"));
-    let mut session = Session::new(
-        Config::default()
-            .rate_limit(RateLimit::unlimited())
-            .ctcp(replies),
-    );
-    session.handle_line(now, b":alice!~a@cloak PRIVMSG papo :\x01TIME\x01");
-    assert_eq!(
-        wire(&mut session).as_deref(),
-        Some("NOTICE alice :\x01TIME Thu Oct 15 16:30:00 2026 EDT\x01\r\n")
-    );
 }
 
 #[test]
