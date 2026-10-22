@@ -35,7 +35,10 @@ impl Session {
         }
         self.request_for_feature(
             now,
-            Line::new("RELAYMSG", [channel, nick_with_separator, text]),
+            Line::builder("RELAYMSG")
+                .param(channel)
+                .param(nick_with_separator)
+                .param(text),
             Feature::Relay,
         )
     }

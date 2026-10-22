@@ -89,7 +89,7 @@ async fn ctcp_playback_has_no_automatic_reply(s: Scenario) -> papo_testing::Resu
     assert!(page.items.iter().any(|item| {
         matches!(item, papo::Event::Other(raw) if {
             raw.command() == "PRIVMSG"
-                && raw.param(1) == Some("\u{1}VERSION\u{1}")
+                && raw.get(1) == Some("\u{1}VERSION\u{1}")
                 && raw.source().is_some_and(|source| {
                     matches!(
                         source,

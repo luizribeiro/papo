@@ -568,7 +568,7 @@ fn multiline(batch: &mut OpenBatch) -> Option<Line> {
     }
     let opening = batch.opening.as_ref();
     let source = opening.raw_source().or_else(|| first.raw_source());
-    let mut message = Line::new(command, [target, &text]);
+    let mut message = Line::builder(command).param(target).param(&text);
     if let Some(source) = source {
         message = message.with_source(source);
     }

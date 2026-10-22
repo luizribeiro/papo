@@ -54,7 +54,9 @@ impl Source {
     }
 
     pub(crate) fn from_prefix(prefix: &str, casemapping: Casemapping) -> Self {
-        let line = papo_proto::Line::new("NOTICE", ["*"]).with_source(prefix);
+        let line = papo_proto::Line::builder("NOTICE")
+            .param("*")
+            .with_source(prefix);
         Self::from_proto(
             line.as_ref().source().expect("owned source is present"),
             casemapping,

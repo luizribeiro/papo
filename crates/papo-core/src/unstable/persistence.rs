@@ -12,7 +12,7 @@ impl Session {
     /// Returns [`RequestError::Unsupported`] when the capability was not negotiated. Other
     /// failures are the same as [`Session::request`].
     pub fn persistence_get(&mut self, now: Instant) -> Result<(), RequestError> {
-        self.persistence_request(now, Line::new("PERSISTENCE", ["GET"]))
+        self.persistence_request(now, Line::builder("PERSISTENCE").param("GET"))
     }
 
     /// Changes the account's `draft/persistence` preference.
@@ -26,7 +26,12 @@ impl Session {
         now: Instant,
         setting: PersistenceSetting,
     ) -> Result<(), RequestError> {
-        self.persistence_request(now, Line::new("PERSISTENCE", ["SET", setting.as_str()]))
+        self.persistence_request(
+            now,
+            Line::builder("PERSISTENCE")
+                .param("SET")
+                .param(setting.as_str()),
+        )
     }
 
     fn persistence_request(&mut self, now: Instant, message: Line) -> Result<(), RequestError> {

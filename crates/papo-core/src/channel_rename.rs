@@ -22,6 +22,10 @@ impl Session {
         if !reason.is_empty() {
             params.push(reason);
         }
-        self.request_for_feature(now, Line::new("RENAME", params), Feature::ChannelRename)
+        self.request_for_feature(
+            now,
+            Line::builder("RENAME").with_params(params),
+            Feature::ChannelRename,
+        )
     }
 }

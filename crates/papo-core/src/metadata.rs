@@ -232,7 +232,11 @@ impl Session {
             MetadataCommand::Subs => params.extend(["*".into(), "SUBS".into()]),
             MetadataCommand::Sync { target } => params.extend([target, "SYNC".into()]),
         }
-        self.request_for_feature(now, Line::new("METADATA", params), Feature::Metadata)
+        self.request_for_feature(
+            now,
+            Line::builder("METADATA").with_params(params),
+            Feature::Metadata,
+        )
     }
 }
 

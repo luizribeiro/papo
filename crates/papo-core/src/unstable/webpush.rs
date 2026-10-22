@@ -31,7 +31,10 @@ impl Session {
         let keys = format!("p256dh={p256dh};auth={auth}");
         self.request_for_feature(
             now,
-            Line::new("WEBPUSH", ["REGISTER", endpoint, &keys]),
+            Line::builder("WEBPUSH")
+                .param("REGISTER")
+                .param(endpoint)
+                .param(&keys),
             Feature::WebPush,
         )
     }
@@ -51,7 +54,7 @@ impl Session {
         validate_endpoint(endpoint)?;
         self.request_for_feature(
             now,
-            Line::new("WEBPUSH", ["UNREGISTER", endpoint]),
+            Line::builder("WEBPUSH").param("UNREGISTER").param(endpoint),
             Feature::WebPush,
         )
     }

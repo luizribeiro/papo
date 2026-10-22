@@ -136,7 +136,11 @@ impl Session {
         if let Some(target) = target {
             self.validate_target(&target)?;
         }
-        self.request_for_feature(now, Line::new("CHATHISTORY", params), Feature::History)
+        self.request_for_feature(
+            now,
+            Line::builder("CHATHISTORY").with_params(params),
+            Feature::History,
+        )
     }
 
     /// Sets the read marker for a conversation to a UTC timestamp.
@@ -155,16 +159,12 @@ impl Session {
         self.validate_target(target)?;
         self.request_for_feature(
             now,
-            Line::new(
-                "MARKREAD",
-                [
-                    target.to_owned(),
-                    format!(
-                        "timestamp={}",
-                        time::format(read_until).ok_or(RequestError::InvalidMessageReference)?
-                    ),
-                ],
-            ),
+            Line::builder("MARKREAD")
+                .param(target.to_owned())
+                .param(format!(
+                    "timestamp={}",
+                    time::format(read_until).ok_or(RequestError::InvalidMessageReference)?
+                )),
             Feature::ReadMarkers,
         )
     }
@@ -180,7 +180,7 @@ impl Session {
         self.validate_target(target)?;
         self.request_with_matcher(
             now,
-            Line::new("MARKREAD", [target]),
+            Line::builder("MARKREAD").param(target),
             crate::ResponseMatcher::ReadMarker(target.to_owned()),
         )
     }

@@ -2712,7 +2712,7 @@ impl Outbox {
     }
 
     fn transmit<const N: usize>(&mut self, command: &str, params: [&str; N]) {
-        match Line::new(command, params).to_line() {
+        match Line::builder(command).with_params(params).to_line() {
             Ok(line) => self.transmit_raw(line.into()),
             Err(error) => self.close(
                 CloseKind::Other,
@@ -2725,7 +2725,7 @@ impl Outbox {
         if self.close_requested {
             return;
         }
-        match Line::new(command, params).to_line() {
+        match Line::builder(command).with_params(params).to_line() {
             Ok(line) => self.immediate.push_back(QueuedLine {
                 line: line.into(),
                 token: None,
@@ -3243,7 +3243,7 @@ impl Session {
                 }
                 let id = format!("b{}-{batch_count}", encode_label(self.next_request_id));
                 let params = [format!("+{id}"), cap::MULTILINE.into(), target.into()];
-                let mut open = Line::new("BATCH", params);
+                let mut open = Line::builder("BATCH").with_params(params);
                 for &(key, value) in tags {
                     if batch_count == 0 || !outgoing::first_line_only(key) {
                         open = open.with_tag(key, value);
@@ -3255,7 +3255,8 @@ impl Session {
                 }
                 lines.push(open.to_line()?.into_bytes());
                 for (offset, segment) in segments[start..end].iter().enumerate() {
-                    let mut inner = Line::new(kind.command(), [target, segment.text])
+                    let mut inner = Line::builder(kind.command())
+                        .with_params([target, segment.text])
                         .with_tag(cap::BATCH.as_str(), &id);
                     if offset > 0 && segments[offset + start - 1].concat {
                         inner = inner.with_tag("draft/multiline-concat", "");
@@ -3263,7 +3264,8 @@ impl Session {
                     lines.push(inner.to_line()?.into_bytes());
                 }
                 lines.push(
-                    Line::new("BATCH", [format!("-{id}")])
+                    Line::builder("BATCH")
+                        .param(format!("-{id}"))
                         .to_line()?
                         .into_bytes(),
                 );
@@ -3272,7 +3274,7 @@ impl Session {
             }
         } else {
             for (index, segment) in segments.iter().enumerate() {
-                let mut message = Line::new(kind.command(), [target, segment.text]);
+                let mut message = Line::builder(kind.command()).with_params([target, segment.text]);
                 for &(key, value) in tags {
                     if index == 0 || !outgoing::first_line_only(key) {
                         message = message.with_tag(key, value);
@@ -3797,14 +3799,10 @@ impl Session {
     ) -> Result<(), RequestError> {
         self.request_for_feature(
             now,
-            Line::new(
-                "REGISTER",
-                [
-                    account.unwrap_or("*"),
-                    email.unwrap_or("*"),
-                    password.expose().ok_or(RequestError::InvalidSecret)?,
-                ],
-            ),
+            Line::builder("REGISTER")
+                .param(account.unwrap_or("*"))
+                .param(email.unwrap_or("*"))
+                .param(password.expose().ok_or(RequestError::InvalidSecret)?),
             Feature::AccountCreation,
         )?;
         self.account_registration.request_started();
@@ -3832,7 +3830,7 @@ impl Session {
         }
         self.request_for_feature(
             now,
-            Line::new("VERIFY", [account, code]),
+            Line::builder("VERIFY").param(account).param(code),
             Feature::AccountCreation,
         )?;
         self.account_registration.request_started();
