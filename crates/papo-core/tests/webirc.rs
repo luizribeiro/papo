@@ -3,7 +3,7 @@
 mod support;
 
 use papo_core::{CloseKind, Config, Event, Secret, Session, WebIrc};
-use support::Transcript;
+use support::{Transcript, assert_session_debug_redacts};
 
 fn webirc(client_hostname: Option<&str>, client_ip: &str) -> WebIrc {
     WebIrc {
@@ -84,7 +84,9 @@ fn redacts_the_webirc_password_from_configuration_and_session_debug() {
         ..webirc(None, "192.0.2.42")
     });
     assert!(!format!("{config:?}").contains(password));
-    assert!(!format!("{:?}", Session::new(config)).contains(password));
+    let mut session = Session::new(config);
+    session.handle_connected(std::time::Instant::now());
+    assert_session_debug_redacts(&session, password);
 }
 
 #[test]

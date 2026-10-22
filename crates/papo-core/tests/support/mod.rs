@@ -15,6 +15,24 @@ use papo_core::{
 };
 use papo_proto::Line;
 
+/// Asserts that session diagnostics do not contain common encodings of a secret.
+pub fn assert_session_debug_redacts(session: &Session, secret: &str) {
+    use base64::{Engine as _, engine::general_purpose::STANDARD};
+
+    let debug = format!("{session:?}");
+    let decimal = secret
+        .bytes()
+        .map(|byte| byte.to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
+    assert!(!debug.contains(secret), "plaintext secret in {debug}");
+    assert!(!debug.contains(&decimal), "decimal secret bytes in {debug}");
+    assert!(
+        !debug.contains(&STANDARD.encode(secret)),
+        "base64 secret in {debug}"
+    );
+}
+
 /// Maximum time a blocking transcript operation may wait for the server.
 pub const TEST_DEADLINE: Duration = Duration::from_secs(5);
 

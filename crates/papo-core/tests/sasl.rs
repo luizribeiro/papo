@@ -6,7 +6,7 @@ use base64::{Engine as _, engine::general_purpose::STANDARD};
 use papo_core::{
     Account, CloseKind, Config, Entropy, Event, Sasl, Secret, Session, sts::ConnectionSecurity,
 };
-use support::Transcript;
+use support::{Transcript, assert_session_debug_redacts};
 
 struct FixedEntropy;
 
@@ -45,6 +45,19 @@ fn debug_output_redacts_server_and_sasl_passwords() {
         assert!(!debug.contains("correct horse battery staple"));
         assert!(debug.contains("[REDACTED]"));
     }
+}
+
+#[test]
+fn debug_output_redacts_queued_pass_and_plain_response() {
+    let mut session = Session::new(
+        secure_sasl(Sasl::plain("alice", "plain-password-4821")).password("server-password-7391"),
+    );
+    session.handle_connected(std::time::Instant::now());
+    assert_session_debug_redacts(&session, "server-password-7391");
+    session.handle_line(std::time::Instant::now(), b"CAP * LS :sasl=PLAIN");
+    session.handle_line(std::time::Instant::now(), b"CAP * ACK :sasl");
+    session.handle_line(std::time::Instant::now(), b"AUTHENTICATE +");
+    assert_session_debug_redacts(&session, "plain-password-4821");
 }
 
 #[test]
@@ -115,6 +128,19 @@ fn oauth_bearer_sends_an_rfc_7628_response_and_redacts_its_token() {
         .client("AUTHENTICATE biwsAWF1dGg9QmVhcmVyIG9hdXRoLXRva2VuLTczOTEBAQ==")
         .server(":ergo.test 903 alice :SASL authentication successful")
         .client("CAP END");
+}
+
+#[test]
+fn debug_output_redacts_a_queued_oauth_bearer_response() {
+    Transcript::new(secure_sasl(Sasl::oauth_bearer("oauth-token-7391")))
+        .connect_default()
+        .server("CAP * LS :sasl=OAUTHBEARER")
+        .client("CAP REQ :sasl")
+        .server("CAP * ACK :sasl")
+        .client("AUTHENTICATE OAUTHBEARER")
+        .server("AUTHENTICATE +")
+        .inspect(|session| assert_session_debug_redacts(session, "oauth-token-7391"))
+        .client("AUTHENTICATE biwsAWF1dGg9QmVhcmVyIG9hdXRoLXRva2VuLTczOTEBAQ==");
 }
 
 #[test]

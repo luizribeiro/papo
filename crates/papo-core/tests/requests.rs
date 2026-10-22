@@ -1,5 +1,7 @@
 //! Transcript coverage for labelled request correlation.
 
+mod support;
+
 use std::{collections::BTreeMap, time::Instant};
 
 use papo_core::{
@@ -28,6 +30,28 @@ fn echo_session(now: Instant) -> Session {
 
 fn request(session: &mut Session, now: Instant, message: Line) -> RequestId {
     session.request(now, message).unwrap()
+}
+
+#[test]
+fn debug_output_redacts_rate_limited_oper_and_join_credentials() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    session
+        .request_with_matcher(
+            now,
+            Line::new("OPER", ["admin", "operator-password-3751"]),
+            ResponseMatcher::Oper,
+        )
+        .unwrap();
+    session
+        .request_with_matcher(
+            now,
+            Line::new("JOIN", ["#secret", "channel-key-6824"]),
+            ResponseMatcher::Join("#secret".into()),
+        )
+        .unwrap();
+    support::assert_session_debug_redacts(&session, "operator-password-3751");
+    support::assert_session_debug_redacts(&session, "channel-key-6824");
 }
 
 #[test]

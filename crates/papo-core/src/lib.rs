@@ -173,10 +173,20 @@ pub struct TransmitToken(u64);
 
 /// One line ready for the transport and its optional completion identifier.
 #[doc(hidden)]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct Transmit {
     line: Vec<u8>,
     token: Option<TransmitToken>,
+}
+
+impl std::fmt::Debug for Transmit {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("Transmit")
+            .field("line_len", &self.line.len())
+            .field("token", &self.token)
+            .finish()
+    }
 }
 
 impl Transmit {
@@ -2636,7 +2646,7 @@ enum Handled {
     No,
 }
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 struct Outbox {
     transmits: VecDeque<Transmission>,
     immediate: VecDeque<QueuedLine>,
@@ -2645,7 +2655,6 @@ struct Outbox {
     close_requested: bool,
 }
 
-#[derive(Debug)]
 enum Transmission {
     Line(QueuedLine),
     Batch {
@@ -2656,11 +2665,43 @@ enum Transmission {
     },
 }
 
-#[derive(Debug)]
 struct QueuedLine {
     line: Vec<u8>,
     token: Option<TransmitToken>,
     request: Option<RequestId>,
+}
+
+impl std::fmt::Debug for Outbox {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("Outbox")
+            .field("transmissions", &self.transmits.len())
+            .field("immediate", &self.immediate.len())
+            .field("events", &self.events.len())
+            .field("connect_phases", &self.connect_phases.len())
+            .field("close_requested", &self.close_requested)
+            .finish()
+    }
+}
+
+impl std::fmt::Debug for Transmission {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("Transmission")
+            .field("line_count", &self.line_count())
+            .finish_non_exhaustive()
+    }
+}
+
+impl std::fmt::Debug for QueuedLine {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("QueuedLine")
+            .field("line_len", &self.line.len())
+            .field("token", &self.token)
+            .field("request", &self.request)
+            .finish()
+    }
 }
 
 impl Transmission {

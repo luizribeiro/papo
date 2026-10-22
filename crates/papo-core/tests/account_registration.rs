@@ -3,7 +3,7 @@
 mod support;
 
 use papo_core::{Config, Event, Feature, Refusal, RequestError, Secret};
-use support::{Transcript, unsupported_error};
+use support::{Transcript, assert_session_debug_redacts, unsupported_error};
 
 fn registered() -> Transcript {
     Transcript::new(
@@ -51,6 +51,7 @@ fn configured_registration_waits_for_before_connect_capability() {
         .server("CAP * LS :draft/account-registration=before-connect,custom-account-name")
         .client("CAP REQ :draft/account-registration")
         .server("CAP * ACK :draft/account-registration")
+        .inspect(|session| assert_session_debug_redacts(session, "unique-registration-password"))
         .client("REGISTER alice alice@example.org unique-registration-password")
         .event(|event| matches!(event, Event::RequestUntracked { .. }));
 }
