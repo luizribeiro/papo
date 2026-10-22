@@ -420,6 +420,70 @@ async fn multiline_messages_keep_addressing_across_a_nick_change() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn replies_to_broadcast_messages_target_the_sender() {
+    let caps = [
+        "draft/message-redaction",
+        "labeled-response",
+        "message-tags",
+    ];
+    let (mut server, client, mut events, driver) = scripted(config().wanted_caps(caps));
+    let task = tokio::spawn(driver);
+    complete_connect_caps(
+        &mut server,
+        &mut events,
+        "draft/message-redaction labeled-response message-tags",
+        "draft/message-redaction labeled-response message-tags",
+    )
+    .await;
+
+    server_line(
+        &mut server,
+        b"@msgid=Solanum120004 :oper!o@staff PRIVMSG $*.example.org :!status\r\n",
+    )
+    .await;
+    let message = next_message(&mut events).await;
+
+    within(client.reply(&message, "status ok")).await.unwrap();
+    client_line(
+        &mut server,
+        b"@+reply=Solanum120004 PRIVMSG oper :status ok\r\n",
+    )
+    .await;
+
+    let worker = client.clone();
+    let reference = message.clone();
+    let reaction_task = tokio::spawn(async move { worker.react(&reference, "ok").await });
+    client_line(
+        &mut server,
+        b"@+reply=Solanum120004;+draft/react=ok;label=1 TAGMSG oper\r\n",
+    )
+    .await;
+    server_line(
+        &mut server,
+        b"@label=1 :papo-driver!papo@localhost TAGMSG oper\r\n",
+    )
+    .await;
+    within(reaction_task).await.unwrap().unwrap();
+
+    let sender = client.clone();
+    let removal_task = tokio::spawn(async move { sender.redact(&message, "obsolete").await });
+    client_line(
+        &mut server,
+        b"@label=2 REDACT oper Solanum120004 obsolete\r\n",
+    )
+    .await;
+    server_line(
+        &mut server,
+        b"@label=2 :papo-driver!papo@localhost REDACT oper Solanum120004 obsolete\r\n",
+    )
+    .await;
+    within(removal_task).await.unwrap().unwrap();
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn wallops_is_a_server_notice() {
     let (mut server, _client, mut events, driver) = scripted(config());
     let task = tokio::spawn(driver);

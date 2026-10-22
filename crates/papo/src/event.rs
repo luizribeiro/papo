@@ -444,7 +444,10 @@ impl Message {
         papo_proto::Formatted::new(&self.raw_text)
     }
 
-    /// Returns the plain-text IRC address that reaches the same recipients.
+    /// Returns the plain-text IRC address for a response.
+    ///
+    /// Broadcast messages return the sending user's nickname so a response cannot repeat the
+    /// broadcast. A broadcast without a user source returns `*`, which message APIs reject.
     #[must_use]
     pub fn return_address(&self) -> String {
         match &self.conversation {
@@ -456,7 +459,10 @@ impl Message {
                 .chain(channel.chars())
                 .collect(),
             Conversation::Private(nick) => nick.to_string(),
-            Conversation::Broadcast(mask) => mask.to_string(),
+            Conversation::Broadcast(_) => self
+                .actor
+                .nick()
+                .map_or_else(|| "*".to_owned(), ToString::to_string),
             Conversation::Server => self.actor.to_string(),
             _ => "*".to_owned(),
         }
@@ -1538,7 +1544,7 @@ mod tests {
         assert_eq!(server.return_address(), "irc.example");
 
         let broadcast = event(
-            Line::notice("$*.example.org", "Maintenance begins soon").with_source("irc.example"),
+            Line::notice("$*.example.org", "Maintenance begins soon").with_source("oper!o@staff"),
             &isupport,
             "papo",
             UNIX_EPOCH,
@@ -1546,7 +1552,7 @@ mod tests {
         assert!(
             matches!(&broadcast.conversation, Conversation::Broadcast(mask) if mask == "$*.example.org")
         );
-        assert_eq!(broadcast.return_address(), "$*.example.org");
+        assert_eq!(broadcast.return_address(), "oper");
     }
 
     #[test]
