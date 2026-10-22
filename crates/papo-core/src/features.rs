@@ -6,81 +6,81 @@ macro_rules! feature_table {
     ($consumer:ident) => {
         $consumer! {
             /// Published `IRCv3` client-only message tags, requiring `message-tags`.
-            MessageTags => "client-only message tags", [Some(cap::MESSAGE_TAGS), None];
+            [] MessageTags => "client-only message tags", [Some(cap::MESSAGE_TAGS), None];
             /// Published `IRCv3` replies, requiring `message-tags` and an allowed `+reply` or
             /// `+draft/reply` client tag.
-            Replies => "replies", [Some(cap::MESSAGE_TAGS), None];
+            [] Replies => "replies", [Some(cap::MESSAGE_TAGS), None];
             /// `IRCv3` draft message reactions, requiring `message-tags`, an allowed
             /// `+draft/react` tag, and an allowed reply tag.
-            Reactions => "reactions", [Some(cap::MESSAGE_TAGS), None];
+            [] Reactions => "reactions", [Some(cap::MESSAGE_TAGS), None];
             /// Published `IRCv3` typing notifications, requiring `message-tags` and an allowed
             /// `+typing` client tag.
-            Typing => "typing notifications", [Some(cap::MESSAGE_TAGS), None];
+            [] Typing => "typing notifications", [Some(cap::MESSAGE_TAGS), None];
             /// `IRCv3` draft message redaction, requiring `draft/message-redaction`.
-            Redaction => cap::MESSAGE_REDACTION.constant_str(), [Some(cap::MESSAGE_REDACTION), None];
+            [] Redaction => cap::MESSAGE_REDACTION.constant_str(), [Some(cap::MESSAGE_REDACTION), None];
             /// `IRCv3` draft multiline messages, requiring `draft/multiline`.
-            Multiline => "multiline messages", [Some(cap::MULTILINE), None];
+            [] Multiline => "multiline messages", [Some(cap::MULTILINE), None];
             /// `IRCv3` draft chat history, requiring `draft/chathistory`.
-            History => cap::alias(cap::CHATHISTORY.constant_str(), 0), [Some(cap::CHATHISTORY), None];
+            [] History => cap::alias(cap::CHATHISTORY.constant_str(), 0), [Some(cap::CHATHISTORY), None];
             /// `IRCv3` draft read markers, requiring `draft/read-marker`.
-            ReadMarkers => cap::alias(cap::READ_MARKER.constant_str(), 0), [Some(cap::READ_MARKER), None];
+            [] ReadMarkers => cap::alias(cap::READ_MARKER.constant_str(), 0), [Some(cap::READ_MARKER), None];
             /// `IRCv3` draft metadata, requiring `draft/metadata-2`.
             ///
             /// Papo speaks Ergo's `draft/metadata-3` semantics; the published specification
             /// currently uses `draft/metadata-2`.
-            Metadata => "metadata", [Some(cap::METADATA), None];
+            [] Metadata => "metadata", [Some(cap::METADATA), None];
             /// The published IRC `MONITOR` extension, advertised through the `MONITOR`
             /// ISUPPORT token rather than a capability.
-            Monitor => "monitoring", [None, None];
+            [] Monitor => "monitoring", [None, None];
             /// Published `IRCv3` real-name changes, requiring `setname`.
-            SetName => "real-name changes", [Some(cap::SETNAME), None];
+            [] SetName => "real-name changes", [Some(cap::SETNAME), None];
             /// Published `IRCv3` bot mode, advertised through the `BOT` ISUPPORT token.
-            BotMode => "bot mode", [None, None];
+            [] BotMode => "bot mode", [None, None];
             /// `IRCv3` draft account registration, requiring `draft/account-registration`.
-            AccountCreation => "account creation", [Some(cap::ACCOUNT_REGISTRATION), None];
+            [] AccountCreation => "account creation", [Some(cap::ACCOUNT_REGISTRATION), None];
             /// Upstream network management on an IRC bouncer.
-            #[cfg(feature = "unstable")]
+            [cfg(feature = "unstable")]
             Bouncer => "bouncer networks", [Some(cap::BOUNCER_NETWORKS), None];
             /// `IRCv3` draft account persistence, requiring `draft/persistence`.
-            #[cfg(feature = "unstable")]
+            [cfg(feature = "unstable")]
             Persistence => "persistence", [Some(cap::PERSISTENCE), None];
             /// `IRCv3` draft Web Push, requiring `draft/webpush` or Soju's vendor
             /// capability `soju.im/webpush`.
-            #[cfg(feature = "unstable")]
+            [cfg(feature = "unstable")]
             WebPush => "webpush", [Some(cap::WEBPUSH), None];
             /// `IRCv3` draft channel renaming, requiring `draft/channel-rename`.
-            ChannelRename => "channel rename", [Some(cap::CHANNEL_RENAME), None];
+            [] ChannelRename => "channel rename", [Some(cap::CHANNEL_RENAME), None];
             /// `IRCv3` draft relay messages, requiring `draft/relaymsg`.
-            #[cfg(feature = "unstable")]
+            [cfg(feature = "unstable")]
             Relay => "relaymsg", [Some(cap::RELAYMSG), None];
             /// Published `IRCv3` labelled responses, requiring `labeled-response`.
-            LabeledResponse => cap::LABELED_RESPONSE.constant_str(), [Some(cap::LABELED_RESPONSE), None];
+            [] LabeledResponse => cap::LABELED_RESPONSE.constant_str(), [Some(cap::LABELED_RESPONSE), None];
             /// Published `IRCv3` live away information, requiring `away-notify`.
-            AwayTracking => "away tracking", [Some(cap::AWAY_NOTIFY), None];
+            [] AwayTracking => "away tracking", [Some(cap::AWAY_NOTIFY), None];
             /// Published `IRCv3` live account information, requiring both `account-notify`
             /// and `account-tag`.
-            AccountTracking => "account tracking", [Some(cap::ACCOUNT_NOTIFY), Some(cap::ACCOUNT_TAG)];
+            [] AccountTracking => "account tracking", [Some(cap::ACCOUNT_NOTIFY), Some(cap::ACCOUNT_TAG)];
             /// Published `IRCv3` live username and hostname information, requiring `chghost`.
-            HostTracking => "host tracking", [Some(cap::CHGHOST), None];
+            [] HostTracking => "host tracking", [Some(cap::CHGHOST), None];
             /// Published `IRCv3` invitation notifications, requiring `invite-notify`.
-            InviteTracking => "invite tracking", [Some(cap::INVITE_NOTIFY), None];
+            [] InviteTracking => "invite tracking", [Some(cap::INVITE_NOTIFY), None];
             /// Published IRC half-operator channel membership, advertised through `PREFIX`.
-            Halfop => "half-operator privileges", [None, None];
+            [] Halfop => "half-operator privileges", [None, None];
             /// Published IRC channel ban exceptions, advertised through `EXCEPTS`.
-            Excepts => "ban exceptions", [None, None];
+            [] Excepts => "ban exceptions", [None, None];
             /// Published IRC channel invite exceptions, advertised through `INVEX`.
-            Invex => "invite exceptions", [None, None];
+            [] Invex => "invite exceptions", [None, None];
             /// A published IRC dedicated quiet list in the first `CHANMODES` group.
-            Quiet => "quiet list", [None, None];
+            [] Quiet => "quiet list", [None, None];
             /// Published `IRCv3` account extended bans, advertised through `EXTBAN` and
             /// `ACCOUNTEXTBAN`.
-            AccountExtban => "account extended bans", [None, None];
+            [] AccountExtban => "account extended bans", [None, None];
         }
     };
 }
 
 macro_rules! feature_enum {
-    ($($(#[$meta:meta])* $variant:ident => $name:expr, $caps:expr;)*) => {
+    ($($(#[$docs:meta])* [$($gate:meta),*] $variant:ident => $name:expr, $caps:expr;)*) => {
         /// Optional IRC behavior understood by the session.
         ///
         /// A Feature is something your app can use or rely on that the server may not offer.
@@ -88,7 +88,7 @@ macro_rules! feature_enum {
         #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
         #[non_exhaustive]
         pub enum Feature {
-            $($(#[$meta])* $variant,)*
+            $($(#[$docs])* $(#[$gate])* $variant,)*
         }
     };
 }
