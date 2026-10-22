@@ -3,6 +3,8 @@ use web_time::Instant;
 
 use papo_proto::{Line, LineRef, MAX_LINE_LEN};
 
+#[cfg(test)]
+use crate::sts::ConnectionSecurity;
 use crate::sts::{StsAction, StsDirective, decide};
 use crate::{
     Capabilities, CloseKind, Config, ConnectPhase, Connection, Event, Handled, Outbox,
@@ -12,6 +14,9 @@ use crate::{
 
 const CAP_REQ_PREFIX_LEN: usize = b"CAP REQ :".len();
 const MAX_IRC_BODY_LEN: usize = MAX_LINE_LEN - 2;
+const MAX_ADVERTISED: usize = 512;
+const MAX_CAP_VALUE_LEN: usize = 4_096;
+const MAX_LS_LINES: usize = 512;
 
 #[derive(Debug, Default)]
 pub(super) struct Caps {
@@ -20,11 +25,39 @@ pub(super) struct Caps {
     pending: VecDeque<Vec<String>>,
     negotiating: bool,
     ended: bool,
+    ls_lines: usize,
 }
 
 impl Caps {
-    fn insert_advertised(&mut self, name: &str, value: Option<String>) {
+    fn insert_advertised(
+        &mut self,
+        name: &str,
+        mut value: Option<String>,
+        protected: bool,
+        allow_new: bool,
+    ) {
         let name = Cap::from(name);
+        if !self.advertised.contains_key(&name) && !allow_new {
+            return;
+        }
+        if !self.advertised.contains_key(&name) && self.advertised.len() == MAX_ADVERTISED {
+            if !protected {
+                return;
+            }
+            let Some(victim) = self.advertised.keys().next().cloned() else {
+                return;
+            };
+            self.advertised.remove(&victim);
+        }
+        if let Some(value) = &mut value
+            && value.len() > MAX_CAP_VALUE_LEN
+        {
+            let mut boundary = MAX_CAP_VALUE_LEN;
+            while !value.is_char_boundary(boundary) {
+                boundary -= 1;
+            }
+            value.truncate(boundary);
+        }
         let published = cap::request_spelling(name.as_str()) == Some(name.as_str());
         if published
             && self
@@ -164,7 +197,7 @@ impl Caps {
                 continue;
             }
             let value = value.map(str::to_owned);
-            self.insert_advertised(name, value.clone());
+            self.insert_advertised(name, value.clone(), wanted(config, name), true);
             announced.insert(name.to_owned());
             let name = Cap::from(name);
             if self.enabled.contains_key(&name) {
@@ -217,17 +250,25 @@ impl Caps {
     ) {
         let continued = message.param(2) == Some("*");
         let list = message.param(if continued { 3 } else { 2 }).unwrap_or("");
+        self.ls_lines = self.ls_lines.saturating_add(1);
         for token in list.split_whitespace() {
             let (name, value) = token
                 .split_once('=')
                 .map_or((token, None), |(name, value)| (name, Some(value)));
             if !name.is_empty() {
-                self.insert_advertised(name, value.map(str::to_owned));
+                let protected = wanted(config, name);
+                self.insert_advertised(
+                    name,
+                    value.map(str::to_owned),
+                    protected,
+                    self.ls_lines <= MAX_LS_LINES || protected,
+                );
             }
         }
         if continued {
             return;
         }
+        self.ls_lines = 0;
         if self.handle_sts(connection, outbox) {
             return;
         }
@@ -365,21 +406,63 @@ fn split_requests(names: Vec<String>) -> Vec<Vec<String>> {
     requests
 }
 
+fn wanted(config: &Config, name: &str) -> bool {
+    config
+        .wanted_caps
+        .iter()
+        .any(|wanted| cap::canonical(wanted) == cap::canonical(name))
+        || (config.sasl.is_some() && cap::canonical(name) == cap::SASL.as_str())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
+    fn advertised_capabilities_stay_bounded_and_keep_wanted_caps() {
+        let now = Instant::now();
+        let config = Config::default().wanted_caps(["vendor.example/wanted"]);
+        let connection = Connection {
+            host: "irc.example.net".to_owned(),
+            security: ConnectionSecurity::Secure,
+        };
+        let mut caps = Caps::default();
+        let mut sasl = SaslSession::new(&config, None);
+        let mut outbox = Outbox::default();
+        for index in 0..10_000 {
+            let wire = format!("CAP papo NEW :vendor.example/cap-{index}");
+            caps.handle_message(
+                now,
+                &LineRef::parse(&wire).unwrap(),
+                &config,
+                &connection,
+                &mut sasl,
+                &mut outbox,
+            );
+        }
+        let wanted = LineRef::parse("CAP papo NEW :vendor.example/wanted").unwrap();
+        caps.handle_message(now, &wanted, &config, &connection, &mut sasl, &mut outbox);
+
+        assert_eq!(caps.advertised.len(), 512);
+        assert!(
+            caps.pending
+                .iter()
+                .flatten()
+                .any(|name| name == "vendor.example/wanted")
+        );
+    }
+
+    #[test]
     fn advertised_caps_preserve_values_and_prefer_published_spellings() {
         let mut caps = Caps::default();
-        caps.insert_advertised("server-time", Some("iso8601".to_owned()));
+        caps.insert_advertised("server-time", Some("iso8601".to_owned()), false, true);
         assert_eq!(
             caps.advertised.get("server-time"),
             Some(&Some("iso8601".to_owned()))
         );
 
-        caps.insert_advertised("chathistory", Some("legacy-value".to_owned()));
-        caps.insert_advertised("draft/chathistory", None);
+        caps.insert_advertised("chathistory", Some("legacy-value".to_owned()), false, true);
+        caps.insert_advertised("draft/chathistory", None, false, true);
         let (name, value) = caps.advertised.get_key_value(&cap::CHATHISTORY).unwrap();
         assert_eq!(name.as_str(), "draft/chathistory");
         assert_eq!(value, &None);
