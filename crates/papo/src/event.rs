@@ -3239,6 +3239,10 @@ mod tests {
                 crate::StateLimit::MetadataTargets,
             ),
             (StateLimit::MetadataKeys, crate::StateLimit::MetadataKeys),
+            (
+                StateLimit::IsupportTokens,
+                crate::StateLimit::IsupportTokens,
+            ),
             #[cfg(feature = "unstable")]
             (
                 StateLimit::BouncerNetworks,

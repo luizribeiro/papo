@@ -201,9 +201,10 @@ impl State {
         let first = match limit {
             StateLimit::Channels => !std::mem::replace(&mut self.channel_limit_warned, true),
             StateLimit::Members => !std::mem::replace(&mut self.member_limit_warned, true),
-            StateLimit::ListEntries | StateLimit::MetadataTargets | StateLimit::MetadataKeys => {
-                self.limits_warned.insert(limit)
-            }
+            StateLimit::ListEntries
+            | StateLimit::MetadataTargets
+            | StateLimit::MetadataKeys
+            | StateLimit::IsupportTokens => self.limits_warned.insert(limit),
             #[cfg(feature = "unstable")]
             StateLimit::BouncerNetworks => self.limits_warned.insert(limit),
         };

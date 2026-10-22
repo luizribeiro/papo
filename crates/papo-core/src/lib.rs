@@ -2582,6 +2582,8 @@ pub enum StateLimit {
     /// Upstream bouncer networks.
     #[cfg(feature = "unstable")]
     BouncerNetworks,
+    /// ISUPPORT tokens advertised by the server.
+    IsupportTokens,
 }
 
 type PendingRequests = BTreeMap<String, (RequestId, Option<Instant>, bool, Option<Feature>, bool)>;
@@ -4099,7 +4101,8 @@ impl Session {
             self.state.sync_own_account(account.as_deref());
         }
         self.maybe_send_away_on_connect();
-        let isupport_handled = self.isupport.handle_message(message) == Handled::Yes;
+        let isupport_handled =
+            self.isupport.handle_message(message, &mut self.outbox) == Handled::Yes;
         if isupport_handled {
             self.remember_casemapping();
         }
@@ -4497,7 +4500,7 @@ impl Session {
             }
             BatchEvent::Isupport(messages) => {
                 let before = self.isupport.value().__generation();
-                self.isupport.handle_batch(&messages);
+                self.isupport.handle_batch(&messages, &mut self.outbox);
                 self.remember_casemapping();
                 self.sync_monitored_state();
                 if before != self.isupport.value().__generation() {
