@@ -59,7 +59,7 @@ fuzz_target!(|input: &[u8]| {
     while let Some(bytes) = session.poll_transmit() {
         assert!(bytes.ends_with(b"\r\n"));
         assert!(bytes.len() <= 512);
-        let wire = String::from_utf8(bytes).unwrap();
+        let wire = String::from_utf8(bytes.to_vec()).unwrap();
         let line = LineRef::parse(&wire).unwrap();
         if line.command_is("PRIVMSG") || line.command_is("NOTICE") {
             assert_eq!(line.param(0), Some(TARGET));

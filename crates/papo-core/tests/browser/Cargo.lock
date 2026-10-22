@@ -388,6 +388,7 @@ dependencies = [
  "pbkdf2",
  "sha2",
  "web-time",
+ "zeroize",
 ]
 
 [[package]]
@@ -409,6 +410,9 @@ dependencies = [
 [[package]]
 name = "papo-proto"
 version = "0.1.0"
+dependencies = [
+ "zeroize",
+]
 
 [[package]]
 name = "pbkdf2"
