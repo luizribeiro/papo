@@ -228,6 +228,43 @@ impl Ctcp {
             tags: metadata.tags,
         })
     }
+
+    pub(crate) fn from_historical(
+        raw: ProtoLine,
+        authorship: Authorship,
+        history_conversation: Option<&Conversation>,
+        client: &Client,
+        received_at: SystemTime,
+        origin: Origin,
+    ) -> Result<Self, ProtoLine> {
+        let snapshot = client.state();
+        let Ok((status, conversation)) = papo_core::classify_conversation(
+            &raw.as_ref(),
+            snapshot.nick(),
+            snapshot.isupport().inner(),
+        ) else {
+            return Err(raw);
+        };
+        let conversation = historical_conversation(
+            &raw.as_ref(),
+            authorship,
+            conversation,
+            history_conversation,
+            snapshot.nick(),
+            snapshot.casemapping(),
+        );
+        let mut event = Self::from_line(
+            raw,
+            None,
+            authorship,
+            conversation,
+            status,
+            snapshot.isupport().inner(),
+            received_at,
+        )?;
+        event.origin = origin;
+        Ok(event)
+    }
 }
 
 fn ctcp_parts(message: &LineRef<'_>) -> Option<(String, Option<String>, bool)> {

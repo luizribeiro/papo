@@ -27,8 +27,19 @@ pub(crate) fn history_item(
     match item {
         papo_core::HistoryItem::Message(item) => {
             let authorship = crate::Authorship::from_core(item.authorship);
-            let message = ChatMessage::from_historical(
+            let line = match crate::event::Ctcp::from_historical(
                 item.line,
+                authorship,
+                history_conversation,
+                client,
+                received_at,
+                origin,
+            ) {
+                Ok(ctcp) => return Event::Ctcp(ctcp),
+                Err(line) => line,
+            };
+            let message = ChatMessage::from_historical(
+                line,
                 authorship,
                 history_conversation,
                 client,
@@ -1143,6 +1154,26 @@ mod tests {
             crate::Origin::History,
         );
         assert!(matches!(item, PageEvent::Other(line) if line.command() == "REDACT"));
+    }
+
+    #[test]
+    fn ctcp_queries_in_history_are_typed_events() {
+        let item = history_item(
+            papo_core::HistoryItem::Message(core_item(
+                "@msgid=RfcBTzyxY120009 :emily!~e@localhost PRIVMSG papo :\u{1}VERSION\u{1}",
+            )),
+            Some(&crate::Conversation::Private(
+                Casemapping::default().nick("emily"),
+            )),
+            &crate::Client::disconnected_for_test(),
+            UNIX_EPOCH,
+            crate::Origin::History,
+        );
+
+        assert!(matches!(item, Event::Ctcp(ctcp)
+            if ctcp.command == "VERSION"
+                && ctcp.msgid.as_deref() == Some("RfcBTzyxY120009")
+                && ctcp.origin == crate::Origin::History));
     }
 
     #[test]
