@@ -116,7 +116,7 @@ fn expand(args: ScenarioArgs, function: &ItemFn) -> Result<TokenStream2> {
             "a scenario must be async",
         ));
     }
-    let doc = description(function)?;
+    description(function)?;
     let name = &function.sig.ident;
     let body = format_ident!("__papo_scenario_body_{name}");
     let wrapper = format_ident!("__papo_scenario_{name}");
@@ -163,7 +163,6 @@ fn expand(args: ScenarioArgs, function: &ItemFn) -> Result<TokenStream2> {
         #[allow(non_upper_case_globals)]
         pub(crate) const #spec: crate::ScenarioSpec = crate::ScenarioSpec {
             name: stringify!(#name),
-            doc: #doc,
             requires: crate::Requirements {
                 caps: &[#(#caps),*],
                 isupport: &[#(#isupport),*],

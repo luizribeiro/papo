@@ -16,7 +16,8 @@ use std::{
     time::Duration,
 };
 
-use libtest_mimic::{Completion, Failed};
+#[cfg(test)]
+use libtest_mimic::Failed;
 use papo::{Client, Endpoint, Event, Events, Isupport, isupport::Advertised};
 use papo_core::{Capabilities, Sasl};
 use papo_test_server::ServerInfo;
@@ -36,7 +37,6 @@ pub use runner::{Failure, run_scenario};
 
 const TIMEOUT: Duration = Duration::from_secs(10);
 
-type HarnessResult = Result<Completion, Failed>;
 type FixtureResult = papo_testing::Result<()>;
 #[doc(hidden)]
 pub type ScenarioFuture = Pin<Box<dyn Future<Output = FixtureResult>>>;
@@ -50,7 +50,6 @@ pub fn source_nick(source: &papo::Source) -> Option<&str> {
 #[doc(hidden)]
 pub struct ScenarioSpec {
     pub name: &'static str,
-    pub doc: &'static str,
     pub requires: Requirements,
     pub covers: &'static [&'static str],
     pub run: fn(Scenario) -> ScenarioFuture,
@@ -151,49 +150,6 @@ fn catch_scenario_panic(run: impl FnOnce() -> FixtureResult) -> FixtureResult {
                 .unwrap_or("non-string panic");
             Err(std::io::Error::other(format!("scenario panicked: {message}")).into())
         }
-    }
-}
-
-#[allow(dead_code, reason = "removed with the remaining custom status model")]
-fn fixture_completion(result: FixtureResult) -> HarnessResult {
-    match result {
-        Ok(()) => Ok(Completion::Completed),
-        Err(error) => match papo_testing::skip_reason(&error) {
-            Some(reason) => Ok(Completion::ignored_with(reason)),
-            None => Err(Failed::from(error)),
-        },
-    }
-}
-
-#[allow(dead_code, reason = "removed with the remaining custom status model")]
-fn report_scenario_status(
-    name: &str,
-    result: &HarnessResult,
-    known_failure: Option<&str>,
-    json: bool,
-) {
-    if !json {
-        return;
-    }
-    if let Some((event, reason)) = scenario_status(result, known_failure) {
-        let reason = reason.map_or_else(|| "null".into(), json_string);
-        println!(
-            r#"{{ "type": "scenario", "name": {}, "event": {}, "reason": {} }}"#,
-            json_string(name),
-            json_string(event),
-            reason
-        );
-    }
-}
-
-fn scenario_status<'a>(
-    result: &'a HarnessResult,
-    known_failure: Option<&'a str>,
-) -> Option<(&'static str, Option<&'a str>)> {
-    match result {
-        Ok(Completion::Ignored { reason }) => Some(("ignored", reason.as_deref())),
-        Err(_) => known_failure.map(|reason| ("expected-failure", Some(reason))),
-        Ok(Completion::Completed) => None,
     }
 }
 
@@ -335,27 +291,6 @@ fn known_failure_field<'a>(
         .and_then(toml::Value::as_str)
         .filter(|value| !value.is_empty())
         .ok_or_else(|| format!("known failure {name:?} is missing {field:?}"))
-}
-
-#[allow(dead_code, reason = "removed with the remaining custom status model")]
-fn known_failure_verdict(
-    result: HarnessResult,
-    reason: Option<&str>,
-    server: &str,
-) -> HarnessResult {
-    let Some(reason) = reason else {
-        return result;
-    };
-    match result {
-        Err(_) => {
-            eprintln!("expected failure: {reason}");
-            Ok(Completion::Completed)
-        }
-        Ok(Completion::Completed) => {
-            Err(format!("unexpected pass; remove it from known-failures/{server}.toml").into())
-        }
-        ignored @ Ok(Completion::Ignored { .. }) => ignored,
-    }
 }
 
 async fn probe(
@@ -538,13 +473,10 @@ mod tests {
     use papo_core::Capabilities;
     use papo_proto::Isupport;
 
-    use libtest_mimic::{Completion, Failed};
-
     use super::unstable_feature_for_cap;
     use super::{
-        CapRequirement, Event, EventSource, Requirements, Scenario, expect_event,
-        fixture_completion, json_string, known_failure_verdict, load_known_failures_from, runtime,
-        scenario_status,
+        CapRequirement, Event, EventSource, Requirements, Scenario, expect_event, json_string,
+        load_known_failures_from, runtime,
     };
 
     struct TestDirectory(PathBuf);
@@ -738,77 +670,24 @@ mod tests {
     }
 
     #[test]
-    fn known_failure_verdicts_invert_failure_and_pass() {
-        let expected = known_failure_verdict(
-            Err(Failed::from("server rejected command")),
-            Some("server bug 417"),
-            "ergo",
-        );
-        assert!(matches!(expected, Ok(Completion::Completed)));
-
-        let unexpected =
-            known_failure_verdict(Ok(Completion::Completed), Some("server bug 417"), "ergo");
-        let Err(unexpected) = unexpected else {
-            panic!("a known failure passing must fail the trial")
-        };
-        assert_eq!(
-            unexpected.message(),
-            Some("unexpected pass; remove it from known-failures/ergo.toml")
-        );
-    }
-
-    #[test]
-    fn scenario_status_records_ignored_and_expected_failures() {
-        let ignored = Ok(Completion::ignored_with("PAPO_TEST_WS is not set up"));
-        assert_eq!(
-            scenario_status(&ignored, None),
-            Some(("ignored", Some("PAPO_TEST_WS is not set up")))
-        );
-        let failed = Err(Failed::from("server rejected METADATA"));
-        assert_eq!(
-            scenario_status(&failed, Some("server bug 417")),
-            Some(("expected-failure", Some("server bug 417")))
-        );
-        assert_eq!(scenario_status(&failed, None), None);
+    fn json_strings_escape_control_characters() {
         assert_eq!(
             json_string("quote \" and\ncontrol\u{1f}"),
             "\"quote \\\" and\\ncontrol\\u001f\""
         );
     }
 
-    #[test]
-    fn fixture_completion_preserves_pass_failure_and_skip() {
-        assert!(matches!(
-            fixture_completion(Ok(())),
-            Ok(Completion::Completed)
-        ));
-        let skipped = fixture_completion(Err(papo_testing::skipped("local setup absent")));
-        assert!(
-            matches!(skipped, Ok(Completion::Ignored { reason: Some(reason) }) if reason == "local setup absent")
-        );
-        let failed = fixture_completion(Err(std::io::Error::other("wire mismatch").into()));
-        let Err(failed) = failed else {
-            panic!("fixture failure unexpectedly passed")
-        };
-        assert_eq!(failed.message(), Some("wire mismatch"));
-    }
-
     #[cfg(not(target_family = "wasm"))]
     #[test]
-    fn scenario_panics_follow_the_known_failure_path() {
+    fn scenario_panics_become_test_failures() {
         let result = super::catch_scenario_panic(|| panic!("identity was not synchronized"));
-        let scenario_result = fixture_completion(result);
-        let Err(failure) = &scenario_result else {
+        let Err(failure) = result else {
             panic!("scenario panic unexpectedly passed")
         };
         assert_eq!(
-            failure.message(),
-            Some("scenario panicked: identity was not synchronized")
+            failure.to_string(),
+            "scenario panicked: identity was not synchronized"
         );
-        assert!(matches!(
-            known_failure_verdict(scenario_result, Some("server omits the identity"), "soju"),
-            Ok(Completion::Completed)
-        ));
     }
 
     #[test]

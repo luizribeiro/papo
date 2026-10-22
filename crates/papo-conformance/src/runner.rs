@@ -141,5 +141,7 @@ mod tests {
             .is_ok()
         );
         assert!(finish("kick", Ok(()), Some(&reason), "ergo-default").is_err());
+        let skipped = Err(papo_testing::skipped("PAPO_TEST_WS is not set"));
+        assert!(finish("websocket", skipped, Some(&reason), "ergo-default").is_ok());
     }
 }
