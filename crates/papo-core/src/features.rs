@@ -104,6 +104,12 @@ macro_rules! feature_enum {
                     $($(#[$gate])* Self::$variant => $name,)*
                 }
             }
+
+            fn caps(self) -> [Option<cap::Cap>; 2] {
+                match self {
+                    $($(#[$gate])* Self::$variant => $caps,)*
+                }
+            }
         }
     };
 }
@@ -111,42 +117,6 @@ macro_rules! feature_enum {
 feature_table!(feature_enum);
 
 impl Feature {
-    fn caps(self) -> [Option<cap::Cap>; 2] {
-        match self {
-            Self::MessageTags | Self::Replies | Self::Reactions | Self::Typing => {
-                [Some(cap::MESSAGE_TAGS), None]
-            }
-            Self::Redaction => [Some(cap::MESSAGE_REDACTION), None],
-            Self::Multiline => [Some(cap::MULTILINE), None],
-            Self::History => [Some(cap::CHATHISTORY), None],
-            Self::ReadMarkers => [Some(cap::READ_MARKER), None],
-            Self::Metadata => [Some(cap::METADATA), None],
-            Self::SetName => [Some(cap::SETNAME), None],
-            Self::AccountCreation => [Some(cap::ACCOUNT_REGISTRATION), None],
-            #[cfg(feature = "unstable")]
-            Self::Bouncer => [Some(cap::BOUNCER_NETWORKS), None],
-            #[cfg(feature = "unstable")]
-            Self::Persistence => [Some(cap::PERSISTENCE), None],
-            #[cfg(feature = "unstable")]
-            Self::WebPush => [Some(cap::WEBPUSH), None],
-            Self::ChannelRename => [Some(cap::CHANNEL_RENAME), None],
-            #[cfg(feature = "unstable")]
-            Self::Relay => [Some(cap::RELAYMSG), None],
-            Self::LabeledResponse => [Some(cap::LABELED_RESPONSE), None],
-            Self::AwayTracking => [Some(cap::AWAY_NOTIFY), None],
-            Self::AccountTracking => [Some(cap::ACCOUNT_NOTIFY), Some(cap::ACCOUNT_TAG)],
-            Self::HostTracking => [Some(cap::CHGHOST), None],
-            Self::InviteTracking => [Some(cap::INVITE_NOTIFY), None],
-            Self::Monitor
-            | Self::BotMode
-            | Self::Halfop
-            | Self::Excepts
-            | Self::Invex
-            | Self::Quiet
-            | Self::AccountExtban => [None, None],
-        }
-    }
-
     const fn tags(self) -> &'static [&'static str] {
         match self {
             Self::Replies => &["+reply", "+draft/reply"],
