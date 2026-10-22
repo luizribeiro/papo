@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=${1:-"$(dirname "$0")/.."}
+root=$(cd "$root" && pwd)
+budget="$root/scripts/cfg-budget.txt"
+status=0
+
+for manifest in "$root"/crates/*/Cargo.toml; do
+  crate=$(basename "$(dirname "$manifest")")
+  limit=$(awk -v crate="$crate" '$1 == crate { print $2 }' "$budget")
+  if [[ -z "$limit" ]]; then
+    echo "cfg budget is missing crate $crate" >&2
+    status=1
+    continue
+  fi
+  count=$(
+    { rg -c '#!?\[cfg(_attr)?\(|cfg!\(' "$root/crates/$crate" -g '*.rs' || true; } |
+      awk -F: '{ total += $2 } END { print total + 0 }'
+  )
+  if ((count > limit)); then
+    echo "$crate cfg count rose from $limit to $count" >&2
+    status=1
+  fi
+done
+
+repeat_allowlist='crates/papo-core/src/batch.rs|feature = "unstable"
+crates/papo-core/src/cap.rs|feature = "unstable"
+crates/papo-core/src/features.rs|feature = "unstable"
+crates/papo-core/src/lib.rs|feature = "unstable"
+crates/papo-core/src/lib.rs|not(feature = "unstable")
+crates/papo-core/src/refusal.rs|feature = "unstable"
+crates/papo-core/src/state/mod.rs|feature = "unstable"
+crates/papo-proto/src/casemapping.rs|feature = "precis"
+crates/papo/src/builder.rs|not(browser)
+crates/papo/src/driver/mod.rs|feature = "unstable"
+crates/papo/src/error.rs|feature = "unstable"
+crates/papo/src/error.rs|tls
+crates/papo/src/event.rs|feature = "unstable"
+crates/papo/src/fail.rs|feature = "unstable"
+crates/papo/src/lib.rs|feature = "unstable"
+crates/papo/src/metadata.rs|feature = "unstable"
+crates/papo/src/state.rs|feature = "unstable"
+crates/papo/src/transport.rs|all(feature = "websocket", sockets)
+crates/papo/src/transport.rs|browser
+crates/papo/src/transport.rs|not(sockets)
+crates/papo/src/transport.rs|sockets
+crates/papo/src/transport.rs|tls
+crates/papo/src/transport/live.rs|tls
+crates/papo/src/transport/websocket/live.rs|tls'
+
+while IFS= read -r -d '' file; do
+  relative=${file#"$root/"}
+  while IFS='|' read -r count predicate; do
+    [[ -n "$predicate" ]] || continue
+    if grep -Fqx "$relative|$predicate" <<<"$repeat_allowlist"; then
+      continue
+    fi
+    echo "$relative repeats #[cfg($predicate)] $count times" >&2
+    status=1
+  done < <(
+    { rg -o --no-filename '#\[cfg\((.*)\)\]' -r '$1' "$file" || true; } |
+      awk '$0 != "test" && $0 !~ /^all\(test/ { count[$0]++ }
+        END { for (predicate in count) if (count[predicate] >= 4)
+          print count[predicate] "|" predicate }'
+  )
+done < <(find "$root/crates" -type f -name '*.rs' -print0)
+
+if rg -n 'doc[[:space:]]*\([[:space:]]*cfg[[:space:]]*\(' "$root/crates" -g '*.rs'; then
+  echo 'manual doc(cfg) attributes are forbidden' >&2
+  status=1
+fi
+
+if [[ -d "$root/crates/papo/src" ]]; then
+  wasi_hits=$(
+    rg -n 'target_os = "wasi"' "$root/crates/papo/src" -g '*.rs' \
+      -g '!transport.rs' -g '!transport/tcp.rs' || true
+  )
+  if [[ -n "$wasi_hits" ]]; then
+    printf '%s\n' "$wasi_hits"
+    echo 'raw WASI target predicates are restricted to the TCP transport' >&2
+    status=1
+  fi
+fi
+
+exit "$status"
