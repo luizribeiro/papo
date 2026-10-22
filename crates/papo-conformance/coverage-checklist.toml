@@ -70,6 +70,8 @@ ids = [
   "security.t3.plaintext-credentials-opt-in",
   "security.s4.account-registration-once",
   "security.s6.scram-iteration-cap",
+  "security.secrets.no-wire-line-in-debug",
+  "security.secrets.wiped-on-drop",
   "security.t4.sts-normalized-host",
   "security.t5.sts-duration-overflow",
   "security.t6.sts-transport-port",

@@ -14,6 +14,12 @@
 "security::scram_rejects_excessive_iterations_promptly" = [
   "security.s6.scram-iteration-cap",
 ]
+"secrets::queued_secrets_are_redacted_without_hiding_ordinary_lines" = [
+  "security.secrets.no-wire-line-in-debug",
+]
+"secrets::secret_and_wire_buffers_are_wiped_on_drop" = [
+  "security.secrets.wiped-on-drop",
+]
 "security::stored_sts_matches_a_normalized_hostname" = [
   "security.t4.sts-normalized-host",
 ]
