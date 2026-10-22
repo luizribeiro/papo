@@ -635,8 +635,7 @@ impl Line {
         let mut offset = encoded_prefix_len(&self.tags, self.source.as_deref(), &self.command);
         let mut secret_spans = Vec::new();
         for (index, param) in self.params.iter().enumerate() {
-            offset +=
-                1 + usize::from(index + 1 == self.params.len() && needs_trailing_prefix(param));
+            offset += 1 + usize::from(uses_trailing_prefix(&self.command, &params, index));
             if param.is_secret() {
                 secret_spans.push(offset..offset + param.len());
             }
@@ -716,10 +715,7 @@ fn write_line(
     let body_len = source.map_or(0, |source| source.len() + 2)
         + command.len()
         + params.iter().enumerate().fold(0, |length, (index, param)| {
-            length
-                + 1
-                + usize::from(index + 1 == params.len() && needs_trailing_prefix(param))
-                + param.len()
+            length + 1 + usize::from(uses_trailing_prefix(command, params, index)) + param.len()
         })
         + 2;
     if body_len > MAX_LINE_LEN {
@@ -750,7 +746,7 @@ fn write_line(
     out.extend_from_slice(command.as_bytes());
     for (index, param) in params.iter().enumerate() {
         out.push(b' ');
-        if index + 1 == params.len() && needs_trailing_prefix(param) {
+        if uses_trailing_prefix(command, params, index) {
             out.push(b':');
         }
         out.extend_from_slice(param.as_bytes());
@@ -794,6 +790,15 @@ impl fmt::Debug for Line {
 
 fn needs_trailing_prefix(param: &str) -> bool {
     param.is_empty() || param.contains(' ') || param.starts_with(':')
+}
+
+fn uses_trailing_prefix(command: &str, params: &[&str], index: usize) -> bool {
+    index + 1 == params.len()
+        && (needs_trailing_prefix(params[index])
+            || (command.eq_ignore_ascii_case("CAP")
+                && params
+                    .first()
+                    .is_some_and(|param| param.eq_ignore_ascii_case("REQ"))))
 }
 
 fn encoded_prefix_len(
