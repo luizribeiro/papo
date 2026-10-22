@@ -11,5 +11,4 @@ clients, with broad IRCv3 support and Ergo as the primary server.
   targets.
 - Authenticate with SASL PLAIN and SCRAM-SHA-256, retain server state, query history, and use
   typed events and request results.
-- Build command-oriented bots with `papo-bot`.
 - Opt into draft and vendor extensions through the `unstable` feature.
