@@ -1,4 +1,4 @@
-use crate::{Client, Error, PersistenceStatus, driver::CoreRequest};
+use crate::{Client, Error, PersistenceStatus, driver::unstable::UnstableRequest};
 
 /// Handle for account persistence requests.
 pub struct Persistence {
@@ -34,7 +34,7 @@ impl Persistence {
     pub fn get(&self) -> crate::RequestFuture<PersistenceStatus> {
         let client = self.client.clone();
         crate::RequestFuture::new(async move {
-            let response = client.core_request(CoreRequest::PersistenceGet).await?;
+            let response = client.core_request(UnstableRequest::PersistenceGet).await?;
             crate::requests::empty(&response)?;
             client
                 .state()
@@ -59,7 +59,7 @@ impl Persistence {
         let client = self.client.clone();
         crate::RequestFuture::new(async move {
             let response = client
-                .core_request(CoreRequest::PersistenceSet(setting))
+                .core_request(UnstableRequest::PersistenceSet(setting))
                 .await?;
             crate::requests::empty(&response)?;
             client

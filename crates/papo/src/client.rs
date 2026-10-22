@@ -417,7 +417,11 @@ impl Client {
         receiver.await.map_err(|_| Error::connection_lost())?
     }
 
-    pub(crate) async fn core_request(&self, request: CoreRequest) -> Result<Response, Error> {
+    pub(crate) async fn core_request(
+        &self,
+        request: impl Into<CoreRequest>,
+    ) -> Result<Response, Error> {
+        let request = request.into();
         let (result, receiver) = oneshot::channel();
         self.commands
             .send(Command::CoreRequest { request, result })

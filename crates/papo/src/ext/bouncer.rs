@@ -1,4 +1,6 @@
-use crate::{BouncerNetwork, Client, Error, NetworkConfig, NetworkId, driver::CoreRequest};
+use crate::{
+    BouncerNetwork, Client, Error, NetworkConfig, NetworkId, driver::unstable::UnstableRequest,
+};
 
 /// Handle for upstream bouncer network management.
 pub struct Bouncer {
@@ -31,7 +33,9 @@ impl Bouncer {
     pub fn networks(&self) -> crate::RequestFuture<Vec<BouncerNetwork>> {
         let client = self.client.clone();
         crate::RequestFuture::new(async move {
-            client.core_request(CoreRequest::BouncerNetworks).await?;
+            client
+                .core_request(UnstableRequest::BouncerNetworks)
+                .await?;
             Ok(client.state().bouncer_networks().cloned().collect())
         })
     }
@@ -45,7 +49,9 @@ impl Bouncer {
     pub fn add(&self, config: NetworkConfig) -> crate::RequestFuture<NetworkId> {
         let client = self.client.clone();
         crate::RequestFuture::new(async move {
-            let response = client.core_request(CoreRequest::BouncerAdd(config)).await?;
+            let response = client
+                .core_request(UnstableRequest::BouncerAdd(config))
+                .await?;
             response
                 .lines
                 .iter()
@@ -73,7 +79,7 @@ impl Bouncer {
         let id = id.clone();
         crate::RequestFuture::new(async move {
             let response = client
-                .core_request(CoreRequest::BouncerChange(id, config))
+                .core_request(UnstableRequest::BouncerChange(id, config))
                 .await?;
             crate::requests::empty(&response)
         })
@@ -89,7 +95,9 @@ impl Bouncer {
         let client = self.client.clone();
         let id = id.clone();
         crate::RequestFuture::new(async move {
-            let response = client.core_request(CoreRequest::BouncerRemove(id)).await?;
+            let response = client
+                .core_request(UnstableRequest::BouncerRemove(id))
+                .await?;
             crate::requests::empty(&response)
         })
     }

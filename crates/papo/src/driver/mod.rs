@@ -1,5 +1,7 @@
 mod catchup;
 mod connect;
+#[cfg(feature = "unstable")]
+pub(crate) mod unstable;
 
 #[cfg(all(test, not(browser)))]
 use catchup::extend_catchup;
@@ -81,17 +83,7 @@ pub(crate) enum CoreRequest {
         code: String,
     },
     #[cfg(feature = "unstable")]
-    PersistenceGet,
-    #[cfg(feature = "unstable")]
-    PersistenceSet(papo_core::PersistenceSetting),
-    #[cfg(feature = "unstable")]
-    BouncerNetworks,
-    #[cfg(feature = "unstable")]
-    BouncerAdd(papo_core::NetworkConfig),
-    #[cfg(feature = "unstable")]
-    BouncerChange(papo_core::NetworkId, papo_core::NetworkConfig),
-    #[cfg(feature = "unstable")]
-    BouncerRemove(papo_core::NetworkId),
+    Unstable(unstable::UnstableRequest),
     Metadata(papo_core::MetadataCommand),
     Rename {
         old: String,
@@ -127,19 +119,7 @@ impl CoreRequest {
             }
             Self::Verify { account, code } => session.verify(now(), &account, &code)?,
             #[cfg(feature = "unstable")]
-            Self::PersistenceGet => session.persistence_get(now())?,
-            #[cfg(feature = "unstable")]
-            Self::PersistenceSet(setting) => session.persistence_set(now(), setting)?,
-            #[cfg(feature = "unstable")]
-            Self::BouncerNetworks => return session.bouncer_networks(now()),
-            #[cfg(feature = "unstable")]
-            Self::BouncerAdd(config) => return session.bouncer_add(now(), &config),
-            #[cfg(feature = "unstable")]
-            Self::BouncerChange(id, config) => {
-                return session.bouncer_change(now(), &id, &config);
-            }
-            #[cfg(feature = "unstable")]
-            Self::BouncerRemove(id) => return session.bouncer_remove(now(), &id),
+            Self::Unstable(request) => return request.start(session),
             Self::Metadata(command) => return session.metadata(now(), command),
             Self::Rename { old, new, reason } => return session.rename(now(), &old, &new, &reason),
             #[cfg(feature = "unstable")]
