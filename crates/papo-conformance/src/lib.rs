@@ -24,6 +24,11 @@ use papo_test_server::{ServerInfo, from_env};
 use tokio::{runtime::Builder, task::JoinHandle, time::timeout};
 
 mod peer;
+#[expect(
+    dead_code,
+    reason = "called by tests generated in the integration crate"
+)]
+mod runner;
 mod scenario;
 mod scenarios;
 
