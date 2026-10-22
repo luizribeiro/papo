@@ -799,6 +799,58 @@ variant_accessors! { Event;
     (Other, as_other, ProtoLine),
 }
 
+impl Event {
+    /// Returns the server-assigned identifier carried by this event, when supplied.
+    #[must_use]
+    pub fn msgid(&self) -> Option<MessageId> {
+        match self {
+            Self::Message(event) => event.msgid.clone(),
+            Self::Ctcp(event) => event.msgid.clone(),
+            Self::Reacted(event) => event.msgid.clone(),
+            Self::Redacted(event) => event.msgid.clone(),
+            Self::Joined(event) => event.msgid.clone(),
+            Self::Parted(event) => event.msgid.clone(),
+            Self::Kicked(event) => event.msgid.clone(),
+            Self::Quit(event) => event.msgid.clone(),
+            Self::NickChanged(event) => event.msgid.clone(),
+            Self::ModeChanged(event) => event.msgid.clone(),
+            Self::TopicChanged(event) => event.msgid.clone(),
+            Self::Other(line) => tag_owned(&line.as_ref(), &["msgid"]).map(MessageId::from),
+            _ => None,
+        }
+    }
+
+    /// Returns the timestamp supplied by the server, when present and valid.
+    #[must_use]
+    pub fn server_time(&self) -> Option<SystemTime> {
+        let tagged = |line: &LineRef<'_>| {
+            tag_owned(line, &["time", "znc.in/server-time-iso"])
+                .and_then(|value| time::parse(&value))
+        };
+        match self {
+            Self::Message(event) => tagged_from_tags(&event.tags),
+            Self::Ctcp(event) => tagged_from_tags(&event.tags),
+            Self::Reacted(event) => Some(event.time),
+            Self::Redacted(event) => Some(event.time),
+            Self::Joined(event) => Some(event.time),
+            Self::Parted(event) => Some(event.time),
+            Self::Kicked(event) => Some(event.time),
+            Self::Quit(event) => Some(event.time),
+            Self::NickChanged(event) => Some(event.time),
+            Self::ModeChanged(event) => Some(event.time),
+            Self::TopicChanged(event) => Some(event.time),
+            Self::Other(line) => tagged(&line.as_ref()),
+            _ => None,
+        }
+    }
+}
+
+fn tagged_from_tags(tags: &Tags) -> Option<SystemTime> {
+    tags.get("time")
+        .or_else(|| tags.get("znc.in/server-time-iso"))
+        .and_then(time::parse)
+}
+
 #[cfg(feature = "unstable")]
 impl Event {
     /// Returns the payload when this is [`Event::PersistenceChanged`].
@@ -1626,6 +1678,23 @@ mod tests {
         assert_eq!(tagged.msgid.as_deref(), Some("RfcBTzyxY120004"));
         assert_eq!(tagged.account.as_deref(), Some("emily"));
         assert!(tagged.is_bot);
+        let tagged_event = Event::Message(Box::new(tagged.clone()));
+        assert_eq!(tagged_event.msgid().as_deref(), Some("RfcBTzyxY120004"));
+        assert_eq!(tagged_event.server_time(), Some(tagged.time));
+        assert_eq!(
+            Event::Other(
+                Line::new("VENDOR", ["payload"])
+                    .with_tag("msgid", "Other120004")
+                    .with_tag("time", "2026-02-03T04:05:06.789Z")
+            )
+            .msgid()
+            .as_deref(),
+            Some("Other120004")
+        );
+        assert_eq!(
+            Event::Message(Box::new(chat("PRIVMSG", "human message"))).server_time(),
+            None
+        );
         let reply: Option<&MessageId> = tagged.reply_to.as_ref();
         assert_eq!(reply.unwrap(), "RfcBTzyxY120003");
         #[cfg(feature = "unstable")]
