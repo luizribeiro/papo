@@ -54,6 +54,13 @@ spec = "https://ircv3.net/specs/extensions/persistence"
 evidence = "C: PERSISTENCE SET OFF | S: PERSISTENCE STATUS OFF ON"
 server_version = "2.19.1"
 
+[reconnect_follows_channel_rename]
+reason = "Ergo rejects renaming channels that have persistent history before reconnect can be tested"
+kind = "fixture-limit"
+spec = "https://ircv3.net/specs/extensions/channel-rename"
+evidence = "C: RENAME #old #new :archive the project | S: FAIL RENAME CANNOT_RENAME :Persistent channels cannot be renamed"
+server_version = "2.19.1"
+
 [targmax_privmsg]
 reason = "Ergo silently drops the target beyond its advertised TARGMAX PRIVMSG limit instead of returning 407"
 kind = "spec-ambiguity"
