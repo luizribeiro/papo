@@ -27,6 +27,17 @@ fn sends_password_after_capability_discovery() {
 }
 
 #[test]
+fn plaintext_server_password_requires_explicit_opt_in() {
+    Transcript::rate_limited(Config::default().password("correct horse battery staple"))
+        .connect()
+        .event(|event| {
+            matches!(event, Event::Close { kind: CloseKind::Other, reason, .. }
+                if reason.contains("plaintext"))
+        })
+        .no_client();
+}
+
+#[test]
 fn rejects_a_byte_server_password() {
     Transcript::new(Config::default().password(Secret::from_bytes([0xff])))
         .connect()

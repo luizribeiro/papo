@@ -56,6 +56,31 @@ fn configured_registration_waits_for_before_connect_capability() {
 }
 
 #[test]
+fn secure_connections_allow_account_registration_without_plaintext_opt_in() {
+    Transcript::rate_limited(
+        Config::default()
+            .connection_security(papo_core::sts::ConnectionSecurity::Secure)
+            .wanted_caps(["draft/account-registration"]),
+    )
+    .connect_default()
+    .server("CAP * LS :draft/account-registration=before-connect")
+    .client("CAP REQ :draft/account-registration")
+    .update(|session| {
+        session
+            .create_account(
+                std::time::Instant::now(),
+                None,
+                None,
+                "correct horse battery staple",
+            )
+            .unwrap();
+    })
+    .server("CAP * ACK :draft/account-registration")
+    .client("REGISTER * * :correct horse battery staple")
+    .event(|event| matches!(event, Event::RequestUntracked { .. }));
+}
+
+#[test]
 fn configured_registration_survives_a_multiline_capability_listing() {
     let config = Config::default()
         .wanted_caps(["draft/account-registration"])

@@ -261,4 +261,39 @@ mod tests {
 
         abort_task(driver).await;
     }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn account_registration_rejects_plaintext_without_opt_in() {
+        let settings = config()
+            .allow_insecure_auth(false)
+            .wanted_caps(["draft/account-registration"]);
+        let (mut server, client, mut events, driver) = scripted(settings);
+        let driver = tokio::spawn(driver);
+        welcome_burst(&mut server).await;
+        server_line(
+            &mut server,
+            b":ergo.test CAP * LS :draft/account-registration=custom-account-name\r\n",
+        )
+        .await;
+        client_line(&mut server, b"CAP REQ :draft/account-registration\r\n").await;
+        server_line(
+            &mut server,
+            b":ergo.test CAP * ACK :draft/account-registration\r\n",
+        )
+        .await;
+        client_line(&mut server, b"CAP END\r\n").await;
+        server_line(&mut server, b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
+        assert!(matches!(events.next().await, Some(Event::Connected(_))));
+
+        assert!(matches!(
+            client
+                .create_account(super::NewAccount::new("correct horse battery staple"))
+                .await,
+            Err(Error::InvalidInput(
+                crate::InvalidInput::InsecureAuthentication
+            ))
+        ));
+
+        abort_task(driver).await;
+    }
 }
