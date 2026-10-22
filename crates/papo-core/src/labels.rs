@@ -1,6 +1,7 @@
 use crate::{
     Command, Event, Feature, Instant, Line, LineRef, MAX_PENDING_REQUESTS, Numeric, RequestError,
-    RequestId, Response, ResponseMatcher, Session, cap, parse_whois_channels, sent_info,
+    RequestId, Response, ResponseMatcher, Session, UnlabelledRequest, cap, parse_whois_channels,
+    sent_info,
 };
 
 impl Session {
@@ -138,7 +139,7 @@ impl Session {
                 let fence = request.fence.as_ref().and_then(|token| {
                     (message.command() == Command::Pong
                         && message.params().last() == Some(token.as_str()))
-                    .then_some(true)
+                    .then(|| self.fence_completes(request, mapping))
                 });
                 fence
                     .or_else(|| {
@@ -207,6 +208,21 @@ impl Session {
             self.outbox.event(Event::Response(response));
         }
         true
+    }
+
+    fn fence_completes(&self, request: &UnlabelledRequest, mapping: crate::Casemapping) -> bool {
+        !matches!(&request.matcher, ResponseMatcher::Who(_))
+            || request.lines.iter().any(|line| {
+                request
+                    .matcher
+                    .matches(
+                        &line.as_ref(),
+                        mapping,
+                        self.welcome_state.nick(),
+                        &self.state,
+                    )
+                    .is_some_and(|complete| complete)
+            })
     }
 
     fn abort_departed_join(&mut self, message: &LineRef<'_>, mapping: crate::Casemapping) -> bool {

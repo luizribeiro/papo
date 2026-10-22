@@ -83,6 +83,17 @@ fn classifies_server_broadcast_and_private_conversations() {
 }
 
 #[test]
+fn classifies_numerics_as_server_lines_without_a_source() {
+    Transcript::new(Config::default().nick("papo"))
+        .server("404 papo #papo :Cannot send to channel")
+        .event(|event| {
+            matches!(event, Event::Line(line)
+                if line.conversation() == Some(&Conversation::Server))
+        })
+        .no_event();
+}
+
+#[test]
 fn separates_advertised_status_from_the_channel() {
     Transcript::new(Config::default().nick("papo"))
         .server(":ergo.test 005 papo CHANTYPES=# STATUSMSG=@+ :are supported")

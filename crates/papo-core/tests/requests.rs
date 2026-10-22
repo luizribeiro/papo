@@ -1009,11 +1009,12 @@ fn who_rows_attach_only_to_the_named_concurrent_mask() {
         )
         .unwrap();
     for line in [
-        ":ergo.test 354 papo 0 #rust ~bob users.example bob H account :Bob Example",
-        ":ergo.test 403 papo #unknown :No such channel",
         ":ergo.test 352 papo #papo ~alice staff.example ergo.test alice{ H@ :0 Alice Example",
-        ":ergo.test 315 papo #rust :End of WHO list",
         ":ergo.test 315 papo alice{ :End of WHO list",
+        ":ergo.test PONG ergo.test :papo-who-1",
+        ":ergo.test 403 papo #unknown :No such channel",
+        ":ergo.test 354 papo 0 #rust ~bob users.example bob H account :Bob Example",
+        ":ergo.test 315 papo #rust :End of WHO list",
     ] {
         session.handle_line(now, line.as_bytes());
     }
@@ -1022,11 +1023,57 @@ fn who_rows_attach_only_to_the_named_concurrent_mask() {
     assert!(responses[&rust][0].as_ref().command_is("354"));
     assert!(responses[&alice][0].as_ref().command_is("352"));
     assert_eq!(responses[&rust].len(), 2);
-    assert_eq!(responses[&alice].len(), 2);
+    assert_eq!(responses[&alice].len(), 3);
     assert!(
         messages
             .iter()
             .any(|line| line.as_ref().param(1) == Some("#unknown"))
+    );
+}
+
+#[test]
+fn wildcard_who_collects_rows_before_a_concurrent_channel_who() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    let wildcard = session
+        .request_with_matcher(
+            now,
+            Line::new("WHO").with_params(["*.example"]),
+            ResponseMatcher::Who("*.example".into()),
+        )
+        .unwrap();
+    let rust = session
+        .request_with_matcher(
+            now,
+            Line::new("WHO").with_params(["#rust"]),
+            ResponseMatcher::Who("#rust".into()),
+        )
+        .unwrap();
+
+    for line in [
+        ":irc.solanum.test 352 papo #staff ~alice staff.example irc.solanum.test alice H@ :0 Alice Example",
+        ":irc.solanum.test 315 papo *.example :End of WHO list",
+        ":irc.solanum.test PONG irc.solanum.test :papo-who-1",
+        ":irc.solanum.test 352 papo #rust ~ferris users.example irc.solanum.test ferris H :0 Ferris Example",
+        ":irc.solanum.test 315 papo #rust :End of WHO list",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+
+    let (responses, _) = response_lines(&mut session);
+    assert_eq!(
+        responses[&wildcard]
+            .iter()
+            .map(|line| line.as_ref().raw_command())
+            .collect::<Vec<_>>(),
+        ["352", "315", "PONG"]
+    );
+    assert_eq!(
+        responses[&rust]
+            .iter()
+            .map(|line| line.as_ref().raw_command())
+            .collect::<Vec<_>>(),
+        ["352", "315"]
     );
 }
 

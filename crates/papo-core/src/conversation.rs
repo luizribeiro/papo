@@ -1,4 +1,4 @@
-use papo_proto::{Casemapping, InvalidIdentifier, Isupport, LineRef, Source};
+use papo_proto::{Casemapping, Command, InvalidIdentifier, Isupport, LineRef, Source};
 
 use crate::{Conversation, names_equal};
 
@@ -7,7 +7,7 @@ pub(crate) fn classify_line(
     own_nick: &str,
     isupport: &Isupport,
 ) -> Result<(Option<Vec<char>>, Conversation), InvalidIdentifier> {
-    if line.command_is("WALLOPS") {
+    if line.command_is("WALLOPS") || matches!(line.command(), Command::Numeric(_)) {
         return Ok((None, Conversation::Server));
     }
     classify_target(

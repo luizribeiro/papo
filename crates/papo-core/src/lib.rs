@@ -1190,19 +1190,10 @@ impl ResponseMatcher {
                     return Some(true);
                 }
                 numeric.and_then(|numeric| {
-                    let row_matches = match numeric {
-                        Numeric::RPL_WHOREPLY => {
-                            Self::target_is(message, 1, mask, mapping)
-                                || Self::target_is(message, 5, mask, mapping)
-                        }
-                        Numeric::RPL_WHOSPCRPL => {
-                            Self::target_is(message, 2, mask, mapping)
-                                || Self::target_is(message, 5, mask, mapping)
-                        }
-                        _ => false,
-                    };
-                    (row_matches || Self::target_is(message, 1, mask, mapping))
-                        .then_some(numeric == Numeric::RPL_ENDOFWHO || numeric.is_error())
+                    let row = matches!(numeric, Numeric::RPL_WHOREPLY | Numeric::RPL_WHOSPCRPL);
+                    let end = numeric == Numeric::RPL_ENDOFWHO
+                        && Self::target_is(message, 1, mask, mapping);
+                    (row || end).then_some(end)
                 })
             }
             Self::Join(channel) => {
@@ -3500,9 +3491,27 @@ impl Session {
         }
         let line = message.encode()?;
         let id = RequestId(self.next_request_id);
+        let who_fence = matches!(&matcher, ResponseMatcher::Who(_))
+            .then(|| {
+                self.unlabelled_requests
+                    .iter_mut()
+                    .rev()
+                    .find(|request| matches!(&request.matcher, ResponseMatcher::Who(_)))
+            })
+            .flatten()
+            .map(|pending| {
+                let token = format!("papo-who-{}", self.next_request_id);
+                debug_assert!(pending.fence.is_none());
+                pending.fence = Some(token.clone());
+                (pending.id, token)
+            });
         let fence = matches!(matcher, ResponseMatcher::Mode(_))
             .then(|| format!("papo-mode-{}", self.next_request_id));
         self.next_request_id = self.next_request_id.wrapping_add(1);
+        if let Some((request, token)) = who_fence {
+            let ping = Line::new("PING").param(token).encode()?;
+            self.outbox.transmit_tracked(ping, None, Some(request));
+        }
         self.unlabelled_requests.push_back(UnlabelledRequest {
             id,
             started: None,
