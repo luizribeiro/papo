@@ -28,6 +28,10 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
         ConversationClass::Event,
     ),
     (
+        "pub papo::event::CtcpReply::conversation: papo::Conversation",
+        ConversationClass::Event,
+    ),
+    (
         "pub papo::event::Reacted::conversation: papo::Conversation",
         ConversationClass::Event,
     ),

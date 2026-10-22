@@ -179,6 +179,34 @@ pub struct CtcpQuery {
     pub tags: Tags,
 }
 
+/// An incoming Client-to-Client Protocol reply carried by `NOTICE`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct CtcpReply {
+    /// The user or server that sent the CTCP reply.
+    pub actor: Source,
+    /// Whether the actor is this client's user.
+    pub authorship: Authorship,
+    /// The IRC conversation to which the CTCP reply belongs.
+    pub conversation: Conversation,
+    /// `STATUSMSG` prefixes removed from the wire address, in wire order.
+    pub status: Option<Vec<char>>,
+    /// The command with its original spelling.
+    pub command: String,
+    /// The command parameters, when present.
+    pub params: Option<String>,
+    /// The server-assigned message identifier, when supplied.
+    pub msgid: Option<MessageId>,
+    /// Valid server time, when supplied.
+    pub server_time: Option<SystemTime>,
+    /// Time at which the line was received.
+    pub received_at: SystemTime,
+    /// The actor's authenticated account, when tagged.
+    pub account: Option<AccountName>,
+    /// All message tags in wire order.
+    pub tags: Tags,
+}
+
 /// Whether an event's actor is this client's user.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[non_exhaustive]
