@@ -388,6 +388,8 @@ pub papo::event::CtcpQuery::received_at: std::time::SystemTime
 pub papo::event::CtcpQuery::server_time: core::option::Option<std::time::SystemTime>
 pub papo::event::CtcpQuery::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo::event::CtcpQuery::tags: papo::Tags
+impl papo::event::CtcpQuery
+pub fn papo::event::CtcpQuery::return_address(&self) -> alloc::string::String
 impl core::clone::Clone for papo::event::CtcpQuery
 pub fn papo::event::CtcpQuery::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::CtcpQuery
@@ -415,6 +417,8 @@ pub papo::event::CtcpReply::received_at: std::time::SystemTime
 pub papo::event::CtcpReply::server_time: core::option::Option<std::time::SystemTime>
 pub papo::event::CtcpReply::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo::event::CtcpReply::tags: papo::Tags
+impl papo::event::CtcpReply
+pub fn papo::event::CtcpReply::return_address(&self) -> alloc::string::String
 impl core::clone::Clone for papo::event::CtcpReply
 pub fn papo::event::CtcpReply::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::CtcpReply
@@ -733,6 +737,7 @@ pub papo::event::Notice::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo::event::Notice::tags: papo::Tags
 pub papo::event::Notice::text: alloc::string::String
 impl papo::event::Notice
+pub fn papo::event::Notice::return_address(&self) -> alloc::string::String
 pub fn papo::event::Notice::spans(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo::Span<'_>>
 impl core::clone::Clone for papo::event::Notice
 pub fn papo::event::Notice::clone(&self) -> Self
@@ -2384,6 +2389,8 @@ pub papo::Sent::line_msgids: alloc::vec::Vec<papo::MessageId>
 pub papo::Sent::msgid: core::option::Option<papo::MessageId>
 pub papo::Sent::server_time: core::option::Option<std::time::SystemTime>
 pub papo::Sent::status: core::option::Option<alloc::vec::Vec<char>>
+impl papo::Sent
+pub fn papo::Sent::return_address(&self) -> alloc::string::String
 impl core::clone::Clone for papo::Sent
 pub fn papo::Sent::clone(&self) -> Self
 impl core::cmp::Eq for papo::Sent

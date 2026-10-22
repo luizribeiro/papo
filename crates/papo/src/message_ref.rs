@@ -34,7 +34,7 @@ impl From<&Box<Message>> for MessageRef {
 impl From<&Sent> for MessageRef {
     fn from(message: &Sent) -> Self {
         Self {
-            address: conversation_address(&message.conversation, message.status.as_deref()),
+            address: return_address(&message.conversation, message.status.as_deref()),
             msgid: message.msgid.clone(),
         }
     }
@@ -68,7 +68,7 @@ address_pairs!(
 impl<I: Into<MessageId>> From<(Conversation, I)> for MessageRef {
     fn from((conversation, msgid): (Conversation, I)) -> Self {
         Self {
-            address: conversation_address(&conversation, None),
+            address: return_address(&conversation, None),
             msgid: Some(msgid.into()),
         }
     }
@@ -80,7 +80,7 @@ impl<I: Into<MessageId>> From<(&Conversation, I)> for MessageRef {
     }
 }
 
-fn conversation_address(conversation: &Conversation, status: Option<&[char]>) -> String {
+pub(crate) fn return_address(conversation: &Conversation, status: Option<&[char]>) -> String {
     status
         .into_iter()
         .flatten()
@@ -99,6 +99,37 @@ mod tests {
     use std::time::SystemTime;
 
     use super::*;
+
+    #[test]
+    fn return_addresses_follow_one_rule_for_every_conversation_kind() {
+        let mapping = crate::Casemapping::default();
+        for (conversation, status, expected) in [
+            (
+                Conversation::Channel(mapping.channel("#papo")),
+                None,
+                "#papo",
+            ),
+            (
+                Conversation::Channel(mapping.channel("#ops")),
+                Some(&['@'][..]),
+                "@#ops",
+            ),
+            (
+                Conversation::Channel(mapping.channel("#staff")),
+                Some(&['@', '+'][..]),
+                "@+#staff",
+            ),
+            (Conversation::Private(mapping.nick("emily")), None, "emily"),
+            (Conversation::Server, None, "*"),
+            (
+                Conversation::Broadcast(mapping.mask("$*.example.org")),
+                None,
+                "$*.example.org",
+            ),
+        ] {
+            assert_eq!(return_address(&conversation, status), expected);
+        }
+    }
 
     #[test]
     fn references_preserve_received_and_sent_addresses() {
@@ -131,6 +162,7 @@ mod tests {
         let reference = MessageRef::from(&sent);
         assert_eq!(reference.address, "@#ops");
         assert_eq!(reference.msgid, Some("RfcBTzyxY120005".into()));
+        assert_eq!(sent.return_address(), "@#ops");
     }
 
     #[test]

@@ -248,6 +248,12 @@ impl IntoFuture for SendMessage {
 }
 
 impl Sent {
+    /// Returns the address that reaches the recipients of the sent message.
+    #[must_use]
+    pub fn return_address(&self) -> String {
+        crate::message_ref::return_address(&self.conversation, self.status.as_deref())
+    }
+
     pub(crate) fn without_echo(
         conversation: crate::Conversation,
         status: Option<Vec<char>>,

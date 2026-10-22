@@ -210,6 +210,22 @@ pub struct CtcpReply {
     pub tags: Tags,
 }
 
+macro_rules! ctcp_return_address {
+    ($($ty:ty),+ $(,)?) => {
+        $(
+            impl $ty {
+                /// Returns the address that reaches the recipients of the CTCP line.
+                #[must_use]
+                pub fn return_address(&self) -> String {
+                    crate::message_ref::return_address(&self.conversation, self.status.as_deref())
+                }
+            }
+        )+
+    };
+}
+
+ctcp_return_address!(CtcpQuery, CtcpReply);
+
 /// Whether an event's actor is this client's user.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[non_exhaustive]
@@ -571,16 +587,10 @@ impl Message {
     /// broadcast. A broadcast without a user source returns `*`, which message APIs reject.
     #[must_use]
     pub fn return_address(&self) -> String {
-        match &self.conversation {
-            Chat::Channel(channel) => self
-                .status
-                .iter()
-                .flatten()
-                .copied()
-                .chain(channel.chars())
-                .collect(),
-            Chat::Private(nick) => nick.to_string(),
-        }
+        crate::message_ref::return_address(
+            &Conversation::from(&self.conversation),
+            self.status.as_deref(),
+        )
     }
 
     /// Reports whether this message's actor is this client's user.
@@ -591,6 +601,15 @@ impl Message {
 }
 
 impl Notice {
+    /// Returns the address that reaches the recipients of the notice.
+    #[must_use]
+    pub fn return_address(&self) -> String {
+        crate::message_ref::return_address(
+            &Conversation::from(&self.conversation),
+            self.status.as_deref(),
+        )
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn from_line(
         raw: ProtoLine,
@@ -1890,7 +1909,8 @@ mod tests {
 
     #[test]
     fn routes_user_and_server_notices() {
-        let isupport = Isupport::default();
+        let mut isupport = Isupport::default();
+        isupport.apply_tokens(["CHANTYPES=#", "STATUSMSG=@+"]);
         let user = parse_event(
             Line::notice("papo", "maintenance soon").with_source("emily!~e@localhost"),
             &isupport,
@@ -1902,13 +1922,15 @@ mod tests {
                 && matches!(notice.conversation, Chat::Private(_))));
 
         let action = parse_event(
-            Line::notice("#papo", "\x01ACTION nods hello\x01").with_source("emily!~e@localhost"),
+            Line::notice("@#ops", "\x01ACTION nods hello\x01").with_source("emily!~e@localhost"),
             &isupport,
             "papo",
             UNIX_EPOCH,
         );
         assert!(matches!(action, Event::Notice(notice)
-            if notice.kind == NoticeKind::Action && notice.text == "nods hello"));
+            if notice.kind == NoticeKind::Action
+                && notice.text == "nods hello"
+                && notice.return_address() == "@#ops"));
 
         let server = parse_event(
             Line::notice("papo", "Network maintenance begins soon").with_source("irc.example"),
@@ -1973,9 +1995,10 @@ mod tests {
         );
         let parse = |command, text| {
             let line = Line::new(command)
-                .with_params(["#papo", text])
+                .with_params(["@#ops", text])
                 .with_source("emily!~emily@localhost");
-            let isupport = Isupport::default();
+            let mut isupport = Isupport::default();
+            isupport.apply_tokens(["CHANTYPES=#", "STATUSMSG=@+"]);
             let (status, conversation) =
                 papo_core::classify_conversation(&line.as_ref(), "papo", &isupport).unwrap();
             message_event_from_line(
@@ -1992,9 +2015,11 @@ mod tests {
         let version = version_event.as_ctcp_query().unwrap();
         assert_eq!(version.command, "VERSION");
         assert_eq!(version.params, None);
+        assert_eq!(version.return_address(), "@#ops");
         let reply_event = parse("NOTICE", "\x01VERSION papo-0.1\x01");
         let reply = reply_event.as_ctcp_reply().unwrap();
         assert_eq!(reply.params.as_deref(), Some("papo-0.1"));
+        assert_eq!(reply.return_address(), "@#ops");
         let action_notice = parse("NOTICE", "\x01ACTION waves\x01");
         assert!(matches!(action_notice, Event::Notice(notice)
             if notice.kind == NoticeKind::Action && notice.text == "waves"));
