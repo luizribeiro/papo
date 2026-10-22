@@ -1308,6 +1308,38 @@ fn only_an_own_join_line_confirms_a_rejoin() {
 }
 
 #[test]
+fn rejoin_set_stops_at_ten_thousand_channels() {
+    let session = Session::new(config());
+    let mut defaults = super::PostConnect {
+        channels: (0..10_000)
+            .map(|index| super::Autojoin::new(format!("#archive{index:04}"), None))
+            .collect(),
+        ..super::PostConnect::default()
+    };
+    let joined = Event::Joined(crate::event::Joined {
+        msgid: None,
+        server_time: None,
+        received_at: SystemTime::UNIX_EPOCH,
+        account: crate::Account::Unknown,
+        realname: None,
+        channel: test_channel("#overflow"),
+        actor: crate::__testing::user_source(test_nick("papo-driver"), None, None),
+        nick: test_nick("papo-driver"),
+        authorship: crate::Authorship::Own,
+    });
+
+    super::update_rejoin_channels(&session, &mut defaults, &joined);
+
+    assert_eq!(defaults.channels.len(), 10_000);
+    assert!(
+        !defaults
+            .channels
+            .iter()
+            .any(|entry| entry.channel == "#overflow")
+    );
+}
+
+#[test]
 fn only_bad_keys_remove_channels_from_the_rejoin_set() {
     let session = Session::new(config());
     let cases = [
@@ -3481,6 +3513,61 @@ async fn registration_sets_advertised_bot_mode_and_joins_each_channel() {
             .text,
         "Autojoin refusal recorded"
     );
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn registration_queues_three_hundred_autojoin_channels() {
+    let (client_stream, mut server) = tokio::io::duplex(16 * 1024);
+    let channels = (0..300)
+        .map(|index| super::Autojoin::new(format!("#audit{index:03}"), None))
+        .collect();
+    let settings = config()
+        .wanted_caps(["labeled-response"])
+        .rate_limit(papo_core::RateLimit::unlimited());
+    let (_client, mut events, driver) = Driver::with_stream_and_connect(
+        client_stream,
+        Session::new(settings),
+        super::DEFAULT_CHANNEL_CAPACITY,
+        None,
+        super::PostConnect {
+            channels,
+            ..super::PostConnect::default()
+        },
+    );
+    let driver = tokio::spawn(driver);
+    welcome_burst(&mut server).await;
+    server_line(&mut server, b":ergo.test CAP * LS :labeled-response\r\n").await;
+    client_line(&mut server, b"CAP REQ :labeled-response\r\n").await;
+    server_line(&mut server, b":ergo.test CAP * ACK :labeled-response\r\n").await;
+    client_line(&mut server, b"CAP END\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n",
+    )
+    .await;
+    assert!(matches!(events.next().await, Some(Event::Connected(_))));
+
+    for index in 0..300 {
+        let mut wire = Vec::new();
+        loop {
+            let byte = within(server.read_u8()).await.unwrap();
+            wire.push(byte);
+            if byte == b'\n' {
+                break;
+            }
+        }
+        let wire = String::from_utf8(wire).unwrap();
+        let line = papo_proto::LineRef::parse(wire.trim_end()).unwrap();
+        assert_eq!(line.command(), papo_proto::Command::Join);
+        assert_eq!(line.param(0), Some(format!("#audit{index:03}").as_str()));
+        assert_eq!(line.tag("label").is_some(), index < 256);
+    }
+
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),

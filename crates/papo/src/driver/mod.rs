@@ -46,6 +46,7 @@ use crate::{
 pub(crate) const DEFAULT_CHANNEL_CAPACITY: usize = 1024;
 const QUIT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 const STABLE_CONNECTION: Duration = Duration::from_secs(60);
+const MAX_REJOIN_CHANNELS: usize = 10_000;
 pub(super) const SLOW_CONSUMER_REASON: &str = "SlowConsumer";
 
 type BoxConnection = Box<dyn Io>;
@@ -1479,6 +1480,7 @@ fn update_rejoin_channels(session: &Session, defaults: &mut PostConnect, event: 
                 .channels
                 .iter()
                 .any(|entry| joined.channel == entry.channel.as_str())
+                && defaults.channels.len() < MAX_REJOIN_CHANNELS
             {
                 defaults
                     .channels
@@ -1584,6 +1586,9 @@ fn dedupe_autojoin(session: &Session, defaults: &mut PostConnect) {
         });
         deduplicated.push(entry);
     }
+    if deduplicated.len() > MAX_REJOIN_CHANNELS {
+        deduplicated.drain(..deduplicated.len() - MAX_REJOIN_CHANNELS);
+    }
     defaults.channels = deduplicated;
 }
 
@@ -1682,16 +1687,35 @@ fn after_connect(
     }
     if !server_restores_channels(session) {
         for channel in &defaults.channels {
+            let mut line = Line::new("JOIN").param(channel.channel.as_str());
+            if let Some(key) = &channel.key {
+                if key.expose().is_none() {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        "channel key is not text",
+                    ));
+                }
+                line = line.param(key);
+            }
             let channel_name = session.isupport().casemapping().channel(&channel.channel);
-            let id = session
-                .join(now(), &channel.channel, channel.key.as_ref())
-                .map_err(io::Error::other)?;
-            requests.insert(
-                id,
-                PendingRequest::AutoJoin {
-                    channel: channel_name,
-                },
-            );
+            match session.request_with_matcher(
+                now(),
+                line.clone(),
+                ResponseMatcher::Join(channel.channel.clone()),
+            ) {
+                Ok(id) => {
+                    requests.insert(
+                        id,
+                        PendingRequest::AutoJoin {
+                            channel: channel_name,
+                        },
+                    );
+                }
+                Err(RequestError::PendingLimit) => {
+                    session.send(now(), line).map_err(io::Error::other)?;
+                }
+                Err(error) => return Err(io::Error::other(error)),
+            }
         }
     }
     Ok(())
