@@ -357,14 +357,17 @@ impl Client {
     ///
     /// The future resolves only after the entire line has been written.
     /// Sending is subject to the client's normal outbound rate limit.
+    /// Construct the [`Line`] with [`Line::new`] and [`Line::param`], or explicitly parse text for
+    /// a `/quote`-style input. Parsed parameters are ordinary text: an application that puts a
+    /// credential in a parsed raw line chooses readable diagnostics and no secret-buffer wiping.
+    /// Prefer a typed client method or pass [`crate::Secret`] to [`Line::param`] for credentials.
     ///
     /// # Errors
     ///
     /// Returns [`Error::InvalidInput`] when the line cannot be represented on
     /// the wire, or [`Error::Disconnected`] if the driver stops before writing it.
-    pub fn send_raw(&self, line: impl Into<Line>) -> crate::RequestFuture<()> {
+    pub fn send_raw(&self, line: Line) -> crate::RequestFuture<()> {
         let client = self.clone();
-        let line = line.into();
         crate::RequestFuture::new(async move { client.send_message(line).await })
     }
 
@@ -405,15 +408,19 @@ impl Client {
     /// stream. Their state changes are still applied before this future
     /// completes.
     ///
+    /// Construct the [`Line`] with [`Line::new`] and [`Line::param`], or explicitly parse text for
+    /// a `/quote`-style input. Parsed parameters are ordinary text: an application that puts a
+    /// credential in a parsed raw line chooses readable diagnostics and no secret-buffer wiping.
+    /// Prefer a typed client method or pass [`crate::Secret`] to [`Line::param`] for credentials.
+    ///
     /// # Errors
     ///
     /// Returns [`Error::Unsupported`] when `labeled-response` is unavailable;
     /// raw requests have no unlabelled fallback. Also returns an error when the
     /// line cannot be represented on the wire, the request limit is reached,
     /// the response times out, or the driver stops.
-    pub fn request_raw(&self, line: impl Into<Line>) -> crate::RequestFuture<Vec<Line>> {
+    pub fn request_raw(&self, line: Line) -> crate::RequestFuture<Vec<Line>> {
         let client = self.clone();
-        let line = line.into();
         crate::RequestFuture::new(async move {
             let response = client.correlated(line, None).await?;
             Ok(response.lines)

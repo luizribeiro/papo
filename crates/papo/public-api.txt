@@ -1603,8 +1603,8 @@ pub fn papo::Client::react(&self, impl core::convert::Into<papo::MessageRef>, im
 pub fn papo::Client::reconnect(&self) -> papo::RequestFuture<()>
 pub fn papo::Client::redact(&self, impl core::convert::Into<papo::MessageRef>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::reply(&self, &papo::Message, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
-pub fn papo::Client::request_raw(&self, impl core::convert::Into<papo::Line>) -> papo::RequestFuture<alloc::vec::Vec<papo::Line>>
-pub fn papo::Client::send_raw(&self, impl core::convert::Into<papo::Line>) -> papo::RequestFuture<()>
+pub fn papo::Client::request_raw(&self, papo::Line) -> papo::RequestFuture<alloc::vec::Vec<papo::Line>>
+pub fn papo::Client::send_raw(&self, papo::Line) -> papo::RequestFuture<()>
 pub fn papo::Client::set_away(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::set_nick(&self, impl core::convert::AsRef<str>) -> papo::RequestFuture<()>
 pub fn papo::Client::set_realname(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
