@@ -76,5 +76,6 @@ ids = [
   "security.ctcp.live-only", "security.ctcp.private-target-only",
   "security.history.unknown-batch-isolation",
   "regression.history.expired-label-deduplicated",
+  "regression.labeled-response.late-live",
   "regression.multiline.oversized-live",
 ]

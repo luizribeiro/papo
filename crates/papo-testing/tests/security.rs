@@ -444,6 +444,30 @@ async fn expired_labeled_history_is_not_delivered_twice() {
 }
 
 #[tokio::test(start_paused = true)]
+async fn late_labeled_reply_is_delivered_as_a_live_message() {
+    let (_client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test")
+            .nick("papo-wire")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&["message-tags", "batch", "labeled-response"])
+        .await;
+    while !matches!(events.next().await, Some(papo::Event::Connected(_))) {}
+
+    wire.server("@label=expired :offline.test BATCH +reply-42 labeled-response")
+        .await;
+    wire.server("@batch=reply-42 :offline.test NOTICE papo-wire :request completed late")
+        .await;
+    wire.server(":offline.test BATCH -reply-42").await;
+
+    assert!(matches!(
+        events.next().await,
+        Some(papo::Event::Message(message)) if message.text == "request completed late"
+    ));
+}
+
+#[tokio::test(start_paused = true)]
 async fn oversized_multiline_fragments_are_live_messages() {
     let (_client, mut events, mut wire) = wire(
         papo::Client::builder("irc://offline.test")

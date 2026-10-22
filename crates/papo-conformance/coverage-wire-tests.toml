@@ -29,6 +29,9 @@
 "security::expired_labeled_history_is_not_delivered_twice" = [
   "regression.history.expired-label-deduplicated",
 ]
+"security::late_labeled_reply_is_delivered_as_a_live_message" = [
+  "regression.labeled-response.late-live",
+]
 "security::oversized_multiline_fragments_are_live_messages" = [
   "regression.multiline.oversized-live",
 ]
