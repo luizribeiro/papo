@@ -393,49 +393,6 @@ struct MessageMetadata {
     tags: Tags,
 }
 
-impl Ctcp {
-    #[allow(clippy::too_many_arguments)]
-    fn from_line(
-        raw: ProtoLine,
-        batch_type: Option<&str>,
-        authorship: Authorship,
-        conversation: Conversation,
-        status: Option<Vec<char>>,
-        isupport: &Isupport,
-        received_at: SystemTime,
-    ) -> Result<Self, ProtoLine> {
-        let message = raw.as_ref();
-        let Some((command, params, reply)) = ctcp_parts(&message) else {
-            return Err(raw);
-        };
-        let Some(metadata) = message_metadata(
-            &message,
-            batch_type,
-            authorship,
-            conversation,
-            status,
-            isupport,
-            received_at,
-        ) else {
-            return Err(raw);
-        };
-        Ok(Self {
-            actor: metadata.actor,
-            authorship: metadata.authorship,
-            conversation: metadata.conversation,
-            status: metadata.status,
-            command,
-            params,
-            reply,
-            msgid: metadata.msgid,
-            server_time: metadata.server_time,
-            received_at: metadata.received_at,
-            account: metadata.account,
-            tags: metadata.tags,
-        })
-    }
-}
-
 #[allow(clippy::too_many_arguments)]
 fn ctcp_from_line(
     raw: ProtoLine,
@@ -534,8 +491,6 @@ pub(crate) fn incoming_from_core(
         status,
         isupport,
         received_at,
-        true,
-        true,
     )
 }
 
@@ -852,10 +807,7 @@ fn message_event_from_line(
     status: Option<Vec<char>>,
     isupport: &Isupport,
     received_at: SystemTime,
-    route_server_notices: bool,
-    route_broadcasts: bool,
 ) -> Event {
-    let broadcast = matches!(conversation, Conversation::Broadcast(_));
     let server_notice = raw.as_ref().command_is("WALLOPS")
         || matches!(
             conversation,
@@ -863,30 +815,6 @@ fn message_event_from_line(
         )
         || matches!(raw.as_ref().source(), Some(papo_proto::Source::Server(_)));
     if server_notice {
-        if !route_server_notices || (broadcast && !route_broadcasts) {
-            let raw = match Ctcp::from_line(
-                raw,
-                batch_type,
-                authorship,
-                conversation.clone(),
-                status.clone(),
-                isupport,
-                received_at,
-            ) {
-                Ok(ctcp) => return Event::Ctcp(ctcp),
-                Err(raw) => raw,
-            };
-            return Message::new_with_context(
-                raw,
-                batch_type,
-                authorship,
-                conversation,
-                status,
-                isupport,
-                received_at,
-            )
-            .map_or_else(Event::Other, |message| Event::Message(Box::new(message)));
-        }
         return ServerNotice::from_line(
             raw,
             batch_type,
@@ -972,8 +900,6 @@ pub(crate) fn historical_message_event(
         status,
         snapshot.isupport().inner(),
         received_at,
-        true,
-        true,
     )
 }
 
@@ -2038,8 +1964,6 @@ mod tests {
             status,
             isupport,
             received_at,
-            true,
-            true,
         )
     }
 
@@ -2085,8 +2009,6 @@ mod tests {
             None,
             &isupport,
             UNIX_EPOCH,
-            true,
-            false,
         );
         assert!(matches!(wallops, Event::ServerNotice(notice)
             if notice.kind == ServerNoticeKind::Wallops
@@ -2101,8 +2023,6 @@ mod tests {
             None,
             &isupport,
             UNIX_EPOCH,
-            true,
-            true,
         );
         assert!(matches!(broadcast, Event::ServerNotice(notice)
             if matches!(notice.to, ServerNoticeTarget::Mask(_))));
@@ -2145,8 +2065,6 @@ mod tests {
                 status,
                 &isupport,
                 UNIX_EPOCH,
-                true,
-                true,
             )
         };
         let version_event = parse("PRIVMSG", "\x01VERSION\x01");
@@ -2559,8 +2477,6 @@ mod tests {
                 None,
                 &isupport,
                 UNIX_EPOCH,
-                true,
-                true,
             )
         };
         assert!(matches!(route(Authorship::Own), Event::OwnMessage(_)));
