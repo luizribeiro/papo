@@ -4050,15 +4050,6 @@ impl Session {
         self.away_on_connect_sent = true;
     }
 
-    fn snapshot_values(&self) -> (State, Capabilities, papo_proto::Isupport, Option<String>) {
-        (
-            self.state.clone(),
-            self.caps.enabled().clone(),
-            self.isupport.value().clone(),
-            self.account().map(str::to_owned),
-        )
-    }
-
     #[allow(clippy::too_many_lines)]
     fn dispatch_message(
         &mut self,
@@ -4505,11 +4496,11 @@ impl Session {
                 }
             }
             BatchEvent::Isupport(messages) => {
-                let before = self.snapshot_values();
+                let before = self.isupport.value().__generation();
                 self.isupport.handle_batch(&messages);
                 self.remember_casemapping();
                 self.sync_monitored_state();
-                if before != self.snapshot_values() {
+                if before != self.isupport.value().__generation() {
                     self.state_generation = self.state_generation.wrapping_add(1);
                 }
             }
@@ -5014,6 +5005,22 @@ mod tests {
             b"@batch=split :alice!~alice@localhost QUIT :irc.a irc.b",
         );
         session.handle_line(now, b":ergo.test BATCH -split");
+
+        assert_eq!(super::state::clone_count(), 0);
+    }
+
+    #[test]
+    fn isupport_batch_does_not_clone_full_state() {
+        let now = std::time::Instant::now();
+        let mut session = Session::new(Config::default());
+        super::state::reset_clone_count();
+
+        session.handle_line(now, b":ergo.test BATCH +support draft/isupport");
+        session.handle_line(
+            now,
+            b"@batch=support :ergo.test 005 papo CASEMAPPING=ascii :are supported",
+        );
+        session.handle_line(now, b":ergo.test BATCH -support");
 
         assert_eq!(super::state::clone_count(), 0);
     }
