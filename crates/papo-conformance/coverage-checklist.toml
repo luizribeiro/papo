@@ -60,4 +60,6 @@ ids = [
   "core.websocket.subprotocol-negotiation", "core.tls.handshake", "core.tls.cert-verification-failure", "core.tls.sni",
   "ergo.whoami", "ergo.authtoken", "ergo.relaymsg", "ergo.history-legacy",
   "ergo.nickserv-chanserv", "ergo.sasl-oauthbearer", "soju.server-notice-history",
+  # Security regressions against a scripted hostile server.
+  "security.sasl.verified-proof-before-success", "security.sasl.no-plain-fallback-after-bad-proof",
 ]

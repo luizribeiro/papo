@@ -1,0 +1,7 @@
+[tests]
+"security::scram_success_requires_verified_server_proof" = [
+  "security.sasl.verified-proof-before-success",
+]
+"security::scram_never_falls_back_to_plain_unsafely" = [
+  "security.sasl.no-plain-fallback-after-bad-proof",
+]

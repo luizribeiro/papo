@@ -90,6 +90,7 @@
             || pkgs.lib.hasInfix "/tests/data/" path
             || pkgs.lib.hasInfix "/known-failures/" path
             || pkgs.lib.hasSuffix "/crates/papo-conformance/coverage-checklist.toml" path
+            || pkgs.lib.hasSuffix "/crates/papo-conformance/coverage-wire-tests.toml" path
             || pkgs.lib.hasSuffix "/crates/papo-conformance/coverage-waivers.toml" path
             || pkgs.lib.hasSuffix "/crates/papo-conformance/server-observations.toml" path
             || pkgs.lib.hasInfix "/crates/papo-conformance/scripts/" path
