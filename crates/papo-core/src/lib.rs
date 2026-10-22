@@ -4116,6 +4116,7 @@ impl Session {
     fn send_pending_registration(&mut self, now: Instant) {
         if self.caps.enabled().contains_key(&cap::ACCOUNT_REGISTRATION) {
             if let Some(pending) = self.account_registration.take_pending() {
+                self.config.registration_on_connect = None;
                 _ = self.send_register(
                     now,
                     pending.account.as_deref(),

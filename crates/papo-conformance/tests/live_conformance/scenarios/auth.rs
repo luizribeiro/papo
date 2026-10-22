@@ -230,6 +230,38 @@ async fn account_creation(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// sends configured account registration only on the first connection
+#[scenario(
+    requires(caps = ["draft/account-registration"]),
+    covers = ["security.s4.account-registration-once"]
+)]
+async fn account_registration_once(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s
+        .connect_with(
+            s.configure("one-time-registration")?
+                .create_account(NewAccount::new(PASSWORD)),
+        )
+        .await?;
+    assert!(matches!(
+        alice.wait_for(Event::as_account_creation).await?,
+        AccountCreation::Created { .. }
+    ));
+
+    alice.reconnect().await?;
+    alice.wait_for(Event::as_disconnected).await?;
+    alice
+        .wait_for(|event| match event {
+            Event::Connected(connected) if connected.reconnected => Some(connected),
+            Event::AccountCreation(_) => panic!("account registration repeated after reconnect"),
+            Event::StandardReply(reply) if reply.command == "REGISTER" => {
+                panic!("account registration failed after being repeated")
+            }
+            _ => None,
+        })
+        .await?;
+    Ok(())
+}
+
 /// rejects creation of an existing account
 #[scenario(
     requires(caps = ["draft/account-registration"]),

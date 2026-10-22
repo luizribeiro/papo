@@ -76,6 +76,30 @@ fn configured_registration_survives_a_multiline_capability_listing() {
 }
 
 #[test]
+fn configured_registration_is_sent_only_once() {
+    let config = Config::default()
+        .wanted_caps(["draft/account-registration"])
+        .create_account_on_connect(Some("alice"), None::<String>, "account-password-7391");
+    Transcript::new(config)
+        .connect_default()
+        .server("CAP * LS :draft/account-registration=before-connect,custom-account-name")
+        .client("CAP REQ :draft/account-registration")
+        .server("CAP * ACK :draft/account-registration")
+        .client("REGISTER alice * account-password-7391")
+        .server(":ergo.test REGISTER SUCCESS alice :Account successfully registered")
+        .event(|event| matches!(event, Event::RequestUntracked { .. }))
+        .event(|event| matches!(event, Event::AccountCreated { account, .. } if account == "alice"))
+        .client("CAP END")
+        .disconnect()
+        .connect_default()
+        .server("CAP * LS :draft/account-registration=before-connect,custom-account-name")
+        .client("CAP REQ :draft/account-registration")
+        .server("CAP * ACK :draft/account-registration")
+        .client("CAP END")
+        .no_client();
+}
+
+#[test]
 fn registers_an_account_with_a_labelled_response() {
     registered()
         .update(|session| {

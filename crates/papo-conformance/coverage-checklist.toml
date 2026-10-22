@@ -68,4 +68,5 @@ ids = [
   "security.rejoin.channel-rename", "security.ctcp.no-reply-to-playback",
   "security.s3.pass-after-sts-decision",
   "security.t3.plaintext-credentials-opt-in",
+  "security.s4.account-registration-once",
 ]
