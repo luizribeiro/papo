@@ -155,10 +155,7 @@ impl Endpoint {
     /// # _ = endpoint;
     /// ```
     ///
-    #[cfg(any(
-        not(target_family = "wasm"),
-        all(target_os = "wasi", not(target_env = "p1"))
-    ))]
+    #[cfg(sockets)]
     pub fn tls(host: impl Into<String>, port: u16) -> Result<Self, InvalidInput> {
         Self::tcp(host, port, Protocol::Ircs)
     }
@@ -174,10 +171,7 @@ impl Endpoint {
     /// # _ = endpoint;
     /// ```
     ///
-    #[cfg(any(
-        not(target_family = "wasm"),
-        all(target_os = "wasi", not(target_env = "p1"))
-    ))]
+    #[cfg(sockets)]
     pub fn plaintext(host: impl Into<String>, port: u16) -> Result<Self, InvalidInput> {
         Self::tcp(host, port, Protocol::Irc)
     }
@@ -227,10 +221,7 @@ impl Endpoint {
         }
     }
 
-    #[cfg(any(
-        not(target_family = "wasm"),
-        all(target_os = "wasi", not(target_env = "p1"))
-    ))]
+    #[cfg(sockets)]
     fn tcp(host: impl Into<String>, port: u16, protocol: Protocol) -> Result<Self, InvalidInput> {
         let host = validate_host(host.into())?;
         if port == 0 {

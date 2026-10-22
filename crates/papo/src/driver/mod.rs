@@ -5,7 +5,6 @@ pub(crate) mod unstable;
 
 use catchup::{Catchup, CatchupCursor, advance_catchup, begin_catchup, server_restores_channels};
 
-#[cfg(not(browser))]
 use connect::apply_sts_action;
 use connect::{open_connection, run_plan};
 
@@ -1383,13 +1382,10 @@ where
             }
             event::CoreEvent::StsUpgrade(port) => sts.upgrade = Some(port),
             event::CoreEvent::StsPolicy(action) => {
-                #[cfg(not(browser))]
-                if let Some(store) = sts_store {
-                    apply_sts_action(store.as_mut(), sts_port, &action);
-                }
-                #[cfg(browser)]
+                if !cfg!(browser)
+                    && let Some(store) = sts_store
                 {
-                    _ = action;
+                    apply_sts_action(store.as_mut(), sts_port, &action);
                 }
             }
             event::CoreEvent::Close {

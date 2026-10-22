@@ -739,7 +739,6 @@ mod tests {
         CtcpReplies, DEFAULT_WANTED_CAPS, RateLimit, Sasl, Secret, sts::ConnectionSecurity,
     };
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    use tokio::net::TcpListener;
 
     use super::{Builder, apply_address, connect_input_error};
     use crate::{
@@ -751,9 +750,10 @@ mod tests {
         transport::TlsRoots,
     };
 
+    #[cfg(tls)]
     #[tokio::test(flavor = "current_thread", start_paused = true)]
     async fn connect_timeout_covers_a_silent_tls_peer() {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let address = listener.local_addr().unwrap();
         let peer = tokio::spawn(async move {
             let (_stream, _) = listener.accept().await.unwrap();
