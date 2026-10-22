@@ -18,12 +18,12 @@ pub fn wire_client(
     crate::Client,
     crate::Events,
     crate::Driver,
-    tokio::sync::mpsc::UnboundedReceiver<tokio::io::DuplexStream>,
+    tokio::sync::mpsc::UnboundedReceiver<(tokio::io::DuplexStream, String)>,
 ) {
     let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
-    let connector: crate::driver::Connector = Arc::new(move |_, _| {
+    let connector: crate::driver::Connector = Arc::new(move |plan, _| {
         let (client, server) = tokio::io::duplex(8192);
-        let sent = sender.send(server);
+        let sent = sender.send((server, plan.address.to_string()));
         Box::pin(async move {
             sent.map_err(|_| crate::Error::connection_lost())?;
             Ok(Box::new(client) as Box<dyn crate::rt::Io>)
@@ -179,7 +179,8 @@ mod tests {
         let builder = crate::Client::builder("irc://offline.test").nick("papo-wire");
         let (_client, _events, driver, mut connections) = super::wire_client(builder);
         let task = tokio::spawn(driver);
-        let mut server = connections.recv().await.unwrap();
+        let (mut server, endpoint) = connections.recv().await.unwrap();
+        assert_eq!(endpoint, "irc://offline.test");
         let expected = b"CAP LS 302\r\nNICK papo-wire\r\nUSER papo-wire 0 * papo-wire\r\n";
         super::client_line(&mut server, expected).await;
         task.abort();

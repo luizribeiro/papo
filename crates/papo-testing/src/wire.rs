@@ -9,7 +9,8 @@ const MAX_LINE_LEN: usize = 8191 + 512;
 /// The server side of an in-memory IRC connection.
 pub struct Wire {
     stream: Option<DuplexStream>,
-    connections: UnboundedReceiver<DuplexStream>,
+    endpoint: Option<String>,
+    connections: UnboundedReceiver<(DuplexStream, String)>,
     driver: JoinHandle<Result<(), papo::Error>>,
 }
 
@@ -32,6 +33,7 @@ pub fn wire(builder: papo::Builder) -> (papo::Client, papo::Events, Wire) {
         events,
         Wire {
             stream: None,
+            endpoint: None,
             connections,
             driver,
         },
@@ -39,6 +41,16 @@ pub fn wire(builder: papo::Builder) -> (papo::Client, papo::Events, Wire) {
 }
 
 impl Wire {
+    /// Returns the endpoint selected for the current connection attempt.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the client driver stops before opening a connection.
+    pub async fn endpoint(&mut self) -> &str {
+        _ = self.stream().await;
+        self.endpoint.as_deref().unwrap()
+    }
+
     /// Completes connection setup with a representative Ergo server burst.
     ///
     /// `caps` are advertised in `CAP LS`. Capabilities requested by the client
@@ -168,12 +180,13 @@ impl Wire {
 
     async fn stream(&mut self) -> &mut DuplexStream {
         if self.stream.is_none() {
-            self.stream = Some(
-                self.connections
-                    .recv()
-                    .await
-                    .expect("client driver stopped before connecting"),
-            );
+            let (stream, endpoint) = self
+                .connections
+                .recv()
+                .await
+                .expect("client driver stopped before connecting");
+            self.stream = Some(stream);
+            self.endpoint = Some(endpoint);
         }
         self.stream.as_mut().unwrap()
     }

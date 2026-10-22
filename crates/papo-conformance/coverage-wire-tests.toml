@@ -14,3 +14,6 @@
 "security::scram_rejects_excessive_iterations_promptly" = [
   "security.s6.scram-iteration-cap",
 ]
+"security::stored_sts_matches_a_normalized_hostname" = [
+  "security.t4.sts-normalized-host",
+]

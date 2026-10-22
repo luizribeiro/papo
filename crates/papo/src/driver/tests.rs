@@ -2301,6 +2301,46 @@ async fn stored_sts_policy_upgrades_the_connection_plan() {
     assert!(within(driver).await.unwrap().is_ok());
 }
 
+#[test]
+fn sts_store_boundary_normalizes_hosts_for_lookup_and_reschedule() {
+    #[derive(Default)]
+    struct CaseSensitiveStore(std::collections::HashMap<String, papo_core::sts::StsPolicy>);
+
+    impl papo_core::sts::StsStore for CaseSensitiveStore {
+        fn get(&self, host: &str) -> Option<papo_core::sts::StsPolicy> {
+            self.0.get(host).cloned()
+        }
+
+        fn put(&mut self, policy: papo_core::sts::StsPolicy) {
+            self.0.insert(policy.host.clone(), policy);
+        }
+
+        fn remove(&mut self, host: &str) {
+            self.0.remove(host);
+        }
+    }
+
+    let duration = Duration::from_secs(3600);
+    let original_expiry = SystemTime::now() + duration;
+    let mut store = CaseSensitiveStore::default();
+    papo_core::sts::StsStore::put(
+        &mut store,
+        papo_core::sts::StsPolicy::new("irc.example.net", 7443, original_expiry, duration),
+    );
+    let base = ConnectionPlan {
+        address: "irc://IRC.Example.net.".parse().unwrap(),
+        tls: TlsConfig::default(),
+    };
+
+    let plan = super::connect::plan_with_stored_sts(&base, &mut store);
+    assert!(plan.address.is_secure());
+    assert_eq!(plan.address.port, 7443);
+
+    super::connect::reschedule_stored_policy(&mut store, "IRC.Example.net.");
+    let refreshed = papo_core::sts::StsStore::get(&store, "irc.example.net").unwrap();
+    assert!(refreshed.expires_at > original_expiry);
+}
+
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn transport_failure_under_stored_sts_retries() {
     let calls = Arc::new(AtomicUsize::new(0));

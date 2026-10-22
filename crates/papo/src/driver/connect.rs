@@ -1,9 +1,9 @@
 use std::{collections::VecDeque, ops::ControlFlow, time::Duration};
 
-use papo_core::sts::{StsAction, StsPolicy};
+use papo_core::sts::StsAction;
 use papo_core::{
     Connection, Session,
-    sts::{ConnectionSecurity, StsStore, reschedule_on_disconnect},
+    sts::{ConnectionSecurity, StsPolicy, StsStore, reschedule_on_disconnect},
 };
 use tokio::sync::mpsc;
 
@@ -510,26 +510,32 @@ pub(super) fn apply_sts_action(store: &mut dyn StsStore, port: u16, action: &Sts
         StsAction::Persist { host, duration, .. } => {
             let now = crate::rt::now_wall();
             if let Some(expires_at) = now.checked_add(*duration) {
-                store.put(StsPolicy::new(host, port, expires_at, *duration));
+                put_sts_policy(store, StsPolicy::new(host, port, expires_at, *duration));
             }
         }
-        StsAction::Remove { host, .. } => store.remove(host),
+        StsAction::Remove { host, .. } => remove_sts_policy(store, host),
         _ => {}
     }
 }
 
-fn reschedule_stored_policy(store: &mut dyn StsStore, host: &str) {
-    if let Some(policy) = store.get(host) {
-        store.put(reschedule_on_disconnect(policy, crate::rt::now_wall()));
+pub(super) fn reschedule_stored_policy(store: &mut dyn StsStore, host: &str) {
+    if let Some(policy) = get_sts_policy(store, host) {
+        put_sts_policy(
+            store,
+            reschedule_on_disconnect(policy, crate::rt::now_wall()),
+        );
     }
 }
 
-fn plan_with_stored_sts(base: &ConnectionPlan, store: &mut dyn StsStore) -> ConnectionPlan {
-    let Some(policy) = store.get(&base.address.host) else {
+pub(super) fn plan_with_stored_sts(
+    base: &ConnectionPlan,
+    store: &mut dyn StsStore,
+) -> ConnectionPlan {
+    let Some(policy) = get_sts_policy(store, &base.address.host) else {
         return base.clone();
     };
     if !policy.is_active_at(crate::rt::now_wall()) {
-        store.remove(&base.address.host);
+        remove_sts_policy(store, &base.address.host);
         return base.clone();
     }
     if base.address.is_secure() {
@@ -539,6 +545,23 @@ fn plan_with_stored_sts(base: &ConnectionPlan, store: &mut dyn StsStore) -> Conn
     plan.address.set_tls(true);
     plan.address.set_port(policy.port);
     plan
+}
+
+fn get_sts_policy(store: &dyn StsStore, host: &str) -> Option<StsPolicy> {
+    store.get(&normalize_sts_host(host))
+}
+
+fn put_sts_policy(store: &mut dyn StsStore, mut policy: StsPolicy) {
+    policy.host = normalize_sts_host(&policy.host);
+    store.put(policy);
+}
+
+fn remove_sts_policy(store: &mut dyn StsStore, host: &str) {
+    store.remove(&normalize_sts_host(host));
+}
+
+fn normalize_sts_host(host: &str) -> String {
+    host.strip_suffix('.').unwrap_or(host).to_ascii_lowercase()
 }
 
 pub(super) fn is_fatal_failure(error: &Error, close_kind: Option<papo_core::CloseKind>) -> bool {

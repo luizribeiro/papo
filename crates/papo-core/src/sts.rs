@@ -199,12 +199,19 @@ impl StsPolicy {
 /// shows one way for an app to own that persistence.
 pub trait StsStore {
     /// Returns the stored policy for `host`, if one exists.
+    ///
+    /// Callers provide an ASCII-lowercase hostname without a trailing root dot.
     fn get(&self, host: &str) -> Option<StsPolicy>;
 
     /// Inserts or replaces a host's policy.
+    ///
+    /// Callers normalize [`StsPolicy::host`] to ASCII lowercase without a
+    /// trailing root dot.
     fn put(&mut self, policy: StsPolicy);
 
     /// Removes a host's policy, if one exists.
+    ///
+    /// Callers provide an ASCII-lowercase hostname without a trailing root dot.
     fn remove(&mut self, host: &str);
 }
 

@@ -1,12 +1,33 @@
 //! Highest-layer regressions for hostile-server security findings.
 
-use std::time::Duration;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+    time::{Duration, SystemTime},
+};
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use papo::{ConnectErrorKind, DisconnectCause, Disconnected, Events, Reconnect, Sasl};
 use papo_testing::{Wire, wire};
 
 const PASSWORD: &str = "correct horse battery staple";
+
+#[derive(Clone, Default)]
+struct CaseSensitiveStsStore(Arc<Mutex<HashMap<String, papo::sts::StsPolicy>>>);
+
+impl papo::sts::StsStore for CaseSensitiveStsStore {
+    fn get(&self, host: &str) -> Option<papo::sts::StsPolicy> {
+        self.0.lock().unwrap().get(host).cloned()
+    }
+
+    fn put(&mut self, policy: papo::sts::StsPolicy) {
+        self.0.lock().unwrap().insert(policy.host.clone(), policy);
+    }
+
+    fn remove(&mut self, host: &str) {
+        self.0.lock().unwrap().remove(host);
+    }
+}
 
 async fn start_scram(address: &str) -> (papo::Client, Events, Wire) {
     let (client, events, mut wire) = wire(
@@ -219,4 +240,26 @@ async fn scram_rejects_excessive_iterations_promptly() {
         .await;
     let disconnected = sasl_disconnect(&mut events).await;
     assert_sasl_failure(&disconnected, "IterationCountTooHigh");
+}
+
+#[tokio::test]
+async fn stored_sts_matches_a_normalized_hostname() {
+    let mut store = CaseSensitiveStsStore::default();
+    papo::sts::StsStore::put(
+        &mut store,
+        papo::sts::StsPolicy::new(
+            "irc.example.net",
+            7443,
+            SystemTime::now() + Duration::from_secs(3600),
+            Duration::from_secs(3600),
+        ),
+    );
+    let (_client, _events, mut wire) = wire(
+        papo::Client::builder("irc://IRC.Example.net.")
+            .nick("papo-wire")
+            .reconnect(Reconnect::never())
+            .sts_store(store),
+    );
+
+    assert_eq!(wire.endpoint().await, "ircs://IRC.Example.net.:7443");
 }

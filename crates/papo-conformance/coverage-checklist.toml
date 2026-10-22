@@ -70,4 +70,5 @@ ids = [
   "security.t3.plaintext-credentials-opt-in",
   "security.s4.account-registration-once",
   "security.s6.scram-iteration-cap",
+  "security.t4.sts-normalized-host",
 ]
