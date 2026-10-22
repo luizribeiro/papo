@@ -97,6 +97,40 @@ async fn parted_rejoin_is_not_restored(s: Scenario) -> papo_testing::Result<()> 
     Ok(())
 }
 
+/// keeps late members of a refused batch from causing live side effects
+#[scenario(covers = ["security.h1.abandoned-batch-members-not-live"])]
+async fn abandoned_batch_members_stay_replay_only(_s: Scenario) -> papo_testing::Result<()> {
+    let (client, _events, mut wire) = papo_testing::wire(
+        papo::Client::builder("irc://offline.test")
+            .nick("papo-wire")
+            .rate_limit(papo::RateLimit::unlimited()),
+    );
+    wire.register(&["batch"]).await;
+    wire.server(":papo-wire!~papo@localhost JOIN #private")
+        .await;
+    for index in 0..64 {
+        wire.server(format!("BATCH +held{index} vendor/sync")).await;
+    }
+    wire.server("BATCH +refused draft/event-playback #private")
+        .await;
+    wire.server("@batch=refused :alice!~alice@staff.example PRIVMSG papo-wire :\u{1}VERSION\u{1}")
+        .await;
+    wire.server("@batch=refused :papo-wire!~papo@localhost PART #private :old playback")
+        .await;
+
+    let ping_client = client.clone();
+    let ping = tokio::spawn(async move { ping_client.ping().await });
+    let sent = wire.next_sent().await;
+    let token = sent
+        .strip_prefix("PING ")
+        .unwrap_or_else(|| panic!("late replay traffic caused an outgoing line: {sent}"));
+    wire.server(format!(":offline.test PONG offline.test :{token}"))
+        .await;
+    ping.await.unwrap()?;
+    assert!(client.state().channel("#private").is_some());
+    Ok(())
+}
+
 /// does not answer a CTCP query replayed from bouncer history
 #[scenario(
     requires(caps = ["batch"]),

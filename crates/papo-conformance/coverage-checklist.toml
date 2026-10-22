@@ -88,4 +88,5 @@ ids = [
   "security.inj-8.outgoing-fuzz-coverage",
   "security.r1.labelled-rejoin-routing",
   "security.r2.no-stale-rejoin-after-part",
+  "security.h1.abandoned-batch-members-not-live",
 ]
