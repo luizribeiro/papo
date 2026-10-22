@@ -7,78 +7,11 @@ use tokio::sync::oneshot;
 use crate::{
     Client, Error, Event, Line, Message as ChatMessage, Origin,
     driver::Command,
-    event::{
-        Joined, Kicked, ModeChanged, NickChanged, Parted, Quit, Reacted, Redacted, TopicChanged,
-    },
+    event::{Kicked, ModeChanged, NickChanged, Parted, Quit, Reacted, Redacted, TopicChanged},
 };
 
-/// One typed entry in a history page.
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[non_exhaustive]
-#[allow(clippy::large_enum_variant)]
-pub(crate) enum HistoryItem {
-    /// A replayed `PRIVMSG` or `NOTICE`.
-    Message(ChatMessage),
-    /// A replayed reaction or unreaction.
-    Reacted(Reacted),
-    /// A replayed message redaction.
-    Redacted(Redacted),
-    /// A replayed channel join.
-    Joined(Joined),
-    /// A replayed channel part.
-    Parted(Parted),
-    /// A replayed user quit.
-    Quit(Quit),
-    /// A replayed channel kick.
-    Kicked(Kicked),
-    /// A replayed nickname change.
-    NickChanged(NickChanged),
-    /// A replayed topic change.
-    TopicChanged(TopicChanged),
-    /// A replayed mode change.
-    ModeChanged(ModeChanged),
-    /// A line papo did not turn into a typed event.
-    ///
-    /// This includes unknown numerics, vendor commands, and new drafts. Match it only for display
-    /// and logging; a future version may type it.
-    #[non_exhaustive]
-    Other {
-        /// The untyped wire line.
-        line: Line,
-        /// The server-assigned identifier, when supplied.
-        msgid: Option<crate::MessageId>,
-        /// Valid server time, or the local receipt time when none was supplied.
-        time: SystemTime,
-    },
-}
-
-impl HistoryItem {
-    pub(crate) fn into_event(self) -> Event {
-        match self {
-            Self::Message(event) => Event::Message(Box::new(event)),
-            Self::Reacted(event) => Event::Reacted(event),
-            Self::Redacted(event) => Event::Redacted(event),
-            Self::Joined(event) => Event::Joined(event),
-            Self::Parted(event) => Event::Parted(event),
-            Self::Quit(event) => Event::Quit(event),
-            Self::Kicked(event) => Event::Kicked(event),
-            Self::NickChanged(event) => Event::NickChanged(event),
-            Self::TopicChanged(event) => Event::TopicChanged(event),
-            Self::ModeChanged(event) => Event::ModeChanged(event),
-            Self::Other { line, .. } => Event::Other(line),
-        }
-    }
-}
-
-fn other(line: Line, received_at: SystemTime) -> HistoryItem {
-    let parsed = line.as_ref();
-    let msgid = parsed.tag("msgid").map(|value| value.as_ref().into());
-    let time = parsed
-        .tag("time")
-        .or_else(|| parsed.tag("znc.in/server-time-iso"))
-        .and_then(|value| papo_proto::time::parse(&value))
-        .unwrap_or(received_at);
-    HistoryItem::Other { line, msgid, time }
+fn other(line: Line, _received_at: SystemTime) -> Event {
+    Event::Other(line)
 }
 
 #[allow(clippy::too_many_lines)]
@@ -88,7 +21,7 @@ pub(crate) fn history_item(
     client: &Client,
     received_at: SystemTime,
     origin: Origin,
-) -> HistoryItem {
+) -> Event {
     let state = client.state();
     let mapping = state.casemapping();
     match item {
@@ -102,7 +35,10 @@ pub(crate) fn history_item(
                 received_at,
                 origin,
             );
-            message.map_or_else(|line| other(line, received_at), HistoryItem::Message)
+            message.map_or_else(
+                |line| other(line, received_at),
+                |message| Event::Message(Box::new(message)),
+            )
         }
         papo_core::HistoryItem::Reacted(item) => typed_or_raw(&item.line, received_at, |message| {
             reaction(
@@ -200,9 +136,9 @@ pub(crate) fn history_item(
     }
 }
 
-fn typed_or_raw<F>(raw: &papo_proto::Line, received_at: SystemTime, convert: F) -> HistoryItem
+fn typed_or_raw<F>(raw: &papo_proto::Line, received_at: SystemTime, convert: F) -> Event
 where
-    F: FnOnce(&papo_proto::LineRef<'_>) -> Option<HistoryItem>,
+    F: FnOnce(&papo_proto::LineRef<'_>) -> Option<Event>,
 {
     convert(&raw.as_ref()).unwrap_or_else(|| other(raw.clone(), received_at))
 }
@@ -215,7 +151,7 @@ fn reaction(
     isupport: &papo_proto::Isupport,
     history_conversation: Option<&crate::Conversation>,
     received_at: SystemTime,
-) -> Option<HistoryItem> {
+) -> Option<Event> {
     let reaction = Reaction::parse(message)?;
     let (status, conversation) =
         papo_core::classify_conversation(message, own_nick, isupport).ok()?;
@@ -233,7 +169,7 @@ fn reaction(
         .map(|value| (value, false))
         .or_else(|| reaction.unreact.map(|value| (value, true)))?;
     let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
-    Some(HistoryItem::Reacted(Reacted {
+    Some(Event::Reacted(Reacted {
         msgid: envelope.msgid,
         time: envelope.time,
         account: envelope.account,
@@ -255,7 +191,7 @@ fn redaction(
     isupport: &papo_proto::Isupport,
     history_conversation: Option<&crate::Conversation>,
     received_at: SystemTime,
-) -> Option<HistoryItem> {
+) -> Option<Event> {
     let (status, conversation) =
         papo_core::classify_conversation(message, own_nick, isupport).ok()?;
     let conversation = crate::event_impl::historical_conversation(
@@ -267,7 +203,7 @@ fn redaction(
         mapping,
     );
     let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
-    Some(HistoryItem::Redacted(Redacted {
+    Some(Event::Redacted(Redacted {
         msgid: envelope.msgid,
         time: envelope.time,
         account: envelope.account,
@@ -288,10 +224,10 @@ fn joined(
     authorship: crate::Authorship,
     client: &Client,
     received_at: SystemTime,
-) -> Option<HistoryItem> {
+) -> Option<Event> {
     let mapping = client.state().casemapping();
     crate::event_impl::joined_from_line(message, authorship, mapping, received_at)
-        .map(HistoryItem::Joined)
+        .map(Event::Joined)
 }
 
 fn parted(
@@ -299,11 +235,11 @@ fn parted(
     authorship: crate::Authorship,
     client: &Client,
     received_at: SystemTime,
-) -> Option<HistoryItem> {
+) -> Option<Event> {
     let nick = source_nick(message)?;
     let mapping = client.state().casemapping();
     let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
-    Some(HistoryItem::Parted(Parted {
+    Some(Event::Parted(Parted {
         msgid: envelope.msgid,
         time: envelope.time,
         account: envelope.account,
@@ -324,9 +260,9 @@ fn quit(
     history_conversation: Option<&crate::Conversation>,
     mapping: crate::Casemapping,
     received_at: SystemTime,
-) -> Option<HistoryItem> {
+) -> Option<Event> {
     let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
-    Some(HistoryItem::Quit(Quit {
+    Some(Event::Quit(Quit {
         msgid: envelope.msgid,
         time: envelope.time,
         account: envelope.account,
@@ -350,11 +286,11 @@ fn kicked(
     subject_authorship: crate::Authorship,
     client: &Client,
     received_at: SystemTime,
-) -> Option<HistoryItem> {
+) -> Option<Event> {
     let nick = message.param(1)?.to_owned();
     let mapping = client.state().casemapping();
     let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
-    Some(HistoryItem::Kicked(Kicked {
+    Some(Event::Kicked(Kicked {
         msgid: envelope.msgid,
         time: envelope.time,
         account: envelope.account,
@@ -375,11 +311,11 @@ fn nick_changed(
     authorship: crate::Authorship,
     client: &Client,
     received_at: SystemTime,
-) -> Option<HistoryItem> {
+) -> Option<Event> {
     let old = source_nick(message)?;
     let mapping = client.state().casemapping();
     let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
-    Some(HistoryItem::NickChanged(NickChanged {
+    Some(Event::NickChanged(NickChanged {
         msgid: envelope.msgid,
         time: envelope.time,
         account: envelope.account,
@@ -395,9 +331,9 @@ fn topic_changed(
     authorship: crate::Authorship,
     mapping: crate::Casemapping,
     received_at: SystemTime,
-) -> Option<HistoryItem> {
+) -> Option<Event> {
     let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
-    Some(HistoryItem::TopicChanged(TopicChanged {
+    Some(Event::TopicChanged(TopicChanged {
         msgid: envelope.msgid,
         time: envelope.time,
         account: envelope.account,
@@ -417,7 +353,7 @@ fn mode_changed(
     subject_authorship: crate::Authorship,
     client: &Client,
     received_at: SystemTime,
-) -> Option<HistoryItem> {
+) -> Option<Event> {
     let state = client.state();
     let mapping = state.casemapping();
     let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
@@ -436,7 +372,7 @@ fn mode_changed(
         )
     })
     .collect();
-    Some(HistoryItem::ModeChanged(ModeChanged {
+    Some(Event::ModeChanged(ModeChanged {
         msgid: envelope.msgid,
         time: envelope.time,
         account: envelope.account,
@@ -805,7 +741,6 @@ impl Client {
                     crate::rt::now_wall(),
                     Origin::History,
                 )
-                .into_event()
             })
             .collect();
         Ok(crate::HistoryPage {
@@ -946,9 +881,9 @@ mod tests {
     use papo_core::{Config, Event as CoreEvent, HistoryLine, HistoryQuery, MsgRef, Sasl, Session};
     use papo_proto::{Casemapping, Line, LineRef};
 
-    use super::{
-        ConversationInput, HistoryItem as PageEvent, HistoryReference, history_item, reaction,
-    };
+    use crate::Event as PageEvent;
+
+    use super::{ConversationInput, HistoryReference, history_item, reaction};
 
     fn core_item(message: &str) -> HistoryLine {
         HistoryLine {
@@ -1097,10 +1032,10 @@ mod tests {
         assert_eq!(message.msgid, None);
         assert_eq!(message.time, server_time);
         assert!(
-            matches!(HistoryReference::from(&message).0, MsgRef::Timestamp(time) if time == server_time)
+            matches!(HistoryReference::from(&*message).0, MsgRef::Timestamp(time) if time == server_time)
         );
         assert!(matches!(
-            client.history("#papo").before(&message).query,
+            client.history("#papo").before(&*message).query,
             Ok(HistoryQuery::Before {
                 before: MsgRef::Timestamp(time),
                 ..
@@ -1207,7 +1142,7 @@ mod tests {
             UNIX_EPOCH,
             crate::Origin::History,
         );
-        assert!(matches!(item, PageEvent::Other { line, .. } if line.command() == "REDACT"));
+        assert!(matches!(item, PageEvent::Other(line) if line.command() == "REDACT"));
     }
 
     #[test]
