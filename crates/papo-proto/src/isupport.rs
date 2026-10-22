@@ -91,6 +91,7 @@ impl ClientTagDeny<'_> {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Isupport {
     tokens: HashMap<String, Option<String>>,
+    generation: u64,
 }
 
 macro_rules! length_accessors {
@@ -141,18 +142,36 @@ impl Isupport {
     {
         for token in tokens {
             let token = token.as_ref();
-            if let Some(key) = token.strip_prefix('-') {
-                self.tokens.remove(&canonical(key).to_ascii_uppercase());
+            let changed = if let Some(key) = token.strip_prefix('-') {
+                self.tokens
+                    .remove(&canonical(key).to_ascii_uppercase())
+                    .is_some()
             } else if let Some((key, value)) = token.split_once('=') {
-                if !key.is_empty() {
+                if key.is_empty() {
+                    false
+                } else {
+                    let value = Some(unescape(value));
                     self.tokens
-                        .insert(canonical(key).to_ascii_uppercase(), Some(unescape(value)));
+                        .insert(canonical(key).to_ascii_uppercase(), value.clone())
+                        != Some(value)
                 }
             } else if !token.is_empty() {
                 self.tokens
-                    .insert(canonical(token).to_ascii_uppercase(), None);
+                    .insert(canonical(token).to_ascii_uppercase(), None)
+                    != Some(None)
+            } else {
+                false
+            };
+            if changed {
+                self.generation = self.generation.wrapping_add(1);
             }
         }
+    }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __generation(&self) -> u64 {
+        self.generation
     }
 
     /// Returns whether a token is absent, bare, or has a value.
@@ -527,4 +546,21 @@ fn unescape(value: &str) -> String {
         rest = &rest[consumed..];
     }
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Isupport;
+
+    #[test]
+    fn generation_changes_only_when_a_token_changes() {
+        let mut isupport = Isupport::default();
+        isupport.apply_tokens(["CASEMAPPING=ascii"]);
+        assert_eq!(isupport.__generation(), 1);
+
+        isupport.apply_tokens(["CASEMAPPING=ascii", "-PREFIX"]);
+        assert_eq!(isupport.__generation(), 1);
+        isupport.apply_tokens(["CASEMAPPING=rfc1459", "PREFIX=(ov)@+"]);
+        assert_eq!(isupport.__generation(), 3);
+    }
 }
