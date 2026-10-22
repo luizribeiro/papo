@@ -51,8 +51,8 @@ use std::{
 use web_time::Instant;
 
 use papo::{
-    AccountName, ChannelName, Chat, Client, Conversation, InvalidRateLimit, Message as ChatMessage,
-    MessageKind, Source,
+    AccountName, Chat, Client, Conversation, InvalidRateLimit, Message as ChatMessage, MessageKind,
+    Source,
 };
 
 const MAX_RATE_TARGETS: usize = 1024;
@@ -299,13 +299,24 @@ impl Command {
         &self.client
     }
 
-    /// Returns the channel where the command was sent, if it was not private.
-    #[must_use]
-    pub const fn channel(&self) -> Option<&ChannelName> {
-        match &self.message.conversation {
-            Chat::Channel(channel) => Some(channel),
-            _ => None,
+    /// Sends an unthreaded message to the command's return address.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same errors as [`Client::privmsg`].
+    pub async fn say(&self, text: impl Into<String>) -> Result<ReplyStatus, papo::Error> {
+        if let Chat::Private(target) = &self.message.conversation
+            && self.recipient_changed(target)
+        {
+            return Ok(ReplyStatus::RecipientChanged);
         }
+        if !self.replies.check(self.message.conversation.clone()) {
+            return Ok(ReplyStatus::Dropped);
+        }
+        self.client
+            .privmsg(self.message.return_address(), text)
+            .await?;
+        Ok(ReplyStatus::Sent)
     }
 
     /// Sends a threaded reply unless the return address has exhausted its reply budget.
@@ -456,8 +467,8 @@ mod tests {
 
     use futures_io::{AsyncRead, AsyncWrite};
     use papo::{
-        AccountName, Authorship, Casemapping, ChannelName, Client, Conversation, InvalidRateLimit,
-        MessageKind, Nick,
+        AccountName, Authorship, Casemapping, Client, Conversation, InvalidRateLimit, MessageKind,
+        Nick,
     };
     use papo_testing::MessageBuilder;
     use web_time::Instant;
@@ -823,14 +834,10 @@ mod tests {
     }
 
     #[test]
-    fn reports_channel_and_rejects_non_commands() {
+    fn reports_actor_and_rejects_non_commands() {
         let channel = parse(&message("#papo", "!ping"), &BotConfig::new("!")).unwrap();
         let actor: Option<&Nick> = channel.actor.nick();
-        let channel_name: Option<&ChannelName> = channel.channel();
         assert_eq!(actor, Some(&Casemapping::Rfc1459.nick("emily")));
-        assert_eq!(channel_name, Some(&Casemapping::Rfc1459.channel("#papo")));
-        let private = parse(&message("papo{bot}", "!ping"), &BotConfig::new("!")).unwrap();
-        assert_eq!(private.channel(), None);
 
         let config = BotConfig::new("!").mention(false);
         assert!(parse(&message("#papo", "papo: ping"), &config).is_none());
@@ -894,6 +901,35 @@ mod tests {
         assert!(first.reply("pong").await.is_err());
         assert!(second.reply("pong").await.is_err());
         assert_eq!(third.reply("pong").await.unwrap(), ReplyStatus::Dropped);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn say_keeps_the_command_return_address() {
+        let transcript = concat!(
+            ":ergo.test CAP * LS :\r\n",
+            ":ergo.test 005 papo{bot} CHANTYPES=# STATUSMSG=@+ :are supported\r\n",
+            ":ergo.test 001 papo{bot} :Welcome\r\n",
+            ":ergo.test 422 papo{bot} :MOTD missing\r\n",
+            ":emily!~emily@localhost PRIVMSG @#ops :!ping\r\n",
+        );
+        let stream = TranscriptStream::new(transcript);
+        let output = stream.output();
+        let (client, mut events, driver) = Client::builder("irc.example")
+            .nick("papo{bot}")
+            .stream(stream)
+            .build();
+        let driver = tokio::spawn(driver);
+        let incoming = loop {
+            if let Some(papo::Event::Message(message)) = events.next().await {
+                break message;
+            }
+        };
+        let command = BotConfig::new("!").command(&client, &incoming).unwrap();
+        assert_eq!(command.say("pong").await.unwrap(), ReplyStatus::Sent);
+        tokio::task::yield_now().await;
+        let output = String::from_utf8(output.lock().unwrap().clone()).unwrap();
+        assert!(output.contains("PRIVMSG @#ops pong\r\n"), "{output:?}");
+        driver.abort();
     }
 
     #[tokio::test(flavor = "current_thread")]
