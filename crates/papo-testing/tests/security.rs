@@ -132,3 +132,38 @@ async fn scram_success_requires_verified_server_proof() {
     let disconnected = sasl_disconnect(&mut events).await;
     assert_sasl_failure(&disconnected, "ServerSignatureMismatch");
 }
+
+#[tokio::test(start_paused = true)]
+async fn scram_never_falls_back_to_plain_unsafely() {
+    for advertise_plain in [false, true] {
+        let (_client, mut events, mut wire) = start_scram("irc://offline.test").await;
+        if advertise_plain {
+            wire.server(":offline.test 908 papo-wire PLAIN :available SASL mechanisms")
+                .await;
+        }
+        wire.server(":offline.test 904 papo-wire :SASL authentication failed")
+            .await;
+        let disconnected = sasl_disconnect(&mut events).await;
+        assert_sasl_failure(&disconnected, "PLAIN fallback");
+    }
+
+    let (_client, _events, mut wire) = start_scram("ircs://offline.test").await;
+    wire.server(":offline.test 904 papo-wire :SASL authentication failed")
+        .await;
+    assert_eq!(wire.next_sent().await, "AUTHENTICATE PLAIN");
+
+    let (_client, mut events, mut wire) = start_scram("ircs://offline.test").await;
+    wire.server("AUTHENTICATE +").await;
+    assert!(wire.next_sent().await.starts_with("AUTHENTICATE "));
+    wire.server(":offline.test 904 papo-wire :SASL authentication failed")
+        .await;
+    let disconnected = sasl_disconnect(&mut events).await;
+    assert_sasl_failure(&disconnected, "PLAIN fallback");
+
+    let (_client, mut events, mut wire) = start_scram("ircs://offline.test").await;
+    send_bad_server_proof(&mut wire).await;
+    wire.server(":offline.test 906 papo-wire :SASL authentication aborted")
+        .await;
+    let disconnected = sasl_disconnect(&mut events).await;
+    assert_sasl_failure(&disconnected, "ServerSignatureMismatch");
+}
