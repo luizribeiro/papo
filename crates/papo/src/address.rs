@@ -689,6 +689,13 @@ mod tests {
     }
 
     #[test]
+    fn sts_upgrade_preserves_the_websocket_transport_port() {
+        let mut address: ServerAddress = "ws://irc.example.net/webirc".parse().unwrap();
+        address.apply_sts_upgrade(6697);
+        assert_eq!(address.to_string(), "wss://irc.example.net/webirc");
+    }
+
+    #[test]
     fn builds_websocket_urls_with_brackets_and_default_paths() {
         let ipv6: ServerAddress = "wss://[2001:db8::2]:8443/irc".parse().unwrap();
         assert_eq!(
