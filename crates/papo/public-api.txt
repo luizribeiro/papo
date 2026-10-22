@@ -699,6 +699,38 @@ impl core::marker::Unpin for papo::event::NickChanged
 impl core::marker::UnsafeUnpin for papo::event::NickChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::NickChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::NickChanged
+#[non_exhaustive] pub struct papo::event::Notice
+pub papo::event::Notice::account: core::option::Option<papo::AccountName>
+pub papo::event::Notice::actor: papo::Source
+pub papo::event::Notice::authorship: papo::Authorship
+pub papo::event::Notice::channel_context: core::option::Option<papo::ChannelName>
+pub papo::event::Notice::conversation: papo::Chat
+pub papo::event::Notice::is_bot: bool
+pub papo::event::Notice::kind: papo::event::NoticeKind
+pub papo::event::Notice::msgid: core::option::Option<papo::MessageId>
+pub papo::event::Notice::oper: core::option::Option<alloc::string::String>
+pub papo::event::Notice::raw_text: alloc::string::String
+pub papo::event::Notice::received_at: std::time::SystemTime
+pub papo::event::Notice::reply_to: core::option::Option<papo::MessageId>
+pub papo::event::Notice::server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::Notice::status: core::option::Option<alloc::vec::Vec<char>>
+pub papo::event::Notice::tags: papo::Tags
+pub papo::event::Notice::text: alloc::string::String
+impl core::clone::Clone for papo::event::Notice
+pub fn papo::event::Notice::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::Notice
+impl core::cmp::PartialEq for papo::event::Notice
+pub fn papo::event::Notice::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::Notice
+pub fn papo::event::Notice::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::Notice
+impl core::marker::Freeze for papo::event::Notice
+impl core::marker::Send for papo::event::Notice
+impl core::marker::Sync for papo::event::Notice
+impl core::marker::Unpin for papo::event::Notice
+impl core::marker::UnsafeUnpin for papo::event::Notice
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Notice
+impl core::panic::unwind_safe::UnwindSafe for papo::event::Notice
 #[non_exhaustive] pub struct papo::event::Parted
 pub papo::event::Parted::account: core::option::Option<papo::AccountName>
 pub papo::event::Parted::actor: papo::Source

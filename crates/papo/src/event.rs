@@ -284,6 +284,47 @@ pub struct Message {
     pub tags: Tags,
 }
 
+/// An incoming `NOTICE` from another user.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct Notice {
+    /// The user that sent the notice.
+    pub actor: Source,
+    /// Whether the actor is this client's user.
+    pub authorship: Authorship,
+    /// The chat conversation to which the notice belongs.
+    pub conversation: Chat,
+    /// `STATUSMSG` prefixes removed from the wire address, in wire order.
+    pub status: Option<Vec<char>>,
+    /// Display text with IRC formatting removed.
+    pub text: String,
+    /// Text with IRC formatting retained and the CTCP wrapper removed from an `ACTION`.
+    pub raw_text: String,
+    /// The semantic notice kind.
+    pub kind: NoticeKind,
+    /// The server-assigned message identifier, when supplied.
+    pub msgid: Option<MessageId>,
+    /// Valid server time, when supplied.
+    pub server_time: Option<SystemTime>,
+    /// Time at which the line was received.
+    pub received_at: SystemTime,
+    /// The actor's authenticated account, when tagged.
+    pub account: Option<AccountName>,
+    /// The identifier referenced by a reply tag.
+    pub reply_to: Option<MessageId>,
+    /// Channel context attached to a private notice.
+    pub channel_context: Option<ChannelName>,
+    /// Nickname of the client that submitted a relayed notice.
+    #[cfg(feature = "unstable")]
+    pub relayed_by: Option<Nick>,
+    /// Whether the notice carried the `bot` tag.
+    pub is_bot: bool,
+    /// IRC operator name, when the operator tag supplied one.
+    pub oper: Option<String>,
+    /// All message tags in wire order.
+    pub tags: Tags,
+}
+
 struct MessageMetadata {
     actor: Source,
     authorship: Authorship,
