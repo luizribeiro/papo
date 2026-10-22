@@ -16,7 +16,7 @@ use std::{
     time::Duration,
 };
 
-use libtest_mimic::{Completion, Failed, Trial};
+use libtest_mimic::{Completion, Failed};
 use papo::{Client, Endpoint, Event, Events, Isupport, isupport::Advertised};
 use papo_core::{Capabilities, Sasl};
 use papo_test_server::ServerInfo;
@@ -140,39 +140,6 @@ pub fn scenario_coverage() -> Vec<ScenarioCoverage> {
         .collect()
 }
 
-#[expect(dead_code, reason = "removed with the remaining custom trial adapter")]
-fn trial(
-    spec: ScenarioSpec,
-    server: ServerInfo,
-    probe: &Welcome,
-    known_failure: Option<String>,
-    server_name: String,
-    json: bool,
-) -> Trial {
-    if let Some(reason) = spec.requires.unsupported(&probe.caps, &probe.isupport) {
-        return Trial::ignorable_test(spec.name, move || {
-            let result = Ok(Completion::ignored_with(reason));
-            report_scenario_status(spec.name, &result, None, json);
-            result
-        })
-        .with_kind(spec.doc);
-    }
-    Trial::ignorable_test(spec.name, move || {
-        let result = catch_scenario_panic(|| {
-            runtime().block_on((spec.run)(Scenario {
-                fixture: Some(scenario::Scenario::new(server.clone())),
-                server,
-                name: spec.name,
-                json,
-            }))
-        });
-        let result = fixture_completion(result);
-        report_scenario_status(spec.name, &result, known_failure.as_deref(), json);
-        known_failure_verdict(result, known_failure.as_deref(), &server_name)
-    })
-    .with_kind(spec.doc)
-}
-
 fn catch_scenario_panic(run: impl FnOnce() -> FixtureResult) -> FixtureResult {
     match catch_unwind(AssertUnwindSafe(run)) {
         Ok(result) => result,
@@ -187,6 +154,7 @@ fn catch_scenario_panic(run: impl FnOnce() -> FixtureResult) -> FixtureResult {
     }
 }
 
+#[allow(dead_code, reason = "removed with the remaining custom status model")]
 fn fixture_completion(result: FixtureResult) -> HarnessResult {
     match result {
         Ok(()) => Ok(Completion::Completed),
@@ -197,6 +165,7 @@ fn fixture_completion(result: FixtureResult) -> HarnessResult {
     }
 }
 
+#[allow(dead_code, reason = "removed with the remaining custom status model")]
 fn report_scenario_status(
     name: &str,
     result: &HarnessResult,
@@ -368,6 +337,7 @@ fn known_failure_field<'a>(
         .ok_or_else(|| format!("known failure {name:?} is missing {field:?}"))
 }
 
+#[allow(dead_code, reason = "removed with the remaining custom status model")]
 fn known_failure_verdict(
     result: HarnessResult,
     reason: Option<&str>,
