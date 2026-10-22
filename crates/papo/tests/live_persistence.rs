@@ -1,25 +1,16 @@
-//! Account and persistence APIs against the runner-managed Ergo server.
-#![cfg(sockets)]
+//! Persistent reconnects against the runner-managed Ergo server.
+#![cfg(not(target_family = "wasm"))]
 #![cfg(feature = "unstable")]
 
 mod support;
 
 use support::within;
 
-#[cfg(not(target_family = "wasm"))]
-use std::net::SocketAddr;
-#[cfg(not(target_family = "wasm"))]
-use std::time::Duration;
+use std::{net::SocketAddr, time::Duration};
 
-#[cfg(not(target_family = "wasm"))]
-use papo::PersistenceSetting;
-#[cfg(not(target_family = "wasm"))]
-use papo::Reconnect;
-use papo::{Client, Endpoint, Event, Sasl};
-#[cfg(not(target_family = "wasm"))]
+use papo::{Client, Endpoint, Event, PersistenceSetting, Reconnect, Sasl};
 use papo_test_server::create_account;
 use papo_test_server::{from_env, unique};
-#[cfg(not(target_family = "wasm"))]
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
@@ -28,7 +19,6 @@ use tokio::{
 
 const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
 
-#[cfg(not(target_family = "wasm"))]
 #[tokio::test(flavor = "current_thread")]
 async fn persistent_server_restores_channels_without_a_client_join() {
     within(async {
@@ -99,7 +89,6 @@ async fn persistent_server_restores_channels_without_a_client_join() {
     .await;
 }
 
-#[cfg(not(target_family = "wasm"))]
 async fn disconnecting_proxy(
     target: SocketAddr,
 ) -> (
@@ -127,7 +116,6 @@ async fn disconnecting_proxy(
     (address, disconnect, lines)
 }
 
-#[cfg(not(target_family = "wasm"))]
 async fn forward_client_lines(
     mut reader: tokio::net::tcp::OwnedReadHalf,
     mut writer: tokio::net::tcp::OwnedWriteHalf,
@@ -149,7 +137,6 @@ async fn forward_client_lines(
     }
 }
 
-#[cfg(not(target_family = "wasm"))]
 async fn wait_for(events: &mut papo::Events, accepted: impl Fn(&Event) -> bool) {
     loop {
         let event = events.next().await.expect("driver stopped unexpectedly");

@@ -6,8 +6,6 @@ mod support;
 use support::within;
 
 use papo::{Client, Endpoint, Event};
-#[cfg(all(not(target_family = "wasm"), feature = "unstable"))]
-use papo_test_server::TestServer;
 use papo_test_server::{from_env, unique};
 
 #[tokio::test(flavor = "current_thread")]
@@ -70,6 +68,8 @@ async fn subscriber_receives_another_clients_metadata() {
 #[tokio::test(flavor = "current_thread")]
 #[cfg(all(not(target_family = "wasm"), feature = "unstable"))]
 async fn member_sees_channel_rename_and_relay_attribution() {
+    use papo_test_server::TestServer;
+
     within(async {
         let server = TestServer::start_with_ephemeral_channels().unwrap();
         let address = Endpoint::plaintext(
