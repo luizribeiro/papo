@@ -3,9 +3,11 @@ use std::{
     error::Error,
     fmt,
     iter::FusedIterator,
+    ops::{Deref, Range},
     slice,
     str::{FromStr, Utf8Error},
 };
+use zeroize::Zeroize;
 
 use crate::{Command, Secret, Source};
 
@@ -312,6 +314,10 @@ impl Param {
     fn is_binary_secret(&self) -> bool {
         matches!(&self.0, ParamValue::Secret(value) if value.expose().is_none())
     }
+
+    fn is_secret(&self) -> bool {
+        matches!(self.0, ParamValue::Secret(_))
+    }
 }
 
 impl std::ops::Deref for Param {
@@ -370,8 +376,83 @@ impl PartialEq<&str> for Param {
     }
 }
 
+/// An encoded IRC line that retains secret provenance for safe formatting and disposal.
+///
+/// `Debug` and `Display` show ordinary line content, omit CRLF, and replace only parameters
+/// originating from [`Secret`]. The owned byte buffer of a secret-bearing line is wiped on drop.
+#[derive(Clone, Eq, PartialEq)]
+pub struct WireLine {
+    bytes: Vec<u8>,
+    secret_spans: Vec<Range<usize>>,
+    show_secret_lengths: bool,
+}
+
+impl WireLine {
+    fn into_public_string(mut self) -> Option<String> {
+        if !self.secret_spans.is_empty() {
+            return None;
+        }
+        String::from_utf8(std::mem::take(&mut self.bytes)).ok()
+    }
+
+    fn fmt_redacted(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let visible_len = self.bytes.len().saturating_sub(2);
+        let mut start = 0;
+        for span in &self.secret_spans {
+            formatter.write_str(&String::from_utf8_lossy(&self.bytes[start..span.start]))?;
+            if self.show_secret_lengths {
+                write!(formatter, "<redacted, {} bytes>", span.len())?;
+            } else {
+                formatter.write_str("<redacted>")?;
+            }
+            start = span.end;
+        }
+        formatter.write_str(&String::from_utf8_lossy(&self.bytes[start..visible_len]))
+    }
+}
+
+impl Deref for WireLine {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        &self.bytes
+    }
+}
+
+impl AsRef<[u8]> for WireLine {
+    fn as_ref(&self) -> &[u8] {
+        self
+    }
+}
+
+impl PartialEq<[u8]> for WireLine {
+    fn eq(&self, other: &[u8]) -> bool {
+        self.bytes == other
+    }
+}
+
+impl fmt::Debug for WireLine {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.fmt_redacted(formatter)
+    }
+}
+
+impl fmt::Display for WireLine {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.fmt_redacted(formatter)
+    }
+}
+
+impl Drop for WireLine {
+    fn drop(&mut self) {
+        if !self.secret_spans.is_empty() {
+            self.bytes.zeroize();
+        }
+    }
+}
+
 /// An owned IRC line that can be validated and serialized for the wire.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct Line {
     tags: Vec<(String, Option<String>)>,
     source: Option<String>,
@@ -518,15 +599,29 @@ impl Line {
         }
     }
 
-    /// Serializes this line with its terminating CRLF.
+    /// Serializes a line containing only ordinary parameters with its terminating CRLF.
     ///
     /// A colon is added to the final parameter only when required by the wire grammar.
+    /// Use [`Self::encode`] for lines containing a [`Secret`], so the result retains the
+    /// provenance needed for redaction and wiping.
     ///
     /// # Errors
     ///
     /// Returns [`BuildError`] when a field cannot be represented safely or either wire length
     /// limit would be exceeded.
     pub fn to_line(&self) -> Result<String, BuildError> {
+        self.encode()?
+            .into_public_string()
+            .ok_or(BuildError::InvalidParam(0))
+    }
+
+    /// Encodes this line while retaining secret provenance for redaction and wiping.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`BuildError`] when a field cannot be represented safely or either wire length
+    /// limit would be exceeded.
+    pub fn encode(&self) -> Result<WireLine, BuildError> {
         self.validate_fields()?;
         let params = self.params.iter().map(Param::as_str).collect::<Vec<_>>();
         let mut bytes = Vec::new();
@@ -537,7 +632,21 @@ impl Line {
             &params,
             &mut bytes,
         )?;
-        String::from_utf8(bytes).map_err(|_| BuildError::InvalidParam(0))
+        let mut offset = encoded_prefix_len(&self.tags, self.source.as_deref(), &self.command);
+        let mut secret_spans = Vec::new();
+        for (index, param) in self.params.iter().enumerate() {
+            offset +=
+                1 + usize::from(index + 1 == self.params.len() && needs_trailing_prefix(param));
+            if param.is_secret() {
+                secret_spans.push(offset..offset + param.len());
+            }
+            offset += param.len();
+        }
+        Ok(WireLine {
+            bytes,
+            secret_spans,
+            show_secret_lengths: self.command.eq_ignore_ascii_case("AUTHENTICATE"),
+        })
     }
 
     fn validate_fields(&self) -> Result<(), BuildError> {
@@ -673,13 +782,38 @@ impl FromStr for Line {
 
 impl fmt::Display for Line {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let wire = self.to_line().map_err(|_| fmt::Error)?;
-        formatter.write_str(wire.strip_suffix("\r\n").unwrap_or(&wire))
+        self.encode().map_err(|_| fmt::Error)?.fmt(formatter)
+    }
+}
+
+impl fmt::Debug for Line {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self, formatter)
     }
 }
 
 fn needs_trailing_prefix(param: &str) -> bool {
     param.is_empty() || param.contains(' ') || param.starts_with(':')
+}
+
+fn encoded_prefix_len(
+    tags: &[(String, Option<String>)],
+    source: Option<&str>,
+    command: &str,
+) -> usize {
+    let tag_len = usize::from(!tags.is_empty())
+        * (2 + tags
+            .iter()
+            .enumerate()
+            .fold(0, |length, (index, (key, value))| {
+                length
+                    + usize::from(index != 0)
+                    + key.len()
+                    + value
+                        .as_deref()
+                        .map_or(0, |value| 1 + escaped_tag_value_len(value))
+            }));
+    tag_len + source.map_or(0, |source| source.len() + 2) + command.len()
 }
 
 /// An iterator over the tags of a borrowed IRC line.

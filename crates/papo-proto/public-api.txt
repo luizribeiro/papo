@@ -846,6 +846,7 @@ pub struct papo_proto::Line
 impl papo_proto::Line
 pub fn papo_proto::Line::as_ref(&self) -> papo_proto::LineRef<'_>
 pub fn papo_proto::Line::command(&self) -> &str
+pub fn papo_proto::Line::encode(&self) -> core::result::Result<papo_proto::WireLine, papo_proto::BuildError>
 pub fn papo_proto::Line::get(&self, usize) -> core::option::Option<&str>
 pub fn papo_proto::Line::join(impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo_proto::Line::new(impl core::convert::Into<alloc::string::String>) -> Self
@@ -1669,6 +1670,33 @@ impl<'a> core::marker::Unpin for papo_proto::WhoxReply<'a>
 impl<'a> core::marker::UnsafeUnpin for papo_proto::WhoxReply<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::WhoxReply<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::WhoxReply<'a>
+pub struct papo_proto::WireLine
+impl core::clone::Clone for papo_proto::WireLine
+pub fn papo_proto::WireLine::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::WireLine
+impl core::cmp::PartialEq for papo_proto::WireLine
+pub fn papo_proto::WireLine::eq(&self, &Self) -> bool
+impl core::cmp::PartialEq<[u8]> for papo_proto::WireLine
+pub fn papo_proto::WireLine::eq(&self, &[u8]) -> bool
+impl core::convert::AsRef<[u8]> for papo_proto::WireLine
+pub fn papo_proto::WireLine::as_ref(&self) -> &[u8]
+impl core::fmt::Debug for papo_proto::WireLine
+pub fn papo_proto::WireLine::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo_proto::WireLine
+pub fn papo_proto::WireLine::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo_proto::WireLine
+impl core::ops::deref::Deref for papo_proto::WireLine
+pub type papo_proto::WireLine::Target = [u8]
+pub fn papo_proto::WireLine::deref(&self) -> &Self::Target
+impl core::ops::drop::Drop for papo_proto::WireLine
+pub fn papo_proto::WireLine::drop(&mut self)
+impl core::marker::Freeze for papo_proto::WireLine
+impl core::marker::Send for papo_proto::WireLine
+impl core::marker::Sync for papo_proto::WireLine
+impl core::marker::Unpin for papo_proto::WireLine
+impl core::marker::UnsafeUnpin for papo_proto::WireLine
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::WireLine
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::WireLine
 pub const papo_proto::MAX_CLIENT_TAG_DATA_LEN: usize
 pub const papo_proto::MAX_LINE_LEN: usize
 pub const papo_proto::MAX_TAG_SECTION_LEN: usize

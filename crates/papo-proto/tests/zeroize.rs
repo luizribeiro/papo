@@ -8,7 +8,7 @@ use std::{
     sync::atomic::{AtomicBool, AtomicUsize, Ordering},
 };
 
-use papo_proto::Secret;
+use papo_proto::{Line, Secret};
 
 struct InspectingAllocator;
 
@@ -42,9 +42,24 @@ unsafe impl GlobalAlloc for InspectingAllocator {
 static ALLOCATOR: InspectingAllocator = InspectingAllocator;
 
 fn watch(secret: &Secret) {
+    watch_bytes(secret.expose_bytes());
+}
+
+fn watch_bytes(bytes: &[u8]) {
     WIPED.store(false, Ordering::SeqCst);
-    WATCHED_LEN.store(secret.expose_bytes().len(), Ordering::SeqCst);
-    WATCHED.store(secret.expose_bytes().as_ptr() as usize, Ordering::SeqCst);
+    WATCHED_LEN.store(bytes.len(), Ordering::SeqCst);
+    WATCHED.store(bytes.as_ptr() as usize, Ordering::SeqCst);
+}
+
+#[test]
+fn wipes_secret_bearing_wire_lines_on_drop() {
+    let line = Line::new("PASS")
+        .param(Secret::new("wire-secret-marker-8415"))
+        .encode()
+        .unwrap();
+    watch_bytes(&line);
+    drop(line);
+    assert!(WIPED.load(Ordering::SeqCst));
 }
 
 fn assert_wiped(secret: Secret) {

@@ -719,6 +719,47 @@ fn builds_parameters_one_at_a_time() {
 }
 
 #[test]
+fn encoded_lines_mask_only_secret_parameters() {
+    let ordinary = Line::new("PRIVMSG").param("#papo").param("hi");
+    assert_eq!(format!("{ordinary:?}"), "PRIVMSG #papo hi");
+    assert_eq!(
+        format!("{}", ordinary.encode().unwrap()),
+        "PRIVMSG #papo hi"
+    );
+
+    let pass = Line::new("PASS").param(Secret::new("hunter2"));
+    assert_eq!(format!("{pass:?}"), "PASS <redacted>");
+    assert_eq!(format!("{}", pass.encode().unwrap()), "PASS <redacted>");
+    assert_eq!(pass.to_line(), Err(BuildError::InvalidParam(0)));
+
+    let payload = Secret::new("x".repeat(44));
+    assert_eq!(
+        format!(
+            "{}",
+            Line::new("AUTHENTICATE").param(payload).encode().unwrap()
+        ),
+        "AUTHENTICATE <redacted, 44 bytes>"
+    );
+    assert_eq!(
+        format!(
+            "{}",
+            Line::new("WEBIRC")
+                .param(Secret::new("password"))
+                .param("gateway")
+                .param("host")
+                .param("address")
+                .encode()
+                .unwrap()
+        ),
+        "WEBIRC <redacted> gateway host address"
+    );
+    assert_eq!(
+        format!("{}", "JOIN #secret key".parse::<Line>().unwrap()),
+        "JOIN #secret key"
+    );
+}
+
+#[test]
 fn passes_ircdocs_line_join_corpus() {
     let corpus: Value =
         serde_json::from_str(include_str!("data/parser-tests/msg-join.json")).unwrap();
