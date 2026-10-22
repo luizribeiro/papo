@@ -31,8 +31,12 @@ pub struct TypingChanged {
     /// Whether the user is this session's user.
     pub authorship: Authorship,
     /// The IRC conversation where typing is occurring.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     pub conversation: Conversation,
     /// `STATUSMSG` prefixes on the typing notification's wire address.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     pub status: Option<Vec<char>>,
     /// The new typing state.
     pub state: Typing,
@@ -42,6 +46,8 @@ pub struct TypingChanged {
 
 impl TypingChanged {
     /// Returns the address that reaches the recipients of the typing notification.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     #[must_use]
     pub fn return_address(&self) -> String {
         return_address(&self.conversation, self.status.as_deref())
@@ -54,15 +60,21 @@ pub struct Typer {
     /// The user's nickname.
     pub nick: Nick,
     /// The IRC conversation where the user is typing.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     pub conversation: Conversation,
     /// Whether the user is actively typing or has paused.
     pub state: Typing,
     /// `STATUSMSG` prefixes on the typing notification's wire address.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     pub status: Option<Vec<char>>,
 }
 
 impl Typer {
     /// Returns the address that reaches the recipients of the typing notification.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     #[must_use]
     pub fn return_address(&self) -> String {
         return_address(&self.conversation, self.status.as_deref())

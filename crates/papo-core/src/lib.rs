@@ -208,6 +208,13 @@ pub type Capabilities = BTreeMap<cap::Cap, Option<String>>;
 /// The IRC conversation to which a chat line belongs.
 ///
 /// A conversation never includes a `STATUSMSG` prefix from its wire address.
+///
+/// # Status-prefixed lines
+///
+/// A line addressed to `@#ops` belongs to the `#ops` conversation and records `@` separately in
+/// its `status` field. Only channel operators received that line. Answer through the line's
+/// `reply`, `react`, or `return_address()` path. Never construct a send target from a
+/// `Conversation` alone, because that loses the prefix and widens the audience.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[non_exhaustive]
 pub enum Conversation {
@@ -1754,8 +1761,12 @@ pub struct TagMessage {
     /// Whether the actor is this session's user.
     pub authorship: Authorship,
     /// IRC conversation addressed by the message.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     pub conversation: Conversation,
     /// Advertised `STATUSMSG` prefixes on the wire address, in wire order.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     pub status: Option<Vec<char>>,
     /// Tags in wire order.
     pub tags: Vec<(String, Option<String>)>,
@@ -1771,8 +1782,12 @@ pub struct Redacted {
     /// Whether the actor is this session's user.
     pub authorship: Authorship,
     /// IRC conversation containing the message.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     pub conversation: Conversation,
     /// Advertised `STATUSMSG` prefixes on the wire address, in wire order.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     pub status: Option<Vec<char>>,
     /// Identifier of the redacted message.
     pub msgid: String,
@@ -2515,12 +2530,16 @@ impl ReceivedLine {
     }
 
     /// Returns the conversation addressed by this line, when its address is valid.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     #[must_use]
     pub const fn conversation(&self) -> Option<&Conversation> {
         self.conversation.as_ref()
     }
 
     /// Returns the advertised `STATUSMSG` prefixes removed from the line's address.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     #[must_use]
     pub fn status(&self) -> Option<&[char]> {
         self.status.as_deref()
