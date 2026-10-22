@@ -5,8 +5,9 @@ use base64::{
     engine::general_purpose::{URL_SAFE, URL_SAFE_NO_PAD},
 };
 use papo_proto::Line;
+use zeroize::Zeroizing;
 
-use crate::{Feature, RequestError, RequestId, Session};
+use crate::{Feature, RequestError, RequestId, Secret, Session};
 
 impl Session {
     /// Registers an HTTPS Web Push subscription.
@@ -15,26 +16,35 @@ impl Session {
     ///
     /// Returns [`RequestError::Unsupported`] unless either webpush capability was negotiated,
     /// [`RequestError::InvalidWebPushEndpoint`] for a non-HTTPS endpoint, or
-    /// [`RequestError::InvalidWebPushKey`] when either key is not URL-safe base64.
+    /// [`RequestError::InvalidWebPushKey`] when either key is not URL-safe base64, or
+    /// [`RequestError::InvalidSecret`] when `auth` contains bytes rather than text.
     pub fn webpush_register(
         &mut self,
         now: Instant,
         endpoint: &str,
         p256dh: &str,
-        auth: &str,
+        auth: &Secret,
     ) -> Result<RequestId, RequestError> {
+        let auth = auth.expose().ok_or(RequestError::InvalidSecret)?;
         self.require_feature(Feature::WebPush)?;
         validate_endpoint(endpoint)?;
         if !valid_base64(p256dh) || !valid_base64(auth) {
             return Err(RequestError::InvalidWebPushKey);
         }
-        let keys = format!("p256dh={p256dh};auth={auth}");
+        let mut keys = Zeroizing::new(String::with_capacity(
+            "p256dh=".len() + p256dh.len() + ";auth=".len() + auth.len(),
+        ));
+        keys.push_str("p256dh=");
+        keys.push_str(p256dh);
+        keys.push_str(";auth=");
+        keys.push_str(auth);
+        let keys = Secret::from(keys.as_str());
         self.request_for_feature(
             now,
             Line::new("WEBPUSH")
                 .param("REGISTER")
                 .param(endpoint)
-                .param(&keys),
+                .param(keys),
             Feature::WebPush,
         )
     }

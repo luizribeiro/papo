@@ -4,7 +4,7 @@
 mod support;
 
 use papo_core::{Config, Event, Feature, Refusal, RequestError, Session};
-use support::{Transcript, unsupported_because};
+use support::{Transcript, assert_session_debug_redacts, unsupported_because};
 
 const ENDPOINT: &str = "https://push.example.net/message/ErgoTest/alice";
 const P256DH: &str = "AQIDBAUGBwgJCgsMDQ4P_w";
@@ -32,9 +32,15 @@ fn registers_and_unregisters_webpush_endpoints_with_both_caps() {
         registered(cap)
             .update(|session| {
                 session
-                    .webpush_register(std::time::Instant::now(), ENDPOINT, P256DH, AUTH)
+                    .webpush_register(
+                        std::time::Instant::now(),
+                        ENDPOINT,
+                        P256DH,
+                        &papo_core::Secret::new(AUTH),
+                    )
                     .unwrap();
             })
+            .inspect(|session| assert_session_debug_redacts(session, AUTH))
             .client(&format!(
                 "@label=0 WEBPUSH REGISTER {ENDPOINT} p256dh={P256DH};auth={AUTH}"
             ))
@@ -71,11 +77,21 @@ fn rejects_invalid_endpoints_and_keys_before_queueing() {
                 ("", AUTH),
                 (P256DH, ""),
             ] {
+                let auth = papo_core::Secret::new(auth);
                 assert_eq!(
-                    session.webpush_register(std::time::Instant::now(), ENDPOINT, p256dh, auth),
+                    session.webpush_register(std::time::Instant::now(), ENDPOINT, p256dh, &auth),
                     Err(RequestError::InvalidWebPushKey)
                 );
             }
+            assert_eq!(
+                session.webpush_register(
+                    std::time::Instant::now(),
+                    ENDPOINT,
+                    P256DH,
+                    &papo_core::Secret::from_bytes([0xff]),
+                ),
+                Err(RequestError::InvalidSecret)
+            );
         })
         .no_client();
 }

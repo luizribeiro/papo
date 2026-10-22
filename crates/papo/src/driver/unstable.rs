@@ -46,8 +46,7 @@ impl UnstableRequest {
                 p256dh,
                 auth,
             } => {
-                let auth = auth.expose().ok_or(RequestError::InvalidSecret)?;
-                return session.webpush_register(now(), &endpoint, &p256dh, auth);
+                return session.webpush_register(now(), &endpoint, &p256dh, &auth);
             }
             Self::WebPushUnregister(endpoint) => {
                 return session.webpush_unregister(now(), &endpoint);

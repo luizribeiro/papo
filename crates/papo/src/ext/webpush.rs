@@ -191,13 +191,17 @@ mod tests {
         complete_connect(&mut server, &mut events).await;
         let keys =
             super::PushKeys::new("AQIDBAUGBwgJCgsMDQ4P_w", crate::Secret::from_bytes([0xff]));
-        assert!(matches!(
-            client
-                .webpush()
-                .register("https://push.example.net/message/ErgoTest/alice", keys)
-                .await,
-            Err(Error::InvalidInput(crate::InvalidInput::BinarySecret))
-        ));
+        let result = client
+            .webpush()
+            .register("https://push.example.net/message/ErgoTest/alice", keys)
+            .await;
+        assert!(
+            matches!(
+                result,
+                Err(Error::InvalidInput(crate::InvalidInput::BinarySecret))
+            ),
+            "unexpected result: {result:?}"
+        );
         abort_task(driver).await;
     }
 }

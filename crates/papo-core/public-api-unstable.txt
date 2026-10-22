@@ -2191,7 +2191,7 @@ pub fn papo_core::Session::rename(&mut self, std::time::Instant, &str, &str, &st
 impl papo_core::Session
 pub fn papo_core::Session::supports(&self, papo_core::Feature) -> core::result::Result<(), papo_core::UnsupportedReason>
 impl papo_core::Session
-pub fn papo_core::Session::webpush_register(&mut self, std::time::Instant, &str, &str, &str) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
+pub fn papo_core::Session::webpush_register(&mut self, std::time::Instant, &str, &str, &papo::Secret) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
 pub fn papo_core::Session::webpush_unregister(&mut self, std::time::Instant, &str) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
 impl core::fmt::Debug for papo_core::Session
 pub fn papo_core::Session::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result

@@ -117,3 +117,42 @@ fn wipes_queued_and_polled_secret_wire_lines() {
     assert!(WIPED.load(Ordering::SeqCst));
     assert!(!LEAKED.load(Ordering::SeqCst));
 }
+
+#[cfg(feature = "unstable")]
+#[test]
+fn wipes_webpush_auth_and_combined_key_buffers() {
+    const AUTH: &str = "d2VicHVzaC1hdXRoLXdpcGUtbWFya2VyLTgzNTc=";
+
+    inspect(AUTH);
+    let now = Instant::now();
+    let mut session = Session::new(
+        Config::default()
+            .enable(papo_core::Feature::WebPush)
+            .wanted_caps(["draft/webpush", "labeled-response"])
+            .rate_limit(RateLimit::unlimited()),
+    );
+    session.handle_connected(now);
+    while session.poll_transmit().is_some() {}
+    session.handle_line(now, b"CAP * LS :draft/webpush labeled-response");
+    while session.poll_transmit().is_some() {}
+    session.handle_line(now, b"CAP * ACK :draft/webpush labeled-response");
+    while session.poll_transmit().is_some() {}
+
+    session
+        .webpush_register(
+            now,
+            "https://push.example/subscription",
+            "AQIDBAUGBwgJCgsMDQ4P_w",
+            &Secret::new(AUTH),
+        )
+        .unwrap();
+    let line = session.poll_transmit().unwrap();
+    assert!(
+        line.windows(AUTH.len())
+            .any(|window| window == AUTH.as_bytes())
+    );
+    drop(line);
+    drop(session);
+    TARGET.store(0, Ordering::SeqCst);
+    assert!(!LEAKED.load(Ordering::SeqCst));
+}

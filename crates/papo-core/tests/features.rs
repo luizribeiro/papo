@@ -513,7 +513,12 @@ fn extension_requests_preserve_explicitly_disabled_reasons() {
             Err(expected(Feature::Persistence))
         );
         assert_eq!(
-            session.webpush_register(now, "https://push.example/sub", "AQ", "Ag"),
+            session.webpush_register(
+                now,
+                "https://push.example/sub",
+                "AQ",
+                &papo_core::Secret::new("Ag"),
+            ),
             Err(expected(Feature::WebPush))
         );
         assert_eq!(
