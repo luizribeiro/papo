@@ -3909,9 +3909,19 @@ impl Session {
     ///
     /// # Errors
     ///
-    /// Returns [`RequestError::Unsupported`] when the capability was not negotiated. Other
-    /// failures are the same as [`Session::request`].
-    pub fn verify(&mut self, now: Instant, account: &str, code: &str) -> Result<(), RequestError> {
+    /// Returns [`RequestError::Unsupported`] when the capability was not negotiated, or
+    /// [`RequestError::InvalidSecret`] when `code` contains bytes rather than text. Other failures
+    /// are the same as [`Session::request`].
+    pub fn verify(
+        &mut self,
+        now: Instant,
+        account: &str,
+        code: impl Into<Secret>,
+    ) -> Result<(), RequestError> {
+        let code = code.into();
+        if code.expose().is_none() {
+            return Err(RequestError::InvalidSecret);
+        }
         self.require_feature(Feature::AccountCreation)?;
         if !self.welcome_state.is_connected()
             && !RegistrationPolicy::parse(

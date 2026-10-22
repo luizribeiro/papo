@@ -65,7 +65,7 @@ pub(crate) enum CoreRequest {
     },
     Verify {
         account: String,
-        code: String,
+        code: papo_core::Secret,
     },
     Oper {
         name: String,
@@ -92,7 +92,7 @@ impl CoreRequest {
             } => {
                 session.create_account(now(), account.as_deref(), email.as_deref(), password)?;
             }
-            Self::Verify { account, code } => session.verify(now(), &account, &code)?,
+            Self::Verify { account, code } => session.verify(now(), &account, code)?,
             Self::Oper { name, password } => {
                 session.oper(now(), &name, &password)?;
             }

@@ -100,7 +100,7 @@ impl Client {
     pub fn verify_account(
         &self,
         account: impl AsRef<str>,
-        code: impl Into<String>,
+        code: impl Into<crate::Secret>,
     ) -> crate::RequestFuture<AccountCreation> {
         let client = self.clone();
         let account = self.state().account_name(account.as_ref());

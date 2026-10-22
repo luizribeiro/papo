@@ -191,12 +191,29 @@ fn verifies_an_account_after_the_server_requires_it() {
                 .verify(std::time::Instant::now(), "alice", "39gvcdg4myvnmdcfhvd6exsv4n")
                 .unwrap();
         })
+        .inspect(|session| assert_session_debug_redacts(session, "39gvcdg4myvnmdcfhvd6exsv4n"))
         .client("@label=1 VERIFY alice 39gvcdg4myvnmdcfhvd6exsv4n")
         .server("@label=1 :ergo.test VERIFY SUCCESS alice :Account successfully registered")
         .event(|event| {
             matches!(event, Event::AccountCreated { account, logged_in: true, .. } if account == "alice")
         })
         .event(|event| matches!(event, Event::Response(_)));
+}
+
+#[test]
+fn rejects_a_byte_verification_code() {
+    registered()
+        .update(|session| {
+            assert_eq!(
+                session.verify(
+                    std::time::Instant::now(),
+                    "alice",
+                    Secret::from_bytes([0xff]),
+                ),
+                Err(RequestError::InvalidSecret)
+            );
+        })
+        .no_client();
 }
 
 #[test]

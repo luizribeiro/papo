@@ -2168,7 +2168,7 @@ pub fn papo_core::Session::send_text(&mut self, std::time::Instant, papo_core::T
 pub fn papo_core::Session::server_rejoins_channels(&self) -> bool
 pub const fn papo_core::Session::state(&self) -> &papo_core::State
 pub const fn papo_core::Session::state_generation(&self) -> u64
-pub fn papo_core::Session::verify(&mut self, std::time::Instant, &str, &str) -> core::result::Result<(), papo_core::RequestError>
+pub fn papo_core::Session::verify(&mut self, std::time::Instant, &str, impl core::convert::Into<papo::Secret>) -> core::result::Result<(), papo_core::RequestError>
 pub fn papo_core::Session::with_entropy(papo_core::Config, alloc::boxed::Box<(dyn papo_core::Entropy + core::marker::Send)>) -> Self
 impl papo_core::Session
 pub fn papo_core::Session::bouncer_add(&mut self, std::time::Instant, &papo_core::NetworkConfig) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
