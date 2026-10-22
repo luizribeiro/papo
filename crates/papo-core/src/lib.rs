@@ -4501,7 +4501,7 @@ impl Session {
         let queued_events = self.outbox.events.len();
         let bouncer_batch = cfg!(feature = "unstable") && batch_type == cap::BOUNCER_NETWORKS_NAME;
         let context = DispatchContext::from_batch_type(batch_type);
-        if (history.is_none() || request.is_none()) && !bouncer_batch {
+        if history.is_none() && !bouncer_batch {
             for message in &messages {
                 self.dispatch_message(now, &message.as_ref(), &context, request.is_none());
             }

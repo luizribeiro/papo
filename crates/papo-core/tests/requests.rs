@@ -1807,7 +1807,7 @@ fn links_nested_chathistory_to_its_response() {
 }
 
 #[test]
-fn unclaimed_history_response_releases_its_messages() {
+fn unclaimed_history_response_is_not_delivered_twice() {
     let now = Instant::now();
     let mut session = labelled_session(now);
     session.handle_line(
@@ -1828,12 +1828,6 @@ fn unclaimed_history_response_releases_its_messages() {
     assert!(matches!(
         session.poll_event(),
         Some(Event::History { conversation: Conversation::Channel(channel), items, .. }) if channel == "#papo" && items.len() == 1
-    ));
-    assert!(matches!(
-        session.poll_event(),
-        Some(Event::Line(message))
-            if message.as_ref().command_is("PRIVMSG")
-                && message.batch_type() == Some("labeled-response")
     ));
     assert_eq!(session.poll_event(), None);
 }
