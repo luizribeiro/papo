@@ -28,10 +28,7 @@ impl Framer {
         loop {
             let remaining = &bytes[input_start..];
             let offset = remaining.iter().position(|&byte| byte == b'\n');
-            #[cfg(test)]
-            {
-                self.bytes_inspected += offset.map_or(remaining.len(), |offset| offset + 1);
-            }
+            self.inspected(offset.map_or(remaining.len(), |offset| offset + 1));
             let Some(offset) = offset else {
                 break;
             };
@@ -59,10 +56,7 @@ impl Framer {
                 .iter()
                 .position(|&byte| byte == b'\n')
                 .expect("line boundary was recorded");
-            #[cfg(test)]
-            {
-                self.bytes_inspected += offset + 1;
-            }
+            self.inspected(offset + 1);
             let end = cursor + offset;
             let line = self.buffer[cursor..end]
                 .strip_suffix(b"\r")
@@ -82,10 +76,6 @@ impl Framer {
     pub(super) fn reset(&mut self) {
         self.buffer.clear();
         self.closed = false;
-        #[cfg(test)]
-        {
-            self.bytes_inspected = 0;
-        }
     }
 
     pub(super) fn close(&mut self) {
@@ -95,6 +85,15 @@ impl Framer {
 
     pub(super) const fn is_closed(&self) -> bool {
         self.closed
+    }
+
+    #[allow(clippy::unused_self)]
+    fn inspected(&mut self, bytes: usize) {
+        #[cfg(test)]
+        {
+            self.bytes_inspected += bytes;
+        }
+        _ = bytes;
     }
 
     fn would_overflow(&self, line_start: usize, bytes: &[u8]) -> bool {
