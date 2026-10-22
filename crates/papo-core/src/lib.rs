@@ -1360,6 +1360,7 @@ struct UnlabelledRequest {
     started: Option<Instant>,
     matcher: ResponseMatcher,
     fence: Option<String>,
+    deferred: Option<WireLine>,
     lines: Vec<Line>,
 }
 
@@ -2735,6 +2736,16 @@ impl Outbox {
         }
     }
 
+    fn transmit_ordered(&mut self, line: WireLine, request: Option<RequestId>) {
+        if !self.close_requested {
+            self.transmits.push_back(Transmission::Line(QueuedLine {
+                line,
+                token: None,
+                request,
+            }));
+        }
+    }
+
     fn transmit_tracked_batch(
         &mut self,
         lines: Vec<WireLine>,
@@ -3046,6 +3057,7 @@ impl Session {
             self.outbox.event(Event::RequestTimedOut { id });
         }
         let pending = std::mem::take(&mut self.unlabelled_requests);
+        let mut unlabelled_expired = false;
         for request in pending {
             if request
                 .started
@@ -3057,9 +3069,13 @@ impl Session {
                 }
                 self.away_messages.remove(&request.id);
                 self.outbox.event(Event::RequestTimedOut { id: request.id });
+                unlabelled_expired = true;
             } else {
                 self.unlabelled_requests.push_back(request);
             }
+        }
+        if unlabelled_expired {
+            self.start_deferred_who();
         }
         let was_connected = self.welcome_state.is_connected();
         self.welcome_state.handle_timeout(
@@ -3477,6 +3493,7 @@ impl Session {
                     started: None,
                     matcher,
                     fence: None,
+                    deferred: None,
                     lines: Vec::new(),
                 });
             }
@@ -3503,31 +3520,35 @@ impl Session {
                 let token = format!("papo-who-{}", self.next_request_id);
                 debug_assert!(pending.fence.is_none());
                 pending.fence = Some(token.clone());
-                (pending.id, token)
+                (pending.id, token, pending.deferred.is_none())
             });
         let fence = matches!(matcher, ResponseMatcher::Mode(_))
             .then(|| format!("papo-mode-{}", self.next_request_id));
         self.next_request_id = self.next_request_id.wrapping_add(1);
-        if let Some((request, token)) = who_fence {
-            let ping = Line::new("PING").param(token).encode()?;
-            self.outbox.transmit_tracked(ping, None, Some(request));
+        if let Some((request, token, true)) = &who_fence {
+            let ping = Line::new("PING").param(token.as_str()).encode()?;
+            self.outbox.transmit_ordered(ping, Some(*request));
         }
+        let deferred = who_fence.is_some().then(|| line.clone());
         self.unlabelled_requests.push_back(UnlabelledRequest {
             id,
             started: None,
             matcher,
             fence: fence.clone(),
+            deferred,
             lines: Vec::new(),
         });
         if let Some(message) = away_message {
             self.away_messages.insert(id, message);
         }
-        if let Some(fence) = fence {
-            self.outbox.transmit_raw(line);
-            let ping = Line::new("PING").param(fence).encode()?;
-            self.outbox.transmit_tracked(ping, None, Some(id));
-        } else {
-            self.outbox.transmit_tracked(line, None, Some(id));
+        if who_fence.is_none() {
+            if let Some(fence) = fence {
+                self.outbox.transmit_raw(line);
+                let ping = Line::new("PING").param(fence).encode()?;
+                self.outbox.transmit_tracked(ping, None, Some(id));
+            } else {
+                self.outbox.transmit_tracked(line, None, Some(id));
+            }
         }
         if let Some(channel) = who_sweep {
             self.state.track_who(&channel);
@@ -4907,6 +4928,7 @@ mod tests {
                     mode: ListMode::Ban,
                 },
                 fence: None,
+                deferred: None,
                 lines: Vec::new(),
             },
             UnlabelledRequest {
@@ -4917,6 +4939,7 @@ mod tests {
                     mode: ListMode::Quiet,
                 },
                 fence: None,
+                deferred: None,
                 lines: Vec::new(),
             },
         ]);

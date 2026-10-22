@@ -165,6 +165,36 @@ async fn message_refusal_does_not_fail_part(s: Scenario) -> papo_testing::Result
     Ok(())
 }
 
+/// keeps wildcard WHO rows separate from a concurrent channel WHO
+#[scenario(covers = ["security.r5.wildcard-who-routing"])]
+async fn wildcard_who_stays_separate_from_channel_who(s: Scenario) -> papo_testing::Result<()> {
+    if profile() != "solanum" {
+        return s.skip("the selected profile does not exercise Solanum's unlabelled WHO replies");
+    }
+    let alice = s.connect("alice").await?;
+    let bob = s
+        .connect_with(
+            s.configure("bob")?
+                .without_caps([papo::cap::LABELED_RESPONSE]),
+        )
+        .await?;
+    let channel = s.channel_name();
+    let alice_nick = alice.nick();
+    alice.join(&channel).await?;
+    bob.join(&channel).await?;
+    bob.ping().await?;
+
+    let (wildcard, channel_rows) = tokio::join!(bob.who("*"), bob.who(&channel));
+    let wildcard = wildcard?;
+    let channel_rows = channel_rows?;
+    assert!(wildcard.iter().any(|entry| entry.nick == alice_nick));
+    assert!(
+        channel_rows.iter().any(|entry| entry.nick == alice_nick),
+        "wildcard WHO rows: {wildcard:?}; channel WHO rows: {channel_rows:?}"
+    );
+    Ok(())
+}
+
 /// does not answer a CTCP query replayed from bouncer history
 #[scenario(
     requires(caps = ["batch"]),

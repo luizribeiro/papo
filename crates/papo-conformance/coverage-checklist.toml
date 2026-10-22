@@ -90,4 +90,5 @@ ids = [
   "security.r2.no-stale-rejoin-after-part",
   "security.h1.abandoned-batch-members-not-live",
   "security.r4.unlabelled-command-numerics",
+  "security.r5.wildcard-who-routing",
 ]

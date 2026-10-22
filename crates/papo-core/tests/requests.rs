@@ -1034,7 +1034,7 @@ fn who_rows_attach_only_to_the_named_concurrent_mask() {
 #[test]
 fn wildcard_who_collects_rows_before_a_concurrent_channel_who() {
     let now = Instant::now();
-    let mut session = Session::new(Config::default());
+    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
     let wildcard = session
         .request_with_matcher(
             now,
@@ -1049,11 +1049,29 @@ fn wildcard_who_collects_rows_before_a_concurrent_channel_who() {
             ResponseMatcher::Who("#rust".into()),
         )
         .unwrap();
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"WHO *.example\r\n"
+    );
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"PING papo-who-1\r\n"
+    );
+    assert_eq!(session.poll_transmit(), None);
 
     for line in [
+        ":irc.solanum.test 315 papo #rust :End of unrelated WHO list",
         ":irc.solanum.test 352 papo #staff ~alice staff.example irc.solanum.test alice H@ :0 Alice Example",
         ":irc.solanum.test 315 papo *.example :End of WHO list",
         ":irc.solanum.test PONG irc.solanum.test :papo-who-1",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"WHO #rust\r\n"
+    );
+    for line in [
         ":irc.solanum.test 352 papo #rust ~ferris users.example irc.solanum.test ferris H :0 Ferris Example",
         ":irc.solanum.test 315 papo #rust :End of WHO list",
     ] {

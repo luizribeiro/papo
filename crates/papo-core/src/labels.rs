@@ -124,7 +124,8 @@ impl Session {
             .iter()
             .enumerate()
             .find_map(|(index, request)| {
-                if labelled_request.is_some_and(|id| id != request.id) {
+                if request.deferred.is_some() || labelled_request.is_some_and(|id| id != request.id)
+                {
                     return None;
                 }
                 let join_started = matches!(
@@ -206,8 +207,39 @@ impl Session {
             };
             self.finish_mode_list_response(&request.matcher, &mut response);
             self.outbox.event(Event::Response(response));
+            self.start_deferred_who();
         }
         true
+    }
+
+    pub(super) fn start_deferred_who(&mut self) {
+        let Some(index) = self
+            .unlabelled_requests
+            .iter()
+            .position(|request| request.deferred.is_some())
+        else {
+            return;
+        };
+        if self
+            .unlabelled_requests
+            .iter()
+            .take(index)
+            .any(|request| matches!(&request.matcher, ResponseMatcher::Who(_)))
+        {
+            return;
+        }
+        let request = &mut self.unlabelled_requests[index];
+        let line = request.deferred.take().unwrap();
+        let id = request.id;
+        let fence = request.fence.clone();
+        self.outbox.transmit_ordered(line, Some(id));
+        if let Some(token) = fence {
+            let ping = Line::new("PING")
+                .param(token)
+                .encode()
+                .expect("internally generated PING is valid");
+            self.outbox.transmit_ordered(ping, Some(id));
+        }
     }
 
     fn fence_completes(&self, request: &UnlabelledRequest, mapping: crate::Casemapping) -> bool {
