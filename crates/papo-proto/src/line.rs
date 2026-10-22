@@ -281,7 +281,7 @@ impl<'a> LineRef<'a> {
     /// Copies this borrowed view into an owned line without re-parsing it.
     #[must_use]
     pub fn to_owned(&self) -> Line {
-        let mut line = Line::builder(self.command).with_params(self.params());
+        let mut line = Line::new(self.command).with_params(self.params());
         line.source = self.source.map(str::to_owned);
         line.tags = self
             .tags()

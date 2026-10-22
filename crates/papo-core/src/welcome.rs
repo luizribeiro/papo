@@ -84,7 +84,7 @@ impl WelcomeState {
             if !options.is_empty() {
                 params.push(&options);
             }
-            let Ok(line) = Line::builder("WEBIRC").with_params(params).to_line() else {
+            let Ok(line) = Line::new("WEBIRC").with_params(params).to_line() else {
                 outbox.close(CloseKind::Other, "invalid WEBIRC configuration".to_owned());
                 return;
             };
@@ -300,12 +300,12 @@ impl WelcomeState {
 }
 
 fn registration_error(config: &Config) -> Option<BuildError> {
-    Line::builder("NICK")
+    Line::new("NICK")
         .param(&config.nick)
         .to_line()
         .err()
         .or_else(|| {
-            Line::builder("USER")
+            Line::new("USER")
                 .param(&config.username)
                 .param("0")
                 .param("*")
@@ -317,7 +317,7 @@ fn registration_error(config: &Config) -> Option<BuildError> {
             config
                 .alt_nicks
                 .iter()
-                .find_map(|nick| Line::builder("NICK").param(nick).to_line().err())
+                .find_map(|nick| Line::new("NICK").param(nick).to_line().err())
         })
 }
 

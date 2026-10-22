@@ -334,7 +334,7 @@ impl Session {
     pub fn bouncer_networks(&mut self, now: Instant) -> Result<RequestId, RequestError> {
         self.request_for_feature(
             now,
-            Line::builder("BOUNCER").param("LISTNETWORKS"),
+            Line::new("BOUNCER").param("LISTNETWORKS"),
             Feature::Bouncer,
         )
     }
@@ -352,7 +352,7 @@ impl Session {
     ) -> Result<RequestId, RequestError> {
         self.request_for_feature(
             now,
-            Line::builder("BOUNCER")
+            Line::new("BOUNCER")
                 .param("ADDNETWORK")
                 .param(&config.attributes()?),
             Feature::Bouncer,
@@ -373,7 +373,7 @@ impl Session {
     ) -> Result<RequestId, RequestError> {
         self.request_for_feature(
             now,
-            Line::builder("BOUNCER")
+            Line::new("BOUNCER")
                 .param("CHANGENETWORK")
                 .param(id.as_ref())
                 .param(&config.attributes()?),
@@ -393,9 +393,7 @@ impl Session {
     ) -> Result<RequestId, RequestError> {
         self.request_for_feature(
             now,
-            Line::builder("BOUNCER")
-                .param("DELNETWORK")
-                .param(id.as_ref()),
+            Line::new("BOUNCER").param("DELNETWORK").param(id.as_ref()),
             Feature::Bouncer,
         )
     }

@@ -24,7 +24,7 @@ impl Session {
         }
         self.request_for_feature(
             now,
-            Line::builder("RENAME").with_params(params),
+            Line::new("RENAME").with_params(params),
             Feature::ChannelRename,
         )
     }

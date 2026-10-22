@@ -138,7 +138,7 @@ impl Session {
         }
         self.request_for_feature(
             now,
-            Line::builder("CHATHISTORY").with_params(params),
+            Line::new("CHATHISTORY").with_params(params),
             Feature::History,
         )
     }
@@ -159,7 +159,7 @@ impl Session {
         self.validate_target(target)?;
         self.request_for_feature(
             now,
-            Line::builder("MARKREAD")
+            Line::new("MARKREAD")
                 .param(target.to_owned())
                 .param(format!(
                     "timestamp={}",
@@ -180,7 +180,7 @@ impl Session {
         self.validate_target(target)?;
         self.request_with_matcher(
             now,
-            Line::builder("MARKREAD").param(target),
+            Line::new("MARKREAD").param(target),
             crate::ResponseMatcher::ReadMarker(target.to_owned()),
         )
     }

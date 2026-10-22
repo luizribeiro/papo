@@ -22,7 +22,7 @@ fn valid_line() -> impl Strategy<Value = Line> {
     )
         .prop_map(|(command, source, tags, mut middle, trailing)| {
             middle.extend(trailing);
-            let mut line = Line::builder(command).with_params(middle);
+            let mut line = Line::new(command).with_params(middle);
             if let Some(source) = source {
                 line = line.with_source(source);
             }
@@ -268,21 +268,21 @@ fn owned_line_parsing_rejects_delimiters_and_empty_input() {
 #[test]
 fn owned_lines_format_parameters_and_reject_invalid_content() {
     assert_eq!(
-        Line::builder("PRIVMSG")
+        Line::new("PRIVMSG")
             .param("#papo")
             .param("release ready")
             .to_string(),
         "PRIVMSG #papo :release ready"
     );
     assert_eq!(
-        Line::builder("KILL")
+        Line::new("KILL")
             .param("alice evil")
             .param("policy violation")
             .to_line(),
         Err(BuildError::InvalidParam(0))
     );
     assert_eq!(
-        Line::builder("NOTICE")
+        Line::new("NOTICE")
             .param("papo")
             .param("bad\nQUIT")
             .to_line(),
@@ -292,7 +292,7 @@ fn owned_lines_format_parameters_and_reject_invalid_content() {
 
 #[test]
 fn owned_line_encoding_allocates_its_exact_wire_length() {
-    let line = Line::builder("PRIVMSG")
+    let line = Line::new("PRIVMSG")
         .param("#papo")
         .param("release ready")
         .with_tag("+draft/reply", "RfcBTzyxY120004");
@@ -330,15 +330,9 @@ fn owned_lines_expose_every_wire_component() {
 
 #[test]
 fn owned_line_numeric_rejects_non_numeric_and_out_of_range_commands() {
-    assert_eq!(
-        Line::builder("WALLOPS").param("maintenance").numeric(),
-        None
-    );
-    assert_eq!(Line::builder("1000").param("not numeric").numeric(), None);
-    assert_eq!(
-        Line::builder("000").param("numeric zero").numeric(),
-        Some(0)
-    );
+    assert_eq!(Line::new("WALLOPS").param("maintenance").numeric(), None);
+    assert_eq!(Line::new("1000").param("not numeric").numeric(), None);
+    assert_eq!(Line::new("000").param("numeric zero").numeric(), Some(0));
 }
 
 #[test]
@@ -694,7 +688,7 @@ fn builds_common_client_commands() {
         (Line::part("#papo"), "PART", 1),
         (Line::part_with_reason("#papo", "leaving now"), "PART", 2),
         (
-            Line::builder("CAP").param("REQ").param("message-tags"),
+            Line::new("CAP").param("REQ").param("message-tags"),
             "CAP",
             2,
         ),
@@ -707,9 +701,7 @@ fn builds_common_client_commands() {
 
 #[test]
 fn builds_parameters_one_at_a_time() {
-    let chained = Line::builder("PRIVMSG")
-        .param("#papo")
-        .param("release ready");
+    let chained = Line::new("PRIVMSG").param("#papo").param("release ready");
     assert_eq!(chained.to_string(), "PRIVMSG #papo :release ready");
 }
 
@@ -744,14 +736,11 @@ fn serializes_realistic_client_lines() {
 
     let chunk = "dGVzdABwYXBvLXRlc3QAc2VjcmV0".repeat(12);
     assert_eq!(
-        Line::builder("AUTHENTICATE")
-            .param(&chunk)
-            .to_line()
-            .unwrap(),
+        Line::new("AUTHENTICATE").param(&chunk).to_line().unwrap(),
         format!("AUTHENTICATE {chunk}\r\n")
     );
     assert_eq!(
-        Line::builder("CAP")
+        Line::new("CAP")
             .param("REQ")
             .param("message-tags server-time batch labeled-response")
             .to_line()
@@ -772,10 +761,7 @@ fn rejects_forbidden_command_and_parameter_bytes() {
         "PRIV\0MSG",
     ] {
         assert_eq!(
-            Line::builder(command)
-                .param("#papo")
-                .param("hello")
-                .to_line(),
+            Line::new(command).param("#papo").param("hello").to_line(),
             Err(BuildError::InvalidCommand)
         );
     }
@@ -797,7 +783,7 @@ fn rejects_fields_that_could_change_wire_structure() {
         "bad\0source",
     ] {
         assert_eq!(
-            Line::builder("NOTICE")
+            Line::new("NOTICE")
                 .param("papo-test")
                 .param("maintenance")
                 .with_source(source)
@@ -832,37 +818,25 @@ fn rejects_fields_that_could_change_wire_structure() {
 fn requires_middle_parameters_to_use_middle_form() {
     for invalid in ["", "two words", ":prefixed"] {
         assert_eq!(
-            Line::builder("COMMAND")
-                .param(invalid)
-                .param("last")
-                .to_line(),
+            Line::new("COMMAND").param(invalid).param("last").to_line(),
             Err(BuildError::InvalidParam(0))
         );
     }
 
     assert_eq!(
-        Line::builder("COMMAND").param("").to_line().unwrap(),
+        Line::new("COMMAND").param("").to_line().unwrap(),
         "COMMAND :\r\n"
     );
     assert_eq!(
-        Line::builder("COMMAND")
-            .param("two words")
-            .to_line()
-            .unwrap(),
+        Line::new("COMMAND").param("two words").to_line().unwrap(),
         "COMMAND :two words\r\n"
     );
     assert_eq!(
-        Line::builder("COMMAND")
-            .param(":prefixed")
-            .to_line()
-            .unwrap(),
+        Line::new("COMMAND").param(":prefixed").to_line().unwrap(),
         "COMMAND ::prefixed\r\n"
     );
     assert_eq!(
-        Line::builder("COMMAND")
-            .param("ordinary")
-            .to_line()
-            .unwrap(),
+        Line::new("COMMAND").param("ordinary").to_line().unwrap(),
         "COMMAND ordinary\r\n"
     );
 }

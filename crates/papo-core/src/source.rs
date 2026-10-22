@@ -54,7 +54,7 @@ impl Source {
     }
 
     pub(crate) fn from_prefix(prefix: &str, casemapping: Casemapping) -> Self {
-        let line = papo_proto::Line::builder("NOTICE")
+        let line = papo_proto::Line::new("NOTICE")
             .param("*")
             .with_source(prefix);
         Self::from_proto(
