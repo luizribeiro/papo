@@ -11,3 +11,6 @@
 "security::plaintext_credentials_require_explicit_opt_in" = [
   "security.t3.plaintext-credentials-opt-in",
 ]
+"security::scram_rejects_excessive_iterations_promptly" = [
+  "security.s6.scram-iteration-cap",
+]

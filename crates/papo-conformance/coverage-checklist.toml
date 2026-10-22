@@ -69,4 +69,5 @@ ids = [
   "security.s3.pass-after-sts-decision",
   "security.t3.plaintext-credentials-opt-in",
   "security.s4.account-registration-once",
+  "security.s6.scram-iteration-cap",
 ]

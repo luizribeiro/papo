@@ -904,6 +904,33 @@ fn rejects_a_tampered_scram_server_signature() {
 }
 
 #[test]
+fn rejects_an_excessive_scram_iteration_count_before_derivation() {
+    Transcript::with_entropy(
+        Config::default().sasl(Sasl::scram_sha256("user", "pencil")),
+        Box::new(FixedEntropy),
+    )
+    .connect_default()
+    .server("CAP * LS :sasl=SCRAM-SHA-256")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE SCRAM-SHA-256")
+    .server("AUTHENTICATE +")
+    .client("AUTHENTICATE biwsbj11c2VyLHI9V2xwYVdscGFXbHBhV2xwYVdscGFXbHBh")
+    .server(concat!(
+        "AUTHENTICATE ",
+        "cj1XbHBhV2xwYVdscGFXbHBhV2xwYVdscGEtdG9vLW1hbnkscz1XMjJaYUowU05ZN3NvRXNVRWpi",
+        "NmdRPT0saT00Mjk0OTY3Mjk1"
+    ))
+    .client("AUTHENTICATE *")
+    .server(":ergo.test 906 user :SASL authentication aborted")
+    .event(|event| {
+        matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason, .. }
+            if reason.contains("IterationCountTooHigh"))
+    })
+    .no_client();
+}
+
+#[test]
 fn a_bad_scram_proof_never_falls_back_to_plain() {
     Transcript::with_entropy(
         Config::default().sasl(Sasl::any("user", "pencil")),

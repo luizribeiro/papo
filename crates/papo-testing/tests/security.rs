@@ -72,6 +72,17 @@ async fn send_bad_server_proof(wire: &mut Wire) {
     assert_eq!(wire.next_sent().await, "AUTHENTICATE *");
 }
 
+async fn send_excessive_iteration_count(wire: &mut Wire) {
+    wire.server("AUTHENTICATE +").await;
+    let client_first = wire.next_sent().await;
+    let encoded = client_first.strip_prefix("AUTHENTICATE ").unwrap();
+    let decoded = String::from_utf8(STANDARD.decode(encoded).unwrap()).unwrap();
+    let nonce = decoded.strip_prefix("n,,n=alice,r=").unwrap();
+    let challenge = format!("r={nonce}offline-server,s=W22ZaJ0SNY7soEsUEjb6gQ==,i=4294967295");
+    wire.server(format!("AUTHENTICATE {}", STANDARD.encode(challenge)))
+        .await;
+}
+
 async fn sasl_disconnect(events: &mut Events) -> Disconnected {
     tokio::time::timeout(Duration::from_secs(1), async {
         loop {
@@ -197,4 +208,15 @@ async fn plaintext_credentials_require_explicit_opt_in() {
         .connect()
         .await;
     assert!(matches!(result, Err(papo::Error::InvalidInput(_))));
+}
+
+#[tokio::test]
+async fn scram_rejects_excessive_iterations_promptly() {
+    let (_client, mut events, mut wire) = start_scram("ircs://offline.test").await;
+    send_excessive_iteration_count(&mut wire).await;
+    assert_eq!(wire.next_sent().await, "AUTHENTICATE *");
+    wire.server(":offline.test 906 papo-wire :SASL authentication aborted")
+        .await;
+    let disconnected = sasl_disconnect(&mut events).await;
+    assert_sasl_failure(&disconnected, "IterationCountTooHigh");
 }

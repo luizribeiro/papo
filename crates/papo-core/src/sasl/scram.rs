@@ -4,6 +4,7 @@ use pbkdf2::pbkdf2_hmac;
 use sha2::{Digest, Sha256};
 
 type HmacSha256 = Hmac<Sha256>;
+const MAX_ITERATION_COUNT: u32 = 1_000_000;
 
 pub(crate) struct ScramClient {
     username: String,
@@ -53,6 +54,9 @@ impl ScramClient {
         if iterations < 4096 {
             return Err(ScramError::IterationCountTooLow);
         }
+        if iterations > MAX_ITERATION_COUNT {
+            return Err(ScramError::IterationCountTooHigh);
+        }
 
         let final_without_proof = format!("c=biws,r={nonce}");
         let first = self.client_first();
@@ -94,6 +98,7 @@ pub(crate) enum ScramError {
     MalformedMessage,
     InvalidServerNonce,
     IterationCountTooLow,
+    IterationCountTooHigh,
     UnexpectedServerFirst,
     UnexpectedServerFinal,
     ServerSignatureMismatch,
@@ -254,6 +259,19 @@ mod tests {
         assert_eq!(
             client.handle_server_first(first),
             Err(ScramError::IterationCountTooLow)
+        );
+    }
+
+    #[test]
+    fn rejects_iteration_count_above_one_million() {
+        let mut client = rfc_client();
+        let first = concat!(
+            "r=rOprNGfwEbeRWgbNEkqO-server,s=W22ZaJ0SNY7soEsUEjb6gQ==,",
+            "i=1000001"
+        );
+        assert_eq!(
+            client.handle_server_first(first),
+            Err(ScramError::IterationCountTooHigh)
         );
     }
 
