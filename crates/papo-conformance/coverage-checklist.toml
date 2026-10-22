@@ -100,4 +100,5 @@ ids = [
   "security.h11.monitored-presence-only",
   "security.h7.rejoin-pending-bound",
   "security.d7.away-reconnect",
+  "security.h12.catchup-progress",
 ]

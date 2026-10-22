@@ -255,3 +255,75 @@ async fn confirmed_runtime_away_survives_reconnect(_s: Scenario) -> papo_testing
     assert_eq!(wire.next_sent().await, "AWAY :reviewing audit logs");
     Ok(())
 }
+
+/// stops reconnect catch-up when a non-final page repeats without progress
+#[scenario(covers = ["security.h12.catchup-progress"])]
+async fn repeated_catchup_page_stops_after_two_requests(_s: Scenario) -> papo_testing::Result<()> {
+    let caps = [
+        "batch",
+        "draft/chathistory",
+        "labeled-response",
+        "server-time",
+    ];
+    let (client, mut events, mut wire) = papo_testing::wire(
+        papo::Client::builder("irc://offline.test")
+            .nick("papo-wire")
+            .request_caps(caps)
+            .autojoin(["#papo"])
+            .history_on_reconnect(true)
+            .rate_limit(papo::RateLimit::unlimited()),
+    );
+    wire.register(&caps).await;
+    connected(&mut events).await;
+    assert_eq!(wire.next_sent().await, "@label=0 JOIN #papo");
+    wire.server("@label=0 :papo-wire!~papo@localhost JOIN #papo")
+        .await;
+    wire.server("@time=2026-10-15T12:00:00.000Z;msgid=before-1 :alice!~alice@users.example PRIVMSG #papo :before disconnect")
+        .await;
+    while !matches!(events.next().await, Some(Event::Message(_))) {}
+
+    client.reconnect().await?;
+    while !matches!(events.next().await, Some(Event::Disconnected(_))) {}
+    wire.close().await;
+    wire.register(&caps).await;
+    connected(&mut events).await;
+    assert_eq!(wire.next_sent().await, "@label=1 JOIN #papo");
+    assert_eq!(
+        wire.next_sent().await,
+        "@label=2 CHATHISTORY AFTER #papo msgid=before-1 100"
+    );
+    for line in [
+        "@label=2 :offline.test BATCH +reply1 labeled-response",
+        "@batch=reply1 :offline.test BATCH +history1 chathistory #papo",
+        "@batch=history1;time=2026-10-15T12:01:00.000Z;msgid=missed-1 :alice!~alice@users.example PRIVMSG #papo :missed once",
+        "@batch=reply1 :offline.test BATCH -history1",
+        ":offline.test BATCH -reply1",
+    ] {
+        wire.server(line).await;
+    }
+    assert_eq!(
+        wire.next_sent().await,
+        "@label=3 CHATHISTORY AFTER #papo msgid=missed-1 100"
+    );
+    for line in [
+        "@label=3 :offline.test BATCH +reply2 labeled-response",
+        "@batch=reply2 :offline.test BATCH +history2 chathistory #papo",
+        "@batch=history2;time=2026-10-15T12:01:00.000Z;msgid=missed-1 :alice!~alice@users.example PRIVMSG #papo :missed once",
+        "@batch=reply2 :offline.test BATCH -history2",
+        ":offline.test BATCH -reply2",
+    ] {
+        wire.server(line).await;
+    }
+    loop {
+        if let Some(Event::History(history)) = events.next().await {
+            assert_eq!(history.messages().count(), 1);
+            break;
+        }
+    }
+
+    let ping = tokio::spawn(async move { client.ping().await });
+    let sent = wire.next_sent().await;
+    assert!(sent.starts_with("PING ") || sent.contains(" PING "));
+    ping.abort();
+    Ok(())
+}
