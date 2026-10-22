@@ -39,14 +39,14 @@ fn debug_output_redacts_rate_limited_oper_and_join_credentials() {
     session
         .request_with_matcher(
             now,
-            Line::new("OPER", ["admin", "operator-password-3751"]),
+            Line::builder("OPER").with_params(["admin", "operator-password-3751"]),
             ResponseMatcher::Oper,
         )
         .unwrap();
     session
         .request_with_matcher(
             now,
-            Line::new("JOIN", ["#secret", "channel-key-6824"]),
+            Line::builder("JOIN").with_params(["#secret", "channel-key-6824"]),
             ResponseMatcher::Join("#secret".into()),
         )
         .unwrap();
@@ -61,7 +61,7 @@ fn matches_an_unlabelled_whois_through_its_end_numeric() {
     let id = session
         .request_with_matcher(
             now,
-            Line::new("WHOIS", ["Alice["]),
+            Line::builder("WHOIS").with_params(["Alice["]),
             ResponseMatcher::Whois("Alice[".into()),
         )
         .unwrap();
@@ -88,7 +88,7 @@ fn parses_whois_channels_with_advertised_membership_prefixes() {
     session
         .request_with_matcher(
             now,
-            Line::new("WHOIS", ["alice"]),
+            Line::builder("WHOIS").with_params(["alice"]),
             ResponseMatcher::Whois("alice".into()),
         )
         .unwrap();
@@ -158,7 +158,7 @@ fn unlabelled_mode_waits_for_its_matching_ping_fence() {
     let id = session
         .request_with_matcher(
             now,
-            Line::new("MODE", ["#papo", "+t"]),
+            Line::builder("MODE").with_params(["#papo", "+t"]),
             ResponseMatcher::Mode("#papo".into()),
         )
         .unwrap();
@@ -190,10 +190,12 @@ fn unlabelled_mode_keeps_applied_changes_and_partial_refusals() {
     let id = session
         .request_with_matcher(
             now,
-            Line::new(
-                "MODE",
-                ["#papo", "+bb", "alice!*@*", "spambot!*@gateway.example"],
-            ),
+            Line::builder("MODE").with_params([
+                "#papo",
+                "+bb",
+                "alice!*@*",
+                "spambot!*@gateway.example",
+            ]),
             ResponseMatcher::Mode("#papo".into()),
         )
         .unwrap();
@@ -236,7 +238,7 @@ fn ban_confirmation_reaches_the_mode_fence_after_echo_or_duplicate() {
         let id = session
             .request_with_matcher(
                 now,
-                Line::new("MODE", ["#papo", "+b", "alice"]),
+                Line::builder("MODE").with_params(["#papo", "+b", "alice"]),
                 ResponseMatcher::Mode("#papo".into()),
             )
             .unwrap();
@@ -334,7 +336,7 @@ fn unlabelled_whois(session: &mut Session, now: Instant, nick: &str) -> RequestI
     session
         .request_with_matcher(
             now,
-            Line::new("WHOIS", [nick]),
+            Line::builder("WHOIS").with_params([nick]),
             ResponseMatcher::Whois(nick.into()),
         )
         .unwrap()
@@ -345,7 +347,7 @@ fn matches_other_unlabelled_request_boundaries() {
     let mut session = Session::new(Config::default().nick("papo"));
     assert_unlabelled(
         &mut session,
-        Line::new("WHO", ["#papo"]),
+        Line::builder("WHO").with_params(["#papo"]),
         ResponseMatcher::Who("#papo".into()),
         &[
             ":ergo.test 352 papo #papo ~alice host ergo.test alice H@ :0 Alice Example",
@@ -354,7 +356,7 @@ fn matches_other_unlabelled_request_boundaries() {
     );
     assert_unlabelled(
         &mut session,
-        Line::new("LIST", Vec::<String>::new()),
+        Line::builder("LIST"),
         ResponseMatcher::List,
         &[
             ":ergo.test 321 papo Channel :Users Name",
@@ -364,13 +366,13 @@ fn matches_other_unlabelled_request_boundaries() {
     );
     assert_unlabelled(
         &mut session,
-        Line::new("PART", ["#papo"]),
+        Line::builder("PART").with_params(["#papo"]),
         ResponseMatcher::Part("#papo".into()),
         &[":papo!papo@localhost PART #papo :Leaving"],
     );
     assert_unlabelled(
         &mut session,
-        Line::new("MODE", ["#papo", "+t"]),
+        Line::builder("MODE").with_params(["#papo", "+t"]),
         ResponseMatcher::Mode("#papo".into()),
         &[
             ":ergo.test 482 papo #papo :You're not a channel operator",
@@ -379,19 +381,19 @@ fn matches_other_unlabelled_request_boundaries() {
     );
     assert_unlabelled(
         &mut session,
-        Line::new("TOPIC", ["#papo"]),
+        Line::builder("TOPIC").with_params(["#papo"]),
         ResponseMatcher::Topic("#papo".into()),
         &[":ergo.test 332 papo #papo :Requests in Rust"],
     );
     assert_unlabelled(
         &mut session,
-        Line::new("WHO", ["#missing"]),
+        Line::builder("WHO").with_params(["#missing"]),
         ResponseMatcher::Who("#missing".into()),
         &["FAIL WHO INVALID_PARAMS #missing :Invalid mask"],
     );
     assert_unlabelled(
         &mut session,
-        Line::new("LIST", Vec::<String>::new()),
+        Line::builder("LIST"),
         ResponseMatcher::List,
         &[":ergo.test 461 papo LIST :Not enough parameters"],
     );
@@ -402,19 +404,19 @@ fn matches_unlabelled_membership_and_nick_actions() {
     let mut session = Session::new(Config::default().nick("papo"));
     assert_unlabelled(
         &mut session,
-        Line::new("KICK", ["#papo", "spambot", "flooding"]),
+        Line::builder("KICK").with_params(["#papo", "spambot", "flooding"]),
         ResponseMatcher::__kick("#papo".into(), "spambot".into()),
         &[":alice!~a@localhost KICK #papo spambot :flooding"],
     );
     assert_unlabelled(
         &mut session,
-        Line::new("INVITE", ["carol", "#papo"]),
+        Line::builder("INVITE").with_params(["carol", "#papo"]),
         ResponseMatcher::__invite("#papo".into(), "carol".into()),
         &[":ergo.test 341 papo carol #papo"],
     );
     assert_unlabelled(
         &mut session,
-        Line::new("NICK", ["papo-away"]),
+        Line::builder("NICK").with_params(["papo-away"]),
         ResponseMatcher::Nick("papo-away".into()),
         &[":papo!papo@localhost NICK :papo-away"],
     );
@@ -430,19 +432,19 @@ fn typed_action_refusals_complete_unlabelled_requests() {
             Refusal::InviteOnlyChannel,
         ),
         (
-            Line::new("KICK", ["#papo", "carol"]),
+            Line::builder("KICK").with_params(["#papo", "carol"]),
             ResponseMatcher::__kick("#papo".into(), "carol".into()),
             ":irc.solanum.test 441 papo carol #papo :They aren't on that channel",
             Refusal::UserNotInChannel,
         ),
         (
-            Line::new("MODE", ["#papo", "+z"]),
+            Line::builder("MODE").with_params(["#papo", "+z"]),
             ResponseMatcher::Mode("#papo".into()),
             ":irc.solanum.test 472 papo z :is unknown mode char to me",
             Refusal::UnknownMode,
         ),
         (
-            Line::new("NICK", ["42papo"]),
+            Line::builder("NICK").with_params(["42papo"]),
             ResponseMatcher::Nick("42papo".into()),
             ":ergo.test 432 papo 42papo :Erroneous nickname",
             Refusal::ErroneousNickname,
@@ -458,31 +460,31 @@ fn matches_unlabelled_own_user_actions() {
     let mut session = Session::new(Config::default().nick("papo"));
     assert_unlabelled(
         &mut session,
-        Line::new("AWAY", ["reviewing patches"]),
+        Line::builder("AWAY").with_params(["reviewing patches"]),
         ResponseMatcher::Away(true),
         &[":ergo.test 306 papo :You have been marked as being away"],
     );
     assert_unlabelled(
         &mut session,
-        Line::new("AWAY", Vec::<String>::new()),
+        Line::builder("AWAY"),
         ResponseMatcher::Away(false),
         &[":ergo.test 305 papo :You are no longer marked as being away"],
     );
     assert_unlabelled(
         &mut session,
-        Line::new("SETNAME", ["Papo Test Client"]),
+        Line::builder("SETNAME").with_params(["Papo Test Client"]),
         ResponseMatcher::SetName("Papo Test Client".into()),
         &[":papo!papo@localhost SETNAME :Papo Test Client"],
     );
     assert_unlabelled(
         &mut session,
-        Line::new("OPER", ["papo", "correct horse battery staple"]),
+        Line::builder("OPER").with_params(["papo", "correct horse battery staple"]),
         ResponseMatcher::Oper,
         &[":ergo.test 381 papo :You are now an IRC operator"],
     );
     assert_unlabelled(
         &mut session,
-        Line::new("PING", ["papo-lag-42"]),
+        Line::builder("PING").with_params(["papo-lag-42"]),
         ResponseMatcher::Ping("papo-lag-42".into()),
         &[":ergo.test PONG ergo.test :papo-lag-42"],
     );
@@ -495,7 +497,7 @@ fn own_user_matchers_require_their_exact_success() {
     let id = session
         .request_with_matcher(
             now,
-            Line::new("PING", ["papo-lag-42"]),
+            Line::builder("PING").with_params(["papo-lag-42"]),
             ResponseMatcher::Ping("papo-lag-42".into()),
         )
         .unwrap();
@@ -515,7 +517,7 @@ fn setname_matches_after_a_nickname_change() {
     let nick = session
         .request_with_matcher(
             now,
-            Line::new("NICK", ["paporev"]),
+            Line::builder("NICK").with_params(["paporev"]),
             ResponseMatcher::Nick("paporev".into()),
         )
         .unwrap();
@@ -525,7 +527,7 @@ fn setname_matches_after_a_nickname_change() {
     let realname = session
         .request_with_matcher(
             now,
-            Line::new("SETNAME", ["Papo Review Client"]),
+            Line::builder("SETNAME").with_params(["Papo Review Client"]),
             ResponseMatcher::SetName("Papo Review Client".into()),
         )
         .unwrap();
@@ -540,7 +542,7 @@ fn membership_matchers_ignore_unrelated_successes_and_capture_errors() {
     let id = session
         .request_with_matcher(
             now,
-            Line::new("INVITE", ["carol", "#papo"]),
+            Line::builder("INVITE").with_params(["carol", "#papo"]),
             ResponseMatcher::__invite("#papo".into(), "carol".into()),
         )
         .unwrap();
@@ -561,7 +563,7 @@ fn action_matchers_require_every_identity_field() {
     let kick_id = kick
         .request_with_matcher(
             now,
-            Line::new("KICK", ["#papo", "spambot"]),
+            Line::builder("KICK").with_params(["#papo", "spambot"]),
             ResponseMatcher::__kick("#papo".into(), "spambot".into()),
         )
         .unwrap();
@@ -584,7 +586,7 @@ fn action_matchers_require_every_identity_field() {
     let invite_id = invite
         .request_with_matcher(
             now,
-            Line::new("INVITE", ["carol", "#papo"]),
+            Line::builder("INVITE").with_params(["carol", "#papo"]),
             ResponseMatcher::__invite("#papo".into(), "carol".into()),
         )
         .unwrap();
@@ -602,7 +604,7 @@ fn action_matchers_require_every_identity_field() {
     let nick_id = nick
         .request_with_matcher(
             now,
-            Line::new("NICK", ["papo-away"]),
+            Line::builder("NICK").with_params(["papo-away"]),
             ResponseMatcher::Nick("papo-away".into()),
         )
         .unwrap();
@@ -624,7 +626,7 @@ fn action_matchers_require_every_identity_field() {
     let setname_id = setname
         .request_with_matcher(
             now,
-            Line::new("SETNAME", ["Papo Test Client"]),
+            Line::builder("SETNAME").with_params(["Papo Test Client"]),
             ResponseMatcher::SetName("Papo Test Client".into()),
         )
         .unwrap();
@@ -666,14 +668,14 @@ fn kick_refusals_resolve_only_the_named_concurrent_request() {
         let kick = session
             .request_with_matcher(
                 now,
-                Line::new("KICK", ["#papo", "spambot"]),
+                Line::builder("KICK").with_params(["#papo", "spambot"]),
                 ResponseMatcher::__kick("#papo".into(), "spambot".into()),
             )
             .unwrap();
         let mode = session
             .request_with_matcher(
                 now,
-                Line::new("MODE", ["#review", "+m"]),
+                Line::builder("MODE").with_params(["#review", "+m"]),
                 ResponseMatcher::Mode("#review".into()),
             )
             .unwrap();
@@ -720,14 +722,14 @@ fn invite_refusals_resolve_only_the_named_concurrent_request() {
         let invite = session
             .request_with_matcher(
                 now,
-                Line::new("INVITE", ["carol", "#papo"]),
+                Line::builder("INVITE").with_params(["carol", "#papo"]),
                 ResponseMatcher::__invite("#papo".into(), "carol".into()),
             )
             .unwrap();
         let mode = session
             .request_with_matcher(
                 now,
-                Line::new("MODE", ["#review", "+m"]),
+                Line::builder("MODE").with_params(["#review", "+m"]),
                 ResponseMatcher::Mode("#review".into()),
             )
             .unwrap();
@@ -763,14 +765,14 @@ fn part_refusals_resolve_only_the_named_concurrent_request() {
         let part = session
             .request_with_matcher(
                 now,
-                Line::new("PART", ["#papo"]),
+                Line::builder("PART").with_params(["#papo"]),
                 ResponseMatcher::Part("#papo".into()),
             )
             .unwrap();
         let mode = session
             .request_with_matcher(
                 now,
-                Line::new("MODE", ["#review", "+m"]),
+                Line::builder("MODE").with_params(["#review", "+m"]),
                 ResponseMatcher::Mode("#review".into()),
             )
             .unwrap();
@@ -794,14 +796,14 @@ fn non_error_numeric_named_like_a_command_does_not_claim_its_request() {
     let ping = session
         .request_with_matcher(
             now,
-            Line::new("PING", ["routing-token"]),
+            Line::builder("PING").with_params(["routing-token"]),
             ResponseMatcher::Ping("routing-token".into()),
         )
         .unwrap();
     let invite = session
         .request_with_matcher(
             now,
-            Line::new("INVITE", ["PING", "#papo"]),
+            Line::builder("INVITE").with_params(["PING", "#papo"]),
             ResponseMatcher::__invite("#papo".into(), "PING".into()),
         )
         .unwrap();
@@ -819,14 +821,14 @@ fn no_origin_refusal_resolves_ping_and_leaves_invite_pending() {
     let ping = session
         .request_with_matcher(
             now,
-            Line::new("PING", Vec::<String>::new()),
+            Line::builder("PING"),
             ResponseMatcher::Ping("missing-token".into()),
         )
         .unwrap();
     let invite = session
         .request_with_matcher(
             now,
-            Line::new("INVITE", ["carol", "#papo"]),
+            Line::builder("INVITE").with_params(["carol", "#papo"]),
             ResponseMatcher::__invite("#papo".into(), "carol".into()),
         )
         .unwrap();
@@ -906,7 +908,7 @@ fn who_rows_attach_only_to_the_named_concurrent_mask() {
     let alice = session
         .request_with_matcher(
             now,
-            Line::new("WHO", ["Alice["]),
+            Line::builder("WHO").with_params(["Alice["]),
             ResponseMatcher::Who("Alice[".into()),
         )
         .unwrap();
