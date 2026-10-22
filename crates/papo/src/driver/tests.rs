@@ -1574,23 +1574,39 @@ fn reconnect_history_stops_at_the_literal_per_target_limit() {
 #[cfg(feature = "unstable")]
 #[test]
 fn persistence_gates_rejoin_and_history_fetch() {
-    for (effective, expected) in [(false, true), (true, false)] {
+    for (effective, expected_request) in [(false, true), (true, false)] {
         let now = std::time::Instant::now();
         let mut session = Session::new(
             config()
                 .enable(papo_core::Feature::Persistence)
-                .wanted_caps(["draft/persistence"]),
+                .wanted_caps(["draft/persistence", "draft/chathistory", "labeled-response"]),
         );
         session.handle_connected(now);
         while session.poll_transmit().is_some() {}
-        session.handle_bytes(now, b":ergo.test CAP * LS :draft/persistence\r\n");
+        session.handle_bytes(
+            now,
+            b":ergo.test CAP * LS :draft/persistence draft/chathistory labeled-response\r\n",
+        );
         while session.poll_transmit().is_some() {}
         session.handle_bytes(
             now,
-            b":ergo.test CAP * ACK :draft/persistence\r\n:ergo.test PERSISTENCE STATUS DEFAULT ",
+            b":ergo.test CAP * ACK :draft/persistence draft/chathistory labeled-response\r\n:ergo.test 005 papo-driver CHATHISTORY=100 MSGREFTYPES=msgid,timestamp :are supported by this server\r\n:ergo.test PERSISTENCE STATUS DEFAULT ",
         );
         session.handle_bytes(now, if effective { b"ON\r\n" } else { b"OFF\r\n" });
-        assert_eq!(!super::server_restores_channels(&session), expected);
+        assert_eq!(!super::server_restores_channels(&session), expected_request);
+        while session.poll_transmit().is_some() {}
+
+        let defaults = super::PostConnect {
+            bot: false,
+            channels: vec!["#papo".into()],
+            parted_while_disconnected: Vec::new(),
+            history_on_reconnect: true,
+            disconnected_at: Some(SystemTime::UNIX_EPOCH),
+        };
+        let mut catchups = super::BTreeMap::new();
+        super::begin_catchup(&mut session, &defaults, &mut catchups);
+        assert_eq!(catchups.len(), usize::from(expected_request));
+        assert_eq!(session.poll_transmit().is_some(), expected_request);
     }
 }
 

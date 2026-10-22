@@ -218,6 +218,44 @@ mod tests {
     use papo_core::{Config, HistoryItem, HistoryLine, MsgRef, RateLimit, Session};
     use papo_proto::LineRef;
 
+    fn registered_history_session() -> Session {
+        let now = std::time::Instant::now();
+        let mut session = Session::new(
+            Config::default()
+                .rate_limit(RateLimit::unlimited())
+                .wanted_caps(["draft/chathistory", "labeled-response"]),
+        );
+        session.handle_connected(now);
+        while session.poll_transmit().is_some() {}
+        session.handle_bytes(
+            now,
+            b":ergo.test CAP * LS :draft/chathistory labeled-response\r\n",
+        );
+        while session.poll_transmit().is_some() {}
+        session.handle_bytes(
+            now,
+            b":ergo.test CAP * ACK :draft/chathistory labeled-response\r\n",
+        );
+        while session.poll_transmit().is_some() {}
+        session.handle_bytes(now, b":ergo.test 005 papo CHATHISTORY=100 MSGREFTYPES=msgid,timestamp :are supported by this server\r\n");
+        session.handle_bytes(
+            now,
+            b":ergo.test 001 papo :Welcome to the ErgoTest IRC Network\r\n",
+        );
+        while session.poll_event().is_some() {}
+        session
+    }
+
+    fn reconnect_defaults(history_on_reconnect: bool) -> super::super::PostConnect {
+        super::super::PostConnect {
+            bot: false,
+            channels: vec!["#papo".into()],
+            parted_while_disconnected: Vec::new(),
+            history_on_reconnect,
+            disconnected_at: Some(SystemTime::UNIX_EPOCH),
+        }
+    }
+
     #[test]
     fn gap_fill_deduplicates_a_live_reaction_by_msgid() {
         let mapping = papo_proto::Casemapping::default();
@@ -324,5 +362,17 @@ mod tests {
 
         assert!(catchups.is_empty());
         assert!(session.poll_transmit().is_none());
+    }
+
+    #[test]
+    fn reconnect_history_setting_controls_catchup() {
+        for (enabled, expected_request) in [(false, false), (true, true)] {
+            let mut session = registered_history_session();
+            let mut catchups = BTreeMap::new();
+            super::begin_catchup(&mut session, &reconnect_defaults(enabled), &mut catchups);
+
+            assert_eq!(catchups.len(), usize::from(expected_request));
+            assert_eq!(session.poll_transmit().is_some(), expected_request);
+        }
     }
 }
