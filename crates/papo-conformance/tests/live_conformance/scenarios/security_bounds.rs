@@ -99,14 +99,22 @@ async fn hostile_cap_new_stays_bounded(_s: Scenario) -> papo_testing::Result<()>
 /// abandons nested batches before retained tag data reaches 64 MiB
 #[scenario(covers = ["security.h6.batch-byte-bound"])]
 async fn hostile_batch_tags_hit_the_global_budget(_s: Scenario) -> papo_testing::Result<()> {
-    let (_client, mut events, mut wire) = papo_testing::wire(
+    let (client, mut events, mut wire) = papo_testing::wire(
         papo::Client::builder("irc://offline.test")
             .nick("papo-wire")
             .rate_limit(papo::RateLimit::unlimited()),
     );
-    wire.register(&["batch"]).await;
+    wire.register(&["batch", "labeled-response"]).await;
     connected(&mut events).await;
-    wire.server("@label=lost BATCH +b0 labeled-response").await;
+    let mut request =
+        Box::pin(client.request_raw(papo::Line::new("VENDOR").with_params(["audit"])));
+    tokio::select! {
+        biased;
+        result = &mut request => panic!("request finished before its response: {result:?}"),
+        () = std::future::ready(()) => {}
+    }
+    assert_eq!(wire.next_sent().await, "@label=0 VENDOR audit");
+    wire.server("@label=0 BATCH +b0 labeled-response").await;
     for depth in 1..64 {
         wire.server(format!("@batch=b{} BATCH +b{depth} vendor/sync", depth - 1))
             .await;

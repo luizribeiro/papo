@@ -846,12 +846,12 @@ mod tests {
     }
 
     #[test]
-    fn unknown_label_batch_hits_the_global_byte_budget() {
+    fn correlated_label_batch_hits_the_global_byte_budget() {
         let now = Instant::now();
         let mut batches = Batches::new(&Config::default());
         let open = LineRef::parse("@label=lost BATCH +reply labeled-response").unwrap();
         assert!(matches!(
-            batches.handle(now, &open, usize::MAX, false, false),
+            batches.handle(now, &open, usize::MAX, false, true),
             BatchAction::Consumed
         ));
         let prefix = "@batch=reply;vendor.example/large=";
@@ -863,7 +863,7 @@ mod tests {
         loop {
             fed += wire.len();
             if let BatchAction::Complete(events) =
-                batches.handle(now, &member, usize::MAX, false, false)
+                batches.handle(now, &member, usize::MAX, false, true)
             {
                 assert!(events.iter().any(|event| matches!(
                     event,
