@@ -1,5 +1,7 @@
 use papo::event::ModeChanged;
-use papo::{Account, AccountName, Conversation, Error, Event, Message, Refusal, State, Subject};
+use papo::{
+    Account, AccountName, Chat, Conversation, Error, Event, Message, Refusal, State, Subject,
+};
 
 use crate::Peer;
 
@@ -20,13 +22,41 @@ pub(super) fn message_text<'event>(event: &'event Event, text: &str) -> Option<&
         .filter(|message| message.raw_text == text)
 }
 
-pub(super) fn conversation_name(conversation: &Conversation) -> Option<&str> {
-    match conversation {
-        Conversation::Channel(name) => Some(name),
-        Conversation::Private(name) => Some(name),
-        Conversation::Broadcast(mask) => Some(mask),
-        _ => None,
+/// Accepts a notice whose wire text is exactly `text`.
+pub(super) fn notice_text<'event>(
+    event: &'event Event,
+    text: &str,
+) -> Option<&'event papo::event::Notice> {
+    event.as_notice().filter(|notice| notice.raw_text == text)
+}
+
+pub(super) trait ConversationName {
+    fn name(&self) -> Option<&str>;
+}
+
+impl ConversationName for Conversation {
+    fn name(&self) -> Option<&str> {
+        match self {
+            Conversation::Channel(name) => Some(name),
+            Conversation::Private(name) => Some(name),
+            Conversation::Broadcast(mask) => Some(mask),
+            _ => None,
+        }
     }
+}
+
+impl ConversationName for Chat {
+    fn name(&self) -> Option<&str> {
+        match self {
+            Chat::Channel(name) => Some(name),
+            Chat::Private(name) => Some(name),
+            _ => None,
+        }
+    }
+}
+
+pub(super) fn conversation_name(conversation: &impl ConversationName) -> Option<&str> {
+    conversation.name()
 }
 
 pub(super) fn subject_name(subject: &Subject) -> &str {

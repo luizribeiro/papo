@@ -160,17 +160,14 @@ async fn services(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     let nickserv = alice
         .wait_for(|event| {
-            event.as_message().filter(|message| {
-                message.kind == papo::MessageKind::Notice
+            event.as_notice().filter(|message| {
+                message.kind == papo::event::NoticeKind::Text
                     && crate::source_nick(&message.actor) == Some("NickServ")
                     && message.text.contains(account.as_ref())
             })
         })
         .await?;
-    assert!(matches!(
-        nickserv.conversation,
-        papo::Conversation::Private(_)
-    ));
+    assert!(matches!(nickserv.conversation, papo::Chat::Private(_)));
 
     let channel = s.channel_name();
     alice.join(&channel).await?;
@@ -179,17 +176,14 @@ async fn services(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     let chanserv = alice
         .wait_for(|event| {
-            event.as_message().filter(|message| {
-                message.kind == papo::MessageKind::Notice
+            event.as_notice().filter(|message| {
+                message.kind == papo::event::NoticeKind::Text
                     && crate::source_nick(&message.actor) == Some("ChanServ")
                     && message.text.contains(&channel)
             })
         })
         .await?;
-    assert!(matches!(
-        chanserv.conversation,
-        papo::Conversation::Private(_)
-    ));
+    assert!(matches!(chanserv.conversation, papo::Chat::Private(_)));
     Ok(())
 }
 

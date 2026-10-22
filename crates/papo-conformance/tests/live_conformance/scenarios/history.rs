@@ -1,6 +1,6 @@
 use std::time::{Duration, SystemTime};
 
-use papo::{Error, Event, MessageKind, Sent};
+use papo::{Error, Event, Sent};
 use papo_conformance_macros::scenario;
 
 use crate::scenarios::support::conversation_name;
@@ -273,15 +273,16 @@ async fn soju_server_notice_history(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     let notice = alice
         .wait_for(|event| {
-            event
-                .as_message()
-                .filter(|message| message.kind == MessageKind::Notice && message.text == text)
+            event.as_server_notice().filter(|message| {
+                message.kind == papo::event::ServerNoticeKind::Notice && message.text == text
+            })
         })
         .await?;
     assert_eq!(crate::source_nick(&notice.actor), Some("BouncerServ"));
-    let target = crate::scenarios::support::conversation_name(&notice.conversation)
-        .expect("broadcast has an address")
-        .to_owned();
+    let papo::event::ServerNoticeTarget::Mask(target) = &notice.to else {
+        panic!("server notice was not sent to a mask");
+    };
+    let target = target.to_string();
     assert!(target.starts_with('$'));
 
     let page = alice.history("BouncerServ").latest().limit(10).await?;

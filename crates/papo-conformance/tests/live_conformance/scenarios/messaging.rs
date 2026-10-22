@@ -2,7 +2,7 @@ use papo::{Error, Event, Fallback, Feature, MessageKind, Refusal, UnsupportedRea
 use papo_conformance_macros::scenario;
 use papo_proto::Typing;
 
-use super::support::{conversation_name, message_text};
+use super::support::{conversation_name, message_text, notice_text};
 use crate::{Peer, Scenario};
 
 async fn fixture_pair(context: &Scenario) -> papo_testing::Result<(Peer, Peer, String)> {
@@ -86,9 +86,9 @@ async fn server_time(s: Scenario) -> papo_testing::Result<()> {
     let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
     let sent = alice.notice(&channel, "maintenance at midnight").await?;
     let message = bob
-        .wait_for(|event| message_text(event, "maintenance at midnight"))
+        .wait_for(|event| notice_text(event, "maintenance at midnight"))
         .await?;
-    assert_eq!(message.kind, MessageKind::Notice);
+    assert_eq!(message.kind, papo::event::NoticeKind::Text);
     assert_eq!(
         crate::source_nick(&message.actor),
         Some(alice.nick().as_ref())
@@ -103,9 +103,9 @@ async fn server_time(s: Scenario) -> papo_testing::Result<()> {
     assert!(message.tags.contains("time"));
     assert!(sent.fallbacks.is_empty());
     alice
-        .expect_none(|event| message_text(event, "maintenance at midnight"))
+        .expect_none(|event| notice_text(event, "maintenance at midnight"))
         .await?;
-    bob.expect_none(|event| message_text(event, "maintenance at midnight"))
+    bob.expect_none(|event| notice_text(event, "maintenance at midnight"))
         .await?;
     Ok(())
 }
@@ -144,16 +144,13 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
 
     let sent = bob.notice(alice.nick(), "private notice").await?;
     let received = alice
-        .wait_for(|event| message_text(event, "private notice"))
+        .wait_for(|event| notice_text(event, "private notice"))
         .await?;
-    assert_eq!(received.kind, MessageKind::Notice);
-    assert_eq!(
-        conversation_name(&received.conversation),
-        Some(bob.nick().as_ref())
-    );
-    assert_eq!(received.return_address(), bob.nick().as_ref());
+    assert_eq!(received.kind, papo::event::NoticeKind::Text);
+    assert!(matches!(&received.conversation, papo::Chat::Private(nick)
+        if nick == bob.nick().as_ref()));
     assert_eq!(received.raw_text, "private notice");
-    assert!(is_private(&received));
+    assert!(matches!(received.conversation, papo::Chat::Private(_)));
     assert_eq!(received.msgid.as_ref(), sent.msgid.as_ref());
     assert_eq!(received.server_time, sent.server_time);
 
@@ -433,6 +430,17 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
         received.push_str(&action.raw_text);
     }
     assert_eq!(received, long_action);
+
+    alice
+         .send_raw(papo::Line::notice(
+             bob.nick().as_ref(),
+             "\u{1}ACTION nods hello\u{1}",
+        ))
+        .await?;
+    let notice = bob
+        .wait_for(|event| notice_text(event, "nods hello"))
+        .await?;
+    assert_eq!(notice.kind, papo::event::NoticeKind::Action);
 
     alice
         .send_raw(
