@@ -688,6 +688,7 @@ dependencies = [
  "precis-profiles",
  "proptest",
  "serde_json",
+ "zeroize",
 ]
 
 [[package]]

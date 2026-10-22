@@ -1,42 +1,58 @@
-/// A sensitive text or byte value whose debug representation is always redacted.
-#[derive(Clone, Eq, PartialEq)]
-pub struct Secret(SecretValue);
+use std::sync::Arc;
 
+use zeroize::Zeroize;
+
+/// A sensitive text or byte value whose debug representation is always redacted.
+///
+/// Clones share one papo-owned buffer, which is wiped when its last handle is dropped. This is
+/// best-effort memory hygiene, not protection from every copy: caller-owned inputs, values exposed
+/// and copied by the caller, cryptographic and TLS libraries, operating-system or browser I/O,
+/// swap, and core dumps can retain the value. The buffer is not locked in memory.
 #[derive(Clone, Eq, PartialEq)]
-enum SecretValue {
-    Text(String),
-    Bytes(Vec<u8>),
+pub struct Secret(Arc<SecretBuf>);
+
+#[derive(Eq, PartialEq)]
+struct SecretBuf {
+    bytes: Vec<u8>,
+    text: bool,
+}
+
+impl Drop for SecretBuf {
+    fn drop(&mut self) {
+        self.bytes.zeroize();
+    }
 }
 
 impl Secret {
     /// Wraps a sensitive value.
     #[must_use]
     pub fn new(value: impl Into<String>) -> Self {
-        Self(SecretValue::Text(value.into()))
+        Self::from(value.into())
     }
 
     /// Wraps sensitive bytes without requiring them to contain UTF-8.
     #[must_use]
     pub fn from_bytes(value: impl Into<Vec<u8>>) -> Self {
-        Self(SecretValue::Bytes(value.into()))
+        Self(Arc::new(SecretBuf {
+            bytes: value.into(),
+            text: false,
+        }))
     }
 
     /// Borrows the sensitive value as text, or returns `None` for a byte secret.
     #[must_use]
     pub fn expose(&self) -> Option<&str> {
-        match &self.0 {
-            SecretValue::Text(value) => Some(value),
-            SecretValue::Bytes(_) => None,
+        if self.0.text {
+            std::str::from_utf8(&self.0.bytes).ok()
+        } else {
+            None
         }
     }
 
     /// Borrows the sensitive value as bytes.
     #[must_use]
     pub fn expose_bytes(&self) -> &[u8] {
-        match &self.0 {
-            SecretValue::Text(value) => value.as_bytes(),
-            SecretValue::Bytes(value) => value,
-        }
+        &self.0.bytes
     }
 }
 
@@ -48,7 +64,10 @@ impl From<&str> for Secret {
 
 impl From<String> for Secret {
     fn from(value: String) -> Self {
-        Self::new(value)
+        Self(Arc::new(SecretBuf {
+            bytes: value.into_bytes(),
+            text: true,
+        }))
     }
 }
 
@@ -60,13 +79,16 @@ impl From<&String> for Secret {
 
 impl From<Box<str>> for Secret {
     fn from(value: Box<str>) -> Self {
-        Self::new(value)
+        Self::from(value.into_string())
     }
 }
 
 impl From<std::borrow::Cow<'_, str>> for Secret {
     fn from(value: std::borrow::Cow<'_, str>) -> Self {
-        Self::new(value)
+        match value {
+            std::borrow::Cow::Borrowed(value) => Self::from(value),
+            std::borrow::Cow::Owned(value) => Self::from(value),
+        }
     }
 }
 

@@ -24,6 +24,7 @@ workspace = true
 
 [dependencies]
 precis-profiles = { version = "0.2.0", optional = true }
+zeroize = { version = "1.9.1", default-features = false, features = ["alloc"] }
 
 [dev-dependencies]
 proptest = { version = "1.9", default-features = false, features = ["std"] }
