@@ -27,6 +27,20 @@ fn sends_password_after_capability_discovery() {
 }
 
 #[test]
+fn waits_for_the_final_capability_listing_before_sending_password() {
+    let config = Config::default()
+        .wanted_caps([] as [&str; 0])
+        .password("correct horse battery staple");
+    Transcript::new(config)
+        .connect_default()
+        .server("CAP * LS * :account-notify batch")
+        .no_client()
+        .server("CAP * LS :server-time")
+        .client("PASS :correct horse battery staple")
+        .client("CAP END");
+}
+
+#[test]
 fn plaintext_server_password_requires_explicit_opt_in() {
     Transcript::rate_limited(Config::default().password("correct horse battery staple"))
         .connect()
