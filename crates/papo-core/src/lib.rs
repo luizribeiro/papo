@@ -3778,6 +3778,7 @@ impl Session {
         let available = self.caps.enabled().contains_key(&cap::SASL);
         self.sasl.reauthenticate(
             now,
+            self.connection.security,
             available,
             self.caps
                 .enabled()

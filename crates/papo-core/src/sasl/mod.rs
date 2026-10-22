@@ -6,7 +6,7 @@ use web_time::Instant;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use papo_proto::LineRef;
 
-use crate::{Config, Handled, Outbox, RedactedSecret, Secret};
+use crate::{Config, Handled, Outbox, RedactedSecret, Secret, sts::ConnectionSecurity};
 use scram::ScramClient;
 
 const SASL_CHUNK_LEN: usize = 400;
@@ -126,6 +126,9 @@ impl Sasl {
     }
 
     /// Prefers SCRAM-SHA-256 and falls back to PLAIN.
+    ///
+    /// PLAIN fallback is allowed only on a secure connection and before the
+    /// client answers any SCRAM challenge. Otherwise the SASL attempt fails.
     #[must_use]
     pub fn any(username: impl Into<String>, password: impl Into<Secret>) -> Self {
         let username = username.into();
@@ -178,6 +181,7 @@ pub(super) struct SaslSession {
     deadline: Option<Instant>,
     aborting: bool,
     abort_outcome: AbortOutcome,
+    plain_fallback: PlainFallback,
     scram: Option<ScramClient>,
     scram_step: ScramStep,
     proof: Proof,
@@ -220,6 +224,13 @@ enum AbortOutcome {
     Fail,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum PlainFallback {
+    NotConfigured,
+    Allowed,
+    Forbidden,
+}
+
 impl std::fmt::Debug for SaslSession {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
@@ -239,6 +250,7 @@ impl std::fmt::Debug for SaslSession {
             .field("deadline", &self.deadline)
             .field("aborting", &self.aborting)
             .field("abort_outcome", &self.abort_outcome)
+            .field("plain_fallback", &self.plain_fallback)
             .field("has_scram", &self.scram.is_some())
             .field("scram_step", &self.scram_step)
             .field("proof", &self.proof)
@@ -252,6 +264,7 @@ impl SaslSession {
             .sasl
             .as_ref()
             .map_or_else(Vec::new, |sasl| sasl.mechanisms.clone());
+        let plain_fallback = Self::plain_fallback(&configured, config.connection_security);
         Self {
             remaining: configured.clone().into(),
             active: None,
@@ -272,6 +285,7 @@ impl SaslSession {
             deadline: None,
             aborting: false,
             abort_outcome: AbortOutcome::Retry,
+            plain_fallback,
             scram: None,
             scram_step: ScramStep::None,
             proof: Proof::Unverified,
@@ -302,6 +316,7 @@ impl SaslSession {
     pub(super) fn handle_cap_ack(
         &mut self,
         now: Instant,
+        security: ConnectionSecurity,
         advertised: Option<&str>,
         outbox: &mut Outbox,
     ) {
@@ -311,6 +326,7 @@ impl SaslSession {
         if self.completion != Completion::Pending {
             self.reset_exchange();
         }
+        self.plain_fallback = Self::plain_fallback(&self.configured, security);
         if let Some(advertised) = advertised {
             self.retain_available(advertised);
         }
@@ -330,6 +346,7 @@ impl SaslSession {
     pub(super) fn reauthenticate(
         &mut self,
         now: Instant,
+        security: ConnectionSecurity,
         available: bool,
         advertised: Option<&str>,
         outbox: &mut Outbox,
@@ -338,6 +355,7 @@ impl SaslSession {
             return;
         }
         self.reset_exchange();
+        self.plain_fallback = Self::plain_fallback(&self.configured, security);
         if !available {
             self.failure_kind = FailureKind::Unavailable;
             self.fail_all("the server does not currently advertise sasl", outbox);
@@ -562,6 +580,15 @@ impl SaslSession {
             let Some(mechanism) = self.remaining.pop_front() else {
                 return self.fail_all("every configured SASL mechanism failed", outbox);
             };
+            if matches!(mechanism, Mechanism::Plain { .. })
+                && self.plain_fallback == PlainFallback::Forbidden
+            {
+                self.failures.push(
+                    "PLAIN fallback is allowed only on a secure connection before a SCRAM challenge"
+                        .to_owned(),
+                );
+                continue;
+            }
             if matches!(mechanism, Mechanism::ScramSha256 { .. }) && self.entropy.is_none() {
                 self.failures.push(
                     "SCRAM-SHA-256 skipped because no entropy source was provided".to_owned(),
@@ -638,6 +665,9 @@ impl SaslSession {
             ScramStep::Initial if challenge.is_empty() => {
                 transmit_response(client.client_first().as_bytes(), outbox);
                 self.scram_step = ScramStep::ServerFirst;
+                if self.plain_fallback == PlainFallback::Allowed {
+                    self.plain_fallback = PlainFallback::Forbidden;
+                }
                 Ok(false)
             }
             ScramStep::ServerFirst => {
@@ -683,6 +713,19 @@ impl SaslSession {
             );
         } else {
             outbox.event(crate::Event::AuthenticationFailed { reason });
+        }
+    }
+
+    fn plain_fallback(configured: &[Mechanism], security: ConnectionSecurity) -> PlainFallback {
+        if !matches!(
+            configured,
+            [Mechanism::ScramSha256 { .. }, Mechanism::Plain { .. }]
+        ) {
+            PlainFallback::NotConfigured
+        } else if security == ConnectionSecurity::Secure {
+            PlainFallback::Allowed
+        } else {
+            PlainFallback::Forbidden
         }
     }
 }

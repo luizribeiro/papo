@@ -81,6 +81,7 @@ impl Caps {
                         }
                         sasl.handle_cap_ack(
                             now,
+                            connection.security,
                             self.enabled.get(&cap::SASL).and_then(Option::as_deref),
                             outbox,
                         );

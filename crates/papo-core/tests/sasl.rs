@@ -3,7 +3,9 @@
 mod support;
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
-use papo_core::{Account, CloseKind, Config, Entropy, Event, Sasl, Secret, Session};
+use papo_core::{
+    Account, CloseKind, Config, Entropy, Event, Sasl, Secret, Session, sts::ConnectionSecurity,
+};
 use support::Transcript;
 
 struct FixedEntropy;
@@ -12,6 +14,12 @@ impl Entropy for FixedEntropy {
     fn fill(&mut self, buf: &mut [u8]) {
         buf.fill(0x5a);
     }
+}
+
+fn secure_sasl(sasl: Sasl) -> Config {
+    Config::default()
+        .connection_security(ConnectionSecurity::Secure)
+        .sasl(sasl)
 }
 
 #[test]
@@ -299,7 +307,7 @@ fn chunks_plain_responses_at_literal_400_bytes() {
 #[test]
 fn falls_back_and_honors_the_server_mechanism_list() {
     Transcript::with_entropy(
-        Config::default().sasl(Sasl::any("alice", "hunter2")),
+        secure_sasl(Sasl::any("alice", "hunter2")),
         Box::new(FixedEntropy),
     )
     .connect_default()
@@ -317,9 +325,55 @@ fn falls_back_and_honors_the_server_mechanism_list() {
     .client("CAP END");
 }
 
+fn any_scram_start(security: ConnectionSecurity) -> Transcript {
+    Transcript::with_entropy(
+        Config::default()
+            .connection_security(security)
+            .sasl(Sasl::any("alice", "hunter2")),
+        Box::new(FixedEntropy),
+    )
+    .connect_default()
+    .server("CAP * LS :sasl=SCRAM-SHA-256,PLAIN")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE SCRAM-SHA-256")
+}
+
+#[test]
+fn scram_fallback_requires_secure_transport_before_a_challenge() {
+    for transcript in [
+        any_scram_start(ConnectionSecurity::Plaintext),
+        any_scram_start(ConnectionSecurity::Plaintext)
+            .server(":ergo.test 908 alice PLAIN :are available SASL mechanisms")
+            .no_client(),
+    ] {
+        transcript
+            .server(":ergo.test 904 alice :SASL authentication failed")
+            .event(|event| {
+                matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason, .. }
+                    if reason.contains("PLAIN fallback"))
+            })
+            .no_client();
+    }
+
+    any_scram_start(ConnectionSecurity::Secure)
+        .server(":ergo.test 904 alice :SASL authentication failed")
+        .client("AUTHENTICATE PLAIN");
+
+    any_scram_start(ConnectionSecurity::Secure)
+        .server("AUTHENTICATE +")
+        .client("AUTHENTICATE biwsbj1hbGljZSxyPVdscGFXbHBhV2xwYVdscGFXbHBhV2xwYQ==")
+        .server(":ergo.test 904 alice :SASL authentication failed")
+        .event(|event| {
+            matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason, .. }
+                if reason.contains("PLAIN fallback"))
+        })
+        .no_client();
+}
+
 #[test]
 fn reports_every_failed_mechanism_and_continues_when_optional() {
-    Transcript::new(Config::default().sasl(Sasl::any("alice", "hunter2").optional()))
+    Transcript::new(secure_sasl(Sasl::any("alice", "hunter2").optional()))
         .connect_default()
         .server("CAP * LS :sasl=SCRAM-SHA-256,PLAIN")
         .client("CAP REQ :sasl")
@@ -475,7 +529,7 @@ fn required_sasl_timeout_is_unavailable_after_the_abort_deadline() {
 #[test]
 fn terminal_sasl_numerics_do_not_try_another_mechanism() {
     for numeric in ["902", "906"] {
-        Transcript::new(Config::default().sasl(Sasl::any("alice", "hunter2").optional()))
+        Transcript::new(secure_sasl(Sasl::any("alice", "hunter2").optional()))
             .connect_default()
             .server("CAP * LS :sasl=PLAIN")
             .client("CAP REQ :sasl")
@@ -568,7 +622,7 @@ fn unrelated_fail_replies_do_not_trigger_account_required_policy() {
 #[test]
 fn aborts_at_the_literal_30_second_deadline_then_falls_back() {
     Transcript::with_entropy(
-        Config::default().sasl(Sasl::any("alice", "hunter2")),
+        secure_sasl(Sasl::any("alice", "hunter2")),
         Box::new(FixedEntropy),
     )
     .connect_default()
@@ -607,7 +661,7 @@ fn a_sasl_deadline_is_cleared_on_disconnect() {
 #[test]
 fn reconnect_resets_every_sasl_exchange_state() {
     Transcript::with_entropy(
-        Config::default().sasl(Sasl::any("alice", "hunter2")),
+        secure_sasl(Sasl::any("alice", "hunter2")),
         Box::new(FixedEntropy),
     )
     .connect_default()
