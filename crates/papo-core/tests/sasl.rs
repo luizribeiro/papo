@@ -783,6 +783,40 @@ fn rejects_scram_success_while_aborting_a_bad_server_proof() {
 }
 
 #[test]
+fn ignores_sasl_success_before_capability_ack() {
+    for numeric in [903, 907] {
+        for require_sasl in [true, false] {
+            let sasl = Sasl::plain("alice", "hunter2");
+            let sasl = if require_sasl { sasl } else { sasl.optional() };
+            let transcript = Transcript::new(Config::default().sasl(sasl))
+                .connect_default()
+                .server("CAP * LS :sasl=PLAIN")
+                .client("CAP REQ :sasl")
+                .server(&format!(
+                    ":ergo.test {numeric} alice :SASL authentication successful"
+                ))
+                .no_client()
+                .server("CAP * NAK :sasl");
+            if require_sasl {
+                transcript
+                    .event(|event| {
+                        matches!(event, Event::Close { kind: CloseKind::SaslUnavailable, reason, .. }
+                            if reason.contains("rejected the sasl capability"))
+                    })
+                    .no_client();
+            } else {
+                transcript
+                    .event(|event| {
+                        matches!(event, Event::AuthenticationFailed { reason, .. }
+                            if reason.contains("rejected the sasl capability"))
+                    })
+                    .client("CAP END");
+            }
+        }
+    }
+}
+
+#[test]
 fn authenticates_with_scram_sha256_using_fixed_entropy() {
     scram_until_server_final(
         "AUTHENTICATE dj1hV3UvY3hvOUIyWko1ajMxdnRZeTlObTAxUGY4U2FmbXpGQjN3VEgrS2l3PQ==",

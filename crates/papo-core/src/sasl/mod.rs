@@ -437,12 +437,14 @@ impl SaslSession {
         {
             self.fail_all("SCRAM succeeded without a verified server proof", outbox);
         } else if message.command_is("903") || message.command_is("907") {
-            self.active = None;
-            self.awaiting_challenge = false;
-            self.deadline = None;
-            self.scram = None;
-            self.scram_step = ScramStep::None;
-            self.completion = Completion::Success;
+            if self.active.is_some() {
+                self.active = None;
+                self.awaiting_challenge = false;
+                self.deadline = None;
+                self.scram = None;
+                self.scram_step = ScramStep::None;
+                self.completion = Completion::Success;
+            }
         } else if message.command_is("904") || message.command_is("905") {
             self.record_active_failure(message.param(1).unwrap_or("SASL mechanism failed"));
             self.start_next(now, outbox);
