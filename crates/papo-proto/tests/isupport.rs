@@ -124,6 +124,25 @@ fn empty_and_malformed_tokens_do_not_create_keys() {
 }
 
 #[test]
+fn bounds_tokens_and_values_while_retaining_known_features() {
+    let mut support = Isupport::default();
+    support.apply_tokens((0..5_000).map(|index| format!("VENDOR{index}=present")));
+    support.apply_tokens([
+        format!("NETWORK={}", "n".repeat(5_000)),
+        "CASEMAPPING=ascii".to_owned(),
+        "PREFIX=(qaohv)~&@%+".to_owned(),
+        "CHANTYPES=#".to_owned(),
+    ]);
+
+    assert_eq!(support.tokens().len(), 1_024);
+    assert_eq!(support.network().unwrap().len(), 4_096);
+    assert_eq!(support.casemapping(), Casemapping::Ascii);
+    assert_eq!(support.prefix().len(), 5);
+    assert_eq!(support.chantypes(), "#");
+    assert!(support.__limit_reached());
+}
+
+#[test]
 fn selects_the_advertised_casemapping_with_the_protocol_default() {
     let mut support = Isupport::default();
     assert_eq!(support.casemapping(), Casemapping::Rfc1459);

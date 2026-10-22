@@ -92,7 +92,11 @@ impl ClientTagDeny<'_> {
 pub struct Isupport {
     tokens: HashMap<String, Option<String>>,
     generation: u64,
+    limit_reached: bool,
 }
+
+const MAX_TOKENS: usize = 1_024;
+const MAX_VALUE_LEN: usize = 4_096;
 
 macro_rules! length_accessors {
     ($(#[$meta:meta] $name:ident => $key:literal,)+) => {$(
@@ -150,15 +154,19 @@ impl Isupport {
                 if key.is_empty() {
                     false
                 } else {
-                    let value = Some(unescape(value));
-                    self.tokens
-                        .insert(canonical(key).to_ascii_uppercase(), value.clone())
-                        != Some(value)
+                    let mut value = unescape(value);
+                    if value.len() > MAX_VALUE_LEN {
+                        let mut boundary = MAX_VALUE_LEN;
+                        while !value.is_char_boundary(boundary) {
+                            boundary -= 1;
+                        }
+                        value.truncate(boundary);
+                        self.limit_reached = true;
+                    }
+                    self.insert(key, Some(value))
                 }
             } else if !token.is_empty() {
-                self.tokens
-                    .insert(canonical(token).to_ascii_uppercase(), None)
-                    != Some(None)
+                self.insert(token, None)
             } else {
                 false
             };
@@ -172,6 +180,26 @@ impl Isupport {
     #[must_use]
     pub const fn __generation(&self) -> u64 {
         self.generation
+    }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __limit_reached(&self) -> bool {
+        self.limit_reached
+    }
+
+    fn insert(&mut self, key: &str, value: Option<String>) -> bool {
+        let key = canonical(key).to_ascii_uppercase();
+        if !self.tokens.contains_key(&key) && self.tokens.len() == MAX_TOKENS {
+            self.limit_reached = true;
+            if !known_token(&key) {
+                return false;
+            }
+            if let Some(victim) = self.tokens.keys().find(|key| !known_token(key)).cloned() {
+                self.tokens.remove(&victim);
+            }
+        }
+        self.tokens.insert(key, value.clone()) != Some(value)
     }
 
     /// Returns whether a token is absent, bare, or has a value.
@@ -497,6 +525,47 @@ fn default_targmax<'a>() -> Vec<Limit<'a>> {
             limit: Some(LimitValue::Unlimited),
         },
     ]
+}
+
+fn known_token(key: &str) -> bool {
+    matches!(
+        key,
+        "ACCOUNTEXTBAN"
+            | "AWAYLEN"
+            | "BOT"
+            | "CASEMAPPING"
+            | "CHANLIMIT"
+            | "CHANMODES"
+            | "CHANNELLEN"
+            | "CHANTYPES"
+            | "CHATHISTORY"
+            | "CLIENTTAGDENY"
+            | "DRAFT/ACCOUNTREQUIRED"
+            | "DRAFT/ICON"
+            | "ELIST"
+            | "EXCEPTS"
+            | "EXTBAN"
+            | "INVEX"
+            | "KICKLEN"
+            | "MAXLIST"
+            | "MAXTARGETS"
+            | "MODES"
+            | "MONITOR"
+            | "MSGREFTYPES"
+            | "NAMELEN"
+            | "NETWORK"
+            | "NICKLEN"
+            | "PREFIX"
+            | "SAFELIST"
+            | "SAFERATE"
+            | "STATUSMSG"
+            | "TARGMAX"
+            | "TOPICLEN"
+            | "UTF8MAPPING"
+            | "UTF8ONLY"
+            | "VAPID"
+            | "WHOX"
+    )
 }
 
 fn positive(value: &str) -> Option<usize> {
