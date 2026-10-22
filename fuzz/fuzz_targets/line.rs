@@ -7,10 +7,6 @@ fuzz_target!(|input: &[u8]| {
     let Ok(parsed) = LineRef::parse_bytes(input) else {
         return;
     };
-    if parsed.raw_source().is_some() {
-        return;
-    }
-
     let owned = parsed.to_owned();
     let Ok(line) = owned.to_line() else {
         return;

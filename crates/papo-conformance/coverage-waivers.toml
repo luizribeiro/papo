@@ -16,3 +16,4 @@
 "ergo.authtoken" = "Ergo authtoken support is disabled in the managed profile."
 "ergo.sasl-oauthbearer" = "The managed Ergo profile has no OAuth2 or JWT authentication provider configured."
 "ircv3.message-tags.size-limit-417" = "papo bounds outbound tag sections before transmission, preventing a live server numeric 417 scenario."
+"security.inj-8.outgoing-fuzz-coverage" = "Covered by the out-of-workspace outgoing_text and sourced-line fuzz targets rather than a server scenario."

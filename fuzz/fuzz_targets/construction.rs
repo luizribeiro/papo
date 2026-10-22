@@ -1,7 +1,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
-use papo_proto::{MAX_CLIENT_TAG_DATA_LEN, MAX_LINE_LEN, Line, LineRef};
+use papo_proto::{Line, LineRef, MAX_CLIENT_TAG_DATA_LEN, MAX_LINE_LEN};
 
 fn fields(input: &[u8]) -> impl Iterator<Item = String> + '_ {
     input

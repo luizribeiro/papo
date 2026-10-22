@@ -9,7 +9,9 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
+papo-core = { path = "../crates/papo-core" }
 papo-proto = { path = "../crates/papo-proto" }
+web-time = "1"
 
 [[bin]]
 name = "line"
@@ -21,6 +23,13 @@ bench = false
 [[bin]]
 name = "construction"
 path = "fuzz_targets/construction.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "outgoing_text"
+path = "fuzz_targets/outgoing_text.rs"
 test = false
 doc = false
 bench = false
