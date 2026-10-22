@@ -253,7 +253,7 @@ async fn chathistory_targets(s: Scenario) -> papo_testing::Result<()> {
                 == Some(channel.as_str())
         })
         .expect("the active channel is returned");
-    assert_eq!(target.latest, time);
+    assert_eq!(target.latest_server_time, time);
     Ok(())
 }
 

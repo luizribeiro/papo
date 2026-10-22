@@ -452,8 +452,8 @@ pub struct HistoryPage {
 pub struct RecentConversation {
     /// Conversation with available history.
     pub conversation: crate::Conversation,
-    /// Timestamp of the newest available entry.
-    pub latest: SystemTime,
+    /// Server timestamp of the newest available entry.
+    pub latest_server_time: SystemTime,
 }
 
 /// Input accepted by history and read-marker operations.
@@ -814,9 +814,9 @@ impl Client {
                 .map(|targets| {
                     targets
                         .into_iter()
-                        .map(|(conversation, latest)| RecentConversation {
+                        .map(|(conversation, latest_server_time)| RecentConversation {
                             conversation,
-                            latest,
+                            latest_server_time,
                         })
                         .collect()
                 })
@@ -1731,7 +1731,7 @@ mod tests {
             crate::Conversation::Channel(channel)
         );
         assert_eq!(
-            targets[0].latest,
+            targets[0].latest_server_time,
             UNIX_EPOCH + Duration::from_hours(497_796)
         );
         abort_task(task).await;
