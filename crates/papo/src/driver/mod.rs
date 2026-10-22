@@ -3,14 +3,10 @@ mod connect;
 #[cfg(feature = "unstable")]
 pub(crate) mod unstable;
 
-#[cfg(all(test, not(browser)))]
-use catchup::extend_catchup;
 use catchup::{Catchup, CatchupCursor, advance_catchup, begin_catchup, server_restores_channels};
 
 #[cfg(not(browser))]
 use connect::apply_sts_action;
-#[cfg(all(test, not(browser)))]
-use connect::{is_fatal_failure, record_sts_upgrade};
 use connect::{open_connection, run_plan};
 
 use std::{
@@ -543,58 +539,6 @@ impl Driver {
             sts_store,
             connector,
             Box::new(crate::entropy::OsEntropy::next_u64),
-        )
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    #[cfg(all(test, not(browser)))]
-    pub(crate) fn with_connector(
-        plan: Result<ConnectionPlan, InvalidInput>,
-        session: Session,
-        capacity: usize,
-        registration: Option<ConnectSender>,
-        defaults: PostConnect,
-        reconnect: Reconnect,
-        sts_store: Box<dyn StsStore + Send>,
-        connector: Connector,
-    ) -> (Client, Events, Self) {
-        Self::with_connector_and_entropy(
-            plan,
-            session,
-            capacity,
-            registration,
-            defaults,
-            reconnect,
-            sts_store,
-            connector,
-            Box::new(crate::entropy::OsEntropy::next_u64),
-        )
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    #[cfg(all(test, not(browser)))]
-    fn with_connector_and_entropy(
-        plan: Result<ConnectionPlan, InvalidInput>,
-        session: Session,
-        capacity: usize,
-        registration: Option<ConnectSender>,
-        defaults: PostConnect,
-        reconnect: Reconnect,
-        sts_store: Box<dyn StsStore + Send>,
-        connector: Connector,
-        entropy: BackoffEntropy,
-    ) -> (Client, Events, Self) {
-        Self::with_connector_and_timeout(
-            plan,
-            session,
-            capacity,
-            registration,
-            defaults,
-            reconnect,
-            Duration::from_secs(30),
-            sts_store,
-            connector,
-            entropy,
         )
     }
 

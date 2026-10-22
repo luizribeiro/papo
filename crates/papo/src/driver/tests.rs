@@ -1548,7 +1548,7 @@ fn reconnect_history_stops_at_the_literal_per_target_limit() {
             items: Vec::new(),
             seen: std::collections::HashSet::new(),
         };
-        let next = super::extend_catchup(
+        let next = super::catchup::extend_catchup(
             &mut catchup,
             (0..count).map(|index| {
                 papo_core::HistoryItem::Message(papo_core::HistoryLine {
@@ -2391,7 +2391,7 @@ fn fatal_close_kinds_are_fixed_by_protocol_evidence() {
         papo_core::CloseKind::Banned,
         papo_core::CloseKind::WebIrcRejected,
     ] {
-        assert!(super::is_fatal_failure(
+        assert!(super::connect::is_fatal_failure(
             &Error::connection_lost(),
             Some(kind)
         ));
@@ -2401,7 +2401,7 @@ fn fatal_close_kinds_are_fixed_by_protocol_evidence() {
         papo_core::CloseKind::SaslUnavailable,
         papo_core::CloseKind::NickCandidatesExhausted,
     ] {
-        assert!(!super::is_fatal_failure(
+        assert!(!super::connect::is_fatal_failure(
             &Error::connection_lost(),
             Some(kind)
         ));
@@ -2932,7 +2932,7 @@ fn certificate_verification_failure_is_fatal() {
         ))
         .into(),
     );
-    assert!(super::is_fatal_failure(&error, None));
+    assert!(super::connect::is_fatal_failure(&error, None));
     let Event::Disconnected(disconnected) =
         Event::Disconnected(super::disconnected_event(&error, None))
     else {
@@ -3306,9 +3306,9 @@ async fn sts_upgrade_obeys_the_attempt_limit() {
 #[test]
 fn consecutive_sts_upgrades_are_a_typed_error() {
     let mut last_host = None;
-    assert!(super::record_sts_upgrade(&mut last_host, "irc.example.net").is_ok());
+    assert!(super::connect::record_sts_upgrade(&mut last_host, "irc.example.net").is_ok());
     assert!(matches!(
-        super::record_sts_upgrade(&mut last_host, "irc.example.net"),
+        super::connect::record_sts_upgrade(&mut last_host, "irc.example.net"),
         Err(Error::Connect(error))
             if error.kind() == crate::ConnectErrorKind::StsUpgradeLoop
                 && std::error::Error::source(&error)

@@ -58,6 +58,56 @@ impl Driver {
             super::PostConnect::default(),
         )
     }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn with_connector(
+        plan: Result<ConnectionPlan, crate::InvalidInput>,
+        session: Session,
+        capacity: usize,
+        registration: Option<super::ConnectSender>,
+        defaults: super::PostConnect,
+        reconnect: Reconnect,
+        sts_store: Box<dyn papo_core::sts::StsStore + Send>,
+        connector: super::Connector,
+    ) -> (super::Client, super::Events, Self) {
+        Self::with_connector_and_entropy(
+            plan,
+            session,
+            capacity,
+            registration,
+            defaults,
+            reconnect,
+            sts_store,
+            connector,
+            Box::new(crate::entropy::OsEntropy::next_u64),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn with_connector_and_entropy(
+        plan: Result<ConnectionPlan, crate::InvalidInput>,
+        session: Session,
+        capacity: usize,
+        registration: Option<super::ConnectSender>,
+        defaults: super::PostConnect,
+        reconnect: Reconnect,
+        sts_store: Box<dyn papo_core::sts::StsStore + Send>,
+        connector: super::Connector,
+        entropy: super::BackoffEntropy,
+    ) -> (super::Client, super::Events, Self) {
+        Self::with_connector_and_timeout(
+            plan,
+            session,
+            capacity,
+            registration,
+            defaults,
+            reconnect,
+            Duration::from_secs(30),
+            sts_store,
+            connector,
+            entropy,
+        )
+    }
 }
 
 pub(crate) async fn within<F: IntoFuture>(future: F) -> F::Output {
