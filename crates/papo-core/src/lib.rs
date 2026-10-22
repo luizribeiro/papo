@@ -1685,7 +1685,7 @@ pub type ResponseHistory = HistoryPage;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MultilineMessage {
     /// The reconstructed `PRIVMSG` or `NOTICE`.
-    pub message: Line,
+    pub message: ReceivedLine,
 }
 
 /// A received `TAGMSG` and its client-only metadata.
@@ -4216,9 +4216,11 @@ impl Session {
                 let received = self.received_line(line, batch_type);
                 self.outbox.event(Event::Line(received));
             }
-            BatchEvent::Multiline(message) => self
-                .outbox
-                .event(Event::MultilineMessage(MultilineMessage { message })),
+            BatchEvent::Multiline(message) => {
+                let message = self.received_line(message, None);
+                self.outbox
+                    .event(Event::MultilineMessage(MultilineMessage { message }));
+            }
             BatchEvent::Metadata { kind, messages } => {
                 if kind == "metadata-subs" {
                     self.state.clear_metadata_subscriptions();

@@ -885,7 +885,9 @@ pub(crate) fn from_core(
             }
             return CoreEvent::Line(message);
         }
-        papo_core::Event::MultilineMessage(message) => return CoreEvent::Other(message.message),
+        papo_core::Event::MultilineMessage(message) => {
+            return CoreEvent::Other(message.message.into_line());
+        }
         papo_core::Event::TypingChanged(change) => Event::TypingChanged(TypingChanged {
             actor: source::from_prefix(change.actor, casemapping),
             authorship: Authorship::from_core(change.authorship),
@@ -1871,11 +1873,14 @@ mod tests {
 
     #[test]
     fn maps_multiline_as_a_normal_message() {
-        let multiline = papo_core::MultilineMessage {
-            message: Line::privmsg("#papo", "first\nsecond"),
-        };
+        let now = Instant::now();
+        let mut session = Session::new(Config::default());
+        session.handle_line(now, b"BATCH +m draft/multiline #papo");
+        session.handle_line(now, b"@batch=m :alice PRIVMSG #papo :first");
+        session.handle_line(now, b"@batch=m :alice PRIVMSG #papo :second");
+        session.handle_line(now, b"BATCH -m");
         assert!(matches!(
-            from_core(papo_core::Event::MultilineMessage(multiline)),
+            from_core(session.poll_event().unwrap()),
             CoreEvent::Other(message) if message.as_ref().param(1) == Some("first\nsecond")
         ));
     }

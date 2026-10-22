@@ -55,6 +55,35 @@ fn recorded_ergo_multiline_batch_joins_text_and_metadata() {
 }
 
 #[test]
+fn multiline_classification_survives_a_nick_change_before_polling() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("papo-driver"));
+    session.handle_line(
+        now,
+        b":bob!~b@localhost BATCH +m draft/multiline papo-driver",
+    );
+    session.handle_line(
+        now,
+        b"@batch=m :bob!~b@localhost PRIVMSG papo-driver :first line",
+    );
+    session.handle_line(
+        now,
+        b"@batch=m :bob!~b@localhost PRIVMSG papo-driver :second line",
+    );
+    session.handle_line(now, b":bob!~b@localhost BATCH -m");
+    session.handle_line(now, b":papo-driver!~papo@localhost NICK papo-away");
+
+    let Some(Event::MultilineMessage(multiline)) = session.poll_event() else {
+        panic!("expected multiline message")
+    };
+    assert!(matches!(
+        multiline.message.conversation(),
+        Some(Conversation::Private(nick)) if nick == "bob"
+    ));
+    assert_eq!(multiline.message.authorship(), Authorship::Other);
+}
+
+#[test]
 fn multiline_over_advertised_max_bytes_is_released() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().max_batch_lines(2));
