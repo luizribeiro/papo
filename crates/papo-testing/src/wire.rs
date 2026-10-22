@@ -148,16 +148,12 @@ impl Wire {
     ///
     /// # Panics
     ///
-    /// Panics if the stream fails, the client sends non-UTF-8 text, or a line exceeds 8703 bytes.
+    /// Panics if the client sends non-UTF-8 text or a line exceeds 8703 bytes.
     pub async fn next_sent_or_closed(&mut self) -> Option<String> {
         let stream = self.stream().await;
         let mut line = Vec::new();
         loop {
-            let byte = match stream.read_u8().await {
-                Ok(byte) => byte,
-                Err(error) if error.kind() == std::io::ErrorKind::UnexpectedEof => return None,
-                Err(error) => panic!("client stream failed: {error}"),
-            };
+            let byte = stream.read_u8().await.ok()?;
             line.push(byte);
             assert!(line.len() <= MAX_LINE_LEN, "client line exceeds 8703 bytes");
             if line.ends_with(b"\r\n") {
