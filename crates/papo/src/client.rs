@@ -360,6 +360,37 @@ impl Client {
         crate::RequestFuture::new(async move { client.send_message(line).await })
     }
 
+    /// Sends a CTCP reply privately to the user who sent `query`.
+    ///
+    /// The reply uses the query's command and CTCP framing even when the query was sent to a
+    /// channel. It goes through the normal outbound queue and rate limit. Applications answering
+    /// untrusted queries should also enforce a per-sender limit.
+    ///
+    /// An empty `text` sends the command without parameters, such as `\x01PING\x01`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidInput`] when the event is itself a reply, its actor is a server, or
+    /// the command or text contains a CTCP or IRC line delimiter. It returns
+    /// [`Error::Disconnected`] if the driver stops before writing the reply.
+    pub fn ctcp_reply(
+        &self,
+        query: &crate::event::Ctcp,
+        text: impl Into<String>,
+    ) -> crate::RequestFuture<()> {
+        let text = text.into();
+        let reply = (!query.reply)
+            .then(|| papo_core::__ctcp_reply(&query.actor, &query.command, &text))
+            .flatten();
+        let client = self.clone();
+        crate::RequestFuture::new(async move {
+            let reply = reply.ok_or_else(|| {
+                InvalidInput::InvalidMessage("invalid CTCP reply query or text".into())
+            })?;
+            client.send_message(reply).await
+        })
+    }
+
     /// Sends one IRC protocol line and waits for its labelled response.
     ///
     /// Response lines are returned here rather than emitted by the event

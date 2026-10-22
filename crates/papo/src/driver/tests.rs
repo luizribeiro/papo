@@ -484,6 +484,110 @@ async fn replies_to_broadcast_messages_target_the_sender() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn manual_ctcp_replies_match_automatic_framing_and_target_the_actor() {
+    let mut automatic = Session::new(
+        config().rate_limit(crate::RateLimit::unlimited()).ctcp(
+            crate::CtcpReplies::off()
+                .version(Some("ferrobot 2.3"))
+                .rate(crate::RateLimit::unlimited()),
+        ),
+    );
+    automatic.handle_line(
+        std::time::Instant::now(),
+        b":emily!~e@localhost PRIVMSG papo-driver :\x01VERSION\x01",
+    );
+    let expected = automatic
+        .poll_transmit()
+        .expect("automatic VERSION reply is sent");
+
+    let (mut server, client, mut events, driver) = scripted(
+        config()
+            .rate_limit(crate::RateLimit::unlimited())
+            .ctcp(crate::CtcpReplies::off()),
+    );
+    let task = tokio::spawn(driver);
+    welcome_burst(&mut server).await;
+    server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
+    client_line(&mut server, b"CAP END\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n",
+    )
+    .await;
+    while !matches!(events.next().await, Some(Event::Connected(_))) {}
+
+    server_line(
+        &mut server,
+        b":emily!~e@localhost PRIVMSG papo-driver :\x01VERSION\x01\r\n",
+    )
+    .await;
+    let query = events.next().await.unwrap();
+    let query = query.as_ctcp().unwrap();
+    within(client.ctcp_reply(query, "ferrobot 2.3"))
+        .await
+        .unwrap();
+    client_line(&mut server, &expected).await;
+
+    server_line(
+        &mut server,
+        b":dan!~d@cloak PRIVMSG #papo :\x01PING\x01\r\n",
+    )
+    .await;
+    let channel_query = events.next().await.unwrap();
+    let channel_query = channel_query.as_ctcp().unwrap();
+    within(client.ctcp_reply(channel_query, "")).await.unwrap();
+    client_line(&mut server, b"NOTICE dan \x01PING\x01\r\n").await;
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn manual_ctcp_replies_reject_replies_servers_and_delimiters() {
+    let (mut server, client, mut events, driver) =
+        scripted(config().ctcp(crate::CtcpReplies::off()));
+    let task = tokio::spawn(driver);
+    welcome_burst(&mut server).await;
+    server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
+    client_line(&mut server, b"CAP END\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n:emily!~e@localhost PRIVMSG papo-driver :\x01VERSION\x01\r\n",
+    )
+    .await;
+    while !matches!(events.next().await, Some(Event::Connected(_))) {}
+    let query = events.next().await.unwrap();
+    let query = query.as_ctcp().unwrap();
+    for invalid in [
+        "embedded\x01delimiter",
+        "line\rreturn",
+        "line\nfeed",
+        "nul\0byte",
+    ] {
+        assert!(matches!(
+            client.ctcp_reply(query, invalid).await,
+            Err(Error::InvalidInput(crate::InvalidInput::InvalidMessage(_)))
+        ));
+    }
+
+    server_line(
+        &mut server,
+        b":emily!~e@localhost NOTICE papo-driver :\x01VERSION ferrobot 2.3\x01\r\n:services.example NOTICE papo-driver :\x01VERSION scanner\x01\r\n",
+    )
+    .await;
+    for _ in 0..2 {
+        let event = events.next().await.unwrap();
+        assert!(matches!(
+            client.ctcp_reply(event.as_ctcp().unwrap(), "ignored").await,
+            Err(Error::InvalidInput(crate::InvalidInput::InvalidMessage(_)))
+        ));
+    }
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn wallops_is_a_server_notice() {
     let (mut server, _client, mut events, driver) = scripted(config());
     let task = tokio::spawn(driver);
