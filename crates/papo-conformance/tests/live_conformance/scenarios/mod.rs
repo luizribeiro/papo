@@ -8,4 +8,5 @@ mod messaging;
 mod metadata;
 mod presence;
 mod requests;
+mod security_addressing;
 mod support;
