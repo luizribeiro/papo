@@ -741,9 +741,9 @@ fn retained_bytes(message: &LineRef<'_>) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use super::{BatchAction, BatchEvent, Batches};
+    use super::{BatchAction, BatchEvent, Batches, retained_bytes};
     use crate::{BatchAbandonReason, Config};
-    use papo_proto::LineRef;
+    use papo_proto::{Line, LineRef};
     use web_time::Instant;
 
     fn handle(batches: &mut Batches, line: &str) -> (bool, Option<String>) {
@@ -877,6 +877,61 @@ mod tests {
         }
 
         assert!(fed < 64 * 1024 * 1024);
+    }
+
+    #[test]
+    fn retained_bytes_counts_every_owned_line_component() {
+        let message = LineRef::parse(
+            "@time=2026-10-15T12:00:01.000Z;msgid=RKi9Cw;+draft/read-marker \
+             :alice!~alice@users.example PRIVMSG #papo :review is ready",
+        )
+        .unwrap();
+        let expected = std::mem::size_of::<Line>()
+            + 3 * std::mem::size_of::<(String, Option<String>)>()
+            + "time".len()
+            + "2026-10-15T12:00:01.000Z".len()
+            + "msgid".len()
+            + "RKi9Cw".len()
+            + "+draft/read-marker".len()
+            + "alice!~alice@users.example".len()
+            + "PRIVMSG".len()
+            + 2 * std::mem::size_of::<String>()
+            + "#papo".len()
+            + "review is ready".len();
+
+        assert_eq!(retained_bytes(&message), expected);
+    }
+
+    #[test]
+    fn global_batch_byte_limit_accepts_the_boundary_and_rejects_one_over() {
+        let line = "@batch=sync;time=2026-10-15T12:00:01.000Z \
+                    :alice!~alice@users.example PRIVMSG #papo :review is ready";
+        let retained = retained_bytes(&LineRef::parse(line).unwrap());
+
+        for (total, abandoned) in [(67_108_863, false), (67_108_864, false), (67_108_865, true)] {
+            let mut batches = Batches::new(&Config::default());
+            assert_eq!(
+                handle(&mut batches, "BATCH +sync vendor/sync"),
+                (false, None)
+            );
+            batches.buffered_bytes = total - retained;
+
+            let action = batches.handle(
+                Instant::now(),
+                &LineRef::parse(line).unwrap(),
+                usize::MAX,
+                false,
+                false,
+            );
+            assert_eq!(
+                matches!(action, BatchAction::Complete(ref events) if events.iter().any(|event| matches!(
+                    event,
+                    BatchEvent::Abandoned { reason: BatchAbandonReason::ByteLimit, .. }
+                ))),
+                abandoned,
+                "retained total {total}"
+            );
+        }
     }
 
     #[test]
