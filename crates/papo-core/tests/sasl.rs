@@ -729,19 +729,56 @@ fn rejects_a_non_empty_initial_scram_challenge() {
 
 #[test]
 fn rejects_scram_success_without_a_verified_server_proof() {
-    for transcript in [
-        scram_start(true),
-        scram_after_client_first(true),
-        scram_after_client_final(true),
-    ] {
-        transcript
-            .server(":ergo.test 903 user :SASL authentication successful")
+    for numeric in [903, 907] {
+        for transcript in [scram_start(true), scram_after_client_final(true)] {
+            transcript
+                .server(&format!(
+                    ":ergo.test {numeric} user :SASL authentication successful"
+                ))
+                .event(|event| {
+                    matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason, .. }
+                        if reason.contains("without a verified server proof"))
+                })
+                .no_client();
+        }
+
+        for transcript in [scram_start(false), scram_after_client_final(false)] {
+            transcript
+                .server(&format!(
+                    ":ergo.test {numeric} user :SASL authentication successful"
+                ))
+                .event(|event| {
+                    matches!(event, Event::AuthenticationFailed { reason, .. }
+                        if reason.contains("without a verified server proof"))
+                })
+                .client("CAP END");
+        }
+    }
+}
+
+#[test]
+fn rejects_scram_success_while_aborting_a_bad_server_proof() {
+    for require_sasl in [true, false] {
+        let transcript = scram_after_client_final(require_sasl)
+            .server("AUTHENTICATE dj1iV3UvY3hvOUIyWko1ajMxdnRZeTlObTAxUGY4U2FmbXpGQjN3VEgrS2l3PQ==")
             .client("AUTHENTICATE *")
-            .event(|event| {
-                matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason, .. }
-                    if reason.contains("without a verified server proof"))
-            })
-            .no_client();
+            .server(":ergo.test 900 user user!u@host user :You are now logged in as user")
+            .server(":ergo.test 903 user :SASL authentication successful");
+        if require_sasl {
+            transcript
+                .event(|event| {
+                    matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason, .. }
+                        if reason.contains("ServerSignatureMismatch"))
+                })
+                .no_client();
+        } else {
+            transcript
+                .event(|event| {
+                    matches!(event, Event::AuthenticationFailed { reason, .. }
+                        if reason.contains("ServerSignatureMismatch"))
+                })
+                .client("CAP END");
+        }
     }
 }
 

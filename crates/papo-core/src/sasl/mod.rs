@@ -179,6 +179,7 @@ pub(super) struct SaslSession {
     aborting: bool,
     scram: Option<ScramClient>,
     scram_step: ScramStep,
+    proof: Proof,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -204,6 +205,13 @@ enum ScramStep {
     ServerFinal,
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+enum Proof {
+    #[default]
+    Unverified,
+    Verified,
+}
+
 impl std::fmt::Debug for SaslSession {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
@@ -224,6 +232,7 @@ impl std::fmt::Debug for SaslSession {
             .field("aborting", &self.aborting)
             .field("has_scram", &self.scram.is_some())
             .field("scram_step", &self.scram_step)
+            .field("proof", &self.proof)
             .finish()
     }
 }
@@ -255,6 +264,7 @@ impl SaslSession {
             aborting: false,
             scram: None,
             scram_step: ScramStep::None,
+            proof: Proof::Unverified,
         }
     }
 
@@ -275,6 +285,7 @@ impl SaslSession {
         self.aborting = false;
         self.scram = None;
         self.scram_step = ScramStep::None;
+        self.proof = Proof::Unverified;
     }
 
     pub(super) fn handle_cap_ack(
@@ -339,6 +350,7 @@ impl SaslSession {
         self.aborting = false;
         self.scram = None;
         self.scram_step = ScramStep::None;
+        self.proof = Proof::Unverified;
     }
 
     pub(super) fn handle_message(
@@ -418,24 +430,12 @@ impl SaslSession {
             }
         } else if message.command_is("901") {
             self.account = None;
-        } else if message.command_is("903")
-            && matches!(self.active, Some(Mechanism::ScramSha256 { .. }))
-            && self.scram_step != ScramStep::None
+        } else if (message.command_is("903") || message.command_is("907"))
+            && (self.aborting
+                || (matches!(self.active, Some(Mechanism::ScramSha256 { .. }))
+                    && self.proof != Proof::Verified))
         {
-            self.abort(
-                now,
-                "SCRAM succeeded without a verified server proof",
-                outbox,
-            );
-            if self.require {
-                self.completion = Completion::Failed;
-                self.aborting = false;
-                self.deadline = None;
-                outbox.close(
-                    crate::CloseKind::SaslFailed,
-                    format!("SASL failed: {}", self.failures.join("; ")),
-                );
-            }
+            self.fail_all("SCRAM succeeded without a verified server proof", outbox);
         } else if message.command_is("903") || message.command_is("907") {
             self.active = None;
             self.awaiting_challenge = false;
@@ -546,6 +546,7 @@ impl SaslSession {
                     Ok(scram) => {
                         self.scram = Some(scram);
                         self.scram_step = ScramStep::Initial;
+                        self.proof = Proof::Unverified;
                     }
                     Err(error) => {
                         self.failures.push(format!("SCRAM-SHA-256: {error:?}"));
@@ -618,6 +619,7 @@ impl SaslSession {
                     .map_err(|error| format!("SCRAM server-final failed: {error:?}"))?;
                 transmit_response(&[], outbox);
                 self.scram_step = ScramStep::None;
+                self.proof = Proof::Verified;
                 Ok(true)
             }
             _ => Err("unexpected SCRAM challenge".to_owned()),
