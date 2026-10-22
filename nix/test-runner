@@ -128,6 +128,7 @@ if $browser_tests; then
   fi
   export PAPO_BROWSER_WS=$PAPO_TEST_WS
   export CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER=wasm-bindgen-test-runner
+  CI=1 cargo test -p papo --target wasm32-unknown-unknown --locked --lib
   manifest=crates/papo-core/tests/browser/Cargo.toml
   cargo test --manifest-path "$manifest" --target wasm32-unknown-unknown --features driver --locked --test node
   CI=1 cargo test --manifest-path "$manifest" --target wasm32-unknown-unknown --features driver --locked --test dedicated_worker

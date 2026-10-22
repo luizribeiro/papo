@@ -79,6 +79,9 @@
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+#[cfg(all(test, browser))]
+wasm_bindgen_test::wasm_bindgen_test_configure!(run_in_browser);
+
 macro_rules! variant_accessors {
     ($type:ident;) => {};
     ($type:ident; (boxed $variant:ident, $method:ident, $payload:ty), $($rest:tt)*) => {

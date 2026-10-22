@@ -27,8 +27,10 @@ pub(super) fn retry_at(now: web_time::Instant) -> web_time::Instant {
 mod tests {
     use super::{BINARY, Protocol, TEXT, below, retry_at, select_protocol};
 
-    #[cfg_attr(browser, wasm_bindgen_test::wasm_bindgen_test)]
-    #[cfg_attr(not(browser), test)]
+    #[cfg(browser)]
+    use wasm_bindgen_test::wasm_bindgen_test as test;
+
+    #[test]
     fn selects_only_ircv3_websocket_subprotocols() {
         assert_eq!(select_protocol(BINARY), Ok(Protocol::Binary));
         assert_eq!(select_protocol(TEXT), Ok(Protocol::Text));
@@ -39,8 +41,7 @@ mod tests {
         );
     }
 
-    #[cfg_attr(browser, wasm_bindgen_test::wasm_bindgen_test)]
-    #[cfg_attr(not(browser), test)]
+    #[test]
     fn applies_the_literal_backpressure_threshold() {
         assert!(below(65_535, 65_536));
         assert!(!below(65_536, 65_536));

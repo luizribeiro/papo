@@ -113,6 +113,9 @@ mod tests {
 
     use tokio::io::ReadBuf;
 
+    #[cfg(browser)]
+    use wasm_bindgen_test::wasm_bindgen_test as test;
+
     use super::ReadState;
 
     fn poll(state: &mut ReadState, capacity: usize) -> Poll<io::Result<Vec<u8>>> {
@@ -154,8 +157,7 @@ mod tests {
         count
     }
 
-    #[cfg_attr(browser, wasm_bindgen_test::wasm_bindgen_test)]
-    #[cfg_attr(not(browser), test)]
+    #[test]
     fn appends_crlf_and_enforces_the_literal_message_limit() {
         let mut state = ReadState::default();
         state.push(vec![b'x'; 8_701]);
@@ -170,8 +172,7 @@ mod tests {
         );
     }
 
-    #[cfg_attr(browser, wasm_bindgen_test::wasm_bindgen_test)]
-    #[cfg_attr(not(browser), test)]
+    #[test]
     fn bounds_an_unending_incoming_queue_at_65536_bytes() {
         let mut state = ReadState::default();
         for _ in 0..7 {
@@ -194,8 +195,7 @@ mod tests {
         assert_eq!(read(&mut state, 1).unwrap(), b"x");
     }
 
-    #[cfg_attr(browser, wasm_bindgen_test::wasm_bindgen_test)]
-    #[cfg_attr(not(browser), test)]
+    #[test]
     fn preserves_partial_reads_and_empty_buffer_readiness() {
         let mut state = ReadState::default();
         assert!(matches!(poll(&mut state, 1), Poll::Pending));
@@ -209,8 +209,7 @@ mod tests {
         assert!(matches!(poll(&mut state, 1), Poll::Pending));
     }
 
-    #[cfg_attr(browser, wasm_bindgen_test::wasm_bindgen_test)]
-    #[cfg_attr(not(browser), test)]
+    #[test]
     fn preserves_close_codes_and_bounds_error_reasons() {
         let mut state = ReadState::default();
         state.close(1000, "server restart");
@@ -235,8 +234,7 @@ mod tests {
         );
     }
 
-    #[cfg_attr(browser, wasm_bindgen_test::wasm_bindgen_test)]
-    #[cfg_attr(not(browser), test)]
+    #[test]
     fn failure_discards_buffered_input_and_rejects_late_messages() {
         let mut state = ReadState::default();
         state.push(b":ergo.test CAP papo LS :message-tags".to_vec());
@@ -247,8 +245,7 @@ mod tests {
         assert!(matches!(poll(&mut state, 64), Poll::Pending));
     }
 
-    #[cfg_attr(browser, wasm_bindgen_test::wasm_bindgen_test)]
-    #[cfg_attr(not(browser), test)]
+    #[test]
     fn messages_closes_and_failures_wake_a_waiting_reader() {
         let mut message = ReadState::default();
         let message_wakes = wait_for_input(&mut message);

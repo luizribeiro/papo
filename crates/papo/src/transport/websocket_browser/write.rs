@@ -70,6 +70,9 @@ mod tests {
 
     use super::{Write, WriteState};
 
+    #[cfg(browser)]
+    use wasm_bindgen_test::wasm_bindgen_test as test;
+
     fn frame(state: &mut WriteState, input: &[u8]) -> (usize, Vec<u8>) {
         let Write::Frame { consumed, bytes } = state.push(input).unwrap() else {
             panic!("write should complete a frame");
@@ -77,8 +80,7 @@ mod tests {
         (consumed, bytes)
     }
 
-    #[cfg_attr(browser, wasm_bindgen_test::wasm_bindgen_test)]
-    #[cfg_attr(not(browser), test)]
+    #[test]
     fn emits_one_message_per_complete_irc_line() {
         let mut state = WriteState::default();
         assert!(matches!(state.push(b"CAP LS").unwrap(), Write::Buffered(6)));
@@ -106,8 +108,7 @@ mod tests {
         assert_eq!(frame(&mut state, b"\n"), (1, Vec::new()));
     }
 
-    #[cfg_attr(browser, wasm_bindgen_test::wasm_bindgen_test)]
-    #[cfg_attr(not(browser), test)]
+    #[test]
     fn enforces_the_literal_outgoing_message_limit() {
         let mut complete = WriteState::default();
         let mut accepted = vec![b'x'; 8_701];
@@ -145,8 +146,7 @@ mod tests {
         );
     }
 
-    #[cfg_attr(browser, wasm_bindgen_test::wasm_bindgen_test)]
-    #[cfg_attr(not(browser), test)]
+    #[test]
     fn rejects_shutdown_with_a_partial_line() {
         let mut state = WriteState::default();
         state.push(b"AUTHENTICATE c2VjcmV0").unwrap();
