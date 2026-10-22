@@ -22,6 +22,7 @@ async fn fills_a_dropped_connection_gap_once_across_two_reconnects() {
         let builder =
             Client::builder(Endpoint::plaintext("localhost", proxy.address().port()).unwrap())
                 .nick(support::nick(&nick))
+                .allow_insecure_auth(true)
                 .sasl(Sasl::plain(&nick, password))
                 .request_caps([
                     "message-tags",

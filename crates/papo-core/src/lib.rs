@@ -497,6 +497,7 @@ pub struct Config {
     pub who_on_join: WhoOnJoin,
     /// Metadata keys subscribed on every connection.
     pub metadata_subscriptions: Vec<String>,
+    allow_insecure_auth: bool,
     /// Upstream bouncer network selected before the connection completes.
     #[cfg(feature = "unstable")]
     pub bouncer_network: Option<NetworkId>,
@@ -536,6 +537,7 @@ impl std::fmt::Debug for Config {
             .field("away_on_connect", &self.away_on_connect)
             .field("who_on_join", &self.who_on_join)
             .field("metadata_subscriptions", &self.metadata_subscriptions);
+        debug.field("allow_insecure_auth", &self.allow_insecure_auth);
         #[cfg(feature = "unstable")]
         debug.field("enabled_features", &self.enabled_features);
         #[cfg(feature = "unstable")]
@@ -592,6 +594,7 @@ impl Default for Config {
             away_on_connect: None,
             who_on_join: WhoOnJoin::default(),
             metadata_subscriptions: Vec::new(),
+            allow_insecure_auth: false,
             #[cfg(feature = "unstable")]
             bouncer_network: None,
             registration_on_connect: None,
@@ -685,6 +688,16 @@ impl Config {
             email: email.map(Into::into),
             password: password.into(),
         });
+        self
+    }
+
+    /// Allows credentials to be sent over a plaintext transport.
+    ///
+    /// This is intended for controlled test fixtures. Credentials are refused on plaintext
+    /// connections by default.
+    #[must_use]
+    pub const fn allow_insecure_auth(mut self, allow: bool) -> Self {
+        self.allow_insecure_auth = allow;
         self
     }
 
@@ -1736,6 +1749,8 @@ pub enum RequestError {
     EmptyText,
     /// A byte secret was supplied to a text-only protocol field.
     InvalidSecret,
+    /// Credentials require an explicit opt-in on this plaintext connection.
+    InsecureAuthentication,
     /// An optional protocol feature is unavailable.
     Unsupported(Unsupported),
     /// The server cannot accept the supplied history reference.
@@ -1820,6 +1835,8 @@ impl std::fmt::Display for RequestError {
             Self::PendingLimit => formatter.write_str("too many labelled requests are pending"),
             Self::EmptyText => formatter.write_str("text has no nonempty lines"),
             Self::InvalidSecret => formatter.write_str("byte secret cannot be used as text"),
+            Self::InsecureAuthentication => formatter
+                .write_str("credentials require an explicit opt-in on a plaintext connection"),
             Self::Unsupported(unsupported) => unsupported.fmt(formatter),
             Self::InvalidMessageReference => formatter.write_str("unsupported message reference"),
             Self::EmailRequired => formatter.write_str("account registration requires an email"),
@@ -1852,6 +1869,7 @@ impl std::error::Error for RequestError {
             Self::PendingLimit
             | Self::EmptyText
             | Self::InvalidSecret
+            | Self::InsecureAuthentication
             | Self::Unsupported(_)
             | Self::InvalidMessageReference
             | Self::EmailRequired
@@ -2833,6 +2851,19 @@ impl Session {
         self.connection = connection;
         self.framer.reset();
         self.outbox.reset_connection();
+        if self.connection.security == ConnectionSecurity::Plaintext
+            && !self.config.allow_insecure_auth
+            && (self.config.password.is_some()
+                || self.config.webirc.is_some()
+                || self.config.sasl.is_some()
+                || self.config.registration_on_connect.is_some())
+        {
+            self.outbox.close(
+                CloseKind::Other,
+                "credentials require an explicit opt-in on a plaintext connection".to_owned(),
+            );
+            return;
+        }
         self.batches.reset();
         self.ctcp_rate_limit.reset(now);
         self.ctcp_sources.clear();
@@ -3667,6 +3698,11 @@ impl Session {
         email: Option<&str>,
         password: impl Into<Secret>,
     ) -> Result<(), RequestError> {
+        if self.connection.security == ConnectionSecurity::Plaintext
+            && !self.config.allow_insecure_auth
+        {
+            return Err(RequestError::InsecureAuthentication);
+        }
         let registered = self.welcome_state.is_connected();
         let value = if registered {
             self.caps

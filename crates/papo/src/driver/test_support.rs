@@ -568,6 +568,7 @@ pub(crate) async fn assert_connect_output(
 
 pub(crate) fn config() -> Config {
     Config::default()
+        .allow_insecure_auth(true)
         .nick("papo-driver")
         .realname("papo driver test")
         .request_timeout(Duration::from_secs(1))

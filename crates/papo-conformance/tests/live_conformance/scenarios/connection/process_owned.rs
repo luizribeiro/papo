@@ -55,6 +55,7 @@ pub(super) async fn bouncer_networks(s: Scenario) -> papo_testing::Result<()> {
                 .username(login.username())
                 .realname("papo bouncer control")
                 .password(login.password())
+                .allow_insecure_auth(true)
                 .enable(papo::Feature::Bouncer)
                 .request_caps(["batch", "soju.im/bouncer-networks"]),
         )

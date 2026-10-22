@@ -8,3 +8,6 @@
 "security::server_password_waits_for_sts" = [
   "security.s3.pass-after-sts-decision",
 ]
+"security::plaintext_credentials_require_explicit_opt_in" = [
+  "security.t3.plaintext-credentials-opt-in",
+]

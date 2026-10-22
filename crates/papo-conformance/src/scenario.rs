@@ -204,6 +204,7 @@ impl Scenario {
         Client::builder(endpoint)
             .nick(name)
             .realname("papo test peer")
+            .allow_insecure_auth(true)
     }
 }
 

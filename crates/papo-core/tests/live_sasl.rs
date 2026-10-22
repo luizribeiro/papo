@@ -53,6 +53,7 @@ fn authenticate(server: &ServerInfo, account: &str, sasl: Sasl) -> Result<Sessio
         .username("papo")
         .realname("papo live SASL test")
         .sasl(sasl)
+        .allow_insecure_auth(true)
         .rate_limit(RateLimit::unlimited());
     let mut session = Session::with_entropy(config, Box::new(FixedEntropy));
     session.handle_connected(Instant::now());

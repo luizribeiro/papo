@@ -296,6 +296,7 @@ fn connect_client(
         .nick(nick)
         .username("papo")
         .realname(realname)
+        .allow_insecure_auth(true)
         .tls_ca_pem(ca_pem);
     if let Some(wanted_caps) = wanted_caps {
         for feature in wanted_caps

@@ -1158,6 +1158,7 @@ pub papo_core::RequestError::Build(papo::BuildError)
 pub papo_core::RequestError::CustomAccountNameUnsupported
 pub papo_core::RequestError::EmailRequired
 pub papo_core::RequestError::EmptyText
+pub papo_core::RequestError::InsecureAuthentication
 pub papo_core::RequestError::InvalidMessageReference
 #[non_exhaustive] pub papo_core::RequestError::InvalidMetadataKey
 pub papo_core::RequestError::InvalidMetadataKey::key: alloc::string::String
@@ -1566,6 +1567,7 @@ pub papo_core::Config::webirc: core::option::Option<papo_core::WebIrc>
 pub papo_core::Config::welcome_timeout: core::time::Duration
 pub papo_core::Config::who_on_join: papo_core::WhoOnJoin
 impl papo_core::Config
+pub const fn papo_core::Config::allow_insecure_auth(self, bool) -> Self
 pub fn papo_core::Config::alt_nicks<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub fn papo_core::Config::away_on_connect(self, core::option::Option<papo_core::AwayOnConnect>) -> Self
 pub const fn papo_core::Config::batch_timeout(self, core::time::Duration) -> Self

@@ -38,6 +38,9 @@ pub enum InvalidInput {
     /// A byte secret was supplied to a text-only protocol field.
     #[error("byte secret cannot be used as text")]
     BinarySecret,
+    /// Credentials were configured for an unencrypted endpoint without an explicit opt-in.
+    #[error("credentials on a plaintext endpoint require allow_insecure_auth(true)")]
+    InsecureAuthentication,
     /// An outbound IRC message cannot be represented on the wire.
     #[error("invalid IRC message: {0}")]
     InvalidMessage(String),

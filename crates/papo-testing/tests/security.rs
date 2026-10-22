@@ -14,7 +14,8 @@ async fn start_scram(address: &str) -> (papo::Client, Events, Wire) {
             .nick("papo-wire")
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never())
-            .sasl(Sasl::any("alice", PASSWORD)),
+            .sasl(Sasl::any("alice", PASSWORD))
+            .allow_insecure_auth(true),
     );
     assert_eq!(wire.next_sent().await, "CAP LS 302");
     assert_eq!(wire.next_sent().await, "NICK papo-wire");
@@ -33,7 +34,8 @@ async fn start_cap_negotiation() -> (papo::Client, Events, Wire) {
             .nick("papo-wire")
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never())
-            .sasl(Sasl::any("alice", PASSWORD)),
+            .sasl(Sasl::any("alice", PASSWORD))
+            .allow_insecure_auth(true),
     );
     assert_eq!(wire.next_sent().await, "CAP LS 302");
     assert_eq!(wire.next_sent().await, "NICK papo-wire");
@@ -174,6 +176,7 @@ async fn server_password_waits_for_sts() {
         papo::Client::builder("irc://offline.test")
             .nick("papo-wire")
             .password(PASSWORD)
+            .allow_insecure_auth(true)
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never()),
     );
@@ -183,4 +186,15 @@ async fn server_password_waits_for_sts() {
     wire.server(":offline.test CAP * LS :sts=port=6697,duration=86400")
         .await;
     assert_eq!(wire.next_sent_or_closed().await, None);
+}
+
+#[tokio::test]
+async fn plaintext_credentials_require_explicit_opt_in() {
+    let result = papo::Client::builder("irc://offline.test")
+        .nick("papo-wire")
+        .sasl(Sasl::plain("alice", PASSWORD))
+        .reconnect(Reconnect::never())
+        .connect()
+        .await;
+    assert!(matches!(result, Err(papo::Error::InvalidInput(_))));
 }

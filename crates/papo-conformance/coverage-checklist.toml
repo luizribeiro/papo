@@ -67,4 +67,5 @@ ids = [
   "security.routing.status-prefix-channel", "security.target.no-comma-multitarget",
   "security.rejoin.channel-rename", "security.ctcp.no-reply-to-playback",
   "security.s3.pass-after-sts-decision",
+  "security.t3.plaintext-credentials-opt-in",
 ]

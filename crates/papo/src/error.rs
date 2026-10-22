@@ -591,6 +591,9 @@ impl Error {
             }
             Request::EmptyText => Self::InvalidInput(InvalidInput::EmptyText),
             Request::InvalidSecret => Self::InvalidInput(InvalidInput::BinarySecret),
+            Request::InsecureAuthentication => {
+                Self::InvalidInput(InvalidInput::InsecureAuthentication)
+            }
             Request::PendingLimit => Self::TooManyPendingRequests,
             Request::Unsupported(unsupported) => Self::Unsupported(unsupported),
             Request::InvalidMessageReference => {

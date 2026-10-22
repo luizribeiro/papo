@@ -32,6 +32,7 @@ async fn high_level_client_uses_the_browser_websocket() {
     let (client, mut events) = Client::builder(papo::Endpoint::websocket(env!("PAPO_BROWSER_WS")).unwrap())
         .nick(account)
         .sasl(Sasl::plain(account, password))
+        .allow_insecure_auth(true)
         .autojoin([&channel])
         .reconnect(Reconnect::exponential().max_delay(std::time::Duration::from_millis(20)))
         .connect()

@@ -40,6 +40,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 See the [ping bot](examples/ping-bot) for the complete example and its live-server test.
 
+SASL, server passwords, WEBIRC, and account registration require `ircs://` or `wss://` by default.
+Apps with another trusted transport layer must use `Builder::allow_insecure_auth(true)`.
+
 ## Capability implementation map
 
 <!-- caps:start -->

@@ -23,6 +23,7 @@ async fn stale_credentials_end_reconnect_with_a_connect_cause() {
             Endpoint::plaintext("localhost", server.plaintext_addr().port()).unwrap(),
         )
         .nick(support::nick(&account))
+        .allow_insecure_auth(true)
         .sasl(Sasl::plain(&account, first))
         .reconnect(
             Reconnect::exponential()

@@ -35,6 +35,8 @@ pub struct Builder {
     username_set: bool,
     realname_set: bool,
     invalid_input: Option<InvalidInput>,
+    credentials_configured: bool,
+    allow_insecure_auth: bool,
 }
 
 impl fmt::Debug for Builder {
@@ -65,6 +67,8 @@ impl Builder {
             username_set: false,
             realname_set: false,
             invalid_input: None,
+            credentials_configured: false,
+            allow_insecure_auth: false,
         }
     }
 
@@ -137,6 +141,7 @@ impl Builder {
         let password = password.into();
         self.reject_binary_secret(&password);
         self.config.password = Some(password);
+        self.credentials_configured = true;
         self
     }
 
@@ -146,6 +151,7 @@ impl Builder {
             self.invalid_input.get_or_insert(InvalidInput::BinarySecret);
         }
         self.config = self.config.webirc(webirc.into_core());
+        self.credentials_configured = true;
         self
     }
 
@@ -155,6 +161,7 @@ impl Builder {
             self.invalid_input.get_or_insert(InvalidInput::BinarySecret);
         }
         self.config.sasl = Some(sasl);
+        self.credentials_configured = true;
         self
     }
 
@@ -204,6 +211,17 @@ impl Builder {
         self.config =
             self.config
                 .create_account_on_connect(account.account, account.email, account.password);
+        self.credentials_configured = true;
+        self
+    }
+
+    /// Allows configured credentials on an unencrypted `irc://` or `ws://` endpoint.
+    ///
+    /// Credentials are refused on plaintext endpoints by default. Enable this only when the
+    /// transport is protected by another trusted layer, such as a local test fixture.
+    pub fn allow_insecure_auth(mut self, allow: bool) -> Self {
+        self.allow_insecure_auth = allow;
+        self.config = self.config.allow_insecure_auth(allow);
         self
     }
 
@@ -564,6 +582,10 @@ impl Builder {
         registration: Option<crate::driver::ConnectSender>,
     ) -> (crate::Client, crate::Events, crate::Driver) {
         if let Ok(address) = &self.address {
+            if !address.is_secure() && self.credentials_configured && !self.allow_insecure_auth {
+                self.invalid_input
+                    .get_or_insert(InvalidInput::InsecureAuthentication);
+            }
             apply_address(&mut self.config, address);
         }
         let input_error = self
@@ -619,6 +641,9 @@ impl Builder {
         let plan = self.address.and_then(|address| {
             if let Some(error) = validation_error {
                 return Err(error);
+            }
+            if !address.is_secure() && self.credentials_configured && !self.allow_insecure_auth {
+                return Err(InvalidInput::InsecureAuthentication);
             }
             #[cfg(tls)]
             if address.is_secure() {
@@ -1116,6 +1141,28 @@ mod tests {
                 within(driver).await,
                 Err(Error::InvalidInput(actual)) if actual == expected
             ));
+        }
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn plaintext_endpoints_reject_credentials_by_default() {
+        let webirc = || crate::WebIrc {
+            password: "gateway-password".into(),
+            gateway: "papo-gateway".into(),
+            client_ip: "192.0.2.42".parse().unwrap(),
+            client_hostname: None,
+            options: Vec::new(),
+        };
+        let cases = [
+            Builder::new("irc://irc.example.net").password("server-password"),
+            Builder::new("ws://irc.example.net/webirc").webirc(webirc()),
+            Builder::new("irc://irc.example.net").sasl(Sasl::plain("alice", "sasl-password")),
+            Builder::new("irc://irc.example.net")
+                .create_account(NewAccount::new("account-password").account("alice")),
+        ];
+        for builder in cases {
+            let (_client, _events, driver) = builder.build();
+            assert!(matches!(within(driver).await, Err(Error::InvalidInput(_))));
         }
     }
 

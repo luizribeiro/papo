@@ -601,6 +601,15 @@ fn informational_account_required_cap_accepts_a_server_password() {
 }
 
 #[test]
+fn plaintext_connections_refuse_oauth_credentials() {
+    let config = Config::default().sasl(Sasl::oauth_bearer("oauth-token-7391"));
+    Transcript::rate_limited(config)
+        .connect()
+        .event(|event| matches!(event, Event::Close { reason, .. } if reason.contains("plaintext")))
+        .no_client();
+}
+
+#[test]
 fn unrelated_fail_replies_do_not_trigger_account_required_policy() {
     for reply in [
         ":ergo.test FAIL AUTHENTICATE ACCOUNT_REQUIRED :Authentication required",

@@ -1429,6 +1429,7 @@ pub papo::InvalidInput::BinarySecret
 pub papo::InvalidInput::EmailRequired
 pub papo::InvalidInput::EmptyAddress
 pub papo::InvalidInput::EmptyText
+pub papo::InvalidInput::InsecureAuthentication
 pub papo::InvalidInput::InvalidExtbanAccount(alloc::string::String)
 pub papo::InvalidInput::InvalidHost(alloc::string::String)
 pub papo::InvalidInput::InvalidMessage(alloc::string::String)
@@ -1576,6 +1577,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::BanTarget
 impl core::panic::unwind_safe::UnwindSafe for papo::BanTarget
 pub struct papo::Builder
 impl papo::Builder
+pub fn papo::Builder::allow_insecure_auth(self, bool) -> Self
 pub fn papo::Builder::alt_nicks<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
 pub fn papo::Builder::autojoin<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
 pub fn papo::Builder::autojoin_with_key(self, impl core::convert::AsRef<str>, impl core::convert::Into<papo::Secret>) -> Self

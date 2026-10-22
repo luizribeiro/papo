@@ -15,6 +15,7 @@ async fn creates_and_logs_in_during_connection_setup() {
             .arg(format!("irc://{}", server.plaintext_addr()))
             .env("IRC_NICK", &account)
             .env("IRC_PASSWORD", "q7Hx-2mZp_9vLcT4wRfB")
+            .env("IRC_ALLOW_INSECURE_AUTH", "1")
             .output()
             .unwrap();
 

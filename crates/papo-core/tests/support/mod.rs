@@ -71,6 +71,7 @@ impl Transcript {
     /// Creates a transcript at an arbitrary fixed starting instant.
     pub fn new(mut config: Config) -> Self {
         config.rate_limit = RateLimit::unlimited();
+        config = config.allow_insecure_auth(true);
         Self::from_session(Session::new(config))
     }
 
@@ -81,6 +82,7 @@ impl Transcript {
 
     /// Creates a transcript with an explicit entropy source.
     pub fn with_entropy(mut config: Config, entropy: Box<dyn Entropy + Send>) -> Self {
+        config = config.allow_insecure_auth(true);
         config.rate_limit = RateLimit::unlimited();
         Self::from_session(Session::with_entropy(config, entropy))
     }

@@ -1029,7 +1029,9 @@ mod tests {
     fn preserves_proven_history_authorship_and_activity_context() {
         let now = Instant::now();
         let mut session = Session::new(
-            Config::default().sasl(Sasl::plain("papo", "correct horse battery staple")),
+            Config::default()
+                .allow_insecure_auth(true)
+                .sasl(Sasl::plain("papo", "correct horse battery staple")),
         );
         session.handle_connected(now);
         for line in [
