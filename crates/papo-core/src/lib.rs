@@ -593,6 +593,13 @@ impl Default for Config {
 }
 
 impl Config {
+    fn selected_bouncer_network(&self) -> Option<&str> {
+        #[cfg(feature = "unstable")]
+        return self.bouncer_network.as_ref().map(AsRef::as_ref);
+        #[cfg(not(feature = "unstable"))]
+        None
+    }
+
     /// Enables an unstable extension feature before connecting.
     #[cfg(feature = "unstable")]
     #[must_use]
@@ -2941,14 +2948,12 @@ impl Session {
             Ok(message) => {
                 let multiline_max_bytes = outgoing::multiline_limits(self.caps.enabled())
                     .map_or(usize::MAX, |limits| limits.max_bytes);
-                #[cfg(feature = "unstable")]
-                let bouncer_enabled = self.caps.enabled().contains_key(&cap::BOUNCER_NETWORKS);
-                #[cfg(not(feature = "unstable"))]
-                let bouncer_enabled = false;
-                match self
-                    .batches
-                    .handle(now, &message, multiline_max_bytes, bouncer_enabled)
-                {
+                match self.batches.handle(
+                    now,
+                    &message,
+                    multiline_max_bytes,
+                    self.caps.bouncer_enabled(),
+                ) {
                     BatchAction::Consumed => {}
                     BatchAction::Complete(events) => {
                         for event in events {
@@ -3025,17 +3030,9 @@ impl Session {
         }
         self.sasl.handle_timeout(now, &mut self.outbox);
         self.maybe_subscribe_metadata(now);
-        let bouncer_network = {
-            #[cfg(feature = "unstable")]
-            {
-                self.config.bouncer_network.as_ref().map(AsRef::as_ref)
-            }
-            #[cfg(not(feature = "unstable"))]
-            None
-        };
         self.caps.maybe_finish(
             self.sasl.is_finished() && self.account_registration.authentication_finished(),
-            bouncer_network,
+            self.config.selected_bouncer_network(),
             &mut self.outbox,
         );
         self.keepalive.handle_timeout(now, &mut self.outbox);
@@ -4026,17 +4023,9 @@ impl Session {
             && emit_unhandled
             && self.report_standard_reply(message);
         self.maybe_subscribe_metadata(now);
-        let bouncer_network = {
-            #[cfg(feature = "unstable")]
-            {
-                self.config.bouncer_network.as_ref().map(AsRef::as_ref)
-            }
-            #[cfg(not(feature = "unstable"))]
-            None
-        };
         self.caps.maybe_finish(
             self.sasl.is_finished() && self.account_registration.authentication_finished(),
-            bouncer_network,
+            self.config.selected_bouncer_network(),
             &mut self.outbox,
         );
         if !handled
@@ -4382,11 +4371,7 @@ impl Session {
             })
             .collect();
         response.mode_list = Some(entries.clone());
-        #[cfg(feature = "unstable")]
-        let bouncer_cap = self.caps.enabled().contains_key(&cap::BOUNCER_NETWORKS);
-        #[cfg(not(feature = "unstable"))]
-        let bouncer_cap = false;
-        let bouncer = bouncer_cap
+        let bouncer = self.caps.bouncer_enabled()
             || !matches!(
                 self.isupport.value().get("BOUNCER_NETID"),
                 papo_proto::Advertised::Absent
@@ -4446,10 +4431,7 @@ impl Session {
             .as_ref()
             .is_none_or(|(_, _, _, _, emit_events)| *emit_events);
         let queued_events = self.outbox.events.len();
-        #[cfg(feature = "unstable")]
-        let bouncer_batch = batch_type == cap::BOUNCER_NETWORKS.as_str();
-        #[cfg(not(feature = "unstable"))]
-        let bouncer_batch = false;
+        let bouncer_batch = cfg!(feature = "unstable") && batch_type == cap::BOUNCER_NETWORKS_NAME;
         let context = DispatchContext::from_batch_type(batch_type);
         if (history.is_none() || request.is_none()) && !bouncer_batch {
             for message in &messages {

@@ -292,14 +292,11 @@ impl Caps {
     pub(super) fn maybe_finish(
         &mut self,
         authentication_finished: bool,
-        #[cfg_attr(not(feature = "unstable"), allow(unused_variables))] bouncer_network: Option<
-            &str,
-        >,
+        bouncer_network: Option<&str>,
         outbox: &mut Outbox,
     ) {
         if self.negotiating && authentication_finished && self.pending.is_empty() && !self.ended {
-            #[cfg(feature = "unstable")]
-            if self.enabled.contains_key(&cap::BOUNCER_NETWORKS)
+            if self.bouncer_enabled()
                 && let Some(id) = bouncer_network
             {
                 outbox.transmit_immediate("BOUNCER", ["BIND", id]);
@@ -312,6 +309,10 @@ impl Caps {
 
     pub(super) const fn enabled(&self) -> &Capabilities {
         &self.enabled
+    }
+
+    pub(super) fn bouncer_enabled(&self) -> bool {
+        cfg!(feature = "unstable") && self.enabled.contains_key(cap::BOUNCER_NETWORKS_NAME)
     }
 
     pub(super) const fn advertised(&self) -> &Capabilities {

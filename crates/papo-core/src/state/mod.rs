@@ -409,12 +409,13 @@ impl State {
         message: &LineRef<'_>,
         own_nick: &str,
         isupport: &Isupport,
-        #[cfg_attr(not(feature = "unstable"), allow(unused_variables))] enabled_caps: &Capabilities,
+        enabled_caps: &Capabilities,
         no_implicit_names: bool,
         metadata: MetadataContext,
         own_away_message: Option<&str>,
         outbox: &mut Outbox,
     ) -> Handled {
+        _ = enabled_caps;
         let mapping = self.prepare_message(message, own_nick, isupport, outbox);
         if self.handle_metadata(
             message,

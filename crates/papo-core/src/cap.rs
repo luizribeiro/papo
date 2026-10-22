@@ -216,6 +216,7 @@ capabilities! {
 }
 
 pub(crate) const CHATHISTORY_BATCH: &str = "chathistory";
+pub(crate) const BOUNCER_NETWORKS_NAME: &str = "soju.im/bouncer-networks";
 
 const fn defaults_len() -> usize {
     let (mut index, mut count) = (0, 0);

@@ -435,15 +435,8 @@ fn is_history(kind: &str) -> bool {
 }
 
 fn is_aggregate(kind: &str, bouncer_enabled: bool) -> bool {
-    #[cfg(feature = "unstable")]
-    let bouncer = bouncer_enabled && kind == cap::BOUNCER_NETWORKS.as_str();
-    #[cfg(not(feature = "unstable"))]
-    let bouncer = {
-        _ = bouncer_enabled;
-        false
-    };
     is_history(kind)
-        || bouncer
+        || (cfg!(feature = "unstable") && bouncer_enabled && kind == cap::BOUNCER_NETWORKS_NAME)
         || kind == cap::MULTILINE.as_str()
         || matches!(
             kind,
