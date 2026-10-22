@@ -397,3 +397,48 @@ async fn unknown_playback_is_untyped_and_has_no_side_effects() {
             .is_err()
     );
 }
+
+#[tokio::test(start_paused = true)]
+async fn expired_labeled_history_is_not_delivered_twice() {
+    let (_client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test")
+            .nick("papo-wire")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&[
+        "message-tags",
+        "batch",
+        "labeled-response",
+        "draft/chathistory",
+    ])
+    .await;
+    while !matches!(events.next().await, Some(papo::Event::Connected(_))) {}
+
+    for line in [
+        "@label=expired :offline.test BATCH +reply-42 labeled-response",
+        "@batch=reply-42 :offline.test BATCH +history-42 chathistory #papo",
+        "@batch=history-42;time=2026-10-15T12:00:01.000Z;msgid=RKi9Cw :alice!~a@cloak.example PRIVMSG #papo :earlier deployment",
+        "@batch=reply-42 :offline.test BATCH -history-42",
+        ":offline.test BATCH -reply-42",
+    ] {
+        wire.server(line).await;
+    }
+
+    let page = events
+        .next()
+        .await
+        .and_then(|event| event.as_history().cloned())
+        .expect("expired reply still produces one history page");
+    assert_eq!(
+        page.messages()
+            .map(|message| message.text.as_str())
+            .collect::<Vec<_>>(),
+        ["earlier deployment"]
+    );
+    assert!(
+        tokio::time::timeout(Duration::from_millis(1), events.next())
+            .await
+            .is_err()
+    );
+}
