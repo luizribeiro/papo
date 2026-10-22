@@ -70,6 +70,36 @@ fn recognizes_every_capability_backed_feature() {
 }
 
 #[test]
+fn unstable_capabilities_require_explicit_feature_selection() {
+    let offered = "soju.im/bouncer-networks soju.im/bouncer-networks-notify draft/persistence draft/relaymsg draft/webpush";
+    Transcript::new(Config::default())
+        .connect_default()
+        .server(&format!("CAP * LS :{offered}"))
+        .client("CAP END")
+        .inspect(|session| {
+            assert_eq!(
+                session.supports(Feature::Bouncer),
+                Err(UnsupportedReason::DisabledByClient)
+            );
+        })
+        .server("CAP papo NEW :draft/webpush")
+        .no_client();
+
+    Transcript::new(
+        Config::default()
+            .enable(Feature::Bouncer)
+            .enable(Feature::Persistence)
+            .enable(Feature::Relay)
+            .enable(Feature::WebPush),
+    )
+    .connect_default()
+    .server(&format!("CAP * LS :{offered}"))
+    .client(&format!("CAP REQ :{offered}"))
+    .server(&format!("CAP * ACK :{offered}"))
+    .client("CAP END");
+}
+
+#[test]
 fn combines_isupport_tokens_with_negotiated_caps() {
     let session = session_with(
         Config::default().wanted_caps(["draft/chathistory"]),

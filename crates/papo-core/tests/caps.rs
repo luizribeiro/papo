@@ -6,8 +6,6 @@ use std::time::Duration;
 
 use papo_core::sts::{ConnectionSecurity, StsAction};
 use papo_core::{CloseKind, Config, Connection, DEFAULT_WANTED_CAPS, Event, Session, cap::Cap};
-#[cfg(feature = "unstable")]
-use papo_core::{Feature, UnsupportedReason};
 use support::Transcript;
 
 #[test]
@@ -194,37 +192,6 @@ fn defaults_cover_every_implemented_negotiable_capability() {
     );
 }
 
-#[cfg(feature = "unstable")]
-#[test]
-fn unstable_capabilities_require_explicit_feature_selection() {
-    let offered = "soju.im/bouncer-networks soju.im/bouncer-networks-notify draft/persistence draft/relaymsg draft/webpush";
-    Transcript::new(Config::default())
-        .connect_default()
-        .server(&format!("CAP * LS :{offered}"))
-        .client("CAP END")
-        .inspect(|session| {
-            assert_eq!(
-                session.supports(Feature::Bouncer),
-                Err(UnsupportedReason::DisabledByClient)
-            );
-        })
-        .server("CAP papo NEW :draft/webpush")
-        .no_client();
-
-    Transcript::new(
-        Config::default()
-            .enable(Feature::Bouncer)
-            .enable(Feature::Persistence)
-            .enable(Feature::Relay)
-            .enable(Feature::WebPush),
-    )
-    .connect_default()
-    .server(&format!("CAP * LS :{offered}"))
-    .client(&format!("CAP REQ :{offered}"))
-    .server(&format!("CAP * ACK :{offered}"))
-    .client("CAP END");
-}
-
 #[test]
 fn naming_unstable_capabilities_does_not_opt_in_or_request_them_later() {
     let offered = "soju.im/bouncer-networks soju.im/bouncer-networks-notify draft/persistence draft/relaymsg draft/webpush";
@@ -234,7 +201,7 @@ fn naming_unstable_capabilities_does_not_opt_in_or_request_them_later() {
         .client("CAP END");
 
     #[cfg(feature = "unstable")]
-    Transcript::new(Config::default().enable(Feature::WebPush))
+    Transcript::new(Config::default().enable(papo_core::Feature::WebPush))
         .connect_default()
         .server("CAP * LS :")
         .client("CAP END")
