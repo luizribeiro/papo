@@ -4635,6 +4635,9 @@ impl Session {
         if let Some((_, items, _)) = &mut history {
             self.mark_history_authorship(items);
         }
+        if deferred && let Some((id, _, _, _, _)) = &request {
+            self.resolve_deferred(*id);
+        }
         if let Some((id, _, sent, _, _)) = request
             && !deferred
         {

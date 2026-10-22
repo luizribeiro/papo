@@ -12,6 +12,9 @@ impl Session {
             return false;
         };
         self.away_messages.remove(&id);
+        if message.command_is("ACK") && self.resolve_deferred(id) {
+            return true;
+        }
         let lines = if message.command_is("ACK") {
             Vec::new()
         } else {
@@ -36,6 +39,32 @@ impl Session {
                 enabled_features,
             }));
         }
+        true
+    }
+
+    pub(super) fn resolve_deferred(&mut self, id: RequestId) -> bool {
+        let Some(index) = self.unlabelled_requests.iter().position(|request| {
+            request.id == id
+                && matches!(&request.matcher, ResponseMatcher::Join(channel)
+                    if self.state.channel(channel).is_some_and(crate::Channel::is_synced))
+        }) else {
+            return false;
+        };
+        let request = self.unlabelled_requests.remove(index).unwrap();
+        self.away_messages.remove(&id);
+        let whois_channels = parse_whois_channels(&request.lines, self.isupport.value());
+        let enabled_features = self.supported_features();
+        self.outbox.event(Event::Response(Response {
+            id,
+            sent: None,
+            lines: request.lines,
+            history: None,
+            history_targets: None,
+            whois_channels,
+            mode_list: None,
+            state_limit: None,
+            enabled_features,
+        }));
         true
     }
 

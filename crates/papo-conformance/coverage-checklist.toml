@@ -86,4 +86,5 @@ ids = [
   "security.inj-4.registration-field-validation",
   "security.h9.invalid-automatic-reply-target",
   "security.inj-8.outgoing-fuzz-coverage",
+  "security.r1.labelled-rejoin-routing",
 ]

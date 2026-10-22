@@ -50,6 +50,20 @@ async fn reconnect_follows_channel_rename(s: Scenario) -> papo_testing::Result<(
     Ok(())
 }
 
+/// completes a labelled re-JOIN acknowledged without an echoed JOIN
+#[scenario(
+    requires(caps = ["labeled-response"]),
+    covers = ["security.r1.labelled-rejoin-routing"]
+)]
+async fn labelled_rejoin_ack_completes(s: Scenario) -> papo_testing::Result<()> {
+    let alice = s.connect("alice").await?;
+    let channel = s.channel_name();
+    alice.join(&channel).await?;
+    alice.join(&channel).await?;
+    assert!(alice.state().channel(&channel).is_some());
+    Ok(())
+}
+
 /// does not answer a CTCP query replayed from bouncer history
 #[scenario(
     requires(caps = ["batch"]),

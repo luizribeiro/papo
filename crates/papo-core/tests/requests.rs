@@ -1680,6 +1680,72 @@ fn labelled_reply_does_not_resolve_another_deferred_request() {
 }
 
 #[test]
+fn acknowledged_rejoin_resolves_after_existing_state_is_synced() {
+    let now = Instant::now();
+    let mut session = labelled_session(now);
+    for line in [
+        ":papo!~papo@localhost JOIN #ops * :Papo Bot",
+        ":ergo.test 353 papo = #ops :@papo alice",
+        ":ergo.test 366 papo #ops :End of /NAMES list",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    while session.poll_event().is_some() {}
+    while session.poll_transmit().is_some() {}
+
+    let id = session
+        .request_with_matcher(
+            now,
+            Line::join("#ops"),
+            ResponseMatcher::Join("#ops".into()),
+        )
+        .unwrap();
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"@label=0 JOIN #ops\r\n"
+    );
+    session.handle_line(now, b"@label=0 :ergo.test ACK");
+
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Response(response))
+            if response.id == id && response.lines.is_empty() && response.error().is_none()
+    ));
+    assert_eq!(session.poll_event(), None);
+}
+
+#[test]
+fn empty_labelled_batch_resolves_a_synced_rejoin() {
+    let now = Instant::now();
+    let mut session = labelled_session(now);
+    for line in [
+        ":papo!~papo@localhost JOIN #ops * :Papo Bot",
+        ":ergo.test 353 papo = #ops :@papo alice",
+        ":ergo.test 366 papo #ops :End of /NAMES list",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    while session.poll_event().is_some() {}
+    while session.poll_transmit().is_some() {}
+
+    let id = session
+        .request_with_matcher(
+            now,
+            Line::join("#ops"),
+            ResponseMatcher::Join("#ops".into()),
+        )
+        .unwrap();
+    session.handle_line(now, b"@label=0 :ergo.test BATCH +join labeled-response");
+    session.handle_line(now, b":ergo.test BATCH -join");
+
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Response(response)) if response.id == id && response.lines.is_empty()
+    ));
+    assert_eq!(session.poll_event(), None);
+}
+
+#[test]
 fn labelled_join_times_out_once_when_sync_never_finishes() {
     let now = Instant::now();
     let mut session = labelled_session(now);
