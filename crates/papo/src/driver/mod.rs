@@ -1295,21 +1295,6 @@ where
                     )));
                 }
             }
-            event::CoreEvent::Other(message) => {
-                drop_bad_rejoin_key(session, defaults, &message.as_ref());
-                let event = crate::event_impl::incoming(
-                    message,
-                    session.isupport(),
-                    session.nick(),
-                    crate::rt::now_wall(),
-                );
-                if !enqueue_event(events, pending_events, event) {
-                    return Ok(Some((
-                        papo_core::CloseKind::Other,
-                        SLOW_CONSUMER_REASON.to_owned(),
-                    )));
-                }
-            }
             event::CoreEvent::Response(response) => {
                 for line in &response.lines {
                     drop_bad_rejoin_key(session, defaults, &line.as_ref());

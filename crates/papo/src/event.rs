@@ -188,36 +188,6 @@ struct MessageMetadata {
 }
 
 impl Ctcp {
-    pub(crate) fn new(
-        raw: ProtoLine,
-        isupport: &Isupport,
-        nick: &str,
-        received_at: SystemTime,
-    ) -> Result<Self, ProtoLine> {
-        let own_source = raw.as_ref().source().is_some_and(|source| {
-            matches!(source, papo_proto::Source::User { nick: source, .. }
-                if isupport.casemapping().nick(source) == nick)
-        });
-        let Ok((status, conversation)) =
-            papo_core::classify_conversation(&raw.as_ref(), nick, isupport)
-        else {
-            return Err(raw);
-        };
-        Self::from_line(
-            raw,
-            None,
-            if own_source {
-                Authorship::Own
-            } else {
-                Authorship::Other
-            },
-            conversation,
-            status,
-            isupport,
-            received_at,
-        )
-    }
-
     #[allow(clippy::too_many_arguments)]
     fn from_line(
         raw: ProtoLine,
@@ -305,19 +275,6 @@ pub(crate) fn incoming_from_core(
     )
 }
 
-pub(crate) fn incoming(
-    line: ProtoLine,
-    isupport: &Isupport,
-    nick: &str,
-    received_at: SystemTime,
-) -> Event {
-    match Ctcp::new(line, isupport, nick, received_at) {
-        Ok(ctcp) => Event::Ctcp(ctcp),
-        Err(line) => Message::new(line, isupport, nick, received_at)
-            .map_or_else(Event::Other, |message| Event::Message(Box::new(message))),
-    }
-}
-
 impl Message {
     pub(crate) fn new(
         raw: ProtoLine,
@@ -400,22 +357,13 @@ impl Message {
         authorship: Authorship,
     ) -> Result<Self, ProtoLine> {
         let snapshot = client.state();
-        let Ok((status, conversation)) = papo_core::classify_conversation(
-            &message.as_ref(),
-            snapshot.nick(),
-            snapshot.isupport().inner(),
-        ) else {
-            return Err(message);
-        };
-        let mut event = Self::new_with_context(
+        let mut event = Self::new(
             message,
-            None,
-            authorship,
-            conversation,
-            status,
             snapshot.isupport().inner(),
+            snapshot.nick(),
             received_at,
         )?;
+        event.authorship = authorship;
         event.origin = origin;
         Ok(event)
     }
@@ -842,7 +790,6 @@ pub(crate) enum CoreEvent {
     Forward(Event),
     Connected(Welcome),
     Line(papo_core::ReceivedLine),
-    Other(ProtoLine),
     Response(Response),
     RequestUntracked(RequestId),
     RequestTimedOut(RequestId),
@@ -885,9 +832,7 @@ pub(crate) fn from_core(
             }
             return CoreEvent::Line(message);
         }
-        papo_core::Event::MultilineMessage(message) => {
-            return CoreEvent::Other(message.message.into_line());
-        }
+        papo_core::Event::MultilineMessage(message) => return CoreEvent::Line(message.message),
         papo_core::Event::TypingChanged(change) => Event::TypingChanged(TypingChanged {
             actor: source::from_prefix(change.actor, casemapping),
             authorship: Authorship::from_core(change.authorship),
@@ -1397,9 +1342,9 @@ mod tests {
     use std::time::{Duration, Instant, UNIX_EPOCH};
 
     use super::{
-        Authorship, Conversation, CoreEvent, Event, Message as ChatMessage, MessageId, MessageKind,
-        MetadataChanged, ModeAction, ModeArg, Origin, Source, StandardReplyKind, Warning,
-        ctcp_parts, from_core as from_core_with_mapping, incoming,
+        Authorship, Conversation, CoreEvent, Ctcp, Event, Message as ChatMessage, MessageId,
+        MessageKind, MetadataChanged, ModeAction, ModeArg, Origin, Source, StandardReplyKind,
+        Warning, ctcp_parts, from_core as from_core_with_mapping,
     };
     use crate::Visibility;
     use papo_core::{
@@ -1443,12 +1388,23 @@ mod tests {
             MessageKind::Action
         );
         let parse = |command, text| {
-            incoming(
-                Line::new(command, ["#papo", text]).with_source("emily!~emily@localhost"),
-                &Isupport::default(),
-                "papo",
+            let line = Line::new(command, ["#papo", text]).with_source("emily!~emily@localhost");
+            let isupport = Isupport::default();
+            let (status, conversation) =
+                papo_core::classify_conversation(&line.as_ref(), "papo", &isupport).unwrap();
+            match Ctcp::from_line(
+                line,
+                None,
+                Authorship::Other,
+                conversation,
+                status,
+                &isupport,
                 UNIX_EPOCH,
-            )
+            ) {
+                Ok(ctcp) => Event::Ctcp(ctcp),
+                Err(line) => ChatMessage::new(line, &Isupport::default(), "papo", UNIX_EPOCH)
+                    .map_or_else(Event::Other, |message| Event::Message(Box::new(message))),
+            }
         };
         let version_event = parse("PRIVMSG", "\x01VERSION\x01");
         let version = version_event.as_ctcp().unwrap();
@@ -1881,7 +1837,7 @@ mod tests {
         session.handle_line(now, b"BATCH -m");
         assert!(matches!(
             from_core(session.poll_event().unwrap()),
-            CoreEvent::Other(message) if message.as_ref().param(1) == Some("first\nsecond")
+            CoreEvent::Line(message) if message.as_ref().param(1) == Some("first\nsecond")
         ));
     }
 

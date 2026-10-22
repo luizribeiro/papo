@@ -386,6 +386,40 @@ async fn message_fields_use_captured_session_facts() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn multiline_messages_keep_addressing_across_a_nick_change() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let task = tokio::spawn(driver);
+    welcome_burst(&mut server).await;
+    server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
+    client_line(&mut server, b"CAP END\r\n").await;
+    server_line(&mut server, b":ergo.test 005 papo-driver NICKLEN=32 :are supported by this server\r\n:ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n").await;
+    assert!(matches!(events.next().await, Some(Event::Connected(_))));
+
+    server_line(
+        &mut server,
+        b":bob!~b@localhost BATCH +theirs draft/multiline papo-driver\r\n@batch=theirs :bob!~b@localhost PRIVMSG papo-driver :can you send\r\n@batch=theirs :bob!~b@localhost PRIVMSG papo-driver :the invoice?\r\n:bob!~b@localhost BATCH -theirs\r\n:papo-driver!papo@localhost BATCH +ours draft/multiline bob\r\n@batch=ours :papo-driver!papo@localhost PRIVMSG bob :it is on\r\n@batch=ours :papo-driver!papo@localhost PRIVMSG bob :the way\r\n:papo-driver!papo@localhost BATCH -ours\r\n:papo-driver!papo@localhost NICK papo-away\r\n",
+    )
+    .await;
+
+    let private = next_message(&mut events).await;
+    assert!(matches!(
+        private.conversation,
+        crate::Conversation::Private(ref nick) if nick == "bob"
+    ));
+    assert_eq!(private.return_address(), "bob");
+    within(client.reply(&private, "sent securely"))
+        .await
+        .unwrap();
+    client_line(&mut server, b"PRIVMSG bob :sent securely\r\n").await;
+
+    let own = next_message(&mut events).await;
+    assert_eq!(own.authorship, crate::Authorship::Own);
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn wallops_is_a_server_notice() {
     let (mut server, _client, mut events, driver) = scripted(config());
     let task = tokio::spawn(driver);
