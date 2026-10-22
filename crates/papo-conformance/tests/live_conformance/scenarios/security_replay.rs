@@ -195,6 +195,64 @@ async fn wildcard_who_stays_separate_from_channel_who(s: Scenario) -> papo_testi
     Ok(())
 }
 
+/// keeps early account creation separate from a later request
+#[scenario(covers = ["security.r6.early-account-request-id"])]
+async fn early_account_creation_reserves_its_request_id(_s: Scenario) -> papo_testing::Result<()> {
+    let (client, _events, mut wire) = papo_testing::wire(
+        papo::Client::builder("irc://offline.test")
+            .nick("papo-wire")
+            .allow_insecure_auth(true)
+            .rate_limit(papo::RateLimit::unlimited()),
+    );
+    assert_eq!(wire.next_sent().await, "CAP LS 302");
+    assert_eq!(wire.next_sent().await, "NICK papo-wire");
+    assert!(wire.next_sent().await.starts_with("USER "));
+    wire.server(
+        ":offline.test CAP * LS :draft/account-registration=before-connect labeled-response",
+    )
+    .await;
+    assert_eq!(
+        wire.next_sent().await,
+        "CAP REQ :labeled-response draft/account-registration"
+    );
+
+    let mut registration =
+        Box::pin(client.create_account(papo::NewAccount::new("unique-registration-password")));
+    tokio::select! {
+        biased;
+        result = &mut registration => panic!("early registration finished before CAP ACK: {result:?}"),
+        () = std::future::ready(()) => {}
+    }
+    let mut whois = Box::pin(client.whois("alice"));
+    tokio::select! {
+        biased;
+        result = &mut whois => panic!("WHOIS finished before a server reply: {result:?}"),
+        () = std::future::ready(()) => {}
+    }
+    assert_eq!(wire.next_sent().await, "WHOIS alice");
+
+    wire.server(":offline.test CAP * ACK :labeled-response draft/account-registration")
+        .await;
+    assert_eq!(
+        wire.next_sent().await,
+        "@label=0 REGISTER * * unique-registration-password"
+    );
+    wire.server("@label=0 :offline.test REGISTER SUCCESS alice :Account created")
+        .await;
+    assert_eq!(wire.next_sent().await, "CAP END");
+    wire.server(":offline.test 311 papo-wire alice ~alice staff.example * :Alice Example")
+        .await;
+    wire.server(":offline.test 318 papo-wire alice :End of /WHOIS list")
+        .await;
+
+    assert!(matches!(
+        registration.await?,
+        papo::AccountCreation::Created { .. }
+    ));
+    assert_eq!(whois.await?.nick.as_ref(), "alice");
+    Ok(())
+}
+
 /// does not answer a CTCP query replayed from bouncer history
 #[scenario(
     requires(caps = ["batch"]),
