@@ -1366,6 +1366,7 @@ impl papo::Event
 pub const fn papo::Event::as_warning(&self) -> core::option::Option<&papo::event::Warning>
 impl papo::Event
 pub fn papo::Event::msgid(&self) -> core::option::Option<papo::MessageId>
+pub fn papo::Event::received_at(&self) -> core::option::Option<std::time::SystemTime>
 pub fn papo::Event::server_time(&self) -> core::option::Option<std::time::SystemTime>
 impl core::clone::Clone for papo::Event
 pub fn papo::Event::clone(&self) -> Self

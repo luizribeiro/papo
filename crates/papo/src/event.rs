@@ -845,8 +845,8 @@ impl Event {
                 .and_then(|value| time::parse(&value))
         };
         match self {
-            Self::Message(event) => tagged_from_tags(&event.tags),
-            Self::Ctcp(event) => tagged_from_tags(&event.tags),
+            Self::Message(event) => event.server_time,
+            Self::Ctcp(event) => event.server_time,
             Self::TagMsg(event) => tagged_from_tags(&event.tags),
             Self::Reacted(event) => event.server_time,
             Self::Redacted(event) => event.server_time,
@@ -858,6 +858,25 @@ impl Event {
             Self::ModeChanged(event) => event.server_time,
             Self::TopicChanged(event) => event.server_time,
             Self::Other(line) => tagged(&line.as_ref()),
+            _ => None,
+        }
+    }
+
+    /// Returns when the event's line was received, when it has a timestamped payload.
+    #[must_use]
+    pub fn received_at(&self) -> Option<SystemTime> {
+        match self {
+            Self::Message(event) => Some(event.received_at),
+            Self::Ctcp(event) => Some(event.received_at),
+            Self::Reacted(event) => Some(event.received_at),
+            Self::Redacted(event) => Some(event.received_at),
+            Self::Joined(event) => Some(event.received_at),
+            Self::Parted(event) => Some(event.received_at),
+            Self::Kicked(event) => Some(event.received_at),
+            Self::Quit(event) => Some(event.received_at),
+            Self::NickChanged(event) => Some(event.received_at),
+            Self::ModeChanged(event) => Some(event.received_at),
+            Self::TopicChanged(event) => Some(event.received_at),
             _ => None,
         }
     }
@@ -1709,6 +1728,7 @@ mod tests {
         let tagged_event = Event::Message(Box::new(tagged.clone()));
         assert_eq!(tagged_event.msgid().as_deref(), Some("RfcBTzyxY120004"));
         assert_eq!(tagged_event.server_time(), tagged.server_time);
+        assert_eq!(tagged_event.received_at(), Some(received));
         assert_eq!(tagged.received_at, received);
         assert_eq!(
             Event::Other(
@@ -2396,7 +2416,9 @@ mod tests {
         };
         assert_eq!(joined.msgid.as_deref(), Some("RfcBTzyxY120012"));
         assert_eq!(joined.received_at, received_at);
-        assert_eq!(Event::Joined(joined.clone()).server_time(), None);
+        let joined_event = Event::Joined(joined.clone());
+        assert_eq!(joined_event.server_time(), None);
+        assert_eq!(joined_event.received_at(), Some(received_at));
         assert_eq!(joined.account, Account::Unknown);
     }
 
