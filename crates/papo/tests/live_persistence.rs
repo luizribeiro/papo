@@ -1,4 +1,4 @@
-//! Account APIs against the runner-managed Ergo server.
+//! Account and persistence APIs against the runner-managed Ergo server.
 #![cfg(sockets)]
 #![cfg(feature = "unstable")]
 
