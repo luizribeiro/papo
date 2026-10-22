@@ -27,6 +27,7 @@ mod peer;
 mod runner;
 mod scenario;
 #[cfg(not(test))]
+#[path = "../tests/live_conformance/scenarios/mod.rs"]
 mod scenarios;
 
 #[doc(hidden)]

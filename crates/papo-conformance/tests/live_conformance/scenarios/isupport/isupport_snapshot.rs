@@ -41,15 +41,17 @@ fn is_clean_snapshot_line(line: &str) -> bool {
 fn expected_snapshot(profile: DeploymentProfile) -> &'static str {
     match profile {
         DeploymentProfile::ErgoDefault => {
-            include_str!("../../../snapshots/isupport/ergo-default.txt")
+            include_str!("../../../../snapshots/isupport/ergo-default.txt")
         }
         DeploymentProfile::ErgoPersistent => {
-            include_str!("../../../snapshots/isupport/ergo-persistent.txt")
+            include_str!("../../../../snapshots/isupport/ergo-persistent.txt")
         }
-        DeploymentProfile::SojuErgo => include_str!("../../../snapshots/isupport/soju-ergo.txt"),
-        DeploymentProfile::InspIrcd => include_str!("../../../snapshots/isupport/inspircd.txt"),
-        DeploymentProfile::Solanum => include_str!("../../../snapshots/isupport/solanum.txt"),
-        DeploymentProfile::UnrealIrcd => include_str!("../../../snapshots/isupport/unrealircd.txt"),
+        DeploymentProfile::SojuErgo => include_str!("../../../../snapshots/isupport/soju-ergo.txt"),
+        DeploymentProfile::InspIrcd => include_str!("../../../../snapshots/isupport/inspircd.txt"),
+        DeploymentProfile::Solanum => include_str!("../../../../snapshots/isupport/solanum.txt"),
+        DeploymentProfile::UnrealIrcd => {
+            include_str!("../../../../snapshots/isupport/unrealircd.txt")
+        }
     }
 }
 

@@ -5,5 +5,5 @@ use papo_conformance::{
     run_scenario, source_nick,
 };
 
-#[path = "../src/scenarios/mod.rs"]
+#[path = "live_conformance/scenarios/mod.rs"]
 mod scenarios;
