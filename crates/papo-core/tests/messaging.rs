@@ -277,6 +277,39 @@ fn playback_batches_do_not_trigger_automatic_ctcp_replies() {
 }
 
 #[test]
+fn configures_every_ping_and_version_combination_from_both_starting_points() {
+    let default_version = format!("papo {}", env!("CARGO_PKG_VERSION"));
+    for (replies, version, ping) in [
+        (CtcpReplies::default(), Some(default_version.as_str()), true),
+        (
+            CtcpReplies::default().ping(false),
+            Some(default_version.as_str()),
+            false,
+        ),
+        (CtcpReplies::default().version(None), None, true),
+        (
+            CtcpReplies::default().version(None).ping(false),
+            None,
+            false,
+        ),
+        (CtcpReplies::off(), None, false),
+        (CtcpReplies::off().ping(true), None, true),
+        (
+            CtcpReplies::off().version(Some("ferrobot 2.3")),
+            Some("ferrobot 2.3"),
+            false,
+        ),
+        (
+            CtcpReplies::off().ping(true).version(Some("ferrobot 2.3")),
+            Some("ferrobot 2.3"),
+            true,
+        ),
+     ] {
+         assert_ctcp_combination(replies, version, ping);
+     }
+}
+
+#[test]
 fn reports_ctcp_queries_replies_and_actions_while_auto_answering() {
     let replies = CtcpReplies::default()
         .version(Some("papo test build"))
@@ -307,13 +340,13 @@ fn reports_ctcp_queries_replies_and_actions_while_auto_answering() {
 #[test]
 fn does_not_answer_own_ctcp_queries() {
     Transcript::new(Config::default().nick("papo"))
-        .server(":papo!~p@cloak PRIVMSG bob :\x01VERSION\x01")
+        .server(":papo!~p@cloak PRIVMSG papo :\x01VERSION\x01")
         .no_client()
         .event(|event| matches!(event, Event::Line(_)))
         .no_event();
 
     Transcript::new(Config::default().nick("Papo[bot]"))
-        .server(":papo{bot}!~p@cloak PRIVMSG bob :\x01VERSION\x01")
+        .server(":papo{bot}!~p@cloak PRIVMSG Papo[bot] :\x01VERSION\x01")
         .no_client()
         .event(|event| matches!(event, Event::Line(_)))
         .no_event();

@@ -284,6 +284,46 @@ pub fn classify_conversation(
 }
 
 /// Automatic replies to CTCP queries.
+///
+/// | Query | Answered by default | Configuration |
+/// |---|---|---|
+/// | `PING` | Yes, by echoing its parameters | [`ping(false)`](Self::ping) disables it |
+/// | `VERSION` | Yes, with `papo <version>` | [`version(Some(...))`](Self::version) changes it; [`version(None)`](Self::version) disables it |
+/// | Anything else | No | Handle the CTCP event and call `Client::ctcp_reply` |
+///
+/// Automatic replies are sent only for live queries addressed privately to this session's nick.
+/// Queries replayed in batches, sent to channels or status-prefixed channel targets, or copied
+/// from another session of the same user are still reported as events but are not answered.
+/// Replies are limited to one per sender every two seconds and by the overall
+/// [`rate`](Self::rate).
+///
+/// The default answers `PING` and `VERSION`:
+///
+/// ```
+/// # use papo_core::CtcpReplies;
+/// let replies = CtcpReplies::default();
+/// # _ = replies;
+/// ```
+///
+/// A custom application version can replace the default text:
+///
+/// ```
+/// # use papo_core::CtcpReplies;
+/// let replies = CtcpReplies::default().version(Some("ferrobot 2.3"));
+/// # _ = replies;
+/// ```
+///
+/// Either reply can be selected from the disabled starting point:
+///
+/// ```
+/// # use papo_core::CtcpReplies;
+/// let ping_only = CtcpReplies::off().ping(true);
+/// let version_only = CtcpReplies::off().version(Some("ferrobot 2.3"));
+/// # _ = (ping_only, version_only);
+/// ```
+///
+/// Use [`CtcpReplies::off`] when the application will answer CTCP events itself or should remain
+/// silent.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct CtcpReplies {
@@ -291,10 +331,6 @@ pub struct CtcpReplies {
     version: Option<String>,
     /// Whether PING parameters are echoed.
     ping: bool,
-    /// TIME reply supplied by a shell with access to a wall clock.
-    time: Option<String>,
-    /// SOURCE reply, or `None` to disable it.
-    source: Option<String>,
     /// Overall reply budget shared across all senders.
     rate: RateLimit,
 }
@@ -327,8 +363,6 @@ impl Default for CtcpReplies {
         Self {
             version: Some(format!("papo {}", env!("CARGO_PKG_VERSION"))),
             ping: true,
-            time: None,
-            source: None,
             rate: RateLimit::new(2, Duration::from_secs(2))
                 .expect("the default CTCP reply rate is valid"),
         }
@@ -342,13 +376,14 @@ impl CtcpReplies {
         Self {
             version: None,
             ping: false,
-            time: None,
-            source: None,
             rate: Self::default().rate,
         }
     }
 
     /// Sets the VERSION reply, or disables it with `None`.
+    ///
+    /// Prefer an application name and version without operating-system or build details, which
+    /// make clients easier to fingerprint.
     #[must_use]
     pub fn version(mut self, text: Option<&str>) -> Self {
         self.version = text.map(str::to_owned);
@@ -359,20 +394,6 @@ impl CtcpReplies {
     #[must_use]
     pub const fn ping(mut self, enabled: bool) -> Self {
         self.ping = enabled;
-        self
-    }
-
-    /// Sets the TIME reply supplied by a shell with access to a wall clock.
-    #[must_use]
-    pub fn time(mut self, text: Option<&str>) -> Self {
-        self.time = text.map(str::to_owned);
-        self
-    }
-
-    /// Sets the SOURCE reply, or disables it with `None`.
-    #[must_use]
-    pub fn source(mut self, url: Option<&str>) -> Self {
-        self.source = url.map(str::to_owned);
         self
     }
 

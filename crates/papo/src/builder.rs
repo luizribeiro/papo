@@ -340,7 +340,8 @@ impl Builder {
 
     /// Sets the automatic CTCP reply policy.
     ///
-    /// Channel queries get a private reply.
+    /// See [`CtcpReplies`] for the default replies and the fixed live, private-target safety
+    /// rules.
     ///
     /// ```
     /// # use papo::CtcpReplies;
@@ -1083,11 +1084,7 @@ mod tests {
             Builder::new("irc.example.net").config.ctcp,
             CtcpReplies::default()
         );
-        let replies = CtcpReplies::default()
-            .version(None)
-            .ping(false)
-            .source(Some("https://example.org/papo"))
-            .rate(rate);
+        let replies = CtcpReplies::default().version(None).ping(false).rate(rate);
         let builder = Builder::new("irc.example.net")
             .away_on_connect("Reviewing patches")
             .ctcp_replies(replies.clone());
