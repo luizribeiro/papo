@@ -237,7 +237,7 @@ async fn chghost(s: Scenario) -> papo_testing::Result<()> {
     alice.oper(oper_name, password).await?;
     alice
         .send_raw(
-            papo::Line::builder("CHGHOST").with_params([bob_nick.as_ref(), "conformance.example"]),
+            papo::Line::new("CHGHOST").with_params([bob_nick.as_ref(), "conformance.example"]),
         )
         .await?;
     let own = bob
@@ -426,7 +426,7 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
 
     // Plain WHO's numeric fields are the behavior under test, without WHOX rewriting them.
     let plain = bob
-        .request_raw(papo::Line::builder("WHO").with_params([&channel]))
+        .request_raw(papo::Line::new("WHO").with_params([&channel]))
         .await?;
     let row = plain
         .iter()
@@ -502,7 +502,7 @@ async fn operator_visibility(s: Scenario) -> papo_testing::Result<()> {
 
     // The operator markers are encoded only in WHO flags and WHOIS numerics.
     let who = bob
-        .request_raw(papo::Line::builder("WHO").with_params([alice_nick.as_ref()]))
+        .request_raw(papo::Line::new("WHO").with_params([alice_nick.as_ref()]))
         .await?;
     let row = who
         .iter()
@@ -517,7 +517,7 @@ async fn operator_visibility(s: Scenario) -> papo_testing::Result<()> {
     assert!(who.iter().any(|line| line.numeric() == Some(315)));
 
     let whois = bob
-        .request_raw(papo::Line::builder("WHOIS").with_params([alice_nick.as_ref()]))
+        .request_raw(papo::Line::new("WHOIS").with_params([alice_nick.as_ref()]))
         .await?;
     let operator = whois
         .iter()
@@ -566,9 +566,7 @@ async fn operator_commands(s: Scenario) -> papo_testing::Result<()> {
     assert!(matches!(refusal.code(), "464" | "491"));
 
     alice
-        .send_raw(
-            papo::Line::builder("KILL").with_params([charlie_nick.as_ref(), "conformance test"]),
-        )
+        .send_raw(papo::Line::new("KILL").with_params([charlie_nick.as_ref(), "conformance test"]))
         .await?;
     let quit = bob
         .wait_for(|event| event.as_quit().filter(|quit| quit.nick == charlie_nick))
@@ -599,7 +597,7 @@ async fn operator_wallops(s: Scenario) -> papo_testing::Result<()> {
     let mut bob = s.connect("bob").await?;
     alice.oper(oper_name, password).await?;
     let bob_nick = bob.nick();
-    bob.send_raw(papo::Line::builder("MODE").with_params([bob_nick.as_ref(), "+w"]))
+    bob.send_raw(papo::Line::new("MODE").with_params([bob_nick.as_ref(), "+w"]))
         .await?;
     bob.wait_for(|event| {
         event.as_mode_changed().filter(|changed| {
@@ -614,7 +612,7 @@ async fn operator_wallops(s: Scenario) -> papo_testing::Result<()> {
 
     let wallops = "Network maintenance begins soon";
     alice
-        .send_raw(papo::Line::builder("WALLOPS").with_params([wallops]))
+        .send_raw(papo::Line::new("WALLOPS").with_params([wallops]))
         .await?;
     let delivered = bob
         .wait_for(|event| event.as_other().filter(|line| line.command() == "WALLOPS"))
@@ -648,7 +646,7 @@ async fn whois_host_certificate(s: Scenario) -> papo_testing::Result<()> {
 
     // The host and certificate numerics have no richer public result type.
     let lines = alice
-        .request_raw(papo::Line::builder("WHOIS").with_params([alice_nick.as_ref()]))
+        .request_raw(papo::Line::new("WHOIS").with_params([alice_nick.as_ref()]))
         .await?;
     let detail = lines
         .iter()

@@ -74,7 +74,7 @@ async fn targmax_privmsg(s: Scenario) -> papo_testing::Result<()> {
     // behavior under test, so the raw command is sent directly.
     let at_limit_text = "at the target limit";
     alice
-        .send_raw(papo::Line::builder("PRIVMSG").with_params([targets.as_str(), at_limit_text]))
+        .send_raw(papo::Line::new("PRIVMSG").with_params([targets.as_str(), at_limit_text]))
         .await?;
     for recipient in within_limit.iter_mut() {
         expect_delivery(recipient, &alice_nick, at_limit_text).await?;
@@ -89,9 +89,7 @@ async fn targmax_privmsg(s: Scenario) -> papo_testing::Result<()> {
     let over_limit_text = "over the target limit";
     let all_targets = format!("{targets},{frank_nick}");
     alice
-        .send_raw(
-            papo::Line::builder("PRIVMSG").with_params([all_targets.as_str(), over_limit_text]),
-        )
+        .send_raw(papo::Line::new("PRIVMSG").with_params([all_targets.as_str(), over_limit_text]))
         .await?;
     for recipient in within_limit.iter_mut() {
         expect_delivery(recipient, &alice_nick, over_limit_text).await?;

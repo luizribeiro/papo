@@ -65,7 +65,7 @@ async fn capability_negotiation(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     // CAP framing is inspected raw because continuation markers and NAK are the behavior under test.
     let lines = alice
-        .request_raw(papo::Line::builder("CAP").with_params(["LS", "302"]))
+        .request_raw(papo::Line::new("CAP").with_params(["LS", "302"]))
         .await?;
     if lines.len() < 2 {
         return s.skip("the server's CAP LS reply fits on one line");
@@ -81,7 +81,7 @@ async fn capability_negotiation(s: Scenario) -> papo_testing::Result<()> {
     assert_ne!(last.get(2), Some("*"));
 
     let nak = alice
-        .request_raw(papo::Line::builder("CAP").with_params(["REQ", "papo.example/unavailable"]))
+        .request_raw(papo::Line::new("CAP").with_params(["REQ", "papo.example/unavailable"]))
         .await?;
     assert_eq!(nak.len(), 1);
     assert_eq!(nak[0].command(), "CAP");
@@ -167,7 +167,7 @@ async fn whoami(s: Scenario) -> papo_testing::Result<()> {
 async fn server_information(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     // Numeric replies are inspected raw because their sequence is the behavior under test.
-    let motd = alice.request_raw(papo::Line::builder("MOTD")).await?;
+    let motd = alice.request_raw(papo::Line::new("MOTD")).await?;
     let motd_codes = motd
         .iter()
         .filter_map(papo::Line::numeric)
@@ -181,7 +181,7 @@ async fn server_information(s: Scenario) -> papo_testing::Result<()> {
         other => panic!("unexpected MOTD start: {other:?}"),
     }
 
-    let lusers = alice.request_raw(papo::Line::builder("LUSERS")).await?;
+    let lusers = alice.request_raw(papo::Line::new("LUSERS")).await?;
     let codes = lusers
         .iter()
         .filter_map(papo::Line::numeric)
@@ -205,7 +205,7 @@ async fn server_queries(s: Scenario) -> papo_testing::Result<()> {
     let bob = s.connect("bob").await?;
 
     // These commands expose protocol numerics rather than richer result types.
-    let time = bob.request_raw(papo::Line::builder("TIME")).await?;
+    let time = bob.request_raw(papo::Line::new("TIME")).await?;
     let reply = time
         .iter()
         .find(|line| line.numeric() == Some(papo::numeric::RPL_TIME))
@@ -216,7 +216,7 @@ async fn server_queries(s: Scenario) -> papo_testing::Result<()> {
     let nick = alice.nick();
     alice.quit("record this departure").await?;
     let whowas = bob
-        .request_raw(papo::Line::builder("WHOWAS").with_params([nick.as_ref(), "1"]))
+        .request_raw(papo::Line::new("WHOWAS").with_params([nick.as_ref(), "1"]))
         .await?;
     let users = whowas
         .iter()
@@ -239,7 +239,7 @@ async fn server_queries(s: Scenario) -> papo_testing::Result<()> {
 
     let missing = papo_test_server::unique("missing-whowas");
     let absent = bob
-        .request_raw(papo::Line::builder("WHOWAS").with_params([&missing]))
+        .request_raw(papo::Line::new("WHOWAS").with_params([&missing]))
         .await?;
     assert!(
         absent
