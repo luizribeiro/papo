@@ -866,6 +866,56 @@ fn only_live_membership_aggregates_change_channel_state() {
 }
 
 #[test]
+fn history_page_events_leave_channel_state_untouched() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    for line in [
+        ":papo!~papo@localhost JOIN #papo",
+        ":alice!~a@remote.example JOIN #papo",
+        ":operator!~o@services.example MODE #papo +m",
+        ":alice!~a@remote.example TOPIC #papo :Current topic",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    while session.poll_event().is_some() {}
+    let generation = session.state_generation();
+
+    session.handle_line(now, b":ergo.test BATCH +history chathistory #papo");
+    for line in [
+        "@batch=history :bob!~b@remote.example JOIN #papo bob :Bob Example",
+        "@batch=history :alice!~a@remote.example PART #papo :Earlier part",
+        "@batch=history :operator!~o@services.example KICK #papo papo :Earlier kick",
+        "@batch=history :operator!~o@services.example MODE #papo -m",
+        "@batch=history :operator!~o@services.example TOPIC #papo :Earlier topic",
+        "@batch=history :alice!~a@remote.example NICK alice-away",
+    ] {
+        session.handle_line(now, line.as_bytes());
+        assert_eq!(session.state_generation(), generation);
+    }
+    session.handle_line(now, b":ergo.test BATCH -history");
+
+    let Some(Event::History { items, .. }) = session.poll_event() else {
+        panic!("expected history page")
+    };
+    assert!(matches!(
+        &items[..],
+        [
+            HistoryItem::Joined(_),
+            HistoryItem::Parted(_),
+            HistoryItem::Kicked(_),
+            HistoryItem::ModeChanged(_),
+            HistoryItem::TopicChanged(_),
+            HistoryItem::NickChanged(_),
+        ]
+    ));
+    let channel = session.state().channel("#papo").unwrap();
+    assert_eq!(channel.topic(), Some("Current topic"));
+    assert!(channel.member("bob").is_none());
+    assert!(channel.member("alice-away").is_none());
+    assert!(channel.member("alice").is_some());
+}
+
+#[test]
 fn unsupported_batch_lines_neither_change_state_nor_trigger_replies() {
     let now = Instant::now();
     let mut session = Session::new(
