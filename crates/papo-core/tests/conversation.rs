@@ -96,6 +96,68 @@ fn separates_advertised_status_from_the_channel() {
 }
 
 #[test]
+fn preserves_ops_only_addresses_across_incoming_line_kinds_and_history() {
+    let is_ops = |status: Option<&[char]>, conversation: Option<&Conversation>| {
+        status == Some(['@'].as_slice())
+            && matches!(conversation, Some(Conversation::Channel(channel)) if channel == "#ops")
+    };
+    Transcript::new(Config::default().nick("papo"))
+        .server(":ergo.test 005 papo CHANTYPES=# STATUSMSG=@+ :are supported")
+        .server("@msgid=RfcBTzyxY120001 :alice!~a@cloak PRIVMSG @#ops :deploy complete")
+        .event(|event| {
+            matches!(event, Event::Line(line)
+                if is_ops(line.status(), line.conversation()))
+        })
+        .server("@msgid=RfcBTzyxY120002 :alice!~a@cloak NOTICE @#ops :maintenance starts soon")
+        .event(|event| {
+            matches!(event, Event::Line(line)
+                if is_ops(line.status(), line.conversation()))
+        })
+        .server(":alice!~a@cloak PRIVMSG @#ops :\u{1}VERSION\u{1}")
+        .event(|event| {
+            matches!(event, Event::Line(line)
+                if is_ops(line.status(), line.conversation()))
+        })
+        .server("@+draft/react=👍;+reply=RfcBTzyxY120001 :bob!~b@cloak TAGMSG @#ops")
+        .event(|event| {
+            matches!(event, Event::TagMessage(line)
+                if is_ops(line.status.as_deref(), Some(&line.conversation)))
+        })
+        .server("@+typing=active :bob!~b@cloak TAGMSG @#ops")
+        .event(|event| {
+            matches!(event, Event::TypingChanged(line)
+                if is_ops(line.status.as_deref(), Some(&line.conversation)))
+        })
+        .server(":alice!~a@cloak REDACT @#ops RfcBTzyxY120001 :superseded")
+        .event(|event| {
+            matches!(event, Event::Redacted(line)
+                if is_ops(line.status.as_deref(), Some(&line.conversation)))
+        })
+        .server(":ergo.test BATCH +history chathistory #ops")
+        .server(
+            "@batch=history;msgid=RfcBTzyxY120003 :alice!~a@cloak PRIVMSG @#ops :earlier deploy",
+        )
+        .server("@batch=history;+draft/react=👍;+reply=RfcBTzyxY120003 :bob!~b@cloak TAGMSG @#ops")
+        .server("@batch=history :alice!~a@cloak REDACT @#ops RfcBTzyxY120003 :rolled back")
+        .server(":ergo.test BATCH -history")
+        .event(|event| {
+            let Event::History { items, .. } = event else {
+                return false;
+            };
+            items.iter().all(|item| {
+                let (papo_core::HistoryItem::Message(line)
+                | papo_core::HistoryItem::Reacted(line)
+                | papo_core::HistoryItem::Redacted(line)) = item
+                else {
+                    return false;
+                };
+                line.as_ref().param(0) == Some("@#ops")
+            })
+        })
+        .no_event();
+}
+
+#[test]
 fn strips_status_only_when_the_remainder_is_a_channel() {
     Transcript::new(Config::default().nick("papo"))
         .server(":ergo.test 005 papo CHANTYPES=#+ STATUSMSG=@+ :are supported")
