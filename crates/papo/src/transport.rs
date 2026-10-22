@@ -53,7 +53,7 @@ pub enum TlsRoots {
 }
 
 /// A client certificate chain and its private key, both PEM encoded.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ClientCertificate {
     certificate_chain: Vec<u8>,
     private_key: papo_core::Secret,
@@ -70,16 +70,6 @@ impl ClientCertificate {
             certificate_chain: certificate_chain.into(),
             private_key: private_key.into(),
         }
-    }
-}
-
-impl fmt::Debug for ClientCertificate {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("ClientCertificate")
-            .field("certificate_chain", &self.certificate_chain)
-            .field("private_key", &self.private_key)
-            .finish()
     }
 }
 

@@ -6,7 +6,7 @@ use web_time::Instant;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use papo_proto::LineRef;
 
-use crate::{Config, Handled, Outbox, RedactedSecret, Secret, sts::ConnectionSecurity};
+use crate::{Config, Handled, Outbox, Secret, sts::ConnectionSecurity};
 use scram::ScramClient;
 
 const SASL_CHUNK_LEN: usize = 400;
@@ -20,37 +20,12 @@ pub struct Sasl {
     pub(crate) required: bool,
 }
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum Mechanism {
     Plain { username: String, password: Secret },
     OAuthBearer { token: Secret },
     External { authzid: Option<String> },
     ScramSha256 { username: String, password: Secret },
-}
-
-impl std::fmt::Debug for Mechanism {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Plain { username, .. } => formatter
-                .debug_struct("Plain")
-                .field("username", username)
-                .field("password", &RedactedSecret)
-                .finish(),
-            Self::OAuthBearer { .. } => formatter
-                .debug_struct("OAuthBearer")
-                .field("token", &RedactedSecret)
-                .finish(),
-            Self::External { authzid } => formatter
-                .debug_struct("External")
-                .field("authzid", authzid)
-                .finish(),
-            Self::ScramSha256 { username, .. } => formatter
-                .debug_struct("ScramSha256")
-                .field("username", username)
-                .field("password", &RedactedSecret)
-                .finish(),
-        }
-    }
 }
 
 impl Sasl {

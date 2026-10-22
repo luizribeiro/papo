@@ -472,7 +472,7 @@ pub struct WebIrc {
 }
 
 /// Configuration for an IRC session.
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Config {
     /// The policy used to decode incoming lines.
@@ -541,59 +541,6 @@ pub struct Config {
     #[cfg(feature = "unstable")]
     pub bouncer_network: Option<NetworkId>,
     registration_on_connect: Option<PendingRegistration>,
-}
-
-impl std::fmt::Debug for Config {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut debug = formatter.debug_struct("Config");
-        debug
-            .field("decoding", &self.decoding)
-            .field("casemapping", &self.casemapping)
-            .field("nick", &self.nick)
-            .field("username", &self.username)
-            .field("realname", &self.realname)
-            .field("password", &self.password.as_ref().map(|_| RedactedSecret))
-            .field("webirc", &self.webirc)
-            .field("welcome_timeout", &self.welcome_timeout)
-            .field("ping_interval", &self.ping_interval)
-            .field("ping_timeout", &self.ping_timeout)
-            .field("rate_limit", &self.rate_limit)
-            .field("connection_security", &self.connection_security)
-            .field("host", &self.host)
-            .field("wanted_caps", &self.wanted_caps)
-            .field("disabled_caps", &self.disabled_caps)
-            .field("alt_nicks", &self.alt_nicks)
-            .field("regain_nick", &self.regain_nick)
-            .field(cap::SASL.as_str(), &self.sasl)
-            .field("device", &self.device)
-            .field("max_channels", &self.max_channels)
-            .field("max_members_per_channel", &self.max_members_per_channel)
-            .field("max_open_batches", &self.max_open_batches)
-            .field("max_batch_lines", &self.max_batch_lines)
-            .field("batch_timeout", &self.batch_timeout)
-            .field("request_timeout", &self.request_timeout)
-            .field("ctcp", &self.ctcp)
-            .field("away_on_connect", &self.away_on_connect)
-            .field("who_on_join", &self.who_on_join)
-            .field("metadata_subscriptions", &self.metadata_subscriptions);
-        debug.field("allow_insecure_auth", &self.allow_insecure_auth);
-        #[cfg(feature = "unstable")]
-        debug.field("enabled_features", &self.enabled_features);
-        #[cfg(feature = "unstable")]
-        debug.field("bouncer_network", &self.bouncer_network);
-        debug
-            .field("registration_on_connect", &self.registration_on_connect)
-            .finish()
-    }
-}
-
-#[derive(Clone, Copy)]
-struct RedactedSecret;
-
-impl std::fmt::Debug for RedactedSecret {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str("[REDACTED]")
-    }
 }
 
 impl Default for Config {
