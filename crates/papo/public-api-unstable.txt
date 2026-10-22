@@ -135,6 +135,50 @@ impl core::marker::Unpin for papo::event::NoticeKind
 impl core::marker::UnsafeUnpin for papo::event::NoticeKind
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::NoticeKind
 impl core::panic::unwind_safe::UnwindSafe for papo::event::NoticeKind
+#[non_exhaustive] pub enum papo::event::ServerNoticeKind
+pub papo::event::ServerNoticeKind::Notice
+pub papo::event::ServerNoticeKind::Privmsg
+pub papo::event::ServerNoticeKind::Wallops
+impl core::clone::Clone for papo::event::ServerNoticeKind
+pub fn papo::event::ServerNoticeKind::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::ServerNoticeKind
+impl core::cmp::PartialEq for papo::event::ServerNoticeKind
+pub fn papo::event::ServerNoticeKind::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::ServerNoticeKind
+pub fn papo::event::ServerNoticeKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::event::ServerNoticeKind
+pub fn papo::event::ServerNoticeKind::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for papo::event::ServerNoticeKind
+impl core::marker::StructuralPartialEq for papo::event::ServerNoticeKind
+impl core::marker::Freeze for papo::event::ServerNoticeKind
+impl core::marker::Send for papo::event::ServerNoticeKind
+impl core::marker::Sync for papo::event::ServerNoticeKind
+impl core::marker::Unpin for papo::event::ServerNoticeKind
+impl core::marker::UnsafeUnpin for papo::event::ServerNoticeKind
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ServerNoticeKind
+impl core::panic::unwind_safe::UnwindSafe for papo::event::ServerNoticeKind
+#[non_exhaustive] pub enum papo::event::ServerNoticeTarget
+pub papo::event::ServerNoticeTarget::All
+pub papo::event::ServerNoticeTarget::Channel(papo::ChannelName)
+pub papo::event::ServerNoticeTarget::Mask(papo::Mask)
+pub papo::event::ServerNoticeTarget::Me
+impl core::clone::Clone for papo::event::ServerNoticeTarget
+pub fn papo::event::ServerNoticeTarget::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::ServerNoticeTarget
+impl core::cmp::PartialEq for papo::event::ServerNoticeTarget
+pub fn papo::event::ServerNoticeTarget::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::ServerNoticeTarget
+pub fn papo::event::ServerNoticeTarget::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::event::ServerNoticeTarget
+pub fn papo::event::ServerNoticeTarget::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for papo::event::ServerNoticeTarget
+impl core::marker::Freeze for papo::event::ServerNoticeTarget
+impl core::marker::Send for papo::event::ServerNoticeTarget
+impl core::marker::Sync for papo::event::ServerNoticeTarget
+impl core::marker::Unpin for papo::event::ServerNoticeTarget
+impl core::marker::UnsafeUnpin for papo::event::ServerNoticeTarget
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ServerNoticeTarget
+impl core::panic::unwind_safe::UnwindSafe for papo::event::ServerNoticeTarget
 #[non_exhaustive] pub enum papo::event::StandardReplyKind
 pub papo::event::StandardReplyKind::Fail
 pub papo::event::StandardReplyKind::Note

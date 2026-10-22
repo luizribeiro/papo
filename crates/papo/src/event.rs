@@ -161,6 +161,32 @@ pub enum NoticeKind {
     Action,
 }
 
+/// The wire command that carried a server notice.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[non_exhaustive]
+pub enum ServerNoticeKind {
+    /// A `NOTICE` command.
+    Notice,
+    /// A `PRIVMSG` command.
+    Privmsg,
+    /// A `WALLOPS` command.
+    Wallops,
+}
+
+/// The audience addressed by a server notice.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[non_exhaustive]
+pub enum ServerNoticeTarget {
+    /// This client.
+    Me,
+    /// Every eligible client, represented by `*` or an implicit `WALLOPS` audience.
+    All,
+    /// Users selected by a server mask.
+    Mask(papo_proto::Mask),
+    /// A channel.
+    Channel(ChannelName),
+}
+
 /// An incoming Client-to-Client Protocol query carried by `PRIVMSG`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
