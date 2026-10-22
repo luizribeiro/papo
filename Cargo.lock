@@ -716,6 +716,7 @@ dependencies = [
 name = "papo-testing"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "papo",
  "tokio",
 ]

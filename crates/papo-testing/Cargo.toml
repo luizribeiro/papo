@@ -11,5 +11,8 @@ publish = false
 papo = { path = "../papo", version = "=0.1.0", default-features = false }
 tokio = { version = "1.53.3", features = ["io-util", "macros", "rt", "test-util", "time"] }
 
+[dev-dependencies]
+base64 = { version = "0.22.1", default-features = false, features = ["alloc"] }
+
 [lints]
 workspace = true
