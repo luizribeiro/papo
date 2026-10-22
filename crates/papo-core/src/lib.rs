@@ -3953,7 +3953,7 @@ impl Session {
             &self.monitor,
             &mut self.outbox,
         );
-        self.handle_ctcp(now, message);
+        self.handle_ctcp(now, message, context);
         let handled = registration_handled
             || caps_handled
             || sasl_handled
@@ -4110,7 +4110,18 @@ impl Session {
         true
     }
 
-    fn handle_ctcp(&mut self, now: Instant, message: &LineRef<'_>) -> bool {
+    fn handle_ctcp(
+        &mut self,
+        now: Instant,
+        message: &LineRef<'_>,
+        context: &DispatchContext,
+    ) -> bool {
+        if context
+            .batch_type()
+            .is_some_and(|kind| !matches!(kind, "netsplit" | "netjoin"))
+        {
+            return false;
+        }
         let (Some(ProtoSource::User { nick, .. }), Some(text)) =
             (message.source(), message.param(1))
         else {

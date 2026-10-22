@@ -221,6 +221,38 @@ fn answers_supported_ctcp_queries_and_applies_safety_rules() {
 }
 
 #[test]
+fn playback_batches_do_not_trigger_automatic_ctcp_replies() {
+    let replies = CtcpReplies::default()
+        .version(Some("papo test build"))
+        .rate(RateLimit::unlimited());
+    Transcript::new(Config::default().nick("papo").ctcp(replies))
+        .server(":irc.example.net BATCH +zncplayback znc.in/playback")
+        .no_client()
+        .server(
+            "@batch=zncplayback :alice!~alice@users.example.net PRIVMSG papo :\x01VERSION\x01",
+        )
+        .no_client()
+        .event(|event| {
+            matches!(event, Event::Line(line) if line.batch_type() == Some("znc.in/playback"))
+        })
+        .server(":irc.example.net BATCH -zncplayback")
+        .no_client()
+        .server("@label=expired :irc.example.net BATCH +labelled znc.in/playback")
+        .server(
+            "@batch=labelled :bob!~bob@users.example.net PRIVMSG papo :\x01VERSION\x01",
+        )
+        .no_client()
+        .server(":irc.example.net BATCH -labelled")
+        .no_client()
+        .event(|event| {
+            matches!(event, Event::Line(line) if line.batch_type() == Some("znc.in/playback"))
+        })
+        .server(":alice!~alice@users.example.net PRIVMSG papo :\x01VERSION\x01")
+        .client("NOTICE alice :\x01VERSION papo test build\x01")
+        .event(|event| matches!(event, Event::Line(line) if line.batch_type().is_none()));
+}
+
+#[test]
 fn reports_ctcp_queries_replies_and_actions_while_auto_answering() {
     let replies = CtcpReplies::default()
         .version(Some("papo test build"))
