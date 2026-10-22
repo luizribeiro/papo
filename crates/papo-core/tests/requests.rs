@@ -850,6 +850,35 @@ fn part_refusals_resolve_only_the_named_concurrent_request() {
 }
 
 #[test]
+fn cannot_send_numeric_does_not_resolve_a_pending_part() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("papo"));
+    let part = session
+        .request_with_matcher(
+            now,
+            Line::new("PART").with_params(["#papo"]),
+            ResponseMatcher::Part("#papo".into()),
+        )
+        .unwrap();
+
+    session.handle_line(
+        now,
+        b":irc.solanum.test 404 papo #papo :Cannot send to channel",
+    );
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Line(line)) if line.as_ref().command_is("404")
+    ));
+
+    session.handle_line(now, b":papo!papo@localhost PART #papo :Requested");
+    let response = std::iter::from_fn(|| session.poll_event()).find_map(|event| match event {
+        Event::Response(response) => Some(response),
+        _ => None,
+    });
+    assert_eq!(response.map(|response| response.id), Some(part));
+}
+
+#[test]
 fn non_error_numeric_named_like_a_command_does_not_claim_its_request() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().nick("papo"));
@@ -1142,6 +1171,21 @@ fn join_refusals_resolve_the_matching_channel() {
     let now = Instant::now();
     let cases = [
         (
+            "#missing",
+            ":ergo.test 403 papo #missing :No such channel",
+            Refusal::NoSuchChannel,
+        ),
+        (
+            "#overflow",
+            ":irc.solanum.test 405 papo #overflow :You have joined too many channels",
+            Refusal::TooManyChannels,
+        ),
+        (
+            "#reserved",
+            ":irc.solanum.test 437 papo #reserved :Nick/channel is temporarily unavailable",
+            Refusal::TemporarilyUnavailable,
+        ),
+        (
             "#full",
             ":ergo.test 471 papo #full :Cannot join channel (+l)",
             Refusal::ChannelIsFull,
@@ -1165,6 +1209,16 @@ fn join_refusals_resolve_the_matching_channel() {
             "#registered",
             ":irc.example.org 477 papo #registered :Cannot join channel (+r) - you need to be identified with services",
             Refusal::AccountRequired,
+        ),
+        (
+            "#bad:mask",
+            ":ergo.test 476 papo #bad:mask :Bad Channel Mask",
+            Refusal::BadChannelMask,
+        ),
+        (
+            "#secure",
+            ":irc.unreal.test 489 papo #secure :Cannot join channel (+z)",
+            Refusal::SecureOnlyChannel,
         ),
     ];
 
@@ -1306,6 +1360,39 @@ fn topic_replies_use_the_named_concurrent_channel() {
             .iter()
             .any(|line| line.as_ref().param(1) == Some("#unknown"))
     );
+}
+
+#[test]
+fn topic_matcher_accepts_only_topic_refusals_for_its_channel() {
+    let now = Instant::now();
+    for (code, line) in [
+        (403, ":ergo.test 403 papo #papo :No such channel"),
+        (
+            442,
+            ":irc.solanum.test 442 papo #papo :You're not on that channel",
+        ),
+        (
+            482,
+            ":ergo.test 482 papo #papo :You're not a channel operator",
+        ),
+    ] {
+        let mut session = Session::new(Config::default());
+        session
+            .request_with_matcher(
+                now,
+                Line::new("TOPIC").with_params(["#papo"]),
+                ResponseMatcher::Topic("#papo".into()),
+            )
+            .unwrap();
+        session.handle_line(now, line.as_bytes());
+        let Some(Event::Response(response)) = session.poll_event() else {
+            panic!("expected TOPIC refusal {code}")
+        };
+        assert!(matches!(
+            response.error(),
+            Some(ServerError::Numeric { numeric, .. }) if numeric.code() == code
+        ));
+    }
 }
 
 #[test]

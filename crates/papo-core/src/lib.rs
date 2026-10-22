@@ -1175,9 +1175,12 @@ impl ResponseMatcher {
                         | Numeric::RPL_WHOISACCOUNT
                         | Numeric::RPL_WHOISBOT
                         | Numeric::RPL_WHOISSECURE
-                ) || numeric.is_error();
-                (relevant && Self::target_is(message, 1, nick, mapping))
-                    .then_some(numeric == Numeric::RPL_ENDOFWHOIS || numeric.is_error())
+                        | Numeric::ERR_NOSUCHNICK
+                );
+                (relevant && Self::target_is(message, 1, nick, mapping)).then_some(matches!(
+                    numeric,
+                    Numeric::RPL_ENDOFWHOIS | Numeric::ERR_NOSUCHNICK
+                ))
             }
             Self::Who(mask) => {
                 if Self::standard_failure(message, "WHO")
@@ -1218,14 +1221,17 @@ impl ResponseMatcher {
                     return Some(true);
                 }
                 numeric.and_then(|numeric| {
-                    (named(1) && (numeric == Numeric::RPL_ENDOFNAMES || numeric.is_error()))
-                        .then_some(true)
+                    let refusal = matches!(
+                        numeric.code(),
+                        403 | 405 | 437 | 471 | 473 | 474 | 475 | 476 | 477 | 489
+                    );
+                    (named(1) && (numeric == Numeric::RPL_ENDOFNAMES || refusal)).then_some(true)
                 })
             }
             Self::Part(channel) => ((message.command() == Command::Part
                 && own_source
                 && Self::target_is(message, 0, channel, mapping))
-                || (numeric.is_some_and(Numeric::is_error)
+                || (numeric.is_some_and(|numeric| matches!(numeric.code(), 403 | 442))
                     && Self::target_is(message, 1, channel, mapping))
                 || numeric
                     .is_some_and(|numeric| Self::numeric_names_command(message, numeric, "PART"))
@@ -1246,7 +1252,7 @@ impl ResponseMatcher {
                     || numeric.is_some_and(|numeric| {
                         named(1)
                             && (matches!(numeric, Numeric::RPL_NOTOPIC | Numeric::RPL_TOPIC)
-                                || numeric.is_error())
+                                || matches!(numeric.code(), 403 | 442 | 482))
                             || Self::numeric_names_command(message, numeric, "TOPIC")
                     })
                     || Self::standard_failure(message, "TOPIC"))
