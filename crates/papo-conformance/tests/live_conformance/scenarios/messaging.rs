@@ -54,7 +54,7 @@ async fn echo_message(s: Scenario) -> papo_testing::Result<()> {
     let message = bob
         .wait_for(|event| message_text(event, "hello from alice"))
         .await?;
-    assert_eq!(message.kind, MessageKind::Privmsg);
+    assert_eq!(message.kind, MessageKind::Text);
     assert_eq!(
         crate::source_nick(&message.actor),
         Some(alice.nick().as_ref())
@@ -131,7 +131,7 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     let received = bob
         .wait_for(|event| message_text(event, "private hello"))
         .await?;
-    assert_eq!(received.kind, MessageKind::Privmsg);
+    assert_eq!(received.kind, MessageKind::Text);
     assert_eq!(
         conversation_name(&received.conversation),
         Some(alice.nick().as_ref())
@@ -731,7 +731,7 @@ async fn draft_multiline(s: Scenario) -> papo_testing::Result<()> {
     let text = "first deployment line\nsecond deployment line";
     let sent = alice.privmsg(&channel, text).await?;
     let received = bob.wait_for(|event| message_text(event, text)).await?;
-    assert_eq!(received.kind, MessageKind::Privmsg);
+    assert_eq!(received.kind, MessageKind::Text);
     assert_eq!(
         conversation_name(&received.conversation),
         Some(channel.as_str())

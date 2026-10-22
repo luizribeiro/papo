@@ -318,7 +318,7 @@ async fn message_fields_use_captured_session_facts() {
 
     server_line(&mut server, b"@time=2026-02-03T04:05:06.789Z;msgid=RfcBTzyxY120004;account=emily;bot;+draft/reply=RfcBTzyxY120003 :emily!~e@localhost PRIVMSG #papo :hello \x02from Ergo\x02\r\n").await;
     let message = next_message(&mut events).await;
-    assert_eq!(message.kind, MessageKind::Privmsg);
+    assert_eq!(message.kind, MessageKind::Text);
     assert_eq!(message.text, "hello from Ergo");
     assert_eq!(message.raw_text, "hello \x02from Ergo\x02");
     assert!(

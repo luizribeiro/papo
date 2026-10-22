@@ -106,7 +106,7 @@ mod tests {
                 Some("a".into()),
                 Some("cloak.example".into()),
             )
-            .kind(MessageKind::Notice)
+            .kind(MessageKind::Text)
             .account(papo::Casemapping::default().account("alice"))
             .message_id("ergo-42")
             .raw_text("\u{2}formatted hello\u{2}")
@@ -115,7 +115,7 @@ mod tests {
             .build();
 
         assert_eq!(message.return_address(), "alice");
-        assert_eq!(message.kind, MessageKind::Notice);
+        assert_eq!(message.kind, MessageKind::Text);
         assert_eq!(message.account.as_deref(), Some("alice"));
         assert_eq!(message.msgid.as_deref(), Some("ergo-42"));
         assert_eq!(message.tags.iter().count(), 2);

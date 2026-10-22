@@ -653,25 +653,18 @@ impl Message {
         received_at: SystemTime,
     ) -> Result<Self, ProtoLine> {
         let message = raw.as_ref();
-        let wallops = message.command_is("WALLOPS");
-        let plain = if message.command_is("PRIVMSG") {
-            MessageKind::Privmsg
-        } else if message.command_is("NOTICE") || wallops {
-            MessageKind::Notice
-        } else {
+        if !message.command_is("PRIVMSG") {
+            return Err(raw);
+        }
+        let Some(raw_text) = message.param(1) else {
             return Err(raw);
         };
-        let Some(raw_text) = message.param(usize::from(!wallops)) else {
-            return Err(raw);
-        };
-        let (kind, displayed) = match (!wallops).then(|| ProtoCtcp::parse(raw_text)).flatten() {
-            Some(ctcp)
-                if plain == MessageKind::Privmsg && ctcp.command.eq_ignore_ascii_case("ACTION") =>
-            {
+        let (kind, displayed) = match ProtoCtcp::parse(raw_text) {
+            Some(ctcp) if ctcp.command.eq_ignore_ascii_case("ACTION") => {
                 (MessageKind::Action, ctcp.params.unwrap_or(""))
             }
             Some(_) => return Err(raw),
-            None => (plain, raw_text),
+            None => (MessageKind::Text, raw_text),
         };
         let text = strip_formatting(displayed).into_owned();
         let raw_text = displayed.to_owned();
@@ -2036,7 +2029,7 @@ mod tests {
             isupport,
             received_at,
             true,
-            false,
+            true,
         )
     }
 
@@ -2118,8 +2111,7 @@ mod tests {
 
     #[test]
     fn classifies_chat_and_ctcp_messages() {
-        assert_eq!(chat("PRIVMSG", "hello").kind, MessageKind::Privmsg);
-        assert_eq!(chat("NOTICE", "hello").kind, MessageKind::Notice);
+        assert_eq!(chat("PRIVMSG", "hello").kind, MessageKind::Text);
         assert_eq!(
             chat("PRIVMSG", "\x01ACTION waves\x01").kind,
             MessageKind::Action
@@ -2244,25 +2236,24 @@ mod tests {
         assert!(matches!(&private.conversation, Conversation::Private(nick) if nick == "emily"));
         assert_eq!(private.return_address(), "emily");
 
-        let server = event(
+        let server = parse_event(
             Line::notice("papo", "Server maintenance begins soon").with_source("irc.example"),
             &isupport,
             "papo",
             UNIX_EPOCH,
         );
-        assert_eq!(server.conversation, Conversation::Server);
-        assert_eq!(server.return_address(), "irc.example");
+        assert!(matches!(server, Event::ServerNotice(notice)
+            if notice.kind == ServerNoticeKind::Notice
+                && notice.to == ServerNoticeTarget::Me));
 
-        let broadcast = event(
+        let broadcast = parse_event(
             Line::notice("$*.example.org", "Maintenance begins soon").with_source("oper!o@staff"),
             &isupport,
             "papo",
             UNIX_EPOCH,
         );
-        assert!(
-            matches!(&broadcast.conversation, Conversation::Broadcast(mask) if mask == "$*.example.org")
-        );
-        assert_eq!(broadcast.return_address(), "oper");
+        assert!(matches!(broadcast, Event::ServerNotice(notice)
+            if matches!(&notice.to, ServerNoticeTarget::Mask(mask) if mask == "$*.example.org")));
     }
 
     #[test]

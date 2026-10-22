@@ -212,7 +212,7 @@ pub struct Command {
 impl Command {
     fn parse(client: &Client, message: &ChatMessage, config: &BotConfig) -> Option<Self> {
         if message.authorship == papo::Authorship::Own
-            || message.kind != MessageKind::Privmsg
+            || message.kind != MessageKind::Text
             || config.ignore_bots
                 && (message.is_bot
                     || message.actor.nick().is_some_and(|nick| {
@@ -835,9 +835,9 @@ mod tests {
         let config = BotConfig::new("!").mention(false);
         assert!(parse(&message("#papo", "papo: ping"), &config).is_none());
 
-        let mut notice = message("#papo", "!ping");
-        notice.kind = MessageKind::Notice;
-        assert!(parse(&notice, &config).is_none());
+        let mut action = message("#papo", "!ping");
+        action.kind = MessageKind::Action;
+        assert!(parse(&action, &config).is_none());
 
         let mut own = message("#papo", "!ping");
         own.authorship = Authorship::Own;

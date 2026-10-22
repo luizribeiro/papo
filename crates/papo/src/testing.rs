@@ -106,7 +106,7 @@ pub fn message(
         status: None,
         raw_text: text.clone(),
         text,
-        kind: MessageKind::Privmsg,
+        kind: MessageKind::Text,
         msgid: None,
         server_time: None,
         received_at: SystemTime::UNIX_EPOCH,
