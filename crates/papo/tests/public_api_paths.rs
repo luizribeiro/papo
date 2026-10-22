@@ -13,7 +13,6 @@ const PROTO: &str = include_str!("../../papo-proto/public-api.txt");
 enum ConversationClass {
     Event,
     History,
-    MessageReference,
     Outgoing,
     State,
 }
@@ -78,22 +77,6 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
     (
         "pub papo::HistoryPage::conversation: papo::Conversation",
         ConversationClass::History,
-    ),
-    (
-        "impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(&papo::Conversation, I)> for papo::MessageRef",
-        ConversationClass::MessageReference,
-    ),
-    (
-        "pub fn papo::MessageRef::from((&papo::Conversation, I)) -> Self",
-        ConversationClass::MessageReference,
-    ),
-    (
-        "impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(papo::Conversation, I)> for papo::MessageRef",
-        ConversationClass::MessageReference,
-    ),
-    (
-        "pub fn papo::MessageRef::from((papo::Conversation, I)) -> Self",
-        ConversationClass::MessageReference,
     ),
     (
         "pub papo::RecentConversation::conversation: papo::Conversation",

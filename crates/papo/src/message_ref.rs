@@ -34,7 +34,7 @@ impl From<&Box<Message>> for MessageRef {
 impl From<&Sent> for MessageRef {
     fn from(message: &Sent) -> Self {
         Self {
-            address: return_address(&message.conversation, message.status.as_deref()),
+            address: message.return_address(),
             msgid: message.msgid.clone(),
         }
     }
@@ -55,30 +55,7 @@ macro_rules! address_pairs {
     };
 }
 
-address_pairs!(
-    &str,
-    String,
-    &String,
-    crate::ChannelName,
-    &crate::ChannelName,
-    crate::Nick,
-    &crate::Nick,
-);
-
-impl<I: Into<MessageId>> From<(Conversation, I)> for MessageRef {
-    fn from((conversation, msgid): (Conversation, I)) -> Self {
-        Self {
-            address: return_address(&conversation, None),
-            msgid: Some(msgid.into()),
-        }
-    }
-}
-
-impl<I: Into<MessageId>> From<(&Conversation, I)> for MessageRef {
-    fn from((conversation, msgid): (&Conversation, I)) -> Self {
-        Self::from((conversation.clone(), msgid))
-    }
-}
+address_pairs!(&str, String);
 
 pub(crate) fn return_address(conversation: &Conversation, status: Option<&[char]>) -> String {
     status
@@ -166,37 +143,13 @@ mod tests {
     }
 
     #[test]
-    fn references_accept_text_names_and_conversations() {
-        let mapping = crate::Casemapping::default();
+    fn references_accept_written_text_addresses() {
         let id = MessageId::from("RfcBTzyxY120006");
         let references = [
             MessageRef::from(("#papo", &id)),
-            MessageRef::from((mapping.channel("#papo"), &id)),
-            MessageRef::from((mapping.nick("emily"), &id)),
-            MessageRef::from((Conversation::Channel(mapping.channel("#papo")), &id)),
+            MessageRef::from(("@#ops".to_owned(), &id)),
         ];
-        for (reference, expected) in references
-            .into_iter()
-            .zip(["#papo", "#papo", "emily", "#papo"])
-        {
-            assert_eq!(reference.address, expected);
-            assert_eq!(reference.msgid, Some(id.clone()));
-        }
-
-        for (reference, expected) in [
-            (
-                MessageRef::from((Conversation::Private(mapping.nick("emily")), &id)),
-                "emily",
-            ),
-            (
-                MessageRef::from((
-                    &Conversation::Broadcast(mapping.mask("$*.example.org")),
-                    &id,
-                )),
-                "$*.example.org",
-            ),
-            (MessageRef::from((Conversation::Server, &id)), "*"),
-        ] {
+        for (reference, expected) in references.into_iter().zip(["#papo", "@#ops"]) {
             assert_eq!(reference.address, expected);
             assert_eq!(reference.msgid, Some(id.clone()));
         }

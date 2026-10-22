@@ -658,7 +658,8 @@ async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
     assert!(!added.removed);
     assert_eq!(crate::source_nick(&added.actor), Some(bob.nick().as_ref()));
 
-    bob.unreact((&channel, original_id.clone()), "👍").await?;
+    bob.unreact((channel.as_str(), original_id.clone()), "👍")
+        .await?;
     let removed = alice.wait_for(Event::as_reacted).await?;
     assert_eq!(
         conversation_name(&removed.conversation),
@@ -815,7 +816,9 @@ async fn draft_message_redaction(s: Scenario) -> papo_testing::Result<()> {
         .clone();
     assert_eq!(Some(&id), sent.msgid.as_ref());
 
-    alice.redact((&channel, id.clone()), "superseded").await?;
+    alice
+        .redact((channel.as_str(), id.clone()), "superseded")
+        .await?;
     let redacted = bob.wait_for(Event::as_redacted).await?;
     assert_eq!(
         conversation_name(&redacted.conversation),
@@ -831,7 +834,7 @@ async fn draft_message_redaction(s: Scenario) -> papo_testing::Result<()> {
     bob.expect_none(Event::as_redacted).await?;
 
     let Error::Server(refusal) = alice
-        .redact((&channel, "missing-message-id"), "unknown message")
+        .redact((channel.as_str(), "missing-message-id"), "unknown message")
         .await
         .expect_err("an unknown message identifier must be refused")
     else {
