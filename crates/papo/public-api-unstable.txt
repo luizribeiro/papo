@@ -943,6 +943,30 @@ impl core::marker::Unpin for papo::event::Redacted
 impl core::marker::UnsafeUnpin for papo::event::Redacted
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Redacted
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Redacted
+#[non_exhaustive] pub struct papo::event::ServerNotice
+pub papo::event::ServerNotice::actor: papo::Source
+pub papo::event::ServerNotice::kind: papo::event::ServerNoticeKind
+pub papo::event::ServerNotice::raw_text: alloc::string::String
+pub papo::event::ServerNotice::received_at: std::time::SystemTime
+pub papo::event::ServerNotice::server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::ServerNotice::tags: papo::Tags
+pub papo::event::ServerNotice::text: alloc::string::String
+pub papo::event::ServerNotice::to: papo::event::ServerNoticeTarget
+impl core::clone::Clone for papo::event::ServerNotice
+pub fn papo::event::ServerNotice::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::ServerNotice
+impl core::cmp::PartialEq for papo::event::ServerNotice
+pub fn papo::event::ServerNotice::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::ServerNotice
+pub fn papo::event::ServerNotice::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::ServerNotice
+impl core::marker::Freeze for papo::event::ServerNotice
+impl core::marker::Send for papo::event::ServerNotice
+impl core::marker::Sync for papo::event::ServerNotice
+impl core::marker::Unpin for papo::event::ServerNotice
+impl core::marker::UnsafeUnpin for papo::event::ServerNotice
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ServerNotice
+impl core::panic::unwind_safe::UnwindSafe for papo::event::ServerNotice
 #[non_exhaustive] pub struct papo::event::SplitServers
 pub papo::event::SplitServers::first: alloc::string::String
 pub papo::event::SplitServers::second: alloc::string::String

@@ -252,9 +252,9 @@ pub mod event {
         ChannelRenamed, ChannelSynced, Connected, Ctcp, CtcpQuery, CtcpReply, FeaturesChanged,
         HostChanged, Invited, Joined, Kicked, MembersRefreshed, MetadataChanged, ModeChanged,
         MonitorOffline, MonitorOnline, Motd, Netjoin, Netsplit, NickChanged, Notice, NoticeKind,
-        Parted, Quit, Reacted, ReadMarkerChanged, RealnameChanged, Redacted, ServerNoticeKind,
-        ServerNoticeTarget, SplitServers, StandardReply, StandardReplyKind, TagMsg, TopicChanged,
-        TypingChanged, TypingReason, Warning,
+        Parted, Quit, Reacted, ReadMarkerChanged, RealnameChanged, Redacted, ServerNotice,
+        ServerNoticeKind, ServerNoticeTarget, SplitServers, StandardReply, StandardReplyKind,
+        TagMsg, TopicChanged, TypingChanged, TypingReason, Warning,
     };
     pub use crate::event_impl::{ConnectPhase, Connecting};
 }

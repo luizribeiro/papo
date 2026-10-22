@@ -351,6 +351,28 @@ pub struct Notice {
     pub tags: Tags,
 }
 
+/// A notice or broadcast sent by a server or to a server-wide audience.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct ServerNotice {
+    /// The server or operator that sent the notice.
+    pub actor: Source,
+    /// The command that carried the notice.
+    pub kind: ServerNoticeKind,
+    /// The notice's addressed audience.
+    pub to: ServerNoticeTarget,
+    /// Display text with IRC formatting removed.
+    pub text: String,
+    /// Text with IRC formatting retained.
+    pub raw_text: String,
+    /// Valid server time, when supplied.
+    pub server_time: Option<SystemTime>,
+    /// Time at which the line was received.
+    pub received_at: SystemTime,
+    /// All message tags in wire order.
+    pub tags: Tags,
+}
+
 struct MessageMetadata {
     actor: Source,
     authorship: Authorship,
