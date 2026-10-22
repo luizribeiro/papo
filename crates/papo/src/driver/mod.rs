@@ -297,14 +297,20 @@ struct Quit {
     results: Vec<oneshot::Sender<Result<(), Error>>>,
 }
 
+#[derive(Clone, Default)]
+struct TestHooks {
+    #[cfg(test)]
+    include_connecting: Arc<AtomicBool>,
+}
+
 struct EventSink {
     regular: mpsc::Sender<Event>,
     disconnected: oneshot::Sender<VecDeque<Event>>,
     connected: Arc<AtomicBool>,
     state: Arc<RwLock<Arc<State>>>,
     commands: mpsc::WeakSender<Command>,
-    #[cfg(test)]
-    include_connecting: Arc<AtomicBool>,
+    #[allow(dead_code)]
+    test_hooks: TestHooks,
 }
 
 impl EventSink {
@@ -391,8 +397,8 @@ pub struct Events {
     receiver: mpsc::Receiver<Event>,
     disconnected: Option<oneshot::Receiver<VecDeque<Event>>>,
     pending: VecDeque<Event>,
-    #[cfg(test)]
-    include_connecting: Arc<AtomicBool>,
+    #[allow(dead_code)]
+    test_hooks: TestHooks,
 }
 
 impl std::fmt::Debug for Events {
@@ -408,10 +414,8 @@ impl Events {
     pub async fn next(&mut self) -> Option<Event> {
         let next = std::future::poll_fn(|context| Pin::new(&mut *self).poll_next(context));
         #[cfg(all(test, not(browser)))]
-        let event = test_support::within(next).await;
-        #[cfg(any(not(test), browser))]
-        let event = next.await;
-        event
+        let next = test_support::within(next);
+        next.await
     }
 }
 
@@ -578,8 +582,7 @@ pub(crate) fn channels(capacity: usize, session: &Session) -> Channels {
     let (event_sender, event_receiver) = mpsc::channel(capacity);
     let (disconnect_sender, disconnect_receiver) = oneshot::channel();
     let connected = Arc::new(AtomicBool::new(false));
-    #[cfg(test)]
-    let include_connecting = Arc::new(AtomicBool::new(false));
+    let test_hooks = TestHooks::default();
     let state = Arc::new(RwLock::new(Arc::new(State::from_session(session, false))));
     let client = Client {
         commands: command_sender,
@@ -591,8 +594,7 @@ pub(crate) fn channels(capacity: usize, session: &Session) -> Channels {
         connected: Arc::clone(&connected),
         state,
         commands: client.commands.downgrade(),
-        #[cfg(test)]
-        include_connecting: Arc::clone(&include_connecting),
+        test_hooks: test_hooks.clone(),
     };
     Channels {
         client,
@@ -600,8 +602,7 @@ pub(crate) fn channels(capacity: usize, session: &Session) -> Channels {
             receiver: event_receiver,
             disconnected: Some(disconnect_receiver),
             pending: VecDeque::new(),
-            #[cfg(test)]
-            include_connecting,
+            test_hooks,
         },
         commands: command_receiver,
         event_sink: events,
@@ -1590,7 +1591,9 @@ fn dedupe_autojoin(session: &Session, defaults: &mut PostConnect) {
 
 fn enqueue_event(events: &EventSink, pending: &mut VecDeque<Event>, event: Event) -> bool {
     #[cfg(test)]
-    if !events.include_connecting.load(Ordering::Relaxed) && matches!(event, Event::Connecting(_)) {
+    if !events.test_hooks.include_connecting.load(Ordering::Relaxed)
+        && matches!(event, Event::Connecting(_))
+    {
         return true;
     }
     let event = if pending.is_empty() {

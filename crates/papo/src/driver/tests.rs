@@ -226,7 +226,10 @@ async fn sasl_connection_reports_each_protocol_phase() {
         .wanted_caps(["sasl"])
         .sasl(Sasl::plain("alice", "correct horse battery staple"));
     let (mut server, _client, mut events, driver) = scripted(settings);
-    events.include_connecting.store(true, Ordering::Relaxed);
+    events
+        .test_hooks
+        .include_connecting
+        .store(true, Ordering::Relaxed);
     let task = tokio::spawn(driver);
 
     assert!(matches!(
@@ -665,7 +668,10 @@ async fn assert_failed_connection_progress(address: &str, attempts: usize) {
         connector,
         Box::new(|| 0),
     );
-    events.include_connecting.store(true, Ordering::Relaxed);
+    events
+        .test_hooks
+        .include_connecting
+        .store(true, Ordering::Relaxed);
     let driver = tokio::spawn(driver);
     let secure = address.starts_with("ircs:");
 
