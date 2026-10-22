@@ -75,7 +75,12 @@ async fn parted_rejoin_is_not_restored(s: Scenario) -> papo_testing::Result<()> 
     let mut alice = s.connect("alice").await?;
     alice.join(&channel).await?;
     alice.join(&channel).await?;
-    alice.part(&channel, "leaving the private room").await?;
+    alice
+        .send_raw(papo::Line::new("PART").with_params([
+            channel.as_str(),
+            "leaving the private room",
+        ]))
+        .await?;
     alice
         .wait_for(|event| {
             event.as_parted().filter(|parted| {
