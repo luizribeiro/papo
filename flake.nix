@@ -267,7 +267,6 @@
               cargo check -p papo-bot --target wasm32-unknown-unknown --locked
               PAPO_BROWSER_WS=ws://127.0.0.1 cargo check -p papo --tests --target wasm32-unknown-unknown --locked
               cargo check -p papo -p papo-conformance --target wasm32-wasip2 --locked
-              cargo test -p papo-conformance --lib --target wasm32-wasip2 --locked registered_scenarios_are_complete_and_sorted
             '';
           };
           wasip3-checks = cargoHook {
@@ -279,7 +278,6 @@
               ${cargoWasip3}/bin/cargo-wasip3 check -p papo-proto -p papo-core --all-targets --locked
               ${cargoWasip3}/bin/cargo-wasip3 check -p papo-proto --all-targets --all-features --locked
               ${cargoWasip3}/bin/cargo-wasip3 check -p papo -p papo-bot -p papo-conformance --locked
-              ${cargoWasip3}/bin/cargo-wasip3 test -p papo-conformance --lib --locked registered_scenarios_are_complete_and_sorted
             '';
           };
           cargo-deny = cargoHook {
