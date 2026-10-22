@@ -8,7 +8,9 @@ pub(crate) fn from_proto(source: papo_proto::Source<'_>, casemapping: Casemappin
 }
 
 pub(crate) fn from_prefix(prefix: String, casemapping: Casemapping) -> Source {
-    let message = papo_proto::Line::new("NOTICE", ["*"]).with_source(prefix);
+    let message = papo_proto::Line::builder("NOTICE")
+        .with_params(["*"])
+        .with_source(prefix);
     from_proto(
         message.as_ref().source().expect("owned source is present"),
         casemapping,

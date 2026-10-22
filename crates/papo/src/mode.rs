@@ -390,7 +390,7 @@ impl Client {
             };
             let response = client
                 .correlated(
-                    Line::new("MODE", [name.to_string(), letter.to_owned()]),
+                    Line::builder("MODE").with_params([name.to_string(), letter.to_owned()]),
                     Some(ResponseMatcher::__list_mode(name.to_string(), mode)),
                 )
                 .await?;
@@ -529,7 +529,7 @@ pub(crate) fn encode(
                 );
             }
             params.insert(1, mode_string);
-            Ok(Line::new("MODE", params))
+            Ok(Line::builder("MODE").with_params(params))
         })
         .collect()
 }
@@ -722,7 +722,7 @@ mod tests {
         let id = session
             .request_with_matcher(
                 now,
-                Line::new("MODE", ["#papo", "+m"]),
+                Line::builder("MODE").with_params(["#papo", "+m"]),
                 ResponseMatcher::Mode("#papo".into()),
             )
             .unwrap();
@@ -803,7 +803,8 @@ mod tests {
             state(":ergo.test 005 papo CHANMODES=beI,k,l,imnst CASEMAPPING=rfc1459 :supported");
         let channel = state.channel_name("#Papo[");
         let ban = state.mask("Alice");
-        let echo = |modes| papo_proto::Line::new("MODE", ["#papo{", modes, "alice!*@*"]);
+        let echo =
+            |modes| papo_proto::Line::builder("MODE").with_params(["#papo{", modes, "alice!*@*"]);
         assert!(confirmed_ban(&[echo("+b")], &state, &channel, &ban,));
         assert!(!confirmed_ban(&[echo("-b")], &state, &channel, &ban,));
     }

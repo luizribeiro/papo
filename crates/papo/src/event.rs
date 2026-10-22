@@ -1516,7 +1516,9 @@ mod tests {
 
     fn chat(command: &str, text: &str) -> ChatMessage {
         event(
-            Line::new(command, ["#papo", text]).with_source("emily!~emily@localhost"),
+            Line::builder(command)
+                .with_params(["#papo", text])
+                .with_source("emily!~emily@localhost"),
             &Isupport::default(),
             "papo",
             UNIX_EPOCH,
@@ -1536,7 +1538,9 @@ mod tests {
             MessageKind::Action
         );
         let parse = |command, text| {
-            let line = Line::new(command, ["#papo", text]).with_source("emily!~emily@localhost");
+            let line = Line::builder(command)
+                .with_params(["#papo", text])
+                .with_source("emily!~emily@localhost");
             let isupport = Isupport::default();
             let (status, conversation) =
                 papo_core::classify_conversation(&line.as_ref(), "papo", &isupport).unwrap();
@@ -1565,7 +1569,7 @@ mod tests {
         assert!(reply.reply);
         assert!(
             ChatMessage::new(
-                Line::new("FAIL", ["PRIVMSG", "\x01VERSION\x01"]),
+                Line::builder("FAIL").with_params(["PRIVMSG", "\x01VERSION\x01"]),
                 &Isupport::default(),
                 "papo",
                 UNIX_EPOCH,
@@ -1589,11 +1593,11 @@ mod tests {
         let (_, _, reply) = ctcp_parts(&query.as_ref()).unwrap();
         assert!(!reply);
 
-        let response = Line::new("NOTICE", ["#papo", "\x01VERSION papo-0.1\x01"]);
+        let response = Line::builder("NOTICE").with_params(["#papo", "\x01VERSION papo-0.1\x01"]);
         let (_, _, reply) = ctcp_parts(&response.as_ref()).unwrap();
         assert!(reply);
 
-        let unrelated = Line::new("FAIL", ["PRIVMSG", "\x01VERSION\x01"]);
+        let unrelated = Line::builder("FAIL").with_params(["PRIVMSG", "\x01VERSION\x01"]);
         assert!(ctcp_parts(&unrelated.as_ref()).is_none());
     }
 
@@ -2089,7 +2093,9 @@ mod tests {
     fn maps_response() {
         let now = Instant::now();
         let mut session = labelled_session(now, Config::default());
-        let id = session.request(now, Line::new("MODE", ["#papo"])).unwrap();
+        let id = session
+            .request(now, Line::builder("MODE").with_params(["#papo"]))
+            .unwrap();
         session.handle_line(now, b"@label=0 :ergo.test ACK");
         assert!(
             matches!(from_core(session.poll_event().unwrap()), CoreEvent::Response(response) if response.id == id)
@@ -2213,7 +2219,9 @@ mod tests {
     fn maps_request_timed_out() {
         let now = Instant::now();
         let mut session = labelled_session(now, Config::default().request_timeout(Duration::ZERO));
-        let id = session.request(now, Line::new("MODE", ["#papo"])).unwrap();
+        let id = session
+            .request(now, Line::builder("MODE").with_params(["#papo"]))
+            .unwrap();
         _ = session.poll_transmit();
         session.handle_timeout(now);
         assert!(
@@ -2225,7 +2233,9 @@ mod tests {
     fn maps_request_aborted() {
         let now = Instant::now();
         let mut session = labelled_session(now, Config::default());
-        let id = session.request(now, Line::new("MODE", ["#papo"])).unwrap();
+        let id = session
+            .request(now, Line::builder("MODE").with_params(["#papo"]))
+            .unwrap();
         session.handle_disconnected(now);
         assert!(
             matches!(from_core(session.poll_event().unwrap()), CoreEvent::RequestAborted { id: mapped, .. } if mapped == id)
@@ -2733,7 +2743,7 @@ mod tests {
                     subject_authorship: papo_core::Authorship::Unknown,
                 }),
                 papo_core::HistoryItem::Other(papo_core::HistoryLine {
-                    line: Line::new("WALLOPS", ["Network maintenance begins soon"]),
+                    line: Line::builder("WALLOPS").with_params(["Network maintenance begins soon"]),
                     context: false,
                     authorship: papo_core::Authorship::Unknown,
                     subject_authorship: papo_core::Authorship::Unknown,
@@ -2785,8 +2795,9 @@ mod tests {
 
     #[test]
     fn maps_netsplit() {
-        let quit =
-            Line::new("QUIT", ["irc.example irc.remote"]).with_source("alice!~a@remote.example");
+        let quit = Line::builder("QUIT")
+            .with_params(["irc.example irc.remote"])
+            .with_source("alice!~a@remote.example");
         let empty_reason = ":bob!~b@remote.example QUIT :".parse().unwrap();
         let Event::Netsplit(netsplit) = forwarded(papo_core::Event::__netsplit(
             ["irc.example".into(), "irc.remote".into()],
@@ -2810,7 +2821,9 @@ mod tests {
 
     #[test]
     fn maps_netjoin() {
-        let join = Line::new("JOIN", ["#papo", "*", "Bob"]).with_source("bob!~b@remote.example");
+        let join = Line::builder("JOIN")
+            .with_params(["#papo", "*", "Bob"])
+            .with_source("bob!~b@remote.example");
         let Event::Netjoin(netjoin) = forwarded(papo_core::Event::__netjoin(
             ["irc.example".into(), "irc.remote".into()],
             vec![join],

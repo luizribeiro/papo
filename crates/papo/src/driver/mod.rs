@@ -879,7 +879,7 @@ where
                     };
                     match session.request_with_matcher(
                         now(),
-                        Line::new("JOIN", params),
+                        Line::builder("JOIN").with_params(params),
                         ResponseMatcher::Join(channel.to_string()),
                     ) {
                         Ok(id) => {
@@ -896,7 +896,7 @@ where
                     }
                     match session.request_with_matcher(
                         now(),
-                        Line::new("PART", params),
+                        Line::builder("PART").with_params(params),
                         ResponseMatcher::Part(channel.to_string()),
                     ) {
                         Ok(id) => {
@@ -1031,7 +1031,7 @@ where
                     request_quit(
                         session,
                         &mut quit,
-                        Line::new("QUIT", Vec::<String>::new()),
+                        Line::builder("QUIT"),
                         None,
                     );
                 }
@@ -1668,10 +1668,8 @@ fn after_connect(
         session
             .send(
                 now(),
-                Line::new(
-                    "MODE",
-                    [welcome.nick.as_ref().to_owned(), format!("+{mode}")],
-                ),
+                Line::builder("MODE")
+                    .with_params([welcome.nick.as_ref().to_owned(), format!("+{mode}")]),
             )
             .map_err(io::Error::other)?;
     }
@@ -1690,7 +1688,7 @@ fn after_connect(
             let id = session
                 .request_with_matcher(
                     now(),
-                    Line::new("JOIN", params),
+                    Line::builder("JOIN").with_params(params),
                     ResponseMatcher::Join(channel.channel.clone()),
                 )
                 .map_err(io::Error::other)?;

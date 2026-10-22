@@ -5,12 +5,16 @@ async fn arbitrary_core_action_input_is_rejected_or_emits_valid_lines() {
     for (first, second, third) in inputs() {
         check_action({
             let (first, second, third) = (first.clone(), second.clone(), third.clone());
-            move |client| action(client.send_raw(crate::Line::new(first, [second, third])))
+            move |client| {
+                action(client.send_raw(crate::Line::builder(first).with_params([second, third])))
+            }
         })
         .await;
         check_action({
             let (first, second, third) = (first.clone(), second.clone(), third.clone());
-            move |client| action(client.request_raw(crate::Line::new(first, [second, third])))
+            move |client| {
+                action(client.request_raw(crate::Line::builder(first).with_params([second, third])))
+            }
         })
         .await;
 
