@@ -368,6 +368,7 @@ async fn message_fields_use_captured_session_facts() {
     let Some(Event::History(page)) = events.next().await else {
         panic!("expected partial history page")
     };
+    assert_eq!(page.reason, crate::HistoryReason::Replay);
     assert!(!page.end);
     assert_eq!(page.messages().next().unwrap().text, "earlier");
     assert!(matches!(
@@ -1658,6 +1659,7 @@ async fn reconnect_history_pages_stop_at_the_target_limit() {
     let Some(Event::History(history)) = events.next().await else {
         panic!("expected aggregate history event")
     };
+    assert_eq!(history.reason, crate::HistoryReason::Catchup);
     assert!(
         matches!(&history.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
     );

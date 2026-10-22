@@ -1504,6 +1504,7 @@ mod tests {
         client_line(&mut server, b"@label=0 CHATHISTORY LATEST #papo * 100\r\n").await;
         server_line(&mut server, b"@label=0 :ergo.test BATCH +reply labeled-response\r\n@batch=reply;draft/chathistory-end :ergo.test BATCH +history chathistory #papo\r\n@batch=history;time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120004 :emily!~e@localhost PRIVMSG #papo :earlier\r\n@batch=history;+draft/react=eyes;+reply=RfcBTzyxY120004 :emily!~e@localhost TAGMSG #papo\r\n@batch=history :emily!~e@localhost JOIN #papo emily :Emily Smith\r\n@batch=history :ChanServ!service@services MODE #papo +o alice\r\n@batch=history :OperServ!service@services MODE #papo +b *!*@spammer.example\r\n@batch=history :emily!~e@localhost TAGMSG #papo\r\n@batch=reply :ergo.test BATCH -history\r\n:ergo.test BATCH -reply\r\n").await;
         let page = within(request).await.unwrap().unwrap();
+        assert_eq!(page.reason, HistoryReason::Requested);
         assert!(page.end);
         assert_eq!(page.items.len(), 6);
         assert!(matches!(page.items[1], Event::Reacted(_)));
@@ -1538,6 +1539,7 @@ mod tests {
         let Some(Event::History(history)) = events.next().await else {
             panic!("expected replay batch event")
         };
+        assert_eq!(history.reason, HistoryReason::Replay);
         assert!(matches!(history.items[1], Event::Reacted(_)));
         assert!(matches!(history.items[2], Event::Joined(_)));
         assert!(matches!(history.items[3], Event::ModeChanged(_)));
