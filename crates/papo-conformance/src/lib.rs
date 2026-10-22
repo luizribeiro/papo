@@ -16,8 +16,6 @@ use std::{
     time::Duration,
 };
 
-#[cfg(test)]
-use libtest_mimic::Failed;
 use papo::{Client, Endpoint, Event, Events, Isupport, isupport::Advertised};
 use papo_core::{Capabilities, Sasl};
 use papo_test_server::ServerInfo;
@@ -211,13 +209,13 @@ async fn expect_event(
     events: &mut impl EventSource,
     mut matcher: impl FnMut(&Event) -> bool,
     limit: Duration,
-) -> Result<Event, Failed> {
+) -> Result<Event, String> {
     timeout(limit, async {
         loop {
             match events.next_event().await {
                 Some(event) if matcher(&event) => return Ok(event),
                 Some(Event::Disconnected(disconnected)) => {
-                    return Err(disconnected.to_string().into());
+                    return Err(disconnected.to_string());
                 }
                 Some(_) => {}
                 None => return Err("driver stopped while waiting for an event".into()),
@@ -225,7 +223,7 @@ async fn expect_event(
         }
     })
     .await
-    .map_err(|_| Failed::from("timed out waiting for an event"))?
+    .map_err(|_| "timed out waiting for an event".to_owned())?
 }
 
 fn load_known_failures(server: &str) -> Result<BTreeMap<String, String>, String> {
@@ -575,7 +573,7 @@ mod tests {
             ))
             .err()
             .unwrap();
-        assert_eq!(error.message(), Some("timed out waiting for an event"));
+        assert_eq!(error, "timed out waiting for an event");
     }
 
     #[test]
