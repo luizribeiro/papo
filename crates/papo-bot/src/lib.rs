@@ -10,7 +10,7 @@
 //! Pass the receiving [`Client`] and each [`papo::Message`] event payload to
 //! [`BotConfig::command`]. It accepts live `PRIVMSG` commands addressed by prefix or mention and
 //! ignores known bots by default. Unlike raw `papo` event handling, it rejects replayed messages
-//! itself, so callers need no [`papo::Message::is_live`] guard. Authorize privileged commands with
+//! itself. Authorize privileged commands with
 //! [`Command::account_in`], which checks the message's account tag; a nickname alone is not an
 //! identity. [`Command::reply`] applies the configuration's shared reply limit. Its default is two
 //! calls per conversation every five seconds, and [`ReplyStatus::Dropped`] reports a limited
@@ -211,8 +211,7 @@ pub struct Command {
 
 impl Command {
     fn parse(client: &Client, message: &ChatMessage, config: &BotConfig) -> Option<Self> {
-        if !message.is_live()
-            || message.authorship == papo::Authorship::Own
+        if message.authorship == papo::Authorship::Own
             || message.kind != MessageKind::Privmsg
             || config.ignore_bots
                 && (message.is_bot
@@ -835,10 +834,6 @@ mod tests {
 
         let config = BotConfig::new("!").mention(false);
         assert!(parse(&message("#papo", "papo: ping"), &config).is_none());
-
-        let mut replayed = message("#papo", "!ping");
-        replayed.origin = papo::Origin::Replay;
-        assert!(parse(&replayed, &config).is_none());
 
         let mut notice = message("#papo", "!ping");
         notice.kind = MessageKind::Notice;
