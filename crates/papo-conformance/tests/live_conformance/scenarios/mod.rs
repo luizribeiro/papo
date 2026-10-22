@@ -9,6 +9,7 @@ mod metadata;
 mod presence;
 mod requests;
 mod security_addressing;
+mod security_bounds;
 mod security_identity;
 mod security_replay;
 mod security_targeting;
