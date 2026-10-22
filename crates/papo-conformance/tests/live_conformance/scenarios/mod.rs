@@ -9,4 +9,5 @@ mod metadata;
 mod presence;
 mod requests;
 mod security_addressing;
+mod security_identity;
 mod support;

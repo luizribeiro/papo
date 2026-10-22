@@ -605,6 +605,7 @@ name = "papo-conformance"
 version = "0.1.0"
 dependencies = [
  "papo",
+ "papo-bot",
  "papo-conformance-macros",
  "papo-core",
  "papo-proto",

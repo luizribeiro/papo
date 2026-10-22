@@ -9,6 +9,7 @@ publish = false
 
 [dependencies]
 papo = { path = "../papo", version = "=0.1.0", default-features = false, features = ["tls-ring", "unstable", "websocket"] }
+papo-bot = { path = "../papo-bot", version = "=0.1.0" }
 papo-core = { path = "../papo-core", version = "=0.1.0" }
 papo-conformance-macros = { path = "../papo-conformance-macros", version = "=0.1.0" }
 papo-proto = { path = "../papo-proto", version = "=0.1.0" }
