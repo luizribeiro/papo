@@ -200,7 +200,7 @@ fn parses_realistic_ergo_lines() {
 
     let authenticate = LineRef::parse("AUTHENTICATE +\n").unwrap();
     assert_eq!(authenticate.raw_source(), None);
-    assert_eq!(authenticate.param(0), Some("+"));
+    assert_eq!(authenticate.get(0), Some("+"));
 
     let ping = LineRef::parse("PING").unwrap();
     assert!(ping.is_empty());
@@ -210,7 +210,7 @@ fn parses_realistic_ergo_lines() {
         forced_trailing.command(),
         Command::Numeric(Numeric::RPL_LISTEND)
     );
-    assert_eq!(forced_trailing.param(1), Some(""));
+    assert_eq!(forced_trailing.get(1), Some(""));
 }
 
 #[test]
@@ -246,7 +246,7 @@ fn owned_lines_parse_real_ergo_messages() {
         numeric.as_ref().command(),
         Command::Numeric(Numeric::new(372).unwrap())
     );
-    assert_eq!(numeric.as_ref().param(1), Some("- Welcome to ErgoTest"));
+    assert_eq!(numeric.as_ref().get(1), Some("- Welcome to ErgoTest"));
     assert_eq!(
         numeric.to_string(),
         ":ergo.test 372 papo :- Welcome to ErgoTest"
@@ -302,8 +302,8 @@ fn owned_lines_expose_every_wire_component() {
     assert_eq!(line.command(), "372");
     assert_eq!(line.numeric(), Some(372));
     assert_eq!(line.params(), ["papo", "- Welcome to ErgoTest"]);
-    assert_eq!(line.param(0), Some("papo"));
-    assert_eq!(line.param(2), None);
+    assert_eq!(line.get(0), Some("papo"));
+    assert_eq!(line.get(2), None);
     assert_eq!(line.tag("bot"), Some(""));
     assert_eq!(line.tag("account"), Some("alice"));
     assert_eq!(
@@ -555,10 +555,10 @@ fn parses_many_parameters_with_irregular_spacing() {
 
     assert_eq!(line.len(), 20);
     assert!(!line.is_empty());
-    assert_eq!(line.param(0), Some("1"));
-    assert_eq!(line.param(14), Some("15"));
-    assert_eq!(line.param(19), Some("20"));
-    assert_eq!(line.param(20), None);
+    assert_eq!(line.get(0), Some("1"));
+    assert_eq!(line.get(14), Some("15"));
+    assert_eq!(line.get(19), Some("20"));
+    assert_eq!(line.get(20), None);
 }
 
 #[test]
@@ -682,6 +682,14 @@ fn builds_common_client_commands() {
         assert_eq!(line.as_ref().raw_command(), command);
         assert_eq!(line.as_ref().len(), param_count);
     }
+}
+
+#[test]
+fn builds_parameters_one_at_a_time() {
+    let chained = Line::builder("PRIVMSG")
+        .param("#papo")
+        .param("release ready");
+    assert_eq!(chained.to_string(), "PRIVMSG #papo :release ready");
 }
 
 #[test]

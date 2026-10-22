@@ -432,19 +432,19 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
         .find(|line| {
             line.numeric() == Some(352)
                 && line
-                    .param(5)
+                    .get(5)
                     .is_some_and(|nick| mapping.nick(nick) == alice_nick)
         })
         .unwrap();
     assert_eq!(
-        mapping.channel(row.param(1).expect("352 includes the channel")),
+        mapping.channel(row.get(1).expect("352 includes the channel")),
         channel_name
     );
-    assert!(row.param(2).is_some_and(|user| !user.is_empty()));
-    assert!(row.param(3).is_some_and(|host| !host.is_empty()));
-    assert!(row.param(4).is_some_and(|server| !server.is_empty()));
-    assert!(row.param(6).is_some_and(|flags| flags.contains('G')));
-    assert!(row.param(7).is_some_and(|hop_realname| {
+    assert!(row.get(2).is_some_and(|user| !user.is_empty()));
+    assert!(row.get(3).is_some_and(|host| !host.is_empty()));
+    assert!(row.get(4).is_some_and(|server| !server.is_empty()));
+    assert!(row.get(6).is_some_and(|flags| flags.contains('G')));
+    assert!(row.get(7).is_some_and(|hop_realname| {
         hop_realname
             .split_once(' ')
             .is_some_and(|(_, realname)| realname == "papo test peer")
@@ -452,7 +452,7 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
     assert!(plain.iter().any(|line| {
         line.numeric() == Some(315)
             && line
-                .param(1)
+                .get(1)
                 .is_some_and(|name| mapping.channel(name) == channel_name)
     }));
 
@@ -508,11 +508,11 @@ async fn operator_visibility(s: Scenario) -> papo_testing::Result<()> {
         .find(|line| {
             line.numeric() == Some(352)
                 && line
-                    .param(5)
+                    .get(5)
                     .is_some_and(|nick| mapping.nick(nick) == alice_nick)
         })
         .unwrap();
-    assert!(row.param(6).is_some_and(|flags| flags.contains('*')));
+    assert!(row.get(6).is_some_and(|flags| flags.contains('*')));
     assert!(who.iter().any(|line| line.numeric() == Some(315)));
 
     let whois = bob
@@ -523,14 +523,10 @@ async fn operator_visibility(s: Scenario) -> papo_testing::Result<()> {
         .find(|line| line.numeric() == Some(313))
         .unwrap();
     assert_eq!(
-        mapping.nick(
-            operator
-                .param(1)
-                .expect("313 includes the operator nickname")
-        ),
+        mapping.nick(operator.get(1).expect("313 includes the operator nickname")),
         alice_nick
     );
-    assert!(operator.param(2).is_some_and(|text| !text.is_empty()));
+    assert!(operator.get(2).is_some_and(|text| !text.is_empty()));
     assert!(whois.iter().any(|line| line.numeric() == Some(318)));
     Ok(())
 }
@@ -662,14 +658,14 @@ async fn whois_host_certificate(s: Scenario) -> papo_testing::Result<()> {
         })?;
 
     assert_eq!(
-        mapping.nick(detail.param(1).expect("WHOIS detail includes the nickname")),
+        mapping.nick(detail.get(1).expect("WHOIS detail includes the nickname")),
         alice_nick
     );
-    assert!(detail.param(2).is_some_and(|value| !value.is_empty()));
+    assert!(detail.get(2).is_some_and(|value| !value.is_empty()));
     assert!(lines.iter().any(|line| {
         line.numeric() == Some(318)
             && line
-                .param(1)
+                .get(1)
                 .is_some_and(|nick| mapping.nick(nick) == alice_nick)
     }));
     Ok(())

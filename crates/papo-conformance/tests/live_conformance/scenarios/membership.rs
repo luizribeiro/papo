@@ -120,7 +120,7 @@ async fn names_multiple_channels(s: Scenario) -> papo_testing::Result<()> {
         if !names.iter().any(|line| {
             line.numeric() == Some(353)
                 && line
-                    .param(2)
+                    .get(2)
                     .is_some_and(|name| mapping.channel(name) == channel_name)
         }) {
             return Err(std::io::Error::other(format!(
@@ -131,7 +131,7 @@ async fn names_multiple_channels(s: Scenario) -> papo_testing::Result<()> {
         assert!(
             names.iter().any(|line| {
                 line.numeric() == Some(366)
-                    && line.param(1).is_some_and(|targets| {
+                    && line.get(1).is_some_and(|targets| {
                         targets
                             .split(',')
                             .any(|target| mapping.channel(target) == channel_name)
@@ -164,7 +164,7 @@ async fn secret_names_visibility(s: Scenario) -> papo_testing::Result<()> {
         !hidden.iter().any(|line| {
             line.numeric() == Some(353)
                 && line
-                    .param(2)
+                    .get(2)
                     .is_some_and(|name| mapping.channel(name) == channel_name)
         }),
         "secret channel leaked through NAMES: {hidden:?}"
@@ -173,7 +173,7 @@ async fn secret_names_visibility(s: Scenario) -> papo_testing::Result<()> {
         hidden.iter().any(|line| {
             line.numeric() == Some(366)
                 && line
-                    .param(1)
+                    .get(1)
                     .is_some_and(|name| mapping.channel(name) == channel_name)
         }),
         "missing hidden-channel terminator: {hidden:?}"
@@ -389,7 +389,7 @@ async fn too_many_channels(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert_eq!(refusal.numeric(), Some(405));
     assert_eq!(
-        mapping.channel(refusal.param(1).expect("405 includes the refused channel")),
+        mapping.channel(refusal.get(1).expect("405 includes the refused channel")),
         channels[limit].as_str()
     );
     assert_eq!(alice.state().channels().count(), limit);
@@ -1173,10 +1173,10 @@ async fn channel_mode_lists(s: Scenario) -> papo_testing::Result<()> {
         .find(|line| line.numeric() == Some(324))
         .expect("channel mode query must include 324");
     assert_eq!(
-        mapping.channel(current.param(1).expect("324 includes the channel")),
+        mapping.channel(current.get(1).expect("324 includes the channel")),
         channel_name
     );
-    assert!(current.param(2).is_some_and(|value| value.starts_with('+')));
+    assert!(current.get(2).is_some_and(|value| value.starts_with('+')));
 
     let bans = alice.list_modes(&channel, papo::ListMode::Ban).await?;
     let entry = bans.iter().find(|entry| entry.mask == mask).unwrap();

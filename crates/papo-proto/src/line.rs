@@ -260,6 +260,12 @@ impl<'a> LineRef<'a> {
         self.params().nth(index)
     }
 
+    /// Returns the parameter at `index`, if present.
+    #[must_use]
+    pub fn get(&self, index: usize) -> Option<&'a str> {
+        self.param(index)
+    }
+
     /// Returns the number of parameters.
     #[must_use]
     pub fn len(&self) -> usize {
@@ -310,6 +316,23 @@ impl Line {
         }
     }
 
+    /// Starts a line with no parameters.
+    pub fn builder(command: impl Into<String>) -> Self {
+        Self {
+            tags: Vec::new(),
+            source: None,
+            command: command.into(),
+            params: Vec::new(),
+        }
+    }
+
+    /// Appends one parameter to the line.
+    #[must_use]
+    pub fn param(mut self, param: impl Into<String>) -> Self {
+        self.params.push(param.into());
+        self
+    }
+
     /// Returns the command with its original spelling.
     #[must_use]
     pub fn command(&self) -> &str {
@@ -333,7 +356,7 @@ impl Line {
 
     /// Returns the parameter at `index` in wire order.
     #[must_use]
-    pub fn param(&self, index: usize) -> Option<&str> {
+    pub fn get(&self, index: usize) -> Option<&str> {
         self.params.get(index).map(String::as_str)
     }
 

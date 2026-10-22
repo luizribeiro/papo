@@ -74,19 +74,19 @@ async fn capability_negotiation(s: Scenario) -> papo_testing::Result<()> {
     assert!(
         lines[..lines.len() - 1]
             .iter()
-            .all(|line| line.param(1) == Some("LS") && line.param(2) == Some("*"))
+            .all(|line| line.get(1) == Some("LS") && line.get(2) == Some("*"))
     );
     let last = lines.last().expect("CAP LS returned at least two lines");
-    assert_eq!(last.param(1), Some("LS"));
-    assert_ne!(last.param(2), Some("*"));
+    assert_eq!(last.get(1), Some("LS"));
+    assert_ne!(last.get(2), Some("*"));
 
     let nak = alice
         .request_raw(papo::Line::new("CAP", ["REQ", "papo.example/unavailable"]))
         .await?;
     assert_eq!(nak.len(), 1);
     assert_eq!(nak[0].command(), "CAP");
-    assert_eq!(nak[0].param(1), Some("NAK"));
-    assert_eq!(nak[0].param(2), Some("papo.example/unavailable"));
+    assert_eq!(nak[0].get(1), Some("NAK"));
+    assert_eq!(nak[0].get(2), Some("papo.example/unavailable"));
     Ok(())
 }
 
@@ -216,8 +216,8 @@ async fn server_queries(s: Scenario) -> papo_testing::Result<()> {
         .iter()
         .find(|line| line.numeric() == Some(papo::numeric::RPL_TIME))
         .expect("TIME returns numeric 391");
-    assert!(reply.param(1).is_some_and(|server| !server.is_empty()));
-    assert!(reply.param(2).is_some_and(|time| !time.is_empty()));
+    assert!(reply.get(1).is_some_and(|server| !server.is_empty()));
+    assert!(reply.get(2).is_some_and(|time| !time.is_empty()));
 
     let nick = alice.nick();
     alice.quit("record this departure").await?;
@@ -232,7 +232,7 @@ async fn server_queries(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(
         bob.state().nickname(
             users[0]
-                .param(1)
+                .get(1)
                 .expect("WHOWAS user reply includes a nickname")
         ),
         nick
