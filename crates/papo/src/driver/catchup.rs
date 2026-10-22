@@ -266,7 +266,6 @@ mod tests {
         };
         let live = crate::event::Reacted {
             msgid: Some("RfcBTzyxY120010".into()),
-            time: SystemTime::UNIX_EPOCH,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
             account: Some(mapping.account("emily")),

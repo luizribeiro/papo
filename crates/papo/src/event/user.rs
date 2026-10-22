@@ -10,8 +10,6 @@ use super::{Joined, Source};
 pub struct Quit {
     /// The server-assigned identifier of the quit line, when supplied.
     pub msgid: Option<MessageId>,
-    /// Valid server time, or the local receipt time when none was supplied.
-    pub time: SystemTime,
     /// Valid server time, when supplied.
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
@@ -36,8 +34,6 @@ pub struct Quit {
 pub struct NickChanged {
     /// The server-assigned identifier of the nick line, when supplied.
     pub msgid: Option<MessageId>,
-    /// Valid server time, or the local receipt time when none was supplied.
-    pub time: SystemTime,
     /// Valid server time, when supplied.
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.

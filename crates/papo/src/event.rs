@@ -571,7 +571,6 @@ fn message_metadata(
 
 pub(crate) struct EventEnvelope {
     pub(crate) msgid: Option<MessageId>,
-    pub(crate) time: SystemTime,
     pub(crate) server_time: Option<SystemTime>,
     pub(crate) received_at: SystemTime,
     pub(crate) account: Option<AccountName>,
@@ -586,7 +585,6 @@ pub(crate) fn line_envelope(
         tag_owned(line, &["time", "znc.in/server-time-iso"]).and_then(|value| time::parse(&value));
     EventEnvelope {
         msgid: tag_owned(line, &["msgid"]).map(MessageId::from),
-        time: server_time.unwrap_or(received_at),
         server_time,
         received_at,
         account: tag_owned(line, &["account"]).map(|account| casemapping.account(account)),
@@ -612,7 +610,6 @@ pub(crate) fn joined_from_line(
     };
     Some(Joined {
         msgid: envelope.msgid,
-        time: envelope.time,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         account,
@@ -631,7 +628,6 @@ fn core_envelope(
 ) -> EventEnvelope {
     EventEnvelope {
         msgid: envelope.msgid().map(MessageId::from),
-        time: envelope.server_time().unwrap_or(received_at),
         server_time: envelope.server_time(),
         received_at,
         account: envelope
@@ -978,7 +974,6 @@ pub(crate) fn from_core(
             if let (Some((reaction, removed)), Some(msgid)) = (reaction, reply_to) {
                 Event::Reacted(Reacted {
                     msgid: envelope.msgid,
-                    time: envelope.time,
                     server_time: envelope.server_time,
                     received_at: envelope.received_at,
                     account: envelope.account,
@@ -1012,7 +1007,6 @@ pub(crate) fn from_core(
             let envelope = core_envelope(&redacted.envelope, casemapping, received_at);
             Event::Redacted(Redacted {
                 msgid: envelope.msgid,
-                time: envelope.time,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 account: envelope.account,
@@ -1122,7 +1116,6 @@ pub(crate) fn from_core(
                     let envelope = line_envelope(&message, casemapping, received_at);
                     Some(Quit {
                         msgid: envelope.msgid,
-                        time: envelope.time,
                         server_time: envelope.server_time,
                         received_at: envelope.received_at,
                         account: envelope.account,
@@ -1198,7 +1191,6 @@ pub(crate) fn from_core(
             let actor = source::from_prefix(actor, channel.casemapping());
             Event::Joined(Joined {
                 msgid: envelope.msgid,
-                time: envelope.time,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 account,
@@ -1227,7 +1219,6 @@ pub(crate) fn from_core(
             let envelope = core_envelope(&envelope, casemapping, received_at);
             Event::Parted(Parted {
                 msgid: envelope.msgid,
-                time: envelope.time,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 account: envelope.account,
@@ -1251,7 +1242,6 @@ pub(crate) fn from_core(
             let envelope = core_envelope(&envelope, casemapping, received_at);
             Event::Kicked(Kicked {
                 msgid: envelope.msgid,
-                time: envelope.time,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 account: envelope.account,
@@ -1289,7 +1279,6 @@ pub(crate) fn from_core(
             let envelope = core_envelope(&envelope, casemapping, received_at);
             Event::Quit(Quit {
                 msgid: envelope.msgid,
-                time: envelope.time,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 account: envelope.account,
@@ -1311,7 +1300,6 @@ pub(crate) fn from_core(
             let envelope = core_envelope(&envelope, casemapping, received_at);
             Event::NickChanged(NickChanged {
                 msgid: envelope.msgid,
-                time: envelope.time,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 account: envelope.account,
@@ -1389,7 +1377,6 @@ pub(crate) fn from_core(
             let envelope = core_envelope(&envelope, casemapping, received_at);
             Event::ModeChanged(ModeChanged {
                 msgid: envelope.msgid,
-                time: envelope.time,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 account: envelope.account,
@@ -1415,7 +1402,6 @@ pub(crate) fn from_core(
             let envelope = core_envelope(&envelope, casemapping, received_at);
             Event::TopicChanged(TopicChanged {
                 msgid: envelope.msgid,
-                time: envelope.time,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 account: envelope.account,
@@ -2409,7 +2395,6 @@ mod tests {
             panic!("expected mapped join");
         };
         assert_eq!(joined.msgid.as_deref(), Some("RfcBTzyxY120012"));
-        assert_eq!(joined.time, received_at);
         assert_eq!(joined.received_at, received_at);
         assert_eq!(Event::Joined(joined.clone()).server_time(), None);
         assert_eq!(joined.account, Account::Unknown);
@@ -2823,7 +2808,6 @@ mod tests {
         let events = [
             Event::Joined(super::Joined {
                 msgid: None,
-                time: UNIX_EPOCH,
                 server_time: None,
                 received_at: UNIX_EPOCH,
                 account: Account::Unknown,
@@ -2835,7 +2819,6 @@ mod tests {
             }),
             Event::Parted(super::Parted {
                 msgid: None,
-                time: UNIX_EPOCH,
                 server_time: None,
                 received_at: UNIX_EPOCH,
                 account: None,
@@ -2847,7 +2830,6 @@ mod tests {
             }),
             Event::Kicked(super::Kicked {
                 msgid: None,
-                time: UNIX_EPOCH,
                 server_time: None,
                 received_at: UNIX_EPOCH,
                 account: None,
@@ -2867,7 +2849,6 @@ mod tests {
             }),
             Event::NickChanged(super::NickChanged {
                 msgid: None,
-                time: UNIX_EPOCH,
                 server_time: None,
                 received_at: UNIX_EPOCH,
                 account: None,
@@ -2883,7 +2864,6 @@ mod tests {
                 },
                 joins: vec![super::Joined {
                     msgid: None,
-                    time: UNIX_EPOCH,
                     server_time: None,
                     received_at: UNIX_EPOCH,
                     account: Account::Unknown,

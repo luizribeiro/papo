@@ -435,7 +435,6 @@ pub papo::event::Joined::nick: papo::Nick
 pub papo::event::Joined::realname: core::option::Option<alloc::string::String>
 pub papo::event::Joined::received_at: std::time::SystemTime
 pub papo::event::Joined::server_time: core::option::Option<std::time::SystemTime>
-pub papo::event::Joined::time: std::time::SystemTime
 impl core::clone::Clone for papo::event::Joined
 pub fn papo::event::Joined::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Joined
@@ -462,7 +461,6 @@ pub papo::event::Kicked::received_at: std::time::SystemTime
 pub papo::event::Kicked::server_time: core::option::Option<std::time::SystemTime>
 pub papo::event::Kicked::subject: papo::Nick
 pub papo::event::Kicked::subject_authorship: papo::Authorship
-pub papo::event::Kicked::time: std::time::SystemTime
 impl core::clone::Clone for papo::event::Kicked
 pub fn papo::event::Kicked::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Kicked
@@ -525,7 +523,6 @@ pub papo::event::ModeChanged::received_at: std::time::SystemTime
 pub papo::event::ModeChanged::server_time: core::option::Option<std::time::SystemTime>
 pub papo::event::ModeChanged::subject: papo::Subject
 pub papo::event::ModeChanged::subject_authorship: papo::Authorship
-pub papo::event::ModeChanged::time: std::time::SystemTime
 impl core::clone::Clone for papo::event::ModeChanged
 pub fn papo::event::ModeChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::ModeChanged
@@ -639,7 +636,6 @@ pub papo::event::NickChanged::new: papo::Nick
 pub papo::event::NickChanged::old: papo::Nick
 pub papo::event::NickChanged::received_at: std::time::SystemTime
 pub papo::event::NickChanged::server_time: core::option::Option<std::time::SystemTime>
-pub papo::event::NickChanged::time: std::time::SystemTime
 impl core::clone::Clone for papo::event::NickChanged
 pub fn papo::event::NickChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::NickChanged
@@ -665,7 +661,6 @@ pub papo::event::Parted::nick: papo::Nick
 pub papo::event::Parted::reason: core::option::Option<alloc::string::String>
 pub papo::event::Parted::received_at: std::time::SystemTime
 pub papo::event::Parted::server_time: core::option::Option<std::time::SystemTime>
-pub papo::event::Parted::time: std::time::SystemTime
 impl core::clone::Clone for papo::event::Parted
 pub fn papo::event::Parted::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Parted
@@ -691,7 +686,6 @@ pub papo::event::Quit::nick: papo::Nick
 pub papo::event::Quit::reason: core::option::Option<alloc::string::String>
 pub papo::event::Quit::received_at: std::time::SystemTime
 pub papo::event::Quit::server_time: core::option::Option<std::time::SystemTime>
-pub papo::event::Quit::time: std::time::SystemTime
 impl core::clone::Clone for papo::event::Quit
 pub fn papo::event::Quit::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Quit
@@ -719,7 +713,6 @@ pub papo::event::Reacted::received_at: std::time::SystemTime
 pub papo::event::Reacted::removed: bool
 pub papo::event::Reacted::server_time: core::option::Option<std::time::SystemTime>
 pub papo::event::Reacted::status: core::option::Option<alloc::vec::Vec<char>>
-pub papo::event::Reacted::time: std::time::SystemTime
 impl core::clone::Clone for papo::event::Reacted
 pub fn papo::event::Reacted::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Reacted
@@ -783,7 +776,6 @@ pub papo::event::Redacted::reason: core::option::Option<alloc::string::String>
 pub papo::event::Redacted::received_at: std::time::SystemTime
 pub papo::event::Redacted::server_time: core::option::Option<std::time::SystemTime>
 pub papo::event::Redacted::status: core::option::Option<alloc::vec::Vec<char>>
-pub papo::event::Redacted::time: std::time::SystemTime
 impl core::clone::Clone for papo::event::Redacted
 pub fn papo::event::Redacted::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Redacted
@@ -869,7 +861,6 @@ pub papo::event::TopicChanged::channel: papo::ChannelName
 pub papo::event::TopicChanged::msgid: core::option::Option<papo::MessageId>
 pub papo::event::TopicChanged::received_at: std::time::SystemTime
 pub papo::event::TopicChanged::server_time: core::option::Option<std::time::SystemTime>
-pub papo::event::TopicChanged::time: std::time::SystemTime
 pub papo::event::TopicChanged::topic: core::option::Option<alloc::string::String>
 impl core::clone::Clone for papo::event::TopicChanged
 pub fn papo::event::TopicChanged::clone(&self) -> Self

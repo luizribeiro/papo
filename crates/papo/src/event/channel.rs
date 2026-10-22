@@ -10,8 +10,6 @@ use super::Source;
 pub struct Joined {
     /// The server-assigned identifier of the join line, when supplied.
     pub msgid: Option<MessageId>,
-    /// Valid server time, or the local receipt time when none was supplied.
-    pub time: SystemTime,
     /// Valid server time, when supplied.
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
@@ -52,8 +50,6 @@ pub struct MembersRefreshed {
 pub struct Parted {
     /// The server-assigned identifier of the part line, when supplied.
     pub msgid: Option<MessageId>,
-    /// Valid server time, or the local receipt time when none was supplied.
-    pub time: SystemTime,
     /// Valid server time, when supplied.
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
@@ -78,8 +74,6 @@ pub struct Parted {
 pub struct Kicked {
     /// The server-assigned identifier of the kick line, when supplied.
     pub msgid: Option<MessageId>,
-    /// Valid server time, or the local receipt time when none was supplied.
-    pub time: SystemTime,
     /// Valid server time, when supplied.
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
@@ -122,8 +116,6 @@ pub struct Invited {
 pub struct TopicChanged {
     /// The server-assigned identifier of the topic line, when supplied.
     pub msgid: Option<MessageId>,
-    /// Valid server time, or the local receipt time when none was supplied.
-    pub time: SystemTime,
     /// Valid server time, when supplied.
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
@@ -146,8 +138,6 @@ pub struct TopicChanged {
 pub struct ModeChanged {
     /// The server-assigned identifier of the mode line, when supplied.
     pub msgid: Option<MessageId>,
-    /// Valid server time, or the local receipt time when none was supplied.
-    pub time: SystemTime,
     /// Valid server time, when supplied.
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.

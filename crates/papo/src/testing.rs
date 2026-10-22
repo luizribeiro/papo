@@ -138,7 +138,6 @@ pub fn joined(channel: impl Into<ChannelName>, nick: impl Into<Nick>, own: bool)
     let nick = nick.into();
     Joined {
         msgid: None,
-        time: SystemTime::UNIX_EPOCH,
         server_time: None,
         received_at: SystemTime::UNIX_EPOCH,
         account: crate::Account::Unknown,

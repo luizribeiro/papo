@@ -10,8 +10,6 @@ use super::{Authorship, Source, Tags, TypingReason};
 pub struct Reacted {
     /// The server-assigned identifier of the reaction line, when supplied.
     pub msgid: Option<MessageId>,
-    /// Valid server time, or the local receipt time when none was supplied.
-    pub time: SystemTime,
     /// Valid server time, when supplied.
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
@@ -42,8 +40,6 @@ pub struct Reacted {
 pub struct Redacted {
     /// The server-assigned identifier of the redaction line, when supplied.
     pub msgid: Option<MessageId>,
-    /// Valid server time, or the local receipt time when none was supplied.
-    pub time: SystemTime,
     /// Valid server time, when supplied.
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.

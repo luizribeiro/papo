@@ -1192,7 +1192,6 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &mut defaults,
         &Event::Joined(crate::event::Joined {
             msgid: None,
-            time: SystemTime::UNIX_EPOCH,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
             account: crate::Account::Unknown,
@@ -1208,7 +1207,6 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &mut defaults,
         &Event::Joined(crate::event::Joined {
             msgid: None,
-            time: SystemTime::UNIX_EPOCH,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
             account: crate::Account::Unknown,
@@ -1226,7 +1224,6 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &mut defaults,
         &Event::Parted(crate::event::Parted {
             msgid: None,
-            time: SystemTime::UNIX_EPOCH,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
             account: None,
@@ -1242,7 +1239,6 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &mut defaults,
         &Event::Kicked(crate::event::Kicked {
             msgid: None,
-            time: SystemTime::UNIX_EPOCH,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
             account: None,
@@ -1264,7 +1260,6 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &mut defaults,
         &Event::Parted(crate::event::Parted {
             msgid: None,
-            time: SystemTime::UNIX_EPOCH,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
             account: None,
@@ -1281,7 +1276,6 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &mut defaults,
         &Event::Kicked(crate::event::Kicked {
             msgid: None,
-            time: SystemTime::UNIX_EPOCH,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
             account: None,

@@ -179,7 +179,6 @@ fn reaction(
     let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
     Some(Event::Reacted(Reacted {
         msgid: envelope.msgid,
-        time: envelope.time,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         account: envelope.account,
@@ -215,7 +214,6 @@ fn redaction(
     let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
     Some(Event::Redacted(Redacted {
         msgid: envelope.msgid,
-        time: envelope.time,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         account: envelope.account,
@@ -253,7 +251,6 @@ fn parted(
     let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
     Some(Event::Parted(Parted {
         msgid: envelope.msgid,
-        time: envelope.time,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         account: envelope.account,
@@ -278,7 +275,6 @@ fn quit(
     let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
     Some(Event::Quit(Quit {
         msgid: envelope.msgid,
-        time: envelope.time,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         account: envelope.account,
@@ -308,7 +304,6 @@ fn kicked(
     let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
     Some(Event::Kicked(Kicked {
         msgid: envelope.msgid,
-        time: envelope.time,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         account: envelope.account,
@@ -335,7 +330,6 @@ fn nick_changed(
     let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
     Some(Event::NickChanged(NickChanged {
         msgid: envelope.msgid,
-        time: envelope.time,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         account: envelope.account,
@@ -355,7 +349,6 @@ fn topic_changed(
     let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
     Some(Event::TopicChanged(TopicChanged {
         msgid: envelope.msgid,
-        time: envelope.time,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         account: envelope.account,
@@ -396,7 +389,6 @@ fn mode_changed(
     .collect();
     Some(Event::ModeChanged(ModeChanged {
         msgid: envelope.msgid,
-        time: envelope.time,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         account: envelope.account,
