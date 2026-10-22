@@ -670,7 +670,7 @@ struct StsActions {
 }
 
 struct PendingWrite {
-    buffer: Vec<u8>,
+    buffer: papo_proto::WireLine,
     offset: usize,
     token: Option<TransmitToken>,
 }
@@ -1429,7 +1429,7 @@ where
             *pending = session.poll_transmit_tracked().map(|transmit| {
                 let (buffer, token) = transmit.into_parts();
                 PendingWrite {
-                    buffer: buffer.to_vec(),
+                    buffer,
                     offset: 0,
                     token,
                 }

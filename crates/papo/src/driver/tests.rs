@@ -190,7 +190,7 @@ impl AsyncWrite for StallingWriter {
 async fn write_deadline_interrupts_a_socket_that_never_accepts_data() {
     let deadline = crate::rt::now_mono() + Duration::from_millis(1);
     let mut pending = super::PendingWrite {
-        buffer: b"QUIT\r\n".to_vec(),
+        buffer: Line::new("QUIT").encode().unwrap(),
         offset: 0,
         token: None,
     };
@@ -200,6 +200,31 @@ async fn write_deadline_interrupts_a_socket_that_never_accepts_data() {
             .unwrap()
     );
     assert_eq!(pending.offset, 0);
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn pending_wire_line_survives_partial_duplex_writes() {
+    let expected = b"PASS partial-write-password-5832\r\n";
+    let (mut client, mut server) = tokio::io::duplex(8);
+    let mut pending = super::PendingWrite {
+        buffer: Line::new("PASS")
+            .param(papo_core::Secret::new("partial-write-password-5832"))
+            .encode()
+            .unwrap(),
+        offset: 0,
+        token: None,
+    };
+    let mut received = vec![0; expected.len()];
+
+    let (written, read) = tokio::join!(
+        super::write_before(&mut client, &mut pending, None),
+        server.read_exact(&mut received),
+    );
+    assert!(written.unwrap());
+    read.unwrap();
+    assert_eq!(received, expected);
+    assert_eq!(pending.offset, expected.len());
+    assert_eq!(format!("{:?}", pending.buffer), "PASS <redacted>");
 }
 
 #[test]
