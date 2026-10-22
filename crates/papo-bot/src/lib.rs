@@ -101,8 +101,8 @@ impl ReplyRateLimiter {
         }
     }
 
-    fn check(&self, target: &Conversation) -> bool {
-        self.check_at(target, Instant::now())
+    fn check(&self, target: impl Into<Conversation>) -> bool {
+        self.check_at(&target.into(), Instant::now())
     }
 
     fn check_at(&self, target: &Conversation, now: Instant) -> bool {
@@ -324,7 +324,7 @@ impl Command {
         {
             return Ok(ReplyStatus::RecipientChanged);
         }
-        if !self.replies.check(&self.message.conversation) {
+        if !self.replies.check(self.message.conversation.clone()) {
             return Ok(ReplyStatus::Dropped);
         }
         self.client.reply(&self.message, text).await?;
@@ -351,7 +351,7 @@ impl Command {
         if self.recipient_changed(target) {
             return Ok(ReplyStatus::RecipientChanged);
         }
-        if !self.replies.check(&Conversation::Private(target.clone())) {
+        if !self.replies.check(Conversation::Private(target.clone())) {
             return Ok(ReplyStatus::Dropped);
         }
         let mut request = self.client.notice(target, text);
