@@ -346,3 +346,54 @@ async fn stored_sts_ports_stay_with_their_transport() {
     live_upgrade.close().await;
     assert_eq!(live_upgrade.endpoint().await, "wss://offline.test/webirc");
 }
+
+#[tokio::test(start_paused = true)]
+async fn unknown_playback_is_untyped_and_has_no_side_effects() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test")
+            .nick("papo-wire")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never())
+            .ctcp_replies(papo::CtcpReplies::default().version(Some("papo offline security test"))),
+    );
+    wire.register(&["message-tags", "batch"]).await;
+    while !matches!(events.next().await, Some(papo::Event::Connected(_))) {}
+
+    for line in [
+        ":papo-wire!~p@localhost JOIN #papo",
+        ":alice!~a@cloak.example JOIN #papo",
+        ":offline.test MODE #papo +m",
+        ":alice!~a@cloak.example TOPIC #papo :current topic",
+    ] {
+        wire.server(line).await;
+        events.next().await.expect("live setup event");
+    }
+
+    wire.server(":znc.example BATCH +playback znc.in/playback #papo")
+        .await;
+    for line in [
+        "@batch=playback :bob!~b@remote.example JOIN #papo",
+        "@batch=playback :alice!~a@cloak.example PART #papo :old part",
+        "@batch=playback :operator!~o@services.example KICK #papo papo-wire :old kick",
+        "@batch=playback :operator!~o@services.example MODE #papo -m",
+        "@batch=playback :operator!~o@services.example TOPIC #papo :stale topic",
+        "@batch=playback :alice!~a@cloak.example NICK alice-away",
+        "@batch=playback :alice!~a@cloak.example PRIVMSG papo-wire :\u{1}VERSION\u{1}",
+    ] {
+        wire.server(line).await;
+        assert!(matches!(events.next().await, Some(papo::Event::Other(_))));
+    }
+    wire.server(":znc.example BATCH -playback").await;
+
+    let state = client.state();
+    let channel = state.channel("#papo").expect("own join remains cached");
+    assert_eq!(channel.topic(), Some("current topic"));
+    assert!(channel.member("bob").is_none());
+    assert!(channel.member("alice-away").is_none());
+    assert!(channel.member("alice").is_some());
+    assert!(
+        tokio::time::timeout(Duration::from_millis(1), wire.next_sent())
+            .await
+            .is_err()
+    );
+}

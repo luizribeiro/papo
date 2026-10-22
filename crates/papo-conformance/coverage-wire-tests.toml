@@ -23,3 +23,6 @@
 "security::stored_sts_ports_stay_with_their_transport" = [
   "security.t6.sts-transport-port",
 ]
+"security::unknown_playback_is_untyped_and_has_no_side_effects" = [
+  "security.history.unknown-batch-isolation",
+]
