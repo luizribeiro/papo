@@ -1629,6 +1629,57 @@ fn labelled_join_waits_for_state_sync_before_resolving() {
 }
 
 #[test]
+fn labelled_reply_does_not_resolve_another_deferred_request() {
+    let now = Instant::now();
+    let mut session = labelled_session(now);
+    for line in [
+        ":papo!~papo@localhost JOIN #ops * :Papo Bot",
+        ":ergo.test 353 papo = #ops :@papo alice",
+        ":ergo.test 366 papo #ops :End of /NAMES list",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    while session.poll_event().is_some() {}
+    while session.poll_transmit().is_some() {}
+
+    let join = session
+        .request_with_matcher(
+            now,
+            Line::join("#ops"),
+            ResponseMatcher::Join("#ops".into()),
+        )
+        .unwrap();
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"@label=0 JOIN #ops\r\n"
+    );
+    let topic = session
+        .request_with_matcher(
+            now,
+            Line::new("TOPIC").with_params(["#ops"]),
+            ResponseMatcher::Topic("#ops".into()),
+        )
+        .unwrap();
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"@label=1 TOPIC #ops\r\n"
+    );
+
+    session.handle_line(
+        now,
+        b"@label=1 :ergo.test 482 papo #ops :You're not a channel operator",
+    );
+    let responses: Vec<_> = std::iter::from_fn(|| session.poll_event())
+        .filter_map(|event| match event {
+            Event::Response(response) => Some(response.id),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(responses, [topic]);
+    assert_ne!(join, topic);
+}
+
+#[test]
 fn labelled_join_times_out_once_when_sync_never_finishes() {
     let now = Instant::now();
     let mut session = labelled_session(now);

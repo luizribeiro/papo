@@ -3015,7 +3015,7 @@ impl Session {
                         }
                     }
                     BatchAction::Dispatch(context) => {
-                        self.dispatch_message(now, &message, &context, true);
+                        self.dispatch_message(now, &message, &context, true, None);
                     }
                 }
             }
@@ -4035,6 +4035,7 @@ impl Session {
         message: &LineRef<'_>,
         context: &DispatchContext,
         emit_unhandled: bool,
+        enclosing_request: Option<RequestId>,
     ) {
         let queued_events = self.outbox.events.len();
         let emit_response_events = self.response_emits_events(message);
@@ -4155,9 +4156,16 @@ impl Session {
                     .is_some_and(|(_, _, sent, _, _)| *sent)
             })
             && self.is_own_source(message);
+        let labelled_request = enclosing_request.or_else(|| {
+            message.tag("label").and_then(|label| {
+                self.requests
+                    .get(label.as_ref())
+                    .map(|(id, _, _, _, _)| *id)
+            })
+        });
         let labelled_response =
             self.resolve_labelled_message(message, queued_events, emit_response_events);
-        let response = self.resolve_unlabelled(now, message) || labelled_response;
+        let response = self.resolve_unlabelled(now, message, labelled_request) || labelled_response;
         if response && labelled_echo && emit_response_events {
             self.enqueue_labelled_echo(message);
         }
@@ -4440,14 +4448,14 @@ impl Session {
                 }
                 let context = DispatchContext::from_batch_type(kind);
                 for message in messages {
-                    self.dispatch_message(now, &message.as_ref(), &context, true);
+                    self.dispatch_message(now, &message.as_ref(), &context, true, None);
                 }
             }
             #[cfg(feature = "unstable")]
             BatchEvent::Bouncer(messages) => {
                 let context = DispatchContext::from_batch_type(cap::BOUNCER_NETWORKS.into());
                 for message in messages {
-                    self.dispatch_message(now, &message.as_ref(), &context, true);
+                    self.dispatch_message(now, &message.as_ref(), &context, true, None);
                 }
             }
             BatchEvent::Isupport(messages) => {
@@ -4612,7 +4620,13 @@ impl Session {
         let context = DispatchContext::from_batch_type(batch_type);
         if history.is_none() && !bouncer_batch {
             for message in &messages {
-                self.dispatch_message(now, &message.as_ref(), &context, request.is_none());
+                self.dispatch_message(
+                    now,
+                    &message.as_ref(),
+                    &context,
+                    request.is_none(),
+                    request.as_ref().map(|(id, _, _, _, _)| *id),
+                );
             }
         }
         if !emit_events {

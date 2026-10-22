@@ -79,13 +79,21 @@ impl Session {
         self.away_messages.get(&id).map(String::as_str)
     }
 
-    pub(super) fn resolve_unlabelled(&mut self, now: Instant, message: &LineRef<'_>) -> bool {
+    pub(super) fn resolve_unlabelled(
+        &mut self,
+        now: Instant,
+        message: &LineRef<'_>,
+        labelled_request: Option<RequestId>,
+    ) -> bool {
         let mapping = self.isupport.value().casemapping();
         let Some((index, complete, join_started)) = self
             .unlabelled_requests
             .iter()
             .enumerate()
             .find_map(|(index, request)| {
+                if labelled_request.is_some_and(|id| id != request.id) {
+                    return None;
+                }
                 let join_started = matches!(
                     &request.matcher,
                     ResponseMatcher::Join(channel)
