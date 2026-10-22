@@ -2,7 +2,6 @@ use papo_proto::Advertised;
 
 use crate::{RequestError, Session, cap};
 
-#[allow(unused_macros)]
 macro_rules! feature_table {
     ($consumer:ident) => {
         $consumer! {
@@ -41,22 +40,18 @@ macro_rules! feature_table {
             AccountCreation => "account creation", [Some(cap::ACCOUNT_REGISTRATION), None];
             /// Upstream network management on an IRC bouncer.
             #[cfg(feature = "unstable")]
-            #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
             Bouncer => "bouncer networks", [Some(cap::BOUNCER_NETWORKS), None];
             /// `IRCv3` draft account persistence, requiring `draft/persistence`.
             #[cfg(feature = "unstable")]
-            #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
             Persistence => "persistence", [Some(cap::PERSISTENCE), None];
             /// `IRCv3` draft Web Push, requiring `draft/webpush` or Soju's vendor
             /// capability `soju.im/webpush`.
             #[cfg(feature = "unstable")]
-            #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
             WebPush => "webpush", [Some(cap::WEBPUSH), None];
             /// `IRCv3` draft channel renaming, requiring `draft/channel-rename`.
             ChannelRename => "channel rename", [Some(cap::CHANNEL_RENAME), None];
             /// `IRCv3` draft relay messages, requiring `draft/relaymsg`.
             #[cfg(feature = "unstable")]
-            #[cfg_attr(docsrs, doc(cfg(feature = "unstable")))]
             Relay => "relaymsg", [Some(cap::RELAYMSG), None];
             /// Published `IRCv3` labelled responses, requiring `labeled-response`.
             LabeledResponse => cap::LABELED_RESPONSE.constant_str(), [Some(cap::LABELED_RESPONSE), None];
@@ -84,84 +79,21 @@ macro_rules! feature_table {
     };
 }
 
-/// Optional IRC behavior understood by the session.
-///
-/// A Feature is something your app can use or rely on that the server may not offer.
-/// Caps that only change wire details get no Feature.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-#[non_exhaustive]
-pub enum Feature {
-    /// Published `IRCv3` client-only message tags, requiring `message-tags`.
-    MessageTags,
-    /// Published `IRCv3` replies, requiring `message-tags` and an allowed `+reply` or
-    /// `+draft/reply` client tag.
-    Replies,
-    /// `IRCv3` draft message reactions, requiring `message-tags`, an allowed
-    /// `+draft/react` tag, and an allowed reply tag.
-    Reactions,
-    /// Published `IRCv3` typing notifications, requiring `message-tags` and an allowed
-    /// `+typing` client tag.
-    Typing,
-    /// `IRCv3` draft message redaction, requiring `draft/message-redaction`.
-    Redaction,
-    /// `IRCv3` draft multiline messages, requiring `draft/multiline`.
-    Multiline,
-    /// `IRCv3` draft chat history, requiring `draft/chathistory`.
-    History,
-    /// `IRCv3` draft read markers, requiring `draft/read-marker`.
-    ReadMarkers,
-    /// `IRCv3` draft metadata, requiring `draft/metadata-2`.
-    ///
-    /// Papo speaks Ergo's `draft/metadata-3` semantics; the published specification
-    /// currently uses `draft/metadata-2`.
-    Metadata,
-    /// The published IRC `MONITOR` extension, advertised through the `MONITOR`
-    /// ISUPPORT token rather than a capability.
-    Monitor,
-    /// Published `IRCv3` real-name changes, requiring `setname`.
-    SetName,
-    /// Published `IRCv3` bot mode, advertised through the `BOT` ISUPPORT token.
-    BotMode,
-    /// `IRCv3` draft account registration, requiring `draft/account-registration`.
-    AccountCreation,
-    /// Upstream network management on an IRC bouncer.
-    #[cfg(feature = "unstable")]
-    Bouncer,
-    /// `IRCv3` draft account persistence, requiring `draft/persistence`.
-    #[cfg(feature = "unstable")]
-    Persistence,
-    /// `IRCv3` draft Web Push, requiring `draft/webpush` or Soju's vendor
-    /// capability `soju.im/webpush`.
-    #[cfg(feature = "unstable")]
-    WebPush,
-    /// `IRCv3` draft channel renaming, requiring `draft/channel-rename`.
-    ChannelRename,
-    /// `IRCv3` draft relay messages, requiring `draft/relaymsg`.
-    #[cfg(feature = "unstable")]
-    Relay,
-    /// Published `IRCv3` labelled responses, requiring `labeled-response`.
-    LabeledResponse,
-    /// Published `IRCv3` live away information, requiring `away-notify`.
-    AwayTracking,
-    /// Published `IRCv3` live account information, requiring both `account-notify`
-    /// and `account-tag`.
-    AccountTracking,
-    /// Published `IRCv3` live username and hostname information, requiring `chghost`.
-    HostTracking,
-    /// Published `IRCv3` invitation notifications, requiring `invite-notify`.
-    InviteTracking,
-    /// Published IRC half-operator channel membership, advertised through `PREFIX`.
-    Halfop,
-    /// Published IRC channel ban exceptions, advertised through `EXCEPTS`.
-    Excepts,
-    /// Published IRC channel invite exceptions, advertised through `INVEX`.
-    Invex,
-    /// A published IRC dedicated quiet list in the first `CHANMODES` group.
-    Quiet,
-    /// Published `IRCv3` account extended bans, advertised through `EXTBAN` and
-    /// `ACCOUNTEXTBAN`.
-    AccountExtban,
+macro_rules! feature_enum {
+    ($($(#[$meta:meta])* $variant:ident => $name:expr, $caps:expr;)*) => {
+        /// Optional IRC behavior understood by the session.
+        ///
+        /// A Feature is something your app can use or rely on that the server may not offer.
+        /// Caps that only change wire details get no Feature.
+        #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+        #[non_exhaustive]
+        pub enum Feature {
+            $($(#[$meta])* $variant,)*
+        }
+    };
 }
+
+feature_table!(feature_enum);
 
 impl Feature {
     #[doc(hidden)]
