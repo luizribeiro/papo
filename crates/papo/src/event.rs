@@ -533,7 +533,7 @@ fn ctcp_parts(message: &LineRef<'_>) -> Option<(String, Option<String>, bool)> {
         () => return None,
     };
     let ctcp = ProtoCtcp::parse(message.param(1)?)?;
-    (reply || !ctcp.command.eq_ignore_ascii_case("ACTION")).then(|| {
+    (!ctcp.command.eq_ignore_ascii_case("ACTION")).then(|| {
         (
             ctcp.command.to_owned(),
             ctcp.params.map(str::to_owned),
@@ -776,7 +776,7 @@ impl Message {
 }
 
 impl Notice {
-    #[allow(dead_code, clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments)]
     fn from_line(
         raw: ProtoLine,
         batch_type: Option<&str>,
@@ -845,7 +845,7 @@ impl Notice {
 }
 
 impl ServerNotice {
-    #[allow(dead_code, clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments)]
     fn from_line(
         raw: ProtoLine,
         batch_type: Option<&str>,
@@ -908,6 +908,70 @@ impl ServerNotice {
     pub fn spans(&self) -> impl Iterator<Item = crate::Span<'_>> {
         papo_proto::Formatted::new(&self.raw_text)
     }
+}
+
+#[allow(dead_code, clippy::too_many_arguments)]
+fn message_event_from_line(
+    raw: ProtoLine,
+    batch_type: Option<&str>,
+    authorship: Authorship,
+    conversation: Conversation,
+    status: Option<Vec<char>>,
+    isupport: &Isupport,
+    received_at: SystemTime,
+) -> Event {
+    let server_notice = raw.as_ref().command_is("WALLOPS")
+        || matches!(
+            conversation,
+            Conversation::Server | Conversation::Broadcast(_)
+        )
+        || matches!(raw.as_ref().source(), Some(papo_proto::Source::Server(_)));
+    if server_notice {
+        return ServerNotice::from_line(
+            raw,
+            batch_type,
+            authorship,
+            conversation,
+            status,
+            isupport,
+            received_at,
+        )
+        .map_or_else(Event::Other, |notice| Event::ServerNotice(Box::new(notice)));
+    }
+    let raw = match Ctcp::from_line(
+        raw,
+        batch_type,
+        authorship,
+        conversation.clone(),
+        status.clone(),
+        isupport,
+        received_at,
+    ) {
+        Ok(ctcp) => return Event::Ctcp(ctcp),
+        Err(raw) => raw,
+    };
+    if raw.as_ref().command_is("NOTICE") {
+        return Notice::from_line(
+            raw,
+            batch_type,
+            authorship,
+            conversation,
+            status,
+            isupport,
+            received_at,
+        )
+        .map_or_else(Event::Other, |notice| Event::Notice(Box::new(notice)));
+    }
+    Message::new_with_context(
+        raw,
+        batch_type,
+        authorship,
+        conversation,
+        status,
+        isupport,
+        received_at,
+    )
+    .map_or_else(Event::Other, |message| Event::Message(Box::new(message)))
 }
 
 pub(crate) fn historical_conversation(
