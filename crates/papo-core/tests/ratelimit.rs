@@ -190,8 +190,8 @@ fn queued_len_sums_regular_and_bypass_lines() {
         .send(Line::privmsg("#papo", "first"))
         .send(Line::privmsg("#papo", "second"))
         .send(Line::privmsg("#papo", "third"))
-        .send(Line::builder("PONG").with_params(["ergo.test-4917"]))
-        .send(Line::builder("CAP").with_params(["END"]))
+        .send(Line::new("PONG").with_params(["ergo.test-4917"]))
+        .send(Line::new("CAP").with_params(["END"]))
         .inspect(|session| assert_eq!(session.queued_len(), 5))
         .ignore_rest();
 }
@@ -206,13 +206,13 @@ fn protocol_critical_commands_bypass_an_exhausted_bucket() {
         transcript = transcript.client(&format!("PRIVMSG #papo :message {index}"));
     }
     for (message, expected) in [
-        (Line::builder("CAP").with_params(["END"]), "CAP END"),
+        (Line::new("CAP").with_params(["END"]), "CAP END"),
         (
-            Line::builder("AUTHENTICATE").with_params(["+"]),
+            Line::new("AUTHENTICATE").with_params(["+"]),
             "AUTHENTICATE +",
         ),
         (
-            Line::builder("PONG").with_params(["ergo.test"]),
+            Line::new("PONG").with_params(["ergo.test"]),
             "PONG ergo.test",
         ),
     ] {
@@ -233,7 +233,7 @@ fn quit_keeps_its_place_behind_queued_messages() {
         .send(Line::privmsg("#papo", "first"))
         .send(Line::privmsg("#papo", "second"))
         .send(Line::privmsg("#papo", "third"))
-        .send(Line::builder("QUIT").with_params(["shutting down"]))
+        .send(Line::new("QUIT").with_params(["shutting down"]))
         .no_client()
         .advance(Duration::from_millis(500))
         .client("PRIVMSG #papo first")

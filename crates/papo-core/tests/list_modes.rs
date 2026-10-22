@@ -9,7 +9,7 @@ fn request(session: &mut Session, now: Instant, mode: ListMode) -> RequestId {
     session
         .request_with_matcher(
             now,
-            Line::builder("MODE").with_params(["#papo", mode_letter(mode)]),
+            Line::new("MODE").with_params(["#papo", mode_letter(mode)]),
             ResponseMatcher::__list_mode("#papo".into(), mode),
         )
         .unwrap()

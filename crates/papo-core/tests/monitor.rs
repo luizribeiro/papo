@@ -665,7 +665,7 @@ fn processes_the_literal_monitor_cache_bound() {
 #[test]
 fn user_requested_monitor_list_replies_remain_messages() {
     registered()
-        .send(Line::builder("MONITOR").with_params(["L"]))
+        .send(Line::new("MONITOR").with_params(["L"]))
         .client("MONITOR L")
         .server(":ergo.test 732 papo :alice,bob")
         .event(|event| matches!(event, Event::Line(message) if message.as_ref().raw_command() == "732"))

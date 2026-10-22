@@ -49,7 +49,7 @@ fn fill_labelled_requests(session: &mut Session, now: Instant, count: usize) {
         session
             .request(
                 now,
-                Line::builder("WHOIS").with_params([format!("operator{index}")]),
+                Line::new("WHOIS").with_params([format!("operator{index}")]),
             )
             .unwrap();
     }

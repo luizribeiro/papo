@@ -21,7 +21,7 @@ fn routes_soju_search_only_to_its_opening_request() {
     let id = session
         .request_silent(
             now,
-            Line::builder("SEARCH").with_params(["in=#papo", "text=release"]),
+            Line::new("SEARCH").with_params(["in=#papo", "text=release"]),
         )
         .unwrap();
     assert_eq!(
