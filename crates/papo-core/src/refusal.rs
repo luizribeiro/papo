@@ -1,5 +1,16 @@
 use papo_proto::Numeric;
 
+#[cfg(feature = "unstable")]
+mod unstable;
+#[cfg(not(feature = "unstable"))]
+mod unstable {
+    use super::Refusal;
+
+    pub(super) const fn from_standard(_command: &str, _code: &str) -> Refusal {
+        Refusal::Other
+    }
+}
+
 /// Stable classification of a server refusal.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
@@ -348,41 +359,7 @@ impl Refusal {
             ("MARKREAD", "NEED_MORE_PARAMS") => Self::MissingParameters,
             ("MARKREAD", "INTERNAL_ERROR") => Self::InternalError,
             (_, "INVALID_UTF8") => Self::InvalidUtf8,
-            #[cfg(feature = "unstable")]
-            ("BOUNCER", "INVALID_NETID") => Self::InvalidNetwork,
-            #[cfg(feature = "unstable")]
-            ("BOUNCER", "INVALID_ATTRIBUTE") => Self::InvalidAttribute,
-            #[cfg(feature = "unstable")]
-            ("BOUNCER", "READ_ONLY_ATTRIBUTE") => Self::ReadOnlyAttribute,
-            #[cfg(feature = "unstable")]
-            ("BOUNCER", "UNKNOWN_ATTRIBUTE") => Self::UnknownAttribute,
-            #[cfg(feature = "unstable")]
-            ("BOUNCER", "NEED_ATTRIBUTE") => Self::MissingAttribute,
-            #[cfg(feature = "unstable")]
-            ("RELAYMSG", "NOT_ENABLED") => Self::RelayDisabled,
-            #[cfg(feature = "unstable")]
-            ("RELAYMSG", "PRIVS_NEEDED") => Self::RelayPrivilegesNeeded,
-            #[cfg(feature = "unstable")]
-            ("RELAYMSG", "BLANK_MSG") => Self::BlankRelayMessage,
-            #[cfg(feature = "unstable")]
-            ("RELAYMSG", "INVALID_NICK") => Self::InvalidRelayNickname,
-            #[cfg(feature = "unstable")]
-            ("RELAYMSG", "BANNED") => Self::BannedRelaySender,
-            #[cfg(feature = "unstable")]
-            ("WEBPUSH", "INVALID_PARAMS") => Self::InvalidWebPushParameters,
-            #[cfg(feature = "unstable")]
-            ("WEBPUSH", "INTERNAL_ERROR") => Self::InternalError,
-            #[cfg(feature = "unstable")]
-            ("WEBPUSH", "MAX_REGISTRATIONS") => Self::WebPushRegistrationLimit,
-            #[cfg(feature = "unstable")]
-            ("PERSISTENCE", "ACCOUNT_REQUIRED") => Self::AccountRequired,
-            #[cfg(feature = "unstable")]
-            ("PERSISTENCE", "INVALID_PARAMETERS" | "INVALID_PARAMS") => {
-                Self::InvalidPersistenceParameters
-            }
-            #[cfg(feature = "unstable")]
-            ("PERSISTENCE", "INTERNAL_ERROR") => Self::InternalError,
-            _ => Self::Other,
+            _ => unstable::from_standard(command.as_str(), code.as_str()),
         }
     }
 
