@@ -7,20 +7,19 @@
 
 use std::{
     collections::BTreeMap,
-    env, fs,
+    fs,
     future::Future,
     ops::Deref,
     panic::{AssertUnwindSafe, catch_unwind},
     path::Path,
     pin::Pin,
-    process::{self, ExitCode},
     time::Duration,
 };
 
-use libtest_mimic::{Arguments, Completion, Conclusion, Failed, FormatSetting, Trial};
+use libtest_mimic::{Completion, Failed, Trial};
 use papo::{Client, Endpoint, Event, Events, Isupport, isupport::Advertised};
 use papo_core::{Capabilities, Sasl};
-use papo_test_server::{ServerInfo, from_env};
+use papo_test_server::ServerInfo;
 use tokio::{runtime::Builder, task::JoinHandle, time::timeout};
 
 mod peer;
@@ -114,54 +113,6 @@ impl EventSource for Events {
     }
 }
 
-/// Runs the live conformance test binary.
-#[must_use]
-pub fn run() -> ExitCode {
-    let arguments = Arguments::from_args();
-    let server = from_env();
-    let specs = scenario_specs();
-    let server_name = env::var("PAPO_TEST_PROFILE")
-        .or_else(|_| env::var("PAPO_TEST_SERVER"))
-        .unwrap_or_else(|_| "ergo-default".into());
-    let known_failures =
-        load_known_failures(&server_name).unwrap_or_else(|error| startup_error(&error));
-    let wanted_caps = specs
-        .iter()
-        .flat_map(|spec| spec.requires.caps)
-        .map(|requirement| requirement.name);
-    let probe = runtime()
-        .block_on(probe(&server, wanted_caps))
-        .unwrap_or_else(|error| startup_error(&error));
-    let trials = specs
-        .iter()
-        .copied()
-        .map(|spec| {
-            trial(
-                spec,
-                server.clone(),
-                &probe,
-                known_failures.get(spec.name).cloned(),
-                server_name.clone(),
-                arguments.format == Some(FormatSetting::Json),
-            )
-        })
-        .collect();
-    match run_trials(&arguments, trials) {
-        Ok(conclusion) => conclusion.exit_code(),
-        Err(error) => {
-            eprintln!("conformance startup error: {error}");
-            ExitCode::FAILURE
-        }
-    }
-}
-
-fn run_trials(arguments: &Arguments, trials: Vec<Trial>) -> Result<Conclusion, String> {
-    if trials.is_empty() {
-        return Err("conformance suite contains no scenarios".into());
-    }
-    Ok(libtest_mimic::run(arguments, trials))
-}
-
 fn scenario_specs() -> Vec<ScenarioSpec> {
     #[cfg(test)]
     return Vec::new();
@@ -171,7 +122,7 @@ fn scenario_specs() -> Vec<ScenarioSpec> {
     debug_assert!(
         scenarios
             .iter()
-            .all(|scenario| { scenario.covers.iter().all(|behavior| !behavior.is_empty()) })
+            .all(|scenario| scenario.covers.iter().all(|behavior| !behavior.is_empty()))
     );
     #[cfg(not(test))]
     scenarios
@@ -189,6 +140,7 @@ pub fn scenario_coverage() -> Vec<ScenarioCoverage> {
         .collect()
 }
 
+#[expect(dead_code, reason = "removed with the remaining custom trial adapter")]
 fn trial(
     spec: ScenarioSpec,
     server: ServerInfo,
@@ -604,11 +556,6 @@ fn runtime() -> tokio::runtime::Runtime {
         .expect("current-thread tokio runtime")
 }
 
-fn startup_error(error: &str) -> ! {
-    eprintln!("conformance startup error: {error}");
-    process::exit(1)
-}
-
 #[cfg(test)]
 mod tests {
     use std::{
@@ -621,13 +568,13 @@ mod tests {
     use papo_core::Capabilities;
     use papo_proto::Isupport;
 
-    use libtest_mimic::{Arguments, Completion, Failed, Trial};
+    use libtest_mimic::{Completion, Failed};
 
     use super::unstable_feature_for_cap;
     use super::{
         CapRequirement, Event, EventSource, Requirements, Scenario, expect_event,
-        fixture_completion, json_string, known_failure_verdict, load_known_failures_from,
-        run_trials, runtime, scenario_status,
+        fixture_completion, json_string, known_failure_verdict, load_known_failures_from, runtime,
+        scenario_status,
     };
 
     struct TestDirectory(PathBuf);
@@ -727,27 +674,6 @@ mod tests {
             .err()
             .unwrap();
         assert_eq!(error.message(), Some("timed out waiting for an event"));
-    }
-
-    #[test]
-    fn harness_rejects_an_empty_trial_list() {
-        let arguments = Arguments::from_iter(["papo-conformance", "--test-threads=1"]);
-        assert_eq!(
-            run_trials(&arguments, Vec::new()).unwrap_err(),
-            "conformance suite contains no scenarios"
-        );
-    }
-
-    #[test]
-    fn harness_executes_failing_trials() {
-        let arguments = Arguments::from_iter(["papo-conformance", "--test-threads=1"]);
-        let trials = vec![Trial::test("deliberate_failure", || {
-            Err("deliberate harness failure".into())
-        })];
-        let conclusion = run_trials(&arguments, trials).unwrap();
-        assert!(conclusion.has_failed());
-        assert_eq!(conclusion.num_failed, 1);
-        assert_eq!(conclusion.num_passed, 0);
     }
 
     #[test]
