@@ -57,7 +57,6 @@ pub enum Chat {
 }
 
 impl Chat {
-    #[allow(dead_code)]
     pub(crate) fn from_conversation(conversation: Conversation) -> Option<Self> {
         match conversation {
             Conversation::Channel(channel) => Some(Self::Channel(channel)),
@@ -491,41 +490,6 @@ impl Message {
             conversation,
             status,
             isupport,
-            received_at,
-        )
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn from_historical(
-        message: ProtoLine,
-        authorship: Authorship,
-        history_conversation: Option<&Conversation>,
-        client: &Client,
-        received_at: SystemTime,
-    ) -> Result<Self, ProtoLine> {
-        let snapshot = client.state();
-        let Ok((status, conversation)) = papo_core::classify_conversation(
-            &message.as_ref(),
-            snapshot.nick(),
-            snapshot.isupport().inner(),
-        ) else {
-            return Err(message);
-        };
-        let conversation = historical_conversation(
-            &message.as_ref(),
-            authorship,
-            conversation,
-            history_conversation,
-            snapshot.nick(),
-            snapshot.casemapping(),
-        );
-        Self::new_with_context(
-            message,
-            None,
-            authorship,
-            conversation,
-            status,
-            snapshot.isupport().inner(),
             received_at,
         )
     }
@@ -1872,7 +1836,7 @@ mod tests {
         Authorship, Chat, Conversation, CoreEvent, Event, Message as ChatMessage, MessageId,
         MessageKind, MetadataChanged, ModeAction, ModeArg, NoticeKind, ServerNoticeKind,
         ServerNoticeTarget, Source, StandardReplyKind, Warning, ctcp_parts,
-        from_core as from_core_with_mapping, message_event_from_line,
+        from_core as from_core_with_mapping, historical_message_event, message_event_from_line,
     };
     use crate::Visibility;
     use papo_core::{
@@ -2855,15 +2819,16 @@ mod tests {
         let client = crate::Client::disconnected_for_test();
         let batch = Conversation::Private(Casemapping::default().nick("alice"));
         for history_conversation in [Some(&batch), None] {
-            let message = ChatMessage::from_historical(
+            let Event::Message(message) = historical_message_event(
                 Line::privmsg("papo_away", "can you send me the invoice?")
                     .with_source("alice!~a@host"),
                 Authorship::Other,
                 history_conversation,
                 &client,
                 UNIX_EPOCH,
-            )
-            .unwrap();
+            ) else {
+                panic!("expected a historical message")
+            };
             assert!(matches!(
                 message.conversation,
                 Chat::Private(ref nick) if nick == "alice"

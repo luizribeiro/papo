@@ -903,6 +903,19 @@ mod tests {
         }
     }
 
+    fn historical_message(line: Line, received_at: SystemTime) -> Box<crate::Message> {
+        let PageEvent::Message(message) = crate::event_impl::historical_message_event(
+            line,
+            crate::Authorship::Unknown,
+            None,
+            &crate::Client::disconnected_for_test(),
+            received_at,
+        ) else {
+            panic!("expected a historical message")
+        };
+        message
+    }
+
     #[test]
     fn converts_ids_timestamps_and_message_events() {
         assert!(
@@ -911,19 +924,15 @@ mod tests {
         assert!(
             matches!(HistoryReference::from(UNIX_EPOCH).0, MsgRef::Timestamp(time) if time == UNIX_EPOCH)
         );
-        let event = crate::Message::from_historical(
+        let event = historical_message(
             Line::privmsg("#papo", "earlier")
                 .with_source("emily!~emily@localhost")
                 .with_tag("msgid", "RfcBTzyxY120004"),
-            crate::Authorship::Unknown,
-            None,
-            &crate::Client::disconnected_for_test(),
             UNIX_EPOCH,
-        )
-        .unwrap();
+        );
         let page = HistoryPage {
             conversation: (&event.conversation).into(),
-            items: vec![Event::Message(Box::new(event))],
+            items: vec![Event::Message(event)],
             reason: HistoryReason::Requested,
             end: false,
         };
@@ -933,20 +942,16 @@ mod tests {
 
     #[test]
     fn message_without_msgid_uses_its_time_as_reference() {
-        let event = crate::Message::from_historical(
+        let event = historical_message(
             Line::privmsg("#papo", "soju backlog")
                 .with_source("emily!~emily@localhost")
                 .with_tag("time", "1970-01-01T00:00:00.000Z"),
-            crate::Authorship::Unknown,
-            None,
-            &crate::Client::disconnected_for_test(),
             UNIX_EPOCH,
-        )
-        .unwrap();
+        );
 
         let page = HistoryPage {
             conversation: (&event.conversation).into(),
-            items: vec![Event::Message(Box::new(event))],
+            items: vec![Event::Message(event)],
             reason: HistoryReason::Requested,
             end: false,
         };
@@ -957,18 +962,14 @@ mod tests {
     #[test]
     fn page_cursors_never_use_local_receipt_time() {
         let received_at = UNIX_EPOCH + Duration::from_secs(1_792_520_531);
-        let event = crate::Message::from_historical(
+        let event = historical_message(
             Line::privmsg("#papo", "backlog without server metadata")
                 .with_source("emily!~emily@cloak.example"),
-            crate::Authorship::Unknown,
-            None,
-            &crate::Client::disconnected_for_test(),
             received_at,
-        )
-        .unwrap();
+        );
         let page = HistoryPage {
             conversation: (&event.conversation).into(),
-            items: vec![Event::Message(Box::new(event))],
+            items: vec![Event::Message(event)],
             reason: HistoryReason::Replay,
             end: false,
         };
