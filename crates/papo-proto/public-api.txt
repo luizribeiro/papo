@@ -849,7 +849,7 @@ pub fn papo_proto::Line::builder(impl core::convert::Into<alloc::string::String>
 pub fn papo_proto::Line::command(&self) -> &str
 pub fn papo_proto::Line::get(&self, usize) -> core::option::Option<&str>
 pub fn papo_proto::Line::join(impl core::convert::Into<alloc::string::String>) -> Self
-pub fn papo_proto::Line::new<C, P, S>(C, P) -> Self where C: core::convert::Into<alloc::string::String>, P: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
+pub fn papo_proto::Line::new(impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo_proto::Line::notice(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo_proto::Line::numeric(&self) -> core::option::Option<u16>
 pub fn papo_proto::Line::param(self, impl core::convert::Into<alloc::string::String>) -> Self

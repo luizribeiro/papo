@@ -301,29 +301,19 @@ pub struct Line {
 }
 
 impl Line {
-    /// Creates a line from a command and its parameters.
-    pub fn new<C, P, S>(command: C, params: P) -> Self
-    where
-        C: Into<String>,
-        P: IntoIterator<Item = S>,
-        S: Into<String>,
-    {
-        Self {
-            tags: Vec::new(),
-            source: None,
-            command: command.into(),
-            params: params.into_iter().map(Into::into).collect(),
-        }
-    }
-
     /// Starts a line with no parameters.
-    pub fn builder(command: impl Into<String>) -> Self {
+    pub fn new(command: impl Into<String>) -> Self {
         Self {
             tags: Vec::new(),
             source: None,
             command: command.into(),
             params: Vec::new(),
         }
+    }
+
+    /// Starts a line with no parameters.
+    pub fn builder(command: impl Into<String>) -> Self {
+        Self::new(command)
     }
 
     /// Appends one parameter to the line.
@@ -397,32 +387,32 @@ impl Line {
 
     /// Creates a `PRIVMSG` for a target.
     pub fn privmsg(target: impl Into<String>, text: impl Into<String>) -> Self {
-        Self::new("PRIVMSG", [target.into(), text.into()])
+        Self::new("PRIVMSG").param(target).param(text)
     }
 
     /// Creates a `NOTICE` for a target.
     pub fn notice(target: impl Into<String>, text: impl Into<String>) -> Self {
-        Self::new("NOTICE", [target.into(), text.into()])
+        Self::new("NOTICE").param(target).param(text)
     }
 
     /// Creates a `TAGMSG` for a target.
     pub fn tagmsg(target: impl Into<String>) -> Self {
-        Self::new("TAGMSG", [target.into()])
+        Self::new("TAGMSG").param(target)
     }
 
     /// Creates a `JOIN` for a channel or comma-separated channel list.
     pub fn join(channels: impl Into<String>) -> Self {
-        Self::new("JOIN", [channels.into()])
+        Self::new("JOIN").param(channels)
     }
 
     /// Creates a `PART` without a reason.
     pub fn part(channels: impl Into<String>) -> Self {
-        Self::new("PART", [channels.into()])
+        Self::new("PART").param(channels)
     }
 
     /// Creates a `PART` with a reason.
     pub fn part_with_reason(channels: impl Into<String>, reason: impl Into<String>) -> Self {
-        Self::new("PART", [channels.into(), reason.into()])
+        Self::new("PART").param(channels).param(reason)
     }
 
     /// Adds or replaces a tag, retaining its first insertion position.
