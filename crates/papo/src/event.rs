@@ -251,6 +251,13 @@ pub(crate) fn incoming_from_core(
     isupport: &Isupport,
     received_at: SystemTime,
 ) -> Event {
+    if received.batch_type().is_some_and(|kind| {
+        kind != crate::cap::LABELED_RESPONSE.as_str()
+            && kind != crate::cap::MULTILINE.as_str()
+            && !matches!(kind, "netsplit" | "netjoin")
+    }) {
+        return Event::Other(received.into_line());
+    }
     let conversation = received.conversation().cloned().filter(|_| {
         ctcp_parts(&received.as_ref()).is_some() && received.as_ref().source().is_some()
     });
@@ -509,7 +516,7 @@ pub(crate) fn historical_conversation(
 #[allow(clippy::too_many_arguments)]
 fn message_metadata(
     message: &LineRef<'_>,
-    batch_type: Option<&str>,
+    _batch_type: Option<&str>,
     authorship: Authorship,
     conversation: Conversation,
     status: Option<Vec<char>>,
@@ -532,7 +539,6 @@ fn message_metadata(
     let relayed_by = tag_owned(message, &[crate::cap::RELAYMSG.as_str()])
         .map(|nick| isupport.casemapping().nick(nick));
     let oper_tag = message.tags().find(|(key, _)| *key == "draft/oper");
-    let replay = batch_type.is_some_and(|kind| !matches!(kind, "netsplit" | "netjoin"));
     Some(MessageMetadata {
         actor,
         authorship,
@@ -547,7 +553,7 @@ fn message_metadata(
         relayed_by,
         is_bot: tags.contains("bot"),
         oper: oper_tag.and_then(|(_, value)| value.map(std::borrow::Cow::into_owned)),
-        origin: if replay { Origin::Replay } else { Origin::Live },
+        origin: Origin::Live,
         tags,
     })
 }
@@ -1828,7 +1834,7 @@ mod tests {
         ChatMessage::from_core(message, &Isupport::default(), UNIX_EPOCH).unwrap()
     }
 
-    fn batched_message(kind: &str, command: &str) -> super::Message {
+    fn batched_event(kind: &str, command: &str) -> Event {
         let now = Instant::now();
         let mut session = Session::new(Config::default().max_batch_lines(0));
         session.handle_line(now, format!("BATCH +b {kind} #papo").as_bytes());
@@ -1836,7 +1842,10 @@ mod tests {
         let Some(core) = session.poll_event() else {
             panic!("expected batch fallback")
         };
-        mapped_message(core)
+        let CoreEvent::Line(line) = from_core(core) else {
+            panic!("batch fallback was not a line")
+        };
+        super::incoming_from_core(line, &Isupport::default(), UNIX_EPOCH)
     }
 
     fn labelled_session(now: Instant, config: Config) -> Session {
@@ -2105,15 +2114,18 @@ mod tests {
     }
 
     #[test]
-    fn classifies_fallback_origin_by_resolved_batch_type() {
-        for kind in ["draft/multiline", "znc.in/playback", "vendor/sync"] {
-            let replay = batched_message(kind, "PRIVMSG #papo :earlier");
-            assert_eq!(replay.origin, Origin::Replay);
-            assert!(!replay.is_live());
+    fn unsupported_batch_lines_stay_untyped() {
+        for kind in ["znc.in/playback", "vendor/sync"] {
+            assert!(matches!(
+                batched_event(kind, "PRIVMSG #papo :earlier"),
+                Event::Other(line) if line.as_ref().command_is("PRIVMSG")
+            ));
         }
 
-        for kind in ["netsplit", "netjoin"] {
-            let live = batched_message(kind, "NOTICE papo :live batch");
+        for kind in ["draft/multiline", "netsplit", "netjoin"] {
+            let Event::Message(live) = batched_event(kind, "NOTICE papo :live batch") else {
+                panic!("expected live fallback message")
+            };
             assert_eq!(live.origin, Origin::Live);
             assert!(live.is_live());
         }
