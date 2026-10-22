@@ -858,6 +858,43 @@ fn only_live_membership_aggregates_change_channel_state() {
 }
 
 #[test]
+fn unsupported_batch_lines_neither_change_state_nor_trigger_replies() {
+    let now = Instant::now();
+    let mut session = Session::new(
+        Config::default().ctcp(
+            papo_core::CtcpReplies::default()
+                .version(Some("papo test build"))
+                .rate(RateLimit::unlimited()),
+        ),
+    );
+    session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
+    while session.poll_event().is_some() {}
+    let generation = session.state_generation();
+
+    session.handle_line(now, b":znc.example BATCH +playback znc.in/playback #papo");
+    for line in [
+        "@batch=playback :alice!~a@remote JOIN #papo",
+        "@batch=playback :papo!~p@localhost PART #papo :old",
+        "@batch=playback :alice!~a@remote KICK #papo papo :old",
+        "@batch=playback :alice!~a@remote MODE #papo +o alice",
+        "@batch=playback :alice!~a@remote TOPIC #papo :old topic",
+        "@batch=playback :alice!~a@remote NICK alice-away",
+        "@batch=playback :alice!~a@remote PRIVMSG papo :\x01VERSION\x01",
+    ] {
+        session.handle_line(now, line.as_bytes());
+        assert!(matches!(
+            session.poll_event(),
+            Some(Event::Line(line)) if line.batch_type() == Some("znc.in/playback")
+        ));
+    }
+    session.handle_line(now, b":znc.example BATCH -playback");
+
+    assert_eq!(session.state_generation(), generation);
+    assert_eq!(session.poll_transmit(), None);
+    assert_eq!(session.poll_event(), None);
+}
+
+#[test]
 fn netjoin_for_our_nick_waits_for_requested_names() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().wanted_caps(["no-implicit-names"]));

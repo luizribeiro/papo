@@ -289,7 +289,12 @@ impl Batches {
             }
             return BatchAction::Complete(events);
         }
-        if aggregates.is_empty() {
+        if aggregates.is_empty() && context.batch_type.is_some() {
+            BatchAction::Complete(vec![BatchEvent::Line {
+                line: message.to_owned(),
+                batch_type: context.batch_type,
+            }])
+        } else if aggregates.is_empty() {
             BatchAction::Dispatch(context)
         } else {
             BatchAction::Consumed
@@ -667,7 +672,11 @@ mod tests {
     fn handle(batches: &mut Batches, line: &str) -> (bool, Option<String>) {
         let message = LineRef::parse(line).unwrap();
         match batches.handle(Instant::now(), &message, usize::MAX, false) {
-            BatchAction::Consumed | BatchAction::Complete(_) => (false, None),
+            BatchAction::Complete(mut events) => match events.pop() {
+                Some(BatchEvent::Line { batch_type, .. }) => (false, batch_type),
+                _ => (false, None),
+            },
+            BatchAction::Consumed => (false, None),
             BatchAction::Dispatch(context) => (true, context.batch_type().map(str::to_owned)),
         }
     }
@@ -689,11 +698,11 @@ mod tests {
         );
         assert_eq!(
             handle(&mut batches, "@batch=i :irc.example NOTICE papo :nested"),
-            (true, Some("nested".into()))
+            (false, Some("nested".into()))
         );
         assert_eq!(
             handle(&mut batches, "@batch=other :irc.example NOTICE papo :other"),
-            (true, Some("vendor/other".into()))
+            (false, Some("vendor/other".into()))
         );
     }
 

@@ -304,9 +304,9 @@ fn configures_every_ping_and_version_combination_from_both_starting_points() {
             Some("ferrobot 2.3"),
             true,
         ),
-     ] {
-         assert_ctcp_combination(replies, version, ping);
-     }
+    ] {
+        assert_ctcp_combination(replies, version, ping);
+    }
 }
 
 #[test]
