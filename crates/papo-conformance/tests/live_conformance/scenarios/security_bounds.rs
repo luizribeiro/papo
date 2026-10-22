@@ -202,3 +202,56 @@ async fn unsolicited_monitor_presence_stays_inert(_s: Scenario) -> papo_testing:
     assert_eq!(client.state().monitor_online().count(), 1);
     Ok(())
 }
+
+/// queues every autojoin after the correlated-request limit is full
+#[scenario(covers = ["security.h7.rejoin-pending-bound"])]
+async fn large_autojoin_set_reaches_the_wire(_s: Scenario) -> papo_testing::Result<()> {
+    let channels = (0..300).map(|index| format!("#audit{index:03}"));
+    let (_client, mut events, mut wire) = papo_testing::wire(
+        papo::Client::builder("irc://offline.test")
+            .nick("papo-wire")
+            .request_caps(["labeled-response"])
+            .autojoin(channels)
+            .rate_limit(papo::RateLimit::unlimited()),
+    );
+    wire.register(&["labeled-response"]).await;
+    connected(&mut events).await;
+    for index in 0..300 {
+        let sent = wire.next_sent().await;
+        let join = sent
+            .strip_prefix("JOIN ")
+            .or_else(|| sent.split_once(" JOIN ").map(|(_, join)| join))
+            .unwrap_or_else(|| panic!("expected JOIN, got {sent}"));
+        assert_eq!(join, format!("#audit{index:03}"));
+        assert_eq!(sent.starts_with("@label="), index < 256);
+    }
+    Ok(())
+}
+
+/// restores a runtime away message only after the server confirms it
+#[scenario(covers = ["security.d7.away-reconnect"])]
+async fn confirmed_runtime_away_survives_reconnect(_s: Scenario) -> papo_testing::Result<()> {
+    let (client, mut events, mut wire) = papo_testing::wire(
+        papo::Client::builder("irc://offline.test")
+            .nick("papo-wire")
+            .rate_limit(papo::RateLimit::unlimited()),
+    );
+    wire.register(&[]).await;
+    connected(&mut events).await;
+    let away = tokio::spawn({
+        let client = client.clone();
+        async move { client.set_away("reviewing audit logs").await }
+    });
+    assert_eq!(wire.next_sent().await, "AWAY :reviewing audit logs");
+    wire.server(":offline.test 306 papo-wire :You have been marked as being away")
+        .await;
+    away.await.unwrap()?;
+
+    client.reconnect().await?;
+    while !matches!(events.next().await, Some(Event::Disconnected(_))) {}
+    wire.close().await;
+    wire.register(&[]).await;
+    connected(&mut events).await;
+    assert_eq!(wire.next_sent().await, "AWAY :reviewing audit logs");
+    Ok(())
+}
