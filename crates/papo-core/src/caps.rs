@@ -49,10 +49,8 @@ impl Caps {
             };
             self.advertised.remove(&victim);
         }
-        if let Some(value) = &mut value
-            && value.len() > MAX_CAP_VALUE_LEN
-        {
-            let mut boundary = MAX_CAP_VALUE_LEN;
+        if let Some(value) = &mut value {
+            let mut boundary = value.len().min(MAX_CAP_VALUE_LEN);
             while !value.is_char_boundary(boundary) {
                 boundary -= 1;
             }
@@ -466,5 +464,70 @@ mod tests {
         let (name, value) = caps.advertised.get_key_value(&cap::CHATHISTORY).unwrap();
         assert_eq!(name.as_str(), "draft/chathistory");
         assert_eq!(value, &None);
+    }
+
+    #[test]
+    fn advertised_cap_updates_obey_new_and_protected_rules() {
+        let mut caps = Caps::default();
+        caps.insert_advertised("server-time", Some("old".to_owned()), false, true);
+        caps.insert_advertised("server-time", Some("iso8601".to_owned()), false, false);
+        caps.insert_advertised("vendor.example/unannounced", None, false, false);
+        assert_eq!(caps.advertised.len(), 1);
+        assert_eq!(caps.advertised["server-time"].as_deref(), Some("iso8601"));
+
+        for (count, retained) in [(511, 511), (512, 512), (513, 512)] {
+            let mut bounded = Caps::default();
+            for index in 0..count {
+                bounded.insert_advertised(
+                    &format!("vendor.example/cap-{index}"),
+                    None,
+                    false,
+                    true,
+                );
+            }
+            assert_eq!(bounded.advertised.len(), retained, "input count {count}");
+        }
+
+        for index in 0..512 {
+            caps.insert_advertised(&format!("vendor.example/cap-{index}"), None, false, true);
+        }
+        caps.insert_advertised("vendor.example/overflow", None, false, true);
+        assert_eq!(caps.advertised.len(), 512);
+        assert!(!caps.advertised.contains_key("vendor.example/overflow"));
+
+        caps.insert_advertised("sasl", Some("PLAIN".to_owned()), true, true);
+        assert_eq!(caps.advertised.len(), 512);
+        assert_eq!(caps.advertised["sasl"].as_deref(), Some("PLAIN"));
+    }
+
+    #[test]
+    fn advertised_cap_values_keep_literal_byte_boundaries() {
+        for (value, expected) in [
+            ("x".repeat(4_095), "x".repeat(4_095)),
+            ("x".repeat(4_096), "x".repeat(4_096)),
+            ("x".repeat(4_097), "x".repeat(4_096)),
+            (format!("{}é", "x".repeat(4_095)), "x".repeat(4_095)),
+        ] {
+            let mut caps = Caps::default();
+            caps.insert_advertised("vendor.example/value", Some(value), false, true);
+            assert_eq!(
+                caps.advertised["vendor.example/value"].as_deref(),
+                Some(expected.as_str())
+            );
+        }
+    }
+
+    #[test]
+    fn wanted_caps_include_only_configured_names_and_sasl() {
+        let configured = Config::default().wanted_caps(["draft/chathistory"]);
+        let credentials = Config::default().sasl(crate::Sasl::plain("alice", "hunter2"));
+        for (config, name, expected) in [
+            (&configured, "chathistory", true),
+            (&configured, "vendor.example/unwanted", false),
+            (&credentials, "sasl", true),
+            (&credentials, "vendor.example/unwanted", false),
+        ] {
+            assert_eq!(wanted(config, name), expected, "{name}");
+        }
     }
 }
