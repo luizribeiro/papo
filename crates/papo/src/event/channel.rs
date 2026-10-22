@@ -12,6 +12,7 @@ pub struct Joined {
     pub msgid: Option<MessageId>,
     /// Valid server time, or the local receipt time when none was supplied.
     pub time: SystemTime,
+    pub(crate) server_time: Option<SystemTime>,
     /// The joining user's known account state.
     pub account: Account,
     /// The joining user's real name, when supplied by the server.
@@ -50,6 +51,7 @@ pub struct Parted {
     pub msgid: Option<MessageId>,
     /// Valid server time, or the local receipt time when none was supplied.
     pub time: SystemTime,
+    pub(crate) server_time: Option<SystemTime>,
     /// The actor's authenticated account, when tagged.
     pub account: Option<AccountName>,
     /// The departing user.
@@ -72,6 +74,7 @@ pub struct Kicked {
     pub msgid: Option<MessageId>,
     /// Valid server time, or the local receipt time when none was supplied.
     pub time: SystemTime,
+    pub(crate) server_time: Option<SystemTime>,
     /// The actor's authenticated account, when tagged.
     pub account: Option<AccountName>,
     /// The affected channel.
@@ -112,6 +115,7 @@ pub struct TopicChanged {
     pub msgid: Option<MessageId>,
     /// Valid server time, or the local receipt time when none was supplied.
     pub time: SystemTime,
+    pub(crate) server_time: Option<SystemTime>,
     /// The actor's authenticated account, when tagged.
     pub account: Option<AccountName>,
     /// The affected channel.
@@ -132,6 +136,7 @@ pub struct ModeChanged {
     pub msgid: Option<MessageId>,
     /// Valid server time, or the local receipt time when none was supplied.
     pub time: SystemTime,
+    pub(crate) server_time: Option<SystemTime>,
     /// The actor's authenticated account, when tagged.
     pub account: Option<AccountName>,
     /// The user or channel whose modes changed.

@@ -1192,6 +1192,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &Event::Joined(crate::event::Joined {
             msgid: None,
             time: SystemTime::UNIX_EPOCH,
+            server_time: None,
             account: crate::Account::Unknown,
             realname: None,
             channel: test_channel("#papo"),
@@ -1206,6 +1207,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &Event::Joined(crate::event::Joined {
             msgid: None,
             time: SystemTime::UNIX_EPOCH,
+            server_time: None,
             account: crate::Account::Unknown,
             realname: None,
             channel: test_channel("#visitors"),
@@ -1222,6 +1224,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &Event::Parted(crate::event::Parted {
             msgid: None,
             time: SystemTime::UNIX_EPOCH,
+            server_time: None,
             account: None,
             actor: crate::__testing::user_source(test_nick("alice"), None, None),
             channel: test_channel("#staff"),
@@ -1236,6 +1239,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &Event::Kicked(crate::event::Kicked {
             msgid: None,
             time: SystemTime::UNIX_EPOCH,
+            server_time: None,
             account: None,
             channel: test_channel("#staff"),
             subject: test_nick("alice"),
@@ -1256,6 +1260,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &Event::Parted(crate::event::Parted {
             msgid: None,
             time: SystemTime::UNIX_EPOCH,
+            server_time: None,
             account: None,
             actor: crate::__testing::user_source(test_nick("papo-driver"), None, None),
             channel: test_channel("#Papo"),
@@ -1271,6 +1276,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &Event::Kicked(crate::event::Kicked {
             msgid: None,
             time: SystemTime::UNIX_EPOCH,
+            server_time: None,
             account: None,
             channel: test_channel("#staff"),
             subject: test_nick("papo-driver"),

@@ -603,6 +603,7 @@ pub(crate) fn joined_from_line(
     Some(Joined {
         msgid: envelope.msgid,
         time: envelope.time,
+        server_time: envelope.server_time,
         account,
         realname: join.realname.map(str::to_owned),
         channel: casemapping.channel(join.channel),
@@ -838,13 +839,13 @@ impl Event {
             Self::Ctcp(event) => tagged_from_tags(&event.tags),
             Self::Reacted(event) => event.server_time,
             Self::Redacted(event) => event.server_time,
-            Self::Joined(event) => Some(event.time),
-            Self::Parted(event) => Some(event.time),
-            Self::Kicked(event) => Some(event.time),
+            Self::Joined(event) => event.server_time,
+            Self::Parted(event) => event.server_time,
+            Self::Kicked(event) => event.server_time,
             Self::Quit(event) => Some(event.time),
             Self::NickChanged(event) => Some(event.time),
-            Self::ModeChanged(event) => Some(event.time),
-            Self::TopicChanged(event) => Some(event.time),
+            Self::ModeChanged(event) => event.server_time,
+            Self::TopicChanged(event) => event.server_time,
             Self::Other(line) => tagged(&line.as_ref()),
             _ => None,
         }
@@ -1179,6 +1180,7 @@ pub(crate) fn from_core(
             Event::Joined(Joined {
                 msgid: envelope.msgid,
                 time: envelope.time,
+                server_time: envelope.server_time,
                 account,
                 realname,
                 channel,
@@ -1206,6 +1208,7 @@ pub(crate) fn from_core(
             Event::Parted(Parted {
                 msgid: envelope.msgid,
                 time: envelope.time,
+                server_time: envelope.server_time,
                 account: envelope.account,
                 actor: source::from_prefix(actor, casemapping),
                 channel,
@@ -1228,6 +1231,7 @@ pub(crate) fn from_core(
             Event::Kicked(Kicked {
                 msgid: envelope.msgid,
                 time: envelope.time,
+                server_time: envelope.server_time,
                 account: envelope.account,
                 channel,
                 subject,
@@ -1360,6 +1364,7 @@ pub(crate) fn from_core(
             Event::ModeChanged(ModeChanged {
                 msgid: envelope.msgid,
                 time: envelope.time,
+                server_time: envelope.server_time,
                 account: envelope.account,
                 subject: match subject {
                     papo_core::Subject::Channel(channel) => crate::Subject::Channel(channel),
@@ -1384,6 +1389,7 @@ pub(crate) fn from_core(
             Event::TopicChanged(TopicChanged {
                 msgid: envelope.msgid,
                 time: envelope.time,
+                server_time: envelope.server_time,
                 account: envelope.account,
                 channel,
                 topic,
@@ -2270,6 +2276,7 @@ mod tests {
         };
         assert_eq!(joined.msgid.as_deref(), Some("RfcBTzyxY120012"));
         assert_eq!(joined.time, received_at);
+        assert_eq!(Event::Joined(joined.clone()).server_time(), None);
         assert_eq!(joined.account, Account::Unknown);
     }
 
@@ -2681,6 +2688,7 @@ mod tests {
             Event::Joined(super::Joined {
                 msgid: None,
                 time: UNIX_EPOCH,
+                server_time: None,
                 account: Account::Unknown,
                 realname: None,
                 channel: mapping.channel("#papo"),
@@ -2691,6 +2699,7 @@ mod tests {
             Event::Parted(super::Parted {
                 msgid: None,
                 time: UNIX_EPOCH,
+                server_time: None,
                 account: None,
                 actor: own_actor.clone(),
                 channel: mapping.channel("#papo"),
@@ -2701,6 +2710,7 @@ mod tests {
             Event::Kicked(super::Kicked {
                 msgid: None,
                 time: UNIX_EPOCH,
+                server_time: None,
                 account: None,
                 channel: mapping.channel("#papo"),
                 subject: mapping.nick("Papo[Bot]"),
@@ -2733,6 +2743,7 @@ mod tests {
                 joins: vec![super::Joined {
                     msgid: None,
                     time: UNIX_EPOCH,
+                    server_time: None,
                     account: Account::Unknown,
                     realname: None,
                     channel: mapping.channel("#papo"),

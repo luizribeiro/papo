@@ -252,6 +252,7 @@ fn parted(
     Some(Event::Parted(Parted {
         msgid: envelope.msgid,
         time: envelope.time,
+        server_time: envelope.server_time,
         account: envelope.account,
         actor: crate::event_impl::source::from_proto(message.source()?, mapping),
         channel: mapping.channel(message.param(0)?),
@@ -303,6 +304,7 @@ fn kicked(
     Some(Event::Kicked(Kicked {
         msgid: envelope.msgid,
         time: envelope.time,
+        server_time: envelope.server_time,
         account: envelope.account,
         channel: mapping.channel(message.param(0)?),
         authorship,
@@ -346,6 +348,7 @@ fn topic_changed(
     Some(Event::TopicChanged(TopicChanged {
         msgid: envelope.msgid,
         time: envelope.time,
+        server_time: envelope.server_time,
         account: envelope.account,
         channel: mapping.channel(message.param(0)?),
         topic: message
@@ -385,6 +388,7 @@ fn mode_changed(
     Some(Event::ModeChanged(ModeChanged {
         msgid: envelope.msgid,
         time: envelope.time,
+        server_time: envelope.server_time,
         account: envelope.account,
         subject: if state.isupport().inner().is_channel(message.param(0)?) {
             crate::Subject::Channel(mapping.channel(message.param(0)?))

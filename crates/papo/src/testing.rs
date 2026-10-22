@@ -138,6 +138,7 @@ pub fn joined(channel: impl Into<ChannelName>, nick: impl Into<Nick>, own: bool)
     Joined {
         msgid: None,
         time: SystemTime::UNIX_EPOCH,
+        server_time: None,
         account: crate::Account::Unknown,
         realname: None,
         channel: channel.into(),
