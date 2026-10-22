@@ -245,7 +245,6 @@ pub enum Refusal {
 }
 
 impl Refusal {
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) const fn from_numeric(numeric: Numeric) -> Self {
         match numeric.code() {
             400 => Self::CommandFailed,
@@ -307,7 +306,6 @@ impl Refusal {
         }
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn from_standard(command: &str, code: &str) -> Self {
         let command = command.to_ascii_uppercase();
         let code = code.to_ascii_uppercase();
