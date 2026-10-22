@@ -1135,6 +1135,21 @@ fn no_implicit_names_requests_names_before_marking_the_channel_synced() {
 }
 
 #[test]
+fn repeated_end_of_names_does_not_resync_a_channel() {
+    Transcript::new(Config::default().who_on_join(WhoOnJoin::Never))
+        .server(":papo!papo@127.0.0.1 JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { channel, .. } if channel == "#papo"))
+        .server(":ergo.test 366 papo #papo :End of NAMES list")
+        .client("MODE #papo")
+        .event(|event| matches!(event, Event::ChannelSynced { channel, .. } if channel == "#papo"))
+        .server(":ergo.test 366 papo #papo :End of NAMES list")
+        .server(":ergo.test 366 papo #papo :End of NAMES list")
+        .server(":ergo.test 366 papo #papo :End of NAMES list")
+        .no_client()
+        .no_event();
+}
+
+#[test]
 fn no_implicit_names_ignores_an_empty_implicit_end_before_the_requested_names() {
     Transcript::new(Config::default().wanted_caps(["no-implicit-names"]))
         .connect_default()

@@ -127,6 +127,9 @@ impl State {
         else {
             return false;
         };
+        if channel.synced {
+            return true;
+        }
         if no_implicit_names && !channel.names_reply_seen {
             return true;
         }
