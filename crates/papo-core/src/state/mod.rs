@@ -1,3 +1,5 @@
+#[cfg(feature = "unstable")]
+mod bouncer;
 pub(crate) mod membership;
 pub(crate) mod metadata;
 #[cfg(feature = "unstable")]
@@ -27,17 +29,13 @@ use crate::{
     typing::{Typer, TypingTable},
 };
 #[cfg(feature = "unstable")]
-use crate::{
-    BouncerNetwork, NetworkId, PersistenceSetting, PersistenceStatus, bouncer::NetworkUpdate, cap,
-};
+use crate::{BouncerNetwork, NetworkId, PersistenceSetting, PersistenceStatus, cap};
 
 const WHOX_FIELDS: &str = "%tcuhnfar,152";
 const WHOX_TOKEN: &str = "152";
 const MAX_LAST_SEEN_TARGETS: usize = 1_000;
 const MAX_METADATA_TARGETS: usize = 10_000;
 pub(crate) const MAX_METADATA_KEYS_PER_TARGET: usize = 10_000;
-#[cfg(feature = "unstable")]
-const MAX_BOUNCER_NETWORKS: usize = 10_000;
 /// The known channel and user state for a session.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct State {
@@ -274,12 +272,8 @@ impl State {
             );
         }
         #[cfg(feature = "unstable")]
-        if let Some(update) = NetworkUpdate::parse(message) {
-            let network = self.bouncer_networks.get(&update.id).cloned();
-            return StateSnapshot::Bouncer {
-                id: update.id,
-                network,
-            };
+        if let Some(snapshot) = self.bouncer_snapshot(message) {
+            return snapshot;
         }
         let mut state = self.clone();
         state.typing = TypingTable::new();
@@ -610,37 +604,6 @@ impl State {
         true
     }
 
-    #[cfg(feature = "unstable")]
-    fn handle_bouncer(&mut self, message: &LineRef<'_>, outbox: &mut Outbox) -> bool {
-        let Some(update) = NetworkUpdate::parse(message) else {
-            return false;
-        };
-        if update.removed {
-            self.bouncer_networks.remove(&update.id);
-            outbox.event(Event::BouncerNetworkChanged {
-                id: update.id,
-                network: None,
-            });
-            return true;
-        }
-        if !self.bouncer_networks.contains_key(&update.id)
-            && self.bouncer_networks.len() >= MAX_BOUNCER_NETWORKS
-        {
-            self.warn_limit(StateLimit::BouncerNetworks, outbox);
-            return true;
-        }
-        let network = self
-            .bouncer_networks
-            .entry(update.id.clone())
-            .or_insert_with(|| BouncerNetwork::empty(update.id.clone()));
-        network.apply(update.attributes, self.casemapping);
-        outbox.event(Event::BouncerNetworkChanged {
-            id: update.id,
-            network: Some(network.clone()),
-        });
-        true
-    }
-
     fn handle_channel_mode(&mut self, message: &LineRef<'_>, isupport: &Isupport) -> bool {
         let Some(target) = message
             .param(0)
@@ -864,11 +827,7 @@ impl State {
             .map(|seen| (NameKey::new(&seen.target, mapping), seen))
             .collect();
         #[cfg(feature = "unstable")]
-        for network in self.bouncer_networks.values_mut() {
-            if let Some(nick) = &mut network.nickname {
-                *nick = mapping.nick(nick.as_ref());
-            }
-        }
+        self.refold_bouncer_networks(mapping);
         self.metadata = std::mem::take(&mut self.metadata)
             .into_iter()
             .map(|(target, values)| (NameKey::new(target.original(), mapping), values))
