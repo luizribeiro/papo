@@ -121,7 +121,10 @@ async fn statusmsg_ops(s: Scenario) -> papo_testing::Result<()> {
 /// preserves an operators-only audience when replying to a status message
 #[scenario(
     requires(caps = ["echo-message", "labeled-response"], isupport = ["STATUSMSG"]),
-    covers = ["base.privmsg.statusmsg-reply-ops"]
+    covers = [
+        "base.privmsg.statusmsg-reply-ops",
+        "security.routing.status-prefix-channel"
+    ]
 )]
 async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
     let StatusmsgPeers {
