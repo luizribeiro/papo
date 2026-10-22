@@ -12,6 +12,7 @@ pub struct Quit {
     pub msgid: Option<MessageId>,
     /// Valid server time, or the local receipt time when none was supplied.
     pub time: SystemTime,
+    pub(crate) server_time: Option<SystemTime>,
     /// The actor's authenticated account, when tagged.
     pub account: Option<AccountName>,
     /// The disconnected user.
@@ -34,6 +35,7 @@ pub struct NickChanged {
     pub msgid: Option<MessageId>,
     /// Valid server time, or the local receipt time when none was supplied.
     pub time: SystemTime,
+    pub(crate) server_time: Option<SystemTime>,
     /// The actor's authenticated account, when tagged.
     pub account: Option<AccountName>,
     /// The renamed user before the change.

@@ -276,6 +276,7 @@ fn quit(
     Some(Event::Quit(Quit {
         msgid: envelope.msgid,
         time: envelope.time,
+        server_time: envelope.server_time,
         account: envelope.account,
         actor: crate::event_impl::source::from_proto(message.source()?, mapping),
         nick: mapping.nick(source_nick(message)?),
@@ -330,6 +331,7 @@ fn nick_changed(
     Some(Event::NickChanged(NickChanged {
         msgid: envelope.msgid,
         time: envelope.time,
+        server_time: envelope.server_time,
         account: envelope.account,
         actor: crate::event_impl::source::from_proto(message.source()?, mapping),
         authorship,

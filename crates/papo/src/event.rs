@@ -813,6 +813,7 @@ impl Event {
         match self {
             Self::Message(event) => event.msgid.clone(),
             Self::Ctcp(event) => event.msgid.clone(),
+            Self::TagMsg(event) => event.tags.get("msgid").map(MessageId::from),
             Self::Reacted(event) => event.msgid.clone(),
             Self::Redacted(event) => event.msgid.clone(),
             Self::Joined(event) => event.msgid.clone(),
@@ -837,13 +838,14 @@ impl Event {
         match self {
             Self::Message(event) => tagged_from_tags(&event.tags),
             Self::Ctcp(event) => tagged_from_tags(&event.tags),
+            Self::TagMsg(event) => tagged_from_tags(&event.tags),
             Self::Reacted(event) => event.server_time,
             Self::Redacted(event) => event.server_time,
             Self::Joined(event) => event.server_time,
             Self::Parted(event) => event.server_time,
             Self::Kicked(event) => event.server_time,
-            Self::Quit(event) => Some(event.time),
-            Self::NickChanged(event) => Some(event.time),
+            Self::Quit(event) => event.server_time,
+            Self::NickChanged(event) => event.server_time,
             Self::ModeChanged(event) => event.server_time,
             Self::TopicChanged(event) => event.server_time,
             Self::Other(line) => tagged(&line.as_ref()),
@@ -1106,6 +1108,7 @@ pub(crate) fn from_core(
                     Some(Quit {
                         msgid: envelope.msgid,
                         time: envelope.time,
+                        server_time: envelope.server_time,
                         account: envelope.account,
                         actor: source::from_proto(message.source()?, casemapping),
                         nick: casemapping.nick(nick),
@@ -1268,6 +1271,7 @@ pub(crate) fn from_core(
             Event::Quit(Quit {
                 msgid: envelope.msgid,
                 time: envelope.time,
+                server_time: envelope.server_time,
                 account: envelope.account,
                 actor: source::from_prefix(actor, casemapping),
                 nick,
@@ -1288,6 +1292,7 @@ pub(crate) fn from_core(
             Event::NickChanged(NickChanged {
                 msgid: envelope.msgid,
                 time: envelope.time,
+                server_time: envelope.server_time,
                 account: envelope.account,
                 actor: source::from_prefix(actor, casemapping),
                 old,
@@ -2729,6 +2734,7 @@ mod tests {
             Event::NickChanged(super::NickChanged {
                 msgid: None,
                 time: UNIX_EPOCH,
+                server_time: None,
                 account: None,
                 actor: own_actor.clone(),
                 old: mapping.nick("Papo[Bot]"),
