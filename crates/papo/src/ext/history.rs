@@ -938,7 +938,9 @@ mod tests {
     use papo_core::{Config, Event as CoreEvent, HistoryLine, HistoryQuery, MsgRef, Sasl, Session};
     use papo_proto::{Casemapping, Line, LineRef};
 
-    use super::{ConversationInput, HistoryItem, HistoryReference, history_item, reaction};
+    use super::{
+        ConversationInput, HistoryItem as PageEvent, HistoryReference, history_item, reaction,
+    };
 
     fn core_item(message: &str) -> HistoryLine {
         HistoryLine {
@@ -1045,25 +1047,23 @@ mod tests {
             })
             .collect();
 
-        assert!(items[0].as_message().is_some());
-        assert!(items[0].as_other().is_none());
-        assert!(matches!(&items[0], HistoryItem::Message(message)
+        assert!(matches!(&items[0], PageEvent::Message(message)
             if message.authorship == crate::Authorship::Own && message.is_own()));
-        assert!(matches!(&items[1], HistoryItem::Message(message)
+        assert!(matches!(&items[1], PageEvent::Message(message)
             if message.authorship == crate::Authorship::Other && !message.is_own()));
-        assert!(matches!(&items[2], HistoryItem::Message(message)
+        assert!(matches!(&items[2], PageEvent::Message(message)
             if message.authorship == crate::Authorship::Unknown && !message.is_own()));
-        assert!(matches!(&items[3], HistoryItem::NickChanged(changed)
+        assert!(matches!(&items[3], PageEvent::NickChanged(changed)
             if changed.old == "papo-old" && changed.new == "papo"
                 && changed.authorship == crate::Authorship::Own));
-        assert!(matches!(&items[4], HistoryItem::Quit(quit)
+        assert!(matches!(&items[4], PageEvent::Quit(quit)
             if quit.channels == ["#papo"] && quit.authorship == crate::Authorship::Other));
         let first_time = papo_proto::time::parse("2026-10-19T14:31:08.123Z").unwrap();
-        assert!(matches!(&items[0], HistoryItem::Message(message)
+        assert!(matches!(&items[0], PageEvent::Message(message)
             if message.msgid.as_deref() == Some("RfcBTzyxY120004")
                 && message.time == first_time
                 && message.account.as_deref() == Some("papo")));
-        assert!(matches!(&items[3], HistoryItem::NickChanged(changed)
+        assert!(matches!(&items[3], PageEvent::NickChanged(changed)
             if changed.msgid.as_deref() == Some("RfcBTzyxY120007")
                 && changed.account.as_deref() == Some("papo")));
     }
@@ -1083,7 +1083,7 @@ mod tests {
             UNIX_EPOCH,
             crate::Origin::History,
         );
-        let HistoryItem::Message(message) = item else {
+        let PageEvent::Message(message) = item else {
             panic!("expected a chat message");
         };
         assert_eq!(message.msgid, None);
@@ -1135,10 +1135,9 @@ mod tests {
             UNIX_EPOCH,
             crate::Origin::History,
         );
-        assert!(reacted.as_reacted().is_some());
         assert!(matches!(
             reacted,
-            HistoryItem::Reacted(event)
+            PageEvent::Reacted(event)
                 if event.actor.nick().is_some_and(|nick| nick == "emily")
                     && matches!(&event.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
                     && event.status.is_none()
@@ -1156,10 +1155,9 @@ mod tests {
             UNIX_EPOCH,
             crate::Origin::History,
         );
-        assert!(removal.as_redacted().is_some());
         assert!(matches!(
             removal,
-            HistoryItem::Redacted(event)
+            PageEvent::Redacted(event)
                 if matches!(&event.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
                     && event.status.is_none()
                     && event.message == "RfcBTzyxY120004"
@@ -1173,7 +1171,7 @@ mod tests {
             "@+draft/react=👍;+draft/reply=RfcBTzyxY120004 :Alice[bot]!~a@cloak.example TAGMSG #papo",
         )
         .unwrap();
-        let Some(HistoryItem::Reacted(event)) = reaction(
+        let Some(PageEvent::Reacted(event)) = reaction(
             &line,
             crate::Authorship::Unknown,
             Casemapping::Ascii,
@@ -1201,8 +1199,7 @@ mod tests {
             UNIX_EPOCH,
             crate::Origin::History,
         );
-        assert!(item.as_other().is_some());
-        assert!(matches!(item, HistoryItem::Other { line, .. } if line.command() == "REDACT"));
+        assert!(matches!(item, PageEvent::Other { line, .. } if line.command() == "REDACT"));
     }
 
     #[test]
@@ -1217,10 +1214,9 @@ mod tests {
             UNIX_EPOCH,
             crate::Origin::Replay,
         );
-        assert!(joined.as_joined().is_some());
         assert!(matches!(
             joined,
-            HistoryItem::Joined(event)
+            PageEvent::Joined(event)
                 if event.channel == "#papo" && event.nick == "emily"
                     && matches!(&event.account, crate::Account::LoggedIn(account) if account == "emily")
                     && event.realname.as_deref() == Some("Emily Smith")
@@ -1234,7 +1230,7 @@ mod tests {
             UNIX_EPOCH,
             crate::Origin::Replay,
         );
-        assert!(matches!(joined, HistoryItem::Joined(event)
+        assert!(matches!(joined, PageEvent::Joined(event)
             if event.account == crate::Account::LoggedOut
                 && event.realname.as_deref() == Some("Bob")));
 
@@ -1245,7 +1241,7 @@ mod tests {
             UNIX_EPOCH,
             crate::Origin::Replay,
         );
-        assert!(matches!(joined, HistoryItem::Joined(event)
+        assert!(matches!(joined, PageEvent::Joined(event)
             if event.account == crate::Account::Unknown && event.realname.is_none()));
     }
 
@@ -1257,10 +1253,9 @@ mod tests {
         let parted = map(papo_core::HistoryItem::Parted(core_item(
             ":emily!~e@localhost PART #papo :Leaving for lunch",
         )));
-        assert!(parted.as_parted().is_some());
         assert!(matches!(
             parted,
-            HistoryItem::Parted(event)
+            PageEvent::Parted(event)
                 if event.channel == "#papo" && event.nick == "emily"
                     && event.reason.as_deref() == Some("Leaving for lunch")
                     && event.authorship == crate::Authorship::Unknown
@@ -1269,10 +1264,9 @@ mod tests {
         let quit = map(papo_core::HistoryItem::Quit(core_item(
             ":emily!~e@localhost QUIT :Connection reset by peer",
         )));
-        assert!(quit.as_quit().is_some());
         assert!(matches!(
             quit,
-            HistoryItem::Quit(event)
+            PageEvent::Quit(event)
                 if event.nick == "emily"
                     && event.reason.as_deref() == Some("Connection reset by peer")
                     && event.channels.is_empty()
@@ -1281,10 +1275,9 @@ mod tests {
         let kicked = map(papo_core::HistoryItem::Kicked(core_item(
             ":irc.example KICK #papo emily :Requested by alice",
         )));
-        assert!(kicked.as_kicked().is_some());
         assert!(matches!(
             kicked,
-            HistoryItem::Kicked(event)
+            PageEvent::Kicked(event)
                 if event.channel == "#papo" && event.subject == "emily"
                     && event.reason.as_deref() == Some("Requested by alice")
                     && matches!(event.actor, crate::Source::Server { ref name, .. } if name == "irc.example")
@@ -1294,10 +1287,9 @@ mod tests {
         let renamed = map(papo_core::HistoryItem::NickChanged(core_item(
             ":emily!~e@localhost NICK emily_",
         )));
-        assert!(renamed.as_nick_changed().is_some());
         assert!(matches!(
             renamed,
-            HistoryItem::NickChanged(event)
+            PageEvent::NickChanged(event)
                 if event.old == "emily" && event.new == "emily_"
                     && event.authorship == crate::Authorship::Unknown
         ));
@@ -1315,9 +1307,9 @@ mod tests {
         ];
         for item in items {
             match map(item) {
-                HistoryItem::Parted(event) => assert_eq!(event.reason, None),
-                HistoryItem::Quit(event) => assert_eq!(event.reason, None),
-                HistoryItem::Kicked(event) => assert_eq!(event.reason, None),
+                PageEvent::Parted(event) => assert_eq!(event.reason, None),
+                PageEvent::Quit(event) => assert_eq!(event.reason, None),
+                PageEvent::Kicked(event) => assert_eq!(event.reason, None),
                 _ => panic!("expected a departure event"),
             }
         }
@@ -1331,10 +1323,9 @@ mod tests {
         let topic = map(papo_core::HistoryItem::TopicChanged(core_item(
             ":emily!~e@localhost TOPIC #papo :Rust 1.90 is out",
         )));
-        assert!(topic.as_topic_changed().is_some());
         assert!(matches!(
             topic,
-            HistoryItem::TopicChanged(event)
+            PageEvent::TopicChanged(event)
                 if event.channel == "#papo"
                     && event.topic.as_deref() == Some("Rust 1.90 is out")
                     && event.actor.nick().is_some_and(|nick| nick == "emily")
@@ -1343,10 +1334,9 @@ mod tests {
         let mode = map(papo_core::HistoryItem::ModeChanged(core_item(
             ":emily!~e@localhost MODE #papo +im",
         )));
-        assert!(mode.as_mode_changed().is_some());
         assert!(matches!(
             mode,
-            HistoryItem::ModeChanged(event)
+            PageEvent::ModeChanged(event)
                 if matches!(event.subject, crate::Subject::Channel(ref channel) if channel == "#papo")
                     && event.actor.nick().is_some_and(|nick| nick == "emily")
                     && event.changes.len() == 2
@@ -1362,7 +1352,7 @@ mod tests {
         )));
         assert!(matches!(
             unreacted,
-            HistoryItem::Reacted(event) if event.reaction == "👍" && event.removed
+            PageEvent::Reacted(event) if event.reaction == "👍" && event.removed
         ));
     }
 
@@ -1512,9 +1502,9 @@ mod tests {
         let page = within(request).await.unwrap().unwrap();
         assert!(page.end);
         assert_eq!(page.items.len(), 6);
-        assert!(matches!(page.items[1], HistoryItem::Reacted(_)));
-        assert!(matches!(page.items[2], HistoryItem::Joined(_)));
-        let HistoryItem::ModeChanged(prefix_mode) = &page.items[3] else {
+        assert!(matches!(page.items[1], PageEvent::Reacted(_)));
+        assert!(matches!(page.items[2], PageEvent::Joined(_)));
+        let PageEvent::ModeChanged(prefix_mode) = &page.items[3] else {
             panic!("expected replayed prefix mode")
         };
         assert!(matches!(
@@ -1526,7 +1516,7 @@ mod tests {
                 ..
             }] if nick == "alice"
         ));
-        let HistoryItem::ModeChanged(list_mode) = &page.items[4] else {
+        let PageEvent::ModeChanged(list_mode) = &page.items[4] else {
             panic!("expected replayed list mode")
         };
         assert!(matches!(
@@ -1538,7 +1528,8 @@ mod tests {
                 ..
             }] if mask == "*!*@spammer.example"
         ));
-        assert_eq!(page.items[5].as_other().unwrap().command(), "TAGMSG");
+        assert!(matches!(&page.items[5], PageEvent::Other { line, .. }
+            if line.command() == "TAGMSG"));
         let message = page.messages().next().unwrap();
         assert_eq!(message.text, "earlier");
         assert_eq!(message.origin, Origin::History);
@@ -1546,11 +1537,12 @@ mod tests {
         let Some(Event::History(history)) = events.next().await else {
             panic!("expected replay batch event")
         };
-        assert!(matches!(history.items[1], HistoryItem::Reacted(_)));
-        assert!(matches!(history.items[2], HistoryItem::Joined(_)));
-        assert!(matches!(history.items[3], HistoryItem::ModeChanged(_)));
-        assert!(matches!(history.items[4], HistoryItem::ModeChanged(_)));
-        assert_eq!(history.items[5].as_other().unwrap().command(), "TAGMSG");
+        assert!(matches!(history.items[1], PageEvent::Reacted(_)));
+        assert!(matches!(history.items[2], PageEvent::Joined(_)));
+        assert!(matches!(history.items[3], PageEvent::ModeChanged(_)));
+        assert!(matches!(history.items[4], PageEvent::ModeChanged(_)));
+        assert!(matches!(&history.items[5], PageEvent::Other { line, .. }
+            if line.command() == "TAGMSG"));
         assert_eq!(history.messages().next().unwrap().origin, Origin::Replay);
         abort_task(task).await;
     }
