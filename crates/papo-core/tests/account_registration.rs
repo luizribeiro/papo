@@ -3,7 +3,7 @@
 mod support;
 
 use papo_core::{Config, Event, Feature, Refusal, RequestError, Secret};
-use support::{Transcript, assert_session_debug_redacts, unsupported_error};
+use support::{Transcript, assert_session_debug_redacts, queue_debug_marker, unsupported_error};
 
 fn registered() -> Transcript {
     Transcript::new(
@@ -51,8 +51,10 @@ fn configured_registration_waits_for_before_connect_capability() {
         .server("CAP * LS :draft/account-registration=before-connect,custom-account-name")
         .client("CAP REQ :draft/account-registration")
         .server("CAP * ACK :draft/account-registration")
+        .update(queue_debug_marker)
         .inspect(|session| assert_session_debug_redacts(session, "unique-registration-password"))
         .client("REGISTER alice alice@example.org unique-registration-password")
+        .client("PRIVMSG #papo :ordinary debug marker")
         .event(|event| matches!(event, Event::RequestUntracked { .. }));
 }
 
@@ -190,9 +192,11 @@ fn verifies_an_account_after_the_server_requires_it() {
             session
                 .verify(std::time::Instant::now(), "alice", "39gvcdg4myvnmdcfhvd6exsv4n")
                 .unwrap();
+            queue_debug_marker(session);
         })
         .inspect(|session| assert_session_debug_redacts(session, "39gvcdg4myvnmdcfhvd6exsv4n"))
         .client("@label=1 VERIFY alice 39gvcdg4myvnmdcfhvd6exsv4n")
+        .client("PRIVMSG #papo :ordinary debug marker")
         .server("@label=1 :ergo.test VERIFY SUCCESS alice :Account successfully registered")
         .event(|event| {
             matches!(event, Event::AccountCreated { account, logged_in: true, .. } if account == "alice")

@@ -2650,7 +2650,7 @@ enum Handled {
     No,
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 struct Outbox {
     transmits: VecDeque<Transmission>,
     immediate: VecDeque<QueuedLine>,
@@ -2659,6 +2659,7 @@ struct Outbox {
     close_requested: bool,
 }
 
+#[derive(Debug)]
 enum Transmission {
     Line(QueuedLine),
     Batch {
@@ -2669,43 +2670,11 @@ enum Transmission {
     },
 }
 
+#[derive(Debug)]
 struct QueuedLine {
     line: WireLine,
     token: Option<TransmitToken>,
     request: Option<RequestId>,
-}
-
-impl std::fmt::Debug for Outbox {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("Outbox")
-            .field("transmissions", &self.transmits.len())
-            .field("immediate", &self.immediate.len())
-            .field("events", &self.events.len())
-            .field("connect_phases", &self.connect_phases.len())
-            .field("close_requested", &self.close_requested)
-            .finish()
-    }
-}
-
-impl std::fmt::Debug for Transmission {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("Transmission")
-            .field("line_count", &self.line_count())
-            .finish_non_exhaustive()
-    }
-}
-
-impl std::fmt::Debug for QueuedLine {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("QueuedLine")
-            .field("line_len", &self.line.len())
-            .field("token", &self.token)
-            .field("request", &self.request)
-            .finish()
-    }
 }
 
 impl Transmission {
@@ -3893,12 +3862,15 @@ impl Session {
         email: Option<&str>,
         password: &Secret,
     ) -> Result<(), RequestError> {
+        if password.expose().is_none() {
+            return Err(RequestError::InvalidSecret);
+        }
         self.request_for_feature(
             now,
             Line::new("REGISTER")
                 .param(account.unwrap_or("*"))
                 .param(email.unwrap_or("*"))
-                .param(password.expose().ok_or(RequestError::InvalidSecret)?),
+                .param(password),
             Feature::AccountCreation,
         )?;
         self.account_registration.request_started();

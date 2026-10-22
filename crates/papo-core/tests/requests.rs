@@ -42,6 +42,7 @@ fn debug_output_redacts_rate_limited_oper_and_join_credentials() {
     session
         .join(now, "#secret", Some(&Secret::new("channel-key-6824")))
         .unwrap();
+    support::queue_debug_marker(&mut session);
     support::assert_session_debug_redacts(&session, "operator-password-3751");
     support::assert_session_debug_redacts(&session, "channel-key-6824");
 }

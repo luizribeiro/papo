@@ -6,7 +6,7 @@ use base64::{Engine as _, engine::general_purpose::STANDARD};
 use papo_core::{
     Account, CloseKind, Config, Entropy, Event, Sasl, Secret, Session, sts::ConnectionSecurity,
 };
-use support::{Transcript, assert_session_debug_redacts};
+use support::{Transcript, assert_session_debug_redacts, queue_debug_marker};
 
 struct FixedEntropy;
 
@@ -53,6 +53,7 @@ fn debug_output_redacts_queued_pass_and_plain_response() {
         secure_sasl(Sasl::plain("alice", "plain-password-4821")).password("server-password-7391"),
     );
     session.handle_connected(std::time::Instant::now());
+    queue_debug_marker(&mut session);
     assert_session_debug_redacts(&session, "server-password-7391");
     session.handle_line(std::time::Instant::now(), b"CAP * LS :sasl=PLAIN");
     session.handle_line(std::time::Instant::now(), b"CAP * ACK :sasl");
@@ -139,8 +140,10 @@ fn debug_output_redacts_a_queued_oauth_bearer_response() {
         .server("CAP * ACK :sasl")
         .client("AUTHENTICATE OAUTHBEARER")
         .server("AUTHENTICATE +")
+        .update(queue_debug_marker)
         .inspect(|session| assert_session_debug_redacts(session, "oauth-token-7391"))
-        .client("AUTHENTICATE biwsAWF1dGg9QmVhcmVyIG9hdXRoLXRva2VuLTczOTEBAQ==");
+        .client("AUTHENTICATE biwsAWF1dGg9QmVhcmVyIG9hdXRoLXRva2VuLTczOTEBAQ==")
+        .client("PRIVMSG #papo :ordinary debug marker");
 }
 
 #[test]

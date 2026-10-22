@@ -4,7 +4,7 @@
 mod support;
 
 use papo_core::{Config, Event, Feature, Refusal, RequestError, Session};
-use support::{Transcript, assert_session_debug_redacts, unsupported_because};
+use support::{Transcript, assert_session_debug_redacts, queue_debug_marker, unsupported_because};
 
 const ENDPOINT: &str = "https://push.example.net/message/ErgoTest/alice";
 const P256DH: &str = "AQIDBAUGBwgJCgsMDQ4P_w";
@@ -39,11 +39,13 @@ fn registers_and_unregisters_webpush_endpoints_with_both_caps() {
                         &papo_core::Secret::new(AUTH),
                     )
                     .unwrap();
+                queue_debug_marker(session);
             })
             .inspect(|session| assert_session_debug_redacts(session, AUTH))
             .client(&format!(
                 "@label=0 WEBPUSH REGISTER {ENDPOINT} p256dh={P256DH};auth={AUTH}"
             ))
+            .client("PRIVMSG #papo :ordinary debug marker")
             .update(|session| {
                 session
                     .webpush_unregister(std::time::Instant::now(), ENDPOINT)

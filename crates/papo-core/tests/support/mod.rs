@@ -31,6 +31,22 @@ pub fn assert_session_debug_redacts(session: &Session, secret: &str) {
         !debug.contains(&STANDARD.encode(secret)),
         "base64 secret in {debug}"
     );
+    assert!(
+        debug.contains("PRIVMSG #papo :ordinary debug marker"),
+        "ordinary line hidden in {debug}"
+    );
+}
+
+/// Queues an ordinary line used to prove session diagnostics remain useful.
+pub fn queue_debug_marker(session: &mut Session) {
+    session
+        .send(
+            Instant::now(),
+            Line::new("PRIVMSG")
+                .param("#papo")
+                .param("ordinary debug marker"),
+        )
+        .unwrap();
 }
 
 /// Maximum time a blocking transcript operation may wait for the server.
