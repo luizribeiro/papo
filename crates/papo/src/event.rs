@@ -569,7 +569,7 @@ pub(crate) fn incoming_from_core(
         isupport,
         received_at,
         true,
-        false,
+        true,
     )
 }
 
@@ -2088,6 +2088,21 @@ mod tests {
         assert!(matches!(wallops, Event::ServerNotice(notice)
             if notice.kind == ServerNoticeKind::Wallops
                 && notice.to == ServerNoticeTarget::All));
+
+        let broadcast = message_event_from_line(
+            Line::notice("$*.example.org", "Network maintenance begins soon")
+                .with_source("oper!o@staff"),
+            None,
+            Authorship::Other,
+            Conversation::Broadcast(isupport.casemapping().mask("$*.example.org")),
+            None,
+            &isupport,
+            UNIX_EPOCH,
+            true,
+            true,
+        );
+        assert!(matches!(broadcast, Event::ServerNotice(notice)
+            if matches!(notice.to, ServerNoticeTarget::Mask(_))));
     }
 
     fn chat(command: &str, text: &str) -> ChatMessage {
