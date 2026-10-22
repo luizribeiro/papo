@@ -1,6 +1,7 @@
 use papo::{CtcpReplies, Event};
 use papo_conformance_macros::scenario;
 
+use super::support::wait_channel_mode;
 use crate::Scenario;
 
 fn profile() -> String {
@@ -128,6 +129,39 @@ async fn abandoned_batch_members_stay_replay_only(_s: Scenario) -> papo_testing:
         .await;
     ping.await.unwrap()?;
     assert!(client.state().channel("#private").is_some());
+    Ok(())
+}
+
+/// keeps a message refusal separate from a concurrent unlabelled PART
+#[scenario(covers = ["security.r4.unlabelled-command-numerics"])]
+async fn message_refusal_does_not_fail_part(s: Scenario) -> papo_testing::Result<()> {
+    if profile() != "solanum" {
+        return s.skip("the selected profile does not exercise Solanum's unlabelled 404 ordering");
+    }
+    let alice = s.connect("alice").await?;
+    let mut bob = s
+        .connect_with(
+            s.configure("bob")?
+                .without_caps([papo::cap::LABELED_RESPONSE, papo::cap::ECHO_MESSAGE]),
+        )
+        .await?;
+    let channel = s.channel_name();
+    alice.join(&channel).await?;
+    bob.join(&channel).await?;
+    alice.mode(&channel).add('m').await?;
+    wait_channel_mode(&mut bob, &channel, 'm').await?;
+
+    let (message, part) = tokio::join!(
+        bob.privmsg(&channel, "blocked while unvoiced"),
+        bob.part(&channel, "leaving after the rejected message"),
+    );
+    message?;
+    part?;
+    let refusal = bob
+        .wait_for(|event| event.as_other().filter(|line| line.numeric() == Some(404)))
+        .await?;
+    assert_eq!(refusal.as_ref().param(1), Some(channel.as_str()));
+    assert!(bob.state().channel(&channel).is_none());
     Ok(())
 }
 
