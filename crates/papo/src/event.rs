@@ -470,6 +470,62 @@ impl Ctcp {
     }
 }
 
+#[allow(dead_code, clippy::too_many_arguments)]
+fn ctcp_from_line(
+    raw: ProtoLine,
+    batch_type: Option<&str>,
+    authorship: Authorship,
+    conversation: Conversation,
+    status: Option<Vec<char>>,
+    isupport: &Isupport,
+    received_at: SystemTime,
+) -> Result<Event, ProtoLine> {
+    let message = raw.as_ref();
+    let Some((command, params, reply)) = ctcp_parts(&message) else {
+        return Err(raw);
+    };
+    let Some(metadata) = message_metadata(
+        &message,
+        batch_type,
+        authorship,
+        conversation,
+        status,
+        isupport,
+        received_at,
+    ) else {
+        return Err(raw);
+    };
+    if reply {
+        Ok(Event::CtcpReply(CtcpReply {
+            actor: metadata.actor,
+            authorship: metadata.authorship,
+            conversation: metadata.conversation,
+            status: metadata.status,
+            command,
+            params,
+            msgid: metadata.msgid,
+            server_time: metadata.server_time,
+            received_at: metadata.received_at,
+            account: metadata.account,
+            tags: metadata.tags,
+        }))
+    } else {
+        Ok(Event::CtcpQuery(CtcpQuery {
+            actor: metadata.actor,
+            authorship: metadata.authorship,
+            conversation: metadata.conversation,
+            status: metadata.status,
+            command,
+            params,
+            msgid: metadata.msgid,
+            server_time: metadata.server_time,
+            received_at: metadata.received_at,
+            account: metadata.account,
+            tags: metadata.tags,
+        }))
+    }
+}
+
 fn ctcp_parts(message: &LineRef<'_>) -> Option<(String, Option<String>, bool)> {
     let reply = match () {
         () if message.command_is("PRIVMSG") => false,
