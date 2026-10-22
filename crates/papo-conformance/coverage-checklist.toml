@@ -65,4 +65,5 @@ ids = [
   "security.reply.multiline-dm-after-nick-change", "security.history.stale-dm-target",
   "security.bot.private-reply-after-nick-takeover", "security.reply.broadcast-private",
   "security.routing.status-prefix-channel", "security.target.no-comma-multitarget",
+  "security.rejoin.channel-rename", "security.ctcp.no-reply-to-playback",
 ]
