@@ -1724,7 +1724,13 @@ async fn reconnect_history_advances_past_the_previous_catchup() {
         b"@label=2 CHATHISTORY AFTER #papo msgid=RfcBTzyxY120000 100\r\n",
     )
     .await;
-    server_line(&mut second_server, b"@label=2 :ergo.test BATCH +reply0 labeled-response\r\n@batch=reply0;draft/chathistory-end :ergo.test BATCH +history0 chathistory #papo\r\n@batch=history0;time=2026-10-15T12:01:00.000Z;msgid=RfcBTzyxY120001 :emily!~e@localhost PRIVMSG #papo :missed once\r\n@batch=reply0 :ergo.test BATCH -history0\r\n:ergo.test BATCH -reply0\r\n").await;
+    server_line(&mut second_server, b"@label=2 :ergo.test BATCH +reply0 labeled-response\r\n@batch=reply0 :ergo.test BATCH +history0 chathistory #papo\r\n@batch=history0;time=2026-10-15T12:01:00.000Z;msgid=RfcBTzyxY120001 :emily!~e@localhost PRIVMSG #papo :missed once\r\n@batch=reply0 :ergo.test BATCH -history0\r\n:ergo.test BATCH -reply0\r\n").await;
+    client_line(
+        &mut second_server,
+        b"@label=3 CHATHISTORY AFTER #papo msgid=RfcBTzyxY120001 100\r\n",
+    )
+    .await;
+    server_line(&mut second_server, b"@label=3 :ergo.test BATCH +reply1 labeled-response\r\n@batch=reply1 :ergo.test BATCH +history1 chathistory #papo\r\n@batch=history1;time=2026-10-15T12:01:00.000Z;msgid=RfcBTzyxY120001 :emily!~e@localhost PRIVMSG #papo :missed once\r\n@batch=reply1 :ergo.test BATCH -history1\r\n:ergo.test BATCH -reply1\r\n").await;
     let Some(Event::History(history)) = events.next().await else {
         panic!("expected first catch-up")
     };
@@ -1740,13 +1746,13 @@ async fn reconnect_history_advances_past_the_previous_catchup() {
     tokio::time::advance(Duration::from_secs(2)).await;
 
     complete_connect_history(&mut third_server, &mut events).await;
-    client_line(&mut third_server, b"@label=3 JOIN #papo\r\n").await;
+    client_line(&mut third_server, b"@label=4 JOIN #papo\r\n").await;
     client_line(
         &mut third_server,
-        b"@label=4 CHATHISTORY AFTER #papo msgid=RfcBTzyxY120001 100\r\n",
+        b"@label=5 CHATHISTORY AFTER #papo msgid=RfcBTzyxY120001 100\r\n",
     )
     .await;
-    server_line(&mut third_server, b"@label=4 :ergo.test BATCH +reply1 labeled-response\r\n@batch=reply1;draft/chathistory-end :ergo.test BATCH +history1 chathistory #papo\r\n@batch=reply1 :ergo.test BATCH -history1\r\n:ergo.test BATCH -reply1\r\n").await;
+    server_line(&mut third_server, b"@label=5 :ergo.test BATCH +reply2 labeled-response\r\n@batch=reply2;draft/chathistory-end :ergo.test BATCH +history2 chathistory #papo\r\n@batch=reply2 :ergo.test BATCH -history2\r\n:ergo.test BATCH -reply2\r\n").await;
     let Some(Event::History(history)) = events.next().await else {
         panic!("expected empty second catch-up")
     };

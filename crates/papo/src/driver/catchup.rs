@@ -58,8 +58,10 @@ pub(super) fn advance_catchup(
     let page = response.history?;
     let conversation = page.conversation;
     let page_end = page.end;
+    let previous_len = catchup.items.len();
     let next = extend_catchup(&mut catchup, page.items);
     if !page_end
+        && catchup.items.len() > previous_len
         && catchup.items.len() < 1_000
         && let Some(next) = next
     {
