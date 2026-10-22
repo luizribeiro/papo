@@ -212,6 +212,7 @@ impl Monitor {
         &mut self,
         message: &LineRef<'_>,
         isupport: &Isupport,
+        internal_nick: Option<&str>,
         outbox: &mut Outbox,
     ) -> Handled {
         self.update_casemapping(isupport.casemapping());
@@ -224,6 +225,9 @@ impl Monitor {
                 for entry in entries.split(',') {
                     if let Some((nick, user, host)) = parse_entry(entry) {
                         handled = true;
+                        if !self.accepts_presence(nick, isupport, internal_nick) {
+                            continue;
+                        }
                         let (was_online, userhost_changed) = {
                             let previous = self
                                 .presence
@@ -274,16 +278,7 @@ impl Monitor {
                 let Some(entries) = message.param(1) else {
                     return Handled::No;
                 };
-                let mut handled = false;
-                for nick in entries.split(',').filter(|nick| !nick.is_empty()) {
-                    handled = true;
-                    if self.replace_presence(nick, Presence::Offline(nick.to_owned()), isupport) {
-                        outbox.event(Event::MonitorOffline {
-                            nick: isupport.casemapping().nick(nick),
-                        });
-                    }
-                }
-                if !handled {
+                if !self.handle_offline(entries, isupport, internal_nick, outbox) {
                     return Handled::No;
                 }
             }
@@ -314,6 +309,38 @@ impl Monitor {
             _ => return Handled::No,
         }
         Handled::Yes
+    }
+
+    fn handle_offline(
+        &mut self,
+        entries: &str,
+        isupport: &Isupport,
+        internal_nick: Option<&str>,
+        outbox: &mut Outbox,
+    ) -> bool {
+        let mut handled = false;
+        for nick in entries.split(',').filter(|nick| !nick.is_empty()) {
+            handled = true;
+            if self.accepts_presence(nick, isupport, internal_nick)
+                && self.replace_presence(nick, Presence::Offline(nick.to_owned()), isupport)
+            {
+                outbox.event(Event::MonitorOffline {
+                    nick: isupport.casemapping().nick(nick),
+                });
+            }
+        }
+        handled
+    }
+
+    fn accepts_presence(
+        &self,
+        nick: &str,
+        isupport: &Isupport,
+        internal_nick: Option<&str>,
+    ) -> bool {
+        self.desires(nick, isupport)
+            || internal_nick
+                .is_some_and(|known| crate::names_equal(isupport.casemapping(), known, nick))
     }
 
     fn replace_presence(&mut self, nick: &str, next: Presence, isupport: &Isupport) -> bool {

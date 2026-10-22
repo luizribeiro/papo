@@ -148,6 +148,10 @@ impl NickRegain {
         }
     }
 
+    pub(super) fn monitored_nick<'a>(&self, primary: &'a str) -> Option<&'a str> {
+        matches!(self.watch, Watch::Monitor { .. }).then_some(primary)
+    }
+
     pub(super) fn reset(&mut self) {
         *self = Self::default();
     }

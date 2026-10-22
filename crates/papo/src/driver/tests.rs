@@ -7419,8 +7419,11 @@ async fn public_state_accessors_report_the_registered_session() {
     server_line(&mut server, b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
     assert!(matches!(events.next().await, Some(Event::Connected(_))));
     assert_eq!(client.state().away(), &crate::Away::Present);
+    server_line(&mut server, b":ergo.test 005 papo-driver CASEMAPPING=ascii CHANTYPES=# PREFIX=(ov)@+ MONITOR=100 NICKLEN=27 BOUNCER_NETID=42 draft/FILEHOST=https://files.example.net/upload :are supported\r\n").await;
 
-    server_line(&mut server, b":ergo.test 005 papo-driver CASEMAPPING=ascii CHANTYPES=# PREFIX=(ov)@+ MONITOR=100 NICKLEN=27 BOUNCER_NETID=42 draft/FILEHOST=https://files.example.net/upload :are supported\r\n:papo-driver!papo@localhost MODE papo-driver +iw\r\n:papo-driver!papo@localhost JOIN #Papo\r\n:ergo.test 353 papo-driver = #Papo :@papo-driver alice!~alice@cloak.example\r\n:ergo.test 366 papo-driver #Papo :End of NAMES list\r\n:ergo.test 730 papo-driver :bob!bob@users.example\r\n").await;
+    add_monitors(&mut server, &client, &["bob"]).await;
+
+    server_line(&mut server, b":papo-driver!papo@localhost MODE papo-driver +iw\r\n:papo-driver!papo@localhost JOIN #Papo\r\n:ergo.test 353 papo-driver = #Papo :@papo-driver alice!~alice@cloak.example\r\n:ergo.test 366 papo-driver #Papo :End of NAMES list\r\n:ergo.test 730 papo-driver :bob!bob@users.example\r\n").await;
     while !matches!(events.next().await, Some(Event::MonitorOnline(_))) {}
     client_line(&mut server, b"MODE #Papo\r\n").await;
     client_line(&mut server, b"WHO #Papo\r\n").await;
@@ -7500,7 +7503,7 @@ async fn every_state_change_replaces_the_snapshot() {
     let config = config().wanted_caps(["extended-monitor"]);
     let (mut server, client, mut events, driver) = scripted(config);
     let driver = tokio::spawn(driver);
-    complete_connect_extended_monitor(&mut server, &mut events).await;
+    complete_connect_extended_monitor(&mut server, &client, &mut events).await;
     let mut previous = client.state();
 
     server_line(&mut server, b":papo-driver!papo@localhost JOIN #Papo\r\n").await;
@@ -7699,7 +7702,7 @@ async fn monitor_offline_snapshot_keeps_other_online_users() {
     let config = config().wanted_caps(["extended-monitor"]);
     let (mut server, client, mut events, driver) = scripted(config);
     let driver = tokio::spawn(driver);
-    complete_connect_extended_monitor(&mut server, &mut events).await;
+    complete_connect_extended_monitor(&mut server, &client, &mut events).await;
     server_line(
         &mut server,
         b":ergo.test 730 papo-driver :alice!~alice@cloak.example,bob!bob@users.example\r\n",
@@ -7728,7 +7731,7 @@ async fn disconnect_clears_monitor_presence_snapshot() {
     let config = config().wanted_caps(["extended-monitor"]);
     let (mut server, client, mut events, driver) = scripted(config);
     let driver = tokio::spawn(driver);
-    complete_connect_extended_monitor(&mut server, &mut events).await;
+    complete_connect_extended_monitor(&mut server, &client, &mut events).await;
     server_line(
         &mut server,
         b":ergo.test 730 papo-driver :alice!~alice@cloak.example\r\n",

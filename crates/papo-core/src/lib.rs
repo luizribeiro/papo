@@ -4121,10 +4121,12 @@ impl Session {
                 &mut self.outbox,
             );
         }
-        let monitor_handled =
-            self.monitor
-                .handle_message(message, self.isupport.value(), &mut self.outbox)
-                == Handled::Yes;
+        let monitor_handled = self.monitor.handle_message(
+            message,
+            self.isupport.value(),
+            self.nick_regain.monitored_nick(&self.config.nick),
+            &mut self.outbox,
+        ) == Handled::Yes;
         self.send_pending_registration(now);
         if connection_finished || isupport_handled {
             self.sync_monitored_state();

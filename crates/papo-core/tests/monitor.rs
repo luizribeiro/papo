@@ -68,6 +68,33 @@ fn invalid_nicks_are_never_sent_or_stored() {
 }
 
 #[test]
+fn unsolicited_presence_is_ignored_for_undesired_nicks() {
+    registered()
+        .update(|session| session.monitor_add(["alice"]))
+        .client("MONITOR + alice")
+        .server(":ergo.test 730 papo :mallory!~mallory@users.example")
+        .server(":ergo.test 731 papo :mallory")
+        .no_event()
+        .inspect(|session| assert_eq!(session.state().monitor_online().count(), 0))
+        .server(":ergo.test 730 papo :alice!~alice@cloak.example,mallory!~mallory@users.example")
+        .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "alice"))
+        .inspect(|session| {
+            assert_eq!(
+                session
+                    .state()
+                    .monitor_online()
+                    .map(|user| user.nick().as_ref())
+                    .collect::<Vec<_>>(),
+                ["alice"]
+            );
+        })
+        .update(|session| session.monitor_remove(["alice"]))
+        .client("MONITOR - alice")
+        .server(":ergo.test 731 papo :alice")
+        .no_event();
+}
+
+#[test]
 fn desired_nicks_keep_insertion_order_after_add_and_remove() {
     Transcript::new(Config::default())
         .connect_default()
@@ -640,6 +667,8 @@ fn caps_the_desired_monitor_list_at_ten_thousand() {
 #[test]
 fn rekeys_monitor_presence_when_casemapping_changes() {
     registered()
+        .update(|session| session.monitor_add(["[alice"]))
+        .client("MONITOR + [alice")
         .server(":ergo.test 730 papo :[alice!user@users.example")
         .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "[alice"))
         .server(":ergo.test 005 papo CASEMAPPING=ascii :are supported")
@@ -649,17 +678,20 @@ fn rekeys_monitor_presence_when_casemapping_changes() {
 }
 
 #[test]
-fn processes_the_literal_monitor_cache_bound() {
-    registered().update(|session| {
-        for index in 0..10_001 {
-            session.handle_line(
-                Instant::now(),
-                format!(":ergo.test 730 papo :user{index:05}!user@users.example").as_bytes(),
-            );
-            let _ = session.poll_event();
-        }
-        assert_eq!(session.state().monitor_online().count(), 10_000);
-    });
+fn presence_at_the_desired_bound_ignores_the_next_nick() {
+    registered()
+        .update(|session| session.monitor_add((0..10_000).map(|index| format!("user{index:05}"))))
+        .update(|session| {
+            for index in [0, 9_999, 10_000] {
+                session.handle_line(
+                    Instant::now(),
+                    format!(":ergo.test 730 papo :user{index:05}!user@users.example").as_bytes(),
+                );
+                let _ = session.poll_event();
+            }
+            assert_eq!(session.state().monitor_online().count(), 2);
+        })
+        .ignore_rest();
 }
 
 #[test]

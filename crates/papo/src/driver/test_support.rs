@@ -511,6 +511,7 @@ pub(crate) async fn assert_channel_requests(server: &mut DuplexStream, client: &
 
 pub(crate) async fn complete_connect_extended_monitor(
     server: &mut DuplexStream,
+    client: &super::Client,
     events: &mut super::Events,
 ) {
     welcome_burst(server).await;
@@ -528,6 +529,22 @@ pub(crate) async fn complete_connect_extended_monitor(
     )
     .await;
     assert!(matches!(events.next().await, Some(Event::Connected(_))));
+    add_monitors(server, client, &["alice", "bob"]).await;
+}
+
+pub(crate) async fn add_monitors(
+    server: &mut DuplexStream,
+    client: &super::Client,
+    nicks: &[&str],
+) {
+    let expected = format!("MONITOR + {}\r\n", nicks.join(","));
+    let nicks: Vec<_> = nicks.iter().map(|nick| (*nick).to_owned()).collect();
+    let add = tokio::spawn({
+        let client = client.clone();
+        async move { client.monitor().add(nicks).await }
+    });
+    client_line(server, expected.as_bytes()).await;
+    assert!(within(add).await.unwrap().is_ok());
 }
 
 pub(crate) async fn next_message(events: &mut super::Events) -> ChatMessage {
