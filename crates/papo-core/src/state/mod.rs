@@ -20,12 +20,14 @@ use papo_proto::{
     WhoxFlags, WhoxPresence, WhoxReply, parse_353, time,
 };
 
+#[cfg(test)]
+use crate::monitor::presence_nicks;
 use crate::{
     Authorship, Capabilities, Config, Conversation, Event, Handled, LastSeen, ListMode,
     MetadataValue, ModeArg, ModeChange, ModeListEntry, ModeValue, NameKey, Outbox, ReadMarker,
     Source, StateLimit, Subject, WhoOnJoin,
     conversation::classify_target,
-    monitor::{Monitor, presence_nicks},
+    monitor::Monitor,
     typing::{Typer, TypingTable},
 };
 #[cfg(feature = "unstable")]
@@ -37,7 +39,7 @@ const MAX_LAST_SEEN_TARGETS: usize = 1_000;
 const MAX_METADATA_TARGETS: usize = 10_000;
 pub(crate) const MAX_METADATA_KEYS_PER_TARGET: usize = 10_000;
 /// The known channel and user state for a session.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct State {
     nick: Nick,
     user: String,
@@ -68,6 +70,61 @@ pub struct State {
     metadata_subscriptions: Vec<MetadataKey>,
     limits_warned: HashSet<StateLimit>,
     pub(crate) typing: Arc<TypingTable>,
+    change_generation: u64,
+}
+
+impl Clone for State {
+    fn clone(&self) -> Self {
+        #[cfg(test)]
+        STATE_CLONES.set(STATE_CLONES.get() + 1);
+        Self {
+            nick: self.nick.clone(),
+            user: self.user.clone(),
+            host: self.host.clone(),
+            realname: self.realname.clone(),
+            account: self.account.clone(),
+            away: self.away.clone(),
+            user_modes: self.user_modes.clone(),
+            casemapping: self.casemapping,
+            isupport: self.isupport.clone(),
+            channels: self.channels.clone(),
+            users: self.users.clone(),
+            monitored: self.monitored.clone(),
+            who_sweeps: self.who_sweeps.clone(),
+            who_on_join: self.who_on_join,
+            read_markers: self.read_markers.clone(),
+            last_seen: self.last_seen.clone(),
+            last_seen_order: self.last_seen_order.clone(),
+            max_channels: self.max_channels,
+            max_members_per_channel: self.max_members_per_channel,
+            channel_limit_warned: self.channel_limit_warned,
+            member_limit_warned: self.member_limit_warned,
+            #[cfg(feature = "unstable")]
+            persistence: self.persistence,
+            #[cfg(feature = "unstable")]
+            bouncer_networks: self.bouncer_networks.clone(),
+            metadata: self.metadata.clone(),
+            metadata_subscriptions: self.metadata_subscriptions.clone(),
+            limits_warned: self.limits_warned.clone(),
+            typing: Arc::clone(&self.typing),
+            change_generation: self.change_generation,
+        }
+    }
+}
+
+#[cfg(test)]
+thread_local! {
+    static STATE_CLONES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+#[cfg(test)]
+pub(crate) fn reset_clone_count() {
+    STATE_CLONES.set(0);
+}
+
+#[cfg(test)]
+pub(crate) fn clone_count() -> usize {
+    STATE_CLONES.get()
 }
 
 /// State known about a joined channel.
@@ -176,6 +233,7 @@ pub(crate) struct MetadataContext {
     pub(crate) subscription_batch: bool,
 }
 
+#[cfg(test)]
 #[derive(Eq, PartialEq)]
 pub(crate) enum StateSnapshot {
     Full(Box<State>),
@@ -244,6 +302,7 @@ impl State {
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn snapshot_for(&self, message: &LineRef<'_>) -> StateSnapshot {
         if let Some((target, key, _, _)) = metadata_update(message) {
             let target = NameKey::new(target, self.casemapping);
@@ -315,7 +374,16 @@ impl State {
             metadata_subscriptions: Vec::new(),
             limits_warned: HashSet::new(),
             typing: TypingTable::new(),
+            change_generation: 0,
         }
+    }
+
+    pub(crate) const fn change_generation(&self) -> u64 {
+        self.change_generation
+    }
+
+    fn mark_changed(&mut self) {
+        self.change_generation = self.change_generation.wrapping_add(1);
     }
 
     pub(crate) fn reset(&mut self, config: &Config, casemapping: Casemapping, isupport: &Isupport) {
@@ -365,14 +433,21 @@ impl State {
         mode: ListMode,
         entries: Vec<ModeListEntry>,
     ) {
-        if let Some(channel) = self.channels.get_mut(&self.casemapping.channel(channel)) {
+        if let Some(channel) = self.channels.get_mut(&self.casemapping.channel(channel))
+            && channel.lists.get(&mode) != Some(&entries)
+        {
             channel.lists.insert(mode, entries);
+            self.mark_changed();
         }
     }
 
     pub(crate) fn invalidate_mode_list(&mut self, channel: &str, mode: ListMode) {
-        if let Some(channel) = self.channels.get_mut(&self.casemapping.channel(channel)) {
-            channel.lists.remove(&mode);
+        if self
+            .channels
+            .get_mut(&self.casemapping.channel(channel))
+            .is_some_and(|channel| channel.lists.remove(&mode).is_some())
+        {
+            self.mark_changed();
         }
     }
 

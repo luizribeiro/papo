@@ -131,8 +131,8 @@ pub use ratelimit::{InvalidRateLimit, RateLimit};
 pub use refusal::Refusal;
 use sasl::SaslSession;
 pub use sasl::{Entropy, Sasl};
+use state::MetadataContext;
 pub use state::{Account, Away, Channel, Member, Rank, State, User};
-use state::{MetadataContext, StateSnapshot};
 use sts::ConnectionSecurity;
 #[doc(hidden)]
 pub use typing::TypingTable;
@@ -4059,23 +4059,6 @@ impl Session {
         )
     }
 
-    fn snapshot_values_for(
-        &self,
-        message: &LineRef<'_>,
-    ) -> (
-        StateSnapshot,
-        Capabilities,
-        papo_proto::Isupport,
-        Option<String>,
-    ) {
-        (
-            self.state.snapshot_for(message),
-            self.caps.enabled().clone(),
-            self.isupport.value().clone(),
-            self.account().map(str::to_owned),
-        )
-    }
-
     #[allow(clippy::too_many_lines)]
     fn dispatch_message(
         &mut self,
@@ -4087,7 +4070,8 @@ impl Session {
     ) {
         let queued_events = self.outbox.events.len();
         let emit_response_events = self.response_emits_events(message);
-        let before = self.snapshot_values_for(message);
+        let before_state_change = self.state.change_generation();
+        let before_isupport_generation = self.isupport.value().__generation();
         let before_typing = self.state.__typing_table().clone();
         let was_connected = self.welcome_state.is_connected();
         let before_features = was_connected.then(|| self.supported_features());
@@ -4254,7 +4238,20 @@ impl Session {
         }
         self.apply_close_request();
         self.report_feature_changes(before_features);
-        if before != self.snapshot_values_for(message) {
+        let remembers_message = matches!(message.command(), Command::Privmsg | Command::Notice)
+            && message.tag("msgid").is_some()
+            && message.tag("time").is_some();
+        if caps_handled
+            || sasl_handled
+            || account_registration_handled
+            || (isupport_handled
+                && before_isupport_generation != self.isupport.value().__generation())
+            || monitor_handled
+            || whoami
+            || state_handled
+            || remembers_message
+            || before_state_change != self.state.change_generation()
+        {
             self.state_generation = self.state_generation.wrapping_add(1);
         }
         if !before_typing.same_entries(self.state.__typing_table()) {
@@ -4971,6 +4968,25 @@ mod tests {
                 .list(ListMode::Quiet),
             Some([].as_slice())
         );
+    }
+
+    #[test]
+    fn ordinary_messages_do_not_clone_full_state() {
+        let now = std::time::Instant::now();
+        let mut session = Session::new(Config::default());
+        session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
+        session.handle_line(
+            now,
+            b":ergo.test 353 papo = #papo :papo alice emily jordan riley",
+        );
+        super::state::reset_clone_count();
+
+        session.handle_line(
+            now,
+            b"@time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120004 :alice!~alice@localhost PRIVMSG #papo :review is ready",
+        );
+
+        assert_eq!(super::state::clone_count(), 0);
     }
 
     #[test]

@@ -2,11 +2,14 @@ use papo_proto::{Casemapping, LineRef};
 
 use crate::{BouncerNetwork, Event, Outbox, StateLimit, bouncer::NetworkUpdate};
 
-use super::{State, StateSnapshot};
+use super::State;
+#[cfg(test)]
+use super::StateSnapshot;
 
 const MAX_BOUNCER_NETWORKS: usize = 10_000;
 
 impl State {
+    #[cfg(test)]
     pub(super) fn bouncer_snapshot(&self, message: &LineRef<'_>) -> Option<StateSnapshot> {
         let update = NetworkUpdate::parse(message)?;
         let network = self.bouncer_networks.get(&update.id).cloned();
