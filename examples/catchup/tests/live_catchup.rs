@@ -34,7 +34,7 @@ async fn prints_three_unread_messages_and_advances_the_marker() {
             .unwrap();
         wait_synced(&mut persistent_events, &channel).await;
         persistent
-            .send_raw(Line::new("PERSISTENCE", ["SET", "ON"]))
+            .send_raw(Line::builder("PERSISTENCE").with_params(["SET", "ON"]))
             .await
             .unwrap();
         persistent

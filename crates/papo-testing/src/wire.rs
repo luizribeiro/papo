@@ -363,11 +363,8 @@ mod tests {
                 .reconnect(papo::Reconnect::never()),
         );
         wire.register(&["batch", "labeled-response"]).await;
-        let request = tokio::spawn(async move {
-            client
-                .request_raw(papo::Line::new("MOTD", Vec::<String>::new()))
-                .await
-        });
+        let request =
+            tokio::spawn(async move { client.request_raw(papo::Line::builder("MOTD")).await });
         assert_eq!(wire.next_sent().await, "@label=0 MOTD");
 
         wire.server("@label=0 :offline.test BATCH +motd labeled-response")
