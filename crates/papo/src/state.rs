@@ -104,7 +104,7 @@ impl State {
         core: Arc<papo_core::State>,
         typing: Arc<papo_core::TypingTable>,
     ) -> Self {
-        let unsupported = FEATURES
+        let unsupported = Feature::ALL
             .iter()
             .copied()
             .filter_map(|feature| {
@@ -139,7 +139,7 @@ impl State {
 
     /// Iterates over the optional behaviors supported by the current connection.
     pub fn features(&self) -> impl Iterator<Item = Feature> + '_ {
-        FEATURES
+        Feature::ALL
             .iter()
             .copied()
             .filter(|feature| self.supports(*feature))
@@ -383,41 +383,6 @@ impl State {
         Some(crate::Extban::Account(account.to_owned()))
     }
 }
-
-const FEATURES: &[Feature] = &[
-    Feature::MessageTags,
-    Feature::Replies,
-    Feature::Reactions,
-    Feature::Typing,
-    Feature::Redaction,
-    Feature::Multiline,
-    Feature::History,
-    Feature::ReadMarkers,
-    Feature::Metadata,
-    Feature::Monitor,
-    Feature::SetName,
-    Feature::BotMode,
-    Feature::AccountCreation,
-    #[cfg(feature = "unstable")]
-    Feature::Bouncer,
-    #[cfg(feature = "unstable")]
-    Feature::Persistence,
-    #[cfg(feature = "unstable")]
-    Feature::WebPush,
-    Feature::ChannelRename,
-    #[cfg(feature = "unstable")]
-    Feature::Relay,
-    Feature::LabeledResponse,
-    Feature::AwayTracking,
-    Feature::AccountTracking,
-    Feature::HostTracking,
-    Feature::InviteTracking,
-    Feature::Halfop,
-    Feature::Excepts,
-    Feature::Invex,
-    Feature::Quiet,
-    Feature::AccountExtban,
-];
 
 #[cfg(test)]
 mod name_tests {

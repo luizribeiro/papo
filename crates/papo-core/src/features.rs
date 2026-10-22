@@ -82,7 +82,8 @@ pub enum Feature {
 }
 
 impl Feature {
-    pub(crate) const ALL: &'static [Self] = &[
+    #[doc(hidden)]
+    pub const ALL: &'static [Self] = &[
         Self::MessageTags,
         Self::Replies,
         Self::Reactions,
