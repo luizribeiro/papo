@@ -185,8 +185,6 @@ pub use error::{
 };
 pub use event_impl::{Authorship, Event, Message, MessageKind, Origin, Source, Tags};
 pub use ext::accounts::{AccountCreation, NewAccount};
-#[cfg(feature = "unstable")]
-pub use ext::bouncer::Bouncer;
 pub use ext::history::{
     ConversationInput, History, HistoryItem, HistoryPage, HistoryReference, HistoryRequest,
     RecentConversation,
@@ -194,9 +192,11 @@ pub use ext::history::{
 pub use ext::metadata::Metadata;
 pub use ext::monitor::Monitor;
 #[cfg(feature = "unstable")]
-pub use ext::persistence::Persistence;
-#[cfg(feature = "unstable")]
-pub use ext::webpush::{PushKeys, WebPush};
+pub use ext::{
+    bouncer::Bouncer,
+    persistence::Persistence,
+    webpush::{PushKeys, WebPush},
+};
 pub use isupport_impl::Isupport;
 pub use message_ref::MessageRef;
 pub use mode::{BanTarget, Extban, KickbanOutcome, ModesApplied, SetModes};
@@ -208,14 +208,14 @@ pub use papo_core::{
     ModeChange, ModeValue, Rank, Typer, User,
 };
 #[cfg(feature = "unstable")]
-pub use papo_core::{BouncerNetwork, NetworkConfig, NetworkId, NetworkState};
+pub use papo_core::{
+    BouncerNetwork, NetworkConfig, NetworkId, NetworkState, PersistenceSetting, PersistenceStatus,
+};
 #[doc(inline)]
 pub use papo_core::{CtcpReplies, InvalidRateLimit, RateLimit, Sasl, WhoOnJoin};
 #[doc(inline)]
 pub use papo_core::{ListMode, ModeListEntry, Refusal, StateLimit};
 pub use papo_core::{MetadataValue, Visibility};
-#[cfg(feature = "unstable")]
-pub use papo_core::{PersistenceSetting, PersistenceStatus};
 #[doc(inline)]
 pub use papo_core::{Unsupported, UnsupportedReason};
 #[doc(inline)]
