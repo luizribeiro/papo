@@ -376,34 +376,6 @@ impl core::marker::Unpin for papo::event::Connecting
 impl core::marker::UnsafeUnpin for papo::event::Connecting
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Connecting
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Connecting
-#[non_exhaustive] pub struct papo::event::Ctcp
-pub papo::event::Ctcp::account: core::option::Option<papo::AccountName>
-pub papo::event::Ctcp::actor: papo::Source
-pub papo::event::Ctcp::authorship: papo::Authorship
-pub papo::event::Ctcp::command: alloc::string::String
-pub papo::event::Ctcp::conversation: papo::Conversation
-pub papo::event::Ctcp::msgid: core::option::Option<papo::MessageId>
-pub papo::event::Ctcp::params: core::option::Option<alloc::string::String>
-pub papo::event::Ctcp::received_at: std::time::SystemTime
-pub papo::event::Ctcp::reply: bool
-pub papo::event::Ctcp::server_time: core::option::Option<std::time::SystemTime>
-pub papo::event::Ctcp::status: core::option::Option<alloc::vec::Vec<char>>
-pub papo::event::Ctcp::tags: papo::Tags
-impl core::clone::Clone for papo::event::Ctcp
-pub fn papo::event::Ctcp::clone(&self) -> Self
-impl core::cmp::Eq for papo::event::Ctcp
-impl core::cmp::PartialEq for papo::event::Ctcp
-pub fn papo::event::Ctcp::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::event::Ctcp
-pub fn papo::event::Ctcp::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::event::Ctcp
-impl core::marker::Freeze for papo::event::Ctcp
-impl core::marker::Send for papo::event::Ctcp
-impl core::marker::Sync for papo::event::Ctcp
-impl core::marker::Unpin for papo::event::Ctcp
-impl core::marker::UnsafeUnpin for papo::event::Ctcp
-impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Ctcp
-impl core::panic::unwind_safe::UnwindSafe for papo::event::Ctcp
 #[non_exhaustive] pub struct papo::event::CtcpQuery
 pub papo::event::CtcpQuery::account: core::option::Option<papo::AccountName>
 pub papo::event::CtcpQuery::actor: papo::Source
@@ -1421,7 +1393,6 @@ pub papo::Event::ChannelRenamed(papo::event::ChannelRenamed)
 pub papo::Event::ChannelSynced(papo::event::ChannelSynced)
 pub papo::Event::Connected(papo::event::Connected)
 pub papo::Event::Connecting(papo::event::Connecting)
-pub papo::Event::Ctcp(papo::event::Ctcp)
 pub papo::Event::CtcpQuery(papo::event::CtcpQuery)
 pub papo::Event::CtcpReply(papo::event::CtcpReply)
 pub papo::Event::Disconnected(papo::Disconnected)
@@ -1474,8 +1445,6 @@ impl papo::Event
 pub const fn papo::Event::as_connected(&self) -> core::option::Option<&papo::event::Connected>
 impl papo::Event
 pub const fn papo::Event::as_connecting(&self) -> core::option::Option<&papo::event::Connecting>
-impl papo::Event
-pub const fn papo::Event::as_ctcp(&self) -> core::option::Option<&papo::event::Ctcp>
 impl papo::Event
 pub const fn papo::Event::as_ctcp_query(&self) -> core::option::Option<&papo::event::CtcpQuery>
 impl papo::Event
@@ -1688,8 +1657,6 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::InvalidInput
 impl core::panic::unwind_safe::UnwindSafe for papo::InvalidInput
 #[non_exhaustive] pub enum papo::MessageKind
 pub papo::MessageKind::Action
-pub papo::MessageKind::Notice
-pub papo::MessageKind::Privmsg
 pub papo::MessageKind::Text
 impl core::clone::Clone for papo::MessageKind
 pub fn papo::MessageKind::clone(&self) -> Self

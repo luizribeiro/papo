@@ -20,10 +20,6 @@ enum ConversationClass {
 
 const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
     (
-        "pub papo::event::Ctcp::conversation: papo::Conversation",
-        ConversationClass::Event,
-    ),
-    (
         "pub papo::event::CtcpQuery::conversation: papo::Conversation",
         ConversationClass::Event,
     ),

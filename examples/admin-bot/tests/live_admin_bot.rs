@@ -41,7 +41,7 @@ async fn parses_mentions_and_authorizes_by_account() {
             &format!("cannot op {admin_nick}: permission denied"),
         )
         .await;
-        assert_eq!(refusal.kind, MessageKind::Privmsg);
+        assert_eq!(refusal.kind, MessageKind::Text);
         assert!(matches!(
             refusal.conversation,
             papo::Conversation::Channel(_)

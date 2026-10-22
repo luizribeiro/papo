@@ -115,42 +115,8 @@ impl From<&Chat> for Conversation {
 pub enum MessageKind {
     /// A regular text message.
     Text,
-    /// A regular `PRIVMSG`.
-    Privmsg,
-    /// A regular `NOTICE`.
-    Notice,
     /// A CTCP `ACTION`.
     Action,
-}
-
-/// An incoming Client-to-Client Protocol query or reply.
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[non_exhaustive]
-pub struct Ctcp {
-    /// The user or server that sent the CTCP message.
-    pub actor: Source,
-    /// Whether the actor is this client's user.
-    pub authorship: Authorship,
-    /// The IRC conversation to which the CTCP message belongs.
-    pub conversation: Conversation,
-    /// `STATUSMSG` prefixes removed from the wire address, in wire order.
-    pub status: Option<Vec<char>>,
-    /// The command with its original spelling.
-    pub command: String,
-    /// The command parameters, when present.
-    pub params: Option<String>,
-    /// Whether this is a response sent with `NOTICE`.
-    pub reply: bool,
-    /// The server-assigned message identifier, when supplied.
-    pub msgid: Option<MessageId>,
-    /// Valid server time, when supplied.
-    pub server_time: Option<SystemTime>,
-    /// Time at which the line was received.
-    pub received_at: SystemTime,
-    /// The actor's authenticated account, when tagged.
-    pub account: Option<AccountName>,
-    /// All message tags in wire order.
-    pub tags: Tags,
 }
 
 /// The semantic kind of an incoming user notice.
@@ -1087,8 +1053,6 @@ pub enum Event {
     Notice(Box<Notice>),
     /// A server notice, broadcast, `*` message, or `WALLOPS`.
     ServerNotice(Box<ServerNotice>),
-    /// An incoming Client-to-Client Protocol query or reply.
-    Ctcp(Ctcp),
     /// An incoming Client-to-Client Protocol query.
     CtcpQuery(CtcpQuery),
     /// An incoming Client-to-Client Protocol reply.
@@ -1195,7 +1159,6 @@ variant_accessors! { Event;
     (boxed OwnMessage, as_own_message, Message),
     (boxed Notice, as_notice, Notice),
     (boxed ServerNotice, as_server_notice, ServerNotice),
-    (Ctcp, as_ctcp, Ctcp),
     (CtcpQuery, as_ctcp_query, CtcpQuery),
     (CtcpReply, as_ctcp_reply, CtcpReply),
     (boxed History, as_history, crate::HistoryPage),
@@ -1246,7 +1209,6 @@ impl Event {
             Self::Notice(event) => event.msgid.clone(),
             Self::CtcpQuery(event) => event.msgid.clone(),
             Self::CtcpReply(event) => event.msgid.clone(),
-            Self::Ctcp(event) => event.msgid.clone(),
             Self::TagMsg(event) => event.tags.get("msgid").map(MessageId::from),
             Self::Reacted(event) => event.msgid.clone(),
             Self::Redacted(event) => event.msgid.clone(),
@@ -1275,7 +1237,6 @@ impl Event {
             Self::ServerNotice(event) => event.server_time,
             Self::CtcpQuery(event) => event.server_time,
             Self::CtcpReply(event) => event.server_time,
-            Self::Ctcp(event) => event.server_time,
             Self::TagMsg(event) => tagged_from_tags(&event.tags),
             Self::Reacted(event) => event.server_time,
             Self::Redacted(event) => event.server_time,
@@ -1300,7 +1261,6 @@ impl Event {
             Self::ServerNotice(event) => Some(event.received_at),
             Self::CtcpQuery(event) => Some(event.received_at),
             Self::CtcpReply(event) => Some(event.received_at),
-            Self::Ctcp(event) => Some(event.received_at),
             Self::Reacted(event) => Some(event.received_at),
             Self::Redacted(event) => Some(event.received_at),
             Self::Joined(event) => Some(event.received_at),
