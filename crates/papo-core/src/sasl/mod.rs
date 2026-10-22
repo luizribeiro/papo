@@ -582,11 +582,11 @@ impl SaslSession {
                 continue;
             }
             if let Mechanism::ScramSha256 { username, password } = &mechanism {
-                let Some(password) = password.expose() else {
+                if password.expose().is_none() {
                     self.failures
                         .push("SCRAM-SHA-256: configured secret is not text".to_owned());
                     continue;
-                };
+                }
                 let mut nonce = [0; 18];
                 let Some(entropy) = self.entropy.as_mut() else {
                     continue;

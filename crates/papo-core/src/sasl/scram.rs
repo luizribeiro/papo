@@ -2,21 +2,24 @@ use base64::{Engine as _, engine::general_purpose::STANDARD};
 use hmac::{Hmac, Mac};
 use pbkdf2::pbkdf2_hmac;
 use sha2::{Digest, Sha256};
+use zeroize::Zeroizing;
+
+use crate::Secret;
 
 type HmacSha256 = Hmac<Sha256>;
 const MAX_ITERATION_COUNT: u32 = 1_000_000;
 
 pub(crate) struct ScramClient {
     username: String,
-    password: Option<String>,
+    password: Option<Secret>,
     client_nonce: String,
-    server_verifier: Option<HmacSha256>,
+    server_signature: Option<Zeroizing<[u8; 32]>>,
 }
 
 impl ScramClient {
     pub(crate) fn new(
         username: &str,
-        password: &str,
+        password: &Secret,
         client_nonce: &str,
     ) -> Result<Self, ScramError> {
         if !username.is_ascii() {
@@ -24,9 +27,9 @@ impl ScramClient {
         }
         Ok(Self {
             username: username.replace('=', "=3D").replace(',', "=2C"),
-            password: Some(password.to_owned()),
+            password: Some(password.clone()),
             client_nonce: client_nonce.to_owned(),
-            server_verifier: None,
+            server_signature: None,
         })
     }
 
@@ -34,7 +37,10 @@ impl ScramClient {
         format!("n,,n={},r={}", self.username, self.client_nonce)
     }
 
-    pub(crate) fn handle_server_first(&mut self, server_first: &str) -> Result<String, ScramError> {
+    pub(crate) fn handle_server_first(
+        &mut self,
+        server_first: &str,
+    ) -> Result<Zeroizing<String>, ScramError> {
         let attributes = Attributes::parse(server_first)?;
         let nonce = attributes.nonce.ok_or(ScramError::MalformedMessage)?;
         let salt = STANDARD
@@ -60,12 +66,14 @@ impl ScramClient {
             .password
             .take()
             .ok_or(ScramError::UnexpectedServerFirst)?;
-        let (proof, verifier) = derive_keys(&password, &salt, iterations, &auth_message);
-        self.server_verifier = Some(verifier);
-        Ok(format!(
-            "{final_without_proof},p={}",
-            STANDARD.encode(proof)
-        ))
+        let password = password.expose().ok_or(ScramError::MalformedMessage)?;
+        let (proof, signature) = derive_keys(password, &salt, iterations, &auth_message);
+        self.server_signature = Some(signature);
+        let mut response = Zeroizing::new(String::with_capacity(final_without_proof.len() + 47));
+        response.push_str(&final_without_proof);
+        response.push_str(",p=");
+        STANDARD.encode_string(&proof[..], &mut response);
+        Ok(response)
     }
 
     pub(crate) fn handle_server_final(&mut self, server_final: &str) -> Result<(), ScramError> {
@@ -79,11 +87,15 @@ impl ScramClient {
         let signature = STANDARD
             .decode(attributes.verifier.ok_or(ScramError::MalformedMessage)?)
             .map_err(|_| ScramError::MalformedMessage)?;
-        self.server_verifier
+        let expected = self
+            .server_signature
             .take()
-            .ok_or(ScramError::UnexpectedServerFinal)?
-            .verify_slice(&signature)
-            .map_err(|_| ScramError::ServerSignatureMismatch)
+            .ok_or(ScramError::UnexpectedServerFinal)?;
+        if constant_time_eq(&expected, &signature) {
+            Ok(())
+        } else {
+            Err(ScramError::ServerSignatureMismatch)
+        }
     }
 }
 
@@ -141,17 +153,23 @@ fn derive_keys(
     salt: &[u8],
     iterations: u32,
     auth_message: &str,
-) -> ([u8; 32], HmacSha256) {
-    let mut salted_password = [0; 32];
-    pbkdf2_hmac::<Sha256>(password.as_bytes(), salt, iterations, &mut salted_password);
-    let client_key = keyed_hash(&salted_password, b"Client Key");
-    let stored_key = Sha256::digest(client_key);
-    let client_signature = keyed_hash(&stored_key, auth_message.as_bytes());
-    let proof = std::array::from_fn(|index| client_key[index] ^ client_signature[index]);
-    let server_key = keyed_hash(&salted_password, b"Server Key");
-    let mut server_verifier = HmacSha256::new_from_slice(&server_key).expect("valid HMAC key");
-    server_verifier.update(auth_message.as_bytes());
-    (proof, server_verifier)
+) -> (Zeroizing<[u8; 32]>, Zeroizing<[u8; 32]>) {
+    let mut salted_password = Zeroizing::new([0; 32]);
+    pbkdf2_hmac::<Sha256>(
+        password.as_bytes(),
+        salt,
+        iterations,
+        &mut salted_password[..],
+    );
+    let client_key = Zeroizing::new(keyed_hash(&salted_password[..], b"Client Key"));
+    let stored_key: Zeroizing<[u8; 32]> = Zeroizing::new(Sha256::digest(&client_key[..]).into());
+    let client_signature = Zeroizing::new(keyed_hash(&stored_key[..], auth_message.as_bytes()));
+    let proof = Zeroizing::new(std::array::from_fn(|index| {
+        client_key[index] ^ client_signature[index]
+    }));
+    let server_key = Zeroizing::new(keyed_hash(&salted_password[..], b"Server Key"));
+    let server_signature = Zeroizing::new(keyed_hash(&server_key[..], auth_message.as_bytes()));
+    (proof, server_signature)
 }
 
 fn check_iteration_count(iterations: u32) -> Result<(), ScramError> {
@@ -170,9 +188,25 @@ fn keyed_hash(key: &[u8], value: &[u8]) -> [u8; 32] {
     mac.finalize().into_bytes().into()
 }
 
+fn constant_time_eq(expected: &[u8; 32], actual: &[u8]) -> bool {
+    if actual.len() != expected.len() {
+        return false;
+    }
+    expected
+        .iter()
+        .zip(actual)
+        .fold(0_u8, |difference, (left, right)| {
+            difference | (left ^ right)
+        })
+        == 0
+}
+
 #[cfg(test)]
 mod tests {
+    use base64::{Engine as _, engine::general_purpose::STANDARD};
+
     use super::{ScramClient, ScramError, check_iteration_count};
+    use crate::Secret;
 
     const SERVER_FIRST: &str = concat!(
         "r=rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0,",
@@ -180,7 +214,7 @@ mod tests {
     );
 
     fn rfc_client() -> ScramClient {
-        ScramClient::new("user", "pencil", "rOprNGfwEbeRWgbNEkqO").unwrap()
+        ScramClient::new("user", &Secret::new("pencil"), "rOprNGfwEbeRWgbNEkqO").unwrap()
     }
 
     // Deriving keys at the cap takes over 30 seconds unoptimized, so the boundary is checked without a derivation.
@@ -206,7 +240,7 @@ mod tests {
 
         let client_final = client.handle_server_first(SERVER_FIRST).unwrap();
         assert_eq!(
-            client_final,
+            client_final.as_str(),
             concat!(
                 "c=biws,r=rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0,",
                 "p=dHzbZapWIk4jUhN+Ute9ytag9zjfMHgsqmmiz7AndVQ="
@@ -219,12 +253,17 @@ mod tests {
 
     #[test]
     fn rejects_tampered_server_signature() {
-        let mut client = rfc_client();
-        client.handle_server_first(SERVER_FIRST).unwrap();
-        assert_eq!(
-            client.handle_server_final("v=7rriTRBi23WpRR/wtup+mMhUZUn/dB5nLTJRsjl95G4="),
-            Err(ScramError::ServerSignatureMismatch)
-        );
+        let valid = "6rriTRBi23WpRR/wtup+mMhUZUn/dB5nLTJRsjl95G4=";
+        for index in [0, 31] {
+            let mut signature = STANDARD.decode(valid).unwrap();
+            signature[index] ^= 1;
+            let mut client = rfc_client();
+            client.handle_server_first(SERVER_FIRST).unwrap();
+            assert_eq!(
+                client.handle_server_final(&format!("v={}", STANDARD.encode(signature))),
+                Err(ScramError::ServerSignatureMismatch)
+            );
+        }
     }
 
     #[test]
@@ -330,10 +369,11 @@ mod tests {
 
     #[test]
     fn escapes_username_and_rejects_non_ascii() {
-        let escaped = ScramClient::new("user=name,admin", "pencil", "nonce").unwrap();
+        let password = Secret::new("pencil");
+        let escaped = ScramClient::new("user=name,admin", &password, "nonce").unwrap();
         assert_eq!(escaped.client_first(), "n,,n=user=3Dname=2Cadmin,r=nonce");
         assert!(matches!(
-            ScramClient::new("J\u{00fc}rgen", "pencil", "nonce"),
+            ScramClient::new("J\u{00fc}rgen", &password, "nonce"),
             Err(ScramError::NonAsciiUsername)
         ));
     }
