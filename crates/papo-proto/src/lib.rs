@@ -17,6 +17,7 @@ mod line;
 mod modes;
 mod names;
 mod numeric;
+mod secret;
 mod server_name;
 mod source;
 mod text;
@@ -44,6 +45,7 @@ pub use line::{
 pub use modes::{ModeAction, ModeChange, ModeChanges, ModeKind};
 pub use names::{NAME_ALIASES, NameKind, NamesEntry, canonical, parse_353};
 pub use numeric::Numeric;
+pub use secret::Secret;
 pub use server_name::ServerName;
 pub use source::Source;
 pub use text::{Segment, split_text};

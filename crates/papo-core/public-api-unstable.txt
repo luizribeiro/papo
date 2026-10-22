@@ -1,5 +1,6 @@
 pub mod papo_core
 pub use papo_core::ModeAction
+pub use papo_core::Secret
 pub mod papo_core::cap
 pub enum papo_core::cap::Request
 pub papo_core::cap::Request::Automatic
@@ -1555,7 +1556,7 @@ pub papo_core::Config::max_members_per_channel: usize
 pub papo_core::Config::max_open_batches: usize
 pub papo_core::Config::metadata_subscriptions: alloc::vec::Vec<alloc::string::String>
 pub papo_core::Config::nick: alloc::string::String
-pub papo_core::Config::password: core::option::Option<papo_core::Secret>
+pub papo_core::Config::password: core::option::Option<papo::Secret>
 pub papo_core::Config::ping_interval: core::time::Duration
 pub papo_core::Config::ping_timeout: core::time::Duration
 pub papo_core::Config::rate_limit: papo_core::RateLimit
@@ -1575,7 +1576,7 @@ pub fn papo_core::Config::away_on_connect(self, core::option::Option<papo_core::
 pub const fn papo_core::Config::batch_timeout(self, core::time::Duration) -> Self
 pub const fn papo_core::Config::casemapping(self, papo::Casemapping) -> Self
 pub const fn papo_core::Config::connection_security(self, papo::sts::ConnectionSecurity) -> Self
-pub fn papo_core::Config::create_account_on_connect(self, core::option::Option<impl core::convert::Into<alloc::string::String>>, core::option::Option<impl core::convert::Into<alloc::string::String>>, impl core::convert::Into<papo_core::Secret>) -> Self
+pub fn papo_core::Config::create_account_on_connect(self, core::option::Option<impl core::convert::Into<alloc::string::String>>, core::option::Option<impl core::convert::Into<alloc::string::String>>, impl core::convert::Into<papo::Secret>) -> Self
 pub fn papo_core::Config::ctcp(self, papo_core::CtcpReplies) -> Self
 pub const fn papo_core::Config::decoding(self, papo_core::Decoding) -> Self
 pub fn papo_core::Config::device(self, impl core::convert::Into<alloc::string::String>) -> Self
@@ -1587,7 +1588,7 @@ pub const fn papo_core::Config::max_members_per_channel(self, usize) -> Self
 pub const fn papo_core::Config::max_open_batches(self, usize) -> Self
 pub fn papo_core::Config::metadata_subscriptions<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub fn papo_core::Config::nick(self, impl core::convert::Into<alloc::string::String>) -> Self
-pub fn papo_core::Config::password(self, impl core::convert::Into<papo_core::Secret>) -> Self
+pub fn papo_core::Config::password(self, impl core::convert::Into<papo::Secret>) -> Self
 pub const fn papo_core::Config::ping_interval(self, core::time::Duration) -> Self
 pub const fn papo_core::Config::ping_timeout(self, core::time::Duration) -> Self
 pub const fn papo_core::Config::rate_limit(self, papo_core::RateLimit) -> Self
@@ -1865,7 +1866,7 @@ impl papo_core::NetworkConfig
 pub fn papo_core::NetworkConfig::name(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo_core::NetworkConfig::new(impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo_core::NetworkConfig::nickname(self, impl core::convert::Into<papo::Nick>) -> Self
-pub fn papo_core::NetworkConfig::password(self, impl core::convert::Into<papo_core::Secret>) -> Self
+pub fn papo_core::NetworkConfig::password(self, impl core::convert::Into<papo::Secret>) -> Self
 pub const fn papo_core::NetworkConfig::port(self, u16) -> Self
 pub fn papo_core::NetworkConfig::realname(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub const fn papo_core::NetworkConfig::tls(self, bool) -> Self
@@ -2090,13 +2091,13 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Response
 impl core::panic::unwind_safe::UnwindSafe for papo_core::Response
 pub struct papo_core::Sasl
 impl papo_core::Sasl
-pub fn papo_core::Sasl::any(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo_core::Secret>) -> Self
+pub fn papo_core::Sasl::any(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo::Secret>) -> Self
 pub fn papo_core::Sasl::authzid(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo_core::Sasl::external() -> Self
-pub fn papo_core::Sasl::oauth_bearer(impl core::convert::Into<papo_core::Secret>) -> Self
+pub fn papo_core::Sasl::oauth_bearer(impl core::convert::Into<papo::Secret>) -> Self
 pub const fn papo_core::Sasl::optional(self) -> Self
-pub fn papo_core::Sasl::plain(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo_core::Secret>) -> Self
-pub fn papo_core::Sasl::scram_sha256(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo_core::Secret>) -> Self
+pub fn papo_core::Sasl::plain(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo::Secret>) -> Self
+pub fn papo_core::Sasl::scram_sha256(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo::Secret>) -> Self
 impl core::clone::Clone for papo_core::Sasl
 pub fn papo_core::Sasl::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::Sasl
@@ -2112,39 +2113,6 @@ impl core::marker::Unpin for papo_core::Sasl
 impl core::marker::UnsafeUnpin for papo_core::Sasl
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Sasl
 impl core::panic::unwind_safe::UnwindSafe for papo_core::Sasl
-pub struct papo_core::Secret(_)
-impl papo_core::Secret
-pub fn papo_core::Secret::expose(&self) -> core::option::Option<&str>
-pub fn papo_core::Secret::expose_bytes(&self) -> &[u8]
-pub fn papo_core::Secret::from_bytes(impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self
-pub fn papo_core::Secret::new(impl core::convert::Into<alloc::string::String>) -> Self
-impl core::clone::Clone for papo_core::Secret
-pub fn papo_core::Secret::clone(&self) -> Self
-impl core::cmp::Eq for papo_core::Secret
-impl core::cmp::PartialEq for papo_core::Secret
-pub fn papo_core::Secret::eq(&self, &Self) -> bool
-impl core::convert::From<&alloc::string::String> for papo_core::Secret
-pub fn papo_core::Secret::from(&alloc::string::String) -> Self
-impl core::convert::From<&str> for papo_core::Secret
-pub fn papo_core::Secret::from(&str) -> Self
-impl core::convert::From<alloc::borrow::Cow<'_, str>> for papo_core::Secret
-pub fn papo_core::Secret::from(alloc::borrow::Cow<'_, str>) -> Self
-impl core::convert::From<alloc::boxed::Box<str>> for papo_core::Secret
-pub fn papo_core::Secret::from(alloc::boxed::Box<str>) -> Self
-impl core::convert::From<alloc::string::String> for papo_core::Secret
-pub fn papo_core::Secret::from(alloc::string::String) -> Self
-impl core::convert::From<alloc::vec::Vec<u8>> for papo_core::Secret
-pub fn papo_core::Secret::from(alloc::vec::Vec<u8>) -> Self
-impl core::fmt::Debug for papo_core::Secret
-pub fn papo_core::Secret::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo_core::Secret
-impl core::marker::Freeze for papo_core::Secret
-impl core::marker::Send for papo_core::Secret
-impl core::marker::Sync for papo_core::Secret
-impl core::marker::Unpin for papo_core::Secret
-impl core::marker::UnsafeUnpin for papo_core::Secret
-impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Secret
-impl core::panic::unwind_safe::UnwindSafe for papo_core::Secret
 pub struct papo_core::SentInfo
 pub papo_core::SentInfo::msgid: alloc::string::String
 pub papo_core::SentInfo::server_time: core::option::Option<alloc::string::String>
@@ -2167,7 +2135,7 @@ pub struct papo_core::Session
 impl papo_core::Session
 pub fn papo_core::Session::account(&self) -> core::option::Option<&str>
 pub fn papo_core::Session::caps(&self) -> &papo::Capabilities
-pub fn papo_core::Session::create_account(&mut self, std::time::Instant, core::option::Option<&str>, core::option::Option<&str>, impl core::convert::Into<papo_core::Secret>) -> core::result::Result<(), papo_core::RequestError>
+pub fn papo_core::Session::create_account(&mut self, std::time::Instant, core::option::Option<&str>, core::option::Option<&str>, impl core::convert::Into<papo::Secret>) -> core::result::Result<(), papo_core::RequestError>
 pub fn papo_core::Session::handle_bytes(&mut self, std::time::Instant, &[u8])
 pub fn papo_core::Session::handle_connected(&mut self, std::time::Instant)
 pub fn papo_core::Session::handle_connected_with(&mut self, std::time::Instant, papo_core::Connection)
@@ -2413,7 +2381,7 @@ pub papo_core::WebIrc::client_hostname: core::option::Option<alloc::string::Stri
 pub papo_core::WebIrc::client_ip: core::net::ip_addr::IpAddr
 pub papo_core::WebIrc::gateway: alloc::string::String
 pub papo_core::WebIrc::options: alloc::vec::Vec<(alloc::string::String, core::option::Option<alloc::string::String>)>
-pub papo_core::WebIrc::password: papo_core::Secret
+pub papo_core::WebIrc::password: papo::Secret
 impl core::clone::Clone for papo_core::WebIrc
 pub fn papo_core::WebIrc::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::WebIrc

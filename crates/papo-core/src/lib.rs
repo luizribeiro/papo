@@ -82,7 +82,6 @@ mod refusal;
 mod relaymsg;
 mod replies;
 mod sasl;
-mod secret;
 mod source;
 mod state;
 pub mod sts;
@@ -95,7 +94,7 @@ mod welcome;
 #[cfg(feature = "unstable")]
 include!("unstable/persistence_types.rs");
 
-pub use secret::Secret;
+pub use papo_proto::Secret;
 pub use source::Source;
 
 use std::{

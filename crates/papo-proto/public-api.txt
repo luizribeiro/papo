@@ -1379,6 +1379,39 @@ impl core::marker::Unpin for papo_proto::Reaction
 impl core::marker::UnsafeUnpin for papo_proto::Reaction
 impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::Reaction
 impl core::panic::unwind_safe::UnwindSafe for papo_proto::Reaction
+pub struct papo_proto::Secret(_)
+impl papo_proto::Secret
+pub fn papo_proto::Secret::expose(&self) -> core::option::Option<&str>
+pub fn papo_proto::Secret::expose_bytes(&self) -> &[u8]
+pub fn papo_proto::Secret::from_bytes(impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self
+pub fn papo_proto::Secret::new(impl core::convert::Into<alloc::string::String>) -> Self
+impl core::clone::Clone for papo_proto::Secret
+pub fn papo_proto::Secret::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::Secret
+impl core::cmp::PartialEq for papo_proto::Secret
+pub fn papo_proto::Secret::eq(&self, &Self) -> bool
+impl core::convert::From<&alloc::string::String> for papo_proto::Secret
+pub fn papo_proto::Secret::from(&alloc::string::String) -> Self
+impl core::convert::From<&str> for papo_proto::Secret
+pub fn papo_proto::Secret::from(&str) -> Self
+impl core::convert::From<alloc::borrow::Cow<'_, str>> for papo_proto::Secret
+pub fn papo_proto::Secret::from(alloc::borrow::Cow<'_, str>) -> Self
+impl core::convert::From<alloc::boxed::Box<str>> for papo_proto::Secret
+pub fn papo_proto::Secret::from(alloc::boxed::Box<str>) -> Self
+impl core::convert::From<alloc::string::String> for papo_proto::Secret
+pub fn papo_proto::Secret::from(alloc::string::String) -> Self
+impl core::convert::From<alloc::vec::Vec<u8>> for papo_proto::Secret
+pub fn papo_proto::Secret::from(alloc::vec::Vec<u8>) -> Self
+impl core::fmt::Debug for papo_proto::Secret
+pub fn papo_proto::Secret::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo_proto::Secret
+impl core::marker::Freeze for papo_proto::Secret
+impl core::marker::Send for papo_proto::Secret
+impl core::marker::Sync for papo_proto::Secret
+impl core::marker::Unpin for papo_proto::Secret
+impl core::marker::UnsafeUnpin for papo_proto::Secret
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::Secret
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::Secret
 pub struct papo_proto::Segment<'a>
 pub papo_proto::Segment::concat: bool
 pub papo_proto::Segment::text: &'a str
