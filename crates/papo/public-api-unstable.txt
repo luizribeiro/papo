@@ -366,6 +366,33 @@ impl core::marker::Unpin for papo::event::Ctcp
 impl core::marker::UnsafeUnpin for papo::event::Ctcp
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Ctcp
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Ctcp
+#[non_exhaustive] pub struct papo::event::CtcpQuery
+pub papo::event::CtcpQuery::account: core::option::Option<papo::AccountName>
+pub papo::event::CtcpQuery::actor: papo::Source
+pub papo::event::CtcpQuery::authorship: papo::Authorship
+pub papo::event::CtcpQuery::command: alloc::string::String
+pub papo::event::CtcpQuery::conversation: papo::Conversation
+pub papo::event::CtcpQuery::msgid: core::option::Option<papo::MessageId>
+pub papo::event::CtcpQuery::params: core::option::Option<alloc::string::String>
+pub papo::event::CtcpQuery::received_at: std::time::SystemTime
+pub papo::event::CtcpQuery::server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::CtcpQuery::status: core::option::Option<alloc::vec::Vec<char>>
+pub papo::event::CtcpQuery::tags: papo::Tags
+impl core::clone::Clone for papo::event::CtcpQuery
+pub fn papo::event::CtcpQuery::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::CtcpQuery
+impl core::cmp::PartialEq for papo::event::CtcpQuery
+pub fn papo::event::CtcpQuery::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::CtcpQuery
+pub fn papo::event::CtcpQuery::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::CtcpQuery
+impl core::marker::Freeze for papo::event::CtcpQuery
+impl core::marker::Send for papo::event::CtcpQuery
+impl core::marker::Sync for papo::event::CtcpQuery
+impl core::marker::Unpin for papo::event::CtcpQuery
+impl core::marker::UnsafeUnpin for papo::event::CtcpQuery
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::CtcpQuery
+impl core::panic::unwind_safe::UnwindSafe for papo::event::CtcpQuery
 #[non_exhaustive] pub struct papo::event::FeaturesChanged
 pub papo::event::FeaturesChanged::added: alloc::vec::Vec<papo::Feature>
 pub papo::event::FeaturesChanged::removed: alloc::vec::Vec<papo::Feature>

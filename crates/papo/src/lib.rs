@@ -249,8 +249,8 @@ pub mod event {
     pub use crate::event_impl::BouncerNetworkChanged;
     pub use crate::event_impl::{
         AccountChanged, AwayChanged, BatchAbandonReason, CapsChanged, CasemappingChanged,
-        ChannelRenamed, ChannelSynced, Connected, Ctcp, FeaturesChanged, HostChanged, Invited,
-        Joined, Kicked, MembersRefreshed, MetadataChanged, ModeChanged, MonitorOffline,
+        ChannelRenamed, ChannelSynced, Connected, Ctcp, CtcpQuery, FeaturesChanged, HostChanged,
+        Invited, Joined, Kicked, MembersRefreshed, MetadataChanged, ModeChanged, MonitorOffline,
         MonitorOnline, Motd, Netjoin, Netsplit, NickChanged, Parted, Quit, Reacted,
         ReadMarkerChanged, RealnameChanged, Redacted, SplitServers, StandardReply,
         StandardReplyKind, TagMsg, TopicChanged, TypingChanged, TypingReason, Warning,
