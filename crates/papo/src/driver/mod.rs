@@ -1468,7 +1468,7 @@ where
     Ok(true)
 }
 
-fn update_rejoin_channels(_session: &Session, defaults: &mut PostConnect, event: &Event) {
+fn update_rejoin_channels(session: &Session, defaults: &mut PostConnect, event: &Event) {
     match event {
         Event::Joined(joined) if joined.authorship == crate::Authorship::Own => {
             if !defaults
@@ -1493,6 +1493,19 @@ fn update_rejoin_channels(_session: &Session, defaults: &mut PostConnect, event:
             defaults
                 .channels
                 .retain(|entry| kicked.channel != entry.channel.as_str());
+        }
+        Event::ChannelRenamed(renamed) => {
+            let casemapping = session.isupport().casemapping();
+            for entry in &mut defaults.channels {
+                if casemapping.channel(&entry.channel) == renamed.old {
+                    entry.channel = renamed.new.to_string();
+                }
+            }
+            for channel in &mut defaults.parted_while_disconnected {
+                if casemapping.channel(channel.as_ref()) == renamed.old {
+                    *channel = renamed.new.clone();
+                }
+            }
         }
         _ => {}
     }

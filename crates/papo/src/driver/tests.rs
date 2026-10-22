@@ -1070,6 +1070,19 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
     super::update_rejoin_channels(
         &session,
         &mut defaults,
+        &Event::ChannelRenamed(crate::event::ChannelRenamed {
+            old: test_channel("#RUST"),
+            new: test_channel("#systems"),
+            actor: crate::__testing::user_source(test_nick("oper"), None, None),
+            authorship: crate::Authorship::Other,
+            reason: Some("Community renamed".into()),
+        }),
+    );
+    assert_eq!(defaults.parted_while_disconnected[1], "#systems");
+
+    super::update_rejoin_channels(
+        &session,
+        &mut defaults,
         &Event::Joined(crate::event::Joined {
             msgid: None,
             time: SystemTime::UNIX_EPOCH,
@@ -1145,7 +1158,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             authorship: crate::Authorship::Own,
         }),
     );
-    assert_eq!(defaults.parted_while_disconnected, ["#rust"]);
+    assert_eq!(defaults.parted_while_disconnected, ["#systems"]);
     super::update_rejoin_channels(
         &session,
         &mut defaults,
@@ -1860,6 +1873,102 @@ async fn restored_offline_part_is_not_rejoined_after_an_interrupted_part() {
     within(second_server.shutdown()).await.unwrap();
     assert!(within(quit).await.unwrap().is_ok());
     assert!(within(driver).await.unwrap().is_ok());
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn channel_renames_change_the_rejoin_target_and_survive_a_part() {
+    let (first_stream, mut first_server) = tokio::io::duplex(4096);
+    let (second_stream, mut second_server) = tokio::io::duplex(4096);
+    let (third_stream, mut third_server) = tokio::io::duplex(4096);
+    let streams = Arc::new(Mutex::new(VecDeque::from([
+        Box::new(first_stream) as super::BoxConnection,
+        Box::new(second_stream) as super::BoxConnection,
+        Box::new(third_stream) as super::BoxConnection,
+    ])));
+    let connector: super::Connector = Arc::new(move |_, _| {
+        let stream = streams.lock().unwrap().pop_front().unwrap();
+        Box::pin(async move { Ok(stream) })
+    });
+    let (client, mut events, driver) = Driver::with_connector(
+        Ok(ConnectionPlan {
+            address: "irc://irc.example.net".parse().unwrap(),
+            tls: TlsConfig::default(),
+        }),
+        Session::new(config().wanted_caps(["draft/channel-rename"])),
+        super::DEFAULT_CHANNEL_CAPACITY,
+        None,
+        super::PostConnect {
+            channels: vec![super::Autojoin::new(
+                "#staff",
+                Some("private-channel-key".into()),
+            )],
+            ..super::PostConnect::default()
+        },
+        Reconnect::exponential(),
+        Box::new(papo_core::sts::MemoryStsStore::new()),
+        connector,
+    );
+    let driver = tokio::spawn(driver);
+    let cap = "draft/channel-rename";
+
+    complete_connect_caps(&mut first_server, &mut events, cap, cap).await;
+    client_line(&mut first_server, b"JOIN #staff private-channel-key\r\n").await;
+    server_line(
+        &mut first_server,
+        b":papo-driver!papo@localhost JOIN #staff * :Papo Client\r\n:oper!o@staff RENAME #staff #staff-archive :Archived\r\n",
+    )
+    .await;
+    assert!(matches!(events.next().await, Some(Event::Joined(_))));
+    assert!(matches!(
+        events.next().await,
+        Some(Event::ChannelRenamed(_))
+    ));
+    within(first_server.shutdown()).await.unwrap();
+    assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
+
+    tokio::time::advance(Duration::from_secs(2)).await;
+    complete_connect_caps(&mut second_server, &mut events, cap, cap).await;
+    client_line(
+        &mut second_server,
+        b"JOIN #staff-archive private-channel-key\r\n",
+    )
+    .await;
+    server_line(
+        &mut second_server,
+        b":papo-driver!papo@localhost JOIN #staff-archive * :Papo Client\r\n:ergo.test 366 papo-driver #staff-archive :End of /NAMES list\r\n",
+    )
+    .await;
+    assert!(matches!(events.next().await, Some(Event::Joined(_))));
+    assert!(matches!(events.next().await, Some(Event::ChannelSynced(_))));
+    client_line(&mut second_server, b"MODE #staff-archive\r\n").await;
+    client_line(&mut second_server, b"WHO #staff-archive\r\n").await;
+    let leaving = tokio::spawn({
+        let client = client.clone();
+        async move { client.part(test_channel("#staff-archive"), "").await }
+    });
+    client_line(&mut second_server, b"PART #staff-archive\r\n").await;
+    server_line(
+        &mut second_server,
+        b":papo-driver!papo@localhost PART #staff-archive :Leaving\r\n",
+    )
+    .await;
+    within(leaving).await.unwrap().unwrap();
+    assert!(matches!(events.next().await, Some(Event::Parted(_))));
+    within(second_server.shutdown()).await.unwrap();
+    assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
+
+    tokio::time::advance(Duration::from_secs(2)).await;
+    complete_connect_caps(&mut third_server, &mut events, cap, cap).await;
+    assert!(
+        tokio::time::timeout(Duration::from_millis(1), third_server.read_u8())
+            .await
+            .is_err()
+    );
+    let quit = tokio::spawn(async move { client.quit("").await });
+    client_line(&mut third_server, b"QUIT\r\n").await;
+    within(third_server.shutdown()).await.unwrap();
+    within(quit).await.unwrap().unwrap();
+    within(driver).await.unwrap().unwrap();
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
