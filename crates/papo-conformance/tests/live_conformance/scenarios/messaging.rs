@@ -415,10 +415,9 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(received, long_action);
 
     alice
-        .send_raw(papo::Line::new(
-            "PRIVMSG",
-            [bob.nick().as_ref(), "\u{1}VERSION\u{1}"],
-        ))
+        .send_raw(
+            papo::Line::builder("PRIVMSG").with_params([bob.nick().as_ref(), "\u{1}VERSION\u{1}"]),
+        )
         .await?;
     let query = bob
         .wait_for(|event| event.as_ctcp().filter(|ctcp| ctcp.command == "VERSION"))
@@ -440,10 +439,10 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
 
     let mut carol = s.connect("carol").await?;
     alice
-        .send_raw(papo::Line::new(
-            "PRIVMSG",
-            [carol.nick().as_ref(), "\u{1}PING 1735689600\u{1}"],
-        ))
+        .send_raw(
+            papo::Line::builder("PRIVMSG")
+                .with_params([carol.nick().as_ref(), "\u{1}PING 1735689600\u{1}"]),
+        )
         .await?;
     let query = carol
         .wait_for(|event| event.as_ctcp().filter(|ctcp| ctcp.command == "PING"))
@@ -474,7 +473,7 @@ async fn ctcp_channel_query(s: Scenario) -> papo_testing::Result<()> {
     }
     let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
     alice
-        .send_raw(papo::Line::new("PRIVMSG", [&channel, "\u{1}VERSION\u{1}"]))
+        .send_raw(papo::Line::builder("PRIVMSG").with_params([&channel, "\u{1}VERSION\u{1}"]))
         .await?;
     let query = bob
         .wait_for(|event| {
@@ -563,7 +562,7 @@ async fn no_ctcp_mode(s: Scenario) -> papo_testing::Result<()> {
     }
     let (mut alice, bob, channel) = fixture_pair(&s).await?;
     alice.mode(&channel).add('C').await?;
-    bob.send_raw(papo::Line::new("PRIVMSG", [&channel, "\u{1}VERSION\u{1}"]))
+    bob.send_raw(papo::Line::builder("PRIVMSG").with_params([&channel, "\u{1}VERSION\u{1}"]))
         .await?;
     alice
         .expect_none(|event| {

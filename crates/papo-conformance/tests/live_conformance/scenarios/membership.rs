@@ -113,7 +113,7 @@ async fn names_multiple_channels(s: Scenario) -> papo_testing::Result<()> {
     let targets = format!("{first},{second}");
     let mapping = alice.state().casemapping();
     let names = alice
-        .request_raw(papo::Line::new("NAMES", [&targets]))
+        .request_raw(papo::Line::builder("NAMES").with_params([&targets]))
         .await?;
     for channel in [&first, &second] {
         let channel_name = mapping.channel(channel);
@@ -158,7 +158,7 @@ async fn secret_names_visibility(s: Scenario) -> papo_testing::Result<()> {
 
     // The absence of a names row in this numeric response proves the visibility rule.
     let hidden = bob
-        .request_raw(papo::Line::new("NAMES", [&channel]))
+        .request_raw(papo::Line::builder("NAMES").with_params([&channel]))
         .await?;
     assert!(
         !hidden.iter().any(|line| {
@@ -240,7 +240,7 @@ async fn multiple_joins(s: Scenario) -> papo_testing::Result<()> {
         .add_with('k', "second-channel-key")
         .await?;
 
-    bob.send_raw(papo::Line::new("JOIN", [&channels, keys]))
+    bob.send_raw(papo::Line::builder("JOIN").with_params([&channels, keys]))
         .await?;
     for channel in [&first, &second] {
         let synced = bob
@@ -270,7 +270,8 @@ async fn multiple_joins(s: Scenario) -> papo_testing::Result<()> {
         );
     }
 
-    bob.send_raw(papo::Line::new("JOIN", ["0"])).await?;
+    bob.send_raw(papo::Line::builder("JOIN").with_params(["0"]))
+        .await?;
     if matches!(
         DeploymentProfile::from_env()?,
         DeploymentProfile::ErgoDefault | DeploymentProfile::ErgoPersistent
@@ -285,7 +286,7 @@ async fn multiple_joins(s: Scenario) -> papo_testing::Result<()> {
             })
             .await?;
         let confirmation = warning.text.split_ascii_whitespace().last().unwrap();
-        bob.send_raw(papo::Line::new("JOIN", ["0", confirmation]))
+        bob.send_raw(papo::Line::builder("JOIN").with_params(["0", confirmation]))
             .await?;
     }
     let mut own = [
@@ -333,7 +334,7 @@ async fn partially_invalid_join(s: Scenario) -> papo_testing::Result<()> {
     // A single JOIN command must still apply its valid target before reporting the bad one.
     let targets = format!("{channel},{invalid}");
     let partial = alice
-        .request_raw(papo::Line::new("JOIN", [&targets]))
+        .request_raw(papo::Line::builder("JOIN").with_params([&targets]))
         .await?;
     let synced = alice
         .wait_for(|event| {
@@ -383,7 +384,9 @@ async fn too_many_channels(s: Scenario) -> papo_testing::Result<()> {
     let mapping = alice.state().casemapping();
 
     // The server numeric is the behavior under test, so retain its raw response.
-    alice.send_raw(papo::Line::new("JOIN", [&targets])).await?;
+    alice
+        .send_raw(papo::Line::builder("JOIN").with_params([&targets]))
+        .await?;
     let refusal = alice
         .wait_for(|event| event.as_other().filter(|line| line.command() == "405"))
         .await?;
@@ -677,7 +680,7 @@ async fn part_multiple_and_refusal(s: Scenario) -> papo_testing::Result<()> {
     let channels = format!("{first},{second}");
     let reason = "leaving both review channels";
     alice
-        .send_raw(papo::Line::new("PART", [&channels, reason]))
+        .send_raw(papo::Line::builder("PART").with_params([&channels, reason]))
         .await?;
     let mut own = [
         alice.wait_for(Event::as_parted).await?,
@@ -860,7 +863,7 @@ async fn kick_rules(s: Scenario) -> papo_testing::Result<()> {
     );
     let targets = format!("{bob_nick},{carol_nick}");
     alice
-        .send_raw(papo::Line::new("KICK", [&channel, &targets]))
+        .send_raw(papo::Line::builder("KICK").with_params([&channel, &targets]))
         .await?;
     let mut observed = [
         alice.wait_for(Event::as_kicked).await?,
@@ -1004,13 +1007,15 @@ async fn nick_errors(s: Scenario) -> papo_testing::Result<()> {
     let original = alice.nick();
 
     // Empty and malformed wire parameters are needed to observe 431 and 432.
-    let empty = alice.request_raw(papo::Line::new("NICK", [""])).await?;
+    let empty = alice
+        .request_raw(papo::Line::builder("NICK").with_params([""]))
+        .await?;
     assert!(
         empty.iter().any(|line| line.numeric() == Some(431)),
         "unexpected empty-nickname response: {empty:?}"
     );
     let malformed = alice
-        .request_raw(papo::Line::new("NICK", ["review#nick"]))
+        .request_raw(papo::Line::builder("NICK").with_params(["review#nick"]))
         .await?;
     assert!(
         malformed.iter().any(|line| line.numeric() == Some(432)),
@@ -1166,7 +1171,7 @@ async fn channel_mode_lists(s: Scenario) -> papo_testing::Result<()> {
 
     // MODE query numerics expose list entries that are not stored as channel flags.
     let modes = alice
-        .request_raw(papo::Line::new("MODE", [&channel]))
+        .request_raw(papo::Line::builder("MODE").with_params([&channel]))
         .await?;
     let current = modes
         .iter()
@@ -1314,14 +1319,14 @@ async fn channel_mode_refusals(s: Scenario) -> papo_testing::Result<()> {
 
     // These server numerics are the behavior under test and need raw MODE parameters.
     let unknown = alice
-        .request_raw(papo::Line::new("MODE", [&channel, "+?"]))
+        .request_raw(papo::Line::builder("MODE").with_params([&channel, "+?"]))
         .await?;
     assert!(
         unknown.iter().any(|line| line.numeric() == Some(472)),
         "unexpected unknown-mode response: {unknown:?}"
     );
     let invalid = alice
-        .request_raw(papo::Line::new("MODE", [&channel, "+l", "not-a-limit"]))
+        .request_raw(papo::Line::builder("MODE").with_params([&channel, "+l", "not-a-limit"]))
         .await?;
     assert!(
         invalid.iter().any(|line| line.numeric() == Some(696)),
@@ -1343,7 +1348,7 @@ async fn user_modes(s: Scenario) -> papo_testing::Result<()> {
 
     // User-mode query and error numerics have no richer public result type.
     let initial = alice
-        .request_raw(papo::Line::new("MODE", [nick.as_ref()]))
+        .request_raw(papo::Line::builder("MODE").with_params([nick.as_ref()]))
         .await?;
     assert!(initial.iter().any(|line| line.numeric() == Some(221)));
     if alice.state().user_modes().any(|mode| mode == 'i') {
@@ -1385,13 +1390,13 @@ async fn user_modes(s: Scenario) -> papo_testing::Result<()> {
     assert!(alice.state().user_modes().any(|mode| mode == 'i'));
 
     let current = alice
-        .request_raw(papo::Line::new("MODE", [nick.as_ref()]))
+        .request_raw(papo::Line::builder("MODE").with_params([nick.as_ref()]))
         .await?;
     assert!(current.iter().any(|line| {
         line.numeric() == Some(221) && line.params().iter().any(|param| param.contains('i'))
     }));
     let unknown = alice
-        .request_raw(papo::Line::new("MODE", [nick.as_ref(), "+?"]))
+        .request_raw(papo::Line::builder("MODE").with_params([nick.as_ref(), "+?"]))
         .await?;
     if !unknown.iter().any(|line| line.numeric() == Some(501)) {
         return Err(std::io::Error::other(format!(

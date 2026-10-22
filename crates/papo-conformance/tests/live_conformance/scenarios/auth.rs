@@ -78,7 +78,7 @@ async fn sasl_protocol_errors(s: Scenario) -> papo_testing::Result<()> {
     assert!(alice.state().caps().contains_key(&papo::cap::SASL));
     // SASL is driven raw here because the numeric wire outcomes are the behavior under test.
     alice
-        .send_raw(papo::Line::new("AUTHENTICATE", ["PLAIN"]))
+        .send_raw(papo::Line::builder("AUTHENTICATE").with_params(["PLAIN"]))
         .await?;
     let challenge = alice
         .wait_for(|event| {
@@ -89,7 +89,7 @@ async fn sasl_protocol_errors(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert_eq!(challenge.params(), ["+"]);
     alice
-        .send_raw(papo::Line::new("AUTHENTICATE", ["*"]))
+        .send_raw(papo::Line::builder("AUTHENTICATE").with_params(["*"]))
         .await?;
     let aborted = alice.wait_for(Event::as_warning).await?;
     assert!(matches!(
@@ -111,7 +111,7 @@ async fn sasl_protocol_errors(s: Scenario) -> papo_testing::Result<()> {
         .connect_with(s.configure("bob")?.sasl(Sasl::plain(&account, PASSWORD)))
         .await?;
     let response = bob
-        .request_raw(papo::Line::new("AUTHENTICATE", ["PLAIN"]))
+        .request_raw(papo::Line::builder("AUTHENTICATE").with_params(["PLAIN"]))
         .await?;
     let reauth = response
         .iter()
@@ -156,7 +156,7 @@ async fn services(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect_as_account("alice").await?;
     let account = crate::scenarios::support::logged_in_account(&alice.state()).clone();
     alice
-        .send_raw(papo::Line::new("NS", ["INFO", account.as_ref()]))
+        .send_raw(papo::Line::builder("NS").with_params(["INFO", account.as_ref()]))
         .await?;
     let nickserv = alice
         .wait_for(|event| {
@@ -175,7 +175,7 @@ async fn services(s: Scenario) -> papo_testing::Result<()> {
     let channel = s.channel_name();
     alice.join(&channel).await?;
     alice
-        .send_raw(papo::Line::new("CS", ["REGISTER", &channel]))
+        .send_raw(papo::Line::builder("CS").with_params(["REGISTER", &channel]))
         .await?;
     let chanserv = alice
         .wait_for(|event| {
