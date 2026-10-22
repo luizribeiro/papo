@@ -17,3 +17,6 @@
 "security::stored_sts_matches_a_normalized_hostname" = [
   "security.t4.sts-normalized-host",
 ]
+"security::oversized_sts_duration_still_persists" = [
+  "security.t5.sts-duration-overflow",
+]

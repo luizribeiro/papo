@@ -509,13 +509,26 @@ pub(super) fn apply_sts_action(store: &mut dyn StsStore, port: u16, action: &Sts
     match action {
         StsAction::Persist { host, duration, .. } => {
             let now = crate::rt::now_wall();
-            if let Some(expires_at) = now.checked_add(*duration) {
-                put_sts_policy(store, StsPolicy::new(host, port, expires_at, *duration));
-            }
+            let expires_at = clamped_sts_expiry(now, *duration);
+            put_sts_policy(store, StsPolicy::new(host, port, expires_at, *duration));
         }
         StsAction::Remove { host, .. } => remove_sts_policy(store, host),
         _ => {}
     }
+}
+
+fn clamped_sts_expiry(now: std::time::SystemTime, duration: Duration) -> std::time::SystemTime {
+    if let Some(expires_at) = now.checked_add(duration) {
+        return expires_at;
+    }
+    let mut seconds = duration.as_secs();
+    while seconds > 0 {
+        seconds /= 2;
+        if let Some(expires_at) = now.checked_add(Duration::from_secs(seconds)) {
+            return expires_at;
+        }
+    }
+    now
 }
 
 pub(super) fn reschedule_stored_policy(store: &mut dyn StsStore, host: &str) {

@@ -3675,6 +3675,22 @@ async fn secure_sts_persists_the_duration_and_connection_port() {
     );
 }
 
+#[test]
+fn enormous_sts_duration_is_stored_with_a_far_future_expiry() {
+    let mut store = papo_core::sts::MemoryStsStore::new();
+    let directive = papo_core::sts::StsDirective::parse(&format!("duration={}", u64::MAX))
+        .expect("u64::MAX is a valid STS duration");
+    let action = papo_core::sts::decide(directive, ConnectionSecurity::Secure, "irc.example.net");
+    super::connect::apply_sts_action(&mut store, 6697, &action);
+
+    let policy = papo_core::sts::StsStore::get(&store, "irc.example.net")
+        .expect("an overflowing STS duration must still be stored");
+    let in_one_hundred_years = SystemTime::now()
+        .checked_add(Duration::from_hours(876_000))
+        .unwrap();
+    assert!(policy.is_active_at(in_one_hundred_years));
+}
+
 #[tokio::test(flavor = "current_thread")]
 async fn secure_zero_duration_sts_removes_the_stored_policy() {
     let (client_stream, mut server) = tokio::io::duplex(4096);

@@ -263,3 +263,35 @@ async fn stored_sts_matches_a_normalized_hostname() {
 
     assert_eq!(wire.endpoint().await, "ircs://IRC.Example.net.:7443");
 }
+
+#[tokio::test]
+async fn oversized_sts_duration_still_persists() {
+    let store = CaseSensitiveStsStore::default();
+    let inspection = store.clone();
+    let (_client, _events, mut wire) = wire(
+        papo::Client::builder("ircs://offline.test")
+            .nick("papo-wire")
+            .reconnect(Reconnect::never())
+            .sts_store(store),
+    );
+    assert_eq!(wire.next_sent().await, "CAP LS 302");
+    assert_eq!(wire.next_sent().await, "NICK papo-wire");
+    assert_eq!(wire.next_sent().await, "USER papo-wire 0 * papo-wire");
+    wire.server(format!(":offline.test CAP * LS :sts=duration={}", u64::MAX))
+        .await;
+
+    let policy = tokio::time::timeout(Duration::from_secs(1), async {
+        loop {
+            if let Some(policy) = papo::sts::StsStore::get(&inspection, "offline.test") {
+                return policy;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .expect("oversized STS policy was not persisted");
+    let in_one_hundred_years = SystemTime::now()
+        .checked_add(Duration::from_hours(876_000))
+        .unwrap();
+    assert!(policy.is_active_at(in_one_hundred_years));
+}

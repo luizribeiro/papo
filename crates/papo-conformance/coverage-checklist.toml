@@ -71,4 +71,5 @@ ids = [
   "security.s4.account-registration-once",
   "security.s6.scram-iteration-cap",
   "security.t4.sts-normalized-host",
+  "security.t5.sts-duration-overflow",
 ]
