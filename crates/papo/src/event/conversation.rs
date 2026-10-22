@@ -94,6 +94,22 @@ pub struct TagMsg {
     pub tags: Tags,
 }
 
+macro_rules! return_address {
+    ($($ty:ty),+ $(,)?) => {
+        $(
+            impl $ty {
+                /// Returns the address that reaches the recipients of this line.
+                #[must_use]
+                pub fn return_address(&self) -> String {
+                    crate::message_ref::return_address(&self.conversation, self.status.as_deref())
+                }
+            }
+        )+
+    };
+}
+
+return_address!(Reacted, Redacted, TypingChanged, TagMsg);
+
 /// A conversation's read marker changed.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]

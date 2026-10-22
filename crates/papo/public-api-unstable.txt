@@ -844,6 +844,8 @@ pub papo::event::Reacted::received_at: std::time::SystemTime
 pub papo::event::Reacted::removed: bool
 pub papo::event::Reacted::server_time: core::option::Option<std::time::SystemTime>
 pub papo::event::Reacted::status: core::option::Option<alloc::vec::Vec<char>>
+impl papo::event::Reacted
+pub fn papo::event::Reacted::return_address(&self) -> alloc::string::String
 impl core::clone::Clone for papo::event::Reacted
 pub fn papo::event::Reacted::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Reacted
@@ -907,6 +909,8 @@ pub papo::event::Redacted::reason: core::option::Option<alloc::string::String>
 pub papo::event::Redacted::received_at: std::time::SystemTime
 pub papo::event::Redacted::server_time: core::option::Option<std::time::SystemTime>
 pub papo::event::Redacted::status: core::option::Option<alloc::vec::Vec<char>>
+impl papo::event::Redacted
+pub fn papo::event::Redacted::return_address(&self) -> alloc::string::String
 impl core::clone::Clone for papo::event::Redacted
 pub fn papo::event::Redacted::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Redacted
@@ -995,6 +999,8 @@ pub papo::event::TagMsg::authorship: papo::Authorship
 pub papo::event::TagMsg::conversation: papo::Conversation
 pub papo::event::TagMsg::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo::event::TagMsg::tags: papo::Tags
+impl papo::event::TagMsg
+pub fn papo::event::TagMsg::return_address(&self) -> alloc::string::String
 impl core::clone::Clone for papo::event::TagMsg
 pub fn papo::event::TagMsg::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::TagMsg
@@ -1041,6 +1047,8 @@ pub papo::event::TypingChanged::conversation: papo::Conversation
 pub papo::event::TypingChanged::reason: papo::event::TypingReason
 pub papo::event::TypingChanged::state: papo::Typing
 pub papo::event::TypingChanged::status: core::option::Option<alloc::vec::Vec<char>>
+impl papo::event::TypingChanged
+pub fn papo::event::TypingChanged::return_address(&self) -> alloc::string::String
 impl core::clone::Clone for papo::event::TypingChanged
 pub fn papo::event::TypingChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::TypingChanged

@@ -2593,8 +2593,8 @@ mod tests {
             envelope: papo_core::LineEnvelope::default(),
             actor: "alice!~a@cloak".into(),
             authorship: papo_core::Authorship::Other,
-            conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#papo")),
-            status: None,
+            conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#ops")),
+            status: Some(vec!['@']),
             tags: vec![
                 ("+typing".into(), Some("paused".into())),
                 ("+draft/react".into(), Some("👍".into())),
@@ -2606,9 +2606,9 @@ mod tests {
         };
         assert!(matches!(reaction.actor, Source::User { ref nick, .. } if nick == "alice"));
         assert!(
-            matches!(&reaction.conversation, Conversation::Channel(channel) if channel == "#papo")
+            matches!(&reaction.conversation, Conversation::Channel(channel) if channel == "#ops")
         );
-        assert_eq!(reaction.status, None);
+        assert_eq!(reaction.return_address(), "@#ops");
         assert_eq!(reaction.reaction, "👍");
         assert_eq!(reaction.message, "RKi9Cw");
         assert!(!reaction.removed);
@@ -2622,13 +2622,20 @@ mod tests {
                 actor: "alice!~a@cloak".into(),
                 authorship: papo_core::Authorship::Other,
                 conversation: papo_core::Conversation::Channel(
-                    Casemapping::default().channel("#papo"),
+                    Casemapping::default().channel("#ops"),
                 ),
-                status: None,
+                status: Some(vec!['@']),
                 tags: vec![("+typing".into(), Some(value.into()))],
             };
             match forwarded(papo_core::Event::TagMessage(tag)) {
-                Event::TypingChanged(typing) => Some(typing.state),
+                Event::TypingChanged(typing) => {
+                    assert_eq!(typing.return_address(), "@#ops");
+                    Some(typing.state)
+                }
+                Event::TagMsg(tag) => {
+                    assert_eq!(tag.return_address(), "@#ops");
+                    None
+                }
                 _ => None,
             }
         };
@@ -2641,8 +2648,8 @@ mod tests {
             envelope: papo_core::LineEnvelope::default(),
             actor: "alice!~a@cloak".into(),
             authorship: papo_core::Authorship::Other,
-            conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#papo")),
-            status: None,
+            conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#ops")),
+            status: Some(vec!['@']),
             tags: vec![("+typing".into(), Some("active".into()))],
         };
         assert!(
@@ -2670,8 +2677,8 @@ mod tests {
             envelope: papo_core::LineEnvelope::default(),
             actor: "alice!~a@cloak".into(),
             authorship: papo_core::Authorship::Other,
-            conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#papo")),
-            status: None,
+            conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#ops")),
+            status: Some(vec!['@']),
             msgid: "RKi9Cw".into(),
             reason: Some(String::new()),
         };
@@ -2681,6 +2688,7 @@ mod tests {
                 if matches!(mapped.actor, Source::User { ref nick, .. } if nick == "alice")
                     && mapped.conversation == redacted.conversation
                     && mapped.status == redacted.status
+                    && mapped.return_address() == "@#ops"
                     && mapped.message.as_ref() == redacted.msgid
                     && mapped.reason.is_none()
         ));
