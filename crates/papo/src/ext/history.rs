@@ -423,7 +423,10 @@ pub enum HistoryReason {
     Replay,
 }
 
-/// A page of requested chat history.
+/// A page of requested or server-initiated chat history.
+///
+/// Event streams deliver a complete page when its batch closes. Applications should insert its
+/// items by server time rather than assuming the page arrived before later live events.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct HistoryPage {
@@ -524,6 +527,25 @@ impl HistoryPage {
             _ => None,
         })
     }
+
+    /// Returns the preferred cursor for the oldest item in this page.
+    #[must_use]
+    pub fn oldest(&self) -> Option<HistoryReference> {
+        self.items.first().and_then(event_reference)
+    }
+
+    /// Returns the preferred cursor for the newest item in this page.
+    #[must_use]
+    pub fn newest(&self) -> Option<HistoryReference> {
+        self.items.last().and_then(event_reference)
+    }
+}
+
+fn event_reference(event: &Event) -> Option<HistoryReference> {
+    event.msgid().map_or_else(
+        || event.server_time().map(HistoryReference::from),
+        |msgid| Some(HistoryReference(MsgRef::Msgid(msgid.to_string()))),
+    )
 }
 
 /// Builds a history request for one channel or nickname.
@@ -648,15 +670,6 @@ impl From<String> for HistoryReference {
 impl From<SystemTime> for HistoryReference {
     fn from(value: SystemTime) -> Self {
         Self(MsgRef::Timestamp(value))
-    }
-}
-
-impl From<&ChatMessage> for HistoryReference {
-    fn from(value: &ChatMessage) -> Self {
-        value.msgid.as_ref().map_or_else(
-            || Self::from(value.time),
-            |msgid| Self(MsgRef::Msgid(msgid.to_string())),
-        )
     }
 }
 
@@ -891,7 +904,9 @@ mod tests {
 
     use crate::Event as PageEvent;
 
-    use super::{ConversationInput, HistoryReference, history_item, reaction};
+    use super::{
+        ConversationInput, HistoryPage, HistoryReason, HistoryReference, history_item, reaction,
+    };
 
     fn core_item(message: &str) -> HistoryLine {
         HistoryLine {
@@ -920,9 +935,14 @@ mod tests {
             UNIX_EPOCH,
         )
         .unwrap();
-        assert!(
-            matches!(HistoryReference::from(&event).0, MsgRef::Msgid(id) if id == "RfcBTzyxY120004")
-        );
+        let page = HistoryPage {
+            conversation: event.conversation.clone(),
+            items: vec![Event::Message(Box::new(event))],
+            reason: HistoryReason::Requested,
+            end: false,
+        };
+        assert!(matches!(page.oldest().unwrap().0, MsgRef::Msgid(id)
+            if id == "RfcBTzyxY120004"));
     }
 
     #[test]
@@ -938,10 +958,37 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(
-            HistoryReference::from(&event),
-            HistoryReference::from(UNIX_EPOCH)
-        );
+        let page = HistoryPage {
+            conversation: event.conversation.clone(),
+            items: vec![Event::Message(Box::new(event))],
+            reason: HistoryReason::Requested,
+            end: false,
+        };
+        assert_eq!(page.oldest(), Some(HistoryReference::from(UNIX_EPOCH)));
+        assert_eq!(page.newest(), Some(HistoryReference::from(UNIX_EPOCH)));
+    }
+
+    #[test]
+    fn page_cursors_never_use_local_receipt_time() {
+        let received_at = UNIX_EPOCH + Duration::from_secs(1_792_520_531);
+        let event = crate::Message::from_historical(
+            Line::privmsg("#papo", "backlog without server metadata")
+                .with_source("emily!~emily@cloak.example"),
+            crate::Authorship::Unknown,
+            None,
+            &crate::Client::disconnected_for_test(),
+            received_at,
+        )
+        .unwrap();
+        let page = HistoryPage {
+            conversation: event.conversation.clone(),
+            items: vec![Event::Message(Box::new(event))],
+            reason: HistoryReason::Replay,
+            end: false,
+        };
+
+        assert_eq!(page.oldest(), None);
+        assert_eq!(page.newest(), None);
     }
 
     #[test]
@@ -1028,11 +1075,16 @@ mod tests {
         };
         assert_eq!(message.msgid, None);
         assert_eq!(message.time, server_time);
-        assert!(
-            matches!(HistoryReference::from(&*message).0, MsgRef::Timestamp(time) if time == server_time)
-        );
+        let page = HistoryPage {
+            conversation: message.conversation.clone(),
+            items: vec![Event::Message(message)],
+            reason: HistoryReason::Requested,
+            end: false,
+        };
+        let reference = page.oldest().unwrap();
+        assert!(matches!(&reference.0, MsgRef::Timestamp(time) if *time == server_time));
         assert!(matches!(
-            client.history("#papo").before(&*message).query,
+            client.history("#papo").before(reference).query,
             Ok(HistoryQuery::Before {
                 before: MsgRef::Timestamp(time),
                 ..

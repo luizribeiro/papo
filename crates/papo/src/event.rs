@@ -696,7 +696,8 @@ pub enum Event {
     /// A completed server-initiated playback or automatic reconnect catch-up batch.
     ///
     /// Pages returned by [`crate::Client::history`] resolve their request futures and are not
-    /// emitted as events.
+    /// emitted as events. Insert page items by server time because live traffic can arrive while
+    /// a batch remains open.
     History(Box<crate::HistoryPage>),
     /// A conversation's read marker advanced or was first reported.
     ReadMarkerChanged(ReadMarkerChanged),

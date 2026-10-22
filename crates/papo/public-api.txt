@@ -1758,6 +1758,8 @@ pub papo::HistoryPage::items: alloc::vec::Vec<papo::Event>
 pub papo::HistoryPage::reason: papo::HistoryReason
 impl papo::HistoryPage
 pub fn papo::HistoryPage::messages(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Message>
+pub fn papo::HistoryPage::newest(&self) -> core::option::Option<papo::HistoryReference>
+pub fn papo::HistoryPage::oldest(&self) -> core::option::Option<papo::HistoryReference>
 impl core::clone::Clone for papo::HistoryPage
 pub fn papo::HistoryPage::clone(&self) -> Self
 impl core::cmp::Eq for papo::HistoryPage
@@ -1781,8 +1783,6 @@ impl core::cmp::PartialEq for papo::HistoryReference
 pub fn papo::HistoryReference::eq(&self, &Self) -> bool
 impl core::convert::From<&alloc::string::String> for papo::HistoryReference
 pub fn papo::HistoryReference::from(&alloc::string::String) -> Self
-impl core::convert::From<&papo::Message> for papo::HistoryReference
-pub fn papo::HistoryReference::from(&papo::Message) -> Self
 impl core::convert::From<&papo::MessageId> for papo::HistoryReference
 pub fn papo::HistoryReference::from(&papo::MessageId) -> Self
 impl core::convert::From<&str> for papo::HistoryReference
@@ -1970,8 +1970,6 @@ impl core::cmp::PartialEq for papo::Message
 pub fn papo::Message::eq(&self, &Self) -> bool
 impl core::convert::From<&alloc::boxed::Box<papo::Message>> for papo::MessageRef
 pub fn papo::MessageRef::from(&alloc::boxed::Box<papo::Message>) -> Self
-impl core::convert::From<&papo::Message> for papo::HistoryReference
-pub fn papo::HistoryReference::from(&papo::Message) -> Self
 impl core::convert::From<&papo::Message> for papo::MessageRef
 pub fn papo::MessageRef::from(&papo::Message) -> Self
 impl core::fmt::Debug for papo::Message
