@@ -236,6 +236,18 @@
           yamllint.enable = true;
         };
         cargoHooks = {
+          cfg-ratchet =
+            (cargoHook {
+              name = "cfg-ratchet-hook";
+              runtimeInputs = [ pkgs.ripgrep ];
+              text = ''
+                ${pkgs.bash}/bin/bash scripts/check-cfg
+                ${pkgs.bash}/bin/bash scripts/test_check_cfg.sh
+              '';
+            })
+            // {
+              files = "(^|/)(Cargo\\.(toml|lock)|.*\\.rs|scripts/(cfg-budget\\.txt|check-cfg|test_check_cfg\\.sh))$";
+            };
           rustfmt = cargoHook {
             name = "rustfmt-hook";
             text = "cargo fmt --all -- --check";
