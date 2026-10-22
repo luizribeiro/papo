@@ -564,6 +564,7 @@ fn message_metadata(
 pub(crate) struct EventEnvelope {
     pub(crate) msgid: Option<MessageId>,
     pub(crate) time: SystemTime,
+    pub(crate) server_time: Option<SystemTime>,
     pub(crate) account: Option<AccountName>,
 }
 
@@ -572,11 +573,12 @@ pub(crate) fn line_envelope(
     casemapping: Casemapping,
     received_at: SystemTime,
 ) -> EventEnvelope {
+    let server_time =
+        tag_owned(line, &["time", "znc.in/server-time-iso"]).and_then(|value| time::parse(&value));
     EventEnvelope {
         msgid: tag_owned(line, &["msgid"]).map(MessageId::from),
-        time: tag_owned(line, &["time", "znc.in/server-time-iso"])
-            .and_then(|value| time::parse(&value))
-            .unwrap_or(received_at),
+        time: server_time.unwrap_or(received_at),
+        server_time,
         account: tag_owned(line, &["account"]).map(|account| casemapping.account(account)),
     }
 }
@@ -618,6 +620,7 @@ fn core_envelope(
     EventEnvelope {
         msgid: envelope.msgid().map(MessageId::from),
         time: envelope.time().unwrap_or(received_at),
+        server_time: envelope.time(),
         account: envelope
             .account()
             .map(|account| casemapping.account(account)),
@@ -833,8 +836,8 @@ impl Event {
         match self {
             Self::Message(event) => tagged_from_tags(&event.tags),
             Self::Ctcp(event) => tagged_from_tags(&event.tags),
-            Self::Reacted(event) => Some(event.time),
-            Self::Redacted(event) => Some(event.time),
+            Self::Reacted(event) => event.server_time,
+            Self::Redacted(event) => event.server_time,
             Self::Joined(event) => Some(event.time),
             Self::Parted(event) => Some(event.time),
             Self::Kicked(event) => Some(event.time),
@@ -960,6 +963,7 @@ pub(crate) fn from_core(
                 Event::Reacted(Reacted {
                     msgid: envelope.msgid,
                     time: envelope.time,
+                    server_time: envelope.server_time,
                     account: envelope.account,
                     actor: tag.actor,
                     authorship: tag.authorship,
@@ -992,6 +996,7 @@ pub(crate) fn from_core(
             Event::Redacted(Redacted {
                 msgid: envelope.msgid,
                 time: envelope.time,
+                server_time: envelope.server_time,
                 account: envelope.account,
                 actor: source::from_prefix(redacted.actor, casemapping),
                 authorship: Authorship::from_core(redacted.authorship),

@@ -180,6 +180,7 @@ fn reaction(
     Some(Event::Reacted(Reacted {
         msgid: envelope.msgid,
         time: envelope.time,
+        server_time: envelope.server_time,
         account: envelope.account,
         actor: crate::event_impl::source::from_proto(message.source()?, mapping),
         authorship,
@@ -214,6 +215,7 @@ fn redaction(
     Some(Event::Redacted(Redacted {
         msgid: envelope.msgid,
         time: envelope.time,
+        server_time: envelope.server_time,
         account: envelope.account,
         actor: crate::event_impl::source::from_proto(message.source()?, mapping),
         authorship,
