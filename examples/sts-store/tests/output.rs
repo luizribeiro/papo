@@ -1,5 +1,5 @@
 //! Output test for the STS store example.
-#![cfg(not(all(target_os = "wasi", not(target_env = "p1"))))]
+#![cfg(not(target_family = "wasm"))]
 
 use std::{fs, process::Command};
 

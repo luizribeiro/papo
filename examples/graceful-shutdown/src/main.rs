@@ -1,9 +1,6 @@
 //! Send `QUIT` before exiting on SIGINT or SIGTERM.
 
-use std::{env, error::Error};
-
-#[cfg(not(target_os = "wasi"))]
-use std::io;
+use std::{env, error::Error, io};
 
 use papo::Client;
 
@@ -13,26 +10,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let nick = env::var("IRC_NICK").unwrap_or_else(|_| "papo-client".into());
     let (client, mut events) = Client::builder(url).nick(nick).connect().await?;
 
-    #[cfg(not(target_os = "wasi"))]
-    {
-        tokio::select! {
-            signal = shutdown_signal() => {
-                signal?;
-                eprintln!("shutting down");
-                if let Err(error) = client.quit("shutting down").await {
-                    eprintln!("could not quit: {error}");
-                }
+    tokio::select! {
+        signal = shutdown_signal() => {
+            signal?;
+            eprintln!("shutting down");
+            if let Err(error) = client.quit("shutting down").await {
+                eprintln!("could not quit: {error}");
             }
-            () = async { while events.next().await.is_some() {} } => return Ok(()),
         }
-        while events.next().await.is_some() {}
+        () = async { while events.next().await.is_some() {} } => return Ok(()),
     }
-
-    #[cfg(all(target_os = "wasi", not(target_env = "p1")))]
-    {
-        let _client = client;
-        while events.next().await.is_some() {}
-    }
+    while events.next().await.is_some() {}
     Ok(())
 }
 
@@ -45,7 +33,12 @@ async fn shutdown_signal() -> io::Result<()> {
     }
 }
 
-#[cfg(all(not(unix), not(target_os = "wasi")))]
+#[cfg(windows)]
 async fn shutdown_signal() -> io::Result<()> {
     tokio::signal::ctrl_c().await
+}
+
+#[cfg(target_os = "wasi")]
+async fn shutdown_signal() -> io::Result<()> {
+    std::future::pending().await
 }
