@@ -17,7 +17,7 @@ fn shared_test_deadline_is_five_seconds() {
 fn drives_server_lines_events_and_time() {
     Transcript::new(Config::default())
         .connect_default()
-        .send(Line::new("NICK", ["tester"]))
+        .send(Line::builder("NICK").with_params(["tester"]))
         .client("NICK tester")
         .server(":ergo.test NOTICE tester :Connection established")
         .no_client()
@@ -31,7 +31,7 @@ fn drives_server_lines_events_and_time() {
 fn plays_trace_file_contents() {
     Transcript::new(Config::default())
         .connect_default()
-        .send(Line::new("NICK", ["tester"]))
+        .send(Line::builder("NICK").with_params(["tester"]))
         .play(include_str!("data/harness.irc"))
         .event(|event| matches!(event, Event::Line(message) if message.as_ref().command_is("NOTICE")))
         .event(|event| matches!(event, Event::Joined { channel, nick, .. } if channel == "#papo" && nick == "tester"))
@@ -42,7 +42,7 @@ fn plays_trace_file_contents() {
 fn loads_trace_files() {
     Transcript::new(Config::default())
         .connect_default()
-        .send(Line::new("NICK", ["tester"]))
+        .send(Line::builder("NICK").with_params(["tester"]))
         .load("tests/data/harness.irc")
         .event(|event| matches!(event, Event::Line(message) if message.as_ref().command_is("NOTICE")))
         .event(|event| matches!(event, Event::Joined { channel, nick, .. } if channel == "#papo" && nick == "tester"))
@@ -68,7 +68,7 @@ mod failure_reports {
         let panic = panic::catch_unwind(|| {
             Transcript::new(Config::default())
                 .connect_default()
-                .send(Line::new("NICK", ["tester"]))
+                .send(Line::builder("NICK").with_params(["tester"]))
                 .client("NICK someone-else");
         })
         .expect_err("mismatched output must fail");
@@ -96,7 +96,7 @@ mod failure_reports {
         let panic = panic::catch_unwind(|| {
             Transcript::new(Config::default())
                 .connect_default()
-                .send(Line::new("NICK", ["tester"]))
+                .send(Line::builder("NICK").with_params(["tester"]))
                 .server(":ergo.test NOTICE tester :Connection established");
         })
         .expect_err("unexamined output must fail");
@@ -110,7 +110,7 @@ mod failure_reports {
 fn can_explicitly_ignore_remaining_output() {
     Transcript::new(Config::default())
         .connect_default()
-        .send(Line::new("NICK", ["tester"]))
+        .send(Line::builder("NICK").with_params(["tester"]))
         .server(":ergo.test NOTICE tester :Connection established")
         .ignore_rest();
 }

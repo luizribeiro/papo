@@ -132,7 +132,7 @@ fn disabled_extensions_match_stable_behavior() {
         drain(&mut session);
         if line.contains("CAP * ACK") {
             session
-                .request_silent(now, Line::new("WHOIS", ["missing"]))
+                .request_silent(now, Line::builder("WHOIS").with_params(["missing"]))
                 .unwrap();
             drain(&mut session);
         }

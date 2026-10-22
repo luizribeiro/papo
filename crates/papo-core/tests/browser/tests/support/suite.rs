@@ -69,7 +69,7 @@ async fn high_level_client_uses_the_browser_websocket() {
     assert!(sent.msgid.is_some());
 
     client
-        .send_raw(Line::new("QUIT", ["exercise browser reconnect backoff"]))
+        .send_raw(Line::builder("QUIT").with_params(["exercise browser reconnect backoff"]))
         .await
         .unwrap();
     wait_for(&mut events, |event| {

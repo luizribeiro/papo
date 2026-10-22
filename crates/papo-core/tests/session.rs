@@ -81,7 +81,9 @@ fn config_builders_set_registration_identity_and_timeout() {
 fn sends_crlf_terminated_messages_in_order() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
-    session.send(now, Line::new("NICK", ["tester"])).unwrap();
+    session
+        .send(now, Line::builder("NICK").with_params(["tester"]))
+        .unwrap();
     session.send(now, Line::join("#papo")).unwrap();
 
     assert_eq!(session.poll_transmit(), Some(b"NICK tester\r\n".to_vec()));
@@ -95,7 +97,9 @@ fn sends_crlf_terminated_messages_in_order() {
 fn disconnect_drops_queued_transmissions() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
-    session.send(now, Line::new("NICK", ["tester"])).unwrap();
+    session
+        .send(now, Line::builder("NICK").with_params(["tester"]))
+        .unwrap();
     session.handle_disconnected(now);
     assert_eq!(session.poll_transmit(), None);
 }
@@ -105,7 +109,7 @@ fn rejects_an_invalid_message_before_queueing_a_valid_one() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
     assert_eq!(
-        session.send(now, Line::new("", ["tester"])),
+        session.send(now, Line::builder("").with_params(["tester"])),
         Err(BuildError::InvalidCommand)
     );
     assert_eq!(session.send(now, Line::join("#papo")), Ok(()));
@@ -281,7 +285,7 @@ fn raw_requests_require_negotiated_labels() {
     labelled.handle_line(now, b"CAP * LS :labeled-response");
     labelled.handle_line(now, b"CAP * ACK :labeled-response");
     while labelled.poll_transmit().is_some() {}
-    let first = labelled.request(now, Line::new("WHOIS", ["alice"]));
+    let first = labelled.request(now, Line::builder("WHOIS").with_params(["alice"]));
     let second = labelled.request(now, Line::privmsg("#papo", "hello"));
     assert_ne!(first, second);
     assert_eq!(
@@ -295,12 +299,12 @@ fn raw_requests_require_negotiated_labels() {
 
     let mut unlabelled = Session::new(Config::default());
     assert_eq!(
-        unlabelled.request(now, Line::new("MODE", ["#papo"])),
+        unlabelled.request(now, Line::builder("MODE").with_params(["#papo"])),
         Err(unsupported_error(Feature::LabeledResponse))
     );
     assert_eq!(unlabelled.poll_transmit(), None);
     assert_eq!(
-        labelled.request(now, Line::new("", ["broken"])),
+        labelled.request(now, Line::builder("").with_params(["broken"])),
         Err(RequestError::Build(BuildError::InvalidCommand))
     );
 }
@@ -324,7 +328,7 @@ fn raw_requests_preflight_features_named_by_the_message() {
 
     for (message, feature, reason) in [
         (
-            Line::new("REDACT", ["#papo", "RfcBTzyxY120005"]),
+            Line::builder("REDACT").with_params(["#papo", "RfcBTzyxY120005"]),
             Feature::Redaction,
             UnsupportedReason::NotOffered,
         ),

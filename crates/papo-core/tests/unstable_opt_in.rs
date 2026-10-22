@@ -85,7 +85,7 @@ fn enabled_extensions_type_correlated_server_errors() {
         assert_eq!(session.supports(feature), Ok(()));
         while session.poll_transmit().is_some() {}
         session
-            .request_silent(now, Line::new(command, ["probe"]))
+            .request_silent(now, Line::builder(command).with_params(["probe"]))
             .unwrap();
         session.handle_line(
             now,

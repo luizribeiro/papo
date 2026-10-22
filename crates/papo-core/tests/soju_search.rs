@@ -19,7 +19,10 @@ fn routes_soju_search_only_to_its_opening_request() {
     let now = Instant::now();
     let mut session = search_session(now, 10);
     let id = session
-        .request_silent(now, Line::new("SEARCH", ["in=#papo", "text=release"]))
+        .request_silent(
+            now,
+            Line::builder("SEARCH").with_params(["in=#papo", "text=release"]),
+        )
         .unwrap();
     assert_eq!(
         String::from_utf8(session.poll_transmit().unwrap()).unwrap(),

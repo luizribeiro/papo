@@ -47,7 +47,10 @@ fn drain(session: &mut Session) -> Vec<String> {
 fn fill_labelled_requests(session: &mut Session, now: Instant, count: usize) {
     for index in 0..count {
         session
-            .request(now, Line::new("WHOIS", [format!("operator{index}")]))
+            .request(
+                now,
+                Line::builder("WHOIS").with_params([format!("operator{index}")]),
+            )
             .unwrap();
     }
 }

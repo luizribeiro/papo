@@ -228,7 +228,7 @@ fn silent_labelled_response_updates_state_without_a_state_event() {
             session
                 .request_silent(
                     std::time::Instant::now(),
-                    Line::new("NICK", ["papo-renamed"]),
+                    Line::builder("NICK").with_params(["papo-renamed"]),
                 )
                 .unwrap();
         })
@@ -616,7 +616,7 @@ fn own_away_confirmation_carries_the_requested_message() {
             session
                 .request_with_matcher(
                     Instant::now(),
-                    Line::new("AWAY", ["Reviewing the release notes"]),
+                    Line::builder("AWAY").with_params(["Reviewing the release notes"]),
                     ResponseMatcher::Away(true),
                 )
                 .unwrap();
@@ -1438,7 +1438,7 @@ fn manual_sweep_refreshes_member_facts_and_completes_at_end_of_who() {
         session
             .request_with_matcher(
                 Instant::now(),
-                Line::new("WHO", ["#papo", "%tcuhnfar,152"]),
+                Line::builder("WHO").with_params(["#papo", "%tcuhnfar,152"]),
                 ResponseMatcher::Who("#papo".into()),
             )
             .unwrap();
@@ -1624,7 +1624,7 @@ fn whox_replies_require_our_token_and_an_active_sweep() {
 #[test]
 fn user_requested_who_replies_remain_messages() {
     Transcript::new(Config::default().nick("emily"))
-        .send(Line::new("WHO", ["#rust"]))
+        .send(Line::builder("WHO").with_params(["#rust"]))
         .client("WHO #rust")
         .server(":ergo.test 352 emily #rust ferris user/ferris ergo.test ferris H :0 Ferris Crab")
         .event(|event| matches!(event, Event::Line(message) if message.as_ref().raw_command() == "352"))

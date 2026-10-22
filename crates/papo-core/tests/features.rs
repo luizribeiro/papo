@@ -529,7 +529,7 @@ fn extension_requests_preserve_explicitly_disabled_reasons() {
             Err(expected(Feature::Relay))
         );
         assert_eq!(
-            session.request(now, Line::new("WHOIS", ["alice"])),
+            session.request(now, Line::builder("WHOIS").with_params(["alice"])),
             Err(expected(Feature::LabeledResponse))
         );
     })
