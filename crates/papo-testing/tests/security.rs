@@ -442,3 +442,40 @@ async fn expired_labeled_history_is_not_delivered_twice() {
             .is_err()
     );
 }
+
+#[tokio::test(start_paused = true)]
+async fn oversized_multiline_fragments_are_live_messages() {
+    let (_client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test")
+            .nick("papo-wire")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&[
+        "message-tags",
+        "batch",
+        "draft/multiline=max-bytes=10,max-lines=5",
+    ])
+    .await;
+    while !matches!(events.next().await, Some(papo::Event::Connected(_))) {}
+
+    wire.server(":offline.test BATCH +multiline draft/multiline #papo")
+        .await;
+    wire.server("@batch=multiline :alice!~a@cloak.example PRIVMSG #papo :123456")
+        .await;
+    wire.server("@batch=multiline :alice!~a@cloak.example PRIVMSG #papo :789012")
+        .await;
+
+    for expected in ["123456", "789012"] {
+        assert!(matches!(events.next().await,
+            Some(papo::Event::Message(message)) if message.text == expected));
+    }
+    assert!(matches!(
+        events.next().await,
+        Some(papo::Event::Warning(papo::event::Warning::BatchAbandoned {
+            reason: papo::event::BatchAbandonReason::ByteLimit,
+            ..
+        }))
+    ));
+    wire.server(":offline.test BATCH -multiline").await;
+}

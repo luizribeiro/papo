@@ -29,3 +29,6 @@
 "security::expired_labeled_history_is_not_delivered_twice" = [
   "regression.history.expired-label-deduplicated",
 ]
+"security::oversized_multiline_fragments_are_live_messages" = [
+  "regression.multiline.oversized-live",
+]
