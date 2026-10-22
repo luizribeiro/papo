@@ -128,6 +128,29 @@ fn classifies_status_and_private_tag_messages() {
 }
 
 #[test]
+fn classifies_wallops_as_server_conversations_without_reading_the_text_as_a_target() {
+    Transcript::new(Config::default())
+        .server(":irc.example.net WALLOPS :Network maintenance begins soon")
+        .event(|event| {
+            matches!(
+                event,
+                Event::Line(line)
+                    if line.as_ref().command_is("WALLOPS")
+                        && matches!(line.conversation(), Some(Conversation::Server))
+            )
+        })
+        .server(":alice!~a@staff.example WALLOPS :maintenance")
+        .event(|event| {
+            matches!(
+                event,
+                Event::Line(line)
+                    if line.as_ref().command_is("WALLOPS")
+                        && matches!(line.conversation(), Some(Conversation::Server))
+            )
+        });
+}
+
+#[test]
 fn reports_redactions_with_and_without_a_reason() {
     for (line, expected_reason) in [
         (

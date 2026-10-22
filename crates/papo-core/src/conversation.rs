@@ -7,6 +7,9 @@ pub(crate) fn classify_line(
     own_nick: &str,
     isupport: &Isupport,
 ) -> Result<(Option<Vec<char>>, Conversation), InvalidIdentifier> {
+    if line.command_is("WALLOPS") {
+        return Ok((None, Conversation::Server));
+    }
     classify_target(
         line.param(0).unwrap_or(""),
         line.source(),
