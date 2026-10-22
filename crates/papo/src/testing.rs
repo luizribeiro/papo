@@ -171,7 +171,9 @@ pub fn state(nick: impl Into<String>, connected: bool) -> State {
 }
 
 #[cfg(all(test, not(browser)))]
-mod wire_tests {
+mod tests {
+    use super::{connected, joined, message, state, user_source};
+
     #[tokio::test]
     async fn wire_client_connects_through_memory() {
         let builder = crate::Client::builder("irc://offline.test").nick("papo-wire");
@@ -182,11 +184,6 @@ mod wire_tests {
         super::client_line(&mut server, expected).await;
         task.abort();
     }
-}
-
-#[cfg(all(test, not(browser)))]
-mod tests {
-    use super::{connected, joined, message, state, user_source};
 
     #[test]
     fn constructs_payloads_and_state_without_network_io() {

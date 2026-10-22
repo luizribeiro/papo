@@ -4,9 +4,6 @@ use papo_core::MetadataCommand;
 
 use crate::{Client, Error, MetadataValue, driver::CoreRequest};
 
-#[cfg(all(test, not(browser)))]
-use crate::driver::test_support::*;
-
 /// Handle for metadata requests and cached metadata state.
 pub struct Metadata {
     client: Client,
@@ -296,7 +293,7 @@ impl Metadata {
 
 #[cfg(all(test, not(browser)))]
 mod tests {
-    use super::*;
+    use crate::driver::test_support::*;
 
     #[tokio::test(flavor = "current_thread")]
     async fn metadata_reads_writes_and_updates_state() {
