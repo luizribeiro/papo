@@ -1,7 +1,6 @@
 use super::{Event, LineRef, Outbox, PersistenceSetting, PersistenceStatus, State};
 
 impl State {
-    #[cfg(feature = "unstable")]
     pub(super) fn handle_persistence(
         &mut self,
         message: &LineRef<'_>,
@@ -31,7 +30,6 @@ impl State {
 
     /// Returns the server-reported account persistence status.
     #[must_use]
-    #[cfg(feature = "unstable")]
     pub const fn persistence(&self) -> Option<PersistenceStatus> {
         self.persistence
     }
