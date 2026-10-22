@@ -1721,6 +1721,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::InvalidInput
 pub papo::MessageKind::Action
 pub papo::MessageKind::Notice
 pub papo::MessageKind::Privmsg
+pub papo::MessageKind::Text
 impl core::clone::Clone for papo::MessageKind
 pub fn papo::MessageKind::clone(&self) -> Self
 impl core::cmp::Eq for papo::MessageKind

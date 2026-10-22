@@ -113,6 +113,8 @@ impl From<&Chat> for Conversation {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum MessageKind {
+    /// A regular text message.
+    Text,
     /// A regular `PRIVMSG`.
     Privmsg,
     /// A regular `NOTICE`.
