@@ -2305,10 +2305,18 @@ pub fn papo::MessageRef::from(&papo::event::TagMsg) -> Self
 impl core::fmt::Debug for papo::MessageRef
 pub fn papo::MessageRef::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::MessageRef
+impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(&papo::ChannelName, I)> for papo::MessageRef
+pub fn papo::MessageRef::from((&papo::ChannelName, I)) -> Self
+impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(&papo::Nick, I)> for papo::MessageRef
+pub fn papo::MessageRef::from((&papo::Nick, I)) -> Self
 impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(&str, I)> for papo::MessageRef
 pub fn papo::MessageRef::from((&str, I)) -> Self
 impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(alloc::string::String, I)> for papo::MessageRef
 pub fn papo::MessageRef::from((alloc::string::String, I)) -> Self
+impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(papo::ChannelName, I)> for papo::MessageRef
+pub fn papo::MessageRef::from((papo::ChannelName, I)) -> Self
+impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(papo::Nick, I)> for papo::MessageRef
+pub fn papo::MessageRef::from((papo::Nick, I)) -> Self
 impl core::marker::Freeze for papo::MessageRef
 impl core::marker::Send for papo::MessageRef
 impl core::marker::Sync for papo::MessageRef

@@ -85,7 +85,14 @@ macro_rules! address_pairs {
     };
 }
 
-address_pairs!(&str, String);
+address_pairs!(
+    &str,
+    String,
+    crate::ChannelName,
+    &crate::ChannelName,
+    crate::Nick,
+    &crate::Nick,
+);
 
 pub(crate) fn return_address(conversation: &Conversation, status: Option<&[char]>) -> String {
     status
@@ -188,12 +195,20 @@ mod tests {
 
     #[test]
     fn references_accept_written_text_addresses() {
+        let mapping = crate::Casemapping::default();
         let id = MessageId::from("RfcBTzyxY120006");
         let references = [
             MessageRef::from(("#papo", &id)),
             MessageRef::from(("@#ops".to_owned(), &id)),
+            MessageRef::from((mapping.channel("#rust"), &id)),
+            MessageRef::from((&mapping.channel("#bots"), &id)),
+            MessageRef::from((mapping.nick("emily"), &id)),
+            MessageRef::from((&mapping.nick("alice"), &id)),
         ];
-        for (reference, expected) in references.into_iter().zip(["#papo", "@#ops"]) {
+        for (reference, expected) in references
+            .into_iter()
+            .zip(["#papo", "@#ops", "#rust", "#bots", "emily", "alice"])
+        {
             assert_eq!(reference.address, expected);
             assert_eq!(reference.msgid, Some(id.clone()));
             assert_eq!(reference.channel_context, None);
