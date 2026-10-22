@@ -8,7 +8,7 @@ use std::{
     time::Instant,
 };
 
-use papo_core::{Config, RateLimit, Secret, Session};
+use papo_core::{Config, RateLimit, Sasl, Secret, Session};
 use papo_proto::Line;
 
 struct InspectingAllocator;
@@ -66,6 +66,7 @@ fn inspect(marker: &'static str) {
 fn wipes_queued_and_polled_secret_wire_lines() {
     const QUEUED: &str = "queued-pass-marker-6184";
     const POLLED: &str = "polled-pass-marker-4729";
+    const SASL: &str = "AGFsaWNlAHNhc2wtd2lwZS1tYXJrZXItNjkzOA==";
 
     inspect(QUEUED);
     let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
@@ -84,6 +85,34 @@ fn wipes_queued_and_polled_secret_wire_lines() {
     WATCHED_LEN.store(line.len(), Ordering::SeqCst);
     WATCHED.store(line.as_ptr() as usize, Ordering::SeqCst);
     drop(line);
+    assert!(WIPED.load(Ordering::SeqCst));
+    assert!(!LEAKED.load(Ordering::SeqCst));
+
+    let now = Instant::now();
+    let mut session = Session::new(
+        Config::default()
+            .sasl(Sasl::plain("alice", "sasl-wipe-marker-6938"))
+            .allow_insecure_auth(true)
+            .rate_limit(RateLimit::unlimited()),
+    );
+    session.handle_connected(now);
+    while session.poll_transmit().is_some() {}
+    session.handle_line(now, b"CAP * LS :sasl=PLAIN");
+    while session.poll_transmit().is_some() {}
+    session.handle_line(now, b"CAP * ACK :sasl");
+    while session.poll_transmit().is_some() {}
+    inspect(SASL);
+    session.handle_line(now, b"AUTHENTICATE +");
+    let line = session.poll_transmit().unwrap();
+    assert!(
+        line.windows(SASL.len())
+            .any(|window| window == SASL.as_bytes())
+    );
+    WIPED.store(false, Ordering::SeqCst);
+    WATCHED_LEN.store(line.len(), Ordering::SeqCst);
+    WATCHED.store(line.as_ptr() as usize, Ordering::SeqCst);
+    drop(line);
+    drop(session);
     TARGET.store(0, Ordering::SeqCst);
     assert!(WIPED.load(Ordering::SeqCst));
     assert!(!LEAKED.load(Ordering::SeqCst));

@@ -635,6 +635,7 @@ dependencies = [
  "pbkdf2",
  "sha2",
  "web-time",
+ "zeroize",
 ]
 
 [[package]]

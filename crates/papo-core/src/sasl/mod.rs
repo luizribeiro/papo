@@ -5,6 +5,7 @@ use web_time::Instant;
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use papo_proto::LineRef;
+use zeroize::Zeroizing;
 
 use crate::{Config, Handled, Outbox, Secret, sts::ConnectionSecurity};
 use scram::ScramClient;
@@ -415,16 +416,26 @@ impl SaslSession {
         let response = match mechanism {
             Mechanism::Plain { username, password } => {
                 let authcid = with_device(username, self.device.as_deref());
-                password
-                    .expose()
-                    .map(|password| format!("\0{authcid}\0{password}").into_bytes())
+                password.expose().map(|password| {
+                    let mut response =
+                        Zeroizing::new(Vec::with_capacity(authcid.len() + password.len() + 2));
+                    response.push(0);
+                    response.extend_from_slice(authcid.as_bytes());
+                    response.push(0);
+                    response.extend_from_slice(password.as_bytes());
+                    response
+                })
             }
-            Mechanism::OAuthBearer { token } => token
-                .expose()
-                .map(|token| format!("n,,\u{1}auth=Bearer {token}\u{1}\u{1}").into_bytes()),
-            Mechanism::External { authzid } => {
-                Some(authzid.as_deref().unwrap_or("").as_bytes().to_vec())
-            }
+            Mechanism::OAuthBearer { token } => token.expose().map(|token| {
+                let mut response = Zeroizing::new(Vec::with_capacity(token.len() + 18));
+                response.extend_from_slice(b"n,,\x01auth=Bearer ");
+                response.extend_from_slice(token.as_bytes());
+                response.extend_from_slice(b"\x01\x01");
+                response
+            }),
+            Mechanism::External { authzid } => Some(Zeroizing::new(
+                authzid.as_deref().unwrap_or("").as_bytes().to_vec(),
+            )),
             // SCRAM challenges return through `handle_scram_challenge` above.
             Mechanism::ScramSha256 { .. } => unreachable!(),
         };
@@ -729,16 +740,25 @@ fn receive_challenge(buffer: &mut String, chunk: &str) -> Result<Option<Vec<u8>>
 }
 
 fn transmit_response(response: &[u8], outbox: &mut Outbox) {
-    let encoded = STANDARD.encode(response);
+    let capacity = base64::encoded_len(response.len(), true).unwrap_or(usize::MAX);
+    let mut encoded = Zeroizing::new(String::with_capacity(capacity));
+    STANDARD.encode_string(response, &mut encoded);
     if encoded.is_empty() {
         outbox.transmit("AUTHENTICATE", ["+"]);
         return;
     }
     for chunk in encoded.as_bytes().chunks(SASL_CHUNK_LEN) {
-        outbox.transmit(
-            "AUTHENTICATE",
-            [std::str::from_utf8(chunk).expect("base64 is ASCII")],
-        );
+        let chunk = std::str::from_utf8(chunk).expect("base64 is ASCII");
+        match papo_proto::Line::new("AUTHENTICATE")
+            .param(Secret::new(chunk))
+            .encode()
+        {
+            Ok(line) => outbox.transmit_raw(line),
+            Err(error) => outbox.close(
+                crate::CloseKind::Other,
+                format!("invalid SASL response: {error}"),
+            ),
+        }
     }
     if encoded.len().is_multiple_of(SASL_CHUNK_LEN) {
         outbox.transmit("AUTHENTICATE", ["+"]);
