@@ -841,6 +841,39 @@ fn rejects_a_tampered_scram_server_signature() {
 }
 
 #[test]
+fn a_bad_scram_proof_never_falls_back_to_plain() {
+    Transcript::with_entropy(
+        Config::default().sasl(Sasl::any("user", "pencil")),
+        Box::new(FixedEntropy),
+    )
+    .connect_default()
+    .server("CAP * LS :sasl=SCRAM-SHA-256,PLAIN")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE SCRAM-SHA-256")
+    .server("AUTHENTICATE +")
+    .client("AUTHENTICATE biwsbj11c2VyLHI9V2xwYVdscGFXbHBhV2xwYVdscGFXbHBh")
+    .server(concat!(
+        "AUTHENTICATE ",
+        "cj1XbHBhV2xwYVdscGFXbHBhV2xwYVdscGElaHZZRHBXVWEyUmFUQ0FmdXhGSWxqKWhObEYkazAs",
+        "cz1XMjJaYUowU05ZN3NvRXNVRWpiNmdRPT0saT00MDk2"
+    ))
+    .client(concat!(
+        "AUTHENTICATE ",
+        "Yz1iaXdzLHI9V2xwYVdscGFXbHBhV2xwYVdscGFXbHBhJWh2WURwV1VhMlJhVENBZnV4Rklsailo",
+        "TmxGJGswLHA9M2dCTVFERWRxdS9jM2FoSjkzMUwrSWl5d0N6QWpoMm92cWFaZExhYjkrWT0="
+    ))
+    .server("AUTHENTICATE dj1iV3UvY3hvOUIyWko1ajMxdnRZeTlObTAxUGY4U2FmbXpGQjN3VEgrS2l3PQ==")
+    .client("AUTHENTICATE *")
+    .server(":ergo.test 906 user :SASL authentication aborted")
+    .event(|event| {
+        matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason, .. }
+            if reason.contains("ServerSignatureMismatch"))
+    })
+    .no_client();
+}
+
+#[test]
 fn replays_recorded_ergo_plain_login() {
     Transcript::new(
         Config::default()

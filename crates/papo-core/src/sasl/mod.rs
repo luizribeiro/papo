@@ -177,6 +177,7 @@ pub(super) struct SaslSession {
     failure_kind: FailureKind,
     deadline: Option<Instant>,
     aborting: bool,
+    abort_outcome: AbortOutcome,
     scram: Option<ScramClient>,
     scram_step: ScramStep,
     proof: Proof,
@@ -212,6 +213,13 @@ enum Proof {
     Verified,
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+enum AbortOutcome {
+    #[default]
+    Retry,
+    Fail,
+}
+
 impl std::fmt::Debug for SaslSession {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
@@ -230,6 +238,7 @@ impl std::fmt::Debug for SaslSession {
             .field("failure_kind", &self.failure_kind)
             .field("deadline", &self.deadline)
             .field("aborting", &self.aborting)
+            .field("abort_outcome", &self.abort_outcome)
             .field("has_scram", &self.scram.is_some())
             .field("scram_step", &self.scram_step)
             .field("proof", &self.proof)
@@ -262,6 +271,7 @@ impl SaslSession {
             failure_kind: FailureKind::Login,
             deadline: None,
             aborting: false,
+            abort_outcome: AbortOutcome::Retry,
             scram: None,
             scram_step: ScramStep::None,
             proof: Proof::Unverified,
@@ -283,6 +293,7 @@ impl SaslSession {
         self.failure_kind = FailureKind::Login;
         self.deadline = None;
         self.aborting = false;
+        self.abort_outcome = AbortOutcome::Retry;
         self.scram = None;
         self.scram_step = ScramStep::None;
         self.proof = Proof::Unverified;
@@ -348,6 +359,7 @@ impl SaslSession {
         self.failure_kind = FailureKind::Login;
         self.deadline = None;
         self.aborting = false;
+        self.abort_outcome = AbortOutcome::Retry;
         self.scram = None;
         self.scram_step = ScramStep::None;
         self.proof = Proof::Unverified;
@@ -372,7 +384,12 @@ impl SaslSession {
             return Handled::No;
         }
         let Some(chunk) = message.param(0) else {
-            self.abort(now, "the server omitted the SASL challenge payload", outbox);
+            self.abort(
+                now,
+                "the server omitted the SASL challenge payload",
+                AbortOutcome::Retry,
+                outbox,
+            );
             return Handled::Yes;
         };
         let challenge = match receive_challenge(&mut self.challenge, chunk) {
@@ -382,7 +399,12 @@ impl SaslSession {
                 return Handled::Yes;
             }
             Err(()) => {
-                self.abort(now, "the server sent an invalid SASL challenge", outbox);
+                self.abort(
+                    now,
+                    "the server sent an invalid SASL challenge",
+                    AbortOutcome::Retry,
+                    outbox,
+                );
                 return Handled::Yes;
             }
         };
@@ -390,7 +412,7 @@ impl SaslSession {
             match self.handle_scram_challenge(&challenge, outbox) {
                 Ok(done) => self.awaiting_challenge = !done,
                 Err(reason) => {
-                    self.abort(now, &reason, outbox);
+                    self.abort(now, &reason, AbortOutcome::Fail, outbox);
                     return Handled::Yes;
                 }
             }
@@ -414,7 +436,12 @@ impl SaslSession {
             Mechanism::ScramSha256 { .. } => unreachable!(),
         };
         let Some(response) = response else {
-            self.abort(now, "the configured SASL secret is not text", outbox);
+            self.abort(
+                now,
+                "the configured SASL secret is not text",
+                AbortOutcome::Retry,
+                outbox,
+            );
             return Handled::Yes;
         };
         transmit_response(&response, outbox);
@@ -457,7 +484,11 @@ impl SaslSession {
         } else if message.command_is("906") {
             if self.aborting {
                 self.aborting = false;
-                self.start_next(now, outbox);
+                if self.abort_outcome == AbortOutcome::Retry {
+                    self.start_next(now, outbox);
+                } else {
+                    self.fail_all("SCRAM exchange failed", outbox);
+                }
             } else {
                 self.fail_all(
                     message.param(1).unwrap_or("SASL exchange was aborted"),
@@ -512,7 +543,12 @@ impl SaslSession {
                 self.fail_all("the server did not acknowledge the SASL abort", outbox);
             } else if self.active.is_some() {
                 self.failure_kind = FailureKind::Unavailable;
-                self.abort(now, "SASL mechanism timed out after 30 seconds", outbox);
+                self.abort(
+                    now,
+                    "SASL mechanism timed out after 30 seconds",
+                    AbortOutcome::Retry,
+                    outbox,
+                );
             }
         }
     }
@@ -584,9 +620,10 @@ impl SaslSession {
         });
     }
 
-    fn abort(&mut self, now: Instant, reason: &str, outbox: &mut Outbox) {
+    fn abort(&mut self, now: Instant, reason: &str, outcome: AbortOutcome, outbox: &mut Outbox) {
         self.record_active_failure(reason);
         self.aborting = true;
+        self.abort_outcome = outcome;
         self.deadline = Some(now + SASL_TIMEOUT);
         outbox.transmit("AUTHENTICATE", ["*"]);
     }
@@ -632,6 +669,7 @@ impl SaslSession {
         self.record_active_failure(reason);
         self.completion = Completion::Failed;
         self.aborting = false;
+        self.abort_outcome = AbortOutcome::Retry;
         self.failures.push(reason.to_owned());
         let reason = format!("SASL failed: {}", self.failures.join("; "));
         if self.require {
