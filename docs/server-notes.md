@@ -51,6 +51,7 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 ### Fixture limits
 - `draft_channel_rename` (`2.19.1`) — Ergo rejects renaming channels that have persistent history ([spec](https://ircv3.net/specs/extensions/channel-rename)). Evidence: `C: RENAME #old #new :the project moved | S: FAIL RENAME CANNOT_RENAME :Persistent channels cannot be renamed`
 - `persistence` (`2.19.1`) — Ergo's always-on account profile keeps persistence effective after accepting an OFF preference ([spec](https://ircv3.net/specs/extensions/persistence)). Evidence: `C: PERSISTENCE SET OFF | S: PERSISTENCE STATUS OFF ON`
+- `reconnect_follows_channel_rename` (`2.19.1`) — Ergo rejects renaming channels that have persistent history before reconnect can be tested ([spec](https://ircv3.net/specs/extensions/channel-rename)). Evidence: `C: RENAME #old #new :archive the project | S: FAIL RENAME CANNOT_RENAME :Persistent channels cannot be renamed`
 
 ### Observations
 - **Chat history end** (`2.19.1`) — The final nonempty five-message page carries draft/chathistory-end. Evidence: `S: @batch=reply;draft/chathistory-end BATCH +history chathistory #review`
