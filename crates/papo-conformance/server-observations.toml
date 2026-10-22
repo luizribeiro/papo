@@ -13,6 +13,11 @@ finding = "The server advertises labeled-response."
 evidence = "S: CAP * LS includes labeled-response"
 server_version = "2.19.1"
 
+[ergo-default.statusmsg-reference-audience]
+finding = "Client-only reply and reaction tags do not inherit the referenced status-message audience; delivery follows the bare channel target."
+evidence = "C: @+draft/reply=<ops-msgid> PRIVMSG #review; @+draft/react=📣;+draft/reply=<ops-msgid> TAGMSG #review | S: both reach non-operators"
+server_version = "2.19.1"
+
 [ergo-persistent.history-end]
 finding = "The final nonempty five-message page carries draft/chathistory-end."
 evidence = "S: @batch=reply;draft/chathistory-end BATCH +history chathistory #review"
@@ -26,6 +31,11 @@ server_version = "2.19.1"
 [ergo-persistent.labeled-response]
 finding = "The server advertises labeled-response."
 evidence = "S: CAP * LS includes labeled-response"
+server_version = "2.19.1"
+
+[ergo-persistent.statusmsg-reference-audience]
+finding = "Client-only reply and reaction tags do not inherit the referenced status-message audience; delivery follows the bare channel target."
+evidence = "C: @+draft/reply=<ops-msgid> PRIVMSG #review; @+draft/react=📣;+draft/reply=<ops-msgid> TAGMSG #review | S: both reach non-operators"
 server_version = "2.19.1"
 
 [soju-ergo.history-end]

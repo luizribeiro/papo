@@ -1,4 +1,4 @@
-use papo::{ModeAction, ModeArg};
+use papo::{ModeAction, ModeArg, Typing};
 use papo_conformance_macros::scenario;
 
 use crate::scenarios::support::{join_seen_by, message_text, wait_channel_mode};
@@ -162,6 +162,67 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
     for peer in [&mut carol, &mut dave] {
         peer.expect_none(|event| message_text(event, "operators-only answer"))
             .await?;
+    }
+
+    let profile = std::env::var("PAPO_TEST_PROFILE").unwrap_or_else(|_| "ergo-default".into());
+    if !matches!(profile.as_str(), "ergo-default" | "ergo-persistent") {
+        return Ok(());
+    }
+
+    let question_id = question
+        .msgid
+        .as_ref()
+        .expect("operators-only message has an identifier")
+        .clone();
+    bob.react(&question, "🛡️").await?;
+    let reaction = alice
+        .wait_for(|event| {
+            event
+                .as_reacted()
+                .filter(|reaction| reaction.message == question_id && reaction.reaction == "🛡️")
+        })
+        .await?;
+    assert_eq!(reaction.status.as_deref(), Some(['@'].as_slice()));
+    for peer in [&mut carol, &mut dave] {
+        peer.expect_none(|event| {
+            event
+                .as_reacted()
+                .filter(|reaction| reaction.reaction == "🛡️")
+        })
+        .await?;
+    }
+
+    bob.typing(question.return_address(), Typing::Active)
+        .await?;
+    let typing = alice.wait_for(papo::Event::as_typing_changed).await?;
+    assert_eq!(typing.status.as_deref(), Some(['@'].as_slice()));
+    assert_eq!(typing.state, Typing::Active);
+    for peer in [&mut carol, &mut dave] {
+        peer.expect_none(papo::Event::as_typing_changed).await?;
+    }
+
+    bob.privmsg(&channel, "bare-channel threaded answer")
+        .reply_to(&question_id)
+        .await?;
+    for peer in [&mut alice, &mut carol, &mut dave] {
+        let leaked = peer
+            .wait_for(|event| message_text(event, "bare-channel threaded answer"))
+            .await?;
+        assert_eq!(leaked.status, None);
+        assert_eq!(leaked.reply_to.as_ref(), Some(&question_id));
+    }
+
+    let bare_channel = bob.state().channel_name(&channel);
+    bob.react((&bare_channel, &question_id), "📣").await?;
+    for peer in [&mut alice, &mut carol, &mut dave] {
+        let leaked = peer
+            .wait_for(|event| {
+                event
+                    .as_reacted()
+                    .filter(|reaction| reaction.message == question_id && reaction.reaction == "📣")
+            })
+            .await?;
+        assert_eq!(leaked.status, None);
     }
     Ok(())
 }

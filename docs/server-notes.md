@@ -27,6 +27,7 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 - **Chat history end** (`2.19.1`) — The final nonempty five-message page carries draft/chathistory-end. Evidence: `S: @batch=reply;draft/chathistory-end BATCH +history chathistory #review`
 - **Connect line length** (`2.19.1`) — Every observed CAP LS and welcome-burst line fits the wire limits. Evidence: `longest S: 501 bytes CAP (0 tag section + 501 line)`
 - **Labeled response availability** (`2.19.1`) — The server advertises labeled-response. Evidence: `S: CAP * LS includes labeled-response`
+- **Status-message reference audience** (`2.19.1`) — Client-only reply and reaction tags do not inherit the referenced status-message audience; delivery follows the bare channel target. Evidence: `C: @+draft/reply=<ops-msgid> PRIVMSG #review; @+draft/react=📣;+draft/reply=<ops-msgid> TAGMSG #review | S: both reach non-operators`
 
 ### Fixture patches (none)
 
@@ -57,6 +58,7 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 - **Chat history end** (`2.19.1`) — The final nonempty five-message page carries draft/chathistory-end. Evidence: `S: @batch=reply;draft/chathistory-end BATCH +history chathistory #review`
 - **Connect line length** (`2.19.1`) — Every observed CAP LS and welcome-burst line fits the wire limits. Evidence: `longest S: 501 bytes CAP (0 tag section + 501 line)`
 - **Labeled response availability** (`2.19.1`) — The server advertises labeled-response. Evidence: `S: CAP * LS includes labeled-response`
+- **Status-message reference audience** (`2.19.1`) — Client-only reply and reaction tags do not inherit the referenced status-message audience; delivery follows the bare channel target. Evidence: `C: @+draft/reply=<ops-msgid> PRIVMSG #review; @+draft/react=📣;+draft/reply=<ops-msgid> TAGMSG #review | S: both reach non-operators`
 
 ### Fixture patches (none)
 
