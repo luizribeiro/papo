@@ -315,8 +315,6 @@ async fn message_fields_use_captured_session_facts() {
         message.time,
         UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000)
     );
-    assert_eq!(message.origin, Origin::Live);
-    assert!(message.is_live());
 
     server_line(&mut server, b":emily!~e@localhost NOTICE papo-driver :maintenance soon\r\n:emily!~e@localhost PRIVMSG #papo :\x01ACTION deploys \x02bold\x02 and \x1ditalic\x1d then \x02\x1dboth\x0f in \x0304red and \x04FF0000hex\x01\r\n:dan!~d@cloak PRIVMSG #papo :\x01ACTION tests a split message\r\n:emily!~e@localhost PRIVMSG papo-driver :\x01VERSION\x01\r\n:dan!~d@cloak PRIVMSG papo-driver :\x01PING 1731513600\x01\r\n:soju.example NOTICE papo-driver :\x01VERSION soju 0.8.2\x01\r\n").await;
     let notice = next_message(&mut events).await;
@@ -366,12 +364,12 @@ async fn message_fields_use_captured_session_facts() {
     assert!(reply.reply);
 
     server_line(&mut server, b":PAPO-DRIVER!p@localhost PRIVMSG #papo :sent\r\nBATCH +history42 chathistory #papo\r\n@batch=history42 :dan!d@localhost PRIVMSG #papo :earlier\r\n").await;
-    assert_eq!(next_message(&mut events).await.origin, Origin::Live);
+    assert_eq!(next_message(&mut events).await.text, "sent");
     let Some(Event::History(page)) = events.next().await else {
         panic!("expected partial history page")
     };
     assert!(!page.end);
-    assert_eq!(page.messages().next().unwrap().origin, Origin::Replay);
+    assert_eq!(page.messages().next().unwrap().text, "earlier");
     assert!(matches!(
         events.next().await,
         Some(Event::Warning(Warning::BatchAbandoned { .. }))
@@ -1671,11 +1669,6 @@ async fn reconnect_history_pages_stop_at_the_target_limit() {
             .last()
             .map(|message| message.text.as_str()),
         Some("missed 1000")
-    );
-    assert!(
-        history
-            .messages()
-            .all(|message| message.origin == Origin::History && !message.is_live())
     );
     assert!(!history.end);
     abort_task(driver).await;
@@ -6649,8 +6642,6 @@ async fn labelled_echo_is_consumed_before_an_own_live_line() {
     )
     .await;
     let other = next_message(&mut events).await;
-    assert_eq!(other.origin, Origin::Live);
-    assert!(other.is_live());
     assert_eq!(other.authorship, crate::Authorship::Own);
 
     within(server.shutdown()).await.unwrap();

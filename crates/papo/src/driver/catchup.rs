@@ -98,7 +98,6 @@ pub(super) fn advance_catchup(
                 Some(&conversation),
                 &client,
                 crate::rt::now_wall(),
-                crate::Origin::History,
             )
         })
         .collect();

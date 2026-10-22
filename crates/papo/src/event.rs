@@ -235,7 +235,6 @@ impl Ctcp {
         history_conversation: Option<&Conversation>,
         client: &Client,
         received_at: SystemTime,
-        origin: Origin,
     ) -> Result<Self, ProtoLine> {
         let snapshot = client.state();
         let Ok((status, conversation)) = papo_core::classify_conversation(
@@ -253,7 +252,7 @@ impl Ctcp {
             snapshot.nick(),
             snapshot.casemapping(),
         );
-        let mut event = Self::from_line(
+        Self::from_line(
             raw,
             None,
             authorship,
@@ -261,9 +260,7 @@ impl Ctcp {
             status,
             snapshot.isupport().inner(),
             received_at,
-        )?;
-        event.origin = origin;
-        Ok(event)
+        )
     }
 }
 
@@ -382,7 +379,6 @@ impl Message {
         history_conversation: Option<&Conversation>,
         client: &Client,
         received_at: SystemTime,
-        origin: Origin,
     ) -> Result<Self, ProtoLine> {
         let snapshot = client.state();
         let Ok((status, conversation)) = papo_core::classify_conversation(
@@ -400,7 +396,7 @@ impl Message {
             snapshot.nick(),
             snapshot.casemapping(),
         );
-        let mut event = Self::new_with_context(
+        Self::new_with_context(
             message,
             None,
             authorship,
@@ -408,9 +404,7 @@ impl Message {
             status,
             snapshot.isupport().inner(),
             received_at,
-        )?;
-        event.origin = origin;
-        Ok(event)
+        )
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1470,8 +1464,8 @@ mod tests {
 
     use super::{
         Authorship, Conversation, CoreEvent, Ctcp, Event, Message as ChatMessage, MessageId,
-        MessageKind, MetadataChanged, ModeAction, ModeArg, Origin, Source, StandardReplyKind,
-        Warning, ctcp_parts, from_core as from_core_with_mapping,
+        MessageKind, MetadataChanged, ModeAction, ModeArg, Source, StandardReplyKind, Warning,
+        ctcp_parts, from_core as from_core_with_mapping,
     };
     use crate::Visibility;
     use papo_core::{
@@ -1813,23 +1807,18 @@ mod tests {
     }
 
     #[test]
-    fn classifies_own_and_other_live_messages() {
+    fn classifies_own_and_other_messages() {
         let classify = |message| event(message, &Isupport::default(), "Papo[bot]", UNIX_EPOCH);
         let echo = classify(Line::privmsg("#papo", "sent").with_source("papo{bot}!p@localhost"));
-        assert_eq!(echo.origin, Origin::Live);
         assert!(echo.is_own());
-        assert!(echo.is_live());
         let tagged = classify(
             Line::privmsg("#papo", "earlier")
                 .with_source("emily!e@localhost")
                 .with_tag("batch", "history42"),
         );
-        assert_eq!(tagged.origin, Origin::Live);
-        assert!(tagged.is_live());
+        assert!(tagged.tags.contains("batch"));
         let live = classify(Line::privmsg("#papo", "now").with_source("emily!e@localhost"));
-        assert_eq!(live.origin, Origin::Live);
         assert!(!live.is_own());
-        assert!(live.is_live());
     }
     fn forwarded(event: papo_core::Event) -> Event {
         let CoreEvent::Forward(event) = from_core(event) else {
@@ -2232,17 +2221,8 @@ mod tests {
             let Event::Message(live) = batched_event(kind, "NOTICE papo :live batch") else {
                 panic!("expected live fallback message")
             };
-            assert_eq!(live.origin, Origin::Live);
-            assert!(live.is_live());
+            assert_eq!(live.text, "live batch");
         }
-    }
-
-    #[test]
-    fn explicit_history_has_a_non_live_origin() {
-        let mut history = chat("PRIVMSG", "earlier");
-        history.origin = Origin::History;
-        assert_eq!(history.origin, Origin::History);
-        assert!(!history.is_live());
     }
 
     #[test]
@@ -2257,7 +2237,6 @@ mod tests {
                 history_conversation,
                 &client,
                 UNIX_EPOCH,
-                Origin::History,
             )
             .unwrap();
             assert!(matches!(
@@ -2268,13 +2247,12 @@ mod tests {
     }
 
     #[test]
-    fn classifies_an_own_message_as_live() {
+    fn classifies_an_own_message() {
         let now = Instant::now();
         let mut session = Session::new(Config::default().nick("Papo[bot]"));
         session.handle_line(now, b":papo{bot}!~p@host PRIVMSG #papo :sent");
         let echo = mapped_message(session.poll_event().expect("expected echo"));
-        assert_eq!(echo.origin, Origin::Live);
-        assert!(echo.is_live());
+        assert!(echo.is_own());
     }
 
     #[test]

@@ -19,7 +19,7 @@ pub(crate) use tokio::io::{
 
 pub(crate) use super::{ConnectionPlan, Driver};
 pub(crate) use crate::{
-    Error, Event, Message as ChatMessage, MessageKind, Origin, Reconnect, event::Warning,
+    Error, Event, Message as ChatMessage, MessageKind, Reconnect, event::Warning,
     transport::TlsConfig,
 };
 

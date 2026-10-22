@@ -5,7 +5,7 @@ use papo_proto::{ModeChanges, Reaction};
 use tokio::sync::oneshot;
 
 use crate::{
-    Client, Error, Event, Line, Message as ChatMessage, Origin,
+    Client, Error, Event, Line, Message as ChatMessage,
     driver::Command,
     event::{Kicked, ModeChanged, NickChanged, Parted, Quit, Reacted, Redacted, TopicChanged},
 };
@@ -20,7 +20,6 @@ pub(crate) fn history_item(
     history_conversation: Option<&crate::Conversation>,
     client: &Client,
     received_at: SystemTime,
-    origin: Origin,
 ) -> Event {
     let state = client.state();
     let mapping = state.casemapping();
@@ -33,7 +32,6 @@ pub(crate) fn history_item(
                 history_conversation,
                 client,
                 received_at,
-                origin,
             ) {
                 Ok(ctcp) => return Event::Ctcp(ctcp),
                 Err(line) => line,
@@ -44,7 +42,6 @@ pub(crate) fn history_item(
                 history_conversation,
                 client,
                 received_at,
-                origin,
             );
             message.map_or_else(
                 |line| other(line, received_at),
@@ -744,15 +741,7 @@ impl Client {
         } = page;
         let items = items
             .into_iter()
-            .map(|item| {
-                history_item(
-                    item,
-                    Some(&conversation),
-                    self,
-                    crate::rt::now_wall(),
-                    Origin::History,
-                )
-            })
+            .map(|item| history_item(item, Some(&conversation), self, crate::rt::now_wall()))
             .collect();
         Ok(crate::HistoryPage {
             conversation,
@@ -921,7 +910,6 @@ mod tests {
             None,
             &crate::Client::disconnected_for_test(),
             UNIX_EPOCH,
-            crate::Origin::History,
         )
         .unwrap();
         assert!(
@@ -939,7 +927,6 @@ mod tests {
             None,
             &crate::Client::disconnected_for_test(),
             UNIX_EPOCH,
-            crate::Origin::History,
         )
         .unwrap();
 
@@ -990,15 +977,7 @@ mod tests {
         let client = crate::Client::disconnected_for_test();
         let items: Vec<_> = items
             .into_iter()
-            .map(|item| {
-                history_item(
-                    item,
-                    Some(&conversation),
-                    &client,
-                    UNIX_EPOCH,
-                    crate::Origin::History,
-                )
-            })
+            .map(|item| history_item(item, Some(&conversation), &client, UNIX_EPOCH))
             .collect();
 
         assert!(matches!(&items[0], PageEvent::Message(message)
@@ -1035,7 +1014,6 @@ mod tests {
             )),
             &client,
             UNIX_EPOCH,
-            crate::Origin::History,
         );
         let PageEvent::Message(message) = item else {
             panic!("expected a chat message");
@@ -1087,7 +1065,6 @@ mod tests {
             None,
             &client,
             UNIX_EPOCH,
-            crate::Origin::History,
         );
         assert!(matches!(
             reacted,
@@ -1107,7 +1084,6 @@ mod tests {
             None,
             &client,
             UNIX_EPOCH,
-            crate::Origin::History,
         );
         assert!(matches!(
             removal,
@@ -1151,7 +1127,6 @@ mod tests {
             None,
             &crate::Client::disconnected_for_test(),
             UNIX_EPOCH,
-            crate::Origin::History,
         );
         assert!(matches!(item, PageEvent::Other(line) if line.command() == "REDACT"));
     }
@@ -1167,13 +1142,11 @@ mod tests {
             )),
             &crate::Client::disconnected_for_test(),
             UNIX_EPOCH,
-            crate::Origin::History,
         );
 
         assert!(matches!(item, Event::Ctcp(ctcp)
             if ctcp.command == "VERSION"
-                && ctcp.msgid.as_deref() == Some("RfcBTzyxY120009")
-                && ctcp.origin == crate::Origin::History));
+                && ctcp.msgid.as_deref() == Some("RfcBTzyxY120009")));
     }
 
     #[test]
@@ -1186,7 +1159,6 @@ mod tests {
             None,
             &client,
             UNIX_EPOCH,
-            crate::Origin::Replay,
         );
         assert!(matches!(
             joined,
@@ -1202,7 +1174,6 @@ mod tests {
             None,
             &client,
             UNIX_EPOCH,
-            crate::Origin::Replay,
         );
         assert!(matches!(joined, PageEvent::Joined(event)
             if event.account == crate::Account::LoggedOut
@@ -1213,7 +1184,6 @@ mod tests {
             None,
             &client,
             UNIX_EPOCH,
-            crate::Origin::Replay,
         );
         assert!(matches!(joined, PageEvent::Joined(event)
             if event.account == crate::Account::Unknown && event.realname.is_none()));
@@ -1222,7 +1192,7 @@ mod tests {
     #[test]
     fn maps_each_replayed_membership_change() {
         let client = crate::Client::disconnected_for_test();
-        let map = |item| history_item(item, None, &client, UNIX_EPOCH, crate::Origin::Replay);
+        let map = |item| history_item(item, None, &client, UNIX_EPOCH);
 
         let parted = map(papo_core::HistoryItem::Parted(core_item(
             ":emily!~e@localhost PART #papo :Leaving for lunch",
@@ -1272,7 +1242,7 @@ mod tests {
     #[test]
     fn empty_replayed_departure_reasons_are_absent() {
         let client = crate::Client::disconnected_for_test();
-        let map = |item| history_item(item, None, &client, UNIX_EPOCH, crate::Origin::Replay);
+        let map = |item| history_item(item, None, &client, UNIX_EPOCH);
 
         let items = [
             papo_core::HistoryItem::Parted(core_item(":emily!~e@localhost PART #papo :")),
@@ -1292,7 +1262,7 @@ mod tests {
     #[test]
     fn maps_replayed_topic_modes_and_unreaction() {
         let client = crate::Client::disconnected_for_test();
-        let map = |item| history_item(item, None, &client, UNIX_EPOCH, crate::Origin::Replay);
+        let map = |item| history_item(item, None, &client, UNIX_EPOCH);
 
         let topic = map(papo_core::HistoryItem::TopicChanged(core_item(
             ":emily!~e@localhost TOPIC #papo :Rust 1.90 is out",
@@ -1505,8 +1475,6 @@ mod tests {
         assert!(matches!(&page.items[5], Event::Other(line) if line.command() == "TAGMSG"));
         let message = page.messages().next().unwrap();
         assert_eq!(message.text, "earlier");
-        assert_eq!(message.origin, Origin::History);
-        assert!(!message.is_live());
         let Some(Event::History(history)) = events.next().await else {
             panic!("expected replay batch event")
         };
@@ -1515,7 +1483,7 @@ mod tests {
         assert!(matches!(history.items[3], Event::ModeChanged(_)));
         assert!(matches!(history.items[4], Event::ModeChanged(_)));
         assert!(matches!(&history.items[5], Event::Other(line) if line.command() == "TAGMSG"));
-        assert_eq!(history.messages().next().unwrap().origin, Origin::Replay);
+        assert_eq!(history.messages().next().unwrap().text, "earlier");
         abort_task(task).await;
     }
 
