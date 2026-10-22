@@ -2,7 +2,7 @@ use papo_bot::{BotConfig, ReplyStatus};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
-use crate::scenarios::support::{conversation_name, message_text};
+use crate::scenarios::support::message_text;
 
 fn profile() -> String {
     std::env::var("PAPO_TEST_PROFILE").unwrap_or_else(|_| "ergo-default".into())
@@ -68,13 +68,13 @@ async fn private_bot_reply_after_nick_takeover(s: Scenario) -> papo_testing::Res
     Ok(())
 }
 
-/// sends a reply to a broadcast's user source rather than repeating its server mask
+/// keeps a broadcast out of the replyable message event
 #[scenario(covers = ["security.reply.broadcast-private"])]
-async fn broadcast_reply_is_private(s: Scenario) -> papo_testing::Result<()> {
+async fn broadcast_is_a_server_notice(s: Scenario) -> papo_testing::Result<()> {
     if profile() != "solanum" {
         return s.skip("the selected profile does not preserve operator broadcast masks");
     }
-    let mut oper = s.connect("oper").await?;
+    let oper = s.connect("oper").await?;
     let mut recipient = s.connect("recipient").await?;
     oper.oper(papo_test_server::OPER_NAME, papo_test_server::OPER_PASSWORD)
         .await?;
@@ -85,21 +85,19 @@ async fn broadcast_reply_is_private(s: Scenario) -> papo_testing::Result<()> {
     ))
     .await?;
     let broadcast = recipient
-        .wait_for(|event| message_text(event, "deployment status requested"))
+        .wait_for(|event| {
+            event
+                .as_server_notice()
+                .filter(|notice| notice.text == "deployment status requested")
+        })
         .await?;
     assert!(matches!(
-        broadcast.conversation,
-        papo::Conversation::Broadcast(_)
+        broadcast.to,
+        papo::event::ServerNoticeTarget::Mask(_)
     ));
-    assert_eq!(broadcast.return_address(), oper.nick().as_ref());
-
-    recipient.reply(&broadcast, "deployment is healthy").await?;
-    let reply = oper
-        .wait_for(|event| message_text(event, "deployment is healthy"))
-        .await?;
     assert_eq!(
-        conversation_name(&reply.conversation),
-        Some(recipient.nick().as_ref())
+        crate::source_nick(&broadcast.actor),
+        Some(oper.nick().as_ref())
     );
     Ok(())
 }

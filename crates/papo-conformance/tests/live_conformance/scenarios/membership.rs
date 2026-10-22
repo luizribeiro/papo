@@ -278,8 +278,8 @@ async fn multiple_joins(s: Scenario) -> papo_testing::Result<()> {
     ) {
         let warning = bob
             .wait_for(|event| {
-                event.as_message().filter(|message| {
-                    message
+                event.as_server_notice().filter(|notice| {
+                    notice
                         .text
                         .starts_with("Warning: /JOIN 0 will remove you from all channels")
                 })
