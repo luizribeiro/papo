@@ -3,7 +3,7 @@
 
 mod support;
 
-use papo::{Client, Endpoint, Origin, Sasl};
+use papo::{Client, Endpoint, Sasl};
 use papo_test_server::{TestServer, register_account_at, unique};
 use support::within;
 
@@ -41,9 +41,7 @@ async fn retains_message(persistent: bool) -> bool {
     let (client, _events) = connect(&server, &account, password).await;
     client.join(support::channel(&channel)).await.unwrap();
     let page = client.history(&channel).latest().limit(10).await.unwrap();
-    let retained = page
-        .messages()
-        .any(|message| message.text == text && message.origin == Origin::History);
+    let retained = page.messages().any(|message| message.text == text);
     client.quit("restart history checked").await.unwrap();
     retained
 }

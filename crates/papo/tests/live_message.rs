@@ -5,7 +5,7 @@ mod support;
 
 use support::within;
 
-use papo::{Client, Endpoint, Event, Message as ChatMessage, Origin, Sasl, Source};
+use papo::{Client, Endpoint, Event, Message as ChatMessage, Sasl, Source};
 use papo_test_server::{create_account, from_env, unique};
 
 #[tokio::test(flavor = "current_thread")]
@@ -42,7 +42,6 @@ async fn reply_between_two_clients_carries_the_original_msgid() {
             message.text == "!ping" && source_nick(message).as_deref() == Some(nick_a.as_str())
         })
         .await;
-        assert!(incoming.is_live());
         assert!(!matches!(
             incoming.conversation,
             papo::Conversation::Private(_)
@@ -83,12 +82,7 @@ async fn same_account_sessions_receive_own_live_messages() {
             .privmsg(&channel, "from this device")
             .await
             .unwrap();
-        let other = wait_message(&mut events_b, |message| {
-            message.text == "from this device" && message.origin == Origin::Live
-        })
-        .await;
-        assert_eq!(other.origin, Origin::Live);
-        assert!(other.is_live());
+        let other = wait_message(&mut events_b, |message| message.text == "from this device").await;
         assert_eq!(other.authorship, papo::Authorship::Own);
 
         client_b.quit("multiclient test complete").await.unwrap();

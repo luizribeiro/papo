@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use papo::{AccountName, Message, MessageId, MessageKind, Origin};
+use papo::{AccountName, Message, MessageId, MessageKind};
 
 /// Builds an incoming chat-message payload.
 #[derive(Debug)]
@@ -41,13 +41,6 @@ impl MessageBuilder {
     #[must_use]
     pub const fn kind(mut self, kind: MessageKind) -> Self {
         self.message.kind = kind;
-        self
-    }
-
-    /// Sets the message origin.
-    #[must_use]
-    pub const fn origin(mut self, origin: Origin) -> Self {
-        self.message.origin = origin;
         self
     }
 
@@ -103,7 +96,7 @@ impl MessageBuilder {
 
 #[cfg(test)]
 mod tests {
-    use papo::{MessageKind, Origin};
+    use papo::MessageKind;
 
     use super::MessageBuilder;
 
@@ -116,7 +109,6 @@ mod tests {
                 Some("cloak.example".into()),
             )
             .kind(MessageKind::Notice)
-            .origin(Origin::Replay)
             .account(papo::Casemapping::default().account("alice"))
             .message_id("ergo-42")
             .raw_text("\u{2}formatted hello\u{2}")
@@ -126,7 +118,6 @@ mod tests {
 
         assert_eq!(message.return_address(), "alice");
         assert_eq!(message.kind, MessageKind::Notice);
-        assert_eq!(message.origin, Origin::Replay);
         assert_eq!(message.account.as_deref(), Some("alice"));
         assert_eq!(message.msgid.as_deref(), Some("ergo-42"));
         assert_eq!(message.tags.iter().count(), 2);

@@ -5,7 +5,7 @@ mod support;
 
 use support::within;
 
-use papo::{Client, Endpoint, Event, Message as ChatMessage, Origin, cap};
+use papo::{Client, Endpoint, Event, Message as ChatMessage, cap};
 use papo_test_server::{from_env, unique};
 
 #[tokio::test(flavor = "current_thread")]
@@ -66,9 +66,7 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
                 .map(|message| message.msgid.as_deref())
                 .collect::<Vec<_>>()
         );
-        assert!(messages.iter().all(|message| {
-            message.origin == Origin::History && !message.is_live() && message.msgid.is_some()
-        }));
+        assert!(messages.iter().all(|message| message.msgid.is_some()));
 
         let third = sent[2].msgid.as_ref().expect("Ergo supplies a msgid");
         let before = client

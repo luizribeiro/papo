@@ -7,7 +7,7 @@ use support::within;
 
 use std::time::Duration;
 
-use papo::{Client, Endpoint, Event, Origin, Reconnect, Sasl, cap};
+use papo::{Client, Endpoint, Event, Reconnect, Sasl, cap};
 use papo_test_server::{TestServer, register_account_at, unique};
 
 #[tokio::test(flavor = "current_thread")]
@@ -82,11 +82,6 @@ async fn fills_a_dropped_connection_gap_once_across_two_reconnects() {
             .filter(|message| message.text.contains("missed during the outage"))
             .collect::<Vec<_>>();
         assert_eq!(missed.len(), 1);
-        assert!(
-            missed
-                .iter()
-                .all(|message| message.origin == Origin::History)
-        );
         let delivered_ids = history
             .messages()
             .filter_map(|message| message.msgid.as_ref().map(ToString::to_string))
