@@ -3,7 +3,7 @@
 mod support;
 
 use papo_core::{Config, Conversation, Event};
-use papo_proto::Casemapping;
+use papo_proto::{Casemapping, InvalidIdentifier};
 use support::Transcript;
 
 fn assert_text_comparison(conversation: &Conversation, equal: &str, unequal: &str) {
@@ -91,6 +91,41 @@ fn separates_advertised_status_from_the_channel() {
             matches!(event, Event::Line(line)
                 if line.status() == Some(['@'].as_slice())
                     && matches!(line.conversation(), Some(Conversation::Channel(channel)) if channel == "#ops"))
+        })
+        .no_event();
+}
+
+#[test]
+fn strips_status_only_when_the_remainder_is_a_channel() {
+    Transcript::new(Config::default().nick("papo"))
+        .server(":ergo.test 005 papo CHANTYPES=#+ STATUSMSG=@+ :are supported")
+        .inspect(|session| {
+            assert!(matches!(
+                session.state().parse_target("+modeless"),
+                Ok((None, Conversation::Channel(channel))) if channel == "+modeless"
+            ));
+            assert!(matches!(
+                session.state().parse_target("@+modeless"),
+                Ok((Some(status), Conversation::Channel(channel)))
+                    if status == ['@'] && channel == "+modeless"
+            ));
+        })
+        .server(":alice!~a@cloak PRIVMSG +modeless :meeting notes")
+        .event(|event| {
+            matches!(event, Event::Line(line)
+                if line.status().is_none()
+                    && matches!(line.conversation(), Some(Conversation::Channel(channel)) if channel == "+modeless"))
+        })
+        .server(":ergo.test 005 papo CHANTYPES=#& STATUSMSG=~&@%+ :are supported")
+        .inspect(|session| {
+            assert!(matches!(
+                session.state().parse_target("&ops"),
+                Ok((None, Conversation::Channel(channel))) if channel == "&ops"
+            ));
+            assert_eq!(
+                session.state().parse_target("+alice"),
+                Err(InvalidIdentifier::InvalidPrefix('+'))
+            );
         })
         .no_event();
 }
