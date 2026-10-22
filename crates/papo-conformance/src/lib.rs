@@ -24,9 +24,6 @@ use tokio::{runtime::Builder, task::JoinHandle, time::timeout};
 mod peer;
 mod runner;
 mod scenario;
-#[cfg(not(test))]
-#[path = "../tests/live_conformance/scenarios/mod.rs"]
-mod scenarios;
 
 #[doc(hidden)]
 pub use peer::Peer;
@@ -52,17 +49,6 @@ pub struct ScenarioSpec {
     pub covers: &'static [&'static str],
     pub run: fn(Scenario) -> ScenarioFuture,
 }
-
-/// Checklist coverage declared by one conformance scenario.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct ScenarioCoverage {
-    /// Registered scenario name.
-    pub scenario: &'static str,
-    /// Stable checklist identifiers exercised by the scenario.
-    pub behaviors: &'static [&'static str],
-}
-
-inventory::collect!(ScenarioSpec);
 
 #[derive(Clone, Copy, Default)]
 #[doc(hidden)]
@@ -108,33 +94,6 @@ impl EventSource for Events {
     fn next_event(&mut self) -> impl Future<Output = Option<Event>> {
         self.next()
     }
-}
-
-fn scenario_specs() -> Vec<ScenarioSpec> {
-    #[cfg(test)]
-    return Vec::new();
-    #[cfg(not(test))]
-    let scenarios = scenarios::all();
-    #[cfg(not(test))]
-    debug_assert!(
-        scenarios
-            .iter()
-            .all(|scenario| scenario.covers.iter().all(|behavior| !behavior.is_empty()))
-    );
-    #[cfg(not(test))]
-    scenarios
-}
-
-/// Returns the checklist coverage declared by every registered scenario.
-#[must_use]
-pub fn scenario_coverage() -> Vec<ScenarioCoverage> {
-    scenario_specs()
-        .into_iter()
-        .map(|scenario| ScenarioCoverage {
-            scenario: scenario.name,
-            behaviors: scenario.covers,
-        })
-        .collect()
 }
 
 fn catch_scenario_panic(run: impl FnOnce() -> FixtureResult) -> FixtureResult {

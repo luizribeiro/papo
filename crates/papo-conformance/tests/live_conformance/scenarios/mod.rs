@@ -1,6 +1,3 @@
-#[cfg(not(test))]
-use super::ScenarioSpec;
-
 mod auth;
 mod connection;
 mod history;
@@ -12,13 +9,3 @@ mod metadata;
 mod presence;
 mod requests;
 mod support;
-
-#[cfg(not(test))]
-pub(super) fn all() -> Vec<ScenarioSpec> {
-    let mut scenarios = inventory::iter::<ScenarioSpec>
-        .into_iter()
-        .copied()
-        .collect::<Vec<_>>();
-    scenarios.sort_unstable_by_key(|scenario| scenario.name);
-    scenarios
-}

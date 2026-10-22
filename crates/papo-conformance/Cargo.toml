@@ -8,7 +8,6 @@ version.workspace = true
 publish = false
 
 [dependencies]
-inventory = "0.3.21"
 papo = { path = "../papo", version = "=0.0.0", default-features = false, features = ["tls-ring", "unstable", "websocket"] }
 papo-core = { path = "../papo-core", version = "=0.0.0" }
 papo-conformance-macros = { path = "../papo-conformance-macros", version = "=0.0.0" }

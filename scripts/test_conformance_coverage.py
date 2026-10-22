@@ -6,6 +6,14 @@ import unittest
 MODULE = runpy.run_path(pathlib.Path(__file__).with_name("conformance-coverage"))
 
 class CoverageTests(unittest.TestCase):
+    def test_loads_describe_records_from_libtest_output(self):
+        declarations = MODULE["load_declarations"]([
+            'test scenarios::connection::connect ... { "type": "covers", '
+            '"name": "connect", "behaviors": ["base.connreg.nick-user"] }',
+            "ok",
+        ])
+        self.assertEqual(declarations, {"connect": ["base.connreg.nick-user"]})
+
     def test_validation_requires_complete_current_metadata(self):
         profiles = MODULE["PROFILES"]
         statuses = {"one": {profile: "✓" for profile in profiles}}

@@ -171,10 +171,6 @@ fn expand(args: ScenarioArgs, function: &ItemFn) -> Result<TokenStream2> {
             run: #wrapper,
         };
 
-        inventory::submit! {
-            #spec
-        }
-
         #[test]
         fn #name() -> Result<(), crate::Failure> {
             crate::run_scenario(&#spec)

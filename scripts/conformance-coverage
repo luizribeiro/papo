@@ -2,6 +2,7 @@
 """Generate checklist coverage from scenario metadata and server results."""
 
 import argparse
+import os
 import pathlib
 import runpy
 import subprocess
@@ -11,26 +12,33 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 MATRIX_TOOL = runpy.run_path(ROOT / "scripts/conformance-matrix")
 PROFILES = MATRIX_TOOL["PROFILES"]
 PROFILE_LABELS = tuple(MATRIX_TOOL["PROFILE_LABELS"][profile] for profile in PROFILES)
-def load_declarations(text):
+def load_declarations(lines):
     declarations = {}
-    for line in text.splitlines():
-        scenario, separator, behavior = line.partition("\t")
-        if not scenario or not separator:
-            raise ValueError(f"invalid coverage row: {line!r}")
-        declarations.setdefault(scenario, [])
-        if behavior and behavior not in declarations[scenario]:
-            declarations[scenario].append(behavior)
+    for record in MATRIX_TOOL["records"](lines):
+        if record.get("type") != "covers":
+            continue
+        scenario = record.get("name")
+        if scenario in declarations:
+            raise ValueError(f"scenario {scenario!r} printed coverage more than once")
+        declarations[scenario] = record.get("behaviors", [])
     return declarations
 def collect_declarations():
+    environment = dict(os.environ, PAPO_CONFORMANCE_DESCRIBE="1")
     result = subprocess.run(
-        ["cargo", "run", "--quiet", "--locked", "-p", "papo-conformance",
-         "--bin", "conformance-coverage"],
+        ["cargo", "test", "--quiet", "--locked", "-p", "papo-conformance",
+         "--test", "live_conformance", "--", "--nocapture", "--test-threads=1"],
         cwd=ROOT,
+        env=environment,
         check=True,
         stdout=subprocess.PIPE,
         text=True,
     )
-    return load_declarations(result.stdout)
+    lines = result.stdout.splitlines()
+    declarations = load_declarations(lines)
+    missing = MATRIX_TOOL["missing_scenario_statuses"](lines, declarations)
+    if missing:
+        raise RuntimeError("scenarios produced no coverage: " + ", ".join(missing))
+    return declarations
 def load_matrix(path):
     statuses = {}
     for line in path.read_text().splitlines():
