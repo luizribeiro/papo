@@ -91,6 +91,7 @@ pub struct SendMessage {
     reply_to: Option<crate::MessageId>,
     channel_context: Option<crate::ChannelName>,
     tags: Vec<(String, String)>,
+    action: bool,
     invalid_input: Option<InvalidInput>,
 }
 
@@ -233,7 +234,14 @@ impl IntoFuture for SendMessage {
                 fallbacks.extend(self.channel_context.map(|_| Fallback::ContextTagDropped));
             }
             self.client
-                .send_text(self.kind, &self.target, &self.text, tags, fallbacks)
+                .send_text(
+                    self.kind,
+                    &self.target,
+                    &self.text,
+                    tags,
+                    fallbacks,
+                    self.action,
+                )
                 .await
         })
     }
@@ -476,6 +484,7 @@ impl Client {
             reply_to: None,
             channel_context: None,
             tags: Vec::new(),
+            action: false,
             invalid_input: None,
         }
     }
@@ -502,6 +511,7 @@ impl Client {
             reply_to: None,
             channel_context: None,
             tags: Vec::new(),
+            action: false,
             invalid_input: None,
         }
     }
@@ -515,8 +525,10 @@ impl Client {
     /// Returns the same errors as [`Client::privmsg`].
     pub fn action(&self, target: impl AsRef<str>, text: impl Into<String>) -> SendMessage {
         let text = text.into();
-        if let Some(action) = Ctcp::action(&text) {
-            self.privmsg(target, action)
+        if Ctcp::action(&text).is_some() {
+            let mut request = self.privmsg(target, text);
+            request.action = true;
+            request
         } else {
             let mut request = self.privmsg(target, text);
             request.invalid_input = Some(InvalidInput::InvalidMessage(
@@ -715,12 +727,20 @@ impl Client {
         text: &str,
         tags: Vec<(String, String)>,
         fallbacks: Vec<Fallback>,
+        action: bool,
     ) -> Result<Sent, Error> {
         let (status, conversation) = self
             .state()
             .parse_target_inner(target)
             .map_err(|reason| InvalidInput::invalid_name(target, reason))?;
         if !self.state().is_connected() {
+            let text = if action {
+                Ctcp::action(text).ok_or_else(|| {
+                    InvalidInput::InvalidMessage("invalid CTCP ACTION text".to_owned())
+                })?
+            } else {
+                text.to_owned()
+            };
             let mut message = match kind {
                 TextKind::Privmsg => Line::privmsg(target, text),
                 TextKind::Notice => Line::notice(target, text),
@@ -741,6 +761,7 @@ impl Client {
                 text: text.to_owned(),
                 tags,
                 fallbacks,
+                action,
                 result,
             })
             .await

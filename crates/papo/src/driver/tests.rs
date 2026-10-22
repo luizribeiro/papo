@@ -6193,6 +6193,29 @@ async fn chat_text_rejects_multiple_targets_before_writing() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn long_actions_frame_every_fallback_line() {
+    let (mut server, client, mut events, driver) =
+        scripted(config().rate_limit(papo_core::RateLimit::unlimited()));
+    let task = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+
+    let text = "waves ".repeat(100);
+    let sent = tokio::spawn(async move { client.action("#papo", text).await });
+    let first = String::from_utf8(next_client_line(&mut server).await).unwrap();
+    let second = String::from_utf8(next_client_line(&mut server).await).unwrap();
+    for line in [&first, &second] {
+        assert!(line.len() <= 512);
+        let body = line
+            .strip_prefix("PRIVMSG #papo :\x01ACTION ")
+            .expect("each line is a CTCP ACTION");
+        assert!(body.ends_with("\x01\r\n"));
+    }
+    assert!(within(sent).await.unwrap().is_ok());
+
+    task.abort();
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn chat_text_returns_a_labelled_numeric_refusal() {
     let settings = config().wanted_caps(["echo-message", "labeled-response"]);
     let (mut server, client, mut events, driver) = scripted(settings);

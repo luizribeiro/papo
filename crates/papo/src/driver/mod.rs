@@ -154,6 +154,7 @@ pub(crate) enum Command {
         text: String,
         tags: Vec<(String, String)>,
         fallbacks: Vec<crate::Fallback>,
+        action: bool,
         result: oneshot::Sender<Result<Sent, Error>>,
     },
     Typing {
@@ -940,9 +941,14 @@ where
                     session.monitor_clear();
                     _ = result.send(Ok(()));
                 }
-                Some(Command::SendText { kind, target, conversation, status, text, tags, mut fallbacks, result }) => {
+                Some(Command::SendText { kind, target, conversation, status, text, tags, mut fallbacks, action, result }) => {
                     let tags: Vec<_> = tags.iter().map(|(key, value)| (key.as_str(), value.as_str())).collect();
-                    match session.send_text_detailed(now(), kind, &target, &text, &tags) {
+                    let sent = if action {
+                        session.send_action_detailed(now(), &target, &text, &tags)
+                    } else {
+                        session.send_text_detailed(now(), kind, &target, &text, &tags)
+                    };
+                    match sent {
                         Ok(sent) => {
                             if sent.split {
                                 fallbacks.push(crate::Fallback::SplitIntoLines);

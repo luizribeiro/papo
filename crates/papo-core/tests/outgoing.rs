@@ -90,6 +90,25 @@ fn rejects_multiple_text_targets_without_queueing() {
 }
 
 #[test]
+fn frames_each_split_action_segment() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    session
+        .send_action_detailed(now, "#papo", &"waves ".repeat(100), &[])
+        .unwrap();
+
+    let lines = drain(&mut session);
+    assert_eq!(lines.len(), 2);
+    for line in lines {
+        assert!(line.len() <= 512);
+        let body = line
+            .strip_prefix("PRIVMSG #papo :\x01ACTION ")
+            .expect("each line is a CTCP ACTION");
+        assert!(body.ends_with("\x01\r\n"));
+    }
+}
+
+#[test]
 fn detailed_send_reports_only_actual_text_splitting() {
     let now = Instant::now();
     let mut single = Session::new(Config::default().rate_limit(RateLimit::unlimited()));

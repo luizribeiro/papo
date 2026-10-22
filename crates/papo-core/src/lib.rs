@@ -3190,6 +3190,30 @@ impl Session {
         text: &str,
         tags: &[(&str, &str)],
     ) -> Result<SendTextResult, RequestError> {
+        self.send_composed_text(now, kind, target, text, tags, false)
+    }
+
+    /// Queues CTCP ACTION text and reports whether line splitting was applied.
+    #[doc(hidden)]
+    pub fn send_action_detailed(
+        &mut self,
+        now: Instant,
+        target: &str,
+        text: &str,
+        tags: &[(&str, &str)],
+    ) -> Result<SendTextResult, RequestError> {
+        self.send_composed_text(now, TextKind::Privmsg, target, text, tags, true)
+    }
+
+    fn send_composed_text(
+        &mut self,
+        now: Instant,
+        kind: TextKind,
+        target: &str,
+        text: &str,
+        tags: &[(&str, &str)],
+        action: bool,
+    ) -> Result<SendTextResult, RequestError> {
         self.validate_target(target)?;
         self.rate_limit.advance(now);
         let multiline = self
@@ -3201,6 +3225,10 @@ impl Session {
         let budget = multiline.map_or(self.text_budget(kind, target), |limits| {
             self.text_budget(kind, target).min(limits.max_bytes)
         });
+        let composed = action
+            .then(|| outgoing::action_text(text, budget, multiline.is_some()))
+            .transpose()?;
+        let text = composed.as_deref().unwrap_or(text);
         let segments = papo_proto::split_text(text, budget);
         if segments.is_empty() {
             return Err(RequestError::EmptyText);

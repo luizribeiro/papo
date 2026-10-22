@@ -6,7 +6,14 @@ use super::support::{conversation_name, message_text};
 use crate::{Peer, Scenario};
 
 async fn fixture_pair(context: &Scenario) -> papo_testing::Result<(Peer, Peer, String)> {
-    let mut alice = context.connect("alice").await?;
+    fixture_pair_with(context, context.configure("alice")?).await
+}
+
+async fn fixture_pair_with(
+    context: &Scenario,
+    alice_builder: papo::Builder,
+) -> papo_testing::Result<(Peer, Peer, String)> {
+    let mut alice = context.connect_with(alice_builder).await?;
     let bob = context.connect("bob").await?;
     let channel = context.channel_name();
     alice.join(&channel).await?;
@@ -373,11 +380,13 @@ async fn status_message_or_higher(s: Scenario) -> papo_testing::Result<()> {
     covers = [
         "base.ctcp.action",
         "base.ctcp.version-query-reply",
-        "base.ctcp.ping-roundtrip"
+        "base.ctcp.ping-roundtrip",
+        "security.inj-2.action-segment-framing"
     ]
 )]
 async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
-    let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
+    let alice_builder = s.configure("alice")?.without_caps([papo::cap::MULTILINE]);
+    let (mut alice, mut bob, channel) = fixture_pair_with(&s, alice_builder).await?;
 
     alice.action(&channel, "waves hello").await?;
     let action = bob
@@ -389,6 +398,21 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
         Some(channel.as_str())
     );
     assert_eq!(action.raw_text, "waves hello");
+
+    let long_action = "waves ".repeat(100);
+    alice.action(&channel, &long_action).await?;
+    let mut received = String::new();
+    while received.len() < long_action.len() {
+        let action = bob
+            .wait_for(|event| {
+                event
+                    .as_message()
+                    .filter(|message| message.kind == MessageKind::Action)
+            })
+            .await?;
+        received.push_str(&action.raw_text);
+    }
+    assert_eq!(received, long_action);
 
     alice
         .send_raw(papo::Line::new(

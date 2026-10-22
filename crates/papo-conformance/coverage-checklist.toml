@@ -78,4 +78,5 @@ ids = [
   "regression.history.expired-label-deduplicated",
   "regression.labeled-response.late-live",
   "regression.multiline.oversized-live",
+  "security.inj-2.action-segment-framing",
 ]

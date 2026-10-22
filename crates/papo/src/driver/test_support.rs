@@ -270,6 +270,16 @@ pub(crate) async fn client_line(server: &mut DuplexStream, expected: &[u8]) {
     within(crate::__testing::client_line(server, expected)).await;
 }
 
+pub(crate) async fn next_client_line(server: &mut DuplexStream) -> Vec<u8> {
+    let mut line = Vec::new();
+    loop {
+        line.push(within(server.read_u8()).await.unwrap());
+        if line.ends_with(b"\r\n") {
+            return line;
+        }
+    }
+}
+
 pub(crate) async fn server_line(server: &mut DuplexStream, line: &[u8]) {
     within(crate::__testing::server_line(server, line)).await;
 }

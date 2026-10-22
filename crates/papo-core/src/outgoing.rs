@@ -1,4 +1,5 @@
 use crate::{Capabilities, State, cap};
+use papo_proto::{BuildError, Ctcp};
 
 const UNKNOWN_HOST_LEN: usize = 63;
 
@@ -54,6 +55,21 @@ pub(super) fn multiline_limits(caps: &Capabilities) -> Option<MultilineLimits> {
         max_lines: number("max-lines").unwrap_or(usize::MAX),
     };
     (limits.max_bytes > 0 && limits.max_lines > 0).then_some(limits)
+}
+
+pub(super) fn action_text(
+    text: &str,
+    budget: usize,
+    multiline: bool,
+) -> Result<String, BuildError> {
+    if multiline {
+        return Ctcp::action(text).ok_or(BuildError::InvalidParam(1));
+    }
+    papo_proto::split_text(text, budget.saturating_sub(10))
+        .into_iter()
+        .map(|segment| Ctcp::action(segment.text).ok_or(BuildError::InvalidParam(1)))
+        .collect::<Result<Vec<_>, _>>()
+        .map(|segments| segments.join("\n"))
 }
 
 #[cfg(test)]
