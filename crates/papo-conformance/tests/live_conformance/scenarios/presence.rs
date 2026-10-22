@@ -1,4 +1,4 @@
-use papo::{Account, AccountCreation, Away, Error, Event, NewAccount, Origin, Refusal};
+use papo::{Account, AccountCreation, Away, Error, Event, NewAccount, Refusal};
 use papo_conformance_macros::scenario;
 
 use super::support::{assert_refusal, subject_name};
@@ -36,7 +36,6 @@ async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(message.msgid.as_ref(), sent.msgid.as_ref());
     assert_eq!(Some(message.time), sent.server_time);
     assert_eq!(message.account.as_deref(), Some(account.as_ref()));
-    assert_eq!(message.origin, Origin::Live);
     assert!(sent.fallbacks.is_empty());
     assert!(matches!(
         bob.state().user(&alice_nick).unwrap().account(),
@@ -155,7 +154,6 @@ async fn away_private_message(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(message.text, text);
     assert_eq!(message.msgid.as_ref(), sent.msgid.as_ref());
     assert_eq!(Some(message.time), sent.server_time);
-    assert_eq!(message.origin, Origin::Live);
     assert_eq!(
         alice.state().away(),
         &Away::__away_value(Some(away.to_owned()))

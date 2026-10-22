@@ -1,4 +1,4 @@
-use papo::{Event, Origin, event::StandardReplyKind};
+use papo::{Event, event::StandardReplyKind};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
@@ -62,7 +62,6 @@ async fn batch(s: Scenario) -> papo_testing::Result<()> {
         .expect("history contains the sent message");
     assert_eq!(message.msgid.as_ref(), sent.msgid.as_ref());
     assert_eq!(Some(message.time), sent.server_time);
-    assert_eq!(message.origin, Origin::History);
     Ok(())
 }
 

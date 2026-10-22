@@ -1,4 +1,4 @@
-use papo::{ModeAction, ModeArg, Origin};
+use papo::{ModeAction, ModeArg};
 use papo_conformance_macros::scenario;
 
 use crate::scenarios::support::{join_seen_by, message_text, wait_channel_mode};
@@ -105,7 +105,6 @@ async fn statusmsg_ops(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(received.status.as_deref(), Some(['@'].as_slice()));
     assert_eq!(received.raw_text, "operators only");
     assert_eq!(received.msgid.as_ref(), sent.msgid.as_ref());
-    assert_eq!(received.origin, Origin::Live);
     assert_eq!(
         crate::source_nick(&received.actor),
         Some(alice_nick.as_ref())

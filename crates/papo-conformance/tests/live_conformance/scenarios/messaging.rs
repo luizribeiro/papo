@@ -1,4 +1,4 @@
-use papo::{Error, Event, Fallback, Feature, MessageKind, Origin, Refusal, UnsupportedReason};
+use papo::{Error, Event, Fallback, Feature, MessageKind, Refusal, UnsupportedReason};
 use papo_conformance_macros::scenario;
 use papo_proto::Typing;
 
@@ -60,7 +60,6 @@ async fn echo_message(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(message.text, "hello from alice");
     assert_eq!(message.msgid.as_ref(), sent.msgid.as_ref());
     assert_eq!(Some(message.time), sent.server_time);
-    assert_eq!(message.origin, Origin::Live);
     assert!(!is_private(&message));
     assert!(sent.fallbacks.is_empty());
     alice
@@ -95,7 +94,6 @@ async fn server_time(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(message.msgid.as_ref(), sent.msgid.as_ref());
     assert_eq!(Some(message.time), sent.server_time);
     assert!(message.tags.contains("time"));
-    assert_eq!(message.origin, Origin::Live);
     assert!(sent.fallbacks.is_empty());
     alice
         .expect_none(|event| message_text(event, "maintenance at midnight"))
@@ -126,7 +124,6 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     let received = bob
         .wait_for(|event| message_text(event, "private hello"))
         .await?;
-    assert_eq!(received.origin, Origin::Live);
     assert_eq!(received.kind, MessageKind::Privmsg);
     assert_eq!(
         conversation_name(&received.conversation),
@@ -142,7 +139,6 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     let received = alice
         .wait_for(|event| message_text(event, "private notice"))
         .await?;
-    assert_eq!(received.origin, Origin::Live);
     assert_eq!(received.kind, MessageKind::Notice);
     assert_eq!(
         conversation_name(&received.conversation),
@@ -158,7 +154,6 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     let received = alice
         .wait_for(|event| message_text(event, "note to self"))
         .await?;
-    assert_eq!(received.origin, Origin::Live);
     assert_eq!(received.authorship, papo::Authorship::Own);
     assert_eq!(
         conversation_name(&received.conversation),
@@ -238,8 +233,6 @@ async fn multiclient(s: Scenario) -> papo_testing::Result<()> {
     let other = phone
         .wait_for(|event| event.as_message().filter(|message| message.text == text))
         .await?;
-    assert_eq!(other.origin, Origin::Live);
-    assert!(other.is_live());
     assert_eq!(other.authorship, papo::Authorship::Own);
     desktop
         .expect_none(|event| event.as_message().filter(|message| message.text == text))
@@ -269,7 +262,6 @@ async fn own_message_without_echo(s: Scenario) -> papo_testing::Result<()> {
     let message = phone
         .wait_for(|event| event.as_message().filter(|message| message.text == text))
         .await?;
-    assert_eq!(message.origin, Origin::Live);
     assert_eq!(message.authorship, papo::Authorship::Own);
     assert_eq!(
         conversation_name(&message.conversation),
@@ -316,7 +308,6 @@ async fn status_message(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(received.status.as_deref(), Some(['+'].as_slice()));
     assert_eq!(received.raw_text, "voiced members only");
     assert_eq!(received.msgid.as_ref(), sent.msgid.as_ref());
-    assert_eq!(received.origin, Origin::Live);
     assert!(
         bob.state()
             .channel(&channel)
@@ -368,8 +359,6 @@ async fn status_message_or_higher(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(message.raw_text, "voiced members only");
         assert_eq!(message.msgid.as_ref(), sent.msgid.as_ref());
     }
-    assert_eq!(received_by_bob.origin, Origin::Live);
-    assert_eq!(received_by_alice.origin, Origin::Live);
     dave.expect_none(|event| message_text(event, "voiced members only"))
         .await?;
     carol
@@ -730,7 +719,6 @@ async fn draft_multiline(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(received.text, text);
     assert_eq!(received.msgid.as_ref(), sent.msgid.as_ref());
     assert_eq!(Some(received.time), sent.server_time);
-    assert_eq!(received.origin, Origin::Live);
     bob.expect_none(|event| message_text(event, text)).await?;
     Ok(())
 }

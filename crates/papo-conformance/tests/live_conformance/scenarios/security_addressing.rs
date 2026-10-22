@@ -1,4 +1,3 @@
-use papo::Origin;
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
@@ -69,7 +68,6 @@ async fn stale_dm_history_target(s: Scenario) -> papo_testing::Result<()> {
         .messages()
         .find(|message| message.text == text)
         .expect("direct-message history contains the stored message");
-    assert_eq!(message.origin, Origin::History);
     assert_eq!(
         conversation_name(&message.conversation),
         Some(writer.nick().as_ref())

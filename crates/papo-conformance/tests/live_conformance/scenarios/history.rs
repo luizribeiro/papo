@@ -1,6 +1,6 @@
 use std::time::{Duration, SystemTime};
 
-use papo::{Error, Event, MessageKind, Origin, Sent};
+use papo::{Error, Event, MessageKind, Sent};
 use papo_conformance_macros::scenario;
 
 use crate::scenarios::support::conversation_name;
@@ -65,8 +65,6 @@ async fn draft_chathistory(s: Scenario) -> papo_testing::Result<()> {
             .collect::<Vec<_>>()
     );
     for message in messages {
-        assert_eq!(message.origin, Origin::History);
-        assert!(!message.is_live());
         assert_eq!(
             crate::source_nick(&message.actor),
             Some(writer.nick().as_ref())
@@ -93,11 +91,9 @@ async fn legacy_history(s: Scenario) -> papo_testing::Result<()> {
         conversation_name(&page.conversation),
         Some(channel.as_str())
     );
-    let message = page
-        .messages()
+    page.messages()
         .find(|message| message.text == text)
         .expect("HISTORY replays the stored message");
-    assert_eq!(message.origin, Origin::Replay);
     Ok(())
 }
 

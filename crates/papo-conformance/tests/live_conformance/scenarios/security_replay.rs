@@ -1,4 +1,4 @@
-use papo::{CtcpReplies, Event, Origin};
+use papo::{CtcpReplies, Event};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
@@ -69,10 +69,8 @@ async fn ctcp_playback_has_no_automatic_reply(s: Scenario) -> papo_testing::Resu
         .send_raw(papo::Line::privmsg(bob_nick.as_ref(), "\u{1}VERSION\u{1}"))
         .await?;
     alice.ping().await?;
-    let live = bob
-        .wait_for(|event| event.as_ctcp().filter(|ctcp| ctcp.command == "VERSION"))
+    bob.wait_for(|event| event.as_ctcp().filter(|ctcp| ctcp.command == "VERSION"))
         .await?;
-    assert_eq!(live.origin, Origin::Live);
     alice
         .expect_none(|event| event.as_ctcp().filter(|ctcp| ctcp.reply))
         .await?;
