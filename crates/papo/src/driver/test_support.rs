@@ -547,6 +547,28 @@ pub(crate) async fn add_monitors(
     assert!(within(add).await.unwrap().is_ok());
 }
 
+pub(crate) async fn confirm_away(
+    server: &mut DuplexStream,
+    client: &super::Client,
+    events: &mut super::Events,
+    message: &str,
+) {
+    let expected = format!("AWAY :{message}\r\n");
+    let message = message.to_owned();
+    let away = tokio::spawn({
+        let client = client.clone();
+        async move { client.set_away(message).await }
+    });
+    client_line(server, expected.as_bytes()).await;
+    server_line(
+        server,
+        b":ergo.test 306 papo-driver :You have been marked as being away\r\n",
+    )
+    .await;
+    within(away).await.unwrap().unwrap();
+    assert!(matches!(events.next().await, Some(Event::AwayChanged(_))));
+}
+
 pub(crate) async fn next_message(events: &mut super::Events) -> ChatMessage {
     let Some(Event::Message(message)) = events.next().await else {
         panic!("expected message event")

@@ -4138,6 +4138,11 @@ impl Session {
         }
         let whoami = self.handle_whoami(message);
         let own_away_message = self.confirmed_away_message(message).map(str::to_owned);
+        if let Some(message) = &own_away_message {
+            self.config.away_on_connect = Some(AwayOnConnect::Message(message.clone()));
+        } else if self.confirmed_back(message) {
+            self.config.away_on_connect = None;
+        }
         let typing_handled = self.report_typing(now, message, context.batch_type().is_some());
         self.stop_typing_for_message(message);
         self.stop_typing_for_departure(message);

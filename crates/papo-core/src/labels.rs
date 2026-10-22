@@ -99,14 +99,24 @@ impl Session {
         if message.command() != Command::Numeric(Numeric::RPL_NOWAWAY) {
             return None;
         }
-        let id = if let Some(label) = message.tag("label") {
+        let id = self.confirmed_away_request(message, true)?;
+        self.away_messages.get(&id).map(String::as_str)
+    }
+
+    pub(super) fn confirmed_back(&self, message: &LineRef<'_>) -> bool {
+        message.command() == Command::Numeric(Numeric::RPL_UNAWAY)
+            && self.confirmed_away_request(message, false).is_some()
+    }
+
+    fn confirmed_away_request(&self, message: &LineRef<'_>, away: bool) -> Option<RequestId> {
+        if let Some(label) = message.tag("label") {
             self.requests.get(label.as_ref()).map(|(id, ..)| *id)
         } else {
             self.unlabelled_requests.iter().find_map(|request| {
-                matches!(&request.matcher, ResponseMatcher::Away(true)).then_some(request.id)
+                matches!(&request.matcher, ResponseMatcher::Away(value) if *value == away)
+                    .then_some(request.id)
             })
-        }?;
-        self.away_messages.get(&id).map(String::as_str)
+        }
     }
 
     pub(super) fn resolve_unlabelled(

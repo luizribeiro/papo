@@ -1079,6 +1079,7 @@ async fn eof_reconnects_and_emits_reconnected() {
     assert!(matches!(events.next().await, Some(Event::ChannelSynced(_))));
     server_line(&mut first_server, b"@time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120000 :emily!~e@localhost PRIVMSG #papo :before disconnect\r\n").await;
     assert!(matches!(events.next().await, Some(Event::Message(_))));
+    confirm_away(&mut first_server, &client, &mut events, "reviewing patches").await;
     assert!(client.state().is_connected());
     within(first_server.shutdown()).await.unwrap();
     assert!(matches!(
@@ -1090,6 +1091,7 @@ async fn eof_reconnects_and_emits_reconnected() {
     tokio::time::advance(Duration::from_secs(2)).await;
     let connected = complete_connect(&mut second_server, &mut events).await;
     assert!(connected.reconnected);
+    client_line(&mut second_server, b"AWAY :reviewing patches\r\n").await;
     client_line(&mut second_server, b"JOIN #papo persistent-channel-key\r\n").await;
     server_line(
         &mut second_server,
@@ -1110,6 +1112,7 @@ async fn eof_reconnects_and_emits_reconnected() {
     client_line(&mut third_server, b"CAP END\r\n").await;
     server_line(&mut third_server, b":ergo.test 001 papo-driver :Welcome back\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
     assert!(matches!(events.next().await, Some(Event::Connected(_))));
+    client_line(&mut third_server, b"AWAY :reviewing patches\r\n").await;
     assert!(
         tokio::time::timeout(Duration::from_millis(1), third_server.read_u8())
             .await
