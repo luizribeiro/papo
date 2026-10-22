@@ -16,7 +16,7 @@ fn live_activity_retains_the_line_envelope() {
         .event(|event| {
             matches!(event, Event::Joined { envelope, .. }
                 if envelope.msgid() == Some("RfcBTzyxY120009")
-                    && envelope.time() == Some(expected)
+                    && envelope.server_time() == Some(expected)
                     && envelope.account() == Some("emily"))
         });
 }

@@ -262,7 +262,9 @@ impl State {
     /// Returns the newest read marker time reported for a conversation.
     #[must_use]
     pub fn read_marker(&self, target: impl AsRef<str>) -> Option<std::time::SystemTime> {
-        self.core.read_marker(target).and_then(|marker| marker.time)
+        self.core
+            .read_marker(target)
+            .and_then(|marker| marker.read_until)
     }
 
     /// Returns the most recently reported account persistence status.

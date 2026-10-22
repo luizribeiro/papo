@@ -25,7 +25,7 @@ pub struct ReadMarker {
     /// Conversation to which the marker applies.
     pub conversation: Conversation,
     /// Marker time, or `None` when the server reports `*`.
-    pub time: Option<SystemTime>,
+    pub read_until: Option<SystemTime>,
 }
 
 /// The newest live message remembered for one conversation.
@@ -36,7 +36,7 @@ pub struct LastSeen {
     /// Network-unique message identifier.
     pub msgid: String,
     /// Server-assigned message time.
-    pub time: SystemTime,
+    pub server_time: SystemTime,
 }
 
 /// A history query supported by `CHATHISTORY`.
@@ -149,7 +149,7 @@ impl Session {
         &mut self,
         now: Instant,
         target: &str,
-        time: SystemTime,
+        read_until: SystemTime,
     ) -> Result<RequestId, RequestError> {
         self.require_feature(Feature::ReadMarkers)?;
         self.validate_target(target)?;
@@ -161,7 +161,7 @@ impl Session {
                     target.to_owned(),
                     format!(
                         "timestamp={}",
-                        time::format(time).ok_or(RequestError::InvalidMessageReference)?
+                        time::format(read_until).ok_or(RequestError::InvalidMessageReference)?
                     ),
                 ],
             ),
@@ -379,7 +379,7 @@ fn fallback_reference(
     state
         .last_seen(target)
         .filter(|seen| supported.contains(&"timestamp") && seen.msgid == msgid)
-        .map(|seen| MsgRef::Timestamp(seen.time))
+        .map(|seen| MsgRef::Timestamp(seen.server_time))
         .ok_or(RequestError::InvalidMessageReference)
 }
 

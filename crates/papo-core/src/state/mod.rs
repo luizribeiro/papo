@@ -1110,7 +1110,7 @@ impl Channel {
         let actor = message
             .source()
             .map(|source| Source::from_proto(source, self.casemapping));
-        let time = crate::LineEnvelope::from_line(message).time();
+        let set_at = crate::LineEnvelope::from_line(message).server_time();
         for change in ModeChanges::parse(modestring, message.params().skip(2), isupport) {
             let mode = match (change.kind, change.mode) {
                 (ModeKind::List, 'b') => ListMode::Ban,
@@ -1131,7 +1131,7 @@ impl Channel {
                     entries.push(ModeListEntry {
                         mask,
                         actor: actor.clone(),
-                        time,
+                        set_at,
                     });
                 }
             } else {

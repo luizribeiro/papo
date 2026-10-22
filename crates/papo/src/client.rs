@@ -272,7 +272,7 @@ impl Sent {
             line_msgids,
             server_time: confirmations
                 .iter()
-                .find_map(|sent| sent.time.as_deref().and_then(time::parse)),
+                .find_map(|sent| sent.server_time.as_deref().and_then(time::parse)),
             fallbacks,
         }
     }

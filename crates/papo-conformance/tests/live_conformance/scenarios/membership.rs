@@ -1172,7 +1172,7 @@ async fn channel_mode_lists(s: Scenario) -> papo_testing::Result<()> {
     let bans = alice.list_modes(&channel, papo::ListMode::Ban).await?;
     let entry = bans.iter().find(|entry| entry.mask == mask).unwrap();
     assert!(entry.actor.is_some());
-    assert!(entry.time.is_some());
+    assert!(entry.set_at.is_some());
     let tracked = alice
         .state()
         .channel(&channel)

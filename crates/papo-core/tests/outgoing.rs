@@ -712,7 +712,10 @@ fn multiline_response_takes_identity_from_its_labelled_opening() {
         .unwrap();
     let sent = response.sent().unwrap();
     assert_eq!(sent.msgid, "RfcBTzyxY120004");
-    assert_eq!(sent.time.as_deref(), Some("2026-10-15T12:00:01.000Z"));
+    assert_eq!(
+        sent.server_time.as_deref(),
+        Some("2026-10-15T12:00:01.000Z")
+    );
 }
 
 #[test]
@@ -754,5 +757,8 @@ fn nested_multiline_response_keeps_its_opening_identity() {
         .unwrap();
     let sent = response.sent().unwrap();
     assert_eq!(sent.msgid, "8sKY2A");
-    assert_eq!(sent.time.as_deref(), Some("2026-10-15T12:00:02.000Z"));
+    assert_eq!(
+        sent.server_time.as_deref(),
+        Some("2026-10-15T12:00:02.000Z")
+    );
 }

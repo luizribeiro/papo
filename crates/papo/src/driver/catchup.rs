@@ -164,10 +164,10 @@ pub(super) fn begin_catchup(
     let supports_timestamp = session.isupport().msgreftypes().contains(&"timestamp");
     for channel in &defaults.channels {
         let seen = session.state().last_seen(&channel.channel).cloned();
-        let cursor = channel
-            .catchup_cursor
-            .as_ref()
-            .filter(|cursor| seen.as_ref().is_none_or(|seen| cursor.time >= seen.time));
+        let cursor = channel.catchup_cursor.as_ref().filter(|cursor| {
+            seen.as_ref()
+                .is_none_or(|seen| cursor.time >= seen.server_time)
+        });
         let after = if let Some(reference) = cursor
             .and_then(|cursor| cursor.reference(supports_timestamp))
             .or_else(|| {

@@ -620,8 +620,8 @@ fn core_envelope(
 ) -> EventEnvelope {
     EventEnvelope {
         msgid: envelope.msgid().map(MessageId::from),
-        time: envelope.time().unwrap_or(received_at),
-        server_time: envelope.time(),
+        time: envelope.server_time().unwrap_or(received_at),
+        server_time: envelope.server_time(),
         account: envelope
             .account()
             .map(|account| casemapping.account(account)),
@@ -1084,7 +1084,7 @@ pub(crate) fn from_core(
         papo_core::Event::ReadMarkerChanged(marker) => {
             Event::ReadMarkerChanged(ReadMarkerChanged {
                 conversation: marker.conversation,
-                time: marker.time,
+                read_until: marker.read_until,
             })
         }
         papo_core::Event::Netsplit {
@@ -2733,12 +2733,13 @@ mod tests {
             conversation: papo_core::Conversation::Channel(
                 papo_proto::Casemapping::Rfc1459.channel("#papo"),
             ),
-            time: Some(UNIX_EPOCH + Duration::from_secs(42)),
+            read_until: Some(UNIX_EPOCH + Duration::from_secs(42)),
         };
         assert!(matches!(
             forwarded(papo_core::Event::ReadMarkerChanged(marker.clone())),
             Event::ReadMarkerChanged(mapped)
-                if mapped.conversation == marker.conversation && mapped.time == marker.time
+                if mapped.conversation == marker.conversation
+                    && mapped.read_until == marker.read_until
         ));
     }
 

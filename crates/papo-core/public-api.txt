@@ -1597,8 +1597,8 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::HistoryPage
 impl core::panic::unwind_safe::UnwindSafe for papo_core::HistoryPage
 pub struct papo_core::LastSeen
 pub papo_core::LastSeen::msgid: alloc::string::String
+pub papo_core::LastSeen::server_time: std::time::SystemTime
 pub papo_core::LastSeen::target: alloc::string::String
-pub papo_core::LastSeen::time: std::time::SystemTime
 impl core::clone::Clone for papo_core::LastSeen
 pub fn papo_core::LastSeen::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::LastSeen
@@ -1618,7 +1618,7 @@ pub struct papo_core::LineEnvelope
 impl papo_core::LineEnvelope
 pub fn papo_core::LineEnvelope::account(&self) -> core::option::Option<&str>
 pub fn papo_core::LineEnvelope::msgid(&self) -> core::option::Option<&str>
-pub const fn papo_core::LineEnvelope::time(&self) -> core::option::Option<std::time::SystemTime>
+pub const fn papo_core::LineEnvelope::server_time(&self) -> core::option::Option<std::time::SystemTime>
 impl core::clone::Clone for papo_core::LineEnvelope
 pub fn papo_core::LineEnvelope::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::LineEnvelope
@@ -1720,7 +1720,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo_core::ModeChange
 #[non_exhaustive] pub struct papo_core::ModeListEntry
 pub papo_core::ModeListEntry::actor: core::option::Option<papo_core::Source>
 pub papo_core::ModeListEntry::mask: papo::Mask
-pub papo_core::ModeListEntry::time: core::option::Option<std::time::SystemTime>
+pub papo_core::ModeListEntry::set_at: core::option::Option<std::time::SystemTime>
 impl core::clone::Clone for papo_core::ModeListEntry
 pub fn papo_core::ModeListEntry::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::ModeListEntry
@@ -1778,7 +1778,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::RateLimit
 impl core::panic::unwind_safe::UnwindSafe for papo_core::RateLimit
 pub struct papo_core::ReadMarker
 pub papo_core::ReadMarker::conversation: papo::Conversation
-pub papo_core::ReadMarker::time: core::option::Option<std::time::SystemTime>
+pub papo_core::ReadMarker::read_until: core::option::Option<std::time::SystemTime>
 impl core::clone::Clone for papo_core::ReadMarker
 pub fn papo_core::ReadMarker::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::ReadMarker
@@ -1951,7 +1951,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Secret
 impl core::panic::unwind_safe::UnwindSafe for papo_core::Secret
 pub struct papo_core::SentInfo
 pub papo_core::SentInfo::msgid: alloc::string::String
-pub papo_core::SentInfo::time: core::option::Option<alloc::string::String>
+pub papo_core::SentInfo::server_time: core::option::Option<alloc::string::String>
 impl core::clone::Clone for papo_core::SentInfo
 pub fn papo_core::SentInfo::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::SentInfo

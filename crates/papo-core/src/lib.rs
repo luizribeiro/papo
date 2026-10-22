@@ -956,7 +956,7 @@ pub struct ModeListEntry {
     /// Actor that set the entry, when reported.
     pub actor: Option<Source>,
     /// Time at which the entry was set, when reported and valid.
-    pub time: Option<std::time::SystemTime>,
+    pub set_at: Option<std::time::SystemTime>,
 }
 
 /// A mode argument classified using the server's advertised rules.
@@ -1427,7 +1427,7 @@ pub struct SentInfo {
     /// Network-unique message identifier.
     pub msgid: String,
     /// Server time tag, when supplied.
-    pub time: Option<String>,
+    pub server_time: Option<String>,
 }
 
 /// Error reported by an IRC server while processing a request.
@@ -1549,7 +1549,7 @@ pub struct HistoryLine {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct LineEnvelope {
     msgid: Option<String>,
-    time: Option<std::time::SystemTime>,
+    server_time: Option<std::time::SystemTime>,
     account: Option<String>,
 }
 
@@ -1557,7 +1557,7 @@ impl LineEnvelope {
     pub(crate) fn from_line(line: &LineRef<'_>) -> Self {
         Self {
             msgid: line.tag("msgid").map(std::borrow::Cow::into_owned),
-            time: line
+            server_time: line
                 .tag("time")
                 .and_then(|value| papo_proto::time::parse(&value)),
             account: line.tag("account").map(std::borrow::Cow::into_owned),
@@ -1572,8 +1572,8 @@ impl LineEnvelope {
 
     /// Returns the valid server timestamp, when supplied.
     #[must_use]
-    pub const fn time(&self) -> Option<std::time::SystemTime> {
-        self.time
+    pub const fn server_time(&self) -> Option<std::time::SystemTime> {
+        self.server_time
     }
 
     /// Returns the actor's authenticated account, when tagged.
@@ -4428,7 +4428,7 @@ impl Session {
                     actor: line
                         .param(3 + offset)
                         .map(|actor| Source::from_prefix(actor, mapping)),
-                    time: line
+                    set_at: line
                         .param(4 + offset)
                         .and_then(|value| value.parse().ok())
                         .and_then(|seconds| {
@@ -4720,7 +4720,7 @@ fn parse_whois_channels(lines: &[Line], isupport: &papo_proto::Isupport) -> Vec<
 fn sent_info(message: &LineRef<'_>) -> Option<SentInfo> {
     Some(SentInfo {
         msgid: message.tag("msgid")?.into_owned(),
-        time: message.tag("time").map(std::borrow::Cow::into_owned),
+        server_time: message.tag("time").map(std::borrow::Cow::into_owned),
     })
 }
 

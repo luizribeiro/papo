@@ -37,17 +37,27 @@ impl State {
         }
         let key = NameKey::new(target, self.casemapping);
         let advances = match (self.read_markers.get(&key), time) {
-            (None, _) | (Some(ReadMarker { time: None, .. }), Some(_)) => true,
+            (None, _)
+            | (
+                Some(ReadMarker {
+                    read_until: None, ..
+                }),
+                Some(_),
+            ) => true,
             (
                 Some(ReadMarker {
-                    time: Some(old), ..
+                    read_until: Some(old),
+                    ..
                 }),
                 Some(new),
             ) => new > *old,
             (Some(_), None) => false,
         };
         if advances {
-            let marker = ReadMarker { conversation, time };
+            let marker = ReadMarker {
+                conversation,
+                read_until: time,
+            };
             self.read_markers.insert(key, marker.clone());
             outbox.event(Event::ReadMarkerChanged(marker));
         }
@@ -75,7 +85,7 @@ impl State {
         if self
             .last_seen
             .get(&key)
-            .is_some_and(|seen| seen.time > time)
+            .is_some_and(|seen| seen.server_time > time)
         {
             return;
         }
@@ -94,7 +104,7 @@ impl State {
             LastSeen {
                 target: target.to_owned(),
                 msgid: msgid.into_owned(),
-                time,
+                server_time: time,
             },
         );
     }

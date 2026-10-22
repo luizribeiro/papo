@@ -695,7 +695,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Reacted
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Reacted
 #[non_exhaustive] pub struct papo::event::ReadMarkerChanged
 pub papo::event::ReadMarkerChanged::conversation: papo::Conversation
-pub papo::event::ReadMarkerChanged::time: core::option::Option<std::time::SystemTime>
+pub papo::event::ReadMarkerChanged::read_until: core::option::Option<std::time::SystemTime>
 impl core::clone::Clone for papo::event::ReadMarkerChanged
 pub fn papo::event::ReadMarkerChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::ReadMarkerChanged

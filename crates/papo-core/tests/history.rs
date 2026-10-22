@@ -494,7 +494,7 @@ fn tracks_read_markers_monotonically_through_join_bursts() {
     };
     assert!(matches!(&marker.conversation, Conversation::Channel(channel) if channel == "#papo"));
     assert_eq!(
-        marker.time,
+        marker.read_until,
         Some(UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000))
     );
     for line in [
@@ -509,8 +509,8 @@ fn tracks_read_markers_monotonically_through_join_bursts() {
         session
             .state()
             .read_marker("#PAPO")
-            .and_then(|marker| marker.time),
-        marker.time
+            .and_then(|marker| marker.read_until),
+        marker.read_until
     );
     session.handle_line(
         now,
@@ -520,7 +520,7 @@ fn tracks_read_markers_monotonically_through_join_bursts() {
         panic!("expected newer read marker")
     };
     assert_eq!(
-        newer.time,
+        newer.read_until,
         Some(UNIX_EPOCH + Duration::from_secs(1_760_529_343))
     );
 
@@ -528,7 +528,7 @@ fn tracks_read_markers_monotonically_through_join_bursts() {
     assert!(matches!(session.poll_event(), Some(Event::Joined { .. })));
     session.handle_line(now, b":ergo.test MARKREAD #joined *");
     assert!(
-        matches!(session.poll_event(), Some(Event::ReadMarkerChanged(marker)) if matches!(&marker.conversation, Conversation::Channel(channel) if channel == "#joined") && marker.time.is_none())
+        matches!(session.poll_event(), Some(Event::ReadMarkerChanged(marker)) if matches!(&marker.conversation, Conversation::Channel(channel) if channel == "#joined") && marker.read_until.is_none())
     );
     session.handle_line(
         now,
@@ -573,7 +573,7 @@ fn remembers_live_messages_but_not_history_pages() {
     let seen = session.state().last_seen("#PAPO").unwrap();
     assert_eq!(seen.msgid, "RKi9Cw");
     assert_eq!(
-        seen.time,
+        seen.server_time,
         UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000)
     );
 

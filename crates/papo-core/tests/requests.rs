@@ -1482,7 +1482,10 @@ fn exposes_the_msgid_and_time_of_a_labelled_echo() {
     assert_eq!(response.id, id);
     let sent = response.sent().expect("echo identity");
     assert_eq!(sent.msgid, "RKi9Cw");
-    assert_eq!(sent.time.as_deref(), Some("2026-10-15T12:00:01.000Z"));
+    assert_eq!(
+        sent.server_time.as_deref(),
+        Some("2026-10-15T12:00:01.000Z")
+    );
 }
 
 #[test]

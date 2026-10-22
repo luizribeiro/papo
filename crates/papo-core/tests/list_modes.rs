@@ -66,7 +66,7 @@ fn each_list_mode_waits_for_its_end_numeric() {
         assert_eq!(entries[0].mask, mask);
         assert_eq!(entries[0].actor.as_ref().unwrap().to_string(), "oper");
         assert_eq!(
-            entries[0].time,
+            entries[0].set_at,
             UNIX_EPOCH.checked_add(Duration::from_hours(489_180))
         );
         assert_eq!(
@@ -204,7 +204,7 @@ fn live_mode_changes_update_only_a_completed_list() {
     assert_eq!(entries[1].mask, "carol");
     assert_eq!(entries[1].actor.as_ref().unwrap().to_string(), "alice");
     assert_eq!(
-        entries[1].time,
+        entries[1].set_at,
         papo_proto::time::parse("2026-10-21T12:00:00.000Z")
     );
 

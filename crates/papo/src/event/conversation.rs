@@ -99,7 +99,7 @@ pub struct ReadMarkerChanged {
     /// Conversation to which the marker applies.
     pub conversation: Conversation,
     /// The marker time, or `None` when the server reports `*`.
-    pub time: Option<SystemTime>,
+    pub read_until: Option<SystemTime>,
 }
 
 /// Severity of an `IRCv3` standard reply.
