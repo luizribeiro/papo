@@ -6,8 +6,8 @@ use papo_core::{Config, Session};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::{
-    Authorship, Capabilities, ChannelName, Conversation, Message, MessageKind, Nick, Origin,
-    Source, State, Tags,
+    Authorship, Capabilities, ChannelName, Conversation, Message, MessageKind, Nick, Source, State,
+    Tags,
     event::{AwayChanged, Connected, Joined},
 };
 
@@ -116,7 +116,6 @@ pub fn message(
         relayed_by: None,
         is_bot: false,
         oper: None,
-        origin: Origin::Live,
         tags: Tags::default(),
     }
 }

@@ -82,8 +82,6 @@ pub struct Ctcp {
     pub time: SystemTime,
     /// The actor's authenticated account, when tagged.
     pub account: Option<AccountName>,
-    /// How the CTCP message relates to the current session.
-    pub origin: Origin,
     /// All message tags in wire order.
     pub tags: Tags,
 }
@@ -108,20 +106,6 @@ impl Authorship {
             _ => Self::Unknown,
         }
     }
-}
-
-/// How an incoming message relates to the current session.
-///
-/// Replay detection is refined when typed batches and labeled requests are available.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-#[non_exhaustive]
-pub enum Origin {
-    /// A newly received message.
-    Live,
-    /// A message associated with a server batch.
-    Replay,
-    /// A message returned by an explicit history request.
-    History,
 }
 
 /// An owned incoming `PRIVMSG` or `NOTICE`.
@@ -163,8 +147,6 @@ pub struct Message {
     pub is_bot: bool,
     /// IRC operator name, when the operator tag supplied one.
     pub oper: Option<String>,
-    /// How the message relates to the current session.
-    pub origin: Origin,
     /// All message tags in wire order.
     pub tags: Tags,
 }
@@ -183,7 +165,6 @@ struct MessageMetadata {
     relayed_by: Option<Nick>,
     is_bot: bool,
     oper: Option<String>,
-    origin: Origin,
     tags: Tags,
 }
 
@@ -224,7 +205,6 @@ impl Ctcp {
             msgid: metadata.msgid,
             time: metadata.time,
             account: metadata.account,
-            origin: metadata.origin,
             tags: metadata.tags,
         })
     }
@@ -468,7 +448,6 @@ impl Message {
             relayed_by: metadata.relayed_by,
             is_bot: metadata.is_bot,
             oper: metadata.oper,
-            origin: metadata.origin,
             tags: metadata.tags,
         })
     }
@@ -504,12 +483,6 @@ impl Message {
             Conversation::Server => self.actor.to_string(),
             _ => "*".to_owned(),
         }
-    }
-
-    /// Reports whether a bot may treat this as a newly received message.
-    #[must_use]
-    pub fn is_live(&self) -> bool {
-        self.origin == Origin::Live
     }
 
     /// Reports whether this message's actor is this client's user.
@@ -584,7 +557,6 @@ fn message_metadata(
         relayed_by,
         is_bot: tags.contains("bot"),
         oper: oper_tag.and_then(|(_, value)| value.map(std::borrow::Cow::into_owned)),
-        origin: Origin::Live,
         tags,
     })
 }
