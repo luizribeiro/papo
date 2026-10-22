@@ -13,10 +13,13 @@ async fn registers_messages_itself_and_quits() {
     within(async {
         let server = from_env();
         let nick = unique("papo-client");
-        let (client, mut events) = Client::builder(Endpoint::plaintext(
-            server.plaintext_addr().ip().to_string(),
-            server.plaintext_addr().port(),
-        ).unwrap())
+        let (client, mut events) = Client::builder(
+            Endpoint::plaintext(
+                server.plaintext_addr().ip().to_string(),
+                server.plaintext_addr().port(),
+            )
+            .unwrap(),
+        )
         .nick(support::nick(&nick))
         .username("papo")
         .realname("papo live client test")
@@ -39,26 +42,15 @@ async fn registers_messages_itself_and_quits() {
             }
         }
 
-        client
+        let sent = client
             .privmsg(&nick, "hello from papo's live client")
             .await
             .unwrap();
-        loop {
-            match events.next().await.unwrap() {
-                Event::Message(message) => {
-                    if message.kind == papo::MessageKind::Text
-                        && matches!(&message.conversation, papo::Conversation::Private(other) if other == nick.as_str())
-                        && message.raw_text == "hello from papo's live client"
-                    {
-                        break;
-                    }
-                }
-                Event::Disconnected(disconnected) => {
-                    panic!("disconnected before echo: {disconnected}")
-                }
-                _ => {}
-            }
-        }
+        assert!(matches!(
+            sent.conversation,
+            papo::Conversation::Private(other) if other == nick.as_str()
+        ));
+        assert!(sent.msgid.is_some());
 
         client.quit("live client test complete").await.unwrap();
         loop {

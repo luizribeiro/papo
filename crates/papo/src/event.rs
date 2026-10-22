@@ -955,6 +955,7 @@ fn message_event_from_line(
         )
         .map_or_else(Event::Other, |notice| Event::Notice(Box::new(notice)));
     }
+    let own = authorship == Authorship::Own;
     Message::new_with_context(
         raw,
         batch_type,
@@ -964,7 +965,13 @@ fn message_event_from_line(
         isupport,
         received_at,
     )
-    .map_or_else(Event::Other, |message| Event::Message(Box::new(message)))
+    .map_or_else(Event::Other, |message| {
+        if own {
+            Event::OwnMessage(Box::new(message))
+        } else {
+            Event::Message(Box::new(message))
+        }
+    })
 }
 
 pub(crate) fn historical_conversation(
@@ -2538,6 +2545,23 @@ mod tests {
         assert!(tagged.tags.contains("batch"));
         let live = classify(Line::privmsg("#papo", "now").with_source("emily!e@localhost"));
         assert!(!live.is_own());
+
+        let route = |authorship| {
+            let isupport = Isupport::default();
+            message_event_from_line(
+                Line::privmsg("#papo", "from another device").with_source("papo{bot}!p@localhost"),
+                None,
+                authorship,
+                Conversation::Channel(isupport.casemapping().channel("#papo")),
+                None,
+                &isupport,
+                UNIX_EPOCH,
+                true,
+                true,
+            )
+        };
+        assert!(matches!(route(Authorship::Own), Event::OwnMessage(_)));
+        assert!(matches!(route(Authorship::Other), Event::Message(_)));
     }
     fn forwarded(event: papo_core::Event) -> Event {
         let CoreEvent::Forward(event) = from_core(event) else {
@@ -2977,7 +3001,7 @@ mod tests {
         let mut session = Session::new(Config::default().nick("Papo[bot]"));
         session.handle_line(now, b":papo{bot}!~p@host PRIVMSG #papo :sent");
         let event = mapped_message_event(session.poll_event().expect("expected echo"));
-        let echo = event.as_message().expect("expected own message");
+        let echo = event.as_own_message().expect("expected own message");
         assert!(echo.is_own());
     }
 

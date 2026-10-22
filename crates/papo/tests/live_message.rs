@@ -82,7 +82,8 @@ async fn same_account_sessions_receive_own_live_messages() {
             .privmsg(&channel, "from this device")
             .await
             .unwrap();
-        let other = wait_message(&mut events_b, |message| message.text == "from this device").await;
+        let other =
+            wait_own_message(&mut events_b, |message| message.text == "from this device").await;
         assert_eq!(other.authorship, papo::Authorship::Own);
 
         client_b.quit("multiclient test complete").await.unwrap();
@@ -280,6 +281,22 @@ async fn wait_message(
             }
             Some(_) => {}
             None => panic!("driver stopped while waiting for a message"),
+        }
+    }
+}
+
+async fn wait_own_message(
+    events: &mut papo::Events,
+    accepted: impl Fn(&ChatMessage) -> bool,
+) -> ChatMessage {
+    loop {
+        match events.next().await {
+            Some(Event::OwnMessage(message)) if accepted(&message) => return *message,
+            Some(Event::Disconnected(disconnected)) => {
+                panic!("disconnected while waiting for an own message: {disconnected}")
+            }
+            Some(_) => {}
+            None => panic!("driver stopped while waiting for an own message"),
         }
     }
 }

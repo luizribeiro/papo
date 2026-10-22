@@ -384,7 +384,8 @@ async fn message_fields_use_captured_session_facts() {
     assert_eq!(reply.raw_text, "\x01VERSION soju 0.8.2\x01");
 
     server_line(&mut server, b":PAPO-DRIVER!p@localhost PRIVMSG #papo :sent\r\nBATCH +history42 chathistory #papo\r\n@batch=history42 :dan!d@localhost PRIVMSG #papo :earlier\r\n").await;
-    assert_eq!(next_message(&mut events).await.text, "sent");
+    let own = events.next().await.unwrap();
+    assert_eq!(own.as_own_message().unwrap().text, "sent");
     let Some(Event::History(page)) = events.next().await else {
         panic!("expected partial history page")
     };
@@ -435,7 +436,8 @@ async fn multiline_messages_keep_addressing_across_a_nick_change() {
         .unwrap();
     client_line(&mut server, b"PRIVMSG bob :sent securely\r\n").await;
 
-    let own = next_message(&mut events).await;
+    let own = events.next().await.unwrap();
+    let own = own.as_own_message().unwrap();
     assert_eq!(own.authorship, crate::Authorship::Own);
 
     within(server.shutdown()).await.unwrap();
@@ -6639,7 +6641,8 @@ async fn labelled_echo_is_consumed_before_an_own_live_line() {
         b"@msgid=RfcBTzyxY120005 :papo-driver!papo@localhost PRIVMSG #papo :from another device\r\n",
     )
     .await;
-    let other = next_message(&mut events).await;
+    let event = events.next().await.unwrap();
+    let other = event.as_own_message().unwrap();
     assert_eq!(other.authorship, crate::Authorship::Own);
 
     within(server.shutdown()).await.unwrap();
