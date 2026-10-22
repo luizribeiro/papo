@@ -128,9 +128,8 @@ async fn expect_delivery(
         crate::scenarios::support::conversation_name(&message.conversation),
         Some(sender_nick.as_ref())
     );
-    assert!(matches!(
-        message.conversation,
-        papo::Conversation::Private(_)
+    assert!(crate::scenarios::support::conversation_is_private(
+        &message.conversation
     ));
     assert_eq!(
         crate::source_nick(&message.actor),

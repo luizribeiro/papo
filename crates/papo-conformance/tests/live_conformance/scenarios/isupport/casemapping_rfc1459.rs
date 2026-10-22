@@ -1,8 +1,10 @@
-use papo::{Casemapping, Conversation, Error, Event, Refusal, isupport::Advertised};
+use papo::{Casemapping, Error, Event, Refusal, isupport::Advertised};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
-use crate::scenarios::support::{assert_refusal, conversation_name as name};
+use crate::scenarios::support::{
+    assert_refusal, conversation_is_private as is_private, conversation_name as name,
+};
 
 fn rfc1459_nick(value: &str) -> papo::Nick {
     Casemapping::Rfc1459.nick(value)
@@ -117,7 +119,7 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
         crate::source_nick(&message.actor),
         Some(alice_nick.as_str())
     );
-    assert!(matches!(message.conversation, Conversation::Channel(_)));
+    assert!(!is_private(&message.conversation));
 
     bob.expect_none(Event::as_message).await?;
     Ok(())

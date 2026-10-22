@@ -32,6 +32,8 @@ pub(super) fn notice_text<'event>(
 
 pub(super) trait ConversationName {
     fn name(&self) -> Option<&str>;
+
+    fn is_private(&self) -> bool;
 }
 
 impl ConversationName for Conversation {
@@ -43,6 +45,10 @@ impl ConversationName for Conversation {
             _ => None,
         }
     }
+
+    fn is_private(&self) -> bool {
+        matches!(self, Self::Private(_))
+    }
 }
 
 impl ConversationName for Chat {
@@ -53,10 +59,18 @@ impl ConversationName for Chat {
             _ => None,
         }
     }
+
+    fn is_private(&self) -> bool {
+        matches!(self, Self::Private(_))
+    }
 }
 
 pub(super) fn conversation_name(conversation: &impl ConversationName) -> Option<&str> {
     conversation.name()
+}
+
+pub(super) fn conversation_is_private(conversation: &impl ConversationName) -> bool {
+    conversation.is_private()
 }
 
 pub(super) fn subject_name(subject: &Subject) -> &str {
