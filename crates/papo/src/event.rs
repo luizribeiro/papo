@@ -1476,7 +1476,7 @@ pub(crate) fn typed_mode_change(
 
 #[cfg(all(test, not(browser)))]
 mod tests {
-    use std::time::{Duration, Instant, UNIX_EPOCH};
+    use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
     use super::{
         Authorship, Conversation, CoreEvent, Ctcp, Event, Message as ChatMessage, MessageId,
@@ -1492,6 +1492,17 @@ mod tests {
 
     fn from_core(event: papo_core::Event) -> CoreEvent {
         from_core_with_mapping(event, Casemapping::default(), UNIX_EPOCH)
+    }
+
+    fn assert_event_times(
+        event: &Event,
+        expected_variant: &str,
+        server_time: SystemTime,
+        received_at: SystemTime,
+    ) {
+        assert_eq!(event.server_time(), Some(server_time), "{expected_variant}");
+        let expected = (!matches!(expected_variant, "TagMsg" | "Other")).then_some(received_at);
+        assert_eq!(event.received_at(), expected, "{expected_variant}");
     }
 
     fn event(
@@ -1840,7 +1851,6 @@ mod tests {
                 _ => panic!("live line did not produce an event"),
             }
         };
-
         for (expected_variant, msgid, line) in cases {
             let event = convert(line);
             let actual_variant = match &event {
@@ -1860,7 +1870,7 @@ mod tests {
             };
             assert_eq!(actual_variant, expected_variant);
             assert_eq!(event.msgid().as_deref(), Some(msgid), "{expected_variant}");
-            assert_eq!(event.server_time(), Some(server_time), "{expected_variant}");
+            assert_event_times(&event, expected_variant, server_time, received_at);
         }
 
         let untagged = convert(":emily!~emily@cloak.example PRIVMSG #papo :hello from Ergo");
