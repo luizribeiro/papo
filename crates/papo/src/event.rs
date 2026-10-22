@@ -1735,6 +1735,112 @@ mod tests {
     }
 
     #[test]
+    fn event_metadata_survives_live_line_conversion() {
+        let received_at = UNIX_EPOCH + Duration::from_secs(42);
+        let server_time = UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000);
+        let cases = [
+            (
+                "Ctcp",
+                "RfcBTzyxY120101",
+                "@msgid=RfcBTzyxY120101;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example PRIVMSG #papo :\x01VERSION\x01",
+            ),
+            (
+                "TagMsg",
+                "RfcBTzyxY120102",
+                "@msgid=RfcBTzyxY120102;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example TAGMSG #papo",
+            ),
+            (
+                "Reacted",
+                "RfcBTzyxY120103",
+                "@msgid=RfcBTzyxY120103;time=2026-02-03T04:05:06.789Z;+draft/react=👍;+reply=RfcBTzyxY120001 :emily!~emily@cloak.example TAGMSG #papo",
+            ),
+            (
+                "Redacted",
+                "RfcBTzyxY120104",
+                "@msgid=RfcBTzyxY120104;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example REDACT #papo RfcBTzyxY120001 :off-topic",
+            ),
+            (
+                "Joined",
+                "RfcBTzyxY120105",
+                "@msgid=RfcBTzyxY120105;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example JOIN #papo",
+            ),
+            (
+                "Parted",
+                "RfcBTzyxY120106",
+                "@msgid=RfcBTzyxY120106;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example PART #papo :Lunch",
+            ),
+            (
+                "Kicked",
+                "RfcBTzyxY120107",
+                "@msgid=RfcBTzyxY120107;time=2026-02-03T04:05:06.789Z :alice!~alice@cloak.example KICK #papo emily :Flooding",
+            ),
+            (
+                "Quit",
+                "RfcBTzyxY120108",
+                "@msgid=RfcBTzyxY120108;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example QUIT :Client Quit",
+            ),
+            (
+                "NickChanged",
+                "RfcBTzyxY120109",
+                "@msgid=RfcBTzyxY120109;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example NICK emily_away",
+            ),
+            (
+                "ModeChanged",
+                "RfcBTzyxY120110",
+                "@msgid=RfcBTzyxY120110;time=2026-02-03T04:05:06.789Z :alice!~alice@cloak.example MODE #papo +o emily",
+            ),
+            (
+                "TopicChanged",
+                "RfcBTzyxY120111",
+                "@msgid=RfcBTzyxY120111;time=2026-02-03T04:05:06.789Z :alice!~alice@cloak.example TOPIC #papo :Release planning",
+            ),
+            (
+                "Other",
+                "RfcBTzyxY120112",
+                "@msgid=RfcBTzyxY120112;time=2026-02-03T04:05:06.789Z :irc.example 999 papo :Vendor-specific reply",
+            ),
+        ];
+        let convert = |line: &str| {
+            let mut session = Session::new(Config::default().nick("papo"));
+            session.handle_line(Instant::now(), line.as_bytes());
+            let core = session.poll_event().expect("expected event from live line");
+            match from_core_with_mapping(core, session.isupport().casemapping(), received_at) {
+                CoreEvent::Forward(event) => event,
+                CoreEvent::Line(line) => {
+                    super::incoming_from_core(line, session.isupport(), received_at)
+                }
+                _ => panic!("live line did not produce an event"),
+            }
+        };
+
+        for (expected_variant, msgid, line) in cases {
+            let event = convert(line);
+            let actual_variant = match &event {
+                Event::Ctcp(_) => "Ctcp",
+                Event::TagMsg(_) => "TagMsg",
+                Event::Reacted(_) => "Reacted",
+                Event::Redacted(_) => "Redacted",
+                Event::Joined(_) => "Joined",
+                Event::Parted(_) => "Parted",
+                Event::Kicked(_) => "Kicked",
+                Event::Quit(_) => "Quit",
+                Event::NickChanged(_) => "NickChanged",
+                Event::ModeChanged(_) => "ModeChanged",
+                Event::TopicChanged(_) => "TopicChanged",
+                Event::Other(_) => "Other",
+                _ => "unexpected",
+            };
+            assert_eq!(actual_variant, expected_variant);
+            assert_eq!(event.msgid().as_deref(), Some(msgid), "{expected_variant}");
+            assert_eq!(event.server_time(), Some(server_time), "{expected_variant}");
+        }
+
+        let untagged = convert(":emily!~emily@cloak.example PRIVMSG #papo :hello from Ergo");
+        assert_eq!(untagged.msgid(), None);
+        assert_eq!(untagged.server_time(), None);
+    }
+
+    #[test]
     fn message_names_capture_the_active_casemapping() {
         let mut isupport = Isupport::default();
         isupport.apply_tokens(["CASEMAPPING=ascii", "NICKLEN=30"]);
