@@ -434,40 +434,6 @@ impl Ctcp {
             tags: metadata.tags,
         })
     }
-
-    pub(crate) fn from_historical(
-        raw: ProtoLine,
-        authorship: Authorship,
-        history_conversation: Option<&Conversation>,
-        client: &Client,
-        received_at: SystemTime,
-    ) -> Result<Self, ProtoLine> {
-        let snapshot = client.state();
-        let Ok((status, conversation)) = papo_core::classify_conversation(
-            &raw.as_ref(),
-            snapshot.nick(),
-            snapshot.isupport().inner(),
-        ) else {
-            return Err(raw);
-        };
-        let conversation = historical_conversation(
-            &raw.as_ref(),
-            authorship,
-            conversation,
-            history_conversation,
-            snapshot.nick(),
-            snapshot.casemapping(),
-        );
-        Self::from_line(
-            raw,
-            None,
-            authorship,
-            conversation,
-            status,
-            snapshot.isupport().inner(),
-            received_at,
-        )
-    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -608,6 +574,7 @@ impl Message {
         )
     }
 
+    #[allow(dead_code)]
     pub(crate) fn from_historical(
         message: ProtoLine,
         authorship: Authorship,
@@ -972,6 +939,42 @@ fn message_event_from_line(
             Event::Message(Box::new(message))
         }
     })
+}
+
+pub(crate) fn historical_message_event(
+    raw: ProtoLine,
+    authorship: Authorship,
+    history_conversation: Option<&Conversation>,
+    client: &Client,
+    received_at: SystemTime,
+) -> Event {
+    let snapshot = client.state();
+    let Ok((status, conversation)) = papo_core::classify_conversation(
+        &raw.as_ref(),
+        snapshot.nick(),
+        snapshot.isupport().inner(),
+    ) else {
+        return Event::Other(raw);
+    };
+    let conversation = historical_conversation(
+        &raw.as_ref(),
+        authorship,
+        conversation,
+        history_conversation,
+        snapshot.nick(),
+        snapshot.casemapping(),
+    );
+    message_event_from_line(
+        raw,
+        None,
+        authorship,
+        conversation,
+        status,
+        snapshot.isupport().inner(),
+        received_at,
+        true,
+        true,
+    )
 }
 
 pub(crate) fn historical_conversation(

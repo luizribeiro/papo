@@ -26,26 +26,12 @@ pub(crate) fn history_item(
     match item {
         papo_core::HistoryItem::Message(item) => {
             let authorship = crate::Authorship::from_core(item.authorship);
-            let line = match crate::event::Ctcp::from_historical(
+            crate::event_impl::historical_message_event(
                 item.line,
                 authorship,
                 history_conversation,
                 client,
                 received_at,
-            ) {
-                Ok(ctcp) => return Event::Ctcp(ctcp),
-                Err(line) => line,
-            };
-            let message = ChatMessage::from_historical(
-                line,
-                authorship,
-                history_conversation,
-                client,
-                received_at,
-            );
-            message.map_or_else(
-                |line| other(line, received_at),
-                |message| Event::Message(Box::new(message)),
             )
         }
         papo_core::HistoryItem::Reacted(item) => typed_or_raw(&item.line, received_at, |message| {
@@ -523,7 +509,7 @@ impl HistoryPage {
     /// Iterates over chat messages, excluding replayed activity items.
     pub fn messages(&self) -> impl Iterator<Item = &ChatMessage> {
         self.items.iter().filter_map(|item| match item {
-            Event::Message(message) => Some(message.as_ref()),
+            Event::Message(message) | Event::OwnMessage(message) => Some(message.as_ref()),
             _ => None,
         })
     }
@@ -1035,7 +1021,7 @@ mod tests {
             .map(|item| history_item(item, Some(&conversation), &client, UNIX_EPOCH))
             .collect();
 
-        assert!(matches!(&items[0], PageEvent::Message(message)
+        assert!(matches!(&items[0], PageEvent::OwnMessage(message)
             if message.authorship == crate::Authorship::Own && message.is_own()));
         assert!(matches!(&items[1], PageEvent::Message(message)
             if message.authorship == crate::Authorship::Other && !message.is_own()));
@@ -1047,7 +1033,7 @@ mod tests {
         assert!(matches!(&items[4], PageEvent::Quit(quit)
             if quit.channels == ["#papo"] && quit.authorship == crate::Authorship::Other));
         let first_time = papo_proto::time::parse("2026-10-19T14:31:08.123Z").unwrap();
-        assert!(matches!(&items[0], PageEvent::Message(message)
+        assert!(matches!(&items[0], PageEvent::OwnMessage(message)
             if message.msgid.as_deref() == Some("RfcBTzyxY120004")
                 && message.server_time == Some(first_time)
                 && message.account.as_deref() == Some("papo")));
@@ -1204,7 +1190,7 @@ mod tests {
             UNIX_EPOCH,
         );
 
-        assert!(matches!(item, Event::Ctcp(ctcp)
+        assert!(matches!(item, Event::CtcpQuery(ctcp)
             if ctcp.command == "VERSION"
                 && ctcp.msgid.as_deref() == Some("RfcBTzyxY120009")));
     }
