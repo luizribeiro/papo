@@ -2,7 +2,8 @@
 
 mod support;
 
-use papo_core::{Config, Event, Feature, Refusal, RequestError, Secret};
+use papo_core::{Config, Event, Feature, Refusal, RequestError, ResponseMatcher, Secret};
+use papo_proto::Line;
 use support::{Transcript, assert_session_debug_redacts, queue_debug_marker, unsupported_error};
 
 fn registered() -> Transcript {
@@ -558,6 +559,34 @@ fn pending_cap_request_preserves_queued_registration() {
         .server("CAP * ACK :draft/account-registration")
         .client("REGISTER * * password")
         .event(|event| matches!(event, Event::RequestUntracked { .. }));
+}
+
+#[test]
+fn early_registration_reserves_its_id_before_a_later_whois() {
+    Transcript::new(
+        Config::default().wanted_caps(["draft/account-registration", "labeled-response"]),
+    )
+    .connect_default()
+    .server("CAP * LS :draft/account-registration=before-connect labeled-response")
+    .client("CAP REQ :draft/account-registration labeled-response")
+    .update(|session| {
+        let registration = session.next_request_id();
+        session
+            .create_account(std::time::Instant::now(), None, None, "unique-password")
+            .unwrap();
+        assert_ne!(session.next_request_id(), registration);
+        let whois = session
+            .request_with_matcher(
+                std::time::Instant::now(),
+                Line::new("WHOIS").with_params(["alice"]),
+                ResponseMatcher::Whois("alice".into()),
+            )
+            .unwrap();
+        assert_ne!(whois, registration);
+    })
+    .client("WHOIS alice")
+    .server("CAP * ACK :draft/account-registration labeled-response")
+    .client("@label=0 REGISTER * * unique-password");
 }
 
 #[test]

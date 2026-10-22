@@ -289,19 +289,42 @@ impl Session {
     pub(super) fn queue_request(
         &mut self,
         now: Instant,
-        mut message: Line,
+        message: Line,
         feature: Option<Feature>,
         emit_events: bool,
     ) -> Result<RequestId, RequestError> {
-        self.rate_limit.advance(now);
         let id = RequestId(self.next_request_id);
+        self.queue_request_with_id(now, message, feature, emit_events, id)?;
+        self.next_request_id = self.next_request_id.wrapping_add(1);
+        Ok(id)
+    }
+
+    pub(super) fn queue_reserved_request(
+        &mut self,
+        now: Instant,
+        message: Line,
+        feature: Feature,
+        id: RequestId,
+    ) -> Result<(), RequestError> {
+        self.queue_request_with_id(now, message, Some(feature), true, id)
+    }
+
+    fn queue_request_with_id(
+        &mut self,
+        now: Instant,
+        mut message: Line,
+        feature: Option<Feature>,
+        emit_events: bool,
+        id: RequestId,
+    ) -> Result<(), RequestError> {
+        self.rate_limit.advance(now);
         let sent = self.caps.enabled().contains_key(&cap::ECHO_MESSAGE)
             && matches!(
                 message.as_ref().command(),
                 Command::Privmsg | Command::Notice
             );
         let labelled = self.caps.enabled().contains_key(&cap::LABELED_RESPONSE);
-        let label = labelled.then(|| encode_label(self.next_request_id));
+        let label = labelled.then(|| encode_label(id.0));
         if labelled && self.requests.len() >= MAX_PENDING_REQUESTS {
             return Err(RequestError::PendingLimit);
         }
@@ -309,7 +332,6 @@ impl Session {
             message = message.with_tag("label", label);
         }
         let line = message.encode()?;
-        self.next_request_id = self.next_request_id.wrapping_add(1);
         if let Some(label) = label {
             self.requests
                 .insert(label, (id, None, sent, feature, emit_events));
@@ -317,7 +339,7 @@ impl Session {
             self.outbox.event(Event::RequestUntracked { id });
         }
         self.outbox.transmit_tracked(line, None, Some(id));
-        Ok(id)
+        Ok(())
     }
 }
 

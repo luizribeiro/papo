@@ -706,6 +706,7 @@ impl Config {
         password: impl Into<Secret>,
     ) -> Self {
         self.registration_on_connect = Some(PendingRegistration {
+            request: None,
             account: account.map(Into::into),
             email: email.map(Into::into),
             password: password.into(),
@@ -3837,6 +3838,12 @@ impl Session {
         RequestId(self.next_request_id)
     }
 
+    fn reserve_request_id(&mut self) -> RequestId {
+        let id = RequestId(self.next_request_id);
+        self.next_request_id = self.next_request_id.wrapping_add(1);
+        id
+    }
+
     /// Reports whether the connection is ready for use.
     #[must_use]
     pub const fn is_connected(&self) -> bool {
@@ -3905,14 +3912,16 @@ impl Session {
             if !self.caps.is_pending(cap::ACCOUNT_REGISTRATION.as_str()) {
                 return self.require_feature(Feature::AccountCreation);
             }
+            let request = self.reserve_request_id();
             self.account_registration.begin(PendingRegistration {
+                request: Some(request),
                 account: account.map(str::to_owned),
                 email: email.map(str::to_owned),
                 password,
             });
             return Ok(());
         }
-        self.send_register(now, account, email, &password)
+        self.send_register(now, account, email, &password, None)
     }
 
     fn send_register(
@@ -3921,18 +3930,21 @@ impl Session {
         account: Option<&str>,
         email: Option<&str>,
         password: &Secret,
+        request: Option<RequestId>,
     ) -> Result<(), RequestError> {
         if password.expose().is_none() {
             return Err(RequestError::InvalidSecret);
         }
-        self.request_for_feature(
-            now,
-            Line::new("REGISTER")
-                .param(account.unwrap_or("*"))
-                .param(email.unwrap_or("*"))
-                .param(password),
-            Feature::AccountCreation,
-        )?;
+        let message = Line::new("REGISTER")
+            .param(account.unwrap_or("*"))
+            .param(email.unwrap_or("*"))
+            .param(password);
+        if let Some(request) = request {
+            self.require_feature(Feature::AccountCreation)?;
+            self.queue_reserved_request(now, message, Feature::AccountCreation, request)?;
+        } else {
+            self.request_for_feature(now, message, Feature::AccountCreation)?;
+        }
         self.account_registration.request_started();
         Ok(())
     }
@@ -4309,6 +4321,7 @@ impl Session {
                     pending.account.as_deref(),
                     pending.email.as_deref(),
                     &pending.password,
+                    pending.request,
                 );
             }
         } else if self.caps.is_negotiating()

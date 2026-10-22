@@ -1,9 +1,10 @@
 use papo_proto::LineRef;
 
-use crate::{Casemapping, Event, Handled, Outbox, Secret};
+use crate::{Casemapping, Event, Handled, Outbox, RequestId, Secret};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct PendingRegistration {
+    pub(super) request: Option<RequestId>,
     pub(super) account: Option<String>,
     pub(super) email: Option<String>,
     pub(super) password: Secret,
