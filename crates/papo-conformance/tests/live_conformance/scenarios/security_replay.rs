@@ -64,6 +64,39 @@ async fn labelled_rejoin_ack_completes(s: Scenario) -> papo_testing::Result<()> 
     Ok(())
 }
 
+/// does not restore a channel parted after a labelled re-JOIN
+#[scenario(
+    requires(caps = ["labeled-response"]),
+    covers = ["security.r2.no-stale-rejoin-after-part"]
+)]
+async fn parted_rejoin_is_not_restored(s: Scenario) -> papo_testing::Result<()> {
+    let channel = s.channel_name();
+    let mut alice = s.connect("alice").await?;
+    alice.join(&channel).await?;
+    alice.join(&channel).await?;
+    alice.part(&channel, "leaving the private room").await?;
+    alice
+        .wait_for(|event| {
+            event.as_parted().filter(|parted| {
+                parted.authorship == papo::Authorship::Own && parted.channel.as_ref() == channel
+            })
+        })
+        .await?;
+
+    alice.reconnect().await?;
+    alice.wait_for(Event::as_disconnected).await?;
+    alice.wait_for(Event::as_connected).await?;
+    assert!(alice.state().channel(&channel).is_none());
+    alice
+        .expect_none(|event| {
+            event.as_joined().filter(|joined| {
+                joined.authorship == papo::Authorship::Own && joined.channel.as_ref() == channel
+            })
+        })
+        .await?;
+    Ok(())
+}
+
 /// does not answer a CTCP query replayed from bouncer history
 #[scenario(
     requires(caps = ["batch"]),

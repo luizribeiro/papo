@@ -1284,6 +1284,27 @@ fn remembering_a_rejoin_replaces_only_the_same_channel() {
 }
 
 #[test]
+fn only_an_own_join_line_confirms_a_rejoin() {
+    let session = Session::new(config());
+    let channel = test_channel("#papo");
+    for (line, confirmed) in [
+        (":papo-driver!papo@localhost JOIN #papo", true),
+        (":alice!alice@staff.example JOIN #papo", false),
+        (":papo-driver!papo@localhost JOIN #rust", false),
+        (":papo-driver!papo@localhost PART #papo :Leaving", false),
+    ] {
+        let mut lines = vec![papo_proto::LineRef::parse(line).unwrap().to_owned()];
+        assert_eq!(
+            super::response_confirms_join(&session, &lines, &channel),
+            confirmed,
+            "{line}"
+        );
+        lines.clear();
+        assert!(!super::response_confirms_join(&session, &lines, &channel));
+    }
+}
+
+#[test]
 fn only_bad_keys_remove_channels_from_the_rejoin_set() {
     let session = Session::new(config());
     let cases = [
@@ -5686,7 +5707,7 @@ async fn labelled_join_timeout_kick_and_part_end_the_action() {
     server_line(&mut server, b"@label=1 :papo-driver!papo@localhost JOIN #limited * :papo driver test\r\n:ergo.test KICK #limited papo-driver :Channel is full\r\n").await;
     assert!(matches!(
         within(kicked).await.unwrap(),
-        Err(Error::UnexpectedReply { command }) if command == "JOIN"
+        Err(Error::Interrupted(_))
     ));
 
     let parted = tokio::spawn({
@@ -5697,7 +5718,7 @@ async fn labelled_join_timeout_kick_and_part_end_the_action() {
     server_line(&mut server, b"@label=2 :papo-driver!papo@localhost JOIN #registered * :papo driver test\r\n:papo-driver!papo@localhost PART #registered :Registration required\r\n").await;
     assert!(matches!(
         within(parted).await.unwrap(),
-        Err(Error::UnexpectedReply { command }) if command == "JOIN"
+        Err(Error::Interrupted(_))
     ));
 
     within(server.shutdown()).await.unwrap();

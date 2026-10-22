@@ -1304,6 +1304,7 @@ where
                 }
                 if response.error().is_none()
                     && let Some((channel, key)) = join_keys.remove(&response.id)
+                    && response_confirms_join(session, &response.lines, &channel)
                 {
                     remember_rejoin(session, defaults, Autojoin::new(channel.into_string(), key));
                 } else {
@@ -1542,6 +1543,19 @@ fn remember_rejoin(session: &Session, defaults: &mut PostConnect, entry: Autojoi
         .channels
         .retain(|configured| casemapping.channel(&configured.channel) != entry.channel.as_str());
     defaults.channels.push(entry);
+}
+
+fn response_confirms_join(session: &Session, lines: &[Line], channel: &crate::ChannelName) -> bool {
+    let mapping = session.isupport().casemapping();
+    lines.iter().any(|line| {
+        let line = line.as_ref();
+        line.command() == ProtoCommand::Join
+            && line
+                .param(0)
+                .is_some_and(|target| mapping.channel(target) == *channel)
+            && matches!(line.source(), Some(papo_proto::Source::User { nick, .. })
+                if mapping.nick(nick) == mapping.nick(session.nick()))
+    })
 }
 
 fn drop_bad_rejoin_key(

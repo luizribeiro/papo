@@ -1799,7 +1799,7 @@ fn labelled_join_without_an_echo_times_out_once() {
 }
 
 #[test]
-fn own_part_or_kick_ends_a_labelled_join_during_sync() {
+fn own_part_or_kick_aborts_a_labelled_join_during_sync() {
     for departure in [
         ":papo!~papo@localhost PART #papo :Registration required",
         ":ergo.test KICK #papo papo :Channel is full",
@@ -1819,11 +1819,16 @@ fn own_part_or_kick_ends_a_labelled_join_during_sync() {
         );
         session.handle_line(now, departure.as_bytes());
 
-        let response = std::iter::from_fn(|| session.poll_event()).find_map(|event| match event {
-            Event::Response(response) if response.id == id => Some(response),
-            _ => None,
-        });
-        assert_eq!(response.unwrap().lines.len(), 2);
+        let outcomes = std::iter::from_fn(|| session.poll_event())
+            .filter_map(|event| match event {
+                Event::RequestAborted {
+                    id, transmitted, ..
+                } => Some((id, transmitted)),
+                Event::Response(response) => Some((response.id, false)),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(outcomes, [(id, true)]);
     }
 }
 
@@ -1851,15 +1856,19 @@ fn other_join_departures_do_not_end_a_labelled_join() {
         session.handle_line(now, departure.as_bytes());
 
         assert!(
-            std::iter::from_fn(|| session.poll_event())
-                .all(|event| !matches!(event, Event::Response(response) if response.id == id)),
-            "irrelevant departure resolved the join: {departure}"
+            std::iter::from_fn(|| session.poll_event()).all(|event| match event {
+                Event::Response(response) => response.id != id,
+                Event::RequestAborted { id: aborted, .. } => aborted != id,
+                _ => true,
+            }),
+            "irrelevant departure ended the join: {departure}"
         );
         session.handle_line(now, b":ergo.test KICK #papo papo :Channel is full");
         assert!(
-            std::iter::from_fn(|| session.poll_event())
-                .any(|event| matches!(event, Event::Response(response) if response.id == id)),
-            "matching departure did not resolve the join after: {departure}"
+            std::iter::from_fn(|| session.poll_event()).any(
+                |event| matches!(event, Event::RequestAborted { id: aborted, .. } if aborted == id)
+            ),
+            "matching departure did not abort the join after: {departure}"
         );
     }
 }

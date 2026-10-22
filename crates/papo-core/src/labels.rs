@@ -115,6 +115,9 @@ impl Session {
         labelled_request: Option<RequestId>,
     ) -> bool {
         let mapping = self.isupport.value().casemapping();
+        if self.abort_departed_join(message, mapping) {
+            return true;
+        }
         let Some((index, complete, join_started)) = self
             .unlabelled_requests
             .iter()
@@ -203,6 +206,33 @@ impl Session {
             self.finish_mode_list_response(&request.matcher, &mut response);
             self.outbox.event(Event::Response(response));
         }
+        true
+    }
+
+    fn abort_departed_join(&mut self, message: &LineRef<'_>, mapping: crate::Casemapping) -> bool {
+        let Some(index) =
+            self.unlabelled_requests
+                .iter()
+                .position(|request| match &request.matcher {
+                    ResponseMatcher::Join(channel) => ResponseMatcher::own_channel_departure(
+                        message,
+                        channel,
+                        mapping,
+                        self.welcome_state.nick(),
+                        self.is_own_source(message),
+                    ),
+                    _ => false,
+                })
+        else {
+            return false;
+        };
+        let request = self.unlabelled_requests.remove(index).unwrap();
+        self.requests
+            .retain(|_, (pending, _, _, _, _)| *pending != request.id);
+        self.outbox.event(Event::RequestAborted {
+            id: request.id,
+            transmitted: request.started.is_some(),
+        });
         true
     }
 }

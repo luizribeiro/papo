@@ -87,4 +87,5 @@ ids = [
   "security.h9.invalid-automatic-reply-target",
   "security.inj-8.outgoing-fuzz-coverage",
   "security.r1.labelled-rejoin-routing",
+  "security.r2.no-stale-rejoin-after-part",
 ]
