@@ -3018,6 +3018,9 @@ impl Session {
                     &message,
                     multiline_max_bytes,
                     self.caps.bouncer_enabled(),
+                    message
+                        .tag("label")
+                        .is_some_and(|label| self.requests.contains_key(label.as_ref())),
                 ) {
                     BatchAction::Consumed => {}
                     BatchAction::Complete(events) => {

@@ -9,6 +9,7 @@ use papo_proto::{Command, Line, LineRef, Reaction, time};
 use crate::{BatchAbandonReason, Config, HistoryItem, HistoryLine, cap};
 
 const MAX_ABANDONED_BATCHES: usize = 256;
+const MAX_BUFFERED_BYTES: usize = 64 * 1024 * 1024;
 
 #[derive(Debug)]
 pub(crate) struct Batches {
@@ -17,6 +18,7 @@ pub(crate) struct Batches {
     max_open: usize,
     max_lines: usize,
     timeout: Duration,
+    buffered_bytes: usize,
 }
 
 #[derive(Debug)]
@@ -30,7 +32,8 @@ struct OpenBatch {
     messages: Vec<Line>,
     completed: Vec<BatchEvent>,
     lines: usize,
-    bytes: usize,
+    multiline_bytes: usize,
+    buffered_bytes: usize,
     opened: Instant,
     typed_aggregate: bool,
 }
@@ -109,12 +112,14 @@ impl Batches {
             max_open: config.max_open_batches,
             max_lines: config.max_batch_lines,
             timeout: config.batch_timeout,
+            buffered_bytes: 0,
         }
     }
 
     pub(crate) fn reset(&mut self) {
         self.open.clear();
         self.abandoned.clear();
+        self.buffered_bytes = 0;
     }
 
     pub(crate) fn handle(
@@ -123,6 +128,7 @@ impl Batches {
         message: &LineRef<'_>,
         multiline_max_bytes: usize,
         bouncer_enabled: bool,
+        correlated_label: bool,
     ) -> BatchAction {
         if !message.command_is("BATCH") {
             return self.member(message, multiline_max_bytes);
@@ -131,7 +137,7 @@ impl Batches {
             return BatchAction::Dispatch(self.context(message));
         };
         if let Some(reference) = reference.strip_prefix('+') {
-            return self.open(now, message, reference, bouncer_enabled);
+            return self.open(now, message, reference, bouncer_enabled, correlated_label);
         }
         if let Some(reference) = reference.strip_prefix('-') {
             return self.close(message, reference);
@@ -145,6 +151,7 @@ impl Batches {
         message: &LineRef<'_>,
         reference: &str,
         bouncer_enabled: bool,
+        correlated_label: bool,
     ) -> BatchAction {
         let Some(kind) = message.param(1) else {
             return BatchAction::Dispatch(self.context(message));
@@ -171,7 +178,10 @@ impl Batches {
             OpenBatch {
                 opening: message.to_owned(),
                 kind: kind.to_owned(),
-                label: message.tag("label").map(std::borrow::Cow::into_owned),
+                label: correlated_label
+                    .then(|| message.tag("label"))
+                    .flatten()
+                    .map(std::borrow::Cow::into_owned),
                 parent,
                 params: message.params().skip(2).map(str::to_owned).collect(),
                 end: message
@@ -180,11 +190,13 @@ impl Batches {
                 messages: Vec::new(),
                 completed: Vec::new(),
                 lines: 0,
-                bytes: 0,
+                multiline_bytes: 0,
+                buffered_bytes: retained_bytes(message),
                 opened: now,
                 typed_aggregate: is_aggregate(kind, bouncer_enabled),
             },
         );
+        self.buffered_bytes = self.buffered_bytes.saturating_add(retained_bytes(message));
         BatchAction::Consumed
     }
 
@@ -203,6 +215,7 @@ impl Batches {
             return BatchAction::Dispatch(self.context(message));
         }
         let mut batch = self.open.remove(reference).expect("validated above");
+        self.buffered_bytes = self.buffered_bytes.saturating_sub(batch.buffered_bytes);
         let mut completed = std::mem::take(&mut batch.completed);
         let response_messages = batch.label.as_ref().map(|_| batch.messages.clone());
         if batch.is_typed_aggregate() && !self.has_typed_aggregate_ancestor(batch.parent.as_deref())
@@ -256,14 +269,17 @@ impl Batches {
             }]);
         }
         let ancestors = self.ancestors(reference.as_ref());
+        let retained = retained_bytes(message);
         for reference in &ancestors {
             let batch = self.open.get_mut(reference).expect("resolved ancestor");
             batch.lines = batch.lines.saturating_add(1);
+            batch.buffered_bytes = batch.buffered_bytes.saturating_add(retained);
+            self.buffered_bytes = self.buffered_bytes.saturating_add(retained);
             if batch.kind == cap::MULTILINE.as_str() {
                 let concat = message
                     .tags()
                     .any(|(key, _)| key == "draft/multiline-concat");
-                batch.bytes = batch.bytes.saturating_add(
+                batch.multiline_bytes = batch.multiline_bytes.saturating_add(
                     message.param(1).map_or(0, str::len)
                         + usize::from(!batch.messages.is_empty() && !concat),
                 );
@@ -286,7 +302,8 @@ impl Batches {
             .find(|reference| {
                 self.open[*reference].lines > self.max_lines
                     || (self.open[*reference].kind == cap::MULTILINE.as_str()
-                        && self.open[*reference].bytes > multiline_max_bytes)
+                        && self.open[*reference].multiline_bytes > multiline_max_bytes)
+                    || self.buffered_bytes > MAX_BUFFERED_BYTES
             })
             .cloned()
         {
@@ -390,6 +407,7 @@ impl Batches {
         let mut messages = Vec::new();
         for candidate in references {
             let batch = self.open.remove(&candidate).expect("selected open batch");
+            self.buffered_bytes = self.buffered_bytes.saturating_sub(batch.buffered_bytes);
             messages.extend(batch.messages);
             for event in batch.completed {
                 collect_messages(event, &mut messages);
@@ -702,16 +720,35 @@ fn valid_reference(reference: &str) -> bool {
             .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
 }
 
+fn retained_bytes(message: &LineRef<'_>) -> usize {
+    let tags = message
+        .tags()
+        .map(|(key, value)| {
+            std::mem::size_of::<(String, Option<String>)>()
+                + key.len()
+                + value.as_deref().map_or(0, str::len)
+        })
+        .sum::<usize>();
+    std::mem::size_of::<Line>()
+        + tags
+        + message.raw_source().map_or(0, str::len)
+        + message.raw_command().len()
+        + message
+            .params()
+            .map(|param| std::mem::size_of::<String>() + param.len())
+            .sum::<usize>()
+}
+
 #[cfg(test)]
 mod tests {
     use super::{BatchAction, BatchEvent, Batches};
-    use crate::Config;
+    use crate::{BatchAbandonReason, Config};
     use papo_proto::LineRef;
     use web_time::Instant;
 
     fn handle(batches: &mut Batches, line: &str) -> (bool, Option<String>) {
         let message = LineRef::parse(line).unwrap();
-        match batches.handle(Instant::now(), &message, usize::MAX, false) {
+        match batches.handle(Instant::now(), &message, usize::MAX, false, false) {
             BatchAction::Complete(mut events) => match events.pop() {
                 Some(BatchEvent::Line { batch_type, .. }) => (false, batch_type),
                 _ => (false, None),
@@ -766,7 +803,7 @@ mod tests {
         );
         let close = LineRef::parse("BATCH -h").unwrap();
         let BatchAction::Complete(events) =
-            batches.handle(Instant::now(), &close, usize::MAX, false)
+            batches.handle(Instant::now(), &close, usize::MAX, false, false)
         else {
             panic!("history did not complete")
         };
@@ -787,7 +824,7 @@ mod tests {
             let line = format!("BATCH +ref{index} vendor/sync");
             let message = LineRef::parse(&line).unwrap();
             assert!(matches!(
-                batches.handle(Instant::now(), &message, usize::MAX, false),
+                batches.handle(Instant::now(), &message, usize::MAX, false, false),
                 BatchAction::Complete(_)
             ));
         }
@@ -795,7 +832,7 @@ mod tests {
 
         let late = LineRef::parse("@batch=ref9999 :alice PART #papo :old").unwrap();
         let BatchAction::Complete(events) =
-            batches.handle(Instant::now(), &late, usize::MAX, false)
+            batches.handle(Instant::now(), &late, usize::MAX, false, false)
         else {
             panic!("late refused member was dispatched live")
         };
@@ -806,5 +843,68 @@ mod tests {
 
         batches.reset();
         assert!(batches.abandoned.is_empty());
+    }
+
+    #[test]
+    fn unknown_label_batch_hits_the_global_byte_budget() {
+        let now = Instant::now();
+        let mut batches = Batches::new(&Config::default());
+        let open = LineRef::parse("@label=lost BATCH +reply labeled-response").unwrap();
+        assert!(matches!(
+            batches.handle(now, &open, usize::MAX, false, false),
+            BatchAction::Consumed
+        ));
+        let prefix = "@batch=reply;vendor.example/large=";
+        let suffix = " :alice!~alice@users.example PRIVMSG #papo :payload";
+        let wire = format!("{prefix}{}{suffix}", "x".repeat(8_191 - prefix.len() - 1));
+        let member = LineRef::parse(&wire).unwrap();
+        let mut fed = 0;
+
+        loop {
+            fed += wire.len();
+            if let BatchAction::Complete(events) =
+                batches.handle(now, &member, usize::MAX, false, false)
+            {
+                assert!(events.iter().any(|event| matches!(
+                    event,
+                    BatchEvent::Abandoned {
+                        reason: BatchAbandonReason::ByteLimit,
+                        ..
+                    }
+                )));
+                break;
+            }
+        }
+
+        assert!(fed < 64 * 1024 * 1024);
+    }
+
+    #[test]
+    fn labeled_response_aggregates_only_for_a_pending_label() {
+        for (pending, expect_response) in [(false, false), (true, true)] {
+            let now = Instant::now();
+            let mut batches = Batches::new(&Config::default());
+            let open = LineRef::parse("@label=request-7 BATCH +reply labeled-response").unwrap();
+            assert!(matches!(
+                batches.handle(now, &open, usize::MAX, false, pending),
+                BatchAction::Consumed
+            ));
+            let member =
+                LineRef::parse("@batch=reply :irc.example 401 papo missing :No such nick").unwrap();
+            let _ = batches.handle(now, &member, usize::MAX, false, pending);
+            let close = LineRef::parse("BATCH -reply").unwrap();
+            let BatchAction::Complete(events) =
+                batches.handle(now, &close, usize::MAX, false, pending)
+            else {
+                panic!("labeled response did not complete")
+            };
+
+            assert_eq!(
+                events
+                    .iter()
+                    .any(|event| matches!(event, BatchEvent::Response { .. })),
+                expect_response
+            );
+        }
     }
 }
