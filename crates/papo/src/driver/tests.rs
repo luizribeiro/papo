@@ -1584,8 +1584,7 @@ fn persistence_gates_rejoin_and_history_fetch() {
             b":ergo.test CAP * ACK :draft/persistence\r\n:ergo.test PERSISTENCE STATUS DEFAULT ",
         );
         session.handle_bytes(now, if effective { b"ON\r\n" } else { b"OFF\r\n" });
-        assert_eq!(super::should_rejoin(&session), expected);
-        assert_eq!(super::should_fetch_history(&session), expected);
+        assert_eq!(!super::server_restores_channels(&session), expected);
     }
 }
 

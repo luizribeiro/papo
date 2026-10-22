@@ -158,7 +158,7 @@ pub(super) fn begin_catchup(
     defaults: &PostConnect,
     catchups: &mut BTreeMap<RequestId, Catchup>,
 ) {
-    if !defaults.history_on_reconnect || !should_fetch_history(session) {
+    if !defaults.history_on_reconnect || server_restores_channels(session) {
         return;
     }
     let supports_timestamp = session.isupport().msgreftypes().contains(&"timestamp");
@@ -201,13 +201,14 @@ pub(super) fn begin_catchup(
     }
 }
 
-pub(super) fn should_fetch_history(session: &Session) -> bool {
-    #[cfg(not(feature = "unstable"))]
-    let _ = session;
-    #[cfg(feature = "unstable")]
-    return !session.server_rejoins_channels();
-    #[cfg(not(feature = "unstable"))]
-    true
+#[cfg(feature = "unstable")]
+pub(super) fn server_restores_channels(session: &Session) -> bool {
+    session.server_rejoins_channels()
+}
+
+#[cfg(not(feature = "unstable"))]
+pub(super) const fn server_restores_channels(_session: &Session) -> bool {
+    false
 }
 
 #[cfg(all(test, not(browser)))]

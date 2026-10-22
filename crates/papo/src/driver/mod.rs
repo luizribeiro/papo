@@ -3,9 +3,7 @@ mod connect;
 
 #[cfg(all(test, not(browser)))]
 use catchup::extend_catchup;
-#[cfg(all(test, feature = "unstable"))]
-use catchup::should_fetch_history;
-use catchup::{Catchup, CatchupCursor, advance_catchup, begin_catchup};
+use catchup::{Catchup, CatchupCursor, advance_catchup, begin_catchup, server_restores_channels};
 
 #[cfg(not(browser))]
 use connect::apply_sts_action;
@@ -1812,7 +1810,7 @@ fn after_connect(
             )
             .map_err(io::Error::other)?;
     }
-    if should_rejoin(session) {
+    if !server_restores_channels(session) {
         for channel in &defaults.channels {
             let params = match &channel.key {
                 Some(key) => {
@@ -1840,15 +1838,6 @@ fn after_connect(
         }
     }
     Ok(())
-}
-
-fn should_rejoin(session: &Session) -> bool {
-    #[cfg(not(feature = "unstable"))]
-    let _ = session;
-    #[cfg(feature = "unstable")]
-    return !session.server_rejoins_channels();
-    #[cfg(not(feature = "unstable"))]
-    true
 }
 
 fn finish(events: EventSink, end: ConnectionEnd, _will_retry: bool) -> Result<(), Error> {
