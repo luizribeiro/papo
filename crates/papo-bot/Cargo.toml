@@ -7,7 +7,7 @@ repository.workspace = true
 version.workspace = true
 publish = false
 description = "Bot routing and command helpers for the papo IRC client"
-readme = "../../README.md"
+readme = "README.md"
 keywords = ["irc", "ircv3", "bot", "tokio"]
 categories = ["network-programming", "asynchronous"]
 

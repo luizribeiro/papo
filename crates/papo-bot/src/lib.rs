@@ -1,3 +1,6 @@
+//! This crate is unreleased and unstable, is not available on crates.io, and its API will change
+//! before it is published.
+//!
 //! Command parsing, addressing, and reply-rate helpers for bots built with [`papo`]. Most users
 //! want `papo` alone; use `papo-bot` directly when an application needs its opinionated command
 //! layer.

@@ -9,6 +9,8 @@ The project is early in development; the API is not yet stable.
 - `papo-proto` parses and builds IRC protocol data without I/O.
 - `papo-core` implements deterministic sans-I/O IRC session behavior.
 - `papo` provides the tokio driver, transports, client handles, and event stream.
+- [`papo-bot`](crates/papo-bot) is an experimental, unpublished command-helper crate whose API
+  will change.
 
 ## Quick start
 
