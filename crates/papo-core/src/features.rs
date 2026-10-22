@@ -90,87 +90,27 @@ macro_rules! feature_enum {
         pub enum Feature {
             $($(#[$docs])* $(#[$gate])* $variant,)*
         }
+
+        impl Feature {
+            #[doc(hidden)]
+            pub const ALL: &'static [Self] = &[
+                $($(#[$gate])* Self::$variant,)*
+            ];
+
+            /// Returns a stable human-readable feature name.
+            #[must_use]
+            pub fn name(self) -> &'static str {
+                match self {
+                    $($(#[$gate])* Self::$variant => $name,)*
+                }
+            }
+        }
     };
 }
 
 feature_table!(feature_enum);
 
 impl Feature {
-    #[doc(hidden)]
-    pub const ALL: &'static [Self] = &[
-        Self::MessageTags,
-        Self::Replies,
-        Self::Reactions,
-        Self::Typing,
-        Self::Redaction,
-        Self::Multiline,
-        Self::History,
-        Self::ReadMarkers,
-        Self::Metadata,
-        Self::Monitor,
-        Self::SetName,
-        Self::BotMode,
-        Self::AccountCreation,
-        #[cfg(feature = "unstable")]
-        Self::Bouncer,
-        #[cfg(feature = "unstable")]
-        Self::Persistence,
-        #[cfg(feature = "unstable")]
-        Self::WebPush,
-        Self::ChannelRename,
-        #[cfg(feature = "unstable")]
-        Self::Relay,
-        Self::LabeledResponse,
-        Self::AwayTracking,
-        Self::AccountTracking,
-        Self::HostTracking,
-        Self::InviteTracking,
-        Self::Halfop,
-        Self::Excepts,
-        Self::Invex,
-        Self::Quiet,
-        Self::AccountExtban,
-    ];
-
-    /// Returns a stable human-readable feature name.
-    #[must_use]
-    pub fn name(self) -> &'static str {
-        match self {
-            Self::MessageTags => "client-only message tags",
-            Self::Replies => "replies",
-            Self::Reactions => "reactions",
-            Self::Typing => "typing notifications",
-            Self::Redaction => cap::MESSAGE_REDACTION.constant_str(),
-            Self::Multiline => "multiline messages",
-            Self::History => cap::alias(cap::CHATHISTORY.constant_str(), 0),
-            Self::ReadMarkers => cap::alias(cap::READ_MARKER.constant_str(), 0),
-            Self::Metadata => "metadata",
-            Self::Monitor => "monitoring",
-            Self::SetName => "real-name changes",
-            Self::BotMode => "bot mode",
-            Self::AccountCreation => "account creation",
-            #[cfg(feature = "unstable")]
-            Self::Bouncer => "bouncer networks",
-            #[cfg(feature = "unstable")]
-            Self::Persistence => "persistence",
-            #[cfg(feature = "unstable")]
-            Self::WebPush => "webpush",
-            Self::ChannelRename => "channel rename",
-            #[cfg(feature = "unstable")]
-            Self::Relay => "relaymsg",
-            Self::LabeledResponse => cap::LABELED_RESPONSE.constant_str(),
-            Self::AwayTracking => "away tracking",
-            Self::AccountTracking => "account tracking",
-            Self::HostTracking => "host tracking",
-            Self::InviteTracking => "invite tracking",
-            Self::Halfop => "half-operator privileges",
-            Self::Excepts => "ban exceptions",
-            Self::Invex => "invite exceptions",
-            Self::Quiet => "quiet list",
-            Self::AccountExtban => "account extended bans",
-        }
-    }
-
     fn caps(self) -> [Option<cap::Cap>; 2] {
         match self {
             Self::MessageTags | Self::Replies | Self::Reactions | Self::Typing => {
