@@ -276,6 +276,7 @@ pub(crate) fn incoming_from_core(
 }
 
 impl Message {
+    #[allow(dead_code)]
     pub(crate) fn new(
         raw: ProtoLine,
         isupport: &Isupport,
@@ -337,7 +338,14 @@ impl Message {
         client: &Client,
         received_at: SystemTime,
     ) -> Result<Self, ProtoLine> {
-        Self::from_historical(message, client, received_at, Origin::History, authorship)
+        Self::from_historical(
+            message,
+            authorship,
+            None,
+            client,
+            received_at,
+            Origin::History,
+        )
     }
 
     pub(crate) fn from_replay(
@@ -346,24 +354,49 @@ impl Message {
         client: &Client,
         received_at: SystemTime,
     ) -> Result<Self, ProtoLine> {
-        Self::from_historical(message, client, received_at, Origin::Replay, authorship)
+        Self::from_historical(
+            message,
+            authorship,
+            None,
+            client,
+            received_at,
+            Origin::Replay,
+        )
     }
 
-    fn from_historical(
+    pub(crate) fn from_historical(
         message: ProtoLine,
+        authorship: Authorship,
+        history_conversation: Option<&Conversation>,
         client: &Client,
         received_at: SystemTime,
         origin: Origin,
-        authorship: Authorship,
     ) -> Result<Self, ProtoLine> {
         let snapshot = client.state();
-        let mut event = Self::new(
-            message,
-            snapshot.isupport().inner(),
+        let Ok((status, conversation)) = papo_core::classify_conversation(
+            &message.as_ref(),
             snapshot.nick(),
+            snapshot.isupport().inner(),
+        ) else {
+            return Err(message);
+        };
+        let conversation = historical_conversation(
+            &message.as_ref(),
+            authorship,
+            conversation,
+            history_conversation,
+            snapshot.nick(),
+            snapshot.casemapping(),
+        );
+        let mut event = Self::new_with_context(
+            message,
+            None,
+            authorship,
+            conversation,
+            status,
+            snapshot.isupport().inner(),
             received_at,
         )?;
-        event.authorship = authorship;
         event.origin = origin;
         Ok(event)
     }
@@ -472,6 +505,31 @@ impl Message {
     pub fn is_own(&self) -> bool {
         self.authorship == Authorship::Own
     }
+}
+
+pub(crate) fn historical_conversation(
+    message: &LineRef<'_>,
+    authorship: Authorship,
+    conversation: Conversation,
+    history_conversation: Option<&Conversation>,
+    own_nick: &str,
+    mapping: Casemapping,
+) -> Conversation {
+    if !matches!(conversation, Conversation::Private(_)) {
+        return conversation;
+    }
+    if let Some(Conversation::Private(nick)) = history_conversation {
+        return Conversation::Private(nick.clone());
+    }
+    if authorship != Authorship::Own
+        && message
+            .param(0)
+            .is_some_and(|target| mapping.nick(target) != own_nick)
+        && let Some(papo_proto::Source::User { nick, .. }) = message.source()
+    {
+        return Conversation::Private(mapping.nick(nick));
+    }
+    conversation
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2100,6 +2158,28 @@ mod tests {
         history.origin = Origin::History;
         assert_eq!(history.origin, Origin::History);
         assert!(!history.is_live());
+    }
+
+    #[test]
+    fn historical_private_messages_use_the_batch_or_actor_conversation() {
+        let client = crate::Client::disconnected_for_test();
+        let batch = Conversation::Private(Casemapping::default().nick("alice"));
+        for history_conversation in [Some(&batch), None] {
+            let message = ChatMessage::from_historical(
+                Line::privmsg("papo_away", "can you send me the invoice?")
+                    .with_source("alice!~a@host"),
+                Authorship::Other,
+                history_conversation,
+                &client,
+                UNIX_EPOCH,
+                Origin::History,
+            )
+            .unwrap();
+            assert!(matches!(
+                message.conversation,
+                Conversation::Private(ref nick) if nick == "alice"
+            ));
+        }
     }
 
     #[test]
