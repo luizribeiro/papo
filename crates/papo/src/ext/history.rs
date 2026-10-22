@@ -137,12 +137,14 @@ pub(crate) fn history_item(
     match item {
         papo_core::HistoryItem::Message(item) => {
             let authorship = crate::Authorship::from_core(item.authorship);
-            let message = match origin {
-                Origin::History => {
-                    ChatMessage::from_history(item.line, authorship, client, received_at)
-                }
-                _ => ChatMessage::from_replay(item.line, authorship, client, received_at),
-            };
+            let message = ChatMessage::from_historical(
+                item.line,
+                authorship,
+                history_conversation,
+                client,
+                received_at,
+                origin,
+            );
             message.map_or_else(|line| other(line, received_at), HistoryItem::Message)
         }
         papo_core::HistoryItem::Reacted(item) => typed_or_raw(&item.line, received_at, |message| {
@@ -152,6 +154,7 @@ pub(crate) fn history_item(
                 mapping,
                 state.nick(),
                 state.isupport().inner(),
+                history_conversation,
                 received_at,
             )
         }),
@@ -163,6 +166,7 @@ pub(crate) fn history_item(
                     mapping,
                     state.nick(),
                     state.isupport().inner(),
+                    history_conversation,
                     received_at,
                 )
             })
@@ -252,11 +256,20 @@ fn reaction(
     mapping: crate::Casemapping,
     own_nick: &str,
     isupport: &papo_proto::Isupport,
+    history_conversation: Option<&crate::Conversation>,
     received_at: SystemTime,
 ) -> Option<HistoryItem> {
     let reaction = Reaction::parse(message)?;
     let (status, conversation) =
         papo_core::classify_conversation(message, own_nick, isupport).ok()?;
+    let conversation = crate::event_impl::historical_conversation(
+        message,
+        authorship,
+        conversation,
+        history_conversation,
+        own_nick,
+        mapping,
+    );
     let reply_to = reaction.reply_to.clone();
     let (reaction, removed) = reaction
         .react
@@ -283,10 +296,19 @@ fn redaction(
     mapping: crate::Casemapping,
     own_nick: &str,
     isupport: &papo_proto::Isupport,
+    history_conversation: Option<&crate::Conversation>,
     received_at: SystemTime,
 ) -> Option<HistoryItem> {
     let (status, conversation) =
         papo_core::classify_conversation(message, own_nick, isupport).ok()?;
+    let conversation = crate::event_impl::historical_conversation(
+        message,
+        authorship,
+        conversation,
+        history_conversation,
+        own_nick,
+        mapping,
+    );
     let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
     Some(HistoryItem::Redacted(Redacted {
         msgid: envelope.msgid,
@@ -967,13 +989,15 @@ mod tests {
         assert!(
             matches!(HistoryReference::from(UNIX_EPOCH).0, MsgRef::Timestamp(time) if time == UNIX_EPOCH)
         );
-        let event = crate::Message::from_history(
+        let event = crate::Message::from_historical(
             Line::privmsg("#papo", "earlier")
                 .with_source("emily!~emily@localhost")
                 .with_tag("msgid", "RfcBTzyxY120004"),
             crate::Authorship::Unknown,
+            None,
             &crate::Client::disconnected_for_test(),
             UNIX_EPOCH,
+            crate::Origin::History,
         )
         .unwrap();
         assert!(
@@ -983,13 +1007,15 @@ mod tests {
 
     #[test]
     fn message_without_msgid_uses_its_time_as_reference() {
-        let event = crate::Message::from_history(
+        let event = crate::Message::from_historical(
             Line::privmsg("#papo", "soju backlog")
                 .with_source("emily!~emily@localhost")
                 .with_tag("time", "1970-01-01T00:00:00.000Z"),
             crate::Authorship::Unknown,
+            None,
             &crate::Client::disconnected_for_test(),
             UNIX_EPOCH,
+            crate::Origin::History,
         )
         .unwrap();
 
@@ -1184,6 +1210,7 @@ mod tests {
             Casemapping::Ascii,
             "papo",
             &papo_proto::Isupport::default(),
+            None,
             UNIX_EPOCH,
         ) else {
             panic!("reaction should be typed");
@@ -1556,6 +1583,56 @@ mod tests {
         assert!(matches!(history.items[4], HistoryItem::ModeChanged(_)));
         assert_eq!(history.items[5].as_other().unwrap().command(), "TAGMSG");
         assert_eq!(history.messages().next().unwrap().origin, Origin::Replay);
+        abort_task(task).await;
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn private_history_uses_the_requested_conversation_after_a_nick_change() {
+        let config = config().wanted_caps([
+            "draft/chathistory",
+            "labeled-response",
+            "batch",
+            "server-time",
+            "message-tags",
+        ]);
+        let (mut server, client, mut events, driver) = scripted(config);
+        let task = tokio::spawn(driver);
+        complete_connect_caps(
+            &mut server,
+            &mut events,
+            "draft/chathistory labeled-response batch server-time message-tags",
+            "draft/chathistory labeled-response batch server-time message-tags",
+        )
+        .await;
+        server_line(&mut server, b":ergo.test 005 papo-driver CHATHISTORY=100 MSGREFTYPES=msgid,timestamp :supported\r\n").await;
+
+        let request = tokio::spawn({
+            let client = client.clone();
+            async move { client.history("alice").latest().await }
+        });
+        client_line(&mut server, b"@label=0 CHATHISTORY LATEST alice * 100\r\n").await;
+        server_line(&mut server, b"@label=0 :soju.example BATCH +reply labeled-response\r\n@batch=reply;draft/chathistory-end :soju.example BATCH +history chathistory alice\r\n@batch=history;time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120004 :alice!~a@host PRIVMSG papo_away :can you send me the invoice?\r\n@batch=reply :soju.example BATCH -history\r\n:soju.example BATCH -reply\r\n").await;
+
+        let page = within(request).await.unwrap().unwrap();
+        let message = page.messages().next().unwrap();
+        assert!(matches!(
+            message.conversation,
+            crate::Conversation::Private(ref nick) if nick == "alice"
+        ));
+        assert_eq!(message.return_address(), "alice");
+        let reaction = tokio::spawn({
+            let client = client.clone();
+            let message = message.clone();
+            async move { client.react(&message, "👍").await }
+        });
+        client_line(
+            &mut server,
+            b"@+reply=RfcBTzyxY120004;+draft/react=\xF0\x9F\x91\x8D;label=1 TAGMSG alice\r\n",
+        )
+        .await;
+        server_line(&mut server, b"@label=1 :soju.example ACK\r\n").await;
+        within(reaction).await.unwrap().unwrap();
+
         abort_task(task).await;
     }
 

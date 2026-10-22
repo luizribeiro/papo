@@ -332,38 +332,6 @@ impl Message {
         )
     }
 
-    pub(crate) fn from_history(
-        message: ProtoLine,
-        authorship: Authorship,
-        client: &Client,
-        received_at: SystemTime,
-    ) -> Result<Self, ProtoLine> {
-        Self::from_historical(
-            message,
-            authorship,
-            None,
-            client,
-            received_at,
-            Origin::History,
-        )
-    }
-
-    pub(crate) fn from_replay(
-        message: ProtoLine,
-        authorship: Authorship,
-        client: &Client,
-        received_at: SystemTime,
-    ) -> Result<Self, ProtoLine> {
-        Self::from_historical(
-            message,
-            authorship,
-            None,
-            client,
-            received_at,
-            Origin::Replay,
-        )
-    }
-
     pub(crate) fn from_historical(
         message: ProtoLine,
         authorship: Authorship,
