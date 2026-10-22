@@ -555,15 +555,18 @@ impl Client {
     /// # Errors
     ///
     /// Returns an error if the text is empty or invalid, or the driver has stopped.
-    pub fn reply(&self, message: &crate::Message, text: impl Into<String>) -> SendMessage {
-        let mut request = self.privmsg(message.return_address(), text);
-        if let Some(id) = &message.msgid {
+    pub fn reply(
+        &self,
+        message: impl Into<crate::MessageRef>,
+        text: impl Into<String>,
+    ) -> SendMessage {
+        let (target, msgid, channel_context) = message.into().into_parts();
+        let mut request = self.privmsg(target, text);
+        if let Some(id) = msgid {
             request = request.reply_to(id);
         }
-        if matches!(message.conversation, crate::Chat::Private(_))
-            && let Some(context) = message.channel_context()
-        {
-            request = request.channel_context(self.state().casemapping().channel(context));
+        if let Some(context) = channel_context {
+            request = request.channel_context(context);
         }
         request
     }
@@ -615,7 +618,7 @@ impl Client {
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
         crate::RequestFuture::new(async move {
-            let (target, message) = message.into_parts();
+            let (target, message, _) = message.into_parts();
             let Some(message) = message else {
                 return Err(InvalidInput::UnusableMessageReference.into());
             };
@@ -712,7 +715,7 @@ impl Client {
         let message = message.into();
         let reason = reason.into();
         crate::RequestFuture::new(async move {
-            let (target, message) = message.into_parts();
+            let (target, message, _) = message.into_parts();
             let Some(message) = message else {
                 return Err(InvalidInput::UnusableMessageReference.into());
             };

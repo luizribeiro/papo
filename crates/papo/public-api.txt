@@ -744,6 +744,10 @@ pub fn papo::event::Notice::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Notice
 impl core::cmp::PartialEq for papo::event::Notice
 pub fn papo::event::Notice::eq(&self, &Self) -> bool
+impl core::convert::From<&alloc::boxed::Box<papo::event::Notice>> for papo::MessageRef
+pub fn papo::MessageRef::from(&alloc::boxed::Box<papo::event::Notice>) -> Self
+impl core::convert::From<&papo::event::Notice> for papo::MessageRef
+pub fn papo::MessageRef::from(&papo::event::Notice) -> Self
 impl core::fmt::Debug for papo::event::Notice
 pub fn papo::event::Notice::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::event::Notice
@@ -978,6 +982,8 @@ pub fn papo::event::TagMsg::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::TagMsg
 impl core::cmp::PartialEq for papo::event::TagMsg
 pub fn papo::event::TagMsg::eq(&self, &Self) -> bool
+impl core::convert::From<&papo::event::TagMsg> for papo::MessageRef
+pub fn papo::MessageRef::from(&papo::event::TagMsg) -> Self
 impl core::fmt::Debug for papo::event::TagMsg
 pub fn papo::event::TagMsg::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::event::TagMsg
@@ -1809,7 +1815,7 @@ pub fn papo::Client::quit(&self, impl core::convert::Into<alloc::string::String>
 pub fn papo::Client::react(&self, impl core::convert::Into<papo::MessageRef>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::reconnect(&self) -> papo::RequestFuture<()>
 pub fn papo::Client::redact(&self, impl core::convert::Into<papo::MessageRef>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Client::reply(&self, &papo::Message, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
+pub fn papo::Client::reply(&self, impl core::convert::Into<papo::MessageRef>, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub fn papo::Client::request_raw(&self, papo::Line) -> papo::RequestFuture<alloc::vec::Vec<papo::Line>>
 pub fn papo::Client::send_raw(&self, papo::Line) -> papo::RequestFuture<()>
 pub fn papo::Client::set_away(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
@@ -2209,10 +2215,16 @@ impl core::cmp::PartialEq for papo::MessageRef
 pub fn papo::MessageRef::eq(&self, &Self) -> bool
 impl core::convert::From<&alloc::boxed::Box<papo::Message>> for papo::MessageRef
 pub fn papo::MessageRef::from(&alloc::boxed::Box<papo::Message>) -> Self
+impl core::convert::From<&alloc::boxed::Box<papo::event::Notice>> for papo::MessageRef
+pub fn papo::MessageRef::from(&alloc::boxed::Box<papo::event::Notice>) -> Self
 impl core::convert::From<&papo::Message> for papo::MessageRef
 pub fn papo::MessageRef::from(&papo::Message) -> Self
 impl core::convert::From<&papo::Sent> for papo::MessageRef
 pub fn papo::MessageRef::from(&papo::Sent) -> Self
+impl core::convert::From<&papo::event::Notice> for papo::MessageRef
+pub fn papo::MessageRef::from(&papo::event::Notice) -> Self
+impl core::convert::From<&papo::event::TagMsg> for papo::MessageRef
+pub fn papo::MessageRef::from(&papo::event::TagMsg) -> Self
 impl core::fmt::Debug for papo::MessageRef
 pub fn papo::MessageRef::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::MessageRef

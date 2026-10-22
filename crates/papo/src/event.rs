@@ -572,10 +572,6 @@ impl Message {
         })
     }
 
-    pub(crate) fn channel_context(&self) -> Option<&str> {
-        self.channel_context.as_deref()
-    }
-
     /// Returns the formatted spans parsed from [`Self::raw_text`].
     pub fn spans(&self) -> impl Iterator<Item = crate::Span<'_>> {
         papo_proto::Formatted::new(&self.raw_text)
@@ -1922,15 +1918,23 @@ mod tests {
                 && matches!(notice.conversation, Chat::Private(_))));
 
         let action = parse_event(
-            Line::notice("@#ops", "\x01ACTION nods hello\x01").with_source("emily!~e@localhost"),
+            Line::notice("@#ops", "\x01ACTION nods hello\x01")
+                .with_source("emily!~e@localhost")
+                .with_tag("msgid", "RfcBTzyxY120007"),
             &isupport,
             "papo",
             UNIX_EPOCH,
         );
-        assert!(matches!(action, Event::Notice(notice)
-            if notice.kind == NoticeKind::Action
-                && notice.text == "nods hello"
-                && notice.return_address() == "@#ops"));
+        let Event::Notice(notice) = action else {
+            panic!("expected user notice")
+        };
+        assert_eq!(notice.kind, NoticeKind::Action);
+        assert_eq!(notice.text, "nods hello");
+        assert_eq!(notice.return_address(), "@#ops");
+        let (address, msgid, context) = crate::MessageRef::from(&notice).into_parts();
+        assert_eq!(address, "@#ops");
+        assert_eq!(msgid, Some("RfcBTzyxY120007".into()));
+        assert_eq!(context, None);
 
         let server = parse_event(
             Line::notice("papo", "Network maintenance begins soon").with_source("irc.example"),

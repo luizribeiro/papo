@@ -1,4 +1,4 @@
-use crate::{Conversation, Message, MessageId, Sent};
+use crate::{ChannelName, Conversation, Message, MessageId, Sent, event::Notice, event::TagMsg};
 
 /// An address and server identifier for a chat message.
 ///
@@ -8,11 +8,12 @@ use crate::{Conversation, Message, MessageId, Sent};
 pub struct MessageRef {
     address: String,
     msgid: Option<MessageId>,
+    channel_context: Option<ChannelName>,
 }
 
 impl MessageRef {
-    pub(crate) fn into_parts(self) -> (String, Option<MessageId>) {
-        (self.address, self.msgid)
+    pub(crate) fn into_parts(self) -> (String, Option<MessageId>, Option<ChannelName>) {
+        (self.address, self.msgid, self.channel_context)
     }
 }
 
@@ -21,6 +22,7 @@ impl From<&Message> for MessageRef {
         Self {
             address: message.return_address(),
             msgid: message.msgid.clone(),
+            channel_context: message.channel_context.clone(),
         }
     }
 }
@@ -36,6 +38,33 @@ impl From<&Sent> for MessageRef {
         Self {
             address: message.return_address(),
             msgid: message.msgid.clone(),
+            channel_context: None,
+        }
+    }
+}
+
+impl From<&Notice> for MessageRef {
+    fn from(notice: &Notice) -> Self {
+        Self {
+            address: notice.return_address(),
+            msgid: notice.msgid.clone(),
+            channel_context: notice.channel_context.clone(),
+        }
+    }
+}
+
+impl From<&Box<Notice>> for MessageRef {
+    fn from(notice: &Box<Notice>) -> Self {
+        Self::from(notice.as_ref())
+    }
+}
+
+impl From<&TagMsg> for MessageRef {
+    fn from(message: &TagMsg) -> Self {
+        Self {
+            address: message.return_address(),
+            msgid: message.tags.get("msgid").map(MessageId::from),
+            channel_context: None,
         }
     }
 }
@@ -48,6 +77,7 @@ macro_rules! address_pairs {
                     Self {
                         address: <$address as AsRef<str>>::as_ref(&address).to_owned(),
                         msgid: Some(msgid.into()),
+                        channel_context: None,
                     }
                 }
             }
@@ -127,6 +157,7 @@ mod tests {
         let reference = MessageRef::from(&received);
         assert_eq!(reference.address, "@#ops");
         assert_eq!(reference.msgid, Some("RfcBTzyxY120004".into()));
+        assert_eq!(reference.channel_context, None);
 
         let sent = Sent {
             conversation: Conversation::Channel(mapping.channel("#ops")),
@@ -139,7 +170,20 @@ mod tests {
         let reference = MessageRef::from(&sent);
         assert_eq!(reference.address, "@#ops");
         assert_eq!(reference.msgid, Some("RfcBTzyxY120005".into()));
+        assert_eq!(reference.channel_context, None);
         assert_eq!(sent.return_address(), "@#ops");
+
+        let tag = TagMsg {
+            actor: received.actor,
+            authorship: received.authorship,
+            conversation: Conversation::Channel(mapping.channel("#ops")),
+            status: Some(vec!['@']),
+            tags: crate::__testing::tags(vec![("msgid".into(), Some("RfcBTzyxY120006".into()))]),
+        };
+        let reference = MessageRef::from(&tag);
+        assert_eq!(reference.address, "@#ops");
+        assert_eq!(reference.msgid, Some("RfcBTzyxY120006".into()));
+        assert_eq!(reference.channel_context, None);
     }
 
     #[test]
@@ -152,6 +196,7 @@ mod tests {
         for (reference, expected) in references.into_iter().zip(["#papo", "@#ops"]) {
             assert_eq!(reference.address, expected);
             assert_eq!(reference.msgid, Some(id.clone()));
+            assert_eq!(reference.channel_context, None);
         }
     }
 }
