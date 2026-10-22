@@ -41,3 +41,6 @@
 "security::monitor_rejects_invalid_nicks_without_poisoning_the_wire" = [
   "security.inj-4.monitor-nick-validation",
 ]
+"security::invalid_registration_fields_fail_before_opening_the_wire" = [
+  "security.inj-4.registration-field-validation",
+]

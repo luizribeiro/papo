@@ -81,4 +81,5 @@ ids = [
   "security.inj-2.action-segment-framing",
   "security.inj-1.plain-text-ctcp-delimiter",
   "security.inj-4.monitor-nick-validation",
+  "security.inj-4.registration-field-validation",
 ]

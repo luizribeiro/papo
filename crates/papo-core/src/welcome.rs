@@ -1,6 +1,6 @@
 use web_time::Instant;
 
-use papo_proto::{Isupport, Line, LineRef, escape_tag_value};
+use papo_proto::{BuildError, Isupport, Line, LineRef, escape_tag_value};
 
 use crate::{Capabilities, CloseKind, Config, Event, Handled, Outbox, Welcome};
 
@@ -20,6 +20,7 @@ pub(super) struct WelcomeState {
     connected: bool,
     webirc_pending: bool,
     password_sent: bool,
+    registration_error: Option<BuildError>,
 }
 
 impl WelcomeState {
@@ -34,10 +35,18 @@ impl WelcomeState {
             connected: false,
             webirc_pending: false,
             password_sent: false,
+            registration_error: registration_error(config),
         }
     }
 
     pub(super) fn handle_connected(&mut self, now: Instant, config: &Config, outbox: &mut Outbox) {
+        if let Some(error) = self.registration_error {
+            outbox.close(
+                CloseKind::Other,
+                format!("invalid registration configuration: {error}"),
+            );
+            return;
+        }
         self.nick.clone_from(&config.nick);
         self.deadline = Some(now + config.welcome_timeout);
         self.welcome_deadline = None;
@@ -288,6 +297,23 @@ impl WelcomeState {
             isupport: isupport.clone(),
         }));
     }
+}
+
+fn registration_error(config: &Config) -> Option<BuildError> {
+    Line::new("NICK", [&config.nick])
+        .to_line()
+        .err()
+        .or_else(|| {
+            Line::new("USER", [&config.username, "0", "*", &config.realname])
+                .to_line()
+                .err()
+        })
+        .or_else(|| {
+            config
+                .alt_nicks
+                .iter()
+                .find_map(|nick| Line::new("NICK", [nick]).to_line().err())
+        })
 }
 
 fn rejects_nick(message: &LineRef<'_>) -> bool {

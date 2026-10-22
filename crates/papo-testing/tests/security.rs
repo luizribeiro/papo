@@ -277,6 +277,24 @@ async fn monitor_rejects_invalid_nicks_without_poisoning_the_wire() {
 }
 
 #[tokio::test]
+async fn invalid_registration_fields_fail_before_opening_the_wire() {
+    let cases = [
+        papo::Client::builder("irc://offline.test")
+            .nick(papo::Casemapping::default().nick("papo\rOPER root password")),
+        papo::Client::builder("irc://offline.test")
+            .alt_nicks([papo::Casemapping::default().nick("papo-away\nQUIT")]),
+        papo::Client::builder("irc://offline.test").username("papo\0admin"),
+        papo::Client::builder("irc://offline.test").realname("Papo\rClient"),
+    ];
+    for builder in cases {
+        assert!(matches!(
+            builder.connect().await,
+            Err(papo::Error::InvalidInput(_))
+        ));
+    }
+}
+
+#[tokio::test]
 async fn scram_rejects_excessive_iterations_promptly() {
     let (_client, mut events, mut wire) = start_scram("ircs://offline.test").await;
     send_excessive_iteration_count(&mut wire).await;

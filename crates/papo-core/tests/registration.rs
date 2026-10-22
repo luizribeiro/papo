@@ -61,12 +61,18 @@ fn rejects_a_byte_server_password() {
 }
 
 #[test]
-fn closes_on_an_invalid_registration_message() {
-    Transcript::new(Config::default().nick("papo\rOPER root password"))
-        .connect()
-        .client("CAP LS 302")
-        .event(|event| matches!(event, Event::Close { kind: CloseKind::Other, reason, .. } if reason.contains("invalid outbound message")))
-        .no_client();
+fn validates_all_configured_registration_fields_before_sending() {
+    for config in [
+        Config::default().nick("papo\rOPER root password"),
+        Config::default().alt_nicks(["papo-away\nQUIT"]),
+        Config::default().username("papo\0admin"),
+        Config::default().realname("Papo\rClient"),
+    ] {
+        Transcript::new(config)
+            .connect()
+            .event(|event| matches!(event, Event::Close { kind: CloseKind::Other, reason, .. } if reason.contains("invalid registration configuration")))
+            .no_client();
+    }
 }
 
 #[test]
