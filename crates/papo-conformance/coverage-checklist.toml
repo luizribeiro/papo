@@ -82,4 +82,5 @@ ids = [
   "security.inj-1.plain-text-ctcp-delimiter",
   "security.inj-4.monitor-nick-validation",
   "security.inj-4.registration-field-validation",
+  "security.h9.invalid-automatic-reply-target",
 ]

@@ -4264,14 +4264,10 @@ impl Session {
         }
         self.ctcp_sources.push_back((nick.to_owned(), now));
         let actor = Source::from_proto(source, self.isupport.value().casemapping());
-        if let Some(reply) = __ctcp_reply(&actor, query.command, response.unwrap_or_default()) {
-            match reply.to_line() {
-                Ok(line) => self.outbox.transmit_raw(line.into_bytes()),
-                Err(error) => self.outbox.close(
-                    CloseKind::Other,
-                    format!("invalid outbound message: {error}"),
-                ),
-            }
+        if let Some(reply) = __ctcp_reply(&actor, query.command, response.unwrap_or_default())
+            && let Ok(line) = reply.to_line()
+        {
+            self.outbox.transmit_raw(line.into_bytes());
         }
         true
     }

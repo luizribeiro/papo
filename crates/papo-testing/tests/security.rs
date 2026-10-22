@@ -295,6 +295,31 @@ async fn invalid_registration_fields_fail_before_opening_the_wire() {
 }
 
 #[tokio::test]
+async fn invalid_source_nicks_cannot_close_the_client_with_auto_replies() {
+    let (_client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test")
+            .nick("papo-wire")
+            .ctcp_replies(
+                papo::CtcpReplies::default()
+                    .version(Some("papo test build"))
+                    .rate(papo::RateLimit::unlimited()),
+            )
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&[]).await;
+    while !matches!(events.next().await, Some(papo::Event::Connected(_))) {}
+
+    wire.server("::evil!~e@h PRIVMSG papo-wire :\x01VERSION\x01")
+        .await;
+    assert!(matches!(events.next().await, Some(papo::Event::Other(_))));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(20), wire.next_sent())
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
 async fn scram_rejects_excessive_iterations_promptly() {
     let (_client, mut events, mut wire) = start_scram("ircs://offline.test").await;
     send_excessive_iteration_count(&mut wire).await;

@@ -338,6 +338,21 @@ fn reports_ctcp_queries_replies_and_actions_while_auto_answering() {
 }
 
 #[test]
+fn drops_an_automatic_reply_with_an_invalid_target() {
+    connected_ctcp(
+        CtcpReplies::default()
+            .version(Some("papo test build"))
+            .rate(RateLimit::unlimited()),
+    )
+    .server("::evil!~e@h PRIVMSG papo :\x01VERSION\x01")
+    .event(|event| {
+        matches!(event, Event::Line(line) if line.as_ref().param(1) == Some("\x01VERSION\x01"))
+    })
+    .no_client()
+    .no_event();
+}
+
+#[test]
 fn does_not_answer_own_ctcp_queries() {
     Transcript::new(Config::default().nick("papo"))
         .server(":papo!~p@cloak PRIVMSG papo :\x01VERSION\x01")

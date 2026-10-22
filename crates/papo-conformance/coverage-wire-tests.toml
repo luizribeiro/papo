@@ -44,3 +44,6 @@
 "security::invalid_registration_fields_fail_before_opening_the_wire" = [
   "security.inj-4.registration-field-validation",
 ]
+"security::invalid_source_nicks_cannot_close_the_client_with_auto_replies" = [
+  "security.h9.invalid-automatic-reply-target",
+]
