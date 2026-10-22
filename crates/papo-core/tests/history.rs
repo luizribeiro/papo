@@ -388,6 +388,25 @@ fn sends_read_marker_set_and_query_commands() {
 }
 
 #[test]
+fn rejects_multiple_history_targets_without_queueing() {
+    let invalid = RequestError::Build(papo_proto::BuildError::InvalidParam(0));
+    let (mut history, now) = history_session("CHATHISTORY=1000 MSGREFTYPES=msgid,timestamp");
+    assert_eq!(
+        history.chathistory(now, HistoryQuery::__latest("#papo,alice".into(), None, 50),),
+        Err(invalid.clone())
+    );
+    assert_eq!(history.poll_transmit(), None);
+
+    let (mut markers, now) = read_marker_session();
+    assert_eq!(
+        markers.mark_read(now, "#papo,alice", UNIX_EPOCH),
+        Err(invalid.clone())
+    );
+    assert_eq!(markers.read_marker(now, "#papo,alice"), Err(invalid));
+    assert_eq!(markers.poll_transmit(), None);
+}
+
+#[test]
 fn read_marker_failures_resolve_the_pending_request() {
     let (mut session, now) = read_marker_session();
     let id = session.read_marker(now, "#papo").unwrap();

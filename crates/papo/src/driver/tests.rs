@@ -5902,6 +5902,20 @@ async fn actions_reject_every_ctcp_delimiter_without_panicking() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn chat_text_rejects_multiple_targets_before_writing() {
+    let (_server, client, _events, driver) = scripted(config());
+    let task = tokio::spawn(driver);
+
+    assert!(matches!(
+        within(client.privmsg("$*.example.org,alice", "private release notes")).await,
+        Err(Error::InvalidInput(crate::InvalidInput::InvalidName { reason, .. }))
+            if reason == papo_proto::InvalidIdentifier::InvalidCharacter(',')
+    ));
+
+    task.abort();
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn chat_text_returns_a_labelled_numeric_refusal() {
     let settings = config().wanted_caps(["echo-message", "labeled-response"]);
     let (mut server, client, mut events, driver) = scripted(settings);

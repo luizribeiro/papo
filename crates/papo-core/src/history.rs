@@ -127,10 +127,15 @@ impl Session {
         };
         let supported = self.isupport.value().msgreftypes();
         let query = query.with_timestamp_fallback(&self.state, &supported)?;
+        let target = query.target().map(str::to_owned);
         let params = query.into_params(
             requested.min(advertised).min(LOCAL_HISTORY_LIMIT),
             &supported,
         )?;
+        self.require_feature(Feature::History)?;
+        if let Some(target) = target {
+            self.validate_target(&target)?;
+        }
         self.request_for_feature(now, Line::new("CHATHISTORY", params), Feature::History)
     }
 
@@ -146,6 +151,8 @@ impl Session {
         target: &str,
         time: SystemTime,
     ) -> Result<RequestId, RequestError> {
+        self.require_feature(Feature::ReadMarkers)?;
+        self.validate_target(target)?;
         self.request_for_feature(
             now,
             Line::new(
@@ -170,6 +177,7 @@ impl Session {
     /// or an error documented by [`Session::request_with_matcher`].
     pub fn read_marker(&mut self, now: Instant, target: &str) -> Result<RequestId, RequestError> {
         self.require_feature(Feature::ReadMarkers)?;
+        self.validate_target(target)?;
         self.request_with_matcher(
             now,
             Line::new("MARKREAD", [target]),
@@ -244,6 +252,17 @@ impl HistoryQuery {
             | Self::Around { limit, .. }
             | Self::Between { limit, .. }
             | Self::Targets { limit, .. } => *limit,
+        }
+    }
+
+    fn target(&self) -> Option<&str> {
+        match self {
+            Self::Latest { target, .. }
+            | Self::Before { target, .. }
+            | Self::After { target, .. }
+            | Self::Around { target, .. }
+            | Self::Between { target, .. } => Some(target),
+            Self::Targets { .. } => None,
         }
     }
 

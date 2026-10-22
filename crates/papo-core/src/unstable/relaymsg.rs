@@ -20,6 +20,7 @@ impl Session {
         text: &str,
     ) -> Result<RequestId, RequestError> {
         self.require_feature(Feature::Relay)?;
+        self.validate_target(channel)?;
         let separators = self
             .caps
             .enabled()

@@ -76,6 +76,23 @@ fn validates_relayed_nicknames_against_the_capability_value() {
 }
 
 #[test]
+fn rejects_multiple_relay_targets_without_queueing() {
+    registered(Some("/"))
+        .update(|session| {
+            assert_eq!(
+                session.relay(
+                    std::time::Instant::now(),
+                    "#bridged,alice",
+                    "matrix/alice",
+                    "private bridge message",
+                ),
+                Err(RequestError::Build(papo_proto::BuildError::InvalidParam(0)))
+            );
+        })
+        .no_client();
+}
+
+#[test]
 fn requires_the_relaymsg_capability() {
     Transcript::new(Config::default())
         .update(|session| {

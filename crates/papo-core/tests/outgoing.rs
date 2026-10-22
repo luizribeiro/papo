@@ -73,6 +73,23 @@ fn splits_a_six_hundred_byte_privmsg_at_the_literal_budget() {
 }
 
 #[test]
+fn rejects_multiple_text_targets_without_queueing() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    assert_eq!(
+        session.send_text(
+            now,
+            TextKind::Privmsg,
+            "#papo,alice",
+            "the deploy key is hunter2",
+            &[],
+        ),
+        Err(RequestError::Build(papo_proto::BuildError::InvalidParam(0)))
+    );
+    assert_eq!(session.poll_transmit(), None);
+}
+
+#[test]
 fn detailed_send_reports_only_actual_text_splitting() {
     let now = Instant::now();
     let mut single = Session::new(Config::default().rate_limit(RateLimit::unlimited()));

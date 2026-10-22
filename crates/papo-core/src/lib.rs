@@ -3087,6 +3087,13 @@ impl Session {
         outgoing::text_budget(&self.state, kind, target)
     }
 
+    pub(crate) fn validate_target(&self, target: &str) -> Result<(), RequestError> {
+        self.state
+            .parse_target(target)
+            .map(drop)
+            .map_err(|_| RequestError::Build(BuildError::InvalidParam(0)))
+    }
+
     /// Splits and queues text within the server's relayed line budget.
     ///
     /// Context tags (`+reply`, `+draft/reply`, `+channel-context`, and its draft alias) apply
@@ -3122,6 +3129,7 @@ impl Session {
         text: &str,
         tags: &[(&str, &str)],
     ) -> Result<SendTextResult, RequestError> {
+        self.validate_target(target)?;
         self.rate_limit.advance(now);
         let multiline = self
             .caps
