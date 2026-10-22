@@ -400,10 +400,14 @@ impl State {
 
     pub(crate) fn sync_monitored(&mut self, monitor: &Monitor, isupport: &Isupport) {
         self.update_casemapping(isupport.casemapping());
-        self.monitored = monitor
+        let monitored = monitor
             .desired()
             .map(|nick| self.casemapping.nick(nick))
             .collect();
+        if self.monitored != monitored {
+            self.monitored = monitored;
+            self.mark_changed();
+        }
         for user in self.users.values_mut() {
             user.monitored = false;
         }

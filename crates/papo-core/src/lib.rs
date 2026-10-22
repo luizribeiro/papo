@@ -3607,7 +3607,7 @@ impl Session {
         I: IntoIterator<Item = S>,
         S: Into<String>,
     {
-        let before = self.state.clone();
+        let before = self.state.change_generation();
         self.monitor.add(
             nicks,
             self.isupport.value(),
@@ -3615,7 +3615,7 @@ impl Session {
             &mut self.outbox,
         );
         self.sync_monitored_state();
-        if before != self.state {
+        if before != self.state.change_generation() {
             self.state_generation = self.state_generation.wrapping_add(1);
         }
     }
@@ -3626,7 +3626,7 @@ impl Session {
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
     {
-        let before = self.state.clone();
+        let before = self.state.change_generation();
         self.monitor.remove(
             nicks,
             self.isupport.value(),
@@ -3634,19 +3634,19 @@ impl Session {
             &mut self.outbox,
         );
         self.sync_monitored_state();
-        if before != self.state {
+        if before != self.state.change_generation() {
             self.state_generation = self.state_generation.wrapping_add(1);
         }
     }
 
     /// Clears the desired server-side monitor list.
     pub fn monitor_clear(&mut self) {
-        let before = self.state.clone();
+        let before = self.state.change_generation();
         let supported =
             self.welcome_state.is_connected() && self.isupport.value().monitor().is_some();
         self.monitor.clear(supported, &mut self.outbox);
         self.sync_monitored_state();
-        if before != self.state {
+        if before != self.state.change_generation() {
             self.state_generation = self.state_generation.wrapping_add(1);
         }
     }
@@ -4736,9 +4736,8 @@ impl Session {
     }
 
     fn apply_aggregate_state(&mut self, message: &Line) -> Option<Vec<ChannelName>> {
-        let before = self.state.clone();
         let event_count = self.outbox.events.len();
-        self.state.handle_message(
+        let handled = self.state.handle_message(
             &message.as_ref(),
             self.welcome_state.nick(),
             self.isupport.value(),
@@ -4750,7 +4749,7 @@ impl Session {
             },
             None,
             &mut self.outbox,
-        );
+        ) == Handled::Yes;
         let generated = self.outbox.events.split_off(event_count);
         let channels = generated.iter().find_map(|event| match event {
             Event::Quit { channels, .. } => Some(channels.clone()),
@@ -4761,7 +4760,7 @@ impl Session {
                 .into_iter()
                 .filter(|event| matches!(event, Event::StateLimitReached { .. })),
         );
-        if before != self.state {
+        if handled {
             self.state_generation = self.state_generation.wrapping_add(1);
         }
         channels
@@ -4985,6 +4984,36 @@ mod tests {
             now,
             b"@time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120004 :alice!~alice@localhost PRIVMSG #papo :review is ready",
         );
+
+        assert_eq!(super::state::clone_count(), 0);
+    }
+
+    #[test]
+    fn monitor_updates_do_not_clone_full_state() {
+        let mut session = Session::new(Config::default());
+        super::state::reset_clone_count();
+
+        session.monitor_add(["alice"]);
+        session.monitor_remove(["alice"]);
+        session.monitor_clear();
+
+        assert_eq!(super::state::clone_count(), 0);
+    }
+
+    #[test]
+    fn aggregate_membership_does_not_clone_full_state() {
+        let now = std::time::Instant::now();
+        let mut session = Session::new(Config::default());
+        session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
+        session.handle_line(now, b":alice!~alice@localhost JOIN #papo");
+        super::state::reset_clone_count();
+
+        session.handle_line(now, b":ergo.test BATCH +split netsplit irc.a irc.b");
+        session.handle_line(
+            now,
+            b"@batch=split :alice!~alice@localhost QUIT :irc.a irc.b",
+        );
+        session.handle_line(now, b":ergo.test BATCH -split");
 
         assert_eq!(super::state::clone_count(), 0);
     }
