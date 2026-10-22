@@ -719,6 +719,75 @@ impl Message {
     }
 }
 
+impl Notice {
+    #[allow(dead_code, clippy::too_many_arguments)]
+    fn from_line(
+        raw: ProtoLine,
+        batch_type: Option<&str>,
+        authorship: Authorship,
+        conversation: Conversation,
+        status: Option<Vec<char>>,
+        isupport: &Isupport,
+        received_at: SystemTime,
+    ) -> Result<Self, ProtoLine> {
+        let message = raw.as_ref();
+        if !message.command_is("NOTICE") {
+            return Err(raw);
+        }
+        let Some(raw_text) = message.param(1) else {
+            return Err(raw);
+        };
+        let (kind, displayed) = match ProtoCtcp::parse(raw_text) {
+            Some(ctcp) if ctcp.command.eq_ignore_ascii_case("ACTION") => {
+                (NoticeKind::Action, ctcp.params.unwrap_or(""))
+            }
+            Some(_) => return Err(raw),
+            None => (NoticeKind::Text, raw_text),
+        };
+        let text = strip_formatting(displayed).into_owned();
+        let raw_text = displayed.to_owned();
+        let Some(metadata) = message_metadata(
+            &message,
+            batch_type,
+            authorship,
+            conversation,
+            status,
+            isupport,
+            received_at,
+        ) else {
+            return Err(raw);
+        };
+        let Some(conversation) = Chat::from_conversation(metadata.conversation) else {
+            return Err(raw);
+        };
+        Ok(Self {
+            actor: metadata.actor,
+            authorship: metadata.authorship,
+            conversation,
+            status: metadata.status,
+            text,
+            raw_text,
+            kind,
+            msgid: metadata.msgid,
+            server_time: metadata.server_time,
+            received_at: metadata.received_at,
+            account: metadata.account,
+            reply_to: metadata.reply_to,
+            channel_context: metadata.channel_context,
+            #[cfg(feature = "unstable")]
+            relayed_by: metadata.relayed_by,
+            is_bot: metadata.is_bot,
+            oper: metadata.oper,
+            tags: metadata.tags,
+        })
+    }
+
+    /// Returns the formatted spans parsed from [`Self::raw_text`].
+    pub fn spans(&self) -> impl Iterator<Item = crate::Span<'_>> {
+        papo_proto::Formatted::new(&self.raw_text)
+    }
+}
+
 pub(crate) fn historical_conversation(
     message: &LineRef<'_>,
     authorship: Authorship,

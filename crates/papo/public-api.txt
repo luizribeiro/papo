@@ -760,6 +760,8 @@ pub papo::event::Notice::server_time: core::option::Option<std::time::SystemTime
 pub papo::event::Notice::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo::event::Notice::tags: papo::Tags
 pub papo::event::Notice::text: alloc::string::String
+impl papo::event::Notice
+pub fn papo::event::Notice::spans(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo::Span<'_>>
 impl core::clone::Clone for papo::event::Notice
 pub fn papo::event::Notice::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Notice
