@@ -892,10 +892,23 @@ pub enum Event {
     Connected(Connected),
     /// A complete message of the day received while connecting.
     Motd(Motd),
-    /// An incoming `PRIVMSG` or `NOTICE`.
+    /// An incoming `PRIVMSG` or `ACTION` from another user.
     Message(Box<Message>),
+    /// A message authored by this account from another connection.
+    ///
+    /// Correlated echoes of this connection's sends resolve through [`crate::Sent`] and are not
+    /// duplicated here. Log those sends from the send future's result.
+    OwnMessage(Box<Message>),
+    /// An incoming `NOTICE` from a user.
+    Notice(Box<Notice>),
+    /// A server notice, broadcast, `*` message, or `WALLOPS`.
+    ServerNotice(Box<ServerNotice>),
     /// An incoming Client-to-Client Protocol query or reply.
     Ctcp(Ctcp),
+    /// An incoming Client-to-Client Protocol query.
+    CtcpQuery(CtcpQuery),
+    /// An incoming Client-to-Client Protocol reply.
+    CtcpReply(CtcpReply),
     /// A line papo did not turn into a typed event.
     ///
     /// This includes unknown numerics, vendor commands, and new drafts. Match it only for display
@@ -995,7 +1008,12 @@ pub enum Event {
 
 variant_accessors! { Event;
     (boxed Message, as_message, Message),
+    (boxed OwnMessage, as_own_message, Message),
+    (boxed Notice, as_notice, Notice),
+    (boxed ServerNotice, as_server_notice, ServerNotice),
     (Ctcp, as_ctcp, Ctcp),
+    (CtcpQuery, as_ctcp_query, CtcpQuery),
+    (CtcpReply, as_ctcp_reply, CtcpReply),
     (boxed History, as_history, crate::HistoryPage),
     (Connected, as_connected, Connected),
     (Connecting, as_connecting, Connecting),
