@@ -83,7 +83,7 @@ async fn solanum_kline_after_welcome_stops_reconnecting() {
         operator.oper(OPER_NAME, OPER_PASSWORD).await.unwrap();
 
         operator
-            .send_raw(Line::builder("KLINE").with_params([
+            .send_raw(Line::new("KLINE").with_params([
                 "1",
                 "*klineuser@*",
                 "post-welcome retry test",

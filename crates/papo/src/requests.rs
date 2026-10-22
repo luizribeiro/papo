@@ -337,7 +337,7 @@ mod tests {
     #[test]
     fn plain_who_filters_placeholder_channels_and_non_prefix_flags() {
         let isupport = Isupport::default();
-        let hidden = Line::builder("352").with_params([
+        let hidden = Line::new("352").with_params([
             "papo",
             "*",
             "~alice",
@@ -347,7 +347,7 @@ mod tests {
             "H@!",
             "0 Alice Example",
         ]);
-        let visible = Line::builder("352").with_params([
+        let visible = Line::new("352").with_params([
             "papo",
             "#rust",
             "~bob",
@@ -382,7 +382,7 @@ mod tests {
         session
             .request_with_matcher(
                 now,
-                Line::builder("MODE").with_params(["#papo", "+t"]),
+                Line::new("MODE").with_params(["#papo", "+t"]),
                 ResponseMatcher::Mode("#papo".into()),
             )
             .unwrap();
@@ -407,12 +407,7 @@ mod tests {
     #[test]
     fn list_retains_at_most_the_literal_entry_limit() {
         let lines = (0..10_001).map(|index| {
-            Line::builder("322").with_params([
-                "papo",
-                &format!("#papo-{index}"),
-                "42",
-                "Ergonomic IRC",
-            ])
+            Line::new("322").with_params(["papo", &format!("#papo-{index}"), "42", "Ergonomic IRC"])
         });
         let entries = list_entries(lines, &Isupport::default());
         assert_eq!(entries.len(), 10_000);
@@ -424,7 +419,7 @@ mod tests {
         let mut isupport = Isupport::default();
         isupport.apply_tokens(["CASEMAPPING=ascii"]);
         let channel = whois_channel("@#Papo[dev]", &isupport);
-        let who = Line::builder("352").with_params([
+        let who = Line::new("352").with_params([
             "papo",
             "#Papo[dev]",
             "~alice",

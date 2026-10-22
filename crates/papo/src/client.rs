@@ -716,7 +716,7 @@ impl Client {
                 params.push(reason);
             }
             let response = client
-                .correlated(Line::builder("REDACT").with_params(params), None)
+                .correlated(Line::new("REDACT").with_params(params), None)
                 .await?;
             crate::requests::empty(&response)
         })
@@ -787,7 +787,7 @@ impl Client {
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
             let response = client
                 .correlated(
-                    Line::builder("WHOIS").with_params([nick.to_string()]),
+                    Line::new("WHOIS").with_params([nick.to_string()]),
                     Some(ResponseMatcher::Whois(nick.to_string())),
                 )
                 .await?;
@@ -814,10 +814,10 @@ impl Client {
             let state = client.state();
             let extended = state.isupport().whox();
             let message = if extended {
-                Line::builder("WHO")
+                Line::new("WHO")
                     .with_params([mask.to_string(), crate::requests::WHOX_FIELDS.into()])
             } else {
-                Line::builder("WHO").with_params([mask.to_string()])
+                Line::new("WHO").with_params([mask.to_string()])
             };
             let response = client
                 .correlated(message, Some(ResponseMatcher::Who(mask.to_string())))
@@ -956,7 +956,7 @@ impl Client {
             }
             let response = client
                 .correlated(
-                    Line::builder("KICK").with_params(params),
+                    Line::new("KICK").with_params(params),
                     Some(ResponseMatcher::__kick(
                         channel.to_string(),
                         nick.to_string(),
@@ -1006,7 +1006,7 @@ impl Client {
             if !already_set {
                 let response = client
                     .correlated(
-                        Line::builder("MODE").with_params([channel.as_ref(), "+b", ban.as_ref()]),
+                        Line::new("MODE").with_params([channel.as_ref(), "+b", ban.as_ref()]),
                         Some(ResponseMatcher::Mode(channel.to_string())),
                     )
                     .await?;
@@ -1080,7 +1080,7 @@ impl Client {
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
             let response = client
                 .correlated(
-                    Line::builder("INVITE").with_params([nick.to_string(), channel.to_string()]),
+                    Line::new("INVITE").with_params([nick.to_string(), channel.to_string()]),
                     Some(ResponseMatcher::__invite(
                         channel.to_string(),
                         nick.to_string(),
@@ -1106,7 +1106,7 @@ impl Client {
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
             let response = client
                 .correlated(
-                    Line::builder("NICK").with_params([nick.to_string()]),
+                    Line::new("NICK").with_params([nick.to_string()]),
                     Some(ResponseMatcher::Nick(nick.to_string())),
                 )
                 .await?;
@@ -1129,7 +1129,7 @@ impl Client {
             }
             let response = client
                 .correlated(
-                    Line::builder("AWAY").with_params([text]),
+                    Line::new("AWAY").with_params([text]),
                     Some(ResponseMatcher::Away(true)),
                 )
                 .await?;
@@ -1146,7 +1146,7 @@ impl Client {
         let client = self.clone();
         crate::RequestFuture::new(async move {
             let response = client
-                .correlated(Line::builder("AWAY"), Some(ResponseMatcher::Away(false)))
+                .correlated(Line::new("AWAY"), Some(ResponseMatcher::Away(false)))
                 .await?;
             crate::requests::empty(&response)
         })
@@ -1170,7 +1170,7 @@ impl Client {
             Self::require_feature(&client.state(), Feature::SetName)?;
             let response = client
                 .correlated(
-                    Line::builder("SETNAME").with_params([realname.clone()]),
+                    Line::new("SETNAME").with_params([realname.clone()]),
                     Some(ResponseMatcher::SetName(realname)),
                 )
                 .await?;
@@ -1195,7 +1195,7 @@ impl Client {
             let password = password.expose().ok_or(InvalidInput::BinarySecret)?;
             let response = client
                 .correlated(
-                    Line::builder("OPER").with_params([name, password.to_owned()]),
+                    Line::new("OPER").with_params([name, password.to_owned()]),
                     Some(ResponseMatcher::Oper),
                 )
                 .await?;
@@ -1215,7 +1215,7 @@ impl Client {
             let started = crate::rt::now_mono();
             let response = client
                 .correlated(
-                    Line::builder("PING").with_params([token.clone()]),
+                    Line::new("PING").with_params([token.clone()]),
                     Some(ResponseMatcher::Ping(token)),
                 )
                 .await?;
@@ -1276,7 +1276,7 @@ impl Client {
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
             let response = client
                 .correlated(
-                    Line::builder("TOPIC").with_params([channel.to_string(), topic]),
+                    Line::new("TOPIC").with_params([channel.to_string(), topic]),
                     Some(ResponseMatcher::Topic(channel.to_string())),
                 )
                 .await?;
@@ -1297,8 +1297,8 @@ impl Client {
         let client = self.clone();
         crate::RequestFuture::new(async move {
             let message = match filter.parameter() {
-                Some(parameter) => Line::builder("LIST").with_params([parameter]),
-                None => Line::builder("LIST"),
+                Some(parameter) => Line::new("LIST").with_params([parameter]),
+                None => Line::new("LIST"),
             };
             let response = client
                 .correlated(message, Some(ResponseMatcher::List))
@@ -1322,9 +1322,9 @@ impl Client {
         let reason = reason.into();
         crate::RequestFuture::new(async move {
             let message = if reason.is_empty() {
-                Line::builder("QUIT")
+                Line::new("QUIT")
             } else {
-                Line::builder("QUIT").with_params([reason])
+                Line::new("QUIT").with_params([reason])
             };
             message.to_line().map_err(Error::build)?;
             let (result, receiver) = oneshot::channel();

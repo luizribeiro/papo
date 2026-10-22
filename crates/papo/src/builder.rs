@@ -696,31 +696,26 @@ fn connect_input_error(config: &Config) -> Option<InvalidInput> {
             .err()
             .map(|error| InvalidInput::InvalidMessage(error.to_string()))
     };
-    if let Some(error) = invalid(Line::builder("NICK").with_params([&config.nick]))
+    if let Some(error) = invalid(Line::new("NICK").with_params([&config.nick]))
         .or_else(|| {
-            invalid(Line::builder("USER").with_params([
-                &config.username,
-                "0",
-                "*",
-                &config.realname,
-            ]))
+            invalid(Line::new("USER").with_params([&config.username, "0", "*", &config.realname]))
         })
         .or_else(|| {
             config.password.as_ref().and_then(|password| {
                 password
                     .expose()
-                    .and_then(|password| invalid(Line::builder("PASS").with_params([password])))
+                    .and_then(|password| invalid(Line::new("PASS").with_params([password])))
             })
         })
         .or_else(|| {
             config
                 .alt_nicks
                 .iter()
-                .find_map(|nick| invalid(Line::builder("NICK").with_params([nick])))
+                .find_map(|nick| invalid(Line::new("NICK").with_params([nick])))
         })
         .or_else(|| match &config.away_on_connect {
             Some(AwayOnConnect::Message(message)) => {
-                invalid(Line::builder("AWAY").with_params([message]))
+                invalid(Line::new("AWAY").with_params([message]))
             }
             Some(_) | None => None,
         })
@@ -749,7 +744,7 @@ fn connect_input_error(config: &Config) -> Option<InvalidInput> {
     if !options.is_empty() {
         params.push(&options);
     }
-    invalid(Line::builder("WEBIRC").with_params(params))
+    invalid(Line::new("WEBIRC").with_params(params))
 }
 
 #[cfg(all(test, not(browser)))]

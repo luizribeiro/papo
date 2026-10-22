@@ -1516,7 +1516,7 @@ mod tests {
 
     fn chat(command: &str, text: &str) -> ChatMessage {
         event(
-            Line::builder(command)
+            Line::new(command)
                 .with_params(["#papo", text])
                 .with_source("emily!~emily@localhost"),
             &Isupport::default(),
@@ -1538,7 +1538,7 @@ mod tests {
             MessageKind::Action
         );
         let parse = |command, text| {
-            let line = Line::builder(command)
+            let line = Line::new(command)
                 .with_params(["#papo", text])
                 .with_source("emily!~emily@localhost");
             let isupport = Isupport::default();
@@ -1569,7 +1569,7 @@ mod tests {
         assert!(reply.reply);
         assert!(
             ChatMessage::new(
-                Line::builder("FAIL").with_params(["PRIVMSG", "\x01VERSION\x01"]),
+                Line::new("FAIL").with_params(["PRIVMSG", "\x01VERSION\x01"]),
                 &Isupport::default(),
                 "papo",
                 UNIX_EPOCH,
@@ -1593,11 +1593,11 @@ mod tests {
         let (_, _, reply) = ctcp_parts(&query.as_ref()).unwrap();
         assert!(!reply);
 
-        let response = Line::builder("NOTICE").with_params(["#papo", "\x01VERSION papo-0.1\x01"]);
+        let response = Line::new("NOTICE").with_params(["#papo", "\x01VERSION papo-0.1\x01"]);
         let (_, _, reply) = ctcp_parts(&response.as_ref()).unwrap();
         assert!(reply);
 
-        let unrelated = Line::builder("FAIL").with_params(["PRIVMSG", "\x01VERSION\x01"]);
+        let unrelated = Line::new("FAIL").with_params(["PRIVMSG", "\x01VERSION\x01"]);
         assert!(ctcp_parts(&unrelated.as_ref()).is_none());
     }
 
@@ -2094,7 +2094,7 @@ mod tests {
         let now = Instant::now();
         let mut session = labelled_session(now, Config::default());
         let id = session
-            .request(now, Line::builder("MODE").with_params(["#papo"]))
+            .request(now, Line::new("MODE").with_params(["#papo"]))
             .unwrap();
         session.handle_line(now, b"@label=0 :ergo.test ACK");
         assert!(
@@ -2220,7 +2220,7 @@ mod tests {
         let now = Instant::now();
         let mut session = labelled_session(now, Config::default().request_timeout(Duration::ZERO));
         let id = session
-            .request(now, Line::builder("MODE").with_params(["#papo"]))
+            .request(now, Line::new("MODE").with_params(["#papo"]))
             .unwrap();
         _ = session.poll_transmit();
         session.handle_timeout(now);
@@ -2234,7 +2234,7 @@ mod tests {
         let now = Instant::now();
         let mut session = labelled_session(now, Config::default());
         let id = session
-            .request(now, Line::builder("MODE").with_params(["#papo"]))
+            .request(now, Line::new("MODE").with_params(["#papo"]))
             .unwrap();
         session.handle_disconnected(now);
         assert!(
@@ -2743,7 +2743,7 @@ mod tests {
                     subject_authorship: papo_core::Authorship::Unknown,
                 }),
                 papo_core::HistoryItem::Other(papo_core::HistoryLine {
-                    line: Line::builder("WALLOPS").with_params(["Network maintenance begins soon"]),
+                    line: Line::new("WALLOPS").with_params(["Network maintenance begins soon"]),
                     context: false,
                     authorship: papo_core::Authorship::Unknown,
                     subject_authorship: papo_core::Authorship::Unknown,
@@ -2795,7 +2795,7 @@ mod tests {
 
     #[test]
     fn maps_netsplit() {
-        let quit = Line::builder("QUIT")
+        let quit = Line::new("QUIT")
             .with_params(["irc.example irc.remote"])
             .with_source("alice!~a@remote.example");
         let empty_reason = ":bob!~b@remote.example QUIT :".parse().unwrap();
@@ -2821,7 +2821,7 @@ mod tests {
 
     #[test]
     fn maps_netjoin() {
-        let join = Line::builder("JOIN")
+        let join = Line::new("JOIN")
             .with_params(["#papo", "*", "Bob"])
             .with_source("bob!~b@remote.example");
         let Event::Netjoin(netjoin) = forwarded(papo_core::Event::__netjoin(
