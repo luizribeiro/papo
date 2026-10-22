@@ -3133,6 +3133,9 @@ impl Session {
     ///
     /// The caller paces transmission by draining the intentionally unbounded
     /// outbound queue through [`Session::poll_transmit`].
+    /// Parameters appended from [`Secret`] are redacted and wiped. Parameters in a parsed raw
+    /// [`Line`] are ordinary text, so a caller that parses a credential into a line owns that
+    /// diagnostic and memory-handling choice.
     ///
     /// # Errors
     ///
@@ -3356,6 +3359,8 @@ impl Session {
     ///
     /// When `labeled-response` is enabled, the message receives a fresh `label` tag and remains
     /// pending. Otherwise it is sent unchanged and [`Event::RequestUntracked`] is emitted.
+    /// Parameters appended from [`Secret`] are redacted and wiped; parsed raw-line parameters are
+    /// ordinary text and should not contain credentials.
     ///
     /// # Errors
     ///

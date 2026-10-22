@@ -4,10 +4,13 @@ use zeroize::Zeroize;
 
 /// A sensitive text or byte value whose debug representation is always redacted.
 ///
-/// Clones share one papo-owned buffer, which is wiped when its last handle is dropped. This is
-/// best-effort memory hygiene, not protection from every copy: caller-owned inputs, values exposed
-/// and copied by the caller, cryptographic and TLS libraries, operating-system or browser I/O,
-/// swap, and core dumps can retain the value. The buffer is not locked in memory.
+/// Clones share one papo-owned heap buffer, which is wiped when its last handle is dropped. This is
+/// best-effort memory hygiene, not protection from every copy. Caller-owned inputs and values
+/// copied after [`Secret::expose`] remain the caller's responsibility. Cryptographic dependencies
+/// can leave stack copies, and rustls or its crypto provider can retain parsed private-key data.
+/// Kernel socket buffers, WASI hosts, and browser APIs can also copy outgoing plaintext.
+///
+/// The buffer is not locked with `mlock`, so swap and core dumps can retain it before it is wiped.
 #[derive(Clone, Eq, PartialEq)]
 pub struct Secret(Arc<SecretBuf>);
 

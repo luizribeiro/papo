@@ -452,6 +452,10 @@ impl Drop for WireLine {
 }
 
 /// An owned IRC line that can be validated and serialized for the wire.
+///
+/// Parameters appended from [`Secret`] retain secret provenance for redacted formatting and
+/// wiping. Parsing a complete line from text treats every parameter as ordinary text; callers that
+/// put credentials in parsed raw lines intentionally give up those protections.
 #[derive(Clone, Eq, PartialEq)]
 pub struct Line {
     tags: Vec<(String, Option<String>)>,
