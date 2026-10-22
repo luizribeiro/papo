@@ -106,6 +106,7 @@ pub(super) fn advance_catchup(
         conversation,
         items,
         end: page_end,
+        reason: crate::HistoryReason::Catchup,
     })))
 }
 

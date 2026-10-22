@@ -1426,6 +1426,28 @@ impl core::marker::Unpin for papo::HistoryItem
 impl core::marker::UnsafeUnpin for papo::HistoryItem
 impl core::panic::unwind_safe::RefUnwindSafe for papo::HistoryItem
 impl core::panic::unwind_safe::UnwindSafe for papo::HistoryItem
+#[non_exhaustive] pub enum papo::HistoryReason
+pub papo::HistoryReason::Catchup
+pub papo::HistoryReason::Replay
+pub papo::HistoryReason::Requested
+impl core::clone::Clone for papo::HistoryReason
+pub fn papo::HistoryReason::clone(&self) -> Self
+impl core::cmp::Eq for papo::HistoryReason
+impl core::cmp::PartialEq for papo::HistoryReason
+pub fn papo::HistoryReason::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::HistoryReason
+pub fn papo::HistoryReason::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::HistoryReason
+pub fn papo::HistoryReason::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for papo::HistoryReason
+impl core::marker::StructuralPartialEq for papo::HistoryReason
+impl core::marker::Freeze for papo::HistoryReason
+impl core::marker::Send for papo::HistoryReason
+impl core::marker::Sync for papo::HistoryReason
+impl core::marker::Unpin for papo::HistoryReason
+impl core::marker::UnsafeUnpin for papo::HistoryReason
+impl core::panic::unwind_safe::RefUnwindSafe for papo::HistoryReason
+impl core::panic::unwind_safe::UnwindSafe for papo::HistoryReason
 #[non_exhaustive] pub enum papo::InvalidInput
 pub papo::InvalidInput::AccountNameMustMatchNick
 pub papo::InvalidInput::BinarySecret
@@ -1812,6 +1834,7 @@ impl !core::panic::unwind_safe::UnwindSafe for papo::History
 pub papo::HistoryPage::conversation: papo::Conversation
 pub papo::HistoryPage::end: bool
 pub papo::HistoryPage::items: alloc::vec::Vec<papo::HistoryItem>
+pub papo::HistoryPage::reason: papo::HistoryReason
 impl papo::HistoryPage
 pub fn papo::HistoryPage::messages(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Message>
 impl core::clone::Clone for papo::HistoryPage

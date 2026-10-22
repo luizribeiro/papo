@@ -502,6 +502,18 @@ fn source_nick(message: &papo_proto::LineRef<'_>) -> Option<String> {
     }
 }
 
+/// Why a history page was produced.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[non_exhaustive]
+pub enum HistoryReason {
+    /// The page completed an explicit [`Client::history`] request.
+    Requested,
+    /// The page fills a gap after reconnecting.
+    Catchup,
+    /// The server sent the page without an active history request.
+    Replay,
+}
+
 /// A page of requested chat history.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -510,6 +522,8 @@ pub struct HistoryPage {
     pub conversation: crate::Conversation,
     /// Replayed entries in server delivery order.
     pub items: Vec<HistoryItem>,
+    /// Why this page was produced.
+    pub reason: HistoryReason,
     /// Whether this page was empty or the server reported that no further page exists.
     ///
     /// A page shorter than the requested limit does not imply the end.
@@ -837,6 +851,7 @@ impl Client {
             conversation,
             items,
             end,
+            reason: HistoryReason::Requested,
         })
     }
 

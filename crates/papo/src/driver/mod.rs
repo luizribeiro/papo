@@ -1291,6 +1291,7 @@ where
                     conversation,
                     items,
                     end,
+                    reason: crate::HistoryReason::Replay,
                 }));
                 if !enqueue_event(events, pending_events, event) {
                     return Ok(Some((
