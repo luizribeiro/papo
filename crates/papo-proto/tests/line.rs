@@ -282,6 +282,18 @@ fn owned_lines_format_parameters_and_reject_invalid_content() {
 }
 
 #[test]
+fn owned_line_encoding_allocates_its_exact_wire_length() {
+    let line = Line::new("PRIVMSG", ["#papo", "release ready"])
+        .with_tag("+draft/reply", "RfcBTzyxY120004");
+    let encoded = line.to_line().unwrap();
+    assert_eq!(
+        encoded,
+        "@+draft/reply=RfcBTzyxY120004 PRIVMSG #papo :release ready\r\n"
+    );
+    assert_eq!(encoded.capacity(), encoded.len());
+}
+
+#[test]
 fn owned_lines_expose_every_wire_component() {
     let line: Line = "@bot;account=old;account=alice :ergo.test 372 papo :- Welcome to ErgoTest"
         .parse()

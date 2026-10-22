@@ -434,45 +434,16 @@ impl Line {
     /// limit would be exceeded.
     pub fn to_line(&self) -> Result<String, BuildError> {
         self.validate_fields()?;
-
-        let mut line = String::new();
-        if !self.tags.is_empty() {
-            line.push('@');
-            for (index, (key, value)) in self.tags.iter().enumerate() {
-                if index != 0 {
-                    line.push(';');
-                }
-                line.push_str(key);
-                if let Some(value) = value {
-                    line.push('=');
-                    line.push_str(&escape_tag_value(value));
-                }
-            }
-            if line.len() - 1 > MAX_CLIENT_TAG_DATA_LEN {
-                return Err(BuildError::TagsTooLong);
-            }
-            line.push(' ');
-        }
-
-        let body_start = line.len();
-        if let Some(source) = &self.source {
-            line.push(':');
-            line.push_str(source);
-            line.push(' ');
-        }
-        line.push_str(&self.command);
-        for (index, param) in self.params.iter().enumerate() {
-            line.push(' ');
-            if index + 1 == self.params.len() && needs_trailing_prefix(param) {
-                line.push(':');
-            }
-            line.push_str(param);
-        }
-        line.push_str("\r\n");
-        if line.len() - body_start > MAX_LINE_LEN {
-            return Err(BuildError::LineTooLong);
-        }
-        Ok(line)
+        let params = self.params.iter().map(String::as_str).collect::<Vec<_>>();
+        let mut bytes = Vec::new();
+        write_line(
+            &self.tags,
+            self.source.as_deref(),
+            &self.command,
+            &params,
+            &mut bytes,
+        )?;
+        String::from_utf8(bytes).map_err(|_| BuildError::InvalidParam(0))
     }
 
     fn validate_fields(&self) -> Result<(), BuildError> {
@@ -515,6 +486,83 @@ impl Line {
             self.tags.push((key, value));
         }
     }
+}
+
+fn write_line(
+    tags: &[(String, Option<String>)],
+    source: Option<&str>,
+    command: &str,
+    params: &[&str],
+    out: &mut Vec<u8>,
+) -> Result<(), BuildError> {
+    let tag_data_len = tags
+        .iter()
+        .enumerate()
+        .fold(0, |length, (index, (key, value))| {
+            length
+                + usize::from(index != 0)
+                + key.len()
+                + value
+                    .as_deref()
+                    .map_or(0, |value| 1 + escaped_tag_value_len(value))
+        });
+    if tag_data_len > MAX_CLIENT_TAG_DATA_LEN {
+        return Err(BuildError::TagsTooLong);
+    }
+    let body_len = source.map_or(0, |source| source.len() + 2)
+        + command.len()
+        + params.iter().enumerate().fold(0, |length, (index, param)| {
+            length
+                + 1
+                + usize::from(index + 1 == params.len() && needs_trailing_prefix(param))
+                + param.len()
+        })
+        + 2;
+    if body_len > MAX_LINE_LEN {
+        return Err(BuildError::LineTooLong);
+    }
+
+    let tag_section_len = usize::from(!tags.is_empty()) * (tag_data_len + 2);
+    out.reserve_exact(tag_section_len + body_len);
+    if !tags.is_empty() {
+        out.push(b'@');
+        for (index, (key, value)) in tags.iter().enumerate() {
+            if index != 0 {
+                out.push(b';');
+            }
+            out.extend_from_slice(key.as_bytes());
+            if let Some(value) = value {
+                out.push(b'=');
+                out.extend_from_slice(escape_tag_value(value).as_bytes());
+            }
+        }
+        out.push(b' ');
+    }
+    if let Some(source) = source {
+        out.push(b':');
+        out.extend_from_slice(source.as_bytes());
+        out.push(b' ');
+    }
+    out.extend_from_slice(command.as_bytes());
+    for (index, param) in params.iter().enumerate() {
+        out.push(b' ');
+        if index + 1 == params.len() && needs_trailing_prefix(param) {
+            out.push(b':');
+        }
+        out.extend_from_slice(param.as_bytes());
+    }
+    out.extend_from_slice(b"\r\n");
+    Ok(())
+}
+
+fn escaped_tag_value_len(value: &str) -> usize {
+    value
+        .chars()
+        .map(|character| match character {
+            ';' | ' ' | '\\' | '\r' | '\n' => 2,
+            other => other.len_utf8(),
+        })
+        .sum()
 }
 
 impl FromStr for Line {
