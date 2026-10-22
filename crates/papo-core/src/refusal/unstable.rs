@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use crate::{Feature as F, Refusal as R};
 
 struct Entry {
@@ -68,6 +70,17 @@ const STANDARD: &[Entry] = &[
 
 pub(super) fn from_standard(command: &str, code: &str) -> R {
     lookup(command, code).map_or(R::Other, |(refusal, _)| refusal)
+}
+
+pub(super) fn from_standard_enabled(command: &str, code: &str, enabled: &BTreeSet<F>) -> R {
+    let command = command.to_ascii_uppercase();
+    let code = code.to_ascii_uppercase();
+    match lookup(&command, &code) {
+        Some((refusal, None)) => refusal,
+        Some((refusal, Some(feature))) if enabled.contains(&feature) => refusal,
+        Some(_) => R::Other,
+        None => R::from_standard(&command, &code),
+    }
 }
 
 fn lookup(command: &str, code: &str) -> Option<(R, Option<F>)> {

@@ -369,29 +369,7 @@ impl Refusal {
         code: &str,
         enabled: &std::collections::BTreeSet<crate::Feature>,
     ) -> Self {
-        let refusal = Self::from_standard(command, code);
-        let feature = match refusal {
-            Self::InvalidNetwork
-            | Self::InvalidAttribute
-            | Self::ReadOnlyAttribute
-            | Self::UnknownAttribute
-            | Self::MissingAttribute => crate::Feature::Bouncer,
-            Self::RelayDisabled
-            | Self::RelayPrivilegesNeeded
-            | Self::BlankRelayMessage
-            | Self::InvalidRelayNickname
-            | Self::BannedRelaySender => crate::Feature::Relay,
-            Self::InvalidWebPushParameters | Self::WebPushRegistrationLimit => {
-                crate::Feature::WebPush
-            }
-            Self::InvalidPersistenceParameters => crate::Feature::Persistence,
-            _ => return refusal,
-        };
-        if enabled.contains(&feature) {
-            refusal
-        } else {
-            Self::Other
-        }
+        unstable::from_standard_enabled(command, code, enabled)
     }
 }
 
