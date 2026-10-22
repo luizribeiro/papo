@@ -108,7 +108,6 @@ pub fn message(
         text,
         kind: MessageKind::Privmsg,
         msgid: None,
-        time: SystemTime::UNIX_EPOCH,
         server_time: None,
         received_at: SystemTime::UNIX_EPOCH,
         account: None,

@@ -203,7 +203,7 @@ async fn terminal_history_page(s: Scenario) -> papo_testing::Result<()> {
         let oldest = messages.first().expect("nonempty page");
         cursor = Some(match oldest.msgid.as_ref() {
             Some(id) => Cursor::Id(id.as_ref().to_owned()),
-            None => Cursor::Time(oldest.time),
+            None => Cursor::Time(oldest.server_time.expect("history has server time")),
         });
         remaining = start;
     }

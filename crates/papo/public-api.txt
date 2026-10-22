@@ -324,7 +324,6 @@ pub papo::event::Ctcp::reply: bool
 pub papo::event::Ctcp::server_time: core::option::Option<std::time::SystemTime>
 pub papo::event::Ctcp::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo::event::Ctcp::tags: papo::Tags
-pub papo::event::Ctcp::time: std::time::SystemTime
 impl core::clone::Clone for papo::event::Ctcp
 pub fn papo::event::Ctcp::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Ctcp
@@ -1980,7 +1979,6 @@ pub papo::Message::server_time: core::option::Option<std::time::SystemTime>
 pub papo::Message::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo::Message::tags: papo::Tags
 pub papo::Message::text: alloc::string::String
-pub papo::Message::time: std::time::SystemTime
 impl papo::Message
 pub fn papo::Message::is_own(&self) -> bool
 pub fn papo::Message::return_address(&self) -> alloc::string::String

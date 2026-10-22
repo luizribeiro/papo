@@ -78,8 +78,6 @@ pub struct Ctcp {
     pub reply: bool,
     /// The server-assigned message identifier, when supplied.
     pub msgid: Option<MessageId>,
-    /// Valid server time, or the local receipt time when none was supplied.
-    pub time: SystemTime,
     /// Valid server time, when supplied.
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
@@ -136,8 +134,6 @@ pub struct Message {
     pub kind: MessageKind,
     /// The server-assigned message identifier, when supplied.
     pub msgid: Option<MessageId>,
-    /// Valid server time, or the local receipt time when none was supplied.
-    pub time: SystemTime,
     /// Valid server time, when supplied.
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
@@ -165,7 +161,6 @@ struct MessageMetadata {
     conversation: Conversation,
     status: Option<Vec<char>>,
     msgid: Option<MessageId>,
-    time: SystemTime,
     server_time: Option<SystemTime>,
     received_at: SystemTime,
     account: Option<AccountName>,
@@ -213,7 +208,6 @@ impl Ctcp {
             params,
             reply,
             msgid: metadata.msgid,
-            time: metadata.time,
             server_time: metadata.server_time,
             received_at: metadata.received_at,
             account: metadata.account,
@@ -452,7 +446,6 @@ impl Message {
             raw_text,
             kind,
             msgid: metadata.msgid,
-            time: metadata.time,
             server_time: metadata.server_time,
             received_at: metadata.received_at,
             account: metadata.account,
@@ -563,7 +556,6 @@ fn message_metadata(
         conversation,
         status,
         msgid: envelope.msgid,
-        time: envelope.time,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         account: envelope.account,
@@ -1721,8 +1713,8 @@ mod tests {
             received,
         );
         assert_eq!(
-            tagged.time,
-            UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000)
+            tagged.server_time,
+            Some(UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000))
         );
         assert!(matches!(&tagged.conversation, Conversation::Channel(name) if name == "#papo"));
         assert_eq!(tagged.msgid.as_deref(), Some("RfcBTzyxY120004"));
@@ -1758,10 +1750,9 @@ mod tests {
             if let Some(time) = time {
                 message = message.with_tag("time", time);
             }
-            assert_eq!(
-                event(message, &Isupport::default(), "papo", received).time,
-                received
-            );
+            let message = event(message, &Isupport::default(), "papo", received);
+            assert_eq!(message.server_time, None);
+            assert_eq!(message.received_at, received);
         }
     }
 

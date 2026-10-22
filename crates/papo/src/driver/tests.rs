@@ -312,8 +312,8 @@ async fn message_fields_use_captured_session_facts() {
         Some("RfcBTzyxY120003")
     );
     assert_eq!(
-        message.time,
-        UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000)
+        message.server_time,
+        Some(UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000))
     );
 
     server_line(&mut server, b":emily!~e@localhost NOTICE papo-driver :maintenance soon\r\n:emily!~e@localhost PRIVMSG #papo :\x01ACTION deploys \x02bold\x02 and \x1ditalic\x1d then \x02\x1dboth\x0f in \x0304red and \x04FF0000hex\x01\r\n:dan!~d@cloak PRIVMSG #papo :\x01ACTION tests a split message\r\n:emily!~e@localhost PRIVMSG papo-driver :\x01VERSION\x01\r\n:dan!~d@cloak PRIVMSG papo-driver :\x01PING 1731513600\x01\r\n:soju.example NOTICE papo-driver :\x01VERSION soju 0.8.2\x01\r\n").await;
@@ -378,8 +378,8 @@ async fn message_fields_use_captured_session_facts() {
 
     let before = SystemTime::now();
     server_line(&mut server, b":dan!d@localhost PRIVMSG #papo :no time\r\n@time=invalid :dan!d@localhost PRIVMSG #papo :bad time\r\n").await;
-    let absent = next_message(&mut events).await.time;
-    let malformed = next_message(&mut events).await.time;
+    let absent = next_message(&mut events).await.received_at;
+    let malformed = next_message(&mut events).await.received_at;
     let after = SystemTime::now();
     assert!((before..=after).contains(&absent));
     assert!((before..=after).contains(&malformed));

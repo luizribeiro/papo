@@ -59,7 +59,7 @@ async fn echo_message(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(message.raw_text, "hello from alice");
     assert_eq!(message.text, "hello from alice");
     assert_eq!(message.msgid.as_ref(), sent.msgid.as_ref());
-    assert_eq!(Some(message.time), sent.server_time);
+    assert_eq!(message.server_time, sent.server_time);
     assert!(!is_private(&message));
     assert!(sent.fallbacks.is_empty());
     alice
@@ -92,7 +92,7 @@ async fn server_time(s: Scenario) -> papo_testing::Result<()> {
     );
     assert_eq!(message.raw_text, "maintenance at midnight");
     assert_eq!(message.msgid.as_ref(), sent.msgid.as_ref());
-    assert_eq!(Some(message.time), sent.server_time);
+    assert_eq!(message.server_time, sent.server_time);
     assert!(message.tags.contains("time"));
     assert!(sent.fallbacks.is_empty());
     alice
@@ -133,7 +133,7 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(received.raw_text, "private hello");
     assert!(is_private(&received));
     assert_eq!(received.msgid.as_ref(), sent.msgid.as_ref());
-    assert_eq!(Some(received.time), sent.server_time);
+    assert_eq!(received.server_time, sent.server_time);
 
     let sent = bob.notice(alice.nick(), "private notice").await?;
     let received = alice
@@ -148,7 +148,7 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(received.raw_text, "private notice");
     assert!(is_private(&received));
     assert_eq!(received.msgid.as_ref(), sent.msgid.as_ref());
-    assert_eq!(Some(received.time), sent.server_time);
+    assert_eq!(received.server_time, sent.server_time);
 
     let sent = alice.privmsg(alice.nick(), "note to self").await?;
     let received = alice
@@ -718,7 +718,7 @@ async fn draft_multiline(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(received.raw_text, text);
     assert_eq!(received.text, text);
     assert_eq!(received.msgid.as_ref(), sent.msgid.as_ref());
-    assert_eq!(Some(received.time), sent.server_time);
+    assert_eq!(received.server_time, sent.server_time);
     bob.expect_none(|event| message_text(event, text)).await?;
     Ok(())
 }

@@ -72,10 +72,6 @@ impl MessageBuilder {
         received_at: SystemTime,
         server_time: Option<SystemTime>,
     ) -> Self {
-        self.message.time = match server_time {
-            Some(server_time) => server_time,
-            None => received_at,
-        };
         self.message.server_time = server_time;
         self.message.received_at = received_at;
         self

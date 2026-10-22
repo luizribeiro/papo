@@ -1057,7 +1057,7 @@ mod tests {
         let first_time = papo_proto::time::parse("2026-10-19T14:31:08.123Z").unwrap();
         assert!(matches!(&items[0], PageEvent::Message(message)
             if message.msgid.as_deref() == Some("RfcBTzyxY120004")
-                && message.time == first_time
+                && message.server_time == Some(first_time)
                 && message.account.as_deref() == Some("papo")));
         assert!(matches!(&items[3], PageEvent::NickChanged(changed)
             if changed.msgid.as_deref() == Some("RfcBTzyxY120007")
@@ -1082,7 +1082,7 @@ mod tests {
             panic!("expected a chat message");
         };
         assert_eq!(message.msgid, None);
-        assert_eq!(message.time, server_time);
+        assert_eq!(message.server_time, Some(server_time));
         let page = HistoryPage {
             conversation: message.conversation.clone(),
             items: vec![Event::Message(message)],
