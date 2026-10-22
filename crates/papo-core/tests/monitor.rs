@@ -43,6 +43,31 @@ fn adds_removes_and_clears_monitored_nicks() {
 }
 
 #[test]
+fn invalid_nicks_are_never_sent_or_stored() {
+    registered()
+        .update(|session| session.monitor_add(["bad\rnick", "alice", "bad,nick"]))
+        .client("MONITOR + alice")
+        .inspect(|session| {
+            assert_eq!(
+                session
+                    .state()
+                    .monitored()
+                    .map(Nick::as_ref)
+                    .collect::<Vec<_>>(),
+                ["alice"]
+            );
+        })
+        .disconnect()
+        .connect_default()
+        .welcome(":ergo.test 001 papo :Welcome back")
+        .server(":ergo.test 005 papo MONITOR=100 :are supported")
+        .server(":ergo.test 376 papo :End of MOTD")
+        .event(|event| matches!(event, Event::Connected(_)))
+        .client("MONITOR + alice")
+        .no_client();
+}
+
+#[test]
 fn desired_nicks_keep_insertion_order_after_add_and_remove() {
     Transcript::new(Config::default())
         .connect_default()
@@ -221,6 +246,7 @@ fn chunks_monitor_targets_at_the_literal_512_byte_boundary() {
     let exact = format!("MONITOR + {first},{second}");
     assert_eq!(exact.len() + 2, 512);
     registered()
+        .server(":ergo.test 005 papo NICKLEN=251 :are supported")
         .update(|session| session.monitor_add([first, second, third.clone()]))
         .client(&exact)
         .client(&format!("MONITOR + {third}"))
@@ -231,6 +257,7 @@ fn chunks_monitor_targets_at_the_literal_512_byte_boundary() {
     let over = format!("MONITOR + {first},{second}");
     assert_eq!(over.len() + 2, 513);
     registered()
+        .server(":ergo.test 005 papo NICKLEN=251 :are supported")
         .update(|session| session.monitor_add([first.clone(), second.clone()]))
         .client(&format!("MONITOR + {first}"))
         .client(&format!("MONITOR + {second}"))

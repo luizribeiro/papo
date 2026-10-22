@@ -38,3 +38,6 @@
 "security::plain_text_rejects_ctcp_delimiters" = [
   "security.inj-1.plain-text-ctcp-delimiter",
 ]
+"security::monitor_rejects_invalid_nicks_without_poisoning_the_wire" = [
+  "security.inj-4.monitor-nick-validation",
+]

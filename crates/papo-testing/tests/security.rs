@@ -254,6 +254,29 @@ async fn plain_text_rejects_ctcp_delimiters() {
 }
 
 #[tokio::test]
+async fn monitor_rejects_invalid_nicks_without_poisoning_the_wire() {
+    let (client, _events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test")
+            .nick("papo-wire")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&[]).await;
+    wire.server(":offline.test 005 papo-wire MONITOR=100 :are supported")
+        .await;
+    while client.state().isupport().monitor().is_none() {
+        tokio::task::yield_now().await;
+    }
+
+    assert!(matches!(
+        client.monitor().add(["bad\rnick", "alice"]).await,
+        Err(papo::Error::InvalidInput(_))
+    ));
+    client.monitor().add(["bob"]).await.unwrap();
+    assert_eq!(wire.next_sent().await, "MONITOR + bob");
+}
+
+#[tokio::test]
 async fn scram_rejects_excessive_iterations_promptly() {
     let (_client, mut events, mut wire) = start_scram("ircs://offline.test").await;
     send_excessive_iteration_count(&mut wire).await;

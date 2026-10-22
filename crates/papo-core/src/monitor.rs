@@ -116,7 +116,8 @@ impl Monitor {
         let mut full = Vec::new();
         let mut known: HashSet<_> = self.desired.iter().map(|nick| mapping.nick(nick)).collect();
         for nick in nicks.into_iter().map(Into::into) {
-            if !known.insert(mapping.nick(nick.as_str())) {
+            let key = mapping.nick(nick.as_str());
+            if key.check(isupport).is_err() || !known.insert(key) {
                 continue;
             }
             if self.desired.len() == MAX_DESIRED {
@@ -170,6 +171,9 @@ impl Monitor {
         let old: Vec<_> = self.desired.iter().take(limit).cloned().collect();
         for nick in nicks {
             let nick = nick.as_ref();
+            if mapping.nick(nick).check(isupport).is_err() {
+                continue;
+            }
             if let Some(index) = self
                 .desired
                 .iter()
