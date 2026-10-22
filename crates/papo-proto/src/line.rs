@@ -7,7 +7,7 @@ use std::{
     str::{FromStr, Utf8Error},
 };
 
-use crate::{Command, Source};
+use crate::{Command, Secret, Source};
 
 /// Maximum byte length of an IRC line excluding its tag section but including CRLF.
 ///
@@ -133,7 +133,7 @@ enum TagStorage<'a> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ParamStorage<'a> {
     Wire(&'a str),
-    Owned(&'a [String]),
+    Owned(&'a [Param]),
 }
 
 impl<'a> LineRef<'a> {
@@ -291,13 +291,92 @@ impl<'a> LineRef<'a> {
     }
 }
 
+/// One owned IRC line parameter.
+#[derive(Clone, Eq, PartialEq)]
+pub struct Param(ParamValue);
+
+#[derive(Clone, Eq, PartialEq)]
+enum ParamValue {
+    Text(String),
+    Secret(Secret),
+}
+
+impl Param {
+    fn as_str(&self) -> &str {
+        match &self.0 {
+            ParamValue::Text(value) => value,
+            ParamValue::Secret(value) => value.expose().unwrap_or(""),
+        }
+    }
+
+    fn is_binary_secret(&self) -> bool {
+        matches!(&self.0, ParamValue::Secret(value) if value.expose().is_none())
+    }
+}
+
+impl std::ops::Deref for Param {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.as_str()
+    }
+}
+
+impl fmt::Debug for Param {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.0 {
+            ParamValue::Text(_) => self.as_str().fmt(formatter),
+            ParamValue::Secret(_) => formatter.write_str("[REDACTED]"),
+        }
+    }
+}
+
+impl fmt::Display for Param {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.0 {
+            ParamValue::Text(_) => formatter.write_str(self.as_str()),
+            ParamValue::Secret(_) => formatter.write_str("<redacted>"),
+        }
+    }
+}
+
+impl<T: Into<String>> From<T> for Param {
+    fn from(value: T) -> Self {
+        Self(ParamValue::Text(value.into()))
+    }
+}
+
+impl From<Secret> for Param {
+    fn from(value: Secret) -> Self {
+        Self(ParamValue::Secret(value))
+    }
+}
+
+impl From<&Secret> for Param {
+    fn from(value: &Secret) -> Self {
+        Self(ParamValue::Secret(value.clone()))
+    }
+}
+
+impl PartialEq<str> for Param {
+    fn eq(&self, other: &str) -> bool {
+        self.as_str() == other
+    }
+}
+
+impl PartialEq<&str> for Param {
+    fn eq(&self, other: &&str) -> bool {
+        self.as_str() == *other
+    }
+}
+
 /// An owned IRC line that can be validated and serialized for the wire.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Line {
     tags: Vec<(String, Option<String>)>,
     source: Option<String>,
     command: String,
-    params: Vec<String>,
+    params: Vec<Param>,
 }
 
 impl Line {
@@ -311,21 +390,16 @@ impl Line {
         }
     }
 
-    /// Starts a line with no parameters.
-    pub fn builder(command: impl Into<String>) -> Self {
-        Self::new(command)
-    }
-
     /// Appends one parameter to the line.
     #[must_use]
-    pub fn param(mut self, param: impl Into<String>) -> Self {
+    pub fn param(mut self, param: impl Into<Param>) -> Self {
         self.params.push(param.into());
         self
     }
 
     /// Appends parameters from an iterator in order.
     #[must_use]
-    pub fn with_params(mut self, params: impl IntoIterator<Item = impl Into<String>>) -> Self {
+    pub fn with_params(mut self, params: impl IntoIterator<Item = impl Into<Param>>) -> Self {
         self.params.extend(params.into_iter().map(Into::into));
         self
     }
@@ -347,14 +421,14 @@ impl Line {
 
     /// Returns the parameters in wire order.
     #[must_use]
-    pub fn params(&self) -> &[String] {
+    pub fn params(&self) -> &[Param] {
         &self.params
     }
 
     /// Returns the parameter at `index` in wire order.
     #[must_use]
     pub fn get(&self, index: usize) -> Option<&str> {
-        self.params.get(index).map(String::as_str)
+        self.params.get(index).map(Param::as_str)
     }
 
     /// Returns the last value for a case-sensitive tag key.
@@ -454,7 +528,7 @@ impl Line {
     /// limit would be exceeded.
     pub fn to_line(&self) -> Result<String, BuildError> {
         self.validate_fields()?;
-        let params = self.params.iter().map(String::as_str).collect::<Vec<_>>();
+        let params = self.params.iter().map(Param::as_str).collect::<Vec<_>>();
         let mut bytes = Vec::new();
         write_line(
             &self.tags,
@@ -489,7 +563,8 @@ impl Line {
             }
         }
         for (index, param) in self.params.iter().enumerate() {
-            if param.contains(['\r', '\n', '\0'])
+            if param.is_binary_secret()
+                || param.contains(['\r', '\n', '\0'])
                 || (index + 1 != self.params.len() && needs_trailing_prefix(param))
             {
                 return Err(BuildError::InvalidParam(index));
@@ -650,7 +725,7 @@ pub struct Params<'a> {
 #[derive(Clone, Debug)]
 enum ParamIter<'a> {
     Wire(&'a str),
-    Owned(slice::Iter<'a, String>),
+    Owned(slice::Iter<'a, Param>),
 }
 
 impl<'a> Iterator for Params<'a> {
@@ -671,7 +746,7 @@ impl<'a> Iterator for Params<'a> {
                 *remaining = rest;
                 Some(param)
             }
-            ParamIter::Owned(params) => params.next().map(String::as_str),
+            ParamIter::Owned(params) => params.next().map(Param::as_str),
         }
     }
 }

@@ -2,7 +2,7 @@
 
 use std::{borrow::Cow, collections::BTreeMap};
 
-use papo_proto::{BuildError, Command, Line, LineRef, Numeric, ParseError, Source};
+use papo_proto::{BuildError, Command, Line, LineRef, Numeric, ParseError, Secret, Source};
 use proptest::{collection::vec, option, prelude::*};
 use serde_json::Value;
 
@@ -703,6 +703,19 @@ fn builds_common_client_commands() {
 fn builds_parameters_one_at_a_time() {
     let chained = Line::new("PRIVMSG").param("#papo").param("release ready");
     assert_eq!(chained.to_string(), "PRIVMSG #papo :release ready");
+
+    let owned = String::from("owned");
+    let secret = Secret::new("credential");
+    let accepted = Line::new("COMMAND")
+        .param("borrowed")
+        .param(owned)
+        .param(&secret)
+        .param(secret);
+    assert_eq!(accepted.params().len(), 4);
+    assert_eq!(
+        format!("{:?}", accepted.params()),
+        r#"["borrowed", "owned", [REDACTED], [REDACTED]]"#
+    );
 }
 
 #[test]

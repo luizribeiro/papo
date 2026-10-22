@@ -845,15 +845,14 @@ impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Limit<'a>
 pub struct papo_proto::Line
 impl papo_proto::Line
 pub fn papo_proto::Line::as_ref(&self) -> papo_proto::LineRef<'_>
-pub fn papo_proto::Line::builder(impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo_proto::Line::command(&self) -> &str
 pub fn papo_proto::Line::get(&self, usize) -> core::option::Option<&str>
 pub fn papo_proto::Line::join(impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo_proto::Line::new(impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo_proto::Line::notice(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo_proto::Line::numeric(&self) -> core::option::Option<u16>
-pub fn papo_proto::Line::param(self, impl core::convert::Into<alloc::string::String>) -> Self
-pub fn papo_proto::Line::params(&self) -> &[alloc::string::String]
+pub fn papo_proto::Line::param(self, impl core::convert::Into<papo_proto::Param>) -> Self
+pub fn papo_proto::Line::params(&self) -> &[papo_proto::Param]
 pub fn papo_proto::Line::part(impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo_proto::Line::part_with_reason(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo_proto::Line::privmsg(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
@@ -862,7 +861,7 @@ pub fn papo_proto::Line::tag(&self, &str) -> core::option::Option<&str>
 pub fn papo_proto::Line::tagmsg(impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo_proto::Line::tags(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = (&str, &str)>
 pub fn papo_proto::Line::to_line(&self) -> core::result::Result<alloc::string::String, papo_proto::BuildError>
-pub fn papo_proto::Line::with_params(self, impl core::iter::traits::collect::IntoIterator<Item = impl core::convert::Into<alloc::string::String>>) -> Self
+pub fn papo_proto::Line::with_params(self, impl core::iter::traits::collect::IntoIterator<Item = impl core::convert::Into<papo_proto::Param>>) -> Self
 pub fn papo_proto::Line::with_source(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo_proto::Line::with_tag(self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
 impl core::clone::Clone for papo_proto::Line
@@ -1326,6 +1325,37 @@ impl core::marker::Unpin for papo_proto::Numeric
 impl core::marker::UnsafeUnpin for papo_proto::Numeric
 impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::Numeric
 impl core::panic::unwind_safe::UnwindSafe for papo_proto::Numeric
+pub struct papo_proto::Param(_)
+impl core::clone::Clone for papo_proto::Param
+pub fn papo_proto::Param::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::Param
+impl core::cmp::PartialEq for papo_proto::Param
+pub fn papo_proto::Param::eq(&self, &Self) -> bool
+impl core::cmp::PartialEq<&str> for papo_proto::Param
+pub fn papo_proto::Param::eq(&self, &&str) -> bool
+impl core::cmp::PartialEq<str> for papo_proto::Param
+pub fn papo_proto::Param::eq(&self, &str) -> bool
+impl core::convert::From<&papo_proto::Secret> for papo_proto::Param
+pub fn papo_proto::Param::from(&papo_proto::Secret) -> Self
+impl core::convert::From<papo_proto::Secret> for papo_proto::Param
+pub fn papo_proto::Param::from(papo_proto::Secret) -> Self
+impl core::fmt::Debug for papo_proto::Param
+pub fn papo_proto::Param::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo_proto::Param
+pub fn papo_proto::Param::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo_proto::Param
+impl core::ops::deref::Deref for papo_proto::Param
+pub type papo_proto::Param::Target = str
+pub fn papo_proto::Param::deref(&self) -> &Self::Target
+impl<T: core::convert::Into<alloc::string::String>> core::convert::From<T> for papo_proto::Param
+pub fn papo_proto::Param::from(T) -> Self
+impl core::marker::Freeze for papo_proto::Param
+impl core::marker::Send for papo_proto::Param
+impl core::marker::Sync for papo_proto::Param
+impl core::marker::Unpin for papo_proto::Param
+impl core::marker::UnsafeUnpin for papo_proto::Param
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::Param
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::Param
 pub struct papo_proto::Params<'a>
 impl core::iter::traits::marker::FusedIterator for papo_proto::Params<'_>
 impl<'a> core::clone::Clone for papo_proto::Params<'a>
@@ -1396,6 +1426,8 @@ impl core::cmp::PartialEq for papo_proto::Secret
 pub fn papo_proto::Secret::eq(&self, &Self) -> bool
 impl core::convert::From<&alloc::string::String> for papo_proto::Secret
 pub fn papo_proto::Secret::from(&alloc::string::String) -> Self
+impl core::convert::From<&papo_proto::Secret> for papo_proto::Param
+pub fn papo_proto::Param::from(&papo_proto::Secret) -> Self
 impl core::convert::From<&str> for papo_proto::Secret
 pub fn papo_proto::Secret::from(&str) -> Self
 impl core::convert::From<alloc::borrow::Cow<'_, str>> for papo_proto::Secret
@@ -1406,6 +1438,8 @@ impl core::convert::From<alloc::string::String> for papo_proto::Secret
 pub fn papo_proto::Secret::from(alloc::string::String) -> Self
 impl core::convert::From<alloc::vec::Vec<u8>> for papo_proto::Secret
 pub fn papo_proto::Secret::from(alloc::vec::Vec<u8>) -> Self
+impl core::convert::From<papo_proto::Secret> for papo_proto::Param
+pub fn papo_proto::Param::from(papo_proto::Secret) -> Self
 impl core::fmt::Debug for papo_proto::Secret
 pub fn papo_proto::Secret::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo_proto::Secret

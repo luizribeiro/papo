@@ -38,8 +38,8 @@ pub use isupport::{
     Advertised, ChanModes, ClientTagDeny, Extban, Isupport, Limit, LimitValue, Prefix,
 };
 pub use line::{
-    BuildError, Line, LineRef, MAX_CLIENT_TAG_DATA_LEN, MAX_LINE_LEN, MAX_TAG_SECTION_LEN, Params,
-    ParseError, Tags, escape_tag_value,
+    BuildError, Line, LineRef, MAX_CLIENT_TAG_DATA_LEN, MAX_LINE_LEN, MAX_TAG_SECTION_LEN, Param,
+    Params, ParseError, Tags, escape_tag_value,
 };
 
 pub use modes::{ModeAction, ModeChange, ModeChanges, ModeKind};
