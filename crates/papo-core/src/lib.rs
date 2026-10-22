@@ -3549,6 +3549,28 @@ impl Session {
         )
     }
 
+    /// Joins a channel, optionally using a secret channel key.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RequestError::InvalidSecret`] for a byte key. Other failures are the same as
+    /// [`Session::request_with_matcher`].
+    pub fn join(
+        &mut self,
+        now: Instant,
+        channel: &str,
+        key: Option<&Secret>,
+    ) -> Result<RequestId, RequestError> {
+        if key.is_some_and(|key| key.expose().is_none()) {
+            return Err(RequestError::InvalidSecret);
+        }
+        let mut line = Line::new("JOIN").param(channel);
+        if let Some(key) = key {
+            line = line.param(key);
+        }
+        self.request_with_matcher(now, line, ResponseMatcher::Join(channel.into()))
+    }
+
     /// Adds nicknames to the desired server-side monitor list.
     pub fn monitor_add<I, S>(&mut self, nicks: I)
     where

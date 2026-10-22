@@ -40,14 +40,31 @@ fn debug_output_redacts_rate_limited_oper_and_join_credentials() {
         .oper(now, "admin", &Secret::new("operator-password-3751"))
         .unwrap();
     session
-        .request_with_matcher(
-            now,
-            Line::new("JOIN").with_params(["#secret", "channel-key-6824"]),
-            ResponseMatcher::Join("#secret".into()),
-        )
+        .join(now, "#secret", Some(&Secret::new("channel-key-6824")))
         .unwrap();
     support::assert_session_debug_redacts(&session, "operator-password-3751");
     support::assert_session_debug_redacts(&session, "channel-key-6824");
+}
+
+#[test]
+fn join_marks_only_the_optional_key_as_secret() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    session
+        .join(now, "#secret", Some(&Secret::new("channel-key-6824")))
+        .unwrap();
+    let keyed = session.poll_transmit().unwrap();
+    assert_eq!(keyed.as_ref(), b"JOIN #secret channel-key-6824\r\n");
+    assert_eq!(format!("{keyed:?}"), "JOIN #secret <redacted>");
+
+    session.join(now, "#public", None).unwrap();
+    let public = session.poll_transmit().unwrap();
+    assert_eq!(format!("{public:?}"), "JOIN #public");
+
+    assert!(matches!(
+        session.join(now, "#secret", Some(&Secret::from_bytes([0xff]))),
+        Err(RequestError::InvalidSecret)
+    ));
 }
 
 #[test]

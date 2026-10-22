@@ -1949,6 +1949,7 @@ pub fn papo_core::Session::handle_line(&mut self, std::time::Instant, &[u8])
 pub fn papo_core::Session::handle_timeout(&mut self, std::time::Instant)
 pub const fn papo_core::Session::is_connected(&self) -> bool
 pub fn papo_core::Session::isupport(&self) -> &papo::isupport::Isupport
+pub fn papo_core::Session::join(&mut self, std::time::Instant, &str, core::option::Option<&papo::Secret>) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
 pub const fn papo_core::Session::lag(&self) -> core::option::Option<core::time::Duration>
 pub fn papo_core::Session::metadata_limits(&self) -> core::option::Option<papo_core::MetadataLimits>
 pub fn papo_core::Session::monitor_add<I, S>(&mut self, I) where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>

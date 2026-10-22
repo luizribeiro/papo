@@ -874,21 +874,7 @@ where
                     defaults
                         .parted_while_disconnected
                         .retain(|parted| parted != channel.as_ref());
-                    let params = match &key {
-                        Some(key) => {
-                            let Some(key) = key.expose() else {
-                                _ = result.send(Err(InvalidInput::BinarySecret.into()));
-                                continue;
-                            };
-                            vec![channel.to_string(), key.to_owned()]
-                        }
-                        None => vec![channel.to_string()],
-                    };
-                    match session.request_with_matcher(
-                        now(),
-                        Line::new("JOIN").with_params(params),
-                        ResponseMatcher::Join(channel.to_string()),
-                    ) {
+                    match session.join(now(), channel.as_ref(), key.as_ref()) {
                         Ok(id) => {
                             requests.insert(id, PendingRequest::Response(result));
                             join_keys.insert(id, (channel, key));
@@ -1682,22 +1668,9 @@ fn after_connect(
     }
     if !server_restores_channels(session) {
         for channel in &defaults.channels {
-            let params = match &channel.key {
-                Some(key) => {
-                    let key = key.expose().ok_or_else(|| {
-                        io::Error::new(io::ErrorKind::InvalidInput, "channel key is not text")
-                    })?;
-                    vec![channel.channel.clone(), key.to_owned()]
-                }
-                None => vec![channel.channel.clone()],
-            };
             let channel_name = session.isupport().casemapping().channel(&channel.channel);
             let id = session
-                .request_with_matcher(
-                    now(),
-                    Line::new("JOIN").with_params(params),
-                    ResponseMatcher::Join(channel.channel.clone()),
-                )
+                .join(now(), &channel.channel, channel.key.as_ref())
                 .map_err(io::Error::other)?;
             requests.insert(
                 id,
