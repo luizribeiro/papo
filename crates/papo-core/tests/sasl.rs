@@ -931,24 +931,6 @@ fn rejects_an_excessive_scram_iteration_count_before_derivation() {
 }
 
 #[test]
-fn accepts_the_scram_iteration_cap() {
-    let challenge = STANDARD.encode(concat!(
-        "r=WlpaWlpaWlpaWlpaWlpaWlpa-server,",
-        "s=W22ZaJ0SNY7soEsUEjb6gQ==,i=1000000"
-    ));
-    scram_after_client_first(false)
-        .server(&format!("AUTHENTICATE {challenge}"))
-        .update(|session| {
-            let output = session
-                .poll_transmit()
-                .expect("iteration cap should produce a SCRAM client proof");
-            let output = String::from_utf8(output).unwrap();
-            assert!(output.starts_with("AUTHENTICATE "));
-            assert_ne!(output.trim(), "AUTHENTICATE *");
-        });
-}
-
-#[test]
 fn a_bad_scram_proof_never_falls_back_to_plain() {
     Transcript::with_entropy(
         Config::default().sasl(Sasl::any("user", "pencil")),

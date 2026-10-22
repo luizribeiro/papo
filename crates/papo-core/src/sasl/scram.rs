@@ -51,12 +51,7 @@ impl ScramClient {
         if extension.is_empty() {
             return Err(ScramError::InvalidServerNonce);
         }
-        if iterations < 4096 {
-            return Err(ScramError::IterationCountTooLow);
-        }
-        if iterations > MAX_ITERATION_COUNT {
-            return Err(ScramError::IterationCountTooHigh);
-        }
+        check_iteration_count(iterations)?;
 
         let final_without_proof = format!("c=biws,r={nonce}");
         let first = self.client_first();
@@ -159,6 +154,16 @@ fn derive_keys(
     (proof, server_verifier)
 }
 
+fn check_iteration_count(iterations: u32) -> Result<(), ScramError> {
+    if iterations < 4096 {
+        return Err(ScramError::IterationCountTooLow);
+    }
+    if iterations > MAX_ITERATION_COUNT {
+        return Err(ScramError::IterationCountTooHigh);
+    }
+    Ok(())
+}
+
 fn keyed_hash(key: &[u8], value: &[u8]) -> [u8; 32] {
     let mut mac = HmacSha256::new_from_slice(key).expect("HMAC accepts keys of any size");
     mac.update(value);
@@ -167,7 +172,7 @@ fn keyed_hash(key: &[u8], value: &[u8]) -> [u8; 32] {
 
 #[cfg(test)]
 mod tests {
-    use super::{ScramClient, ScramError};
+    use super::{ScramClient, ScramError, check_iteration_count};
 
     const SERVER_FIRST: &str = concat!(
         "r=rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0,",
@@ -176,6 +181,21 @@ mod tests {
 
     fn rfc_client() -> ScramClient {
         ScramClient::new("user", "pencil", "rOprNGfwEbeRWgbNEkqO").unwrap()
+    }
+
+    // Deriving keys at the cap takes over 30 seconds unoptimized, so the boundary is checked without a derivation.
+    #[test]
+    fn accepts_iteration_counts_from_the_rfc_minimum_to_the_cap() {
+        assert_eq!(
+            check_iteration_count(4095),
+            Err(ScramError::IterationCountTooLow)
+        );
+        assert_eq!(check_iteration_count(4096), Ok(()));
+        assert_eq!(check_iteration_count(1_000_000), Ok(()));
+        assert_eq!(
+            check_iteration_count(1_000_001),
+            Err(ScramError::IterationCountTooHigh)
+        );
     }
 
     #[test]
