@@ -105,6 +105,27 @@ impl core::marker::Unpin for papo::event::ConnectPhase
 impl core::marker::UnsafeUnpin for papo::event::ConnectPhase
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ConnectPhase
 impl core::panic::unwind_safe::UnwindSafe for papo::event::ConnectPhase
+#[non_exhaustive] pub enum papo::event::NoticeKind
+pub papo::event::NoticeKind::Action
+pub papo::event::NoticeKind::Text
+impl core::clone::Clone for papo::event::NoticeKind
+pub fn papo::event::NoticeKind::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::NoticeKind
+impl core::cmp::PartialEq for papo::event::NoticeKind
+pub fn papo::event::NoticeKind::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::NoticeKind
+pub fn papo::event::NoticeKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::event::NoticeKind
+pub fn papo::event::NoticeKind::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for papo::event::NoticeKind
+impl core::marker::StructuralPartialEq for papo::event::NoticeKind
+impl core::marker::Freeze for papo::event::NoticeKind
+impl core::marker::Send for papo::event::NoticeKind
+impl core::marker::Sync for papo::event::NoticeKind
+impl core::marker::Unpin for papo::event::NoticeKind
+impl core::marker::UnsafeUnpin for papo::event::NoticeKind
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::NoticeKind
+impl core::panic::unwind_safe::UnwindSafe for papo::event::NoticeKind
 #[non_exhaustive] pub enum papo::event::StandardReplyKind
 pub papo::event::StandardReplyKind::Fail
 pub papo::event::StandardReplyKind::Note

@@ -151,6 +151,16 @@ pub struct Ctcp {
     pub tags: Tags,
 }
 
+/// The semantic kind of an incoming user notice.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[non_exhaustive]
+pub enum NoticeKind {
+    /// A regular `NOTICE`.
+    Text,
+    /// A CTCP `ACTION` sent with `NOTICE`.
+    Action,
+}
+
 /// An incoming Client-to-Client Protocol query carried by `PRIVMSG`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
