@@ -1370,36 +1370,6 @@ impl core::marker::Unpin for papo::Fallback
 impl core::marker::UnsafeUnpin for papo::Fallback
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Fallback
 impl core::panic::unwind_safe::UnwindSafe for papo::Fallback
-#[non_exhaustive] pub enum papo::HistoryItem
-pub papo::HistoryItem::Joined(papo::event::Joined)
-pub papo::HistoryItem::Kicked(papo::event::Kicked)
-pub papo::HistoryItem::Message(papo::Message)
-pub papo::HistoryItem::ModeChanged(papo::event::ModeChanged)
-pub papo::HistoryItem::NickChanged(papo::event::NickChanged)
-#[non_exhaustive] pub papo::HistoryItem::Other
-pub papo::HistoryItem::Other::line: papo::Line
-pub papo::HistoryItem::Other::msgid: core::option::Option<papo::MessageId>
-pub papo::HistoryItem::Other::time: std::time::SystemTime
-pub papo::HistoryItem::Parted(papo::event::Parted)
-pub papo::HistoryItem::Quit(papo::event::Quit)
-pub papo::HistoryItem::Reacted(papo::event::Reacted)
-pub papo::HistoryItem::Redacted(papo::event::Redacted)
-pub papo::HistoryItem::TopicChanged(papo::event::TopicChanged)
-impl core::clone::Clone for papo::HistoryItem
-pub fn papo::HistoryItem::clone(&self) -> Self
-impl core::cmp::Eq for papo::HistoryItem
-impl core::cmp::PartialEq for papo::HistoryItem
-pub fn papo::HistoryItem::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::HistoryItem
-pub fn papo::HistoryItem::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::HistoryItem
-impl core::marker::Freeze for papo::HistoryItem
-impl core::marker::Send for papo::HistoryItem
-impl core::marker::Sync for papo::HistoryItem
-impl core::marker::Unpin for papo::HistoryItem
-impl core::marker::UnsafeUnpin for papo::HistoryItem
-impl core::panic::unwind_safe::RefUnwindSafe for papo::HistoryItem
-impl core::panic::unwind_safe::UnwindSafe for papo::HistoryItem
 #[non_exhaustive] pub enum papo::HistoryReason
 pub papo::HistoryReason::Catchup
 pub papo::HistoryReason::Replay
@@ -1807,7 +1777,7 @@ impl !core::panic::unwind_safe::UnwindSafe for papo::History
 #[non_exhaustive] pub struct papo::HistoryPage
 pub papo::HistoryPage::conversation: papo::Conversation
 pub papo::HistoryPage::end: bool
-pub papo::HistoryPage::items: alloc::vec::Vec<papo::HistoryItem>
+pub papo::HistoryPage::items: alloc::vec::Vec<papo::Event>
 pub papo::HistoryPage::reason: papo::HistoryReason
 impl papo::HistoryPage
 pub fn papo::HistoryPage::messages(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Message>
@@ -1824,8 +1794,8 @@ impl core::marker::Send for papo::HistoryPage
 impl core::marker::Sync for papo::HistoryPage
 impl core::marker::Unpin for papo::HistoryPage
 impl core::marker::UnsafeUnpin for papo::HistoryPage
-impl core::panic::unwind_safe::RefUnwindSafe for papo::HistoryPage
-impl core::panic::unwind_safe::UnwindSafe for papo::HistoryPage
+impl !core::panic::unwind_safe::RefUnwindSafe for papo::HistoryPage
+impl !core::panic::unwind_safe::UnwindSafe for papo::HistoryPage
 pub struct papo::HistoryReference(_)
 impl core::clone::Clone for papo::HistoryReference
 pub fn papo::HistoryReference::clone(&self) -> Self

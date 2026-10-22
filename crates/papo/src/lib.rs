@@ -191,8 +191,8 @@ pub use error::{
 pub use event_impl::{Authorship, Event, Message, MessageKind, Origin, Source, Tags};
 pub use ext::accounts::{AccountCreation, NewAccount};
 pub use ext::history::{
-    ConversationInput, History, HistoryItem, HistoryPage, HistoryReason, HistoryReference,
-    HistoryRequest, RecentConversation,
+    ConversationInput, History, HistoryPage, HistoryReason, HistoryReference, HistoryRequest,
+    RecentConversation,
 };
 pub use ext::metadata::Metadata;
 pub use ext::monitor::Monitor;

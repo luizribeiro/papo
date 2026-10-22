@@ -1285,6 +1285,7 @@ where
                             crate::rt::now_wall(),
                             crate::Origin::Replay,
                         )
+                        .into_event()
                     })
                     .collect();
                 let event = Event::History(Box::new(crate::HistoryPage {

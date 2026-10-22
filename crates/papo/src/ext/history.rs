@@ -5,7 +5,7 @@ use papo_proto::{ModeChanges, Reaction};
 use tokio::sync::oneshot;
 
 use crate::{
-    Client, Error, Line, Message as ChatMessage, Origin,
+    Client, Error, Event, Line, Message as ChatMessage, Origin,
     driver::Command,
     event::{
         Joined, Kicked, ModeChanged, NickChanged, Parted, Quit, Reacted, Redacted, TopicChanged,
@@ -16,7 +16,7 @@ use crate::{
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 #[allow(clippy::large_enum_variant)]
-pub enum HistoryItem {
+pub(crate) enum HistoryItem {
     /// A replayed `PRIVMSG` or `NOTICE`.
     Message(ChatMessage),
     /// A replayed reaction or unreaction.
@@ -50,6 +50,24 @@ pub enum HistoryItem {
         /// Valid server time, or the local receipt time when none was supplied.
         time: SystemTime,
     },
+}
+
+impl HistoryItem {
+    pub(crate) fn into_event(self) -> Event {
+        match self {
+            Self::Message(event) => Event::Message(Box::new(event)),
+            Self::Reacted(event) => Event::Reacted(event),
+            Self::Redacted(event) => Event::Redacted(event),
+            Self::Joined(event) => Event::Joined(event),
+            Self::Parted(event) => Event::Parted(event),
+            Self::Quit(event) => Event::Quit(event),
+            Self::Kicked(event) => Event::Kicked(event),
+            Self::NickChanged(event) => Event::NickChanged(event),
+            Self::TopicChanged(event) => Event::TopicChanged(event),
+            Self::ModeChanged(event) => Event::ModeChanged(event),
+            Self::Other { line, .. } => Event::Other(line),
+        }
+    }
 }
 
 fn other(line: Line, received_at: SystemTime) -> HistoryItem {
@@ -460,7 +478,7 @@ pub struct HistoryPage {
     /// Conversation whose history was requested.
     pub conversation: crate::Conversation,
     /// Replayed entries in server delivery order.
-    pub items: Vec<HistoryItem>,
+    pub items: Vec<Event>,
     /// Why this page was produced.
     pub reason: HistoryReason,
     /// Whether this page was empty or the server reported that no further page exists.
@@ -550,7 +568,7 @@ impl HistoryPage {
     /// Iterates over chat messages, excluding replayed activity items.
     pub fn messages(&self) -> impl Iterator<Item = &ChatMessage> {
         self.items.iter().filter_map(|item| match item {
-            HistoryItem::Message(message) => Some(message),
+            Event::Message(message) => Some(message.as_ref()),
             _ => None,
         })
     }
@@ -787,6 +805,7 @@ impl Client {
                     crate::rt::now_wall(),
                     Origin::History,
                 )
+                .into_event()
             })
             .collect();
         Ok(crate::HistoryPage {
@@ -1491,9 +1510,9 @@ mod tests {
         let page = within(request).await.unwrap().unwrap();
         assert!(page.end);
         assert_eq!(page.items.len(), 6);
-        assert!(matches!(page.items[1], PageEvent::Reacted(_)));
-        assert!(matches!(page.items[2], PageEvent::Joined(_)));
-        let PageEvent::ModeChanged(prefix_mode) = &page.items[3] else {
+        assert!(matches!(page.items[1], Event::Reacted(_)));
+        assert!(matches!(page.items[2], Event::Joined(_)));
+        let Event::ModeChanged(prefix_mode) = &page.items[3] else {
             panic!("expected replayed prefix mode")
         };
         assert!(matches!(
@@ -1505,7 +1524,7 @@ mod tests {
                 ..
             }] if nick == "alice"
         ));
-        let PageEvent::ModeChanged(list_mode) = &page.items[4] else {
+        let Event::ModeChanged(list_mode) = &page.items[4] else {
             panic!("expected replayed list mode")
         };
         assert!(matches!(
@@ -1517,8 +1536,7 @@ mod tests {
                 ..
             }] if mask == "*!*@spammer.example"
         ));
-        assert!(matches!(&page.items[5], PageEvent::Other { line, .. }
-            if line.command() == "TAGMSG"));
+        assert!(matches!(&page.items[5], Event::Other(line) if line.command() == "TAGMSG"));
         let message = page.messages().next().unwrap();
         assert_eq!(message.text, "earlier");
         assert_eq!(message.origin, Origin::History);
@@ -1526,12 +1544,11 @@ mod tests {
         let Some(Event::History(history)) = events.next().await else {
             panic!("expected replay batch event")
         };
-        assert!(matches!(history.items[1], PageEvent::Reacted(_)));
-        assert!(matches!(history.items[2], PageEvent::Joined(_)));
-        assert!(matches!(history.items[3], PageEvent::ModeChanged(_)));
-        assert!(matches!(history.items[4], PageEvent::ModeChanged(_)));
-        assert!(matches!(&history.items[5], PageEvent::Other { line, .. }
-            if line.command() == "TAGMSG"));
+        assert!(matches!(history.items[1], Event::Reacted(_)));
+        assert!(matches!(history.items[2], Event::Joined(_)));
+        assert!(matches!(history.items[3], Event::ModeChanged(_)));
+        assert!(matches!(history.items[4], Event::ModeChanged(_)));
+        assert!(matches!(&history.items[5], Event::Other(line) if line.command() == "TAGMSG"));
         assert_eq!(history.messages().next().unwrap().origin, Origin::Replay);
         abort_task(task).await;
     }

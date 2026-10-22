@@ -100,6 +100,7 @@ pub(super) fn advance_catchup(
                 crate::rt::now_wall(),
                 crate::Origin::History,
             )
+            .into_event()
         })
         .collect();
     Some(Event::History(Box::new(crate::HistoryPage {

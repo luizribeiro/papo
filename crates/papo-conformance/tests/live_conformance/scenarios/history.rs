@@ -1,6 +1,6 @@
 use std::time::{Duration, SystemTime};
 
-use papo::{Error, Event, HistoryItem, MessageKind, Origin, Sent};
+use papo::{Error, Event, MessageKind, Origin, Sent};
 use papo_conformance_macros::scenario;
 
 use crate::scenarios::support::conversation_name;
@@ -328,7 +328,7 @@ async fn event_playback(s: Scenario) -> papo_testing::Result<()> {
         .items
         .iter()
         .find_map(|item| match item {
-            HistoryItem::TopicChanged(topic) => Some(topic),
+            Event::TopicChanged(topic) => Some(topic),
             _ => None,
         })
         .expect("history contains the topic change");
