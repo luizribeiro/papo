@@ -1,4 +1,6 @@
-use papo_core::{NetworkConfig, NetworkId, PersistenceSetting, RequestError, RequestId, Session};
+use papo_core::{
+    NetworkConfig, NetworkId, PersistenceSetting, RequestError, RequestId, Secret, Session,
+};
 
 use super::{CoreRequest, now};
 
@@ -9,6 +11,17 @@ pub(crate) enum UnstableRequest {
     BouncerAdd(NetworkConfig),
     BouncerChange(NetworkId, NetworkConfig),
     BouncerRemove(NetworkId),
+    Relay {
+        channel: String,
+        nick: String,
+        text: String,
+    },
+    WebPushRegister {
+        endpoint: String,
+        p256dh: String,
+        auth: Secret,
+    },
+    WebPushUnregister(String),
 }
 
 impl UnstableRequest {
@@ -23,6 +36,22 @@ impl UnstableRequest {
                 return session.bouncer_change(now(), &id, &config);
             }
             Self::BouncerRemove(id) => return session.bouncer_remove(now(), &id),
+            Self::Relay {
+                channel,
+                nick,
+                text,
+            } => return session.relay(now(), &channel, &nick, &text),
+            Self::WebPushRegister {
+                endpoint,
+                p256dh,
+                auth,
+            } => {
+                let auth = auth.expose().ok_or(RequestError::InvalidSecret)?;
+                return session.webpush_register(now(), &endpoint, &p256dh, auth);
+            }
+            Self::WebPushUnregister(endpoint) => {
+                return session.webpush_unregister(now(), &endpoint);
+            }
         }
         Ok(before)
     }

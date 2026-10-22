@@ -1,6 +1,6 @@
 use papo_core::Response;
 
-use crate::{Client, Error, driver::CoreRequest};
+use crate::{Client, Error, driver::unstable::UnstableRequest};
 
 /// Handle for Web Push subscription requests.
 pub struct WebPush {
@@ -64,7 +64,7 @@ impl WebPush {
         let endpoint = endpoint.into();
         crate::RequestFuture::new(async move {
             let response = client
-                .core_request(CoreRequest::WebPushRegister {
+                .core_request(UnstableRequest::WebPushRegister {
                     endpoint,
                     p256dh: keys.p256dh,
                     auth: keys.auth,
@@ -89,7 +89,7 @@ impl WebPush {
         let endpoint = endpoint.into();
         crate::RequestFuture::new(async move {
             let response = client
-                .core_request(CoreRequest::WebPushUnregister(endpoint))
+                .core_request(UnstableRequest::WebPushUnregister(endpoint))
                 .await?;
             webpush_result(&response)
         })

@@ -1,3 +1,5 @@
+#[cfg(feature = "unstable")]
+use crate::driver::unstable::UnstableRequest;
 use crate::{Client, driver::CoreRequest};
 
 impl Client {
@@ -67,7 +69,7 @@ impl Client {
                 .and_then(|()| nick.check(state.isupport().inner()))
                 .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
             let response = client
-                .core_request(CoreRequest::Relay {
+                .core_request(UnstableRequest::Relay {
                     channel: channel.into_string(),
                     nick: nick.into_string(),
                     text,

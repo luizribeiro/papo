@@ -90,20 +90,6 @@ pub(crate) enum CoreRequest {
         new: String,
         reason: String,
     },
-    #[cfg(feature = "unstable")]
-    Relay {
-        channel: String,
-        nick: String,
-        text: String,
-    },
-    #[cfg(feature = "unstable")]
-    WebPushRegister {
-        endpoint: String,
-        p256dh: String,
-        auth: papo_core::Secret,
-    },
-    #[cfg(feature = "unstable")]
-    WebPushUnregister(String),
 }
 
 impl CoreRequest {
@@ -122,25 +108,6 @@ impl CoreRequest {
             Self::Unstable(request) => return request.start(session),
             Self::Metadata(command) => return session.metadata(now(), command),
             Self::Rename { old, new, reason } => return session.rename(now(), &old, &new, &reason),
-            #[cfg(feature = "unstable")]
-            Self::Relay {
-                channel,
-                nick,
-                text,
-            } => return session.relay(now(), &channel, &nick, &text),
-            #[cfg(feature = "unstable")]
-            Self::WebPushRegister {
-                endpoint,
-                p256dh,
-                auth,
-            } => {
-                let auth = auth.expose().ok_or(RequestError::InvalidSecret)?;
-                return session.webpush_register(now(), &endpoint, &p256dh, auth);
-            }
-            #[cfg(feature = "unstable")]
-            Self::WebPushUnregister(endpoint) => {
-                return session.webpush_unregister(now(), &endpoint);
-            }
         }
         Ok(before)
     }
