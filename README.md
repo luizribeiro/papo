@@ -45,7 +45,8 @@ Apps with another trusted transport layer must use `Builder::allow_insecure_auth
 papo answers private, live CTCP `PING` and `VERSION` queries by default; the VERSION text is
 `papo <version>`. Use `CtcpReplies::default().ping(false)`, `.version(Some("my-app 2.3"))`, or
 `.version(None)` to change either reply, and `CtcpReplies::off()` to answer nothing automatically.
-Other queries are emitted as `Event::CtcpQuery` and can be answered with `Client::ctcp_reply`. Replayed,
+Other queries are emitted as `Event::CtcpQuery` and can be answered with `Client::ctcp_reply`.
+Replies arrive separately as `Event::CtcpReply`, so they cannot be passed to `ctcp_reply`. Replayed,
 channel-targeted, and own-session queries are never answered automatically.
 
 ## Capability implementation map

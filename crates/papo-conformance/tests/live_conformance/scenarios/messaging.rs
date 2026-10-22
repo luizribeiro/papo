@@ -2,7 +2,7 @@ use papo::{Error, Event, Fallback, Feature, MessageKind, Refusal, UnsupportedRea
 use papo_conformance_macros::scenario;
 use papo_proto::Typing;
 
-use super::support::{conversation_name, message_text, notice_text};
+use super::support::{conversation_is_private, conversation_name, message_text, notice_text};
 use crate::{Peer, Scenario};
 
 async fn fixture_pair(context: &Scenario) -> papo_testing::Result<(Peer, Peer, String)> {
@@ -36,7 +36,7 @@ async fn fixture_pair_with(
 }
 
 fn is_private(message: &papo::Message) -> bool {
-    matches!(message.conversation, papo::Conversation::Private(_))
+    conversation_is_private(&message.conversation)
 }
 
 /// a channel PRIVMSG confirms through its future and reaches one recipient

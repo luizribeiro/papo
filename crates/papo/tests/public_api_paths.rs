@@ -80,10 +80,6 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
         ConversationClass::History,
     ),
     (
-        "pub papo::Message::conversation: papo::Conversation",
-        ConversationClass::Event,
-    ),
-    (
         "impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(&papo::Conversation, I)> for papo::MessageRef",
         ConversationClass::MessageReference,
     ),

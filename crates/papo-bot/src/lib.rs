@@ -51,7 +51,7 @@ use std::{
 use web_time::Instant;
 
 use papo::{
-    AccountName, ChannelName, Client, Conversation, InvalidRateLimit, Message as ChatMessage,
+    AccountName, ChannelName, Chat, Client, Conversation, InvalidRateLimit, Message as ChatMessage,
     MessageKind, Source,
 };
 
@@ -303,7 +303,7 @@ impl Command {
     #[must_use]
     pub const fn channel(&self) -> Option<&ChannelName> {
         match &self.message.conversation {
-            Conversation::Channel(channel) => Some(channel),
+            Chat::Channel(channel) => Some(channel),
             _ => None,
         }
     }
@@ -319,7 +319,7 @@ impl Command {
     /// [`papo::Refusal::NoSuchChannel`], [`papo::Refusal::InputTooLong`],
     /// [`papo::Refusal::TryAgain`], or [`papo::Refusal::Other`].
     pub async fn reply(&self, text: impl Into<String>) -> Result<ReplyStatus, papo::Error> {
-        if let Conversation::Private(target) = &self.message.conversation
+        if let Chat::Private(target) = &self.message.conversation
             && self.recipient_changed(target)
         {
             return Ok(ReplyStatus::RecipientChanged);
@@ -359,8 +359,8 @@ impl Command {
             request = request.reply_to(id.clone());
         }
         let context = match &self.message.conversation {
-            Conversation::Private(_) => self.message.channel_context.as_deref(),
-            Conversation::Channel(channel) => Some(channel.as_ref()),
+            Chat::Private(_) => self.message.channel_context.as_deref(),
+            Chat::Channel(channel) => Some(channel.as_ref()),
             _ => None,
         };
         if let Some(context) = context {

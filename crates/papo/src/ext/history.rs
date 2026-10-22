@@ -922,7 +922,7 @@ mod tests {
         )
         .unwrap();
         let page = HistoryPage {
-            conversation: event.conversation.clone(),
+            conversation: (&event.conversation).into(),
             items: vec![Event::Message(Box::new(event))],
             reason: HistoryReason::Requested,
             end: false,
@@ -945,7 +945,7 @@ mod tests {
         .unwrap();
 
         let page = HistoryPage {
-            conversation: event.conversation.clone(),
+            conversation: (&event.conversation).into(),
             items: vec![Event::Message(Box::new(event))],
             reason: HistoryReason::Requested,
             end: false,
@@ -967,7 +967,7 @@ mod tests {
         )
         .unwrap();
         let page = HistoryPage {
-            conversation: event.conversation.clone(),
+            conversation: (&event.conversation).into(),
             items: vec![Event::Message(Box::new(event))],
             reason: HistoryReason::Replay,
             end: false,
@@ -1062,7 +1062,7 @@ mod tests {
         assert_eq!(message.msgid, None);
         assert_eq!(message.server_time, Some(server_time));
         let page = HistoryPage {
-            conversation: message.conversation.clone(),
+            conversation: (&message.conversation).into(),
             items: vec![Event::Message(message)],
             reason: HistoryReason::Requested,
             end: false,
@@ -1566,7 +1566,7 @@ mod tests {
         let message = page.messages().next().unwrap();
         assert!(matches!(
             message.conversation,
-            crate::Conversation::Private(ref nick) if nick == "alice"
+            crate::Chat::Private(ref nick) if nick == "alice"
         ));
         assert_eq!(message.return_address(), "alice");
         let reaction = tokio::spawn({

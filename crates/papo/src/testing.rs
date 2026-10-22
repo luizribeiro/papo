@@ -6,8 +6,7 @@ use papo_core::{Config, Session};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::{
-    Authorship, Capabilities, ChannelName, Conversation, Message, MessageKind, Nick, Source, State,
-    Tags,
+    Authorship, Capabilities, ChannelName, Message, MessageKind, Nick, Source, State, Tags,
     event::{AwayChanged, Connected, Joined},
 };
 
@@ -90,9 +89,9 @@ pub fn message(
             Some(nick) => AsRef::<str>::as_ref(nick),
             None => &target,
         };
-        Conversation::Private(crate::Casemapping::default().nick(other))
+        crate::Chat::Private(crate::Casemapping::default().nick(other))
     } else {
-        Conversation::Channel(crate::Casemapping::default().channel(&target))
+        crate::Chat::Channel(crate::Casemapping::default().channel(&target))
     };
     Message {
         actor: actor.unwrap_or_else(|| {

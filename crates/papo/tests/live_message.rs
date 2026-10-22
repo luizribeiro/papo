@@ -42,10 +42,7 @@ async fn reply_between_two_clients_carries_the_original_msgid() {
             message.text == "!ping" && source_nick(message).as_deref() == Some(nick_a.as_str())
         })
         .await;
-        assert!(!matches!(
-            incoming.conversation,
-            papo::Conversation::Private(_)
-        ));
+        assert!(!matches!(incoming.conversation, papo::Chat::Private(_)));
         let ping_msgid = (*incoming.msgid.as_ref().expect("Ergo supplies msgid")).clone();
         client_b.reply(&incoming, "pong").await.unwrap();
 
@@ -112,7 +109,10 @@ async fn reactions_reach_another_client_with_reply_context() {
         let id = incoming.msgid.as_ref().unwrap();
         client_b.react(&incoming, "🎉").await.unwrap();
         let reaction = wait_reaction(&mut events_a).await;
-        assert_eq!(reaction.conversation, incoming.conversation);
+        assert_eq!(
+            reaction.conversation,
+            papo::Conversation::from(&incoming.conversation)
+        );
         assert_eq!(reaction.status, incoming.status);
         assert_eq!(&reaction.message, id);
 

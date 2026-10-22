@@ -554,7 +554,7 @@ impl Client {
         if let Some(id) = &message.msgid {
             request = request.reply_to(id);
         }
-        if matches!(message.conversation, crate::Conversation::Private(_))
+        if matches!(message.conversation, crate::Chat::Private(_))
             && let Some(context) = message.channel_context()
         {
             request = request.channel_context(self.state().casemapping().channel(context));

@@ -233,20 +233,20 @@ impl Authorship {
     }
 }
 
-/// An owned incoming `PRIVMSG` or `NOTICE`.
+/// An incoming `PRIVMSG` or CTCP `ACTION` in a channel or private conversation.
 ///
-/// Correlated copies of this client's sends are returned through [`crate::Sent`] and are not
-/// emitted as messages. Applications that log everything must therefore log their own sends from
-/// the send future's result.
+/// This type cannot represent notices or server broadcasts. [`Event::Message`] carries messages
+/// from other users, while [`Event::OwnMessage`] carries messages authored by this account on
+/// another connection.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Message {
-    /// The user or server that sent the message.
+    /// The user that sent the message.
     pub actor: Source,
     /// Whether the actor is this client's user.
     pub authorship: Authorship,
-    /// The IRC conversation to which the message belongs.
-    pub conversation: Conversation,
+    /// The chat conversation to which the message belongs.
+    pub conversation: Chat,
     /// `STATUSMSG` prefixes removed from the wire address, in wire order.
     pub status: Option<Vec<char>>,
     /// Display text with IRC formatting removed.
@@ -567,10 +567,13 @@ impl Message {
         ) else {
             return Err(raw);
         };
+        let Some(conversation) = Chat::from_conversation(metadata.conversation) else {
+            return Err(raw);
+        };
         Ok(Self {
             actor: metadata.actor,
             authorship: metadata.authorship,
-            conversation: metadata.conversation,
+            conversation,
             status: metadata.status,
             text,
             raw_text,
@@ -605,20 +608,14 @@ impl Message {
     #[must_use]
     pub fn return_address(&self) -> String {
         match &self.conversation {
-            Conversation::Channel(channel) => self
+            Chat::Channel(channel) => self
                 .status
                 .iter()
                 .flatten()
                 .copied()
                 .chain(channel.chars())
                 .collect(),
-            Conversation::Private(nick) => nick.to_string(),
-            Conversation::Broadcast(_) => self
-                .actor
-                .nick()
-                .map_or_else(|| "*".to_owned(), ToString::to_string),
-            Conversation::Server => self.actor.to_string(),
-            _ => "*".to_owned(),
+            Chat::Private(nick) => nick.to_string(),
         }
     }
 
@@ -2103,8 +2100,8 @@ mod tests {
             "papo",
             UNIX_EPOCH,
         );
-        assert!(!matches!(channel.conversation, Conversation::Private(_)));
-        assert!(matches!(&channel.conversation, Conversation::Channel(name) if name == "#papo"));
+        assert!(!matches!(channel.conversation, Chat::Private(_)));
+        assert!(matches!(&channel.conversation, Chat::Channel(name) if name == "#papo"));
         assert_eq!(channel.return_address(), "#papo");
         assert_eq!(
             channel.actor,
@@ -2120,8 +2117,8 @@ mod tests {
             "papo",
             UNIX_EPOCH,
         );
-        assert!(matches!(private.conversation, Conversation::Private(_)));
-        assert!(matches!(&private.conversation, Conversation::Private(nick) if nick == "emily"));
+        assert!(matches!(private.conversation, Chat::Private(_)));
+        assert!(matches!(&private.conversation, Chat::Private(nick) if nick == "emily"));
         assert_eq!(private.return_address(), "emily");
 
         let server = parse_event(
@@ -2179,9 +2176,9 @@ mod tests {
         );
 
         assert_eq!(message.status.as_deref(), Some(['@'].as_slice()));
-        assert!(matches!(&message.conversation, Conversation::Channel(name) if name == "#ops"));
+        assert!(matches!(&message.conversation, Chat::Channel(name) if name == "#ops"));
         assert_eq!(message.return_address(), "@#ops");
-        assert!(!matches!(message.conversation, Conversation::Private(_)));
+        assert!(!matches!(message.conversation, Chat::Private(_)));
         assert_eq!(message.tags.get("bot"), Some(""));
     }
 
@@ -2205,7 +2202,7 @@ mod tests {
             tagged.server_time,
             Some(UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000))
         );
-        assert!(matches!(&tagged.conversation, Conversation::Channel(name) if name == "#papo"));
+        assert!(matches!(&tagged.conversation, Chat::Channel(name) if name == "#papo"));
         assert_eq!(tagged.msgid.as_deref(), Some("RfcBTzyxY120004"));
         assert_eq!(tagged.account.as_deref(), Some("emily"));
         assert!(tagged.is_bot);
@@ -2869,7 +2866,7 @@ mod tests {
             .unwrap();
             assert!(matches!(
                 message.conversation,
-                Conversation::Private(ref nick) if nick == "alice"
+                Chat::Private(ref nick) if nick == "alice"
             ));
         }
     }

@@ -30,8 +30,8 @@ impl MessageBuilder {
         host: Option<String>,
     ) -> Self {
         let nick = nick.into();
-        if matches!(self.message.conversation, papo::Conversation::Private(_)) {
-            self.message.conversation = papo::Conversation::Private(nick.clone());
+        if matches!(self.message.conversation, papo::Chat::Private(_)) {
+            self.message.conversation = papo::Chat::Private(nick.clone());
         }
         self.message.actor = papo::__testing::user_source(nick, username, host);
         self

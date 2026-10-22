@@ -2229,7 +2229,7 @@ pub papo::Message::account: core::option::Option<papo::AccountName>
 pub papo::Message::actor: papo::Source
 pub papo::Message::authorship: papo::Authorship
 pub papo::Message::channel_context: core::option::Option<papo::ChannelName>
-pub papo::Message::conversation: papo::Conversation
+pub papo::Message::conversation: papo::Chat
 pub papo::Message::is_bot: bool
 pub papo::Message::kind: papo::MessageKind
 pub papo::Message::msgid: core::option::Option<papo::MessageId>

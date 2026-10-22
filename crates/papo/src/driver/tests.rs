@@ -321,13 +321,8 @@ async fn message_fields_use_captured_session_facts() {
     assert_eq!(message.kind, MessageKind::Text);
     assert_eq!(message.text, "hello from Ergo");
     assert_eq!(message.raw_text, "hello \x02from Ergo\x02");
-    assert!(
-        matches!(&message.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
-    );
-    assert!(!matches!(
-        message.conversation,
-        crate::Conversation::Private(_)
-    ));
+    assert!(matches!(&message.conversation, crate::Chat::Channel(channel) if channel == "#papo"));
+    assert!(!matches!(message.conversation, crate::Chat::Private(_)));
     assert_eq!(message.return_address(), "#papo");
     assert_eq!(message.msgid.as_deref(), Some("RfcBTzyxY120004"));
     assert_eq!(message.account.as_deref(), Some("emily"));
@@ -428,7 +423,7 @@ async fn multiline_messages_keep_addressing_across_a_nick_change() {
     let private = next_message(&mut events).await;
     assert!(matches!(
         private.conversation,
-        crate::Conversation::Private(ref nick) if nick == "bob"
+        crate::Chat::Private(ref nick) if nick == "bob"
     ));
     assert_eq!(private.return_address(), "bob");
     within(client.reply(&private, "sent securely"))
