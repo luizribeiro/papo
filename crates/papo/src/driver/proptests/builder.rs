@@ -16,7 +16,7 @@ async fn check_builder(configure: impl FnOnce(crate::Builder) -> crate::Builder)
     let (client, events, driver) = configure(crate::Client::builder(
         crate::Endpoint::plaintext("127.0.0.1", 6667).unwrap(),
     ))
-    .stream(crate::io_compat::TokioIo(stream))
+    .stream(crate::driver::test_support::TokioIo(stream))
     .build();
     tokio::pin!(driver);
     let result = tokio::select! {

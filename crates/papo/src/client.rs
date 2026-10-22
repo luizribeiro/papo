@@ -18,11 +18,6 @@ use crate::{
     state::State,
 };
 
-#[cfg(all(test, not(browser)))]
-use crate::driver::channels;
-#[cfg(all(test, not(browser)))]
-use papo_core::Session;
-
 static NEXT_PING: AtomicU64 = AtomicU64::new(0);
 
 /// A cheap, cloneable handle to a running IRC client.
@@ -284,11 +279,6 @@ impl Sent {
 }
 
 impl Client {
-    #[cfg(all(test, not(browser)))]
-    pub(crate) fn disconnected_for_test() -> Self {
-        channels(1, &Session::new(papo_core::Config::default())).client
-    }
-
     /// Starts configuring a client for `endpoint`.
     ///
     /// Strings accept hostnames and `irc://`, `ircs://`, `ws://`, and `wss://` URLs.

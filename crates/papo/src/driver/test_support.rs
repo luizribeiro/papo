@@ -31,6 +31,47 @@ macro_rules! disconnected {
 
 pub(crate) const TEST_DEADLINE: Duration = Duration::from_secs(5);
 
+impl crate::Client {
+    pub(crate) fn disconnected_for_test() -> Self {
+        super::channels(1, &Session::new(Config::default())).client
+    }
+}
+
+pub(crate) struct TokioIo<T>(pub(crate) T);
+
+impl<T: AsyncRead + Unpin> futures_io::AsyncRead for TokioIo<T> {
+    fn poll_read(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffer: &mut [u8],
+    ) -> Poll<io::Result<usize>> {
+        let mut read = ReadBuf::new(buffer);
+        match Pin::new(&mut self.0).poll_read(context, &mut read) {
+            Poll::Ready(Ok(())) => Poll::Ready(Ok(read.filled().len())),
+            Poll::Ready(Err(error)) => Poll::Ready(Err(error)),
+            Poll::Pending => Poll::Pending,
+        }
+    }
+}
+
+impl<T: AsyncWrite + Unpin> futures_io::AsyncWrite for TokioIo<T> {
+    fn poll_write(
+        mut self: Pin<&mut Self>,
+        context: &mut Context<'_>,
+        buffer: &[u8],
+    ) -> Poll<io::Result<usize>> {
+        Pin::new(&mut self.0).poll_write(context, buffer)
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.0).poll_flush(context)
+    }
+
+    fn poll_close(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.0).poll_shutdown(context)
+    }
+}
+
 impl Driver {
     pub(super) fn with_stream<S>(
         stream: S,

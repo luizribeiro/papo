@@ -783,7 +783,7 @@ mod tests {
     }
 
     struct ObservedStream {
-        inner: crate::io_compat::TokioIo<tokio::io::DuplexStream>,
+        inner: crate::driver::test_support::TokioIo<tokio::io::DuplexStream>,
         lifecycle: Arc<AtomicUsize>,
     }
 
@@ -1352,7 +1352,7 @@ mod tests {
         drop(server);
         let error = within(
             Builder::new("irc://custom.example")
-                .stream(crate::io_compat::TokioIo(stream))
+                .stream(crate::driver::test_support::TokioIo(stream))
                 .connect(),
         )
         .await
@@ -1375,7 +1375,7 @@ mod tests {
             Builder::new("irc://custom.example")
                 .nick(crate::Casemapping::default().nick("papo-custom"))
                 .stream(ObservedStream {
-                    inner: crate::io_compat::TokioIo(stream),
+                    inner: crate::driver::test_support::TokioIo(stream),
                     lifecycle: Arc::clone(&lifecycle),
                 })
                 .connect(),
@@ -1424,7 +1424,7 @@ mod tests {
     async fn custom_stream_build_defers_address_errors() {
         let (stream, _server) = tokio::io::duplex(64);
         let (_client, mut events, driver) = Builder::new("irc://")
-            .stream(crate::io_compat::TokioIo(stream))
+            .stream(crate::driver::test_support::TokioIo(stream))
             .build();
         assert!(matches!(within(driver).await, Err(Error::InvalidInput(_))));
         assert!(events.next().await.is_none());
