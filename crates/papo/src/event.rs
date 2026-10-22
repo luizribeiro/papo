@@ -1058,7 +1058,10 @@ impl Event {
     #[must_use]
     pub fn msgid(&self) -> Option<MessageId> {
         match self {
-            Self::Message(event) => event.msgid.clone(),
+            Self::Message(event) | Self::OwnMessage(event) => event.msgid.clone(),
+            Self::Notice(event) => event.msgid.clone(),
+            Self::CtcpQuery(event) => event.msgid.clone(),
+            Self::CtcpReply(event) => event.msgid.clone(),
             Self::Ctcp(event) => event.msgid.clone(),
             Self::TagMsg(event) => event.tags.get("msgid").map(MessageId::from),
             Self::Reacted(event) => event.msgid.clone(),
@@ -1083,7 +1086,11 @@ impl Event {
                 .and_then(|value| time::parse(&value))
         };
         match self {
-            Self::Message(event) => event.server_time,
+            Self::Message(event) | Self::OwnMessage(event) => event.server_time,
+            Self::Notice(event) => event.server_time,
+            Self::ServerNotice(event) => event.server_time,
+            Self::CtcpQuery(event) => event.server_time,
+            Self::CtcpReply(event) => event.server_time,
             Self::Ctcp(event) => event.server_time,
             Self::TagMsg(event) => tagged_from_tags(&event.tags),
             Self::Reacted(event) => event.server_time,
@@ -1104,7 +1111,11 @@ impl Event {
     #[must_use]
     pub fn received_at(&self) -> Option<SystemTime> {
         match self {
-            Self::Message(event) => Some(event.received_at),
+            Self::Message(event) | Self::OwnMessage(event) => Some(event.received_at),
+            Self::Notice(event) => Some(event.received_at),
+            Self::ServerNotice(event) => Some(event.received_at),
+            Self::CtcpQuery(event) => Some(event.received_at),
+            Self::CtcpReply(event) => Some(event.received_at),
             Self::Ctcp(event) => Some(event.received_at),
             Self::Reacted(event) => Some(event.received_at),
             Self::Redacted(event) => Some(event.received_at),
