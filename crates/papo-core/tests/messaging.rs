@@ -164,7 +164,7 @@ fn leaves_actorless_activity_lines_untyped() {
 fn wire(session: &mut Session) -> Option<String> {
     session
         .poll_transmit()
-        .map(|line| String::from_utf8(line).unwrap())
+        .map(|line| String::from_utf8(line.to_vec()).unwrap())
 }
 
 fn connected_ctcp(replies: CtcpReplies) -> Transcript {

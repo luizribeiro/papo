@@ -1,7 +1,7 @@
 use std::collections::{BTreeSet, VecDeque};
 use web_time::Instant;
 
-use papo_proto::{LineRef, MAX_LINE_LEN};
+use papo_proto::{Line, LineRef, MAX_LINE_LEN};
 
 use crate::sts::{StsAction, StsDirective, decide};
 use crate::{
@@ -270,10 +270,10 @@ impl Caps {
 
     fn send_requests(&mut self, requests: Vec<Vec<String>>, outbox: &mut Outbox) {
         for request in requests {
-            let mut line = b"CAP REQ :".to_vec();
-            line.extend_from_slice(request.join(" ").as_bytes());
-            line.extend_from_slice(b"\r\n");
-            outbox.transmit_raw(line);
+            let line = Line::new("CAP").param("REQ").param(request.join(" "));
+            if let Ok(line) = line.encode() {
+                outbox.transmit_raw(line);
+            }
             self.pending.push_back(request);
         }
     }
@@ -291,7 +291,9 @@ impl Caps {
                 outbox.transmit_immediate("BOUNCER", ["BIND", id]);
             }
             outbox.connect_phase(ConnectPhase::WaitingForWelcome);
-            outbox.transmit_raw(b"CAP END\r\n".to_vec());
+            if let Ok(line) = Line::new("CAP").param("END").encode() {
+                outbox.transmit_raw(line);
+            }
             self.ended = true;
         }
     }

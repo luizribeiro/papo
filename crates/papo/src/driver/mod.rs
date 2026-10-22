@@ -1436,7 +1436,7 @@ where
             *pending = session.poll_transmit_tracked().map(|transmit| {
                 let (buffer, token) = transmit.into_parts();
                 PendingWrite {
-                    buffer,
+                    buffer: buffer.to_vec(),
                     offset: 0,
                     token,
                 }

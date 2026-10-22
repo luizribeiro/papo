@@ -162,8 +162,14 @@ fn unlabelled_mode_waits_for_its_matching_ping_fence() {
             ResponseMatcher::Mode("#papo".into()),
         )
         .unwrap();
-    assert_eq!(session.poll_transmit().unwrap(), b"MODE #papo +t\r\n");
-    assert_eq!(session.poll_transmit().unwrap(), b"PING :papo-mode-0\r\n");
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"MODE #papo +t\r\n"
+    );
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"PING papo-mode-0\r\n"
+    );
 
     session.handle_line(now, b":papo!papo@localhost MODE #papo +t");
     assert!(
@@ -200,10 +206,13 @@ fn unlabelled_mode_keeps_applied_changes_and_partial_refusals() {
         )
         .unwrap();
     assert_eq!(
-        session.poll_transmit().unwrap(),
+        session.poll_transmit().unwrap().as_ref(),
         b"MODE #papo +bb alice!*@* spambot!*@gateway.example\r\n"
     );
-    assert_eq!(session.poll_transmit().unwrap(), b"PING :papo-mode-0\r\n");
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"PING papo-mode-0\r\n"
+    );
 
     session.handle_line(now, b":papo!~papo@localhost MODE #papo +b alice!*@*");
     session.handle_line(
@@ -242,8 +251,14 @@ fn ban_confirmation_reaches_the_mode_fence_after_echo_or_duplicate() {
                 ResponseMatcher::Mode("#papo".into()),
             )
             .unwrap();
-        assert_eq!(session.poll_transmit().unwrap(), b"MODE #papo +b alice\r\n");
-        assert_eq!(session.poll_transmit().unwrap(), b"PING :papo-mode-0\r\n");
+        assert_eq!(
+            session.poll_transmit().unwrap().as_ref(),
+            b"MODE #papo +b alice\r\n"
+        );
+        assert_eq!(
+            session.poll_transmit().unwrap().as_ref(),
+            b"PING papo-mode-0\r\n"
+        );
 
         session.handle_line(now, confirmation.as_bytes());
         assert!(
@@ -1733,7 +1748,10 @@ fn request_deadline_starts_when_its_rate_limited_line_is_transmitted() {
     assert!(matches!(session.poll_event(), Some(Event::RequestTimedOut { id, .. }) if id == alice));
     assert_eq!(session.poll_event(), None);
     session.handle_timeout(now + std::time::Duration::from_secs(60));
-    assert_eq!(session.poll_transmit().unwrap(), b"@label=1 WHOIS bob\r\n");
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"@label=1 WHOIS bob\r\n"
+    );
     session.handle_timeout(now + std::time::Duration::from_secs(90));
     assert!(
         std::iter::from_fn(|| session.poll_event())
@@ -1763,14 +1781,17 @@ fn unlabelled_request_deadlines_start_one_transmission_at_a_time() {
         )
         .unwrap();
 
-    assert_eq!(session.poll_transmit().unwrap(), b"WHOIS alice\r\n");
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"WHOIS alice\r\n"
+    );
     assert_eq!(session.poll_transmit(), None);
     session.handle_timeout(now + std::time::Duration::from_secs(30));
     assert!(matches!(session.poll_event(), Some(Event::RequestTimedOut { id, .. }) if id == alice));
     assert_eq!(session.poll_event(), None);
 
     session.handle_timeout(now + std::time::Duration::from_secs(60));
-    assert_eq!(session.poll_transmit().unwrap(), b"WHOIS bob\r\n");
+    assert_eq!(session.poll_transmit().unwrap().as_ref(), b"WHOIS bob\r\n");
     session.handle_timeout(now + std::time::Duration::from_secs(90));
     assert!(matches!(session.poll_event(), Some(Event::RequestTimedOut { id, .. }) if id == bob));
 }
@@ -2244,7 +2265,7 @@ fn abort_reports_when_a_labelled_privmsg_reached_the_transport() {
         .unwrap();
 
     assert_eq!(
-        session.poll_transmit().unwrap(),
+        session.poll_transmit().unwrap().as_ref(),
         b"@label=0 PRIVMSG #papo :deploy complete\r\n"
     );
     session.handle_disconnected(now);
@@ -2372,7 +2393,7 @@ fn labelled_join_fallbacks_obey_the_literal_pending_limit() {
         session
             .request_with_matcher(now, Line::join(&channel), ResponseMatcher::Join(channel))
             .unwrap();
-        let line = String::from_utf8(session.poll_transmit().unwrap()).unwrap();
+        let line = String::from_utf8(session.poll_transmit().unwrap().to_vec()).unwrap();
         let label = LineRef::parse(&line)
             .unwrap()
             .tag("label")
@@ -2408,7 +2429,7 @@ fn generates_one_thousand_distinct_short_alphanumeric_labels() {
         session
             .request(now, Line::new("WHOIS").with_params([format!("user{nick}")]))
             .unwrap();
-        let line = String::from_utf8(session.poll_transmit().unwrap()).unwrap();
+        let line = String::from_utf8(session.poll_transmit().unwrap().to_vec()).unwrap();
         let message = LineRef::parse(&line).unwrap();
         let label = message.tag("label").unwrap().into_owned();
         assert!(label.len() <= 64);

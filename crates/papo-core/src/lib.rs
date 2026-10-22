@@ -94,7 +94,7 @@ mod welcome;
 #[cfg(feature = "unstable")]
 include!("unstable/persistence_types.rs");
 
-pub use papo_proto::Secret;
+pub use papo_proto::{Secret, WireLine};
 pub use source::Source;
 
 use std::{
@@ -175,7 +175,7 @@ pub struct TransmitToken(u64);
 #[doc(hidden)]
 #[derive(Clone, Eq, PartialEq)]
 pub struct Transmit {
-    line: Vec<u8>,
+    line: WireLine,
     token: Option<TransmitToken>,
 }
 
@@ -183,7 +183,7 @@ impl std::fmt::Debug for Transmit {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
             .debug_struct("Transmit")
-            .field("line_len", &self.line.len())
+            .field("line", &self.line)
             .field("token", &self.token)
             .finish()
     }
@@ -192,7 +192,7 @@ impl std::fmt::Debug for Transmit {
 impl Transmit {
     /// Consumes the transmission into its wire line and completion identifier.
     #[must_use]
-    pub fn into_parts(self) -> (Vec<u8>, Option<TransmitToken>) {
+    pub fn into_parts(self) -> (WireLine, Option<TransmitToken>) {
         (self.line, self.token)
     }
 }
@@ -2605,7 +2605,7 @@ struct Outbox {
 enum Transmission {
     Line(QueuedLine),
     Batch {
-        lines: VecDeque<Vec<u8>>,
+        lines: VecDeque<WireLine>,
         started: bool,
         token: Option<TransmitToken>,
         request: Option<RequestId>,
@@ -2613,7 +2613,7 @@ enum Transmission {
 }
 
 struct QueuedLine {
-    line: Vec<u8>,
+    line: WireLine,
     token: Option<TransmitToken>,
     request: Option<RequestId>,
 }
@@ -2661,17 +2661,17 @@ impl Transmission {
 }
 
 impl Outbox {
-    fn transmit_raw(&mut self, line: Vec<u8>) {
+    fn transmit_raw(&mut self, line: WireLine) {
         self.transmit_tagged(line, None);
     }
 
-    fn transmit_tagged(&mut self, line: Vec<u8>, token: Option<TransmitToken>) {
+    fn transmit_tagged(&mut self, line: WireLine, token: Option<TransmitToken>) {
         self.transmit_tracked(line, token, None);
     }
 
     fn transmit_tracked(
         &mut self,
-        line: Vec<u8>,
+        line: WireLine,
         token: Option<TransmitToken>,
         request: Option<RequestId>,
     ) {
@@ -2695,7 +2695,7 @@ impl Outbox {
 
     fn transmit_tracked_batch(
         &mut self,
-        lines: Vec<Vec<u8>>,
+        lines: Vec<WireLine>,
         token: Option<TransmitToken>,
         request: Option<RequestId>,
     ) {
@@ -2712,8 +2712,8 @@ impl Outbox {
     }
 
     fn transmit<const N: usize>(&mut self, command: &str, params: [&str; N]) {
-        match Line::new(command).with_params(params).to_line() {
-            Ok(line) => self.transmit_raw(line.into()),
+        match Line::new(command).with_params(params).encode() {
+            Ok(line) => self.transmit_raw(line),
             Err(error) => self.close(
                 CloseKind::Other,
                 format!("invalid outbound message: {error}"),
@@ -2725,9 +2725,9 @@ impl Outbox {
         if self.close_requested {
             return;
         }
-        match Line::new(command).with_params(params).to_line() {
+        match Line::new(command).with_params(params).encode() {
             Ok(line) => self.immediate.push_back(QueuedLine {
-                line: line.into(),
+                line,
                 token: None,
                 request: None,
             }),
@@ -3123,11 +3123,11 @@ impl Session {
         message: Line,
     ) -> Result<TransmitToken, BuildError> {
         self.rate_limit.advance(now);
-        let line = message.to_line()?;
+        let line = message.encode()?;
         drop(message);
         let token = TransmitToken(self.next_transmit_token);
         self.next_transmit_token = self.next_transmit_token.wrapping_add(1);
-        self.outbox.transmit_tagged(line.into(), Some(token));
+        self.outbox.transmit_tagged(line, Some(token));
         Ok(token)
     }
 
@@ -3253,7 +3253,7 @@ impl Session {
                     open = open.with_tag("label", &label);
                     labels.push(label);
                 }
-                lines.push(open.to_line()?.into_bytes());
+                lines.push(open.encode()?);
                 for (offset, segment) in segments[start..end].iter().enumerate() {
                     let mut inner = Line::new(kind.command())
                         .with_params([target, segment.text])
@@ -3261,14 +3261,9 @@ impl Session {
                     if offset > 0 && segments[offset + start - 1].concat {
                         inner = inner.with_tag("draft/multiline-concat", "");
                     }
-                    lines.push(inner.to_line()?.into_bytes());
+                    lines.push(inner.encode()?);
                 }
-                lines.push(
-                    Line::new("BATCH")
-                        .param(format!("-{id}"))
-                        .to_line()?
-                        .into_bytes(),
-                );
+                lines.push(Line::new("BATCH").param(format!("-{id}")).encode()?);
                 start = end;
                 batch_count += 1;
             }
@@ -3284,7 +3279,7 @@ impl Session {
                     message = message.with_tag("label", &label);
                     labels.push(label);
                 }
-                lines.push(message.to_line()?.into_bytes());
+                lines.push(message.encode()?);
             }
         }
         if self.requests.len().saturating_add(labels.len()) > MAX_PENDING_REQUESTS {
@@ -3306,7 +3301,7 @@ impl Session {
 
     fn queue_text_lines(
         &mut self,
-        lines: Vec<Vec<u8>>,
+        lines: Vec<WireLine>,
         batched: bool,
         tracked: bool,
         request: Option<RequestId>,
@@ -3447,7 +3442,7 @@ impl Session {
         if self.unlabelled_requests.len() >= MAX_PENDING_REQUESTS {
             return Err(RequestError::PendingLimit);
         }
-        let line = message.to_line()?;
+        let line = message.encode()?;
         let id = RequestId(self.next_request_id);
         let fence = matches!(matcher, ResponseMatcher::Mode(_))
             .then(|| format!("papo-mode-{}", self.next_request_id));
@@ -3463,11 +3458,11 @@ impl Session {
             self.away_messages.insert(id, message);
         }
         if let Some(fence) = fence {
-            self.outbox.transmit_raw(line.into());
-            self.outbox
-                .transmit_tracked(format!("PING :{fence}\r\n").into_bytes(), None, Some(id));
+            self.outbox.transmit_raw(line);
+            let ping = Line::new("PING").param(fence).encode()?;
+            self.outbox.transmit_tracked(ping, None, Some(id));
         } else {
-            self.outbox.transmit_tracked(line.into(), None, Some(id));
+            self.outbox.transmit_tracked(line, None, Some(id));
         }
         if let Some(channel) = who_sweep {
             self.state.track_who(&channel);
@@ -3526,7 +3521,7 @@ impl Session {
     }
 
     /// Returns the next CRLF-terminated wire line to transmit.
-    pub fn poll_transmit(&mut self) -> Option<Vec<u8>> {
+    pub fn poll_transmit(&mut self) -> Option<WireLine> {
         self.poll_transmit_tracked()
             .map(|transmit| transmit.into_parts().0)
     }
@@ -4250,9 +4245,9 @@ impl Session {
         self.ctcp_sources.push_back((nick.to_owned(), now));
         let actor = Source::from_proto(source, self.isupport.value().casemapping());
         if let Some(reply) = __ctcp_reply(&actor, query.command, response.unwrap_or_default())
-            && let Ok(line) = reply.to_line()
+            && let Ok(line) = reply.encode()
         {
-            self.outbox.transmit_raw(line.into_bytes());
+            self.outbox.transmit_raw(line);
         }
         true
     }
@@ -4743,7 +4738,7 @@ fn text_label(prefix: Option<&str>, index: usize) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use papo_proto::{Casemapping, LineRef};
+    use papo_proto::{Casemapping, Line, LineRef};
 
     use super::{
         CloseKind, Config, Event, ListMode, Outbox, RequestId, ResponseMatcher, Session, State,
@@ -4855,7 +4850,14 @@ mod tests {
 
         outbox.close_requested = true;
         outbox.transmit_tracked_batch(
-            vec![b"BATCH +papo draft/multiline #papo\r\n".to_vec()],
+            vec![
+                Line::new("BATCH")
+                    .param("+papo")
+                    .param("draft/multiline")
+                    .param("#papo")
+                    .encode()
+                    .unwrap(),
+            ],
             None,
             None,
         );

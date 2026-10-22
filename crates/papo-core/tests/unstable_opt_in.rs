@@ -78,7 +78,7 @@ fn enabled_extensions_type_correlated_server_errors() {
         session.handle_connected(now);
         while session.poll_transmit().is_some() {}
         session.handle_line(now, format!("CAP * LS :{cap} labeled-response").as_bytes());
-        let requested = String::from_utf8(session.poll_transmit().unwrap()).unwrap();
+        let requested = String::from_utf8(session.poll_transmit().unwrap().to_vec()).unwrap();
         assert!(requested.contains(cap), "{requested}");
         while session.poll_transmit().is_some() {}
         session.handle_line(now, format!("CAP * ACK :{cap} labeled-response").as_bytes());

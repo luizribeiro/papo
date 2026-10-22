@@ -12,13 +12,13 @@ fn answers_pings_before_and_after_server_data() {
     Transcript::new(Config::default())
         .connect_default()
         .server(":ergo.test PING :before-registration")
-        .client("PONG :before-registration")
+        .client("PONG before-registration")
         .server(":ergo.test NOTICE tester :Connection established")
         .event(
             |event| matches!(event, Event::Line(message) if message.as_ref().command_is("NOTICE")),
         )
         .server("PING :after-data")
-        .client("PONG :after-data")
+        .client("PONG after-data")
         .no_client();
 }
 
@@ -87,14 +87,14 @@ fn pings_after_sixty_idle_seconds_and_measures_matching_pongs() {
         .advance(Duration::from_secs(59))
         .no_client()
         .advance(Duration::from_secs(1))
-        .client("PING :papo-0")
+        .client("PING papo-0")
         .server(":ergo.test PONG ergo.test :another-token")
         .inspect(|session| assert_eq!(session.lag(), None))
         .advance(Duration::from_millis(250))
         .server(":ergo.test PONG ergo.test :papo-0")
         .inspect(|session| assert_eq!(session.lag(), Some(Duration::from_millis(250))))
         .advance(Duration::from_secs(60))
-        .client("PING :papo-1");
+        .client("PING papo-1");
 }
 
 #[test]
@@ -103,7 +103,7 @@ fn closes_at_120_seconds_of_silence_but_any_pong_resets_the_timeout() {
     Transcript::new(config.clone())
         .connect_default()
         .advance(Duration::from_secs(60))
-        .client("PING :papo-0")
+        .client("PING papo-0")
         .advance(Duration::from_secs(59))
         .no_event()
         .advance(Duration::from_secs(1))
@@ -113,11 +113,11 @@ fn closes_at_120_seconds_of_silence_but_any_pong_resets_the_timeout() {
     Transcript::new(config)
         .connect_default()
         .advance(Duration::from_secs(60))
-        .client("PING :papo-0")
+        .client("PING papo-0")
         .advance(Duration::from_secs(59))
         .server(":ergo.test PONG ergo.test :papo-0")
         .inspect(|session| assert_eq!(session.lag(), Some(Duration::from_secs(59))))
         .advance(Duration::from_secs(60))
-        .client("PING :papo-1")
+        .client("PING papo-1")
         .no_event();
 }

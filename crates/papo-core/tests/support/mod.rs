@@ -168,7 +168,7 @@ impl Transcript {
     /// Asserts the next client line exactly, without its line ending.
     pub fn client(mut self, expected: &str) -> Self {
         let actual = self.session.poll_transmit().map(|line| {
-            String::from_utf8(line)
+            String::from_utf8(line.to_vec())
                 .expect("session transmits UTF-8 IRC messages")
                 .trim_end_matches(['\r', '\n'])
                 .to_owned()

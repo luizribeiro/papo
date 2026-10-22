@@ -155,7 +155,7 @@ fn receives_the_local_ergo_websocket_url() {
 }
 
 fn take_line(session: &mut Session) -> String {
-    String::from_utf8(session.poll_transmit().expect("client line is available"))
+    String::from_utf8(session.poll_transmit().expect("client line is available").to_vec())
         .unwrap()
         .trim_end()
         .to_owned()

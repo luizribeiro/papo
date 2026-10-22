@@ -1,6 +1,7 @@
 pub mod papo_core
 pub use papo_core::ModeAction
 pub use papo_core::Secret
+pub use papo_core::WireLine
 pub mod papo_core::cap
 pub enum papo_core::cap::Request
 pub papo_core::cap::Request::Automatic
@@ -2154,7 +2155,7 @@ pub fn papo_core::Session::nick(&self) -> &str
 pub fn papo_core::Session::poll_connect_phase(&mut self) -> core::option::Option<papo_core::ConnectPhase>
 pub fn papo_core::Session::poll_event(&mut self) -> core::option::Option<papo_core::Event>
 pub fn papo_core::Session::poll_timeout(&self) -> core::option::Option<std::time::Instant>
-pub fn papo_core::Session::poll_transmit(&mut self) -> core::option::Option<alloc::vec::Vec<u8>>
+pub fn papo_core::Session::poll_transmit(&mut self) -> core::option::Option<papo::WireLine>
 pub fn papo_core::Session::queued_len(&self) -> usize
 pub fn papo_core::Session::reauthenticate(&mut self, std::time::Instant)
 pub fn papo_core::Session::request(&mut self, std::time::Instant, papo::Line) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>

@@ -26,7 +26,7 @@ fn releases_five_lines_then_one_every_500_milliseconds() {
         .inspect(|session| assert_eq!(session.queued_len(), 3))
         .no_client()
         .server("PING :ergo.test-4917")
-        .client("PONG :ergo.test-4917")
+        .client("PONG ergo.test-4917")
         .deadline(Some(Duration::from_millis(500)))
         .advance(Duration::from_millis(499))
         .no_client()

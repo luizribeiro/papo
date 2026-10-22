@@ -118,7 +118,7 @@ fn reconnect_resets_partial_and_closed_framing_state() {
     }
     session.handle_bytes(now, b"PING :after-reconnect\r\n");
     assert_eq!(
-        session.poll_transmit(),
-        Some(b"PONG :after-reconnect\r\n".to_vec())
+        session.poll_transmit().as_deref(),
+        Some(b"PONG after-reconnect\r\n".as_slice())
     );
 }

@@ -256,7 +256,7 @@ mod tests {
             .await;
         _ = next_connected(&mut events).await;
         wire.server("PING :ergo.example/12345").await;
-        assert_eq!(wire.next_sent().await, "PONG :ergo.example/12345");
+        assert_eq!(wire.next_sent().await, "PONG ergo.example/12345");
     }
 
     #[tokio::test(start_paused = true)]

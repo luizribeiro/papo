@@ -521,10 +521,7 @@ async fn ctcp_soju_backlog(s: Scenario) -> papo_testing::Result<()> {
     bob.wait_for(Event::as_disconnected).await?;
 
     alice
-        .send_raw(papo::Line::new(
-            "PRIVMSG",
-            [bob_nick.as_ref(), "\u{1}VERSION\u{1}"],
-        ))
+        .send_raw(papo::Line::new("PRIVMSG").with_params([bob_nick.as_ref(), "\u{1}VERSION\u{1}"]))
         .await?;
     alice
         .expect_none(|event| {

@@ -86,8 +86,14 @@ fn sends_crlf_terminated_messages_in_order() {
         .unwrap();
     session.send(now, Line::join("#papo")).unwrap();
 
-    assert_eq!(session.poll_transmit(), Some(b"NICK tester\r\n".to_vec()));
-    assert_eq!(session.poll_transmit(), Some(b"JOIN #papo\r\n".to_vec()));
+    assert_eq!(
+        session.poll_transmit().as_deref(),
+        Some(b"NICK tester\r\n".as_slice())
+    );
+    assert_eq!(
+        session.poll_transmit().as_deref(),
+        Some(b"JOIN #papo\r\n".as_slice())
+    );
     assert_eq!(session.poll_transmit(), None);
     assert_eq!(session.poll_event(), None);
     assert_eq!(session.poll_timeout(), None);
@@ -113,7 +119,10 @@ fn rejects_an_invalid_message_before_queueing_a_valid_one() {
         Err(BuildError::InvalidCommand)
     );
     assert_eq!(session.send(now, Line::join("#papo")), Ok(()));
-    assert_eq!(session.poll_transmit(), Some(b"JOIN #papo\r\n".to_vec()));
+    assert_eq!(
+        session.poll_transmit().as_deref(),
+        Some(b"JOIN #papo\r\n".as_slice())
+    );
     assert_eq!(session.poll_transmit(), None);
 }
 
@@ -289,12 +298,12 @@ fn raw_requests_require_negotiated_labels() {
     let second = labelled.request(now, Line::privmsg("#papo", "hello"));
     assert_ne!(first, second);
     assert_eq!(
-        labelled.poll_transmit(),
-        Some(b"@label=0 WHOIS alice\r\n".to_vec())
+        labelled.poll_transmit().as_deref(),
+        Some(b"@label=0 WHOIS alice\r\n".as_slice())
     );
     assert_eq!(
-        labelled.poll_transmit(),
-        Some(b"@label=1 PRIVMSG #papo hello\r\n".to_vec())
+        labelled.poll_transmit().as_deref(),
+        Some(b"@label=1 PRIVMSG #papo hello\r\n".as_slice())
     );
 
     let mut unlabelled = Session::new(Config::default());

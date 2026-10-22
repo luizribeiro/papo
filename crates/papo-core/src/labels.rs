@@ -193,7 +193,7 @@ impl Session {
         if let Some(label) = &label {
             message = message.with_tag("label", label);
         }
-        let line = message.to_line()?;
+        let line = message.encode()?;
         self.next_request_id = self.next_request_id.wrapping_add(1);
         if let Some(label) = label {
             self.requests
@@ -201,7 +201,7 @@ impl Session {
         } else {
             self.outbox.event(Event::RequestUntracked { id });
         }
-        self.outbox.transmit_tracked(line.into(), None, Some(id));
+        self.outbox.transmit_tracked(line, None, Some(id));
         Ok(id)
     }
 }

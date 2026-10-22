@@ -1747,7 +1747,8 @@ mod tests {
         assert_eq!(tagged.received_at, received);
         assert_eq!(
             Event::Other(
-                Line::new("VENDOR", ["payload"])
+                Line::new("VENDOR")
+                    .param("payload")
                     .with_tag("msgid", "Other120004")
                     .with_tag("time", "2026-02-03T04:05:06.789Z")
             )

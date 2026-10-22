@@ -5001,7 +5001,7 @@ async fn typed_mode_refusals_reach_action_futures() {
         assert_action_refusal(
             &mut server,
             client.mode(target).add(mode).into_future(),
-            &format!("MODE {target} +{mode}\r\nPING :papo-mode-{id}\r\n"),
+            &format!("MODE {target} +{mode}\r\nPING papo-mode-{id}\r\n"),
             &format!("{incoming}\r\n:ergo.test PONG ergo.test :papo-mode-{id}\r\n"),
             numeric,
             refusal,
@@ -5107,7 +5107,7 @@ async fn mode_changes_report_an_applied_change_and_a_partial_refusal() {
     });
     client_line(
         &mut server,
-        b"MODE #papo +bb alice!*@* spambot!*@gateway.example\r\nPING :papo-mode-0\r\n",
+        b"MODE #papo +bb alice!*@* spambot!*@gateway.example\r\nPING papo-mode-0\r\n",
     )
     .await;
     server_line(
@@ -5216,7 +5216,7 @@ async fn mode_changes_require_an_own_matching_mode_echo() {
     });
     client_line(
         &mut server,
-        b"MODE #papo +b alice!*@*\r\nPING :papo-mode-0\r\n",
+        b"MODE #papo +b alice!*@*\r\nPING papo-mode-0\r\n",
     )
     .await;
     server_line(
@@ -5239,7 +5239,7 @@ async fn mode_changes_require_an_own_matching_mode_echo() {
     });
     client_line(
         &mut server,
-        b"MODE #papo +b alice!*@*\r\nPING :papo-mode-1\r\n",
+        b"MODE #papo +b alice!*@*\r\nPING papo-mode-1\r\n",
     )
     .await;
     server_line(
@@ -5280,7 +5280,7 @@ async fn unquiet_removes_a_solanum_quiet() {
     });
     client_line(
         &mut server,
-        b"MODE #papo -q *!*@gateway.example\r\nPING :papo-mode-0\r\n",
+        b"MODE #papo -q *!*@gateway.example\r\nPING papo-mode-0\r\n",
     )
     .await;
     server_line(
@@ -5313,7 +5313,7 @@ async fn an_unconfirmed_first_mode_chunk_returns_its_transport_error() {
     .await;
 
     let modes = tokio::spawn(async move { client.mode("#papo").add('m').await });
-    client_line(&mut server, b"MODE #papo +m\r\nPING :papo-mode-0\r\n").await;
+    client_line(&mut server, b"MODE #papo +m\r\nPING papo-mode-0\r\n").await;
     within(server.shutdown()).await.unwrap();
 
     let result = within(modes).await.unwrap();
@@ -5379,7 +5379,7 @@ async fn typed_requests_match_unlabelled_responses() {
         let client = client.clone();
         async move { client.mode("#papo").add('t').await }
     });
-    client_line(&mut server, b"MODE #papo +t\r\nPING :papo-mode-4\r\n").await;
+    client_line(&mut server, b"MODE #papo +t\r\nPING papo-mode-4\r\n").await;
     server_line(&mut server, b":ergo.test PONG ergo.test :papo-mode-4\r\n").await;
     within(mode).await.unwrap().unwrap();
 
@@ -5573,7 +5573,7 @@ async fn action_confirmation_is_enqueued_after_state_changes() {
         let client = client.clone();
         async move { client.mode("#papo").add('t').await }
     });
-    client_line(&mut server, b"MODE #papo +t\r\nPING :papo-mode-0\r\n").await;
+    client_line(&mut server, b"MODE #papo +t\r\nPING papo-mode-0\r\n").await;
     server_line(
         &mut server,
         b":papo-driver!papo@localhost MODE #papo +t\r\n:ergo.test PONG ergo.test :papo-mode-0\r\n",
@@ -7098,7 +7098,7 @@ async fn no_pending_work_disables_read_ahead() {
             .is_err()
     );
     assert!(matches!(events.next().await, Some(Event::Message(_))));
-    client_line(&mut server, b"PONG :read-ahead-blocked\r\n").await;
+    client_line(&mut server, b"PONG read-ahead-blocked\r\n").await;
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
@@ -7265,7 +7265,7 @@ async fn keepalive_expiry_while_events_are_stalled_is_a_slow_consumer() {
     }
 
     tokio::time::advance(Duration::from_secs(30)).await;
-    client_line(&mut server, b"PING :papo-0\r\n").await;
+    client_line(&mut server, b"PING papo-0\r\n").await;
     tokio::time::advance(Duration::from_secs(90)).await;
     assert!(matches!(
         within(driver).await.unwrap(),
@@ -7295,9 +7295,9 @@ async fn session_deadline_sends_keepalive_ping() {
     let task = tokio::spawn(driver);
     welcome_burst(&mut server).await;
     tokio::time::advance(Duration::from_secs(30)).await;
-    let mut ping = [0; 14];
+    let mut ping = [0; 13];
     within(server.read_exact(&mut ping)).await.unwrap();
-    assert_eq!(&ping, b"PING :papo-0\r\n");
+    assert_eq!(&ping, b"PING papo-0\r\n");
     tokio::time::advance(Duration::from_secs(90)).await;
     assert!(matches!(
         events.next().await,
@@ -7319,7 +7319,7 @@ async fn ping_timeout_after_welcome_retries_normally() {
     let driver = tokio::spawn(driver);
     complete_connect(&mut server, &mut events).await;
     tokio::time::advance(Duration::from_secs(30)).await;
-    client_line(&mut server, b"PING :papo-0\r\n").await;
+    client_line(&mut server, b"PING papo-0\r\n").await;
     tokio::time::advance(Duration::from_secs(90)).await;
     assert!(matches!(
         events.next().await,
@@ -7570,7 +7570,7 @@ async fn every_state_change_replaces_the_snapshot() {
         b":ergo.test 005 papo-reader NICKLEN=31 :are supported\r\nPING :snapshot\r\n",
     )
     .await;
-    client_line(&mut server, b"PONG :snapshot\r\n").await;
+    client_line(&mut server, b"PONG snapshot\r\n").await;
     previous = changed_snapshot(&client, &previous, "005");
     assert_eq!(previous.isupport().nicklen(), Some(31));
 

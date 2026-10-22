@@ -533,7 +533,7 @@ fn pending_cap_request_preserves_queued_registration() {
                 .unwrap();
         })
         .server("PING :ergo.test")
-        .client("PONG :ergo.test")
+        .client("PONG ergo.test")
         .server("CAP * ACK :draft/account-registration")
         .client("REGISTER * * password")
         .event(|event| matches!(event, Event::RequestUntracked { .. }));

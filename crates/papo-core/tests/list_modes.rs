@@ -296,7 +296,7 @@ fn solanum_label_on_a_row_does_not_replace_the_unlabelled_end_numeric() {
 
     let id = request(&mut session, now, ListMode::Ban);
     assert_eq!(
-        session.poll_transmit().unwrap(),
+        session.poll_transmit().unwrap().as_ref(),
         b"@label=0 MODE #papo b\r\n"
     );
     session.handle_line(
@@ -462,7 +462,7 @@ fn labelled_timeout_and_overflow_forget_the_list_and_its_label() {
 
     let id = request(&mut session, now, ListMode::Ban);
     assert_eq!(
-        session.poll_transmit().unwrap(),
+        session.poll_transmit().unwrap().as_ref(),
         b"@label=0 MODE #papo b\r\n"
     );
     session.handle_line(now, b":ergo.test 368 papo #papo :End of channel ban list");
@@ -478,7 +478,7 @@ fn labelled_timeout_and_overflow_forget_the_list_and_its_label() {
 
     let overflowed = request(&mut session, now, ListMode::Ban);
     assert_eq!(
-        session.poll_transmit().unwrap(),
+        session.poll_transmit().unwrap().as_ref(),
         b"@label=1 MODE #papo b\r\n"
     );
     for index in 0..=1000 {
@@ -498,14 +498,14 @@ fn labelled_timeout_and_overflow_forget_the_list_and_its_label() {
 
     let id = request(&mut session, now, ListMode::Ban);
     assert_eq!(
-        session.poll_transmit().unwrap(),
+        session.poll_transmit().unwrap().as_ref(),
         b"@label=2 MODE #papo b\r\n"
     );
     session.handle_line(now, b":ergo.test 368 papo #papo :End of channel ban list");
     _ = response(&mut session, id);
     let timed_out = request(&mut session, now, ListMode::Ban);
     assert_eq!(
-        session.poll_transmit().unwrap(),
+        session.poll_transmit().unwrap().as_ref(),
         b"@label=3 MODE #papo b\r\n"
     );
     session.handle_timeout(now + Duration::from_secs(2));

@@ -40,7 +40,7 @@ fn multiline_session_with_rate_limit(
 
 fn drain(session: &mut Session) -> Vec<String> {
     std::iter::from_fn(|| session.poll_transmit())
-        .map(|line| String::from_utf8(line).unwrap())
+        .map(|line| String::from_utf8(line.to_vec()).unwrap())
         .collect()
 }
 
@@ -65,11 +65,11 @@ fn splits_a_six_hundred_byte_privmsg_at_the_literal_budget() {
         Ok(None)
     );
     assert_eq!(
-        session.poll_transmit(),
+        session.poll_transmit().map(|line| line.to_vec()),
         Some(format!("PRIVMSG #papo {}\r\n", "a".repeat(420)).into_bytes())
     );
     assert_eq!(
-        session.poll_transmit(),
+        session.poll_transmit().map(|line| line.to_vec()),
         Some(format!("PRIVMSG #papo {}\r\n", "a".repeat(180)).into_bytes())
     );
     assert_eq!(session.poll_transmit(), None);
@@ -181,13 +181,16 @@ fn plain_split_text_allows_urgent_traffic_at_the_512_byte_boundary() {
         .unwrap();
     assert!(sent.split);
 
-    let first = String::from_utf8(session.poll_transmit().unwrap()).unwrap();
+    let first = String::from_utf8(session.poll_transmit().unwrap().to_vec()).unwrap();
     let visible = format!(":papo!papo@{} {first}", "h".repeat(63));
     assert_eq!(visible.len(), 512);
     session.handle_line(now, b"PING :urgent-check");
-    assert_eq!(session.poll_transmit().unwrap(), b"PONG :urgent-check\r\n");
     assert_eq!(
-        session.poll_transmit().unwrap(),
+        session.poll_transmit().unwrap().as_ref(),
+        b"PONG urgent-check\r\n"
+    );
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
         b"PRIVMSG #papo :deployment complete\r\n"
     );
 }
@@ -256,8 +259,8 @@ fn repeats_client_tags_except_context_on_fallback_lines() {
     session
         .send_text(now, TextKind::Notice, "#papo", &"a".repeat(600), &tags)
         .unwrap();
-    let first = String::from_utf8(session.poll_transmit().unwrap()).unwrap();
-    let second = String::from_utf8(session.poll_transmit().unwrap()).unwrap();
+    let first = String::from_utf8(session.poll_transmit().unwrap().to_vec()).unwrap();
+    let second = String::from_utf8(session.poll_transmit().unwrap().to_vec()).unwrap();
     assert!(first.starts_with("@+reply=RKi9Cw;+example.com/device=web NOTICE"));
     assert!(second.starts_with("@+example.com/device=web NOTICE"));
     assert!(!second.contains("+reply"));
@@ -604,14 +607,20 @@ fn every_batch_wire_line_consumes_one_rate_limit_token() {
         ("@batch=b0-0 PRIVMSG #papo two\r\n", 2),
         ("@batch=b0-0 PRIVMSG #papo three\r\n", 1),
     ] {
-        assert_eq!(session.poll_transmit(), Some(expected.as_bytes().to_vec()));
+        assert_eq!(
+            session.poll_transmit().as_deref(),
+            Some(expected.as_bytes())
+        );
         assert_eq!(session.queued_len(), remaining);
     }
     assert_eq!(session.poll_transmit(), None);
     assert_eq!(session.queued_len(), 1);
 
     session.handle_timeout(now + Duration::from_millis(500));
-    assert_eq!(session.poll_transmit(), Some(b"BATCH -b0-0\r\n".to_vec()));
+    assert_eq!(
+        session.poll_transmit().as_deref(),
+        Some(b"BATCH -b0-0\r\n".as_slice())
+    );
     assert_eq!(session.queued_len(), 0);
 }
 
@@ -623,7 +632,7 @@ fn interleaved_traffic_waits_for_the_batch_close() {
         .send_text(now, TextKind::Privmsg, "#papo", &"a".repeat(600), &[])
         .unwrap();
     assert_eq!(
-        String::from_utf8(session.poll_transmit().unwrap()).unwrap(),
+        String::from_utf8(session.poll_transmit().unwrap().to_vec()).unwrap(),
         "BATCH +b0-0 draft/multiline #papo\r\n"
     );
     session
@@ -634,7 +643,7 @@ fn interleaved_traffic_waits_for_the_batch_close() {
     assert!(remaining[0].starts_with("@batch=b0-0 PRIVMSG"));
     assert!(remaining[1].starts_with("@batch=b0-0;draft/multiline-concat"));
     assert_eq!(remaining[2], "BATCH -b0-0\r\n");
-    assert_eq!(remaining[3], "PONG :keepalive\r\n");
+    assert_eq!(remaining[3], "PONG keepalive\r\n");
     assert_eq!(remaining[4], "PRIVMSG #elsewhere :queued later\r\n");
 }
 
@@ -716,8 +725,8 @@ fn text_without_both_echo_and_labels_resolves_on_write() {
         assert!(sent.request.is_none());
         assert!(sent.transmit.is_some());
         assert_eq!(
-            session.poll_transmit(),
-            Some(b"NOTICE #papo :maintenance complete\r\n".to_vec())
+            session.poll_transmit().as_deref(),
+            Some(b"NOTICE #papo :maintenance complete\r\n".as_slice())
         );
     }
 }

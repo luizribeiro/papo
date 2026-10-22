@@ -84,13 +84,15 @@ impl WelcomeState {
             if !options.is_empty() {
                 params.push(&options);
             }
-            let Ok(line) = Line::new("WEBIRC").with_params(params).to_line() else {
+            let Ok(line) = Line::new("WEBIRC").with_params(params).encode() else {
                 outbox.close(CloseKind::Other, "invalid WEBIRC configuration".to_owned());
                 return;
             };
-            outbox.transmit_raw(line.into());
+            outbox.transmit_raw(line);
         }
-        outbox.transmit_raw(b"CAP LS 302\r\n".to_vec());
+        if let Ok(line) = Line::new("CAP").param("LS").param("302").encode() {
+            outbox.transmit_raw(line);
+        }
         if config
             .password
             .as_ref()
@@ -302,7 +304,7 @@ impl WelcomeState {
 fn registration_error(config: &Config) -> Option<BuildError> {
     Line::new("NICK")
         .param(&config.nick)
-        .to_line()
+        .encode()
         .err()
         .or_else(|| {
             Line::new("USER")
@@ -310,14 +312,14 @@ fn registration_error(config: &Config) -> Option<BuildError> {
                 .param("0")
                 .param("*")
                 .param(&config.realname)
-                .to_line()
+                .encode()
                 .err()
         })
         .or_else(|| {
             config
                 .alt_nicks
                 .iter()
-                .find_map(|nick| Line::new("NICK").param(nick).to_line().err())
+                .find_map(|nick| Line::new("NICK").param(nick).encode().err())
         })
 }
 

@@ -25,7 +25,7 @@ fn routes_soju_search_only_to_its_opening_request() {
         )
         .unwrap();
     assert_eq!(
-        String::from_utf8(session.poll_transmit().unwrap()).unwrap(),
+        String::from_utf8(session.poll_transmit().unwrap().to_vec()).unwrap(),
         "@label=0 SEARCH in=#papo text=release\r\n"
     );
     session.handle_line(

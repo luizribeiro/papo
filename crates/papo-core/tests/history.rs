@@ -45,7 +45,7 @@ fn read_marker_session() -> (Session, Instant) {
 }
 
 fn transmitted(session: &mut Session) -> String {
-    String::from_utf8(session.poll_transmit().unwrap())
+    String::from_utf8(session.poll_transmit().unwrap().to_vec())
         .unwrap()
         .trim_end()
         .to_owned()

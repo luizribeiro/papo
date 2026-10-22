@@ -1,7 +1,7 @@
 use std::time::Duration;
 use web_time::Instant;
 
-use papo_proto::LineRef;
+use papo_proto::{Line, LineRef};
 
 use crate::{CloseKind, Handled, Outbox};
 
@@ -44,11 +44,9 @@ impl Keepalive {
             let Some(token) = message.param(0) else {
                 return Handled::No;
             };
-            let mut pong = Vec::with_capacity(token.len() + 8);
-            pong.extend_from_slice(b"PONG :");
-            pong.extend_from_slice(token.as_bytes());
-            pong.extend_from_slice(b"\r\n");
-            outbox.transmit_raw(pong);
+            if let Ok(pong) = Line::new("PONG").param(token).encode() {
+                outbox.transmit_raw(pong);
+            }
             Handled::Yes
         } else if message.command_is("PONG") {
             if let Some((counter, sent_at)) = self.pending_ping {
@@ -83,7 +81,9 @@ impl Keepalive {
         }
         if self.next_ping.is_some_and(|deadline| now >= deadline) {
             let token = format!("papo-{}", self.counter);
-            outbox.transmit_raw(format!("PING :{token}\r\n").into_bytes());
+            if let Ok(ping) = Line::new("PING").param(token).encode() {
+                outbox.transmit_raw(ping);
+            }
             self.pending_ping = Some((self.counter, now));
             self.counter = self.counter.wrapping_add(1);
             self.next_ping = None;
