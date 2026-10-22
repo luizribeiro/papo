@@ -717,6 +717,73 @@ fn unknown_batch_overflow_delivers_the_overflowing_line_before_abandonment() {
 }
 
 #[test]
+fn late_members_of_every_abandoned_batch_stay_out_of_live_state() {
+    let now = Instant::now();
+    for trigger in ["line-limit", "timeout", "open-limit"] {
+        let config = match trigger {
+            "line-limit" => Config::default().max_batch_lines(2),
+            "timeout" => Config::default().batch_timeout(Duration::from_secs(1)),
+            "open-limit" => Config::default().max_open_batches(1),
+            _ => unreachable!(),
+        };
+        let mut session = Session::new(config.rate_limit(RateLimit::unlimited()));
+        session.handle_connected(now);
+        while session.poll_transmit().is_some() {}
+        session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
+        while session.poll_event().is_some() {}
+        while session.poll_transmit().is_some() {}
+
+        match trigger {
+            "line-limit" => {
+                session.handle_line(now, b"BATCH +h draft/event-playback #papo");
+                for text in ["first replay", "second replay", "third replay"] {
+                    session.handle_line(
+                        now,
+                        format!("@batch=h :alice PRIVMSG #papo :{text}").as_bytes(),
+                    );
+                }
+            }
+            "timeout" => {
+                session.handle_line(now, b"BATCH +h draft/event-playback #papo");
+                session.handle_timeout(now + Duration::from_secs(1));
+            }
+            "open-limit" => {
+                session.handle_line(now, b"BATCH +blocker vendor/sync");
+                session.handle_line(now, b"BATCH +h draft/event-playback #papo");
+            }
+            _ => unreachable!(),
+        }
+        while session.poll_event().is_some() {}
+
+        session.handle_line(
+            now,
+            b"@batch=h :alice!~alice@staff.example PRIVMSG papo :\x01VERSION\x01",
+        );
+        session.handle_line(
+            now,
+            b"@batch=h :papo!~papo@localhost PART #papo :old playback",
+        );
+
+        assert_eq!(session.poll_transmit(), None, "{trigger}");
+        assert!(session.state().channel("#papo").is_some(), "{trigger}");
+        let late: Vec<_> = std::iter::from_fn(|| session.poll_event()).collect();
+        assert_eq!(
+            late.iter()
+                .filter(|event| matches!(event, Event::Line(line)
+                    if line.batch_type() == Some("draft/event-playback")))
+                .count(),
+            2,
+            "{trigger}: {late:?}"
+        );
+        assert!(
+            late.iter()
+                .all(|event| !matches!(event, Event::Parted { .. })),
+            "{trigger}: {late:?}"
+        );
+    }
+}
+
+#[test]
 fn abandons_an_unclosed_batch_at_its_deadline() {
     let now = Instant::now();
     let mut session = Session::new(

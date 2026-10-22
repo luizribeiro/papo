@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashSet},
+    collections::{BTreeMap, HashSet, VecDeque},
     time::Duration,
 };
 use web_time::Instant;
@@ -8,9 +8,12 @@ use papo_proto::{Command, Line, LineRef, Reaction, time};
 
 use crate::{BatchAbandonReason, Config, HistoryItem, HistoryLine, cap};
 
+const MAX_ABANDONED_BATCHES: usize = 256;
+
 #[derive(Debug)]
 pub(crate) struct Batches {
     open: BTreeMap<String, OpenBatch>,
+    abandoned: VecDeque<(String, String)>,
     max_open: usize,
     max_lines: usize,
     timeout: Duration,
@@ -102,6 +105,7 @@ impl Batches {
     pub(crate) fn new(config: &Config) -> Self {
         Self {
             open: BTreeMap::new(),
+            abandoned: VecDeque::new(),
             max_open: config.max_open_batches,
             max_lines: config.max_batch_lines,
             timeout: config.batch_timeout,
@@ -110,6 +114,7 @@ impl Batches {
 
     pub(crate) fn reset(&mut self) {
         self.open.clear();
+        self.abandoned.clear();
     }
 
     pub(crate) fn handle(
@@ -154,6 +159,7 @@ impl Batches {
             return BatchAction::Dispatch(self.context(message));
         }
         if self.open.len() >= self.max_open {
+            self.remember_abandoned(reference, kind);
             return BatchAction::Complete(vec![BatchEvent::Abandoned {
                 reference: reference.to_owned(),
                 batch_type: kind.to_owned(),
@@ -239,6 +245,16 @@ impl Batches {
         let Some(reference) = message.tag("batch") else {
             return BatchAction::Dispatch(context);
         };
+        if !self.open.contains_key(reference.as_ref()) {
+            let batch_type =
+                self.abandoned.iter().rev().find_map(|(stored, kind)| {
+                    (stored == reference.as_ref()).then(|| kind.clone())
+                });
+            return BatchAction::Complete(vec![BatchEvent::Line {
+                line: message.to_owned(),
+                batch_type,
+            }]);
+        }
         let ancestors = self.ancestors(reference.as_ref());
         for reference in &ancestors {
             let batch = self.open.get_mut(reference).expect("resolved ancestor");
@@ -368,6 +384,9 @@ impl Batches {
         let history_target = is_history(&batch_type)
             .then(|| self.open[reference].params.first().cloned())
             .flatten();
+        for (candidate, kind) in &types {
+            self.remember_abandoned(candidate, kind);
+        }
         let mut messages = Vec::new();
         for candidate in references {
             let batch = self.open.remove(&candidate).expect("selected open batch");
@@ -401,6 +420,16 @@ impl Batches {
             reason,
         });
         events
+    }
+
+    fn remember_abandoned(&mut self, reference: &str, kind: &str) {
+        self.abandoned
+            .retain(|(stored, _)| stored.as_str() != reference);
+        if self.abandoned.len() == MAX_ABANDONED_BATCHES {
+            self.abandoned.pop_front();
+        }
+        self.abandoned
+            .push_back((reference.to_owned(), kind.to_owned()));
     }
 
     fn aggregate_references(&self, reference: &str) -> Vec<String> {
@@ -749,5 +778,33 @@ mod tests {
             items[0].as_message().unwrap().as_ref().param(1),
             Some("hello")
         );
+    }
+
+    #[test]
+    fn bounds_refused_batch_tombstones_and_clears_them_on_reset() {
+        let mut batches = Batches::new(&Config::default().max_open_batches(0));
+        for index in 0..10_000 {
+            let line = format!("BATCH +ref{index} vendor/sync");
+            let message = LineRef::parse(&line).unwrap();
+            assert!(matches!(
+                batches.handle(Instant::now(), &message, usize::MAX, false),
+                BatchAction::Complete(_)
+            ));
+        }
+        assert_eq!(batches.abandoned.len(), 256);
+
+        let late = LineRef::parse("@batch=ref9999 :alice PART #papo :old").unwrap();
+        let BatchAction::Complete(events) =
+            batches.handle(Instant::now(), &late, usize::MAX, false)
+        else {
+            panic!("late refused member was dispatched live")
+        };
+        assert!(matches!(
+            events.as_slice(),
+            [BatchEvent::Line { batch_type: Some(kind), .. }] if kind == "vendor/sync"
+        ));
+
+        batches.reset();
+        assert!(batches.abandoned.is_empty());
     }
 }
