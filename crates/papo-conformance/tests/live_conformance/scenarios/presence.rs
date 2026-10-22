@@ -614,10 +614,10 @@ async fn operator_wallops(s: Scenario) -> papo_testing::Result<()> {
     alice
         .send_raw(papo::Line::new("WALLOPS").with_params([wallops]))
         .await?;
-    let delivered = bob
-        .wait_for(|event| event.as_other().filter(|line| line.command() == "WALLOPS"))
-        .await?;
-    assert_eq!(delivered.params(), [wallops]);
+    let delivered = bob.wait_for(Event::as_server_notice).await?;
+    assert_eq!(delivered.kind, papo::event::ServerNoticeKind::Wallops);
+    assert_eq!(delivered.to, papo::event::ServerNoticeTarget::All);
+    assert_eq!(delivered.text, wallops);
     Ok(())
 }
 

@@ -568,6 +568,7 @@ pub(crate) fn incoming_from_core(
         status,
         isupport,
         received_at,
+        true,
         false,
     )
 }
@@ -892,7 +893,9 @@ fn message_event_from_line(
     isupport: &Isupport,
     received_at: SystemTime,
     route_server_notices: bool,
+    route_broadcasts: bool,
 ) -> Event {
+    let broadcast = matches!(conversation, Conversation::Broadcast(_));
     let server_notice = raw.as_ref().command_is("WALLOPS")
         || matches!(
             conversation,
@@ -900,7 +903,7 @@ fn message_event_from_line(
         )
         || matches!(raw.as_ref().source(), Some(papo_proto::Source::Server(_)));
     if server_notice {
-        if !route_server_notices {
+        if !route_server_notices || (broadcast && !route_broadcasts) {
             let raw = match Ctcp::from_line(
                 raw,
                 batch_type,
@@ -1981,8 +1984,9 @@ mod tests {
 
     use super::{
         Authorship, Chat, Conversation, CoreEvent, Ctcp, Event, Message as ChatMessage, MessageId,
-        MessageKind, MetadataChanged, ModeAction, ModeArg, NoticeKind, Source, StandardReplyKind,
-        Warning, ctcp_parts, from_core as from_core_with_mapping, message_event_from_line,
+        MessageKind, MetadataChanged, ModeAction, ModeArg, NoticeKind, ServerNoticeKind,
+        ServerNoticeTarget, Source, StandardReplyKind, Warning, ctcp_parts,
+        from_core as from_core_with_mapping, message_event_from_line,
     };
     use crate::Visibility;
     use papo_core::{
@@ -2031,12 +2035,13 @@ mod tests {
             status,
             isupport,
             received_at,
+            true,
             false,
         )
     }
 
     #[test]
-    fn routes_user_notices() {
+    fn routes_user_and_server_notices() {
         let isupport = Isupport::default();
         let user = parse_event(
             Line::notice("papo", "maintenance soon").with_source("emily!~e@localhost"),
@@ -2056,6 +2061,33 @@ mod tests {
         );
         assert!(matches!(action, Event::Notice(notice)
             if notice.kind == NoticeKind::Action && notice.text == "nods hello"));
+
+        let server = parse_event(
+            Line::notice("papo", "Network maintenance begins soon").with_source("irc.example"),
+            &isupport,
+            "papo",
+            UNIX_EPOCH,
+        );
+        assert!(matches!(server, Event::ServerNotice(notice)
+            if notice.kind == ServerNoticeKind::Notice
+                && notice.to == ServerNoticeTarget::Me));
+
+        let wallops = message_event_from_line(
+            Line::new("WALLOPS")
+                .param("Network maintenance begins soon")
+                .with_source("irc.example"),
+            None,
+            Authorship::Other,
+            Conversation::Server,
+            None,
+            &isupport,
+            UNIX_EPOCH,
+            true,
+            false,
+        );
+        assert!(matches!(wallops, Event::ServerNotice(notice)
+            if notice.kind == ServerNoticeKind::Wallops
+                && notice.to == ServerNoticeTarget::All));
     }
 
     fn chat(command: &str, text: &str) -> ChatMessage {

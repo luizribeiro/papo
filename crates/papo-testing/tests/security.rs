@@ -551,7 +551,7 @@ async fn late_labeled_reply_is_delivered_as_a_live_message() {
 
     assert!(matches!(
         events.next().await,
-        Some(papo::Event::Message(message)) if message.text == "request completed late"
+        Some(papo::Event::ServerNotice(notice)) if notice.text == "request completed late"
     ));
 }
 

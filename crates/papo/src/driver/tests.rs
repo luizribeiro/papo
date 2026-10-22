@@ -380,10 +380,9 @@ async fn message_fields_use_captured_session_facts() {
     assert_eq!(ping.command, "PING");
     assert_eq!(ping.params.as_deref(), Some("1731513600"));
     let reply = events.next().await.unwrap();
-    let reply = reply.as_ctcp().unwrap();
-    assert_eq!(reply.command, "VERSION");
-    assert_eq!(reply.params.as_deref(), Some("soju 0.8.2"));
-    assert!(reply.reply);
+    let reply = reply.as_server_notice().unwrap();
+    assert_eq!(reply.kind, crate::event::ServerNoticeKind::Notice);
+    assert_eq!(reply.raw_text, "\x01VERSION soju 0.8.2\x01");
 
     server_line(&mut server, b":PAPO-DRIVER!p@localhost PRIVMSG #papo :sent\r\nBATCH +history42 chathistory #papo\r\n@batch=history42 :dan!d@localhost PRIVMSG #papo :earlier\r\n").await;
     assert_eq!(next_message(&mut events).await.text, "sent");
@@ -595,19 +594,6 @@ async fn manual_ctcp_replies_reject_replies_servers_and_delimiters() {
         ));
     }
 
-    server_line(
-        &mut server,
-        b":emily!~e@localhost NOTICE papo-driver :\x01VERSION ferrobot 2.3\x01\r\n:services.example NOTICE papo-driver :\x01VERSION scanner\x01\r\n",
-    )
-    .await;
-    for _ in 0..2 {
-        let event = events.next().await.unwrap();
-        assert!(matches!(
-            client.ctcp_reply(event.as_ctcp().unwrap(), "ignored").await,
-            Err(Error::InvalidInput(crate::InvalidInput::InvalidMessage(_)))
-        ));
-    }
-
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
@@ -623,10 +609,11 @@ async fn wallops_is_a_server_notice() {
         b":ergo.test WALLOPS :Network maintenance begins soon\r\n",
     )
     .await;
-    let message = next_message(&mut events).await;
-    assert_eq!(message.kind, MessageKind::Notice);
-    assert_eq!(message.conversation, crate::Conversation::Server);
-    assert_eq!(message.text, "Network maintenance begins soon");
+    let event = events.next().await.unwrap();
+    let notice = event.as_server_notice().unwrap();
+    assert_eq!(notice.kind, crate::event::ServerNoticeKind::Wallops);
+    assert_eq!(notice.to, crate::event::ServerNoticeTarget::All);
+    assert_eq!(notice.text, "Network maintenance begins soon");
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
@@ -3381,7 +3368,9 @@ async fn successful_registration_preserves_earlier_events() {
     assert!(within(waiter).await.unwrap().is_ok());
     assert!(matches!(
         events.next().await,
-        Some(Event::Message(message)) if message.kind == MessageKind::Notice
+        Some(Event::ServerNotice(notice))
+            if notice.kind == crate::event::ServerNoticeKind::Notice
+                && notice.to == crate::event::ServerNoticeTarget::All
     ));
     assert!(matches!(events.next().await, Some(Event::Connected(_))));
     within(server.shutdown()).await.unwrap();
@@ -3497,7 +3486,13 @@ async fn registration_sets_advertised_bot_mode_and_joins_each_channel() {
     )
     .await;
     assert_eq!(
-        next_message(&mut events).await.text,
+        events
+            .next()
+            .await
+            .unwrap()
+            .as_server_notice()
+            .unwrap()
+            .text,
         "Autojoin refusal recorded"
     );
     within(server.shutdown()).await.unwrap();
@@ -3935,7 +3930,7 @@ async fn secure_sts_is_stored_before_a_saturated_event_queue_drains() {
     .await
     .unwrap();
     assert_eq!(events.receiver.len(), 1);
-    assert!(matches!(events.next().await, Some(Event::Message(_))));
+    assert!(matches!(events.next().await, Some(Event::ServerNotice(_))));
     client_line(&mut server, b"CAP END\r\n").await;
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
@@ -6925,9 +6920,9 @@ async fn only_pending_request_enables_read_ahead() {
     )
     .await;
     assert_eq!(within(whois).await.unwrap().unwrap().nick, "alice");
-    assert!(matches!(events.next().await, Some(Event::Message(_))));
-    assert!(matches!(events.next().await, Some(Event::Message(_))));
-    assert!(matches!(events.next().await, Some(Event::Message(_))));
+    assert!(matches!(events.next().await, Some(Event::ServerNotice(_))));
+    assert!(matches!(events.next().await, Some(Event::ServerNotice(_))));
+    assert!(matches!(events.next().await, Some(Event::ServerNotice(_))));
 
     abort_task(driver).await;
 }
@@ -7119,7 +7114,7 @@ async fn no_pending_work_disables_read_ahead() {
             .await
             .is_err()
     );
-    assert!(matches!(events.next().await, Some(Event::Message(_))));
+    assert!(matches!(events.next().await, Some(Event::ServerNotice(_))));
     client_line(&mut server, b"PONG read-ahead-blocked\r\n").await;
 
     within(server.shutdown()).await.unwrap();
@@ -7153,8 +7148,26 @@ async fn disconnect_preserves_events_waiting_for_channel_capacity() {
         within(driver).await.unwrap(),
         Err(disconnected!())
     ));
-    assert_eq!(next_message(&mut events).await.text, "maintenance soon");
-    assert_eq!(next_message(&mut events).await.text, "maintenance extended");
+    assert_eq!(
+        events
+            .next()
+            .await
+            .unwrap()
+            .as_server_notice()
+            .unwrap()
+            .text,
+        "maintenance soon"
+    );
+    assert_eq!(
+        events
+            .next()
+            .await
+            .unwrap()
+            .as_server_notice()
+            .unwrap()
+            .text,
+        "maintenance extended"
+    );
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected(crate::Disconnected {
@@ -7188,8 +7201,8 @@ async fn unread_events_past_the_overflow_bound_disconnect_the_consumer() {
         within(driver).await.unwrap(),
         Err(disconnected!())
     ));
-    assert!(matches!(events.next().await, Some(Event::Message(_))));
-    assert!(matches!(events.next().await, Some(Event::Message(_))));
+    assert!(matches!(events.next().await, Some(Event::ServerNotice(_))));
+    assert!(matches!(events.next().await, Some(Event::ServerNotice(_))));
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected(crate::Disconnected {
@@ -7252,7 +7265,7 @@ async fn slow_consumer_reconnects_after_its_reported_delay() {
             ..
         }))
     ));
-    assert!(matches!(events.next().await, Some(Event::Message(_))));
+    assert!(matches!(events.next().await, Some(Event::ServerNotice(_))));
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected(crate::Disconnected {
@@ -7296,8 +7309,8 @@ async fn keepalive_expiry_while_events_are_stalled_is_a_slow_consumer() {
             reconnect_in: None,
         }))
     ));
-    assert!(matches!(events.next().await, Some(Event::Message(_))));
-    assert!(matches!(events.next().await, Some(Event::Message(_))));
+    assert!(matches!(events.next().await, Some(Event::ServerNotice(_))));
+    assert!(matches!(events.next().await, Some(Event::ServerNotice(_))));
     assert!(matches!(
         events.next().await,
         Some(Event::Disconnected(crate::Disconnected {
@@ -7381,7 +7394,7 @@ async fn client_reads_owned_state_snapshots() {
         b":ergo.test NOTICE papo-driver :maintenance soon\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Message(_))));
+    assert!(matches!(events.next().await, Some(Event::ServerNotice(_))));
     assert!(Arc::ptr_eq(&unchanged, &client.state()));
 
     server_line(
