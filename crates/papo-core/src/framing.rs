@@ -1,11 +1,14 @@
 use crate::MAX_INCOMING_LINE_LEN;
 
+#[cfg_attr(test, path = "framing/inspection_test.rs")]
+#[cfg_attr(not(test), path = "framing/inspection.rs")]
+mod inspection;
+
 #[derive(Debug, Default)]
 pub(super) struct Framer {
     buffer: Vec<u8>,
     closed: bool,
-    #[cfg(test)]
-    bytes_inspected: usize,
+    inspection: inspection::Counter,
 }
 
 pub(super) struct Frames {
@@ -28,7 +31,10 @@ impl Framer {
         loop {
             let remaining = &bytes[input_start..];
             let offset = remaining.iter().position(|&byte| byte == b'\n');
-            self.inspected(offset.map_or(remaining.len(), |offset| offset + 1));
+            inspection::Counter::add(
+                &mut self.inspection,
+                offset.map_or(remaining.len(), |offset| offset + 1),
+            );
             let Some(offset) = offset else {
                 break;
             };
@@ -56,7 +62,7 @@ impl Framer {
                 .iter()
                 .position(|&byte| byte == b'\n')
                 .expect("line boundary was recorded");
-            self.inspected(offset + 1);
+            inspection::Counter::add(&mut self.inspection, offset + 1);
             let end = cursor + offset;
             let line = self.buffer[cursor..end]
                 .strip_suffix(b"\r")
@@ -87,15 +93,6 @@ impl Framer {
         self.closed
     }
 
-    #[allow(clippy::unused_self)]
-    fn inspected(&mut self, bytes: usize) {
-        #[cfg(test)]
-        {
-            self.bytes_inspected += bytes;
-        }
-        _ = bytes;
-    }
-
     fn would_overflow(&self, line_start: usize, bytes: &[u8]) -> bool {
         let length = self.buffer.len() - line_start + bytes.len();
         let last = bytes.last().or_else(|| self.buffer.last());
@@ -124,7 +121,7 @@ mod tests {
         let mut framer = Framer::default();
         let output = framer.push(input.as_bytes());
 
-        assert_eq!(framer.bytes_inspected, input.len() * 2);
+        assert_eq!(framer.inspection.bytes(), input.len() * 2);
         assert_eq!(output.lines.len(), 200_000);
         assert!(!output.too_long);
     }
