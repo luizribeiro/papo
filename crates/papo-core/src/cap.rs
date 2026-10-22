@@ -6,7 +6,7 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use crate::{Capabilities, Feature};
+use crate::{Capabilities, Config, Feature};
 
 /// An IRC capability name.
 ///
@@ -416,10 +416,10 @@ pub(crate) fn requestable(
     name: &str,
     advertised: &Capabilities,
     wanted: &[String],
-    #[cfg(feature = "unstable")] enabled_features: &std::collections::BTreeSet<Feature>,
+    config: &Config,
 ) -> bool {
-    #[cfg(not(feature = "unstable"))]
-    if is_unstable(name) {
+    _ = config;
+    if !cfg!(feature = "unstable") && is_unstable(name) {
         return false;
     }
     let Some(info) = ALL.iter().find(|info| info.name == canonical(name)) else {
@@ -440,7 +440,7 @@ pub(crate) fn requestable(
                 || advertised_spelling(preferred, advertised).is_none()
         }
         #[cfg(feature = "unstable")]
-        Request::OptIn(_, feature) => enabled_features.contains(&feature),
+        Request::OptIn(_, feature) => config.enabled_features.contains(&feature),
         Request::Default(_) | Request::Automatic => true,
     }
 }

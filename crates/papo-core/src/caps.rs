@@ -194,13 +194,7 @@ impl Caps {
             .chain(config.sasl.as_ref().map(|_| cap::SASL.constant_str()))
             .filter(|wanted| !cap::is_unstable(wanted))
             .filter(|wanted| {
-                cap::requestable(
-                    wanted,
-                    &self.advertised,
-                    &config.wanted_caps,
-                    #[cfg(feature = "unstable")]
-                    &config.enabled_features,
-                )
+                cap::requestable(wanted, &self.advertised, &config.wanted_caps, config)
             })
             .filter(|wanted| !config.cap_disabled(wanted))
             .filter_map(|wanted| cap::advertised_spelling(wanted, &self.advertised))
@@ -257,13 +251,7 @@ impl Caps {
             .chain(config.sasl.as_ref().map(|_| cap::SASL.constant_str()));
         let requested = wanted
             .filter(|wanted| {
-                cap::requestable(
-                    wanted,
-                    &self.advertised,
-                    &config.wanted_caps,
-                    #[cfg(feature = "unstable")]
-                    &config.enabled_features,
-                )
+                cap::requestable(wanted, &self.advertised, &config.wanted_caps, config)
             })
             .filter(|wanted| !config.cap_disabled(wanted))
             .filter_map(|wanted| cap::advertised_spelling(wanted, &self.advertised))
