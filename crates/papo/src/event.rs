@@ -2105,15 +2105,8 @@ mod tests {
     }
 
     #[test]
-    fn classifies_replay_origin_by_resolved_batch_type() {
-        for kind in [
-            "chathistory",
-            "draft/chathistory",
-            "draft/chathistory-targets",
-            "draft/event-playback",
-            "znc.in/playback",
-            "vendor/sync",
-        ] {
+    fn classifies_fallback_origin_by_resolved_batch_type() {
+        for kind in ["draft/multiline", "znc.in/playback", "vendor/sync"] {
             let replay = batched_message(kind, "PRIVMSG #papo :earlier");
             assert_eq!(replay.origin, Origin::Replay);
             assert!(!replay.is_live());

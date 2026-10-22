@@ -367,7 +367,11 @@ async fn message_fields_use_captured_session_facts() {
 
     server_line(&mut server, b":PAPO-DRIVER!p@localhost PRIVMSG #papo :sent\r\nBATCH +history42 chathistory #papo\r\n@batch=history42 :dan!d@localhost PRIVMSG #papo :earlier\r\n").await;
     assert_eq!(next_message(&mut events).await.origin, Origin::Live);
-    assert_eq!(next_message(&mut events).await.origin, Origin::Replay);
+    let Some(Event::History(page)) = events.next().await else {
+        panic!("expected partial history page")
+    };
+    assert!(!page.end);
+    assert_eq!(page.messages().next().unwrap().origin, Origin::Replay);
     assert!(matches!(
         events.next().await,
         Some(Event::Warning(Warning::BatchAbandoned { .. }))

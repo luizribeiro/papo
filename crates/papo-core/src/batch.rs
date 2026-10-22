@@ -365,6 +365,9 @@ impl Batches {
             .map(|candidate| (candidate.clone(), self.open[candidate].kind.clone()))
             .collect();
         let batch_type = types[reference].clone();
+        let history_target = is_history(&batch_type)
+            .then(|| self.open[reference].params.first().cloned())
+            .flatten();
         let mut messages = Vec::new();
         for candidate in references {
             let batch = self.open.remove(&candidate).expect("selected open batch");
@@ -373,17 +376,25 @@ impl Batches {
                 collect_messages(event, &mut messages);
             }
         }
-        let mut events: Vec<_> = messages
-            .into_iter()
-            .map(|line| BatchEvent::Line {
-                batch_type: line
-                    .as_ref()
-                    .tag("batch")
-                    .and_then(|reference| types.get(reference.as_ref()))
-                    .cloned(),
-                line,
-            })
-            .collect();
+        let mut events = if let Some(target) = history_target {
+            vec![BatchEvent::History {
+                target,
+                items: history_items(messages),
+                end: false,
+            }]
+        } else {
+            messages
+                .into_iter()
+                .map(|line| BatchEvent::Line {
+                    batch_type: line
+                        .as_ref()
+                        .tag("batch")
+                        .and_then(|reference| types.get(reference.as_ref()))
+                        .cloned(),
+                    line,
+                })
+                .collect()
+        };
         events.push(BatchEvent::Abandoned {
             reference: reference.to_owned(),
             batch_type,

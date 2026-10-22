@@ -675,11 +675,15 @@ fn abandons_history_on_the_first_line_beyond_its_limit() {
     assert_eq!(session.poll_event(), None);
     session.handle_line(now, b"@batch=h :bob!~b@cloak MODE #papo +v bob");
 
-    for expected in ["JOIN", "PART", "MODE"] {
-        let fallback = line(&mut session);
-        assert_eq!(fallback.batch_type(), Some("draft/event-playback"));
-        assert!(fallback.as_ref().command_is(expected));
-    }
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::History { items, end: false, .. })
+            if matches!(items.as_slice(), [
+                HistoryItem::Joined(_),
+                HistoryItem::Parted(_),
+                HistoryItem::ModeChanged(_),
+            ])
+    ));
     assert!(matches!(
         session.poll_event(),
         Some(Event::BatchAbandoned { reference, batch_type, reason, .. })
@@ -728,8 +732,12 @@ fn abandons_an_unclosed_batch_at_its_deadline() {
     assert_eq!(session.poll_event(), None);
     session.handle_timeout(now + Duration::from_secs(2));
 
-    let fallback = line(&mut session);
-    assert_eq!(fallback.as_ref().param(1), Some("remembered"));
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::History { items, end: false, .. })
+            if items.first().and_then(HistoryItem::as_message)
+                .and_then(|item| item.line.as_ref().param(1)) == Some("remembered")
+    ));
     assert!(matches!(
         session.poll_event(),
         Some(Event::BatchAbandoned { reference, batch_type, reason, .. })
