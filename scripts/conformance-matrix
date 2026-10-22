@@ -12,7 +12,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(ROOT / "crates/papo-conformance/scripts"))
 
-from summary import summarize_with_evidence  # noqa: E402
+from summary import missing_scenario_statuses, summarize_with_evidence  # noqa: E402
 
 
 PROFILES = (
@@ -50,8 +50,7 @@ def run_profile(profile):
         "live_conformance",
         "--locked",
         "--",
-        "--format",
-        "json",
+        "--nocapture",
         "--test-threads=1",
     ]
     environment = dict(os.environ, PAPO_TEST_PROFILE=profile)
@@ -63,7 +62,11 @@ def run_profile(profile):
         stdout=subprocess.PIPE,
         text=True,
     )
-    statuses, evidence = summarize_with_evidence(result.stdout.splitlines())
+    lines = result.stdout.splitlines()
+    statuses, evidence = summarize_with_evidence(lines)
+    missing = missing_scenario_statuses(lines, statuses)
+    if missing:
+        raise RuntimeError(f"{profile} scenarios produced no status: {', '.join(missing)}")
     if not statuses:
         raise RuntimeError(f"{profile} conformance run produced no scenario results")
     return statuses, evidence
