@@ -49,8 +49,12 @@ pub struct Client {
 #[non_exhaustive]
 pub struct Sent {
     /// IRC conversation to which the message was sent.
+    ///
+    /// See [`crate::Conversation`] for status-prefixed line guidance.
     pub conversation: crate::Conversation,
     /// `STATUSMSG` prefixes on the wire address, in wire order.
+    ///
+    /// See [`crate::Conversation`] for status-prefixed line guidance.
     pub status: Option<Vec<char>>,
     /// Server-assigned identifier from a labelled echo.
     pub msgid: Option<crate::MessageId>,
@@ -136,6 +140,9 @@ impl IntoFuture for JoinChannel {
 
 impl SendMessage {
     /// Marks this message as a reply to `message` when replies are available.
+    ///
+    /// The referenced identifier does not constrain the target's audience. See
+    /// [`crate::Conversation`] for status-prefixed line guidance.
     pub fn reply_to(mut self, message: impl Into<crate::MessageId>) -> Self {
         self.reply_to = Some(message.into());
         self
@@ -249,6 +256,8 @@ impl IntoFuture for SendMessage {
 
 impl Sent {
     /// Returns the address that reaches the recipients of the sent message.
+    ///
+    /// See [`crate::Conversation`] for status-prefixed line guidance.
     #[must_use]
     pub fn return_address(&self) -> String {
         crate::message_ref::return_address(&self.conversation, self.status.as_deref())
@@ -385,6 +394,8 @@ impl Client {
     ///
     /// An empty `text` sends the command without parameters, such as `\x01PING\x01`.
     /// A [`crate::event::CtcpReply`] cannot be passed to this method.
+    /// Status-prefixed channel queries are answered privately to their actor; see
+    /// [`crate::Conversation`] for the distinction between a conversation and a return address.
     ///
     /// # Errors
     ///
@@ -552,6 +563,9 @@ impl Client {
 
     /// Sends a private message threaded as a reply to `message` when supported.
     ///
+    /// Passing the received line or [`Sent`] preserves its return address. See
+    /// [`crate::Conversation`] for status-prefixed line guidance.
+    ///
     /// # Errors
     ///
     /// Returns an error if the text is empty or invalid, or the driver has stopped.
@@ -575,6 +589,8 @@ impl Client {
     ///
     /// A reaction is usually an emoji but may be any nonempty text. Reactions are compared
     /// exactly, without case folding or Unicode normalization.
+    /// Passing the received line or [`Sent`] preserves its return address; see
+    /// [`crate::Conversation`] for status-prefixed line guidance.
     ///
     /// # Errors
     ///
@@ -594,6 +610,8 @@ impl Client {
     /// Removes `emoji` as a reaction to `message`.
     ///
     /// `emoji` must exactly match the added reaction; papo performs no Unicode normalization.
+    /// Passing the received line or [`Sent`] preserves its return address; see
+    /// [`crate::Conversation`] for status-prefixed line guidance.
     ///
     /// # Errors
     ///
@@ -697,6 +715,9 @@ impl Client {
     }
 
     /// Redacts a message from a conversation's history.
+    ///
+    /// Passing the received line or [`Sent`] preserves its return address. See
+    /// [`crate::Conversation`] for status-prefixed line guidance.
     ///
     /// # Errors
     ///

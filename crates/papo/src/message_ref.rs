@@ -2,8 +2,11 @@ use crate::{ChannelName, Conversation, Message, MessageId, Sent, event::Notice, 
 
 /// An address and server identifier for a chat message.
 ///
-/// Message references are accepted by reactions and redactions. Construct one from a received
-/// [`Message`], a sent [`Sent`], or an `(address, message_id)` pair.
+/// Message references are accepted by replies, reactions, and redactions. Construct one from a
+/// received [`Message`], a sent [`Sent`], or an `(address, message_id)` pair. A line or [`Sent`]
+/// preserves its complete return address; use a pair only when the caller has an explicit address. A
+/// [`Conversation`] alone is not an address. See [`Conversation`] for status-prefixed line
+/// guidance.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MessageRef {
     address: String,
@@ -17,6 +20,9 @@ impl MessageRef {
     }
 }
 
+/// Preserves the received message's return address and identifier.
+///
+/// See [`Conversation`] for status-prefixed line guidance.
 impl From<&Message> for MessageRef {
     fn from(message: &Message) -> Self {
         Self {
@@ -27,12 +33,18 @@ impl From<&Message> for MessageRef {
     }
 }
 
+/// Preserves the boxed message's return address and identifier.
+///
+/// See [`Conversation`] for status-prefixed line guidance.
 impl From<&Box<Message>> for MessageRef {
     fn from(message: &Box<Message>) -> Self {
         Self::from(message.as_ref())
     }
 }
 
+/// Preserves the sent message's return address and identifier.
+///
+/// See [`Conversation`] for status-prefixed line guidance.
 impl From<&Sent> for MessageRef {
     fn from(message: &Sent) -> Self {
         Self {
@@ -43,6 +55,9 @@ impl From<&Sent> for MessageRef {
     }
 }
 
+/// Preserves the received notice's return address and identifier.
+///
+/// See [`Conversation`] for status-prefixed line guidance.
 impl From<&Notice> for MessageRef {
     fn from(notice: &Notice) -> Self {
         Self {
@@ -53,12 +68,18 @@ impl From<&Notice> for MessageRef {
     }
 }
 
+/// Preserves the boxed notice's return address and identifier.
+///
+/// See [`Conversation`] for status-prefixed line guidance.
 impl From<&Box<Notice>> for MessageRef {
     fn from(notice: &Box<Notice>) -> Self {
         Self::from(notice.as_ref())
     }
 }
 
+/// Preserves the tag-only message's return address and identifier.
+///
+/// See [`Conversation`] for status-prefixed line guidance.
 impl From<&TagMsg> for MessageRef {
     fn from(message: &TagMsg) -> Self {
         Self {
@@ -72,6 +93,9 @@ impl From<&TagMsg> for MessageRef {
 macro_rules! address_pairs {
     ($($address:ty),+ $(,)?) => {
         $(
+            /// Builds a reference from an explicit address and message identifier.
+            ///
+            /// See [`Conversation`] for status-prefixed line guidance.
             impl<I: Into<MessageId>> From<($address, I)> for MessageRef {
                 fn from((address, msgid): ($address, I)) -> Self {
                     Self {

@@ -301,6 +301,8 @@ impl Command {
 
     /// Sends an unthreaded message to the command's return address.
     ///
+    /// See [`papo::Conversation`] for status-prefixed line guidance.
+    ///
     /// # Errors
     ///
     /// Returns the same errors as [`Client::privmsg`].
@@ -320,6 +322,8 @@ impl Command {
     }
 
     /// Sends a threaded reply unless the return address has exhausted its reply budget.
+    ///
+    /// See [`papo::Conversation`] for status-prefixed line guidance.
     ///
     /// # Errors
     ///

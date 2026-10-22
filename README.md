@@ -42,6 +42,10 @@ See the [ping bot](examples/ping-bot) for the complete example and its live-serv
 SASL, server passwords, WEBIRC, and account registration require `ircs://` or `wss://` by default.
 Apps with another trusted transport layer must use `Builder::allow_insecure_auth(true)`.
 
+Pass a received message or `Sent` value to reply, react, unreact, or redact. That preserves a
+status-prefixed return address such as `@#ops`; the `Conversation` value identifies only the
+`#ops` buffer and must not be reconstructed into a send target.
+
 papo answers private, live CTCP `PING` and `VERSION` queries by default; the VERSION text is
 `papo <version>`. Use `CtcpReplies::default().ping(false)`, `.version(Some("my-app 2.3"))`, or
 `.version(None)` to change either reply, and `CtcpReplies::off()` to answer nothing automatically.
