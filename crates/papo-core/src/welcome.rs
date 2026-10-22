@@ -1,8 +1,8 @@
 use web_time::Instant;
 
-use papo_proto::{BuildError, Isupport, Line, LineRef, escape_tag_value};
+use papo_proto::{BuildError, Isupport, Line, LineRef};
 
-use crate::{Capabilities, CloseKind, Config, Event, Handled, Outbox, Welcome};
+use crate::{Capabilities, CloseKind, Config, Event, Handled, Outbox, Welcome, webirc_line};
 
 const WELCOME_BURST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 const MAX_MOTD_LINES: usize = 1_000;
@@ -57,34 +57,14 @@ impl WelcomeState {
         self.webirc_pending = config.webirc.is_some();
         self.password_sent = false;
         if let Some(webirc) = &config.webirc {
-            let Some(password) = webirc.password.expose() else {
+            if webirc.password.expose().is_none() {
                 outbox.close(
                     CloseKind::Other,
                     "WEBIRC password contains bytes rather than text".to_owned(),
                 );
                 return;
-            };
-            let client_ip = webirc.client_ip.to_string();
-            let ip = if client_ip.starts_with(':') {
-                format!("0{client_ip}")
-            } else {
-                client_ip
-            };
-            let hostname = webirc.client_hostname.as_deref().unwrap_or(&ip);
-            let mut params = vec![password, webirc.gateway.as_str(), hostname, ip.as_str()];
-            let options = webirc
-                .options
-                .iter()
-                .map(|(name, value)| match value {
-                    Some(value) => format!("{name}={}", escape_tag_value(value)),
-                    None => name.clone(),
-                })
-                .collect::<Vec<_>>()
-                .join(" ");
-            if !options.is_empty() {
-                params.push(&options);
             }
-            let Ok(line) = Line::new("WEBIRC").with_params(params).encode() else {
+            let Ok(line) = webirc_line(webirc) else {
                 outbox.close(CloseKind::Other, "invalid WEBIRC configuration".to_owned());
                 return;
             };
@@ -224,14 +204,17 @@ impl WelcomeState {
         let Some(password) = &config.password else {
             return;
         };
-        let Some(password) = password.expose() else {
+        if password.expose().is_none() {
             outbox.close(
                 CloseKind::Other,
                 "server password contains bytes rather than text".to_owned(),
             );
             return;
-        };
-        outbox.transmit("PASS", [password]);
+        }
+        match Line::new("PASS").param(password).encode() {
+            Ok(line) => outbox.transmit_raw(line),
+            Err(error) => outbox.close(CloseKind::Other, format!("invalid PASS message: {error}")),
+        }
     }
 
     pub(super) fn handle_timeout(

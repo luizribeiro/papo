@@ -106,7 +106,7 @@ use web_time::Instant;
 use papo_proto::{
     AccountName, BuildError, Casemapping, ChannelName, Command, Ctcp, Line, LineRef, MAX_LINE_LEN,
     MAX_TAG_SECTION_LEN, Mask, Nick, Numeric, Source as ProtoSource,
-    StandardReply as StandardReplyView, StandardReplyKind,
+    StandardReply as StandardReplyView, StandardReplyKind, escape_tag_value,
 };
 
 #[cfg(feature = "unstable")]
@@ -661,6 +661,35 @@ impl Config {
         self
     }
 
+    /// Validates the registration commands derived from this configuration.
+    #[doc(hidden)]
+    pub fn validate_registration(&self) -> Result<(), BuildError> {
+        Line::new("NICK").param(&self.nick).encode()?;
+        Line::new("USER")
+            .param(&self.username)
+            .param("0")
+            .param("*")
+            .param(&self.realname)
+            .encode()?;
+        if let Some(password) = &self.password
+            && password.expose().is_some()
+        {
+            Line::new("PASS").param(password).encode()?;
+        }
+        for nick in &self.alt_nicks {
+            Line::new("NICK").param(nick).encode()?;
+        }
+        if let Some(AwayOnConnect::Message(message)) = &self.away_on_connect {
+            Line::new("AWAY").param(message).encode()?;
+        }
+        if let Some(webirc) = &self.webirc
+            && webirc.password.expose().is_some()
+        {
+            webirc_line(webirc)?;
+        }
+        Ok(())
+    }
+
     /// Stages account creation through the account-registration extension.
     #[must_use]
     pub fn create_account_on_connect(
@@ -865,6 +894,34 @@ impl Config {
         self.metadata_subscriptions = keys.into_iter().map(Into::into).collect();
         self
     }
+}
+
+fn webirc_line(webirc: &WebIrc) -> Result<WireLine, BuildError> {
+    let client_ip = webirc.client_ip.to_string();
+    let ip = if client_ip.starts_with(':') {
+        format!("0{client_ip}")
+    } else {
+        client_ip
+    };
+    let hostname = webirc.client_hostname.as_deref().unwrap_or(&ip);
+    let mut line = Line::new("WEBIRC")
+        .param(&webirc.password)
+        .param(&webirc.gateway)
+        .param(hostname)
+        .param(&ip);
+    let options = webirc
+        .options
+        .iter()
+        .map(|(name, value)| match value {
+            Some(value) => format!("{name}={}", escape_tag_value(value)),
+            None => name.clone(),
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
+    if !options.is_empty() {
+        line = line.param(options);
+    }
+    line.encode()
 }
 
 /// One operation from an IRC mode string.
