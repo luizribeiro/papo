@@ -2152,6 +2152,7 @@ pub fn papo_core::Session::monitor_clear(&mut self)
 pub fn papo_core::Session::monitor_remove<I, S>(&mut self, I) where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
 pub fn papo_core::Session::new(papo_core::Config) -> Self
 pub fn papo_core::Session::nick(&self) -> &str
+pub fn papo_core::Session::oper(&mut self, std::time::Instant, &str, &papo::Secret) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
 pub fn papo_core::Session::poll_connect_phase(&mut self) -> core::option::Option<papo_core::ConnectPhase>
 pub fn papo_core::Session::poll_event(&mut self) -> core::option::Option<papo_core::Event>
 pub fn papo_core::Session::poll_timeout(&self) -> core::option::Option<std::time::Instant>

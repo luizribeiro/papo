@@ -6,7 +6,7 @@ use std::{collections::BTreeMap, time::Instant};
 
 use papo_core::{
     Config, Conversation, Event, RateLimit, Refusal, RequestError, RequestId, ResponseMatcher,
-    ServerError, Session, TextKind, WhoOnJoin,
+    Secret, ServerError, Session, TextKind, WhoOnJoin,
 };
 use papo_proto::{Command, Line, LineRef, Numeric};
 
@@ -37,11 +37,7 @@ fn debug_output_redacts_rate_limited_oper_and_join_credentials() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
     session
-        .request_with_matcher(
-            now,
-            Line::new("OPER").with_params(["admin", "operator-password-3751"]),
-            ResponseMatcher::Oper,
-        )
+        .oper(now, "admin", &Secret::new("operator-password-3751"))
         .unwrap();
     session
         .request_with_matcher(
@@ -52,6 +48,37 @@ fn debug_output_redacts_rate_limited_oper_and_join_credentials() {
         .unwrap();
     support::assert_session_debug_redacts(&session, "operator-password-3751");
     support::assert_session_debug_redacts(&session, "channel-key-6824");
+}
+
+#[test]
+fn oper_matches_ergo_success_refusal_and_standard_failure() {
+    let cases = [
+        ":ergo.test 381 papo :You are now an IRC operator",
+        ":ergo.test 491 papo :No O-lines for your host",
+        ":ergo.test FAIL OPER INVALID_PARAMS :Invalid operator credentials",
+    ];
+
+    for reply in cases {
+        let now = Instant::now();
+        let mut session = Session::new(
+            Config::default()
+                .nick("papo")
+                .rate_limit(RateLimit::unlimited()),
+        );
+        let id = session
+            .oper(now, "admin", &Secret::new("operator-password-3751"))
+            .unwrap();
+        assert_eq!(
+            session.poll_transmit().unwrap().as_ref(),
+            b"OPER admin operator-password-3751\r\n"
+        );
+
+        session.handle_line(now, reply.as_bytes());
+        assert!(
+            std::iter::from_fn(|| session.poll_event())
+                .any(|event| matches!(event, Event::Response(response) if response.id == id))
+        );
+    }
 }
 
 #[test]

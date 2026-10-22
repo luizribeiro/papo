@@ -67,6 +67,10 @@ pub(crate) enum CoreRequest {
         account: String,
         code: String,
     },
+    Oper {
+        name: String,
+        password: papo_core::Secret,
+    },
     #[cfg(feature = "unstable")]
     Unstable(unstable::UnstableRequest),
     Metadata(papo_core::MetadataCommand),
@@ -89,6 +93,9 @@ impl CoreRequest {
                 session.create_account(now(), account.as_deref(), email.as_deref(), password)?;
             }
             Self::Verify { account, code } => session.verify(now(), &account, &code)?,
+            Self::Oper { name, password } => {
+                session.oper(now(), &name, &password)?;
+            }
             #[cfg(feature = "unstable")]
             Self::Unstable(request) => return request.start(session),
             Self::Metadata(command) => return session.metadata(now(), command),

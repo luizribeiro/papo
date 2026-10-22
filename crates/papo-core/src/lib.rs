@@ -3527,6 +3527,28 @@ impl Session {
         Ok(id)
     }
 
+    /// Authenticates as an IRC operator without copying the password into a plain line.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RequestError::InvalidSecret`] for a byte secret. Other failures are the same as
+    /// [`Session::request_with_matcher`].
+    pub fn oper(
+        &mut self,
+        now: Instant,
+        name: &str,
+        password: &Secret,
+    ) -> Result<RequestId, RequestError> {
+        if password.expose().is_none() {
+            return Err(RequestError::InvalidSecret);
+        }
+        self.request_with_matcher(
+            now,
+            Line::new("OPER").param(name).param(password),
+            ResponseMatcher::Oper,
+        )
+    }
+
     /// Adds nicknames to the desired server-side monitor list.
     pub fn monitor_add<I, S>(&mut self, nicks: I)
     where
