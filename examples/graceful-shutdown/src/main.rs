@@ -39,6 +39,6 @@ async fn shutdown_signal() -> io::Result<()> {
 }
 
 #[cfg(target_os = "wasi")]
-async fn shutdown_signal() -> io::Result<()> {
-    std::future::pending().await
+fn shutdown_signal() -> impl std::future::Future<Output = io::Result<()>> {
+    std::future::pending()
 }
