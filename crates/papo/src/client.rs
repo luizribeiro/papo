@@ -378,21 +378,20 @@ impl Client {
     /// untrusted queries should also enforce a per-sender limit.
     ///
     /// An empty `text` sends the command without parameters, such as `\x01PING\x01`.
+    /// A [`crate::event::CtcpReply`] cannot be passed to this method.
     ///
     /// # Errors
     ///
-    /// Returns [`Error::InvalidInput`] when the event is itself a reply, its actor is a server, or
-    /// the command or text contains a CTCP or IRC line delimiter. It returns
+    /// Returns [`Error::InvalidInput`] when the actor is a server or the command or text contains a
+    /// CTCP or IRC line delimiter. It returns
     /// [`Error::Disconnected`] if the driver stops before writing the reply.
     pub fn ctcp_reply(
         &self,
-        query: &crate::event::Ctcp,
+        query: &crate::event::CtcpQuery,
         text: impl Into<String>,
     ) -> crate::RequestFuture<()> {
         let text = text.into();
-        let reply = (!query.reply)
-            .then(|| papo_core::__ctcp_reply(&query.actor, &query.command, &text))
-            .flatten();
+        let reply = papo_core::__ctcp_reply(&query.actor, &query.command, &text);
         let client = self.clone();
         crate::RequestFuture::new(async move {
             let reply = reply.ok_or_else(|| {

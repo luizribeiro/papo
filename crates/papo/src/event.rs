@@ -470,7 +470,7 @@ impl Ctcp {
     }
 }
 
-#[allow(dead_code, clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)]
 fn ctcp_from_line(
     raw: ProtoLine,
     batch_type: Option<&str>,
@@ -938,7 +938,7 @@ fn message_event_from_line(
         )
         .map_or_else(Event::Other, |notice| Event::ServerNotice(Box::new(notice)));
     }
-    let raw = match Ctcp::from_line(
+    let raw = match ctcp_from_line(
         raw,
         batch_type,
         authorship,
@@ -947,7 +947,7 @@ fn message_event_from_line(
         isupport,
         received_at,
     ) {
-        Ok(ctcp) => return Event::Ctcp(ctcp),
+        Ok(event) => return event,
         Err(raw) => raw,
     };
     if raw.as_ref().command_is("NOTICE") {
@@ -1983,7 +1983,7 @@ mod tests {
     use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
     use super::{
-        Authorship, Chat, Conversation, CoreEvent, Ctcp, Event, Message as ChatMessage, MessageId,
+        Authorship, Chat, Conversation, CoreEvent, Event, Message as ChatMessage, MessageId,
         MessageKind, MetadataChanged, ModeAction, ModeArg, NoticeKind, ServerNoticeKind,
         ServerNoticeTarget, Source, StandardReplyKind, Warning, ctcp_parts,
         from_core as from_core_with_mapping, message_event_from_line,
@@ -2135,7 +2135,7 @@ mod tests {
             let isupport = Isupport::default();
             let (status, conversation) =
                 papo_core::classify_conversation(&line.as_ref(), "papo", &isupport).unwrap();
-            match Ctcp::from_line(
+            message_event_from_line(
                 line,
                 None,
                 Authorship::Other,
@@ -2143,21 +2143,20 @@ mod tests {
                 status,
                 &isupport,
                 UNIX_EPOCH,
-            ) {
-                Ok(ctcp) => Event::Ctcp(ctcp),
-                Err(line) => ChatMessage::new(line, &Isupport::default(), "papo", UNIX_EPOCH)
-                    .map_or_else(Event::Other, |message| Event::Message(Box::new(message))),
-            }
+                true,
+                true,
+            )
         };
         let version_event = parse("PRIVMSG", "\x01VERSION\x01");
-        let version = version_event.as_ctcp().unwrap();
+        let version = version_event.as_ctcp_query().unwrap();
         assert_eq!(version.command, "VERSION");
         assert_eq!(version.params, None);
-        assert!(!version.reply);
         let reply_event = parse("NOTICE", "\x01VERSION papo-0.1\x01");
-        let reply = reply_event.as_ctcp().unwrap();
+        let reply = reply_event.as_ctcp_reply().unwrap();
         assert_eq!(reply.params.as_deref(), Some("papo-0.1"));
-        assert!(reply.reply);
+        let action_notice = parse("NOTICE", "\x01ACTION waves\x01");
+        assert!(matches!(action_notice, Event::Notice(notice)
+            if notice.kind == NoticeKind::Action && notice.text == "waves"));
         assert!(
             ChatMessage::new(
                 Line::new("FAIL").with_params(["PRIVMSG", "\x01VERSION\x01"]),
@@ -2375,7 +2374,7 @@ mod tests {
         let server_time = UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000);
         let cases = [
             (
-                "Ctcp",
+                "CtcpQuery",
                 "RfcBTzyxY120101",
                 "@msgid=RfcBTzyxY120101;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example PRIVMSG #papo :\x01VERSION\x01",
             ),
@@ -2450,7 +2449,7 @@ mod tests {
         for (expected_variant, msgid, line) in cases {
             let event = convert(line);
             let actual_variant = match &event {
-                Event::Ctcp(_) => "Ctcp",
+                Event::CtcpQuery(_) => "CtcpQuery",
                 Event::TagMsg(_) => "TagMsg",
                 Event::Reacted(_) => "Reacted",
                 Event::Redacted(_) => "Redacted",

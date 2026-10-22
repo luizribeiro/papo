@@ -371,12 +371,11 @@ async fn message_fields_use_captured_session_facts() {
     assert_eq!(action.text, "tests a split message");
     assert_eq!(action.raw_text, "tests a split message");
     let version = events.next().await.unwrap();
-    let version = version.as_ctcp().unwrap();
+    let version = version.as_ctcp_query().unwrap();
     assert_eq!(version.command, "VERSION");
     assert_eq!(version.params, None);
-    assert!(!version.reply);
     let ping = events.next().await.unwrap();
-    let ping = ping.as_ctcp().unwrap();
+    let ping = ping.as_ctcp_query().unwrap();
     assert_eq!(ping.command, "PING");
     assert_eq!(ping.params.as_deref(), Some("1731513600"));
     let reply = events.next().await.unwrap();
@@ -506,7 +505,7 @@ async fn manual_ctcp_replies_match_automatic_framing_and_target_the_actor() {
     )
     .await;
     let query = events.next().await.unwrap();
-    let query = query.as_ctcp().unwrap();
+    let query = query.as_ctcp_query().unwrap();
     within(client.ctcp_reply(query, "ferrobot 2.3"))
         .await
         .unwrap();
@@ -518,7 +517,7 @@ async fn manual_ctcp_replies_match_automatic_framing_and_target_the_actor() {
     )
     .await;
     let channel_query = events.next().await.unwrap();
-    let channel_query = channel_query.as_ctcp().unwrap();
+    let channel_query = channel_query.as_ctcp_query().unwrap();
     within(client.ctcp_reply(channel_query, "")).await.unwrap();
     client_line(&mut server, b"NOTICE dan \x01PING\x01\r\n").await;
 
@@ -527,7 +526,7 @@ async fn manual_ctcp_replies_match_automatic_framing_and_target_the_actor() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn manual_ctcp_replies_reject_replies_servers_and_delimiters() {
+async fn manual_ctcp_replies_reject_delimiters() {
     let (mut server, client, mut events, driver) =
         scripted(config().ctcp(crate::CtcpReplies::off()));
     let task = tokio::spawn(driver);
@@ -541,7 +540,7 @@ async fn manual_ctcp_replies_reject_replies_servers_and_delimiters() {
     .await;
     while !matches!(events.next().await, Some(Event::Connected(_))) {}
     let query = events.next().await.unwrap();
-    let query = query.as_ctcp().unwrap();
+    let query = query.as_ctcp_query().unwrap();
     for invalid in [
         "embedded\x01delimiter",
         "line\rreturn",

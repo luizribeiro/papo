@@ -1813,7 +1813,7 @@ pub fn papo::Client::action(&self, impl core::convert::AsRef<str>, impl core::co
 pub fn papo::Client::builder(impl papo::IntoEndpoint) -> papo::Builder
 pub fn papo::Client::clear_away(&self) -> papo::RequestFuture<()>
 pub fn papo::Client::clear_topic(&self, impl core::convert::AsRef<str>) -> papo::RequestFuture<()>
-pub fn papo::Client::ctcp_reply(&self, &papo::event::Ctcp, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::ctcp_reply(&self, &papo::event::CtcpQuery, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::invite(&self, impl core::convert::AsRef<str>, impl core::convert::AsRef<str>) -> papo::RequestFuture<()>
 pub fn papo::Client::join(&self, impl core::convert::AsRef<str>) -> papo::JoinChannel
 pub fn papo::Client::kick(&self, impl core::convert::AsRef<str>, impl core::convert::AsRef<str>, impl core::convert::AsRef<str>) -> papo::RequestFuture<()>
