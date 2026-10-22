@@ -69,11 +69,13 @@ async fn ctcp_playback_has_no_automatic_reply(s: Scenario) -> papo_testing::Resu
         .send_raw(papo::Line::privmsg(bob_nick.as_ref(), "\u{1}VERSION\u{1}"))
         .await?;
     alice.ping().await?;
-    bob.wait_for(|event| event.as_ctcp().filter(|ctcp| ctcp.command == "VERSION"))
-        .await?;
-    alice
-        .expect_none(|event| event.as_ctcp().filter(|ctcp| ctcp.reply))
-        .await?;
+    bob.wait_for(|event| {
+        event
+            .as_ctcp_query()
+            .filter(|ctcp| ctcp.command == "VERSION")
+    })
+    .await?;
+    alice.expect_none(Event::as_ctcp_reply).await?;
 
     let phone = s
         .connect_with(
@@ -101,9 +103,8 @@ async fn ctcp_playback_has_no_automatic_reply(s: Scenario) -> papo_testing::Resu
     }));
     alice
         .expect_none(|event| {
-            event.as_ctcp().filter(|ctcp| {
-                ctcp.reply
-                    && ctcp.command == "VERSION"
+            event.as_ctcp_reply().filter(|ctcp| {
+                ctcp.command == "VERSION"
                     && crate::source_nick(&ctcp.actor) == Some(bob_nick.as_ref())
             })
         })
