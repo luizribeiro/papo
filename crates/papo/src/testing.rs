@@ -26,7 +26,7 @@ pub fn wire_client(
         let sent = sender.send(server);
         Box::pin(async move {
             sent.map_err(|_| crate::Error::connection_lost())?;
-            Ok(Box::new(client) as Box<dyn crate::driver::ConnectionIo>)
+            Ok(Box::new(client) as Box<dyn crate::rt::Io>)
         })
     });
     let (client, events, driver) = builder.build_with_connector(connector);

@@ -39,6 +39,7 @@ use crate::{
     address::ServerAddress,
     client::{Client, Sent},
     event_impl as event,
+    rt::{BoxFuture, Io},
     state::State,
     transport::TlsConfig,
 };
@@ -48,19 +49,8 @@ const QUIT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 const STABLE_CONNECTION: Duration = Duration::from_secs(60);
 pub(super) const SLOW_CONSUMER_REASON: &str = "SlowConsumer";
 
-#[cfg(not(browser))]
-pub(crate) trait ConnectionIo: AsyncRead + AsyncWrite + Unpin + Send {}
-#[cfg(not(browser))]
-impl<T: AsyncRead + AsyncWrite + Unpin + Send> ConnectionIo for T {}
-#[cfg(browser)]
-pub(crate) trait ConnectionIo: AsyncRead + AsyncWrite + Unpin {}
-#[cfg(browser)]
-impl<T: AsyncRead + AsyncWrite + Unpin> ConnectionIo for T {}
-type BoxConnection = Box<dyn ConnectionIo>;
-#[cfg(not(browser))]
-type ConnectFuture = Pin<Box<dyn Future<Output = Result<BoxConnection, Error>> + Send>>;
-#[cfg(browser)]
-type ConnectFuture = Pin<Box<dyn Future<Output = Result<BoxConnection, Error>>>>;
+type BoxConnection = Box<dyn Io>;
+type ConnectFuture = BoxFuture<Result<BoxConnection, Error>>;
 pub(crate) type Connector = Arc<
     dyn Fn(ConnectionPlan, mpsc::UnboundedSender<papo_core::ConnectPhase>) -> ConnectFuture
         + Send
@@ -458,10 +448,7 @@ impl Stream for Events {
 /// [`Event::Disconnected`](crate::Event::Disconnected).
 #[must_use = "a Driver does nothing unless awaited or spawned"]
 pub struct Driver {
-    #[cfg(not(browser))]
-    inner: Pin<Box<dyn Future<Output = Result<(), Error>> + Send>>,
-    #[cfg(browser)]
-    inner: Pin<Box<dyn Future<Output = Result<(), Error>>>>,
+    inner: BoxFuture<Result<(), Error>>,
 }
 
 impl std::fmt::Debug for Driver {
@@ -479,7 +466,7 @@ impl Driver {
         defaults: PostConnect,
     ) -> (Client, Events, Self)
     where
-        S: ConnectionIo + 'static,
+        S: Io + 'static,
     {
         let channels = channels(capacity, &session);
         let inner = Box::pin(run(

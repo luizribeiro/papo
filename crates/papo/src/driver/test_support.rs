@@ -78,7 +78,7 @@ impl Driver {
         session: Session,
     ) -> (super::Client, super::Events, Self)
     where
-        S: super::ConnectionIo + 'static,
+        S: crate::rt::Io + 'static,
     {
         Self::with_stream_and_capacity(stream, session, super::DEFAULT_CHANNEL_CAPACITY)
     }
@@ -89,7 +89,7 @@ impl Driver {
         capacity: usize,
     ) -> (super::Client, super::Events, Self)
     where
-        S: super::ConnectionIo + 'static,
+        S: crate::rt::Io + 'static,
     {
         Self::with_stream_and_connect(
             stream,
