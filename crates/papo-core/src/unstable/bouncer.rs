@@ -1,8 +1,8 @@
-use std::{borrow::Borrow, collections::BTreeMap, ops::Deref};
+use std::{borrow::Borrow, collections::BTreeMap, fmt::Write as _, ops::Deref};
 
-use papo_proto::escape_tag_value;
-use papo_proto::{Casemapping, Line, LineRef, Nick};
+use papo_proto::{Casemapping, Line, LineRef, Nick, Param};
 use web_time::Instant;
+use zeroize::{Zeroize, Zeroizing};
 
 use crate::{Feature, RequestError, RequestId, Secret, Session};
 
@@ -143,7 +143,7 @@ impl NetworkUpdate {
                 attributes: BTreeMap::new(),
             });
         }
-        let tagged = format!("@{raw} ATTRS");
+        let tagged = Zeroizing::new(format!("@{raw} ATTRS"));
         let parsed = LineRef::parse(&tagged).ok()?;
         Some(Self {
             id,
@@ -195,6 +195,11 @@ impl BouncerNetwork {
                 "username" => self.username = value,
                 "realname" => self.realname = value,
                 "error" => self.error = value,
+                "pass" => {
+                    if let Some(mut value) = value {
+                        value.zeroize();
+                    }
+                }
                 _ => match value {
                     Some(value) => _ = self.other.insert(key, value),
                     None => _ = self.other.remove(&key),
@@ -291,38 +296,66 @@ impl NetworkConfig {
         self
     }
 
-    pub(crate) fn attributes(&self) -> Result<String, RequestError> {
-        let mut attributes = vec![attribute("host", &self.host)];
-        if let Some(value) = &self.name {
-            attributes.push(attribute("name", value));
-        }
-        if let Some(value) = self.port {
-            attributes.push(format!("port={value}"));
-        }
-        if let Some(value) = self.tls {
-            attributes.push(format!("tls={}", u8::from(value)));
-        }
+    pub(crate) fn attributes(&self) -> Result<Param, RequestError> {
         let password = self
             .password
             .as_ref()
             .map(|secret| secret.expose().ok_or(RequestError::InvalidSecret))
             .transpose()?;
+        let value_bytes = self.host.len()
+            + self.name.as_ref().map_or(0, String::len)
+            + self.nickname.as_deref().map_or(0, str::len)
+            + self.username.as_deref().map_or(0, str::len)
+            + self.realname.as_deref().map_or(0, str::len)
+            + password.map_or(0, str::len);
+        let mut attributes = Zeroizing::new(String::with_capacity(
+            value_bytes.saturating_mul(2).saturating_add(96),
+        ));
+        push_attribute(&mut attributes, "host", &self.host);
+        if let Some(value) = &self.name {
+            push_attribute(&mut attributes, "name", value);
+        }
+        if let Some(value) = self.port {
+            write!(attributes, ";port={value}").expect("writing to a String cannot fail");
+        }
+        if let Some(value) = self.tls {
+            write!(attributes, ";tls={}", u8::from(value))
+                .expect("writing to a String cannot fail");
+        }
         for (key, value) in [
             ("nickname", self.nickname.as_deref()),
             ("username", self.username.as_deref()),
             ("realname", self.realname.as_deref()),
-            ("pass", password),
         ] {
             if let Some(value) = value {
-                attributes.push(attribute(key, value));
+                push_attribute(&mut attributes, key, value);
             }
         }
-        Ok(attributes.join(";"))
+        if let Some(password) = password {
+            push_attribute(&mut attributes, "pass", password);
+            Ok(Param::from(Secret::from(attributes.as_str())))
+        } else {
+            Ok(Param::from(attributes.as_str()))
+        }
     }
 }
 
-fn attribute(key: &str, value: &str) -> String {
-    format!("{key}={}", escape_tag_value(value))
+fn push_attribute(attributes: &mut String, key: &str, value: &str) {
+    if !attributes.is_empty() {
+        attributes.push(';');
+    }
+    attributes.push_str(key);
+    attributes.push('=');
+    for character in value.chars() {
+        match character {
+            ';' => attributes.push_str(r"\:"),
+            ' ' => attributes.push_str(r"\s"),
+            '\\' => attributes.push_str(r"\\"),
+            '\r' => attributes.push_str(r"\r"),
+            '\n' => attributes.push_str(r"\n"),
+            other => attributes.push(other),
+        }
+    }
 }
 
 impl Session {
@@ -354,7 +387,7 @@ impl Session {
             now,
             Line::new("BOUNCER")
                 .param("ADDNETWORK")
-                .param(&config.attributes()?),
+                .param(config.attributes()?),
             Feature::Bouncer,
         )
     }
@@ -376,7 +409,7 @@ impl Session {
             Line::new("BOUNCER")
                 .param("CHANGENETWORK")
                 .param(id.as_ref())
-                .param(&config.attributes()?),
+                .param(config.attributes()?),
             Feature::Bouncer,
         )
     }
@@ -414,7 +447,7 @@ mod tests {
             .realname("Alice; Example")
             .password("unique-bouncer-password-9241");
         assert_eq!(
-            config.attributes().unwrap(),
+            &*config.attributes().unwrap(),
             r"host=irc.example.org;name=Example\sNetwork;port=6697;tls=1;realname=Alice\:\sExample;pass=unique-bouncer-password-9241"
         );
         assert!(!format!("{config:?}").contains("unique-bouncer-password-9241"));
@@ -424,7 +457,10 @@ mod tests {
     fn network_config_rejects_a_byte_password() {
         let config =
             NetworkConfig::new("irc.example.org").password(crate::Secret::from_bytes([0xff]));
-        assert_eq!(config.attributes(), Err(crate::RequestError::InvalidSecret));
+        assert!(matches!(
+            config.attributes(),
+            Err(crate::RequestError::InvalidSecret)
+        ));
     }
 
     #[test]
@@ -448,6 +484,20 @@ mod tests {
         );
         assert_eq!(network.name, None);
         assert!(network.other.is_empty());
+    }
+
+    #[test]
+    fn network_updates_discard_password_attributes() {
+        let message = LineRef::parse(
+            r"BOUNCER NETWORK 42 host=irc.example.org;pass=server-supplied-password;vendor.example/color=blue",
+        )
+        .unwrap();
+        let update = NetworkUpdate::parse(&message).unwrap();
+        let mut network = BouncerNetwork::empty(update.id);
+        network.apply(update.attributes, Casemapping::default());
+        assert_eq!(network.other.get("vendor.example/color").unwrap(), "blue");
+        assert!(!network.other.contains_key("pass"));
+        assert!(!format!("{network:?}").contains("server-supplied-password"));
     }
 
     #[test]

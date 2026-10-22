@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 
 use papo_core::{Config, Event, Feature, NetworkConfig, NetworkId, NetworkState, StateLimit};
 use papo_proto::Casemapping;
-use support::Transcript;
+use support::{Transcript, assert_session_debug_redacts};
 
 #[test]
 fn network_ids_have_the_identifier_value_shape() {
@@ -101,6 +101,23 @@ fn sends_each_bouncer_network_operation() {
         .server("@label=3 BOUNCER DELNETWORK 43")
         .event(|event| matches!(event, Event::Response(response) if response.lines.len() == 1))
         .no_event();
+}
+
+#[test]
+fn redacts_a_queued_bouncer_network_password() {
+    let config = NetworkConfig::new("irc.example.org").password("unique-bouncer-password-9241");
+    registered()
+        .update(|session| {
+            session
+                .bouncer_add(std::time::Instant::now(), &config)
+                .unwrap();
+        })
+        .inspect(|session| {
+            assert_session_debug_redacts(session, "unique-bouncer-password-9241");
+        })
+        .client(
+            "@label=0 BOUNCER ADDNETWORK host=irc.example.org;pass=unique-bouncer-password-9241",
+        );
 }
 
 #[test]

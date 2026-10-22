@@ -156,3 +156,37 @@ fn wipes_webpush_auth_and_combined_key_buffers() {
     TARGET.store(0, Ordering::SeqCst);
     assert!(!LEAKED.load(Ordering::SeqCst));
 }
+
+#[cfg(feature = "unstable")]
+#[test]
+fn wipes_bouncer_password_attribute_buffers() {
+    const PASSWORD: &str = "bouncer-password-wipe-marker-4921";
+
+    inspect(PASSWORD);
+    let now = Instant::now();
+    let mut session = Session::new(
+        Config::default()
+            .enable(papo_core::Feature::Bouncer)
+            .wanted_caps(["soju.im/bouncer-networks", "labeled-response"])
+            .rate_limit(RateLimit::unlimited()),
+    );
+    session.handle_connected(now);
+    while session.poll_transmit().is_some() {}
+    session.handle_line(now, b"CAP * LS :soju.im/bouncer-networks labeled-response");
+    while session.poll_transmit().is_some() {}
+    session.handle_line(now, b"CAP * ACK :soju.im/bouncer-networks labeled-response");
+    while session.poll_transmit().is_some() {}
+
+    let config = papo_core::NetworkConfig::new("irc.example.org").password(PASSWORD);
+    session.bouncer_add(now, &config).unwrap();
+    let line = session.poll_transmit().unwrap();
+    assert!(
+        line.windows(PASSWORD.len())
+            .any(|window| window == PASSWORD.as_bytes())
+    );
+    drop(line);
+    drop(config);
+    drop(session);
+    TARGET.store(0, Ordering::SeqCst);
+    assert!(!LEAKED.load(Ordering::SeqCst));
+}
