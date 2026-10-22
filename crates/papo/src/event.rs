@@ -1979,26 +1979,6 @@ mod tests {
         ));
     }
 
-    #[cfg(feature = "unstable")]
-    #[test]
-    fn maps_request_untracked() {
-        let now = Instant::now();
-        let mut session = Session::new(
-            Config::default()
-                .enable(papo_core::Feature::Persistence)
-                .wanted_caps(["draft/persistence"]),
-        );
-        session.handle_connected(now);
-        session.handle_line(now, b"CAP * LS :draft/persistence");
-        session.handle_line(now, b"CAP * ACK :draft/persistence");
-        while session.poll_transmit().is_some() {}
-        session.persistence_get(now).unwrap();
-        assert!(matches!(
-            from_core(session.poll_event().unwrap()),
-            CoreEvent::RequestUntracked(_)
-        ));
-    }
-
     #[test]
     fn maps_request_timed_out() {
         let now = Instant::now();
@@ -2098,18 +2078,6 @@ mod tests {
                 if matches!(renamed.actor, Source::Server { ref name, .. } if name == "ergo.test")
                     && renamed.reason.is_none()
         ));
-    }
-
-    #[cfg(feature = "unstable")]
-    #[test]
-    fn maps_bouncer_network_updates() {
-        let event = forwarded(papo_core::Event::__bouncer_network_changed(
-            papo_core::NetworkId::from("42"),
-            None,
-        ));
-        let changed = event.as_bouncer_network_changed().unwrap();
-        assert_eq!(changed.id, "42");
-        assert!(changed.network.is_none());
     }
 
     #[test]
@@ -2424,6 +2392,41 @@ mod tests {
                 forwarded(papo_core::Event::__state_limit_reached(core)),
                 Event::Warning(Warning::StateLimitReached { kind }) if kind == public
             ));
+        }
+    }
+
+    #[cfg(feature = "unstable")]
+    mod unstable {
+        use super::*;
+
+        #[test]
+        fn maps_request_untracked() {
+            let now = Instant::now();
+            let mut session = Session::new(
+                Config::default()
+                    .enable(papo_core::Feature::Persistence)
+                    .wanted_caps(["draft/persistence"]),
+            );
+            session.handle_connected(now);
+            session.handle_line(now, b"CAP * LS :draft/persistence");
+            session.handle_line(now, b"CAP * ACK :draft/persistence");
+            while session.poll_transmit().is_some() {}
+            session.persistence_get(now).unwrap();
+            assert!(matches!(
+                from_core(session.poll_event().unwrap()),
+                CoreEvent::RequestUntracked(_)
+            ));
+        }
+
+        #[test]
+        fn maps_bouncer_network_updates() {
+            let event = forwarded(papo_core::Event::__bouncer_network_changed(
+                papo_core::NetworkId::from("42"),
+                None,
+            ));
+            let changed = event.as_bouncer_network_changed().unwrap();
+            assert_eq!(changed.id, "42");
+            assert!(changed.network.is_none());
         }
     }
 
