@@ -926,6 +926,8 @@ pub papo::event::ServerNotice::server_time: core::option::Option<std::time::Syst
 pub papo::event::ServerNotice::tags: papo::Tags
 pub papo::event::ServerNotice::text: alloc::string::String
 pub papo::event::ServerNotice::to: papo::event::ServerNoticeTarget
+impl papo::event::ServerNotice
+pub fn papo::event::ServerNotice::spans(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo::Span<'_>>
 impl core::clone::Clone for papo::event::ServerNotice
 pub fn papo::event::ServerNotice::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::ServerNotice

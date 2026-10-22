@@ -788,6 +788,72 @@ impl Notice {
     }
 }
 
+impl ServerNotice {
+    #[allow(dead_code, clippy::too_many_arguments)]
+    fn from_line(
+        raw: ProtoLine,
+        batch_type: Option<&str>,
+        authorship: Authorship,
+        conversation: Conversation,
+        status: Option<Vec<char>>,
+        isupport: &Isupport,
+        received_at: SystemTime,
+    ) -> Result<Self, ProtoLine> {
+        let message = raw.as_ref();
+        let kind = if message.command_is("WALLOPS") {
+            ServerNoticeKind::Wallops
+        } else if message.command_is("NOTICE") {
+            ServerNoticeKind::Notice
+        } else if message.command_is("PRIVMSG") {
+            ServerNoticeKind::Privmsg
+        } else {
+            return Err(raw);
+        };
+        let wallops = kind == ServerNoticeKind::Wallops;
+        let Some(raw_text) = message.param(usize::from(!wallops)) else {
+            return Err(raw);
+        };
+        let to = if wallops || message.param(0) == Some("*") {
+            ServerNoticeTarget::All
+        } else if let Some(target) = message.param(0).filter(|target| target.starts_with('$')) {
+            ServerNoticeTarget::Mask(isupport.casemapping().mask(target))
+        } else if let Some(target) = message
+            .param(0)
+            .filter(|target| isupport.is_channel(target))
+        {
+            ServerNoticeTarget::Channel(isupport.casemapping().channel(target))
+        } else {
+            ServerNoticeTarget::Me
+        };
+        let Some(metadata) = message_metadata(
+            &message,
+            batch_type,
+            authorship,
+            conversation,
+            status,
+            isupport,
+            received_at,
+        ) else {
+            return Err(raw);
+        };
+        Ok(Self {
+            actor: metadata.actor,
+            kind,
+            to,
+            text: strip_formatting(raw_text).into_owned(),
+            raw_text: raw_text.to_owned(),
+            server_time: metadata.server_time,
+            received_at: metadata.received_at,
+            tags: metadata.tags,
+        })
+    }
+
+    /// Returns the formatted spans parsed from [`Self::raw_text`].
+    pub fn spans(&self) -> impl Iterator<Item = crate::Span<'_>> {
+        papo_proto::Formatted::new(&self.raw_text)
+    }
+}
+
 pub(crate) fn historical_conversation(
     message: &LineRef<'_>,
     authorship: Authorship,
