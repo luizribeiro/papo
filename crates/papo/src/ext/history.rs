@@ -52,20 +52,6 @@ pub enum HistoryItem {
     },
 }
 
-variant_accessors! { HistoryItem;
-    (Message, as_message, ChatMessage),
-    (Reacted, as_reacted, Reacted),
-    (Redacted, as_redacted, Redacted),
-    (Joined, as_joined, Joined),
-    (Parted, as_parted, Parted),
-    (Quit, as_quit, Quit),
-    (Kicked, as_kicked, Kicked),
-    (NickChanged, as_nick_changed, NickChanged),
-    (TopicChanged, as_topic_changed, TopicChanged),
-    (ModeChanged, as_mode_changed, ModeChanged),
-    (field Other, line, as_other, Line),
-}
-
 fn other(line: Line, received_at: SystemTime) -> HistoryItem {
     let parsed = line.as_ref();
     let msgid = parsed.tag("msgid").map(|value| value.as_ref().into());
@@ -563,7 +549,10 @@ impl ConversationInput {
 impl HistoryPage {
     /// Iterates over chat messages, excluding replayed activity items.
     pub fn messages(&self) -> impl Iterator<Item = &ChatMessage> {
-        self.items.iter().filter_map(HistoryItem::as_message)
+        self.items.iter().filter_map(|item| match item {
+            HistoryItem::Message(message) => Some(message),
+            _ => None,
+        })
     }
 }
 

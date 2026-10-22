@@ -1431,28 +1431,6 @@ pub papo::HistoryItem::Quit(papo::event::Quit)
 pub papo::HistoryItem::Reacted(papo::event::Reacted)
 pub papo::HistoryItem::Redacted(papo::event::Redacted)
 pub papo::HistoryItem::TopicChanged(papo::event::TopicChanged)
-impl papo::HistoryItem
-pub const fn papo::HistoryItem::as_joined(&self) -> core::option::Option<&papo::event::Joined>
-impl papo::HistoryItem
-pub const fn papo::HistoryItem::as_kicked(&self) -> core::option::Option<&papo::event::Kicked>
-impl papo::HistoryItem
-pub const fn papo::HistoryItem::as_message(&self) -> core::option::Option<&papo::Message>
-impl papo::HistoryItem
-pub const fn papo::HistoryItem::as_mode_changed(&self) -> core::option::Option<&papo::event::ModeChanged>
-impl papo::HistoryItem
-pub const fn papo::HistoryItem::as_nick_changed(&self) -> core::option::Option<&papo::event::NickChanged>
-impl papo::HistoryItem
-pub const fn papo::HistoryItem::as_other(&self) -> core::option::Option<&papo::Line>
-impl papo::HistoryItem
-pub const fn papo::HistoryItem::as_parted(&self) -> core::option::Option<&papo::event::Parted>
-impl papo::HistoryItem
-pub const fn papo::HistoryItem::as_quit(&self) -> core::option::Option<&papo::event::Quit>
-impl papo::HistoryItem
-pub const fn papo::HistoryItem::as_reacted(&self) -> core::option::Option<&papo::event::Reacted>
-impl papo::HistoryItem
-pub const fn papo::HistoryItem::as_redacted(&self) -> core::option::Option<&papo::event::Redacted>
-impl papo::HistoryItem
-pub const fn papo::HistoryItem::as_topic_changed(&self) -> core::option::Option<&papo::event::TopicChanged>
 impl core::clone::Clone for papo::HistoryItem
 pub fn papo::HistoryItem::clone(&self) -> Self
 impl core::cmp::Eq for papo::HistoryItem
