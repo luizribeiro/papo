@@ -9,7 +9,7 @@ use papo_proto::Isupport;
 use support::Transcript;
 
 #[test]
-fn sends_registration_in_protocol_order() {
+fn sends_password_after_capability_discovery() {
     let config = Config::default()
         .nick("emily")
         .username("em")
@@ -18,10 +18,12 @@ fn sends_registration_in_protocol_order() {
     Transcript::new(config)
         .connect()
         .client("CAP LS 302")
-        .client("PASS :correct horse battery staple")
         .client("NICK emily")
         .client("USER em 0 * :Emily Example")
-        .no_client();
+        .no_client()
+        .server("CAP * LS :")
+        .client("PASS :correct horse battery staple")
+        .client("CAP END");
 }
 
 #[test]

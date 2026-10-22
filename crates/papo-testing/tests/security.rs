@@ -167,3 +167,20 @@ async fn scram_never_falls_back_to_plain_unsafely() {
     let disconnected = sasl_disconnect(&mut events).await;
     assert_sasl_failure(&disconnected, "ServerSignatureMismatch");
 }
+
+#[tokio::test]
+async fn server_password_waits_for_sts() {
+    let (_client, _events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test")
+            .nick("papo-wire")
+            .password(PASSWORD)
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    assert_eq!(wire.next_sent().await, "CAP LS 302");
+    assert_eq!(wire.next_sent().await, "NICK papo-wire");
+    assert_eq!(wire.next_sent().await, "USER papo-wire 0 * papo-wire");
+    wire.server(":offline.test CAP * LS :sts=port=6697,duration=86400")
+        .await;
+    assert_eq!(wire.next_sent_or_closed().await, None);
+}

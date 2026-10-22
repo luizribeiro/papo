@@ -19,6 +19,7 @@ pub(super) struct WelcomeState {
     next_alt_nick: usize,
     connected: bool,
     webirc_pending: bool,
+    password_sent: bool,
 }
 
 impl WelcomeState {
@@ -32,6 +33,7 @@ impl WelcomeState {
             next_alt_nick: 0,
             connected: false,
             webirc_pending: false,
+            password_sent: false,
         }
     }
 
@@ -44,6 +46,7 @@ impl WelcomeState {
         self.next_alt_nick = 0;
         self.connected = false;
         self.webirc_pending = config.webirc.is_some();
+        self.password_sent = false;
         if let Some(webirc) = &config.webirc {
             let Some(password) = webirc.password.expose() else {
                 outbox.close(
@@ -79,15 +82,16 @@ impl WelcomeState {
             outbox.transmit_raw(line.into());
         }
         outbox.transmit_raw(b"CAP LS 302\r\n".to_vec());
-        if let Some(password) = &config.password {
-            let Some(password) = password.expose() else {
-                outbox.close(
-                    CloseKind::Other,
-                    "server password contains bytes rather than text".to_owned(),
-                );
-                return;
-            };
-            outbox.transmit("PASS", [password]);
+        if config
+            .password
+            .as_ref()
+            .is_some_and(|password| password.expose().is_none())
+        {
+            outbox.close(
+                CloseKind::Other,
+                "server password contains bytes rather than text".to_owned(),
+            );
+            return;
         }
         outbox.transmit("NICK", [&config.nick]);
         outbox.transmit("USER", [&config.username, "0", "*", &config.realname]);
@@ -102,6 +106,9 @@ impl WelcomeState {
         isupport: &Isupport,
         outbox: &mut Outbox,
     ) -> Handled {
+        if !message.command_is("CAP") {
+            self.send_password(config, outbox);
+        }
         if self.webirc_pending
             && message.command_is("ERROR")
             && message.param(0) == Some(ERGO_WEBIRC_REJECTION)
@@ -181,6 +188,41 @@ impl WelcomeState {
         }
     }
 
+    pub(super) fn handle_cap_decision(
+        &mut self,
+        message: &LineRef<'_>,
+        config: &Config,
+        outbox: &mut Outbox,
+    ) {
+        if message.command_is("CAP")
+            && message
+                .param(1)
+                .is_some_and(|command| command.eq_ignore_ascii_case("LS"))
+            && message.param(2) != Some("*")
+            && !outbox.close_requested
+        {
+            self.send_password(config, outbox);
+        }
+    }
+
+    fn send_password(&mut self, config: &Config, outbox: &mut Outbox) {
+        if self.password_sent {
+            return;
+        }
+        self.password_sent = true;
+        let Some(password) = &config.password else {
+            return;
+        };
+        let Some(password) = password.expose() else {
+            outbox.close(
+                CloseKind::Other,
+                "server password contains bytes rather than text".to_owned(),
+            );
+            return;
+        };
+        outbox.transmit("PASS", [password]);
+    }
+
     pub(super) fn handle_timeout(
         &mut self,
         now: Instant,
@@ -216,6 +258,7 @@ impl WelcomeState {
         self.motd_lines = None;
         self.connected = false;
         self.webirc_pending = false;
+        self.password_sent = false;
     }
 
     pub(super) fn nick(&self) -> &str {

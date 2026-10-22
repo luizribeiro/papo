@@ -127,15 +127,30 @@ impl Wire {
     /// Panics if the client closes the pipe mid-line, sends non-UTF-8 text, or
     /// sends a line longer than 8703 bytes.
     pub async fn next_sent(&mut self) -> String {
+        self.next_sent_or_closed()
+            .await
+            .expect("client closed its stream")
+    }
+
+    /// Reads the next complete client line, or `None` when the client closes cleanly.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the stream fails, the client sends non-UTF-8 text, or a line exceeds 8703 bytes.
+    pub async fn next_sent_or_closed(&mut self) -> Option<String> {
         let stream = self.stream().await;
         let mut line = Vec::new();
         loop {
-            let byte = stream.read_u8().await.expect("client closed its stream");
+            let byte = match stream.read_u8().await {
+                Ok(byte) => byte,
+                Err(error) if error.kind() == std::io::ErrorKind::UnexpectedEof => return None,
+                Err(error) => panic!("client stream failed: {error}"),
+            };
             line.push(byte);
             assert!(line.len() <= MAX_LINE_LEN, "client line exceeds 8703 bytes");
             if line.ends_with(b"\r\n") {
                 line.truncate(line.len() - 2);
-                return String::from_utf8(line).expect("client sent non-UTF-8 text");
+                return Some(String::from_utf8(line).expect("client sent non-UTF-8 text"));
             }
         }
     }

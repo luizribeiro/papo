@@ -3879,6 +3879,8 @@ impl Session {
             &mut self.sasl,
             &mut self.outbox,
         ) == Handled::Yes;
+        self.welcome_state
+            .handle_cap_decision(message, &self.config, &mut self.outbox);
         let sasl_handled = self.sasl.handle_message(now, message, &mut self.outbox) == Handled::Yes;
         let account_registration_handled = self.account_registration.handle_message(
             message,

@@ -5,3 +5,6 @@
 "security::scram_never_falls_back_to_plain_unsafely" = [
   "security.sasl.no-plain-fallback-after-bad-proof",
 ]
+"security::server_password_waits_for_sts" = [
+  "security.s3.pass-after-sts-decision",
+]

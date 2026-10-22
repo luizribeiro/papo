@@ -416,6 +416,42 @@ fn sts_on_plaintext_closes_for_a_tls_upgrade_without_more_output() {
 }
 
 #[test]
+fn server_password_waits_for_the_sts_decision() {
+    let config = Config::default()
+        .host("irc.example.net")
+        .password("correct horse battery staple")
+        .wanted_caps(["sts"]);
+    Transcript::new(config.clone())
+        .connect()
+        .client("CAP LS 302")
+        .client("NICK papo")
+        .client("USER papo 0 * papo")
+        .no_client()
+        .server("CAP * LS :sts=port=6697,duration=86400")
+        .event(|event| matches!(event, Event::StsUpgrade { port: 6697, .. }))
+        .event(|event| {
+            matches!(
+                event,
+                Event::Close {
+                    kind: CloseKind::StsUpgrade,
+                    ..
+                }
+            )
+        })
+        .no_client();
+
+    Transcript::new(config)
+        .connect()
+        .client("CAP LS 302")
+        .client("NICK papo")
+        .client("USER papo 0 * papo")
+        .no_client()
+        .server("CAP * LS :")
+        .client("PASS :correct horse battery staple")
+        .client("CAP END");
+}
+
+#[test]
 fn sts_on_tls_surfaces_persist_refresh_and_remove_actions() {
     Transcript::new(
         Config::default()
