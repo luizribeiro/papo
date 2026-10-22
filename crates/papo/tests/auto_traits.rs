@@ -8,8 +8,6 @@ use papo::{
     ListFilter, Message as ChatMessage, MessageId, NewAccount, RequestFuture, SendMessage,
     SetModes, State,
 };
-#[cfg(feature = "unstable")]
-use papo::{NetworkConfig, NetworkId, PersistenceSetting, PushKeys};
 use papo_proto::Typing;
 
 fn assert_send_sync<T: Send + Sync>() {}
@@ -117,29 +115,6 @@ fn assert_extension_futures_are_send(client: &Client, mapping: papo::Casemapping
         ),
     );
     assert_send_static(client.verify_account(mapping.account("alice"), "392814"));
-    #[cfg(feature = "unstable")]
-    {
-        assert_send_static(client.persistence().get());
-        assert_send_static(client.persistence().set(PersistenceSetting::On));
-        let network = NetworkId::from("42");
-        assert_send_static(client.bouncer().networks());
-        assert_send_static(client.bouncer().add(NetworkConfig::new("irc.libera.chat")));
-        assert_send_static(
-            client
-                .bouncer()
-                .change(&network, NetworkConfig::new("irc.libera.chat")),
-        );
-        assert_send_static(client.bouncer().remove(&network));
-        assert_send_static(client.webpush().register(
-            "https://push.example.net/message/ErgoTest/alice",
-            PushKeys::new("AQIDBAUGBwgJCgsMDQ4P_w", "-vv8_f7_"),
-        ));
-        assert_send_static(
-            client
-                .webpush()
-                .unregister("https://push.example.net/message/ErgoTest/alice"),
-        );
-    }
     assert_send_static(client.metadata().get("alice", ["avatar"]));
     assert_send_static(client.metadata().list("alice"));
     assert_send_static(client.metadata().set("status", "testing"));
@@ -167,7 +142,35 @@ fn assert_extension_futures_are_send(client: &Client, mapping: papo::Casemapping
         mapping.channel("#rust-lang"),
         "Project renamed",
     ));
-    #[cfg(feature = "unstable")]
+}
+
+#[cfg(feature = "unstable")]
+#[test]
+fn unstable_request_futures_are_send() {
+    use papo::{NetworkConfig, NetworkId, PersistenceSetting, PushKeys};
+
+    let mapping = papo::Casemapping::default();
+    let (client, _, _) = Client::builder("irc.example.net").build();
+    assert_send_static(client.persistence().get());
+    assert_send_static(client.persistence().set(PersistenceSetting::On));
+    let network = NetworkId::from("42");
+    assert_send_static(client.bouncer().networks());
+    assert_send_static(client.bouncer().add(NetworkConfig::new("irc.libera.chat")));
+    assert_send_static(
+        client
+            .bouncer()
+            .change(&network, NetworkConfig::new("irc.libera.chat")),
+    );
+    assert_send_static(client.bouncer().remove(&network));
+    assert_send_static(client.webpush().register(
+        "https://push.example.net/message/ErgoTest/alice",
+        PushKeys::new("AQIDBAUGBwgJCgsMDQ4P_w", "-vv8_f7_"),
+    ));
+    assert_send_static(
+        client
+            .webpush()
+            .unregister("https://push.example.net/message/ErgoTest/alice"),
+    );
     assert_send_static(client.relay(
         mapping.channel("#bridged"),
         mapping.nick("matrix|alice"),
