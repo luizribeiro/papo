@@ -118,6 +118,7 @@ fn expand(args: ScenarioArgs, function: &ItemFn) -> Result<TokenStream2> {
     }
     let doc = description(function)?;
     let name = &function.sig.ident;
+    let body = format_ident!("__papo_scenario_body_{name}");
     let wrapper = format_ident!("__papo_scenario_{name}");
     let spec = format_ident!("__papo_scenario_spec_{name}");
     let (cap_names, caps): (Vec<_>, Vec<_>) = args
@@ -139,6 +140,8 @@ fn expand(args: ScenarioArgs, function: &ItemFn) -> Result<TokenStream2> {
         .unzip();
     let isupport = args.isupport.unwrap_or_default();
     let covers = args.covers.unwrap_or_default();
+    let mut function = function.clone();
+    function.sig.ident = body.clone();
     Ok(quote! {
         #function
 
@@ -147,7 +150,7 @@ fn expand(args: ScenarioArgs, function: &ItemFn) -> Result<TokenStream2> {
         fn #wrapper(context: crate::Scenario) -> crate::ScenarioFuture {
             let cleanup = context.clone();
             Box::pin(async move {
-                let result = #name(context).await;
+                let result = #body(context).await;
                 let cleanup_result = cleanup.quit_all().await;
                 match (result, cleanup_result) {
                     (Err(error), _) => Err(error),
@@ -171,6 +174,11 @@ fn expand(args: ScenarioArgs, function: &ItemFn) -> Result<TokenStream2> {
 
         inventory::submit! {
             #spec
+        }
+
+        #[test]
+        fn #name() -> Result<(), crate::Failure> {
+            crate::run_scenario(&#spec)
         }
     })
 }
@@ -229,11 +237,14 @@ mod tests {
         .unwrap();
         let output = expand(args, &function).unwrap().to_string();
         assert!(output.contains("__papo_scenario_sasl_scram"));
+        assert!(output.contains("__papo_scenario_body_sasl_scram"));
         assert!(output.contains("__papo_scenario_spec_sasl_scram"));
         assert!(output.contains("authenticates with a real SCRAM exchange"));
         assert!(output.contains("SCRAM-SHA-256"));
         assert!(output.contains("papo_core :: cap :: is_known (\"sasl\")"));
         assert!(output.contains("cleanup . quit_all ()"));
+        assert!(output.contains("# [test] fn sasl_scram"));
+        assert!(output.contains("crate :: run_scenario"));
     }
 
     #[test]

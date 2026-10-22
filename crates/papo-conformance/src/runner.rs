@@ -18,7 +18,7 @@ struct Context {
 
 #[doc(hidden)]
 #[derive(Clone, Debug)]
-pub(super) struct Failure(String);
+pub struct Failure(pub String);
 
 impl Context {
     fn load() -> Result<Self, Failure> {
@@ -44,7 +44,7 @@ impl Context {
 }
 
 #[doc(hidden)]
-pub(super) fn run_scenario(spec: &ScenarioSpec) -> Result<(), Failure> {
+pub fn run_scenario(spec: &ScenarioSpec) -> Result<(), Failure> {
     if env::var_os("PAPO_CONFORMANCE_DESCRIBE").is_some() {
         println!(
             r#"{{ "type": "covers", "name": {}, "behaviors": [{}] }}"#,

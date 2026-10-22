@@ -1,3 +1,4 @@
+#[cfg(not(test))]
 use super::ScenarioSpec;
 
 mod auth;
@@ -12,6 +13,7 @@ mod presence;
 mod requests;
 mod support;
 
+#[cfg(not(test))]
 pub(super) fn all() -> Vec<ScenarioSpec> {
     let mut scenarios = inventory::iter::<ScenarioSpec>
         .into_iter()

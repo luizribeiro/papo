@@ -24,33 +24,36 @@ use papo_test_server::{ServerInfo, from_env};
 use tokio::{runtime::Builder, task::JoinHandle, time::timeout};
 
 mod peer;
-#[expect(
-    dead_code,
-    reason = "called by tests generated in the integration crate"
-)]
 mod runner;
 mod scenario;
+#[cfg(not(test))]
 mod scenarios;
 
-use peer::Peer;
+#[doc(hidden)]
+pub use peer::Peer;
+#[doc(hidden)]
+pub use runner::{Failure, run_scenario};
 
 const TIMEOUT: Duration = Duration::from_secs(10);
 
 type HarnessResult = Result<Completion, Failed>;
 type FixtureResult = papo_testing::Result<()>;
-type ScenarioFuture = Pin<Box<dyn Future<Output = FixtureResult>>>;
+#[doc(hidden)]
+pub type ScenarioFuture = Pin<Box<dyn Future<Output = FixtureResult>>>;
 
-fn source_nick(source: &papo::Source) -> Option<&str> {
+#[doc(hidden)]
+pub fn source_nick(source: &papo::Source) -> Option<&str> {
     source.nick().map(AsRef::<str>::as_ref)
 }
 
 #[derive(Clone, Copy)]
-struct ScenarioSpec {
-    name: &'static str,
-    doc: &'static str,
-    requires: Requirements,
-    covers: &'static [&'static str],
-    run: fn(Scenario) -> ScenarioFuture,
+#[doc(hidden)]
+pub struct ScenarioSpec {
+    pub name: &'static str,
+    pub doc: &'static str,
+    pub requires: Requirements,
+    pub covers: &'static [&'static str],
+    pub run: fn(Scenario) -> ScenarioFuture,
 }
 
 /// Checklist coverage declared by one conformance scenario.
@@ -65,20 +68,23 @@ pub struct ScenarioCoverage {
 inventory::collect!(ScenarioSpec);
 
 #[derive(Clone, Copy, Default)]
-struct Requirements {
-    caps: &'static [CapRequirement],
-    isupport: &'static [&'static str],
+#[doc(hidden)]
+pub struct Requirements {
+    pub caps: &'static [CapRequirement],
+    pub isupport: &'static [&'static str],
 }
 
 #[derive(Clone, Copy)]
-struct CapRequirement {
-    name: &'static str,
-    value: Option<&'static str>,
+#[doc(hidden)]
+pub struct CapRequirement {
+    pub name: &'static str,
+    pub value: Option<&'static str>,
 }
 
 #[derive(Clone)]
-struct Scenario<S = ServerInfo> {
-    server: S,
+#[doc(hidden)]
+pub struct Scenario<S = ServerInfo> {
+    pub server: S,
     name: &'static str,
     fixture: Option<scenario::Scenario>,
     json: bool,
@@ -156,12 +162,17 @@ fn run_trials(arguments: &Arguments, trials: Vec<Trial>) -> Result<Conclusion, S
 }
 
 fn scenario_specs() -> Vec<ScenarioSpec> {
+    #[cfg(test)]
+    return Vec::new();
+    #[cfg(not(test))]
     let scenarios = scenarios::all();
+    #[cfg(not(test))]
     debug_assert!(
         scenarios
             .iter()
             .all(|scenario| { scenario.covers.iter().all(|behavior| !behavior.is_empty()) })
     );
+    #[cfg(not(test))]
     scenarios
 }
 
@@ -295,7 +306,8 @@ impl<S> Scenario<S> {
 }
 
 impl Scenario {
-    fn record_evidence(&self, value: &str) {
+    #[doc(hidden)]
+    pub fn record_evidence(&self, value: &str) {
         if self.json {
             println!(
                 r#"{{ "type": "evidence", "name": {}, "value": {} }}"#,
@@ -303,14 +315,6 @@ impl Scenario {
                 json_string(value)
             );
         }
-    }
-
-    async fn quit_all(&self) -> FixtureResult {
-        self.fixture
-            .as_ref()
-            .expect("live scenarios have a fixture")
-            .quit_all()
-            .await
     }
 }
 

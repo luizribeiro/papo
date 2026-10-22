@@ -1,5 +1,9 @@
-//! Live cross-server conformance test binary.
+//! Live cross-server conformance tests.
 
-fn main() -> std::process::ExitCode {
-    papo_conformance::run()
-}
+use papo_conformance::{
+    CapRequirement, Failure, Peer, Requirements, Scenario, ScenarioFuture, ScenarioSpec,
+    run_scenario, source_nick,
+};
+
+#[path = "../src/scenarios/mod.rs"]
+mod scenarios;
