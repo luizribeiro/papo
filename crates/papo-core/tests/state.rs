@@ -980,7 +980,7 @@ fn tracks_live_topic_changes_and_clearing() {
     Transcript::new(Config::default().nick("emily"))
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .event(|event| matches!(event, Event::Joined { .. }))
-        .server(":alice!alice@staff.example TOPIC #papo :Rust 1.90 is out")
+        .server("@time=2026-10-22T13:14:15.250Z :alice!alice@staff.example TOPIC #papo :Rust 1.90 is out")
         .event(|event| matches!(event, Event::TopicChanged { channel, topic, actor, .. } if channel == "#papo" && topic.as_deref() == Some("Rust 1.90 is out") && actor == "alice"))
         .inspect(|session| {
             let channel = session.state().channel("#papo").unwrap();
@@ -990,9 +990,12 @@ fn tracks_live_topic_changes_and_clearing() {
                 Some(Source::User { nick, username: Some(username), host: Some(host), .. })
                     if nick == "alice" && username == "alice" && host == "staff.example"
             ));
-            assert_eq!(channel.topic_set_at(), None);
+            assert_eq!(
+                channel.topic_set_at(),
+                papo_proto::time::parse("2026-10-22T13:14:15.250Z")
+            );
         })
-        .server(":alice!alice@staff.example TOPIC #papo :")
+        .server("@time=2026-10-22T13:15:00.000Z :alice!alice@staff.example TOPIC #papo :")
         .event(|event| matches!(event, Event::TopicChanged { channel, topic, actor, .. } if channel == "#papo" && topic.is_none() && actor == "alice"))
         .inspect(|session| {
             let channel = session.state().channel("#papo").unwrap();
@@ -1001,6 +1004,10 @@ fn tracks_live_topic_changes_and_clearing() {
                 .topic_set_by()
                 .and_then(Source::nick)
                 .is_some_and(|nick| nick == "alice"));
+            assert_eq!(
+                channel.topic_set_at(),
+                papo_proto::time::parse("2026-10-22T13:15:00.000Z")
+            );
         })
         .no_event();
 }

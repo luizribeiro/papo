@@ -1077,6 +1077,8 @@ async fn topic(s: Scenario) -> papo_testing::Result<()> {
     alice.set_topic(&channel, text).await?;
     let own = alice.wait_for(Event::as_topic_changed).await?;
     let observed = bob.wait_for(Event::as_topic_changed).await?;
+    assert_eq!(own.server_time, observed.server_time);
+    let set_at = own.server_time.expect("Ergo tags live topic changes");
 
     for changed in [&own, &observed] {
         assert_eq!(changed.channel.as_ref(), channel);
@@ -1087,7 +1089,10 @@ async fn topic(s: Scenario) -> papo_testing::Result<()> {
         );
     }
     for peer in [&alice, &bob] {
-        assert_eq!(peer.state().channel(&channel).unwrap().topic(), Some(text));
+        let state = peer.state();
+        let channel = state.channel(&channel).unwrap();
+        assert_eq!(channel.topic(), Some(text));
+        assert_eq!(channel.topic_set_at(), Some(set_at));
     }
 
     carol.join(&channel).await?;
@@ -1112,6 +1117,10 @@ async fn topic(s: Scenario) -> papo_testing::Result<()> {
             Some(alice_nick.as_ref())
         );
         assert_eq!(peer.state().channel(&channel).unwrap().topic(), None);
+        assert_eq!(
+            peer.state().channel(&channel).unwrap().topic_set_at(),
+            changed.server_time
+        );
         peer.expect_none(Event::as_topic_changed).await?;
     }
     Ok(())

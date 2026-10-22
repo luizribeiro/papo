@@ -732,9 +732,12 @@ impl State {
             }
             _ => return false,
         };
-        if live && let (Some(channel), Some(actor)) = (channel_name, source_name(message)) {
+        let live_envelope = live.then(|| crate::LineEnvelope::from_line(message));
+        if let (Some(envelope), Some(channel), Some(actor)) =
+            (live_envelope.clone(), channel_name, source_name(message))
+        {
             outbox.event(Event::TopicChanged {
-                envelope: crate::LineEnvelope::from_line(message),
+                envelope,
                 channel: self.casemapping.channel(channel),
                 topic: topic.filter(|topic| !topic.is_empty()).map(str::to_owned),
                 actor: actor.to_owned(),
@@ -754,7 +757,7 @@ impl State {
         } else {
             None
         };
-        channel.topic_set_at = None;
+        channel.topic_set_at = live_envelope.and_then(|envelope| envelope.server_time());
         true
     }
 
