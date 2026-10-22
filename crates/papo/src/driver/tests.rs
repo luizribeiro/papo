@@ -1867,8 +1867,7 @@ async fn actions_fail_while_disconnected_and_are_not_sent_after_reconnect() {
 
     assert!(matches!(
         within(
-            client
-                .send_raw(crate::Line::builder("KILL").with_params(["emily", "connection reset"]))
+            client.send_raw(crate::Line::new("KILL").with_params(["emily", "connection reset"]))
         )
         .await,
         Err(disconnected!())
@@ -3940,7 +3939,7 @@ async fn client_send_raw_obeys_the_rate_limit() {
     for index in 0..200 {
         let nick = format!("release-bot-{index}");
         client
-            .send_raw(crate::Line::builder("WHOIS").with_params([&nick]))
+            .send_raw(crate::Line::new("WHOIS").with_params([&nick]))
             .await
             .unwrap();
         client_line(&mut server, format!("WHOIS {nick}\r\n").as_bytes()).await;
@@ -3965,7 +3964,7 @@ async fn queued_raw_sends_fail_when_the_connection_drops() {
     let driver = tokio::spawn(driver);
     welcome_burst(&mut server).await;
     client
-        .send_raw(crate::Line::builder("WHOIS").with_params(["release-bot"]))
+        .send_raw(crate::Line::new("WHOIS").with_params(["release-bot"]))
         .await
         .unwrap();
     client_line(&mut server, b"WHOIS release-bot\r\n").await;
@@ -3976,7 +3975,7 @@ async fn queued_raw_sends_fail_when_the_connection_drops() {
             tokio::spawn(async move {
                 client
                     .send_raw(
-                        crate::Line::builder("WHOIS")
+                        crate::Line::new("WHOIS")
                             .with_params([format!("queued-release-bot-{index}")]),
                     )
                     .await
@@ -4011,14 +4010,14 @@ async fn queued_raw_send_preserves_the_server_disconnect_cause() {
     let driver = tokio::spawn(driver);
     welcome_burst(&mut server).await;
     client
-        .send_raw(crate::Line::builder("WHOIS").with_params(["release-bot"]))
+        .send_raw(crate::Line::new("WHOIS").with_params(["release-bot"]))
         .await
         .unwrap();
     client_line(&mut server, b"WHOIS release-bot\r\n").await;
 
     let queued = tokio::spawn(async move {
         client
-            .send_raw(crate::Line::builder("WHOIS").with_params(["queued-release-bot"]))
+            .send_raw(crate::Line::new("WHOIS").with_params(["queued-release-bot"]))
             .await
     });
     for _ in 0..4 {
@@ -4052,22 +4051,22 @@ async fn raw_line_builder_quotes_real_commands() {
     welcome_burst(&mut server).await;
 
     client
-        .send_raw(crate::Line::builder("KILL").with_params(["alice", "policy violation"]))
+        .send_raw(crate::Line::new("KILL").with_params(["alice", "policy violation"]))
         .await
         .unwrap();
     client
-        .send_raw(crate::Line::builder("WALLOPS").with_params(["maintenance now"]))
+        .send_raw(crate::Line::new("WALLOPS").with_params(["maintenance now"]))
         .await
         .unwrap();
     client_line(&mut server, b"KILL alice :policy violation\r\n").await;
     client_line(&mut server, b"WALLOPS :maintenance now\r\n").await;
 
     client
-        .send_raw(crate::Line::builder("WHOWAS").with_params(["emily", "2"]))
+        .send_raw(crate::Line::new("WHOWAS").with_params(["emily", "2"]))
         .await
         .unwrap();
     client_line(&mut server, b"WHOWAS emily 2\r\n").await;
-    client.send_raw(crate::Line::builder("MOTD")).await.unwrap();
+    client.send_raw(crate::Line::new("MOTD")).await.unwrap();
     client_line(&mut server, b"MOTD\r\n").await;
 
     within(server.shutdown()).await.unwrap();
@@ -4095,7 +4094,7 @@ async fn raw_request_returns_every_line_from_a_labelled_batch() {
 
     let request = tokio::spawn({
         let client = client.clone();
-        async move { client.request_raw(crate::Line::builder("MOTD")).await }
+        async move { client.request_raw(crate::Line::new("MOTD")).await }
     });
     client_line(&mut server, b"@label=0 MOTD\r\n").await;
     server_line(&mut server, b"@label=0 :ergo.test BATCH +motd labeled-response\r\n@batch=motd :ergo.test 375 papo-driver :- Ergo Message of the Day -\r\n@batch=motd :ergo.test 372 papo-driver :- Welcome to ErgoTest\r\n@batch=motd :ergo.test 376 papo-driver :End of /MOTD command.\r\n:ergo.test BATCH -motd\r\n").await;
@@ -4123,7 +4122,7 @@ async fn raw_request_returns_no_lines_for_an_ack() {
         let client = client.clone();
         async move {
             client
-                .request_raw(crate::Line::builder("MODE").with_params(["#papo", "+i"]))
+                .request_raw(crate::Line::new("MODE").with_params(["#papo", "+i"]))
                 .await
         }
     });
@@ -4240,7 +4239,7 @@ async fn structured_requests_resolve_fail_and_abort() {
     ));
     let aborted = tokio::spawn(async move {
         client
-            .request_raw(crate::Line::builder("WHOIS").with_params(["emily"]))
+            .request_raw(crate::Line::new("WHOIS").with_params(["emily"]))
             .await
     });
     client_line(&mut server, b"@label=8 WHOIS emily\r\n").await;
@@ -4272,7 +4271,7 @@ async fn raw_request_times_out_after_it_is_written() {
         let client = client.clone();
         async move {
             client
-                .request_raw(crate::Line::builder("WHOIS").with_params(["alice"]))
+                .request_raw(crate::Line::new("WHOIS").with_params(["alice"]))
                 .await
         }
     });
@@ -4300,7 +4299,7 @@ async fn raw_request_returns_state_changing_lines_without_an_event() {
         let client = client.clone();
         async move {
             client
-                .request_raw(crate::Line::builder("NICK").with_params(["papo-renamed"]))
+                .request_raw(crate::Line::new("NICK").with_params(["papo-renamed"]))
                 .await
         }
     });
@@ -4415,7 +4414,7 @@ async fn own_join_after_a_nick_change_is_marked_as_self() {
     let driver = tokio::spawn(driver);
     complete_connect(&mut server, &mut events).await;
     client
-        .send_raw(crate::Line::builder("NICK").with_params(["papo-renamed"]))
+        .send_raw(crate::Line::new("NICK").with_params(["papo-renamed"]))
         .await
         .unwrap();
     client_line(&mut server, b"NICK papo-renamed\r\n").await;
@@ -5450,7 +5449,7 @@ async fn typed_requests_match_unlabelled_responses() {
     ));
 
     assert!(matches!(
-        client.request_raw(crate::Line::builder("VERSION")).await,
+        client.request_raw(crate::Line::new("VERSION")).await,
         Err(Error::Unsupported(crate::Unsupported {
             feature: crate::Feature::LabeledResponse,
             reason: crate::UnsupportedReason::NotOffered,
@@ -5543,7 +5542,7 @@ async fn capability_loss_fails_a_pending_request_immediately() {
     assert!(matches!(events.next().await, Some(Event::Connected(_))));
 
     let request =
-        tokio::spawn(async move { client.request_raw(crate::Line::builder("VERSION")).await });
+        tokio::spawn(async move { client.request_raw(crate::Line::new("VERSION")).await });
     client_line(&mut server, b"@label=0 VERSION\r\n").await;
     server_line(&mut server, b":ergo.test CAP * DEL :labeled-response\r\n").await;
     assert!(matches!(
@@ -6689,16 +6688,16 @@ async fn client_send_raw_rejects_invalid_lines() {
     let task = tokio::spawn(driver);
     welcome_burst(&mut server).await;
     for line in [
-        crate::Line::builder(""),
-        crate::Line::builder("   "),
-        crate::Line::builder("WHOIS").with_params(["emily\r\n"]),
-        crate::Line::builder("WHOIS").with_params(["emily\nPRIVMSG #papo :injected"]),
-        crate::Line::builder("PING").with_params(["\0token"]),
-        crate::Line::builder("KILL").with_params(["alice evil", "reason"]),
-        crate::Line::builder("KILL").with_params([":x", "reason"]),
-        crate::Line::builder("KILL").with_params(["", "reason"]),
-        crate::Line::builder("KILL").with_params(["alice", "reason\nQUIT"]),
-        crate::Line::builder("KILL").with_params(["alice", "reason\0QUIT"]),
+        crate::Line::new(""),
+        crate::Line::new("   "),
+        crate::Line::new("WHOIS").with_params(["emily\r\n"]),
+        crate::Line::new("WHOIS").with_params(["emily\nPRIVMSG #papo :injected"]),
+        crate::Line::new("PING").with_params(["\0token"]),
+        crate::Line::new("KILL").with_params(["alice evil", "reason"]),
+        crate::Line::new("KILL").with_params([":x", "reason"]),
+        crate::Line::new("KILL").with_params(["", "reason"]),
+        crate::Line::new("KILL").with_params(["alice", "reason\nQUIT"]),
+        crate::Line::new("KILL").with_params(["alice", "reason\0QUIT"]),
     ] {
         assert!(matches!(
             client.send_raw(line).await,
@@ -7002,7 +7001,7 @@ fn closed_waiters_do_not_enable_read_ahead() {
     let id = session
         .request_with_matcher(
             now,
-            Line::builder("WHOIS").with_params(["alice"]),
+            Line::new("WHOIS").with_params(["alice"]),
             papo_core::ResponseMatcher::Whois("alice".into()),
         )
         .unwrap();
