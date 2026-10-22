@@ -1,9 +1,8 @@
 //! Standard-reply `FAIL` code constants.
 
 macro_rules! codes {
-    ($($(#[$attribute:meta])* $name:ident),+ $(,)?) => {
+    ($($name:ident),+ $(,)?) => {
         $(
-            $(#[$attribute])*
             #[doc = concat!("The `", stringify!($name), "` failure code.")]
             pub const $name: &str = stringify!($name);
         )+
@@ -57,27 +56,20 @@ codes!(
     NEED_MORE_PARAMS,
     INTERNAL_ERROR,
     INVALID_UTF8,
-    #[cfg(feature = "unstable")]
+);
+
+#[cfg(feature = "unstable")]
+codes!(
     INVALID_NETID,
-    #[cfg(feature = "unstable")]
     INVALID_ATTRIBUTE,
-    #[cfg(feature = "unstable")]
     READ_ONLY_ATTRIBUTE,
-    #[cfg(feature = "unstable")]
     UNKNOWN_ATTRIBUTE,
-    #[cfg(feature = "unstable")]
     NEED_ATTRIBUTE,
-    #[cfg(feature = "unstable")]
     NOT_ENABLED,
-    #[cfg(feature = "unstable")]
     PRIVS_NEEDED,
-    #[cfg(feature = "unstable")]
     BLANK_MSG,
-    #[cfg(feature = "unstable")]
     INVALID_NICK,
-    #[cfg(feature = "unstable")]
     BANNED,
-    #[cfg(feature = "unstable")]
     MAX_REGISTRATIONS,
 );
 
