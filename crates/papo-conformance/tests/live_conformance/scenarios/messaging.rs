@@ -528,10 +528,9 @@ async fn ctcp_soju_backlog(s: Scenario) -> papo_testing::Result<()> {
         .latest()
         .limit(10)
         .await?;
-    assert!(history.items.iter().any(|item| {
-        item.as_other()
-            .is_some_and(|line| line.as_ref().param(1) == Some("\u{1}VERSION\u{1}"))
-    }));
+    assert!(history.items.iter().any(|item| matches!(item,
+        papo::HistoryItem::Other { line, .. }
+            if line.as_ref().param(1) == Some("\u{1}VERSION\u{1}"))));
     alice
         .expect_none(|event| {
             event.as_ctcp().filter(|ctcp| {
