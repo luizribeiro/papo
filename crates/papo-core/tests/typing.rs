@@ -67,15 +67,20 @@ fn status_target_updates_typing_state_and_deadline() {
         .connect()
         .server(":ergo.test 005 papo STATUSMSG=@+ :are supported by this server")
         .server("@+typing=active :alice!~a@cloak TAGMSG @#papo")
-        .event(|event| matches!(event, Event::TypingChanged(_)))
+        .event(|event| {
+            matches!(event, Event::TypingChanged(change) if change.return_address() == "@#papo")
+        })
         .server("@+typing=paused :ALICE!~a@cloak TAGMSG @#papo")
-        .event(|event| matches!(event, Event::TypingChanged(_)))
+        .event(|event| {
+            matches!(event, Event::TypingChanged(change) if change.return_address() == "@#papo")
+        })
         .inspect(|session| {
             let conversation = conversation(session, "#papo");
             let typers: Vec<_> = session.state().typing(&conversation).collect();
             assert_eq!(typers.len(), 1);
             assert_eq!(typers[0].state, Typing::Paused);
             assert_eq!(typers[0].status.as_deref(), Some(&['@'][..]));
+            assert_eq!(typers[0].return_address(), "@#papo");
         })
         .deadline(Some(Duration::from_secs(30)))
         .no_event()

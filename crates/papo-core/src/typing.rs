@@ -40,15 +40,42 @@ pub struct TypingChanged {
     pub reason: TypingReason,
 }
 
+impl TypingChanged {
+    /// Returns the address that reaches the recipients of the typing notification.
+    #[must_use]
+    pub fn return_address(&self) -> String {
+        return_address(&self.conversation, self.status.as_deref())
+    }
+}
+
 /// A user currently composing a message in a conversation.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Typer {
     /// The user's nickname.
     pub nick: Nick,
+    /// The IRC conversation where the user is typing.
+    pub conversation: Conversation,
     /// Whether the user is actively typing or has paused.
     pub state: Typing,
     /// `STATUSMSG` prefixes on the typing notification's wire address.
     pub status: Option<Vec<char>>,
+}
+
+impl Typer {
+    /// Returns the address that reaches the recipients of the typing notification.
+    #[must_use]
+    pub fn return_address(&self) -> String {
+        return_address(&self.conversation, self.status.as_deref())
+    }
+}
+
+fn return_address(conversation: &Conversation, status: Option<&[char]>) -> String {
+    status
+        .into_iter()
+        .flatten()
+        .copied()
+        .chain(conversation.as_str().chars())
+        .collect()
 }
 
 #[derive(Clone, Debug)]
@@ -112,6 +139,7 @@ impl TypingTable {
         } else {
             let typer = Typer {
                 nick: nick.clone(),
+                conversation: conversation.clone(),
                 state,
                 status: status.clone(),
             };
@@ -485,14 +513,16 @@ mod tests {
                 conversation.clone(),
                 Typer {
                     nick: mapping.nick("Alice"),
+                    conversation: conversation.clone(),
                     state: Typing::Active,
                     status: None,
                 },
             ),
             (
-                other,
+                other.clone(),
                 Typer {
                     nick: mapping.nick("bob"),
+                    conversation: other.clone(),
                     state: Typing::Paused,
                     status: None,
                 },
@@ -501,6 +531,7 @@ mod tests {
                 conversation.clone(),
                 Typer {
                     nick: mapping.nick("carol"),
+                    conversation: conversation.clone(),
                     state: Typing::Paused,
                     status: Some(vec!['@']),
                 },
