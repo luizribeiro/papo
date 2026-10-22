@@ -12,8 +12,8 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::time::timeout;
 
 #[cfg(tls)]
-use super::{ClientCertificate, TlsConfig, TlsRoots};
-use super::{ConnectError, Security, Stream, connect};
+use super::{ClientCertificate, TlsRoots};
+use super::{ConnectError, Security, Stream, TlsConfig, connect};
 use crate::driver::test_support::within;
 
 #[cfg(tls)]
