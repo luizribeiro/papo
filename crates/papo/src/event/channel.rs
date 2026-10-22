@@ -18,7 +18,7 @@ pub struct Joined {
     pub account: Account,
     /// The joining user's real name, when supplied by the server.
     pub realname: Option<String>,
-    /// The joined channel.
+    /// The joined channel. See [`crate::Conversation`] for status-prefixed line guidance.
     pub channel: ChannelName,
     /// The joining user.
     pub actor: Source,
@@ -32,7 +32,7 @@ pub struct Joined {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct ChannelSynced {
-    /// The synchronized channel.
+    /// The synchronized channel. See [`crate::Conversation`] for status-prefixed line guidance.
     pub channel: ChannelName,
 }
 
@@ -40,7 +40,7 @@ pub struct ChannelSynced {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct MembersRefreshed {
-    /// The refreshed channel.
+    /// The refreshed channel. See [`crate::Conversation`] for status-prefixed line guidance.
     pub channel: ChannelName,
 }
 
@@ -58,7 +58,7 @@ pub struct Parted {
     pub account: Option<AccountName>,
     /// The departing user.
     pub actor: Source,
-    /// The departed channel.
+    /// The departed channel. See [`crate::Conversation`] for status-prefixed line guidance.
     pub channel: ChannelName,
     /// The departing user's nickname.
     pub nick: Nick,
@@ -80,7 +80,7 @@ pub struct Kicked {
     pub received_at: SystemTime,
     /// The actor's authenticated account, when tagged.
     pub account: Option<AccountName>,
-    /// The affected channel.
+    /// The affected channel. See [`crate::Conversation`] for status-prefixed line guidance.
     pub channel: ChannelName,
     /// The removed user.
     pub subject: Nick,
@@ -98,7 +98,7 @@ pub struct Kicked {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Invited {
-    /// The invited channel.
+    /// The invited channel. See [`crate::Conversation`] for status-prefixed line guidance.
     pub channel: ChannelName,
     /// The invited user.
     pub subject: Nick,
@@ -122,7 +122,7 @@ pub struct TopicChanged {
     pub received_at: SystemTime,
     /// The actor's authenticated account, when tagged.
     pub account: Option<AccountName>,
-    /// The affected channel.
+    /// The affected channel. See [`crate::Conversation`] for status-prefixed line guidance.
     pub channel: ChannelName,
     /// The new topic, or `None` when it was cleared.
     pub topic: Option<String>,

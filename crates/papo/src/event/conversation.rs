@@ -21,8 +21,12 @@ pub struct Reacted {
     /// Whether the actor is this client's user.
     pub authorship: Authorship,
     /// The IRC conversation containing the message.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     pub conversation: Conversation,
     /// `STATUSMSG` prefixes on the wire address, in wire order.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     pub status: Option<Vec<char>>,
     /// The message being reacted to.
     pub message: MessageId,
@@ -51,8 +55,12 @@ pub struct Redacted {
     /// Whether the actor is this client's user.
     pub authorship: Authorship,
     /// The IRC conversation containing the message.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     pub conversation: Conversation,
     /// `STATUSMSG` prefixes on the wire address, in wire order.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     pub status: Option<Vec<char>>,
     /// The message removed from history.
     pub message: MessageId,
@@ -69,8 +77,12 @@ pub struct TypingChanged {
     /// Whether the actor is this client's user.
     pub authorship: Authorship,
     /// The IRC conversation where typing is occurring.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     pub conversation: Conversation,
     /// `STATUSMSG` prefixes on the wire address, in wire order.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     pub status: Option<Vec<char>>,
     /// The new typing state.
     pub state: Typing,
@@ -87,8 +99,12 @@ pub struct TagMsg {
     /// Whether the actor is this client's user.
     pub authorship: Authorship,
     /// The IRC conversation addressed by the message.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     pub conversation: Conversation,
     /// `STATUSMSG` prefixes on the wire address, in wire order.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     pub status: Option<Vec<char>>,
     /// Tags in wire order with last-wins lookup.
     pub tags: Tags,
@@ -99,6 +115,8 @@ macro_rules! return_address {
         $(
             impl $ty {
                 /// Returns the address that reaches the recipients of this line.
+                ///
+                /// See [`Conversation`] for status-prefixed line guidance.
                 #[must_use]
                 pub fn return_address(&self) -> String {
                     crate::message_ref::return_address(&self.conversation, self.status.as_deref())
@@ -115,6 +133,8 @@ return_address!(Reacted, Redacted, TypingChanged, TagMsg);
 #[non_exhaustive]
 pub struct ReadMarkerChanged {
     /// Conversation to which the marker applies.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     pub conversation: Conversation,
     /// The marker time, or `None` when the server reports `*`.
     pub read_until: Option<SystemTime>,

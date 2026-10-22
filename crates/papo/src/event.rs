@@ -163,8 +163,12 @@ pub struct CtcpQuery {
     /// Whether the actor is this client's user.
     pub authorship: Authorship,
     /// The IRC conversation to which the CTCP message belongs.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     pub conversation: Conversation,
     /// `STATUSMSG` prefixes removed from the wire address, in wire order.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     pub status: Option<Vec<char>>,
     /// The command with its original spelling.
     pub command: String,
@@ -191,8 +195,12 @@ pub struct CtcpReply {
     /// Whether the actor is this client's user.
     pub authorship: Authorship,
     /// The IRC conversation to which the CTCP reply belongs.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     pub conversation: Conversation,
     /// `STATUSMSG` prefixes removed from the wire address, in wire order.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     pub status: Option<Vec<char>>,
     /// The command with its original spelling.
     pub command: String,
@@ -215,6 +223,8 @@ macro_rules! ctcp_return_address {
         $(
             impl $ty {
                 /// Returns the address that reaches the recipients of the CTCP line.
+                ///
+                /// See [`Conversation`] for status-prefixed line guidance.
                 #[must_use]
                 pub fn return_address(&self) -> String {
                     crate::message_ref::return_address(&self.conversation, self.status.as_deref())
@@ -261,8 +271,12 @@ pub struct Message {
     /// Whether the actor is this client's user.
     pub authorship: Authorship,
     /// The chat conversation to which the message belongs.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     pub conversation: Chat,
     /// `STATUSMSG` prefixes removed from the wire address, in wire order.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     pub status: Option<Vec<char>>,
     /// Display text with IRC formatting removed.
     pub text: String,
@@ -302,8 +316,12 @@ pub struct Notice {
     /// Whether the actor is this client's user.
     pub authorship: Authorship,
     /// The chat conversation to which the notice belongs.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     pub conversation: Chat,
     /// `STATUSMSG` prefixes removed from the wire address, in wire order.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     pub status: Option<Vec<char>>,
     /// Display text with IRC formatting removed.
     pub text: String,
@@ -581,6 +599,7 @@ impl Message {
     ///
     /// Broadcast messages return the sending user's nickname so a response cannot repeat the
     /// broadcast. A broadcast without a user source returns `*`, which message APIs reject.
+    /// See [`Conversation`] for status-prefixed line guidance.
     #[must_use]
     pub fn return_address(&self) -> String {
         crate::message_ref::return_address(
@@ -598,6 +617,8 @@ impl Message {
 
 impl Notice {
     /// Returns the address that reaches the recipients of the notice.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
     #[must_use]
     pub fn return_address(&self) -> String {
         crate::message_ref::return_address(
