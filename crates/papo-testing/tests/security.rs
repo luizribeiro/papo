@@ -232,6 +232,28 @@ async fn plaintext_credentials_require_explicit_opt_in() {
 }
 
 #[tokio::test]
+async fn plain_text_rejects_ctcp_delimiters() {
+    let (client, _events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test")
+            .nick("papo-wire")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&[]).await;
+
+    for text in [
+        "\x01VERSION\x01".to_owned(),
+        format!("{} \x01VERSION\x01", "a".repeat(415)),
+        "you said:\n\x01DCC SEND backup.tar 2130706433 5000\x01".to_owned(),
+    ] {
+        assert!(matches!(
+            client.privmsg("#papo", text).await,
+            Err(papo::Error::InvalidInput(_))
+        ));
+    }
+}
+
+#[tokio::test]
 async fn scram_rejects_excessive_iterations_promptly() {
     let (_client, mut events, mut wire) = start_scram("ircs://offline.test").await;
     send_excessive_iteration_count(&mut wire).await;

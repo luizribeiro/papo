@@ -3225,9 +3225,7 @@ impl Session {
         let budget = multiline.map_or(self.text_budget(kind, target), |limits| {
             self.text_budget(kind, target).min(limits.max_bytes)
         });
-        let composed = action
-            .then(|| outgoing::action_text(text, budget, multiline.is_some()))
-            .transpose()?;
+        let composed = outgoing::compose_text(text, budget, multiline.is_some(), action)?;
         let text = composed.as_deref().unwrap_or(text);
         let segments = papo_proto::split_text(text, budget);
         if segments.is_empty() {

@@ -79,4 +79,5 @@ ids = [
   "regression.labeled-response.late-live",
   "regression.multiline.oversized-live",
   "security.inj-2.action-segment-framing",
+  "security.inj-1.plain-text-ctcp-delimiter",
 ]

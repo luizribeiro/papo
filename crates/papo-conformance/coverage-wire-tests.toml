@@ -35,3 +35,6 @@
 "security::oversized_multiline_fragments_are_live_messages" = [
   "regression.multiline.oversized-live",
 ]
+"security::plain_text_rejects_ctcp_delimiters" = [
+  "security.inj-1.plain-text-ctcp-delimiter",
+]

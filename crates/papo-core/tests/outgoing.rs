@@ -274,6 +274,31 @@ fn rejects_empty_and_newline_only_text_without_queueing() {
 }
 
 #[test]
+fn rejects_ctcp_delimiters_in_plain_text_without_queueing() {
+    let now = Instant::now();
+    let wrapped = format!("{} \x01VERSION\x01", "a".repeat(415));
+    for text in [
+        "\x01VERSION\x01".to_owned(),
+        wrapped,
+        "you said:\n\x01DCC SEND backup.tar 2130706433 5000\x01".to_owned(),
+    ] {
+        let mut session = Session::new(Config::default());
+        assert!(matches!(
+            session.send_text(now, TextKind::Privmsg, "#papo", &text, &[]),
+            Err(RequestError::Build(_))
+        ));
+        assert_eq!(session.poll_transmit(), None);
+
+        let mut multiline = multiline_session(now, "max-bytes=4096,max-lines=100", false);
+        assert!(matches!(
+            multiline.send_text(now, TextKind::Notice, "#papo", &text, &[]),
+            Err(RequestError::Build(_))
+        ));
+        assert_eq!(multiline.poll_transmit(), None);
+    }
+}
+
+#[test]
 fn sends_six_hundred_bytes_as_one_labelled_multiline_batch() {
     let now = Instant::now();
     let mut session = multiline_session(now, "max-bytes=4096,max-lines=100", true);

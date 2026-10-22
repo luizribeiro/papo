@@ -57,19 +57,27 @@ pub(super) fn multiline_limits(caps: &Capabilities) -> Option<MultilineLimits> {
     (limits.max_bytes > 0 && limits.max_lines > 0).then_some(limits)
 }
 
-pub(super) fn action_text(
+pub(super) fn compose_text(
     text: &str,
     budget: usize,
     multiline: bool,
-) -> Result<String, BuildError> {
+    action: bool,
+) -> Result<Option<String>, BuildError> {
+    if !action {
+        return (!text.contains('\x01'))
+            .then_some(None)
+            .ok_or(BuildError::InvalidParam(1));
+    }
     if multiline {
-        return Ctcp::action(text).ok_or(BuildError::InvalidParam(1));
+        return Ctcp::action(text)
+            .map(Some)
+            .ok_or(BuildError::InvalidParam(1));
     }
     papo_proto::split_text(text, budget.saturating_sub(10))
         .into_iter()
         .map(|segment| Ctcp::action(segment.text).ok_or(BuildError::InvalidParam(1)))
         .collect::<Result<Vec<_>, _>>()
-        .map(|segments| segments.join("\n"))
+        .map(|segments| Some(segments.join("\n")))
 }
 
 #[cfg(test)]
