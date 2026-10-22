@@ -862,6 +862,7 @@ pub fn papo_proto::Line::tag(&self, &str) -> core::option::Option<&str>
 pub fn papo_proto::Line::tagmsg(impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo_proto::Line::tags(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = (&str, &str)>
 pub fn papo_proto::Line::to_line(&self) -> core::result::Result<alloc::string::String, papo_proto::BuildError>
+pub fn papo_proto::Line::with_params(self, impl core::iter::traits::collect::IntoIterator<Item = impl core::convert::Into<alloc::string::String>>) -> Self
 pub fn papo_proto::Line::with_source(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo_proto::Line::with_tag(self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
 impl core::clone::Clone for papo_proto::Line

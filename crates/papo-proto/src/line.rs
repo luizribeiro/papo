@@ -281,7 +281,7 @@ impl<'a> LineRef<'a> {
     /// Copies this borrowed view into an owned line without re-parsing it.
     #[must_use]
     pub fn to_owned(&self) -> Line {
-        let mut line = Line::new(self.command, self.params());
+        let mut line = Line::builder(self.command).with_params(self.params());
         line.source = self.source.map(str::to_owned);
         line.tags = self
             .tags()
@@ -330,6 +330,13 @@ impl Line {
     #[must_use]
     pub fn param(mut self, param: impl Into<String>) -> Self {
         self.params.push(param.into());
+        self
+    }
+
+    /// Appends parameters from an iterator in order.
+    #[must_use]
+    pub fn with_params(mut self, params: impl IntoIterator<Item = impl Into<String>>) -> Self {
+        self.params.extend(params.into_iter().map(Into::into));
         self
     }
 
