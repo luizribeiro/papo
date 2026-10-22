@@ -449,15 +449,17 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
-/// answers a channel CTCP query with a private response
-#[scenario(covers = ["base.ctcp.channel-query-private-reply"])]
+/// leaves channel CTCP queries to the application, which can reply privately
+#[scenario(covers = [
+    "base.ctcp.channel-query-private-reply",
+    "security.ctcp.private-target-only"
+])]
 async fn ctcp_channel_query(s: Scenario) -> papo_testing::Result<()> {
     if std::env::var("PAPO_TEST_PROFILE").unwrap_or_else(|_| "ergo-default".into()) != "unrealircd"
     {
         return s.skip("the selected profile blocks channel CTCP by default");
     }
     let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
-    let bob_nick = bob.nick();
     alice
         .send_raw(papo::Line::new("PRIVMSG", [&channel, "\u{1}VERSION\u{1}"]))
         .await?;
@@ -470,16 +472,73 @@ async fn ctcp_channel_query(s: Scenario) -> papo_testing::Result<()> {
         })
         .await?;
     assert!(matches!(query.conversation, papo::Conversation::Channel(_)));
+    alice
+        .expect_none(|event| {
+            event.as_ctcp().filter(|ctcp| {
+                ctcp.reply && crate::source_nick(&ctcp.actor) == Some(bob.nick().as_ref())
+            })
+        })
+        .await?;
+    bob.ctcp_reply(&query, "papo conformance client").await?;
     let reply = alice
         .wait_for(|event| {
             event.as_ctcp().filter(|ctcp| {
                 ctcp.reply
-                    && conversation_name(&ctcp.conversation) == Some(bob_nick.as_ref())
-                    && crate::source_nick(&ctcp.actor) == Some(bob_nick.as_ref())
+                    && conversation_name(&ctcp.conversation) == Some(bob.nick().as_ref())
+                    && crate::source_nick(&ctcp.actor) == Some(bob.nick().as_ref())
             })
         })
         .await?;
     assert!(matches!(reply.conversation, papo::Conversation::Private(_)));
+    Ok(())
+}
+
+/// never answers a CTCP query replayed from soju's private-message backlog
+#[scenario(
+    requires(caps = ["batch", "draft/chathistory"]),
+    covers = ["security.ctcp.live-only"]
+)]
+async fn ctcp_soju_backlog(s: Scenario) -> papo_testing::Result<()> {
+    if std::env::var("PAPO_TEST_PROFILE").as_deref() != Ok("soju-ergo") {
+        return s.skip("the selected profile does not replay a soju backlog");
+    }
+    let mut alice = s.connect("alice").await?;
+    let (mut bob, network) = s.connect_as_account_with_key("bob").await?;
+    let bob_nick = bob.nick();
+    bob.quit("detach before backlog delivery").await?;
+    bob.wait_for(Event::as_disconnected).await?;
+
+    alice
+        .send_raw(papo::Line::new(
+            "PRIVMSG",
+            [bob_nick.as_ref(), "\u{1}VERSION\u{1}"],
+        ))
+        .await?;
+    alice
+        .expect_none(|event| {
+            event.as_ctcp().filter(|ctcp| {
+                ctcp.reply && crate::source_nick(&ctcp.actor) == Some(bob_nick.as_ref())
+            })
+        })
+        .await?;
+
+    let phone = s.connect_account_session("bob-phone", network).await?;
+    let history = phone
+        .history(alice.nick().as_ref())
+        .latest()
+        .limit(10)
+        .await?;
+    assert!(history.items.iter().any(|item| {
+        item.as_other()
+            .is_some_and(|line| line.as_ref().param(1) == Some("\u{1}VERSION\u{1}"))
+    }));
+    alice
+        .expect_none(|event| {
+            event.as_ctcp().filter(|ctcp| {
+                ctcp.reply && crate::source_nick(&ctcp.actor) == Some(bob_nick.as_ref())
+            })
+        })
+        .await?;
     Ok(())
 }
 
