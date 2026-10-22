@@ -1115,6 +1115,38 @@ impl core::marker::Unpin for papo::Authorship
 impl core::marker::UnsafeUnpin for papo::Authorship
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Authorship
 impl core::panic::unwind_safe::UnwindSafe for papo::Authorship
+#[non_exhaustive] pub enum papo::Chat
+pub papo::Chat::Channel(papo::ChannelName)
+pub papo::Chat::Private(papo::Nick)
+impl core::clone::Clone for papo::Chat
+pub fn papo::Chat::clone(&self) -> Self
+impl core::cmp::Eq for papo::Chat
+impl core::cmp::PartialEq for papo::Chat
+pub fn papo::Chat::eq(&self, &Self) -> bool
+impl core::cmp::PartialEq<&str> for papo::Chat
+pub fn papo::Chat::eq(&self, &&str) -> bool
+impl core::cmp::PartialEq<str> for papo::Chat
+pub fn papo::Chat::eq(&self, &str) -> bool
+impl core::convert::AsRef<str> for papo::Chat
+pub fn papo::Chat::as_ref(&self) -> &str
+impl core::convert::From<&papo::Chat> for papo::Conversation
+pub fn papo::Conversation::from(&papo::Chat) -> Self
+impl core::convert::From<papo::Chat> for papo::Conversation
+pub fn papo::Conversation::from(papo::Chat) -> Self
+impl core::fmt::Debug for papo::Chat
+pub fn papo::Chat::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo::Chat
+pub fn papo::Chat::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::Chat
+pub fn papo::Chat::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for papo::Chat
+impl core::marker::Freeze for papo::Chat
+impl core::marker::Send for papo::Chat
+impl core::marker::Sync for papo::Chat
+impl core::marker::Unpin for papo::Chat
+impl core::marker::UnsafeUnpin for papo::Chat
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Chat
+impl core::panic::unwind_safe::UnwindSafe for papo::Chat
 #[non_exhaustive] pub enum papo::ConnectErrorKind
 pub papo::ConnectErrorKind::AccountRequired
 pub papo::ConnectErrorKind::Banned

@@ -46,6 +46,69 @@ pub use user::{
     NickChanged, Quit, RealnameChanged, SplitServers,
 };
 
+/// A conversation that can receive an ordinary chat reply.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[non_exhaustive]
+pub enum Chat {
+    /// A channel conversation.
+    Channel(ChannelName),
+    /// A private conversation with a user.
+    Private(papo_proto::Nick),
+}
+
+impl Chat {
+    #[allow(dead_code)]
+    pub(crate) fn from_conversation(conversation: Conversation) -> Option<Self> {
+        match conversation {
+            Conversation::Channel(channel) => Some(Self::Channel(channel)),
+            Conversation::Private(nick) => Some(Self::Private(nick)),
+            _ => None,
+        }
+    }
+}
+
+impl AsRef<str> for Chat {
+    fn as_ref(&self) -> &str {
+        match self {
+            Self::Channel(channel) => channel,
+            Self::Private(nick) => nick,
+        }
+    }
+}
+
+impl std::fmt::Display for Chat {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(self.as_ref())
+    }
+}
+
+impl PartialEq<str> for Chat {
+    fn eq(&self, other: &str) -> bool {
+        self.as_ref() == other
+    }
+}
+
+impl PartialEq<&str> for Chat {
+    fn eq(&self, other: &&str) -> bool {
+        self == *other
+    }
+}
+
+impl From<Chat> for Conversation {
+    fn from(value: Chat) -> Self {
+        match value {
+            Chat::Channel(channel) => Self::Channel(channel),
+            Chat::Private(nick) => Self::Private(nick),
+        }
+    }
+}
+
+impl From<&Chat> for Conversation {
+    fn from(value: &Chat) -> Self {
+        value.clone().into()
+    }
+}
+
 /// The semantic kind of an incoming chat message.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]

@@ -44,6 +44,22 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
         ConversationClass::Event,
     ),
     (
+        "impl core::convert::From<&papo::Chat> for papo::Conversation",
+        ConversationClass::Event,
+    ),
+    (
+        "pub fn papo::Conversation::from(&papo::Chat) -> Self",
+        ConversationClass::Event,
+    ),
+    (
+        "impl core::convert::From<papo::Chat> for papo::Conversation",
+        ConversationClass::Event,
+    ),
+    (
+        "pub fn papo::Conversation::from(papo::Chat) -> Self",
+        ConversationClass::Event,
+    ),
+    (
         "pub fn papo::Client::fetch_read_marker(&self, impl core::convert::Into<ConversationInput>) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>",
         ConversationClass::History,
     ),
