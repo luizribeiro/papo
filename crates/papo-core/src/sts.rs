@@ -148,6 +148,8 @@ pub struct StsPolicy {
     pub host: String,
     /// The last TLS port used for this host; the policy itself applies to every port.
     pub port: u16,
+    /// Whether `port` was learned over a WebSocket rather than TCP.
+    pub websocket: bool,
     /// The wall-clock time at which this policy stops requiring TLS.
     pub expires_at: SystemTime,
     /// The duration used to refresh expiry when a connection closes.
@@ -156,6 +158,9 @@ pub struct StsPolicy {
 
 impl StsPolicy {
     /// Creates a persistent secure-only policy.
+    ///
+    /// The port is treated as learned over TCP. Use [`Self::websocket`] for a
+    /// policy learned over a WebSocket.
     ///
     /// ```
     /// # use std::time::{Duration, SystemTime};
@@ -178,9 +183,17 @@ impl StsPolicy {
         Self {
             host: host.into(),
             port,
+            websocket: false,
             expires_at,
             duration,
         }
+    }
+
+    /// Records whether this policy's port was learned over a WebSocket.
+    #[must_use]
+    pub const fn websocket(mut self, websocket: bool) -> Self {
+        self.websocket = websocket;
+        self
     }
 
     /// Reports whether this policy still requires TLS at `now`.
@@ -368,6 +381,7 @@ mod tests {
         let policy = StsPolicy {
             host: "irc.example.net".to_owned(),
             port: 6697,
+            websocket: false,
             expires_at: UNIX_EPOCH + Duration::from_secs(2_000_000),
             duration: Duration::from_secs(60),
         };
@@ -378,6 +392,7 @@ mod tests {
         let replacement = StsPolicy {
             host: "irc.example.net".to_owned(),
             port: 6698,
+            websocket: false,
             expires_at: UNIX_EPOCH + Duration::from_secs(3_000_001),
             duration: Duration::from_secs(120),
         };
@@ -393,6 +408,7 @@ mod tests {
         store.put(StsPolicy {
             host: "irc.Example.com".to_owned(),
             port: 6697,
+            websocket: false,
             expires_at: UNIX_EPOCH + Duration::from_secs(2_000_000),
             duration: Duration::from_secs(60),
         });
@@ -409,6 +425,7 @@ mod tests {
         let policy = StsPolicy {
             host: "irc.example.net".to_owned(),
             port: 6697,
+            websocket: false,
             expires_at: now - Duration::from_secs(1),
             duration: Duration::from_secs(60),
         };
@@ -426,6 +443,7 @@ mod tests {
         let stored = StsPolicy {
             host: "irc.example.net".to_owned(),
             port: 6697,
+            websocket: false,
             expires_at: UNIX_EPOCH + duration,
             duration,
         };

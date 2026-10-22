@@ -363,6 +363,26 @@ impl ServerAddress {
         }
     }
 
+    pub(crate) const fn is_websocket(&self) -> bool {
+        matches!(self.protocol, Protocol::Ws | Protocol::Wss)
+    }
+
+    pub(crate) fn apply_sts_upgrade(&mut self, advertised_port: u16) {
+        let websocket = self.is_websocket();
+        self.set_tls(true);
+        if !websocket {
+            self.set_port(advertised_port);
+        }
+    }
+
+    pub(crate) fn apply_stored_sts(&mut self, policy: &papo_core::sts::StsPolicy) {
+        let websocket = self.is_websocket();
+        self.set_tls(true);
+        if websocket == policy.websocket {
+            self.set_port(policy.port);
+        }
+    }
+
     pub(crate) fn is_secure(&self) -> bool {
         matches!(self.protocol, Protocol::Ircs | Protocol::Wss)
     }

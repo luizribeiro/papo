@@ -1305,6 +1305,7 @@ async fn write_timeout_resumes_before_the_next_line() {
         6697,
         false,
         false,
+        false,
         Some(deadline),
     )
     .await
@@ -1332,6 +1333,7 @@ async fn write_timeout_resumes_before_the_next_line() {
         &mut sts,
         &mut sts_store,
         6697,
+        false,
         false,
         false,
         None,
@@ -3648,6 +3650,7 @@ async fn secure_sts_persists_the_duration_and_connection_port() {
     .await;
     let mut policy = papo_core::sts::StsStore::get(&inspection, "irc.example.net").unwrap();
     assert_eq!(policy.port, 7443);
+    assert!(!policy.websocket);
     assert_eq!(policy.duration, Duration::from_secs(3600));
     assert!(policy.expires_at > std::time::SystemTime::now());
     policy.expires_at = SystemTime::UNIX_EPOCH;
@@ -3681,7 +3684,7 @@ fn enormous_sts_duration_is_stored_with_a_far_future_expiry() {
     let directive = papo_core::sts::StsDirective::parse(&format!("duration={}", u64::MAX))
         .expect("u64::MAX is a valid STS duration");
     let action = papo_core::sts::decide(directive, ConnectionSecurity::Secure, "irc.example.net");
-    super::connect::apply_sts_action(&mut store, 6697, &action);
+    super::connect::apply_sts_action(&mut store, 6697, false, &action);
 
     let policy = papo_core::sts::StsStore::get(&store, "irc.example.net")
         .expect("an overflowing STS duration must still be stored");

@@ -184,8 +184,7 @@ pub(super) async fn run_plan(
             ControlFlow::Continue(retry) => retry,
         };
         if let Some(port) = upgrade_port {
-            base_plan.address.set_tls(true);
-            base_plan.address.set_port(port);
+            base_plan.address.apply_sts_upgrade(port);
             sts_required = true;
         }
         let reconnect_now = end.reconnect_now;
@@ -298,6 +297,7 @@ pub(super) async fn run_planned_connection(
         }),
         Some(sts_store),
         plan.address.port,
+        plan.address.is_websocket(),
         pending_events,
         &events.connected,
         true,
@@ -505,12 +505,20 @@ fn finish_slow_consumer(
     )
 }
 
-pub(super) fn apply_sts_action(store: &mut dyn StsStore, port: u16, action: &StsAction) {
+pub(super) fn apply_sts_action(
+    store: &mut dyn StsStore,
+    port: u16,
+    websocket: bool,
+    action: &StsAction,
+) {
     match action {
         StsAction::Persist { host, duration, .. } => {
             let now = crate::rt::now_wall();
             let expires_at = clamped_sts_expiry(now, *duration);
-            put_sts_policy(store, StsPolicy::new(host, port, expires_at, *duration));
+            put_sts_policy(
+                store,
+                StsPolicy::new(host, port, expires_at, *duration).websocket(websocket),
+            );
         }
         StsAction::Remove { host, .. } => remove_sts_policy(store, host),
         _ => {}
@@ -555,8 +563,7 @@ pub(super) fn plan_with_stored_sts(
         return base.clone();
     }
     let mut plan = base.clone();
-    plan.address.set_tls(true);
-    plan.address.set_port(policy.port);
+    plan.address.apply_stored_sts(&policy);
     plan
 }
 

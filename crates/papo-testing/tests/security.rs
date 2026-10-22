@@ -295,3 +295,54 @@ async fn oversized_sts_duration_still_persists() {
         .unwrap();
     assert!(policy.is_active_at(in_one_hundred_years));
 }
+
+#[tokio::test]
+async fn stored_sts_ports_stay_with_their_transport() {
+    let duration = Duration::from_secs(3600);
+    let expiry = SystemTime::now() + duration;
+
+    let mut websocket_store = CaseSensitiveStsStore::default();
+    papo::sts::StsStore::put(
+        &mut websocket_store,
+        papo::sts::StsPolicy::new("offline.test", 443, expiry, duration).websocket(true),
+    );
+    let (_client, _events, mut irc_wire) = wire(
+        papo::Client::builder("irc://offline.test")
+            .nick("papo-wire")
+            .reconnect(Reconnect::never())
+            .sts_store(websocket_store),
+    );
+    assert_eq!(irc_wire.endpoint().await, "ircs://offline.test");
+
+    let mut tcp_store = CaseSensitiveStsStore::default();
+    papo::sts::StsStore::put(
+        &mut tcp_store,
+        papo::sts::StsPolicy::new("offline.test", 6697, expiry, duration),
+    );
+    let (_client, _events, mut websocket_wire) = wire(
+        papo::Client::builder("ws://offline.test/webirc")
+            .nick("papo-wire")
+            .reconnect(Reconnect::never())
+            .sts_store(tcp_store),
+    );
+    assert_eq!(websocket_wire.endpoint().await, "wss://offline.test/webirc");
+
+    let (_client, _events, mut live_upgrade) = wire(
+        papo::Client::builder("ws://offline.test/webirc")
+            .nick("papo-wire")
+            .rate_limit(papo::RateLimit::unlimited()),
+    );
+    assert_eq!(live_upgrade.endpoint().await, "ws://offline.test/webirc");
+    assert_eq!(live_upgrade.next_sent().await, "CAP LS 302");
+    assert_eq!(live_upgrade.next_sent().await, "NICK papo-wire");
+    assert_eq!(
+        live_upgrade.next_sent().await,
+        "USER papo-wire 0 * papo-wire"
+    );
+    live_upgrade
+        .server(":offline.test CAP * LS :sts=port=6697")
+        .await;
+    assert_eq!(live_upgrade.next_sent_or_closed().await, None);
+    live_upgrade.close().await;
+    assert_eq!(live_upgrade.endpoint().await, "wss://offline.test/webirc");
+}

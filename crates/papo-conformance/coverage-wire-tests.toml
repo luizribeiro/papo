@@ -20,3 +20,6 @@
 "security::oversized_sts_duration_still_persists" = [
   "security.t5.sts-duration-overflow",
 ]
+"security::stored_sts_ports_stay_with_their_transport" = [
+  "security.t6.sts-transport-port",
+]

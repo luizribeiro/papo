@@ -628,6 +628,7 @@ where
         None,
         None,
         0,
+        false,
         VecDeque::new(),
         &events.connected,
         false,
@@ -703,6 +704,7 @@ async fn run_connection<S>(
     connection: Option<Connection>,
     mut sts_store: Option<Box<dyn StsStore + Send>>,
     sts_port: u16,
+    sts_websocket: bool,
     mut pending_events: VecDeque<Event>,
     connected: &AtomicBool,
     reconnectable: bool,
@@ -759,6 +761,7 @@ where
             &mut sts,
             &mut sts_store,
             sts_port,
+            sts_websocket,
             quit.is_some(),
             drain_after_timeout,
             write_deadline,
@@ -1157,6 +1160,7 @@ async fn drain<S>(
     sts: &mut StsActions,
     sts_store: &mut Option<Box<dyn StsStore + Send>>,
     sts_port: u16,
+    sts_websocket: bool,
     quitting: bool,
     after_timeout: bool,
     deadline: Option<Instant>,
@@ -1370,7 +1374,7 @@ where
                 if !cfg!(browser)
                     && let Some(store) = sts_store
                 {
-                    apply_sts_action(store.as_mut(), sts_port, &action);
+                    apply_sts_action(store.as_mut(), sts_port, sts_websocket, &action);
                 }
             }
             event::CoreEvent::Close {

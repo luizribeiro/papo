@@ -20,7 +20,7 @@ fn persists_a_policy_across_reopening() {
     );
     assert_eq!(
         fs::read_to_string(&path).unwrap(),
-        "irc.example.net\t6697\t4000000000\t15552000\n"
+        "irc.example.net\t6697\t4000000000\t15552000\ttcp\n"
     );
     fs::remove_file(path).unwrap();
 }

@@ -23,13 +23,14 @@ impl FileStore {
         let mut text = String::new();
         for policy in self.policies.values() {
             let expiry = policy.expires_at.duration_since(UNIX_EPOCH).unwrap();
-            let (host, port, expiry, duration) = (
+            let (host, port, expiry, duration, transport) = (
                 &policy.host,
                 policy.port,
                 expiry.as_secs(),
                 policy.duration.as_secs(),
+                if policy.websocket { "websocket" } else { "tcp" },
             );
-            writeln!(text, "{host}\t{port}\t{expiry}\t{duration}").unwrap();
+            writeln!(text, "{host}\t{port}\t{expiry}\t{duration}\t{transport}").unwrap();
         }
         fs::write(&self.path, text).expect("persist STS policies");
     }
@@ -53,14 +54,24 @@ impl StsStore for FileStore {
 
 fn parse_policy(line: &str) -> io::Result<(String, StsPolicy)> {
     let fields = line.split('\t').collect::<Vec<_>>();
-    let [host, port, expiry, duration] = fields.as_slice() else {
-        return Err(io::Error::other("invalid STS policy"));
+    let (host, port, expiry, duration, transport) = match fields.as_slice() {
+        [host, port, expiry, duration] => (*host, *port, *expiry, *duration, false),
+        [host, port, expiry, duration, transport] => {
+            let transport = match *transport {
+                "tcp" => false,
+                "websocket" => true,
+                _ => return Err(io::Error::other("invalid STS policy transport")),
+            };
+            (*host, *port, *expiry, *duration, transport)
+        }
+        _ => return Err(io::Error::other("invalid STS policy")),
     };
     let policy = StsPolicy::new(
-        *host,
+        host,
         port.parse().map_err(io::Error::other)?,
         UNIX_EPOCH + std::time::Duration::from_secs(expiry.parse().map_err(io::Error::other)?),
         std::time::Duration::from_secs(duration.parse().map_err(io::Error::other)?),
-    );
+    )
+    .websocket(transport);
     Ok((host.to_string(), policy))
 }

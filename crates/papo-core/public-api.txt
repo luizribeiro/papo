@@ -235,9 +235,11 @@ pub papo::sts::StsPolicy::duration: core::time::Duration
 pub papo::sts::StsPolicy::expires_at: std::time::SystemTime
 pub papo::sts::StsPolicy::host: alloc::string::String
 pub papo::sts::StsPolicy::port: u16
+pub papo::sts::StsPolicy::websocket: bool
 impl papo::sts::StsPolicy
 pub fn papo::sts::StsPolicy::is_active_at(&self, std::time::SystemTime) -> bool
 pub fn papo::sts::StsPolicy::new(impl core::convert::Into<alloc::string::String>, u16, std::time::SystemTime, core::time::Duration) -> Self
+pub const fn papo::sts::StsPolicy::websocket(self, bool) -> Self
 impl core::clone::Clone for papo::sts::StsPolicy
 pub fn papo::sts::StsPolicy::clone(&self) -> Self
 impl core::cmp::Eq for papo::sts::StsPolicy
