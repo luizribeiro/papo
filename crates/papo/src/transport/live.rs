@@ -270,8 +270,7 @@ async fn localhost_falls_back_to_the_ipv4_listener_body() {
 fn tls_config(server: &ServerInfo) -> TlsConfig {
     TlsConfig {
         roots: TlsRoots::PlatformAndCa(fs::read(server.ca_pem_path()).unwrap()),
-        client_certificate: None,
-        server_name: None,
+        ..TlsConfig::default()
     }
 }
 

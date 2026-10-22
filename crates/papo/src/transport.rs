@@ -5,7 +5,7 @@ use std::net::SocketAddr;
 #[cfg(tls)]
 use std::sync::Arc;
 use std::{
-    fmt, io,
+    io,
     pin::Pin,
     task::{Context, Poll},
 };
@@ -86,6 +86,8 @@ pub struct TlsConfig {
     pub client_certificate: Option<ClientCertificate>,
     /// A DNS name to authenticate in place of the connection host.
     pub server_name: Option<String>,
+    #[cfg(tls)]
+    prepared: Option<Arc<rustls::ClientConfig>>,
 }
 
 impl Default for TlsConfig {
@@ -94,6 +96,8 @@ impl Default for TlsConfig {
             roots: TlsRoots::Platform,
             client_certificate: None,
             server_name: None,
+            #[cfg(tls)]
+            prepared: None,
         }
     }
 }
@@ -405,6 +409,20 @@ fn tls_connector(
     ),
     ConnectError,
 > {
+    let config = settings
+        .prepared
+        .clone()
+        .map_or_else(|| build_tls_client_config(settings), Ok)?;
+    let name = settings.server_name.as_deref().unwrap_or(host).to_owned();
+    let server_name = rustls::pki_types::ServerName::try_from(name.clone())
+        .map_err(|_| ConnectError::InvalidServerName(name))?;
+    Ok((tokio_rustls::TlsConnector::from(config), server_name))
+}
+
+#[cfg(tls)]
+fn build_tls_client_config(
+    settings: &TlsConfig,
+) -> Result<Arc<rustls::ClientConfig>, ConnectError> {
     use rustls::pki_types::{PrivateKeyDer, pem::PemObject};
     use rustls_platform_verifier::BuilderVerifierExt;
 
@@ -437,7 +455,7 @@ fn tls_connector(
     let mut config = if let Some(identity) = &settings.client_certificate {
         let chain = certificates(&identity.certificate_chain)?;
         let key = PrivateKeyDer::from_pem_slice(identity.private_key.expose_bytes())
-            .map_err(|error| invalid_pem("client private key", error))?;
+            .map_err(|_| invalid_pem("client private key"))?;
         builder
             .with_client_auth_cert(chain, key)
             .map_err(ConnectError::Tls)?
@@ -445,20 +463,17 @@ fn tls_connector(
         builder.with_no_client_auth()
     };
     config.enable_sni = true;
-    let name = settings.server_name.as_deref().unwrap_or(host).to_owned();
-    let server_name = rustls::pki_types::ServerName::try_from(name.clone())
-        .map_err(|_| ConnectError::InvalidServerName(name))?;
-    Ok((
-        tokio_rustls::TlsConnector::from(Arc::new(config)),
-        server_name,
-    ))
+    Ok(Arc::new(config))
 }
 
 #[cfg(tls)]
-pub(crate) fn validate_tls_config(host: &str, settings: &TlsConfig) -> Result<(), String> {
-    tls_connector(host, settings)
-        .map(drop)
-        .map_err(|error| error.to_string())
+pub(crate) fn prepare_tls_config(host: &str, settings: &mut TlsConfig) -> Result<(), String> {
+    let config = build_tls_client_config(settings).map_err(|error| error.to_string())?;
+    let name = settings.server_name.as_deref().unwrap_or(host).to_owned();
+    rustls::pki_types::ServerName::try_from(name.clone())
+        .map_err(|_| ConnectError::InvalidServerName(name).to_string())?;
+    settings.prepared = Some(config);
+    Ok(())
 }
 
 #[cfg(all(tls, feature = "tls-ring"))]
@@ -479,7 +494,7 @@ fn certificates(
 
     let certificates = CertificateDer::pem_slice_iter(pem)
         .collect::<Result<Vec<_>, _>>()
-        .map_err(|error| invalid_pem("certificate", error))?;
+        .map_err(|_| invalid_pem("certificate"))?;
     if certificates.is_empty() {
         return Err(ConnectError::InvalidTlsConfiguration(
             "certificate PEM contains no certificates".into(),
@@ -489,8 +504,8 @@ fn certificates(
 }
 
 #[cfg(tls)]
-fn invalid_pem(kind: &str, error: impl fmt::Display) -> ConnectError {
-    ConnectError::InvalidTlsConfiguration(format!("invalid {kind} PEM: {error}"))
+fn invalid_pem(kind: &str) -> ConnectError {
+    ConnectError::InvalidTlsConfiguration(format!("invalid {kind} PEM"))
 }
 
 #[cfg(tls)]
@@ -536,7 +551,12 @@ async fn connect_address(address: SocketAddr) -> io::Result<TcpStream> {
 mod tests {
     use super::{ClientCertificate, TlsConfig};
     #[cfg(tls)]
-    use super::{ConnectError, TlsRoots, tls_connector};
+    use super::{ConnectError, TlsRoots, prepare_tls_config, tls_connector};
+
+    #[cfg(tls)]
+    const CLIENT_CERTIFICATE: &[u8] = include_bytes!("../tests/data/client.pem");
+    #[cfg(tls)]
+    const CLIENT_KEY: &[u8] = include_bytes!("../tests/data/client.key");
 
     #[test]
     fn client_private_key_is_redacted() {
@@ -586,7 +606,46 @@ mod tests {
         assert!(matches!(
             tls_connector("localhost", &config),
             Err(ConnectError::InvalidTlsConfiguration(message))
-                if message.starts_with("invalid certificate PEM:")
+                if message == "invalid certificate PEM"
+        ));
+    }
+
+    #[cfg(tls)]
+    #[test]
+    fn malformed_client_key_error_does_not_echo_the_input() {
+        let marker = "unique-private-key-error-marker-4912";
+        let config = TlsConfig {
+            client_certificate: Some(ClientCertificate::new(
+                CLIENT_CERTIFICATE,
+                format!("-----BEGIN PRIVATE KEY-----\n{marker}\n-----END PRIVATE KEY-----"),
+            )),
+            ..TlsConfig::default()
+        };
+        let Err(error) = tls_connector("localhost", &config) else {
+            panic!("malformed private key was accepted")
+        };
+        assert_eq!(
+            error.to_string(),
+            "invalid TLS configuration: invalid client private key PEM"
+        );
+        assert!(!error.to_string().contains(marker));
+    }
+
+    #[cfg(tls)]
+    #[test]
+    fn prepared_client_identity_is_shared_by_plan_clones() {
+        let mut config = TlsConfig {
+            client_certificate: Some(ClientCertificate::new(
+                CLIENT_CERTIFICATE,
+                CLIENT_KEY.to_vec(),
+            )),
+            ..TlsConfig::default()
+        };
+        prepare_tls_config("localhost", &mut config).unwrap();
+        let cloned = config.clone();
+        assert!(std::sync::Arc::ptr_eq(
+            config.prepared.as_ref().unwrap(),
+            cloned.prepared.as_ref().unwrap()
         ));
     }
 

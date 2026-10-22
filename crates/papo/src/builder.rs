@@ -647,7 +647,7 @@ impl Builder {
             }
             #[cfg(tls)]
             if address.is_secure() {
-                crate::transport::validate_tls_config(&address.host, &self.tls)
+                crate::transport::prepare_tls_config(&address.host, &mut self.tls)
                     .map_err(InvalidInput::TlsConfig)?;
             }
             apply_address(&mut self.config, &address);
