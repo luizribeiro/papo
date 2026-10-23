@@ -1,8 +1,69 @@
 use std::{borrow::Borrow, cmp::Ordering};
 
-use papo_proto::Casemapping;
+use papo_proto::{AccountName, Casemapping, ChannelName, Mask, Nick, Origin};
 
-pub(crate) fn names_equal(casemapping: Casemapping, left: &str, right: &str) -> bool {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct Names {
+    casemapping: Casemapping,
+    origin: Origin,
+}
+
+impl Default for Names {
+    fn default() -> Self {
+        Self::new(Casemapping::default(), Origin::NONE)
+    }
+}
+
+#[allow(dead_code)]
+impl Names {
+    pub(crate) const fn new(casemapping: Casemapping, origin: Origin) -> Self {
+        Self {
+            casemapping,
+            origin,
+        }
+    }
+
+    pub(crate) const fn casemapping(self) -> Casemapping {
+        self.casemapping
+    }
+
+    pub(crate) const fn origin(self) -> Origin {
+        self.origin
+    }
+
+    pub(crate) fn nick(self, text: impl AsRef<str>) -> Nick {
+        self.origin.__nick(self.casemapping, text)
+    }
+
+    pub(crate) fn channel(self, text: impl AsRef<str>) -> ChannelName {
+        self.origin.__channel(self.casemapping, text)
+    }
+
+    pub(crate) fn account(self, text: impl AsRef<str>) -> AccountName {
+        self.origin.__account(self.casemapping, text)
+    }
+
+    pub(crate) fn mask(self, text: impl AsRef<str>) -> Mask {
+        self.origin.__mask(self.casemapping, text)
+    }
+}
+
+impl std::ops::Deref for Names {
+    type Target = Casemapping;
+
+    fn deref(&self) -> &Self::Target {
+        &self.casemapping
+    }
+}
+
+impl From<Names> for Casemapping {
+    fn from(names: Names) -> Self {
+        names.casemapping
+    }
+}
+
+pub(crate) fn names_equal(casemapping: impl Into<Casemapping>, left: &str, right: &str) -> bool {
+    let casemapping = casemapping.into();
     casemapping.fold(left) == casemapping.fold(right)
 }
 
@@ -13,9 +74,9 @@ pub(crate) struct NameKey<T> {
 }
 
 impl<T: AsRef<str>> NameKey<T> {
-    pub(crate) fn new(value: impl Into<T>, casemapping: Casemapping) -> Self {
+    pub(crate) fn new(value: impl Into<T>, casemapping: impl Into<Casemapping>) -> Self {
         let original = value.into();
-        let folded = casemapping.fold(original.as_ref()).into_owned();
+        let folded = casemapping.into().fold(original.as_ref()).into_owned();
         Self { original, folded }
     }
 
