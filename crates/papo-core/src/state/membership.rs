@@ -8,6 +8,7 @@ impl State {
         let Some(ProtoSource::User { nick, .. }) = message.source() else {
             return Handled::No;
         };
+        self.record_departure(nick, None);
         let ours = crate::names_equal(self.casemapping, nick, &self.nick);
         let authorship = self.nick_authorship(nick);
         let channels = if ours {

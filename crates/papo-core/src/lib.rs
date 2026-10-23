@@ -2495,6 +2495,15 @@ pub struct ReceivedLine {
     conversation: Option<Conversation>,
     status: Option<Vec<char>>,
     channel_context: Option<ChannelName>,
+    reply_token: ReplyToken,
+}
+
+/// Opaque receipt position used to validate a later private response.
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct ReplyToken {
+    epoch: u64,
+    sequence: u64,
 }
 
 impl ReceivedLine {
@@ -2538,6 +2547,13 @@ impl ReceivedLine {
     #[must_use]
     pub const fn channel_context(&self) -> Option<&ChannelName> {
         self.channel_context.as_ref()
+    }
+
+    /// Returns the receipt position used to validate a later private response.
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __reply_token(&self) -> ReplyToken {
+        self.reply_token
     }
 
     /// Removes the dispatch annotation and returns the parsed IRC line.
