@@ -420,7 +420,7 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
     assert!(!alice_who.host.is_empty());
     assert_eq!(alice_who.realname, "papo test peer");
     assert_eq!(alice_who.away, Away::__away_value(None));
-    assert!(!alice_who.is_oper);
+    assert!(alice_who.oper.is_none());
     assert!(!alice_who.is_bot);
     assert_eq!(alice_who.prefixes, ['@']);
 
@@ -500,21 +500,13 @@ async fn operator_visibility(s: Scenario) -> papo_testing::Result<()> {
     alice.oper(oper_name, password).await?;
     assert!(alice.state().user_modes().any(|mode_| mode_ == 'o'));
 
-    // The operator markers are encoded only in WHO flags and WHOIS numerics.
-    let who = bob
-        .request_raw(papo::Line::new("WHO").with_params([alice_nick.as_ref()]))
-        .await?;
-    let row = who
-        .iter()
-        .find(|line| {
-            line.numeric() == Some(352)
-                && line
-                    .get(5)
-                    .is_some_and(|nick| mapping.nick(nick) == alice_nick)
-        })
-        .unwrap();
-    assert!(row.get(6).is_some_and(|flags| flags.contains('*')));
-    assert!(who.iter().any(|line| line.numeric() == Some(315)));
+    let who = bob.who(alice_nick.as_ref()).await?;
+    let row = who.iter().find(|entry| entry.nick == alice_nick).unwrap();
+    assert_eq!(
+        row.oper.as_ref().and_then(|oper| oper.name.as_deref()),
+        None
+    );
+    assert!(row.oper.is_some());
 
     let whois = bob
         .request_raw(papo::Line::new("WHOIS").with_params([alice_nick.as_ref()]))

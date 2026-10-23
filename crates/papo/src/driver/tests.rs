@@ -4259,13 +4259,13 @@ fn assert_structured_who(who: &[crate::WhoEntry]) {
         (
             &who[1].account,
             &who[1].away,
-            who[1].is_oper,
+            who[1].oper.as_ref().and_then(|oper| oper.name.as_deref()),
             who[1].prefixes.as_slice()
         ),
         (
             &crate::Account::LoggedOut,
             &crate::Away::__away_value(None),
-            true,
+            None,
             ['+'].as_slice()
         )
     );

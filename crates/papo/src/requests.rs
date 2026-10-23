@@ -6,7 +6,7 @@ use papo_proto::{
     WhoxReply,
 };
 
-use crate::Error;
+use crate::{Error, Oper};
 
 pub(crate) const WHOX_FIELDS: &str = "%tcuhnfar,152";
 
@@ -66,8 +66,8 @@ pub struct WhoEntry {
     pub realname: String,
     /// The user's presence reported by WHO.
     pub away: Away,
-    /// Whether the user is an IRC operator.
-    pub is_oper: bool,
+    /// The user's IRC operator identity, when reported.
+    pub oper: Option<Oper>,
     /// Whether the server identifies the user as a bot.
     pub is_bot: bool,
     /// Channel-membership prefixes in wire order.
@@ -232,7 +232,7 @@ pub(crate) fn who(
                         Some(WhoxPresence::Gone) => Away::__away_value(None),
                         None => Away::Unknown,
                     },
-                    is_oper: flags.oper,
+                    oper: flags.oper.then_some(Oper { name: None }),
                     is_bot: flags.bot,
                     prefixes: flags.prefixes,
                 })
@@ -264,7 +264,7 @@ fn plain_who(message: &papo_proto::LineRef<'_>, isupport: &Isupport) -> Option<W
         } else {
             Away::Unknown
         },
-        is_oper: flags.contains('*'),
+        oper: flags.contains('*').then_some(Oper { name: None }),
         is_bot: flags.contains('B'),
         prefixes: flags
             .chars()

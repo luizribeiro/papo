@@ -248,6 +248,14 @@ pub enum Authorship {
     Unknown,
 }
 
+/// An IRC operator identified by the server.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct Oper {
+    /// The operator name, when the server shows it to this client.
+    pub name: Option<String>,
+}
+
 impl Authorship {
     pub(crate) const fn from_core(value: papo_core::Authorship) -> Self {
         match value {
@@ -301,8 +309,8 @@ pub struct Message {
     pub relayed_by: Option<Nick>,
     /// Whether the message carried the `bot` tag.
     pub is_bot: bool,
-    /// IRC operator name, when the operator tag supplied one.
-    pub oper: Option<String>,
+    /// The actor's IRC operator identity, when tagged.
+    pub oper: Option<Oper>,
     /// All message tags in wire order.
     pub tags: Tags,
 }
@@ -346,8 +354,8 @@ pub struct Notice {
     pub relayed_by: Option<Nick>,
     /// Whether the notice carried the `bot` tag.
     pub is_bot: bool,
-    /// IRC operator name, when the operator tag supplied one.
-    pub oper: Option<String>,
+    /// The actor's IRC operator identity, when tagged.
+    pub oper: Option<Oper>,
     /// All message tags in wire order.
     pub tags: Tags,
 }
@@ -388,7 +396,7 @@ struct MessageMetadata {
     #[cfg(feature = "unstable")]
     relayed_by: Option<Nick>,
     is_bot: bool,
-    oper: Option<String>,
+    oper: Option<Oper>,
     tags: Tags,
 }
 
@@ -931,7 +939,9 @@ fn message_metadata(
         #[cfg(feature = "unstable")]
         relayed_by,
         is_bot: tags.contains("bot"),
-        oper: oper_tag.and_then(|(_, value)| value.map(std::borrow::Cow::into_owned)),
+        oper: oper_tag.map(|(_, value)| Oper {
+            name: value.map(std::borrow::Cow::into_owned),
+        }),
         tags,
     })
 }
@@ -2453,12 +2463,12 @@ mod tests {
                 "@draft/oper=network-admin :alice!a@localhost PRIVMSG #papo :Scheduled maintenance"
             )
             .oper
-            .as_deref(),
-            Some("network-admin")
+            .and_then(|oper| oper.name),
+            Some("network-admin".to_owned())
         );
         let unnamed = tagged("@draft/oper :alice!a@localhost PRIVMSG #papo :Scheduled maintenance");
         assert!(unnamed.tags.contains("draft/oper"));
-        assert_eq!(unnamed.oper, None);
+        assert_eq!(unnamed.oper.unwrap().name, None);
         let ordinary = chat("PRIVMSG", "ordinary message");
         assert!(!ordinary.tags.contains("draft/oper"));
         assert_eq!(ordinary.oper, None);

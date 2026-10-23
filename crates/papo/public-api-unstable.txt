@@ -720,7 +720,7 @@ pub papo::event::Notice::conversation: papo::Chat
 pub papo::event::Notice::is_bot: bool
 pub papo::event::Notice::kind: papo::event::NoticeKind
 pub papo::event::Notice::msgid: core::option::Option<papo::MessageId>
-pub papo::event::Notice::oper: core::option::Option<alloc::string::String>
+pub papo::event::Notice::oper: core::option::Option<papo::Oper>
 pub papo::event::Notice::raw_text: alloc::string::String
 pub papo::event::Notice::received_at: std::time::SystemTime
 pub papo::event::Notice::relayed_by: core::option::Option<papo::Nick>
@@ -2211,7 +2211,7 @@ pub papo::Message::conversation: papo::Chat
 pub papo::Message::is_bot: bool
 pub papo::Message::kind: papo::MessageKind
 pub papo::Message::msgid: core::option::Option<papo::MessageId>
-pub papo::Message::oper: core::option::Option<alloc::string::String>
+pub papo::Message::oper: core::option::Option<papo::Oper>
 pub papo::Message::raw_text: alloc::string::String
 pub papo::Message::received_at: std::time::SystemTime
 pub papo::Message::relayed_by: core::option::Option<papo::Nick>
@@ -2357,6 +2357,23 @@ impl core::marker::Unpin for papo::NewAccount
 impl core::marker::UnsafeUnpin for papo::NewAccount
 impl core::panic::unwind_safe::RefUnwindSafe for papo::NewAccount
 impl core::panic::unwind_safe::UnwindSafe for papo::NewAccount
+#[non_exhaustive] pub struct papo::Oper
+pub papo::Oper::name: core::option::Option<alloc::string::String>
+impl core::clone::Clone for papo::Oper
+pub fn papo::Oper::clone(&self) -> Self
+impl core::cmp::Eq for papo::Oper
+impl core::cmp::PartialEq for papo::Oper
+pub fn papo::Oper::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::Oper
+pub fn papo::Oper::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::Oper
+impl core::marker::Freeze for papo::Oper
+impl core::marker::Send for papo::Oper
+impl core::marker::Sync for papo::Oper
+impl core::marker::Unpin for papo::Oper
+impl core::marker::UnsafeUnpin for papo::Oper
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Oper
+impl core::panic::unwind_safe::UnwindSafe for papo::Oper
 pub struct papo::Persistence
 impl papo::Persistence
 pub fn papo::Persistence::get(&self) -> papo::RequestFuture<papo::PersistenceStatus>
@@ -2662,8 +2679,8 @@ pub papo::WhoEntry::away: papo::Away
 pub papo::WhoEntry::channel: core::option::Option<papo::ChannelName>
 pub papo::WhoEntry::host: alloc::string::String
 pub papo::WhoEntry::is_bot: bool
-pub papo::WhoEntry::is_oper: bool
 pub papo::WhoEntry::nick: papo::Nick
+pub papo::WhoEntry::oper: core::option::Option<papo::Oper>
 pub papo::WhoEntry::prefixes: alloc::vec::Vec<char>
 pub papo::WhoEntry::realname: alloc::string::String
 pub papo::WhoEntry::username: alloc::string::String

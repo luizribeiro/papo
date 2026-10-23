@@ -79,6 +79,11 @@ fn requests_event_playback_and_oper_tags_by_default() {
         .event(|event| {
             matches!(event, Event::Line(message)
             if message.as_ref().tag("draft/oper").as_deref() == Some("network-admin"))
+        })
+        .server("@draft/oper :alice!a@localhost PRIVMSG #papo :Maintenance begins now")
+        .event(|event| {
+            matches!(event, Event::Line(message)
+            if message.as_ref().tags().any(|(key, value)| key == "draft/oper" && value.is_none()))
         });
 }
 
