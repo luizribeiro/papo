@@ -702,17 +702,7 @@ fn write_line(
     params: &[&str],
     out: &mut Vec<u8>,
 ) -> Result<(), BuildError> {
-    let tag_data_len = tags
-        .iter()
-        .enumerate()
-        .fold(0, |length, (index, (key, value))| {
-            length
-                + usize::from(index != 0)
-                + key.len()
-                + value
-                    .as_deref()
-                    .map_or(0, |value| 1 + escaped_tag_value_len(value))
-        });
+    let tag_data_len = encoded_tag_data_len(tags);
     if tag_data_len > MAX_CLIENT_TAG_DATA_LEN {
         return Err(BuildError::TagsTooLong);
     }
@@ -726,7 +716,7 @@ fn write_line(
         return Err(BuildError::LineTooLong);
     }
 
-    let tag_section_len = usize::from(!tags.is_empty()) * (tag_data_len + 2);
+    let tag_section_len = tags.first().map_or(0, |_| tag_data_len.saturating_add(2));
     out.reserve_exact(tag_section_len + body_len);
     if !tags.is_empty() {
         out.push(b'@');
@@ -767,6 +757,20 @@ fn escaped_tag_value_len(value: &str) -> usize {
             other => other.len_utf8(),
         })
         .sum()
+}
+
+fn encoded_tag_data_len(tags: &[(String, Option<String>)]) -> usize {
+    let fields_len = tags
+        .iter()
+        .map(|(key, value)| {
+            key.len().saturating_add(
+                value
+                    .as_deref()
+                    .map_or(0, |value| escaped_tag_value_len(value).saturating_add(1)),
+            )
+        })
+        .sum::<usize>();
+    fields_len.saturating_add(tags.len().saturating_sub(1))
 }
 
 impl FromStr for Line {
@@ -810,19 +814,12 @@ fn encoded_prefix_len(
     source: Option<&str>,
     command: &str,
 ) -> usize {
-    let tag_len = usize::from(!tags.is_empty())
-        * (2 + tags
-            .iter()
-            .enumerate()
-            .fold(0, |length, (index, (key, value))| {
-                length
-                    + usize::from(index != 0)
-                    + key.len()
-                    + value
-                        .as_deref()
-                        .map_or(0, |value| 1 + escaped_tag_value_len(value))
-            }));
-    tag_len + source.map_or(0, |source| source.len() + 2) + command.len()
+    let tag_len = tags
+        .first()
+        .map_or(0, |_| encoded_tag_data_len(tags).saturating_add(2));
+    tag_len
+        .saturating_add(source.map_or(0, |source| source.len().saturating_add(2)))
+        .saturating_add(command.len())
 }
 
 /// An iterator over the tags of a borrowed IRC line.

@@ -254,6 +254,31 @@ fn owned_lines_parse_real_ergo_messages() {
 }
 
 #[test]
+fn reencodes_realistic_server_lines_with_exact_byte_totals() {
+    let cases = [
+        (
+            "@time=2026-10-14T20:15:42.123Z;msgid=abcDEF123 :alice!~a@cloak.example PRIVMSG #papo :release ready",
+            101,
+        ),
+        (
+            ":solanum.example 728 papo #papo q *!*@quiet.example oper 1761048000",
+            69,
+        ),
+        (
+            r"@batch=networks :soju.example BOUNCER NETWORK 42 name=My\sNetwork;state=connected;port=6697;tls=1",
+            99,
+        ),
+    ];
+
+    for (server_line, wire_len) in cases {
+        let encoded = server_line.parse::<Line>().unwrap().to_line().unwrap();
+        assert_eq!(encoded, format!("{server_line}\r\n"));
+        assert_eq!(encoded.len(), wire_len);
+        assert_eq!(encoded.capacity(), wire_len);
+    }
+}
+
+#[test]
 fn owned_line_parsing_rejects_delimiters_and_empty_input() {
     for input in [
         "PRIVMSG #papo :hello\rthere",
@@ -719,6 +744,45 @@ fn builds_parameters_one_at_a_time() {
 }
 
 #[test]
+fn parameter_and_wire_traits_observe_exact_values() {
+    let line = Line::new("REGISTER")
+        .param("alice")
+        .param(Secret::new("correct horse battery staple"))
+        .with_tag("time", "2026-10-14T20:15:42.123Z")
+        .with_tag("account", "alice")
+        .with_tag("bot", "")
+        .with_source("ergo.test");
+    let params = line.params();
+
+    assert_eq!(format!("{}", params[0]), "alice");
+    assert_eq!(format!("{}", params[1]), "<redacted>");
+    assert!(PartialEq::<str>::eq(&params[0], "alice"));
+    assert!(!PartialEq::<str>::eq(&params[0], "bob"));
+    assert!(PartialEq::<&str>::eq(&params[0], &"alice"));
+    assert!(!PartialEq::<&str>::eq(&params[0], &"bob"));
+
+    let wire = line.encode().unwrap();
+    let expected = b"@time=2026-10-14T20:15:42.123Z;account=alice;bot :ergo.test REGISTER alice :correct horse battery staple\r\n";
+    assert_eq!(AsRef::<[u8]>::as_ref(&wire), expected);
+    assert!(PartialEq::<[u8]>::eq(&wire, expected));
+    assert!(!PartialEq::<[u8]>::eq(&wire, b"REGISTER alice wrong\r\n"));
+    assert_eq!(
+        format!("{wire:?}"),
+        "@time=2026-10-14T20:15:42.123Z;account=alice;bot :ergo.test REGISTER alice :<redacted>"
+    );
+}
+
+#[test]
+fn rejects_binary_secret_parameters_before_encoding() {
+    assert_eq!(
+        Line::new("AUTHENTICATE")
+            .param(Secret::from_bytes([0xff, 0x00]))
+            .encode(),
+        Err(BuildError::InvalidParam(0))
+    );
+}
+
+#[test]
 fn encoded_lines_mask_only_secret_parameters() {
     let ordinary = Line::new("PRIVMSG").param("#papo").param("hi");
     assert_eq!(format!("{ordinary:?}"), "PRIVMSG #papo hi");
@@ -757,6 +821,51 @@ fn encoded_lines_mask_only_secret_parameters() {
         format!("{}", "JOIN #secret key".parse::<Line>().unwrap()),
         "JOIN #secret key"
     );
+}
+
+#[test]
+fn masks_multiple_secrets_at_exact_offsets_in_a_realistic_line() {
+    let line = Line::new("REGISTER")
+        .param("alice")
+        .param(Secret::new("invite-code-42"))
+        .param(Secret::new("correct horse battery staple"))
+        .with_tag("time", "2026-10-14T20:15:42.123Z")
+        .with_tag("msgid", "abcDEF123")
+        .with_tag("+draft/account", "alice smith")
+        .with_source("soju.example");
+    let wire = line.encode().unwrap();
+
+    assert_eq!(
+        wire.as_ref(),
+        b"@time=2026-10-14T20:15:42.123Z;msgid=abcDEF123;+draft/account=alice\\ssmith :soju.example REGISTER alice invite-code-42 :correct horse battery staple\r\n"
+    );
+    assert_eq!(
+        format!("{wire}"),
+        r"@time=2026-10-14T20:15:42.123Z;msgid=abcDEF123;+draft/account=alice\ssmith :soju.example REGISTER alice <redacted> :<redacted>"
+    );
+}
+
+#[test]
+fn chooses_middle_and_trailing_parameter_forms_from_the_whole_line() {
+    let cases = [
+        (
+            Line::new("CAP").param("REQ").param("message-tags"),
+            "CAP REQ :message-tags\r\n",
+        ),
+        (Line::new("CAP").param("LS").param("302"), "CAP LS 302\r\n"),
+        (
+            Line::notice("papo", "maintenance"),
+            "NOTICE papo maintenance\r\n",
+        ),
+        (
+            Line::notice("papo", "maintenance soon"),
+            "NOTICE papo :maintenance soon\r\n",
+        ),
+    ];
+
+    for (line, expected) in cases {
+        assert_eq!(line.to_line().unwrap(), expected);
+    }
 }
 
 #[test]
@@ -897,57 +1006,93 @@ fn requires_middle_parameters_to_use_middle_form() {
 
 #[test]
 fn enforces_client_tag_data_length_at_the_byte_boundary() {
-    let prefix_len = "+example.test/reply=".len();
-    let maximum =
-        Line::tagmsg("#papo").with_tag("+example.test/reply", "x".repeat(4094 - prefix_len));
-    assert!(maximum.to_line().is_ok());
+    let fixed = concat!(
+        "+draft/reply=abcDEF123;",
+        "time=2026-10-14T20:15:42.123Z;",
+        "+example.test/pad="
+    );
+    assert_eq!(fixed.len(), 71);
 
-    let over_limit =
-        Line::tagmsg("#papo").with_tag("+example.test/reply", "x".repeat(4094 - prefix_len + 1));
-    assert_eq!(over_limit.to_line(), Err(BuildError::TagsTooLong));
+    for (tag_data_len, expected) in [
+        (4093, Ok(())),
+        (4094, Ok(())),
+        (4095, Err(BuildError::TagsTooLong)),
+    ] {
+        let line = Line::tagmsg("#papo")
+            .with_tag("+draft/reply", "abcDEF123")
+            .with_tag("time", "2026-10-14T20:15:42.123Z")
+            .with_tag("+example.test/pad", "x".repeat(tag_data_len - 71));
+        let result = line.to_line();
+        assert_eq!(
+            result.as_ref().map(|_| ()).map_err(|error| *error),
+            expected,
+            "tag data {tag_data_len}"
+        );
+        if let Ok(encoded) = result {
+            let actual = encoded
+                .strip_prefix('@')
+                .unwrap()
+                .split_once(' ')
+                .unwrap()
+                .0;
+            assert_eq!(actual.len(), tag_data_len);
+            assert_eq!(encoded.capacity(), encoded.len());
+        }
+    }
 }
 
 #[test]
 fn enforces_serialized_body_length_at_the_byte_boundary() {
-    let prefix = "PRIVMSG #papo ";
-    let maximum =
-        Line::privmsg("#papo", "x".repeat(512 - 2 - prefix.len())).with_tag("+typing", "active");
-    let maximum_line = maximum.to_line().unwrap();
-    assert_eq!(maximum_line.split_once(' ').unwrap().1.len(), 512);
+    let body_prefix = ":soju.example PRIVMSG #papo :deployment ";
+    assert_eq!(body_prefix.len(), 40);
 
-    let over_limit = Line::privmsg("#papo", "x".repeat(512 - 2 - prefix.len() + 1))
-        .with_tag("+typing", "active");
-    assert_eq!(over_limit.to_line(), Err(BuildError::LineTooLong));
+    for (body_len, expected) in [
+        (511, Ok(())),
+        (512, Ok(())),
+        (513, Err(BuildError::LineTooLong)),
+    ] {
+        let text = format!(
+            "deployment {}",
+            "x".repeat(body_len - 2 - body_prefix.len())
+        );
+        let line = Line::privmsg("#papo", text)
+            .with_tag("time", "2026-10-14T20:15:42.123Z")
+            .with_tag("msgid", "abcDEF123")
+            .with_tag("account", "alice")
+            .with_source("soju.example");
+        let result = line.to_line();
+        assert_eq!(
+            result.as_ref().map(|_| ()).map_err(|error| *error),
+            expected,
+            "body length {body_len}"
+        );
+        if let Ok(encoded) = result {
+            let body = encoded.split_once(' ').unwrap().1;
+            assert_eq!(body.len(), body_len);
+            assert_eq!(encoded.capacity(), encoded.len());
+        }
+    }
 }
 
 #[test]
 fn displays_each_build_error() {
-    assert_eq!(
-        BuildError::InvalidCommand.to_string(),
-        "IRC command is invalid"
-    );
-    assert_eq!(
-        BuildError::InvalidParam(2).to_string(),
-        "IRC parameter 2 is invalid"
-    );
-    assert_eq!(
-        BuildError::InvalidSource.to_string(),
-        "IRC source is invalid"
-    );
-    assert_eq!(
-        BuildError::InvalidTagKey.to_string(),
-        "IRC tag key is invalid"
-    );
-    assert_eq!(
-        BuildError::InvalidTagValue.to_string(),
-        "IRC tag value is invalid"
-    );
-    assert_eq!(
-        BuildError::TagsTooLong.to_string(),
-        "IRC client tag data exceeds its wire limit"
-    );
-    assert_eq!(
-        BuildError::LineTooLong.to_string(),
-        "IRC line body exceeds its wire limit"
-    );
+    let cases = [
+        (BuildError::InvalidCommand, "IRC command is invalid"),
+        (BuildError::InvalidParam(2), "IRC parameter 2 is invalid"),
+        (BuildError::InvalidSource, "IRC source is invalid"),
+        (BuildError::InvalidTagKey, "IRC tag key is invalid"),
+        (BuildError::InvalidTagValue, "IRC tag value is invalid"),
+        (
+            BuildError::TagsTooLong,
+            "IRC client tag data exceeds its wire limit",
+        ),
+        (
+            BuildError::LineTooLong,
+            "IRC line body exceeds its wire limit",
+        ),
+    ];
+
+    for (error, expected) in cases {
+        assert_eq!(error.to_string(), expected);
+    }
 }
