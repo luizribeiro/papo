@@ -44,7 +44,9 @@ async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
         bob.state().user(&alice_nick).unwrap().account(),
         Account::LoggedIn(observed) if observed == &account
     ));
-    alice.part(&channel, "account-tag check").await?;
+    alice
+        .send_raw(papo::Line::new("PART").with_params([&channel, "account-tag check"]))
+        .await?;
     let parted = bob
         .wait_for(|event| event.as_parted().filter(|parted| parted.nick == alice_nick))
         .await?;
