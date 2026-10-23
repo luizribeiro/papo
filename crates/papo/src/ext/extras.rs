@@ -14,16 +14,21 @@ impl Client {
     /// [`crate::Error::TooManyPendingRequests`], [`crate::Error::Timeout`], or [`crate::Error::Disconnected`].
     pub fn rename_channel(
         &self,
-        old: impl AsRef<str>,
-        new: impl AsRef<str>,
+        old: impl crate::Target,
+        new: impl crate::Target,
         reason: impl Into<String>,
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
+        let (old, old_error) = self.target_input(old);
+        let (new, new_error) = self.target_input(new);
         let state = self.state();
-        let old = state.channel_name(old.as_ref());
-        let new = state.channel_name(new.as_ref());
+        let old = state.channel_name(old);
+        let new = state.channel_name(new);
         let reason = reason.into();
         crate::RequestFuture::new(async move {
+            if let Some(error) = old_error.or(new_error) {
+                return Err(error.into());
+            }
             let state = client.state();
             old.check(state.isupport().inner())
                 .and_then(|()| new.check(state.isupport().inner()))
@@ -53,16 +58,21 @@ impl Client {
     #[cfg(feature = "unstable")]
     pub fn relay(
         &self,
-        channel: impl AsRef<str>,
-        nick: impl AsRef<str>,
+        channel: impl crate::Target,
+        nick: impl crate::Target,
         text: impl Into<String>,
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
+        let (channel, channel_error) = self.target_input(channel);
+        let (nick, nick_error) = self.target_input(nick);
         let state = self.state();
-        let channel = state.channel_name(channel.as_ref());
-        let nick = state.nickname(nick.as_ref());
+        let channel = state.channel_name(channel);
+        let nick = state.nickname(nick);
         let text = text.into();
         crate::RequestFuture::new(async move {
+            if let Some(error) = channel_error.or(nick_error) {
+                return Err(error.into());
+            }
             let state = client.state();
             channel
                 .check(state.isupport().inner())

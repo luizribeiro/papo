@@ -1806,7 +1806,7 @@ pub fn papo::Client::metadata(&self) -> papo::Metadata
 impl papo::Client
 pub fn papo::Client::monitor(&self) -> papo::Monitor
 impl papo::Client
-pub fn papo::Client::rename_channel(&self, impl core::convert::AsRef<str>, impl core::convert::AsRef<str>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::rename_channel(&self, impl papo::Target, impl papo::Target, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 impl core::clone::Clone for papo::Client
 pub fn papo::Client::clone(&self) -> Self
 impl core::fmt::Debug for papo::Client
@@ -2213,15 +2213,15 @@ impl core::panic::unwind_safe::UnwindSafe for papo::MessageRef
 pub struct papo::Metadata
 impl papo::Metadata
 pub fn papo::Metadata::clear(&self) -> papo::RequestFuture<()>
-pub fn papo::Metadata::clear_on(&self, impl core::convert::AsRef<str>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::get<I, S>(&self, impl core::convert::AsRef<str>, I) -> papo::RequestFuture<std::collections::hash::map::HashMap<papo::MetadataKey, papo::MetadataValue>> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
-pub fn papo::Metadata::list(&self, impl core::convert::AsRef<str>) -> papo::RequestFuture<std::collections::hash::map::HashMap<papo::MetadataKey, papo::MetadataValue>>
+pub fn papo::Metadata::clear_on(&self, impl papo::Target) -> papo::RequestFuture<()>
+pub fn papo::Metadata::get<I, S>(&self, impl papo::Target, I) -> papo::RequestFuture<std::collections::hash::map::HashMap<papo::MetadataKey, papo::MetadataValue>> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
+pub fn papo::Metadata::list(&self, impl papo::Target) -> papo::RequestFuture<std::collections::hash::map::HashMap<papo::MetadataKey, papo::MetadataValue>>
 pub fn papo::Metadata::remove(&self, impl core::convert::Into<papo::MetadataKey>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::remove_on(&self, impl core::convert::AsRef<str>, impl core::convert::Into<papo::MetadataKey>) -> papo::RequestFuture<()>
+pub fn papo::Metadata::remove_on(&self, impl papo::Target, impl core::convert::Into<papo::MetadataKey>) -> papo::RequestFuture<()>
 pub fn papo::Metadata::set(&self, impl core::convert::Into<papo::MetadataKey>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::set_on(&self, impl core::convert::AsRef<str>, impl core::convert::Into<papo::MetadataKey>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Metadata::set_on(&self, impl papo::Target, impl core::convert::Into<papo::MetadataKey>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Metadata::subscribe<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
-pub fn papo::Metadata::sync(&self, impl core::convert::AsRef<str>) -> papo::RequestFuture<()>
+pub fn papo::Metadata::sync(&self, impl papo::Target) -> papo::RequestFuture<()>
 pub fn papo::Metadata::unsubscribe<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
 impl core::fmt::Debug for papo::Metadata
 pub fn papo::Metadata::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
