@@ -90,6 +90,7 @@ mod tests {
         let config = fs::read_to_string(directory.path().join("atheme.conf")).unwrap();
         assert!(config.contains("/atheme/modules/protocol/unreal4"));
         assert!(!config.contains("/atheme/modules/chanserv/set_guard"));
+        assert!(!config.contains("chanserv {"));
         assert!(config.contains("uplink \"irc.papo.test\""));
         assert!(config.contains("port = 16667"));
         assert!(directory.path().join("services.db").is_file());
