@@ -1896,6 +1896,94 @@ mod tests {
         assert_eq!(event.received_at(), expected, "{expected_variant}");
     }
 
+    const MESSAGE_EVENT_METADATA_CASES: [(&str, &str, &str); 17] = [
+        (
+            "Message",
+            "RfcBTzyxY120113",
+            "@msgid=RfcBTzyxY120113;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example PRIVMSG #papo :hello from Ergo",
+        ),
+        (
+            "OwnMessage",
+            "RfcBTzyxY120114",
+            "@msgid=RfcBTzyxY120114;time=2026-02-03T04:05:06.789Z :papo!~papo@cloak.example PRIVMSG #papo :hello from another device",
+        ),
+        (
+            "Notice",
+            "RfcBTzyxY120115",
+            "@msgid=RfcBTzyxY120115;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example NOTICE #papo :maintenance begins soon",
+        ),
+        (
+            "ServerNotice",
+            "RfcBTzyxY120116",
+            "@msgid=RfcBTzyxY120116;time=2026-02-03T04:05:06.789Z :irc.ergo.chat NOTICE papo :This server is in maintenance mode",
+        ),
+        (
+            "CtcpQuery",
+            "RfcBTzyxY120101",
+            "@msgid=RfcBTzyxY120101;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example PRIVMSG #papo :\x01VERSION\x01",
+        ),
+        (
+            "CtcpReply",
+            "RfcBTzyxY120117",
+            "@msgid=RfcBTzyxY120117;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example NOTICE #papo :\x01VERSION Ergo-2.15.0\x01",
+        ),
+        (
+            "TagMsg",
+            "RfcBTzyxY120102",
+            "@msgid=RfcBTzyxY120102;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example TAGMSG #papo",
+        ),
+        (
+            "Reacted",
+            "RfcBTzyxY120103",
+            "@msgid=RfcBTzyxY120103;time=2026-02-03T04:05:06.789Z;+draft/react=👍;+reply=RfcBTzyxY120001 :emily!~emily@cloak.example TAGMSG #papo",
+        ),
+        (
+            "Redacted",
+            "RfcBTzyxY120104",
+            "@msgid=RfcBTzyxY120104;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example REDACT #papo RfcBTzyxY120001 :off-topic",
+        ),
+        (
+            "Joined",
+            "RfcBTzyxY120105",
+            "@msgid=RfcBTzyxY120105;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example JOIN #papo",
+        ),
+        (
+            "Parted",
+            "RfcBTzyxY120106",
+            "@msgid=RfcBTzyxY120106;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example PART #papo :Lunch",
+        ),
+        (
+            "Kicked",
+            "RfcBTzyxY120107",
+            "@msgid=RfcBTzyxY120107;time=2026-02-03T04:05:06.789Z :alice!~alice@cloak.example KICK #papo emily :Flooding",
+        ),
+        (
+            "Quit",
+            "RfcBTzyxY120108",
+            "@msgid=RfcBTzyxY120108;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example QUIT :Client Quit",
+        ),
+        (
+            "NickChanged",
+            "RfcBTzyxY120109",
+            "@msgid=RfcBTzyxY120109;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example NICK emily_away",
+        ),
+        (
+            "ModeChanged",
+            "RfcBTzyxY120110",
+            "@msgid=RfcBTzyxY120110;time=2026-02-03T04:05:06.789Z :alice!~alice@cloak.example MODE #papo +o emily",
+        ),
+        (
+            "TopicChanged",
+            "RfcBTzyxY120111",
+            "@msgid=RfcBTzyxY120111;time=2026-02-03T04:05:06.789Z :alice!~alice@cloak.example TOPIC #papo :Release planning",
+        ),
+        (
+            "Other",
+            "RfcBTzyxY120112",
+            "@msgid=RfcBTzyxY120112;time=2026-02-03T04:05:06.789Z :irc.example 999 papo :Vendor-specific reply",
+        ),
+    ];
+
     fn event(
         message: Line,
         isupport: &Isupport,
@@ -2327,68 +2415,6 @@ mod tests {
     fn event_metadata_survives_live_line_conversion() {
         let received_at = UNIX_EPOCH + Duration::from_secs(42);
         let server_time = UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000);
-        let cases = [
-            (
-                "CtcpQuery",
-                "RfcBTzyxY120101",
-                "@msgid=RfcBTzyxY120101;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example PRIVMSG #papo :\x01VERSION\x01",
-            ),
-            (
-                "TagMsg",
-                "RfcBTzyxY120102",
-                "@msgid=RfcBTzyxY120102;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example TAGMSG #papo",
-            ),
-            (
-                "Reacted",
-                "RfcBTzyxY120103",
-                "@msgid=RfcBTzyxY120103;time=2026-02-03T04:05:06.789Z;+draft/react=👍;+reply=RfcBTzyxY120001 :emily!~emily@cloak.example TAGMSG #papo",
-            ),
-            (
-                "Redacted",
-                "RfcBTzyxY120104",
-                "@msgid=RfcBTzyxY120104;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example REDACT #papo RfcBTzyxY120001 :off-topic",
-            ),
-            (
-                "Joined",
-                "RfcBTzyxY120105",
-                "@msgid=RfcBTzyxY120105;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example JOIN #papo",
-            ),
-            (
-                "Parted",
-                "RfcBTzyxY120106",
-                "@msgid=RfcBTzyxY120106;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example PART #papo :Lunch",
-            ),
-            (
-                "Kicked",
-                "RfcBTzyxY120107",
-                "@msgid=RfcBTzyxY120107;time=2026-02-03T04:05:06.789Z :alice!~alice@cloak.example KICK #papo emily :Flooding",
-            ),
-            (
-                "Quit",
-                "RfcBTzyxY120108",
-                "@msgid=RfcBTzyxY120108;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example QUIT :Client Quit",
-            ),
-            (
-                "NickChanged",
-                "RfcBTzyxY120109",
-                "@msgid=RfcBTzyxY120109;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example NICK emily_away",
-            ),
-            (
-                "ModeChanged",
-                "RfcBTzyxY120110",
-                "@msgid=RfcBTzyxY120110;time=2026-02-03T04:05:06.789Z :alice!~alice@cloak.example MODE #papo +o emily",
-            ),
-            (
-                "TopicChanged",
-                "RfcBTzyxY120111",
-                "@msgid=RfcBTzyxY120111;time=2026-02-03T04:05:06.789Z :alice!~alice@cloak.example TOPIC #papo :Release planning",
-            ),
-            (
-                "Other",
-                "RfcBTzyxY120112",
-                "@msgid=RfcBTzyxY120112;time=2026-02-03T04:05:06.789Z :irc.example 999 papo :Vendor-specific reply",
-            ),
-        ];
         let convert = |line: &str| {
             let mut session = Session::new(Config::default().nick("papo"));
             session.handle_line(Instant::now(), line.as_bytes());
@@ -2401,10 +2427,15 @@ mod tests {
                 _ => panic!("live line did not produce an event"),
             }
         };
-        for (expected_variant, msgid, line) in cases {
+        for (expected_variant, msgid, line) in MESSAGE_EVENT_METADATA_CASES {
             let event = convert(line);
             let actual_variant = match &event {
+                Event::Message(_) => "Message",
+                Event::OwnMessage(_) => "OwnMessage",
+                Event::Notice(_) => "Notice",
+                Event::ServerNotice(_) => "ServerNotice",
                 Event::CtcpQuery(_) => "CtcpQuery",
+                Event::CtcpReply(_) => "CtcpReply",
                 Event::TagMsg(_) => "TagMsg",
                 Event::Reacted(_) => "Reacted",
                 Event::Redacted(_) => "Redacted",
@@ -2419,7 +2450,12 @@ mod tests {
                 _ => "unexpected",
             };
             assert_eq!(actual_variant, expected_variant);
-            assert_eq!(event.msgid().as_deref(), Some(msgid), "{expected_variant}");
+            let expected_msgid = (expected_variant != "ServerNotice").then_some(msgid);
+            assert_eq!(
+                event.msgid().as_deref(),
+                expected_msgid,
+                "{expected_variant}"
+            );
             assert_event_times(&event, expected_variant, server_time, received_at);
         }
 
