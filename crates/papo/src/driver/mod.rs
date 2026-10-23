@@ -1586,10 +1586,12 @@ fn dedupe_autojoin(session: &Session, defaults: &mut PostConnect) {
         });
         deduplicated.push(entry);
     }
-    if deduplicated.len() > MAX_REJOIN_CHANNELS {
-        deduplicated.drain(..deduplicated.len() - MAX_REJOIN_CHANNELS);
-    }
+    deduplicated.drain(..rejoin_retained_start(deduplicated.len()));
     defaults.channels = deduplicated;
+}
+
+fn rejoin_retained_start(channel_count: usize) -> usize {
+    channel_count.saturating_sub(MAX_REJOIN_CHANNELS)
 }
 
 fn enqueue_event(events: &EventSink, pending: &mut VecDeque<Event>, event: Event) -> bool {

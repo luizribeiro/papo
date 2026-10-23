@@ -1340,6 +1340,18 @@ fn rejoin_set_stops_at_ten_thousand_channels() {
 }
 
 #[test]
+fn reconnect_autojoin_retains_the_newest_ten_thousand_channels() {
+    for (count, first_retained) in [(9_999, 0), (10_000, 0), (10_001, 1), (10_002, 2)] {
+        let actual = if count > 10_000 {
+            super::rejoin_retained_start(count)
+        } else {
+            0
+        };
+        assert_eq!(actual, first_retained, "channel count {count}");
+    }
+}
+
+#[test]
 fn only_bad_keys_remove_channels_from_the_rejoin_set() {
     let session = Session::new(config());
     let cases = [
