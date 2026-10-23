@@ -2510,6 +2510,7 @@ pub struct ReceivedLine {
 #[doc(hidden)]
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct ReplyToken {
+    origin: papo_proto::Origin,
     epoch: u64,
     sequence: u64,
 }

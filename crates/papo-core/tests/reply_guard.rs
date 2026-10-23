@@ -13,7 +13,13 @@ fn discard_events(session: &mut Session) {
 }
 
 fn joined_session() -> Session {
-    let mut session = Session::new(Config::default().nick("papo"));
+    joined_session_with_origin(papo_proto::Origin::NONE)
+}
+
+fn joined_session_with_origin(origin: papo_proto::Origin) -> Session {
+    let mut config = Config::default().nick("papo");
+    config.origin = origin;
+    let mut session = Session::new(config);
     server(&mut session, ":papo!~papo@localhost JOIN #review");
     server(
         &mut session,
@@ -25,6 +31,15 @@ fn joined_session() -> Session {
     );
     discard_events(&mut session);
     session
+}
+
+#[test]
+fn a_reply_token_from_another_origin_is_always_stale() {
+    let mut first = joined_session_with_origin(papo_proto::Origin::__new(41));
+    let receipt = private_message(&mut first);
+    let second = joined_session_with_origin(papo_proto::Origin::__new(42));
+
+    assert!(second.state().__recipient_changed("alice", receipt));
 }
 
 fn private_message(session: &mut Session) -> ReplyToken {

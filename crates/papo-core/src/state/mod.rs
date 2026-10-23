@@ -424,6 +424,7 @@ impl State {
 
     pub(crate) const fn reply_token(&self) -> crate::ReplyToken {
         crate::ReplyToken {
+            origin: self.casemapping.origin(),
             epoch: self.reply_epoch,
             sequence: self.departure_sequence,
         }
@@ -444,6 +445,9 @@ impl State {
     #[doc(hidden)]
     #[must_use]
     pub fn __recipient_changed(&self, target: &str, token: crate::ReplyToken) -> bool {
+        if token.origin != self.casemapping.origin() {
+            return true;
+        }
         if token.epoch != self.reply_epoch || self.user(target).is_none() {
             return false;
         }
