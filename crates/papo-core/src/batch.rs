@@ -78,10 +78,12 @@ pub(crate) enum BatchEvent {
     },
     HistoryTargets(Vec<(String, std::time::SystemTime)>),
     Netsplit {
+        reference: String,
         servers: [String; 2],
         quits: Vec<Line>,
     },
     Netjoin {
+        reference: String,
         servers: [String; 2],
         joins: Vec<Line>,
     },
@@ -220,7 +222,7 @@ impl Batches {
         let response_messages = batch.label.as_ref().map(|_| batch.messages.clone());
         if batch.is_typed_aggregate() && !self.has_typed_aggregate_ancestor(batch.parent.as_deref())
         {
-            completed.extend(complete(&mut batch));
+            completed.extend(complete(&mut batch, reference));
         }
         if let Some(label) = batch.label.take() {
             let echo = completed.iter().find_map(|event| match event {
@@ -513,7 +515,7 @@ impl OpenBatch {
     }
 }
 
-fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
+fn complete(batch: &mut OpenBatch, reference: &str) -> Vec<BatchEvent> {
     #[cfg(feature = "unstable")]
     if batch.kind == cap::BOUNCER_NETWORKS.as_str() {
         return vec![BatchEvent::Bouncer(std::mem::take(&mut batch.messages))];
@@ -572,11 +574,13 @@ fn complete(batch: &mut OpenBatch) -> Vec<BatchEvent> {
         .partition(|message| message.as_ref().command_is(expected_command));
     let aggregate = if expected_command == "QUIT" {
         BatchEvent::Netsplit {
+            reference: reference.to_owned(),
             servers: servers(),
             quits: members,
         }
     } else {
         BatchEvent::Netjoin {
+            reference: reference.to_owned(),
             servers: servers(),
             joins: members,
         }

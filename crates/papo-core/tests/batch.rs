@@ -509,8 +509,9 @@ fn outermost_aggregate_groups_its_commands_and_releases_others() {
 
     assert!(matches!(
         session.poll_event(),
-        Some(Event::Netsplit { servers, quits, authorship, .. })
-            if servers == ["irc.example", "irc.remote"]
+        Some(Event::Netsplit { reference, servers, quits, authorship, .. })
+            if reference == "split"
+                && servers == ["irc.example", "irc.remote"]
                 && quits.len() == 1
                 && authorship == [Authorship::Other]
                 && quits[0].as_ref().param(0) == Some("link lost")
@@ -573,15 +574,15 @@ fn netsplit_followed_by_netjoin_becomes_two_aggregate_events() {
 
     assert!(matches!(
         session.poll_event(),
-        Some(Event::Netsplit { servers, quits, authorship, .. })
-            if servers == ["irc.example", "irc.remote"] && quits.len() == 2
-                && authorship == [Authorship::Own, Authorship::Other]
+        Some(Event::Netsplit { reference, servers, quits, authorship, .. })
+            if reference == "split" && servers == ["irc.example", "irc.remote"]
+                && quits.len() == 2 && authorship == [Authorship::Own, Authorship::Other]
     ));
     assert!(matches!(
         session.poll_event(),
-        Some(Event::Netjoin { servers, joins, authorship, .. })
-            if servers == ["irc.example", "irc.remote"] && joins.len() == 2
-                && authorship == [Authorship::Own, Authorship::Other]
+        Some(Event::Netjoin { reference, servers, joins, authorship, .. })
+            if reference == "join" && servers == ["irc.example", "irc.remote"]
+                && joins.len() == 2 && authorship == [Authorship::Own, Authorship::Other]
     ));
     assert_eq!(session.poll_event(), None);
 }
@@ -607,7 +608,7 @@ fn empty_membership_aggregates_are_observable() {
 }
 
 #[test]
-fn ergo_netsplit_captures_channels_before_removing_users() {
+fn ergo_netsplit_captures_channels_and_identity() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
     for line in [
@@ -631,11 +632,17 @@ fn ergo_netsplit_captures_channels_before_removing_users() {
     session.handle_line(now, b":ergo.test BATCH -split");
 
     let Some(Event::Netsplit {
-        quits, channels, ..
+        reference,
+        servers,
+        quits,
+        channels,
+        ..
     }) = session.poll_event()
     else {
         panic!("expected netsplit")
     };
+    assert_eq!(reference, "split");
+    assert_eq!(servers, ["ergo.test", "remote.example"]);
     assert_eq!(quits.len(), 1);
     assert_eq!(channels.len(), 1);
     assert_eq!(channels[0].len(), 2);

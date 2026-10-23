@@ -2614,6 +2614,7 @@ mod tests {
                 Casemapping::Ascii.channel("#Papo[dev]"),
                 Casemapping::Ascii.nick("Alice[bot]"),
                 papo_core::Authorship::Other,
+                None,
             ),
             Casemapping::Rfc1459,
             UNIX_EPOCH,
@@ -3015,6 +3016,7 @@ mod tests {
             Casemapping::default().channel("#papo"),
             Casemapping::default().nick("alice"),
             papo_core::Authorship::Other,
+            None,
         ));
         let joined = event.as_joined().unwrap();
         assert_eq!(joined.channel, "#papo");
@@ -3117,6 +3119,7 @@ mod tests {
                     Casemapping::default().channel("#rust"),
                 ],
                 papo_core::Authorship::Other,
+                None,
             )),
             Event::Quit(quit)
                 if quit.nick == "emily"
@@ -3411,6 +3414,7 @@ mod tests {
             .with_source("alice!~a@remote.example");
         let empty_reason = ":bob!~b@remote.example QUIT :".parse().unwrap();
         let Event::Netsplit(netsplit) = forwarded(papo_core::Event::__netsplit(
+            "split".into(),
             ["irc.example".into(), "irc.remote".into()],
             vec![quit, empty_reason],
             vec![papo_core::Authorship::Other; 2],
@@ -3436,6 +3440,7 @@ mod tests {
             .with_params(["#papo", "*", "Bob"])
             .with_source("bob!~b@remote.example");
         let Event::Netjoin(netjoin) = forwarded(papo_core::Event::__netjoin(
+            "join".into(),
             ["irc.example".into(), "irc.remote".into()],
             vec![join],
             vec![papo_core::Authorship::Other],

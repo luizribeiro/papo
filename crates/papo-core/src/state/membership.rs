@@ -31,6 +31,7 @@ impl State {
                 .map(str::to_owned),
             channels,
             authorship,
+            netsplit: None,
         });
         if ours {
             self.channels.clear();
@@ -75,6 +76,7 @@ impl State {
             channel: self.casemapping.channel(join.channel),
             nick: self.casemapping.nick(nick),
             authorship: self.nick_authorship(nick),
+            netjoin: None,
         });
         let ours = crate::names_equal(self.casemapping, nick, &self.nick);
         if ours {

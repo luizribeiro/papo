@@ -1988,6 +1988,18 @@ pub enum ConnectPhase {
     WaitingForWelcome,
 }
 
+/// A netsplit or netjoin batch and the servers on either side of the link.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct SplitServers {
+    /// The server's opaque batch reference.
+    pub batch: String,
+    /// The first server name in the batch parameters.
+    pub first: String,
+    /// The second server name in the batch parameters.
+    pub second: String,
+}
+
 /// An event emitted by an IRC session.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -2112,11 +2124,10 @@ pub enum Event {
     /// A conversation's read marker advanced or was first reported.
     ReadMarkerChanged(ReadMarker),
     /// Users departed because connectivity between two servers was lost.
-    ///
-    /// This event is emitted for an empty batch. Non-`QUIT` lines are delivered as
-    /// separate [`Event::Line`] values.
     #[non_exhaustive]
     Netsplit {
+        /// The server's opaque batch reference.
+        reference: String,
         /// The servers on either side of the lost link.
         servers: [String; 2],
         /// The `QUIT` messages grouped by the server.
@@ -2127,11 +2138,10 @@ pub enum Event {
         channels: Vec<Vec<ChannelName>>,
     },
     /// Users returned after connectivity between two servers was restored.
-    ///
-    /// This event is emitted for an empty batch. Non-`JOIN` lines are delivered as
-    /// separate [`Event::Line`] values.
     #[non_exhaustive]
     Netjoin {
+        /// The server's opaque batch reference.
+        reference: String,
         /// The servers on either side of the restored link.
         servers: [String; 2],
         /// The `JOIN` messages grouped by the server.
@@ -2250,6 +2260,8 @@ pub enum Event {
         nick: Nick,
         /// Whether the joining user is this session's user.
         authorship: Authorship,
+        /// The netjoin batch that carried this join, when applicable.
+        netjoin: Option<SplitServers>,
     },
     /// Initial channel membership synchronization completed.
     #[non_exhaustive]
@@ -2326,6 +2338,8 @@ pub enum Event {
         channels: Vec<ChannelName>,
         /// Whether the disconnected user is this session's user.
         authorship: Authorship,
+        /// The netsplit batch that carried this quit, when applicable.
+        netsplit: Option<SplitServers>,
     },
     /// A user changed nickname.
     #[non_exhaustive]
@@ -2435,6 +2449,7 @@ macro_rules! hidden_event_constructors {
             $(
                 #[doc(hidden)]
                 #[must_use]
+                #[allow(clippy::too_many_arguments)]
                 pub fn $name($($field: $ty),*) -> Self {
                     Self::$variant { $($field),* }
                 }
@@ -2448,7 +2463,7 @@ hidden_event_constructors! {
     __features_changed(added: Vec<Feature>, removed: Vec<Feature>) => FeaturesChanged;
     __casemapping_changed(old: Casemapping, new: Casemapping) => CasemappingChanged;
     __invited(channel: ChannelName, subject: Nick, actor: String, authorship: Authorship, subject_authorship: Authorship) => Invited;
-    __joined(envelope: LineEnvelope, actor: String, account: Account, realname: Option<String>, channel: ChannelName, nick: Nick, authorship: Authorship) => Joined;
+    __joined(envelope: LineEnvelope, actor: String, account: Account, realname: Option<String>, channel: ChannelName, nick: Nick, authorship: Authorship, netjoin: Option<SplitServers>) => Joined;
     __account_created(account: AccountName, logged_in: bool) => AccountCreated;
     __verification_required(account: AccountName, message: String) => VerificationRequired;
     __channel_renamed(old: ChannelName, new: ChannelName, actor: String, authorship: Authorship, reason: Option<String>) => ChannelRenamed;
@@ -2458,7 +2473,7 @@ hidden_event_constructors! {
     __members_refreshed(channel: ChannelName) => MembersRefreshed;
     __parted(envelope: LineEnvelope, channel: ChannelName, actor: String, nick: Nick, reason: Option<String>, authorship: Authorship) => Parted;
     __kicked(envelope: LineEnvelope, channel: ChannelName, subject: Nick, actor: String, authorship: Authorship, subject_authorship: Authorship, reason: Option<String>) => Kicked;
-    __quit(envelope: LineEnvelope, actor: String, nick: Nick, reason: Option<String>, channels: Vec<ChannelName>, authorship: Authorship) => Quit;
+    __quit(envelope: LineEnvelope, actor: String, nick: Nick, reason: Option<String>, channels: Vec<ChannelName>, authorship: Authorship, netsplit: Option<SplitServers>) => Quit;
     __nick_changed(envelope: LineEnvelope, actor: String, old: Nick, new: Nick, authorship: Authorship) => NickChanged;
     __account_changed(actor: String, nick: Nick, account: Account) => AccountChanged;
     __away_changed(actor: String, nick: Nick, away: Away) => AwayChanged;
@@ -2471,8 +2486,8 @@ hidden_event_constructors! {
     __monitor_offline(nick: Nick) => MonitorOffline;
     __monitor_list_full(limit: usize, nicks: Vec<Nick>) => MonitorListFull;
     __history(conversation: Conversation, items: Vec<HistoryItem>, end: bool) => History;
-    __netsplit(servers: [String; 2], quits: Vec<Line>, authorship: Vec<Authorship>, channels: Vec<Vec<ChannelName>>) => Netsplit;
-    __netjoin(servers: [String; 2], joins: Vec<Line>, authorship: Vec<Authorship>) => Netjoin;
+    __netsplit(reference: String, servers: [String; 2], quits: Vec<Line>, authorship: Vec<Authorship>, channels: Vec<Vec<ChannelName>>) => Netsplit;
+    __netjoin(reference: String, servers: [String; 2], joins: Vec<Line>, authorship: Vec<Authorship>) => Netjoin;
     __batch_abandoned(reference: String, batch_type: String, reason: BatchAbandonReason) => BatchAbandoned;
 }
 
@@ -4416,6 +4431,7 @@ impl Session {
         true
     }
 
+    #[allow(clippy::too_many_lines)]
     fn dispatch_batch_event(&mut self, now: Instant, event: BatchEvent) {
         match event {
             event @ BatchEvent::Response { .. } => self.dispatch_response_batch(now, event),
@@ -4437,7 +4453,11 @@ impl Session {
                 self.outbox
                     .event(Event::HistoryTargets(self.history_targets(targets)));
             }
-            BatchEvent::Netsplit { servers, quits } => {
+            BatchEvent::Netsplit {
+                reference,
+                servers,
+                quits,
+            } => {
                 let authorship = quits
                     .iter()
                     .map(|message| self.authorship(&message.as_ref()))
@@ -4449,13 +4469,18 @@ impl Session {
                     .map(|message| self.apply_aggregate_state(message).unwrap_or_default())
                     .collect();
                 self.outbox.event(Event::Netsplit {
+                    reference,
                     servers,
                     quits,
                     authorship,
                     channels,
                 });
             }
-            BatchEvent::Netjoin { servers, joins } => {
+            BatchEvent::Netjoin {
+                reference,
+                servers,
+                joins,
+            } => {
                 let authorship = joins
                     .iter()
                     .map(|message| self.authorship(&message.as_ref()))
@@ -4464,6 +4489,7 @@ impl Session {
                     self.apply_aggregate_state(message);
                 }
                 self.outbox.event(Event::Netjoin {
+                    reference,
                     servers,
                     joins,
                     authorship,

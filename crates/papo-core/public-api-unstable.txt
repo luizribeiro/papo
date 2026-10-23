@@ -555,6 +555,7 @@ pub papo_core::Event::Joined::actor: alloc::string::String
 pub papo_core::Event::Joined::authorship: papo_core::Authorship
 pub papo_core::Event::Joined::channel: papo::ChannelName
 pub papo_core::Event::Joined::envelope: papo_core::LineEnvelope
+pub papo_core::Event::Joined::netjoin: core::option::Option<papo_core::SplitServers>
 pub papo_core::Event::Joined::nick: papo::Nick
 pub papo_core::Event::Joined::realname: core::option::Option<alloc::string::String>
 #[non_exhaustive] pub papo_core::Event::Kicked
@@ -600,11 +601,13 @@ pub papo_core::Event::MultilineMessage(papo_core::MultilineMessage)
 #[non_exhaustive] pub papo_core::Event::Netjoin
 pub papo_core::Event::Netjoin::authorship: alloc::vec::Vec<papo_core::Authorship>
 pub papo_core::Event::Netjoin::joins: alloc::vec::Vec<papo::Line>
+pub papo_core::Event::Netjoin::reference: alloc::string::String
 pub papo_core::Event::Netjoin::servers: [alloc::string::String; 2]
 #[non_exhaustive] pub papo_core::Event::Netsplit
 pub papo_core::Event::Netsplit::authorship: alloc::vec::Vec<papo_core::Authorship>
 pub papo_core::Event::Netsplit::channels: alloc::vec::Vec<alloc::vec::Vec<papo::ChannelName>>
 pub papo_core::Event::Netsplit::quits: alloc::vec::Vec<papo::Line>
+pub papo_core::Event::Netsplit::reference: alloc::string::String
 pub papo_core::Event::Netsplit::servers: [alloc::string::String; 2]
 #[non_exhaustive] pub papo_core::Event::NickChanged
 pub papo_core::Event::NickChanged::actor: alloc::string::String
@@ -625,6 +628,7 @@ pub papo_core::Event::Quit::actor: alloc::string::String
 pub papo_core::Event::Quit::authorship: papo_core::Authorship
 pub papo_core::Event::Quit::channels: alloc::vec::Vec<papo::ChannelName>
 pub papo_core::Event::Quit::envelope: papo_core::LineEnvelope
+pub papo_core::Event::Quit::netsplit: core::option::Option<papo_core::SplitServers>
 pub papo_core::Event::Quit::nick: papo::Nick
 pub papo_core::Event::Quit::reason: core::option::Option<alloc::string::String>
 pub papo_core::Event::ReadMarkerChanged(papo_core::ReadMarker)
@@ -2203,6 +2207,25 @@ impl core::marker::Unpin for papo_core::Session
 impl core::marker::UnsafeUnpin for papo_core::Session
 impl !core::panic::unwind_safe::RefUnwindSafe for papo_core::Session
 impl !core::panic::unwind_safe::UnwindSafe for papo_core::Session
+#[non_exhaustive] pub struct papo_core::SplitServers
+pub papo_core::SplitServers::batch: alloc::string::String
+pub papo_core::SplitServers::first: alloc::string::String
+pub papo_core::SplitServers::second: alloc::string::String
+impl core::clone::Clone for papo_core::SplitServers
+pub fn papo_core::SplitServers::clone(&self) -> Self
+impl core::cmp::Eq for papo_core::SplitServers
+impl core::cmp::PartialEq for papo_core::SplitServers
+pub fn papo_core::SplitServers::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo_core::SplitServers
+pub fn papo_core::SplitServers::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo_core::SplitServers
+impl core::marker::Freeze for papo_core::SplitServers
+impl core::marker::Send for papo_core::SplitServers
+impl core::marker::Sync for papo_core::SplitServers
+impl core::marker::Unpin for papo_core::SplitServers
+impl core::marker::UnsafeUnpin for papo_core::SplitServers
+impl core::panic::unwind_safe::RefUnwindSafe for papo_core::SplitServers
+impl core::panic::unwind_safe::UnwindSafe for papo_core::SplitServers
 pub struct papo_core::StandardReply
 pub papo_core::StandardReply::code: alloc::string::String
 pub papo_core::StandardReply::command: alloc::string::String
