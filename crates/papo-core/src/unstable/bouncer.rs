@@ -302,15 +302,7 @@ impl NetworkConfig {
             .as_ref()
             .map(|secret| secret.expose().ok_or(RequestError::InvalidSecret))
             .transpose()?;
-        let value_bytes = self.host.len()
-            + self.name.as_ref().map_or(0, String::len)
-            + self.nickname.as_deref().map_or(0, str::len)
-            + self.username.as_deref().map_or(0, str::len)
-            + self.realname.as_deref().map_or(0, str::len)
-            + password.map_or(0, str::len);
-        let mut attributes = Zeroizing::new(String::with_capacity(
-            value_bytes.saturating_mul(2).saturating_add(96),
-        ));
+        let mut attributes = Zeroizing::new(String::new());
         push_attribute(&mut attributes, "host", &self.host);
         if let Some(value) = &self.name {
             push_attribute(&mut attributes, "name", value);
