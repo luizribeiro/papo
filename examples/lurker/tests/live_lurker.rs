@@ -54,13 +54,15 @@ async fn prints_membership_snapshot_and_changes() {
         peer.set_nick(&renamed).await.unwrap();
         peer.part(CHANNEL, "leaving the example").await.unwrap();
         lurker.wait_for(&format!("part {CHANNEL} {renamed}")).await;
+        user.quit("lurker test complete").await.unwrap();
+        lurker.wait_for(&format!("quit {user_nick}")).await;
 
         let output = lurker.finish();
         assert!(output.contains(&format!("members {CHANNEL}:")));
         assert!(output.contains(&format!("join {CHANNEL} {peer_nick}")));
         assert!(output.contains(&format!("nick {peer_nick} -> {renamed}")));
         assert!(output.contains(&format!("part {CHANNEL} {renamed}")));
-        user.quit("lurker test complete").await.unwrap();
+        assert!(output.contains(&format!("quit {user_nick}")));
     })
     .await
     .expect("live lurker test did not finish within 20 seconds");
