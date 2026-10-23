@@ -5,7 +5,7 @@ mod support;
 use std::time::Duration;
 
 use papo_core::{BatchAbandonReason, CloseKind, Config, Event, Secret, Session};
-use papo_proto::Isupport;
+use papo_proto::{BuildError, Isupport};
 use support::Transcript;
 
 #[test]
@@ -73,6 +73,30 @@ fn validates_all_configured_registration_fields_before_sending() {
             .event(|event| matches!(event, Event::Close { kind: CloseKind::Other, reason, .. } if reason.contains("invalid registration configuration")))
             .no_client();
     }
+}
+
+#[test]
+fn validates_registration_at_each_literal_nick_line_boundary() {
+    for (nick_len, expected) in [
+        (504, Ok(())),
+        (505, Ok(())),
+        (506, Err(BuildError::LineTooLong)),
+    ] {
+        let config = Config::default().nick("n".repeat(nick_len));
+        assert_eq!(
+            config.validate_registration(),
+            expected,
+            "nick length {nick_len}"
+        );
+    }
+
+    Transcript::new(Config::default().nick("n".repeat(506)))
+        .connect()
+        .event(|event| {
+            matches!(event, Event::Close { kind: CloseKind::Other, reason, .. }
+                if reason.contains("invalid registration configuration"))
+        })
+        .no_client();
 }
 
 #[test]

@@ -171,6 +171,26 @@ fn unlabelled_text_tags_only_its_last_line_for_write_completion() {
 }
 
 #[test]
+fn tracked_transmit_debug_shows_the_exact_line_and_token() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    let token = session
+        .send_tracked(
+            now,
+            Line::notice("alice", "maintenance soon").with_tag("+label", "deploy-42"),
+        )
+        .unwrap();
+    let transmit = session.poll_transmit_tracked().unwrap();
+
+    assert_eq!(
+        format!("{transmit:?}"),
+        format!(
+            "Transmit {{ line: @+label=deploy-42 NOTICE alice :maintenance soon, token: Some({token:?}) }}"
+        )
+    );
+}
+
+#[test]
 fn plain_split_text_allows_urgent_traffic_at_the_512_byte_boundary() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
