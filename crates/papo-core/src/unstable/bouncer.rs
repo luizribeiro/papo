@@ -611,6 +611,35 @@ mod tests {
             NetworkConfig::from_url("wss://irc.oftc.net"),
             Err(InvalidNetworkUrl::UnsupportedScheme("wss".into()))
         );
+        assert_eq!(
+            NetworkConfig::from_url("irc://[2001:db8::7]6697"),
+            Err(InvalidNetworkUrl::InvalidHost("[2001:db8::7]6697".into()))
+        );
+    }
+
+    #[test]
+    fn invalid_network_urls_display_exact_diagnostics() {
+        for (error, expected) in [
+            (InvalidNetworkUrl::Empty, "upstream network URL is empty"),
+            (
+                InvalidNetworkUrl::UnsupportedScheme("wss".into()),
+                "unsupported scheme \"wss\"",
+            ),
+            (
+                InvalidNetworkUrl::InvalidHost("[2001:db8::7]6697".into()),
+                "invalid upstream host \"[2001:db8::7]6697\"",
+            ),
+            (
+                InvalidNetworkUrl::InvalidPort("65536".into()),
+                "invalid service port \"65536\"",
+            ),
+            (
+                InvalidNetworkUrl::UnexpectedPath("network".into()),
+                "unexpected URL path \"network\"",
+            ),
+        ] {
+            assert_eq!(error.to_string(), expected);
+        }
     }
 
     #[test]
