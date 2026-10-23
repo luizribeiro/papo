@@ -2008,6 +2008,21 @@ mod tests {
     }
 
     #[test]
+    fn chat_compares_with_string_references() {
+        let message = event(
+            LineRef::parse(":emily!~emily@cloak.example PRIVMSG #papo :hello from Ergo")
+                .unwrap()
+                .to_owned(),
+            &Isupport::default(),
+            "papo",
+            UNIX_EPOCH,
+        );
+
+        assert_eq!(message.conversation, "#papo");
+        assert_ne!(message.conversation, "#other");
+    }
+
+    #[test]
     fn classifies_chat_and_ctcp_messages() {
         assert_eq!(chat("PRIVMSG", "hello").kind, MessageKind::Text);
         assert_eq!(
