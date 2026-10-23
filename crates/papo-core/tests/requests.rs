@@ -2257,6 +2257,67 @@ fn request_deadline_starts_when_its_rate_limited_line_is_transmitted() {
 }
 
 #[test]
+fn transmitted_request_starts_its_own_deadline_after_label_order_diverges() {
+    let now = Instant::now();
+    let rate = RateLimit::new(1, std::time::Duration::from_secs(60))
+        .unwrap()
+        .strict();
+    let config = Config::default()
+        .rate_limit(rate)
+        .welcome_timeout(std::time::Duration::from_secs(600));
+    let mut session = Session::new(config);
+    session.handle_connected(now);
+    session.handle_line(now, b":ergo.test CAP * LS :labeled-response");
+    session.handle_line(now, b":ergo.test CAP * ACK :labeled-response");
+    while session.poll_transmit().is_some() {}
+
+    let ids: Vec<_> = (0..63)
+        .map(|index| {
+            request(
+                &mut session,
+                now,
+                Line::new("WHOIS").with_params([format!("alice{index:02}")]),
+            )
+        })
+        .collect();
+
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"@label=0 WHOIS alice00\r\n"
+    );
+    session.handle_line(
+        now,
+        b"@label=0 :ergo.test 401 papo alice00 :No such nick/channel",
+    );
+    while session.poll_event().is_some() {}
+
+    session.handle_timeout(now + std::time::Duration::from_secs(60));
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"@label=1 WHOIS alice01\r\n"
+    );
+    session.handle_line(
+        now + std::time::Duration::from_secs(60),
+        b"@label=1 :ergo.test 401 papo alice01 :No such nick/channel",
+    );
+    while session.poll_event().is_some() {}
+
+    session.handle_timeout(now + std::time::Duration::from_secs(120));
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"@label=2 WHOIS alice02\r\n"
+    );
+    session.handle_timeout(now + std::time::Duration::from_secs(150));
+    let timed_out: Vec<_> = std::iter::from_fn(|| session.poll_event())
+        .filter_map(|event| match event {
+            Event::RequestTimedOut { id, .. } => Some(id),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(timed_out, [ids[2]]);
+}
+
+#[test]
 fn unlabelled_request_deadlines_start_one_transmission_at_a_time() {
     let now = Instant::now();
     let rate = RateLimit::new(1, std::time::Duration::from_secs(60))
