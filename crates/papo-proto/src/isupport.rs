@@ -155,14 +155,14 @@ impl Isupport {
                     false
                 } else {
                     let mut value = unescape(value);
-                    if value.len() > MAX_VALUE_LEN {
-                        let mut boundary = MAX_VALUE_LEN;
-                        while !value.is_char_boundary(boundary) {
-                            boundary -= 1;
-                        }
-                        value.truncate(boundary);
+                    let mut boundary = value.len().min(MAX_VALUE_LEN);
+                    while !value.is_char_boundary(boundary) {
+                        boundary -= 1;
+                    }
+                    if boundary != value.len() {
                         self.limit_reached = true;
                     }
+                    value.truncate(boundary);
                     self.insert(key, Some(value))
                 }
             } else if !token.is_empty() {

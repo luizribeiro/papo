@@ -143,6 +143,39 @@ fn bounds_tokens_and_values_while_retaining_known_features() {
 }
 
 #[test]
+fn token_limit_accepts_the_literal_boundary_and_rejects_one_over() {
+    for (count, retained, limited) in [
+        (1_023, 1_023, false),
+        (1_024, 1_024, false),
+        (1_025, 1_024, true),
+    ] {
+        let mut support = Isupport::default();
+        support
+            .apply_tokens((0..count).map(|index| format!("VENDOR.EXAMPLE/TOKEN{index}=present")));
+        assert_eq!(support.tokens().len(), retained, "input count {count}");
+        assert_eq!(support.__limit_reached(), limited, "input count {count}");
+    }
+}
+
+#[test]
+fn isupport_values_keep_literal_byte_boundaries() {
+    for (value, expected, limited) in [
+        ("x".repeat(4_095), "x".repeat(4_095), false),
+        ("x".repeat(4_096), "x".repeat(4_096), false),
+        ("x".repeat(4_097), "x".repeat(4_096), true),
+        (format!("{}é", "x".repeat(4_095)), "x".repeat(4_095), true),
+    ] {
+        let mut support = Isupport::default();
+        support.apply_tokens([format!("VENDOR.EXAMPLE/STATE={value}")]);
+        assert_eq!(
+            support.get("VENDOR.EXAMPLE/STATE"),
+            Advertised::Value(&expected)
+        );
+        assert_eq!(support.__limit_reached(), limited);
+    }
+}
+
+#[test]
 fn selects_the_advertised_casemapping_with_the_protocol_default() {
     let mut support = Isupport::default();
     assert_eq!(support.casemapping(), Casemapping::Rfc1459);
