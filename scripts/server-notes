@@ -33,6 +33,7 @@ OBSERVATION_LABELS = {
     "multidevice-away-state": "Multi-device away state",
     "multidevice-nickname-state": "Multi-device nickname state",
     "multidevice-ctcp-replies": "Multi-device CTCP replies",
+    "multidevice-history-authorship": "Multi-device history authorship",
 }
 
 

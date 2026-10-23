@@ -13,6 +13,13 @@ fn has_account_sessions() -> bool {
     )
 }
 
+fn chat_text<'event>(event: &'event Event, text: &str) -> Option<&'event papo::Message> {
+    event
+        .as_message()
+        .or_else(|| event.as_own_message())
+        .filter(|message| message.raw_text == text)
+}
+
 async fn wait_for_channel(peer: &mut Peer, channel: &str) -> papo_testing::Result<()> {
     if peer
         .state()
@@ -376,5 +383,66 @@ async fn multidevice_ctcp_session_replies(s: Scenario) -> papo_testing::Result<(
         );
     }
     sender.expect_none(Event::as_ctcp_reply).await?;
+    Ok(())
+}
+
+/// retrieves messages missed by a detached session once in one history page
+#[scenario(
+    requires(caps = ["batch", "draft/chathistory"]),
+    covers = ["multidevice.reconnect-catchup"]
+)]
+async fn multidevice_reconnect_catchup(s: Scenario) -> papo_testing::Result<()> {
+    if !has_account_sessions() {
+        return s.skip("the selected profile does not support concurrent account sessions");
+    }
+    let (desktop, account) = s.connect_as_account_with_key("alice").await?;
+    let channel = s.channel_name();
+    desktop.join(&channel).await?;
+    let mut phone = s
+        .connect_account_session("alice-phone", account.clone())
+        .await?;
+    wait_for_channel(&mut phone, &channel).await?;
+    phone.quit("switching devices").await?;
+    phone.wait_for(Event::as_disconnected).await?;
+
+    let texts = [
+        "deployment started while the phone was offline",
+        "deployment completed while the phone was offline",
+    ];
+    for text in texts {
+        desktop.privmsg(&channel, text).await?;
+    }
+
+    let mut reconnected = s.connect_account_session("alice-phone", account).await?;
+    let page = reconnected.history(&channel).latest().limit(10).await?;
+    assert_eq!(page.reason, papo::HistoryReason::Requested);
+    assert_eq!(
+        conversation_name(&page.conversation),
+        Some(channel.as_str())
+    );
+    let own = page
+        .items
+        .iter()
+        .filter_map(Event::as_own_message)
+        .filter(|message| texts.contains(&message.text.as_str()))
+        .count();
+    if std::env::var("PAPO_TEST_PROFILE").as_deref() == Ok("soju-ergo") {
+        assert_eq!(own, 0);
+    } else {
+        assert_eq!(own, 2);
+    }
+    let replayed = page
+        .items
+        .iter()
+        .filter_map(|event| event.as_own_message().or_else(|| event.as_message()))
+        .filter(|message| texts.contains(&message.text.as_str()))
+        .map(|message| message.text.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(replayed, texts);
+    for text in texts {
+        reconnected
+            .expect_none(|event| chat_text(event, text))
+            .await?;
+    }
     Ok(())
 }

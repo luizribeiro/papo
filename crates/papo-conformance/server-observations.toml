@@ -78,6 +78,11 @@ finding = "A private CTCP query reaches all three attached sessions, and each se
 evidence = "C: PRIVMSG account :VERSION query | attached A/B/C S: query | sender S: three VERSION replies"
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
+[soju-ergo.multidevice-history-authorship]
+finding = "History contains messages sent by a sibling session exactly once, but without the account identity needed to classify them as own messages; direct Ergo classifies the same history entries as own."
+evidence = "A C: PRIVMSG #review :offline update | reattached B history: Message, not OwnMessage; direct Ergo history: OwnMessage"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
+
 [inspircd.history-end]
 finding = "The fixture does not advertise chat history, so no end signal is available."
 evidence = "S: CAP LS omits chathistory and draft/chathistory"
