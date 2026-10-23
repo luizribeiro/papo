@@ -311,6 +311,14 @@ impl Sent {
 }
 
 impl Client {
+    pub(crate) fn check_origin(&self, origin: Option<crate::Origin>) -> Result<(), Error> {
+        if origin.is_some_and(|origin| origin != crate::Origin::NONE && origin != self.origin) {
+            Err(InvalidInput::ForeignReference.into())
+        } else {
+            Ok(())
+        }
+    }
+
     /// Returns the opaque identity carried by values produced by this client.
     #[must_use]
     pub const fn origin(&self) -> crate::Origin {
@@ -422,10 +430,12 @@ impl Client {
         query: &crate::event::CtcpQuery,
         text: impl Into<String>,
     ) -> crate::RequestFuture<()> {
+        let origin = crate::message_ref::conversation_origin(&query.conversation);
         let text = text.into();
         let reply = papo_core::__ctcp_reply(&query.actor, &query.command, &text);
         let client = self.clone();
         crate::RequestFuture::new(async move {
+            client.check_origin(Some(origin))?;
             let reply = reply.ok_or_else(|| {
                 InvalidInput::InvalidMessage("invalid CTCP reply query or text".into())
             })?;
@@ -597,8 +607,11 @@ impl Client {
         message: impl Into<crate::MessageRef>,
         text: impl Into<String>,
     ) -> SendMessage {
-        let (target, msgid, channel_context, recipient) = message.into().into_parts();
+        let (target, msgid, origin, channel_context, recipient) = message.into().into_parts();
         let mut request = self.privmsg(target, text);
+        if let Err(Error::InvalidInput(error)) = self.check_origin(origin) {
+            request.invalid_input = Some(error);
+        }
         request.recipient = recipient;
         if let Some(id) = msgid {
             request = request.reply_to(id);
@@ -664,7 +677,8 @@ impl Client {
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
         crate::RequestFuture::new(async move {
-            let (target, message, _, recipient) = message.into_parts();
+            let (target, message, origin, _, recipient) = message.into_parts();
+            client.check_origin(origin)?;
             let Some(message) = message else {
                 return Err(InvalidInput::UnusableMessageReference.into());
             };
@@ -772,7 +786,8 @@ impl Client {
         let message = message.into();
         let reason = reason.into();
         crate::RequestFuture::new(async move {
-            let (target, message, _, recipient) = message.into_parts();
+            let (target, message, origin, _, recipient) = message.into_parts();
+            client.check_origin(origin)?;
             let Some(message) = message else {
                 return Err(InvalidInput::UnusableMessageReference.into());
             };

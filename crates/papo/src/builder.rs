@@ -755,6 +755,20 @@ mod tests {
         assert_ne!(first_channel, second_channel);
     }
 
+    #[tokio::test(flavor = "current_thread")]
+    async fn reply_rejects_a_reference_from_another_client() {
+        let (first, _, _) = Builder::new("irc.example.net").build();
+        let (second, _, _) = Builder::new("irc.example.net").build();
+        let reference = (first.state().channel_name("#papo"), "RfcBTzyxY120004");
+
+        assert!(matches!(
+            second.reply(reference, "release ready").await,
+            Err(crate::Error::InvalidInput(
+                crate::InvalidInput::ForeignReference
+            ))
+        ));
+    }
+
     #[cfg(tls)]
     #[tokio::test(flavor = "current_thread", start_paused = true)]
     async fn connect_timeout_covers_a_silent_tls_peer() {

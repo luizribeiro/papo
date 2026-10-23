@@ -1630,6 +1630,7 @@ pub papo::InvalidInput::BinarySecret
 pub papo::InvalidInput::EmailRequired
 pub papo::InvalidInput::EmptyAddress
 pub papo::InvalidInput::EmptyText
+pub papo::InvalidInput::ForeignReference
 pub papo::InvalidInput::InsecureAuthentication
 pub papo::InvalidInput::InvalidExtbanAccount(alloc::string::String)
 pub papo::InvalidInput::InvalidHost(alloc::string::String)

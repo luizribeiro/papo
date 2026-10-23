@@ -22,6 +22,7 @@ pub(crate) struct RecipientGuard {
 pub struct MessageRef {
     address: String,
     msgid: Option<MessageId>,
+    origin: Option<crate::Origin>,
     channel_context: Option<ChannelName>,
     recipient: Option<RecipientGuard>,
 }
@@ -32,12 +33,14 @@ impl MessageRef {
     ) -> (
         String,
         Option<MessageId>,
+        Option<crate::Origin>,
         Option<ChannelName>,
         Option<RecipientGuard>,
     ) {
         (
             self.address,
             self.msgid,
+            self.origin,
             self.channel_context,
             self.recipient,
         )
@@ -75,6 +78,7 @@ impl From<&Message> for MessageRef {
         Self {
             address: message.return_address(),
             msgid: message.msgid.clone(),
+            origin: Some(chat_origin(&message.conversation)),
             channel_context: message.channel_context.clone(),
             recipient: recipient(&message.conversation, &message.account, message.reply_token),
         }
@@ -98,6 +102,7 @@ impl From<&Sent> for MessageRef {
         Self {
             address: message.return_address(),
             msgid: message.msgid.clone(),
+            origin: Some(conversation_origin(&message.conversation)),
             channel_context: None,
             recipient: None,
         }
@@ -112,6 +117,7 @@ impl From<&Notice> for MessageRef {
         Self {
             address: notice.return_address(),
             msgid: notice.msgid.clone(),
+            origin: Some(chat_origin(&notice.conversation)),
             channel_context: notice.channel_context.clone(),
             recipient: recipient(&notice.conversation, &notice.account, notice.reply_token),
         }
@@ -135,6 +141,7 @@ impl From<&TagMsg> for MessageRef {
         Self {
             address: message.return_address(),
             msgid: message.tags.get("msgid").map(MessageId::from),
+            origin: Some(conversation_origin(&message.conversation)),
             channel_context: None,
             recipient: None,
         }
@@ -152,6 +159,7 @@ macro_rules! address_pairs {
                     Self {
                         address: <$address as AsRef<str>>::as_ref(&address).to_owned(),
                         msgid: Some(msgid.into()),
+                        origin: origin_of(&address),
                         channel_context: None,
                         recipient: None,
                     }
@@ -161,14 +169,52 @@ macro_rules! address_pairs {
     };
 }
 
-address_pairs!(
-    &str,
-    String,
+fn origin_of<T: ?Sized>(_address: &T) -> Option<crate::Origin> {
+    None
+}
+
+address_pairs!(&str, String);
+
+macro_rules! typed_address_pairs {
+    ($($address:ty),+ $(,)?) => {
+        $(
+            impl<I: Into<MessageId>> From<($address, I)> for MessageRef {
+                fn from((address, msgid): ($address, I)) -> Self {
+                    Self {
+                        address: address.as_ref().to_owned(),
+                        msgid: Some(msgid.into()),
+                        origin: Some(address.origin()),
+                        channel_context: None,
+                        recipient: None,
+                    }
+                }
+            }
+        )+
+    };
+}
+
+typed_address_pairs!(
     crate::ChannelName,
     &crate::ChannelName,
     crate::Nick,
-    &crate::Nick,
+    &crate::Nick
 );
+
+pub(crate) fn conversation_origin(conversation: &Conversation) -> crate::Origin {
+    match conversation {
+        Conversation::Channel(channel) => channel.origin(),
+        Conversation::Private(nick) => nick.origin(),
+        Conversation::Broadcast(mask) => mask.origin(),
+        _ => crate::Origin::NONE,
+    }
+}
+
+pub(crate) fn chat_origin(conversation: &crate::Chat) -> crate::Origin {
+    match conversation {
+        crate::Chat::Channel(channel) => channel.origin(),
+        crate::Chat::Private(nick) => nick.origin(),
+    }
+}
 
 pub(crate) fn return_address(conversation: &Conversation, status: Option<&[char]>) -> String {
     status

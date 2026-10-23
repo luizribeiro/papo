@@ -69,6 +69,9 @@ pub enum InvalidInput {
     /// A message reference lacks a server message identifier.
     #[error("the message reference has no server identifier")]
     UnusableMessageReference,
+    /// A value belongs to another client.
+    #[error("the value belongs to another client")]
+    ForeignReference,
     /// An account operation omitted a required email address.
     #[error("account registration requires an email address")]
     EmailRequired,
