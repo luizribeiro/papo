@@ -1760,18 +1760,18 @@ impl papo::Client
 pub fn papo::Client::action(&self, impl papo::Target, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub fn papo::Client::builder(impl papo::IntoEndpoint) -> papo::Builder
 pub fn papo::Client::clear_away(&self) -> papo::RequestFuture<()>
-pub fn papo::Client::clear_topic(&self, impl core::convert::AsRef<str>) -> papo::RequestFuture<()>
+pub fn papo::Client::clear_topic(&self, impl papo::Target) -> papo::RequestFuture<()>
 pub fn papo::Client::ctcp_reply(&self, &papo::event::CtcpQuery, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Client::invite(&self, impl core::convert::AsRef<str>, impl core::convert::AsRef<str>) -> papo::RequestFuture<()>
+pub fn papo::Client::invite(&self, impl papo::Target, impl papo::Target) -> papo::RequestFuture<()>
 pub fn papo::Client::join(&self, impl papo::Target) -> papo::JoinChannel
-pub fn papo::Client::kick(&self, impl core::convert::AsRef<str>, impl core::convert::AsRef<str>, impl core::convert::AsRef<str>) -> papo::RequestFuture<()>
-pub fn papo::Client::kickban(&self, impl core::convert::AsRef<str>, impl core::convert::AsRef<str>, impl core::convert::AsRef<str>, impl core::convert::Into<papo::BanTarget>) -> papo::RequestFuture<papo::KickbanOutcome>
+pub fn papo::Client::kick(&self, impl papo::Target, impl papo::Target, impl core::convert::AsRef<str>) -> papo::RequestFuture<()>
+pub fn papo::Client::kickban(&self, impl papo::Target, impl papo::Target, impl core::convert::AsRef<str>, impl core::convert::Into<papo::BanTarget>) -> papo::RequestFuture<papo::KickbanOutcome>
 pub fn papo::Client::list(&self, papo::ListFilter) -> papo::RequestFuture<alloc::vec::Vec<papo::ListEntry>>
 pub fn papo::Client::nick(&self) -> papo::Nick
 pub fn papo::Client::notice(&self, impl papo::Target, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub fn papo::Client::oper(&self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo::Secret>) -> papo::RequestFuture<()>
 pub const fn papo::Client::origin(&self) -> papo::Origin
-pub fn papo::Client::part(&self, impl core::convert::AsRef<str>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::part(&self, impl papo::Target, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::ping(&self) -> papo::RequestFuture<core::time::Duration>
 pub fn papo::Client::privmsg(&self, impl papo::Target, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub fn papo::Client::quit(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
@@ -1782,9 +1782,9 @@ pub fn papo::Client::reply(&self, impl core::convert::Into<papo::MessageRef>, im
 pub fn papo::Client::request_raw(&self, papo::Line) -> papo::RequestFuture<alloc::vec::Vec<papo::Line>>
 pub fn papo::Client::send_raw(&self, papo::Line) -> papo::RequestFuture<()>
 pub fn papo::Client::set_away(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Client::set_nick(&self, impl core::convert::AsRef<str>) -> papo::RequestFuture<()>
+pub fn papo::Client::set_nick(&self, impl papo::Target) -> papo::RequestFuture<()>
 pub fn papo::Client::set_realname(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Client::set_topic(&self, impl core::convert::AsRef<str>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::set_topic(&self, impl papo::Target, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::state(&self) -> alloc::rcs::arc::Arc<papo::State>
 pub fn papo::Client::typing(&self, impl papo::Target, papo::Typing) -> papo::RequestFuture<()>
 pub fn papo::Client::unreact(&self, impl core::convert::Into<papo::MessageRef>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>

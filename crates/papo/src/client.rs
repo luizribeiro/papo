@@ -1026,13 +1026,17 @@ impl Client {
     /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
     pub fn part(
         &self,
-        channel: impl AsRef<str>,
+        channel: impl crate::Target,
         reason: impl Into<String>,
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
-        let channel = self.state().channel_name(channel.as_ref());
+        let (channel, invalid_input) = self.target_input(channel);
+        let channel = self.state().channel_name(channel);
         let reason = reason.into();
         crate::RequestFuture::new(async move {
+            if let Some(error) = invalid_input {
+                return Err(error.into());
+            }
             channel
                 .check(client.state().isupport().inner())
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
@@ -1058,16 +1062,21 @@ impl Client {
     /// Returns a typed server refusal, invalid-input error, timeout, or disconnect.
     pub fn kick(
         &self,
-        channel: impl AsRef<str>,
-        nick: impl AsRef<str>,
+        channel: impl crate::Target,
+        nick: impl crate::Target,
         reason: impl AsRef<str>,
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
+        let (channel, channel_error) = self.target_input(channel);
+        let (nick, nick_error) = self.target_input(nick);
         let state = self.state();
-        let channel = state.channel_name(channel.as_ref());
-        let nick = state.nickname(nick.as_ref());
+        let channel = state.channel_name(channel);
+        let nick = state.nickname(nick);
         let reason = reason.as_ref().to_owned();
         crate::RequestFuture::new(async move {
+            if let Some(error) = channel_error.or(nick_error) {
+                return Err(error.into());
+            }
             let state = client.state();
             channel
                 .check(state.isupport().inner())
@@ -1102,18 +1111,23 @@ impl Client {
     /// refusal and the errors documented by [`Client::kick`] are returned before an outcome.
     pub fn kickban(
         &self,
-        channel: impl AsRef<str>,
-        nick: impl AsRef<str>,
+        channel: impl crate::Target,
+        nick: impl crate::Target,
         reason: impl AsRef<str>,
         ban: impl Into<crate::BanTarget>,
     ) -> crate::RequestFuture<crate::KickbanOutcome> {
         let client = self.clone();
+        let (channel, channel_error) = self.target_input(channel);
+        let (nick, nick_error) = self.target_input(nick);
         let state = self.state();
-        let channel = state.channel_name(channel.as_ref());
-        let nick = state.nickname(nick.as_ref());
+        let channel = state.channel_name(channel);
+        let nick = state.nickname(nick);
         let reason = reason.as_ref().to_owned();
         let ban = ban.into();
         crate::RequestFuture::new(async move {
+            if let Some(error) = channel_error.or(nick_error) {
+                return Err(error.into());
+            }
             let state = client.state();
             channel
                 .check(state.isupport().inner())
@@ -1189,14 +1203,19 @@ impl Client {
     /// Returns a typed server refusal, invalid-input error, timeout, or disconnect.
     pub fn invite(
         &self,
-        channel: impl AsRef<str>,
-        nick: impl AsRef<str>,
+        channel: impl crate::Target,
+        nick: impl crate::Target,
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
+        let (channel, channel_error) = self.target_input(channel);
+        let (nick, nick_error) = self.target_input(nick);
         let state = self.state();
-        let channel = state.channel_name(channel.as_ref());
-        let nick = state.nickname(nick.as_ref());
+        let channel = state.channel_name(channel);
+        let nick = state.nickname(nick);
         crate::RequestFuture::new(async move {
+            if let Some(error) = channel_error.or(nick_error) {
+                return Err(error.into());
+            }
             let state = client.state();
             channel
                 .check(state.isupport().inner())
@@ -1222,10 +1241,14 @@ impl Client {
     /// # Errors
     ///
     /// Returns a typed server refusal, invalid-input error, timeout, or disconnect.
-    pub fn set_nick(&self, nick: impl AsRef<str>) -> crate::RequestFuture<()> {
+    pub fn set_nick(&self, nick: impl crate::Target) -> crate::RequestFuture<()> {
         let client = self.clone();
-        let nick = self.state().nickname(nick.as_ref());
+        let (nick, invalid_input) = self.target_input(nick);
+        let nick = self.state().nickname(nick);
         crate::RequestFuture::new(async move {
+            if let Some(error) = invalid_input {
+                return Err(error.into());
+            }
             nick.check(client.state().isupport().inner())
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
             let response = client
@@ -1357,13 +1380,15 @@ impl Client {
     /// [`Error::Disconnected`].
     pub fn set_topic(
         &self,
-        channel: impl AsRef<str>,
+        channel: impl crate::Target,
         topic: impl Into<String>,
     ) -> crate::RequestFuture<()> {
+        let (channel, invalid_input) = self.target_input(channel);
         self.change_topic(
-            self.state().channel_name(channel.as_ref()),
+            self.state().channel_name(channel),
             topic.into(),
             false,
+            invalid_input,
         )
     }
 
@@ -1372,11 +1397,13 @@ impl Client {
     /// # Errors
     ///
     /// Returns the same errors as [`Client::set_topic`].
-    pub fn clear_topic(&self, channel: impl AsRef<str>) -> crate::RequestFuture<()> {
+    pub fn clear_topic(&self, channel: impl crate::Target) -> crate::RequestFuture<()> {
+        let (channel, invalid_input) = self.target_input(channel);
         self.change_topic(
-            self.state().channel_name(channel.as_ref()),
+            self.state().channel_name(channel),
             String::new(),
             true,
+            invalid_input,
         )
     }
 
@@ -1385,9 +1412,13 @@ impl Client {
         channel: crate::ChannelName,
         topic: String,
         clear: bool,
+        invalid_input: Option<InvalidInput>,
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
         crate::RequestFuture::new(async move {
+            if let Some(error) = invalid_input {
+                return Err(error.into());
+            }
             if topic.is_empty() && !clear {
                 return Err(InvalidInput::EmptyText.into());
             }
