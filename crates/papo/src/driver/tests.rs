@@ -440,6 +440,44 @@ async fn multiline_messages_keep_addressing_across_a_nick_change() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn private_reply_refuses_a_nick_taken_after_receipt() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let task = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":papo-driver!p@localhost JOIN #review\r\n:alice!~alice@cloak.example JOIN #review\r\n:mallory!~mallory@users.example JOIN #review\r\n@msgid=Ergo8ZZ9 :alice!~alice@cloak.example PRIVMSG papo-driver :release approval\r\n",
+    )
+    .await;
+    for _ in 0..3 {
+        assert!(matches!(events.next().await, Some(Event::Joined(_))));
+    }
+    let message = next_message(&mut events).await;
+    within(client.reply(&message, "approved")).await.unwrap();
+    client_line(&mut server, b"PRIVMSG alice approved\r\n").await;
+
+    server_line(
+        &mut server,
+        b":alice!~alice@cloak.example QUIT :Client Quit\r\n:mallory!~mallory@users.example NICK alice\r\n",
+    )
+    .await;
+    assert!(matches!(events.next().await, Some(Event::Quit(_))));
+    assert!(matches!(events.next().await, Some(Event::NickChanged(_))));
+    assert!(matches!(
+        within(client.reply(&message, "payroll attached")).await,
+        Err(Error::TargetGone)
+    ));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), server.read_u8())
+            .await
+            .is_err()
+    );
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn broadcasts_are_not_replyable_message_events() {
     let (mut server, _client, mut events, driver) = scripted(config());
     let task = tokio::spawn(driver);

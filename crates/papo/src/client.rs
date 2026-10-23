@@ -97,6 +97,7 @@ pub struct SendMessage {
     tags: Vec<(String, String)>,
     action: bool,
     invalid_input: Option<InvalidInput>,
+    recipient: Option<crate::message_ref::RecipientGuard>,
 }
 
 impl std::fmt::Debug for SendMessage {
@@ -183,6 +184,13 @@ impl IntoFuture for SendMessage {
                 return Err(error.into());
             }
             let state = self.client.state();
+            if self
+                .recipient
+                .as_ref()
+                .is_some_and(|recipient| state.recipient_changed(recipient))
+            {
+                return Err(Error::TargetGone);
+            }
             for (key, _) in &self.tags {
                 if !key.starts_with('+') {
                     return Err(InvalidInput::InvalidMessage(format!(
@@ -509,6 +517,7 @@ impl Client {
             tags: Vec::new(),
             action: false,
             invalid_input: None,
+            recipient: None,
         }
     }
 
@@ -536,6 +545,7 @@ impl Client {
             tags: Vec::new(),
             action: false,
             invalid_input: None,
+            recipient: None,
         }
     }
 
@@ -574,8 +584,9 @@ impl Client {
         message: impl Into<crate::MessageRef>,
         text: impl Into<String>,
     ) -> SendMessage {
-        let (target, msgid, channel_context) = message.into().into_parts();
+        let (target, msgid, channel_context, recipient) = message.into().into_parts();
         let mut request = self.privmsg(target, text);
+        request.recipient = recipient;
         if let Some(id) = msgid {
             request = request.reply_to(id);
         }
@@ -636,7 +647,7 @@ impl Client {
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
         crate::RequestFuture::new(async move {
-            let (target, message, _) = message.into_parts();
+            let (target, message, _, recipient) = message.into_parts();
             let Some(message) = message else {
                 return Err(InvalidInput::UnusableMessageReference.into());
             };
@@ -651,6 +662,12 @@ impl Client {
                 .into());
             }
             let state = client.state();
+            if recipient
+                .as_ref()
+                .is_some_and(|recipient| state.recipient_changed(recipient))
+            {
+                return Err(Error::TargetGone);
+            }
             Self::require_feature(&state, Feature::Reactions)?;
             state
                 .parse_target_inner(&target)
@@ -736,11 +753,17 @@ impl Client {
         let message = message.into();
         let reason = reason.into();
         crate::RequestFuture::new(async move {
-            let (target, message, _) = message.into_parts();
+            let (target, message, _, recipient) = message.into_parts();
             let Some(message) = message else {
                 return Err(InvalidInput::UnusableMessageReference.into());
             };
             let state = client.state();
+            if recipient
+                .as_ref()
+                .is_some_and(|recipient| state.recipient_changed(recipient))
+            {
+                return Err(Error::TargetGone);
+            }
             Self::require_feature(&state, Feature::Redaction)?;
             state
                 .parse_target_inner(&target)

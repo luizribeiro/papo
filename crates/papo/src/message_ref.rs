@@ -1,4 +1,14 @@
-use crate::{ChannelName, Conversation, Message, MessageId, Sent, event::Notice, event::TagMsg};
+use crate::{
+    Account, ChannelName, Conversation, Message, MessageId, Nick, Sent, event::Notice,
+    event::TagMsg,
+};
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct RecipientGuard {
+    pub(crate) nick: Nick,
+    pub(crate) account: Account,
+    pub(crate) receipt: Option<papo_core::ReplyToken>,
+}
 
 /// An address and server identifier for a chat message.
 ///
@@ -12,12 +22,40 @@ pub struct MessageRef {
     address: String,
     msgid: Option<MessageId>,
     channel_context: Option<ChannelName>,
+    recipient: Option<RecipientGuard>,
 }
 
 impl MessageRef {
-    pub(crate) fn into_parts(self) -> (String, Option<MessageId>, Option<ChannelName>) {
-        (self.address, self.msgid, self.channel_context)
+    pub(crate) fn into_parts(
+        self,
+    ) -> (
+        String,
+        Option<MessageId>,
+        Option<ChannelName>,
+        Option<RecipientGuard>,
+    ) {
+        (
+            self.address,
+            self.msgid,
+            self.channel_context,
+            self.recipient,
+        )
     }
+}
+
+fn recipient(
+    conversation: &crate::Chat,
+    account: &Account,
+    receipt: Option<papo_core::ReplyToken>,
+) -> Option<RecipientGuard> {
+    let crate::Chat::Private(nick) = conversation else {
+        return None;
+    };
+    Some(RecipientGuard {
+        nick: nick.clone(),
+        account: account.clone(),
+        receipt,
+    })
 }
 
 /// Preserves the received message's return address and identifier.
@@ -29,6 +67,7 @@ impl From<&Message> for MessageRef {
             address: message.return_address(),
             msgid: message.msgid.clone(),
             channel_context: message.channel_context.clone(),
+            recipient: recipient(&message.conversation, &message.account, message.reply_token),
         }
     }
 }
@@ -51,6 +90,7 @@ impl From<&Sent> for MessageRef {
             address: message.return_address(),
             msgid: message.msgid.clone(),
             channel_context: None,
+            recipient: None,
         }
     }
 }
@@ -64,6 +104,7 @@ impl From<&Notice> for MessageRef {
             address: notice.return_address(),
             msgid: notice.msgid.clone(),
             channel_context: notice.channel_context.clone(),
+            recipient: recipient(&notice.conversation, &notice.account, notice.reply_token),
         }
     }
 }
@@ -86,6 +127,7 @@ impl From<&TagMsg> for MessageRef {
             address: message.return_address(),
             msgid: message.tags.get("msgid").map(MessageId::from),
             channel_context: None,
+            recipient: None,
         }
     }
 }
@@ -102,6 +144,7 @@ macro_rules! address_pairs {
                         address: <$address as AsRef<str>>::as_ref(&address).to_owned(),
                         msgid: Some(msgid.into()),
                         channel_context: None,
+                        recipient: None,
                     }
                 }
             }

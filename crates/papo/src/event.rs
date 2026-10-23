@@ -2088,7 +2088,7 @@ mod tests {
         assert_eq!(notice.kind, NoticeKind::Action);
         assert_eq!(notice.text, "nods hello");
         assert_eq!(notice.return_address(), "@#ops");
-        let (address, msgid, context) = crate::MessageRef::from(&notice).into_parts();
+        let (address, msgid, context, _) = crate::MessageRef::from(&notice).into_parts();
         assert_eq!(address, "@#ops");
         assert_eq!(msgid, Some("RfcBTzyxY120007".into()));
         assert_eq!(context, None);
