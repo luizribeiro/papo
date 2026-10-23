@@ -598,14 +598,12 @@ fn empty_membership_batches_emit_nothing() {
 }
 
 #[test]
-fn ergo_netsplit_captures_channels_and_identity() {
+fn recorded_solanum_netsplit_emits_a_marked_quit() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
     for line in [
         ":papo!~papo@localhost JOIN #papo",
-        ":papo!~papo@localhost JOIN #rust",
-        ":alice!~alice@users.example JOIN #papo",
-        ":alice!~alice@users.example JOIN #rust",
+        ":ChanServ!ChanServ@services.int JOIN #papo",
     ] {
         session.handle_line(now, line.as_bytes());
     }
@@ -613,13 +611,13 @@ fn ergo_netsplit_captures_channels_and_identity() {
 
     session.handle_line(
         now,
-        b":ergo.test BATCH +split netsplit ergo.test remote.example",
+        b":irc.papo.test BATCH +uoiRnDa1CRdpNmJ netsplit irc.papo.test services.papo.test",
     );
     session.handle_line(
         now,
-        b"@batch=split :alice!~alice@users.example QUIT :ergo.test remote.example",
+        b"@batch=uoiRnDa1CRdpNmJ :ChanServ!ChanServ@services.int QUIT :irc.papo.test services.papo.test",
     );
-    session.handle_line(now, b":ergo.test BATCH -split");
+    session.handle_line(now, b":irc.papo.test BATCH -uoiRnDa1CRdpNmJ");
 
     let Some(Event::Quit {
         nick,
@@ -630,14 +628,48 @@ fn ergo_netsplit_captures_channels_and_identity() {
     else {
         panic!("expected a netsplit quit")
     };
-    assert_eq!(nick, "alice");
-    assert_eq!(split.batch, "split");
-    assert_eq!(split.first, "ergo.test");
-    assert_eq!(split.second, "remote.example");
-    assert_eq!(channels.len(), 2);
+    assert_eq!(nick, "ChanServ");
+    assert_eq!(split.batch, "uoiRnDa1CRdpNmJ");
+    assert_eq!(split.first, "irc.papo.test");
+    assert_eq!(split.second, "services.papo.test");
+    assert_eq!(channels.len(), 1);
     assert!(channels.iter().any(|channel| channel == "#papo"));
-    assert!(channels.iter().any(|channel| channel == "#rust"));
-    assert!(session.state().user("alice").is_none());
+    assert!(session.state().user("ChanServ").is_none());
+}
+
+#[test]
+fn equal_server_pairs_keep_distinct_batch_identities() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    for (reference, nick) in [("split-a", "alice"), ("split-b", "bob")] {
+        session.handle_line(
+            now,
+            format!("BATCH +{reference} netsplit irc.papo.test services.papo.test").as_bytes(),
+        );
+        session.handle_line(
+            now,
+            format!(
+                "@batch={reference} :{nick}!~user@services.int QUIT :irc.papo.test services.papo.test"
+            )
+            .as_bytes(),
+        );
+        session.handle_line(now, format!("BATCH -{reference}").as_bytes());
+    }
+    session.handle_line(
+        now,
+        b":mallory!~user@localhost QUIT :irc.papo.test services.papo.test",
+    );
+
+    for expected in ["split-a", "split-b"] {
+        assert!(matches!(
+            session.poll_event(),
+            Some(Event::Quit { netsplit: Some(split), .. }) if split.batch == expected
+        ));
+    }
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Quit { netsplit: None, .. })
+    ));
 }
 
 #[test]
