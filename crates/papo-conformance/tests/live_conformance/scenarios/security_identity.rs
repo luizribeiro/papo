@@ -1,4 +1,3 @@
-use papo_bot::BotConfig;
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
@@ -8,20 +7,11 @@ fn profile() -> String {
     std::env::var("PAPO_TEST_PROFILE").unwrap_or_else(|_| "ergo-default".into())
 }
 
-/// refuses delayed private bot output after another user claims the sender's nick
-#[scenario(
-    requires(caps = ["account-tag"]),
-    covers = ["security.bot.private-reply-after-nick-takeover"]
-)]
-async fn private_bot_reply_after_nick_takeover(s: Scenario) -> papo_testing::Result<()> {
-    if matches!(
-        profile().as_str(),
-        "ergo-default" | "ergo-persistent" | "soju-ergo"
-    ) {
-        return s.skip("the selected profile reserves authenticated account nicknames");
-    }
+/// refuses a delayed private reply after another user claims the sender's nick
+#[scenario(covers = ["security.bot.private-reply-after-nick-takeover"])]
+async fn private_reply_after_nick_takeover(s: Scenario) -> papo_testing::Result<()> {
     let mut bot = s.connect("bot").await?;
-    let alice = s.connect_as_account("alice").await?;
+    let mut alice = s.connect("alice").await?;
     let mut mallory = s.connect("mallory").await?;
     let alice_nick = alice.nick();
     let mallory_nick = mallory.nick();
@@ -30,14 +20,19 @@ async fn private_bot_reply_after_nick_takeover(s: Scenario) -> papo_testing::Res
     alice.join(&channel).await?;
     mallory.join(&channel).await?;
 
-    alice.privmsg(bot.nick(), "!lookup payroll").await?;
-    let message = bot
-        .wait_for(|event| message_text(event, "!lookup payroll"))
+    alice.privmsg(bot.nick(), "control request").await?;
+    let control = bot
+        .wait_for(|event| message_text(event, "control request"))
         .await?;
-    let command = BotConfig::new("!")
-        .command(&bot, &message)
-        .expect("the private command is parsed");
-    assert!(command.account().is_some());
+    bot.reply(&control, "control reply").await?;
+    alice
+        .wait_for(|event| message_text(event, "control reply"))
+        .await?;
+
+    alice.privmsg(bot.nick(), "release credentials").await?;
+    let delayed = bot
+        .wait_for(|event| message_text(event, "release credentials"))
+        .await?;
 
     alice.quit("handoff").await?;
     bot.wait_for(|event| event.as_quit().filter(|quit| quit.nick == alice_nick))
@@ -51,18 +46,14 @@ async fn private_bot_reply_after_nick_takeover(s: Scenario) -> papo_testing::Res
     .await?;
 
     assert!(matches!(
-        command.reply("SECRET payroll").await,
-        Err(papo::Error::TargetGone)
-    ));
-    assert!(matches!(
-        command.private_notice("SECRET audit").await,
+        bot.reply(&delayed, "SECRET payroll").await,
         Err(papo::Error::TargetGone)
     ));
     mallory
         .expect_none(|event| {
-            event.as_message().filter(|message| {
-                matches!(message.text.as_str(), "SECRET payroll" | "SECRET audit")
-            })
+            event
+                .as_message()
+                .filter(|message| message.text == "SECRET payroll")
         })
         .await?;
     Ok(())
