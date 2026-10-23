@@ -775,7 +775,7 @@ impl core::marker::UnsafeUnpin for papo::event::Quit
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Quit
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Quit
 #[non_exhaustive] pub struct papo::event::Reacted
-pub papo::event::Reacted::account: core::option::Option<papo::AccountName>
+pub papo::event::Reacted::account: papo::Account
 pub papo::event::Reacted::actor: papo::Source
 pub papo::event::Reacted::authorship: papo::Authorship
 pub papo::event::Reacted::conversation: papo::Conversation
@@ -841,7 +841,7 @@ impl core::marker::UnsafeUnpin for papo::event::RealnameChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::RealnameChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::RealnameChanged
 #[non_exhaustive] pub struct papo::event::Redacted
-pub papo::event::Redacted::account: core::option::Option<papo::AccountName>
+pub papo::event::Redacted::account: papo::Account
 pub papo::event::Redacted::actor: papo::Source
 pub papo::event::Redacted::authorship: papo::Authorship
 pub papo::event::Redacted::conversation: papo::Conversation

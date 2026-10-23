@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use crate::{AccountName, Conversation, MessageId, Typing};
+use crate::{Account, Conversation, MessageId, Typing};
 
 use super::{Authorship, Source, Tags, TypingReason};
 
@@ -14,8 +14,8 @@ pub struct Reacted {
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
     pub received_at: SystemTime,
-    /// The actor's authenticated account, when tagged.
-    pub account: Option<AccountName>,
+    /// The actor's account state reported by `account-tag`.
+    pub account: Account,
     /// The user or server that changed the reaction.
     pub actor: Source,
     /// Whether the actor is this client's user.
@@ -48,8 +48,8 @@ pub struct Redacted {
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
     pub received_at: SystemTime,
-    /// The actor's authenticated account, when tagged.
-    pub account: Option<AccountName>,
+    /// The actor's account state reported by `account-tag`.
+    pub account: Account,
     /// The user or server that removed the message.
     pub actor: Source,
     /// Whether the actor is this client's user.

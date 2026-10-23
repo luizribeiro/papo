@@ -23,6 +23,7 @@ pub(crate) fn history_item(
 ) -> Event {
     let state = client.state();
     let mapping = state.casemapping();
+    let account_tag_enabled = state.caps().contains_key(&crate::cap::ACCOUNT_TAG);
     match item {
         papo_core::HistoryItem::Message(item) => {
             let authorship = crate::Authorship::from_core(item.authorship);
@@ -42,6 +43,7 @@ pub(crate) fn history_item(
                 state.nick(),
                 state.isupport().inner(),
                 history_conversation,
+                account_tag_enabled,
                 received_at,
             )
         }),
@@ -54,6 +56,7 @@ pub(crate) fn history_item(
                     state.nick(),
                     state.isupport().inner(),
                     history_conversation,
+                    account_tag_enabled,
                     received_at,
                 )
             })
@@ -137,6 +140,7 @@ where
     convert(&raw.as_ref()).unwrap_or_else(|| other(raw.clone(), received_at))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn reaction(
     message: &papo_proto::LineRef<'_>,
     authorship: crate::Authorship,
@@ -144,6 +148,7 @@ fn reaction(
     own_nick: &str,
     isupport: &papo_proto::Isupport,
     history_conversation: Option<&crate::Conversation>,
+    account_tag_enabled: bool,
     received_at: SystemTime,
 ) -> Option<Event> {
     let reaction = Reaction::parse(message)?;
@@ -162,7 +167,12 @@ fn reaction(
         .react
         .map(|value| (value, false))
         .or_else(|| reaction.unreact.map(|value| (value, true)))?;
-    let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
+    let envelope = crate::event_impl::line_envelope_with_account_tag(
+        message,
+        mapping,
+        account_tag_enabled,
+        received_at,
+    );
     Some(Event::Reacted(Reacted {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
@@ -178,6 +188,7 @@ fn reaction(
     }))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn redaction(
     message: &papo_proto::LineRef<'_>,
     authorship: crate::Authorship,
@@ -185,6 +196,7 @@ fn redaction(
     own_nick: &str,
     isupport: &papo_proto::Isupport,
     history_conversation: Option<&crate::Conversation>,
+    account_tag_enabled: bool,
     received_at: SystemTime,
 ) -> Option<Event> {
     let (status, conversation) =
@@ -197,7 +209,12 @@ fn redaction(
         own_nick,
         mapping,
     );
-    let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
+    let envelope = crate::event_impl::line_envelope_with_account_tag(
+        message,
+        mapping,
+        account_tag_enabled,
+        received_at,
+    );
     Some(Event::Redacted(Redacted {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
@@ -239,7 +256,7 @@ fn parted(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        account: envelope.account,
+        account: crate::event_impl::known_account(envelope.account),
         actor: crate::event_impl::source::from_proto(message.source()?, mapping),
         channel: mapping.channel(message.param(0)?),
         authorship,
@@ -263,7 +280,7 @@ fn quit(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        account: envelope.account,
+        account: crate::event_impl::known_account(envelope.account),
         actor: crate::event_impl::source::from_proto(message.source()?, mapping),
         nick: mapping.nick(source_nick(message)?),
         reason: message
@@ -293,7 +310,7 @@ fn kicked(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        account: envelope.account,
+        account: crate::event_impl::known_account(envelope.account),
         channel: mapping.channel(message.param(0)?),
         authorship,
         subject_authorship,
@@ -319,7 +336,7 @@ fn nick_changed(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        account: envelope.account,
+        account: crate::event_impl::known_account(envelope.account),
         actor: crate::event_impl::source::from_proto(message.source()?, mapping),
         authorship,
         old: mapping.nick(old),
@@ -338,7 +355,7 @@ fn topic_changed(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        account: envelope.account,
+        account: crate::event_impl::known_account(envelope.account),
         channel: mapping.channel(message.param(0)?),
         topic: message
             .param(1)
@@ -378,7 +395,7 @@ fn mode_changed(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        account: envelope.account,
+        account: crate::event_impl::known_account(envelope.account),
         subject: if state.isupport().inner().is_channel(message.param(0)?) {
             crate::Subject::Channel(mapping.channel(message.param(0)?))
         } else {
@@ -1108,7 +1125,7 @@ mod tests {
         let client = crate::Client::disconnected_for_test();
         let reacted = history_item(
             papo_core::HistoryItem::Reacted(core_item(
-                "@+draft/react=👍;+draft/reply=RfcBTzyxY120004 :emily!~e@localhost TAGMSG #papo",
+                "@account=emily;+draft/react=👍;+draft/reply=RfcBTzyxY120004 :emily!~e@localhost TAGMSG #papo",
             )),
             None,
             &client,
@@ -1122,12 +1139,13 @@ mod tests {
                     && event.status.is_none()
                     && event.message == "RfcBTzyxY120004"
                     && event.reaction == "👍"
+                    && matches!(&event.account, crate::Account::LoggedIn(account) if account == "emily")
                     && !event.removed
         ));
 
         let removal = history_item(
             papo_core::HistoryItem::Redacted(core_item(
-                ":irc.example REDACT #papo RfcBTzyxY120004 :",
+                "@account=alice :alice!~a@localhost REDACT #papo RfcBTzyxY120004 :",
             )),
             None,
             &client,
@@ -1139,6 +1157,7 @@ mod tests {
                 if matches!(&event.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
                     && event.status.is_none()
                     && event.message == "RfcBTzyxY120004"
+                    && matches!(&event.account, crate::Account::LoggedIn(account) if account == "alice")
                     && event.reason.is_none()
         ));
     }
@@ -1156,6 +1175,7 @@ mod tests {
             "papo",
             &papo_proto::Isupport::default(),
             None,
+            true,
             UNIX_EPOCH,
         ) else {
             panic!("reaction should be typed");
@@ -1165,6 +1185,7 @@ mod tests {
         };
 
         assert_eq!(nick.casemapping(), Casemapping::Ascii);
+        assert_eq!(event.account, crate::Account::LoggedOut);
         assert_ne!(nick, "alice{bot}");
     }
 

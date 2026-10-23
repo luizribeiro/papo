@@ -937,7 +937,12 @@ fn message_metadata(
     } else {
         None
     };
-    let envelope = line_envelope(message, isupport.casemapping(), received_at);
+    let envelope = line_envelope_with_account_tag(
+        message,
+        isupport.casemapping(),
+        account_tag_enabled,
+        received_at,
+    );
     let reply_to = tag_owned(message, &["+reply", "+draft/reply"]).map(MessageId::from);
     #[cfg(feature = "unstable")]
     let relayed_by = tag_owned(message, &[crate::cap::RELAYMSG.as_str()])
@@ -951,7 +956,7 @@ fn message_metadata(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        account: account_from_tag(message, isupport.casemapping(), account_tag_enabled),
+        account: envelope.account,
         reply_to,
         channel_context,
         #[cfg(feature = "unstable")]
@@ -981,16 +986,32 @@ fn account_from_tag(
     )
 }
 
+pub(crate) fn known_account(account: Account) -> Option<AccountName> {
+    match account {
+        Account::LoggedIn(account) => Some(account),
+        _ => None,
+    }
+}
+
 pub(crate) struct EventEnvelope {
     pub(crate) msgid: Option<MessageId>,
     pub(crate) server_time: Option<SystemTime>,
     pub(crate) received_at: SystemTime,
-    pub(crate) account: Option<AccountName>,
+    pub(crate) account: Account,
 }
 
 pub(crate) fn line_envelope(
     line: &LineRef<'_>,
     casemapping: Casemapping,
+    received_at: SystemTime,
+) -> EventEnvelope {
+    line_envelope_with_account_tag(line, casemapping, false, received_at)
+}
+
+pub(crate) fn line_envelope_with_account_tag(
+    line: &LineRef<'_>,
+    casemapping: Casemapping,
+    account_tag_enabled: bool,
     received_at: SystemTime,
 ) -> EventEnvelope {
     let server_time =
@@ -999,7 +1020,7 @@ pub(crate) fn line_envelope(
         msgid: tag_owned(line, &["msgid"]).map(MessageId::from),
         server_time,
         received_at,
-        account: tag_owned(line, &["account"]).map(|account| casemapping.account(account)),
+        account: account_from_tag(line, casemapping, account_tag_enabled),
     }
 }
 
@@ -1037,15 +1058,23 @@ pub(crate) fn joined_from_line(
 fn core_envelope(
     envelope: &papo_core::LineEnvelope,
     casemapping: Casemapping,
+    account_tag_enabled: bool,
     received_at: SystemTime,
 ) -> EventEnvelope {
     EventEnvelope {
         msgid: envelope.msgid().map(MessageId::from),
         server_time: envelope.server_time(),
         received_at,
-        account: envelope
-            .account()
-            .map(|account| casemapping.account(account)),
+        account: envelope.account().map_or_else(
+            || {
+                if account_tag_enabled {
+                    Account::LoggedOut
+                } else {
+                    Account::Unknown
+                }
+            },
+            |account| Account::LoggedIn(casemapping.account(account)),
+        ),
     }
 }
 
@@ -1395,7 +1424,7 @@ pub(crate) fn from_core(
             reason: change.reason,
         }),
         papo_core::Event::TagMessage(message) => {
-            let envelope = core_envelope(&message.envelope, casemapping, received_at);
+            let envelope = core_envelope(&message.envelope, casemapping, false, received_at);
             let tag = TagMsg {
                 actor: source::from_prefix(message.actor, casemapping),
                 authorship: Authorship::from_core(message.authorship),
@@ -1449,7 +1478,7 @@ pub(crate) fn from_core(
             }
         }
         papo_core::Event::Redacted(redacted) => {
-            let envelope = core_envelope(&redacted.envelope, casemapping, received_at);
+            let envelope = core_envelope(&redacted.envelope, casemapping, false, received_at);
             Event::Redacted(Redacted {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
@@ -1577,7 +1606,7 @@ pub(crate) fn from_core(
             netjoin,
             ..
         } => {
-            let envelope = core_envelope(&envelope, casemapping, received_at);
+            let envelope = core_envelope(&envelope, casemapping, false, received_at);
             let actor = source::from_prefix(actor, channel.casemapping());
             Event::Joined(Joined {
                 msgid: envelope.msgid,
@@ -1607,12 +1636,12 @@ pub(crate) fn from_core(
             authorship,
             ..
         } => {
-            let envelope = core_envelope(&envelope, casemapping, received_at);
+            let envelope = core_envelope(&envelope, casemapping, false, received_at);
             Event::Parted(Parted {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
-                account: envelope.account,
+                account: known_account(envelope.account),
                 actor: source::from_prefix(actor, casemapping),
                 channel,
                 nick,
@@ -1630,12 +1659,12 @@ pub(crate) fn from_core(
             reason,
             ..
         } => {
-            let envelope = core_envelope(&envelope, casemapping, received_at);
+            let envelope = core_envelope(&envelope, casemapping, false, received_at);
             Event::Kicked(Kicked {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
-                account: envelope.account,
+                account: known_account(envelope.account),
                 channel,
                 subject,
                 actor: source::from_name(&actor, casemapping),
@@ -1668,12 +1697,12 @@ pub(crate) fn from_core(
             netsplit,
             ..
         } => {
-            let envelope = core_envelope(&envelope, casemapping, received_at);
+            let envelope = core_envelope(&envelope, casemapping, false, received_at);
             Event::Quit(Quit {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
-                account: envelope.account,
+                account: known_account(envelope.account),
                 actor: source::from_prefix(actor, casemapping),
                 nick,
                 reason,
@@ -1690,12 +1719,12 @@ pub(crate) fn from_core(
             authorship,
             ..
         } => {
-            let envelope = core_envelope(&envelope, casemapping, received_at);
+            let envelope = core_envelope(&envelope, casemapping, false, received_at);
             Event::NickChanged(NickChanged {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
-                account: envelope.account,
+                account: known_account(envelope.account),
                 actor: source::from_prefix(actor, casemapping),
                 old,
                 new,
@@ -1767,12 +1796,12 @@ pub(crate) fn from_core(
             changes,
             ..
         } => {
-            let envelope = core_envelope(&envelope, casemapping, received_at);
+            let envelope = core_envelope(&envelope, casemapping, false, received_at);
             Event::ModeChanged(ModeChanged {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
-                account: envelope.account,
+                account: known_account(envelope.account),
                 subject: match subject {
                     papo_core::Subject::Channel(channel) => crate::Subject::Channel(channel),
                     papo_core::Subject::User(nick) => crate::Subject::User(nick),
@@ -1792,12 +1821,12 @@ pub(crate) fn from_core(
             authorship,
             ..
         } => {
-            let envelope = core_envelope(&envelope, casemapping, received_at);
+            let envelope = core_envelope(&envelope, casemapping, false, received_at);
             Event::TopicChanged(TopicChanged {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
-                account: envelope.account,
+                account: known_account(envelope.account),
                 channel,
                 topic,
                 actor: source::from_name(&actor, casemapping),
@@ -2458,6 +2487,11 @@ mod tests {
                 "{expected_variant}"
             );
             assert_event_times(&event, expected_variant, server_time, received_at);
+            match &event {
+                Event::Reacted(event) => assert_eq!(event.account, Account::Unknown),
+                Event::Redacted(event) => assert_eq!(event.account, Account::Unknown),
+                _ => {}
+            }
         }
 
         let untagged = convert(":emily!~emily@cloak.example PRIVMSG #papo :hello from Ergo");
