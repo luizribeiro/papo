@@ -277,3 +277,57 @@ async fn multidevice_ops_message_operations(s: Scenario) -> papo_testing::Result
     assert_eq!(removed.return_address(), channel);
     Ok(())
 }
+
+/// synchronizes an accepted nickname or preserves state after account enforcement
+#[scenario(covers = ["multidevice.nick-shared-state"])]
+async fn multidevice_nick_shared_state(s: Scenario) -> papo_testing::Result<()> {
+    if !has_account_sessions() {
+        return s.skip("the selected profile does not support concurrent account sessions");
+    }
+    let (mut desktop, account) = s.connect_as_account_with_key("alice").await?;
+    let channel = s.channel_name();
+    desktop.join(&channel).await?;
+    let mut phone = s
+        .connect_account_session("alice-phone", account.clone())
+        .await?;
+    wait_for_channel(&mut phone, &channel).await?;
+    let mut tablet = s.connect_account_session("alice-tablet", account).await?;
+    wait_for_channel(&mut tablet, &channel).await?;
+    let old = desktop.nick();
+    let new = format!("m{old}");
+
+    let outcome = desktop.set_nick(&new).await;
+    if std::env::var("PAPO_TEST_PROFILE").as_deref() == Ok("soju-ergo") {
+        outcome?;
+        for changed in [
+            desktop.wait_for(Event::as_nick_changed).await?,
+            phone.wait_for(Event::as_nick_changed).await?,
+            tablet.wait_for(Event::as_nick_changed).await?,
+        ] {
+            assert_eq!(changed.old, old);
+            assert_eq!(changed.new.as_ref(), new);
+            assert_eq!(changed.authorship, papo::Authorship::Own);
+        }
+        for peer in [&desktop, &phone, &tablet] {
+            assert_eq!(peer.state().nick().as_ref(), new);
+        }
+        return Ok(());
+    }
+    assert!(matches!(outcome, Err(Error::Server(_))));
+    desktop.expect_none(Event::as_nick_changed).await?;
+    phone.expect_none(Event::as_nick_changed).await?;
+    tablet.expect_none(Event::as_nick_changed).await?;
+    for peer in [&desktop, &phone, &tablet] {
+        assert_eq!(peer.state().nick(), &old);
+        let members = peer.state();
+        assert!(
+            members
+                .channel(&channel)
+                .expect("joined channel remains in state")
+                .member(&old)
+                .is_some()
+        );
+        assert!(members.channel(&channel).unwrap().member(&new).is_none());
+    }
+    Ok(())
+}
