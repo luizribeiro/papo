@@ -60,6 +60,9 @@ async fn netsplit_members_are_quits(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(split.first, "irc.papo.test");
     assert_eq!(split.second, "services.papo.test");
     assert!(alice.state().user("ChanServ").is_none());
+    alice
+        .wait_for(|event| event.as_joined().filter(|joined| joined.nick == "ChanServ"))
+        .await?;
     Ok(())
 }
 

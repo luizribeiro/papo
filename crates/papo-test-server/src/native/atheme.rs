@@ -38,7 +38,7 @@ loadmodule "{modules}/saslserv/main";
 loadmodule "{modules}/saslserv/authcookie";
 loadmodule "{modules}/saslserv/external";
 loadmodule "{modules}/saslserv/plain";
-serverinfo {{ name = "services.papo.test"; desc = "papo test services"; numeric = "00A"; netname = "papo"; adminname = "papo"; adminemail = "papo@example.invalid"; registeremail = "papo@example.invalid"; auth = none; casemapping = "ascii"; }};
+serverinfo {{ name = "services.papo.test"; desc = "papo test services"; numeric = "00A"; recontime = 1; netname = "papo"; adminname = "papo"; adminemail = "papo@example.invalid"; registeremail = "papo@example.invalid"; auth = none; casemapping = "ascii"; }};
 general {{ commit_interval = 5; join_chans; }};
 {chanserv_config}
 uplink "{uplink}" {{ host = "127.0.0.1"; port = {port}; send_password = "papo-link"; receive_password = "papo-link"; }};
@@ -89,6 +89,7 @@ mod tests {
         .unwrap();
         let config = fs::read_to_string(directory.path().join("atheme.conf")).unwrap();
         assert!(config.contains("/atheme/modules/protocol/unreal4"));
+        assert!(config.contains("recontime = 1"));
         assert!(!config.contains("/atheme/modules/chanserv/set_guard"));
         assert!(!config.contains("chanserv {"));
         assert!(config.contains("uplink \"irc.papo.test\""));
