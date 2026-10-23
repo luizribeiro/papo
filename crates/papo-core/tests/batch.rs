@@ -509,6 +509,11 @@ fn outermost_aggregate_groups_its_commands_and_releases_others() {
 
     assert!(matches!(
         session.poll_event(),
+        Some(Event::Quit { nick, netsplit: Some(split), authorship, .. })
+            if nick == "alice" && split.batch == "split" && authorship == Authorship::Other
+    ));
+    assert!(matches!(
+        session.poll_event(),
         Some(Event::Netsplit { reference, servers, quits, authorship, .. })
             if reference == "split"
                 && servers == ["irc.example", "irc.remote"]
@@ -572,18 +577,22 @@ fn netsplit_followed_by_netjoin_becomes_two_aggregate_events() {
     );
     session.handle_line(now, b":irc.example BATCH -join");
 
-    assert!(matches!(
-        session.poll_event(),
-        Some(Event::Netsplit { reference, servers, quits, authorship, .. })
-            if reference == "split" && servers == ["irc.example", "irc.remote"]
-                && quits.len() == 2 && authorship == [Authorship::Own, Authorship::Other]
-    ));
-    assert!(matches!(
-        session.poll_event(),
-        Some(Event::Netjoin { reference, servers, joins, authorship, .. })
-            if reference == "join" && servers == ["irc.example", "irc.remote"]
-                && joins.len() == 2 && authorship == [Authorship::Own, Authorship::Other]
-    ));
+    for (nick, authorship) in [("papo", Authorship::Own), ("bob", Authorship::Other)] {
+        assert!(matches!(
+            session.poll_event(),
+            Some(Event::Quit { nick: actual, netsplit: Some(split), authorship: actual_authorship, .. })
+                if actual == nick && actual_authorship == authorship && split.batch == "split"
+        ));
+    }
+    assert!(matches!(session.poll_event(), Some(Event::Netsplit { .. })));
+    for (nick, authorship) in [("papo", Authorship::Own), ("bob", Authorship::Other)] {
+        assert!(matches!(
+            session.poll_event(),
+            Some(Event::Joined { nick: actual, netjoin: Some(split), authorship: actual_authorship, .. })
+                if actual == nick && actual_authorship == authorship && split.batch == "join"
+        ));
+    }
+    assert!(matches!(session.poll_event(), Some(Event::Netjoin { .. })));
     assert_eq!(session.poll_event(), None);
 }
 
@@ -637,7 +646,17 @@ fn ergo_netsplit_captures_channels_and_identity() {
         quits,
         channels,
         ..
-    }) = session.poll_event()
+    }) = ({
+        let Some(Event::Quit {
+            netsplit: Some(split),
+            ..
+        }) = session.poll_event()
+        else {
+            panic!("expected a netsplit quit")
+        };
+        assert_eq!(split.batch, "split");
+        session.poll_event()
+    })
     else {
         panic!("expected netsplit")
     };
@@ -909,6 +928,13 @@ fn only_live_membership_aggregates_change_channel_state() {
         b"@batch=split :alice!~a@remote.example QUIT :irc.example irc.remote",
     );
     session.handle_line(now, b"BATCH -split");
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Quit {
+            netsplit: Some(_),
+            ..
+        })
+    ));
     assert!(matches!(session.poll_event(), Some(Event::Netsplit { .. })));
     assert_eq!(session.state_generation(), generation + 1);
     assert!(
@@ -926,6 +952,13 @@ fn only_live_membership_aggregates_change_channel_state() {
         b"@batch=join :alice!~a@remote.example JOIN #papo alice :Alice Example",
     );
     session.handle_line(now, b"BATCH -join");
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Joined {
+            netjoin: Some(_),
+            ..
+        })
+    ));
     assert!(matches!(session.poll_event(), Some(Event::Netjoin { .. })));
     assert_eq!(session.state_generation(), generation + 2);
     assert!(
@@ -1037,6 +1070,13 @@ fn netjoin_for_our_nick_waits_for_requested_names() {
     session.handle_line(now, b"@batch=join :papo!papo@127.0.0.1 JOIN #papo");
     session.handle_line(now, b"BATCH -join");
 
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Joined {
+            netjoin: Some(_),
+            ..
+        })
+    ));
     assert!(matches!(
         session.poll_event(),
         Some(Event::Netjoin { joins, .. }) if joins.len() == 1
