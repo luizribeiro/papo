@@ -39,3 +39,10 @@ kind = "server-bug"
 spec = "https://ircv3.net/specs/extensions/client-batch"
 evidence = "C: BATCH -missing | S: FAIL BATCH MULTILINE_INVALID"
 server_version = "6.2.7"
+
+[direct_messages]
+reason = "UnrealIRCd drops the client-only channel-context tag when its sender is no longer in that channel"
+kind = "server-bug"
+spec = "https://ircv3.net/specs/extensions/message-tags"
+evidence = "C: @+channel-context=#review PRIVMSG bob :context after part | S: PRIVMSG without +channel-context"
+server_version = "6.2.7"
