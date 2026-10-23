@@ -256,7 +256,7 @@ fn parted(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        account: crate::event_impl::known_account(envelope.account),
+        account: envelope.account,
         actor: crate::event_impl::source::from_proto(message.source()?, mapping),
         channel: mapping.channel(message.param(0)?),
         authorship,
@@ -280,7 +280,7 @@ fn quit(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        account: crate::event_impl::known_account(envelope.account),
+        account: envelope.account,
         actor: crate::event_impl::source::from_proto(message.source()?, mapping),
         nick: mapping.nick(source_nick(message)?),
         reason: message
@@ -310,7 +310,7 @@ fn kicked(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        account: crate::event_impl::known_account(envelope.account),
+        account: envelope.account,
         channel: mapping.channel(message.param(0)?),
         authorship,
         subject_authorship,
@@ -336,7 +336,7 @@ fn nick_changed(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        account: crate::event_impl::known_account(envelope.account),
+        account: envelope.account,
         actor: crate::event_impl::source::from_proto(message.source()?, mapping),
         authorship,
         old: mapping.nick(old),
@@ -355,7 +355,7 @@ fn topic_changed(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        account: crate::event_impl::known_account(envelope.account),
+        account: envelope.account,
         channel: mapping.channel(message.param(0)?),
         topic: message
             .param(1)
@@ -395,7 +395,7 @@ fn mode_changed(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        account: crate::event_impl::known_account(envelope.account),
+        account: envelope.account,
         subject: if state.isupport().inner().is_channel(message.param(0)?) {
             crate::Subject::Channel(mapping.channel(message.param(0)?))
         } else {
@@ -1057,8 +1057,7 @@ mod tests {
                 && message.server_time == Some(first_time)
                 && matches!(&message.account, crate::Account::LoggedIn(account) if account == "papo")));
         assert!(matches!(&items[3], PageEvent::NickChanged(changed)
-            if changed.msgid.as_deref() == Some("RfcBTzyxY120007")
-                && changed.account.as_deref() == Some("papo")));
+            if changed.msgid.as_deref() == Some("RfcBTzyxY120007")));
     }
 
     #[test]

@@ -520,7 +520,7 @@ impl core::marker::UnsafeUnpin for papo::event::Joined
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Joined
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Joined
 #[non_exhaustive] pub struct papo::event::Kicked
-pub papo::event::Kicked::account: core::option::Option<papo::AccountName>
+pub papo::event::Kicked::account: papo::Account
 pub papo::event::Kicked::actor: papo::Source
 pub papo::event::Kicked::authorship: papo::Authorship
 pub papo::event::Kicked::channel: papo::ChannelName
@@ -583,7 +583,7 @@ impl core::marker::UnsafeUnpin for papo::event::MetadataChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::MetadataChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::MetadataChanged
 #[non_exhaustive] pub struct papo::event::ModeChanged
-pub papo::event::ModeChanged::account: core::option::Option<papo::AccountName>
+pub papo::event::ModeChanged::account: papo::Account
 pub papo::event::ModeChanged::actor: papo::Source
 pub papo::event::ModeChanged::authorship: papo::Authorship
 pub papo::event::ModeChanged::changes: alloc::vec::Vec<papo::ModeChange>
@@ -661,7 +661,7 @@ impl core::marker::UnsafeUnpin for papo::event::Motd
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Motd
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Motd
 #[non_exhaustive] pub struct papo::event::NickChanged
-pub papo::event::NickChanged::account: core::option::Option<papo::AccountName>
+pub papo::event::NickChanged::account: papo::Account
 pub papo::event::NickChanged::actor: papo::Source
 pub papo::event::NickChanged::authorship: papo::Authorship
 pub papo::event::NickChanged::msgid: core::option::Option<papo::MessageId>
@@ -724,7 +724,7 @@ impl core::marker::UnsafeUnpin for papo::event::Notice
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Notice
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Notice
 #[non_exhaustive] pub struct papo::event::Parted
-pub papo::event::Parted::account: core::option::Option<papo::AccountName>
+pub papo::event::Parted::account: papo::Account
 pub papo::event::Parted::actor: papo::Source
 pub papo::event::Parted::authorship: papo::Authorship
 pub papo::event::Parted::channel: papo::ChannelName
@@ -749,7 +749,7 @@ impl core::marker::UnsafeUnpin for papo::event::Parted
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Parted
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Parted
 #[non_exhaustive] pub struct papo::event::Quit
-pub papo::event::Quit::account: core::option::Option<papo::AccountName>
+pub papo::event::Quit::account: papo::Account
 pub papo::event::Quit::actor: papo::Source
 pub papo::event::Quit::authorship: papo::Authorship
 pub papo::event::Quit::channels: alloc::vec::Vec<papo::ChannelName>
@@ -960,7 +960,7 @@ impl core::marker::UnsafeUnpin for papo::event::TagMsg
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::TagMsg
 impl core::panic::unwind_safe::UnwindSafe for papo::event::TagMsg
 #[non_exhaustive] pub struct papo::event::TopicChanged
-pub papo::event::TopicChanged::account: core::option::Option<papo::AccountName>
+pub papo::event::TopicChanged::account: papo::Account
 pub papo::event::TopicChanged::actor: papo::Source
 pub papo::event::TopicChanged::authorship: papo::Authorship
 pub papo::event::TopicChanged::channel: papo::ChannelName

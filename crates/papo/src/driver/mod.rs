@@ -1051,6 +1051,7 @@ where
         let core_event = event::from_core(
             core_event,
             session.isupport().casemapping(),
+            session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
             crate::rt::now_wall(),
         );
         if let event::CoreEvent::RequestAborted { id, transmitted } = core_event {
@@ -1195,6 +1196,7 @@ where
         match event::from_core(
             core_event,
             session.isupport().casemapping(),
+            session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
             crate::rt::now_wall(),
         ) {
             event::CoreEvent::Forward(event) => {

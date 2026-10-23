@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use crate::{AccountName, Authorship, Away, ChannelName, MessageId, Nick};
+use crate::{Account, AccountName, Authorship, Away, ChannelName, MessageId, Nick};
 
 use super::Source;
 
@@ -14,8 +14,8 @@ pub struct Quit {
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
     pub received_at: SystemTime,
-    /// The actor's authenticated account, when tagged.
-    pub account: Option<AccountName>,
+    /// The actor's account state reported by `account-tag`.
+    pub account: Account,
     /// The disconnected user.
     pub actor: Source,
     /// The disconnected user's nickname.
@@ -40,8 +40,8 @@ pub struct NickChanged {
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
     pub received_at: SystemTime,
-    /// The actor's authenticated account, when tagged.
-    pub account: Option<AccountName>,
+    /// The actor's account state reported by `account-tag`.
+    pub account: Account,
     /// The renamed user before the change.
     pub actor: Source,
     /// The previous nickname.
