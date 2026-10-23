@@ -283,7 +283,7 @@ fn isupport_batches_change_generation_only_when_state_changes() {
     let mut session = Session::new(Config::default());
     let generation = session.state_generation();
 
-    for reference in ["first", "same"] {
+    for (reference, expected) in [("first", generation + 1), ("same", generation + 1)] {
         session.handle_line(now, format!("BATCH +{reference} draft/isupport").as_bytes());
         session.handle_line(
             now,
@@ -291,13 +291,13 @@ fn isupport_batches_change_generation_only_when_state_changes() {
                 .as_bytes(),
         );
         session.handle_line(now, format!("BATCH -{reference}").as_bytes());
+        assert_eq!(session.state_generation(), expected, "batch {reference}");
     }
 
     assert_eq!(
         session.isupport().casemapping(),
         papo_proto::Casemapping::Ascii
     );
-    assert_eq!(session.state_generation(), generation + 1);
 }
 
 #[test]

@@ -4251,7 +4251,6 @@ impl Session {
             || (isupport_handled
                 && before_isupport_generation != self.isupport.value().__generation())
             || monitor_handled
-            || whoami
             || state_handled
             || remembers_message
             || before_state_change != self.state.change_generation()

@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use papo_core::sts::ConnectionSecurity;
 use papo_core::{
-    Authorship, Config, DEFAULT_WANTED_CAPS, Event, Feature, RateLimit, RequestError, Secret,
+    Authorship, Config, DEFAULT_WANTED_CAPS, Event, Feature, RateLimit, RequestError, Sasl, Secret,
     Session, TextKind, UnsupportedReason,
 };
 use papo_proto::{BuildError, Line};
@@ -150,6 +150,75 @@ fn state_generation_changes_only_with_snapshot_state() {
 
     session.handle_line(now, b":emily!em@localhost JOIN #papo");
     assert_eq!(session.state_generation(), 3);
+}
+
+#[test]
+fn remembered_messages_require_both_msgid_and_server_time() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("emily"));
+    let generation = session.state_generation();
+    for line in [
+        ":alice!~alice@staff.example PRIVMSG emily :review is ready",
+        "@msgid=RfcBTzyxY120004 :alice!~alice@staff.example PRIVMSG emily :review is ready",
+        "@time=2026-10-15T12:00:00.000Z :alice!~alice@staff.example PRIVMSG emily :review is ready",
+    ] {
+        session.handle_line(now, line.as_bytes());
+        assert_eq!(session.state_generation(), generation, "{line}");
+    }
+
+    session.handle_line(
+        now,
+        b"@time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120004 :alice!~alice@staff.example PRIVMSG emily :review is ready",
+    );
+    assert_eq!(session.state_generation(), generation + 1);
+}
+
+#[test]
+fn sasl_and_account_registration_handlers_advance_state_generation() {
+    let now = Instant::now();
+    let mut sasl = Session::new(
+        Config::default()
+            .connection_security(ConnectionSecurity::Secure)
+            .sasl(Sasl::plain("alice", "hunter2")),
+    );
+    sasl.handle_connected(now);
+    while sasl.poll_transmit().is_some() {}
+    sasl.handle_line(now, b"CAP * LS :sasl=PLAIN");
+    while sasl.poll_transmit().is_some() {}
+    sasl.handle_line(now, b"CAP * ACK :sasl");
+    while sasl.poll_transmit().is_some() {}
+    let generation = sasl.state_generation();
+    sasl.handle_line(now, b"AUTHENTICATE +");
+    assert_eq!(sasl.state_generation(), generation + 1);
+
+    let mut registration = Session::new(
+        Config::default()
+            .connection_security(ConnectionSecurity::Secure)
+            .wanted_caps(["draft/account-registration"]),
+    );
+    registration.handle_connected(now);
+    while registration.poll_transmit().is_some() {}
+    registration.handle_line(
+        now,
+        b"CAP * LS :draft/account-registration=before-connect,email-required",
+    );
+    while registration.poll_transmit().is_some() {}
+    registration
+        .create_account(
+            now,
+            None,
+            Some("alice@example.org"),
+            "correct horse battery staple",
+        )
+        .unwrap();
+    registration.handle_line(now, b"CAP * ACK :draft/account-registration");
+    while registration.poll_transmit().is_some() {}
+    let generation = registration.state_generation();
+    registration.handle_line(
+        now,
+        b":ergo.test REGISTER VERIFICATION_REQUIRED alice :Verification code sent",
+    );
+    assert_eq!(registration.state_generation(), generation + 1);
 }
 
 #[test]

@@ -5,8 +5,8 @@ mod support;
 use std::{collections::BTreeMap, time::Instant};
 
 use papo_core::{
-    Config, Conversation, Event, RateLimit, Refusal, RequestError, RequestId, ResponseMatcher,
-    Secret, ServerError, Session, TextKind, WhoOnJoin,
+    Config, Conversation, Event, ListMode, RateLimit, Refusal, RequestError, RequestId,
+    ResponseMatcher, Secret, ServerError, Session, TextKind, WhoOnJoin,
 };
 use papo_proto::{Command, Line, LineRef, Numeric};
 
@@ -354,6 +354,66 @@ fn unlabelled_mode_keeps_applied_changes_and_partial_refusals() {
     assert_eq!(
         response.lines[1].as_ref().command(),
         Command::Numeric(Numeric::new(478).unwrap())
+    );
+}
+
+#[test]
+fn overflowing_a_mode_list_invalidates_snapshot_state() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("papo"));
+    session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
+    while session.poll_event().is_some() {}
+
+    session
+        .request_with_matcher(
+            now,
+            Line::new("MODE").with_params(["#papo", "+b"]),
+            ResponseMatcher::__list_mode("#papo".into(), ListMode::Ban),
+        )
+        .unwrap();
+    session.handle_line(
+        now,
+        b":ergo.test 367 papo #papo *!*@gateway.example oper 1761048000",
+    );
+    session.handle_line(now, b":ergo.test 368 papo #papo :End of Channel Ban List");
+    while session.poll_event().is_some() {}
+    assert!(
+        session
+            .state()
+            .channel("#papo")
+            .unwrap()
+            .list(ListMode::Ban)
+            .is_some()
+    );
+
+    session
+        .request_with_matcher(
+            now,
+            Line::new("MODE").with_params(["#papo", "+b"]),
+            ResponseMatcher::__list_mode("#papo".into(), ListMode::Ban),
+        )
+        .unwrap();
+    for index in 0..1_000 {
+        session.handle_line(
+            now,
+            format!(":ergo.test 367 papo #papo bad{index}!*@gateway.example oper 1761048000")
+                .as_bytes(),
+        );
+    }
+    let generation = session.state_generation();
+    session.handle_line(
+        now,
+        b":ergo.test 367 papo #papo overflow!*@gateway.example oper 1761048000",
+    );
+
+    assert_eq!(session.state_generation(), generation + 1);
+    assert_eq!(
+        session
+            .state()
+            .channel("#papo")
+            .unwrap()
+            .list(ListMode::Ban),
+        None
     );
 }
 
