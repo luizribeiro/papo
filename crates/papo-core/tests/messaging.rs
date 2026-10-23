@@ -150,6 +150,59 @@ fn classifies_wallops_as_server_conversations_without_reading_the_text_as_a_targ
         });
 }
 
+fn joined_channel() -> Transcript {
+    Transcript::new(Config::default())
+        .server(":papo!papo@localhost JOIN #review")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "papo"))
+}
+
+#[test]
+fn verifies_private_channel_context_from_shared_membership() {
+    joined_channel()
+        .server(":emily!~emily@cloak.example JOIN #review")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "emily"))
+        .server("@+channel-context=#review :emily!~emily@cloak.example PRIVMSG papo :ready")
+        .event(|event| {
+            matches!(event, Event::Line(line)
+            if line.channel_context().is_some_and(|channel| channel == "#review")
+                && line.as_ref().tag("+channel-context").as_deref() == Some("#review"))
+        });
+}
+
+#[test]
+fn drops_unverified_channel_context_without_dropping_the_message() {
+    for transcript in [joined_channel(), Transcript::new(Config::default())] {
+        transcript
+            .server("@+channel-context=#review :mallory!~m@users.example PRIVMSG papo :urgent")
+            .event(|event| {
+                matches!(event, Event::Line(line)
+                if line.channel_context().is_none()
+                    && line.as_ref().param(1) == Some("urgent")
+                    && line.as_ref().tag("+channel-context").as_deref() == Some("#review"))
+            });
+    }
+}
+
+#[test]
+fn rejects_invalid_channel_context_names() {
+    Transcript::new(Config::default())
+        .server(":papo!papo@localhost JOIN #review,ops")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "papo"))
+        .server(":emily!~emily@cloak.example JOIN #review,ops")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "emily"))
+        .inspect(|session| {
+            assert!(
+                session
+                    .state()
+                    .channel("#review,ops")
+                    .and_then(|channel| channel.member("emily"))
+                    .is_some()
+            );
+        })
+        .server("@+channel-context=#review,ops :emily!~emily@cloak.example PRIVMSG papo :urgent")
+        .event(|event| matches!(event, Event::Line(line) if line.channel_context().is_none()));
+}
+
 #[test]
 fn reports_redactions_with_and_without_a_reason() {
     for (line, expected_reason) in [

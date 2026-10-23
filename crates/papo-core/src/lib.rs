@@ -2494,6 +2494,7 @@ pub struct ReceivedLine {
     authorship: Authorship,
     conversation: Option<Conversation>,
     status: Option<Vec<char>>,
+    channel_context: Option<ChannelName>,
 }
 
 impl ReceivedLine {
@@ -2529,6 +2530,14 @@ impl ReceivedLine {
     #[must_use]
     pub fn status(&self) -> Option<&[char]> {
         self.status.as_deref()
+    }
+
+    /// Returns channel context verified against shared membership when the line was received.
+    ///
+    /// This proves only that both users were known members, not that the actor held any rank.
+    #[must_use]
+    pub const fn channel_context(&self) -> Option<&ChannelName> {
+        self.channel_context.as_ref()
     }
 
     /// Removes the dispatch annotation and returns the parsed IRC line.

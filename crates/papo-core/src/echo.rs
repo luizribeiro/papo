@@ -36,12 +36,34 @@ impl Session {
                 .map_or((None, None), |(status, conversation)| {
                     (status, Some(conversation))
                 });
+        let channel_context = self.verified_channel_context(&line.as_ref(), conversation.as_ref());
         ReceivedLine {
             line,
             batch_type,
             authorship,
             conversation,
             status,
+            channel_context,
         }
+    }
+
+    fn verified_channel_context(
+        &self,
+        message: &LineRef<'_>,
+        conversation: Option<&crate::Conversation>,
+    ) -> Option<crate::ChannelName> {
+        if !matches!(conversation, Some(crate::Conversation::Private(_))) {
+            return None;
+        }
+        let context = message
+            .tag("+channel-context")
+            .or_else(|| message.tag("+draft/channel-context"))?;
+        let context = self.isupport.value().casemapping().channel(context);
+        context.check(self.isupport.value()).ok()?;
+        let papo_proto::Source::User { nick, .. } = message.source()? else {
+            return None;
+        };
+        self.state.channel(&context)?.member(nick)?;
+        Some(context)
     }
 }
