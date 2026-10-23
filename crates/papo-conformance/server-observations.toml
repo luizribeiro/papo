@@ -18,6 +18,11 @@ finding = "Client-only reply and reaction tags do not inherit the referenced sta
 evidence = "C: @+draft/reply=<ops-msgid> PRIVMSG #review; @+draft/react=📣;+draft/reply=<ops-msgid> TAGMSG #review | S: both reach non-operators"
 server_version = "2.19.1"
 
+[ergo-default.multidevice-ctcp-replies]
+finding = "A private CTCP query reaches all three attached sessions, and each session sends one automatic reply."
+evidence = "C: PRIVMSG account :VERSION query | attached A/B/C S: query | sender S: three VERSION replies"
+server_version = "2.19.1"
+
 [ergo-persistent.history-end]
 finding = "The final nonempty five-message page carries draft/chathistory-end."
 evidence = "S: @batch=reply;draft/chathistory-end BATCH +history chathistory #review"
@@ -38,6 +43,11 @@ finding = "Client-only reply and reaction tags do not inherit the referenced sta
 evidence = "C: @+draft/reply=<ops-msgid> PRIVMSG #review; @+draft/react=📣;+draft/reply=<ops-msgid> TAGMSG #review | S: both reach non-operators"
 server_version = "2.19.1"
 
+[ergo-persistent.multidevice-ctcp-replies]
+finding = "A private CTCP query reaches all three attached sessions, and each session sends one automatic reply."
+evidence = "C: PRIVMSG account :VERSION query | attached A/B/C S: query | sender S: three VERSION replies"
+server_version = "2.19.1"
+
 [soju-ergo.history-end]
 finding = "The terminal signal is not observable because returned messages lack the advertised msgid reference needed for the next page."
 evidence = "S: 005 MSGREFTYPES=msgid | S: history PRIVMSG lines without msgid"
@@ -51,6 +61,21 @@ server_version = "soju 0.11.1 / Ergo 2.19.1"
 [soju-ergo.labeled-response]
 finding = "The bouncer advertises labeled-response; no managed profile lacks it."
 evidence = "S: CAP * LS includes labeled-response"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
+
+[soju-ergo.multidevice-away-state]
+finding = "AWAY applies only to the initiating downstream session while another session remains attached; the sibling and upstream channel peers continue to see the account as available."
+evidence = "downstream A C: AWAY :reviewing | downstream B: no AWAY, state available | upstream peer: no AWAY, state available"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
+
+[soju-ergo.multidevice-nickname-state]
+finding = "soju accepts a downstream nickname change and broadcasts it to every attached session, while direct Ergo sessions reject the same account rename under the fixture's strict account-name enforcement."
+evidence = "soju downstream A C: NICK mobile-alice | downstream A/B/C S: NICK mobile-alice; direct Ergo S: 400 You must use your account name as your nickname"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
+
+[soju-ergo.multidevice-ctcp-replies]
+finding = "A private CTCP query reaches all three attached sessions, and each session sends one automatic reply."
+evidence = "C: PRIVMSG account :VERSION query | attached A/B/C S: query | sender S: three VERSION replies"
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [inspircd.history-end]

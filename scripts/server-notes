@@ -30,6 +30,9 @@ OBSERVATION_LABELS = {
     "connect-line-length": "Connect line length",
     "labeled-response": "Labeled response availability",
     "statusmsg-reference-audience": "Status-message reference audience",
+    "multidevice-away-state": "Multi-device away state",
+    "multidevice-nickname-state": "Multi-device nickname state",
+    "multidevice-ctcp-replies": "Multi-device CTCP replies",
 }
 
 

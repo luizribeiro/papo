@@ -331,3 +331,50 @@ async fn multidevice_nick_shared_state(s: Scenario) -> papo_testing::Result<()> 
     }
     Ok(())
 }
+
+/// delivers a private CTCP query to every attached session and observes each automatic reply
+#[scenario(covers = ["multidevice.ctcp-session-replies"])]
+async fn multidevice_ctcp_session_replies(s: Scenario) -> papo_testing::Result<()> {
+    if !has_account_sessions() {
+        return s.skip("the selected profile does not support concurrent account sessions");
+    }
+    let (mut desktop, account) = s.connect_as_account_with_key("alice").await?;
+    let mut phone = s
+        .connect_account_session("alice-phone", account.clone())
+        .await?;
+    let mut tablet = s.connect_account_session("alice-tablet", account).await?;
+    let mut sender = s.connect("bob").await?;
+    let nick = desktop.nick();
+
+    sender
+        .send_raw(papo::Line::new("PRIVMSG").with_params([nick.as_ref(), "\u{1}VERSION\u{1}"]))
+        .await?;
+    for peer in [&mut desktop, &mut phone, &mut tablet] {
+        let query = peer
+            .wait_for(|event| {
+                event
+                    .as_ctcp_query()
+                    .filter(|query| query.command == "VERSION")
+            })
+            .await?;
+        assert_eq!(query.return_address(), sender.nick().as_ref());
+    }
+    for _ in 0..3 {
+        let reply = sender
+            .wait_for(|event| {
+                event.as_ctcp_reply().filter(|reply| {
+                    reply.command == "VERSION"
+                        && crate::source_nick(&reply.actor) == Some(nick.as_ref())
+                })
+            })
+            .await?;
+        assert!(
+            reply
+                .params
+                .as_deref()
+                .is_some_and(|params| params.starts_with("papo "))
+        );
+    }
+    sender.expect_none(Event::as_ctcp_reply).await?;
+    Ok(())
+}

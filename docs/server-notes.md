@@ -28,6 +28,7 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 - **Connect line length** (`2.19.1`) — Every observed CAP LS and welcome-burst line fits the wire limits. Evidence: `longest S: 501 bytes CAP (0 tag section + 501 line)`
 - **Labeled response availability** (`2.19.1`) — The server advertises labeled-response. Evidence: `S: CAP * LS includes labeled-response`
 - **Status-message reference audience** (`2.19.1`) — Client-only reply and reaction tags do not inherit the referenced status-message audience; delivery follows the bare channel target. Evidence: `C: @+draft/reply=<ops-msgid> PRIVMSG #review; @+draft/react=📣;+draft/reply=<ops-msgid> TAGMSG #review | S: both reach non-operators`
+- **Multi-device CTCP replies** (`2.19.1`) — A private CTCP query reaches all three attached sessions, and each session sends one automatic reply. Evidence: `C: PRIVMSG account :VERSION query | attached A/B/C S: query | sender S: three VERSION replies`
 
 ### Fixture patches (none)
 
@@ -59,6 +60,7 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 - **Connect line length** (`2.19.1`) — Every observed CAP LS and welcome-burst line fits the wire limits. Evidence: `longest S: 501 bytes CAP (0 tag section + 501 line)`
 - **Labeled response availability** (`2.19.1`) — The server advertises labeled-response. Evidence: `S: CAP * LS includes labeled-response`
 - **Status-message reference audience** (`2.19.1`) — Client-only reply and reaction tags do not inherit the referenced status-message audience; delivery follows the bare channel target. Evidence: `C: @+draft/reply=<ops-msgid> PRIVMSG #review; @+draft/react=📣;+draft/reply=<ops-msgid> TAGMSG #review | S: both reach non-operators`
+- **Multi-device CTCP replies** (`2.19.1`) — A private CTCP query reaches all three attached sessions, and each session sends one automatic reply. Evidence: `C: PRIVMSG account :VERSION query | attached A/B/C S: query | sender S: three VERSION replies`
 
 ### Fixture patches (none)
 
@@ -105,11 +107,12 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 - `server_queries` (`soju 0.11.1 / Ergo 2.19.1`) — soju keeps the upstream session attached after downstream QUIT, leaving no WHOWAS record to relay ([spec](https://modern.ircdocs.horse/#whowas-message)). Evidence: `downstream C: QUIT; WHOWAS alice | upstream connection remains attached; S: no 314 row`
 
 ### Observations
-- **Multi-device away state** (`soju 0.11.1 / Ergo 2.19.1`) — AWAY applies only to the initiating downstream session while another session remains attached; the sibling and upstream channel peers continue to see the account as available. Evidence: `downstream A C: AWAY :reviewing | downstream B: no AWAY, state available | upstream peer: no AWAY, state available`
-- **Multi-device nickname state** (`soju 0.11.1 / Ergo 2.19.1`) — soju accepts a downstream nickname change and broadcasts it to every attached session, while direct Ergo sessions reject the same account rename under the fixture's strict account-name enforcement. Evidence: `soju downstream A C: NICK mobile-alice | downstream A/B/C S: NICK mobile-alice; direct Ergo S: 400 You must use your account name as your nickname`
 - **Chat history end** (`soju 0.11.1 / Ergo 2.19.1`) — The terminal signal is not observable because returned messages lack the advertised msgid reference needed for the next page. Evidence: `S: 005 MSGREFTYPES=msgid | S: history PRIVMSG lines without msgid`
 - **Connect line length** (`soju 0.11.1 / Ergo 2.19.1`) — Every observed CAP LS and welcome-burst line fits the wire limits with the fixture patch. Evidence: `longest S: 430 bytes CAP (0 tag section + 430 line)`
 - **Labeled response availability** (`soju 0.11.1 / Ergo 2.19.1`) — The bouncer advertises labeled-response; no managed profile lacks it. Evidence: `S: CAP * LS includes labeled-response`
+- **Multi-device away state** (`soju 0.11.1 / Ergo 2.19.1`) — AWAY applies only to the initiating downstream session while another session remains attached; the sibling and upstream channel peers continue to see the account as available. Evidence: `downstream A C: AWAY :reviewing | downstream B: no AWAY, state available | upstream peer: no AWAY, state available`
+- **Multi-device nickname state** (`soju 0.11.1 / Ergo 2.19.1`) — soju accepts a downstream nickname change and broadcasts it to every attached session, while direct Ergo sessions reject the same account rename under the fixture's strict account-name enforcement. Evidence: `soju downstream A C: NICK mobile-alice | downstream A/B/C S: NICK mobile-alice; direct Ergo S: 400 You must use your account name as your nickname`
+- **Multi-device CTCP replies** (`soju 0.11.1 / Ergo 2.19.1`) — A private CTCP query reaches all three attached sessions, and each session sends one automatic reply. Evidence: `C: PRIVMSG account :VERSION query | attached A/B/C S: query | sender S: three VERSION replies`
 
 ### Fixture patches
 - `nix/soju-cap-lines.patch` — Splits downstream CAP LS replies into continuation lines with at most 400 capability bytes. Why: soju emits every proxied Ergo capability on one IRC line, exceeding the 512-byte wire limit. Evidence: `Before: one CAP * LS line exceeded 512 bytes; after: CAP * LS * continuations end with CAP * LS.` Server bug: **yes**.
