@@ -11,6 +11,7 @@ const ERGO_WEBIRC_REJECTION: &str =
 
 #[derive(Debug)]
 pub(super) struct WelcomeState {
+    origin: papo_proto::Origin,
     nick: String,
     deadline: Option<Instant>,
     welcome_deadline: Option<Instant>,
@@ -26,6 +27,7 @@ pub(super) struct WelcomeState {
 impl WelcomeState {
     pub(super) fn new(config: &Config) -> Self {
         Self {
+            origin: config.origin,
             nick: config.nick.clone(),
             deadline: None,
             welcome_deadline: None,
@@ -276,7 +278,7 @@ impl WelcomeState {
         self.motd_lines = None;
         self.connected = true;
         outbox.event(Event::Connected(Welcome {
-            nick: isupport.casemapping().nick(&self.nick),
+            nick: self.origin.__nick(isupport.casemapping(), &self.nick),
             text: self.welcome_text.take().unwrap_or_default(),
             caps: caps.clone(),
             isupport: isupport.clone(),

@@ -1,29 +1,43 @@
-use papo_proto::{Casemapping, Command, InvalidIdentifier, Isupport, LineRef, Source};
+use papo_proto::{Command, InvalidIdentifier, Isupport, LineRef, Source};
 
-use crate::{Conversation, names_equal};
+use crate::{Conversation, Names, names_equal};
 
 pub(crate) fn classify_line(
     line: &LineRef<'_>,
     own_nick: &str,
     isupport: &Isupport,
 ) -> Result<(Option<Vec<char>>, Conversation), InvalidIdentifier> {
+    classify_line_with_names(
+        line,
+        own_nick,
+        isupport,
+        Names::new(isupport.casemapping(), papo_proto::Origin::NONE),
+    )
+}
+
+pub(crate) fn classify_line_with_names(
+    line: &LineRef<'_>,
+    own_nick: &str,
+    isupport: &Isupport,
+    names: Names,
+) -> Result<(Option<Vec<char>>, Conversation), InvalidIdentifier> {
     if line.command_is("WALLOPS") || matches!(line.command(), Command::Numeric(_)) {
         return Ok((None, Conversation::Server));
     }
-    classify_target(
+    classify_target_with_names(
         line.param(0).unwrap_or(""),
         line.source(),
         own_nick,
-        isupport.casemapping(),
+        names,
         isupport,
     )
 }
 
-pub(crate) fn classify_target(
+pub(crate) fn classify_target_with_names(
     target: &str,
     source: Option<Source<'_>>,
     own_nick: &str,
-    mapping: Casemapping,
+    mapping: Names,
     isupport: &Isupport,
 ) -> Result<(Option<Vec<char>>, Conversation), InvalidIdentifier> {
     let mut remainder = target;

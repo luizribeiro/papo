@@ -1,6 +1,6 @@
 use papo_proto::LineRef;
 
-use crate::{Casemapping, Event, Handled, Outbox, RequestId, Secret};
+use crate::{Event, Handled, Names, Outbox, RequestId, Secret};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct PendingRegistration {
@@ -43,7 +43,7 @@ impl AccountRegistration {
     pub(super) fn handle_message(
         &mut self,
         message: &LineRef<'_>,
-        casemapping: Casemapping,
+        casemapping: Names,
         outbox: &mut Outbox,
     ) -> Handled {
         if self.waiting

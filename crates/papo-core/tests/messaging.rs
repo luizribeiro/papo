@@ -7,7 +7,7 @@ use std::time::Instant;
 use papo_core::{
     Authorship, Config, Conversation, CtcpReplies, Event, RateLimit, Session, TypingReason,
 };
-use papo_proto::{Line, Reaction, Typing};
+use papo_proto::{Line, Origin, Reaction, Typing};
 use support::Transcript;
 
 fn tag_message(line: &str) -> papo_core::TagMessage {
@@ -91,6 +91,20 @@ fn reports_tagmsg_without_known_tags() {
         tag.tags,
         [("+example.org/read".into(), Some("cursor-42".into()))]
     );
+}
+
+#[test]
+fn received_conversations_keep_the_session_origin() {
+    let origin = Origin::__new(73);
+    let mut config = Config::default();
+    config.origin = origin;
+    Transcript::new(config)
+        .server("@msgid=SojuTag42 :alice!~a@cloak TAGMSG #papo")
+        .event(|event| {
+            matches!(event, Event::TagMessage(message)
+            if matches!(&message.conversation, Conversation::Channel(channel)
+                if channel.origin() == origin))
+        });
 }
 
 #[test]

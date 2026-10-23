@@ -2,6 +2,8 @@ use std::fmt;
 
 use papo_proto::{Casemapping, MaskSource, Nick, ServerName};
 
+use crate::Names;
+
 /// The source of an IRC event.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -38,6 +40,10 @@ impl Source {
     #[doc(hidden)]
     #[must_use]
     pub fn from_proto(source: papo_proto::Source<'_>, casemapping: Casemapping) -> Self {
+        Self::from_proto_with_names(source, Names::new(casemapping, papo_proto::Origin::NONE))
+    }
+
+    pub(crate) fn from_proto_with_names(source: papo_proto::Source<'_>, names: Names) -> Self {
         match source {
             papo_proto::Source::Server(name) => Self::Server { name: name.into() },
             papo_proto::Source::User {
@@ -46,20 +52,20 @@ impl Source {
                 host,
                 ..
             } => Self::User {
-                nick: casemapping.nick(nick),
+                nick: names.nick(nick),
                 username: username.map(str::to_owned),
                 host: host.map(str::to_owned),
             },
         }
     }
 
-    pub(crate) fn from_prefix(prefix: &str, casemapping: Casemapping) -> Self {
+    pub(crate) fn from_prefix_with_names(prefix: &str, names: Names) -> Self {
         let line = papo_proto::Line::new("NOTICE")
             .param("*")
             .with_source(prefix);
-        Self::from_proto(
+        Self::from_proto_with_names(
             line.as_ref().source().expect("owned source is present"),
-            casemapping,
+            names,
         )
     }
 }
@@ -92,6 +98,10 @@ mod tests {
 
     use super::Source;
 
+    fn source(prefix: &str, mapping: Casemapping) -> Source {
+        Source::from_prefix_with_names(prefix, crate::Names::new(mapping, papo_proto::Origin::NONE))
+    }
+
     #[test]
     fn returns_only_user_nicknames() {
         let nick = Casemapping::Rfc1459.nick("Alice[bot]");
@@ -112,9 +122,9 @@ mod tests {
     #[test]
     fn displays_user_nicks_and_server_names() {
         let mapping = Casemapping::Rfc1459;
-        let full_user = Source::from_prefix("alice!~alice@staff.example", mapping);
-        let bare_user = Source::from_prefix("Alice[bot]", mapping);
-        let server = Source::from_prefix("Irc.Libera.Chat", mapping);
+        let full_user = source("alice!~alice@staff.example", mapping);
+        let bare_user = source("Alice[bot]", mapping);
+        let server = source("Irc.Libera.Chat", mapping);
 
         assert_eq!(full_user.to_string(), "alice");
         assert_eq!(bare_user.to_string(), "Alice[bot]");
@@ -124,7 +134,7 @@ mod tests {
     #[test]
     fn builds_masks_from_complete_user_sources() {
         let mapping = Casemapping::Rfc1459;
-        let source = Source::from_prefix("Alice[bot]!~alice@staff.example", mapping);
+        let source = source("Alice[bot]!~alice@staff.example", mapping);
         let nick = source.nick().unwrap();
 
         assert_eq!(
@@ -146,9 +156,9 @@ mod tests {
     fn source_mask_builders_require_a_complete_user_prefix() {
         let mapping = Casemapping::Ascii;
         for source in [
-            Source::from_prefix("Alice!~alice", mapping),
-            Source::from_prefix("Alice@staff.example", mapping),
-            Source::from_prefix("irc.example.net", mapping),
+            source("Alice!~alice", mapping),
+            source("Alice@staff.example", mapping),
+            source("irc.example.net", mapping),
         ] {
             assert_eq!(papo_proto::Mask::exact(&source), None);
             assert_eq!(papo_proto::Mask::for_host(&source), None);

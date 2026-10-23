@@ -2858,6 +2858,10 @@ impl Outbox {
 }
 
 impl Session {
+    fn names(&self) -> Names {
+        Names::new(self.isupport.value().casemapping(), self.config.origin)
+    }
+
     fn authorship(&self, message: &LineRef<'_>) -> Authorship {
         let same_account = message.tag("account").is_some_and(|actor| {
             self.account().is_some_and(|own| {
@@ -4112,7 +4116,7 @@ impl Session {
         let sasl_handled = self.sasl.handle_message(now, message, &mut self.outbox) == Handled::Yes;
         let account_registration_handled = self.account_registration.handle_message(
             message,
-            self.isupport.value().casemapping(),
+            Names::new(self.isupport.value().casemapping(), self.config.origin),
             &mut self.outbox,
         ) == Handled::Yes;
         if sasl_handled || account_registration_handled {
@@ -4427,7 +4431,7 @@ impl Session {
             self.ctcp_sources.pop_front();
         }
         self.ctcp_sources.push_back((nick.to_owned(), now));
-        let actor = Source::from_proto(source, self.isupport.value().casemapping());
+        let actor = Source::from_proto_with_names(source, self.names());
         if let Some(reply) = __ctcp_reply(&actor, query.command, response.unwrap_or_default())
             && let Ok(line) = reply.encode()
         {
@@ -4593,7 +4597,7 @@ impl Session {
         let (Some(actor), Some(own)) = (message.tag("account"), self.account()) else {
             return Authorship::Unknown;
         };
-        let mapping = self.isupport.value().casemapping();
+        let mapping = self.names();
         if mapping.account(actor.as_ref()) == mapping.account(own) {
             Authorship::Own
         } else {
@@ -4609,7 +4613,7 @@ impl Session {
         let ResponseMatcher::ListMode { channel, mode } = matcher else {
             return;
         };
-        let mapping = self.isupport.value().casemapping();
+        let mapping = self.names();
         let row = mode.numerics().0;
         let entries: Vec<_> = response
             .lines
@@ -4630,7 +4634,7 @@ impl Session {
                     mask: mapping.mask(line.param(2 + offset)?),
                     actor: line
                         .param(3 + offset)
-                        .map(|actor| Source::from_prefix(actor, mapping)),
+                        .map(|actor| Source::from_prefix_with_names(actor, mapping)),
                     set_at: line
                         .param(4 + offset)
                         .and_then(|value| value.parse().ok())

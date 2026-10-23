@@ -26,7 +26,7 @@ use crate::{
     Authorship, Capabilities, Config, Conversation, Event, Handled, LastSeen, ListMode,
     MetadataValue, ModeArg, ModeChange, ModeListEntry, ModeValue, NameKey, Names, Outbox,
     ReadMarker, Source, StateLimit, Subject, WhoOnJoin,
-    conversation::classify_target,
+    conversation::classify_target_with_names,
     monitor::Monitor,
     typing::{Typer, TypingTable},
 };
@@ -883,7 +883,7 @@ impl State {
                 };
                 channel.topic_set_by = message
                     .param(2)
-                    .map(|setter| Source::from_prefix(setter, self.casemapping.casemapping()));
+                    .map(|setter| Source::from_prefix_with_names(setter, self.casemapping));
                 channel.topic_set_at = message.param(3).and_then(parse_unix_seconds);
                 return true;
             }
@@ -910,7 +910,7 @@ impl State {
         channel.topic_set_by = if live {
             message
                 .source()
-                .map(|source| Source::from_proto(source, self.casemapping.casemapping()))
+                .map(|source| Source::from_proto_with_names(source, self.casemapping))
         } else {
             None
         };
@@ -1047,11 +1047,11 @@ impl State {
         &self,
         target: impl AsRef<str>,
     ) -> Result<(Option<Vec<char>>, Conversation), papo_proto::InvalidIdentifier> {
-        classify_target(
+        classify_target_with_names(
             target.as_ref(),
             None,
             &self.nick,
-            self.casemapping.casemapping(),
+            self.casemapping,
             &self.isupport,
         )
     }
@@ -1302,7 +1302,7 @@ impl Channel {
     fn apply_list_modes(&mut self, message: &LineRef<'_>, modestring: &str, isupport: &Isupport) {
         let actor = message
             .source()
-            .map(|source| Source::from_proto(source, self.casemapping.casemapping()));
+            .map(|source| Source::from_proto_with_names(source, self.casemapping));
         let set_at = crate::LineEnvelope::from_line(message).server_time();
         for change in ModeChanges::parse(modestring, message.params().skip(2), isupport) {
             let mode = match (change.kind, change.mode) {

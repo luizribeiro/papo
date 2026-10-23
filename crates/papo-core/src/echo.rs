@@ -1,4 +1,4 @@
-use crate::{Event, Line, LineRef, ReceivedLine, Session, conversation::classify_line};
+use crate::{Event, Line, LineRef, ReceivedLine, Session, conversation::classify_line_with_names};
 
 impl Session {
     pub(super) fn enqueue_labelled_echo(&mut self, message: &LineRef<'_>) {
@@ -31,11 +31,15 @@ impl Session {
 
     pub(super) fn received_line(&self, line: Line, batch_type: Option<String>) -> ReceivedLine {
         let authorship = self.authorship(&line.as_ref());
-        let (status, conversation) =
-            classify_line(&line.as_ref(), self.nick(), self.isupport.value())
-                .map_or((None, None), |(status, conversation)| {
-                    (status, Some(conversation))
-                });
+        let (status, conversation) = classify_line_with_names(
+            &line.as_ref(),
+            self.nick(),
+            self.isupport.value(),
+            self.names(),
+        )
+        .map_or((None, None), |(status, conversation)| {
+            (status, Some(conversation))
+        });
         let channel_context = self.verified_channel_context(&line.as_ref(), conversation.as_ref());
         ReceivedLine {
             line,
@@ -59,7 +63,7 @@ impl Session {
         let context = message
             .tag("+channel-context")
             .or_else(|| message.tag("+draft/channel-context"))?;
-        let context = self.isupport.value().casemapping().channel(context);
+        let context = self.names().channel(context);
         context.check(self.isupport.value()).ok()?;
         let papo_proto::Source::User { nick, .. } = message.source()? else {
             return None;

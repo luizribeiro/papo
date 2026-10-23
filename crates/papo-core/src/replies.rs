@@ -1,6 +1,6 @@
 use crate::{
     Authorship, Event, LineEnvelope, LineRef, Redacted, Session, StandardReply, StandardReplyView,
-    TagMessage, conversation::classify_line,
+    TagMessage, conversation::classify_line_with_names,
 };
 
 impl Session {
@@ -11,7 +11,8 @@ impl Session {
         let Some(actor) = message.raw_source() else {
             return false;
         };
-        let Ok((status, conversation)) = classify_line(message, self.nick(), self.isupport.value())
+        let Ok((status, conversation)) =
+            classify_line_with_names(message, self.nick(), self.isupport.value(), self.names())
         else {
             return false;
         };
@@ -36,7 +37,8 @@ impl Session {
         ) else {
             return false;
         };
-        let Ok((status, conversation)) = classify_line(message, self.nick(), self.isupport.value())
+        let Ok((status, conversation)) =
+            classify_line_with_names(message, self.nick(), self.isupport.value(), self.names())
         else {
             return false;
         };
@@ -60,7 +62,7 @@ impl Session {
         ) else {
             return false;
         };
-        let casemapping = self.isupport.value().casemapping();
+        let casemapping = self.names();
         self.outbox.event(Event::Invited {
             channel: casemapping.channel(channel),
             subject: casemapping.nick(nick),
