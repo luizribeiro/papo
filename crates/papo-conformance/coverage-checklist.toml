@@ -62,6 +62,7 @@ ids = [
   "ergo.nickserv-chanserv", "ergo.sasl-oauthbearer", "soju.server-notice-history",
   # Concurrent sessions authenticated to one account.
   "multidevice.message-fanout", "multidevice.away-shared-state", "multidevice.read-marker-fanout",
+  "multidevice.ops-message-operations",
   # Security regressions against a scripted hostile server.
   "security.sasl.verified-proof-before-success", "security.sasl.no-plain-fallback-after-bad-proof",
   "security.reply.multiline-dm-after-nick-change", "security.history.stale-dm-target",

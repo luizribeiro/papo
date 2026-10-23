@@ -1,6 +1,6 @@
 use std::time::{Duration, SystemTime};
 
-use papo::{Away, Event};
+use papo::{Away, Error, Event, Refusal};
 use papo_conformance_macros::scenario;
 
 use super::support::conversation_name;
@@ -170,5 +170,110 @@ async fn multidevice_read_marker_fanout(s: Scenario) -> papo_testing::Result<()>
                 .filter(|marker| marker.read_until == Some(time))
         })
         .await?;
+    Ok(())
+}
+
+/// preserves an operators-only audience across sibling-visible message operations
+#[scenario(
+    requires(caps = [
+        "draft/message-redaction",
+        "echo-message",
+        "labeled-response",
+        "message-tags"
+    ], isupport = ["STATUSMSG"]),
+    covers = ["multidevice.ops-message-operations"]
+)]
+async fn multidevice_ops_message_operations(s: Scenario) -> papo_testing::Result<()> {
+    if !has_account_sessions() {
+        return s.skip("the selected profile does not support concurrent account sessions");
+    }
+    let (desktop, account) = s.connect_as_account_with_key("alice").await?;
+    let channel = s.channel_name();
+    desktop.join(&channel).await?;
+    let mut phone = s.connect_account_session("alice-phone", account).await?;
+    wait_for_channel(&mut phone, &channel).await?;
+    let mut observer = s.connect("bob").await?;
+    observer.join(&channel).await?;
+    let target = format!("@{channel}");
+
+    let sent = desktop
+        .privmsg(&target, "operators reviewing the deployment")
+        .await?;
+    let original = phone
+        .wait_for(|event| {
+            event
+                .as_own_message()
+                .filter(|message| message.text == "operators reviewing the deployment")
+        })
+        .await?;
+    let id = sent.msgid.as_ref().expect("message has an identifier");
+    assert_eq!(original.msgid.as_ref(), Some(id));
+    assert_eq!(original.status.as_deref(), Some(['@'].as_slice()));
+    assert_eq!(original.return_address(), target);
+    observer
+        .expect_none(|event| {
+            event
+                .as_message()
+                .filter(|message| message.text == "operators reviewing the deployment")
+        })
+        .await?;
+
+    desktop
+        .reply(&sent, "operators approve the deployment")
+        .await?;
+    let reply = phone
+        .wait_for(|event| {
+            event
+                .as_own_message()
+                .filter(|message| message.text == "operators approve the deployment")
+        })
+        .await?;
+    assert_eq!(reply.reply_to.as_ref(), Some(id));
+    assert_eq!(reply.status.as_deref(), Some(['@'].as_slice()));
+    assert_eq!(reply.return_address(), target);
+    observer
+        .expect_none(|event| {
+            event
+                .as_message()
+                .filter(|message| message.text == "operators approve the deployment")
+        })
+        .await?;
+
+    desktop.react(&sent, "🛡️").await?;
+    let added = phone.wait_for(Event::as_reacted).await?;
+    assert_eq!(&added.message, id);
+    assert_eq!(added.reaction, "🛡️");
+    assert_eq!(added.status.as_deref(), Some(['@'].as_slice()));
+    assert_eq!(added.return_address(), target);
+    observer.expect_none(Event::as_reacted).await?;
+
+    let Error::Server(refusal) = desktop
+        .redact(&sent, "deployment superseded")
+        .await
+        .expect_err("servers reject status-prefixed REDACT targets")
+    else {
+        panic!("status-prefixed REDACT did not return a server refusal");
+    };
+    assert_eq!(refusal.refusal(), Refusal::NoSuchNick);
+    phone.expect_none(Event::as_redacted).await?;
+    observer.expect_none(Event::as_redacted).await?;
+
+    let sent = desktop
+        .privmsg(&channel, "deployment note to remove")
+        .await?;
+    phone
+        .wait_for(|event| {
+            event
+                .as_own_message()
+                .filter(|message| message.text == "deployment note to remove")
+        })
+        .await?;
+    let id = sent.msgid.as_ref().expect("message has an identifier");
+    desktop.redact(&sent, "deployment superseded").await?;
+    let removed = phone.wait_for(Event::as_redacted).await?;
+    assert_eq!(&removed.message, id);
+    assert_eq!(removed.reason.as_deref(), Some("deployment superseded"));
+    assert_eq!(removed.status, None);
+    assert_eq!(removed.return_address(), channel);
     Ok(())
 }
