@@ -1961,7 +1961,7 @@ impl core::marker::Unpin for papo::HistoryPage
 impl core::marker::UnsafeUnpin for papo::HistoryPage
 impl !core::panic::unwind_safe::RefUnwindSafe for papo::HistoryPage
 impl !core::panic::unwind_safe::UnwindSafe for papo::HistoryPage
-pub struct papo::HistoryReference(_)
+pub struct papo::HistoryReference
 impl core::clone::Clone for papo::HistoryReference
 pub fn papo::HistoryReference::clone(&self) -> Self
 impl core::cmp::Eq for papo::HistoryReference

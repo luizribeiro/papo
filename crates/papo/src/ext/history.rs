@@ -531,7 +531,7 @@ impl From<crate::Conversation> for ConversationInput {
 }
 
 impl ConversationInput {
-    fn target(self, state: &crate::State) -> Result<String, Error> {
+    fn target(self, state: &crate::State, origin: crate::Origin) -> Result<String, Error> {
         let conversation = match self {
             Self::Text(target) => {
                 let (status, conversation) = state
@@ -545,7 +545,13 @@ impl ConversationInput {
                 }
                 conversation
             }
-            Self::Conversation(conversation) => conversation,
+            Self::Conversation(conversation) => {
+                let value_origin = crate::message_ref::conversation_origin(&conversation);
+                if value_origin != crate::Origin::NONE && value_origin != origin {
+                    return Err(crate::InvalidInput::ForeignReference.into());
+                }
+                conversation
+            }
         };
         match conversation {
             crate::Conversation::Channel(channel) => Ok(channel.to_string()),
@@ -572,20 +578,36 @@ impl HistoryPage {
     /// Returns the preferred cursor for the oldest item in this page.
     #[must_use]
     pub fn oldest(&self) -> Option<HistoryReference> {
-        self.items.first().and_then(event_reference)
+        let origin = crate::message_ref::conversation_origin(&self.conversation);
+        self.items
+            .first()
+            .and_then(|event| event_reference(event, origin))
     }
 
     /// Returns the preferred cursor for the newest item in this page.
     #[must_use]
     pub fn newest(&self) -> Option<HistoryReference> {
-        self.items.last().and_then(event_reference)
+        let origin = crate::message_ref::conversation_origin(&self.conversation);
+        self.items
+            .last()
+            .and_then(|event| event_reference(event, origin))
     }
 }
 
-fn event_reference(event: &Event) -> Option<HistoryReference> {
+fn event_reference(event: &Event, origin: crate::Origin) -> Option<HistoryReference> {
+    let origin = (origin != crate::Origin::NONE).then_some(origin);
     event.msgid().map_or_else(
-        || event.server_time().map(HistoryReference::from),
-        |msgid| Some(HistoryReference(MsgRef::Msgid(msgid.to_string()))),
+        || {
+            event
+                .server_time()
+                .map(|time| HistoryReference::new(MsgRef::Timestamp(time), origin))
+        },
+        |msgid| {
+            Some(HistoryReference::new(
+                MsgRef::Msgid(msgid.to_string()),
+                origin,
+            ))
+        },
     )
 }
 
@@ -620,9 +642,11 @@ impl History {
 
     /// Requests messages before `reference`.
     pub fn before(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
-        let before = reference.into().0;
+        let reference = reference.into();
+        let before = reference.value;
         let query = self
             .target
+            .and_then(|target| self.client.check_origin(reference.origin).map(|()| target))
             .map(|target| HistoryQuery::__before(target, before, DEFAULT_HISTORY_LIMIT));
         HistoryRequest {
             client: self.client,
@@ -632,9 +656,11 @@ impl History {
 
     /// Requests messages after `reference`.
     pub fn after(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
-        let after = reference.into().0;
+        let reference = reference.into();
+        let after = reference.value;
         let query = self
             .target
+            .and_then(|target| self.client.check_origin(reference.origin).map(|()| target))
             .map(|target| HistoryQuery::__after(target, after, DEFAULT_HISTORY_LIMIT));
         HistoryRequest {
             client: self.client,
@@ -644,9 +670,11 @@ impl History {
 
     /// Requests messages surrounding `reference`.
     pub fn around(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
-        let around = reference.into().0;
+        let reference = reference.into();
+        let around = reference.value;
         let query = self
             .target
+            .and_then(|target| self.client.check_origin(reference.origin).map(|()| target))
             .map(|target| HistoryQuery::__around(target, around, DEFAULT_HISTORY_LIMIT));
         HistoryRequest {
             client: self.client,
@@ -660,11 +688,18 @@ impl History {
         start: impl Into<HistoryReference>,
         end: impl Into<HistoryReference>,
     ) -> HistoryRequest {
-        let start = start.into().0;
-        let end = end.into().0;
+        let start = start.into();
+        let end = end.into();
+        let origins = self
+            .client
+            .check_origin(start.origin)
+            .and_then(|()| self.client.check_origin(end.origin));
         let query = self
             .target
-            .map(|target| HistoryQuery::__between(target, start, end, DEFAULT_HISTORY_LIMIT));
+            .and_then(|target| origins.map(|()| target))
+            .map(|target| {
+                HistoryQuery::__between(target, start.value, end.value, DEFAULT_HISTORY_LIMIT)
+            });
         HistoryRequest {
             client: self.client,
             query,
@@ -676,23 +711,32 @@ impl History {
 ///
 /// Timestamp references are exclusive and can skip other lines carrying the same timestamp.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct HistoryReference(MsgRef);
+pub struct HistoryReference {
+    value: MsgRef,
+    origin: Option<crate::Origin>,
+}
+
+impl HistoryReference {
+    fn new(value: MsgRef, origin: Option<crate::Origin>) -> Self {
+        Self { value, origin }
+    }
+}
 
 impl From<crate::MessageId> for HistoryReference {
     fn from(value: crate::MessageId) -> Self {
-        Self(MsgRef::Msgid(value.to_string()))
+        Self::new(MsgRef::Msgid(value.to_string()), None)
     }
 }
 
 impl From<&crate::MessageId> for HistoryReference {
     fn from(value: &crate::MessageId) -> Self {
-        Self(MsgRef::Msgid(value.to_string()))
+        Self::new(MsgRef::Msgid(value.to_string()), None)
     }
 }
 
 impl From<&str> for HistoryReference {
     fn from(value: &str) -> Self {
-        Self(MsgRef::Msgid(value.to_owned()))
+        Self::new(MsgRef::Msgid(value.to_owned()), None)
     }
 }
 
@@ -704,13 +748,13 @@ impl From<&String> for HistoryReference {
 
 impl From<String> for HistoryReference {
     fn from(value: String) -> Self {
-        Self(MsgRef::Msgid(value))
+        Self::new(MsgRef::Msgid(value), None)
     }
 }
 
 impl From<SystemTime> for HistoryReference {
     fn from(value: SystemTime) -> Self {
-        Self(MsgRef::Timestamp(value))
+        Self::new(MsgRef::Timestamp(value), None)
     }
 }
 
@@ -773,7 +817,7 @@ impl Client {
     pub fn history(&self, target: impl Into<ConversationInput>) -> crate::History {
         crate::History {
             client: self.clone(),
-            target: target.into().target(&self.state()),
+            target: target.into().target(&self.state(), self.origin),
         }
     }
 
@@ -884,7 +928,7 @@ impl Client {
         let client = self.clone();
         let target = target.into();
         crate::RequestFuture::new(async move {
-            let target = target.target(&client.state())?;
+            let target = target.target(&client.state(), client.origin)?;
             let (result, receiver) = oneshot::channel();
             client
                 .commands
@@ -918,7 +962,7 @@ impl Client {
         let client = self.clone();
         let target = target.into();
         crate::RequestFuture::new(async move {
-            let target = target.target(&client.state())?;
+            let target = target.target(&client.state(), client.origin)?;
             let (result, receiver) = oneshot::channel();
             client
                 .commands
@@ -974,10 +1018,10 @@ mod tests {
     #[test]
     fn converts_ids_timestamps_and_message_events() {
         assert!(
-            matches!(HistoryReference::from("2Zl7JeYG6I8fG9q1lJ55BQ").0, MsgRef::Msgid(id) if id == "2Zl7JeYG6I8fG9q1lJ55BQ")
+            matches!(HistoryReference::from("2Zl7JeYG6I8fG9q1lJ55BQ").value, MsgRef::Msgid(id) if id == "2Zl7JeYG6I8fG9q1lJ55BQ")
         );
         assert!(
-            matches!(HistoryReference::from(UNIX_EPOCH).0, MsgRef::Timestamp(time) if time == UNIX_EPOCH)
+            matches!(HistoryReference::from(UNIX_EPOCH).value, MsgRef::Timestamp(time) if time == UNIX_EPOCH)
         );
         let event = historical_message(
             Line::privmsg("#papo", "earlier")
@@ -985,14 +1029,34 @@ mod tests {
                 .with_tag("msgid", "RfcBTzyxY120004"),
             UNIX_EPOCH,
         );
+        let origin = crate::Origin::__new(73);
         let page = HistoryPage {
-            conversation: (&event.conversation).into(),
+            conversation: crate::Conversation::Channel(
+                origin.__channel(Casemapping::default(), "#papo"),
+            ),
             items: vec![Event::Message(event)],
             reason: HistoryReason::Requested,
             end: false,
         };
-        assert!(matches!(page.oldest().unwrap().0, MsgRef::Msgid(id)
+        let reference = page.oldest().unwrap();
+        assert_eq!(reference.origin, Some(origin));
+        assert!(matches!(reference.value, MsgRef::Msgid(id)
             if id == "RfcBTzyxY120004"));
+    }
+
+    #[test]
+    fn history_rejects_a_cursor_from_another_client() {
+        let (first, _, _) = crate::Client::builder("irc.example.net").build();
+        let (second, _, _) = crate::Client::builder("irc.example.net").build();
+        let cursor = HistoryReference::new(
+            MsgRef::Msgid("RfcBTzyxY120004".into()),
+            Some(first.origin()),
+        );
+
+        assert!(matches!(
+            second.history("#papo").before(cursor).query,
+            Err(Error::InvalidInput(crate::InvalidInput::ForeignReference))
+        ));
     }
 
     #[test]
@@ -1126,7 +1190,7 @@ mod tests {
             end: false,
         };
         let reference = page.oldest().unwrap();
-        assert!(matches!(&reference.0, MsgRef::Timestamp(time) if *time == server_time));
+        assert!(matches!(&reference.value, MsgRef::Timestamp(time) if *time == server_time));
         assert!(matches!(
             client.history("#papo").before(reference).query,
             Ok(HistoryQuery::Before {
@@ -1152,7 +1216,7 @@ mod tests {
         ] {
             assert_eq!(
                 ConversationInput::from(conversation)
-                    .target(&state)
+                    .target(&state, crate::Origin::NONE)
                     .unwrap(),
                 expected
             );
