@@ -14,6 +14,7 @@ pub use papo::CtcpReplies
 pub use papo::Feature
 pub use papo::FormatBuilder
 pub use papo::InvalidIdentifier
+pub use papo::InvalidNetworkUrl
 pub use papo::InvalidRateLimit
 pub use papo::Line
 pub use papo::ListMode

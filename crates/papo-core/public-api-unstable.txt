@@ -809,6 +809,30 @@ impl core::marker::Unpin for papo_core::HistoryQuery
 impl core::marker::UnsafeUnpin for papo_core::HistoryQuery
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::HistoryQuery
 impl core::panic::unwind_safe::UnwindSafe for papo_core::HistoryQuery
+#[non_exhaustive] pub enum papo_core::InvalidNetworkUrl
+pub papo_core::InvalidNetworkUrl::Empty
+pub papo_core::InvalidNetworkUrl::InvalidHost(alloc::string::String)
+pub papo_core::InvalidNetworkUrl::InvalidPort(alloc::string::String)
+pub papo_core::InvalidNetworkUrl::UnexpectedPath(alloc::string::String)
+pub papo_core::InvalidNetworkUrl::UnsupportedScheme(alloc::string::String)
+impl core::clone::Clone for papo_core::InvalidNetworkUrl
+pub fn papo_core::InvalidNetworkUrl::clone(&self) -> Self
+impl core::cmp::Eq for papo_core::InvalidNetworkUrl
+impl core::cmp::PartialEq for papo_core::InvalidNetworkUrl
+pub fn papo_core::InvalidNetworkUrl::eq(&self, &Self) -> bool
+impl core::error::Error for papo_core::InvalidNetworkUrl
+impl core::fmt::Debug for papo_core::InvalidNetworkUrl
+pub fn papo_core::InvalidNetworkUrl::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo_core::InvalidNetworkUrl
+pub fn papo_core::InvalidNetworkUrl::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo_core::InvalidNetworkUrl
+impl core::marker::Freeze for papo_core::InvalidNetworkUrl
+impl core::marker::Send for papo_core::InvalidNetworkUrl
+impl core::marker::Sync for papo_core::InvalidNetworkUrl
+impl core::marker::Unpin for papo_core::InvalidNetworkUrl
+impl core::marker::UnsafeUnpin for papo_core::InvalidNetworkUrl
+impl core::panic::unwind_safe::RefUnwindSafe for papo_core::InvalidNetworkUrl
+impl core::panic::unwind_safe::UnwindSafe for papo_core::InvalidNetworkUrl
 #[non_exhaustive] pub enum papo_core::InvalidRateLimit
 pub papo_core::InvalidRateLimit::EmptyBurst
 pub papo_core::InvalidRateLimit::ZeroRefill
@@ -1858,6 +1882,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::MultilineMessage
 impl core::panic::unwind_safe::UnwindSafe for papo_core::MultilineMessage
 pub struct papo_core::NetworkConfig
 impl papo_core::NetworkConfig
+pub fn papo_core::NetworkConfig::from_url(&str) -> core::result::Result<Self, papo_core::InvalidNetworkUrl>
 pub fn papo_core::NetworkConfig::name(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo_core::NetworkConfig::new(impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo_core::NetworkConfig::nickname(self, impl core::convert::Into<papo::Nick>) -> Self

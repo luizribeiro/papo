@@ -1,4 +1,9 @@
-use std::{borrow::Borrow, collections::BTreeMap, fmt::Write as _, ops::Deref};
+use std::{
+    borrow::Borrow,
+    collections::BTreeMap,
+    fmt::{self, Write as _},
+    ops::Deref,
+};
 
 use papo_proto::{Casemapping, Line, LineRef, Nick, Param};
 use web_time::Instant;
@@ -93,6 +98,36 @@ pub enum NetworkState {
     /// Not connected to the upstream network.
     Disconnected,
 }
+
+/// Why an upstream network URL could not be parsed.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum InvalidNetworkUrl {
+    /// The URL is empty.
+    Empty,
+    /// The URL scheme is missing or unsupported.
+    UnsupportedScheme(String),
+    /// The hostname or bracketed IPv6 literal is malformed.
+    InvalidHost(String),
+    /// The port is missing, zero, or greater than 65535.
+    InvalidPort(String),
+    /// The URL contains a path.
+    UnexpectedPath(String),
+}
+
+impl fmt::Display for InvalidNetworkUrl {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Empty => formatter.write_str("upstream network URL is empty"),
+            Self::UnsupportedScheme(scheme) => write!(formatter, "unsupported scheme {scheme:?}"),
+            Self::InvalidHost(host) => write!(formatter, "invalid upstream host {host:?}"),
+            Self::InvalidPort(port) => write!(formatter, "invalid service port {port:?}"),
+            Self::UnexpectedPath(path) => write!(formatter, "unexpected URL path {path:?}"),
+        }
+    }
+}
+
+impl std::error::Error for InvalidNetworkUrl {}
 
 /// One upstream network managed by a bouncer.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -232,6 +267,40 @@ pub struct NetworkConfig {
 }
 
 impl NetworkConfig {
+    /// Creates a configuration from an `irc://` or `ircs://` URL.
+    ///
+    /// Brackets are required around IPv6 literals. When the URL omits a port, IRC defaults to
+    /// 6667 and IRC over TLS defaults to 6697.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidNetworkUrl`] for an unsupported scheme, malformed host or port, or a URL
+    /// containing a path, query, fragment, or user information.
+    pub fn from_url(url: &str) -> Result<Self, InvalidNetworkUrl> {
+        if url.is_empty() {
+            return Err(InvalidNetworkUrl::Empty);
+        }
+        let Some((scheme, remainder)) = url.split_once("://") else {
+            return Err(InvalidNetworkUrl::UnsupportedScheme(String::new()));
+        };
+        let (tls, default_port) = if scheme.eq_ignore_ascii_case("irc") {
+            (false, 6667)
+        } else if scheme.eq_ignore_ascii_case("ircs") {
+            (true, 6697)
+        } else {
+            return Err(InvalidNetworkUrl::UnsupportedScheme(scheme.to_owned()));
+        };
+        let (authority, path) = remainder.split_once('/').unwrap_or((remainder, ""));
+        if !path.is_empty() || remainder.ends_with('/') {
+            return Err(InvalidNetworkUrl::UnexpectedPath(path.to_owned()));
+        }
+        if authority.contains(['?', '#', '@', ' ', '\t']) {
+            return Err(InvalidNetworkUrl::InvalidHost(authority.to_owned()));
+        }
+        let (host, port) = parse_network_authority(authority, default_port)?;
+        Ok(Self::new(host).port(port).tls(tls))
+    }
+
     /// Creates a configuration for an upstream hostname or IP address.
     #[must_use]
     pub fn new(host: impl Into<String>) -> Self {
@@ -332,6 +401,39 @@ impl NetworkConfig {
     }
 }
 
+fn parse_network_authority(
+    authority: &str,
+    default_port: u16,
+) -> Result<(String, u16), InvalidNetworkUrl> {
+    let (host, port) = if let Some(rest) = authority.strip_prefix('[') {
+        let (host, suffix) = rest
+            .split_once(']')
+            .ok_or_else(|| InvalidNetworkUrl::InvalidHost(authority.to_owned()))?;
+        let port = suffix.strip_prefix(':');
+        if host.is_empty() || (!suffix.is_empty() && port.is_none()) {
+            return Err(InvalidNetworkUrl::InvalidHost(authority.to_owned()));
+        }
+        (host, port)
+    } else {
+        if authority.matches(':').count() > 1 {
+            return Err(InvalidNetworkUrl::InvalidHost(authority.to_owned()));
+        }
+        authority
+            .split_once(':')
+            .map_or((authority, None), |(host, port)| (host, Some(port)))
+    };
+    if host.is_empty() || host.contains(['[', ']', ' ', '\t']) {
+        return Err(InvalidNetworkUrl::InvalidHost(host.to_owned()));
+    }
+    let port = port.map_or(Ok(default_port), |port| {
+        port.parse::<u16>()
+            .ok()
+            .filter(|port| *port != 0)
+            .ok_or_else(|| InvalidNetworkUrl::InvalidPort(port.to_owned()))
+    })?;
+    Ok((host.to_owned(), port))
+}
+
 fn push_attribute(attributes: &mut String, key: &str, value: &str) {
     if !attributes.is_empty() {
         attributes.push(';');
@@ -429,6 +531,15 @@ mod tests {
     use papo_proto::{Casemapping, LineRef};
 
     use super::{BouncerNetwork, NetworkConfig, NetworkState, NetworkUpdate};
+
+    #[test]
+    fn network_config_parses_irc_urls() {
+        let config = NetworkConfig::from_url("ircs://irc.oftc.net").unwrap();
+        assert_eq!(
+            &*config.attributes().unwrap(),
+            "host=irc.oftc.net;port=6697;tls=1"
+        );
+    }
 
     #[test]
     fn network_config_escapes_attributes_and_redacts_password() {

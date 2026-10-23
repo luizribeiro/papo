@@ -214,7 +214,8 @@ pub use papo_core::{
 };
 #[cfg(feature = "unstable")]
 pub use papo_core::{
-    BouncerNetwork, NetworkConfig, NetworkId, NetworkState, PersistenceSetting, PersistenceStatus,
+    BouncerNetwork, InvalidNetworkUrl, NetworkConfig, NetworkId, NetworkState, PersistenceSetting,
+    PersistenceStatus,
 };
 #[doc(inline)]
 pub use papo_core::{CtcpReplies, InvalidRateLimit, RateLimit, Sasl, WhoOnJoin};
