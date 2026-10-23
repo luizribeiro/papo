@@ -184,6 +184,7 @@ pub struct CtcpQuery {
     pub account: Account,
     /// All message tags in wire order.
     pub tags: Tags,
+    pub(crate) reply_token: Option<papo_core::ReplyToken>,
 }
 
 /// An incoming Client-to-Client Protocol reply carried by `NOTICE`.
@@ -216,6 +217,7 @@ pub struct CtcpReply {
     pub account: Account,
     /// All message tags in wire order.
     pub tags: Tags,
+    pub(crate) reply_token: Option<papo_core::ReplyToken>,
 }
 
 macro_rules! ctcp_return_address {
@@ -316,6 +318,7 @@ pub struct Message {
     pub oper: Option<Oper>,
     /// All message tags in wire order.
     pub tags: Tags,
+    pub(crate) reply_token: Option<papo_core::ReplyToken>,
 }
 
 /// An incoming `NOTICE` from another user.
@@ -364,6 +367,7 @@ pub struct Notice {
     pub oper: Option<Oper>,
     /// All message tags in wire order.
     pub tags: Tags,
+    pub(crate) reply_token: Option<papo_core::ReplyToken>,
 }
 
 /// A notice or broadcast sent by a server or to a server-wide audience.
@@ -403,6 +407,7 @@ struct MessageMetadata {
     is_bot: bool,
     oper: Option<Oper>,
     tags: Tags,
+    reply_token: Option<papo_core::ReplyToken>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -415,6 +420,7 @@ fn ctcp_from_line(
     isupport: &Isupport,
     account_tag_enabled: bool,
     received_at: SystemTime,
+    reply_token: Option<papo_core::ReplyToken>,
 ) -> Result<Event, ProtoLine> {
     let message = raw.as_ref();
     let Some((command, params, reply)) = ctcp_parts(&message) else {
@@ -429,6 +435,7 @@ fn ctcp_from_line(
         isupport,
         account_tag_enabled,
         received_at,
+        reply_token,
     ) else {
         return Err(raw);
     };
@@ -445,6 +452,7 @@ fn ctcp_from_line(
             received_at: metadata.received_at,
             account: metadata.account,
             tags: metadata.tags,
+            reply_token: metadata.reply_token,
         }))
     } else {
         Ok(Event::CtcpQuery(CtcpQuery {
@@ -459,6 +467,7 @@ fn ctcp_from_line(
             received_at: metadata.received_at,
             account: metadata.account,
             tags: metadata.tags,
+            reply_token: metadata.reply_token,
         }))
     }
 }
@@ -485,6 +494,7 @@ pub(crate) fn incoming_from_core(
     account_tag_enabled: bool,
     received_at: SystemTime,
 ) -> Event {
+    let reply_token = received.__reply_token();
     if received.batch_type().is_some_and(|kind| {
         kind != crate::cap::LABELED_RESPONSE.as_str()
             && kind != crate::cap::MULTILINE.as_str()
@@ -509,6 +519,7 @@ pub(crate) fn incoming_from_core(
         isupport,
         account_tag_enabled,
         received_at,
+        Some(reply_token),
     )
 }
 
@@ -546,6 +557,7 @@ impl Message {
             isupport,
             false,
             received_at,
+            None,
         )
     }
 
@@ -560,6 +572,7 @@ impl Message {
         isupport: &Isupport,
         account_tag_enabled: bool,
         received_at: SystemTime,
+        reply_token: Option<papo_core::ReplyToken>,
     ) -> Result<Self, ProtoLine> {
         let message = raw.as_ref();
         if !message.command_is("PRIVMSG") {
@@ -586,6 +599,7 @@ impl Message {
             isupport,
             account_tag_enabled,
             received_at,
+            reply_token,
         ) else {
             return Err(raw);
         };
@@ -611,6 +625,7 @@ impl Message {
             is_bot: metadata.is_bot,
             oper: metadata.oper,
             tags: metadata.tags,
+            reply_token: metadata.reply_token,
         })
     }
 
@@ -662,6 +677,7 @@ impl Notice {
         isupport: &Isupport,
         account_tag_enabled: bool,
         received_at: SystemTime,
+        reply_token: Option<papo_core::ReplyToken>,
     ) -> Result<Self, ProtoLine> {
         let message = raw.as_ref();
         if !message.command_is("NOTICE") {
@@ -688,6 +704,7 @@ impl Notice {
             isupport,
             account_tag_enabled,
             received_at,
+            reply_token,
         ) else {
             return Err(raw);
         };
@@ -713,6 +730,7 @@ impl Notice {
             is_bot: metadata.is_bot,
             oper: metadata.oper,
             tags: metadata.tags,
+            reply_token: metadata.reply_token,
         })
     }
 
@@ -769,6 +787,7 @@ impl ServerNotice {
             isupport,
             account_tag_enabled,
             received_at,
+            None,
         ) else {
             return Err(raw);
         };
@@ -801,6 +820,7 @@ fn message_event_from_line(
     isupport: &Isupport,
     account_tag_enabled: bool,
     received_at: SystemTime,
+    reply_token: Option<papo_core::ReplyToken>,
 ) -> Event {
     let server_notice = raw.as_ref().command_is("WALLOPS")
         || matches!(
@@ -830,6 +850,7 @@ fn message_event_from_line(
         isupport,
         account_tag_enabled,
         received_at,
+        reply_token,
     ) {
         Ok(event) => return event,
         Err(raw) => raw,
@@ -845,6 +866,7 @@ fn message_event_from_line(
             isupport,
             account_tag_enabled,
             received_at,
+            reply_token,
         )
         .map_or_else(Event::Other, |notice| Event::Notice(Box::new(notice)));
     }
@@ -859,6 +881,7 @@ fn message_event_from_line(
         isupport,
         account_tag_enabled,
         received_at,
+        reply_token,
     )
     .map_or_else(Event::Other, |message| {
         if own {
@@ -902,6 +925,7 @@ pub(crate) fn historical_message_event(
         snapshot.isupport().inner(),
         snapshot.caps().contains_key(&crate::cap::ACCOUNT_TAG),
         received_at,
+        None,
     )
 }
 
@@ -940,6 +964,7 @@ fn message_metadata(
     isupport: &Isupport,
     account_tag_enabled: bool,
     received_at: SystemTime,
+    reply_token: Option<papo_core::ReplyToken>,
 ) -> Option<MessageMetadata> {
     let actor = message
         .source()
@@ -973,6 +998,7 @@ fn message_metadata(
             name: value.map(std::borrow::Cow::into_owned),
         }),
         tags,
+        reply_token,
     })
 }
 
@@ -2027,6 +2053,7 @@ mod tests {
             isupport,
             false,
             received_at,
+            None,
         )
     }
 
@@ -2088,6 +2115,7 @@ mod tests {
             &isupport,
             false,
             UNIX_EPOCH,
+            None,
         );
         assert!(matches!(wallops, Event::ServerNotice(notice)
             if notice.kind == ServerNoticeKind::Wallops
@@ -2104,6 +2132,7 @@ mod tests {
             &isupport,
             false,
             UNIX_EPOCH,
+            None,
         );
         assert!(matches!(broadcast, Event::ServerNotice(notice)
             if matches!(notice.to, ServerNoticeTarget::Mask(_))));
@@ -2189,6 +2218,7 @@ mod tests {
                 &isupport,
                 false,
                 UNIX_EPOCH,
+                None,
             )
         };
         let version_event = parse("PRIVMSG", "\x01VERSION\x01");
@@ -2250,6 +2280,7 @@ mod tests {
                 &isupport,
                 true,
                 UNIX_EPOCH,
+                None,
             )
             .is_err()
         );
@@ -2607,6 +2638,7 @@ mod tests {
                 &isupport,
                 false,
                 UNIX_EPOCH,
+                None,
             )
         };
         assert!(matches!(route(Authorship::Own), Event::OwnMessage(_)));

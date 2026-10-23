@@ -117,6 +117,7 @@ pub fn message(
         is_bot: false,
         oper: None,
         tags: Tags::default(),
+        reply_token: None,
     }
 }
 
