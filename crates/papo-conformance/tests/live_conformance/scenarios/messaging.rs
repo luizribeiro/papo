@@ -432,9 +432,9 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(received, long_action);
 
     alice
-         .send_raw(papo::Line::notice(
-             bob.nick().as_ref(),
-             "\u{1}ACTION nods hello\u{1}",
+        .send_raw(papo::Line::notice(
+            bob.nick().as_ref(),
+            "\u{1}ACTION nods hello\u{1}",
         ))
         .await?;
     let notice = bob
