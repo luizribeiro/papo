@@ -582,6 +582,7 @@ pub(crate) fn channels(capacity: usize, session: &Session) -> Channels {
     let client = Client {
         commands: command_sender,
         state: Arc::clone(&state),
+        origin: session.state().nick().origin(),
     };
     let events = EventSink {
         regular: event_sender,
@@ -1277,6 +1278,7 @@ where
                 let client = Client {
                     commands,
                     state: Arc::clone(&events.state),
+                    origin: session.state().nick().origin(),
                 };
                 let items = items
                     .into_iter()

@@ -7,6 +7,14 @@ pub(crate) fn from_proto(source: papo_proto::Source<'_>, casemapping: Casemappin
     papo_core::Source::from_proto(source, casemapping)
 }
 
+pub(crate) fn from_proto_with_origin(
+    source: papo_proto::Source<'_>,
+    casemapping: Casemapping,
+    origin: crate::Origin,
+) -> Source {
+    papo_core::Source::__from_proto(source, casemapping, origin)
+}
+
 pub(crate) fn from_prefix(prefix: String, casemapping: Casemapping) -> Source {
     let message = papo_proto::Line::new("NOTICE")
         .with_params(["*"])

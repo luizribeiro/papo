@@ -39,6 +39,7 @@ static NEXT_PING: AtomicU64 = AtomicU64::new(0);
 pub struct Client {
     pub(crate) commands: mpsc::Sender<Command>,
     pub(crate) state: Arc<RwLock<Arc<State>>>,
+    pub(crate) origin: crate::Origin,
 }
 
 /// Server-assigned metadata for a sent chat message.
@@ -310,6 +311,12 @@ impl Sent {
 }
 
 impl Client {
+    /// Returns the opaque identity carried by values produced by this client.
+    #[must_use]
+    pub const fn origin(&self) -> crate::Origin {
+        self.origin
+    }
+
     /// Starts configuring a client for `endpoint`.
     ///
     /// Strings accept hostnames and `irc://`, `ircs://`, `ws://`, and `wss://` URLs.

@@ -182,7 +182,7 @@ impl State {
     /// Builds a nickname with the current or last-known server-defined comparison rules.
     #[must_use]
     pub fn nickname(&self, text: impl AsRef<str>) -> Nick {
-        self.casemapping().nick(text)
+        self.nick().origin().__nick(self.casemapping(), text)
     }
 
     /// Reports whether `text` is a nickname accepted by the server's advertised rules.
@@ -203,7 +203,7 @@ impl State {
     /// Builds an account name with the current or last-known server-defined comparison rules.
     #[must_use]
     pub fn account_name(&self, text: impl AsRef<str>) -> AccountName {
-        self.casemapping().account(text)
+        self.nick().origin().__account(self.casemapping(), text)
     }
 
     /// Returns the client's presence state.
@@ -244,7 +244,7 @@ impl State {
     /// Builds a channel name with the current or last-known server-defined comparison rules.
     #[must_use]
     pub fn channel_name(&self, text: impl AsRef<str>) -> ChannelName {
-        self.casemapping().channel(text)
+        self.nick().origin().__channel(self.casemapping(), text)
     }
 
     /// Reports whether `text` is a channel name accepted by the server's advertised rules.
@@ -368,7 +368,7 @@ impl State {
     /// Builds a mask with the current or last-known server-defined comparison rules.
     #[must_use]
     pub fn mask(&self, text: impl AsRef<str>) -> Mask {
-        self.casemapping().mask(text)
+        self.nick().origin().__mask(self.casemapping(), text)
     }
 
     /// Reports whether two masks identify the same server list entry.

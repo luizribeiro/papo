@@ -43,6 +43,17 @@ impl Source {
         Self::from_proto_with_names(source, Names::new(casemapping, papo_proto::Origin::NONE))
     }
 
+    /// Builds an owned source associated with one client.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __from_proto(
+        source: papo_proto::Source<'_>,
+        casemapping: Casemapping,
+        origin: papo_proto::Origin,
+    ) -> Self {
+        Self::from_proto_with_names(source, Names::new(casemapping, origin))
+    }
+
     pub(crate) fn from_proto_with_names(source: papo_proto::Source<'_>, names: Names) -> Self {
         match source {
             papo_proto::Source::Server(name) => Self::Server { name: name.into() },

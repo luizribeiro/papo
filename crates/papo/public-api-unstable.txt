@@ -32,6 +32,7 @@ pub use papo::NetworkConfig
 pub use papo::NetworkId
 pub use papo::NetworkState
 pub use papo::Nick
+pub use papo::Origin
 pub use papo::PersistenceSetting
 pub use papo::PersistenceStatus
 pub use papo::Rank
@@ -1835,6 +1836,7 @@ pub fn papo::Client::list(&self, papo::ListFilter) -> papo::RequestFuture<alloc:
 pub fn papo::Client::nick(&self) -> papo::Nick
 pub fn papo::Client::notice(&self, impl core::convert::AsRef<str>, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub fn papo::Client::oper(&self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo::Secret>) -> papo::RequestFuture<()>
+pub const fn papo::Client::origin(&self) -> papo::Origin
 pub fn papo::Client::part(&self, impl core::convert::AsRef<str>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::ping(&self) -> papo::RequestFuture<core::time::Duration>
 pub fn papo::Client::privmsg(&self, impl core::convert::AsRef<str>, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage

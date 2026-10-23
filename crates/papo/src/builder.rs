@@ -1,4 +1,8 @@
-use std::{fmt, time::Duration};
+use std::{
+    fmt,
+    sync::atomic::{AtomicU64, Ordering},
+    time::Duration,
+};
 
 use papo_core::sts::{ConnectionSecurity, MemoryStsStore, StsStore};
 use papo_core::{
@@ -14,6 +18,19 @@ use crate::{
     driver::{Autojoin, ConnectionPlan, PostConnect},
     transport::TlsConfig,
 };
+
+static NEXT_ORIGIN: AtomicU64 = AtomicU64::new(1);
+
+fn allocate_origin() -> crate::Origin {
+    let mut value = NEXT_ORIGIN.load(Ordering::Relaxed);
+    loop {
+        let next = value.checked_add(1).expect("client origin space exhausted");
+        match NEXT_ORIGIN.compare_exchange_weak(value, next, Ordering::Relaxed, Ordering::Relaxed) {
+            Ok(_) => return crate::Origin::__new(value),
+            Err(actual) => value = actual,
+        }
+    }
+}
 
 /// Configures an IRC client before it is built or connected.
 #[must_use]
@@ -581,6 +598,7 @@ impl Builder {
         stream: Box<dyn crate::io_compat::FutureStream>,
         registration: Option<crate::driver::ConnectSender>,
     ) -> (crate::Client, crate::Events, crate::Driver) {
+        self.config.origin = allocate_origin();
         if let Ok(address) = &self.address {
             if !address.is_secure() && self.credentials_configured && !self.allow_insecure_auth {
                 self.invalid_input
@@ -635,6 +653,7 @@ impl Builder {
         if let Some(stream) = self.stream.take() {
             return self.build_stream_with_connect(stream, registration);
         }
+        self.config.origin = allocate_origin();
         let validation_error = self
             .invalid_input
             .or_else(|| connect_input_error(&self.config));
@@ -722,6 +741,19 @@ mod tests {
         },
         transport::TlsRoots,
     };
+
+    #[test]
+    fn clients_distinguish_same_named_channels() {
+        let (first, _, _) = Builder::new("irc.example.net").build();
+        let (second, _, _) = Builder::new("irc.example.net").build();
+
+        assert_ne!(first.origin(), second.origin());
+        let first_channel = first.state().channel_name("#papo");
+        let second_channel = second.state().channel_name("#papo");
+        assert_eq!(first_channel, "#papo");
+        assert_eq!(second_channel, "#papo");
+        assert_ne!(first_channel, second_channel);
+    }
 
     #[cfg(tls)]
     #[tokio::test(flavor = "current_thread", start_paused = true)]

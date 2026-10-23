@@ -975,9 +975,15 @@ fn message_metadata(
     received_at: SystemTime,
     reply_token: Option<papo_core::ReplyToken>,
 ) -> Option<MessageMetadata> {
+    let origin = match &conversation {
+        Conversation::Channel(channel) => channel.origin(),
+        Conversation::Private(nick) => nick.origin(),
+        Conversation::Broadcast(mask) => mask.origin(),
+        _ => crate::Origin::NONE,
+    };
     let actor = message
         .source()
-        .map(|source| source::from_proto(source, isupport.casemapping()))?;
+        .map(|source| source::from_proto_with_origin(source, isupport.casemapping(), origin))?;
     let tags = Tags::from_message(message);
     let envelope = line_envelope_with_account_tag(
         message,
@@ -998,7 +1004,7 @@ fn message_metadata(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        account: envelope.account,
+        account: account_from_tag(message, isupport.casemapping(), origin, account_tag_enabled),
         reply_to,
         #[cfg(feature = "unstable")]
         relayed_by,
@@ -1014,6 +1020,7 @@ fn message_metadata(
 fn account_from_tag(
     message: &LineRef<'_>,
     casemapping: Casemapping,
+    origin: crate::Origin,
     account_tag_enabled: bool,
 ) -> Account {
     tag_owned(message, &["account"]).map_or_else(
@@ -1024,7 +1031,7 @@ fn account_from_tag(
                 Account::Unknown
             }
         },
-        |account| Account::LoggedIn(casemapping.account(account)),
+        |account| Account::LoggedIn(origin.__account(casemapping, account)),
     )
 }
 
@@ -1055,7 +1062,7 @@ pub(crate) fn line_envelope_with_account_tag(
         msgid: tag_owned(line, &["msgid"]).map(MessageId::from),
         server_time,
         received_at,
-        account: account_from_tag(line, casemapping, account_tag_enabled),
+        account: account_from_tag(line, casemapping, crate::Origin::NONE, account_tag_enabled),
     }
 }
 
