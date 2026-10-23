@@ -484,7 +484,7 @@ pub enum Error {
     /// A requested state change could not be confirmed from server replies or state.
     #[error("the IRC operation could not be confirmed")]
     Unconfirmed,
-    /// The intended user left or changed nickname before the follow-up action.
+    /// The intended user left, changed nickname, or no longer holds a private reply nickname.
     #[error("the target user is no longer present")]
     TargetGone,
     /// The server's reply did not have the shape required by its command.

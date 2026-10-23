@@ -297,10 +297,7 @@ mod tests {
                 continue;
             };
             if message.text == "!ping" {
-                client
-                    .privmsg(message.return_address(), "pong")
-                    .await
-                    .unwrap();
+                client.reply(message, "pong").await.unwrap();
                 break;
             }
         }

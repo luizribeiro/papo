@@ -576,9 +576,15 @@ impl Client {
     /// Passing the received line or [`Sent`] preserves its return address. See
     /// [`crate::Conversation`] for status-prefixed line guidance.
     ///
+    /// For a private received line, papo returns [`Error::TargetGone`] when current state proves
+    /// that another user holds the sender's nickname. It does not follow the sender to a new
+    /// nickname. When state cannot identify the current holder, including a sender who shares no
+    /// channel and has no account information, the reply is sent.
+    ///
     /// # Errors
     ///
-    /// Returns an error if the text is empty or invalid, or the driver has stopped.
+    /// Returns [`Error::TargetGone`] in the private-recipient case described above. It returns an
+    /// error if the text is empty or invalid, or the driver has stopped.
     pub fn reply(
         &self,
         message: impl Into<crate::MessageRef>,
@@ -610,6 +616,8 @@ impl Client {
     /// [`UnsupportedReason::TagDenied`]. Encoding or driver failure returns
     /// [`Error::InvalidInput`] or [`Error::Disconnected`]. A reference without a server message
     /// identifier returns [`InvalidInput::UnusableMessageReference`].
+    /// A private reference whose nickname is proven to belong to another user returns
+    /// [`Error::TargetGone`].
     pub fn react(
         &self,
         message: impl Into<crate::MessageRef>,
@@ -631,6 +639,8 @@ impl Client {
     /// [`UnsupportedReason::TagDenied`]. Encoding or driver failure returns
     /// [`Error::InvalidInput`] or [`Error::Disconnected`]. A reference without a server message
     /// identifier returns [`InvalidInput::UnusableMessageReference`].
+    /// A private reference whose nickname is proven to belong to another user returns
+    /// [`Error::TargetGone`].
     pub fn unreact(
         &self,
         message: impl Into<crate::MessageRef>,
@@ -744,6 +754,8 @@ impl Client {
     /// return [`Error::InvalidInput`], [`Error::TooManyPendingRequests`], [`Error::Timeout`], or
     /// [`Error::Disconnected`]. A reference without a server message identifier returns
     /// [`InvalidInput::UnusableMessageReference`].
+    /// A private reference whose nickname is proven to belong to another user returns
+    /// [`Error::TargetGone`].
     pub fn redact(
         &self,
         message: impl Into<crate::MessageRef>,

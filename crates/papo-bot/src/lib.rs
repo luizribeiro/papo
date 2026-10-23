@@ -304,7 +304,8 @@ impl Command {
     ///
     /// # Errors
     ///
-    /// Returns the same errors as [`Client::privmsg`].
+    /// Returns [`papo::Error::TargetGone`] when current state proves that another user holds a
+    /// private command sender's nickname. Otherwise returns the same errors as [`Client::privmsg`].
     pub async fn say(&self, text: impl Into<String>) -> Result<ReplyStatus, papo::Error> {
         if let Chat::Private(_) = &self.message.conversation
             && self.message.__recipient_changed(&self.client.state())
@@ -332,6 +333,7 @@ impl Command {
     /// [`papo::Refusal::CannotSendToChannel`], [`papo::Refusal::NoSuchNick`],
     /// [`papo::Refusal::NoSuchChannel`], [`papo::Refusal::InputTooLong`],
     /// [`papo::Refusal::TryAgain`], or [`papo::Refusal::Other`].
+    /// A proven private nickname takeover returns [`papo::Error::TargetGone`].
     pub async fn reply(&self, text: impl Into<String>) -> Result<ReplyStatus, papo::Error> {
         if !self.replies.check(self.message.conversation.clone()) {
             return Ok(ReplyStatus::Dropped);
@@ -350,6 +352,7 @@ impl Command {
     /// [`papo::Refusal::CannotSendToChannel`], [`papo::Refusal::NoSuchNick`],
     /// [`papo::Refusal::NoSuchChannel`], [`papo::Refusal::InputTooLong`],
     /// [`papo::Refusal::TryAgain`], or [`papo::Refusal::Other`].
+    /// A proven nickname takeover returns [`papo::Error::TargetGone`].
     pub async fn private_notice(
         &self,
         text: impl Into<String>,

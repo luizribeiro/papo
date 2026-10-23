@@ -44,7 +44,10 @@ Apps with another trusted transport layer must use `Builder::allow_insecure_auth
 
 Pass a received message or `Sent` value to reply, react, unreact, or redact. That preserves a
 status-prefixed return address such as `@#ops`; the `Conversation` value identifies only the
-`#ops` buffer and must not be reconstructed into a send target.
+`#ops` buffer and must not be reconstructed into a send target. For a private received line,
+these methods return `Error::TargetGone` when current state proves that another user took the
+sender's nickname. They still send when papo cannot identify the current holder, such as a direct
+message from someone who shares no channel and supplied no account information.
 
 papo answers private, live CTCP `PING` and `VERSION` queries by default; the VERSION text is
 `papo <version>`. Use `CtcpReplies::default().ping(false)`, `.version(Some("my-app 2.3"))`, or

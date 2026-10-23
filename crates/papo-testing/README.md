@@ -27,7 +27,7 @@ async fn ping() {
     while let Some(event) = events.next().await {
         let Some(message) = event.as_message() else { continue };
         if message.text == "!ping" {
-            client.privmsg(message.return_address(), "pong").await.unwrap();
+            client.reply(message, "pong").await.unwrap();
             break;
         }
     }

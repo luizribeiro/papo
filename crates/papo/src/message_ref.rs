@@ -16,7 +16,8 @@ pub(crate) struct RecipientGuard {
 /// received [`Message`], a sent [`Sent`], or an `(address, message_id)` pair. A line or [`Sent`]
 /// preserves its complete return address; use a pair only when the caller has an explicit address. A
 /// [`Conversation`] alone is not an address. See [`Conversation`] for status-prefixed line
-/// guidance.
+/// guidance. References built from received private lines also preserve the evidence used to
+/// refuse a send after another user takes the sender's nickname.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MessageRef {
     address: String,
