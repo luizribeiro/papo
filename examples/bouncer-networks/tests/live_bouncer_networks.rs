@@ -29,14 +29,6 @@ async fn lists_adds_and_attaches_to_bouncer_networks() {
         );
         example.wait_for("attached ").await;
         let stdout = example.finish().await;
-        assert!(stdout.lines().any(|line| {
-            line.starts_with("network ")
-                && line.contains(&format!(
-                    ": ergo {} Connected",
-                    bouncer.upstream_addr().ip()
-                ))
-        }));
-
         let (manager, _events) = Client::builder(url.clone())
             .nick(&nick)
             .sasl(Sasl::plain(bouncer.username(), bouncer.password()))
@@ -51,11 +43,29 @@ async fn lists_adds_and_attaches_to_bouncer_networks() {
             .find(|network| network.name.as_deref() == Some("second"))
             .expect("the example's added network is listed");
         let id = added.id.clone();
-        assert!(stdout.contains(&format!(
-            "changed {id}: second {} Connected",
-            bouncer.upstream_addr().ip()
-        )));
-        assert!(stdout.contains(&format!("attached {id} #papo")));
+        let existing = networks
+            .iter()
+            .find(|network| network.name.as_deref() == Some("ergo"))
+            .expect("the bouncer's original network is listed");
+        assert_eq!(
+            stdout.lines().collect::<Vec<_>>(),
+            [
+                format!(
+                    "network {}: ergo {} connected",
+                    existing.id,
+                    bouncer.upstream_addr().ip()
+                ),
+                format!(
+                    "changed {id}: second {} disconnected",
+                    bouncer.upstream_addr().ip()
+                ),
+                format!(
+                    "changed {id}: second {} connected",
+                    bouncer.upstream_addr().ip()
+                ),
+                format!("attached {id} #papo"),
+            ]
+        );
 
         let (attached, mut events) = Client::builder(url)
             .nick(&nick)

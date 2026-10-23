@@ -31,7 +31,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         print_network("network", &network);
     }
 
-    let config = network_config(&upstream_url, manager.state().nickname(&nick))?;
+    let config = NetworkConfig::from_url(&upstream_url)?
+        .name("second")
+        .nickname(manager.state().nickname(&nick));
     let id = manager.bouncer().add(config).await?;
     while let Some(event) = manager_events.next().await {
         if let Event::BouncerNetworkChanged(changed) = event
@@ -45,12 +47,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    let (attached, mut events) = builder()
+    let (_attached, mut events) = builder()
         .bouncer_network(id.clone())
         .autojoin([CHANNEL])
         .connect()
         .await?;
-    assert_eq!(attached.state().bouncer_network(), Some(&id));
     while let Some(event) = events.next().await {
         if let Event::ChannelSynced(synced) = event {
             println!("attached {id} {}", synced.channel);
@@ -60,38 +61,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn network_config(url: &str, nick: papo::Nick) -> Result<NetworkConfig, Box<dyn Error>> {
-    let (scheme, address) = url.split_once("://").ok_or("upstream URL needs a scheme")?;
-    let (host, port) = address
-        .rsplit_once(':')
-        .ok_or("upstream URL needs a port")?;
-    let tls = match scheme {
-        "irc" => false,
-        "ircs" => true,
-        _ => return Err("upstream URL must use irc:// or ircs://".into()),
-    };
-    Ok(NetworkConfig::new(host.trim_matches(['[', ']']))
-        .port(port.parse()?)
-        .tls(tls)
-        .name("second")
-        .nickname(nick))
-}
-
 fn print_network(prefix: &str, network: &papo::BouncerNetwork) {
+    let state = network
+        .state
+        .map_or_else(|| "unknown".to_owned(), |state| state.to_string());
     println!(
         "{prefix} {}: {} {} {}",
         network.id,
         network.name.as_deref().unwrap_or("-"),
         network.host.as_deref().unwrap_or("-"),
-        state_name(network.state)
+        state
     );
-}
-
-const fn state_name(state: Option<NetworkState>) -> &'static str {
-    match state {
-        Some(NetworkState::Connected) => "Connected",
-        Some(NetworkState::Connecting) => "Connecting",
-        Some(NetworkState::Disconnected) => "Disconnected",
-        _ => "Unknown",
-    }
 }
