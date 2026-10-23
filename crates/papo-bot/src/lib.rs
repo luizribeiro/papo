@@ -21,7 +21,7 @@
 //!
 //! ```no_run
 //! use papo::{Client, Event};
-//! use papo_bot::{BotConfig, ReplyStatus};
+//! use papo_bot::BotConfig;
 //!
 //! # async fn lookup(_client: &Client, query: String) -> String { query }
 //! # async fn handle(client: &Client, commands: &BotConfig, event: Event) {
@@ -33,10 +33,8 @@
 //!     let query = command.rest().to_owned();
 //!     tokio::spawn(async move {
 //!         let answer = lookup(&client, query).await;
-//!         match command.reply(answer).await {
-//!             Ok(ReplyStatus::RecipientChanged) => eprintln!("the command sender changed nick"),
-//!             Ok(_) => {}
-//!             Err(error) => eprintln!("could not reply: {error}"),
+//!         if let Err(error) = command.reply(answer).await {
+//!             eprintln!("could not reply: {error}");
 //!         }
 //!     });
 //! }
@@ -191,8 +189,6 @@ pub enum ReplyStatus {
     Dropped,
     /// The command actor was a server and therefore had no private recipient.
     NoRecipient,
-    /// An account-tagged command's nickname is no longer known to belong to that account.
-    RecipientChanged,
 }
 
 /// A parsed command from a live private message.
@@ -310,10 +306,10 @@ impl Command {
     ///
     /// Returns the same errors as [`Client::privmsg`].
     pub async fn say(&self, text: impl Into<String>) -> Result<ReplyStatus, papo::Error> {
-        if let Chat::Private(target) = &self.message.conversation
-            && self.recipient_changed(target)
+        if let Chat::Private(_) = &self.message.conversation
+            && self.message.__recipient_changed(&self.client.state())
         {
-            return Ok(ReplyStatus::RecipientChanged);
+            return Err(papo::Error::TargetGone);
         }
         if !self.replies.check(self.message.conversation.clone()) {
             return Ok(ReplyStatus::Dropped);
@@ -337,11 +333,6 @@ impl Command {
     /// [`papo::Refusal::NoSuchChannel`], [`papo::Refusal::InputTooLong`],
     /// [`papo::Refusal::TryAgain`], or [`papo::Refusal::Other`].
     pub async fn reply(&self, text: impl Into<String>) -> Result<ReplyStatus, papo::Error> {
-        if let Chat::Private(target) = &self.message.conversation
-            && self.recipient_changed(target)
-        {
-            return Ok(ReplyStatus::RecipientChanged);
-        }
         if !self.replies.check(self.message.conversation.clone()) {
             return Ok(ReplyStatus::Dropped);
         }
@@ -366,8 +357,8 @@ impl Command {
         let Some(target) = self.message.actor.nick() else {
             return Ok(ReplyStatus::NoRecipient);
         };
-        if self.recipient_changed(target) {
-            return Ok(ReplyStatus::RecipientChanged);
+        if self.message.__recipient_changed(&self.client.state()) {
+            return Err(papo::Error::TargetGone);
         }
         if !self.replies.check(Conversation::Private(target.clone())) {
             return Ok(ReplyStatus::Dropped);
@@ -386,16 +377,6 @@ impl Command {
         }
         request.await?;
         Ok(ReplyStatus::Sent)
-    }
-
-    fn recipient_changed(&self, target: &papo::Nick) -> bool {
-        let Account::LoggedIn(expected) = &self.account else {
-            return false;
-        };
-        !matches!(
-            self.client.state().user(target).map(papo::User::account),
-            Some(papo::Account::LoggedIn(current)) if current == expected
-        )
     }
 }
 
@@ -693,14 +674,14 @@ mod tests {
 
         let config = BotConfig::new("!");
         let stale = config.command(&client, &messages[0]).unwrap();
-        assert_eq!(
-            stale.reply("classified").await.unwrap(),
-            ReplyStatus::RecipientChanged
-        );
-        assert_eq!(
-            stale.private_notice("classified").await.unwrap(),
-            ReplyStatus::RecipientChanged
-        );
+        assert!(matches!(
+            stale.reply("classified").await,
+            Err(papo::Error::TargetGone)
+        ));
+        assert!(matches!(
+            stale.private_notice("classified").await,
+            Err(papo::Error::TargetGone)
+        ));
         let current = config.command(&client, &messages[1]).unwrap();
         assert_eq!(current.reply("public").await.unwrap(), ReplyStatus::Sent);
         tokio::task::yield_now().await;
@@ -709,6 +690,42 @@ mod tests {
         assert!(!output.contains("PRIVMSG alice :classified\r\n"));
         assert!(!output.contains("NOTICE alice :classified\r\n"));
         assert!(output.contains("PRIVMSG carol public\r\n"), "{output:?}");
+        driver.abort();
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn private_responses_send_when_an_account_tagged_user_is_unknown() {
+        let transcript = concat!(
+            ":ergo.test CAP * LS :account-tag\r\n",
+            ":ergo.test CAP papo{bot} ACK :account-tag\r\n",
+            ":ergo.test 001 papo{bot} :Welcome to the Ergo test network\r\n",
+            ":ergo.test 005 papo{bot} CASEMAPPING=rfc1459 CHANTYPES=# :are supported\r\n",
+            "@account=alice :alice!~alice@cloak.example PRIVMSG papo{bot} :!lookup handbook\r\n",
+        );
+        let stream = TranscriptStream::new(transcript);
+        let output = stream.output();
+        let (client, mut events, driver) = Client::builder("irc.example")
+            .nick(Casemapping::Rfc1459.nick("papo{bot}"))
+            .stream(stream)
+            .build();
+        let driver = tokio::spawn(driver);
+        let message = loop {
+            if let Some(papo::Event::Message(message)) = events.next().await {
+                break message;
+            }
+        };
+
+        let command = BotConfig::new("!").command(&client, &message).unwrap();
+        assert_eq!(command.reply("public").await.unwrap(), ReplyStatus::Sent);
+        assert_eq!(
+            command.private_notice("public").await.unwrap(),
+            ReplyStatus::Sent
+        );
+        tokio::task::yield_now().await;
+
+        let output = String::from_utf8(output.lock().unwrap().clone()).unwrap();
+        assert!(output.contains("PRIVMSG alice public\r\n"), "{output:?}");
+        assert!(output.contains("NOTICE alice public\r\n"), "{output:?}");
         driver.abort();
     }
 

@@ -58,6 +58,14 @@ fn recipient(
     })
 }
 
+pub(crate) fn actor_recipient(message: &Message) -> Option<RecipientGuard> {
+    Some(RecipientGuard {
+        nick: message.actor.nick()?.clone(),
+        account: message.account.clone(),
+        receipt: message.reply_token,
+    })
+}
+
 /// Preserves the received message's return address and identifier.
 ///
 /// See [`Conversation`] for status-prefixed line guidance.

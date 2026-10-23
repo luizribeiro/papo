@@ -1,4 +1,4 @@
-use papo_bot::{BotConfig, ReplyStatus};
+use papo_bot::BotConfig;
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
@@ -50,14 +50,14 @@ async fn private_bot_reply_after_nick_takeover(s: Scenario) -> papo_testing::Res
     })
     .await?;
 
-    assert_eq!(
-        command.reply("SECRET payroll").await?,
-        ReplyStatus::RecipientChanged
-    );
-    assert_eq!(
-        command.private_notice("SECRET audit").await?,
-        ReplyStatus::RecipientChanged
-    );
+    assert!(matches!(
+        command.reply("SECRET payroll").await,
+        Err(papo::Error::TargetGone)
+    ));
+    assert!(matches!(
+        command.private_notice("SECRET audit").await,
+        Err(papo::Error::TargetGone)
+    ));
     mallory
         .expect_none(|event| {
             event.as_message().filter(|message| {

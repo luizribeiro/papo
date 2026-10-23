@@ -524,6 +524,15 @@ pub(crate) fn incoming_from_core(
 }
 
 impl Message {
+    /// Reports whether current state proves that a private response would reach another user.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __recipient_changed(&self, state: &crate::State) -> bool {
+        crate::message_ref::actor_recipient(self)
+            .as_ref()
+            .is_some_and(|recipient| state.recipient_changed(recipient))
+    }
+
     #[allow(dead_code)]
     pub(crate) fn new(
         raw: ProtoLine,
