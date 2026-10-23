@@ -10,6 +10,9 @@ fn profile() -> String {
 /// refuses a delayed private reply after another user claims the sender's nick
 #[scenario(covers = ["security.bot.private-reply-after-nick-takeover"])]
 async fn private_reply_after_nick_takeover(s: Scenario) -> papo_testing::Result<()> {
+    if profile() == "soju-ergo" {
+        return s.skip("soju keeps the upstream user attached after downstream QUIT");
+    }
     let mut bot = s.connect("bot").await?;
     let mut alice = s.connect("alice").await?;
     let mut mallory = s.connect("mallory").await?;
