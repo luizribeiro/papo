@@ -687,42 +687,6 @@ impl core::marker::Unpin for papo::event::Motd
 impl core::marker::UnsafeUnpin for papo::event::Motd
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Motd
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Motd
-#[non_exhaustive] pub struct papo::event::Netjoin
-pub papo::event::Netjoin::joins: alloc::vec::Vec<papo::event::Joined>
-pub papo::event::Netjoin::servers: papo::event::SplitServers
-impl core::clone::Clone for papo::event::Netjoin
-pub fn papo::event::Netjoin::clone(&self) -> Self
-impl core::cmp::Eq for papo::event::Netjoin
-impl core::cmp::PartialEq for papo::event::Netjoin
-pub fn papo::event::Netjoin::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::event::Netjoin
-pub fn papo::event::Netjoin::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::event::Netjoin
-impl core::marker::Freeze for papo::event::Netjoin
-impl core::marker::Send for papo::event::Netjoin
-impl core::marker::Sync for papo::event::Netjoin
-impl core::marker::Unpin for papo::event::Netjoin
-impl core::marker::UnsafeUnpin for papo::event::Netjoin
-impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Netjoin
-impl core::panic::unwind_safe::UnwindSafe for papo::event::Netjoin
-#[non_exhaustive] pub struct papo::event::Netsplit
-pub papo::event::Netsplit::quits: alloc::vec::Vec<papo::event::Quit>
-pub papo::event::Netsplit::servers: papo::event::SplitServers
-impl core::clone::Clone for papo::event::Netsplit
-pub fn papo::event::Netsplit::clone(&self) -> Self
-impl core::cmp::Eq for papo::event::Netsplit
-impl core::cmp::PartialEq for papo::event::Netsplit
-pub fn papo::event::Netsplit::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::event::Netsplit
-pub fn papo::event::Netsplit::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::event::Netsplit
-impl core::marker::Freeze for papo::event::Netsplit
-impl core::marker::Send for papo::event::Netsplit
-impl core::marker::Sync for papo::event::Netsplit
-impl core::marker::Unpin for papo::event::Netsplit
-impl core::marker::UnsafeUnpin for papo::event::Netsplit
-impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Netsplit
-impl core::panic::unwind_safe::UnwindSafe for papo::event::Netsplit
 #[non_exhaustive] pub struct papo::event::NickChanged
 pub papo::event::NickChanged::account: core::option::Option<papo::AccountName>
 pub papo::event::NickChanged::actor: papo::Source
@@ -1472,8 +1436,6 @@ pub papo::Event::ModeChanged(papo::event::ModeChanged)
 pub papo::Event::MonitorOffline(papo::event::MonitorOffline)
 pub papo::Event::MonitorOnline(papo::event::MonitorOnline)
 pub papo::Event::Motd(papo::event::Motd)
-pub papo::Event::Netjoin(papo::event::Netjoin)
-pub papo::Event::Netsplit(papo::event::Netsplit)
 pub papo::Event::NickChanged(papo::event::NickChanged)
 pub papo::Event::Notice(alloc::boxed::Box<papo::event::Notice>)
 pub papo::Event::Other(papo::Line)
@@ -1544,10 +1506,6 @@ impl papo::Event
 pub const fn papo::Event::as_monitor_online(&self) -> core::option::Option<&papo::event::MonitorOnline>
 impl papo::Event
 pub const fn papo::Event::as_motd(&self) -> core::option::Option<&papo::event::Motd>
-impl papo::Event
-pub const fn papo::Event::as_netjoin(&self) -> core::option::Option<&papo::event::Netjoin>
-impl papo::Event
-pub const fn papo::Event::as_netsplit(&self) -> core::option::Option<&papo::event::Netsplit>
 impl papo::Event
 pub const fn papo::Event::as_nick_changed(&self) -> core::option::Option<&papo::event::NickChanged>
 impl papo::Event

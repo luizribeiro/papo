@@ -42,8 +42,8 @@ pub use server::{MetadataChanged, Warning};
 pub use source::Source;
 pub use tags::Tags;
 pub use user::{
-    AccountChanged, AwayChanged, HostChanged, MonitorOffline, MonitorOnline, Netjoin, Netsplit,
-    NickChanged, Quit, RealnameChanged, SplitServers,
+    AccountChanged, AwayChanged, HostChanged, MonitorOffline, MonitorOnline, NickChanged, Quit,
+    RealnameChanged, SplitServers,
 };
 
 /// A conversation that can receive an ordinary chat reply.
@@ -1088,10 +1088,6 @@ pub enum Event {
     History(Box<crate::HistoryPage>),
     /// A conversation's read marker advanced or was first reported.
     ReadMarkerChanged(ReadMarkerChanged),
-    /// Users departed because connectivity between two servers was lost.
-    Netsplit(Netsplit),
-    /// Users returned after connectivity between two servers was restored.
-    Netjoin(Netjoin),
     /// A server batch exceeded a retention bound or deadline.
     Warning(Warning),
     /// The capabilities enabled on an established connection changed.
@@ -1186,8 +1182,6 @@ variant_accessors! { Event;
     (RealnameChanged, as_realname_changed, RealnameChanged),
     (MonitorOnline, as_monitor_online, MonitorOnline),
     (MonitorOffline, as_monitor_offline, MonitorOffline),
-    (Netsplit, as_netsplit, Netsplit),
-    (Netjoin, as_netjoin, Netjoin),
     (MetadataChanged, as_metadata_changed, MetadataChanged),
     (AccountCreation, as_account_creation, crate::AccountCreation),
     (Warning, as_warning, Warning),

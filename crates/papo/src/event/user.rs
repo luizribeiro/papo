@@ -2,7 +2,7 @@ use std::time::SystemTime;
 
 use crate::{AccountName, Authorship, Away, ChannelName, MessageId, Nick};
 
-use super::{Joined, Source};
+use super::Source;
 
 /// A user disconnected from the network.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -160,24 +160,4 @@ impl SplitServers {
             second: value.second,
         }
     }
-}
-
-/// Users departed because connectivity between two servers was lost.
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[non_exhaustive]
-pub struct Netsplit {
-    /// The server names reported for the lost link.
-    pub servers: SplitServers,
-    /// The grouped quits in wire order.
-    pub quits: Vec<Quit>,
-}
-
-/// Users returned after connectivity between two servers was restored.
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[non_exhaustive]
-pub struct Netjoin {
-    /// The server names reported for the restored link.
-    pub servers: SplitServers,
-    /// The grouped joins in wire order.
-    pub joins: Vec<Joined>,
 }
