@@ -366,3 +366,40 @@ pub(super) fn encode_label(mut value: u64) -> String {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Config;
+
+    #[test]
+    fn back_confirmation_requires_the_numeric_and_matching_request() {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().nick("papo"));
+        session
+            .request_with_matcher(now, Line::new("AWAY"), ResponseMatcher::Away(false))
+            .unwrap();
+
+        for (wire, expected) in [
+            (
+                ":ergo.test 305 papo :You are no longer marked as being away",
+                true,
+            ),
+            (
+                ":ergo.test 306 papo :You have been marked as being away",
+                false,
+            ),
+        ] {
+            assert_eq!(
+                session.confirmed_back(&LineRef::parse(wire).unwrap()),
+                expected,
+                "{wire}"
+            );
+        }
+
+        let idle = Session::new(Config::default().nick("papo"));
+        assert!(!idle.confirmed_back(
+            &LineRef::parse(":ergo.test 305 papo :You are no longer marked as being away").unwrap()
+        ));
+    }
+}

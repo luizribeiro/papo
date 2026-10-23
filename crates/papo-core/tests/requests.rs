@@ -235,6 +235,82 @@ fn unlabelled_mode_waits_for_its_matching_ping_fence() {
 }
 
 #[test]
+fn an_empty_non_who_response_completes_at_its_ping_fence() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("papo"));
+    let id = session
+        .request_with_matcher(
+            now,
+            Line::new("MODE").with_params(["#papo", "+t"]),
+            ResponseMatcher::Mode("#papo".into()),
+        )
+        .unwrap();
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"MODE #papo +t\r\n"
+    );
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"PING papo-mode-0\r\n"
+    );
+
+    session.handle_line(now, b":ergo.test PONG ergo.test :papo-mode-0");
+
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Response(response)) if response.id == id
+    ));
+}
+
+#[test]
+fn who_fence_waits_until_the_end_numeric_was_observed() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("papo"));
+    let id = session
+        .request_with_matcher(
+            now,
+            Line::new("WHO").with_params(["*.example"]),
+            ResponseMatcher::Who("*.example".into()),
+        )
+        .unwrap();
+    session
+        .request_with_matcher(
+            now,
+            Line::new("WHO").with_params(["#rust"]),
+            ResponseMatcher::Who("#rust".into()),
+        )
+        .unwrap();
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"WHO *.example\r\n"
+    );
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"PING papo-who-1\r\n"
+    );
+
+    session.handle_line(now, b":irc.solanum.test PONG irc.solanum.test :papo-who-1");
+    assert!(
+        std::iter::from_fn(|| session.poll_event())
+            .all(|event| !matches!(event, Event::Response(_)))
+    );
+    session.handle_line(
+        now,
+        b":irc.solanum.test 352 papo #staff ~alice staff.example irc.solanum.test alice H@ :0 Alice Example",
+    );
+    session.handle_line(
+        now,
+        b":irc.solanum.test 315 papo *.example :End of WHO list",
+    );
+    session.handle_line(now, b":irc.solanum.test PONG irc.solanum.test :papo-who-1");
+
+    assert!(
+        std::iter::from_fn(|| session.poll_event())
+            .any(|event| matches!(event, Event::Response(response) if response.id == id))
+    );
+}
+
+#[test]
 fn unlabelled_mode_keeps_applied_changes_and_partial_refusals() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().nick("papo"));
@@ -1067,10 +1143,7 @@ fn wildcard_who_collects_rows_before_a_concurrent_channel_who() {
     ] {
         session.handle_line(now, line.as_bytes());
     }
-    assert_eq!(
-        session.poll_transmit().unwrap().as_ref(),
-        b"WHO #rust\r\n"
-    );
+    assert_eq!(session.poll_transmit().unwrap().as_ref(), b"WHO #rust\r\n");
     for line in [
         ":irc.solanum.test 352 papo #rust ~ferris users.example irc.solanum.test ferris H :0 Ferris Example",
         ":irc.solanum.test 315 papo #rust :End of WHO list",
