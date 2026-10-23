@@ -1,8 +1,4 @@
-use std::{
-    borrow::Borrow,
-    cmp::Ordering,
-    hash::{Hash, Hasher},
-};
+use std::{borrow::Borrow, cmp::Ordering};
 
 use papo_proto::Casemapping;
 
@@ -45,12 +41,6 @@ impl<T> PartialOrd for NameKey<T> {
 impl<T> Ord for NameKey<T> {
     fn cmp(&self, other: &Self) -> Ordering {
         self.folded.cmp(&other.folded)
-    }
-}
-
-impl<T> Hash for NameKey<T> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.folded.hash(state);
     }
 }
 

@@ -4940,9 +4940,25 @@ mod tests {
     use papo_proto::{Casemapping, Line, LineRef};
 
     use super::{
-        CloseKind, Config, Event, ListMode, Outbox, RequestId, ResponseMatcher, Session, State,
-        UnlabelledRequest,
+        CloseKind, Config, Event, ListMode, NameKey, Outbox, RequestId, ResponseMatcher, Session,
+        State, UnlabelledRequest,
     };
+
+    #[test]
+    fn name_keys_compare_folded_irc_names() {
+        let mapping = Casemapping::Rfc1459;
+        let papo = NameKey::<String>::new("#Papo[", mapping);
+        let equivalent = NameKey::<String>::new("#papo{", mapping);
+        let rust = NameKey::<String>::new("#rust", mapping);
+
+        assert_eq!(papo, equivalent);
+        assert_ne!(papo, rust);
+        assert_eq!(
+            papo.partial_cmp(&equivalent),
+            Some(std::cmp::Ordering::Equal)
+        );
+        assert_eq!(papo.partial_cmp(&rust), Some(std::cmp::Ordering::Less));
+    }
 
     #[test]
     fn invalidating_a_list_request_uses_the_requested_id() {
