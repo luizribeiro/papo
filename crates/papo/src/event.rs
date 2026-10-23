@@ -302,7 +302,10 @@ pub struct Message {
     pub account: Account,
     /// The identifier referenced by a reply tag.
     pub reply_to: Option<MessageId>,
-    /// Channel context attached to a private message.
+    /// Channel context whose membership was verified when this private message was received.
+    ///
+    /// This proves that the actor and client shared the channel at receipt, not that the actor
+    /// held any channel rank. Unverified context remains available in [`Self::tags`].
     pub channel_context: Option<ChannelName>,
     /// Nickname of the client that submitted a relayed message.
     #[cfg(feature = "unstable")]
@@ -347,7 +350,10 @@ pub struct Notice {
     pub account: Account,
     /// The identifier referenced by a reply tag.
     pub reply_to: Option<MessageId>,
-    /// Channel context attached to a private notice.
+    /// Channel context whose membership was verified when this private notice was received.
+    ///
+    /// This proves that the actor and client shared the channel at receipt, not that the actor
+    /// held any channel rank. Unverified context remains available in [`Self::tags`].
     pub channel_context: Option<ChannelName>,
     /// Nickname of the client that submitted a relayed notice.
     #[cfg(feature = "unstable")]
@@ -392,7 +398,6 @@ struct MessageMetadata {
     received_at: SystemTime,
     account: Account,
     reply_to: Option<MessageId>,
-    channel_context: Option<ChannelName>,
     #[cfg(feature = "unstable")]
     relayed_by: Option<Nick>,
     is_bot: bool,
@@ -491,6 +496,7 @@ pub(crate) fn incoming_from_core(
         return Event::Other(received.into_line());
     };
     let status = received.status().map(<[char]>::to_vec);
+    let channel_context = received.channel_context().cloned();
     let authorship = Authorship::from_core(received.authorship());
     let (raw, batch_type) = received.into_parts();
     message_event_from_line(
@@ -499,6 +505,7 @@ pub(crate) fn incoming_from_core(
         authorship,
         conversation,
         status,
+        channel_context,
         isupport,
         account_tag_enabled,
         received_at,
@@ -535,6 +542,7 @@ impl Message {
             authorship,
             conversation,
             status,
+            None,
             isupport,
             false,
             received_at,
@@ -548,6 +556,7 @@ impl Message {
         authorship: Authorship,
         conversation: Conversation,
         status: Option<Vec<char>>,
+        channel_context: Option<ChannelName>,
         isupport: &Isupport,
         account_tag_enabled: bool,
         received_at: SystemTime,
@@ -596,7 +605,7 @@ impl Message {
             received_at: metadata.received_at,
             account: metadata.account,
             reply_to: metadata.reply_to,
-            channel_context: metadata.channel_context,
+            channel_context,
             #[cfg(feature = "unstable")]
             relayed_by: metadata.relayed_by,
             is_bot: metadata.is_bot,
@@ -649,6 +658,7 @@ impl Notice {
         authorship: Authorship,
         conversation: Conversation,
         status: Option<Vec<char>>,
+        channel_context: Option<ChannelName>,
         isupport: &Isupport,
         account_tag_enabled: bool,
         received_at: SystemTime,
@@ -697,7 +707,7 @@ impl Notice {
             received_at: metadata.received_at,
             account: metadata.account,
             reply_to: metadata.reply_to,
-            channel_context: metadata.channel_context,
+            channel_context,
             #[cfg(feature = "unstable")]
             relayed_by: metadata.relayed_by,
             is_bot: metadata.is_bot,
@@ -787,6 +797,7 @@ fn message_event_from_line(
     authorship: Authorship,
     conversation: Conversation,
     status: Option<Vec<char>>,
+    channel_context: Option<ChannelName>,
     isupport: &Isupport,
     account_tag_enabled: bool,
     received_at: SystemTime,
@@ -830,6 +841,7 @@ fn message_event_from_line(
             authorship,
             conversation,
             status,
+            channel_context,
             isupport,
             account_tag_enabled,
             received_at,
@@ -843,6 +855,7 @@ fn message_event_from_line(
         authorship,
         conversation,
         status,
+        channel_context,
         isupport,
         account_tag_enabled,
         received_at,
@@ -885,6 +898,7 @@ pub(crate) fn historical_message_event(
         authorship,
         conversation,
         status,
+        None,
         snapshot.isupport().inner(),
         snapshot.caps().contains_key(&crate::cap::ACCOUNT_TAG),
         received_at,
@@ -931,12 +945,6 @@ fn message_metadata(
         .source()
         .map(|source| source::from_proto(source, isupport.casemapping()))?;
     let tags = Tags::from_message(message);
-    let channel_context = if matches!(conversation, Conversation::Private(_)) {
-        tag_owned(message, &["+channel-context", "+draft/channel-context"])
-            .map(|channel| isupport.casemapping().channel(channel))
-    } else {
-        None
-    };
     let envelope = line_envelope_with_account_tag(
         message,
         isupport.casemapping(),
@@ -958,7 +966,6 @@ fn message_metadata(
         received_at: envelope.received_at,
         account: envelope.account,
         reply_to,
-        channel_context,
         #[cfg(feature = "unstable")]
         relayed_by,
         is_bot: tags.contains("bot"),
@@ -2016,6 +2023,7 @@ mod tests {
             Authorship::Other,
             conversation,
             status,
+            None,
             isupport,
             false,
             received_at,
@@ -2076,6 +2084,7 @@ mod tests {
             Authorship::Other,
             Conversation::Server,
             None,
+            None,
             &isupport,
             false,
             UNIX_EPOCH,
@@ -2090,6 +2099,7 @@ mod tests {
             None,
             Authorship::Other,
             Conversation::Broadcast(isupport.casemapping().mask("$*.example.org")),
+            None,
             None,
             &isupport,
             false,
@@ -2175,6 +2185,7 @@ mod tests {
                 Authorship::Other,
                 conversation,
                 status,
+                None,
                 &isupport,
                 false,
                 UNIX_EPOCH,
@@ -2235,6 +2246,7 @@ mod tests {
                 Authorship::Other,
                 conversation,
                 status,
+                None,
                 &isupport,
                 true,
                 UNIX_EPOCH,
@@ -2331,7 +2343,7 @@ mod tests {
     }
 
     #[test]
-    fn ignores_channel_context_on_channel_messages() {
+    fn raw_message_construction_does_not_trust_channel_context() {
         let tagged = |line| {
             event(
                 LineRef::parse(line).unwrap().to_owned(),
@@ -2348,7 +2360,8 @@ mod tests {
 
         let private =
             tagged("@+channel-context=#papo :emily!~emily@localhost PRIVMSG papo :hello from Ergo");
-        assert_eq!(private.channel_context.as_deref(), Some("#papo"));
+        assert_eq!(private.channel_context, None);
+        assert_eq!(private.tags.get("+channel-context"), Some("#papo"));
     }
 
     #[test]
@@ -2520,7 +2533,6 @@ mod tests {
             Line::privmsg("papo", "hello")
                 .with_source("Alice[bot]!alice@cloak.example")
                 .with_tag("account", "Alice[bot]")
-                .with_tag("+channel-context", "#Papo[dev]")
                 .with_tag("draft/relaymsg", "Bridge[bot]"),
             &isupport,
             "papo",
@@ -2535,10 +2547,6 @@ mod tests {
             message.account,
             Account::LoggedIn(ref account) if account.casemapping() == Casemapping::Ascii
         ));
-        assert_eq!(
-            message.channel_context.as_ref().unwrap().casemapping(),
-            Casemapping::Ascii
-        );
         assert_ne!(nick, "alice{bot}");
         #[cfg(feature = "unstable")]
         assert_eq!(
@@ -2594,6 +2602,7 @@ mod tests {
                 None,
                 authorship,
                 Conversation::Channel(isupport.casemapping().channel("#papo")),
+                None,
                 None,
                 &isupport,
                 false,

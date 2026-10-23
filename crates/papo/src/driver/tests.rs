@@ -5845,6 +5845,7 @@ async fn message_reply_obeys_tags_and_clienttagdeny() {
     assert_reply_wire(
         true,
         "",
+        None,
         tagged,
         b"@+reply=RfcBTzyxY120003 PRIVMSG #papo pong\r\n",
         ReplyKind::Reply,
@@ -5853,6 +5854,7 @@ async fn message_reply_obeys_tags_and_clienttagdeny() {
     assert_reply_wire(
         true,
         "",
+        None,
         b":emily!e@localhost PRIVMSG #papo :!ping\r\n",
         b"PRIVMSG #papo pong\r\n",
         ReplyKind::Reply,
@@ -5861,6 +5863,7 @@ async fn message_reply_obeys_tags_and_clienttagdeny() {
     assert_reply_wire(
         false,
         "",
+        None,
         tagged,
         b"PRIVMSG #papo pong\r\n",
         ReplyKind::Reply,
@@ -5869,6 +5872,7 @@ async fn message_reply_obeys_tags_and_clienttagdeny() {
     assert_reply_wire(
         true,
         ":ergo.test 005 papo-driver CLIENTTAGDENY=* :are supported\r\n",
+        None,
         tagged,
         b"PRIVMSG #papo pong\r\n",
         ReplyKind::Reply,
@@ -5877,6 +5881,7 @@ async fn message_reply_obeys_tags_and_clienttagdeny() {
     assert_reply_wire(
         true,
         ":ergo.test 005 papo-driver CLIENTTAGDENY=*,-reply :are supported\r\n",
+        None,
         tagged,
         b"@+reply=RfcBTzyxY120003 PRIVMSG #papo pong\r\n",
         ReplyKind::Reply,
@@ -5885,6 +5890,7 @@ async fn message_reply_obeys_tags_and_clienttagdeny() {
     assert_reply_wire(
         true,
         ":ergo.test 005 papo-driver CLIENTTAGDENY=*,-draft/reply :are supported\r\n",
+        None,
         tagged,
         b"@+draft/reply=RfcBTzyxY120003 PRIVMSG #papo pong\r\n",
         ReplyKind::Reply,
@@ -5893,6 +5899,7 @@ async fn message_reply_obeys_tags_and_clienttagdeny() {
     assert_reply_wire(
         true,
         ":ergo.test 005 papo-driver CHANTYPES=# STATUSMSG=@+ :are supported\r\n",
+        None,
         b"@msgid=RfcBTzyxY120003 :emily!e@localhost PRIVMSG @#ops :!ping\r\n",
         b"@+reply=RfcBTzyxY120003 PRIVMSG @#ops pong\r\n",
         ReplyKind::Reply,
@@ -6781,6 +6788,7 @@ async fn private_reply_keeps_channel_context() {
     assert_reply_wire(
         true,
         "",
+        Some("#papo"),
         b"@msgid=RfcBTzyxY120003;+channel-context=#papo :emily!e@localhost PRIVMSG papo-driver :!ping\r\n",
         b"@+reply=RfcBTzyxY120003;+channel-context=#papo PRIVMSG emily pong\r\n",
         ReplyKind::Reply,

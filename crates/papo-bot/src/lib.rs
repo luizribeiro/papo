@@ -959,6 +959,8 @@ mod tests {
             ":ergo.test CAP papo{bot} ACK :message-tags\r\n",
             ":ergo.test 001 papo{bot} :Welcome to the Ergo test network\r\n",
             ":ergo.test 005 papo{bot} CASEMAPPING=rfc1459 CHANTYPES=# :are supported\r\n",
+            ":papo{bot}!papo@localhost JOIN #rust\r\n",
+            ":emily!~emily@localhost JOIN #rust\r\n",
             ":emily!~emily@localhost PRIVMSG #papo :!ping\r\n",
             "@+channel-context=#rust :emily!~emily@localhost PRIVMSG papo{bot} :!status\r\n",
         );

@@ -39,6 +39,24 @@ fn is_private(message: &papo::Message) -> bool {
     conversation_is_private(&message.conversation)
 }
 
+async fn assert_unverified_context(
+    sender: &Peer,
+    recipient: &mut Peer,
+    context: &str,
+    text: &'static str,
+) -> papo_testing::Result<()> {
+    sender
+        .privmsg(recipient.nick(), text)
+        .channel_context(context)
+        .await?;
+    let message = recipient
+        .wait_for(|event| message_text(event, text))
+        .await?;
+    assert_eq!(message.channel_context, None);
+    assert_eq!(message.tags.get("+channel-context"), Some(context));
+    Ok(())
+}
+
 /// a channel PRIVMSG confirms through its future and reaches one recipient
 #[scenario(
     requires(caps = ["echo-message", "labeled-response", "message-tags", "server-time"]),
@@ -187,6 +205,25 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert_eq!(threaded.channel_context.as_ref(), Some(&channel));
     assert_eq!(threaded.msgid.as_ref(), sent.msgid.as_ref());
+
+    alice.part(&channel, "testing channel context").await?;
+    bob.wait_for(|event| {
+        event
+            .as_parted()
+            .filter(|parted| parted.nick == alice.nick())
+    })
+    .await?;
+    assert_unverified_context(&alice, &mut bob, &channel, "context after part").await?;
+
+    let private_channel = s.channel_name();
+    alice.join(&private_channel).await?;
+    assert_unverified_context(
+        &alice,
+        &mut bob,
+        &private_channel,
+        "context from unshared channel",
+    )
+    .await?;
 
     let unavailable = papo_test_server::unique("missing-target");
     let Error::Server(refusal) = alice

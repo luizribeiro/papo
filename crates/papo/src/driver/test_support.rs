@@ -631,6 +631,7 @@ pub(crate) enum ReplyKind {
 pub(crate) async fn assert_reply_wire(
     message_tags: bool,
     isupport: &str,
+    shared_context: Option<&str>,
     incoming: &[u8],
     expected: &[u8],
     kind: ReplyKind,
@@ -656,6 +657,15 @@ pub(crate) async fn assert_reply_wire(
     )
     .await;
     assert!(matches!(events.next().await, Some(Event::Connected(_))));
+    if let Some(channel) = shared_context {
+        let joins = format!(
+            ":papo-driver!papo@localhost JOIN {channel}\r\n:emily!e@localhost JOIN {channel}\r\n"
+        );
+        server_line(&mut server, joins.as_bytes()).await;
+        for _ in 0..2 {
+            assert!(matches!(events.next().await, Some(Event::Joined(_))));
+        }
+    }
     server_line(&mut server, incoming).await;
     let Some(Event::Message(message)) = events.next().await else {
         panic!("expected message event")
