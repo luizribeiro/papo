@@ -581,6 +581,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "papo-bouncer-networks"
+version = "0.1.0"
+dependencies = [
+ "papo",
+ "papo-test-server",
+ "tokio",
+]
+
+[[package]]
 name = "papo-browser-worker"
 version = "0.1.0"
 dependencies = [

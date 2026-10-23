@@ -15,6 +15,7 @@ members = [
   "examples/react-bot",
   "examples/graceful-shutdown",
   "examples/catchup",
+  "examples/bouncer-networks",
   "examples/create-account",
   "examples/browser-worker",
   "examples/sts-store",

@@ -1,0 +1,23 @@
+[package]
+name = "papo-bouncer-networks"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+version.workspace = true
+publish = false
+
+[[bin]]
+name = "bouncer-networks"
+path = "src/main.rs"
+
+[dependencies]
+papo = { path = "../../crates/papo", version = "=0.1.0", features = ["unstable"] }
+tokio = { version = "1.53.3", features = ["macros", "rt"] }
+
+[dev-dependencies]
+papo-test-server = { path = "../../crates/papo-test-server", version = "=0.1.0" }
+tokio = { version = "1.53.3", features = ["time"] }
+
+[lints]
+workspace = true
