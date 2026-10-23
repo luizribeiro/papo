@@ -1996,6 +1996,28 @@ mod tests {
             if matches!(notice.to, ServerNoticeTarget::Mask(_))));
     }
 
+    #[test]
+    fn exposes_formatted_notice_spans() {
+        let event = parse_event(
+            LineRef::parse(
+                ":emily!~emily@cloak.example NOTICE #papo :deployment \x02complete\x02 on Ergo",
+            )
+            .unwrap()
+            .to_owned(),
+            &Isupport::default(),
+            "papo",
+            UNIX_EPOCH,
+        );
+        let notice = event.as_notice().unwrap();
+
+        let spans = notice.spans().collect::<Vec<_>>();
+        assert_eq!(
+            spans.iter().map(|span| span.text).collect::<Vec<_>>(),
+            ["deployment ", "complete", " on Ergo"]
+        );
+        assert!(spans[1].style.bold);
+    }
+
     fn chat(command: &str, text: &str) -> ChatMessage {
         event(
             Line::new(command)
