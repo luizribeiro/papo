@@ -296,17 +296,9 @@ async fn ctcp_playback_has_no_automatic_reply(s: Scenario) -> papo_testing::Resu
         .limit(10)
         .await?;
     assert!(page.items.iter().any(|item| {
-        matches!(item, papo::Event::Other(raw) if {
-            raw.command() == "PRIVMSG"
-                && raw.get(1) == Some("\u{1}VERSION\u{1}")
-                && raw.source().is_some_and(|source| {
-                    matches!(
-                        source,
-                        papo_proto::Source::User { nick, .. }
-                            if nick == alice.nick().as_ref()
-                    )
-                })
-        })
+        matches!(item, papo::Event::CtcpQuery(query)
+            if query.command == "VERSION"
+                && crate::source_nick(&query.actor) == Some(alice.nick().as_ref()))
     }));
     alice
         .expect_none(|event| {
