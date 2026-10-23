@@ -88,6 +88,8 @@ impl std::fmt::Display for NetworkId {
 }
 
 /// Current connection state of an upstream bouncer network.
+///
+/// Display uses lowercase protocol spellings so state output matches soju's wire values.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum NetworkState {
@@ -97,6 +99,16 @@ pub enum NetworkState {
     Connecting,
     /// Not connected to the upstream network.
     Disconnected,
+}
+
+impl fmt::Display for NetworkState {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::Connected => "connected",
+            Self::Connecting => "connecting",
+            Self::Disconnected => "disconnected",
+        })
+    }
 }
 
 /// Why an upstream network URL could not be parsed.
@@ -531,6 +543,17 @@ mod tests {
     use papo_proto::{Casemapping, LineRef};
 
     use super::{BouncerNetwork, InvalidNetworkUrl, NetworkConfig, NetworkState, NetworkUpdate};
+
+    #[test]
+    fn network_states_display_as_protocol_words() {
+        for (state, expected) in [
+            (NetworkState::Connected, "connected"),
+            (NetworkState::Connecting, "connecting"),
+            (NetworkState::Disconnected, "disconnected"),
+        ] {
+            assert_eq!(state.to_string(), expected);
+        }
+    }
 
     #[test]
     fn network_config_parses_irc_urls() {
