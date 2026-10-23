@@ -180,8 +180,8 @@ pub struct CtcpQuery {
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
     pub received_at: SystemTime,
-    /// The actor's authenticated account, when tagged.
-    pub account: Option<AccountName>,
+    /// The actor's account state reported by `account-tag`.
+    pub account: Account,
     /// All message tags in wire order.
     pub tags: Tags,
 }
@@ -212,8 +212,8 @@ pub struct CtcpReply {
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
     pub received_at: SystemTime,
-    /// The actor's authenticated account, when tagged.
-    pub account: Option<AccountName>,
+    /// The actor's account state reported by `account-tag`.
+    pub account: Account,
     /// All message tags in wire order.
     pub tags: Tags,
 }
@@ -298,8 +298,8 @@ pub struct Message {
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
     pub received_at: SystemTime,
-    /// The actor's authenticated account, when tagged.
-    pub account: Option<AccountName>,
+    /// The actor's account state reported by `account-tag`.
+    pub account: Account,
     /// The identifier referenced by a reply tag.
     pub reply_to: Option<MessageId>,
     /// Channel context attached to a private message.
@@ -343,8 +343,8 @@ pub struct Notice {
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
     pub received_at: SystemTime,
-    /// The actor's authenticated account, when tagged.
-    pub account: Option<AccountName>,
+    /// The actor's account state reported by `account-tag`.
+    pub account: Account,
     /// The identifier referenced by a reply tag.
     pub reply_to: Option<MessageId>,
     /// Channel context attached to a private notice.
@@ -390,7 +390,7 @@ struct MessageMetadata {
     msgid: Option<MessageId>,
     server_time: Option<SystemTime>,
     received_at: SystemTime,
-    account: Option<AccountName>,
+    account: Account,
     reply_to: Option<MessageId>,
     channel_context: Option<ChannelName>,
     #[cfg(feature = "unstable")]
@@ -408,6 +408,7 @@ fn ctcp_from_line(
     conversation: Conversation,
     status: Option<Vec<char>>,
     isupport: &Isupport,
+    account_tag_enabled: bool,
     received_at: SystemTime,
 ) -> Result<Event, ProtoLine> {
     let message = raw.as_ref();
@@ -421,6 +422,7 @@ fn ctcp_from_line(
         conversation,
         status,
         isupport,
+        account_tag_enabled,
         received_at,
     ) else {
         return Err(raw);
@@ -475,6 +477,7 @@ fn ctcp_parts(message: &LineRef<'_>) -> Option<(String, Option<String>, bool)> {
 pub(crate) fn incoming_from_core(
     received: papo_core::ReceivedLine,
     isupport: &Isupport,
+    account_tag_enabled: bool,
     received_at: SystemTime,
 ) -> Event {
     if received.batch_type().is_some_and(|kind| {
@@ -497,6 +500,7 @@ pub(crate) fn incoming_from_core(
         conversation,
         status,
         isupport,
+        account_tag_enabled,
         received_at,
     )
 }
@@ -532,6 +536,7 @@ impl Message {
             conversation,
             status,
             isupport,
+            false,
             received_at,
         )
     }
@@ -544,6 +549,7 @@ impl Message {
         conversation: Conversation,
         status: Option<Vec<char>>,
         isupport: &Isupport,
+        account_tag_enabled: bool,
         received_at: SystemTime,
     ) -> Result<Self, ProtoLine> {
         let message = raw.as_ref();
@@ -569,6 +575,7 @@ impl Message {
             conversation,
             status,
             isupport,
+            account_tag_enabled,
             received_at,
         ) else {
             return Err(raw);
@@ -643,6 +650,7 @@ impl Notice {
         conversation: Conversation,
         status: Option<Vec<char>>,
         isupport: &Isupport,
+        account_tag_enabled: bool,
         received_at: SystemTime,
     ) -> Result<Self, ProtoLine> {
         let message = raw.as_ref();
@@ -668,6 +676,7 @@ impl Notice {
             conversation,
             status,
             isupport,
+            account_tag_enabled,
             received_at,
         ) else {
             return Err(raw);
@@ -712,6 +721,7 @@ impl ServerNotice {
         conversation: Conversation,
         status: Option<Vec<char>>,
         isupport: &Isupport,
+        account_tag_enabled: bool,
         received_at: SystemTime,
     ) -> Result<Self, ProtoLine> {
         let message = raw.as_ref();
@@ -747,6 +757,7 @@ impl ServerNotice {
             conversation,
             status,
             isupport,
+            account_tag_enabled,
             received_at,
         ) else {
             return Err(raw);
@@ -777,6 +788,7 @@ fn message_event_from_line(
     conversation: Conversation,
     status: Option<Vec<char>>,
     isupport: &Isupport,
+    account_tag_enabled: bool,
     received_at: SystemTime,
 ) -> Event {
     let server_notice = raw.as_ref().command_is("WALLOPS")
@@ -793,6 +805,7 @@ fn message_event_from_line(
             conversation,
             status,
             isupport,
+            account_tag_enabled,
             received_at,
         )
         .map_or_else(Event::Other, |notice| Event::ServerNotice(Box::new(notice)));
@@ -804,6 +817,7 @@ fn message_event_from_line(
         conversation.clone(),
         status.clone(),
         isupport,
+        account_tag_enabled,
         received_at,
     ) {
         Ok(event) => return event,
@@ -817,6 +831,7 @@ fn message_event_from_line(
             conversation,
             status,
             isupport,
+            account_tag_enabled,
             received_at,
         )
         .map_or_else(Event::Other, |notice| Event::Notice(Box::new(notice)));
@@ -829,6 +844,7 @@ fn message_event_from_line(
         conversation,
         status,
         isupport,
+        account_tag_enabled,
         received_at,
     )
     .map_or_else(Event::Other, |message| {
@@ -870,6 +886,7 @@ pub(crate) fn historical_message_event(
         conversation,
         status,
         snapshot.isupport().inner(),
+        snapshot.caps().contains_key(&crate::cap::ACCOUNT_TAG),
         received_at,
     )
 }
@@ -907,6 +924,7 @@ fn message_metadata(
     conversation: Conversation,
     status: Option<Vec<char>>,
     isupport: &Isupport,
+    account_tag_enabled: bool,
     received_at: SystemTime,
 ) -> Option<MessageMetadata> {
     let actor = message
@@ -933,7 +951,7 @@ fn message_metadata(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        account: envelope.account,
+        account: account_from_tag(message, isupport.casemapping(), account_tag_enabled),
         reply_to,
         channel_context,
         #[cfg(feature = "unstable")]
@@ -944,6 +962,23 @@ fn message_metadata(
         }),
         tags,
     })
+}
+
+fn account_from_tag(
+    message: &LineRef<'_>,
+    casemapping: Casemapping,
+    account_tag_enabled: bool,
+) -> Account {
+    tag_owned(message, &["account"]).map_or_else(
+        || {
+            if account_tag_enabled {
+                Account::LoggedOut
+            } else {
+                Account::Unknown
+            }
+        },
+        |account| Account::LoggedIn(casemapping.account(account)),
+    )
 }
 
 pub(crate) struct EventEnvelope {
@@ -1957,6 +1992,7 @@ mod tests {
             conversation,
             status,
             isupport,
+            false,
             received_at,
         )
     }
@@ -1966,14 +2002,17 @@ mod tests {
         let mut isupport = Isupport::default();
         isupport.apply_tokens(["CHANTYPES=#", "STATUSMSG=@+"]);
         let user = parse_event(
-            Line::notice("papo", "maintenance soon").with_source("emily!~e@localhost"),
+            Line::notice("papo", "maintenance soon")
+                .with_source("emily!~e@localhost")
+                .with_tag("account", "emily"),
             &isupport,
             "papo",
             UNIX_EPOCH,
         );
         assert!(matches!(user, Event::Notice(notice)
             if notice.kind == NoticeKind::Text
-                && matches!(notice.conversation, Chat::Private(_))));
+                && matches!(notice.conversation, Chat::Private(_))
+                && matches!(&notice.account, Account::LoggedIn(account) if account == "emily")));
 
         let action = parse_event(
             Line::notice("@#ops", "\x01ACTION nods hello\x01")
@@ -2013,6 +2052,7 @@ mod tests {
             Conversation::Server,
             None,
             &isupport,
+            false,
             UNIX_EPOCH,
         );
         assert!(matches!(wallops, Event::ServerNotice(notice)
@@ -2027,6 +2067,7 @@ mod tests {
             Conversation::Broadcast(isupport.casemapping().mask("$*.example.org")),
             None,
             &isupport,
+            false,
             UNIX_EPOCH,
         );
         assert!(matches!(broadcast, Event::ServerNotice(notice)
@@ -2083,7 +2124,9 @@ mod tests {
 
     #[test]
     fn classifies_chat_and_ctcp_messages() {
-        assert_eq!(chat("PRIVMSG", "hello").kind, MessageKind::Text);
+        let message = chat("PRIVMSG", "hello");
+        assert_eq!(message.kind, MessageKind::Text);
+        assert_eq!(message.account, Account::Unknown);
         assert_eq!(
             chat("PRIVMSG", "\x01ACTION waves\x01").kind,
             MessageKind::Action
@@ -2095,7 +2138,8 @@ mod tests {
         let parse = |command, text| {
             let line = Line::new(command)
                 .with_params(["@#ops", text])
-                .with_source("emily!~emily@localhost");
+                .with_source("emily!~emily@localhost")
+                .with_tag("account", "emily");
             let mut isupport = Isupport::default();
             isupport.apply_tokens(["CHANTYPES=#", "STATUSMSG=@+"]);
             let (status, conversation) =
@@ -2107,6 +2151,7 @@ mod tests {
                 conversation,
                 status,
                 &isupport,
+                false,
                 UNIX_EPOCH,
             )
         };
@@ -2115,10 +2160,12 @@ mod tests {
         assert_eq!(version.command, "VERSION");
         assert_eq!(version.params, None);
         assert_eq!(version.return_address(), "@#ops");
+        assert!(matches!(&version.account, Account::LoggedIn(account) if account == "emily"));
         let reply_event = parse("NOTICE", "\x01VERSION papo-0.1\x01");
         let reply = reply_event.as_ctcp_reply().unwrap();
         assert_eq!(reply.params.as_deref(), Some("papo-0.1"));
         assert_eq!(reply.return_address(), "@#ops");
+        assert!(matches!(&reply.account, Account::LoggedIn(account) if account == "emily"));
         let action_notice = parse("NOTICE", "\x01ACTION waves\x01");
         assert!(matches!(action_notice, Event::Notice(notice)
             if notice.kind == NoticeKind::Action && notice.text == "waves"));
@@ -2164,6 +2211,7 @@ mod tests {
                 conversation,
                 status,
                 &isupport,
+                true,
                 UNIX_EPOCH,
             )
             .is_err()
@@ -2320,7 +2368,7 @@ mod tests {
         );
         assert!(matches!(&tagged.conversation, Chat::Channel(name) if name == "#papo"));
         assert_eq!(tagged.msgid.as_deref(), Some("RfcBTzyxY120004"));
-        assert_eq!(tagged.account.as_deref(), Some("emily"));
+        assert!(matches!(&tagged.account, Account::LoggedIn(account) if account == "emily"));
         assert!(tagged.is_bot);
         let tagged_event = Event::Message(Box::new(tagged.clone()));
         assert_eq!(tagged_event.msgid().as_deref(), Some("RfcBTzyxY120004"));
@@ -2361,6 +2409,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn event_metadata_survives_live_line_conversion() {
         let received_at = UNIX_EPOCH + Duration::from_secs(42);
         let server_time = UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000);
@@ -2370,9 +2419,12 @@ mod tests {
             let core = session.poll_event().expect("expected event from live line");
             match from_core_with_mapping(core, session.isupport().casemapping(), received_at) {
                 CoreEvent::Forward(event) => event,
-                CoreEvent::Line(line) => {
-                    super::incoming_from_core(line, session.isupport(), received_at)
-                }
+                CoreEvent::Line(line) => super::incoming_from_core(
+                    line,
+                    session.isupport(),
+                    session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
+                    received_at,
+                ),
                 _ => panic!("live line did not produce an event"),
             }
         };
@@ -2432,10 +2484,10 @@ mod tests {
             panic!("message should have a user source");
         };
         assert_eq!(nick.casemapping(), Casemapping::Ascii);
-        assert_eq!(
-            message.account.as_ref().unwrap().casemapping(),
-            Casemapping::Ascii
-        );
+        assert!(matches!(
+            message.account,
+            Account::LoggedIn(ref account) if account.casemapping() == Casemapping::Ascii
+        ));
         assert_eq!(
             message.channel_context.as_ref().unwrap().casemapping(),
             Casemapping::Ascii
@@ -2497,6 +2549,7 @@ mod tests {
                 Conversation::Channel(isupport.casemapping().channel("#papo")),
                 None,
                 &isupport,
+                false,
                 UNIX_EPOCH,
             )
         };
@@ -2610,7 +2663,7 @@ mod tests {
         let CoreEvent::Line(message) = from_core(event) else {
             panic!("message was not mapped")
         };
-        super::incoming_from_core(message, &Isupport::default(), UNIX_EPOCH)
+        super::incoming_from_core(message, &Isupport::default(), false, UNIX_EPOCH)
     }
 
     fn batched_event(kind: &str, command: &str) -> Event {
@@ -2624,7 +2677,7 @@ mod tests {
         let CoreEvent::Line(line) = from_core(core) else {
             panic!("batch fallback was not a line")
         };
-        super::incoming_from_core(line, &Isupport::default(), UNIX_EPOCH)
+        super::incoming_from_core(line, &Isupport::default(), false, UNIX_EPOCH)
     }
 
     fn labelled_session(now: Instant, config: Config) -> Session {

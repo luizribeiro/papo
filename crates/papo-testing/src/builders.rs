@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use papo::{AccountName, Message, MessageId, MessageKind};
+use papo::{Account, AccountName, Message, MessageId, MessageKind};
 
 /// Builds an incoming chat-message payload.
 #[derive(Debug)]
@@ -47,7 +47,7 @@ impl MessageBuilder {
     /// Sets the actor's authenticated account.
     #[must_use]
     pub fn account(mut self, account: impl Into<AccountName>) -> Self {
-        self.message.account = Some(account.into());
+        self.message.account = Account::LoggedIn(account.into());
         self
     }
 
@@ -116,7 +116,7 @@ mod tests {
 
         assert_eq!(message.return_address(), "alice");
         assert_eq!(message.kind, MessageKind::Text);
-        assert_eq!(message.account.as_deref(), Some("alice"));
+        assert!(matches!(message.account, papo::Account::LoggedIn(account) if account == "alice"));
         assert_eq!(message.msgid.as_deref(), Some("ergo-42"));
         assert_eq!(message.tags.iter().count(), 2);
         assert_eq!(message.tags.get("bot"), Some(""));

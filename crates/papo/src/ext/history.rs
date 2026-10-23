@@ -1038,7 +1038,7 @@ mod tests {
         assert!(matches!(&items[0], PageEvent::OwnMessage(message)
             if message.msgid.as_deref() == Some("RfcBTzyxY120004")
                 && message.server_time == Some(first_time)
-                && message.account.as_deref() == Some("papo")));
+                && matches!(&message.account, crate::Account::LoggedIn(account) if account == "papo")));
         assert!(matches!(&items[3], PageEvent::NickChanged(changed)
             if changed.msgid.as_deref() == Some("RfcBTzyxY120007")
                 && changed.account.as_deref() == Some("papo")));

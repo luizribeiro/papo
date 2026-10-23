@@ -109,7 +109,7 @@ pub fn message(
         msgid: None,
         server_time: None,
         received_at: SystemTime::UNIX_EPOCH,
-        account: None,
+        account: crate::Account::Unknown,
         reply_to: None,
         channel_context: None,
         #[cfg(feature = "unstable")]

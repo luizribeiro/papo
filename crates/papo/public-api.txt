@@ -377,7 +377,7 @@ impl core::marker::UnsafeUnpin for papo::event::Connecting
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Connecting
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Connecting
 #[non_exhaustive] pub struct papo::event::CtcpQuery
-pub papo::event::CtcpQuery::account: core::option::Option<papo::AccountName>
+pub papo::event::CtcpQuery::account: papo::Account
 pub papo::event::CtcpQuery::actor: papo::Source
 pub papo::event::CtcpQuery::authorship: papo::Authorship
 pub papo::event::CtcpQuery::command: alloc::string::String
@@ -406,7 +406,7 @@ impl core::marker::UnsafeUnpin for papo::event::CtcpQuery
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::CtcpQuery
 impl core::panic::unwind_safe::UnwindSafe for papo::event::CtcpQuery
 #[non_exhaustive] pub struct papo::event::CtcpReply
-pub papo::event::CtcpReply::account: core::option::Option<papo::AccountName>
+pub papo::event::CtcpReply::account: papo::Account
 pub papo::event::CtcpReply::actor: papo::Source
 pub papo::event::CtcpReply::authorship: papo::Authorship
 pub papo::event::CtcpReply::command: alloc::string::String
@@ -685,7 +685,7 @@ impl core::marker::UnsafeUnpin for papo::event::NickChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::NickChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::NickChanged
 #[non_exhaustive] pub struct papo::event::Notice
-pub papo::event::Notice::account: core::option::Option<papo::AccountName>
+pub papo::event::Notice::account: papo::Account
 pub papo::event::Notice::actor: papo::Source
 pub papo::event::Notice::authorship: papo::Authorship
 pub papo::event::Notice::channel_context: core::option::Option<papo::ChannelName>
@@ -2127,7 +2127,7 @@ impl core::marker::UnsafeUnpin for papo::ListFilter
 impl core::panic::unwind_safe::RefUnwindSafe for papo::ListFilter
 impl core::panic::unwind_safe::UnwindSafe for papo::ListFilter
 #[non_exhaustive] pub struct papo::Message
-pub papo::Message::account: core::option::Option<papo::AccountName>
+pub papo::Message::account: papo::Account
 pub papo::Message::actor: papo::Source
 pub papo::Message::authorship: papo::Authorship
 pub papo::Message::channel_context: core::option::Option<papo::ChannelName>

@@ -51,8 +51,8 @@ use std::{
 use web_time::Instant;
 
 use papo::{
-    AccountName, Chat, Client, Conversation, InvalidRateLimit, Message as ChatMessage, MessageKind,
-    Source,
+    Account, AccountName, Chat, Client, Conversation, InvalidRateLimit, Message as ChatMessage,
+    MessageKind, Source,
 };
 
 const MAX_RATE_TARGETS: usize = 1024;
@@ -205,7 +205,7 @@ pub struct Command {
     name: String,
     args: Vec<String>,
     rest: String,
-    account: Option<AccountName>,
+    account: Account,
     replies: ReplyRateLimiter,
 }
 
@@ -276,7 +276,10 @@ impl Command {
     /// `self.actor.nick()` with [`papo::State::user`] and inspect [`papo::User::account`].
     #[must_use]
     pub const fn account(&self) -> Option<&AccountName> {
-        self.account.as_ref()
+        match &self.account {
+            Account::LoggedIn(account) => Some(account),
+            _ => None,
+        }
     }
 
     /// Reports whether the sender's account is in `accounts`.
@@ -386,7 +389,7 @@ impl Command {
     }
 
     fn recipient_changed(&self, target: &papo::Nick) -> bool {
-        let Some(expected) = &self.account else {
+        let Account::LoggedIn(expected) = &self.account else {
             return false;
         };
         !matches!(

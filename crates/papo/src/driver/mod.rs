@@ -1248,6 +1248,7 @@ where
                 let event = crate::event_impl::incoming_from_core(
                     message,
                     session.isupport(),
+                    session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
                     crate::rt::now_wall(),
                 );
                 if !enqueue_event(events, pending_events, event) {

@@ -35,7 +35,10 @@ async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
     );
     assert_eq!(message.msgid.as_ref(), sent.msgid.as_ref());
     assert_eq!(message.server_time, sent.server_time);
-    assert_eq!(message.account.as_deref(), Some(account.as_ref()));
+    assert!(matches!(
+        &message.account,
+        Account::LoggedIn(observed) if observed == &account
+    ));
     assert!(sent.fallbacks.is_empty());
     assert!(matches!(
         bob.state().user(&alice_nick).unwrap().account(),

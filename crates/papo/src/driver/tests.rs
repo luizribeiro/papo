@@ -325,7 +325,7 @@ async fn message_fields_use_captured_session_facts() {
     assert!(!matches!(message.conversation, crate::Chat::Private(_)));
     assert_eq!(message.return_address(), "#papo");
     assert_eq!(message.msgid.as_deref(), Some("RfcBTzyxY120004"));
-    assert_eq!(message.account.as_deref(), Some("emily"));
+    assert!(matches!(&message.account, crate::Account::LoggedIn(account) if account == "emily"));
     assert!(message.is_bot);
     assert_eq!(
         message.reply_to.as_ref().map(AsRef::as_ref),
