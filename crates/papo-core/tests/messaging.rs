@@ -465,7 +465,6 @@ fn connectivity_batches_keep_live_ctcp_queries_answerable() {
         .no_client()
         .server(":ergo.test BATCH -joined")
         .client("NOTICE alice :\x01PING 1731513600\x01")
-        .event(|event| matches!(event, Event::Netjoin { .. }))
         .event(|event| matches!(event, Event::Line(line) if line.batch_type() == Some("netjoin")))
         .server(":ergo.test BATCH +split netsplit irc1.example irc2.example")
         .server("@batch=split :bob!~b@cloak PRIVMSG papo :\x01VERSION\x01")
@@ -475,7 +474,6 @@ fn connectivity_batches_keep_live_ctcp_queries_answerable() {
             "NOTICE bob :\x01VERSION papo {}\x01",
             env!("CARGO_PKG_VERSION")
         ))
-        .event(|event| matches!(event, Event::Netsplit { .. }))
         .event(|event| matches!(event, Event::Line(line) if line.batch_type() == Some("netsplit")));
 }
 

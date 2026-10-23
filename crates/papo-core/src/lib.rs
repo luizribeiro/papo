@@ -4463,35 +4463,19 @@ impl Session {
                     first: servers[0].clone(),
                     second: servers[1].clone(),
                 };
-                let authorship = quits
-                    .iter()
-                    .map(|message| self.authorship(&message.as_ref()))
-                    .collect();
                 let mut deferred = VecDeque::new();
                 // History can describe stale membership, while netsplit and netjoin batches
                 // report connectivity changes that define the current live membership.
-                let channels = quits
-                    .iter()
-                    .map(|message| {
-                        let (channels, generated) = self.apply_aggregate_state(message);
-                        for mut event in generated {
-                            if let Event::Quit { netsplit, .. } = &mut event {
-                                *netsplit = Some(split.clone());
-                                self.outbox.event(event);
-                            } else {
-                                deferred.push_back(event);
-                            }
+                for message in &quits {
+                    for mut event in self.apply_aggregate_state(message) {
+                        if let Event::Quit { netsplit, .. } = &mut event {
+                            *netsplit = Some(split.clone());
+                            self.outbox.event(event);
+                        } else {
+                            deferred.push_back(event);
                         }
-                        channels.unwrap_or_default()
-                    })
-                    .collect();
-                self.outbox.event(Event::Netsplit {
-                    reference,
-                    servers,
-                    quits,
-                    authorship,
-                    channels,
-                });
+                    }
+                }
                 self.outbox.events.extend(deferred);
             }
             BatchEvent::Netjoin {
@@ -4504,14 +4488,9 @@ impl Session {
                     first: servers[0].clone(),
                     second: servers[1].clone(),
                 };
-                let authorship = joins
-                    .iter()
-                    .map(|message| self.authorship(&message.as_ref()))
-                    .collect();
                 let mut deferred = VecDeque::new();
                 for message in &joins {
-                    let (_, generated) = self.apply_aggregate_state(message);
-                    for mut event in generated {
+                    for mut event in self.apply_aggregate_state(message) {
                         if let Event::Joined { netjoin, .. } = &mut event {
                             *netjoin = Some(split.clone());
                             self.outbox.event(event);
@@ -4520,12 +4499,6 @@ impl Session {
                         }
                     }
                 }
-                self.outbox.event(Event::Netjoin {
-                    reference,
-                    servers,
-                    joins,
-                    authorship,
-                });
                 self.outbox.events.extend(deferred);
             }
             BatchEvent::Abandoned {
@@ -4797,10 +4770,7 @@ impl Session {
         }
     }
 
-    fn apply_aggregate_state(
-        &mut self,
-        message: &Line,
-    ) -> (Option<Vec<ChannelName>>, VecDeque<Event>) {
+    fn apply_aggregate_state(&mut self, message: &Line) -> VecDeque<Event> {
         let event_count = self.outbox.events.len();
         let handled = self.state.handle_message(
             &message.as_ref(),
@@ -4816,14 +4786,10 @@ impl Session {
             &mut self.outbox,
         ) == Handled::Yes;
         let generated = self.outbox.events.split_off(event_count);
-        let channels = generated.iter().find_map(|event| match event {
-            Event::Quit { channels, .. } => Some(channels.clone()),
-            _ => None,
-        });
         if handled {
             self.state_generation = self.state_generation.wrapping_add(1);
         }
-        (channels, generated)
+        generated
     }
 
     fn no_implicit_names(&self) -> bool {

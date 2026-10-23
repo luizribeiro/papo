@@ -512,15 +512,6 @@ fn outermost_aggregate_groups_its_commands_and_releases_others() {
         Some(Event::Quit { nick, netsplit: Some(split), authorship, .. })
             if nick == "alice" && split.batch == "split" && authorship == Authorship::Other
     ));
-    assert!(matches!(
-        session.poll_event(),
-        Some(Event::Netsplit { reference, servers, quits, authorship, .. })
-            if reference == "split"
-                && servers == ["irc.example", "irc.remote"]
-                && quits.len() == 1
-                && authorship == [Authorship::Other]
-                && quits[0].as_ref().param(0) == Some("link lost")
-    ));
     let extra = line(&mut session);
     assert_eq!(extra.batch_type(), Some("netsplit"));
     assert!(extra.as_ref().command_is("NOTICE"));
@@ -547,7 +538,7 @@ fn interleaved_histories_complete_independently() {
 }
 
 #[test]
-fn netsplit_followed_by_netjoin_becomes_two_aggregate_events() {
+fn netsplit_followed_by_netjoin_becomes_individual_events() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
     session.handle_line(
@@ -584,7 +575,6 @@ fn netsplit_followed_by_netjoin_becomes_two_aggregate_events() {
                 if actual == nick && actual_authorship == authorship && split.batch == "split"
         ));
     }
-    assert!(matches!(session.poll_event(), Some(Event::Netsplit { .. })));
     for (nick, authorship) in [("papo", Authorship::Own), ("bob", Authorship::Other)] {
         assert!(matches!(
             session.poll_event(),
@@ -592,12 +582,11 @@ fn netsplit_followed_by_netjoin_becomes_two_aggregate_events() {
                 if actual == nick && actual_authorship == authorship && split.batch == "join"
         ));
     }
-    assert!(matches!(session.poll_event(), Some(Event::Netjoin { .. })));
     assert_eq!(session.poll_event(), None);
 }
 
 #[test]
-fn empty_membership_aggregates_are_observable() {
+fn empty_membership_batches_emit_nothing() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
     session.handle_line(now, b"BATCH +split netsplit irc.example irc.remote");
@@ -605,14 +594,6 @@ fn empty_membership_aggregates_are_observable() {
     session.handle_line(now, b"BATCH +join netjoin irc.example irc.remote");
     session.handle_line(now, b"BATCH -join");
 
-    assert!(matches!(
-        session.poll_event(),
-        Some(Event::Netsplit { quits, .. }) if quits.is_empty()
-    ));
-    assert!(matches!(
-        session.poll_event(),
-        Some(Event::Netjoin { joins, .. }) if joins.is_empty()
-    ));
     assert_eq!(session.poll_event(), None);
 }
 
@@ -640,33 +621,22 @@ fn ergo_netsplit_captures_channels_and_identity() {
     );
     session.handle_line(now, b":ergo.test BATCH -split");
 
-    let Some(Event::Netsplit {
-        reference,
-        servers,
-        quits,
+    let Some(Event::Quit {
+        nick,
         channels,
+        netsplit: Some(split),
         ..
-    }) = ({
-        let Some(Event::Quit {
-            netsplit: Some(split),
-            ..
-        }) = session.poll_event()
-        else {
-            panic!("expected a netsplit quit")
-        };
-        assert_eq!(split.batch, "split");
-        session.poll_event()
-    })
+    }) = session.poll_event()
     else {
-        panic!("expected netsplit")
+        panic!("expected a netsplit quit")
     };
-    assert_eq!(reference, "split");
-    assert_eq!(servers, ["ergo.test", "remote.example"]);
-    assert_eq!(quits.len(), 1);
-    assert_eq!(channels.len(), 1);
-    assert_eq!(channels[0].len(), 2);
-    assert!(channels[0].iter().any(|channel| channel == "#papo"));
-    assert!(channels[0].iter().any(|channel| channel == "#rust"));
+    assert_eq!(nick, "alice");
+    assert_eq!(split.batch, "split");
+    assert_eq!(split.first, "ergo.test");
+    assert_eq!(split.second, "remote.example");
+    assert_eq!(channels.len(), 2);
+    assert!(channels.iter().any(|channel| channel == "#papo"));
+    assert!(channels.iter().any(|channel| channel == "#rust"));
     assert!(session.state().user("alice").is_none());
 }
 
@@ -935,7 +905,6 @@ fn only_live_membership_aggregates_change_channel_state() {
             ..
         })
     ));
-    assert!(matches!(session.poll_event(), Some(Event::Netsplit { .. })));
     assert_eq!(session.state_generation(), generation + 1);
     assert!(
         session
@@ -959,7 +928,6 @@ fn only_live_membership_aggregates_change_channel_state() {
             ..
         })
     ));
-    assert!(matches!(session.poll_event(), Some(Event::Netjoin { .. })));
     assert_eq!(session.state_generation(), generation + 2);
     assert!(
         session
@@ -1076,10 +1044,6 @@ fn netjoin_for_our_nick_waits_for_requested_names() {
             netjoin: Some(_),
             ..
         })
-    ));
-    assert!(matches!(
-        session.poll_event(),
-        Some(Event::Netjoin { joins, .. }) if joins.len() == 1
     ));
     assert!(!session.state().channel("#papo").unwrap().is_synced());
     session.handle_line(now, b":ergo.test 353 papo = #papo :@papo +alice");
