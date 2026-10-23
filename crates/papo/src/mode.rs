@@ -116,6 +116,7 @@ pub struct SetModes {
     client: Client,
     target: String,
     changes: Vec<Change>,
+    invalid_input: Option<crate::InvalidInput>,
 }
 
 impl std::fmt::Debug for SetModes {
@@ -227,42 +228,51 @@ impl SetModes {
     }
 
     /// Grants channel-operator privileges to `nick`.
-    pub fn op(self, nick: impl AsRef<str>) -> Self {
+    pub fn op(self, nick: impl crate::Target) -> Self {
         self.prefix(true, 'o', nick)
     }
 
     /// Removes channel-operator privileges from `nick`.
-    pub fn deop(self, nick: impl AsRef<str>) -> Self {
+    pub fn deop(self, nick: impl crate::Target) -> Self {
         self.prefix(false, 'o', nick)
     }
 
     /// Grants half-operator privileges to `nick`.
-    pub fn halfop(self, nick: impl AsRef<str>) -> Self {
+    pub fn halfop(self, nick: impl crate::Target) -> Self {
         self.optional_prefix(true, crate::Feature::Halfop, nick)
     }
 
     /// Removes half-operator privileges from `nick`.
-    pub fn dehalfop(self, nick: impl AsRef<str>) -> Self {
+    pub fn dehalfop(self, nick: impl crate::Target) -> Self {
         self.optional_prefix(false, crate::Feature::Halfop, nick)
     }
 
     /// Grants voice privileges to `nick`.
-    pub fn voice(self, nick: impl AsRef<str>) -> Self {
+    pub fn voice(self, nick: impl crate::Target) -> Self {
         self.prefix(true, 'v', nick)
     }
 
     /// Removes voice privileges from `nick`.
-    pub fn devoice(self, nick: impl AsRef<str>) -> Self {
+    pub fn devoice(self, nick: impl crate::Target) -> Self {
         self.prefix(false, 'v', nick)
     }
 
-    fn prefix(self, set: bool, mode: char, nick: impl AsRef<str>) -> Self {
-        let nick = self.client.state().nickname(nick.as_ref());
+    fn prefix(mut self, set: bool, mode: char, nick: impl crate::Target) -> Self {
+        let (nick, error) = self.client.target_input(nick);
+        self.invalid_input = self.invalid_input.or(error);
+        let nick = self.client.state().nickname(nick);
         self.change(set, Selector::Prefix(mode), Some(Argument::Nick(nick)))
     }
 
-    fn optional_prefix(self, set: bool, feature: crate::Feature, nick: impl AsRef<str>) -> Self {
-        let nick = self.client.state().nickname(nick.as_ref());
+    fn optional_prefix(
+        mut self,
+        set: bool,
+        feature: crate::Feature,
+        nick: impl crate::Target,
+    ) -> Self {
+        let (nick, error) = self.client.target_input(nick);
+        self.invalid_input = self.invalid_input.or(error);
+        let nick = self.client.state().nickname(nick);
         self.change(set, Selector::Optional(feature), Some(Argument::Nick(nick)))
     }
 
@@ -291,6 +301,9 @@ impl IntoFuture for SetModes {
 
     fn into_future(self) -> Self::IntoFuture {
         RequestFuture::new(async move {
+            if let Some(error) = self.invalid_input {
+                return Err(error.into());
+            }
             let state = self.client.state();
             state
                 .parse_target_inner(&self.target)
@@ -350,11 +363,13 @@ impl IntoFuture for SetModes {
 
 impl Client {
     /// Starts a validated mode-change request for a user or channel.
-    pub fn mode(&self, target: impl AsRef<str>) -> SetModes {
+    pub fn mode(&self, target: impl crate::Target) -> SetModes {
+        let (target, invalid_input) = self.target_input(target);
         SetModes {
             client: self.clone(),
-            target: target.as_ref().to_owned(),
+            target,
             changes: Vec::new(),
+            invalid_input,
         }
     }
 
@@ -371,12 +386,15 @@ impl Client {
     /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
     pub fn list_modes(
         &self,
-        channel: impl AsRef<str>,
+        channel: impl crate::Target,
         mode: crate::ListMode,
     ) -> RequestFuture<Vec<crate::ModeListEntry>> {
         let client = self.clone();
-        let channel = channel.as_ref().to_owned();
+        let (channel, invalid_input) = self.target_input(channel);
         RequestFuture::new(async move {
+            if let Some(error) = invalid_input {
+                return Err(error.into());
+            }
             let state = client.state();
             let name = state.channel_name(&channel);
             name.check(state.isupport().inner())
@@ -708,6 +726,21 @@ mod tests {
                 .unwrap(),
         );
         support
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn mode_changes_reject_foreign_targets() {
+        let (first, _, _) = crate::Client::builder("irc.example.net").build();
+        let (second, _, _) = crate::Client::builder("irc.example.net").build();
+        let channel = first.state().channel_name("#papo");
+        let nick = first.state().nickname("emily");
+
+        assert!(matches!(
+            second.mode(channel).op(nick).await,
+            Err(crate::Error::InvalidInput(
+                crate::InvalidInput::ForeignReference
+            ))
+        ));
     }
 
     fn state(line: &str) -> crate::State {
