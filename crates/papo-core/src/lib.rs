@@ -124,7 +124,7 @@ use keepalive::Keepalive;
 use labels::encode_label;
 pub use metadata::{MetadataCommand, MetadataLimits, MetadataValue, Visibility};
 use monitor::Monitor;
-pub(crate) use name::{NameKey, names_equal};
+pub(crate) use name::{NameKey, Names, names_equal};
 use nick_regain::NickRegain;
 pub use outgoing::TextKind;
 pub use papo_proto::ModeAction;

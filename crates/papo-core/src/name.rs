@@ -14,7 +14,6 @@ impl Default for Names {
     }
 }
 
-#[allow(dead_code)]
 impl Names {
     pub(crate) const fn new(casemapping: Casemapping, origin: Origin) -> Self {
         Self {

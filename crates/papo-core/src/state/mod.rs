@@ -24,8 +24,8 @@ use papo_proto::{
 use crate::monitor::presence_nicks;
 use crate::{
     Authorship, Capabilities, Config, Conversation, Event, Handled, LastSeen, ListMode,
-    MetadataValue, ModeArg, ModeChange, ModeListEntry, ModeValue, NameKey, Outbox, ReadMarker,
-    Source, StateLimit, Subject, WhoOnJoin,
+    MetadataValue, ModeArg, ModeChange, ModeListEntry, ModeValue, NameKey, Names, Outbox,
+    ReadMarker, Source, StateLimit, Subject, WhoOnJoin,
     conversation::classify_target,
     monitor::Monitor,
     typing::{Typer, TypingTable},
@@ -56,7 +56,7 @@ pub struct State {
     account: Account,
     away: Away,
     user_modes: HashSet<char>,
-    casemapping: Casemapping,
+    casemapping: Names,
     isupport: Isupport,
     channels: BTreeMap<ChannelName, Channel>,
     users: BTreeMap<Nick, User>,
@@ -145,7 +145,7 @@ pub(crate) fn clone_count() -> usize {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Channel {
     name: ChannelName,
-    casemapping: Casemapping,
+    casemapping: Names,
     members: BTreeMap<Nick, Member>,
     modes: HashMap<char, Option<String>>,
     lists: HashMap<ListMode, Vec<ModeListEntry>>,
@@ -302,7 +302,7 @@ fn metadata_update<'a>(
 
 impl State {
     pub(super) fn nick_authorship(&self, nick: &str) -> Authorship {
-        if crate::names_equal(self.casemapping, nick, &self.nick) {
+        if crate::names_equal(self.casemapping.casemapping(), nick, &self.nick) {
             Authorship::Own
         } else {
             Authorship::Other
@@ -319,7 +319,7 @@ impl State {
     #[cfg(test)]
     pub(crate) fn snapshot_for(&self, message: &LineRef<'_>) -> StateSnapshot {
         if let Some((target, key, _, _)) = metadata_update(message) {
-            let target = NameKey::new(target, self.casemapping);
+            let target = NameKey::new(target, self.casemapping.casemapping());
             let value = self
                 .metadata
                 .get(&target)
@@ -359,14 +359,14 @@ impl State {
 
     fn with_casemapping(config: &Config, casemapping: Casemapping) -> Self {
         Self {
-            nick: casemapping.nick(&config.nick),
+            nick: config.origin.__nick(casemapping, &config.nick),
             user: config.username.clone(),
             host: None,
             realname: config.realname.clone(),
             account: Account::LoggedOut,
             away: Away::Present,
             user_modes: HashSet::new(),
-            casemapping,
+            casemapping: Names::new(casemapping, config.origin),
             isupport: Isupport::default(),
             channels: BTreeMap::new(),
             users: BTreeMap::new(),
@@ -412,7 +412,12 @@ impl State {
         self.isupport.clone_from(isupport);
         self.last_seen = last_seen
             .into_values()
-            .map(|seen| (NameKey::new(&seen.target, self.casemapping), seen))
+            .map(|seen| {
+                (
+                    NameKey::new(&seen.target, self.casemapping.casemapping()),
+                    seen,
+                )
+            })
             .collect();
         self.last_seen_order = last_seen_order;
     }
@@ -457,7 +462,7 @@ impl State {
             .iter()
             .filter(|change| change.sequence > token.sequence)
         {
-            if present && crate::names_equal(self.casemapping, &change.old, &sender) {
+            if present && crate::names_equal(self.casemapping.casemapping(), &change.old, &sender) {
                 departed = true;
                 if let Some(new) = &change.new {
                     sender.clone_from(new);
@@ -466,7 +471,8 @@ impl State {
                 }
             }
         }
-        departed && (!present || !crate::names_equal(self.casemapping, &sender, target))
+        departed
+            && (!present || !crate::names_equal(self.casemapping.casemapping(), &sender, target))
     }
 
     pub(crate) fn sync_monitored(&mut self, monitor: &Monitor, isupport: &Isupport) {
@@ -788,20 +794,20 @@ impl State {
         };
         let changes = if isupport.is_channel(target) {
             ModeChanges::parse(modestring, message.params().skip(2), isupport)
-                .map(|change| typed_mode_change(change, isupport))
+                .map(|change| typed_mode_change(change, self.casemapping))
                 .collect()
         } else {
             let defaults = Isupport::default();
             ModeChanges::parse(modestring, message.params().skip(2), &defaults)
-                .map(|change| typed_mode_change(change, isupport))
+                .map(|change| typed_mode_change(change, self.casemapping))
                 .collect()
         };
         outbox.event(Event::ModeChanged {
             envelope: crate::LineEnvelope::from_line(message),
             subject: if isupport.is_channel(target) {
-                Subject::Channel(isupport.casemapping().channel(target))
+                Subject::Channel(self.casemapping.channel(target))
             } else {
-                Subject::User(isupport.casemapping().nick(target))
+                Subject::User(self.casemapping.nick(target))
             },
             actor: actor.to_owned(),
             authorship: self.source_authorship(message),
@@ -877,7 +883,7 @@ impl State {
                 };
                 channel.topic_set_by = message
                     .param(2)
-                    .map(|setter| Source::from_prefix(setter, self.casemapping));
+                    .map(|setter| Source::from_prefix(setter, self.casemapping.casemapping()));
                 channel.topic_set_at = message.param(3).and_then(parse_unix_seconds);
                 return true;
             }
@@ -904,7 +910,7 @@ impl State {
         channel.topic_set_by = if live {
             message
                 .source()
-                .map(|source| Source::from_proto(source, self.casemapping))
+                .map(|source| Source::from_proto(source, self.casemapping.casemapping()))
         } else {
             None
         };
@@ -912,25 +918,38 @@ impl State {
         true
     }
 
+    #[allow(clippy::too_many_lines)]
     fn update_casemapping(&mut self, mapping: Casemapping) {
-        if mapping == self.casemapping {
+        if mapping == self.casemapping.casemapping() {
             return;
         }
         TypingTable::refold(&mut self.typing, mapping);
-        self.nick = mapping.nick(self.nick.as_ref());
+        self.nick = self
+            .casemapping
+            .origin()
+            .__nick(mapping, self.nick.as_ref());
         if let Account::LoggedIn(account) = &mut self.account {
-            *account = mapping.account(account.as_ref());
+            *account = self
+                .casemapping
+                .origin()
+                .__account(mapping, account.as_ref());
         }
         self.channels = std::mem::take(&mut self.channels)
             .into_values()
             .map(|mut channel| {
-                channel.casemapping = mapping;
-                channel.name = mapping.channel(channel.name.as_ref());
+                channel.casemapping = Names::new(mapping, channel.casemapping.origin());
+                channel.name = self
+                    .casemapping
+                    .origin()
+                    .__channel(mapping, channel.name.as_ref());
                 channel.members = channel
                     .members
                     .into_values()
                     .map(|mut member| {
-                        member.nick = mapping.nick(member.nick.as_ref());
+                        member.nick = self
+                            .casemapping
+                            .origin()
+                            .__nick(mapping, member.nick.as_ref());
                         (member.nick.clone(), member)
                     })
                     .collect();
@@ -940,31 +959,51 @@ impl State {
         self.users = std::mem::take(&mut self.users)
             .into_values()
             .map(|mut user| {
-                user.nick = mapping.nick(user.nick.as_ref());
+                user.nick = self
+                    .casemapping
+                    .origin()
+                    .__nick(mapping, user.nick.as_ref());
                 if let Account::LoggedIn(account) = &mut user.account {
-                    *account = mapping.account(account.as_ref());
+                    *account = self
+                        .casemapping
+                        .origin()
+                        .__account(mapping, account.as_ref());
                 }
                 user.channels = user
                     .channels
                     .into_iter()
-                    .map(|channel| mapping.channel(channel.as_ref()))
+                    .map(|channel| {
+                        self.casemapping
+                            .origin()
+                            .__channel(mapping, channel.as_ref())
+                    })
                     .collect();
                 (user.nick.clone(), user)
             })
             .collect();
         self.who_sweeps = std::mem::take(&mut self.who_sweeps)
             .into_iter()
-            .map(|(channel, count)| (mapping.channel(channel.as_ref()), count))
+            .map(|(channel, count)| {
+                (
+                    self.casemapping
+                        .origin()
+                        .__channel(mapping, channel.as_ref()),
+                    count,
+                )
+            })
             .collect();
         self.read_markers = std::mem::take(&mut self.read_markers)
             .into_values()
             .filter_map(|mut marker| {
                 match &mut marker.conversation {
                     Conversation::Channel(channel) => {
-                        *channel = mapping.channel(channel.as_ref());
+                        *channel = self
+                            .casemapping
+                            .origin()
+                            .__channel(mapping, channel.as_ref());
                     }
                     Conversation::Private(nick) => {
-                        *nick = mapping.nick(nick.as_ref());
+                        *nick = self.casemapping.origin().__nick(mapping, nick.as_ref());
                     }
                     Conversation::Server | Conversation::Broadcast(_) => return None,
                 }
@@ -986,7 +1025,7 @@ impl State {
             .into_iter()
             .map(|(target, values)| (NameKey::new(target.original(), mapping), values))
             .collect();
-        self.casemapping = mapping;
+        self.casemapping = Names::new(mapping, self.casemapping.origin());
     }
 
     /// Returns the session's current nickname.
@@ -1012,7 +1051,7 @@ impl State {
             target.as_ref(),
             None,
             &self.nick,
-            self.casemapping,
+            self.casemapping.casemapping(),
             &self.isupport,
         )
     }
@@ -1038,7 +1077,7 @@ impl State {
     /// Returns the rules attached to names in this state.
     #[must_use]
     pub const fn casemapping(&self) -> Casemapping {
-        self.casemapping
+        self.casemapping.casemapping()
     }
 
     /// Returns the session's username.
@@ -1171,10 +1210,10 @@ impl State {
     }
 }
 
-fn typed_mode_change(change: ProtoModeChange<'_>, isupport: &Isupport) -> ModeChange {
+fn typed_mode_change(change: ProtoModeChange<'_>, names: Names) -> ModeChange {
     let arg = change.arg.map(|arg| match change.kind {
-        ModeKind::Prefix(_) => ModeArg::Nick(isupport.casemapping().nick(arg)),
-        ModeKind::List => ModeArg::Mask(isupport.casemapping().mask(arg)),
+        ModeKind::Prefix(_) => ModeArg::Nick(names.nick(arg)),
+        ModeKind::List => ModeArg::Mask(names.mask(arg)),
         _ => ModeArg::Value(arg.to_owned()),
     });
     ModeChange {
@@ -1192,7 +1231,7 @@ fn source_name<'a>(message: &'a LineRef<'_>) -> Option<&'a str> {
 }
 
 impl Channel {
-    fn new(name: &str, casemapping: Casemapping, isupport: &Isupport, synced: bool) -> Self {
+    fn new(name: &str, casemapping: Names, isupport: &Isupport, synced: bool) -> Self {
         Self {
             name: casemapping.channel(name),
             casemapping,
@@ -1263,7 +1302,7 @@ impl Channel {
     fn apply_list_modes(&mut self, message: &LineRef<'_>, modestring: &str, isupport: &Isupport) {
         let actor = message
             .source()
-            .map(|source| Source::from_proto(source, self.casemapping));
+            .map(|source| Source::from_proto(source, self.casemapping.casemapping()));
         let set_at = crate::LineEnvelope::from_line(message).server_time();
         for change in ModeChanges::parse(modestring, message.params().skip(2), isupport) {
             let mode = match (change.kind, change.mode) {
@@ -1418,7 +1457,7 @@ impl Rank {
 }
 
 impl User {
-    fn new(nick: &str, user: Option<&str>, host: Option<&str>, casemapping: Casemapping) -> Self {
+    fn new(nick: &str, user: Option<&str>, host: Option<&str>, casemapping: Names) -> Self {
         Self {
             nick: casemapping.nick(nick),
             username: user.map(str::to_owned),
@@ -1490,7 +1529,7 @@ impl User {
 }
 
 impl Account {
-    fn from_notify(account: Option<&str>, casemapping: Casemapping) -> Self {
+    fn from_notify(account: Option<&str>, casemapping: Names) -> Self {
         account.map_or(Self::LoggedOut, |account| {
             Self::LoggedIn(casemapping.account(account))
         })

@@ -1,7 +1,7 @@
 use super::{
-    Account, AccountNotify, Away, AwayNotify, Casemapping, Chghost, Command, Event, Handled,
-    Isupport, LineRef, Numeric, Outbox, ProtoSource, Setname, State, WHOX_FIELDS, WHOX_TOKEN,
-    WhoUser, WhoxFlags, WhoxPresence, WhoxReply,
+    Account, AccountNotify, Away, AwayNotify, Chghost, Command, Event, Handled, Isupport, LineRef,
+    Numeric, Outbox, ProtoSource, Setname, State, WHOX_FIELDS, WHOX_TOKEN, WhoUser, WhoxFlags,
+    WhoxPresence, WhoxReply,
 };
 
 impl State {
@@ -49,11 +49,11 @@ impl State {
         own_nick: &str,
         isupport: &Isupport,
         outbox: &mut Outbox,
-    ) -> Casemapping {
+    ) -> crate::Names {
         let mapping = isupport.casemapping();
         self.update_casemapping(mapping);
         self.apply_message_metadata(message, own_nick, outbox);
-        mapping
+        self.casemapping
     }
 
     fn handle_account(&mut self, message: &LineRef<'_>, outbox: &mut Outbox) -> Option<Handled> {

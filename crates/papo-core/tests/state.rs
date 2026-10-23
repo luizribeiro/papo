@@ -8,16 +8,19 @@ use papo_core::{
     Account, Away, Config, Conversation, Event, ModeAction, ModeArg, ModeChange, ModeValue, Rank,
     RateLimit, ResponseMatcher, Source, StateLimit, Subject, WhoOnJoin,
 };
-use papo_proto::{AccountName, Casemapping, ChannelName, InvalidIdentifier, Line, Nick};
+use papo_proto::{AccountName, Casemapping, ChannelName, InvalidIdentifier, Line, Nick, Origin};
 use support::Transcript;
 
 #[test]
 fn starts_with_configured_identity_and_empty_shared_state() {
-    Transcript::new(Config::default().nick("emily").username("em"))
+    let mut config = Config::default().nick("emily").username("em");
+    config.origin = Origin::__new(73);
+    Transcript::new(config)
         .inspect(|session| {
             let state = session.state();
             assert_eq!(state.nick(), "emily");
             assert_eq!(state.nick().casemapping(), Casemapping::Rfc1459);
+            assert_eq!(state.nick().origin(), Origin::__new(73));
             assert_eq!(state.username(), "em");
             assert_eq!(state.host(), None);
             assert_eq!(state.account(), &Account::LoggedOut);

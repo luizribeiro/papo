@@ -5,7 +5,7 @@ use std::{
     ops::Deref,
 };
 
-use papo_proto::{Casemapping, Line, LineRef, Nick, Param};
+use papo_proto::{Line, LineRef, Nick, Param};
 use web_time::Instant;
 use zeroize::{Zeroize, Zeroizing};
 
@@ -223,7 +223,7 @@ impl BouncerNetwork {
     pub(crate) fn apply(
         &mut self,
         attributes: BTreeMap<String, Option<String>>,
-        casemapping: Casemapping,
+        casemapping: crate::Names,
     ) {
         for (key, value) in attributes {
             match key.as_str() {
@@ -540,7 +540,7 @@ impl Session {
 
 #[cfg(test)]
 mod tests {
-    use papo_proto::{Casemapping, LineRef};
+    use papo_proto::LineRef;
 
     use super::{BouncerNetwork, InvalidNetworkUrl, NetworkConfig, NetworkState, NetworkUpdate};
 
@@ -675,7 +675,7 @@ mod tests {
         .unwrap();
         let update = NetworkUpdate::parse(&message).unwrap();
         let mut network = BouncerNetwork::empty(update.id);
-        network.apply(update.attributes, Casemapping::default());
+        network.apply(update.attributes, crate::Names::default());
         assert_eq!(network.name.as_deref(), Some("My Network"));
         assert_eq!(network.state, Some(NetworkState::Connected));
         assert_eq!((network.port, network.tls), (Some(6697), Some(true)));
@@ -684,7 +684,7 @@ mod tests {
         let removal = LineRef::parse("BOUNCER NETWORK 42 name;vendor.example/color").unwrap();
         network.apply(
             NetworkUpdate::parse(&removal).unwrap().attributes,
-            Casemapping::default(),
+            crate::Names::default(),
         );
         assert_eq!(network.name, None);
         assert!(network.other.is_empty());
@@ -698,7 +698,7 @@ mod tests {
         .unwrap();
         let update = NetworkUpdate::parse(&message).unwrap();
         let mut network = BouncerNetwork::empty(update.id);
-        network.apply(update.attributes, Casemapping::default());
+        network.apply(update.attributes, crate::Names::default());
         assert_eq!(network.other.get("vendor.example/color").unwrap(), "blue");
         assert!(!network.other.contains_key("pass"));
         assert!(!format!("{network:?}").contains("server-supplied-password"));
