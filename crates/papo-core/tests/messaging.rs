@@ -48,7 +48,10 @@ fn reports_active_paused_and_done_typing() {
         ("paused", Typing::Paused),
         ("done", Typing::Done),
     ] {
-        let mut session = Session::new(Config::default());
+        let origin = Origin::__new(73);
+        let mut config = Config::default();
+        config.origin = origin;
+        let mut session = Session::new(config);
         session.handle_line(
             Instant::now(),
             format!("@+typing={value} :alice!~a@cloak TAGMSG #papo").as_bytes(),
@@ -59,7 +62,8 @@ fn reports_active_paused_and_done_typing() {
         assert_eq!(change.actor, "alice!~a@cloak");
         assert_eq!(change.authorship, Authorship::Other);
         assert!(
-            matches!(change.conversation, Conversation::Channel(ref channel) if channel == "#papo")
+            matches!(change.conversation, Conversation::Channel(ref channel)
+                if channel == "#papo" && channel.origin() == origin)
         );
         assert_eq!(change.status, None);
         assert_eq!(change.state, expected);

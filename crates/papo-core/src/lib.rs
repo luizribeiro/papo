@@ -2890,6 +2890,7 @@ impl Session {
 
     fn from_config(config: Config, entropy: Option<Box<dyn Entropy + Send>>) -> Self {
         let remembered_casemapping = config.casemapping;
+        let origin = config.origin;
         let connection = Connection {
             host: config.host.clone(),
             security: config.connection_security,
@@ -2916,7 +2917,7 @@ impl Session {
             framer: Framer::default(),
             isupport,
             keepalive: Keepalive::default(),
-            monitor: Monitor::default(),
+            monitor: Monitor::new(origin),
             nick_regain: NickRegain::default(),
             metadata_subscriptions_sent: false,
             rate_limit,

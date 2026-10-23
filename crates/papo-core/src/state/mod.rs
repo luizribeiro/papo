@@ -923,7 +923,10 @@ impl State {
         if mapping == self.casemapping.casemapping() {
             return;
         }
-        TypingTable::refold(&mut self.typing, mapping);
+        TypingTable::refold(
+            &mut self.typing,
+            Names::new(mapping, self.casemapping.origin()),
+        );
         self.nick = self
             .casemapping
             .origin()

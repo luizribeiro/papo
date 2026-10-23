@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashSet};
 
 use papo_proto::{Advertised, Casemapping, Isupport, LimitValue, LineRef, MAX_LINE_LEN, Nick};
 
-use crate::{Event, Feature, Handled, Outbox, Unsupported, UnsupportedReason};
+use crate::{Event, Feature, Handled, Names, Outbox, Unsupported, UnsupportedReason};
 
 const MAX_DESIRED: usize = 10_000;
 const MONITOR_PAYLOAD_LEN: usize = MAX_LINE_LEN - "MONITOR + \r\n".len();
@@ -12,7 +12,7 @@ type NickKey = Nick;
 pub(super) struct Monitor {
     desired: Vec<String>,
     presence: BTreeMap<NickKey, Presence>,
-    casemapping: Casemapping,
+    casemapping: Names,
     unsupported_warned: bool,
 }
 
@@ -27,6 +27,13 @@ enum Presence {
 }
 
 impl Monitor {
+    pub(super) fn new(origin: papo_proto::Origin) -> Self {
+        Self {
+            casemapping: Names::new(Casemapping::default(), origin),
+            ..Self::default()
+        }
+    }
+
     pub(super) fn desires(&self, nick: &str, isupport: &Isupport) -> bool {
         self.desired
             .iter()
@@ -51,9 +58,9 @@ impl Monitor {
     pub(super) fn online_nick(
         &self,
         nick: &str,
-        isupport: &Isupport,
+        _isupport: &Isupport,
     ) -> Option<(Option<&str>, Option<&str>)> {
-        match self.presence.get(&isupport.casemapping().nick(nick))? {
+        match self.presence.get(&self.casemapping.nick(nick))? {
             Presence::Online { user, host, .. } => Some((user.as_deref(), host.as_deref())),
             Presence::Offline(_) => None,
         }
@@ -87,7 +94,7 @@ impl Monitor {
                 limit,
                 nicks: self.desired[limit..]
                     .iter()
-                    .map(|nick| isupport.casemapping().nick(nick))
+                    .map(|nick| self.casemapping.nick(nick))
                     .collect(),
             });
         }
@@ -103,8 +110,8 @@ impl Monitor {
         I: IntoIterator<Item = S>,
         S: Into<String>,
     {
-        let mapping = isupport.casemapping();
-        self.update_casemapping(mapping);
+        let mapping = self.names(isupport);
+        self.update_casemapping(mapping.casemapping());
         let support = isupport.monitor();
         let limit = match support {
             Some(LimitValue::Limited(limit)) => limit,
@@ -161,8 +168,8 @@ impl Monitor {
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
     {
-        let mapping = isupport.casemapping();
-        self.update_casemapping(mapping);
+        let mapping = self.names(isupport);
+        self.update_casemapping(mapping.casemapping());
         let limit = match isupport.monitor() {
             Some(LimitValue::Limited(limit)) => limit,
             Some(LimitValue::Unlimited) => usize::MAX,
@@ -231,7 +238,7 @@ impl Monitor {
                         let (was_online, userhost_changed) = {
                             let previous = self
                                 .presence
-                                .get(&isupport.casemapping().nick(nick))
+                                .get(&self.casemapping.nick(nick))
                                 .and_then(|presence| {
                                     let Presence::Online {
                                         nick: _,
@@ -256,14 +263,14 @@ impl Monitor {
                         let changed = self.replace_presence(nick, next, isupport);
                         if !was_online && changed {
                             outbox.event(Event::MonitorOnline {
-                                nick: isupport.casemapping().nick(nick),
+                                nick: self.casemapping.nick(nick),
                                 username: user.map(str::to_owned),
                                 host: host.map(str::to_owned),
                             });
                         } else if userhost_changed && let (Some(user), Some(host)) = (user, host) {
                             outbox.event(Event::HostChanged {
                                 actor: nick.to_owned(),
-                                nick: isupport.casemapping().nick(nick),
+                                nick: self.casemapping.nick(nick),
                                 username: user.to_owned(),
                                 host: host.to_owned(),
                             });
@@ -297,7 +304,7 @@ impl Monitor {
                 if nicks.is_empty() {
                     return Handled::No;
                 }
-                let mapping = isupport.casemapping();
+                let mapping = self.names(isupport);
                 for nick in &nicks {
                     self.presence.remove(&mapping.nick(nick));
                 }
@@ -325,7 +332,7 @@ impl Monitor {
                 && self.replace_presence(nick, Presence::Offline(nick.to_owned()), isupport)
             {
                 outbox.event(Event::MonitorOffline {
-                    nick: isupport.casemapping().nick(nick),
+                    nick: self.casemapping.nick(nick),
                 });
             }
         }
@@ -344,7 +351,7 @@ impl Monitor {
     }
 
     fn replace_presence(&mut self, nick: &str, next: Presence, isupport: &Isupport) -> bool {
-        let mapping = isupport.casemapping();
+        let mapping = self.names(isupport);
         let key = mapping.nick(nick);
         if let Some(current) = self.presence.get_mut(&key) {
             if *current == next {
@@ -359,14 +366,19 @@ impl Monitor {
         true
     }
 
+    fn names(&self, isupport: &Isupport) -> Names {
+        Names::new(isupport.casemapping(), self.casemapping.origin())
+    }
+
     fn update_casemapping(&mut self, mapping: Casemapping) {
-        if self.casemapping == mapping {
+        if self.casemapping.casemapping() == mapping {
             return;
         }
-        self.casemapping = mapping;
+        self.casemapping = Names::new(mapping, self.casemapping.origin());
+        let names = self.casemapping;
         self.presence = std::mem::take(&mut self.presence)
             .into_values()
-            .map(|presence| (mapping.nick(presence.nick()), presence))
+            .map(|presence| (names.nick(presence.nick()), presence))
             .collect();
     }
 

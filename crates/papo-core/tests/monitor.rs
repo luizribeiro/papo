@@ -5,7 +5,7 @@ mod support;
 use std::{cell::Cell, time::Instant};
 
 use papo_core::{Account, Away, Config, Event, Feature, UnsupportedReason};
-use papo_proto::{Casemapping, Line, Nick};
+use papo_proto::{Casemapping, Line, Nick, Origin};
 use support::Transcript;
 
 fn registered() -> Transcript {
@@ -15,6 +15,20 @@ fn registered() -> Transcript {
         .server(":ergo.test 005 papo MONITOR=100 :are supported")
         .server(":ergo.test 376 papo :End of MOTD")
         .event(|event| matches!(event, papo_core::Event::Connected(_)))
+}
+
+#[test]
+fn monitor_events_keep_the_session_origin() {
+    let origin = Origin::__new(73);
+    let mut config = Config::default();
+    config.origin = origin;
+    Transcript::new(config)
+        .update(|session| session.monitor_add(["alice"]))
+        .server(":ergo.test 730 papo :alice!~alice@cloak.example")
+        .event(|event| {
+            matches!(event, Event::MonitorOnline { nick, .. }
+            if nick.origin() == origin)
+        });
 }
 
 fn extended_registered() -> Transcript {

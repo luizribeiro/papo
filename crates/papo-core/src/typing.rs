@@ -1,9 +1,9 @@
 use std::{collections::VecDeque, sync::Arc, time::Duration};
 
-use papo_proto::{Casemapping, Command, LineRef, Nick, Source, Typing};
+use papo_proto::{Command, LineRef, Nick, Source, Typing};
 use web_time::Instant;
 
-use crate::{Authorship, Conversation, Event, Session, conversation::classify_line};
+use crate::{Authorship, Conversation, Event, Session, conversation::classify_line_with_names};
 
 const MAX_TYPERS_PER_CONVERSATION: usize = 32;
 const MAX_TYPERS: usize = 512;
@@ -273,7 +273,7 @@ impl TypingTable {
         table.deduplicate();
     }
 
-    pub(crate) fn refold(table: &mut Arc<Self>, mapping: Casemapping) {
+    pub(crate) fn refold(table: &mut Arc<Self>, mapping: crate::Names) {
         let table = Arc::make_mut(table);
         for (conversation, typer) in &mut table.entries {
             *conversation = refold_conversation(conversation, mapping);
@@ -335,17 +335,19 @@ impl Session {
         else {
             return false;
         };
-        let Ok((status, conversation)) = classify_line(message, self.nick(), self.isupport.value())
+        let Ok((status, conversation)) =
+            classify_line_with_names(message, self.nick(), self.isupport.value(), self.names())
         else {
             return false;
         };
         let authorship = self.authorship(message);
         if authorship == Authorship::Other {
+            let nick = self.names().nick(nick);
             let evicted = TypingTable::notify(
                 &mut self.state.typing,
                 now,
                 &conversation,
-                self.isupport.value().casemapping().nick(nick),
+                nick,
                 actor.to_owned(),
                 status.clone(),
                 state,
@@ -385,11 +387,12 @@ impl Session {
         let Some(Source::User { nick, .. }) = message.source() else {
             return;
         };
-        let Ok((_, conversation)) = classify_line(message, self.nick(), self.isupport.value())
+        let Ok((_, conversation)) =
+            classify_line_with_names(message, self.nick(), self.isupport.value(), self.names())
         else {
             return;
         };
-        let nick = self.isupport.value().casemapping().nick(nick);
+        let nick = self.names().nick(nick);
         if let Some(deadline) =
             TypingTable::stop_sender(&mut self.state.typing, &conversation, &nick)
         {
@@ -401,7 +404,7 @@ impl Session {
     }
 
     pub(crate) fn stop_typing_for_departure(&mut self, message: &LineRef<'_>) {
-        let mapping = self.isupport.value().casemapping();
+        let mapping = self.names();
         let (removed, silent) = match message.command() {
             Command::Part => {
                 let (Some(Source::User { nick, .. }), Some(channels)) =
@@ -476,7 +479,7 @@ impl Session {
         if message.command() != Command::Nick {
             return;
         }
-        let mapping = self.isupport.value().casemapping();
+        let mapping = self.names();
         TypingTable::rename(
             &mut self.state.typing,
             &mapping.nick(nick),
@@ -485,7 +488,7 @@ impl Session {
     }
 }
 
-fn refold_conversation(conversation: &Conversation, mapping: Casemapping) -> Conversation {
+fn refold_conversation(conversation: &Conversation, mapping: crate::Names) -> Conversation {
     match conversation {
         Conversation::Channel(channel) => Conversation::Channel(mapping.channel(channel.as_ref())),
         Conversation::Private(nick) => Conversation::Private(mapping.nick(nick.as_ref())),

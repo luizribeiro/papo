@@ -52,7 +52,7 @@ impl State {
     pub(super) fn refold_bouncer_networks(&mut self, mapping: Casemapping) {
         for network in self.bouncer_networks.values_mut() {
             if let Some(nick) = &mut network.nickname {
-                *nick = mapping.nick(nick.as_ref());
+                *nick = self.casemapping.origin().__nick(mapping, nick.as_ref());
             }
         }
     }
