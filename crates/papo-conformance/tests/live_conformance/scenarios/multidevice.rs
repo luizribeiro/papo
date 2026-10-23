@@ -446,3 +446,42 @@ async fn multidevice_reconnect_catchup(s: Scenario) -> papo_testing::Result<()> 
     }
     Ok(())
 }
+
+/// classifies sibling typing as own and keeps it out of the active-typers state
+#[scenario(
+    requires(caps = ["message-tags"]),
+    covers = ["multidevice.typing-own-state"]
+)]
+async fn multidevice_typing_own_state(s: Scenario) -> papo_testing::Result<()> {
+    if !has_account_sessions() {
+        return s.skip("the selected profile does not support concurrent account sessions");
+    }
+    let (desktop, account) = s.connect_as_account_with_key("alice").await?;
+    let channel = s.channel_name();
+    desktop.join(&channel).await?;
+    let mut phone = s.connect_account_session("alice-phone", account).await?;
+    wait_for_channel(&mut phone, &channel).await?;
+
+    desktop.typing(&channel, papo::Typing::Active).await?;
+    let typing = phone.wait_for(Event::as_typing_changed).await?;
+    assert_eq!(typing.authorship, papo::Authorship::Own);
+    assert_eq!(
+        crate::source_nick(&typing.actor),
+        Some(desktop.nick().as_ref())
+    );
+    assert_eq!(typing.state, papo::Typing::Active);
+    assert_eq!(
+        conversation_name(&typing.conversation),
+        Some(channel.as_str())
+    );
+    assert_eq!(
+        phone
+            .state()
+            .typing(&typing.conversation)
+            .filter(|typer| typer.nick == desktop.nick())
+            .count(),
+        0
+    );
+    phone.expect_none(Event::as_typing_changed).await?;
+    Ok(())
+}
