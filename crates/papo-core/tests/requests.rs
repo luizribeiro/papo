@@ -2058,6 +2058,47 @@ fn own_part_or_kick_aborts_a_labelled_join_during_sync() {
 }
 
 #[test]
+fn departed_join_releases_only_its_pending_label() {
+    let now = Instant::now();
+    let mut session = labelled_session(now);
+    let join = session
+        .request_with_matcher(
+            now,
+            Line::join("#papo"),
+            ResponseMatcher::Join("#papo".into()),
+        )
+        .unwrap();
+    let whois = request(&mut session, now, Line::new("WHOIS").with_params(["alice"]));
+    while session.poll_transmit().is_some() {}
+
+    session.handle_line(
+        now,
+        b":papo!~papo@localhost PART #papo :Registration required",
+    );
+    assert!(
+        std::iter::from_fn(|| session.poll_event())
+            .any(|event| matches!(event, Event::RequestAborted { id, .. } if id == join))
+    );
+
+    session.handle_line(now, b"@label=0 :ergo.test 403 papo #papo :No such channel");
+    session.handle_line(
+        now,
+        b"@label=1 :ergo.test 401 papo alice :No such nick/channel",
+    );
+    let outcomes = std::iter::from_fn(|| session.poll_event())
+        .filter_map(|event| match event {
+            Event::Line(line) => Some((None, line.as_ref().raw_command().to_owned())),
+            Event::Response(response) => Some((Some(response.id), String::new())),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        outcomes,
+        [(None, "403".into()), (Some(whois), String::new())]
+    );
+}
+
+#[test]
 fn other_join_departures_do_not_end_a_labelled_join() {
     for departure in [
         ":alice!alice@staff.example PART #papo :Leaving",
