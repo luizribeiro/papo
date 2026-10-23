@@ -105,6 +105,7 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 - `server_queries` (`soju 0.11.1 / Ergo 2.19.1`) — soju keeps the upstream session attached after downstream QUIT, leaving no WHOWAS record to relay ([spec](https://modern.ircdocs.horse/#whowas-message)). Evidence: `downstream C: QUIT; WHOWAS alice | upstream connection remains attached; S: no 314 row`
 
 ### Observations
+- **Multi-device away state** (`soju 0.11.1 / Ergo 2.19.1`) — AWAY applies only to the initiating downstream session while another session remains attached; the sibling and upstream channel peers continue to see the account as available. Evidence: `downstream A C: AWAY :reviewing | downstream B: no AWAY, state available | upstream peer: no AWAY, state available`
 - **Chat history end** (`soju 0.11.1 / Ergo 2.19.1`) — The terminal signal is not observable because returned messages lack the advertised msgid reference needed for the next page. Evidence: `S: 005 MSGREFTYPES=msgid | S: history PRIVMSG lines without msgid`
 - **Connect line length** (`soju 0.11.1 / Ergo 2.19.1`) — Every observed CAP LS and welcome-burst line fits the wire limits with the fixture patch. Evidence: `longest S: 430 bytes CAP (0 tag section + 430 line)`
 - **Labeled response availability** (`soju 0.11.1 / Ergo 2.19.1`) — The bouncer advertises labeled-response; no managed profile lacks it. Evidence: `S: CAP * LS includes labeled-response`
