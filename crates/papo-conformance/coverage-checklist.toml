@@ -65,6 +65,7 @@ ids = [
   "multidevice.ops-message-operations", "multidevice.nick-shared-state", "multidevice.ctcp-session-replies",
   "multidevice.reconnect-catchup",
   "multidevice.typing-own-state",
+  "multidevice.dm-fanout-thread",
   # Security regressions against a scripted hostile server.
   "security.sasl.verified-proof-before-success", "security.sasl.no-plain-fallback-after-bad-proof",
   "security.reply.multiline-dm-after-nick-change", "security.history.stale-dm-target",

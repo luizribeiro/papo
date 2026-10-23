@@ -485,3 +485,63 @@ async fn multidevice_typing_own_state(s: Scenario) -> papo_testing::Result<()> {
     phone.expect_none(Event::as_typing_changed).await?;
     Ok(())
 }
+
+/// fans a direct message to every session and threads a sibling reply on the others
+#[scenario(
+    requires(caps = ["echo-message", "labeled-response", "message-tags"]),
+    covers = ["multidevice.dm-fanout-thread"]
+)]
+async fn multidevice_dm_fanout_thread(s: Scenario) -> papo_testing::Result<()> {
+    if !has_account_sessions() {
+        return s.skip("the selected profile does not support concurrent account sessions");
+    }
+    let (mut desktop, account) = s.connect_as_account_with_key("alice").await?;
+    let mut phone = s
+        .connect_account_session("alice-phone", account.clone())
+        .await?;
+    let mut tablet = s.connect_account_session("alice-tablet", account).await?;
+    let mut sender = s.connect("bob").await?;
+    let text = "can every device review the release?";
+
+    let sent = sender.privmsg(desktop.nick(), text).await?;
+    let on_desktop = desktop.wait_for(|event| chat_text(event, text)).await?;
+    let on_phone = phone.wait_for(|event| chat_text(event, text)).await?;
+    let on_tablet = tablet.wait_for(|event| chat_text(event, text)).await?;
+    let id = sent
+        .msgid
+        .as_ref()
+        .expect("direct message has an identifier");
+    for message in [&on_desktop, &on_phone, &on_tablet] {
+        assert_eq!(message.msgid.as_ref(), Some(id));
+        assert_eq!(message.authorship, papo::Authorship::Other);
+        assert_eq!(
+            conversation_name(&message.conversation),
+            Some(sender.nick().as_ref())
+        );
+        assert_eq!(message.return_address(), sender.nick().as_ref());
+    }
+    for peer in [&mut desktop, &mut phone, &mut tablet] {
+        peer.expect_none(|event| chat_text(event, text)).await?;
+    }
+
+    phone.reply(&on_phone, "reviewed from the phone").await?;
+    let sibling_reply = desktop
+        .wait_for(|event| chat_text(event, "reviewed from the phone"))
+        .await?;
+    assert_eq!(sibling_reply.authorship, papo::Authorship::Own);
+    assert_eq!(sibling_reply.reply_to.as_ref(), Some(id));
+    assert_eq!(
+        conversation_name(&sibling_reply.conversation),
+        Some(sender.nick().as_ref())
+    );
+    assert_eq!(sibling_reply.return_address(), sender.nick().as_ref());
+    let received_reply = sender
+        .wait_for(|event| chat_text(event, "reviewed from the phone"))
+        .await?;
+    assert_eq!(received_reply.reply_to.as_ref(), Some(id));
+    assert_eq!(received_reply.return_address(), desktop.nick().as_ref());
+    desktop
+        .expect_none(|event| chat_text(event, "reviewed from the phone"))
+        .await?;
+    Ok(())
+}
