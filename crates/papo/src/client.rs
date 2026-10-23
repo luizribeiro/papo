@@ -113,6 +113,7 @@ pub struct JoinChannel {
     client: Client,
     channel: crate::ChannelName,
     key: Option<crate::Secret>,
+    invalid_input: Option<InvalidInput>,
 }
 
 impl std::fmt::Debug for JoinChannel {
@@ -134,9 +135,12 @@ impl IntoFuture for JoinChannel {
     type IntoFuture = crate::RequestFuture<()>;
 
     fn into_future(self) -> Self::IntoFuture {
-        crate::RequestFuture::new(
-            async move { self.client.join_channel(self.channel, self.key).await },
-        )
+        crate::RequestFuture::new(async move {
+            if let Some(error) = self.invalid_input {
+                return Err(error.into());
+            }
+            self.client.join_channel(self.channel, self.key).await
+        })
     }
 }
 
@@ -151,8 +155,10 @@ impl SendMessage {
     }
 
     /// Supplies channel context for a private message.
-    pub fn channel_context(mut self, channel: impl AsRef<str>) -> Self {
-        self.channel_context = Some(self.client.state().channel_name(channel.as_ref()));
+    pub fn channel_context(mut self, channel: impl crate::Target) -> Self {
+        let (channel, error) = self.client.target_input(channel);
+        self.invalid_input = self.invalid_input.or(error);
+        self.channel_context = Some(self.client.state().channel_name(channel));
         self
     }
 
@@ -311,6 +317,16 @@ impl Sent {
 }
 
 impl Client {
+    pub(crate) fn target_input(
+        &self,
+        target: impl crate::Target,
+    ) -> (String, Option<InvalidInput>) {
+        let (target, origin) = target.__target();
+        let error = (origin != crate::Origin::NONE && origin != self.origin)
+            .then_some(InvalidInput::ForeignReference);
+        (target.to_owned(), error)
+    }
+
     pub(crate) fn check_origin(&self, origin: Option<crate::Origin>) -> Result<(), Error> {
         if origin.is_some_and(|origin| origin != crate::Origin::NONE && origin != self.origin) {
             Err(InvalidInput::ForeignReference.into())
@@ -523,17 +539,18 @@ impl Client {
     /// [`crate::Refusal::NoSuchNick`], [`crate::Refusal::NoSuchChannel`],
     /// [`crate::Refusal::InputTooLong`],
     /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`].
-    pub fn privmsg(&self, target: impl AsRef<str>, text: impl Into<String>) -> SendMessage {
+    pub fn privmsg(&self, target: impl crate::Target, text: impl Into<String>) -> SendMessage {
+        let (target, invalid_input) = self.target_input(target);
         SendMessage {
             client: self.clone(),
             kind: TextKind::Privmsg,
-            target: target.as_ref().to_owned(),
+            target,
             text: text.into(),
             reply_to: None,
             channel_context: None,
             tags: Vec::new(),
             action: false,
-            invalid_input: None,
+            invalid_input,
             recipient: None,
         }
     }
@@ -551,17 +568,18 @@ impl Client {
     /// [`crate::Refusal::NoSuchNick`], [`crate::Refusal::NoSuchChannel`],
     /// [`crate::Refusal::InputTooLong`],
     /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`].
-    pub fn notice(&self, target: impl AsRef<str>, text: impl Into<String>) -> SendMessage {
+    pub fn notice(&self, target: impl crate::Target, text: impl Into<String>) -> SendMessage {
+        let (target, invalid_input) = self.target_input(target);
         SendMessage {
             client: self.clone(),
             kind: TextKind::Notice,
-            target: target.as_ref().to_owned(),
+            target,
             text: text.into(),
             reply_to: None,
             channel_context: None,
             tags: Vec::new(),
             action: false,
-            invalid_input: None,
+            invalid_input,
             recipient: None,
         }
     }
@@ -573,7 +591,7 @@ impl Client {
     /// # Errors
     ///
     /// Returns the same errors as [`Client::privmsg`].
-    pub fn action(&self, target: impl AsRef<str>, text: impl Into<String>) -> SendMessage {
+    pub fn action(&self, target: impl crate::Target, text: impl Into<String>) -> SendMessage {
         let text = text.into();
         if Ctcp::action(&text).is_some() {
             let mut request = self.privmsg(target, text);
@@ -739,10 +757,13 @@ impl Client {
     /// [`UnsupportedReason::NotOffered`], [`UnsupportedReason::DisabledByClient`], or
     /// [`UnsupportedReason::TagDenied`]. Encoding or driver failure returns
     /// [`Error::InvalidInput`] or [`Error::Disconnected`].
-    pub fn typing(&self, target: impl AsRef<str>, state: Typing) -> crate::RequestFuture<()> {
+    pub fn typing(&self, target: impl crate::Target, state: Typing) -> crate::RequestFuture<()> {
         let client = self.clone();
-        let target = target.as_ref().to_owned();
+        let (target, invalid_input) = self.target_input(target);
         crate::RequestFuture::new(async move {
+            if let Some(error) = invalid_input {
+                return Err(error.into());
+            }
             let snapshot = client.state();
             Self::require_feature(&snapshot, Feature::Typing)?;
             snapshot
@@ -872,10 +893,14 @@ impl Client {
     /// [`crate::Refusal::NoSuchServer`], [`crate::Refusal::TryAgain`], or
     /// [`crate::Refusal::Other`] when refused. It can also return [`Error::InvalidInput`],
     /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
-    pub fn whois(&self, nick: impl AsRef<str>) -> crate::RequestFuture<crate::Whois> {
+    pub fn whois(&self, nick: impl crate::Target) -> crate::RequestFuture<crate::Whois> {
         let client = self.clone();
-        let nick = self.state().nickname(nick.as_ref());
+        let (nick, invalid_input) = self.target_input(nick);
+        let nick = self.state().nickname(nick);
         crate::RequestFuture::new(async move {
+            if let Some(error) = invalid_input {
+                return Err(error.into());
+            }
             nick.check(client.state().isupport().inner())
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
             let response = client
@@ -898,10 +923,14 @@ impl Client {
     /// Returns [`Error::Server`] with [`crate::Refusal::TryAgain`] or
     /// [`crate::Refusal::Other`] when refused. It can also return [`Error::InvalidInput`],
     /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
-    pub fn who(&self, mask: impl AsRef<str>) -> crate::RequestFuture<Vec<crate::WhoEntry>> {
+    pub fn who(&self, mask: impl crate::Target) -> crate::RequestFuture<Vec<crate::WhoEntry>> {
         let client = self.clone();
-        let mask = self.state().mask(mask.as_ref());
+        let (mask, invalid_input) = self.target_input(mask);
+        let mask = self.state().mask(mask);
         crate::RequestFuture::new(async move {
+            if let Some(error) = invalid_input {
+                return Err(error.into());
+            }
             mask.check()
                 .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
             let state = client.state();
@@ -931,11 +960,13 @@ impl Client {
     /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`] when refused. It can also
     /// return [`Error::InvalidInput`], [`Error::TooManyPendingRequests`], [`Error::Timeout`], or
     /// [`Error::Disconnected`].
-    pub fn join(&self, channel: impl AsRef<str>) -> JoinChannel {
+    pub fn join(&self, channel: impl crate::Target) -> JoinChannel {
+        let (channel, invalid_input) = self.target_input(channel);
         JoinChannel {
             client: self.clone(),
-            channel: self.state().channel_name(channel.as_ref()),
+            channel: self.state().channel_name(channel),
             key: None,
+            invalid_input,
         }
     }
 

@@ -756,13 +756,20 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn reply_rejects_a_reference_from_another_client() {
+    async fn sends_reject_values_from_another_client() {
         let (first, _, _) = Builder::new("irc.example.net").build();
         let (second, _, _) = Builder::new("irc.example.net").build();
         let reference = (first.state().channel_name("#papo"), "RfcBTzyxY120004");
 
         assert!(matches!(
             second.reply(reference, "release ready").await,
+            Err(crate::Error::InvalidInput(
+                crate::InvalidInput::ForeignReference
+            ))
+        ));
+        let channel = first.state().channel_name("#papo");
+        assert!(matches!(
+            second.privmsg(channel, "release ready").await,
             Err(crate::Error::InvalidInput(
                 crate::InvalidInput::ForeignReference
             ))
