@@ -499,6 +499,7 @@ pub papo::event::Joined::actor: papo::Source
 pub papo::event::Joined::authorship: papo::Authorship
 pub papo::event::Joined::channel: papo::ChannelName
 pub papo::event::Joined::msgid: core::option::Option<papo::MessageId>
+pub papo::event::Joined::netjoin: core::option::Option<papo::event::SplitServers>
 pub papo::event::Joined::nick: papo::Nick
 pub papo::event::Joined::realname: core::option::Option<alloc::string::String>
 pub papo::event::Joined::received_at: std::time::SystemTime
@@ -789,6 +790,7 @@ pub papo::event::Quit::actor: papo::Source
 pub papo::event::Quit::authorship: papo::Authorship
 pub papo::event::Quit::channels: alloc::vec::Vec<papo::ChannelName>
 pub papo::event::Quit::msgid: core::option::Option<papo::MessageId>
+pub papo::event::Quit::netsplit: core::option::Option<papo::event::SplitServers>
 pub papo::event::Quit::nick: papo::Nick
 pub papo::event::Quit::reason: core::option::Option<alloc::string::String>
 pub papo::event::Quit::received_at: std::time::SystemTime
@@ -929,6 +931,7 @@ impl core::marker::UnsafeUnpin for papo::event::ServerNotice
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ServerNotice
 impl core::panic::unwind_safe::UnwindSafe for papo::event::ServerNotice
 #[non_exhaustive] pub struct papo::event::SplitServers
+pub papo::event::SplitServers::batch: alloc::string::String
 pub papo::event::SplitServers::first: alloc::string::String
 pub papo::event::SplitServers::second: alloc::string::String
 impl core::clone::Clone for papo::event::SplitServers
@@ -936,8 +939,6 @@ pub fn papo::event::SplitServers::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::SplitServers
 impl core::cmp::PartialEq for papo::event::SplitServers
 pub fn papo::event::SplitServers::eq(&self, &Self) -> bool
-impl core::convert::From<[alloc::string::String; 2]> for papo::event::SplitServers
-pub fn papo::event::SplitServers::from([alloc::string::String; 2]) -> Self
 impl core::fmt::Debug for papo::event::SplitServers
 pub fn papo::event::SplitServers::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::event::SplitServers

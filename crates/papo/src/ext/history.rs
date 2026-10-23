@@ -275,6 +275,7 @@ fn quit(
             _ => Vec::new(),
         },
         authorship,
+        netsplit: None,
     }))
 }
 

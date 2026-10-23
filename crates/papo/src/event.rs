@@ -985,6 +985,7 @@ pub(crate) fn joined_from_line(
         actor: source::from_proto(source, casemapping),
         nick,
         authorship,
+        netjoin: None,
     })
 }
 
@@ -1088,12 +1089,8 @@ pub enum Event {
     /// A conversation's read marker advanced or was first reported.
     ReadMarkerChanged(ReadMarkerChanged),
     /// Users departed because connectivity between two servers was lost.
-    ///
-    /// Non-`QUIT` lines in the batch are delivered as separate [`Event::Message`] values.
     Netsplit(Netsplit),
     /// Users returned after connectivity between two servers was restored.
-    ///
-    /// Non-`JOIN` lines in the batch are delivered as separate [`Event::Message`] values.
     Netjoin(Netjoin),
     /// A server batch exceeded a retention bound or deadline.
     Warning(Warning),
@@ -1538,6 +1535,7 @@ pub(crate) fn from_core(
             channel,
             nick,
             authorship,
+            netjoin,
             ..
         } => {
             let envelope = core_envelope(&envelope, casemapping, received_at);
@@ -1552,6 +1550,7 @@ pub(crate) fn from_core(
                 actor,
                 nick,
                 authorship: Authorship::from_core(authorship),
+                netjoin: netjoin.map(SplitServers::from_core),
             })
         }
         papo_core::Event::ChannelSynced { channel, .. } => {
@@ -1627,6 +1626,7 @@ pub(crate) fn from_core(
             reason,
             channels,
             authorship,
+            netsplit,
             ..
         } => {
             let envelope = core_envelope(&envelope, casemapping, received_at);
@@ -1640,6 +1640,7 @@ pub(crate) fn from_core(
                 reason,
                 channels,
                 authorship: Authorship::from_core(authorship),
+                netsplit: netsplit.map(SplitServers::from_core),
             })
         }
         papo_core::Event::NickChanged {
@@ -2960,7 +2961,11 @@ mod tests {
             Casemapping::default().channel("#papo"),
             Casemapping::default().nick("alice"),
             papo_core::Authorship::Other,
-            None,
+            Some(papo_core::SplitServers::__new(
+                "join-42".into(),
+                "irc.example".into(),
+                "irc.remote".into(),
+            )),
         ));
         let joined = event.as_joined().unwrap();
         assert_eq!(joined.channel, "#papo");
@@ -2968,6 +2973,12 @@ mod tests {
         assert_eq!(joined.nick, "alice");
         assert_eq!(joined.realname.as_deref(), Some("Alice Liddell"));
         assert!(matches!(&joined.account, Account::LoggedIn(account) if account == "alice"));
+        assert!(matches!(
+            &joined.netjoin,
+            Some(split) if split.batch == "join-42"
+                && split.first == "irc.example"
+                && split.second == "irc.remote"
+        ));
     }
 
     #[test]
@@ -3063,13 +3074,18 @@ mod tests {
                     Casemapping::default().channel("#rust"),
                 ],
                 papo_core::Authorship::Other,
-                None,
+                Some(papo_core::SplitServers::__new(
+                    "split-42".into(),
+                    "irc.example".into(),
+                    "irc.remote".into(),
+                )),
             )),
             Event::Quit(quit)
                 if quit.nick == "emily"
                     && quit.actor.nick().is_some_and(|nick| nick == "emily")
                     && quit.reason.as_deref() == Some("Client exited")
                     && quit.channels == ["#papo", "#rust"]
+                    && quit.netsplit.as_ref().is_some_and(|split| split.batch == "split-42")
         ));
     }
 
@@ -3368,6 +3384,7 @@ mod tests {
                 actor: own_actor.clone(),
                 nick: mapping.nick("Papo[Bot]"),
                 authorship: Authorship::Own,
+                netjoin: None,
             }),
             Event::Parted(super::Parted {
                 msgid: None,
@@ -3409,22 +3426,21 @@ mod tests {
                 new: mapping.nick("papo-away"),
                 authorship: Authorship::Own,
             }),
-            Event::Netjoin(super::Netjoin {
-                servers: super::SplitServers {
+            Event::Joined(super::Joined {
+                msgid: None,
+                server_time: None,
+                received_at: UNIX_EPOCH,
+                account: Account::Unknown,
+                realname: None,
+                channel: mapping.channel("#papo"),
+                actor: own_actor,
+                nick: mapping.nick("Papo[Bot]"),
+                authorship: Authorship::Own,
+                netjoin: Some(super::SplitServers {
+                    batch: "join".to_owned(),
                     first: "irc.example".to_owned(),
                     second: "irc.remote".to_owned(),
-                },
-                joins: vec![super::Joined {
-                    msgid: None,
-                    server_time: None,
-                    received_at: UNIX_EPOCH,
-                    account: Account::Unknown,
-                    realname: None,
-                    channel: mapping.channel("#papo"),
-                    actor: own_actor,
-                    nick: mapping.nick("Papo[Bot]"),
-                    authorship: Authorship::Own,
-                }],
+                }),
             }),
         ];
 
@@ -3442,9 +3458,16 @@ mod tests {
             events[4].as_nick_changed().unwrap().authorship,
             Authorship::Own
         );
+        assert_eq!(events[5].as_joined().unwrap().authorship, Authorship::Own);
         assert_eq!(
-            events[5].as_netjoin().unwrap().joins[0].authorship,
-            Authorship::Own
+            events[5]
+                .as_joined()
+                .unwrap()
+                .netjoin
+                .as_ref()
+                .unwrap()
+                .batch,
+            "join"
         );
     }
 

@@ -26,6 +26,8 @@ pub struct Quit {
     pub channels: Vec<ChannelName>,
     /// Whether the disconnected user is this client's user.
     pub authorship: Authorship,
+    /// The netsplit batch that carried this quit, when applicable.
+    pub netsplit: Option<SplitServers>,
 }
 
 /// A user changed nickname.
@@ -120,10 +122,28 @@ pub struct MonitorOffline {
     pub nick: Nick,
 }
 
-/// Server names attached to a netsplit or netjoin batch, in wire order.
+/// A netsplit or netjoin batch and its server names, in wire order.
+///
+/// Consecutive events with equal markers belong to the same batch:
+/// ```
+/// # use papo::Event;
+/// # fn group(events: &[Event]) {
+/// let mut previous = None;
+/// for event in events {
+///     if let Event::Quit(quit) = event
+///         && quit.netsplit.as_ref() != previous
+///     {
+///         previous = quit.netsplit.as_ref();
+///         // Start a new displayed group when `previous` is `Some`.
+///     }
+/// }
+/// # }
+/// ```
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct SplitServers {
+    /// The server's opaque batch reference.
+    pub batch: String,
     /// The first server name in the batch parameters.
     pub first: String,
     /// The second server name in the batch parameters.
@@ -132,9 +152,13 @@ pub struct SplitServers {
     pub second: String,
 }
 
-impl From<[String; 2]> for SplitServers {
-    fn from([first, second]: [String; 2]) -> Self {
-        Self { first, second }
+impl SplitServers {
+    pub(super) fn from_core(value: papo_core::SplitServers) -> Self {
+        Self {
+            batch: value.batch,
+            first: value.first,
+            second: value.second,
+        }
     }
 }
 

@@ -1168,6 +1168,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             actor: crate::__testing::user_source(test_nick("papo-driver"), None, None),
             nick: test_nick("papo-driver"),
             authorship: crate::Authorship::Own,
+            netjoin: None,
         }),
     );
     super::update_rejoin_channels(
@@ -1183,6 +1184,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             actor: crate::__testing::user_source(test_nick("alice"), None, None),
             nick: test_nick("alice"),
             authorship: crate::Authorship::Other,
+            netjoin: None,
         }),
     );
     assert_eq!(defaults.channels.len(), 2);
@@ -1326,6 +1328,7 @@ fn rejoin_set_stops_at_ten_thousand_channels() {
         actor: crate::__testing::user_source(test_nick("papo-driver"), None, None),
         nick: test_nick("papo-driver"),
         authorship: crate::Authorship::Own,
+        netjoin: None,
     });
 
     super::update_rejoin_channels(&session, &mut defaults, &joined);

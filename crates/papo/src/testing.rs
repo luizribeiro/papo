@@ -149,6 +149,7 @@ pub fn joined(channel: impl Into<ChannelName>, nick: impl Into<Nick>, own: bool)
         } else {
             Authorship::Other
         },
+        netjoin: None,
     }
 }
 

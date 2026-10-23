@@ -2000,6 +2000,18 @@ pub struct SplitServers {
     pub second: String,
 }
 
+impl SplitServers {
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __new(batch: String, first: String, second: String) -> Self {
+        Self {
+            batch,
+            first,
+            second,
+        }
+    }
+}
+
 /// An event emitted by an IRC session.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]

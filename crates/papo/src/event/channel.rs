@@ -26,6 +26,8 @@ pub struct Joined {
     pub nick: Nick,
     /// Whether the joining user is this client's user.
     pub authorship: Authorship,
+    /// The netjoin batch that carried this join, when applicable.
+    pub netjoin: Option<super::SplitServers>,
 }
 
 /// Initial channel membership synchronization completed.
