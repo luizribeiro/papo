@@ -1,3 +1,5 @@
+use std::time::{Duration, SystemTime};
+
 use papo::{Away, Event};
 use papo_conformance_macros::scenario;
 
@@ -131,5 +133,42 @@ async fn multidevice_away_shared_state(s: Scenario) -> papo_testing::Result<()> 
     assert_eq!(observer.state().user(&nick).unwrap().away(), &away);
     phone.expect_none(Event::as_away_changed).await?;
     observer.expect_none(Event::as_away_changed).await?;
+    Ok(())
+}
+
+/// broadcasts a read marker change to another attached session
+#[scenario(
+    requires(caps = ["draft/read-marker"]),
+    covers = ["multidevice.read-marker-fanout"]
+)]
+async fn multidevice_read_marker_fanout(s: Scenario) -> papo_testing::Result<()> {
+    if !has_account_sessions() {
+        return s.skip("the selected profile does not support concurrent account sessions");
+    }
+    let (desktop, account) = s.connect_as_account_with_key("alice").await?;
+    let channel = s.channel_name();
+    desktop.join(&channel).await?;
+    let mut phone = s.connect_account_session("alice-phone", account).await?;
+    wait_for_channel(&mut phone, &channel).await?;
+
+    let time = SystemTime::UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000);
+    assert_eq!(desktop.mark_read(&channel, time).await?, Some(time));
+    let marker = phone
+        .wait_for(|event| {
+            event.as_read_marker_changed().filter(|marker| {
+                conversation_name(&marker.conversation) == Some(channel.as_str())
+                    && marker.read_until == Some(time)
+            })
+        })
+        .await?;
+    assert_eq!(marker.read_until, Some(time));
+    assert_eq!(phone.state().read_marker(&channel), Some(time));
+    phone
+        .expect_none(|event| {
+            event
+                .as_read_marker_changed()
+                .filter(|marker| marker.read_until == Some(time))
+        })
+        .await?;
     Ok(())
 }
