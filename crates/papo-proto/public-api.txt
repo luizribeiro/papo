@@ -435,6 +435,7 @@ impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Account<'a>
 pub struct papo_proto::AccountName
 impl papo_proto::AccountName
 pub const fn papo_proto::AccountName::casemapping(&self) -> papo_proto::Casemapping
+pub const fn papo_proto::AccountName::origin(&self) -> papo_proto::Origin
 impl papo_proto::AccountName
 pub fn papo_proto::AccountName::check(&self) -> core::result::Result<(), papo_proto::InvalidIdentifier>
 impl papo_proto::AccountName
@@ -569,6 +570,7 @@ impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::ChanModes<'a>
 pub struct papo_proto::ChannelName
 impl papo_proto::ChannelName
 pub const fn papo_proto::ChannelName::casemapping(&self) -> papo_proto::Casemapping
+pub const fn papo_proto::ChannelName::origin(&self) -> papo_proto::Origin
 impl papo_proto::ChannelName
 pub fn papo_proto::ChannelName::into_string(self) -> alloc::string::String
 impl core::clone::Clone for papo_proto::ChannelName
@@ -921,6 +923,7 @@ impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::LineRef<'a>
 pub struct papo_proto::Mask
 impl papo_proto::Mask
 pub const fn papo_proto::Mask::casemapping(&self) -> papo_proto::Casemapping
+pub const fn papo_proto::Mask::origin(&self) -> papo_proto::Origin
 impl papo_proto::Mask
 pub fn papo_proto::Mask::check(&self) -> core::result::Result<(), papo_proto::InvalidIdentifier>
 pub fn papo_proto::Mask::exact(&impl MaskSource) -> core::option::Option<Self>
@@ -1112,6 +1115,7 @@ impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::NamesEntry<'a>
 pub struct papo_proto::Nick
 impl papo_proto::Nick
 pub const fn papo_proto::Nick::casemapping(&self) -> papo_proto::Casemapping
+pub const fn papo_proto::Nick::origin(&self) -> papo_proto::Origin
 impl papo_proto::Nick
 pub fn papo_proto::Nick::into_string(self) -> alloc::string::String
 impl core::clone::Clone for papo_proto::Nick
@@ -1326,6 +1330,33 @@ impl core::marker::Unpin for papo_proto::Numeric
 impl core::marker::UnsafeUnpin for papo_proto::Numeric
 impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::Numeric
 impl core::panic::unwind_safe::UnwindSafe for papo_proto::Numeric
+pub struct papo_proto::Origin(_)
+impl papo_proto::Origin
+pub const papo_proto::Origin::NONE: Self
+impl core::clone::Clone for papo_proto::Origin
+pub fn papo_proto::Origin::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::Origin
+impl core::cmp::Ord for papo_proto::Origin
+pub fn papo_proto::Origin::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for papo_proto::Origin
+pub fn papo_proto::Origin::eq(&self, &Self) -> bool
+impl core::cmp::PartialOrd for papo_proto::Origin
+pub fn papo_proto::Origin::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::default::Default for papo_proto::Origin
+pub fn papo_proto::Origin::default() -> Self
+impl core::fmt::Debug for papo_proto::Origin
+pub fn papo_proto::Origin::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_proto::Origin
+pub fn papo_proto::Origin::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for papo_proto::Origin
+impl core::marker::StructuralPartialEq for papo_proto::Origin
+impl core::marker::Freeze for papo_proto::Origin
+impl core::marker::Send for papo_proto::Origin
+impl core::marker::Sync for papo_proto::Origin
+impl core::marker::Unpin for papo_proto::Origin
+impl core::marker::UnsafeUnpin for papo_proto::Origin
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::Origin
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::Origin
 pub struct papo_proto::Param(_)
 impl core::clone::Clone for papo_proto::Param
 pub fn papo_proto::Param::clone(&self) -> Self

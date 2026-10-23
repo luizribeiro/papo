@@ -3,7 +3,7 @@ use std::borrow::Cow;
 #[cfg(feature = "precis")]
 mod precis;
 
-use crate::{AccountName, ChannelName, Mask, Nick};
+use crate::{AccountName, ChannelName, Mask, Nick, Origin};
 
 /// A server's rules for comparing IRC names.
 ///
@@ -34,25 +34,25 @@ impl Casemapping {
     /// Creates a nickname carrying these server-defined comparison rules.
     #[must_use]
     pub fn nick(self, text: impl AsRef<str>) -> Nick {
-        Nick::new(text.as_ref().to_owned(), self)
+        Origin::NONE.__nick(self, text)
     }
 
     /// Creates a channel name carrying these server-defined comparison rules.
     #[must_use]
     pub fn channel(self, text: impl AsRef<str>) -> ChannelName {
-        ChannelName::new(text.as_ref().to_owned(), self)
+        Origin::NONE.__channel(self, text)
     }
 
     /// Creates an account name carrying these server-defined comparison rules.
     #[must_use]
     pub fn account(self, text: impl AsRef<str>) -> AccountName {
-        AccountName::new(text.as_ref().to_owned(), self)
+        Origin::NONE.__account(self, text)
     }
 
     /// Creates a mask carrying these server-defined comparison rules.
     #[must_use]
     pub fn mask(self, text: impl AsRef<str>) -> Mask {
-        Mask::new(text.as_ref().to_owned(), self)
+        Origin::NONE.__mask(self, text)
     }
 
     /// Parses a `CASEMAPPING` token value.

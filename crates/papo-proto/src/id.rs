@@ -8,6 +8,48 @@ use std::{
 
 use crate::{Casemapping, Isupport};
 
+/// Opaque identity of the client that produced a protocol value.
+///
+/// Values built directly through [`Casemapping`] have [`Origin::NONE`]. High-level clients
+/// assign a distinct origin so names from different clients do not compare equal.
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct Origin(u64);
+
+impl Origin {
+    /// The origin used for values not associated with a running client.
+    pub const NONE: Self = Self(0);
+
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __new(value: u64) -> Self {
+        Self(value)
+    }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __nick(self, casemapping: Casemapping, text: impl AsRef<str>) -> Nick {
+        Nick::new(text.as_ref().to_owned(), casemapping, self)
+    }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __channel(self, casemapping: Casemapping, text: impl AsRef<str>) -> ChannelName {
+        ChannelName::new(text.as_ref().to_owned(), casemapping, self)
+    }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __account(self, casemapping: Casemapping, text: impl AsRef<str>) -> AccountName {
+        AccountName::new(text.as_ref().to_owned(), casemapping, self)
+    }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __mask(self, casemapping: Casemapping, text: impl AsRef<str>) -> Mask {
+        Mask::new(text.as_ref().to_owned(), casemapping, self)
+    }
+}
+
 /// Why an IRC identifier cannot be sent to the server.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
@@ -163,16 +205,18 @@ macro_rules! name_identifier {
             original: String,
             folded: String,
             casemapping: Casemapping,
+            origin: Origin,
         }
 
         impl $name {
-            pub(crate) fn new(value: impl Into<String>, casemapping: Casemapping) -> Self {
+            fn new(value: impl Into<String>, casemapping: Casemapping, origin: Origin) -> Self {
                 let original = value.into();
                 let folded = casemapping.fold(&original).into_owned();
                 Self {
                     original,
                     folded,
                     casemapping,
+                    origin,
                 }
             }
 
@@ -181,13 +225,19 @@ macro_rules! name_identifier {
             pub const fn casemapping(&self) -> Casemapping {
                 self.casemapping
             }
+
+            /// Returns the client that produced this name, or [`Origin::NONE`] for offline names.
+            #[must_use]
+            pub const fn origin(&self) -> Origin {
+                self.origin
+            }
         }
 
         original_text!($name, original);
 
         impl PartialEq for $name {
             fn eq(&self, other: &Self) -> bool {
-                self.folded == other.folded
+                self.origin == other.origin && self.folded == other.folded
             }
         }
 
@@ -195,7 +245,7 @@ macro_rules! name_identifier {
 
         impl Hash for $name {
             fn hash<H: Hasher>(&self, state: &mut H) {
-                self.folded.hash(state);
+                (self.origin, &self.folded).hash(state);
             }
         }
 
@@ -207,7 +257,7 @@ macro_rules! name_identifier {
 
         impl Ord for $name {
             fn cmp(&self, other: &Self) -> Ordering {
-                self.folded.cmp(&other.folded)
+                (self.origin, &self.folded).cmp(&(other.origin, &other.folded))
             }
         }
 
@@ -344,7 +394,10 @@ impl Mask {
     #[must_use]
     pub fn exact(source: &impl MaskSource) -> Option<Self> {
         let (nick, username, host) = source.mask_parts()?;
-        Some(nick.casemapping().mask(format!("{nick}!{username}@{host}")))
+        Some(
+            nick.origin()
+                .__mask(nick.casemapping(), format!("{nick}!{username}@{host}")),
+        )
     }
 
     /// Builds a `*!*@host` mask for a user source.
@@ -353,7 +406,10 @@ impl Mask {
     #[must_use]
     pub fn for_host(source: &impl MaskSource) -> Option<Self> {
         let (nick, _, host) = source.mask_parts()?;
-        Some(nick.casemapping().mask(format!("*!*@{host}")))
+        Some(
+            nick.origin()
+                .__mask(nick.casemapping(), format!("*!*@{host}")),
+        )
     }
 
     /// Builds a `*!user@host` mask for a user source.
@@ -362,13 +418,17 @@ impl Mask {
     #[must_use]
     pub fn for_user_host(source: &impl MaskSource) -> Option<Self> {
         let (nick, username, host) = source.mask_parts()?;
-        Some(nick.casemapping().mask(format!("*!{username}@{host}")))
+        Some(
+            nick.origin()
+                .__mask(nick.casemapping(), format!("*!{username}@{host}")),
+        )
     }
 
     /// Builds a `nick!*@*` mask for a nickname.
     #[must_use]
     pub fn for_nick(nick: &Nick) -> Self {
-        nick.casemapping().mask(format!("{nick}!*@*"))
+        nick.origin()
+            .__mask(nick.casemapping(), format!("{nick}!*@*"))
     }
 
     /// Validates this mask for use as an IRC parameter.
@@ -485,7 +545,23 @@ mod tests {
 
     use crate::{Casemapping, Isupport, LineRef};
 
-    use super::{Address, InvalidIdentifier, Mask, MaskSource, MessageId, MetadataKey, Nick};
+    use super::{
+        Address, InvalidIdentifier, Mask, MaskSource, MessageId, MetadataKey, Nick, Origin,
+    };
+
+    #[test]
+    fn origins_separate_equal_names_without_changing_text_comparison() {
+        let first = Origin::__new(41).__channel(Casemapping::Rfc1459, "#Papo");
+        let same_client = Origin::__new(41).__channel(Casemapping::Rfc1459, "#papo");
+        let other_client = Origin::__new(42).__channel(Casemapping::Rfc1459, "#papo");
+
+        assert_eq!(first, same_client);
+        assert_ne!(first, other_client);
+        assert_eq!(first, "#papo");
+        assert_eq!(other_client, "#PAPO");
+        assert_ne!(first.origin(), Origin::NONE);
+        assert_eq!(Casemapping::Rfc1459.channel("#papo").origin(), Origin::NONE);
+    }
 
     struct TestSource {
         nick: Nick,
