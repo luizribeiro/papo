@@ -467,11 +467,82 @@ async fn private_reply_refuses_a_nick_taken_after_receipt() {
         within(client.reply(&message, "payroll attached")).await,
         Err(Error::TargetGone)
     ));
+    assert!(matches!(
+        within(client.react(&message, "✅")).await,
+        Err(Error::TargetGone)
+    ));
+    assert!(matches!(
+        within(client.redact(&message, "superseded")).await,
+        Err(Error::TargetGone)
+    ));
     assert!(
         tokio::time::timeout(Duration::from_millis(10), server.read_u8())
             .await
             .is_err()
     );
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn private_reply_refuses_a_different_known_account() {
+    let settings = config().wanted_caps(["account-tag", "extended-join"]);
+    let (mut server, client, mut events, driver) = scripted(settings);
+    let task = tokio::spawn(driver);
+    complete_connect_caps(
+        &mut server,
+        &mut events,
+        "account-tag extended-join",
+        "account-tag extended-join",
+    )
+    .await;
+    server_line(
+        &mut server,
+        b":papo-driver!p@localhost JOIN #review * :Papo Driver\r\n:alice!~alice@cloak.example JOIN #review alice :Alice Example\r\n@account=alice :alice!~alice@cloak.example PRIVMSG papo-driver :release approval\r\n",
+    )
+    .await;
+    assert!(matches!(events.next().await, Some(Event::Joined(_))));
+    assert!(matches!(events.next().await, Some(Event::Joined(_))));
+    let message = next_message(&mut events).await;
+    server_line(
+        &mut server,
+        b":alice!~alice@cloak.example ACCOUNT mallory\r\n",
+    )
+    .await;
+    assert!(matches!(
+        events.next().await,
+        Some(Event::AccountChanged(_))
+    ));
+
+    assert!(matches!(
+        within(client.reply(&message, "payroll attached")).await,
+        Err(Error::TargetGone)
+    ));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), server.read_u8())
+            .await
+            .is_err()
+    );
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn private_reply_sends_when_the_recipient_is_unknown() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let task = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":alice!~alice@cloak.example PRIVMSG papo-driver :release approval\r\n",
+    )
+    .await;
+    let message = next_message(&mut events).await;
+
+    within(client.reply(&message, "approved")).await.unwrap();
+    client_line(&mut server, b"PRIVMSG alice approved\r\n").await;
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
