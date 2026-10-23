@@ -83,6 +83,7 @@ pub(crate) fn history_item(
                 crate::Authorship::from_core(item.authorship),
                 history_conversation,
                 mapping,
+                account_tag_enabled,
                 received_at,
             )
         }),
@@ -111,6 +112,7 @@ pub(crate) fn history_item(
                     message,
                     crate::Authorship::from_core(item.authorship),
                     mapping,
+                    account_tag_enabled,
                     received_at,
                 )
             })
@@ -250,8 +252,14 @@ fn parted(
     received_at: SystemTime,
 ) -> Option<Event> {
     let nick = source_nick(message)?;
-    let mapping = client.state().casemapping();
-    let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
+    let state = client.state();
+    let mapping = state.casemapping();
+    let envelope = crate::event_impl::line_envelope_with_account_tag(
+        message,
+        mapping,
+        state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
+        received_at,
+    );
     Some(Event::Parted(Parted {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
@@ -273,9 +281,15 @@ fn quit(
     authorship: crate::Authorship,
     history_conversation: Option<&crate::Conversation>,
     mapping: crate::Casemapping,
+    account_tag_enabled: bool,
     received_at: SystemTime,
 ) -> Option<Event> {
-    let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
+    let envelope = crate::event_impl::line_envelope_with_account_tag(
+        message,
+        mapping,
+        account_tag_enabled,
+        received_at,
+    );
     Some(Event::Quit(Quit {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
@@ -304,8 +318,14 @@ fn kicked(
     received_at: SystemTime,
 ) -> Option<Event> {
     let nick = message.param(1)?.to_owned();
-    let mapping = client.state().casemapping();
-    let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
+    let state = client.state();
+    let mapping = state.casemapping();
+    let envelope = crate::event_impl::line_envelope_with_account_tag(
+        message,
+        mapping,
+        state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
+        received_at,
+    );
     Some(Event::Kicked(Kicked {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
@@ -330,8 +350,14 @@ fn nick_changed(
     received_at: SystemTime,
 ) -> Option<Event> {
     let old = source_nick(message)?;
-    let mapping = client.state().casemapping();
-    let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
+    let state = client.state();
+    let mapping = state.casemapping();
+    let envelope = crate::event_impl::line_envelope_with_account_tag(
+        message,
+        mapping,
+        state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
+        received_at,
+    );
     Some(Event::NickChanged(NickChanged {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
@@ -348,9 +374,15 @@ fn topic_changed(
     message: &papo_proto::LineRef<'_>,
     authorship: crate::Authorship,
     mapping: crate::Casemapping,
+    account_tag_enabled: bool,
     received_at: SystemTime,
 ) -> Option<Event> {
-    let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
+    let envelope = crate::event_impl::line_envelope_with_account_tag(
+        message,
+        mapping,
+        account_tag_enabled,
+        received_at,
+    );
     Some(Event::TopicChanged(TopicChanged {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
@@ -375,7 +407,12 @@ fn mode_changed(
 ) -> Option<Event> {
     let state = client.state();
     let mapping = state.casemapping();
-    let envelope = crate::event_impl::line_envelope(message, mapping, received_at);
+    let envelope = crate::event_impl::line_envelope_with_account_tag(
+        message,
+        mapping,
+        state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
+        received_at,
+    );
     let changes = ModeChanges::parse(
         message.param(1)?,
         message.params().skip(2),
@@ -1050,14 +1087,17 @@ mod tests {
             if changed.old == "papo-old" && changed.new == "papo"
                 && changed.authorship == crate::Authorship::Own));
         assert!(matches!(&items[4], PageEvent::Quit(quit)
-            if quit.channels == ["#papo"] && quit.authorship == crate::Authorship::Other));
+            if quit.channels == ["#papo"]
+                && quit.authorship == crate::Authorship::Other
+                && matches!(&quit.account, crate::Account::LoggedIn(account) if account == "emily")));
         let first_time = papo_proto::time::parse("2026-10-19T14:31:08.123Z").unwrap();
         assert!(matches!(&items[0], PageEvent::OwnMessage(message)
             if message.msgid.as_deref() == Some("RfcBTzyxY120004")
                 && message.server_time == Some(first_time)
                 && matches!(&message.account, crate::Account::LoggedIn(account) if account == "papo")));
         assert!(matches!(&items[3], PageEvent::NickChanged(changed)
-            if changed.msgid.as_deref() == Some("RfcBTzyxY120007")));
+            if changed.msgid.as_deref() == Some("RfcBTzyxY120007")
+                && matches!(&changed.account, crate::Account::LoggedIn(account) if account == "papo")));
     }
 
     #[test]

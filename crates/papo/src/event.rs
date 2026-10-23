@@ -2488,6 +2488,18 @@ mod tests {
                 "{expected_variant}"
             );
             assert_event_times(&event, expected_variant, server_time, received_at);
+            let account = match &event {
+                Event::Parted(event) => Some(&event.account),
+                Event::Kicked(event) => Some(&event.account),
+                Event::Quit(event) => Some(&event.account),
+                Event::NickChanged(event) => Some(&event.account),
+                Event::ModeChanged(event) => Some(&event.account),
+                Event::TopicChanged(event) => Some(&event.account),
+                _ => None,
+            };
+            if let Some(account) = account {
+                assert_eq!(account, &Account::Unknown, "{expected_variant}");
+            }
             match &event {
                 Event::Reacted(event) => assert_eq!(event.account, Account::Unknown),
                 Event::Redacted(event) => assert_eq!(event.account, Account::Unknown),

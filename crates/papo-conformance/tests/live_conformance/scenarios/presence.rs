@@ -44,6 +44,14 @@ async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
         bob.state().user(&alice_nick).unwrap().account(),
         Account::LoggedIn(observed) if observed == &account
     ));
+    alice.part(&channel, "account-tag check").await?;
+    let parted = bob
+        .wait_for(|event| event.as_parted().filter(|parted| parted.nick == alice_nick))
+        .await?;
+    assert!(matches!(
+        &parted.account,
+        Account::LoggedIn(observed) if observed == &account
+    ));
     bob.expect_none(|event| event.as_message().filter(|message| message.text == text))
         .await?;
     Ok(())
