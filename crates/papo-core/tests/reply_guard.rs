@@ -32,10 +32,13 @@ fn private_message(session: &mut Session) -> ReplyToken {
         session,
         "@account=account :alice!~alice@cloak.example PRIVMSG papo :release approval",
     );
-    let Some(Event::Line(message)) = session.poll_event() else {
-        panic!("expected private message")
-    };
-    message.__reply_token()
+    loop {
+        match session.poll_event() {
+            Some(Event::Line(message)) => return message.__reply_token(),
+            Some(_) => {}
+            None => panic!("expected private message"),
+        }
+    }
 }
 
 #[test]
@@ -78,6 +81,55 @@ fn permits_the_sender_to_rename_away_and_back() {
 #[test]
 fn permits_a_reply_when_the_recipient_is_unknown() {
     let mut session = Session::new(Config::default().nick("papo"));
+    let receipt = private_message(&mut session);
+
+    assert!(!session.state().__recipient_changed("alice", receipt));
+}
+
+#[test]
+fn ignores_a_departure_after_receipt_when_the_recipient_is_unknown() {
+    let mut session = Session::new(Config::default().nick("papo"));
+    let receipt = private_message(&mut session);
+
+    server(
+        &mut session,
+        ":alice!~alice@cloak.example QUIT :Client Quit",
+    );
+
+    assert!(!session.state().__recipient_changed("alice", receipt));
+}
+
+#[test]
+fn detects_a_takeover_with_a_departure_before_the_receipt_position() {
+    let mut session = joined_session();
+    server(
+        &mut session,
+        ":guest!~guest@users.example QUIT :Connection closed",
+    );
+    discard_events(&mut session);
+    let receipt = private_message(&mut session);
+
+    server(
+        &mut session,
+        ":alice!~alice@cloak.example QUIT :Client Quit",
+    );
+    server(&mut session, ":mallory!~mallory@users.example NICK alice");
+
+    assert!(session.state().__recipient_changed("alice", receipt));
+}
+
+#[test]
+fn ignores_a_departure_at_the_receipt_position() {
+    let mut session = joined_session();
+    server(
+        &mut session,
+        ":alice!~alice@cloak.example QUIT :Client Quit",
+    );
+    server(
+        &mut session,
+        ":alice!~replacement@users.example JOIN #review * :Replacement Alice",
+    );
+    discard_events(&mut session);
     let receipt = private_message(&mut session);
 
     assert!(!session.state().__recipient_changed("alice", receipt));
