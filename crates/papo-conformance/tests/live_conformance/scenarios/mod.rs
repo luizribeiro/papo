@@ -6,6 +6,7 @@ mod line_length;
 mod membership;
 mod messaging;
 mod metadata;
+mod multidevice;
 mod presence;
 mod requests;
 mod security_addressing;
