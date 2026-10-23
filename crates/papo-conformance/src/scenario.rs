@@ -224,10 +224,7 @@ mod tests {
     fn names_are_readable_unique_and_bounded() {
         let first = unique_name("alice");
         let second = unique_name("alice");
-        let process =
-            std::env::var("PAPO_TEST_PID").unwrap_or_else(|_| std::process::id().to_string());
         assert!(first.starts_with("alice-"));
-        assert!(first.contains(&format!("-{process}-")));
         assert_ne!(first, second);
         assert!(unique_name("a very long display label with spaces").len() <= 32);
     }

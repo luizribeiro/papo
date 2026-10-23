@@ -277,10 +277,10 @@ fn process_id_from(
     wasm: bool,
     native: impl FnOnce() -> String,
 ) -> String {
-    match configured {
-        Some(id) => id,
-        None if wasm => panic!("PAPO_TEST_PID is unset; {RUNNER_HINT}"),
-        None => native(),
+    if wasm {
+        configured.unwrap_or_else(|| panic!("PAPO_TEST_PID is unset; {RUNNER_HINT}"))
+    } else {
+        native()
     }
 }
 
@@ -337,7 +337,7 @@ fn parse_address(name: &str, value: &str) -> io::Result<SocketAddr> {
 
 #[cfg(test)]
 mod tests {
-    use super::{BouncerLogin, RUNNER_HINT, from_values, process_id_from, unique};
+    use super::{BouncerLogin, RUNNER_HINT, from_values, process_id_from, test_process_id, unique};
 
     #[test]
     fn distinguishes_unset_complete_and_partial_environments() {
@@ -421,8 +421,7 @@ mod tests {
     fn unique_names_include_the_pid_and_counter_within_nicklen() {
         let first = unique("integration-registration-name-that-is-too-long");
         let second = unique("integration-registration-name-that-is-too-long");
-        let process_id =
-            std::env::var("PAPO_TEST_PID").unwrap_or_else(|_| std::process::id().to_string());
+        let process_id = test_process_id();
         assert_ne!(first, second);
         assert!(first.contains(&format!("-{process_id}-")));
         assert!(first.len() <= 32);
@@ -430,14 +429,19 @@ mod tests {
     }
 
     #[test]
-    fn process_ids_prefer_configuration_and_use_the_native_fallback() {
-        assert_eq!(
-            process_id_from(Some("runner-417".into()), true, || "native-99".into()),
-            "runner-417"
-        );
+    fn parallel_native_processes_ignore_their_shared_runner_identity() {
+        let first = process_id_from(Some("runner-417".into()), false, || "native-99".into());
+        let second = process_id_from(Some("runner-417".into()), false, || "native-100".into());
+        assert_eq!(first, "native-99");
+        assert_eq!(second, "native-100");
+        assert_ne!(first, second);
         assert_eq!(
             process_id_from(None, false, || "native-99".into()),
             "native-99"
+        );
+        assert_eq!(
+            process_id_from(Some("runner-417".into()), true, || "native-99".into()),
+            "runner-417"
         );
     }
 
