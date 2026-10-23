@@ -254,14 +254,17 @@ mod tests {
     #[test]
     fn rejects_tampered_server_signature() {
         let valid = "6rriTRBi23WpRR/wtup+mMhUZUn/dB5nLTJRsjl95G4=";
-        for index in [0, 31] {
+        for indexes in [&[0][..], &[31][..], &[0, 1][..]] {
             let mut signature = STANDARD.decode(valid).unwrap();
-            signature[index] ^= 1;
+            for index in indexes {
+                signature[*index] ^= 1;
+            }
             let mut client = rfc_client();
             client.handle_server_first(SERVER_FIRST).unwrap();
             assert_eq!(
                 client.handle_server_final(&format!("v={}", STANDARD.encode(signature))),
-                Err(ScramError::ServerSignatureMismatch)
+                Err(ScramError::ServerSignatureMismatch),
+                "accepted changes at {indexes:?}"
             );
         }
     }
