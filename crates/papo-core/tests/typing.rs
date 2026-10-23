@@ -13,6 +13,21 @@ fn conversation(session: &Session, target: &str) -> Conversation {
 }
 
 #[test]
+fn state_equality_includes_retained_typers() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    let mut equivalent = Session::new(Config::default());
+    let before = session.state().clone();
+    assert_eq!(session.state(), equivalent.state());
+
+    session.handle_line(now, b"@+typing=active :alice!~a@cloak TAGMSG #papo");
+    equivalent.handle_line(now, b"@+typing=active :alice!~a@cloak TAGMSG #papo");
+
+    assert_ne!(&before, session.state());
+    assert_eq!(session.state(), equivalent.state());
+}
+
+#[test]
 fn notifications_update_state_in_start_order_without_refresh_churn() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
