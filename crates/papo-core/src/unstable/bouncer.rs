@@ -530,7 +530,7 @@ impl Session {
 mod tests {
     use papo_proto::{Casemapping, LineRef};
 
-    use super::{BouncerNetwork, NetworkConfig, NetworkState, NetworkUpdate};
+    use super::{BouncerNetwork, InvalidNetworkUrl, NetworkConfig, NetworkState, NetworkUpdate};
 
     #[test]
     fn network_config_parses_irc_urls() {
@@ -538,6 +538,55 @@ mod tests {
         assert_eq!(
             &*config.attributes().unwrap(),
             "host=irc.oftc.net;port=6697;tls=1"
+        );
+    }
+
+    #[test]
+    fn network_config_parses_plaintext_and_ipv6_urls() {
+        for (url, expected) in [
+            (
+                "irc://irc.oftc.net:7000",
+                "host=irc.oftc.net;port=7000;tls=0",
+            ),
+            (
+                "irc://[2001:db8::7]:6669",
+                "host=2001:db8::7;port=6669;tls=0",
+            ),
+        ] {
+            assert_eq!(
+                &*NetworkConfig::from_url(url).unwrap().attributes().unwrap(),
+                expected
+            );
+        }
+    }
+
+    #[test]
+    fn network_config_rejects_malformed_urls() {
+        for url in [
+            "",
+            "irc.oftc.net:6697",
+            "wss://irc.oftc.net",
+            "irc://",
+            "irc://[2001:db8::7",
+            "irc://2001:db8::7",
+            "irc://irc.oftc.net:0",
+            "irc://irc.oftc.net:65536",
+            "irc://irc.oftc.net:",
+            "irc://alice@irc.oftc.net",
+            "irc://irc.oftc.net/network",
+            "irc://irc.oftc.net/",
+            "irc://irc.oftc.net?network=oftc",
+            "irc://irc.oftc.net#network",
+        ] {
+            assert!(NetworkConfig::from_url(url).is_err(), "accepted {url:?}");
+        }
+        assert_eq!(
+            NetworkConfig::from_url("irc://irc.oftc.net:0"),
+            Err(InvalidNetworkUrl::InvalidPort("0".into()))
+        );
+        assert_eq!(
+            NetworkConfig::from_url("wss://irc.oftc.net"),
+            Err(InvalidNetworkUrl::UnsupportedScheme("wss".into()))
         );
     }
 
