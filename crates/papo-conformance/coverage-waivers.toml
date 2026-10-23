@@ -4,7 +4,6 @@
 "ircv3.sasl.mechs-908" = "The client offers only server-advertised configured mechanisms during registration; after registration the managed servers reject AUTHENTICATE with 904 rather than 908."
 "draft.account-registration.verify" = "The managed servers expose no mail sink from which a verification code can be obtained."
 "core.cap-notify.del" = "The managed servers cannot remove a capability while connected without reloading or replacing the server process."
-"core.batch.netsplit-netjoin" = "A single local IRC server cannot produce a server-link split or netjoin batch."
 "core.tls.sni" = "The local harness has no TLS-terminating observer that can inspect the ClientHello server name."
 "base.links.basic" = "Every managed profile runs one standalone IRC server; Ergo returns only end-of-LINKS for that topology, so no link row exists to verify."
 "base.message.line-too-long" = "papo bounds outbound lines before transmission, so a live scenario cannot elicit server numeric 417 with an oversized line."

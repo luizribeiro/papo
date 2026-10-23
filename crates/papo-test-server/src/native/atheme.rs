@@ -9,6 +9,18 @@ pub(crate) fn write_config(
     uplink: &str,
     port: u16,
 ) -> io::Result<()> {
+    let chanserv = if protocol == "solanum" {
+        format!(
+            "loadmodule \"{modules}/chanserv/main\";\nloadmodule \"{modules}/chanserv/register\";\nloadmodule \"{modules}/chanserv/set_guard\";"
+        )
+    } else {
+        String::new()
+    };
+    let chanserv_config = if protocol == "solanum" {
+        r#"chanserv { nick = "ChanServ"; user = "ChanServ"; host = "services.int"; real = "Channel Services"; maxchans = 5; };"#
+    } else {
+        ""
+    };
     fs::write(directory.join("services.db"), "")?;
     fs::write(
         directory.join("atheme.conf"),
@@ -21,12 +33,14 @@ loadmodule "{modules}/nickserv/main";
 loadmodule "{modules}/nickserv/cert";
 loadmodule "{modules}/nickserv/register";
 loadmodule "{modules}/nickserv/verify";
+{chanserv}
 loadmodule "{modules}/saslserv/main";
 loadmodule "{modules}/saslserv/authcookie";
 loadmodule "{modules}/saslserv/external";
 loadmodule "{modules}/saslserv/plain";
 serverinfo {{ name = "services.papo.test"; desc = "papo test services"; numeric = "00A"; netname = "papo"; adminname = "papo"; adminemail = "papo@example.invalid"; registeremail = "papo@example.invalid"; auth = none; casemapping = "ascii"; }};
-general {{ commit_interval = 5; }};
+general {{ commit_interval = 5; join_chans; }};
+{chanserv_config}
 uplink "{uplink}" {{ host = "127.0.0.1"; port = {port}; send_password = "papo-link"; receive_password = "papo-link"; }};
 saslserv {{ nick = "SaslServ"; }};
 "#,
@@ -75,6 +89,7 @@ mod tests {
         .unwrap();
         let config = fs::read_to_string(directory.path().join("atheme.conf")).unwrap();
         assert!(config.contains("/atheme/modules/protocol/unreal4"));
+        assert!(!config.contains("/atheme/modules/chanserv/set_guard"));
         assert!(config.contains("uplink \"irc.papo.test\""));
         assert!(config.contains("port = 16667"));
         assert!(directory.path().join("services.db").is_file());

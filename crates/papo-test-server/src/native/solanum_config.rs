@@ -53,7 +53,7 @@ class "users" {{ ping_time = 2 minutes; number_per_ident = 100; number_per_ip = 
 class "server" {{ ping_time = 5 minutes; connectfreq = 5 minutes; max_number = 10; max_autoconn = 0; sendq = 4 megabytes; }};
 listen {{ defer_accept = no; host = "127.0.0.1"; port = {plain}; port = {services}; sslport = {tls}; }};
 auth {{ user = "*@*"; flags = exceed_limit; class = "users"; }};
-privset "papo_oper" {{ privs = oper:general, oper:kline, oper:mass_notice; }};
+privset "papo_oper" {{ privs = oper:general, oper:kline, oper:mass_notice, oper:routing; }};
 operator "{oper}" {{ user = "*@127.0.0.1"; password = "{oper_password}"; flags = ~encrypted; privset = "papo_oper"; }};
 connect "services.papo.test" {{ host = "127.0.0.1"; port = 0; send_password = "papo-link"; accept_password = "papo-link"; class = "server"; flags = topicburst; }};
 service {{ name = "services.papo.test"; }};
@@ -101,9 +101,10 @@ mod tests {
         assert!(ircd.contains("extensions/tag_message_id"));
         assert!(ircd.contains(&format!("sslport = {}", config.tls.port())));
         assert!(ircd.contains("connect_timeout = 1 second"));
-        assert!(ircd.contains("privs = oper:general, oper:kline, oper:mass_notice"));
+        assert!(ircd.contains("oper:mass_notice, oper:routing"));
         assert!(ircd.contains("password = \"papo-oper-password\"; flags = ~encrypted"));
         let atheme = fs::read_to_string(directory.path().join("atheme.conf")).unwrap();
         assert!(atheme.contains("/atheme/modules/protocol/solanum"));
+        assert!(atheme.contains("/atheme/modules/chanserv/set_guard"));
     }
 }

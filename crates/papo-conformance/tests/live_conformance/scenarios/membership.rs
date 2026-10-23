@@ -8,6 +8,61 @@ use papo_test_server::DeploymentProfile;
 use super::support::{assert_refusal, join_seen_by, subject_name, wait_channel_mode};
 use crate::Scenario;
 
+/// delivers every user lost behind a server link as a marked quit
+#[scenario(
+    requires(caps = ["batch"]),
+    covers = ["core.batch.netsplit-netjoin"]
+)]
+async fn netsplit_members_are_quits(s: Scenario) -> papo_testing::Result<()> {
+    if std::env::var("PAPO_TEST_PROFILE").unwrap_or_default() != "solanum" {
+        return s.skip("the selected profile has no managed user-bearing server link");
+    }
+    let mut alice = s.connect_as_account("alice").await?;
+    let channel = s.channel_name();
+    alice.join(&channel).await?;
+    alice
+        .send_raw(papo::Line::privmsg(
+            "ChanServ",
+            format!("REGISTER {channel}"),
+        ))
+        .await?;
+    alice
+        .wait_for(|event| {
+            event
+                .as_notice()
+                .filter(|notice| crate::source_nick(&notice.actor) == Some("ChanServ"))
+        })
+        .await?;
+    alice
+        .send_raw(papo::Line::privmsg(
+            "ChanServ",
+            format!("SET {channel} GUARD ON"),
+        ))
+        .await?;
+    alice
+        .wait_for(|event| event.as_joined().filter(|joined| joined.nick == "ChanServ"))
+        .await?;
+
+    alice
+        .oper(papo_test_server::OPER_NAME, papo_test_server::OPER_PASSWORD)
+        .await?;
+    alice
+        .send_raw(papo::Line::new("SQUIT").with_params(["services.papo.test", "conformance test"]))
+        .await?;
+    let quit = alice
+        .wait_for(|event| event.as_quit().filter(|quit| quit.nick == "ChanServ"))
+        .await?;
+    let split = quit
+        .netsplit
+        .as_ref()
+        .expect("QUIT belongs to a netsplit batch");
+    assert!(!split.batch.is_empty());
+    assert_eq!(split.first, "irc.papo.test");
+    assert_eq!(split.second, "services.papo.test");
+    assert!(alice.state().user("ChanServ").is_none());
+    Ok(())
+}
+
 /// exposes the joining account and real name to every channel member
 #[scenario(
     requires(caps = ["extended-join"]),
