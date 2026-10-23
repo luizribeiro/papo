@@ -598,17 +598,6 @@ pub papo_core::Event::MonitorOnline::username: core::option::Option<alloc::strin
 #[non_exhaustive] pub papo_core::Event::Motd
 pub papo_core::Event::Motd::lines: alloc::vec::Vec<alloc::string::String>
 pub papo_core::Event::MultilineMessage(papo_core::MultilineMessage)
-#[non_exhaustive] pub papo_core::Event::Netjoin
-pub papo_core::Event::Netjoin::authorship: alloc::vec::Vec<papo_core::Authorship>
-pub papo_core::Event::Netjoin::joins: alloc::vec::Vec<papo::Line>
-pub papo_core::Event::Netjoin::reference: alloc::string::String
-pub papo_core::Event::Netjoin::servers: [alloc::string::String; 2]
-#[non_exhaustive] pub papo_core::Event::Netsplit
-pub papo_core::Event::Netsplit::authorship: alloc::vec::Vec<papo_core::Authorship>
-pub papo_core::Event::Netsplit::channels: alloc::vec::Vec<alloc::vec::Vec<papo::ChannelName>>
-pub papo_core::Event::Netsplit::quits: alloc::vec::Vec<papo::Line>
-pub papo_core::Event::Netsplit::reference: alloc::string::String
-pub papo_core::Event::Netsplit::servers: [alloc::string::String; 2]
 #[non_exhaustive] pub papo_core::Event::NickChanged
 pub papo_core::Event::NickChanged::actor: alloc::string::String
 pub papo_core::Event::NickChanged::authorship: papo_core::Authorship

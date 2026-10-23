@@ -2123,32 +2123,6 @@ pub enum Event {
     HistoryTargets(Vec<(Conversation, std::time::SystemTime)>),
     /// A conversation's read marker advanced or was first reported.
     ReadMarkerChanged(ReadMarker),
-    /// Users departed because connectivity between two servers was lost.
-    #[non_exhaustive]
-    Netsplit {
-        /// The server's opaque batch reference.
-        reference: String,
-        /// The servers on either side of the lost link.
-        servers: [String; 2],
-        /// The `QUIT` messages grouped by the server.
-        quits: Vec<Line>,
-        /// Authorship facts corresponding to `quits` in wire order.
-        authorship: Vec<Authorship>,
-        /// Shared channels captured before each user was removed, in wire order.
-        channels: Vec<Vec<ChannelName>>,
-    },
-    /// Users returned after connectivity between two servers was restored.
-    #[non_exhaustive]
-    Netjoin {
-        /// The server's opaque batch reference.
-        reference: String,
-        /// The servers on either side of the restored link.
-        servers: [String; 2],
-        /// The `JOIN` messages grouped by the server.
-        joins: Vec<Line>,
-        /// Authorship facts corresponding to `joins` in wire order.
-        authorship: Vec<Authorship>,
-    },
     /// A server batch exceeded a retention bound or deadline.
     #[non_exhaustive]
     BatchAbandoned {
@@ -2486,8 +2460,6 @@ hidden_event_constructors! {
     __monitor_offline(nick: Nick) => MonitorOffline;
     __monitor_list_full(limit: usize, nicks: Vec<Nick>) => MonitorListFull;
     __history(conversation: Conversation, items: Vec<HistoryItem>, end: bool) => History;
-    __netsplit(reference: String, servers: [String; 2], quits: Vec<Line>, authorship: Vec<Authorship>, channels: Vec<Vec<ChannelName>>) => Netsplit;
-    __netjoin(reference: String, servers: [String; 2], joins: Vec<Line>, authorship: Vec<Authorship>) => Netjoin;
     __batch_abandoned(reference: String, batch_type: String, reason: BatchAbandonReason) => BatchAbandoned;
 }
 
