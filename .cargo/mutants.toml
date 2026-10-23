@@ -1,0 +1,2 @@
+# A stable build already returns `None`, so this replacement is equivalent.
+exclude_re = ['replace Config::selected_bouncer_network -> Option<&str> with None$']

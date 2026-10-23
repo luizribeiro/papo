@@ -1516,7 +1516,9 @@ impl ServerError {
             #[cfg(feature = "unstable")]
             Self::Standard { refusal, .. } => *refusal,
             #[cfg(not(feature = "unstable"))]
-            Self::Standard { command, code, .. } => Refusal::from_standard(command, code),
+            Self::Standard { command, code, .. } => {
+                Refusal::from_standard_enabled(command, code, &BTreeSet::new())
+            }
         }
     }
 }
@@ -1548,7 +1550,7 @@ impl StandardReply {
             #[cfg(feature = "unstable")]
             return self.refusal;
             #[cfg(not(feature = "unstable"))]
-            Refusal::from_standard(&self.command, &self.code)
+            Refusal::from_standard_enabled(&self.command, &self.code, &BTreeSet::new())
         })
     }
 }
@@ -4929,6 +4931,9 @@ fn text_label(prefix: Option<&str>, index: usize) -> Option<String> {
         }
     })
 }
+
+#[cfg(all(test, not(feature = "unstable")))]
+mod stable_build_tests;
 
 #[cfg(test)]
 mod tests {

@@ -4,10 +4,18 @@ use papo_proto::Numeric;
 mod unstable;
 #[cfg(not(feature = "unstable"))]
 mod unstable {
-    use super::Refusal;
+    use {super::Refusal, crate::Feature, std::collections::BTreeSet};
 
     pub(super) const fn from_standard(_command: &str, _code: &str) -> Refusal {
         Refusal::Other
+    }
+
+    pub(super) fn from_standard_enabled(
+        command: &str,
+        code: &str,
+        _enabled: &BTreeSet<Feature>,
+    ) -> Refusal {
+        Refusal::from_standard(command, code)
     }
 }
 
@@ -361,7 +369,6 @@ impl Refusal {
         }
     }
 
-    #[cfg(feature = "unstable")]
     pub(crate) fn from_standard_enabled(
         command: &str,
         code: &str,
