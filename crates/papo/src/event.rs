@@ -2955,11 +2955,7 @@ mod tests {
             Casemapping::default().channel("#papo"),
             Casemapping::default().nick("alice"),
             papo_core::Authorship::Other,
-            Some(papo_core::SplitServers::__new(
-                "join-42".into(),
-                "irc.example".into(),
-                "irc.remote".into(),
-            )),
+            None,
         ));
         let joined = event.as_joined().unwrap();
         assert_eq!(joined.channel, "#papo");
@@ -2967,12 +2963,7 @@ mod tests {
         assert_eq!(joined.nick, "alice");
         assert_eq!(joined.realname.as_deref(), Some("Alice Liddell"));
         assert!(matches!(&joined.account, Account::LoggedIn(account) if account == "alice"));
-        assert!(matches!(
-            &joined.netjoin,
-            Some(split) if split.batch == "join-42"
-                && split.first == "irc.example"
-                && split.second == "irc.remote"
-        ));
+        assert_eq!(joined.netjoin, None);
     }
 
     #[test]
@@ -3068,18 +3059,49 @@ mod tests {
                     Casemapping::default().channel("#rust"),
                 ],
                 papo_core::Authorship::Other,
-                Some(papo_core::SplitServers::__new(
-                    "split-42".into(),
-                    "irc.example".into(),
-                    "irc.remote".into(),
-                )),
+                None,
             )),
             Event::Quit(quit)
                 if quit.nick == "emily"
                     && quit.actor.nick().is_some_and(|nick| nick == "emily")
                     && quit.reason.as_deref() == Some("Client exited")
                     && quit.channels == ["#papo", "#rust"]
-                    && quit.netsplit.as_ref().is_some_and(|split| split.batch == "split-42")
+                    && quit.netsplit.is_none()
+        ));
+    }
+
+    #[test]
+    fn maps_split_membership_markers() {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default());
+        for line in [
+            ":irc.example BATCH +join-42 netjoin irc.example irc.remote",
+            "@batch=join-42 :alice!~a@remote.example JOIN #papo * :Alice Liddell",
+            ":irc.example BATCH -join-42",
+        ] {
+            session.handle_line(now, line.as_bytes());
+        }
+        let joined = forwarded(session.poll_event().expect("netjoin event"));
+        assert!(matches!(
+            joined.as_joined().and_then(|event| event.netjoin.as_ref()),
+            Some(split) if split.batch == "join-42"
+                && split.first == "irc.example"
+                && split.second == "irc.remote"
+        ));
+
+        for line in [
+            ":irc.example BATCH +split-42 netsplit irc.example irc.remote",
+            "@batch=split-42 :alice!~a@remote.example QUIT :irc.example irc.remote",
+            ":irc.example BATCH -split-42",
+        ] {
+            session.handle_line(now, line.as_bytes());
+        }
+        let quit = forwarded(session.poll_event().expect("netsplit event"));
+        assert!(matches!(
+            quit.as_quit().and_then(|event| event.netsplit.as_ref()),
+            Some(split) if split.batch == "split-42"
+                && split.first == "irc.example"
+                && split.second == "irc.remote"
         ));
     }
 
