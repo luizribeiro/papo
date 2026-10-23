@@ -453,6 +453,7 @@ async fn private_reply_refuses_a_nick_taken_after_receipt() {
         assert!(matches!(events.next().await, Some(Event::Joined(_))));
     }
     let message = next_message(&mut events).await;
+    assert!(!message.__recipient_changed(&client.state()));
     within(client.reply(&message, "approved")).await.unwrap();
     client_line(&mut server, b"PRIVMSG alice approved\r\n").await;
 
@@ -463,6 +464,7 @@ async fn private_reply_refuses_a_nick_taken_after_receipt() {
     .await;
     assert!(matches!(events.next().await, Some(Event::Quit(_))));
     assert!(matches!(events.next().await, Some(Event::NickChanged(_))));
+    assert!(message.__recipient_changed(&client.state()));
     assert!(matches!(
         within(client.reply(&message, "payroll attached")).await,
         Err(Error::TargetGone)
