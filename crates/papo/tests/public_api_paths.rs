@@ -98,6 +98,10 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
         "pub fn papo::State::typing<'a>(&'a self, &'a papo::Conversation) -> impl core::iter::traits::iterator::Iterator<Item = &'a papo::Typer>",
         ConversationClass::State,
     ),
+    (
+        "impl papo::Target for papo::Conversation",
+        ConversationClass::Outgoing,
+    ),
 ];
 const BOT_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[];
 

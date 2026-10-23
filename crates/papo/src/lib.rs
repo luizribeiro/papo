@@ -160,6 +160,7 @@ mod reconnect;
 mod requests;
 mod rt;
 mod state;
+mod target;
 pub mod time;
 mod transport;
 mod webirc;
@@ -232,6 +233,7 @@ pub use papo_proto::{
 pub use reconnect::Reconnect;
 pub use requests::{ListEntry, ListFilter, WhoEntry, Whois, WhoisChannel};
 pub use state::State;
+pub use target::Target;
 pub use webirc::WebIrc;
 
 /// A user or channel acted on by an IRC event.

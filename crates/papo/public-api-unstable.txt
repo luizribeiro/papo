@@ -1278,6 +1278,7 @@ pub fn papo::Chat::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Resul
 impl core::hash::Hash for papo::Chat
 pub fn papo::Chat::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::StructuralPartialEq for papo::Chat
+impl papo::Target for papo::Chat
 impl core::marker::Freeze for papo::Chat
 impl core::marker::Send for papo::Chat
 impl core::marker::Sync for papo::Chat
@@ -2753,3 +2754,15 @@ pub trait papo::IntoEndpoint: papo::address::private::Sealed
 impl papo::IntoEndpoint for &str
 impl papo::IntoEndpoint for alloc::string::String
 impl papo::IntoEndpoint for papo::Endpoint
+pub trait papo::Target: papo::target::sealed::Sealed
+impl papo::Target for alloc::borrow::Cow<'_, str>
+impl papo::Target for alloc::boxed::Box<str>
+impl papo::Target for alloc::rcs::arc::Arc<str>
+impl papo::Target for alloc::string::String
+impl papo::Target for papo::Chat
+impl papo::Target for papo::Conversation
+impl papo::Target for papo::ChannelName
+impl papo::Target for papo::Mask
+impl papo::Target for papo::Nick
+impl papo::Target for str
+impl<T: papo::Target + ?core::marker::Sized> papo::Target for &T
