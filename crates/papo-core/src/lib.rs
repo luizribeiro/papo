@@ -488,6 +488,9 @@ pub struct Config {
     pub decoding: Decoding,
     /// Name casemapping remembered before a server advertises its rules.
     pub casemapping: Casemapping,
+    /// Identity stamped on names produced by this session.
+    #[doc(hidden)]
+    pub origin: papo_proto::Origin,
     /// The nickname requested while connecting.
     pub nick: String,
     /// The username sent while connecting.
@@ -557,6 +560,7 @@ impl Default for Config {
         Self {
             decoding: Decoding::default(),
             casemapping: Casemapping::default(),
+            origin: papo_proto::Origin::NONE,
             nick: "papo".to_owned(),
             username: "papo".to_owned(),
             realname: "papo".to_owned(),

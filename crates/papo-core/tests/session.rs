@@ -9,7 +9,7 @@ use papo_core::{
     Authorship, Config, DEFAULT_WANTED_CAPS, Event, Feature, RateLimit, RequestError, Sasl, Secret,
     Session, TextKind, UnsupportedReason,
 };
-use papo_proto::{BuildError, Line};
+use papo_proto::{BuildError, Line, Origin};
 use support::unsupported_error;
 
 #[test]
@@ -33,6 +33,7 @@ fn config_builders_set_registration_identity_and_timeout() {
         .host("irc.example.net");
 
     assert_eq!(config.nick, "emily");
+    assert_eq!(config.origin, Origin::NONE);
     assert_eq!(config.username, "em");
     assert_eq!(config.realname, "Emily Example");
     assert_eq!(
