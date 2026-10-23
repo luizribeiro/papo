@@ -2084,6 +2084,34 @@ mod tests {
     }
 
     #[test]
+    fn non_action_ctcp_is_not_a_message_or_notice() {
+        let isupport = Isupport::default();
+        let message = LineRef::parse(":emily!~emily@cloak.example PRIVMSG #papo :\x01VERSION\x01")
+            .unwrap()
+            .to_owned();
+        assert!(ChatMessage::new(message, &isupport, "papo", UNIX_EPOCH).is_err());
+
+        let notice =
+            LineRef::parse(":emily!~emily@cloak.example NOTICE #papo :\x01VERSION Ergo-2.15.0\x01")
+                .unwrap()
+                .to_owned();
+        let (status, conversation) =
+            papo_core::classify_conversation(&notice.as_ref(), "papo", &isupport).unwrap();
+        assert!(
+            super::Notice::from_line(
+                notice,
+                None,
+                Authorship::Other,
+                conversation,
+                status,
+                &isupport,
+                UNIX_EPOCH,
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
     fn distinguishes_ctcp_queries_and_replies() {
         let query = Line::privmsg("#papo", "\x01VERSION\x01");
         let (_, _, reply) = ctcp_parts(&query.as_ref()).unwrap();
