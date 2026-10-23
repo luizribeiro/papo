@@ -1,4 +1,4 @@
-use papo::{AccountCreation, ConnectErrorKind, Event, NewAccount, event::Warning};
+use papo::{AccountCreation, ConnectErrorKind, Event, NewAccount, Rank, event::Warning};
 use papo_conformance_macros::scenario;
 use papo_core::Sasl;
 use papo_test_server::{DeploymentProfile, create_account, unique};
@@ -184,6 +184,17 @@ async fn services(s: Scenario) -> papo_testing::Result<()> {
         })
         .await?;
     assert!(matches!(chanserv.conversation, papo::Chat::Private(_)));
+    alice.part(&channel, "checking the founder grant").await?;
+    alice.join(&channel).await?;
+    let state = alice.state();
+    let founder = state
+        .channel(&channel)
+        .unwrap()
+        .member(state.nick())
+        .unwrap();
+    assert_eq!(founder.rank(), Some(Rank::Owner));
+    assert!(!founder.has(Rank::Op));
+    assert!(founder.rank() >= Some(Rank::Op));
     Ok(())
 }
 
