@@ -1504,62 +1504,6 @@ pub(crate) fn from_core(
                 read_until: marker.read_until,
             })
         }
-        papo_core::Event::Netsplit {
-            servers,
-            quits,
-            authorship,
-            channels,
-            ..
-        } => Event::Netsplit(Netsplit {
-            servers: servers.into(),
-            quits: quits
-                .into_iter()
-                .zip(authorship)
-                .zip(channels)
-                .filter_map(|((message, authorship), channels)| {
-                    let message = message.as_ref();
-                    let nick = match message.source()? {
-                        papo_proto::Source::User { nick, .. } => nick.to_owned(),
-                        papo_proto::Source::Server(_) => return None,
-                    };
-                    let envelope = line_envelope(&message, casemapping, received_at);
-                    Some(Quit {
-                        msgid: envelope.msgid,
-                        server_time: envelope.server_time,
-                        received_at: envelope.received_at,
-                        account: envelope.account,
-                        actor: source::from_proto(message.source()?, casemapping),
-                        nick: casemapping.nick(nick),
-                        authorship: Authorship::from_core(authorship),
-                        reason: message
-                            .param(0)
-                            .filter(|reason| !reason.is_empty())
-                            .map(str::to_owned),
-                        channels,
-                    })
-                })
-                .collect(),
-        }),
-        papo_core::Event::Netjoin {
-            servers,
-            joins,
-            authorship,
-            ..
-        } => Event::Netjoin(Netjoin {
-            servers: servers.into(),
-            joins: joins
-                .into_iter()
-                .zip(authorship)
-                .filter_map(|(message, authorship)| {
-                    joined_from_line(
-                        &message.as_ref(),
-                        Authorship::from_core(authorship),
-                        casemapping,
-                        received_at,
-                    )
-                })
-                .collect(),
-        }),
         papo_core::Event::BatchAbandoned {
             reference,
             batch_type,
@@ -3405,59 +3349,6 @@ mod tests {
                 if mapped.conversation == marker.conversation
                     && mapped.read_until == marker.read_until
         ));
-    }
-
-    #[test]
-    fn maps_netsplit() {
-        let quit = Line::new("QUIT")
-            .with_params(["irc.example irc.remote"])
-            .with_source("alice!~a@remote.example");
-        let empty_reason = ":bob!~b@remote.example QUIT :".parse().unwrap();
-        let Event::Netsplit(netsplit) = forwarded(papo_core::Event::__netsplit(
-            "split".into(),
-            ["irc.example".into(), "irc.remote".into()],
-            vec![quit, empty_reason],
-            vec![papo_core::Authorship::Other; 2],
-            vec![vec![Casemapping::default().channel("#papo")]; 2],
-        )) else {
-            panic!("netsplit was not forwarded")
-        };
-        assert_eq!(netsplit.servers.first, "irc.example");
-        assert_eq!(netsplit.servers.second, "irc.remote");
-        assert_eq!(netsplit.quits.len(), 2);
-        assert_eq!(netsplit.quits[0].nick, "alice");
-        assert_eq!(netsplit.quits[0].channels, ["#papo"]);
-        assert_eq!(
-            netsplit.quits[0].reason.as_deref(),
-            Some("irc.example irc.remote")
-        );
-        assert_eq!(netsplit.quits[1].reason, None);
-    }
-
-    #[test]
-    fn maps_netjoin() {
-        let join = Line::new("JOIN")
-            .with_params(["#papo", "*", "Bob"])
-            .with_source("bob!~b@remote.example");
-        let Event::Netjoin(netjoin) = forwarded(papo_core::Event::__netjoin(
-            "join".into(),
-            ["irc.example".into(), "irc.remote".into()],
-            vec![join],
-            vec![papo_core::Authorship::Other],
-        )) else {
-            panic!("netjoin was not forwarded")
-        };
-        assert_eq!(netjoin.servers.first, "irc.example");
-        assert_eq!(netjoin.servers.second, "irc.remote");
-        assert_eq!(netjoin.joins.len(), 1);
-        assert_eq!(netjoin.joins[0].channel, "#papo");
-        assert_eq!(
-            netjoin.joins[0].actor.nick().map(AsRef::as_ref),
-            Some("bob")
-        );
-        assert_eq!(netjoin.joins[0].nick, "bob");
-        assert_eq!(netjoin.joins[0].account, Account::LoggedOut);
-        assert_eq!(netjoin.joins[0].realname.as_deref(), Some("Bob"));
     }
 
     #[test]
