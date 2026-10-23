@@ -8,6 +8,7 @@ use std::{
 
 static NEXT_NAME: AtomicU64 = AtomicU64::new(0);
 const RUNNER_HINT: &str = "run tests through the dev shell's test runner";
+const USE_RUNNER_PROCESS_ID: bool = cfg!(target_family = "wasm");
 
 /// Connection details for the test server owned by the test runner.
 #[derive(Clone, Eq, PartialEq)]
@@ -267,7 +268,7 @@ pub fn unique(prefix: &str) -> String {
 fn test_process_id() -> String {
     process_id_from(
         env::var("PAPO_TEST_PID").ok(),
-        cfg!(target_family = "wasm"),
+        USE_RUNNER_PROCESS_ID,
         || std::process::id().to_string(),
     )
 }
@@ -337,7 +338,10 @@ fn parse_address(name: &str, value: &str) -> io::Result<SocketAddr> {
 
 #[cfg(test)]
 mod tests {
-    use super::{BouncerLogin, RUNNER_HINT, from_values, process_id_from, test_process_id, unique};
+    use super::{
+        BouncerLogin, RUNNER_HINT, USE_RUNNER_PROCESS_ID, from_values, process_id_from,
+        test_process_id, unique,
+    };
 
     #[test]
     fn distinguishes_unset_complete_and_partial_environments() {
@@ -422,6 +426,12 @@ mod tests {
         let first = unique("integration-registration-name-that-is-too-long");
         let second = unique("integration-registration-name-that-is-too-long");
         let process_id = test_process_id();
+        let expected_process_id = if USE_RUNNER_PROCESS_ID {
+            std::env::var("PAPO_TEST_PID").expect("PAPO_TEST_PID is set by the WASI test runner")
+        } else {
+            std::process::id().to_string()
+        };
+        assert_eq!(process_id, expected_process_id);
         assert_ne!(first, second);
         assert!(first.contains(&format!("-{process_id}-")));
         assert!(first.len() <= 32);
