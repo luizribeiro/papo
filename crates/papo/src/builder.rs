@@ -301,6 +301,10 @@ impl Builder {
         S: Into<String>,
     {
         for capability in caps.into_iter().map(Into::into) {
+            let canonical = cap::canonical(&capability).to_owned();
+            self.config
+                .disabled_caps
+                .retain(|name| cap::canonical(name) != canonical);
             if !self.config.wanted_caps.contains(&capability) {
                 self.config.wanted_caps.push(capability);
             }
@@ -1109,6 +1113,17 @@ mod tests {
     #[cfg(feature = "unstable")]
     #[tokio::test(flavor = "current_thread")]
     async fn enables_unstable_features_and_bouncer_selection_before_connecting() {
+        let notify = "soju.im/bouncer-networks-notify";
+        let management = Builder::new("irc.example.net").enable(crate::Feature::Bouncer);
+        assert!(
+            management
+                .config
+                .wanted_caps
+                .iter()
+                .any(|cap| cap == notify)
+        );
+        assert!(management.config.disabled_caps.is_empty());
+
         let enabled = Builder::new("irc.example.net")
             .enable(crate::Feature::Persistence)
             .enable(crate::Feature::Relay)
@@ -1120,10 +1135,7 @@ mod tests {
                 .enabled_features
                 .contains(&crate::Feature::Bouncer)
         );
-        assert_eq!(
-            enabled.config.disabled_caps,
-            ["soju.im/bouncer-networks-notify"]
-        );
+        assert_eq!(enabled.config.disabled_caps, [notify]);
         for capability in [
             "soju.im/bouncer-networks",
             "soju.im/bouncer-networks-notify",
@@ -1139,6 +1151,11 @@ mod tests {
                     .any(|name| name == capability)
             );
         }
+        let opted_in = Builder::new("irc.example.net")
+            .bouncer_network(crate::NetworkId::from("libera"))
+            .request_caps([notify]);
+        assert!(opted_in.config.wanted_caps.iter().any(|cap| cap == notify));
+        assert!(opted_in.config.disabled_caps.is_empty());
 
         let reconnect = crate::Reconnect::never();
         let (control, _events, _driver) = Builder::new("ircs://soju.example:7443")
