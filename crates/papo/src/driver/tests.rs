@@ -5352,6 +5352,52 @@ async fn mode_helpers_await_every_command_and_return_refusals() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn channel_key_mode_results_are_typed_and_redacted() {
+    let (mut server, client, mut events, driver) =
+        scripted(config().wanted_caps(["labeled-response"]));
+    let driver = tokio::spawn(driver);
+    complete_connect_labelled(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":ergo.test 005 papo-driver CHANMODES=beI,k,l,imnst :are supported\r\n",
+    )
+    .await;
+    within(async {
+        while !matches!(
+            client.state().isupport().get("CHANMODES"),
+            crate::isupport::Advertised::Value("beI,k,l,imnst")
+        ) {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await;
+
+    let modes = tokio::spawn({
+        let client = client.clone();
+        async move { client.mode("#staff").add_with('k', "hunter2").await }
+    });
+    client_line(&mut server, b"@label=0 MODE #staff +k hunter2\r\n").await;
+    server_line(
+        &mut server,
+        b"@label=0 :papo-driver!~papo@localhost MODE #staff +k hunter2\r\n",
+    )
+    .await;
+
+    let result = within(modes).await.unwrap().unwrap();
+    assert!(matches!(
+        result.applied.as_slice(),
+        [change] if matches!(change.arg, Some(crate::ModeArg::Key(_)))
+    ));
+    assert!(!format!("{result:?}").contains("hunter2"));
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn mode_changes_report_an_applied_change_and_a_partial_refusal() {
     let (mut server, client, mut events, driver) =
         scripted(config().rate_limit(papo_core::RateLimit::unlimited()));
