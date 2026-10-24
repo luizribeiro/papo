@@ -27,6 +27,10 @@ async fn assert_unavailable(
                     panic!("unexpected disconnect: {disconnected:?}");
                 };
                 assert_eq!(error.kind(), expected_kind);
+                assert!(
+                    error.to_string().to_ascii_lowercase().contains(capability),
+                    "{error}"
+                );
                 let diagnostic = std::error::Error::source(&error)
                     .map_or_else(|| error.to_string(), ToString::to_string);
                 assert!(diagnostic.contains(capability), "{diagnostic}");

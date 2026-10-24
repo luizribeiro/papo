@@ -641,6 +641,13 @@ impl Config {
         self.registration_on_connect.is_some()
     }
 
+    pub(crate) fn account_creation_requires_custom_name(&self) -> bool {
+        self.registration_on_connect
+            .as_ref()
+            .and_then(|pending| pending.account.as_deref())
+            .is_some_and(|account| !names_equal(self.casemapping, account, &self.nick))
+    }
+
     /// Sets whether configured connection behavior requires a capability.
     #[doc(hidden)]
     pub fn __set_capability_required(&mut self, capability: cap::Cap, required: bool) {

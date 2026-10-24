@@ -264,8 +264,9 @@ impl Builder {
 
     /// Creates an account while connecting.
     ///
-    /// This requires `draft/account-registration` with `before-connect`; otherwise the connection
-    /// fails with [`ConnectErrorKind::CapabilityUnavailable`](crate::ConnectErrorKind::CapabilityUnavailable).
+    /// This requires `draft/account-registration` with `before-connect`; a named account that
+    /// differs from the nick also requires `custom-account-name`. Otherwise the connection fails
+    /// with [`ConnectErrorKind::CapabilityUnavailable`](crate::ConnectErrorKind::CapabilityUnavailable).
     ///
     /// ```
     /// let account = papo::NewAccount::new("correct horse battery staple")

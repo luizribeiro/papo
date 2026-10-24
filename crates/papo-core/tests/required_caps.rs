@@ -51,6 +51,26 @@ fn account_creation_requires_before_connect_registration() {
 }
 
 #[test]
+fn custom_account_name_requires_its_capability_value() {
+    Transcript::new(Config::default().create_account_on_connect(
+        Some("alice"),
+        Some("alice@example.org"),
+        "correct horse battery staple",
+    ))
+    .connect_default()
+    .server("CAP * LS :draft/account-registration=before-connect")
+    .event(|event| {
+        matches!(event, Event::Close {
+            kind: CloseKind::CapabilityUnavailable,
+            reason,
+            ..
+        } if reason.contains("draft/account-registration")
+            && reason.contains("custom-account-name"))
+    })
+    .no_client();
+}
+
+#[test]
 fn metadata_subscriptions_require_metadata() {
     unavailable(
         Config::default().metadata_subscriptions(["example.org/color"]),

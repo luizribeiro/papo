@@ -3558,7 +3558,7 @@ async fn verification_challenge_resolves_registration_before_welcome() {
     welcome_burst(&mut server).await;
     server_line(
         &mut server,
-        b":ergo.test CAP * LS :draft/account-registration=before-connect\r\n",
+        b":ergo.test CAP * LS :draft/account-registration=before-connect,custom-account-name\r\n",
     )
     .await;
     client_line(&mut server, b"CAP REQ :draft/account-registration\r\n").await;

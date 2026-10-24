@@ -286,15 +286,19 @@ impl Caps {
             close_required(&required, "was not advertised", outbox);
             return;
         }
-        if config.creates_account_on_connect()
-            && !RegistrationPolicy::parse(
-                self.advertised
-                    .get(&cap::ACCOUNT_REGISTRATION)
-                    .and_then(Option::as_deref),
-            )
-            .before_connect
-        {
+        let registration_policy = RegistrationPolicy::parse(
+            self.advertised
+                .get(&cap::ACCOUNT_REGISTRATION)
+                .and_then(Option::as_deref),
+        );
+        if config.creates_account_on_connect() && !registration_policy.before_connect {
             close_required_value(&cap::ACCOUNT_REGISTRATION, "before-connect", outbox);
+            return;
+        }
+        if config.account_creation_requires_custom_name()
+            && !registration_policy.custom_account_name
+        {
+            close_required_value(&cap::ACCOUNT_REGISTRATION, "custom-account-name", outbox);
             return;
         }
         if let Some(required) = config

@@ -95,7 +95,7 @@ fn configured_registration_survives_a_multiline_capability_listing() {
         );
     Transcript::new(config)
         .connect_default()
-        .server("CAP * LS * :draft/account-registration=before-connect")
+        .server("CAP * LS * :draft/account-registration=before-connect,custom-account-name")
         .no_client()
         .server("CAP * LS :message-tags")
         .client("CAP REQ :draft/account-registration")
