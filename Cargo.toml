@@ -8,7 +8,6 @@ members = [
   "crates/papo",
   "crates/papo-bot",
   "crates/papo-conformance",
-  "examples/parse",
   "examples/ping-bot",
   "examples/lurker",
   "examples/admin-bot",

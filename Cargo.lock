@@ -676,13 +676,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "papo-parse-example"
-version = "0.1.0"
-dependencies = [
- "papo-proto",
-]
-
-[[package]]
 name = "papo-ping-bot"
 version = "0.1.0"
 dependencies = [
