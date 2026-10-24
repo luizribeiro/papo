@@ -47,19 +47,11 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
         ConversationClass::Event,
     ),
     (
-        "impl core::convert::From<&papo::Chat> for papo::Conversation",
+        "pub papo::Message::conversation: papo::Conversation",
         ConversationClass::Event,
     ),
     (
-        "pub fn papo::Conversation::from(&papo::Chat) -> Self",
-        ConversationClass::Event,
-    ),
-    (
-        "impl core::convert::From<papo::Chat> for papo::Conversation",
-        ConversationClass::Event,
-    ),
-    (
-        "pub fn papo::Conversation::from(papo::Chat) -> Self",
+        "pub papo::event::Notice::conversation: papo::Conversation",
         ConversationClass::Event,
     ),
     (

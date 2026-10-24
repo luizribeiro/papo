@@ -89,9 +89,9 @@ pub fn message(
             Some(nick) => AsRef::<str>::as_ref(nick),
             None => &target,
         };
-        crate::Chat::Private(crate::Casemapping::default().nick(other))
+        crate::Conversation::Private(crate::Casemapping::default().nick(other))
     } else {
-        crate::Chat::Channel(crate::Casemapping::default().channel(&target))
+        crate::Conversation::Channel(crate::Casemapping::default().channel(&target))
     };
     Message {
         actor: actor.unwrap_or_else(|| {

@@ -904,7 +904,7 @@ mod tests {
             "release ready",
             true,
         );
-        private.conversation = crate::Chat::Private(first.state().nickname("emily"));
+        private.conversation = crate::Conversation::Private(first.state().nickname("emily"));
         assert_eq!(private.origin(), first.origin());
         assert!(matches!(
             second.reply(&private, "ship it").await,

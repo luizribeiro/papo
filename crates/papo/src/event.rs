@@ -240,7 +240,7 @@ pub struct Message {
     /// The chat conversation to which the message belongs.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
-    pub conversation: Chat,
+    pub conversation: Conversation,
     /// `STATUSMSG` prefixes removed from the wire address, in wire order.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -289,7 +289,7 @@ pub struct Notice {
     /// The chat conversation to which the notice belongs.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
-    pub conversation: Chat,
+    pub conversation: Conversation,
     /// `STATUSMSG` prefixes removed from the wire address, in wire order.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.

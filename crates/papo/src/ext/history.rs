@@ -623,12 +623,10 @@ impl ConversationInput {
         match conversation {
             crate::Conversation::Channel(channel) => Ok(channel.to_string()),
             crate::Conversation::Private(nick) => Ok(nick.to_string()),
-            crate::Conversation::Server | crate::Conversation::Broadcast(_) | _ => {
-                Err(crate::InvalidInput::InvalidMessage(
-                    "history requires a channel or private conversation".into(),
-                )
-                .into())
-            }
+            _ => Err(crate::InvalidInput::InvalidMessage(
+                "history requires a channel or private conversation".into(),
+            )
+            .into()),
         }
     }
 }
@@ -1217,7 +1215,7 @@ mod tests {
         );
 
         let page = HistoryPage {
-            conversation: (&event.conversation).into(),
+            conversation: event.conversation.clone(),
             items: vec![Event::Message(event)],
             reason: HistoryReason::Requested,
             end: false,
@@ -1241,7 +1239,7 @@ mod tests {
             received_at,
         );
         let page = HistoryPage {
-            conversation: (&event.conversation).into(),
+            conversation: event.conversation.clone(),
             items: vec![Event::Message(event)],
             reason: HistoryReason::Replay,
             end: false,
@@ -1338,7 +1336,7 @@ mod tests {
         assert_eq!(message.msgid, None);
         assert_eq!(message.server_time, Some(server_time));
         let page = HistoryPage {
-            conversation: (&message.conversation).into(),
+            conversation: message.conversation.clone(),
             items: vec![Event::Message(message)],
             reason: HistoryReason::Requested,
             end: false,
@@ -1768,16 +1766,11 @@ mod tests {
             Err(Error::InvalidInput(_))
         ));
         assert!(matches!(
-            client.history(crate::Conversation::Server).latest().await,
+            client.history("*").latest().await,
             Err(Error::InvalidInput(_))
         ));
         assert!(matches!(
-            client
-                .history(crate::Conversation::Broadcast(
-                    client.state().mask("$opers")
-                ))
-                .latest()
-                .await,
+            client.history("$opers").latest().await,
             Err(Error::InvalidInput(_))
         ));
         let conversation = crate::Conversation::Channel(client.state().channel_name("#papo"));
@@ -1861,7 +1854,7 @@ mod tests {
         let message = page.messages().next().unwrap();
         assert!(matches!(
             message.conversation,
-            crate::Chat::Private(ref nick) if nick == "alice"
+            crate::Conversation::Private(ref nick) if nick == "alice"
         ));
         assert_eq!(message.return_address(), "alice");
         let reaction = tokio::spawn({
@@ -2030,16 +2023,11 @@ mod tests {
             Err(Error::InvalidInput(_))
         ));
         assert!(matches!(
-            client.mark_read(crate::Conversation::Server, time).await,
+            client.mark_read("*", time).await,
             Err(Error::InvalidInput(_))
         ));
         assert!(matches!(
-            client
-                .mark_read(
-                    crate::Conversation::Broadcast(client.state().mask("$opers")),
-                    time,
-                )
-                .await,
+            client.mark_read("$opers", time).await,
             Err(Error::InvalidInput(_))
         ));
         assert_eq!(client.state().read_marker("#papo"), None);
@@ -2076,15 +2064,11 @@ mod tests {
             Err(Error::InvalidInput(_))
         ));
         assert!(matches!(
-            client.fetch_read_marker(crate::Conversation::Server).await,
+            client.fetch_read_marker("*").await,
             Err(Error::InvalidInput(_))
         ));
         assert!(matches!(
-            client
-                .fetch_read_marker(crate::Conversation::Broadcast(
-                    client.state().mask("$opers")
-                ))
-                .await,
+            client.fetch_read_marker("$opers").await,
             Err(Error::InvalidInput(_))
         ));
         let channel = crate::Conversation::Channel(client.state().channel_name("#papo"));
