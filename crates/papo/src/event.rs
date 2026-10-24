@@ -1959,9 +1959,10 @@ pub(crate) fn typed_mode_change(
     casemapping: Casemapping,
     origin: crate::Origin,
 ) -> ModeChange {
-    let arg = arg.map(|arg| match kind {
-        papo_proto::ModeKind::Prefix(_) => ModeArg::Nick(origin.__nick(casemapping, arg)),
-        papo_proto::ModeKind::List => ModeArg::Mask(origin.__mask(casemapping, arg)),
+    let arg = arg.map(|arg| match (mode, kind) {
+        ('k', _) => ModeArg::Key(crate::Secret::from(arg)),
+        (_, papo_proto::ModeKind::Prefix(_)) => ModeArg::Nick(origin.__nick(casemapping, arg)),
+        (_, papo_proto::ModeKind::List) => ModeArg::Mask(origin.__mask(casemapping, arg)),
         _ => ModeArg::Value(arg.to_owned()),
     });
     ModeChange { mode, action, arg }
@@ -3530,14 +3531,15 @@ mod tests {
     #[test]
     fn typed_mode_arguments_keep_the_client_origin() {
         let origin = crate::Origin::__new(73);
-        for (kind, expected) in [
-            (papo_proto::ModeKind::Prefix(0), "nick"),
-            (papo_proto::ModeKind::List, "mask"),
-            (papo_proto::ModeKind::AlwaysArg, "value"),
+        for (mode, kind, expected) in [
+            ('x', papo_proto::ModeKind::Prefix(0), "nick"),
+            ('x', papo_proto::ModeKind::List, "mask"),
+            ('k', papo_proto::ModeKind::AlwaysArg, "key"),
+            ('x', papo_proto::ModeKind::AlwaysArg, "value"),
         ] {
             let change = super::typed_mode_change(
                 ModeAction::Add,
-                'x',
+                mode,
                 Some("alice"),
                 kind,
                 Casemapping::default(),
@@ -3546,6 +3548,7 @@ mod tests {
             match (expected, change.arg) {
                 ("nick", Some(ModeArg::Nick(value))) => assert_eq!(value.origin(), origin),
                 ("mask", Some(ModeArg::Mask(value))) => assert_eq!(value.origin(), origin),
+                ("key", Some(ModeArg::Key(value))) => assert_eq!(value.expose(), Some("alice")),
                 ("value", Some(ModeArg::Value(value))) => assert_eq!(value, "alice"),
                 _ => panic!("unexpected typed mode argument"),
             }

@@ -6,7 +6,7 @@ use std::time::{Duration, Instant, UNIX_EPOCH};
 
 use papo_core::{
     Account, Away, Config, Conversation, Event, ModeAction, ModeArg, ModeChange, ModeValue, Rank,
-    RateLimit, ResponseMatcher, Source, StateLimit, Subject, WhoOnJoin,
+    RateLimit, ResponseMatcher, Secret, Source, StateLimit, Subject, WhoOnJoin,
 };
 use papo_proto::{AccountName, Casemapping, ChannelName, InvalidIdentifier, Line, Nick, Origin};
 use support::Transcript;
@@ -912,8 +912,10 @@ fn tracks_the_channel_join_burst_and_live_mode_changes() {
         .server(":ergo.test 333 emily #papo alice 1723501612")
         .inspect(|session| {
             let channel = session.state().channel("#papo").unwrap();
-            assert_eq!(channel.mode('k'), Some(ModeValue::Value("swordfish")));
-            assert_eq!(channel.mode('k').unwrap().value(), Some("swordfish"));
+            assert_eq!(channel.mode('k'), Some(ModeValue::Set));
+            assert_eq!(channel.mode('k').unwrap().value(), None);
+            assert_eq!(channel.key().and_then(Secret::expose), Some("swordfish"));
+            assert!(!format!("{:?}", session.state()).contains("swordfish"));
             assert_eq!(channel.mode('l'), Some(ModeValue::Value("10")));
             assert_eq!(channel.mode('n'), Some(ModeValue::Set));
             assert_eq!(channel.mode('n').unwrap().value(), None);
@@ -1035,10 +1037,13 @@ fn reports_mixed_channel_and_user_mode_changes() {
             _ => false,
         })
         .server(":alice!alice@staff.example MODE #papo +kl review-key-2026 50")
-        .event(|event| matches!(event, Event::ModeChanged { changes, .. } if changes == &vec![
-            ModeChange { mode: 'k', action: ModeAction::Add, arg: Some(ModeArg::Value("review-key-2026".into())) },
-            ModeChange { mode: 'l', action: ModeAction::Add, arg: Some(ModeArg::Value("50".into())) },
-        ]))
+        .event(|event| {
+            assert!(!format!("{event:?}").contains("review-key-2026"));
+            matches!(event, Event::ModeChanged { changes, .. } if changes == &vec![
+                ModeChange { mode: 'k', action: ModeAction::Add, arg: Some(ModeArg::Key(Secret::from("review-key-2026"))) },
+                ModeChange { mode: 'l', action: ModeAction::Add, arg: Some(ModeArg::Value("50".into())) },
+            ])
+        })
         .server(":ergo.test MODE emily +i")
         .event(|event| matches!(event, Event::ModeChanged { subject: Subject::User(nick), actor, changes, .. } if nick == "emily" && actor == "ergo.test" && changes == &vec![ModeChange { mode: 'i', action: ModeAction::Add, arg: None }]))
         .no_event();
@@ -1100,7 +1105,7 @@ fn distinguishes_prefix_rank_and_channel_mode_argument_branches() {
 
 #[test]
 fn bounds_channel_modes_at_literal_sixty_four() {
-    let modes = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnpqrstuwxyzαβγδεζηθικλμνξο";
+    let modes = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij0lmnpqrstuwxyzαβγδεζηθικλμνξο";
     let support = format!(":ergo.test 005 emily CHANMODES=,,,{modes} :are supported");
     let snapshot = format!(":ergo.test 324 emily #papo +{modes}");
     Transcript::new(Config::default().nick("emily"))
@@ -1202,7 +1207,8 @@ fn another_capability_waits_for_end_of_names_before_syncing() {
             let channel = session.state().channel("#papo").unwrap();
             assert!(channel.is_synced());
             assert_eq!(channel.mode('n'), Some(ModeValue::Set));
-            assert_eq!(channel.mode('k'), Some(ModeValue::Value("secret")));
+            assert_eq!(channel.mode('k'), Some(ModeValue::Set));
+            assert_eq!(channel.key().and_then(Secret::expose), Some("secret"));
             assert_eq!(channel.created_at(), Some(UNIX_EPOCH + Duration::from_secs(1_760_529_342)));
         })
         .no_event();

@@ -1047,6 +1047,8 @@ pub enum ModeArg {
     Nick(Nick),
     /// A mask for a list mode advertised in the first `CHANMODES` group.
     Mask(Mask),
+    /// A channel key (`+k`).
+    Key(Secret),
     /// A value for any other mode that takes an argument.
     Value(String),
 }

@@ -460,9 +460,10 @@ impl Change {
     fn typed(&self, state: &crate::State) -> Result<ModeChange, Error> {
         let mode = validate(state.isupport().inner(), self)?;
         let kind = mode_kind(state.isupport().inner(), mode);
-        let arg = self.arg.as_ref().map(|argument| match kind {
-            ModeKind::Prefix(_) => ModeArg::Nick(state.nickname(argument.text())),
-            ModeKind::List => ModeArg::Mask(state.mask(argument.text())),
+        let arg = self.arg.as_ref().map(|argument| match (mode, kind) {
+            ('k', _) => ModeArg::Key(crate::Secret::from(argument.text())),
+            (_, ModeKind::Prefix(_)) => ModeArg::Nick(state.nickname(argument.text())),
+            (_, ModeKind::List) => ModeArg::Mask(state.mask(argument.text())),
             _ => ModeArg::Value(argument.text().to_owned()),
         });
         Ok(ModeChange {

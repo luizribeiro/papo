@@ -25,7 +25,7 @@ use crate::monitor::presence_nicks;
 use crate::{
     Authorship, Capabilities, Config, Conversation, Event, Handled, LastSeen, ListMode,
     MetadataValue, ModeArg, ModeChange, ModeListEntry, ModeValue, NameKey, Names, Outbox,
-    ReadMarker, Source, StateLimit, Subject, WhoOnJoin,
+    ReadMarker, Secret, Source, StateLimit, Subject, WhoOnJoin,
     conversation::classify_target_with_names,
     monitor::Monitor,
     typing::{Typer, TypingTable},
@@ -148,6 +148,7 @@ pub struct Channel {
     casemapping: Names,
     members: BTreeMap<Nick, Member>,
     modes: HashMap<char, Option<String>>,
+    key: Option<Secret>,
     lists: HashMap<ListMode, Vec<ModeListEntry>>,
     created_at: Option<SystemTime>,
     topic: Option<String>,
@@ -1218,9 +1219,10 @@ impl State {
 }
 
 fn typed_mode_change(change: ProtoModeChange<'_>, names: Names) -> ModeChange {
-    let arg = change.arg.map(|arg| match change.kind {
-        ModeKind::Prefix(_) => ModeArg::Nick(names.nick(arg)),
-        ModeKind::List => ModeArg::Mask(names.mask(arg)),
+    let arg = change.arg.map(|arg| match (change.mode, change.kind) {
+        ('k', _) => ModeArg::Key(Secret::from(arg)),
+        (_, ModeKind::Prefix(_)) => ModeArg::Nick(names.nick(arg)),
+        (_, ModeKind::List) => ModeArg::Mask(names.mask(arg)),
         _ => ModeArg::Value(arg.to_owned()),
     });
     ModeChange {
@@ -1244,6 +1246,7 @@ impl Channel {
             casemapping,
             members: BTreeMap::new(),
             modes: HashMap::new(),
+            key: None,
             lists: HashMap::new(),
             created_at: None,
             topic: None,
@@ -1264,9 +1267,20 @@ impl Channel {
     ) {
         if replace {
             self.modes.clear();
+            self.key = None;
         }
         let prefixes = isupport.prefix();
         for change in ModeChanges::parse(modestring, args, isupport) {
+            if change.mode == 'k' {
+                if change.action == papo_proto::ModeAction::Add {
+                    if let Some(key) = change.arg {
+                        self.key = Some(Secret::from(key));
+                    }
+                } else {
+                    self.key = None;
+                }
+                continue;
+            }
             match change.kind {
                 ModeKind::Prefix(rank) => {
                     let (Some(nick), Some(prefix)) = (change.arg, prefixes.get(rank)) else {
@@ -1367,6 +1381,9 @@ impl Channel {
     /// Returns a stored non-list mode and its value, if set.
     #[must_use]
     pub fn mode(&self, mode: char) -> Option<ModeValue<'_>> {
+        if mode == 'k' {
+            return self.key.as_ref().map(|_| ModeValue::Set);
+        }
         self.modes
             .get(&mode)
             .map(|argument| argument.as_deref().map_or(ModeValue::Set, ModeValue::Value))
@@ -1377,6 +1394,17 @@ impl Channel {
         self.modes
             .iter()
             .map(|(mode, argument)| (*mode, argument.as_deref()))
+            .chain(self.key.as_ref().map(|_| ('k', None)))
+    }
+
+    /// Returns the current channel key.
+    ///
+    /// Only live state for a joined channel is retained. Keys from history playback, raw replies
+    /// for unjoined channels, failed joins, and generic outgoing mode requests are outside this
+    /// accessor's scope.
+    #[must_use]
+    pub const fn key(&self) -> Option<&Secret> {
+        self.key.as_ref()
     }
 
     /// Returns a fetched list mode, or `None` while its contents are unknown.
