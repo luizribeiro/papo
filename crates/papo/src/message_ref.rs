@@ -209,6 +209,24 @@ pub(crate) fn conversation_origin(conversation: &Conversation) -> crate::Origin 
     }
 }
 
+pub(crate) fn stamp_conversation(
+    conversation: Conversation,
+    origin: crate::Origin,
+) -> Conversation {
+    match conversation {
+        Conversation::Channel(channel) => {
+            Conversation::Channel(origin.__channel(channel.casemapping(), channel.into_string()))
+        }
+        Conversation::Private(nick) => {
+            Conversation::Private(origin.__nick(nick.casemapping(), nick.into_string()))
+        }
+        Conversation::Broadcast(mask) => {
+            Conversation::Broadcast(origin.__mask(mask.casemapping(), mask.into_string()))
+        }
+        conversation => conversation,
+    }
+}
+
 pub(crate) fn chat_origin(conversation: &crate::Chat) -> crate::Origin {
     match conversation {
         crate::Chat::Channel(channel) => channel.origin(),

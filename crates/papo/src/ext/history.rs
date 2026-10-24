@@ -147,7 +147,7 @@ fn reaction(
     message: &papo_proto::LineRef<'_>,
     authorship: crate::Authorship,
     mapping: crate::Casemapping,
-    own_nick: &str,
+    own_nick: &crate::Nick,
     isupport: &papo_proto::Isupport,
     history_conversation: Option<&crate::Conversation>,
     account_tag_enabled: bool,
@@ -195,7 +195,7 @@ fn redaction(
     message: &papo_proto::LineRef<'_>,
     authorship: crate::Authorship,
     mapping: crate::Casemapping,
-    own_nick: &str,
+    own_nick: &crate::Nick,
     isupport: &papo_proto::Isupport,
     history_conversation: Option<&crate::Conversation>,
     account_tag_enabled: bool,
@@ -1271,11 +1271,12 @@ mod tests {
             "@+draft/react=👍;+draft/reply=RfcBTzyxY120004 :Alice[bot]!~a@cloak.example TAGMSG #papo",
         )
         .unwrap();
+        let own_nick = Casemapping::Ascii.nick("papo");
         let Some(PageEvent::Reacted(event)) = reaction(
             &line,
             crate::Authorship::Unknown,
             Casemapping::Ascii,
-            "papo",
+            &own_nick,
             &papo_proto::Isupport::default(),
             None,
             true,

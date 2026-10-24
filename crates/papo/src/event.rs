@@ -916,6 +916,7 @@ pub(crate) fn historical_message_event(
     ) else {
         return Event::Other(raw);
     };
+    let conversation = crate::message_ref::stamp_conversation(conversation, client.origin());
     let conversation = historical_conversation(
         &raw.as_ref(),
         authorship,
@@ -943,11 +944,11 @@ pub(crate) fn historical_conversation(
     authorship: Authorship,
     conversation: Conversation,
     history_conversation: Option<&Conversation>,
-    own_nick: &str,
+    own_nick: &crate::Nick,
     mapping: Casemapping,
 ) -> Conversation {
     if !matches!(conversation, Conversation::Private(_)) {
-        return conversation;
+        return crate::message_ref::stamp_conversation(conversation, own_nick.origin());
     }
     if let Some(Conversation::Private(nick)) = history_conversation {
         return Conversation::Private(nick.clone());
@@ -955,12 +956,12 @@ pub(crate) fn historical_conversation(
     if authorship != Authorship::Own
         && message
             .param(0)
-            .is_some_and(|target| mapping.nick(target) != own_nick)
+            .is_some_and(|target| mapping.nick(target) != *own_nick)
         && let Some(papo_proto::Source::User { nick, .. }) = message.source()
     {
-        return Conversation::Private(mapping.nick(nick));
+        return Conversation::Private(own_nick.origin().__nick(mapping, nick));
     }
-    conversation
+    crate::message_ref::stamp_conversation(conversation, own_nick.origin())
 }
 
 #[allow(clippy::too_many_arguments)]

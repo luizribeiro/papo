@@ -12,6 +12,76 @@ use papo_testing::{Wire, wire};
 
 const PASSWORD: &str = "correct horse battery staple";
 
+fn is_foreign<T>(result: &Result<T, papo::Error>) -> bool {
+    matches!(
+        result,
+        Err(papo::Error::InvalidInput(
+            papo::InvalidInput::ForeignReference
+        ))
+    )
+}
+
+#[tokio::test]
+async fn cross_client_values_never_reach_either_wire() {
+    let (first, _first_events, mut first_wire) = wire(
+        papo::Client::builder("irc://first.offline.test")
+            .nick("papo-first")
+            .reconnect(Reconnect::never()),
+    );
+    let (second, _second_events, mut second_wire) = wire(
+        papo::Client::builder("irc://second.offline.test")
+            .nick("papo-second")
+            .reconnect(Reconnect::never()),
+    );
+    first_wire.register(&["message-tags"]).await;
+    second_wire
+        .register(&[
+            "batch",
+            "draft/chathistory",
+            "labeled-response",
+            "message-tags",
+            "server-time",
+        ])
+        .await;
+    let history = tokio::spawn({
+        let second = second.clone();
+        async move { second.history("#papo").latest().await }
+    });
+    assert_eq!(
+        second_wire.next_sent().await,
+        "@label=0 CHATHISTORY LATEST #papo * 100"
+    );
+    for line in [
+        "@label=0 :offline.test BATCH +reply labeled-response",
+        "@batch=reply;draft/chathistory-end :offline.test BATCH +history chathistory #papo",
+        "@batch=history;time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120004 :emily!~e@cloak.example PRIVMSG #papo :release ready",
+        "@batch=reply :offline.test BATCH -history",
+        ":offline.test BATCH -reply",
+    ] {
+        second_wire.server(line).await;
+    }
+    let page = history.await.unwrap().unwrap();
+    let message = page.messages().next().unwrap().clone();
+
+    assert!(is_foreign(&first.reply(&message, "acknowledged").await));
+    assert!(is_foreign(
+        &first.privmsg(&message.conversation, "acknowledged").await
+    ));
+    assert!(is_foreign(
+        &first.history("#papo").before(page.newest().unwrap()).await
+    ));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), first_wire.next_sent())
+            .await
+            .is_err()
+    );
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), second_wire.next_sent())
+            .await
+            .is_err()
+    );
+}
+
 #[derive(Clone, Default)]
 struct CaseSensitiveStsStore(Arc<Mutex<HashMap<String, papo::sts::StsPolicy>>>);
 
