@@ -135,6 +135,20 @@ fn treats_an_invalid_network_id_as_a_binding_failure() {
 }
 
 #[test]
+fn ignores_nearby_standard_replies_when_binding_a_network() {
+    for reply in [
+        "FAIL PRIVMSG INVALID_NETID 42 :Invalid network ID",
+        "FAIL BOUNCER INVALID_ATTRIBUTE 42 :Invalid attribute",
+    ] {
+        Transcript::new(bound_config())
+            .connect_default()
+            .server(reply)
+            .event(|event| matches!(event, Event::StandardReply(_)))
+            .no_event();
+    }
+}
+
+#[test]
 fn sends_each_bouncer_network_operation() {
     let config = NetworkConfig::new("irc.libera.chat")
         .name("Libera Chat")

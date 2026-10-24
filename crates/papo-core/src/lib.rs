@@ -4987,6 +4987,7 @@ mod tests {
     #[test]
     fn additional_connections_drop_one_connection_actions() {
         let mut config = Config::default()
+            .nick("alice")
             .metadata_subscriptions(["example.org/color"])
             .create_account_on_connect(
                 Some("alice"),
@@ -5000,6 +5001,7 @@ mod tests {
         assert!(additional.metadata_subscriptions.is_empty());
         assert!(additional.registration_on_connect.is_none());
         assert_eq!(additional.origin, papo_proto::Origin::NONE);
+        assert_eq!(additional.nick, "alice");
         assert_eq!(config.metadata_subscriptions, ["example.org/color"]);
         assert!(config.registration_on_connect.is_some());
     }
