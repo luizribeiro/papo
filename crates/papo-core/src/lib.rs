@@ -624,13 +624,21 @@ impl Config {
     }
 
     pub(crate) fn required_capabilities(&self) -> BTreeSet<cap::Cap> {
-        if self.selected_bouncer_network().is_some() {
-            let mut required = self.required_caps.clone();
-            required.insert(cap::Cap::from(cap::BOUNCER_NETWORKS_NAME));
-            required
-        } else {
-            self.required_caps.clone()
+        let mut required = self.required_caps.clone();
+        if !self.metadata_subscriptions.is_empty() {
+            required.insert(cap::METADATA.clone());
         }
+        if self.registration_on_connect.is_some() {
+            required.insert(cap::ACCOUNT_REGISTRATION.clone());
+        }
+        if self.selected_bouncer_network().is_some() {
+            required.insert(cap::Cap::from(cap::BOUNCER_NETWORKS_NAME));
+        }
+        required
+    }
+
+    pub(crate) const fn creates_account_on_connect(&self) -> bool {
+        self.registration_on_connect.is_some()
     }
 
     /// Marks a capability as necessary for configured connection behavior.

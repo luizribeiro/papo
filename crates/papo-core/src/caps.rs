@@ -8,6 +8,7 @@ use crate::sts::ConnectionSecurity;
 use crate::sts::{StsAction, StsDirective, decide};
 use crate::{
     Capabilities, CloseKind, Config, ConnectPhase, Connection, Event, Handled, Outbox,
+    RegistrationPolicy,
     cap::{self, Cap},
     sasl::SaslSession,
 };
@@ -278,6 +279,17 @@ impl Caps {
             close_required(&required, "was not advertised", outbox);
             return;
         }
+        if config.creates_account_on_connect()
+            && !RegistrationPolicy::parse(
+                self.advertised
+                    .get(&cap::ACCOUNT_REGISTRATION)
+                    .and_then(Option::as_deref),
+            )
+            .before_connect
+        {
+            close_required_value(&cap::ACCOUNT_REGISTRATION, "before-connect", outbox);
+            return;
+        }
         if let Some(required) = config
             .required_capabilities()
             .into_iter()
@@ -431,6 +443,16 @@ fn close_required(required: &Cap, reason: &str, outbox: &mut Outbox) {
         CloseKind::CapabilityUnavailable,
         format!(
             "required IRC capability {} {reason}",
+            cap::canonical(required.as_str())
+        ),
+    );
+}
+
+fn close_required_value(required: &Cap, value: &str, outbox: &mut Outbox) {
+    outbox.close(
+        CloseKind::CapabilityUnavailable,
+        format!(
+            "required IRC capability {} does not offer {value}",
             cap::canonical(required.as_str())
         ),
     );
