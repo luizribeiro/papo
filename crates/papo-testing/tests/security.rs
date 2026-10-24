@@ -223,7 +223,10 @@ async fn cross_client_values_never_reach_either_wire() {
         &first.privmsg(&message.conversation, "acknowledged").await
     ));
     assert!(is_foreign(
-        &first.history("#papo").before(page.newest().unwrap()).await
+        &first
+            .history("#papo")
+            .before(page.newest_reference().unwrap())
+            .await
     ));
     assert!(
         tokio::time::timeout(Duration::from_millis(10), first_wire.next_sent())

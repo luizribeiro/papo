@@ -2049,8 +2049,8 @@ pub papo::HistoryPage::items: alloc::vec::Vec<papo::Event>
 pub papo::HistoryPage::reason: papo::HistoryReason
 impl papo::HistoryPage
 pub fn papo::HistoryPage::messages(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Message>
-pub fn papo::HistoryPage::newest(&self) -> core::option::Option<papo::HistoryReference>
-pub fn papo::HistoryPage::oldest(&self) -> core::option::Option<papo::HistoryReference>
+pub fn papo::HistoryPage::newest_reference(&self) -> core::option::Option<papo::HistoryReference>
+pub fn papo::HistoryPage::oldest_reference(&self) -> core::option::Option<papo::HistoryReference>
 pub fn papo::HistoryPage::origin(&self) -> papo::Origin
 impl core::clone::Clone for papo::HistoryPage
 pub fn papo::HistoryPage::clone(&self) -> Self

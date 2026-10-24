@@ -657,7 +657,7 @@ impl HistoryPage {
     /// oldest-to-newest order, the cursor likewise refers to the first rather than necessarily
     /// chronologically oldest item.
     #[must_use]
-    pub fn oldest(&self) -> Option<HistoryReference> {
+    pub fn oldest_reference(&self) -> Option<HistoryReference> {
         let origin = crate::message_ref::conversation_origin(&self.conversation);
         self.items
             .first()
@@ -670,7 +670,7 @@ impl HistoryPage {
     /// oldest-to-newest order, the cursor likewise refers to the last rather than necessarily
     /// chronologically newest item.
     #[must_use]
-    pub fn newest(&self) -> Option<HistoryReference> {
+    pub fn newest_reference(&self) -> Option<HistoryReference> {
         let origin = crate::message_ref::conversation_origin(&self.conversation);
         self.items
             .last()
@@ -1138,7 +1138,7 @@ mod tests {
             reason: HistoryReason::Requested,
             end: false,
         };
-        let reference = page.oldest().unwrap();
+        let reference = page.oldest_reference().unwrap();
         assert_eq!(reference.origin, Some(origin));
         assert!(matches!(reference.value, MsgRef::Msgid(id)
             if id == "RfcBTzyxY120004"));
@@ -1215,8 +1215,14 @@ mod tests {
             reason: HistoryReason::Requested,
             end: false,
         };
-        assert_eq!(page.oldest(), Some(HistoryReference::from(UNIX_EPOCH)));
-        assert_eq!(page.newest(), Some(HistoryReference::from(UNIX_EPOCH)));
+        assert_eq!(
+            page.oldest_reference(),
+            Some(HistoryReference::from(UNIX_EPOCH))
+        );
+        assert_eq!(
+            page.newest_reference(),
+            Some(HistoryReference::from(UNIX_EPOCH))
+        );
     }
 
     #[test]
@@ -1234,8 +1240,8 @@ mod tests {
             end: false,
         };
 
-        assert_eq!(page.oldest(), None);
-        assert_eq!(page.newest(), None);
+        assert_eq!(page.oldest_reference(), None);
+        assert_eq!(page.newest_reference(), None);
     }
 
     #[test]
@@ -1330,7 +1336,7 @@ mod tests {
             reason: HistoryReason::Requested,
             end: false,
         };
-        let reference = page.oldest().unwrap();
+        let reference = page.oldest_reference().unwrap();
         assert!(matches!(&reference.value, MsgRef::Timestamp(time) if *time == server_time));
         assert!(matches!(
             client.history("#papo").before(reference).query,
