@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, net::Ipv6Addr, str::FromStr};
 
 /// A transport scheme accepted in an IRC server URL.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -196,3 +196,139 @@ impl fmt::Display for InvalidServerUrl {
 }
 
 impl std::error::Error for InvalidServerUrl {}
+impl FromStr for ServerUrl {
+    type Err = InvalidServerUrl;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        if input.is_empty() {
+            return Err(InvalidServerUrl::Empty);
+        }
+        if input.chars().any(char::is_whitespace) {
+            return Err(InvalidServerUrl::Whitespace);
+        }
+        if input.chars().any(char::is_control) {
+            return Err(InvalidServerUrl::ControlCharacter);
+        }
+        let Some((scheme, remainder)) = input.split_once("://") else {
+            return Err(InvalidServerUrl::MissingScheme);
+        };
+        let scheme = parse_scheme(scheme)?;
+        if remainder.contains('#') {
+            return Err(InvalidServerUrl::Fragment);
+        }
+        if remainder.contains('?') {
+            return Err(InvalidServerUrl::Query);
+        }
+        let (authority, path) = match remainder.split_once('/') {
+            Some((authority, path)) => (authority, Some(format!("/{path}"))),
+            None => (remainder, None),
+        };
+        if let Some(path) = &path
+            && !scheme.permits_path()
+        {
+            return Err(InvalidServerUrl::UnexpectedPath(path.clone()));
+        }
+        if authority.contains('@') {
+            return Err(InvalidServerUrl::Userinfo);
+        }
+        if authority.is_empty() {
+            return Err(InvalidServerUrl::EmptyHost);
+        }
+        let (host, port, explicit_port) = parse_authority(authority, scheme.default_port())?;
+        if path.as_deref().is_some_and(|path| path.contains('%')) {
+            return Err(InvalidServerUrl::PercentEncoding);
+        }
+        Ok(Self {
+            scheme,
+            host,
+            port,
+            explicit_port,
+            path,
+        })
+    }
+}
+fn parse_scheme(value: &str) -> Result<ServerUrlScheme, InvalidServerUrl> {
+    if value.eq_ignore_ascii_case("irc") {
+        Ok(ServerUrlScheme::Irc)
+    } else if value.eq_ignore_ascii_case("ircs") {
+        Ok(ServerUrlScheme::Ircs)
+    } else if value.eq_ignore_ascii_case("ws") {
+        Ok(ServerUrlScheme::Ws)
+    } else if value.eq_ignore_ascii_case("wss") {
+        Ok(ServerUrlScheme::Wss)
+    } else {
+        Err(InvalidServerUrl::UnsupportedScheme(value.to_owned()))
+    }
+}
+fn parse_authority(
+    authority: &str,
+    default_port: u16,
+) -> Result<(String, u16, bool), InvalidServerUrl> {
+    let (host, port) = if let Some(rest) = authority.strip_prefix('[') {
+        let Some((host, suffix)) = rest.split_once(']') else {
+            return Err(InvalidServerUrl::InvalidHost(authority.to_owned()));
+        };
+        if host.contains('%') {
+            return Err(InvalidServerUrl::ZoneIdentifier(host.to_owned()));
+        }
+        let host = host
+            .parse::<Ipv6Addr>()
+            .map_err(|_| InvalidServerUrl::InvalidHost(host.to_owned()))?
+            .to_string();
+        let port = if suffix.is_empty() {
+            None
+        } else {
+            Some(
+                suffix
+                    .strip_prefix(':')
+                    .ok_or_else(|| InvalidServerUrl::InvalidHost(authority.to_owned()))?,
+            )
+        };
+        (host, port)
+    } else {
+        if authority.matches(':').count() > 1 {
+            return Err(InvalidServerUrl::UnbracketedIpv6(authority.to_owned()));
+        }
+        let (host, port) = authority
+            .split_once(':')
+            .map_or((authority, None), |(host, port)| (host, Some(port)));
+        (validate_hostname(host)?, port)
+    };
+    let Some(port) = port else {
+        return Ok((host, default_port, false));
+    };
+    let parsed = port
+        .parse::<u16>()
+        .ok()
+        .filter(|port| *port != 0)
+        .ok_or_else(|| InvalidServerUrl::InvalidPort(port.to_owned()))?;
+    Ok((host, parsed, true))
+}
+fn validate_hostname(host: &str) -> Result<String, InvalidServerUrl> {
+    if host.is_empty() {
+        return Err(InvalidServerUrl::EmptyHost);
+    }
+    if !host.is_ascii() {
+        return Err(InvalidServerUrl::NonAsciiHost(host.to_owned()));
+    }
+    if host.contains('%') {
+        return Err(InvalidServerUrl::PercentEncoding);
+    }
+    if host.ends_with('.') {
+        return Err(InvalidServerUrl::TrailingDot(host.to_owned()));
+    }
+    let valid = host.len() <= 253
+        && host.split('.').all(|label| {
+            !label.is_empty()
+                && label.len() <= 63
+                && label.starts_with(|character: char| character.is_ascii_alphanumeric())
+                && label.ends_with(|character: char| character.is_ascii_alphanumeric())
+                && label
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+        });
+    if !valid || host.contains(['[', ']']) {
+        return Err(InvalidServerUrl::InvalidHost(host.to_owned()));
+    }
+    Ok(host.to_owned())
+}
