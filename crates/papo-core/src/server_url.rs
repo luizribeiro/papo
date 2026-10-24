@@ -297,6 +297,9 @@ fn parse_authority(
     let Some(port) = port else {
         return Ok((host, default_port, false));
     };
+    if port.is_empty() || !port.bytes().all(|byte| byte.is_ascii_digit()) {
+        return Err(InvalidServerUrl::InvalidPort(port.to_owned()));
+    }
     let parsed = port
         .parse::<u16>()
         .ok()
