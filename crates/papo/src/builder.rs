@@ -31,6 +31,7 @@ pub(crate) struct NetworkBuilderSettings {
     reconnect: Reconnect,
     credentials_configured: bool,
     allow_insecure_auth: bool,
+    reusable_transport: bool,
 }
 
 fn allocate_origin() -> crate::Origin {
@@ -116,10 +117,15 @@ impl Builder {
         builder.reconnect = settings.reconnect;
         builder.credentials_configured = settings.credentials_configured;
         builder.allow_insecure_auth = settings.allow_insecure_auth;
+        if !settings.reusable_transport {
+            builder.invalid_input = Some(InvalidInput::InvalidMessage(
+                "a custom stream cannot be copied to a bouncer network connection".to_owned(),
+            ));
+        }
         builder
     }
 
-    pub(crate) fn network_settings(&self) -> NetworkBuilderSettings {
+    pub(crate) fn network_settings(&self, reusable_transport: bool) -> NetworkBuilderSettings {
         NetworkBuilderSettings {
             address: self.address.clone(),
             config: self.config.__additional_connection(),
@@ -128,6 +134,7 @@ impl Builder {
             reconnect: self.reconnect,
             credentials_configured: self.credentials_configured,
             allow_insecure_auth: self.allow_insecure_auth,
+            reusable_transport,
         }
     }
 
@@ -638,7 +645,8 @@ impl Builder {
         stream: Box<dyn crate::io_compat::FutureStream>,
         registration: Option<crate::driver::ConnectSender>,
     ) -> (crate::Client, crate::Events, crate::Driver) {
-        let network_builder = std::sync::Arc::new(std::sync::RwLock::new(self.network_settings()));
+        let network_builder =
+            std::sync::Arc::new(std::sync::RwLock::new(self.network_settings(false)));
         self.config.origin = allocate_origin();
         if let Ok(address) = &self.address {
             if !address.is_secure() && self.credentials_configured && !self.allow_insecure_auth {
@@ -696,7 +704,8 @@ impl Builder {
         if let Some(stream) = self.stream.take() {
             return self.build_stream_with_connect(stream, registration);
         }
-        let network_builder = std::sync::Arc::new(std::sync::RwLock::new(self.network_settings()));
+        let network_builder =
+            std::sync::Arc::new(std::sync::RwLock::new(self.network_settings(true)));
         self.config.origin = allocate_origin();
         let validation_error = self
             .invalid_input
@@ -1055,8 +1064,8 @@ mod tests {
     }
 
     #[cfg(feature = "unstable")]
-    #[test]
-    fn enables_unstable_features_and_bouncer_selection_before_connecting() {
+    #[tokio::test(flavor = "current_thread")]
+    async fn enables_unstable_features_and_bouncer_selection_before_connecting() {
         let enabled = Builder::new("irc.example.net")
             .enable(crate::Feature::Persistence)
             .enable(crate::Feature::Relay)
@@ -1128,6 +1137,23 @@ mod tests {
         assert_eq!(network.connect_timeout, Duration::from_secs(17));
         assert_eq!(network.reconnect, reconnect);
         assert_eq!(network.tls.server_name.as_deref(), Some("bouncer.example"));
+
+        let (stream, _server) = tokio::io::duplex(64);
+        let (control, _events, _driver) = Builder::new("irc://custom.example")
+            .stream(crate::driver::test_support::TokioIo(stream))
+            .build();
+        let error = control
+            .bouncer()
+            .network(&crate::NetworkId::from("libera"))
+            .connect()
+            .await
+            .err()
+            .unwrap();
+        assert!(matches!(
+            error,
+            Error::InvalidInput(InvalidInput::InvalidMessage(message))
+                if message.contains("custom stream")
+        ));
     }
 
     #[test]
