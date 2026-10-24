@@ -1,6 +1,7 @@
 //! Shared server URL parser tests.
 
 use papo_core::server_url::{InvalidServerUrl, ServerUrl, ServerUrlScheme};
+use proptest::prelude::*;
 
 #[test]
 fn parses_a_server_url_and_rejects_an_empty_one() {
@@ -234,5 +235,37 @@ fn rejects_every_forbidden_server_url_form_with_an_exact_error() {
     ];
     for (input, expected) in cases {
         assert_eq!(input.parse::<ServerUrl>(), Err(expected), "{input:?}");
+    }
+}
+
+fn accepted_host() -> impl Strategy<Value = String> {
+    prop_oneof![
+        prop::collection::vec("[a-z][a-z0-9]{0,10}", 1..4).prop_map(|labels| labels.join(".")),
+        any::<[u8; 4]>()
+            .prop_map(|octets| format!("{}.{}.{}.{}", octets[0], octets[1], octets[2], octets[3])),
+        any::<std::net::Ipv6Addr>().prop_map(|address| format!("[{address}]")),
+    ]
+}
+
+proptest! {
+    #[test]
+    fn accepted_inputs_round_trip_through_display(
+        scheme_index in 0_usize..4,
+        host in accepted_host(),
+        port in prop::option::of(1_u16..=65535),
+        path in prop::option::of(prop::collection::vec("[a-z0-9_-]{0,12}", 0..4)),
+    ) {
+        let scheme = ["irc", "ircs", "ws", "wss"][scheme_index];
+        let port = port.map(|port| format!(":{port}")).unwrap_or_default();
+        let path = if matches!(scheme, "ws" | "wss") {
+            path.map(|segments| format!("/{}", segments.join("/")))
+                .unwrap_or_default()
+        } else {
+            String::new()
+        };
+        let input = format!("{scheme}://{host}{port}{path}");
+        let parsed = input.parse::<ServerUrl>().unwrap();
+        let displayed = parsed.to_string();
+        prop_assert_eq!(displayed.parse::<ServerUrl>().unwrap(), parsed);
     }
 }

@@ -639,6 +639,7 @@ dependencies = [
  "papo-proto",
  "papo-test-server",
  "pbkdf2",
+ "proptest",
  "sha2",
  "web-time",
  "zeroize",
