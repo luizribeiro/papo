@@ -121,6 +121,38 @@ fn metadata_lifetime_tracks_channels_monitor_and_snapshot_identity() {
 }
 
 #[test]
+fn leaving_a_channel_preserves_own_and_monitored_user_metadata() {
+    registered("max-subs=100,max-keys=100")
+        .server(":ergo.test 005 alice MONITOR=100 :are supported")
+        .event(|event| matches!(event, Event::FeaturesChanged { .. }))
+        .update(|session| session.monitor_add(["bob"]))
+        .client("MONITOR + bob")
+        .server(":ergo.test 730 alice :bob!~bob@users/bob")
+        .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "bob"))
+        .server(":alice!~alice@users/alice JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "alice"))
+        .server(":bob!~bob@users/bob JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "bob"))
+        .server(":ergo.test 761 alice alice display-name * :Alice Admin")
+        .event(|event| matches!(event, Event::MetadataChanged { subject, .. } if subject_name(subject) == "alice"))
+        .server(":ergo.test 761 alice bob display-name * :Bob Builder")
+        .event(|event| matches!(event, Event::MetadataChanged { subject, .. } if subject_name(subject) == "bob"))
+        .server(":alice!~alice@users/alice PART #papo :Leaving")
+        .event(|event| matches!(event, Event::Parted { nick, .. } if nick == "alice"))
+        .inspect(|session| {
+            assert_eq!(
+                session.state().metadata("alice").unwrap()["display-name"].value,
+                "Alice Admin"
+            );
+            assert_eq!(
+                session.state().metadata("bob").unwrap()["display-name"].value,
+                "Bob Builder"
+            );
+        })
+        .no_event();
+}
+
+#[test]
 fn requests_published_metadata_name_and_reads_known_limits() {
     Transcript::new(Config::default().wanted_caps([
         "draft/metadata-2",
