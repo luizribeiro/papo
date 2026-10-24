@@ -211,7 +211,7 @@ async fn account_creation(s: Scenario) -> papo_testing::Result<()> {
         )
         .await?;
     let nick = alice.state().nick().clone();
-    let account = alice.state().casemapping().account(nick.as_ref());
+    let account = alice.state().account_name(nick.as_ref());
     let outcome = alice
         .create_account(NewAccount::new(PASSWORD).account(account.clone()))
         .await?;

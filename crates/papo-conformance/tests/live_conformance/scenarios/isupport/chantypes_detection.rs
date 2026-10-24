@@ -33,13 +33,13 @@ async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
         bob.join(&name).await?;
         let joined = alice
             .wait_for(|event| {
-                event
-                    .as_joined()
-                    .filter(|joined| joined.channel.as_ref() == name && joined.nick == bob_nick)
+                event.as_joined().filter(|joined| {
+                    joined.channel.as_ref() == name && joined.nick == bob_nick.as_ref()
+                })
             })
             .await?;
         assert_eq!(joined.channel.as_ref(), name);
-        assert_eq!(joined.nick, bob_nick);
+        assert_eq!(joined.nick, bob_nick.as_ref());
         assert_eq!(joined.authorship, papo::Authorship::Other);
 
         let text = format!("hello {c} channel");
@@ -82,7 +82,7 @@ async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
     }
 
     let direct = "a direct message";
-    bob.privmsg(alice_nick.clone(), direct).await?;
+    bob.privmsg(alice_nick.as_ref(), direct).await?;
     let private = alice
         .wait_for(|event| event.as_message().filter(|message| message.text == direct))
         .await?;

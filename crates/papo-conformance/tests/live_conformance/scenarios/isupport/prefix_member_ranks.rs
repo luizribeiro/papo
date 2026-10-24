@@ -57,7 +57,7 @@ async fn prefix_member_ranks(s: Scenario) -> papo_testing::Result<()> {
     assert_dave_view(&s, &channel, &bob_nick, &allowed_symbols, has_halfop).await?;
 
     if has_halfop {
-        alice.mode(&channel).dehalfop(&bob_nick).await?;
+        alice.mode(&channel).dehalfop(bob_nick.as_ref()).await?;
         let changed = wait_channel_mode(&mut bob, &channel, 'h').await?;
         assert!(
             matches!(changed.changes.as_slice(), [change] if change.action == ModeAction::Remove)
@@ -122,7 +122,7 @@ async fn grant_rank(
     prefix: Prefix,
 ) -> papo_testing::Result<()> {
     if prefix.mode == 'h' {
-        alice.mode(channel).halfop(bob_nick).await?;
+        alice.mode(channel).halfop(bob_nick.as_ref()).await?;
     } else {
         alice
             .mode(channel)
@@ -138,7 +138,7 @@ async fn grant_rank(
     let change = &changed.changes[0];
     assert_eq!(change.action, ModeAction::Add);
     assert_eq!(change.mode, prefix.mode);
-    assert!(matches!(change.arg.clone(), Some(ModeArg::Nick(nick)) if nick == *bob_nick));
+    assert!(matches!(change.arg.clone(), Some(ModeArg::Nick(nick)) if nick == bob_nick.as_ref()));
     Ok(())
 }
 

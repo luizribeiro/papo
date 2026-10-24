@@ -65,7 +65,7 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
         .expect_none(|event| channel_mode(event, &channel))
         .await?;
 
-    alice.mode(&channel).op(bob_nick.clone()).await?;
+    alice.mode(&channel).op(bob_nick.as_ref()).await?;
     for peer in [&mut alice, &mut bob, &mut carol] {
         let promoted = wait_channel_mode(peer, &channel, 'o').await?;
         assert_eq!(
@@ -75,7 +75,9 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(promoted.changes.len(), 1);
         let change = &promoted.changes[0];
         assert_eq!(change.action, ModeAction::Add);
-        assert!(matches!(change.arg.clone(), Some(ModeArg::Nick(nick)) if nick == bob_nick));
+        assert!(
+            matches!(change.arg.clone(), Some(ModeArg::Nick(nick)) if nick == bob_nick.as_ref())
+        );
     }
     for peer in [&alice, &bob, &carol] {
         let state = peer.state();

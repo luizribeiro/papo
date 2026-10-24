@@ -38,7 +38,7 @@ async fn channellen_limit(s: Scenario) -> papo_testing::Result<()> {
 
     let joined = alice.wait_for(Event::as_joined).await?;
     assert_eq!(joined.channel.as_ref(), at_limit);
-    assert_eq!(joined.nick, bob_nick);
+    assert_eq!(joined.nick, bob_nick.as_ref());
     assert_eq!(joined.authorship, papo::Authorship::Other);
 
     for peer in [&alice, &bob] {

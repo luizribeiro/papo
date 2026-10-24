@@ -224,12 +224,10 @@ async fn server_queries(s: Scenario) -> papo_testing::Result<()> {
         .collect::<Vec<_>>();
     assert_eq!(users.len(), 1);
     assert_eq!(
-        bob.state().nickname(
-            users[0]
-                .get(1)
-                .expect("WHOWAS user reply includes a nickname")
-        ),
-        nick
+        users[0]
+            .get(1)
+            .expect("WHOWAS user reply includes a nickname"),
+        nick.as_ref()
     );
     assert!(
         whowas
@@ -339,7 +337,7 @@ async fn webirc(s: Scenario) -> papo_testing::Result<()> {
     let whois = alice.whois(alice.state().nick().clone()).await?;
     let ordinary = alice.whois(bob.state().nick().clone()).await?;
     assert_eq!(whois.nick, *alice.state().nick());
-    assert_eq!(ordinary.nick, *bob.state().nick());
+    assert_eq!(ordinary.nick, bob.state().nick().as_ref());
     assert!(whois.host.is_some());
     assert_ne!(whois.host, ordinary.host);
     alice.expect_none(Event::as_disconnected).await?;
