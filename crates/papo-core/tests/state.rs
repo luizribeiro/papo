@@ -61,6 +61,32 @@ fn own_user_exists_without_membership_and_survives_part_and_nick() {
     .ignore_rest();
 }
 
+#[test]
+fn own_quit_clears_shared_users_and_preserves_identity() {
+    Transcript::new(
+        Config::default()
+            .nick("emily")
+            .username("em")
+            .realname("Emily Example"),
+    )
+    .server(":emily!em@users/emily JOIN #papo")
+    .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "emily"))
+    .server(":dan!dan@cloak.example JOIN #papo")
+    .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "dan"))
+    .server(":emily!em@users/emily QUIT :Client exited")
+    .event(|event| matches!(event, Event::Quit { nick, .. } if nick == "emily"))
+    .inspect(|session| {
+        let state = session.state();
+        assert_eq!(state.channels().count(), 0);
+        assert!(state.user("dan").is_none());
+        let own = state.user("emily").unwrap();
+        assert_eq!(own.username(), Some("em"));
+        assert_eq!(own.realname(), Some("Emily Example"));
+        assert_eq!(own.channels().count(), 0);
+    })
+    .no_event();
+}
+
 fn assert_own_identity_matches(session: &papo_core::Session) {
     let state = session.state();
     let own = state.user(state.nick()).unwrap();
