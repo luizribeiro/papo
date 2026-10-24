@@ -80,6 +80,8 @@ mod refusal;
 mod relaymsg;
 mod replies;
 mod sasl;
+#[doc(hidden)]
+pub mod server_url;
 mod source;
 mod state;
 pub mod sts;
