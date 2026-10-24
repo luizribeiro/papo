@@ -91,6 +91,7 @@ pub(super) fn advance_catchup(
         commands,
         state: Arc::clone(&events.state),
         origin: session.state().nick().origin(),
+        network_builder: None,
     };
     let items = catchup
         .items

@@ -40,6 +40,7 @@ pub struct Client {
     pub(crate) commands: mpsc::Sender<Command>,
     pub(crate) state: Arc<RwLock<Arc<State>>>,
     pub(crate) origin: crate::Origin,
+    pub(crate) network_builder: Option<Arc<RwLock<crate::builder::NetworkBuilderSettings>>>,
 }
 
 /// Server-assigned metadata for a sent chat message.

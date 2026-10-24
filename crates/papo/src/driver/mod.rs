@@ -517,6 +517,7 @@ impl Driver {
         connect_timeout: Duration,
         sts_store: Box<dyn StsStore + Send>,
         connector: Option<Connector>,
+        network_builder: Arc<RwLock<crate::builder::NetworkBuilderSettings>>,
     ) -> (Client, Events, Self) {
         let connector = connector.unwrap_or_else(|| {
             Arc::new(|plan, progress| {
@@ -538,6 +539,7 @@ impl Driver {
             sts_store,
             connector,
             Box::new(crate::entropy::OsEntropy::next_u64),
+            Some(network_builder),
         )
     }
 
@@ -553,6 +555,7 @@ impl Driver {
         sts_store: Box<dyn StsStore + Send>,
         connector: Connector,
         entropy: BackoffEntropy,
+        network_builder: Option<Arc<RwLock<crate::builder::NetworkBuilderSettings>>>,
     ) -> (Client, Events, Self) {
         let channels = channels(capacity, &session);
         let inner = Box::pin(run_plan(
@@ -567,6 +570,7 @@ impl Driver {
             sts_store,
             connector,
             entropy,
+            network_builder,
         ));
         (channels.client, channels.events, Self { inner })
     }
@@ -583,6 +587,7 @@ pub(crate) fn channels(capacity: usize, session: &Session) -> Channels {
         commands: command_sender,
         state: Arc::clone(&state),
         origin: session.state().nick().origin(),
+        network_builder: None,
     };
     let events = EventSink {
         regular: event_sender,
@@ -1279,6 +1284,7 @@ where
                     commands,
                     state: Arc::clone(&events.state),
                     origin: session.state().nick().origin(),
+                    network_builder: None,
                 };
                 let items = items
                     .into_iter()

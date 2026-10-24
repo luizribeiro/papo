@@ -147,6 +147,7 @@ impl Driver {
             sts_store,
             connector,
             entropy,
+            None,
         )
     }
 }

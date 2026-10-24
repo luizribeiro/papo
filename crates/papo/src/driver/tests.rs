@@ -2546,7 +2546,12 @@ async fn stored_sts_policy_upgrades_the_connection_plan() {
             Duration::from_secs(3600),
         ),
     );
-    let (client, _events, driver) = Driver::with_connector(
+    let network_builder = Arc::new(std::sync::RwLock::new(
+        crate::builder::NetworkBuilderSettings {
+            address: Err(crate::InvalidInput::EmptyAddress),
+        },
+    ));
+    let (client, _events, driver) = Driver::with_connector_and_timeout(
         Ok(ConnectionPlan {
             address: "irc://irc.example.net".parse().unwrap(),
             tls: TlsConfig::default(),
@@ -2556,11 +2561,17 @@ async fn stored_sts_policy_upgrades_the_connection_plan() {
         None,
         super::PostConnect::default(),
         Reconnect::exponential(),
+        Duration::from_secs(30),
         Box::new(store),
         connector,
+        Box::new(|| 0),
+        Some(Arc::clone(&network_builder)),
     );
     let driver = tokio::spawn(driver);
     welcome_burst(&mut server).await;
+    let resolved = network_builder.read().unwrap().address.clone().unwrap();
+    assert!(resolved.is_secure());
+    assert_eq!(resolved.port, 7443);
     let quit = tokio::spawn(async move { client.quit("").await });
     client_line(&mut server, b"QUIT\r\n").await;
     within(server.shutdown()).await.unwrap();

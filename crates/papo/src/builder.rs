@@ -21,6 +21,11 @@ use crate::{
 
 static NEXT_ORIGIN: AtomicU64 = AtomicU64::new(1);
 
+#[derive(Clone)]
+pub(crate) struct NetworkBuilderSettings {
+    pub(crate) address: Result<ServerAddress, InvalidInput>,
+}
+
 fn allocate_origin() -> crate::Origin {
     let mut value = NEXT_ORIGIN.load(Ordering::Relaxed);
     loop {
@@ -92,6 +97,12 @@ impl Builder {
         let mut builder = Self::new("irc.example.net");
         builder.address = crate::address::convert(endpoint);
         builder
+    }
+
+    fn network_settings(&self) -> NetworkBuilderSettings {
+        NetworkBuilderSettings {
+            address: self.address.clone(),
+        }
     }
 
     /// Seeds the server-defined name comparison rules used before connecting.
@@ -601,6 +612,7 @@ impl Builder {
         stream: Box<dyn crate::io_compat::FutureStream>,
         registration: Option<crate::driver::ConnectSender>,
     ) -> (crate::Client, crate::Events, crate::Driver) {
+        let network_builder = std::sync::Arc::new(std::sync::RwLock::new(self.network_settings()));
         self.config.origin = allocate_origin();
         if let Ok(address) = &self.address {
             if !address.is_secure() && self.credentials_configured && !self.allow_insecure_auth {
@@ -625,7 +637,7 @@ impl Builder {
                 Error::InvalidInput(error),
             );
         }
-        crate::Driver::with_stream_and_connect(
+        let (mut client, events, driver) = crate::Driver::with_stream_and_connect(
             crate::io_compat::FuturesIo::new(stream),
             session,
             self.event_capacity,
@@ -637,7 +649,9 @@ impl Builder {
                 history_on_reconnect: self.history_on_reconnect,
                 disconnected_at: None,
             },
-        )
+        );
+        client.network_builder = Some(network_builder);
+        (client, events, driver)
     }
 
     pub(crate) fn build_with_connector(
@@ -656,6 +670,7 @@ impl Builder {
         if let Some(stream) = self.stream.take() {
             return self.build_stream_with_connect(stream, registration);
         }
+        let network_builder = std::sync::Arc::new(std::sync::RwLock::new(self.network_settings()));
         self.config.origin = allocate_origin();
         let validation_error = self
             .invalid_input
@@ -687,7 +702,7 @@ impl Builder {
             history_on_reconnect: self.history_on_reconnect,
             disconnected_at: None,
         };
-        crate::Driver::with_plan(
+        let (mut client, events, driver) = crate::Driver::with_plan(
             plan,
             session,
             self.event_capacity.max(1),
@@ -697,7 +712,10 @@ impl Builder {
             self.connect_timeout,
             self.sts_store,
             connector,
-        )
+            std::sync::Arc::clone(&network_builder),
+        );
+        client.network_builder = Some(network_builder);
+        (client, events, driver)
     }
 }
 

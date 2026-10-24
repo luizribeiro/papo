@@ -1,4 +1,9 @@
-use std::{collections::VecDeque, ops::ControlFlow, time::Duration};
+use std::{
+    collections::VecDeque,
+    ops::ControlFlow,
+    sync::{Arc, RwLock},
+    time::Duration,
+};
 
 use papo_core::sts::StsAction;
 use papo_core::{
@@ -85,6 +90,7 @@ pub(super) async fn run_plan(
     mut sts_store: Box<dyn StsStore + Send>,
     connector: Connector,
     mut entropy: BackoffEntropy,
+    network_builder: Option<Arc<RwLock<crate::builder::NetworkBuilderSettings>>>,
 ) -> Result<(), Error> {
     let Some(mut base_plan) = initial_connection_plan(plan, &mut registration)? else {
         return Ok(());
@@ -98,6 +104,12 @@ pub(super) async fn run_plan(
     loop {
         attempts = attempts.saturating_add(1);
         let plan = plan_with_stored_sts(&base_plan, sts_store.as_mut());
+        if let Some(settings) = &network_builder {
+            settings
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .address = Ok(plan.address.clone());
+        }
         sts_required |= !base_plan.address.is_secure() && plan.address.is_secure();
         let phase = crate::ConnectPhase::from_core(papo_core::ConnectPhase::Transport)
             .expect("transport is a public connection phase");
