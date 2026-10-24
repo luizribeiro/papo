@@ -288,6 +288,7 @@ mod tests {
     #[test]
     fn references_preserve_received_and_sent_addresses() {
         let mapping = crate::Casemapping::default();
+        let origin = crate::Origin::__new(73);
         let received = crate::__testing::message(
             Some(crate::__testing::user_source(
                 mapping.nick("emily"),
@@ -307,7 +308,7 @@ mod tests {
         assert_eq!(reference.channel_context, None);
 
         let sent = Sent {
-            conversation: Conversation::Channel(mapping.channel("#ops")),
+            conversation: Conversation::Channel(origin.__channel(mapping, "#ops")),
             status: Some(vec!['@']),
             msgid: Some("RfcBTzyxY120005".into()),
             line_msgids: vec!["RfcBTzyxY120005".into()],
@@ -317,8 +318,10 @@ mod tests {
         let reference = MessageRef::from(&sent);
         assert_eq!(reference.address, "@#ops");
         assert_eq!(reference.msgid, Some("RfcBTzyxY120005".into()));
+        assert_eq!(reference.origin, Some(origin));
         assert_eq!(reference.channel_context, None);
         assert_eq!(sent.return_address(), "@#ops");
+        assert_eq!(sent.origin(), origin);
 
         let tag = TagMsg {
             actor: received.actor,
@@ -336,21 +339,27 @@ mod tests {
     #[test]
     fn references_accept_written_text_addresses() {
         let mapping = crate::Casemapping::default();
+        let origin = crate::Origin::__new(73);
         let id = MessageId::from("RfcBTzyxY120006");
         let references = [
             MessageRef::from(("#papo", &id)),
             MessageRef::from(("@#ops".to_owned(), &id)),
-            MessageRef::from((mapping.channel("#rust"), &id)),
-            MessageRef::from((&mapping.channel("#bots"), &id)),
-            MessageRef::from((mapping.nick("emily"), &id)),
-            MessageRef::from((&mapping.nick("alice"), &id)),
+            MessageRef::from((origin.__channel(mapping, "#rust"), &id)),
+            MessageRef::from((&origin.__channel(mapping, "#bots"), &id)),
+            MessageRef::from((origin.__nick(mapping, "emily"), &id)),
+            MessageRef::from((&origin.__nick(mapping, "alice"), &id)),
         ];
-        for (reference, expected) in references
-            .into_iter()
-            .zip(["#papo", "@#ops", "#rust", "#bots", "emily", "alice"])
-        {
+        for (reference, (expected, expected_origin)) in references.into_iter().zip([
+            ("#papo", None),
+            ("@#ops", None),
+            ("#rust", Some(origin)),
+            ("#bots", Some(origin)),
+            ("emily", Some(origin)),
+            ("alice", Some(origin)),
+        ]) {
             assert_eq!(reference.address, expected);
             assert_eq!(reference.msgid, Some(id.clone()));
+            assert_eq!(reference.origin, expected_origin);
             assert_eq!(reference.channel_context, None);
         }
     }

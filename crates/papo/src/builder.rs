@@ -830,6 +830,49 @@ mod tests {
                 crate::InvalidInput::ForeignReference
             ))
         ));
+
+        let actor = crate::__testing::user_source(
+            first.state().nickname("emily"),
+            Some("~emily".into()),
+            Some("cloak.example".into()),
+        );
+        let mut private = crate::__testing::message(
+            Some(actor.clone()),
+            first.nick().to_string(),
+            "release ready",
+            true,
+        );
+        private.conversation = crate::Chat::Private(first.state().nickname("emily"));
+        assert_eq!(private.origin(), first.origin());
+        assert!(matches!(
+            second.reply(&private, "ship it").await,
+            Err(crate::Error::InvalidInput(
+                crate::InvalidInput::ForeignReference
+            ))
+        ));
+
+        for conversation in [
+            crate::Conversation::Private(first.state().nickname("emily")),
+            crate::Conversation::Broadcast(
+                first
+                    .origin()
+                    .__mask(crate::Casemapping::default(), "$*.example.org"),
+            ),
+        ] {
+            let tag = crate::event::TagMsg {
+                actor: actor.clone(),
+                authorship: crate::Authorship::Other,
+                conversation,
+                status: None,
+                tags: crate::Tags::default(),
+            };
+            assert!(matches!(
+                second.reply(&tag, "ship it").await,
+                Err(crate::Error::InvalidInput(
+                    crate::InvalidInput::ForeignReference
+                ))
+            ));
+        }
     }
 
     #[cfg(tls)]

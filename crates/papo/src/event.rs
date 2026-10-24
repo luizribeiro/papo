@@ -2124,6 +2124,61 @@ mod tests {
     }
 
     #[test]
+    fn every_message_conversation_kind_keeps_its_origin() {
+        let origin = crate::Origin::__new(73);
+        let mapping = Casemapping::default();
+        let isupport = Isupport::default();
+        let cases = [
+            (
+                "channel",
+                Line::privmsg("#papo", "hello").with_source("emily!~e@localhost"),
+                Conversation::Channel(origin.__channel(mapping, "#papo")),
+            ),
+            (
+                "private",
+                Line::notice("papo", "hello").with_source("emily!~e@localhost"),
+                Conversation::Private(origin.__nick(mapping, "emily")),
+            ),
+            (
+                "broadcast",
+                Line::notice("$*.example.org", "maintenance").with_source("operator!~o@localhost"),
+                Conversation::Broadcast(origin.__mask(mapping, "$*.example.org")),
+            ),
+        ];
+
+        for (kind, line, conversation) in cases {
+            let event = message_event_from_line(
+                line,
+                None,
+                Authorship::Other,
+                conversation,
+                None,
+                None,
+                &isupport,
+                false,
+                UNIX_EPOCH,
+                None,
+            );
+            match (kind, event) {
+                ("channel", Event::Message(message)) => {
+                    assert_eq!(message.origin(), origin);
+                    assert_eq!(message.actor.nick().unwrap().origin(), origin);
+                }
+                ("private", Event::Notice(notice)) => {
+                    assert_eq!(notice.origin(), origin);
+                    assert_eq!(notice.actor.nick().unwrap().origin(), origin);
+                }
+                ("broadcast", Event::ServerNotice(notice)) => {
+                    assert_eq!(notice.actor.nick().unwrap().origin(), origin);
+                    assert!(matches!(notice.to, ServerNoticeTarget::Mask(mask)
+                        if mask.origin() == origin));
+                }
+                (kind, event) => panic!("unexpected {kind} event: {event:?}"),
+            }
+        }
+    }
+
+    #[test]
     fn routes_user_and_server_notices() {
         let mut isupport = Isupport::default();
         isupport.apply_tokens(["CHANTYPES=#", "STATUSMSG=@+"]);
