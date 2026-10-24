@@ -37,8 +37,8 @@ async fn statusmsg_peers(s: &Scenario) -> papo_testing::Result<StatusmsgPeers> {
 
     alice
         .mode(&channel)
-        .op(bob_nick.clone())
-        .voice(carol_nick.clone())
+        .op(bob_nick.as_ref())
+        .voice(carol_nick.as_ref())
         .await?;
     for peer in [&mut alice, &mut bob, &mut carol, &mut dave] {
         let changed = wait_channel_mode(peer, &channel, 'v').await?;
@@ -54,7 +54,9 @@ async fn statusmsg_peers(s: &Scenario) -> papo_testing::Result<StatusmsgPeers> {
                 .find(|change| change.mode == letter)
                 .unwrap();
             assert_eq!(change.action, ModeAction::Add);
-            assert!(matches!(change.arg.clone(), Some(ModeArg::Nick(value)) if value == *nick));
+            assert!(
+                matches!(change.arg.clone(), Some(ModeArg::Nick(value)) if value == nick.as_ref())
+            );
         }
     }
     for peer in [&alice, &bob, &carol, &dave] {
