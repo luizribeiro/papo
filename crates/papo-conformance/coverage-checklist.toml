@@ -85,6 +85,7 @@ ids = [
   "security.history.unknown-batch-isolation",
   "security.origin.cross-client-wire", "security.origin.bound-client-wire",
   "security.bouncer.required-capability", "security.bouncer.binding-confirmation",
+  "security.bouncer.deleted-network-fatal",
   "regression.history.expired-label-deduplicated",
   "regression.labeled-response.late-live",
   "regression.multiline.oversized-live",

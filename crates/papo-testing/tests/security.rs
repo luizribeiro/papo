@@ -99,6 +99,34 @@ async fn selected_bouncer_network_requires_matching_isupport() {
     }
 }
 
+#[tokio::test(start_paused = true)]
+async fn deleted_bouncer_network_stops_during_reconnect() {
+    let (_client, mut events, mut wire) = wire(bound_builder("libera-42"));
+    begin_bound_registration(&mut wire, "libera-42").await;
+    wire.server(":soju.example 001 papo-bound :Welcome to soju")
+        .await;
+    wire.server(
+        ":soju.example 005 papo-bound CASEMAPPING=rfc1459 BOUNCER_NETID=libera-42 :are supported",
+    )
+    .await;
+    wire.server(":soju.example 422 papo-bound :MOTD File is missing")
+        .await;
+    while !matches!(events.next().await, Some(papo::Event::Connected(_))) {}
+
+    wire.close().await;
+    let reconnecting = next_binding_disconnect(&mut events).await;
+    assert!(reconnecting.is_reconnecting());
+    tokio::time::advance(Duration::from_secs(2)).await;
+    begin_bound_registration(&mut wire, "libera-42").await;
+    wire.server("FAIL BOUNCER INVALID_NETID libera-42 :Invalid network ID")
+        .await;
+
+    let stopped = next_binding_disconnect(&mut events).await;
+    assert!(stopped.reconnect_in.is_none());
+    assert!(disconnect_diagnostic(&stopped).contains("rejected the selected network ID"));
+    assert_eq!(wire.next_sent_or_closed().await, None);
+}
+
 #[tokio::test]
 async fn cross_client_values_never_reach_either_wire() {
     let (first, _first_events, mut first_wire) = wire(

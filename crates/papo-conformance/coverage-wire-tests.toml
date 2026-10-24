@@ -8,6 +8,9 @@
 "security::selected_bouncer_network_requires_matching_isupport" = [
   "security.bouncer.binding-confirmation",
 ]
+"security::deleted_bouncer_network_stops_during_reconnect" = [
+  "security.bouncer.deleted-network-fatal",
+]
 "security::scram_success_requires_verified_server_proof" = [
   "security.sasl.verified-proof-before-success",
 ]
