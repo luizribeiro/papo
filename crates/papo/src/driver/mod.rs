@@ -1486,7 +1486,7 @@ where
     Ok(true)
 }
 
-fn update_rejoin_channels(session: &Session, defaults: &mut PostConnect, event: &Event) {
+fn update_rejoin_channels(_session: &Session, defaults: &mut PostConnect, event: &Event) {
     match event {
         Event::Joined(joined) if joined.authorship == crate::Authorship::Own => {
             if !defaults
@@ -1514,14 +1514,13 @@ fn update_rejoin_channels(session: &Session, defaults: &mut PostConnect, event: 
                 .retain(|entry| kicked.channel != entry.channel.as_str());
         }
         Event::ChannelRenamed(renamed) => {
-            let casemapping = session.isupport().casemapping();
             for entry in &mut defaults.channels {
-                if casemapping.channel(&entry.channel) == renamed.old {
+                if renamed.old == entry.channel.as_str() {
                     entry.channel = renamed.new.to_string();
                 }
             }
             for channel in &mut defaults.parted_while_disconnected {
-                if casemapping.channel(channel.as_ref()) == renamed.old {
+                if renamed.old == channel.as_ref() {
                     *channel = renamed.new.clone();
                 }
             }
@@ -1565,9 +1564,7 @@ fn response_confirms_join(session: &Session, lines: &[Line], channel: &crate::Ch
     lines.iter().any(|line| {
         let line = line.as_ref();
         line.command() == ProtoCommand::Join
-            && line
-                .param(0)
-                .is_some_and(|target| mapping.channel(target) == *channel)
+            && line.param(0).is_some_and(|target| channel == target)
             && matches!(line.source(), Some(papo_proto::Source::User { nick, .. })
                 if mapping.nick(nick) == mapping.nick(session.nick()))
     })

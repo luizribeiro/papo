@@ -1257,8 +1257,8 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::ChannelRenamed(crate::event::ChannelRenamed {
-            old: test_channel("#RUST"),
-            new: test_channel("#systems"),
+            old: crate::Origin::__new(73).__channel(crate::Casemapping::default(), "#RUST"),
+            new: crate::Origin::__new(73).__channel(crate::Casemapping::default(), "#systems"),
             actor: crate::__testing::user_source(test_nick("oper"), None, None),
             authorship: crate::Authorship::Other,
             reason: Some("Community renamed".into()),
@@ -1402,7 +1402,7 @@ fn remembering_a_rejoin_replaces_only_the_same_channel() {
 #[test]
 fn only_an_own_join_line_confirms_a_rejoin() {
     let session = Session::new(config());
-    let channel = test_channel("#papo");
+    let channel = crate::Origin::__new(73).__channel(crate::Casemapping::default(), "#papo");
     for (line, confirmed) in [
         (":papo-driver!papo@localhost JOIN #papo", true),
         (":alice!alice@staff.example JOIN #papo", false),
