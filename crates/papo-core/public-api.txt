@@ -1412,7 +1412,7 @@ pub fn papo_core::Channel::list(&self, papo_core::ListMode) -> core::option::Opt
 pub fn papo_core::Channel::member(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::Member>
 pub fn papo_core::Channel::members(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::Member>
 pub fn papo_core::Channel::mode(&self, char) -> core::option::Option<papo_core::ModeValue<'_>>
-pub fn papo_core::Channel::modes(&self) -> impl core::iter::traits::iterator::Iterator<Item = (char, core::option::Option<&str>)>
+pub fn papo_core::Channel::modes(&self) -> impl core::iter::traits::iterator::Iterator<Item = (char, papo_core::ModeValue<'_>)>
 pub fn papo_core::Channel::name(&self) -> &papo::ChannelName
 pub fn papo_core::Channel::topic(&self) -> core::option::Option<&str>
 pub const fn papo_core::Channel::topic_set_at(&self) -> core::option::Option<std::time::SystemTime>

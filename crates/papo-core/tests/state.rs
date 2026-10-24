@@ -920,6 +920,18 @@ fn tracks_the_channel_join_burst_and_live_mode_changes() {
             assert_eq!(channel.mode('n'), Some(ModeValue::Set));
             assert_eq!(channel.mode('n').unwrap().value(), None);
             assert_eq!(
+                channel.modes().find(|(mode, _)| *mode == 'k'),
+                Some(('k', ModeValue::Set))
+            );
+            assert_eq!(
+                channel.modes().find(|(mode, _)| *mode == 'l'),
+                Some(('l', ModeValue::Value("10")))
+            );
+            assert_eq!(
+                channel.modes().find(|(mode, _)| *mode == 'n'),
+                Some(('n', ModeValue::Set))
+            );
+            assert_eq!(
                 channel.created_at(),
                 Some(UNIX_EPOCH + Duration::from_secs(1_723_501_539))
             );

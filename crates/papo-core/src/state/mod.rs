@@ -1390,11 +1390,16 @@ impl Channel {
     }
 
     /// Iterates over stored non-list modes in unspecified order.
-    pub fn modes(&self) -> impl Iterator<Item = (char, Option<&str>)> {
+    pub fn modes(&self) -> impl Iterator<Item = (char, ModeValue<'_>)> {
         self.modes
             .iter()
-            .map(|(mode, argument)| (*mode, argument.as_deref()))
-            .chain(self.key.as_ref().map(|_| ('k', None)))
+            .map(|(mode, argument)| {
+                (
+                    *mode,
+                    argument.as_deref().map_or(ModeValue::Set, ModeValue::Value),
+                )
+            })
+            .chain(self.key.as_ref().map(|_| ('k', ModeValue::Set)))
     }
 
     /// Returns the current channel key.
