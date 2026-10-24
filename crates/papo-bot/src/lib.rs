@@ -59,7 +59,8 @@ const MAX_RATE_TARGETS: usize = 1024;
 ///
 /// The budget counts calls, not the number of lines produced by a call or the number of senders
 /// in a conversation. Conversation names use the server's casemapping, so differently cased
-/// spellings of the same channel share one budget.
+/// spellings of the same channel share one budget. Conversations from different clients have
+/// separate budgets even when their text is the same.
 #[derive(Clone)]
 pub struct ReplyRateLimiter {
     burst: usize,
@@ -171,7 +172,7 @@ impl BotConfig {
 
     /// Parses `message` as a live command using `client`'s nickname and cached user state.
     ///
-    /// Replayed messages are ignored.
+    /// Replayed messages and messages produced by another client are ignored.
     #[must_use]
     pub fn command(&self, client: &Client, message: &ChatMessage) -> Option<Command> {
         Command::parse(client, message, self)
@@ -209,6 +210,7 @@ impl Command {
     fn parse(client: &Client, message: &ChatMessage, config: &BotConfig) -> Option<Self> {
         if message.authorship == papo::Authorship::Own
             || message.kind != MessageKind::Text
+            || message.origin() != papo::Origin::NONE && message.origin() != client.origin()
             || config.ignore_bots
                 && (message.is_bot
                     || message.actor.nick().is_some_and(|nick| {
@@ -641,6 +643,32 @@ mod tests {
         let command = BotConfig::new("!").command(&client, &incoming).unwrap();
         assert_eq!(command.account(), None);
         assert!(!command.account_in(["emily"]));
+        driver.abort();
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn ignores_a_message_from_another_client() {
+        let transcript = concat!(
+            ":ergo.test CAP * LS :\r\n",
+            ":ergo.test 001 papo{bot} :Welcome\r\n",
+            ":ergo.test 422 papo{bot} :MOTD File is missing\r\n",
+            ":emily!~emily@localhost PRIVMSG papo{bot} :!echo deployment ready\r\n",
+        );
+        let (receiving, mut events, driver) = Client::builder("irc.example")
+            .nick(Casemapping::Rfc1459.nick("papo{bot}"))
+            .stream(TranscriptStream::new(transcript))
+            .build();
+        let driver = tokio::spawn(driver);
+        let incoming = loop {
+            if let Some(papo::Event::Message(message)) = events.next().await {
+                break message;
+            }
+        };
+        let other = client(Casemapping::Rfc1459);
+        let config = BotConfig::new("!");
+
+        assert!(config.command(&receiving, &incoming).is_some());
+        assert!(config.command(&other, &incoming).is_none());
         driver.abort();
     }
 

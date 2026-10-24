@@ -49,6 +49,12 @@ these methods return `Error::TargetGone` when current state proves that another 
 sender's nickname. They still send when papo cannot identify the current holder, such as a direct
 message from someone who shares no channel and supplied no account information.
 
+Typed names, conversations, message references, and history cursors retain the `Client` that
+produced them. The sealed `Target` trait lets send methods accept either plain text or these typed
+values; a typed value from another client returns `InvalidInput::ForeignReference`. Consequently,
+same-named channels on two clients compare unequal, while either still compares equal to the same
+plain string. Converting a typed value to a string explicitly discards this protection.
+
 papo answers private, live CTCP `PING` and `VERSION` queries by default; the VERSION text is
 `papo <version>`. Use `CtcpReplies::default().ping(false)`, `.version(Some("my-app 2.3"))`, or
 `.version(None)` to change either reply, and `CtcpReplies::off()` to answer nothing automatically.
