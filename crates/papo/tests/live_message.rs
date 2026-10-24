@@ -109,10 +109,12 @@ async fn reactions_reach_another_client_with_reply_context() {
         let id = incoming.msgid.as_ref().unwrap();
         client_b.react(&incoming, "🎉").await.unwrap();
         let reaction = wait_reaction(&mut events_a).await;
-        assert_eq!(
+        assert_eq!(reaction.conversation, incoming.conversation.as_ref());
+        assert_ne!(
             reaction.conversation,
             papo::Conversation::from(&incoming.conversation)
         );
+        assert_eq!(reaction.origin(), client_a.origin());
         assert_eq!(reaction.status, incoming.status);
         assert_eq!(&reaction.message, id);
 
