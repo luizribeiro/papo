@@ -578,6 +578,19 @@ mod tests {
             .build()
     }
 
+    async fn next_message(events: &mut papo::Events) -> papo::Message {
+        loop {
+            match events.next().await {
+                Some(papo::Event::Message(message)) => return *message,
+                Some(papo::Event::Disconnected(disconnected)) => {
+                    panic!("disconnected while waiting for a message: {disconnected}")
+                }
+                Some(_) => {}
+                None => panic!("driver stopped while waiting for a message"),
+            }
+        }
+    }
+
     fn parse(message: &papo::Message, config: &BotConfig) -> Option<Command> {
         config.command(&client(Casemapping::Rfc1459), message)
     }
@@ -630,11 +643,7 @@ mod tests {
             .stream(TranscriptStream::new(transcript))
             .build();
         let driver = tokio::spawn(driver);
-        let incoming = loop {
-            if let Some(papo::Event::Message(message)) = events.next().await {
-                break message;
-            }
-        };
+        let incoming = next_message(&mut events).await;
 
         assert!(matches!(
             client.state().user("emily").unwrap().account(),
@@ -659,11 +668,7 @@ mod tests {
             .stream(TranscriptStream::new(transcript))
             .build();
         let driver = tokio::spawn(driver);
-        let incoming = loop {
-            if let Some(papo::Event::Message(message)) = events.next().await {
-                break message;
-            }
-        };
+        let incoming = next_message(&mut events).await;
         let other = client(Casemapping::Rfc1459);
         let config = BotConfig::new("!");
 
@@ -698,9 +703,7 @@ mod tests {
         let driver = tokio::spawn(driver);
         let mut messages = Vec::new();
         while messages.len() < 2 {
-            if let Some(papo::Event::Message(message)) = events.next().await {
-                messages.push(message);
-            }
+            messages.push(next_message(&mut events).await);
         }
 
         let config = BotConfig::new("!");
@@ -740,11 +743,7 @@ mod tests {
             .stream(stream)
             .build();
         let driver = tokio::spawn(driver);
-        let message = loop {
-            if let Some(papo::Event::Message(message)) = events.next().await {
-                break message;
-            }
-        };
+        let message = next_message(&mut events).await;
 
         let command = BotConfig::new("!").command(&client, &message).unwrap();
         assert_eq!(command.reply("public").await.unwrap(), ReplyStatus::Sent);
@@ -781,9 +780,7 @@ mod tests {
         let driver = tokio::spawn(driver);
         let mut messages = Vec::new();
         while messages.len() < 3 {
-            if let Some(papo::Event::Message(message)) = events.next().await {
-                messages.push(message);
-            }
+            messages.push(next_message(&mut events).await);
         }
 
         let config = BotConfig::new("!");
@@ -974,11 +971,7 @@ mod tests {
             .stream(stream)
             .build();
         let driver = tokio::spawn(driver);
-        let incoming = loop {
-            if let Some(papo::Event::Message(message)) = events.next().await {
-                break message;
-            }
-        };
+        let incoming = next_message(&mut events).await;
         let command = BotConfig::new("!").command(&client, &incoming).unwrap();
         assert_eq!(command.say("pong").await.unwrap(), ReplyStatus::Sent);
         tokio::task::yield_now().await;
@@ -1021,9 +1014,7 @@ mod tests {
         let driver = tokio::spawn(driver);
         let mut messages = Vec::new();
         while messages.len() < 2 {
-            if let Some(papo::Event::Message(message)) = events.next().await {
-                messages.push(message);
-            }
+            messages.push(next_message(&mut events).await);
         }
 
         let config = BotConfig::new("!");
