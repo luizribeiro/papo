@@ -234,7 +234,9 @@ impl State {
         let orphaned: Vec<_> = self
             .users
             .values()
-            .filter(|user| user.channels.is_empty() && !self.is_monitored(&user.nick))
+            .filter(|user| {
+                user.nick != self.nick && user.channels.is_empty() && !self.is_monitored(&user.nick)
+            })
             .map(|user| user.nick.clone())
             .collect();
         for nick in orphaned {

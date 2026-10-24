@@ -78,10 +78,12 @@ fn metadata_lifetime_tracks_channels_monitor_and_snapshot_identity() {
         .server(":bob!~bob@users/bob JOIN #papo")
         .server(":bob!~bob@users/bob JOIN #rust")
         .server(":ergo.test 761 alice #papo topic-label * :Release planning")
+        .server(":ergo.test 761 alice alice display-name * :Alice Admin")
         .server(":ergo.test 761 alice bob display-name * :Bob Builder")
         .server(":alice!~alice@users/alice PART #papo :Leaving")
         .inspect(|session| {
             assert!(session.state().metadata("#papo").is_none());
+            assert!(session.state().metadata("alice").is_some());
             assert!(session.state().metadata("bob").is_some());
         })
         .server(":bob!~bob@users/bob PART #rust :Leaving")
