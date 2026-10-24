@@ -824,6 +824,24 @@ fn encoded_lines_mask_only_secret_parameters() {
 }
 
 #[test]
+fn marked_parameters_are_redacted_in_logged_lines() {
+    let mut line = ":ergo.test 324 papo #staff +nk hunter2"
+        .parse::<Line>()
+        .unwrap();
+    line.__mark_secret(3);
+
+    assert_eq!(line.get(3), Some("hunter2"));
+    assert_eq!(
+        line.encode().unwrap().as_ref(),
+        b":ergo.test 324 papo #staff +nk hunter2\r\n"
+    );
+    assert_eq!(
+        format!("{line:?}"),
+        ":ergo.test 324 papo #staff +nk <redacted>"
+    );
+}
+
+#[test]
 fn masks_multiple_secrets_at_exact_offsets_in_a_realistic_line() {
     let line = Line::new("REGISTER")
         .param("alice")
