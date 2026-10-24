@@ -16,7 +16,6 @@ papo = { path = "../../crates/papo", version = "=0.1.0" }
 tokio = { version = "1.53.3", features = ["macros", "rt"] }
 
 [dev-dependencies]
-papo-proto = { path = "../../crates/papo-proto", version = "=0.1.0" }
 papo-test-server = { path = "../../crates/papo-test-server", version = "=0.1.0" }
 tokio = { version = "1.53.3", features = ["time"] }
 

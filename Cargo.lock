@@ -602,7 +602,6 @@ name = "papo-catchup"
 version = "0.1.0"
 dependencies = [
  "papo",
- "papo-proto",
  "papo-test-server",
  "tokio",
 ]
@@ -668,7 +667,6 @@ name = "papo-lurker"
 version = "0.1.0"
 dependencies = [
  "papo",
- "papo-proto",
  "papo-test-server",
  "tokio",
 ]
