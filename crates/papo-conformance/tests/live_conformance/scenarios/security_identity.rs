@@ -23,7 +23,9 @@ async fn private_reply_after_nick_takeover(s: Scenario) -> papo_testing::Result<
     alice.join(&channel).await?;
     mallory.join(&channel).await?;
 
-    alice.privmsg(bot.nick(), "control request").await?;
+    alice
+        .privmsg(bot.nick().as_ref(), "control request")
+        .await?;
     let control = bot
         .wait_for(|event| message_text(event, "control request"))
         .await?;
@@ -32,19 +34,25 @@ async fn private_reply_after_nick_takeover(s: Scenario) -> papo_testing::Result<
         .wait_for(|event| message_text(event, "control reply"))
         .await?;
 
-    alice.privmsg(bot.nick(), "release credentials").await?;
+    alice
+        .privmsg(bot.nick().as_ref(), "release credentials")
+        .await?;
     let delayed = bot
         .wait_for(|event| message_text(event, "release credentials"))
         .await?;
 
     alice.quit("handoff").await?;
-    bot.wait_for(|event| event.as_quit().filter(|quit| quit.nick == alice_nick))
-        .await?;
-    mallory.set_nick(&alice_nick).await?;
     bot.wait_for(|event| {
         event
-            .as_nick_changed()
-            .filter(|changed| changed.old == mallory_nick && changed.new == alice_nick)
+            .as_quit()
+            .filter(|quit| quit.nick == alice_nick.as_ref())
+    })
+    .await?;
+    mallory.set_nick(alice_nick.as_ref()).await?;
+    bot.wait_for(|event| {
+        event.as_nick_changed().filter(|changed| {
+            changed.old == mallory_nick.as_ref() && changed.new == alice_nick.as_ref()
+        })
     })
     .await?;
 

@@ -105,7 +105,7 @@ async fn multidevice_away_shared_state(s: Scenario) -> papo_testing::Result<()> 
         .wait_for(|event| {
             event
                 .as_joined()
-                .filter(|joined| joined.nick == observer.nick())
+                .filter(|joined| joined.nick == observer.nick().as_ref())
         })
         .await?;
 
@@ -124,14 +124,14 @@ async fn multidevice_away_shared_state(s: Scenario) -> papo_testing::Result<()> 
         .wait_for(|event| {
             event
                 .as_away_changed()
-                .filter(|changed| changed.nick == nick)
+                .filter(|changed| changed.nick == nick.as_ref())
         })
         .await?;
     let visible = observer
         .wait_for(|event| {
             event
                 .as_away_changed()
-                .filter(|changed| changed.nick == nick)
+                .filter(|changed| changed.nick == nick.as_ref())
         })
         .await?;
     assert_eq!(sibling.away, away);
@@ -311,7 +311,7 @@ async fn multidevice_nick_shared_state(s: Scenario) -> papo_testing::Result<()> 
             phone.wait_for(Event::as_nick_changed).await?,
             tablet.wait_for(Event::as_nick_changed).await?,
         ] {
-            assert_eq!(changed.old, old);
+            assert_eq!(changed.old, old.as_ref());
             assert_eq!(changed.new.as_ref(), new);
             assert_eq!(changed.authorship, papo::Authorship::Own);
         }
@@ -325,7 +325,7 @@ async fn multidevice_nick_shared_state(s: Scenario) -> papo_testing::Result<()> 
     phone.expect_none(Event::as_nick_changed).await?;
     tablet.expect_none(Event::as_nick_changed).await?;
     for peer in [&desktop, &phone, &tablet] {
-        assert_eq!(peer.state().nick(), &old);
+        assert_eq!(peer.state().nick(), old.as_ref());
         let members = peer.state();
         assert!(
             members
@@ -503,7 +503,7 @@ async fn multidevice_dm_fanout_thread(s: Scenario) -> papo_testing::Result<()> {
     let mut sender = s.connect("bob").await?;
     let text = "can every device review the release?";
 
-    let sent = sender.privmsg(desktop.nick(), text).await?;
+    let sent = sender.privmsg(desktop.nick().as_ref(), text).await?;
     let on_desktop = desktop.wait_for(|event| chat_text(event, text)).await?;
     let on_phone = phone.wait_for(|event| chat_text(event, text)).await?;
     let on_tablet = tablet.wait_for(|event| chat_text(event, text)).await?;

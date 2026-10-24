@@ -21,7 +21,7 @@ async fn multiline_dm_after_nick_change(s: Scenario) -> papo_testing::Result<()>
     let new_nick = format!("r{old_nick}");
     let text = "deployment is ready\nplease approve the release";
 
-    alice.privmsg(&old_nick, text).await?;
+    alice.privmsg(old_nick.as_ref(), text).await?;
     bob.set_nick(&new_nick).await?;
     let message = bob.wait_for(|event| message_text(event, text)).await?;
     assert_eq!(
