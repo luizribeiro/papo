@@ -1,12 +1,26 @@
 use std::{io, time::Duration};
 
 use papo::{
-    Client, DisconnectCause, Endpoint, Error, Event, Feature, InvalidInput, Reconnect, Sasl,
+    Client, DisconnectCause, Endpoint, Error, Event, Feature, InvalidInput, NetworkConfig,
+    NetworkId, NetworkState, Reconnect, Sasl, event::BouncerNetworkChanged,
 };
 use papo_conformance_macros::scenario;
 
 use crate::scenarios::support::message_text;
 use crate::{Peer, Scenario};
+
+fn connected_network_change<'a>(
+    event: &'a Event,
+    id: &NetworkId,
+) -> Option<&'a BouncerNetworkChanged> {
+    event.as_bouncer_network_changed().filter(|changed| {
+        &changed.id == id
+            && changed
+                .network
+                .as_ref()
+                .is_some_and(|network| network.state == Some(NetworkState::Connected))
+    })
+}
 
 async fn provisioned_control(
     s: &Scenario,
@@ -150,5 +164,58 @@ async fn deleted_bound_network_stops_reconnecting(s: Scenario) -> papo_testing::
             if std::error::Error::source(error)
                 .is_some_and(|source| source.to_string().contains("selected network ID"))
     ));
+    Ok(())
+}
+
+/// emits each bouncer change on one explicitly selected connection
+#[scenario(
+    requires(caps = ["soju.im/bouncer-networks"]),
+    covers = ["security.bouncer.single-notification"]
+)]
+async fn bouncer_notifications_are_single_source(s: Scenario) -> papo_testing::Result<()> {
+    if std::env::var("PAPO_TEST_PROFILE").as_deref() != Ok("soju-ergo") {
+        return s.skip("the selected profile is not the managed soju bouncer");
+    }
+    let (mut control, id) = provisioned_control(&s, "notification-source").await?;
+    let mut bound = s.connect_with(control.bouncer().network(&id)).await?;
+    control.expect_none(Event::as_message).await?;
+    bound.expect_none(Event::as_message).await?;
+
+    let bouncer = s.server.bouncer().unwrap();
+    let upstream = bouncer.upstream_addr();
+    let config = |prefix: &str| {
+        let name = papo_test_server::unique(prefix);
+        NetworkConfig::new(upstream.ip().to_string())
+            .port(upstream.port())
+            .tls(false)
+            .name(name.clone())
+            .nickname(papo::Casemapping::default().nick(name))
+    };
+    let added = control.bouncer().add(config("managed-change")).await?;
+    let changed = control
+        .wait_for(|event| connected_network_change(event, &added))
+        .await?;
+    assert!(changed.network.is_some());
+    control
+        .expect_none(|event| connected_network_change(event, &added))
+        .await?;
+    bound.expect_none(Event::as_bouncer_network_changed).await?;
+
+    let notify = "soju.im/bouncer-networks-notify";
+    let mut opted_in = s
+        .connect_with(control.bouncer().network(&id).request_caps([notify]))
+        .await?;
+    opted_in.expect_none(Event::as_message).await?;
+    let added = opted_in
+        .bouncer()
+        .add(config("bound-managed-change"))
+        .await?;
+    opted_in
+        .wait_for(|event| connected_network_change(event, &added))
+        .await?;
+    opted_in
+        .expect_none(|event| connected_network_change(event, &added))
+        .await?;
+    bound.expect_none(Event::as_bouncer_network_changed).await?;
     Ok(())
 }

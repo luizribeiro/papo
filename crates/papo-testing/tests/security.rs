@@ -1,7 +1,7 @@
 //! Highest-layer regressions for hostile-server security findings.
 
 use std::{
-    collections::HashMap,
+    collections::{BTreeSet, HashMap},
     sync::{Arc, Mutex},
     time::{Duration, SystemTime},
 };
@@ -125,6 +125,40 @@ async fn deleted_bouncer_network_stops_during_reconnect() {
     assert!(stopped.reconnect_in.is_none());
     assert!(disconnect_diagnostic(&stopped).contains("rejected the selected network ID"));
     assert_eq!(wire.next_sent_or_closed().await, None);
+}
+
+async fn requested_bouncer_caps(builder: papo::Builder) -> BTreeSet<String> {
+    let (_client, _events, mut wire) = wire(builder.rate_limit(papo::RateLimit::unlimited()));
+    assert_eq!(wire.next_sent().await, "CAP LS 302");
+    _ = wire.next_sent().await;
+    _ = wire.next_sent().await;
+    wire.server(":soju.example CAP * LS :soju.im/bouncer-networks soju.im/bouncer-networks-notify")
+        .await;
+    wire.next_sent()
+        .await
+        .strip_prefix("CAP REQ :")
+        .unwrap()
+        .split_whitespace()
+        .map(str::to_owned)
+        .collect()
+}
+
+#[tokio::test]
+async fn bouncer_notifications_have_one_explicit_source() {
+    let notify = "soju.im/bouncer-networks-notify";
+    let management = requested_bouncer_caps(
+        papo::Client::builder("irc://soju.offline.test")
+            .nick("papo-control")
+            .enable(papo::Feature::Bouncer),
+    )
+    .await;
+    assert!(management.contains(notify));
+
+    let bound = requested_bouncer_caps(bound_builder("libera-42")).await;
+    assert!(!bound.contains(notify));
+
+    let opted_in = requested_bouncer_caps(bound_builder("libera-42").request_caps([notify])).await;
+    assert!(opted_in.contains(notify));
 }
 
 #[tokio::test]

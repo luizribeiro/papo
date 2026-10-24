@@ -11,6 +11,9 @@
 "security::deleted_bouncer_network_stops_during_reconnect" = [
   "security.bouncer.deleted-network-fatal",
 ]
+"security::bouncer_notifications_have_one_explicit_source" = [
+  "security.bouncer.single-notification",
+]
 "security::scram_success_requires_verified_server_proof" = [
   "security.sasl.verified-proof-before-success",
 ]

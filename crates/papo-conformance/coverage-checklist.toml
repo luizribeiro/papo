@@ -86,6 +86,7 @@ ids = [
   "security.origin.cross-client-wire", "security.origin.bound-client-wire",
   "security.bouncer.required-capability", "security.bouncer.binding-confirmation",
   "security.bouncer.deleted-network-fatal",
+  "security.bouncer.single-notification",
   "regression.history.expired-label-deduplicated",
   "regression.labeled-response.late-live",
   "regression.multiline.oversized-live",
