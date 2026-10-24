@@ -111,6 +111,56 @@ async fn metadata_subscriptions(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// prevents cached metadata from crossing a nickname handoff
+#[scenario(
+    requires(caps = ["batch", "draft/metadata-2"]),
+    covers = ["security.st-1.metadata-nick-handoff"]
+)]
+async fn metadata_does_not_cross_nick_handoffs(s: Scenario) -> papo_testing::Result<()> {
+    let key = "example.org/papo-identity";
+    let channel = s.channel_name();
+    let mut observer = s.connect("observer").await?;
+    let alice = s.connect("alice").await?;
+    let mallory = s.connect("mallory").await?;
+    observer.join(&channel).await?;
+    alice.join(&channel).await?;
+    mallory.join(&channel).await?;
+    observer.metadata().subscribe([key]).await?;
+
+    let alice_nick = alice.nick();
+    let mallory_nick = mallory.nick();
+    alice.metadata().set(key, "Alice Admin").await?;
+    observer
+        .wait_for(|event| {
+            event.as_metadata_changed().filter(|changed| {
+                subject_name(&changed.subject) == alice_nick.as_ref() && changed.key.as_ref() == key
+            })
+        })
+        .await?;
+    assert!(observer.state().metadata(&alice_nick).is_some());
+
+    alice.quit("handoff").await?;
+    observer
+        .wait_for(|event| {
+            event
+                .as_quit()
+                .filter(|quit| quit.nick == alice_nick.as_ref())
+        })
+        .await?;
+    assert!(observer.state().metadata(&alice_nick).is_none());
+
+    mallory.set_nick(alice_nick.as_ref()).await?;
+    observer
+        .wait_for(|event| {
+            event.as_nick_changed().filter(|changed| {
+                changed.old == mallory_nick.as_ref() && changed.new == alice_nick.as_ref()
+            })
+        })
+        .await?;
+    assert!(observer.state().metadata(&alice_nick).is_none());
+    Ok(())
+}
+
 /// synchronizes channel metadata to current and later members
 #[scenario(
     requires(caps = ["batch", "draft/metadata-2"]),

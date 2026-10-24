@@ -75,6 +75,13 @@ spec = "https://ircv3.net/specs/extensions/metadata"
 evidence = "C: METADATA * SUB example.org/papo-topic-category | S: FAIL METADATA KEY_INVALID"
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
+[metadata_does_not_cross_nick_handoffs]
+reason = "soju advertises metadata subscriptions but rejects a valid vendor key as KEY_INVALID"
+kind = "server-bug"
+spec = "https://ircv3.net/specs/extensions/metadata"
+evidence = "C: METADATA * SUB example.org/papo-identity | S: FAIL METADATA KEY_INVALID"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
+
 [channel_metadata]
 reason = "soju advertises a one-byte metadata value limit, preventing this channel metadata value"
 kind = "fixture-limit"

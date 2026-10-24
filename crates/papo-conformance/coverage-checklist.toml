@@ -70,6 +70,7 @@ ids = [
   "security.sasl.verified-proof-before-success", "security.sasl.no-plain-fallback-after-bad-proof",
   "security.reply.multiline-dm-after-nick-change", "security.history.stale-dm-target",
   "security.bot.private-reply-after-nick-takeover", "security.reply.broadcast-private",
+  "security.st-1.metadata-nick-handoff",
   "security.routing.status-prefix-channel", "security.target.no-comma-multitarget",
   "security.st-13.typing-status-audience",
   "security.st-4.channel-key-redaction",
