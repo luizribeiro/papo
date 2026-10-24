@@ -30,6 +30,38 @@ fn starts_with_configured_identity_and_empty_shared_state() {
 }
 
 #[test]
+fn own_user_exists_without_membership_and_survives_part_and_nick() {
+    Transcript::new(
+        Config::default()
+            .nick("emily")
+            .username("em")
+            .realname("Emily Example"),
+    )
+    .inspect(|session| {
+        let own = session.state().user("emily").unwrap();
+        assert_eq!(own.username(), Some("em"));
+        assert_eq!(own.realname(), Some("Emily Example"));
+        assert_eq!(own.channels().count(), 0);
+    })
+    .server(":emily!em@users/emily JOIN #papo")
+    .server(":emily!em@users/emily PART #papo :Leaving")
+    .server(":emily!em@users/emily NICK :emily-away")
+    .inspect(|session| {
+        assert!(session.state().user("emily").is_none());
+        assert_eq!(
+            session
+                .state()
+                .user("emily-away")
+                .unwrap()
+                .channels()
+                .count(),
+            0
+        );
+    })
+    .ignore_rest();
+}
+
+#[test]
 fn a_server_without_accounts_keeps_our_entry_logged_out() {
     Transcript::new(Config::default().wanted_caps(std::iter::empty::<&str>()))
         .connect_default()

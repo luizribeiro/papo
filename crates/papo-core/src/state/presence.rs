@@ -38,6 +38,8 @@ impl State {
         outbox: &mut Outbox,
     ) {
         if message.command() == Command::Numeric(Numeric::RPL_WELCOME) {
+            let old_nick = self.nick.clone();
+            self.rename_user(&old_nick, own_nick);
             self.nick = self.casemapping.nick(own_nick);
         }
         self.apply_user_tags(message, outbox);

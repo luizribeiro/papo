@@ -359,18 +359,26 @@ impl State {
     }
 
     fn with_casemapping(config: &Config, casemapping: Casemapping) -> Self {
+        let names = Names::new(casemapping, config.origin);
+        let nick = config.origin.__nick(casemapping, &config.nick);
+        let mut own = User::new(&config.nick, Some(&config.username), None, names);
+        own.account = Account::LoggedOut;
+        own.away = Away::Present;
+        own.realname = Some(config.realname.clone());
+        let mut users = BTreeMap::new();
+        users.insert(nick.clone(), own);
         Self {
-            nick: config.origin.__nick(casemapping, &config.nick),
+            nick,
             user: config.username.clone(),
             host: None,
             realname: config.realname.clone(),
             account: Account::LoggedOut,
             away: Away::Present,
             user_modes: HashSet::new(),
-            casemapping: Names::new(casemapping, config.origin),
+            casemapping: names,
             isupport: Isupport::default(),
             channels: BTreeMap::new(),
-            users: BTreeMap::new(),
+            users,
             monitored: Vec::new(),
             who_sweeps: BTreeMap::new(),
             who_on_join: config.who_on_join,
@@ -500,8 +508,9 @@ impl State {
                 .or_insert_with(|| User::new(nick, username, host, self.casemapping));
             user.monitored = true;
         }
+        let own = self.nick.clone();
         self.users
-            .retain(|_, user| user.monitored || !user.channels.is_empty());
+            .retain(|nick, user| *nick == own || user.monitored || !user.channels.is_empty());
     }
 
     pub(crate) fn update_isupport(&mut self, isupport: &Isupport) {
@@ -552,7 +561,7 @@ impl State {
                 .monitored = true;
         } else if let Some(user) = self.users.get_mut(&key) {
             user.monitored = false;
-            if user.channels.is_empty() {
+            if user.channels.is_empty() && key != self.nick {
                 self.users.remove(&key);
             }
         }
@@ -760,10 +769,16 @@ impl State {
             return false;
         }
         let realname_changed = self.realname != change.realname;
+        let old_nick = self.nick.clone();
+        self.rename_user(&old_nick, nick);
         self.nick = self.casemapping.nick(nick);
         user.clone_into(&mut self.user);
         self.host = Some(host.to_owned());
         change.realname.clone_into(&mut self.realname);
+        if let Some(own) = self.users.get_mut(&self.nick) {
+            own.update_userhost(Some(user), Some(host));
+            own.realname = Some(change.realname.to_owned());
+        }
         if realname_changed {
             outbox.event(Event::RealnameChanged {
                 actor: message.raw_source().unwrap_or(nick).to_owned(),

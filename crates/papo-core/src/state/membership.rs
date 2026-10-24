@@ -39,7 +39,11 @@ impl State {
         }
         if ours {
             self.channels.clear();
-            self.users.clear();
+            let own = self.nick.clone();
+            self.users.retain(|nick, user| {
+                user.channels.clear();
+                *nick == own
+            });
             self.who_sweeps.clear();
         } else {
             self.remove_user(nick);
@@ -243,8 +247,9 @@ impl State {
         for nick in orphaned {
             self.remove_metadata(&nick);
         }
+        let own = self.nick.clone();
         self.users
-            .retain(|_, user| user.monitored || !user.channels.is_empty());
+            .retain(|nick, user| *nick == own || user.monitored || !user.channels.is_empty());
     }
 
     pub(super) fn remove_member(&mut self, channel: &str, nick: &str) {
@@ -255,7 +260,7 @@ impl State {
         }
         if let Some(user) = self.users.get_mut(&nick) {
             user.channels.remove(&channel);
-            if user.channels.is_empty() && !user.monitored {
+            if user.channels.is_empty() && !user.monitored && nick != self.nick {
                 self.users.remove(&nick);
             }
         }
