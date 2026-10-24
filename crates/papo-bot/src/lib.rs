@@ -49,7 +49,7 @@ use std::{
 use web_time::Instant;
 
 use papo::{
-    Account, AccountName, Chat, Client, Conversation, InvalidRateLimit, Message as ChatMessage,
+    Account, AccountName, Client, Conversation, InvalidRateLimit, Message as ChatMessage,
     MessageKind, Source,
 };
 
@@ -312,7 +312,7 @@ impl Command {
     /// Returns [`papo::Error::TargetGone`] when current state proves that another user holds a
     /// private command sender's nickname. Otherwise returns the same errors as [`Client::privmsg`].
     pub async fn say(&self, text: impl Into<String>) -> Result<ReplyStatus, papo::Error> {
-        if let Chat::Private(_) = &self.message.conversation
+        if let Conversation::Private(_) = &self.message.conversation
             && self.message.__recipient_changed(&self.client.state())
         {
             return Err(papo::Error::TargetGone);
@@ -376,8 +376,8 @@ impl Command {
             request = request.reply_to(id.clone());
         }
         let context = match &self.message.conversation {
-            Chat::Private(_) => self.message.channel_context.as_deref(),
-            Chat::Channel(channel) => Some(channel.as_ref()),
+            Conversation::Private(_) => self.message.channel_context.as_deref(),
+            Conversation::Channel(channel) => Some(channel.as_ref()),
             _ => None,
         };
         if let Some(context) = context {

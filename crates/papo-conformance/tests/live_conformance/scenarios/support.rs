@@ -1,7 +1,5 @@
 use papo::event::ModeChanged;
-use papo::{
-    Account, AccountName, Chat, Conversation, Error, Event, Message, Refusal, State, Subject,
-};
+use papo::{Account, AccountName, Conversation, Error, Event, Message, Refusal, State, Subject};
 
 use crate::Peer;
 
@@ -41,21 +39,6 @@ impl ConversationName for Conversation {
         match self {
             Conversation::Channel(name) => Some(name),
             Conversation::Private(name) => Some(name),
-            Conversation::Broadcast(mask) => Some(mask),
-            _ => None,
-        }
-    }
-
-    fn is_private(&self) -> bool {
-        matches!(self, Self::Private(_))
-    }
-}
-
-impl ConversationName for Chat {
-    fn name(&self) -> Option<&str> {
-        match self {
-            Chat::Channel(name) => Some(name),
-            Chat::Private(name) => Some(name),
             _ => None,
         }
     }

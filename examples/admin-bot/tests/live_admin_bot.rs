@@ -42,7 +42,10 @@ async fn parses_mentions_and_authorizes_by_account() {
         )
         .await;
         assert_eq!(refusal.kind, MessageKind::Text);
-        assert!(matches!(refusal.conversation, papo::Chat::Channel(_)));
+        assert!(matches!(
+            refusal.conversation,
+            papo::Conversation::Channel(_)
+        ));
 
         admin
             .privmsg(&channels[0], format!("!op {user_nick}"))

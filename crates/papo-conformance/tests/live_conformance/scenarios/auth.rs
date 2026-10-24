@@ -167,7 +167,10 @@ async fn services(s: Scenario) -> papo_testing::Result<()> {
             })
         })
         .await?;
-    assert!(matches!(nickserv.conversation, papo::Chat::Private(_)));
+    assert!(matches!(
+        nickserv.conversation,
+        papo::Conversation::Private(_)
+    ));
 
     let channel = s.channel_name();
     alice.join(&channel).await?;
@@ -183,7 +186,10 @@ async fn services(s: Scenario) -> papo_testing::Result<()> {
             })
         })
         .await?;
-    assert!(matches!(chanserv.conversation, papo::Chat::Private(_)));
+    assert!(matches!(
+        chanserv.conversation,
+        papo::Conversation::Private(_)
+    ));
     alice.part(&channel, "checking the founder grant").await?;
     alice.join(&channel).await?;
     let state = alice.state();
