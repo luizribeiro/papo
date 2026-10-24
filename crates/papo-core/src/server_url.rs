@@ -154,7 +154,9 @@ impl fmt::Display for InvalidServerUrl {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Empty => formatter.write_str("server URL is empty"),
-            Self::MissingScheme => formatter.write_str("server URL scheme is missing"),
+            Self::MissingScheme => {
+                formatter.write_str("server URL scheme is missing; use ircs:// for TLS")
+            }
             Self::UnsupportedScheme(value) => write!(formatter, "unsupported scheme {value:?}"),
             Self::EmptyHost => formatter.write_str("server URL host is empty"),
             Self::Userinfo => formatter.write_str("server URL cannot contain user information"),

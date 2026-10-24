@@ -654,7 +654,7 @@ mod tests {
             ":ergo.test 422 papo{bot} :MOTD File is missing\r\n",
             ":emily!~emily@localhost PRIVMSG papo{bot} :!echo deployment ready\r\n",
         );
-        let (receiving, mut events, driver) = Client::builder("irc.example")
+        let (receiving, mut events, driver) = Client::builder("ircs://irc.example")
             .nick(Casemapping::Rfc1459.nick("papo{bot}"))
             .stream(TranscriptStream::new(transcript))
             .build();

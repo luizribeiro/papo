@@ -109,7 +109,7 @@ impl Builder {
 
     #[allow(dead_code)]
     pub(crate) fn from_network_settings(settings: &NetworkBuilderSettings) -> Self {
-        let mut builder = Self::new("irc.example.net");
+        let mut builder = Self::new("ircs://irc.example.net");
         builder.address.clone_from(&settings.address);
         builder.config = settings.config.clone();
         builder.tls = settings.tls.clone();
@@ -830,8 +830,8 @@ mod tests {
 
     #[test]
     fn clients_distinguish_same_named_channels() {
-        let (first, _, _) = Builder::new("irc.example.net").build();
-        let (second, _, _) = Builder::new("irc.example.net").build();
+        let (first, _, _) = Builder::new("ircs://irc.example.net").build();
+        let (second, _, _) = Builder::new("ircs://irc.example.net").build();
 
         assert_ne!(first.origin(), second.origin());
         let first_channel = first.state().channel_name("#papo");
@@ -843,8 +843,8 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn sends_reject_values_from_another_client() {
-        let (first, _, _) = Builder::new("irc.example.net").build();
-        let (second, _, _) = Builder::new("irc.example.net").build();
+        let (first, _, _) = Builder::new("ircs://irc.example.net").build();
+        let (second, _, _) = Builder::new("ircs://irc.example.net").build();
         let reference = (first.state().channel_name("#papo"), "RfcBTzyxY120004");
 
         assert!(matches!(
@@ -1140,8 +1140,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn enables_unstable_features_and_bouncer_selection_before_connecting() {
         let notify = "soju.im/bouncer-networks-notify";
-        let management =
-            Builder::new("ircs://irc.example.net").enable(crate::Feature::Bouncer);
+        let management = Builder::new("ircs://irc.example.net").enable(crate::Feature::Bouncer);
         assert!(
             management
                 .config
@@ -1178,7 +1177,7 @@ mod tests {
                     .any(|name| name == capability)
             );
         }
-        let opted_in = Builder::new("irc.example.net")
+        let opted_in = Builder::new("ircs://irc.example.net")
             .bouncer_network(crate::NetworkId::from("libera"))
             .request_caps([notify]);
         assert!(opted_in.config.wanted_caps.iter().any(|cap| cap == notify));
@@ -1560,6 +1559,11 @@ mod tests {
                 "accepted {input:?}"
             );
         }
+        let (_client, _events, driver) = crate::Client::builder("irc.example.net").build();
+        assert_eq!(
+            within(driver).await.unwrap_err().to_string(),
+            "server URL scheme is missing; use ircs:// for TLS"
+        );
     }
 
     #[test]

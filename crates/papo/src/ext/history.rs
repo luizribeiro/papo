@@ -1115,8 +1115,8 @@ mod tests {
 
     #[test]
     fn history_rejects_a_cursor_from_another_client() {
-        let (first, _, _) = crate::Client::builder("irc.example.net").build();
-        let (second, _, _) = crate::Client::builder("irc.example.net").build();
+        let (first, _, _) = crate::Client::builder("ircs://irc.example.net").build();
+        let (second, _, _) = crate::Client::builder("ircs://irc.example.net").build();
         let cursor = HistoryReference::new(
             MsgRef::Msgid("RfcBTzyxY120004".into()),
             Some(first.origin()),
@@ -1130,8 +1130,8 @@ mod tests {
 
     #[test]
     fn history_conversations_are_bound_to_their_client() {
-        let (first, _, _) = crate::Client::builder("irc.example.net").build();
-        let (second, _, _) = crate::Client::builder("irc.example.net").build();
+        let (first, _, _) = crate::Client::builder("ircs://irc.example.net").build();
+        let (second, _, _) = crate::Client::builder("ircs://irc.example.net").build();
         for conversation in [
             crate::Conversation::Channel(first.state().channel_name("#papo")),
             crate::Conversation::Private(first.state().nickname("emily")),
@@ -1146,8 +1146,8 @@ mod tests {
 
     #[test]
     fn history_results_report_their_origin_and_cannot_cross_clients() {
-        let (first, _, _) = crate::Client::builder("irc.example.net").build();
-        let (second, _, _) = crate::Client::builder("irc.example.net").build();
+        let (first, _, _) = crate::Client::builder("ircs://irc.example.net").build();
+        let (second, _, _) = crate::Client::builder("ircs://irc.example.net").build();
         let page = HistoryPage {
             conversation: crate::Conversation::Channel(first.state().channel_name("#papo")),
             items: Vec::new(),

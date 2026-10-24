@@ -35,6 +35,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 See the [ping bot](examples/ping-bot) for the complete example and its live-server test.
 
+String server URLs must start with `irc://`, `ircs://`, `ws://`, or `wss://`; bare hostnames are
+rejected. Use `ircs://` for IRC over TLS.
+
 SASL, WEBIRC, and account registration require `ircs://` or `wss://` by default. A server password
 on plaintext TCP is sent only after a valid IRC STS upgrade. Apps with another trusted transport
 layer must use `Builder::allow_insecure_auth(true)` to permit credentials without transport TLS.

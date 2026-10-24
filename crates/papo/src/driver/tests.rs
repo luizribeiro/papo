@@ -2548,7 +2548,7 @@ async fn stored_sts_policy_upgrades_the_connection_plan() {
         ),
     );
     let network_builder = Arc::new(std::sync::RwLock::new(
-        crate::Builder::new("").network_settings(true),
+        crate::Builder::new("ircs://irc.example.net").network_settings(true),
     ));
     let (client, _events, driver) = Driver::with_connector_and_timeout(
         Ok(ConnectionPlan {

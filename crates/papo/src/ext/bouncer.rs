@@ -35,7 +35,7 @@ impl Bouncer {
     /// [`crate::Error::InvalidInput`].
     pub fn network(&self, id: &NetworkId) -> crate::Builder {
         let Some(settings) = &self.client.network_builder else {
-            return crate::Builder::new("").bouncer_network(id.clone());
+            return crate::Builder::new("ircs://irc.example.net").bouncer_network(id.clone());
         };
         let settings = settings
             .read()

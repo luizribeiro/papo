@@ -238,6 +238,15 @@ fn rejects_every_forbidden_server_url_form_with_an_exact_error() {
     }
 }
 
+#[test]
+fn missing_scheme_error_suggests_a_secure_url() {
+    let error = "irc.oftc.net".parse::<ServerUrl>().unwrap_err();
+    assert_eq!(
+        error.to_string(),
+        "server URL scheme is missing; use ircs:// for TLS"
+    );
+}
+
 fn accepted_host() -> impl Strategy<Value = String> {
     prop_oneof![
         prop::collection::vec("[a-z][a-z0-9]{0,10}", 1..4).prop_map(|labels| labels.join(".")),

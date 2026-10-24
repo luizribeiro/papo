@@ -15,7 +15,7 @@ pub enum InvalidInput {
     #[error("unsupported scheme {0:?}")]
     UnsupportedScheme(String),
     /// The URL has no scheme separator.
-    #[error("server URL scheme is missing")]
+    #[error("server URL scheme is missing; use ircs:// for TLS")]
     MissingScheme,
     /// The URL has no host.
     #[error("server URL host is empty")]

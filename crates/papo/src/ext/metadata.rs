@@ -326,8 +326,8 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn metadata_rejects_a_foreign_target() {
-        let (first, _, _) = crate::Client::builder("irc.example.net").build();
-        let (second, _, _) = crate::Client::builder("irc.example.net").build();
+        let (first, _, _) = crate::Client::builder("ircs://irc.example.net").build();
+        let (second, _, _) = crate::Client::builder("ircs://irc.example.net").build();
         let channel = first.state().channel_name("#papo");
 
         assert!(matches!(

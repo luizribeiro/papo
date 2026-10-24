@@ -350,8 +350,8 @@ impl Client {
 
     /// Starts configuring a client for `endpoint`.
     ///
-    /// Strings accept hostnames and `irc://`, `ircs://`, `ws://`, and `wss://` URLs.
-    /// A bare hostname uses TLS on port 6697.
+    /// String endpoints must start with `irc://`, `ircs://`, `ws://`, or `wss://`.
+    /// Use `ircs://` for IRC over TLS; bare hostnames are rejected.
     ///
     /// ```
     /// let builder = papo::Client::builder("ircs://irc.example.net");
