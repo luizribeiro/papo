@@ -623,6 +623,30 @@ fn plain_monitor_presence_is_removed_after_offline() {
 }
 
 #[test]
+fn monitor_offline_retains_a_shared_user() {
+    registered()
+        .update(|session| session.monitor_add(["alice"]))
+        .client("MONITOR + alice")
+        .server(":papo!papo@127.0.0.1 JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "papo"))
+        .server(":alice!~alice@cloak.example JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "alice"))
+        .server(":ergo.test 730 papo :alice!~alice@cloak.example")
+        .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "alice"))
+        .server(":ergo.test 731 papo :alice")
+        .event(|event| matches!(event, Event::MonitorOffline { nick, .. } if nick == "alice"))
+        .inspect(|session| {
+            let alice = session.state().user("alice").unwrap();
+            assert_eq!(
+                alice.channels().map(AsRef::as_ref).collect::<Vec<_>>(),
+                ["#papo"]
+            );
+            assert_eq!(session.state().monitor_online().count(), 0);
+        })
+        .no_event();
+}
+
+#[test]
 fn reports_unsupported_monitor_only_once() {
     Transcript::new(Config::default())
         .update(|session| session.monitor_add(["alice"]))
