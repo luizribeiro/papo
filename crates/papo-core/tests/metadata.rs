@@ -71,6 +71,54 @@ fn quit_metadata_is_not_inherited_by_a_new_nick_holder() {
 }
 
 #[test]
+fn metadata_lifetime_tracks_channels_monitor_and_snapshot_identity() {
+    registered("max-subs=100,max-keys=100")
+        .server(":alice!~alice@users/alice JOIN #papo")
+        .server(":alice!~alice@users/alice JOIN #rust")
+        .server(":bob!~bob@users/bob JOIN #papo")
+        .server(":bob!~bob@users/bob JOIN #rust")
+        .server(":ergo.test 761 alice #papo topic-label * :Release planning")
+        .server(":ergo.test 761 alice bob display-name * :Bob Builder")
+        .server(":alice!~alice@users/alice PART #papo :Leaving")
+        .inspect(|session| {
+            assert!(session.state().metadata("#papo").is_none());
+            assert!(session.state().metadata("bob").is_some());
+        })
+        .server(":bob!~bob@users/bob PART #rust :Leaving")
+        .inspect(|session| assert!(session.state().metadata("bob").is_none()))
+        .ignore_rest();
+
+    registered("max-subs=100,max-keys=100")
+        .server(":ergo.test 005 alice MONITOR=100 :are supported")
+        .update(|session| session.monitor_add(["bob"]))
+        .client("MONITOR + bob")
+        .server(":alice!~alice@users/alice JOIN #papo")
+        .server(":bob!~bob@users/bob JOIN #papo")
+        .server(":ergo.test 761 alice bob avatar * :https://cdn.example.net/bob.png")
+        .server(":bob!~bob@users/bob PART #papo :Leaving")
+        .inspect(|session| assert!(session.state().metadata("bob").is_some()))
+        .ignore_rest();
+
+    registered("max-subs=100,max-keys=100")
+        .server(":ergo.test 761 alice alice display-name * :Alice Admin")
+        .server(":alice!~alice@users/alice NICK :alice-away")
+        .inspect(|session| {
+            assert!(session.state().metadata("alice").is_none());
+            assert!(session.state().metadata("alice-away").is_some());
+        })
+        .ignore_rest();
+
+    registered("max-subs=100,max-keys=100")
+        .server(":ergo.test 761 alice bob display-name * :Stale Snapshot")
+        .server(":bob!~bob@users/bob NICK :bob-away")
+        .inspect(|session| {
+            assert!(session.state().metadata("bob").is_none());
+            assert!(session.state().metadata("bob-away").is_none());
+        })
+        .ignore_rest();
+}
+
+#[test]
 fn requests_published_metadata_name_and_reads_known_limits() {
     Transcript::new(Config::default().wanted_caps([
         "draft/metadata-2",
