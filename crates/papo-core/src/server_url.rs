@@ -1,5 +1,115 @@
 use std::fmt;
 
+/// A transport scheme accepted in an IRC server URL.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[non_exhaustive]
+pub enum ServerUrlScheme {
+    /// Unencrypted IRC over TCP.
+    Irc,
+    /// IRC over TLS.
+    Ircs,
+    /// Unencrypted IRC over WebSocket.
+    Ws,
+    /// IRC over a TLS-protected WebSocket.
+    Wss,
+}
+
+impl ServerUrlScheme {
+    /// Returns the canonical lowercase spelling.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Irc => "irc",
+            Self::Ircs => "ircs",
+            Self::Ws => "ws",
+            Self::Wss => "wss",
+        }
+    }
+
+    /// Returns the scheme's default service port.
+    #[must_use]
+    pub const fn default_port(self) -> u16 {
+        match self {
+            Self::Irc => 6667,
+            Self::Ircs => 6697,
+            Self::Ws => 80,
+            Self::Wss => 443,
+        }
+    }
+
+    /// Reports whether this scheme permits a URL path.
+    #[must_use]
+    pub const fn permits_path(self) -> bool {
+        matches!(self, Self::Ws | Self::Wss)
+    }
+}
+
+impl fmt::Display for ServerUrlScheme {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}
+
+/// A validated IRC server URL.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct ServerUrl {
+    pub(crate) scheme: ServerUrlScheme,
+    pub(crate) host: String,
+    pub(crate) port: u16,
+    pub(crate) explicit_port: bool,
+    pub(crate) path: Option<String>,
+}
+
+impl ServerUrl {
+    /// Returns the transport scheme.
+    #[must_use]
+    pub const fn scheme(&self) -> ServerUrlScheme {
+        self.scheme
+    }
+
+    /// Returns the normalized host without IPv6 brackets.
+    #[must_use]
+    pub fn host(&self) -> &str {
+        &self.host
+    }
+
+    /// Returns the explicit or scheme-default port.
+    #[must_use]
+    pub const fn port(&self) -> u16 {
+        self.port
+    }
+
+    /// Reports whether the input included a port.
+    #[must_use]
+    pub const fn has_explicit_port(&self) -> bool {
+        self.explicit_port
+    }
+
+    /// Returns a WebSocket path when one was present.
+    #[must_use]
+    pub fn path(&self) -> Option<&str> {
+        self.path.as_deref()
+    }
+}
+
+impl fmt::Display for ServerUrl {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}://", self.scheme)?;
+        if self.host.contains(':') {
+            write!(formatter, "[{}]", self.host)?;
+        } else {
+            formatter.write_str(&self.host)?;
+        }
+        if self.explicit_port {
+            write!(formatter, ":{}", self.port)?;
+        }
+        if let Some(path) = &self.path {
+            formatter.write_str(path)?;
+        }
+        Ok(())
+    }
+}
+
 /// Why an IRC server URL could not be parsed.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
