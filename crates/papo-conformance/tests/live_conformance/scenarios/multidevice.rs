@@ -169,7 +169,10 @@ async fn multidevice_read_marker_fanout(s: Scenario) -> papo_testing::Result<()>
         })
         .await?;
     assert_eq!(marker.read_until, Some(time));
-    assert_eq!(phone.state().read_marker(&channel), Some(time));
+    assert_eq!(
+        phone.state().read_marker(&channel),
+        Some(papo::ReadMarker::ReadUntil(time))
+    );
     phone
         .expect_none(|event| {
             event

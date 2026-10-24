@@ -6,6 +6,16 @@ use papo_proto::{AccountName, Casemapping, ChannelName, Mask, Nick};
 
 use crate::Isupport;
 
+/// A read marker value reported by the server.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum ReadMarker {
+    /// The server reports no marker (`*`).
+    Unset,
+    /// Messages through this server time have been read.
+    ReadUntil(std::time::SystemTime),
+}
+
 /// An immutable snapshot of an IRC client's known state.
 ///
 /// A snapshot is at least as new as the last event delivered. Most changes can be applied from
@@ -271,12 +281,16 @@ impl State {
         self.core.bouncer_networks()
     }
 
-    /// Returns the newest read marker time reported for a conversation.
+    /// Returns the newest read marker value reported for a conversation.
+    ///
+    /// `None` means no marker has been fetched or received.
     #[must_use]
-    pub fn read_marker(&self, target: impl AsRef<str>) -> Option<std::time::SystemTime> {
-        self.core
-            .read_marker(target)
-            .and_then(|marker| marker.read_until)
+    pub fn read_marker(&self, target: impl AsRef<str>) -> Option<ReadMarker> {
+        self.core.read_marker(target).map(|marker| {
+            marker
+                .read_until
+                .map_or(ReadMarker::Unset, ReadMarker::ReadUntil)
+        })
     }
 
     /// Returns the most recently reported account persistence status.

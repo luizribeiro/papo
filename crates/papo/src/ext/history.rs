@@ -1040,7 +1040,7 @@ impl Client {
                 .map_err(|_| Error::connection_lost())?;
             let response = receiver.await.map_err(|_| Error::connection_lost())??;
             crate::requests::empty(&response)?;
-            Ok(client.state().read_marker(&target))
+            Ok(read_marker_time(client.state().read_marker(&target)))
         })
     }
 
@@ -1073,8 +1073,15 @@ impl Client {
                 .map_err(|_| Error::connection_lost())?;
             let response = receiver.await.map_err(|_| Error::connection_lost())??;
             crate::requests::empty(&response)?;
-            Ok(client.state().read_marker(&target))
+            Ok(read_marker_time(client.state().read_marker(&target)))
         })
+    }
+}
+
+fn read_marker_time(marker: Option<crate::ReadMarker>) -> Option<SystemTime> {
+    match marker {
+        Some(crate::ReadMarker::ReadUntil(time)) => Some(time),
+        Some(crate::ReadMarker::Unset) | None => None,
     }
 }
 
@@ -2035,6 +2042,7 @@ mod tests {
                 .await,
             Err(Error::InvalidInput(_))
         ));
+        assert_eq!(client.state().read_marker("#papo"), None);
         let channel = crate::Conversation::Channel(client.state().channel_name("#papo"));
         let request = tokio::spawn(async move { client.mark_read(channel, time).await });
         client_line(
@@ -2087,18 +2095,37 @@ mod tests {
         client_line(&mut server, b"@label=0 MARKREAD #papo\r\n").await;
         server_line(
             &mut server,
-            b"@label=0 :ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z\r\n",
+            b"@label=0 :ergo.test MARKREAD #papo timestamp=*\r\n",
         )
         .await;
-        let expected = UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000);
-        assert_eq!(within(request).await.unwrap().unwrap(), Some(expected));
-        assert_eq!(client.state().read_marker("#PAPO"), Some(expected));
+        assert_eq!(within(request).await.unwrap().unwrap(), None);
+        assert_eq!(
+            client.state().read_marker("#PAPO"),
+            Some(crate::ReadMarker::Unset)
+        );
 
-        let request = tokio::spawn(async move { client.fetch_read_marker("#papo").await });
+        let request = tokio::spawn({
+            let client = client.clone();
+            async move { client.fetch_read_marker("#papo").await }
+        });
         client_line(&mut server, b"@label=1 MARKREAD #papo\r\n").await;
         server_line(
             &mut server,
             b"@label=1 :ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z\r\n",
+        )
+        .await;
+        let expected = UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000);
+        assert_eq!(within(request).await.unwrap().unwrap(), Some(expected));
+        assert_eq!(
+            client.state().read_marker("#PAPO"),
+            Some(crate::ReadMarker::ReadUntil(expected))
+        );
+
+        let request = tokio::spawn(async move { client.fetch_read_marker("#papo").await });
+        client_line(&mut server, b"@label=2 MARKREAD #papo\r\n").await;
+        server_line(
+            &mut server,
+            b"@label=2 :ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z\r\n",
         )
         .await;
         assert_eq!(within(request).await.unwrap().unwrap(), Some(expected));

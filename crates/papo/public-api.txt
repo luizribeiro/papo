@@ -1685,6 +1685,25 @@ impl core::marker::Unpin for papo::MessageKind
 impl core::marker::UnsafeUnpin for papo::MessageKind
 impl core::panic::unwind_safe::RefUnwindSafe for papo::MessageKind
 impl core::panic::unwind_safe::UnwindSafe for papo::MessageKind
+#[non_exhaustive] pub enum papo::ReadMarker
+pub papo::ReadMarker::ReadUntil(std::time::SystemTime)
+pub papo::ReadMarker::Unset
+impl core::clone::Clone for papo::ReadMarker
+pub fn papo::ReadMarker::clone(&self) -> Self
+impl core::cmp::Eq for papo::ReadMarker
+impl core::cmp::PartialEq for papo::ReadMarker
+pub fn papo::ReadMarker::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::ReadMarker
+pub fn papo::ReadMarker::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo::ReadMarker
+impl core::marker::StructuralPartialEq for papo::ReadMarker
+impl core::marker::Freeze for papo::ReadMarker
+impl core::marker::Send for papo::ReadMarker
+impl core::marker::Sync for papo::ReadMarker
+impl core::marker::Unpin for papo::ReadMarker
+impl core::marker::UnsafeUnpin for papo::ReadMarker
+impl core::panic::unwind_safe::RefUnwindSafe for papo::ReadMarker
+impl core::panic::unwind_safe::UnwindSafe for papo::ReadMarker
 #[non_exhaustive] pub enum papo::Subject
 pub papo::Subject::Channel(papo::ChannelName)
 pub papo::Subject::User(papo::Nick)
@@ -2523,7 +2542,7 @@ pub fn papo::State::nick(&self) -> &papo::Nick
 pub fn papo::State::nickname(&self, impl core::convert::AsRef<str>) -> papo::Nick
 pub fn papo::State::parse_extban(&self, &papo::Mask) -> core::option::Option<papo::Extban>
 pub fn papo::State::parse_target(&self, &str) -> core::result::Result<(core::option::Option<alloc::vec::Vec<char>>, papo::Conversation), papo::InvalidInput>
-pub fn papo::State::read_marker(&self, impl core::convert::AsRef<str>) -> core::option::Option<std::time::SystemTime>
+pub fn papo::State::read_marker(&self, impl core::convert::AsRef<str>) -> core::option::Option<papo::ReadMarker>
 pub fn papo::State::realname(&self) -> &str
 pub fn papo::State::same_list_entry(&self, &papo::Mask, impl core::convert::AsRef<str>) -> bool
 pub fn papo::State::supports(&self, papo::Feature) -> bool

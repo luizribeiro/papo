@@ -349,12 +349,18 @@ async fn draft_read_marker(s: Scenario) -> papo_testing::Result<()> {
     alice.join(&channel).await?;
     let time = read_marker_time();
     assert_eq!(alice.mark_read(&channel, time).await?, Some(time));
-    assert_eq!(alice.state().read_marker(&channel), Some(time));
+    assert_eq!(
+        alice.state().read_marker(&channel),
+        Some(papo::ReadMarker::ReadUntil(time))
+    );
     assert_eq!(alice.fetch_read_marker(&channel).await?, Some(time));
 
     let older = time - Duration::from_secs(60);
     assert_eq!(alice.mark_read(&channel, older).await?, Some(time));
-    assert_eq!(alice.state().read_marker(&channel), Some(time));
+    assert_eq!(
+        alice.state().read_marker(&channel),
+        Some(papo::ReadMarker::ReadUntil(time))
+    );
     assert_eq!(alice.fetch_read_marker(&channel).await?, Some(time));
     Ok(())
 }
@@ -374,6 +380,10 @@ async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
         Some(channel.as_str())
     );
     assert_eq!(initial.read_until, None);
+    assert_eq!(
+        alice.state().read_marker(&channel),
+        Some(papo::ReadMarker::Unset)
+    );
 
     let time = read_marker_time();
     alice.mark_read(&channel, time).await?;
@@ -410,7 +420,10 @@ async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
         Some(channel.as_str())
     );
     assert_eq!(replayed.read_until, Some(time));
-    assert_eq!(phone.state().read_marker(&channel), Some(time));
+    assert_eq!(
+        phone.state().read_marker(&channel),
+        Some(papo::ReadMarker::ReadUntil(time))
+    );
     Ok(())
 }
 

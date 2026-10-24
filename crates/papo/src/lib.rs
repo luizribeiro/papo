@@ -245,7 +245,7 @@ pub use papo_proto::{
 };
 pub use reconnect::Reconnect;
 pub use requests::{ListEntry, ListFilter, WhoEntry, Whois, WhoisChannel};
-pub use state::State;
+pub use state::{ReadMarker, State};
 pub use target::Target;
 pub use webirc::WebIrc;
 
