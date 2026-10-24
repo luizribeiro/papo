@@ -3,6 +3,51 @@ use crate::{
 };
 
 /// Handle for upstream bouncer network management.
+///
+/// A control connection can discover networks and create separate device connections to one of
+/// them. Put [`crate::Builder::device`] on each network-bound builder returned by [`Self::network`],
+/// rather than on the control connection. Network names need not be unique, so applications that
+/// select by name must define how to resolve multiple matches.
+///
+/// ```no_run
+/// use papo::{Client, Feature, Sasl};
+///
+/// # async fn run() -> Result<(), Box<dyn std::error::Error>> {
+/// let (control, _control_events) = Client::builder("ircs://bouncer.example.net")
+///     .nick("alice")
+///     .sasl(Sasl::plain("alice", "correct horse battery staple"))
+///     .enable(Feature::Bouncer)
+///     .connect()
+///     .await?;
+///
+/// let networks = control.bouncer().networks().await?;
+/// let network = networks
+///     .iter()
+///     .find(|network| network.id == "libera")
+///     .or_else(|| {
+///         networks
+///             .iter()
+///             .find(|network| network.name.as_deref() == Some("Libera Chat"))
+///     })
+///     .expect("the requested network is configured");
+///
+/// let (_phone, _phone_events) = control
+///     .bouncer()
+///     .network(&network.id)
+///     .device("phone")
+///     .autojoin(["#papo"])
+///     .connect()
+///     .await?;
+/// let (_laptop, _laptop_events) = control
+///     .bouncer()
+///     .network(&network.id)
+///     .device("laptop")
+///     .autojoin(["#papo"])
+///     .connect()
+///     .await?;
+/// # Ok(())
+/// # }
+/// ```
 pub struct Bouncer {
     client: Client,
 }
