@@ -2274,8 +2274,8 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::StandardReply
 impl core::panic::unwind_safe::UnwindSafe for papo_core::StandardReply
 pub struct papo_core::State
 impl papo_core::State
-pub const fn papo_core::State::account(&self) -> &papo_core::Account
-pub const fn papo_core::State::away(&self) -> &papo_core::Away
+pub fn papo_core::State::account(&self) -> &papo_core::Account
+pub fn papo_core::State::away(&self) -> &papo_core::Away
 pub fn papo_core::State::bouncer_networks(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::BouncerNetwork>
 pub const fn papo_core::State::casemapping(&self) -> papo::Casemapping
 pub fn papo_core::State::channel(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::Channel>
