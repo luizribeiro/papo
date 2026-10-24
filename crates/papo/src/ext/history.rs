@@ -1058,7 +1058,8 @@ mod tests {
     use crate::Event as PageEvent;
 
     use super::{
-        ConversationInput, HistoryPage, HistoryReason, HistoryReference, history_item, reaction,
+        ConversationInput, HistoryPage, HistoryReason, HistoryReference, RecentConversation,
+        history_item, reaction,
     };
 
     fn core_item(message: &str) -> HistoryLine {
@@ -1125,6 +1126,47 @@ mod tests {
             second.history("#papo").before(cursor).query,
             Err(Error::InvalidInput(crate::InvalidInput::ForeignReference))
         ));
+    }
+
+    #[test]
+    fn history_conversations_are_bound_to_their_client() {
+        let (first, _, _) = crate::Client::builder("irc.example.net").build();
+        let (second, _, _) = crate::Client::builder("irc.example.net").build();
+        for conversation in [
+            crate::Conversation::Channel(first.state().channel_name("#papo")),
+            crate::Conversation::Private(first.state().nickname("emily")),
+        ] {
+            assert!(first.history(conversation.clone()).latest().query.is_ok());
+            assert!(matches!(
+                second.history(conversation).latest().query,
+                Err(Error::InvalidInput(crate::InvalidInput::ForeignReference))
+            ));
+        }
+    }
+
+    #[test]
+    fn history_results_report_their_origin_and_cannot_cross_clients() {
+        let (first, _, _) = crate::Client::builder("irc.example.net").build();
+        let (second, _, _) = crate::Client::builder("irc.example.net").build();
+        let page = HistoryPage {
+            conversation: crate::Conversation::Channel(first.state().channel_name("#papo")),
+            items: Vec::new(),
+            reason: HistoryReason::Requested,
+            end: false,
+        };
+        let recent = RecentConversation {
+            conversation: crate::Conversation::Private(first.state().nickname("emily")),
+            latest_server_time: UNIX_EPOCH,
+        };
+
+        assert_eq!(page.origin(), first.origin());
+        assert_eq!(recent.origin(), first.origin());
+        for conversation in [page.conversation, recent.conversation] {
+            assert!(matches!(
+                second.history(conversation).latest().query,
+                Err(Error::InvalidInput(crate::InvalidInput::ForeignReference))
+            ));
+        }
     }
 
     #[test]
