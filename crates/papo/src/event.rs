@@ -803,15 +803,16 @@ impl ServerNotice {
         let Some(raw_text) = message.param(usize::from(!wallops)) else {
             return Err(raw);
         };
+        let origin = crate::message_ref::conversation_origin(&conversation);
         let to = if wallops || message.param(0) == Some("*") {
             ServerNoticeTarget::All
         } else if let Some(target) = message.param(0).filter(|target| target.starts_with('$')) {
-            ServerNoticeTarget::Mask(isupport.casemapping().mask(target))
+            ServerNoticeTarget::Mask(origin.__mask(isupport.casemapping(), target))
         } else if let Some(target) = message
             .param(0)
             .filter(|target| isupport.is_channel(target))
         {
-            ServerNoticeTarget::Channel(isupport.casemapping().channel(target))
+            ServerNoticeTarget::Channel(origin.__channel(isupport.casemapping(), target))
         } else {
             ServerNoticeTarget::Me
         };
@@ -1023,7 +1024,7 @@ fn message_metadata(
     let reply_to = tag_owned(message, &["+reply", "+draft/reply"]).map(MessageId::from);
     #[cfg(feature = "unstable")]
     let relayed_by = tag_owned(message, &[crate::cap::RELAYMSG.as_str()])
-        .map(|nick| isupport.casemapping().nick(nick));
+        .map(|nick| origin.__nick(isupport.casemapping(), nick));
     let oper_tag = message.tags().find(|(key, _)| *key == "draft/oper");
     Some(MessageMetadata {
         actor,
@@ -1129,6 +1130,7 @@ pub(crate) fn joined_from_line(
 fn core_envelope(
     envelope: &papo_core::LineEnvelope,
     casemapping: Casemapping,
+    origin: crate::Origin,
     account_tag_enabled: bool,
     received_at: SystemTime,
 ) -> EventEnvelope {
@@ -1144,7 +1146,7 @@ fn core_envelope(
                     Account::Unknown
                 }
             },
-            |account| Account::LoggedIn(casemapping.account(account)),
+            |account| Account::LoggedIn(origin.__account(casemapping, account)),
         ),
     }
 }
@@ -1474,11 +1476,19 @@ pub(crate) enum CoreEvent {
 pub(crate) fn from_core(
     event: papo_core::Event,
     casemapping: Casemapping,
+    origin: crate::Origin,
     account_tag_enabled: bool,
     received_at: SystemTime,
 ) -> CoreEvent {
-    let map_envelope =
-        |envelope| core_envelope(envelope, casemapping, account_tag_enabled, received_at);
+    let map_envelope = |envelope| {
+        core_envelope(
+            envelope,
+            casemapping,
+            origin,
+            account_tag_enabled,
+            received_at,
+        )
+    };
     CoreEvent::Forward(match event {
         papo_core::Event::Connected(welcome) => return CoreEvent::Connected(welcome),
         papo_core::Event::Motd { lines, .. } => Event::Motd(Motd { lines }),
@@ -1490,7 +1500,7 @@ pub(crate) fn from_core(
         }
         papo_core::Event::MultilineMessage(message) => return CoreEvent::Line(message.message),
         papo_core::Event::TypingChanged(change) => Event::TypingChanged(TypingChanged {
-            actor: source::from_prefix(change.actor, casemapping),
+            actor: source::from_prefix(change.actor, casemapping, origin),
             authorship: Authorship::from_core(change.authorship),
             conversation: change.conversation,
             status: change.status,
@@ -1500,7 +1510,7 @@ pub(crate) fn from_core(
         papo_core::Event::TagMessage(message) => {
             let envelope = map_envelope(&message.envelope);
             let tag = TagMsg {
-                actor: source::from_prefix(message.actor, casemapping),
+                actor: source::from_prefix(message.actor, casemapping, origin),
                 authorship: Authorship::from_core(message.authorship),
                 conversation: message.conversation,
                 status: message.status,
@@ -1558,7 +1568,7 @@ pub(crate) fn from_core(
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 account: envelope.account,
-                actor: source::from_prefix(redacted.actor, casemapping),
+                actor: source::from_prefix(redacted.actor, casemapping, origin),
                 authorship: Authorship::from_core(redacted.authorship),
                 conversation: redacted.conversation,
                 status: redacted.status,
@@ -1681,7 +1691,7 @@ pub(crate) fn from_core(
             ..
         } => {
             let envelope = map_envelope(&envelope);
-            let actor = source::from_prefix(actor, channel.casemapping());
+            let actor = source::from_prefix(actor, channel.casemapping(), origin);
             Event::Joined(Joined {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
@@ -1716,7 +1726,7 @@ pub(crate) fn from_core(
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 account: envelope.account,
-                actor: source::from_prefix(actor, casemapping),
+                actor: source::from_prefix(actor, casemapping, origin),
                 channel,
                 nick,
                 reason,
@@ -1741,7 +1751,7 @@ pub(crate) fn from_core(
                 account: envelope.account,
                 channel,
                 subject,
-                actor: source::from_name(&actor, casemapping),
+                actor: source::from_name(&actor, casemapping, origin),
                 authorship: Authorship::from_core(authorship),
                 subject_authorship: Authorship::from_core(subject_authorship),
                 reason,
@@ -1757,7 +1767,7 @@ pub(crate) fn from_core(
         } => Event::Invited(Invited {
             channel,
             subject,
-            actor: source::from_prefix(actor, casemapping),
+            actor: source::from_prefix(actor, casemapping, origin),
             authorship: Authorship::from_core(authorship),
             subject_authorship: Authorship::from_core(subject_authorship),
         }),
@@ -1777,7 +1787,7 @@ pub(crate) fn from_core(
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 account: envelope.account,
-                actor: source::from_prefix(actor, casemapping),
+                actor: source::from_prefix(actor, casemapping, origin),
                 nick,
                 reason,
                 channels,
@@ -1799,7 +1809,7 @@ pub(crate) fn from_core(
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 account: envelope.account,
-                actor: source::from_prefix(actor, casemapping),
+                actor: source::from_prefix(actor, casemapping, origin),
                 old,
                 new,
                 authorship: Authorship::from_core(authorship),
@@ -1815,7 +1825,7 @@ pub(crate) fn from_core(
         } => Event::ChannelRenamed(ChannelRenamed {
             old,
             new,
-            actor: source::from_prefix(actor, casemapping),
+            actor: source::from_prefix(actor, casemapping, origin),
             authorship: Authorship::from_core(authorship),
             reason,
         }),
@@ -1825,7 +1835,7 @@ pub(crate) fn from_core(
             account,
             ..
         } => Event::AccountChanged(AccountChanged {
-            actor: source::from_prefix(actor, casemapping),
+            actor: source::from_prefix(actor, casemapping, origin),
             nick,
             account: match account {
                 Account::LoggedIn(account) => Some(account),
@@ -1835,7 +1845,7 @@ pub(crate) fn from_core(
         papo_core::Event::AwayChanged {
             actor, nick, away, ..
         } => Event::AwayChanged(AwayChanged {
-            actor: source::from_prefix(actor, casemapping),
+            actor: source::from_prefix(actor, casemapping, origin),
             nick,
             away,
         }),
@@ -1846,7 +1856,7 @@ pub(crate) fn from_core(
             host,
             ..
         } => Event::HostChanged(HostChanged {
-            actor: source::from_prefix(actor, casemapping),
+            actor: source::from_prefix(actor, casemapping, origin),
             nick,
             username,
             host,
@@ -1857,7 +1867,7 @@ pub(crate) fn from_core(
             realname,
             ..
         } => Event::RealnameChanged(RealnameChanged {
-            actor: source::from_prefix(actor, casemapping),
+            actor: source::from_prefix(actor, casemapping, origin),
             nick,
             realname,
         }),
@@ -1881,7 +1891,7 @@ pub(crate) fn from_core(
                     papo_core::Subject::User(nick) => crate::Subject::User(nick),
                     _ => return CoreEvent::Unknown,
                 },
-                actor: source::from_name(&actor, casemapping),
+                actor: source::from_name(&actor, casemapping, origin),
                 authorship: Authorship::from_core(authorship),
                 subject_authorship: Authorship::from_core(subject_authorship),
                 changes,
@@ -1903,7 +1913,7 @@ pub(crate) fn from_core(
                 account: envelope.account,
                 channel,
                 topic,
-                actor: source::from_name(&actor, casemapping),
+                actor: source::from_name(&actor, casemapping, origin),
                 authorship: Authorship::from_core(authorship),
             })
         }
@@ -1969,7 +1979,13 @@ mod tests {
     use papo_proto::{Casemapping, Isupport, Line, LineRef, Typing};
 
     fn from_core(event: papo_core::Event) -> CoreEvent {
-        from_core_with_mapping(event, Casemapping::default(), false, UNIX_EPOCH)
+        from_core_with_mapping(
+            event,
+            Casemapping::default(),
+            crate::Origin::NONE,
+            false,
+            UNIX_EPOCH,
+        )
     }
 
     fn assert_event_times(
@@ -2534,6 +2550,7 @@ mod tests {
             match from_core_with_mapping(
                 core,
                 session.isupport().casemapping(),
+                crate::Origin::NONE,
                 session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
                 received_at,
             ) {
@@ -2690,9 +2707,13 @@ mod tests {
         assert!(matches!(route(Authorship::Other), Event::Message(_)));
     }
     fn forwarded(event: papo_core::Event) -> Event {
-        let CoreEvent::Forward(event) =
-            from_core_with_mapping(event, Casemapping::default(), true, UNIX_EPOCH)
-        else {
+        let CoreEvent::Forward(event) = from_core_with_mapping(
+            event,
+            Casemapping::default(),
+            crate::Origin::NONE,
+            true,
+            UNIX_EPOCH,
+        ) else {
             panic!("event was not forwarded")
         };
         event
@@ -2754,6 +2775,7 @@ mod tests {
                 None,
             ),
             Casemapping::Rfc1459,
+            crate::Origin::NONE,
             false,
             UNIX_EPOCH,
         ) else {
@@ -2771,6 +2793,48 @@ mod tests {
     }
 
     #[test]
+    fn forwarded_event_payloads_keep_the_client_origin() {
+        let origin = crate::Origin::__new(73);
+        let mut config = Config::default();
+        config.origin = origin;
+        let mut session = Session::new(config);
+        session.handle_line(
+            Instant::now(),
+            b"@account=alice :alice!~a@cloak.example JOIN #papo * :Alice",
+        );
+        let CoreEvent::Forward(Event::Joined(joined)) = from_core_with_mapping(
+            session.poll_event().expect("join event"),
+            Casemapping::default(),
+            origin,
+            true,
+            UNIX_EPOCH,
+        ) else {
+            panic!("join was not forwarded");
+        };
+
+        assert_eq!(joined.channel.origin(), origin);
+        assert_eq!(joined.nick.origin(), origin);
+        assert_eq!(
+            joined.actor.nick().map(papo_proto::Nick::origin),
+            Some(origin)
+        );
+        session.handle_line(
+            Instant::now(),
+            b"@account=alice :alice!~a@cloak.example PART #papo :deploying",
+        );
+        let CoreEvent::Forward(Event::Parted(parted)) = from_core_with_mapping(
+            session.poll_event().expect("part event"),
+            Casemapping::default(),
+            origin,
+            true,
+            UNIX_EPOCH,
+        ) else {
+            panic!("part was not forwarded");
+        };
+        assert!(matches!(parted.account, Account::LoggedIn(account) if account.origin() == origin));
+    }
+
+    #[test]
     fn queued_event_keeps_authorship_across_a_nick_change() {
         let now = Instant::now();
         let mut session = Session::new(Config::default().nick("papo"));
@@ -2780,6 +2844,7 @@ mod tests {
         let CoreEvent::Forward(Event::Joined(joined)) = from_core_with_mapping(
             session.poll_event().unwrap(),
             Casemapping::Rfc1459,
+            crate::Origin::NONE,
             false,
             UNIX_EPOCH,
         ) else {
@@ -2788,6 +2853,7 @@ mod tests {
         let CoreEvent::Forward(Event::NickChanged(changed)) = from_core_with_mapping(
             session.poll_event().unwrap(),
             Casemapping::Rfc1459,
+            crate::Origin::NONE,
             false,
             UNIX_EPOCH,
         ) else {
@@ -3179,6 +3245,7 @@ mod tests {
         let mapped = from_core_with_mapping(
             session.poll_event().expect("join event"),
             Casemapping::default(),
+            crate::Origin::NONE,
             false,
             received_at,
         );
