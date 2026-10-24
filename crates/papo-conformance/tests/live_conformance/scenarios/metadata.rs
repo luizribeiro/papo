@@ -91,7 +91,10 @@ async fn metadata_subscriptions(s: Scenario) -> papo_testing::Result<()> {
             })
         })
         .await?;
-    assert_eq!(alice_change, bob_change);
+    assert_eq!(subject_name(&alice_change.subject), alice_nick.as_ref());
+    assert_eq!(alice_change.key, bob_change.key);
+    assert_eq!(alice_change.value, bob_change.value);
+    assert_eq!(alice_change.visibility, bob_change.visibility);
     assert_eq!(bob_change.value.as_deref(), Some("available"));
     assert_eq!(bob_change.visibility, Visibility::Public);
     let bob_state = bob.state();
@@ -146,7 +149,10 @@ async fn channel_metadata(s: Scenario) -> papo_testing::Result<()> {
             })
         })
         .await?;
-    assert_eq!(charlie_change, bob_change);
+    assert_eq!(subject_name(&charlie_change.subject), channel);
+    assert_eq!(charlie_change.key, bob_change.key);
+    assert_eq!(charlie_change.value, bob_change.value);
+    assert_eq!(charlie_change.visibility, bob_change.visibility);
     for peer in [&alice, &bob, &charlie] {
         let state = peer.state();
         let values = state
@@ -173,7 +179,7 @@ async fn metadata_error(s: Scenario) -> papo_testing::Result<()> {
 
     let error = bob
         .metadata()
-        .set_on(alice.state().nick().clone(), key, "x")
+        .set_on(alice.state().nick().as_ref(), key, "x")
         .await
         .expect_err("a client cannot write another client's metadata");
     let papo::Error::Server(error) = error else {
