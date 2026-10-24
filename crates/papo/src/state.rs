@@ -301,6 +301,9 @@ impl State {
     }
 
     /// Returns cached metadata for a user or channel.
+    ///
+    /// User metadata fetched without a shared channel or `MONITOR` relationship is a snapshot.
+    /// It is discarded when a visible `NICK` or `QUIT` invalidates that identity.
     #[must_use]
     pub fn metadata(
         &self,

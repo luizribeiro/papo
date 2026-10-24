@@ -41,6 +41,36 @@ fn assert_cached_visibility(session: &papo_core::Session) {
 }
 
 #[test]
+fn user_metadata_follows_a_shared_nick_change() {
+    registered("max-subs=100,max-keys=100")
+        .server(":alice!~alice@users/alice JOIN #papo")
+        .server(":bob!~bob@users/bob JOIN #papo")
+        .server(":ergo.test 761 alice bob display-name * :Bob Admin")
+        .server(":bob!~bob@users/bob NICK :bob-away")
+        .inspect(|session| {
+            assert!(session.state().metadata("bob").is_none());
+            assert_eq!(
+                session.state().metadata("bob-away").unwrap()["display-name"].value,
+                "Bob Admin"
+            );
+        })
+        .ignore_rest();
+}
+
+#[test]
+fn quit_metadata_is_not_inherited_by_a_new_nick_holder() {
+    registered("max-subs=100,max-keys=100")
+        .server(":alice!~alice@users/alice JOIN #papo")
+        .server(":bob!~bob@users/bob JOIN #papo")
+        .server(":mallory!~mallory@users/mallory JOIN #papo")
+        .server(":ergo.test 761 alice bob avatar * :https://cdn.example.net/bob.png")
+        .server(":bob!~bob@users/bob QUIT :Client exited")
+        .server(":mallory!~mallory@users/mallory NICK :bob")
+        .inspect(|session| assert!(session.state().metadata("bob").is_none()))
+        .ignore_rest();
+}
+
+#[test]
 fn requests_published_metadata_name_and_reads_known_limits() {
     Transcript::new(Config::default().wanted_caps([
         "draft/metadata-2",

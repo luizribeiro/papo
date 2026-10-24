@@ -34,6 +34,9 @@ impl State {
             authorship,
             netsplit: None,
         });
+        if !self.is_monitored(nick) {
+            self.remove_metadata(nick);
+        }
         if ours {
             self.channels.clear();
             self.users.clear();
@@ -221,6 +224,7 @@ impl State {
 
     pub(super) fn remove_channel(&mut self, name: &str) {
         let key = self.casemapping.channel(name);
+        self.remove_metadata(name);
         self.who_sweeps.remove(&key);
         let Some(channel) = self.channels.remove(&key) else {
             return;
@@ -229,6 +233,15 @@ impl State {
             if let Some(user) = self.users.get_mut(member) {
                 user.channels.remove(&key);
             }
+        }
+        let orphaned: Vec<_> = self
+            .users
+            .values()
+            .filter(|user| user.channels.is_empty() && !self.is_monitored(&user.nick))
+            .map(|user| user.nick.clone())
+            .collect();
+        for nick in orphaned {
+            self.remove_metadata(&nick);
         }
         self.users
             .retain(|_, user| user.monitored || !user.channels.is_empty());
@@ -245,6 +258,14 @@ impl State {
             if user.channels.is_empty() && !user.monitored {
                 self.users.remove(&nick);
             }
+        }
+        if self
+            .users
+            .get(&nick)
+            .is_none_or(|user| user.channels.is_empty())
+            && !self.is_monitored(&nick)
+        {
+            self.remove_metadata(&nick);
         }
     }
 
@@ -276,5 +297,10 @@ impl State {
             }
         }
         self.users.insert(new_key, user);
+    }
+
+    pub(super) fn is_monitored(&self, nick: &str) -> bool {
+        let key = self.casemapping.nick(nick);
+        self.monitored.contains(&key)
     }
 }

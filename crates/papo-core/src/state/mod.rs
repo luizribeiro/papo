@@ -677,6 +677,14 @@ impl State {
                 Authorship::Other
             };
             self.record_departure(nick, Some(new_nick));
+            if crate::names_equal(mapping, nick, &self.nick)
+                || self.user(nick).is_some()
+                || self.is_monitored(nick)
+            {
+                self.rename_metadata(nick, new_nick);
+            } else {
+                self.remove_metadata(nick);
+            }
             self.rename_user(nick, new_nick);
             if crate::names_equal(mapping, nick, &self.nick) {
                 self.nick = mapping.nick(new_nick);
@@ -1153,6 +1161,9 @@ impl State {
     }
 
     /// Returns cached metadata using the server's current casemapping.
+    ///
+    /// User metadata fetched without a shared channel or `MONITOR` relationship is a snapshot.
+    /// It is discarded when a visible `NICK` or `QUIT` invalidates that identity.
     #[must_use]
     pub fn metadata(
         &self,

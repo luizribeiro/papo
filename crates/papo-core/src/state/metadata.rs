@@ -5,6 +5,19 @@ use super::{
 use crate::Visibility;
 
 impl State {
+    pub(super) fn remove_metadata(&mut self, target: &str) {
+        self.metadata
+            .remove(&NameKey::new(target, self.casemapping));
+    }
+
+    pub(super) fn rename_metadata(&mut self, old_target: &str, new_target: &str) {
+        let old_key = NameKey::new(old_target, self.casemapping);
+        if let Some(values) = self.metadata.remove(&old_key) {
+            self.metadata
+                .insert(NameKey::new(new_target, self.casemapping), values);
+        }
+    }
+
     pub(super) fn handle_metadata(
         &mut self,
         message: &LineRef<'_>,
