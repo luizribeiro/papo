@@ -84,6 +84,7 @@ ids = [
   "security.ctcp.live-only", "security.ctcp.private-target-only",
   "security.history.unknown-batch-isolation",
   "security.origin.cross-client-wire", "security.origin.bound-client-wire",
+  "security.bouncer.required-capability", "security.bouncer.binding-confirmation",
   "regression.history.expired-label-deduplicated",
   "regression.labeled-response.late-live",
   "regression.multiline.oversized-live",

@@ -2,6 +2,12 @@
 "security::cross_client_values_never_reach_either_wire" = [
   "security.origin.cross-client-wire",
 ]
+"security::selected_bouncer_network_requires_its_capability" = [
+  "security.bouncer.required-capability",
+]
+"security::selected_bouncer_network_requires_matching_isupport" = [
+  "security.bouncer.binding-confirmation",
+]
 "security::scram_success_requires_verified_server_proof" = [
   "security.sasl.verified-proof-before-success",
 ]

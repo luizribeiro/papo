@@ -21,6 +21,84 @@ fn is_foreign<T>(result: &Result<T, papo::Error>) -> bool {
     )
 }
 
+async fn next_binding_disconnect(events: &mut Events) -> Disconnected {
+    loop {
+        match events.next().await {
+            Some(papo::Event::Disconnected(disconnected)) => return disconnected,
+            Some(papo::Event::Connected(_)) => panic!("unverified bouncer binding connected"),
+            Some(_) => {}
+            None => panic!("driver stopped without a disconnection event"),
+        }
+    }
+}
+
+fn disconnect_diagnostic(disconnected: &Disconnected) -> String {
+    match &disconnected.cause {
+        DisconnectCause::Connect(error) => {
+            std::error::Error::source(error).map_or_else(|| error.to_string(), ToString::to_string)
+        }
+        DisconnectCause::Protocol { message, .. } => message.clone(),
+        other => other.to_string(),
+    }
+}
+
+async fn begin_bound_registration(wire: &mut Wire, network: &str) {
+    assert_eq!(wire.next_sent().await, "CAP LS 302");
+    assert_eq!(wire.next_sent().await, "NICK papo-bound");
+    assert_eq!(wire.next_sent().await, "USER papo-bound 0 * papo-bound");
+    wire.server(":soju.example CAP * LS :soju.im/bouncer-networks")
+        .await;
+    assert_eq!(wire.next_sent().await, "CAP REQ :soju.im/bouncer-networks");
+    wire.server(":soju.example CAP * ACK :soju.im/bouncer-networks")
+        .await;
+    assert_eq!(wire.next_sent().await, format!("BOUNCER BIND {network}"));
+    assert_eq!(wire.next_sent().await, "CAP END");
+}
+
+fn bound_builder(network: &str) -> papo::Builder {
+    papo::Client::builder("irc://soju.offline.test")
+        .nick("papo-bound")
+        .rate_limit(papo::RateLimit::unlimited())
+        .bouncer_network(papo::NetworkId::from(network))
+}
+
+#[tokio::test]
+async fn selected_bouncer_network_requires_its_capability() {
+    let (_client, mut events, mut wire) = wire(bound_builder("libera-42"));
+    assert_eq!(wire.next_sent().await, "CAP LS 302");
+    assert_eq!(wire.next_sent().await, "NICK papo-bound");
+    assert_eq!(wire.next_sent().await, "USER papo-bound 0 * papo-bound");
+    wire.server(":irc.example CAP * LS :").await;
+
+    let disconnected = next_binding_disconnect(&mut events).await;
+    assert!(disconnected.reconnect_in.is_none());
+    assert!(disconnect_diagnostic(&disconnected).contains("soju.im/bouncer-networks"));
+    assert_eq!(wire.next_sent_or_closed().await, None);
+}
+
+#[tokio::test]
+async fn selected_bouncer_network_requires_matching_isupport() {
+    for isupport in [
+        "CASEMAPPING=rfc1459",
+        "CASEMAPPING=rfc1459 BOUNCER_NETID=oftc-17",
+    ] {
+        let (_client, mut events, mut wire) = wire(bound_builder("libera-42"));
+        begin_bound_registration(&mut wire, "libera-42").await;
+        wire.server(":soju.example 001 papo-bound :Welcome to soju")
+            .await;
+        wire.server(format!(
+            ":soju.example 005 papo-bound {isupport} :are supported"
+        ))
+        .await;
+        wire.server(":soju.example 422 papo-bound :MOTD File is missing")
+            .await;
+
+        let disconnected = next_binding_disconnect(&mut events).await;
+        assert!(disconnected.reconnect_in.is_none());
+        assert!(disconnect_diagnostic(&disconnected).contains("selected network ID"));
+    }
+}
+
 #[tokio::test]
 async fn cross_client_values_never_reach_either_wire() {
     let (first, _first_events, mut first_wire) = wire(
