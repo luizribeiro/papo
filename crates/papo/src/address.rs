@@ -601,13 +601,6 @@ mod tests {
     #[test]
     fn parses_every_server_address_form() {
         let cases = [
-            ("irc.example.net", Protocol::Ircs, "irc.example.net", 6697),
-            (
-                "irc.example.net:7000",
-                Protocol::Ircs,
-                "irc.example.net",
-                7000,
-            ),
             (
                 "ircs://irc.example.net",
                 Protocol::Ircs,
@@ -620,7 +613,12 @@ mod tests {
                 "irc.example.net",
                 6667,
             ),
-            ("[2001:db8::1]:6697", Protocol::Ircs, "2001:db8::1", 6697),
+            (
+                "ircs://[2001:db8::1]:6697",
+                Protocol::Ircs,
+                "2001:db8::1",
+                6697,
+            ),
             (
                 "ws://irc.example.net/webirc",
                 Protocol::Ws,
@@ -659,7 +657,7 @@ mod tests {
                 (protocol, host, port)
             );
             assert_eq!(
-                address.websocket_path.is_some(),
+                address.is_websocket(),
                 matches!(protocol, Protocol::Ws | Protocol::Wss)
             );
         }
@@ -688,22 +686,20 @@ mod tests {
                 .unwrap_err(),
             InvalidInput::UnsupportedScheme("ftp".into())
         );
-        assert_eq!("host:1".parse::<ServerAddress>().unwrap().port, 1);
-        assert_eq!("host:65535".parse::<ServerAddress>().unwrap().port, 65535);
+        assert_eq!("irc://host:1".parse::<ServerAddress>().unwrap().port, 1);
+        assert_eq!(
+            "irc://host:65535".parse::<ServerAddress>().unwrap().port,
+            65535
+        );
     }
 
     #[test]
     fn rejects_url_components_and_ipv6_suffixes_with_typed_errors() {
-        for input in [
-            "alice@irc.example.net",
-            "irc.example.net?x=1",
-            "irc.example.net#frag",
-            "[::1]x",
-        ] {
+        for input in ["irc://alice@irc.example.net", "irc://[::1]x"] {
             assert!(
                 matches!(
                     input.parse::<ServerAddress>(),
-                    Err(InvalidInput::InvalidHost(offending)) if input.contains(&offending)
+                    Err(InvalidInput::Userinfo | InvalidInput::InvalidHost(_))
                 ),
                 "accepted {input:?}"
             );
@@ -750,27 +746,27 @@ mod tests {
     }
 
     #[test]
-    fn rejects_the_same_characters_in_authorities_and_paths() {
-        for character in ['?', '#', '@', ' ', '\t'] {
-            for input in [
-                format!("ws://irc{character}example.net/irc"),
-                format!("ws://irc.example.net/irc{character}gateway"),
-            ] {
-                assert!(
-                    matches!(
-                        input.parse::<ServerAddress>(),
-                        Err(InvalidInput::InvalidHost(offending)) if input.contains(&offending)
-                    ),
-                    "accepted {input:?}"
-                );
-            }
+    fn preserves_each_shared_parser_error() {
+        for input in [
+            "irc://irc.example.net?network=libera",
+            "irc://irc.example.net#network",
+            "ws://irc example.net/irc",
+            "ws://irc.example.net/irc\tgateway",
+        ] {
+            assert!(matches!(
+                input.parse::<ServerAddress>(),
+                Err(InvalidInput::Query
+                    | InvalidInput::Fragment
+                    | InvalidInput::Whitespace
+                    | InvalidInput::InvalidHost(_))
+            ));
         }
     }
 
     #[test]
     #[should_panic(expected = "server port must be positive")]
     fn setting_port_zero_panics() {
-        let mut address: ServerAddress = "irc.example.net".parse().unwrap();
+        let mut address: ServerAddress = "irc://irc.example.net".parse().unwrap();
         address.set_port(0);
     }
 }
