@@ -1566,6 +1566,93 @@ mod tests {
         );
     }
 
+    #[tokio::test(flavor = "current_thread")]
+    async fn public_builder_maps_each_server_url_error_exactly() {
+        let cases = [
+            ("", InvalidInput::EmptyAddress, "server address is empty"),
+            (
+                "irc://",
+                InvalidInput::EmptyHost,
+                "server URL host is empty",
+            ),
+            (
+                "irc://alice:secret@irc.oftc.net",
+                InvalidInput::Userinfo,
+                "server URL cannot contain user information",
+            ),
+            (
+                "irc://irc.oftc.net?network=oftc",
+                InvalidInput::Query,
+                "server URL cannot contain a query",
+            ),
+            (
+                "irc://irc.oftc.net#support",
+                InvalidInput::Fragment,
+                "server URL cannot contain a fragment",
+            ),
+            (
+                "irc://irc.oftc.net /support",
+                InvalidInput::Whitespace,
+                "server URL cannot contain whitespace",
+            ),
+            (
+                "irc://irc.oftc.net\u{7f}",
+                InvalidInput::ControlCharacter,
+                "server URL cannot contain control characters",
+            ),
+            (
+                "irc://irc%2Eoftc.net",
+                InvalidInput::PercentEncoding,
+                "server URL cannot contain percent-encoding",
+            ),
+            (
+                "irc://irc.réseau.example",
+                InvalidInput::NonAsciiHost("irc.réseau.example".into()),
+                "non-ASCII server host \"irc.réseau.example\"; use its punycode xn-- form",
+            ),
+            (
+                "irc://irc.oftc.net.",
+                InvalidInput::TrailingDot("irc.oftc.net.".into()),
+                "server host \"irc.oftc.net.\" has a trailing dot",
+            ),
+            (
+                "irc://[fe80::1%25eth0]",
+                InvalidInput::ZoneIdentifier("fe80::1%25eth0".into()),
+                "IPv6 zone identifiers are not supported in \"fe80::1%25eth0\"",
+            ),
+            (
+                "irc://2001:db8::6697",
+                InvalidInput::UnbracketedIpv6("2001:db8::6697".into()),
+                "IPv6 literal \"2001:db8::6697\" must be enclosed in brackets",
+            ),
+            (
+                "irc://[2001:db8::support]",
+                InvalidInput::InvalidHost("2001:db8::support".into()),
+                "invalid server host \"2001:db8::support\"",
+            ),
+            (
+                "ircs://irc.oftc.net:70000",
+                InvalidInput::InvalidPort("70000".into()),
+                "invalid service port \"70000\"",
+            ),
+            (
+                "ircs://irc.oftc.net/support",
+                InvalidInput::UnexpectedPath("/support".into()),
+                "IRC server address cannot contain path \"/support\"",
+            ),
+        ];
+
+        for (input, expected, message) in cases {
+            let (_client, _events, driver) = crate::Client::builder(input).build();
+            let error = within(driver).await.unwrap_err();
+            let Error::InvalidInput(actual) = error else {
+                panic!("wrong error kind for {input:?}: {error:?}");
+            };
+            assert_eq!(actual, expected, "wrong error for {input:?}");
+            assert_eq!(actual.to_string(), message, "wrong message for {input:?}");
+        }
+    }
+
     #[test]
     fn public_builder_accepts_owned_and_borrowed_server_addresses() {
         for (builder, protocol, port) in [
