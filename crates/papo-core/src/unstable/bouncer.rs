@@ -9,7 +9,10 @@ use papo_proto::{Line, LineRef, Nick, Param};
 use web_time::Instant;
 use zeroize::{Zeroize, Zeroizing};
 
-use crate::{Feature, RequestError, RequestId, Secret, Session};
+use crate::{
+    Feature, RequestError, RequestId, Secret, Session,
+    server_url::{InvalidServerUrl, ServerUrl, ServerUrlScheme},
+};
 
 /// Stable identifier assigned to a network by a bouncer.
 ///
@@ -125,6 +128,8 @@ pub enum InvalidNetworkUrl {
     InvalidPort(String),
     /// The URL contains a path.
     UnexpectedPath(String),
+    /// The shared server URL parser rejected the input.
+    Invalid(InvalidServerUrl),
 }
 
 impl fmt::Display for InvalidNetworkUrl {
@@ -135,11 +140,25 @@ impl fmt::Display for InvalidNetworkUrl {
             Self::InvalidHost(host) => write!(formatter, "invalid upstream host {host:?}"),
             Self::InvalidPort(port) => write!(formatter, "invalid service port {port:?}"),
             Self::UnexpectedPath(path) => write!(formatter, "unexpected URL path {path:?}"),
+            Self::Invalid(error) => error.fmt(formatter),
         }
     }
 }
 
-impl std::error::Error for InvalidNetworkUrl {}
+impl std::error::Error for InvalidNetworkUrl {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Invalid(error) => Some(error),
+            _ => None,
+        }
+    }
+}
+
+impl From<InvalidServerUrl> for InvalidNetworkUrl {
+    fn from(error: InvalidServerUrl) -> Self {
+        Self::Invalid(error)
+    }
+}
 
 /// One upstream network managed by a bouncer.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -289,28 +308,15 @@ impl NetworkConfig {
     /// Returns [`InvalidNetworkUrl`] for an unsupported scheme, malformed host or port, or a URL
     /// containing a path, query, fragment, or user information.
     pub fn from_url(url: &str) -> Result<Self, InvalidNetworkUrl> {
-        if url.is_empty() {
-            return Err(InvalidNetworkUrl::Empty);
-        }
-        let Some((scheme, remainder)) = url.split_once("://") else {
-            return Err(InvalidNetworkUrl::UnsupportedScheme(String::new()));
+        let url = url.parse::<ServerUrl>().map_err(InvalidNetworkUrl::from)?;
+        let tls = match url.scheme() {
+            ServerUrlScheme::Irc => false,
+            ServerUrlScheme::Ircs => true,
+            scheme => {
+                return Err(InvalidServerUrl::UnsupportedScheme(scheme.to_string()).into());
+            }
         };
-        let (tls, default_port) = if scheme.eq_ignore_ascii_case("irc") {
-            (false, 6667)
-        } else if scheme.eq_ignore_ascii_case("ircs") {
-            (true, 6697)
-        } else {
-            return Err(InvalidNetworkUrl::UnsupportedScheme(scheme.to_owned()));
-        };
-        let (authority, path) = remainder.split_once('/').unwrap_or((remainder, ""));
-        if !path.is_empty() || remainder.ends_with('/') {
-            return Err(InvalidNetworkUrl::UnexpectedPath(path.to_owned()));
-        }
-        if authority.contains(['?', '#', '@', ' ', '\t']) {
-            return Err(InvalidNetworkUrl::InvalidHost(authority.to_owned()));
-        }
-        let (host, port) = parse_network_authority(authority, default_port)?;
-        Ok(Self::new(host).port(port).tls(tls))
+        Ok(Self::new(url.host()).port(url.port()).tls(tls))
     }
 
     /// Creates a configuration for an upstream hostname or IP address.
@@ -413,39 +419,6 @@ impl NetworkConfig {
     }
 }
 
-fn parse_network_authority(
-    authority: &str,
-    default_port: u16,
-) -> Result<(String, u16), InvalidNetworkUrl> {
-    let (host, port) = if let Some(rest) = authority.strip_prefix('[') {
-        let (host, suffix) = rest
-            .split_once(']')
-            .ok_or_else(|| InvalidNetworkUrl::InvalidHost(authority.to_owned()))?;
-        let port = suffix.strip_prefix(':');
-        if host.is_empty() || (!suffix.is_empty() && port.is_none()) {
-            return Err(InvalidNetworkUrl::InvalidHost(authority.to_owned()));
-        }
-        (host, port)
-    } else {
-        if authority.matches(':').count() > 1 {
-            return Err(InvalidNetworkUrl::InvalidHost(authority.to_owned()));
-        }
-        authority
-            .split_once(':')
-            .map_or((authority, None), |(host, port)| (host, Some(port)))
-    };
-    if host.is_empty() || host.contains(['[', ']', ' ', '\t']) {
-        return Err(InvalidNetworkUrl::InvalidHost(host.to_owned()));
-    }
-    let port = port.map_or(Ok(default_port), |port| {
-        port.parse::<u16>()
-            .ok()
-            .filter(|port| *port != 0)
-            .ok_or_else(|| InvalidNetworkUrl::InvalidPort(port.to_owned()))
-    })?;
-    Ok((host.to_owned(), port))
-}
-
 fn push_attribute(attributes: &mut String, key: &str, value: &str) {
     if !attributes.is_empty() {
         attributes.push(';');
@@ -543,6 +516,7 @@ mod tests {
     use papo_proto::LineRef;
 
     use super::{BouncerNetwork, InvalidNetworkUrl, NetworkConfig, NetworkState, NetworkUpdate};
+    use crate::server_url::InvalidServerUrl;
 
     #[test]
     fn network_states_display_as_protocol_words() {
@@ -605,40 +579,42 @@ mod tests {
         }
         assert_eq!(
             NetworkConfig::from_url("irc://irc.oftc.net:0"),
-            Err(InvalidNetworkUrl::InvalidPort("0".into()))
+            Err(InvalidNetworkUrl::Invalid(InvalidServerUrl::InvalidPort(
+                "0".into()
+            )))
         );
         assert_eq!(
             NetworkConfig::from_url("wss://irc.oftc.net"),
-            Err(InvalidNetworkUrl::UnsupportedScheme("wss".into()))
+            Err(InvalidNetworkUrl::Invalid(
+                InvalidServerUrl::UnsupportedScheme("wss".into())
+            ))
         );
         assert_eq!(
             NetworkConfig::from_url("irc://[2001:db8::7]6697"),
-            Err(InvalidNetworkUrl::InvalidHost("[2001:db8::7]6697".into()))
+            Err(InvalidNetworkUrl::Invalid(InvalidServerUrl::InvalidHost(
+                "[2001:db8::7]6697".into()
+            )))
         );
     }
 
     #[test]
     fn invalid_network_urls_display_exact_diagnostics() {
-        for (error, expected) in [
-            (InvalidNetworkUrl::Empty, "upstream network URL is empty"),
+        for (url, expected) in [
+            ("", "server URL is empty"),
+            ("wss://irc.oftc.net", "unsupported scheme \"wss\""),
             (
-                InvalidNetworkUrl::UnsupportedScheme("wss".into()),
-                "unsupported scheme \"wss\"",
+                "irc://[2001:db8::7]6697",
+                "invalid server host \"[2001:db8::7]6697\"",
             ),
+            ("irc://irc.oftc.net:65536", "invalid service port \"65536\""),
             (
-                InvalidNetworkUrl::InvalidHost("[2001:db8::7]6697".into()),
-                "invalid upstream host \"[2001:db8::7]6697\"",
-            ),
-            (
-                InvalidNetworkUrl::InvalidPort("65536".into()),
-                "invalid service port \"65536\"",
-            ),
-            (
-                InvalidNetworkUrl::UnexpectedPath("network".into()),
-                "unexpected URL path \"network\"",
+                "irc://irc.oftc.net/network",
+                "IRC server URL cannot contain path \"/network\"",
             ),
         ] {
+            let error: InvalidNetworkUrl = NetworkConfig::from_url(url).unwrap_err();
             assert_eq!(error.to_string(), expected);
+            assert!(std::error::Error::source(&error).is_some());
         }
     }
 

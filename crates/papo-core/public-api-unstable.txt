@@ -813,6 +813,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::HistoryQuery
 impl core::panic::unwind_safe::UnwindSafe for papo_core::HistoryQuery
 #[non_exhaustive] pub enum papo_core::InvalidNetworkUrl
 pub papo_core::InvalidNetworkUrl::Empty
+pub papo_core::InvalidNetworkUrl::Invalid(crate::InvalidServerUrl)
 pub papo_core::InvalidNetworkUrl::InvalidHost(alloc::string::String)
 pub papo_core::InvalidNetworkUrl::InvalidPort(alloc::string::String)
 pub papo_core::InvalidNetworkUrl::UnexpectedPath(alloc::string::String)
@@ -823,6 +824,7 @@ impl core::cmp::Eq for papo_core::InvalidNetworkUrl
 impl core::cmp::PartialEq for papo_core::InvalidNetworkUrl
 pub fn papo_core::InvalidNetworkUrl::eq(&self, &Self) -> bool
 impl core::error::Error for papo_core::InvalidNetworkUrl
+pub fn papo_core::InvalidNetworkUrl::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
 impl core::fmt::Debug for papo_core::InvalidNetworkUrl
 pub fn papo_core::InvalidNetworkUrl::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo_core::InvalidNetworkUrl
