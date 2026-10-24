@@ -579,13 +579,13 @@ async fn stored_sts_matches_a_normalized_hostname() {
         ),
     );
     let (_client, _events, mut wire) = wire(
-        papo::Client::builder("irc://IRC.Example.net.")
+        papo::Client::builder("irc://IRC.Example.net")
             .nick("papo-wire")
             .reconnect(Reconnect::never())
             .sts_store(store),
     );
 
-    assert_eq!(wire.endpoint().await, "ircs://IRC.Example.net.:7443");
+    assert_eq!(wire.endpoint().await, "ircs://IRC.Example.net:7443");
 }
 
 #[tokio::test]

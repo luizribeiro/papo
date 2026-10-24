@@ -349,36 +349,24 @@ impl FromStr for ServerAddress {
     type Err = InvalidInput;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
-        if input.is_empty() {
-            return Err(InvalidInput::EmptyAddress);
-        }
-        let (protocol, remainder) = match input.split_once("://") {
-            Some((scheme, rest)) if scheme.eq_ignore_ascii_case("irc") => (Protocol::Irc, rest),
-            Some((scheme, rest)) if scheme.eq_ignore_ascii_case("ircs") => (Protocol::Ircs, rest),
-            Some((scheme, rest)) if scheme.eq_ignore_ascii_case("ws") => (Protocol::Ws, rest),
-            Some((scheme, rest)) if scheme.eq_ignore_ascii_case("wss") => (Protocol::Wss, rest),
-            Some((scheme, _)) => return Err(InvalidInput::UnsupportedScheme(scheme.to_owned())),
-            None => (Protocol::Ircs, input),
+        use papo_core::server_url::ServerUrlScheme;
+
+        let url = input
+            .parse::<papo_core::server_url::ServerUrl>()
+            .map_err(map_server_url_error)?;
+        let protocol = match url.scheme() {
+            ServerUrlScheme::Irc => Protocol::Irc,
+            ServerUrlScheme::Ircs => Protocol::Ircs,
+            ServerUrlScheme::Ws => Protocol::Ws,
+            ServerUrlScheme::Wss => Protocol::Wss,
+            scheme => return Err(InvalidInput::UnsupportedScheme(scheme.to_string())),
         };
-        let websocket = matches!(protocol, Protocol::Ws | Protocol::Wss);
-        let (authority, path) = remainder.split_once('/').unwrap_or((remainder, ""));
-        if !websocket && (!path.is_empty() || remainder.ends_with('/')) {
-            return Err(InvalidInput::UnexpectedPath(path.to_owned()));
-        }
-        if authority.contains(REJECTED_ADDRESS_CHARACTERS) {
-            return Err(InvalidInput::InvalidHost(authority.to_owned()));
-        }
-        if path.contains(REJECTED_ADDRESS_CHARACTERS) {
-            return Err(InvalidInput::InvalidHost(path.to_owned()));
-        }
-        let default_port = default_port(protocol);
-        let (host, port) = parse_authority(authority, default_port)?;
         Ok(Self {
             protocol,
-            host,
-            port,
-            explicit_port: port != default_port || authority.ends_with(&format!(":{port}")),
-            websocket_path: websocket.then(|| format!("/{path}")),
+            host: url.host().to_owned(),
+            port: url.port(),
+            explicit_port: url.has_explicit_port(),
+            websocket_path: url.path().map(str::to_owned),
         })
     }
 }
@@ -391,7 +379,7 @@ impl ServerAddress {
     }
 
     pub(crate) fn set_tls(&mut self, enabled: bool) {
-        self.protocol = match (self.websocket_path.is_some(), enabled) {
+        self.protocol = match (self.is_websocket(), enabled) {
             (false, false) => Protocol::Irc,
             (false, true) => Protocol::Ircs,
             (true, false) => Protocol::Ws,
@@ -480,41 +468,36 @@ const fn default_port(protocol: Protocol) -> u16 {
     }
 }
 
-fn parse_authority(authority: &str, default_port: u16) -> Result<(String, u16), InvalidInput> {
-    let (host, port) = if let Some(rest) = authority.strip_prefix('[') {
-        let (host, suffix) = rest
-            .split_once(']')
-            .ok_or_else(|| InvalidInput::InvalidHost(authority.to_owned()))?;
-        let port = suffix.strip_prefix(':');
-        if host.is_empty() || (!suffix.is_empty() && port.is_none()) {
-            return Err(InvalidInput::InvalidHost(authority.to_owned()));
-        }
-        (host, port)
-    } else {
-        if authority.matches(':').count() > 1 {
-            return Err(InvalidInput::InvalidHost(authority.to_owned()));
-        }
-        authority
-            .split_once(':')
-            .map_or((authority, None), |(host, port)| (host, Some(port)))
-    };
-    if host.is_empty() || host.contains(['[', ']', ' ', '\t']) {
-        return Err(InvalidInput::InvalidHost(host.to_owned()));
-    }
-    let port = port.map_or(Ok(default_port), |port| {
-        port.parse::<u16>()
-            .ok()
-            .filter(|port| *port != 0)
-            .ok_or_else(|| InvalidInput::InvalidPort(port.to_owned()))
-    })?;
-    Ok((host.to_owned(), port))
-}
-
 fn validate_host(host: String) -> Result<String, InvalidInput> {
     if host.is_empty() || host.contains(REJECTED_ADDRESS_CHARACTERS) || host.contains(['[', ']']) {
         return Err(InvalidInput::InvalidHost(host));
     }
     Ok(host)
+}
+
+fn map_server_url_error(error: papo_core::server_url::InvalidServerUrl) -> InvalidInput {
+    use papo_core::server_url::InvalidServerUrl as Error;
+
+    match error {
+        Error::Empty => InvalidInput::EmptyAddress,
+        Error::MissingScheme => InvalidInput::MissingScheme,
+        Error::UnsupportedScheme(value) => InvalidInput::UnsupportedScheme(value),
+        Error::EmptyHost => InvalidInput::EmptyHost,
+        Error::Userinfo => InvalidInput::Userinfo,
+        Error::Query => InvalidInput::Query,
+        Error::Fragment => InvalidInput::Fragment,
+        Error::Whitespace => InvalidInput::Whitespace,
+        Error::ControlCharacter => InvalidInput::ControlCharacter,
+        Error::PercentEncoding => InvalidInput::PercentEncoding,
+        Error::NonAsciiHost(value) => InvalidInput::NonAsciiHost(value),
+        Error::TrailingDot(value) => InvalidInput::TrailingDot(value),
+        Error::ZoneIdentifier(value) => InvalidInput::ZoneIdentifier(value),
+        Error::UnbracketedIpv6(value) => InvalidInput::UnbracketedIpv6(value),
+        Error::InvalidHost(value) => InvalidInput::InvalidHost(value),
+        Error::InvalidPort(value) => InvalidInput::InvalidPort(value),
+        Error::UnexpectedPath(value) => InvalidInput::UnexpectedPath(value),
+        _ => InvalidInput::InvalidHost(error.to_string()),
+    }
 }
 
 #[cfg(all(test, not(browser)))]

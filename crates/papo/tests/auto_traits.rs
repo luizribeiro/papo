@@ -59,8 +59,8 @@ fn public_handles_events_and_errors_keep_their_auto_traits() {
 #[test]
 fn request_futures_are_send() {
     let mapping = papo::Casemapping::default();
-    assert_send_static(Client::builder("irc.example.net").connect());
-    let (client, mut events, driver) = Client::builder("irc.example.net").build();
+    assert_send_static(Client::builder("ircs://irc.example.net").connect());
+    let (client, mut events, driver) = Client::builder("ircs://irc.example.net").build();
     assert_send_value(events.next());
 
     assert_send_static(
@@ -152,7 +152,7 @@ fn unstable_request_futures_are_send() {
     use papo::{NetworkConfig, NetworkId, PersistenceSetting, PushKeys};
 
     let mapping = papo::Casemapping::default();
-    let (client, _, _) = Client::builder("irc.example.net").build();
+    let (client, _, _) = Client::builder("ircs://irc.example.net").build();
     assert_send_static(client.persistence().get());
     assert_send_static(client.persistence().set(PersistenceSetting::On));
     let network = NetworkId::from("42");

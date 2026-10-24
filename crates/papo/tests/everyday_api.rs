@@ -43,7 +43,7 @@ fn everyday_api_is_nameable_from_the_facade() {
     );
 
     let channel = papo::Casemapping::Rfc1459.channel("#papo");
-    let builder: papo::Builder = papo::Client::builder("irc.example.net")
+    let builder: papo::Builder = papo::Client::builder("ircs://irc.example.net")
         .nick("emily")
         .autojoin(["#papo"])
         .autojoin_with_key(&channel, "correct horse battery staple");
@@ -70,7 +70,7 @@ fn everyday_api_is_nameable_from_the_facade() {
 
     let next_event = events.next();
     drop(next_event);
-    let connect = papo::Client::builder("irc.example.net").connect();
+    let connect = papo::Client::builder("ircs://irc.example.net").connect();
     drop(connect);
     let _: fn(papo::Event) = inspect_event;
     let _: fn(&papo::Client, papo::Event) = moderate_message;

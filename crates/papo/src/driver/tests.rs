@@ -2605,7 +2605,7 @@ fn sts_store_boundary_normalizes_hosts_for_lookup_and_reschedule() {
         papo_core::sts::StsPolicy::new("irc.example.net", 7443, original_expiry, duration),
     );
     let base = ConnectionPlan {
-        address: "irc://IRC.Example.net.".parse().unwrap(),
+        address: "irc://IRC.Example.net".parse().unwrap(),
         tls: TlsConfig::default(),
     };
 
@@ -2613,7 +2613,7 @@ fn sts_store_boundary_normalizes_hosts_for_lookup_and_reschedule() {
     assert!(plan.address.is_secure());
     assert_eq!(plan.address.port, 7443);
 
-    super::connect::reschedule_stored_policy(&mut store, "IRC.Example.net.");
+    super::connect::reschedule_stored_policy(&mut store, "IRC.Example.net");
     let refreshed = papo_core::sts::StsStore::get(&store, "irc.example.net").unwrap();
     assert!(refreshed.expires_at > original_expiry);
 }

@@ -560,7 +560,7 @@ mod tests {
     }
 
     fn client(casemapping: Casemapping) -> Client {
-        let (client, _events, _driver) = Client::builder("irc.example")
+        let (client, _events, _driver) = Client::builder("ircs://irc.example")
             .casemapping(casemapping)
             .nick(casemapping.nick("papo{bot}"))
             .stream(IdleStream)
@@ -625,7 +625,7 @@ mod tests {
             ":emily!~emily@localhost ACCOUNT Emily\r\n",
             ":emily!~emily@localhost PRIVMSG #papo :!op alice\r\n",
         );
-        let (client, mut events, driver) = Client::builder("irc.example")
+        let (client, mut events, driver) = Client::builder("ircs://irc.example")
             .nick(Casemapping::Rfc1459.nick("papo{bot}"))
             .stream(TranscriptStream::new(transcript))
             .build();
@@ -691,7 +691,7 @@ mod tests {
         );
         let stream = TranscriptStream::new(transcript);
         let output = stream.output();
-        let (client, mut events, driver) = Client::builder("irc.example")
+        let (client, mut events, driver) = Client::builder("ircs://irc.example")
             .nick(Casemapping::Rfc1459.nick("papo{bot}"))
             .stream(stream)
             .build();
@@ -735,7 +735,7 @@ mod tests {
         );
         let stream = TranscriptStream::new(transcript);
         let output = stream.output();
-        let (client, mut events, driver) = Client::builder("irc.example")
+        let (client, mut events, driver) = Client::builder("ircs://irc.example")
             .nick(Casemapping::Rfc1459.nick("papo{bot}"))
             .stream(stream)
             .build();
@@ -774,7 +774,7 @@ mod tests {
             "@bot :emily!~emily@localhost PRIVMSG #Papo :!ping\r\n",
             ":emily!~emily@localhost PRIVMSG #papo :!ping\r\n",
         );
-        let (client, mut events, driver) = Client::builder("irc.example")
+        let (client, mut events, driver) = Client::builder("ircs://irc.example")
             .nick(Casemapping::Rfc1459.nick("papo{bot}"))
             .stream(TranscriptStream::new(transcript))
             .build();
@@ -969,7 +969,7 @@ mod tests {
         );
         let stream = TranscriptStream::new(transcript);
         let output = stream.output();
-        let (client, mut events, driver) = Client::builder("irc.example")
+        let (client, mut events, driver) = Client::builder("ircs://irc.example")
             .nick("papo{bot}")
             .stream(stream)
             .build();
@@ -1014,7 +1014,7 @@ mod tests {
         );
         let stream = TranscriptStream::new(transcript);
         let output = stream.output();
-        let (client, mut events, driver) = Client::builder("irc.example")
+        let (client, mut events, driver) = Client::builder("ircs://irc.example")
             .nick(Casemapping::Rfc1459.nick("papo{bot}"))
             .stream(stream)
             .build();
