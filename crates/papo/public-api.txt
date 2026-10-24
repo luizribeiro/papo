@@ -1739,7 +1739,7 @@ pub fn papo::Builder::create_account(self, papo::NewAccount) -> Self
 pub fn papo::Builder::ctcp_replies(self, papo::CtcpReplies) -> Self
 pub fn papo::Builder::device(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Builder::event_capacity(self, usize) -> Self
-pub const fn papo::Builder::history_on_reconnect(self, bool) -> Self
+pub fn papo::Builder::history_on_reconnect(self, bool) -> Self
 pub fn papo::Builder::metadata_subscriptions<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
 pub fn papo::Builder::nick(self, impl core::convert::AsRef<str>) -> Self
 pub fn papo::Builder::password(self, impl core::convert::Into<papo::Secret>) -> Self

@@ -641,10 +641,14 @@ impl Config {
         self.registration_on_connect.is_some()
     }
 
-    /// Marks a capability as necessary for configured connection behavior.
+    /// Sets whether configured connection behavior requires a capability.
     #[doc(hidden)]
-    pub fn __require_capability(&mut self, capability: cap::Cap) {
-        self.required_caps.insert(capability);
+    pub fn __set_capability_required(&mut self, capability: cap::Cap, required: bool) {
+        if required {
+            self.required_caps.insert(capability);
+        } else {
+            self.required_caps.remove(&capability);
+        }
     }
 
     /// Enables an unstable extension feature before connecting.

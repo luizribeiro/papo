@@ -57,3 +57,21 @@ fn metadata_subscriptions_require_metadata() {
         "draft/metadata-3",
     );
 }
+
+#[test]
+fn reconnect_history_requires_chathistory() {
+    let mut config = Config::default();
+    config.__set_capability_required(papo_core::cap::CHATHISTORY.clone(), true);
+    unavailable(config, "draft/chathistory");
+}
+
+#[test]
+fn disabled_reconnect_history_is_optional() {
+    let mut config = Config::default();
+    config.__set_capability_required(papo_core::cap::CHATHISTORY.clone(), true);
+    config.__set_capability_required(papo_core::cap::CHATHISTORY.clone(), false);
+    Transcript::new(config)
+        .connect_default()
+        .server("CAP * LS :")
+        .client("CAP END");
+}

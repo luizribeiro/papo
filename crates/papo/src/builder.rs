@@ -599,12 +599,17 @@ impl Builder {
 
     /// Sets whether network reconnects fetch history missed while disconnected.
     ///
+    /// Enabling this requires the server to acknowledge `draft/chathistory`; otherwise the
+    /// connection fails with [`ConnectErrorKind::CapabilityUnavailable`](crate::ConnectErrorKind::CapabilityUnavailable).
+    ///
     /// This emits one history event per channel joined during this process. It does not recover
     /// direct messages, channels from an earlier process, or in-memory history lost when the IRC
     /// server itself restarts. Full clients should use [`crate::Client::recent_conversations`] and
     /// [`crate::Client::history`] with [`crate::History::after`] and a persisted cursor.
-    pub const fn history_on_reconnect(mut self, enabled: bool) -> Self {
+    pub fn history_on_reconnect(mut self, enabled: bool) -> Self {
         self.history_on_reconnect = enabled;
+        self.config
+            .__set_capability_required(cap::CHATHISTORY.clone(), enabled);
         self
     }
 
