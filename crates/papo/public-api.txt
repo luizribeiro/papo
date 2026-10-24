@@ -1596,10 +1596,13 @@ impl core::panic::unwind_safe::UnwindSafe for papo::HistoryReason
 #[non_exhaustive] pub enum papo::InvalidInput
 pub papo::InvalidInput::AccountNameMustMatchNick
 pub papo::InvalidInput::BinarySecret
+pub papo::InvalidInput::ControlCharacter
 pub papo::InvalidInput::EmailRequired
 pub papo::InvalidInput::EmptyAddress
+pub papo::InvalidInput::EmptyHost
 pub papo::InvalidInput::EmptyText
 pub papo::InvalidInput::ForeignReference
+pub papo::InvalidInput::Fragment
 pub papo::InvalidInput::InsecureAuthentication
 pub papo::InvalidInput::InvalidExtbanAccount(alloc::string::String)
 pub papo::InvalidInput::InvalidHost(alloc::string::String)
@@ -1614,6 +1617,10 @@ pub papo::InvalidInput::KickReasonTooLong::maximum: usize
 #[non_exhaustive] pub papo::InvalidInput::MetadataValueTooLong
 pub papo::InvalidInput::MetadataValueTooLong::actual: usize
 pub papo::InvalidInput::MetadataValueTooLong::maximum: usize
+pub papo::InvalidInput::MissingScheme
+pub papo::InvalidInput::NonAsciiHost(alloc::string::String)
+pub papo::InvalidInput::PercentEncoding
+pub papo::InvalidInput::Query
 pub papo::InvalidInput::RateLimit(papo::InvalidRateLimit)
 #[non_exhaustive] pub papo::InvalidInput::Reaction
 pub papo::InvalidInput::Reaction::actual: usize
@@ -1622,11 +1629,16 @@ pub papo::InvalidInput::TlsConfig(alloc::string::String)
 #[non_exhaustive] pub papo::InvalidInput::TooManyMetadataSubscriptions
 pub papo::InvalidInput::TooManyMetadataSubscriptions::actual: usize
 pub papo::InvalidInput::TooManyMetadataSubscriptions::maximum: usize
+pub papo::InvalidInput::TrailingDot(alloc::string::String)
+pub papo::InvalidInput::UnbracketedIpv6(alloc::string::String)
 pub papo::InvalidInput::UnexpectedPath(alloc::string::String)
 pub papo::InvalidInput::UnknownCapability(alloc::string::String)
 pub papo::InvalidInput::UnsupportedScheme(alloc::string::String)
 pub papo::InvalidInput::UnusableMessageReference
+pub papo::InvalidInput::Userinfo
+pub papo::InvalidInput::Whitespace
 pub papo::InvalidInput::ZeroEventCapacity
+pub papo::InvalidInput::ZoneIdentifier(alloc::string::String)
 impl core::clone::Clone for papo::InvalidInput
 pub fn papo::InvalidInput::clone(&self) -> Self
 impl core::cmp::Eq for papo::InvalidInput

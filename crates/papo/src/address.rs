@@ -14,6 +14,42 @@ pub enum InvalidInput {
     /// The URL scheme is not supported.
     #[error("unsupported scheme {0:?}")]
     UnsupportedScheme(String),
+    /// The URL has no scheme separator.
+    #[error("server URL scheme is missing")]
+    MissingScheme,
+    /// The URL has no host.
+    #[error("server URL host is empty")]
+    EmptyHost,
+    /// The URL contains user information.
+    #[error("server URL cannot contain user information")]
+    Userinfo,
+    /// The URL contains a query.
+    #[error("server URL cannot contain a query")]
+    Query,
+    /// The URL contains a fragment.
+    #[error("server URL cannot contain a fragment")]
+    Fragment,
+    /// The URL contains whitespace.
+    #[error("server URL cannot contain whitespace")]
+    Whitespace,
+    /// The URL contains a control character.
+    #[error("server URL cannot contain control characters")]
+    ControlCharacter,
+    /// The URL contains percent-encoding.
+    #[error("server URL cannot contain percent-encoding")]
+    PercentEncoding,
+    /// The host is non-ASCII and must be supplied in punycode form.
+    #[error("non-ASCII server host {0:?}; use its punycode xn-- form")]
+    NonAsciiHost(String),
+    /// The host ends in a dot.
+    #[error("server host {0:?} has a trailing dot")]
+    TrailingDot(String),
+    /// An IPv6 literal contains a zone identifier.
+    #[error("IPv6 zone identifiers are not supported in {0:?}")]
+    ZoneIdentifier(String),
+    /// An IPv6 literal is missing brackets.
+    #[error("IPv6 literal {0:?} must be enclosed in brackets")]
+    UnbracketedIpv6(String),
     /// The host or bracketed IPv6 literal is malformed.
     #[error("invalid server host {0:?}")]
     InvalidHost(String),
