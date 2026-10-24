@@ -2547,9 +2547,7 @@ async fn stored_sts_policy_upgrades_the_connection_plan() {
         ),
     );
     let network_builder = Arc::new(std::sync::RwLock::new(
-        crate::builder::NetworkBuilderSettings {
-            address: Err(crate::InvalidInput::EmptyAddress),
-        },
+        crate::Builder::new("").network_settings(),
     ));
     let (client, _events, driver) = Driver::with_connector_and_timeout(
         Ok(ConnectionPlan {

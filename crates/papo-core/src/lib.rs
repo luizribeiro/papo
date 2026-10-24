@@ -602,6 +602,17 @@ impl Default for Config {
 }
 
 impl Config {
+    /// Copies reusable settings while clearing actions specific to one connection.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __additional_connection(&self) -> Self {
+        let mut config = self.clone();
+        config.origin = papo_proto::Origin::NONE;
+        config.metadata_subscriptions.clear();
+        config.registration_on_connect = None;
+        config
+    }
+
     pub(crate) fn selected_bouncer_network(&self) -> Option<&str> {
         #[cfg(feature = "unstable")]
         return self.bouncer_network.as_ref().map(AsRef::as_ref);
@@ -4971,6 +4982,26 @@ mod tests {
             Some(std::cmp::Ordering::Equal)
         );
         assert_eq!(papo.partial_cmp(&rust), Some(std::cmp::Ordering::Less));
+    }
+
+    #[test]
+    fn additional_connections_drop_one_connection_actions() {
+        let mut config = Config::default()
+            .metadata_subscriptions(["example.org/color"])
+            .create_account_on_connect(
+                Some("alice"),
+                None::<String>,
+                super::Secret::from("account password"),
+            );
+        config.origin = papo_proto::Origin::__new(41);
+
+        let additional = config.__additional_connection();
+
+        assert!(additional.metadata_subscriptions.is_empty());
+        assert!(additional.registration_on_connect.is_none());
+        assert_eq!(additional.origin, papo_proto::Origin::NONE);
+        assert_eq!(config.metadata_subscriptions, ["example.org/color"]);
+        assert!(config.registration_on_connect.is_some());
     }
 
     #[test]

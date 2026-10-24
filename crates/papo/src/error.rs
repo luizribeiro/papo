@@ -963,6 +963,7 @@ mod tests {
                 actual: 4095,
             },
             InvalidInput::UnusableMessageReference,
+            InvalidInput::ForeignReference,
             InvalidInput::EmailRequired,
             InvalidInput::AccountNameMustMatchNick,
             InvalidInput::MetadataValueTooLong {

@@ -22,8 +22,15 @@ use crate::{
 static NEXT_ORIGIN: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Clone)]
+#[allow(dead_code)]
 pub(crate) struct NetworkBuilderSettings {
     pub(crate) address: Result<ServerAddress, InvalidInput>,
+    config: Config,
+    tls: TlsConfig,
+    connect_timeout: Duration,
+    reconnect: Reconnect,
+    credentials_configured: bool,
+    allow_insecure_auth: bool,
 }
 
 fn allocate_origin() -> crate::Origin {
@@ -99,9 +106,28 @@ impl Builder {
         builder
     }
 
-    fn network_settings(&self) -> NetworkBuilderSettings {
+    #[allow(dead_code)]
+    pub(crate) fn from_network_settings(settings: &NetworkBuilderSettings) -> Self {
+        let mut builder = Self::new("irc.example.net");
+        builder.address.clone_from(&settings.address);
+        builder.config = settings.config.clone();
+        builder.tls = settings.tls.clone();
+        builder.connect_timeout = settings.connect_timeout;
+        builder.reconnect = settings.reconnect;
+        builder.credentials_configured = settings.credentials_configured;
+        builder.allow_insecure_auth = settings.allow_insecure_auth;
+        builder
+    }
+
+    pub(crate) fn network_settings(&self) -> NetworkBuilderSettings {
         NetworkBuilderSettings {
             address: self.address.clone(),
+            config: self.config.__additional_connection(),
+            tls: self.tls.clone(),
+            connect_timeout: self.connect_timeout,
+            reconnect: self.reconnect,
+            credentials_configured: self.credentials_configured,
+            allow_insecure_auth: self.allow_insecure_auth,
         }
     }
 
@@ -1061,6 +1087,47 @@ mod tests {
                     .any(|name| name == capability)
             );
         }
+
+        let reconnect = crate::Reconnect::never();
+        let (control, _events, _driver) = Builder::new("ircs://soju.example:7443")
+            .nick("alice")
+            .password("correct horse battery staple")
+            .rate_limit(RateLimit::unlimited())
+            .reconnect(reconnect)
+            .connect_timeout(Duration::from_secs(17))
+            .tls_server_name("bouncer.example")
+            .enable(crate::Feature::Relay)
+            .metadata_subscriptions(["example.org/color"])
+            .event_capacity(17)
+            .autojoin(["#papo"])
+            .history_on_reconnect(true)
+            .build();
+
+        let network = control.bouncer().network(&crate::NetworkId::from("libera"));
+        assert_eq!(network.address.as_ref().unwrap().port, 7443);
+        assert_eq!(network.config.nick, "alice");
+        assert_eq!(
+            network.config.password.as_ref().unwrap().expose(),
+            Some("correct horse battery staple")
+        );
+        assert_eq!(network.config.rate_limit, RateLimit::unlimited());
+        assert!(
+            network
+                .config
+                .enabled_features
+                .contains(&crate::Feature::Relay)
+        );
+        assert_eq!(network.config.bouncer_network.as_deref(), Some("libera"));
+        assert!(network.config.metadata_subscriptions.is_empty());
+        assert_eq!(
+            network.event_capacity,
+            crate::driver::DEFAULT_CHANNEL_CAPACITY
+        );
+        assert!(network.autojoin.is_empty());
+        assert!(!network.history_on_reconnect);
+        assert_eq!(network.connect_timeout, Duration::from_secs(17));
+        assert_eq!(network.reconnect, reconnect);
+        assert_eq!(network.tls.server_name.as_deref(), Some("bouncer.example"));
     }
 
     #[test]

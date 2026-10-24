@@ -24,6 +24,22 @@ impl Client {
 }
 
 impl Bouncer {
+    /// Starts a client builder for one network on this bouncer.
+    ///
+    /// The builder copies the control connection's resolved endpoint, credentials, TLS settings,
+    /// rate limit, reconnect policy, and enabled features. Per-network settings such as autojoin,
+    /// metadata subscriptions, event capacity, and reconnect history keep their defaults.
+    pub fn network(&self, id: &NetworkId) -> crate::Builder {
+        let Some(settings) = &self.client.network_builder else {
+            return crate::Builder::new("").bouncer_network(id.clone());
+        };
+        let settings = settings
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone();
+        crate::Builder::from_network_settings(&settings).bouncer_network(id.clone())
+    }
+
     /// Requests and returns the complete upstream network list.
     ///
     /// # Errors

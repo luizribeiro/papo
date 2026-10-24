@@ -1777,6 +1777,7 @@ pub struct papo::Bouncer
 impl papo::Bouncer
 pub fn papo::Bouncer::add(&self, papo::NetworkConfig) -> papo::RequestFuture<papo::NetworkId>
 pub fn papo::Bouncer::change(&self, &papo::NetworkId, papo::NetworkConfig) -> papo::RequestFuture<()>
+pub fn papo::Bouncer::network(&self, &papo::NetworkId) -> papo::Builder
 pub fn papo::Bouncer::networks(&self) -> papo::RequestFuture<alloc::vec::Vec<papo::BouncerNetwork>>
 pub fn papo::Bouncer::remove(&self, &papo::NetworkId) -> papo::RequestFuture<()>
 impl core::fmt::Debug for papo::Bouncer
