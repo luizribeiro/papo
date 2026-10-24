@@ -2,8 +2,7 @@
 
 use std::{env, error::Error};
 
-use papo::{Client, Event};
-use papo_bot::{BotConfig, Command};
+use papo::{Account, Client, Event, Message};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -17,24 +16,33 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .autojoin([&channel])
         .connect()
         .await?;
-    let commands = BotConfig::new("!");
-
     while let Some(event) = events.next().await {
         let Event::Message(message) = event else {
             continue;
         };
-        let Some(command) = commands.command(&client, &message) else {
+        let Some(body) = command_body(&client, &message) else {
             continue;
         };
-        match (command.name(), command.args()) {
-            ("ping", []) => reply(&command, "pong").await,
-            ("op", [nick]) if command.account_in([&admin]) => {
-                if let Err(refusal) = command.client().mode(&channel).op(nick).await {
-                    reply(&command, format!("cannot op {nick}: {refusal}")).await;
+        let words = body.split_whitespace().collect::<Vec<_>>();
+        match words.as_slice() {
+            [command] if command.eq_ignore_ascii_case("ping") => {
+                reply(&client, &message, "pong").await;
+            }
+            [command, nick]
+                if command.eq_ignore_ascii_case("op")
+                    && matches!(&message.account, Account::LoggedIn(account) if account == admin.as_str()) =>
+            {
+                if let Err(refusal) = client.mode(&channel).op(nick).await {
+                    reply(&client, &message, format!("cannot op {nick}: {refusal}")).await;
                 }
             }
-            ("op", [nick]) => {
-                reply(&command, format!("cannot op {nick}: permission denied")).await;
+            [command, nick] if command.eq_ignore_ascii_case("op") => {
+                reply(
+                    &client,
+                    &message,
+                    format!("cannot op {nick}: permission denied"),
+                )
+                .await;
             }
             _ => {}
         }
@@ -42,8 +50,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn reply(command: &Command, text: impl Into<String>) {
-    if let Err(error) = command.reply(text).await {
+fn command_body<'a>(client: &Client, message: &'a Message) -> Option<&'a str> {
+    if let Some(body) = message.text.strip_prefix('!') {
+        return Some(body.trim_start());
+    }
+    let boundary = message.text.find([':', ','])?;
+    let (address, body) = message.text.split_at(boundary);
+    (client.nick() == address.trim()).then(|| body[1..].trim_start())
+}
+
+async fn reply(client: &Client, message: &Message, text: impl Into<String>) {
+    if let Err(error) = client.reply(message, text).await {
         eprintln!("could not reply: {error}");
     }
 }

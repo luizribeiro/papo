@@ -563,8 +563,6 @@ name = "papo-admin-bot"
 version = "0.1.0"
 dependencies = [
  "papo",
- "papo-bot",
- "papo-proto",
  "papo-test-server",
  "tokio",
 ]
