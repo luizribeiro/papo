@@ -156,7 +156,9 @@ impl TypingTable {
                 status: status.clone(),
             };
             if let Some(position) = entry {
-                if table.entries[position].1.state != state {
+                if table.entries[position].1.state != state
+                    || table.entries[position].1.status != status
+                {
                     table.entries[position].1 = typer;
                 }
             } else {

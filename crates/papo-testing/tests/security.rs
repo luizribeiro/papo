@@ -744,6 +744,41 @@ async fn unknown_playback_is_untyped_and_has_no_side_effects() {
     );
 }
 
+#[tokio::test]
+async fn typing_status_change_preserves_the_latest_audience() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test")
+            .nick("papo-wire")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&["message-tags"]).await;
+    while !matches!(
+        next_active_event(&mut events).await,
+        papo::Event::Connected(_)
+    ) {}
+    wire.server(":offline.test 005 papo-wire STATUSMSG=@+ :are supported by this server")
+        .await;
+
+    wire.server("@+typing=active :alice!~a@cloak.example TAGMSG #staff")
+        .await;
+    assert!(matches!(
+        next_active_event(&mut events).await,
+        papo::Event::TypingChanged(_)
+    ));
+    wire.server("@+typing=active :alice!~a@cloak.example TAGMSG @#staff")
+        .await;
+    assert!(matches!(
+        next_active_event(&mut events).await,
+        papo::Event::TypingChanged(_)
+    ));
+
+    let conversation = client.state().conversation("#staff").unwrap();
+    let state = client.state();
+    let typer = state.typing(&conversation).next().unwrap();
+    assert_eq!(typer.return_address(), "@#staff");
+}
+
 #[tokio::test(start_paused = true)]
 async fn expired_labeled_history_is_not_delivered_twice() {
     let (_client, mut events, mut wire) = wire(

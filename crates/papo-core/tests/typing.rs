@@ -103,6 +103,46 @@ fn status_target_updates_typing_state_and_deadline() {
 }
 
 #[test]
+fn status_target_replaces_public_typing_state() {
+    Transcript::new(Config::default().nick("papo"))
+        .connect()
+        .server(":ergo.test 005 papo STATUSMSG=@+ :are supported by this server")
+        .server("@+typing=active :alice!~a@cloak TAGMSG #papo")
+        .event(|event| matches!(event, Event::TypingChanged(_)))
+        .server("@+typing=active :ALICE!~a@cloak TAGMSG @#papo")
+        .event(|event| matches!(event, Event::TypingChanged(_)))
+        .inspect(|session| {
+            let conversation = conversation(session, "#papo");
+            let typers: Vec<_> = session.state().typing(&conversation).collect();
+            assert_eq!(typers.len(), 1);
+            assert_eq!(typers[0].return_address(), "@#papo");
+            assert_eq!(session.typing_generation(), 3);
+        })
+        .no_event()
+        .ignore_rest();
+}
+
+#[test]
+fn public_target_replaces_status_typing_state() {
+    Transcript::new(Config::default().nick("papo"))
+        .connect()
+        .server(":ergo.test 005 papo STATUSMSG=@+ :are supported by this server")
+        .server("@+typing=active :alice!~a@cloak TAGMSG @#papo")
+        .event(|event| matches!(event, Event::TypingChanged(_)))
+        .server("@+typing=active :ALICE!~a@cloak TAGMSG #papo")
+        .event(|event| matches!(event, Event::TypingChanged(_)))
+        .inspect(|session| {
+            let conversation = conversation(session, "#papo");
+            let typers: Vec<_> = session.state().typing(&conversation).collect();
+            assert_eq!(typers.len(), 1);
+            assert_eq!(typers[0].return_address(), "#papo");
+            assert_eq!(session.typing_generation(), 3);
+        })
+        .no_event()
+        .ignore_rest();
+}
+
+#[test]
 fn typing_tag_on_chat_message_is_not_a_notification() {
     Transcript::new(Config::default().nick("papo"))
         .server(":ergo.test 005 papo STATUSMSG=@+ :are supported by this server")
