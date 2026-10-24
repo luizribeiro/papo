@@ -1230,6 +1230,23 @@ fn tracks_user_mode_snapshot_and_live_changes() {
 }
 
 #[test]
+fn own_bot_mode_updates_the_permanent_user_row() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":ergo.test 005 emily BOT=B :are supported")
+        .server(":ergo.test 221 emily +Bi")
+        .inspect(|session| {
+            assert_eq!(session.state().user("emily").unwrap().is_bot(), Some(true));
+            assert!(session.state().user_modes().any(|mode| mode == 'B'));
+        })
+        .server(":emily MODE emily -B")
+        .inspect(|session| {
+            assert_eq!(session.state().user("emily").unwrap().is_bot(), Some(false));
+            assert!(!session.state().user_modes().any(|mode| mode == 'B'));
+        })
+        .ignore_rest();
+}
+
+#[test]
 fn only_our_nickname_changes_our_user_modes() {
     Transcript::new(Config::default().nick("emily"))
         .server(":ergo.test 221 emily +Z")

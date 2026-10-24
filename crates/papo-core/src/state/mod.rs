@@ -701,7 +701,7 @@ impl State {
         let mode_reported = self.report_mode_change(message, isupport, outbox);
         if self.handle_channel_mode(message, isupport)
             || self.handle_channel_metadata(message, isupport)
-            || self.handle_user_modes(message)
+            || self.handle_user_modes(message, isupport)
             || self.handle_topic(message, outbox)
             || mode_reported
         {
@@ -856,7 +856,7 @@ impl State {
         true
     }
 
-    fn handle_user_modes(&mut self, message: &LineRef<'_>) -> bool {
+    fn handle_user_modes(&mut self, message: &LineRef<'_>, isupport: &Isupport) -> bool {
         let modestring = match message.command() {
             Command::Mode
                 if message
@@ -879,6 +879,12 @@ impl State {
                 _ if set => _ = self.user_modes.insert(mode),
                 _ => _ = self.user_modes.remove(&mode),
             }
+        }
+        if let Some(bot_mode) = isupport.bot_mode() {
+            self.users
+                .get_mut(&self.nick)
+                .expect("own user is always present")
+                .is_bot = Some(self.user_modes.contains(&bot_mode));
         }
         true
     }
