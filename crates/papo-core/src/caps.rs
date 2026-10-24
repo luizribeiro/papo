@@ -128,12 +128,12 @@ impl Caps {
                     }
                 }
             } else if subcommand.eq_ignore_ascii_case("NAK") {
-                if self
-                    .pending
-                    .pop_front()
-                    .is_some_and(|request| request.iter().any(|name| name == cap::SASL.as_str()))
-                {
-                    sasl.unavailable("the server rejected the sasl capability", outbox);
+                if let Some(requested) = self.pending.pop_front() {
+                    if requested.iter().any(|name| name == cap::SASL.as_str()) {
+                        sasl.unavailable("the server rejected the sasl capability", outbox);
+                    } else if let Some(required) = required_in(config, &requested) {
+                        close_required(&required, "was rejected", outbox);
+                    }
                 }
             } else {
                 return Handled::No;
@@ -270,6 +270,22 @@ impl Caps {
         if self.handle_sts(connection, outbox) {
             return;
         }
+        if let Some(required) = config
+            .required_capabilities()
+            .into_iter()
+            .find(|required| !self.advertised.contains_key(required))
+        {
+            close_required(&required, "was not advertised", outbox);
+            return;
+        }
+        if let Some(required) = config
+            .required_capabilities()
+            .into_iter()
+            .find(|required| config.cap_disabled(required.as_str()))
+        {
+            close_required(&required, "was disabled by the client", outbox);
+            return;
+        }
         if config.sasl.is_none()
             && config.password.is_none()
             && self.advertised.contains_key(&cap::ACCOUNT_REQUIRED)
@@ -320,11 +336,24 @@ impl Caps {
     pub(super) fn maybe_finish(
         &mut self,
         authentication_finished: bool,
-        bouncer_network: Option<&str>,
+        config: &Config,
         outbox: &mut Outbox,
     ) {
-        if self.negotiating && authentication_finished && self.pending.is_empty() && !self.ended {
-            if let Some(id) = bouncer_network {
+        if self.negotiating
+            && authentication_finished
+            && self.pending.is_empty()
+            && !self.ended
+            && !outbox.close_requested
+        {
+            if let Some(required) = config
+                .required_capabilities()
+                .into_iter()
+                .find(|required| !self.enabled.contains_key(required))
+            {
+                close_required(&required, "was not acknowledged", outbox);
+                return;
+            }
+            if let Some(id) = config.selected_bouncer_network() {
                 if !self.bouncer_enabled() {
                     outbox.close(
                         crate::CloseKind::BouncerBindingFailed,
@@ -387,6 +416,24 @@ impl Caps {
             StsAction::Ignore => false,
         }
     }
+}
+
+fn required_in(config: &Config, requested: &[String]) -> Option<Cap> {
+    let required = config.required_capabilities();
+    requested
+        .iter()
+        .find(|name| required.contains(&Cap::from(name.as_str())))
+        .map(|name| Cap::from(name.as_str()))
+}
+
+fn close_required(required: &Cap, reason: &str, outbox: &mut Outbox) {
+    outbox.close(
+        CloseKind::CapabilityUnavailable,
+        format!(
+            "required IRC capability {} {reason}",
+            cap::canonical(required.as_str())
+        ),
+    );
 }
 
 fn split_requests(names: Vec<String>) -> Vec<Vec<String>> {

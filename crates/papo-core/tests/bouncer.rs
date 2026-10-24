@@ -77,10 +77,10 @@ fn refuses_to_bind_without_an_acknowledged_capability() {
             .server(response)
             .event(|event| {
                 matches!(event, Event::Close {
-                    kind: CloseKind::BouncerBindingFailed,
+                    kind: CloseKind::CapabilityUnavailable,
                     reason,
                     ..
-                } if reason.contains("acknowledged"))
+                } if reason.contains("soju.im/bouncer-networks"))
             })
             .no_client();
     }

@@ -26,6 +26,8 @@ pub enum ConnectErrorKind {
     Sasl,
     /// The server does not offer a usable SASL mechanism.
     SaslUnavailable,
+    /// An IRC capability required by the connection settings is unavailable.
+    CapabilityUnavailable,
     /// The server requires an authenticated account.
     AccountRequired,
     /// The server rejected the connection password.
@@ -150,6 +152,9 @@ impl From<crate::transport::ConnectError> for ConnectError {
 
 impl fmt::Display for ConnectError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.kind == ConnectErrorKind::CapabilityUnavailable {
+            return self.source.fmt(formatter);
+        }
         let message = match self.kind {
             ConnectErrorKind::HostNotFound => "the server host could not be found",
             ConnectErrorKind::Refused => "the server refused the connection",
@@ -160,6 +165,7 @@ impl fmt::Display for ConnectError {
             ConnectErrorKind::Unavailable => "the requested connection transport is unavailable",
             ConnectErrorKind::Sasl => "SASL authentication failed",
             ConnectErrorKind::SaslUnavailable => "SASL authentication is unavailable",
+            ConnectErrorKind::CapabilityUnavailable => unreachable!(),
             ConnectErrorKind::AccountRequired => "the server requires an authenticated account",
             ConnectErrorKind::PasswordIncorrect => "the server rejected the connection password",
             ConnectErrorKind::Banned => "the server banned this connection",
@@ -534,6 +540,9 @@ impl Error {
         let connect_kind = match kind {
             papo_core::CloseKind::SaslFailed => Some(ConnectErrorKind::Sasl),
             papo_core::CloseKind::SaslUnavailable => Some(ConnectErrorKind::SaslUnavailable),
+            papo_core::CloseKind::CapabilityUnavailable => {
+                Some(ConnectErrorKind::CapabilityUnavailable)
+            }
             papo_core::CloseKind::WebIrcRejected => Some(ConnectErrorKind::WebIrcRejected),
             papo_core::CloseKind::WelcomeTimeout => Some(ConnectErrorKind::WelcomeTimedOut),
             papo_core::CloseKind::AccountRequired => Some(ConnectErrorKind::AccountRequired),
@@ -901,6 +910,7 @@ mod tests {
             ConnectErrorKind::Unavailable,
             ConnectErrorKind::Sasl,
             ConnectErrorKind::SaslUnavailable,
+            ConnectErrorKind::CapabilityUnavailable,
             ConnectErrorKind::AccountRequired,
             ConnectErrorKind::PasswordIncorrect,
             ConnectErrorKind::Banned,

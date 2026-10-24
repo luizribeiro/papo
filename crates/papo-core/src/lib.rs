@@ -548,6 +548,7 @@ pub struct Config {
     pub who_on_join: WhoOnJoin,
     /// Metadata keys subscribed on every connection.
     pub metadata_subscriptions: Vec<String>,
+    required_caps: BTreeSet<cap::Cap>,
     allow_insecure_auth: bool,
     /// Upstream bouncer network selected before the connection completes.
     #[cfg(feature = "unstable")]
@@ -593,6 +594,7 @@ impl Default for Config {
             away_on_connect: None,
             who_on_join: WhoOnJoin::default(),
             metadata_subscriptions: Vec::new(),
+            required_caps: BTreeSet::new(),
             allow_insecure_auth: false,
             #[cfg(feature = "unstable")]
             bouncer_network: None,
@@ -609,6 +611,7 @@ impl Config {
         let mut config = self.clone();
         config.origin = papo_proto::Origin::NONE;
         config.metadata_subscriptions.clear();
+        config.required_caps.clear();
         config.registration_on_connect = None;
         config
     }
@@ -618,6 +621,22 @@ impl Config {
         return self.bouncer_network.as_ref().map(AsRef::as_ref);
         #[cfg(not(feature = "unstable"))]
         None
+    }
+
+    pub(crate) fn required_capabilities(&self) -> BTreeSet<cap::Cap> {
+        if self.selected_bouncer_network().is_some() {
+            let mut required = self.required_caps.clone();
+            required.insert(cap::Cap::from(cap::BOUNCER_NETWORKS_NAME));
+            required
+        } else {
+            self.required_caps.clone()
+        }
+    }
+
+    /// Marks a capability as necessary for configured connection behavior.
+    #[doc(hidden)]
+    pub fn __require_capability(&mut self, capability: cap::Cap) {
+        self.required_caps.insert(capability);
     }
 
     /// Enables an unstable extension feature before connecting.
@@ -1900,6 +1919,8 @@ pub enum CloseKind {
     Banned,
     /// Binding to a selected bouncer network failed or could not be verified.
     BouncerBindingFailed,
+    /// A capability required by the connection configuration is unavailable.
+    CapabilityUnavailable,
     /// Every configured connection nickname was rejected.
     NickCandidatesExhausted,
     /// Another protocol condition requires the connection to close.
@@ -3145,7 +3166,7 @@ impl Session {
         self.maybe_subscribe_metadata(now);
         self.caps.maybe_finish(
             self.sasl.is_finished() && self.account_registration.authentication_finished(),
-            self.config.selected_bouncer_network(),
+            &self.config,
             &mut self.outbox,
         );
         self.keepalive.handle_timeout(now, &mut self.outbox);
@@ -4260,7 +4281,7 @@ impl Session {
         self.maybe_subscribe_metadata(now);
         self.caps.maybe_finish(
             self.sasl.is_finished() && self.account_registration.authentication_finished(),
-            self.config.selected_bouncer_network(),
+            &self.config,
             &mut self.outbox,
         );
         if !handled

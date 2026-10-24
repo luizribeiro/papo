@@ -377,6 +377,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo_core::BatchAbandonReason
 pub papo_core::CloseKind::AccountRequired
 pub papo_core::CloseKind::Banned
 pub papo_core::CloseKind::BouncerBindingFailed
+pub papo_core::CloseKind::CapabilityUnavailable
 pub papo_core::CloseKind::ConnectionRestricted
 pub papo_core::CloseKind::LineTooLong
 pub papo_core::CloseKind::NickCandidatesExhausted

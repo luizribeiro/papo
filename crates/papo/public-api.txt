@@ -1261,6 +1261,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::Chat
 #[non_exhaustive] pub enum papo::ConnectErrorKind
 pub papo::ConnectErrorKind::AccountRequired
 pub papo::ConnectErrorKind::Banned
+pub papo::ConnectErrorKind::CapabilityUnavailable
 pub papo::ConnectErrorKind::CertificateRejected
 pub papo::ConnectErrorKind::HandshakeFailed
 pub papo::ConnectErrorKind::HostNotFound
