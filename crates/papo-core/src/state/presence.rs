@@ -65,9 +65,6 @@ impl State {
         };
         let account = Account::from_notify(account.account, self.casemapping);
         let actor = message.raw_source().unwrap_or(nick).to_owned();
-        if crate::names_equal(self.casemapping, nick, &self.nick) {
-            self.account = account.clone();
-        }
         if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick))
             && user.account != account
         {
@@ -98,11 +95,6 @@ impl State {
                     message: Some(message.to_owned()),
                 },
             };
-            let own_changed =
-                crate::names_equal(self.casemapping, nick, &self.nick) && self.away != next;
-            if own_changed {
-                self.away = next.clone();
-            }
             let user_changed = self
                 .users
                 .get_mut(&self.casemapping.nick(nick))
@@ -114,7 +106,7 @@ impl State {
                         true
                     }
                 });
-            if own_changed || user_changed {
+            if user_changed {
                 outbox.event(Event::AwayChanged {
                     actor: message.raw_source().unwrap_or(nick).to_owned(),
                     nick: self.casemapping.nick(nick),
@@ -143,22 +135,33 @@ impl State {
                     }
                 }
             }
-            Command::Numeric(Numeric::RPL_UNAWAY) if self.away != Away::Present => {
-                self.away = Away::Present;
+            Command::Numeric(Numeric::RPL_UNAWAY)
+                if self.users[&self.nick].away != Away::Present =>
+            {
+                self.users
+                    .get_mut(&self.nick)
+                    .expect("own user is always present")
+                    .away = Away::Present;
                 outbox.event(Event::AwayChanged {
                     actor: self.nick.to_string(),
                     nick: self.nick.clone(),
                     away: Away::Present,
                 });
             }
-            Command::Numeric(Numeric::RPL_NOWAWAY) if !matches!(self.away, Away::Away { .. }) => {
-                self.away = Away::Away {
+            Command::Numeric(Numeric::RPL_NOWAWAY)
+                if !matches!(self.users[&self.nick].away, Away::Away { .. }) =>
+            {
+                let away = Away::Away {
                     message: own_away_message.map(str::to_owned),
                 };
+                self.users
+                    .get_mut(&self.nick)
+                    .expect("own user is always present")
+                    .away = away.clone();
                 outbox.event(Event::AwayChanged {
                     actor: self.nick.to_string(),
                     nick: self.nick.clone(),
-                    away: self.away.clone(),
+                    away,
                 });
             }
             Command::Numeric(Numeric::RPL_UNAWAY | Numeric::RPL_NOWAWAY) => {}

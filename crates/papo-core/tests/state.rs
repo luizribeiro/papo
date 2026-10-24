@@ -94,6 +94,94 @@ fn own_identity_updates_have_one_user_row_before_and_after_membership() {
     .ignore_rest();
 }
 
+fn assert_own_presence_matches(session: &papo_core::Session) {
+    let state = session.state();
+    let own = state.user(state.nick()).unwrap();
+    assert_eq!(own.account(), state.account());
+    assert_eq!(own.away(), state.away());
+}
+
+#[test]
+fn own_presence_updates_have_one_user_row_across_membership_and_nick() {
+    Transcript::new(Config::default().nick("emily"))
+        .inspect(|session| {
+            assert_own_presence_matches(session);
+            assert_eq!(session.state().account(), &Account::LoggedOut);
+            assert_eq!(session.state().away(), &Away::Present);
+        })
+        .server(":ergo.test 306 emily :You have been marked as being away")
+        .event(|event| {
+            matches!(
+                event,
+                Event::AwayChanged {
+                    away: Away::Away { .. },
+                    ..
+                }
+            )
+        })
+        .inspect(|session| {
+            assert_own_presence_matches(session);
+            assert!(matches!(session.state().away(), Away::Away { .. }));
+        })
+        .server(":ergo.test 305 emily :You are no longer marked as being away")
+        .event(|event| {
+            matches!(
+                event,
+                Event::AwayChanged {
+                    away: Away::Present,
+                    ..
+                }
+            )
+        })
+        .inspect(|session| {
+            assert_own_presence_matches(session);
+            assert_eq!(session.state().away(), &Away::Present);
+        })
+        .server(":emily!~em@users/emily ACCOUNT emily")
+        .event(|event| {
+            matches!(
+                event,
+                Event::AccountChanged {
+                    account: Account::LoggedIn(_),
+                    ..
+                }
+            )
+        })
+        .inspect(|session| {
+            assert_own_presence_matches(session);
+            assert!(matches!(session.state().account(), Account::LoggedIn(_)));
+        })
+        .server(":emily!~em@users/emily ACCOUNT *")
+        .event(|event| {
+            matches!(
+                event,
+                Event::AccountChanged {
+                    account: Account::LoggedOut,
+                    ..
+                }
+            )
+        })
+        .inspect(|session| {
+            assert_own_presence_matches(session);
+            assert_eq!(session.state().account(), &Account::LoggedOut);
+        })
+        .server(":ergo.test 900 emily emily!~em@users/emily emily :You are now logged in as emily")
+        .inspect(|session| {
+            assert_own_presence_matches(session);
+            assert!(matches!(session.state().account(), Account::LoggedIn(_)));
+        })
+        .server(":ergo.test 901 emily emily!~em@users/emily :You are now logged out")
+        .inspect(|session| {
+            assert_own_presence_matches(session);
+            assert_eq!(session.state().account(), &Account::LoggedOut);
+        })
+        .server(":emily!~em@users/emily JOIN #papo")
+        .server(":emily!~em@users/emily PART #papo :Leaving")
+        .server(":emily!~em@users/emily NICK :emily-away")
+        .inspect(assert_own_presence_matches)
+        .ignore_rest();
+}
+
 #[test]
 fn a_server_without_accounts_keeps_our_entry_logged_out() {
     Transcript::new(Config::default().wanted_caps(std::iter::empty::<&str>()))

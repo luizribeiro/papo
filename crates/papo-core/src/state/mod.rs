@@ -50,8 +50,6 @@ struct Departure {
 #[derive(Debug, Eq, PartialEq)]
 pub struct State {
     nick: Nick,
-    account: Account,
-    away: Away,
     user_modes: HashSet<char>,
     casemapping: Names,
     isupport: Isupport,
@@ -87,8 +85,6 @@ impl Clone for State {
         STATE_CLONES.set(STATE_CLONES.get() + 1);
         Self {
             nick: self.nick.clone(),
-            account: self.account.clone(),
-            away: self.away.clone(),
             user_modes: self.user_modes.clone(),
             casemapping: self.casemapping,
             isupport: self.isupport.clone(),
@@ -363,8 +359,6 @@ impl State {
         users.insert(nick.clone(), own);
         Self {
             nick,
-            account: Account::LoggedOut,
-            away: Away::Present,
             user_modes: HashSet::new(),
             casemapping: names,
             isupport: Isupport::default(),
@@ -510,7 +504,10 @@ impl State {
     }
 
     pub(crate) fn sync_own_account(&mut self, account: Option<&str>) {
-        self.account = Account::from_notify(account, self.casemapping);
+        self.users
+            .get_mut(&self.nick)
+            .expect("own user is always present")
+            .account = Account::from_notify(account, self.casemapping);
     }
 
     pub(crate) fn set_mode_list(
@@ -947,12 +944,6 @@ impl State {
             .casemapping
             .origin()
             .__nick(mapping, self.nick.as_ref());
-        if let Account::LoggedIn(account) = &mut self.account {
-            *account = self
-                .casemapping
-                .origin()
-                .__account(mapping, account.as_ref());
-        }
         self.channels = std::mem::take(&mut self.channels)
             .into_values()
             .map(|mut channel| {
@@ -1125,14 +1116,14 @@ impl State {
 
     /// Returns the session's account state.
     #[must_use]
-    pub const fn account(&self) -> &Account {
-        &self.account
+    pub fn account(&self) -> &Account {
+        &self.users[&self.nick].account
     }
 
     /// Returns the session's presence state.
     #[must_use]
-    pub const fn away(&self) -> &Away {
-        &self.away
+    pub fn away(&self) -> &Away {
+        &self.users[&self.nick].away
     }
 
     /// Returns a joined channel using the server's current casemapping.
