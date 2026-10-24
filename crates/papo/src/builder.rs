@@ -490,8 +490,20 @@ impl Builder {
 
     /// Trusts only the certificates in a PEM document.
     ///
-    /// ```
-    /// # _ = papo::Client::builder("ircs://irc.example.net").tls_ca_pem(Vec::new());
+    /// An IP endpoint can use a private CA while authenticating the DNS name in the certificate:
+    ///
+    /// ```no_run
+    /// # async fn connect() -> Result<(), Box<dyn std::error::Error>> {
+    /// use std::fs;
+    ///
+    /// let ca_pem = fs::read("private-ca.pem")?;
+    /// let (_client, _events) = papo::Client::builder("ircs://127.0.0.1:6697")
+    ///     .tls_ca_pem(ca_pem)
+    ///     .tls_server_name("irc.internal.example")
+    ///     .connect()
+    ///     .await?;
+    /// # Ok(())
+    /// # }
     /// ```
     #[cfg(not(browser))]
     pub fn tls_ca_pem(mut self, pem: impl Into<Vec<u8>>) -> Self {
@@ -532,9 +544,8 @@ impl Builder {
 
     /// Overrides the DNS name authenticated by TLS.
     ///
-    /// ```
-    /// # _ = papo::Client::builder("ircs://127.0.0.1").tls_server_name("irc.example.net");
-    /// ```
+    /// This permits connecting to an IP endpoint while verifying a certificate for a DNS name.
+    /// See the private-CA example on [`Self::tls_ca_pem`].
     #[cfg(not(browser))]
     pub fn tls_server_name(mut self, server_name: impl Into<String>) -> Self {
         self.tls.server_name = Some(server_name.into());
