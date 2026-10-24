@@ -491,7 +491,7 @@ async fn plain_text_rejects_ctcp_delimiters() {
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never()),
     );
-    wire.register(&[]).await;
+    wire.register(&["batch"]).await;
 
     for text in [
         "\x01VERSION\x01".to_owned(),
@@ -777,6 +777,68 @@ async fn typing_status_change_preserves_the_latest_audience() {
     let state = client.state();
     let typer = state.typing(&conversation).next().unwrap();
     assert_eq!(typer.return_address(), "@#staff");
+}
+
+#[tokio::test]
+async fn channel_keys_are_redacted_across_state_and_events() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test")
+            .nick("papo-wire")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&[]).await;
+    while !matches!(
+        next_active_event(&mut events).await,
+        papo::Event::Connected(_)
+    ) {}
+    wire.server(
+        ":offline.test 005 papo-wire CHANMODES=Ibe,k,fl,imnpst :are supported by this server",
+    )
+    .await;
+    wire.server(":papo-wire!~p@localhost JOIN #staff").await;
+    assert!(matches!(
+        next_active_event(&mut events).await,
+        papo::Event::Joined(_)
+    ));
+
+    wire.server(":offline.test 324 papo-wire #staff +k snapshot-key-2026")
+        .await;
+    wire.server(":offline.test 777 papo-wire :snapshot applied")
+        .await;
+    assert!(matches!(
+        next_active_event(&mut events).await,
+        papo::Event::Other(line) if line.numeric() == Some(777)
+    ));
+    let state = client.state();
+    let channel = state.channel("#staff").unwrap();
+    assert_eq!(
+        channel.key().and_then(papo::Secret::expose),
+        Some("snapshot-key-2026")
+    );
+    assert!(!format!("{state:?}").contains("snapshot-key-2026"));
+
+    wire.server(":alice!~a@cloak.example MODE #staff +k hunter2")
+        .await;
+    let mode = next_active_event(&mut events).await;
+    assert!(!format!("{mode:?}").contains("hunter2"));
+    assert!(matches!(mode, papo::Event::ModeChanged(change)
+        if matches!(&change.changes[0].arg, Some(papo::ModeArg::Key(key)) if key.expose() == Some("hunter2"))));
+
+    wire.server(":offline.test 324 papo-wire #unjoined +k raw-key-2026")
+        .await;
+    let raw = next_active_event(&mut events).await;
+    assert!(matches!(&raw, papo::Event::Other(line) if line.numeric() == Some(324)));
+    assert!(!format!("{raw:?}").contains("raw-key-2026"));
+
+    wire.server(":offline.test BATCH +opaque vendor.example/archive")
+        .await;
+    wire.server("@batch=opaque :alice!~a@cloak.example MODE #staff +k archived-key-2026")
+        .await;
+    let raw = next_active_event(&mut events).await;
+    assert!(matches!(&raw, papo::Event::Other(line) if line.command() == "MODE"));
+    assert!(!format!("{raw:?}").contains("archived-key-2026"));
+    wire.server(":offline.test BATCH -opaque").await;
 }
 
 #[tokio::test(start_paused = true)]

@@ -1,3 +1,5 @@
+use papo_proto::{Command, ModeChanges, Numeric};
+
 use crate::{Event, Line, LineRef, ReceivedLine, Session, conversation::classify_line_with_names};
 
 impl Session {
@@ -29,7 +31,8 @@ impl Session {
         })
     }
 
-    pub(super) fn received_line(&self, line: Line, batch_type: Option<String>) -> ReceivedLine {
+    pub(super) fn received_line(&self, mut line: Line, batch_type: Option<String>) -> ReceivedLine {
+        self.mark_channel_key(&mut line);
         let authorship = self.authorship(&line.as_ref());
         let (status, conversation) = classify_line_with_names(
             &line.as_ref(),
@@ -49,6 +52,43 @@ impl Session {
             status,
             channel_context,
             reply_token: self.state.reply_token(),
+        }
+    }
+
+    fn mark_channel_key(&self, line: &mut Line) {
+        let key_params = {
+            let message = line.as_ref();
+            let (modestring, args_start) = match message.command() {
+                Command::Mode
+                    if message
+                        .param(0)
+                        .is_some_and(|target| self.isupport.value().is_channel(target)) =>
+                {
+                    (message.param(1), 2)
+                }
+                Command::Numeric(Numeric::RPL_CHANNELMODEIS) => (message.param(2), 3),
+                _ => return,
+            };
+            let Some(modestring) = modestring else {
+                return;
+            };
+            let mut consumed = 0;
+            ModeChanges::parse(
+                modestring,
+                message.params().skip(args_start),
+                self.isupport.value(),
+            )
+            .filter_map(|change| {
+                let index = args_start + consumed;
+                if change.arg.is_some() {
+                    consumed += 1;
+                }
+                (change.mode == 'k' && message.param(index).is_some()).then_some(index)
+            })
+            .collect::<Vec<_>>()
+        };
+        for index in key_params {
+            line.__mark_secret(index);
         }
     }
 

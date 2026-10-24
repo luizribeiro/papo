@@ -516,6 +516,23 @@ impl Line {
         self.params.get(index).map(Param::as_str)
     }
 
+    /// Marks a parameter as sensitive while preserving its text value.
+    #[doc(hidden)]
+    pub fn __mark_secret(&mut self, index: usize) {
+        let Some(param) = self.params.get_mut(index) else {
+            return;
+        };
+        if param.is_secret() {
+            return;
+        }
+        let ParamValue::Text(value) =
+            std::mem::replace(&mut param.0, ParamValue::Text(String::new()))
+        else {
+            unreachable!("secret parameters returned above");
+        };
+        param.0 = ParamValue::Secret(Secret::from(value));
+    }
+
     /// Returns the last value for a case-sensitive tag key.
     ///
     /// A tag without a value returns `Some("")`. `None` means the key is absent.

@@ -72,6 +72,7 @@ ids = [
   "security.bot.private-reply-after-nick-takeover", "security.reply.broadcast-private",
   "security.routing.status-prefix-channel", "security.target.no-comma-multitarget",
   "security.st-13.typing-status-audience",
+  "security.st-4.channel-key-redaction",
   "security.rejoin.channel-rename", "security.ctcp.no-reply-to-playback",
   "security.s3.pass-after-sts-decision",
   "security.sts.password-required",
