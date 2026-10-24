@@ -270,6 +270,12 @@ impl IntoFuture for SendMessage {
 }
 
 impl Sent {
+    /// Returns the client identity associated with this message.
+    #[must_use]
+    pub fn origin(&self) -> crate::Origin {
+        crate::message_ref::conversation_origin(&self.conversation)
+    }
+
     /// Returns the address that reaches the recipients of the sent message.
     ///
     /// See [`crate::Conversation`] for status-prefixed line guidance.

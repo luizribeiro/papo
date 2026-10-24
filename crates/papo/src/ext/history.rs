@@ -567,6 +567,12 @@ impl ConversationInput {
 }
 
 impl HistoryPage {
+    /// Returns the client identity associated with this page.
+    #[must_use]
+    pub fn origin(&self) -> crate::Origin {
+        crate::message_ref::conversation_origin(&self.conversation)
+    }
+
     /// Iterates over chat messages, excluding replayed activity items.
     pub fn messages(&self) -> impl Iterator<Item = &ChatMessage> {
         self.items.iter().filter_map(|item| match item {
@@ -591,6 +597,14 @@ impl HistoryPage {
         self.items
             .last()
             .and_then(|event| event_reference(event, origin))
+    }
+}
+
+impl RecentConversation {
+    /// Returns the client identity associated with this conversation.
+    #[must_use]
+    pub fn origin(&self) -> crate::Origin {
+        crate::message_ref::conversation_origin(&self.conversation)
     }
 }
 

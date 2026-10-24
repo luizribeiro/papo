@@ -238,6 +238,22 @@ macro_rules! ctcp_return_address {
 
 ctcp_return_address!(CtcpQuery, CtcpReply);
 
+macro_rules! conversation_origin {
+    ($($ty:ty),+ $(,)?) => {
+        $(
+            impl $ty {
+                /// Returns the client identity associated with this event.
+                #[must_use]
+                pub fn origin(&self) -> crate::Origin {
+                    crate::message_ref::conversation_origin(&self.conversation)
+                }
+            }
+        )+
+    };
+}
+
+conversation_origin!(CtcpQuery, CtcpReply);
+
 /// Whether an event's actor is this client's user.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[non_exhaustive]
@@ -524,6 +540,12 @@ pub(crate) fn incoming_from_core(
 }
 
 impl Message {
+    /// Returns the client identity associated with this message.
+    #[must_use]
+    pub fn origin(&self) -> crate::Origin {
+        crate::message_ref::chat_origin(&self.conversation)
+    }
+
     /// Reports whether current state proves that a private response would reach another user.
     #[doc(hidden)]
     #[must_use]
@@ -664,6 +686,12 @@ impl Message {
 }
 
 impl Notice {
+    /// Returns the client identity associated with this notice.
+    #[must_use]
+    pub fn origin(&self) -> crate::Origin {
+        crate::message_ref::chat_origin(&self.conversation)
+    }
+
     /// Returns the address that reaches the recipients of the notice.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.

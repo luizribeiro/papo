@@ -390,6 +390,8 @@ pub papo::event::CtcpQuery::server_time: core::option::Option<std::time::SystemT
 pub papo::event::CtcpQuery::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo::event::CtcpQuery::tags: papo::Tags
 impl papo::event::CtcpQuery
+pub fn papo::event::CtcpQuery::origin(&self) -> papo::Origin
+impl papo::event::CtcpQuery
 pub fn papo::event::CtcpQuery::return_address(&self) -> alloc::string::String
 impl core::clone::Clone for papo::event::CtcpQuery
 pub fn papo::event::CtcpQuery::clone(&self) -> Self
@@ -418,6 +420,8 @@ pub papo::event::CtcpReply::received_at: std::time::SystemTime
 pub papo::event::CtcpReply::server_time: core::option::Option<std::time::SystemTime>
 pub papo::event::CtcpReply::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo::event::CtcpReply::tags: papo::Tags
+impl papo::event::CtcpReply
+pub fn papo::event::CtcpReply::origin(&self) -> papo::Origin
 impl papo::event::CtcpReply
 pub fn papo::event::CtcpReply::return_address(&self) -> alloc::string::String
 impl core::clone::Clone for papo::event::CtcpReply
@@ -703,6 +707,7 @@ pub papo::event::Notice::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo::event::Notice::tags: papo::Tags
 pub papo::event::Notice::text: alloc::string::String
 impl papo::event::Notice
+pub fn papo::event::Notice::origin(&self) -> papo::Origin
 pub fn papo::event::Notice::return_address(&self) -> alloc::string::String
 pub fn papo::event::Notice::spans(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo::Span<'_>>
 impl core::clone::Clone for papo::event::Notice
@@ -788,6 +793,8 @@ pub papo::event::Reacted::removed: bool
 pub papo::event::Reacted::server_time: core::option::Option<std::time::SystemTime>
 pub papo::event::Reacted::status: core::option::Option<alloc::vec::Vec<char>>
 impl papo::event::Reacted
+pub fn papo::event::Reacted::origin(&self) -> papo::Origin
+impl papo::event::Reacted
 pub fn papo::event::Reacted::return_address(&self) -> alloc::string::String
 impl core::clone::Clone for papo::event::Reacted
 pub fn papo::event::Reacted::clone(&self) -> Self
@@ -807,6 +814,8 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::Reacted
 #[non_exhaustive] pub struct papo::event::ReadMarkerChanged
 pub papo::event::ReadMarkerChanged::conversation: papo::Conversation
 pub papo::event::ReadMarkerChanged::read_until: core::option::Option<std::time::SystemTime>
+impl papo::event::ReadMarkerChanged
+pub fn papo::event::ReadMarkerChanged::origin(&self) -> papo::Origin
 impl core::clone::Clone for papo::event::ReadMarkerChanged
 pub fn papo::event::ReadMarkerChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::ReadMarkerChanged
@@ -852,6 +861,8 @@ pub papo::event::Redacted::reason: core::option::Option<alloc::string::String>
 pub papo::event::Redacted::received_at: std::time::SystemTime
 pub papo::event::Redacted::server_time: core::option::Option<std::time::SystemTime>
 pub papo::event::Redacted::status: core::option::Option<alloc::vec::Vec<char>>
+impl papo::event::Redacted
+pub fn papo::event::Redacted::origin(&self) -> papo::Origin
 impl papo::event::Redacted
 pub fn papo::event::Redacted::return_address(&self) -> alloc::string::String
 impl core::clone::Clone for papo::event::Redacted
@@ -942,6 +953,8 @@ pub papo::event::TagMsg::conversation: papo::Conversation
 pub papo::event::TagMsg::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo::event::TagMsg::tags: papo::Tags
 impl papo::event::TagMsg
+pub fn papo::event::TagMsg::origin(&self) -> papo::Origin
+impl papo::event::TagMsg
 pub fn papo::event::TagMsg::return_address(&self) -> alloc::string::String
 impl core::clone::Clone for papo::event::TagMsg
 pub fn papo::event::TagMsg::clone(&self) -> Self
@@ -991,6 +1004,8 @@ pub papo::event::TypingChanged::conversation: papo::Conversation
 pub papo::event::TypingChanged::reason: papo::event::TypingReason
 pub papo::event::TypingChanged::state: papo::Typing
 pub papo::event::TypingChanged::status: core::option::Option<alloc::vec::Vec<char>>
+impl papo::event::TypingChanged
+pub fn papo::event::TypingChanged::origin(&self) -> papo::Origin
 impl papo::event::TypingChanged
 pub fn papo::event::TypingChanged::return_address(&self) -> alloc::string::String
 impl core::clone::Clone for papo::event::TypingChanged
@@ -1947,6 +1962,7 @@ impl papo::HistoryPage
 pub fn papo::HistoryPage::messages(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Message>
 pub fn papo::HistoryPage::newest(&self) -> core::option::Option<papo::HistoryReference>
 pub fn papo::HistoryPage::oldest(&self) -> core::option::Option<papo::HistoryReference>
+pub fn papo::HistoryPage::origin(&self) -> papo::Origin
 impl core::clone::Clone for papo::HistoryPage
 pub fn papo::HistoryPage::clone(&self) -> Self
 impl core::cmp::Eq for papo::HistoryPage
@@ -2149,6 +2165,7 @@ pub papo::Message::tags: papo::Tags
 pub papo::Message::text: alloc::string::String
 impl papo::Message
 pub fn papo::Message::is_own(&self) -> bool
+pub fn papo::Message::origin(&self) -> papo::Origin
 pub fn papo::Message::return_address(&self) -> alloc::string::String
 pub fn papo::Message::spans(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo::Span<'_>>
 impl core::clone::Clone for papo::Message
@@ -2304,6 +2321,8 @@ impl core::panic::unwind_safe::UnwindSafe for papo::Oper
 #[non_exhaustive] pub struct papo::RecentConversation
 pub papo::RecentConversation::conversation: papo::Conversation
 pub papo::RecentConversation::latest_server_time: std::time::SystemTime
+impl papo::RecentConversation
+pub fn papo::RecentConversation::origin(&self) -> papo::Origin
 impl core::clone::Clone for papo::RecentConversation
 pub fn papo::RecentConversation::clone(&self) -> Self
 impl core::cmp::Eq for papo::RecentConversation
@@ -2384,6 +2403,7 @@ pub papo::Sent::msgid: core::option::Option<papo::MessageId>
 pub papo::Sent::server_time: core::option::Option<std::time::SystemTime>
 pub papo::Sent::status: core::option::Option<alloc::vec::Vec<char>>
 impl papo::Sent
+pub fn papo::Sent::origin(&self) -> papo::Origin
 pub fn papo::Sent::return_address(&self) -> alloc::string::String
 impl core::clone::Clone for papo::Sent
 pub fn papo::Sent::clone(&self) -> Self

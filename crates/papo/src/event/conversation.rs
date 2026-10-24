@@ -128,6 +128,22 @@ macro_rules! return_address {
 
 return_address!(Reacted, Redacted, TypingChanged, TagMsg);
 
+macro_rules! origin {
+    ($($ty:ty),+ $(,)?) => {
+        $(
+            impl $ty {
+                /// Returns the client identity associated with this event.
+                #[must_use]
+                pub fn origin(&self) -> crate::Origin {
+                    crate::message_ref::conversation_origin(&self.conversation)
+                }
+            }
+        )+
+    };
+}
+
+origin!(Reacted, Redacted, TypingChanged, TagMsg, ReadMarkerChanged);
+
 /// A conversation's read marker changed.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]

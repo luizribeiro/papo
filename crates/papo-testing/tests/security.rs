@@ -62,6 +62,8 @@ async fn cross_client_values_never_reach_either_wire() {
     }
     let page = history.await.unwrap().unwrap();
     let message = page.messages().next().unwrap().clone();
+    assert_eq!(page.origin(), second.origin());
+    assert_eq!(message.origin(), second.origin());
 
     assert!(is_foreign(&first.reply(&message, "acknowledged").await));
     assert!(is_foreign(
