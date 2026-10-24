@@ -56,22 +56,35 @@ impl TypingChanged {
 
 /// A user currently composing a message in a conversation.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct Typer {
-    /// The user's nickname.
-    pub nick: Nick,
-    /// The IRC conversation where the user is typing.
-    ///
-    /// See [`Conversation`] for status-prefixed line guidance.
-    pub conversation: Conversation,
-    /// Whether the user is actively typing or has paused.
-    pub state: Typing,
-    /// `STATUSMSG` prefixes on the typing notification's wire address.
-    ///
-    /// See [`Conversation`] for status-prefixed line guidance.
-    pub status: Option<Vec<char>>,
+    nick: Nick,
+    conversation: Conversation,
+    state: Typing,
+    status: Option<Vec<char>>,
 }
 
 impl Typer {
+    /// Returns the user's nickname.
+    #[must_use]
+    pub const fn nick(&self) -> &Nick {
+        &self.nick
+    }
+
+    /// Returns whether the user has paused rather than actively typing.
+    #[must_use]
+    pub const fn is_paused(&self) -> bool {
+        matches!(self.state, Typing::Paused)
+    }
+
+    /// Returns the `STATUSMSG` prefixes on the typing notification's wire address.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
+    #[must_use]
+    pub fn status(&self) -> Option<&[char]> {
+        self.status.as_deref()
+    }
+
     /// Returns the address that reaches the recipients of the typing notification.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.

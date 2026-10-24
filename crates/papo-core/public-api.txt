@@ -2092,13 +2092,12 @@ impl core::marker::Unpin for papo_core::TagMessage
 impl core::marker::UnsafeUnpin for papo_core::TagMessage
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::TagMessage
 impl core::panic::unwind_safe::UnwindSafe for papo_core::TagMessage
-pub struct papo_core::Typer
-pub papo_core::Typer::conversation: papo::Conversation
-pub papo_core::Typer::nick: papo::Nick
-pub papo_core::Typer::state: papo::Typing
-pub papo_core::Typer::status: core::option::Option<alloc::vec::Vec<char>>
+#[non_exhaustive] pub struct papo_core::Typer
 impl papo_core::Typer
+pub const fn papo_core::Typer::is_paused(&self) -> bool
+pub const fn papo_core::Typer::nick(&self) -> &papo::Nick
 pub fn papo_core::Typer::return_address(&self) -> alloc::string::String
+pub fn papo_core::Typer::status(&self) -> core::option::Option<&[char]>
 impl core::clone::Clone for papo_core::Typer
 pub fn papo_core::Typer::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::Typer

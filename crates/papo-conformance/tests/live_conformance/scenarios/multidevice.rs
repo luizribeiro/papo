@@ -478,7 +478,7 @@ async fn multidevice_typing_own_state(s: Scenario) -> papo_testing::Result<()> {
         phone
             .state()
             .typing(&typing.conversation)
-            .filter(|typer| typer.nick == desktop.nick())
+            .filter(|typer| typer.nick() == desktop.nick().as_ref())
             .count(),
         0
     );

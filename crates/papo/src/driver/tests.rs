@@ -6729,9 +6729,9 @@ async fn typing_state_appears_refreshes_without_a_snapshot_and_expires() {
     };
     let state = client.state();
     let typer = state.typing(&conversation).next().unwrap();
-    assert_eq!(typer.nick, "alice");
-    assert_eq!(typer.state, Typing::Active);
-    assert_eq!(typer.status, None);
+    assert_eq!(typer.nick(), "alice");
+    assert!(!typer.is_paused());
+    assert_eq!(typer.status(), None);
 
     tokio::time::advance(Duration::from_secs(3)).await;
     server_line(

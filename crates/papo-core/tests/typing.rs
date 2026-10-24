@@ -56,9 +56,9 @@ fn notifications_update_state_in_start_order_without_refresh_churn() {
     let conversation = conversation(&session, "#papo");
     let typers: Vec<_> = session.state().typing(&conversation).collect();
     assert_eq!(typers.len(), 2);
-    assert_eq!(typers[0].nick.as_ref(), "alice");
-    assert_eq!(typers[0].state, Typing::Active);
-    assert_eq!(typers[1].nick, "bob");
+    assert_eq!(typers[0].nick().as_ref(), "alice");
+    assert!(!typers[0].is_paused());
+    assert_eq!(typers[1].nick(), "bob");
 
     session.handle_timeout(now + std::time::Duration::from_secs(8));
     assert_eq!(session.state_generation(), generation);
@@ -73,7 +73,7 @@ fn notifications_update_state_in_start_order_without_refresh_churn() {
     assert_eq!(session.typing_generation(), typing_generation + 1);
     let remaining: Vec<_> = session.state().typing(&conversation).collect();
     assert_eq!(remaining.len(), 1);
-    assert_eq!(remaining[0].nick, "bob");
+    assert_eq!(remaining[0].nick(), "bob");
 }
 
 #[test]
@@ -93,8 +93,8 @@ fn status_target_updates_typing_state_and_deadline() {
             let conversation = conversation(session, "#papo");
             let typers: Vec<_> = session.state().typing(&conversation).collect();
             assert_eq!(typers.len(), 1);
-            assert_eq!(typers[0].state, Typing::Paused);
-            assert_eq!(typers[0].status.as_deref(), Some(&['@'][..]));
+            assert!(typers[0].is_paused());
+            assert_eq!(typers[0].status(), Some(&['@'][..]));
             assert_eq!(typers[0].return_address(), "@#papo");
         })
         .deadline(Some(Duration::from_secs(30)))
@@ -291,8 +291,11 @@ fn part_scopes_other_typing_but_own_part_clears_the_channel() {
         .inspect(|session| {
             let papo = conversation(session, "#papo");
             let rust = conversation(session, "#rust");
-            assert_eq!(session.state().typing(&papo).next().unwrap().nick, "bob");
-            assert_eq!(session.state().typing(&rust).next().unwrap().nick, "alice");
+            assert_eq!(session.state().typing(&papo).next().unwrap().nick(), "bob");
+            assert_eq!(
+                session.state().typing(&rust).next().unwrap().nick(),
+                "alice"
+            );
         })
         .server(":papo!~p@localhost PART #papo :Leaving")
         .event(|event| matches!(event, Event::Parted { .. }))
@@ -337,8 +340,11 @@ fn kick_only_clears_the_kicked_sender_in_that_channel() {
         .inspect(|session| {
             let papo = conversation(session, "#papo");
             let rust = conversation(session, "#rust");
-            assert_eq!(session.state().typing(&papo).next().unwrap().nick, "bob");
-            assert_eq!(session.state().typing(&rust).next().unwrap().nick, "alice");
+            assert_eq!(session.state().typing(&papo).next().unwrap().nick(), "bob");
+            assert_eq!(
+                session.state().typing(&rust).next().unwrap().nick(),
+                "alice"
+            );
         })
         .no_event();
 }
@@ -418,8 +424,8 @@ fn nick_changes_carry_typing_and_its_deadline() {
 
     let conversation = conversation(&session, "#papo");
     let typer = session.state().typing(&conversation).next().unwrap();
-    assert_eq!(typer.nick, "Alicia");
-    assert_eq!(typer.state, Typing::Active);
+    assert_eq!(typer.nick(), "Alicia");
+    assert!(!typer.is_paused());
     assert_eq!(
         session.poll_timeout(),
         Some(now + std::time::Duration::from_secs(6))
@@ -445,8 +451,8 @@ fn endless_typers_stay_within_literal_bounds() {
     let channel = conversation(&session, "#papo");
     let typers: Vec<_> = session.state().typing(&channel).collect();
     assert_eq!(typers.len(), 32);
-    assert_eq!(typers[0].nick, "user01");
-    assert_eq!(typers[31].nick, "user32");
+    assert_eq!(typers[0].nick(), "user01");
+    assert_eq!(typers[31].nick(), "user32");
 
     let mut session = Session::new(Config::default());
     for index in 0..513 {
