@@ -29,6 +29,8 @@ impl Bouncer {
     /// The builder copies the control connection's resolved endpoint, credentials, TLS settings,
     /// rate limit, reconnect policy, and enabled features. Per-network settings such as autojoin,
     /// metadata subscriptions, event capacity, and reconnect history keep their defaults.
+    /// The bound connection verifies the selected ID and leaves bouncer network notifications on
+    /// the control connection unless [`crate::Builder::request_caps`] explicitly requests them.
     /// A control client built from a custom stream produces a builder whose connection fails with
     /// [`crate::Error::InvalidInput`].
     pub fn network(&self, id: &NetworkId) -> crate::Builder {

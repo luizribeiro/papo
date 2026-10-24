@@ -226,6 +226,11 @@ impl Builder {
     }
 
     /// Selects an upstream bouncer network before the connection completes.
+    ///
+    /// The connection fails unless the server acknowledges `soju.im/bouncer-networks` and its
+    /// welcome confirms this exact ID through `BOUNCER_NETID`. Bound connections do not request
+    /// `soju.im/bouncer-networks-notify` by default; call [`Self::request_caps`] after this method
+    /// to opt this connection into network-change events.
     #[cfg(feature = "unstable")]
     pub fn bouncer_network(mut self, id: crate::NetworkId) -> Self {
         self.config = self
