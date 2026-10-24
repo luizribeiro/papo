@@ -43,6 +43,10 @@ SASL, WEBIRC, and account registration require `ircs://` or `wss://` by default.
 on plaintext TCP is sent only after a valid IRC STS upgrade. Apps with another trusted transport
 layer must use `Builder::allow_insecure_auth(true)` to permit credentials without transport TLS.
 
+Builder settings that depend on a capability fail connection setup when it is unavailable. This
+includes account creation, metadata subscriptions, reconnect history, and selecting a bouncer
+network. In contrast, `enable(Feature::X)` and `request_caps` use capabilities only when offered.
+
 Pass a received message or `Sent` value to reply, react, unreact, or redact. That preserves a
 status-prefixed return address such as `@#ops`; the `Conversation` value identifies only the
 `#ops` buffer and must not be reconstructed into a send target. For a private received line,

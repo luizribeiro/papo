@@ -217,7 +217,10 @@ impl Builder {
         self
     }
 
-    /// Configures SASL authentication.
+    /// Configures required SASL authentication.
+    ///
+    /// The connection fails with [`ConnectErrorKind::SaslUnavailable`](crate::ConnectErrorKind::SaslUnavailable)
+    /// when the server offers no usable SASL capability or mechanism.
     pub fn sasl(mut self, sasl: Sasl) -> Self {
         if sasl.has_binary_secret() {
             self.invalid_input.get_or_insert(InvalidInput::BinarySecret);
@@ -260,6 +263,9 @@ impl Builder {
     }
 
     /// Creates an account while connecting.
+    ///
+    /// This requires `draft/account-registration` with `before-connect`; otherwise the connection
+    /// fails with [`ConnectErrorKind::CapabilityUnavailable`](crate::ConnectErrorKind::CapabilityUnavailable).
     ///
     /// ```
     /// let account = papo::NewAccount::new("correct horse battery staple")
@@ -352,6 +358,9 @@ impl Builder {
     }
 
     /// Sets metadata keys subscribed on every connection.
+    ///
+    /// A nonempty subscription requires `draft/metadata-3`; otherwise the connection fails with
+    /// [`ConnectErrorKind::CapabilityUnavailable`](crate::ConnectErrorKind::CapabilityUnavailable).
     pub fn metadata_subscriptions<I, S>(mut self, keys: I) -> Self
     where
         I: IntoIterator<Item = S>,

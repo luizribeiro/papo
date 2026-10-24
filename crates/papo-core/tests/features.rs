@@ -100,6 +100,14 @@ fn unstable_capabilities_require_explicit_feature_selection() {
 }
 
 #[test]
+fn enabled_features_remain_optional_when_not_offered() {
+    Transcript::new(Config::default().enable(Feature::Bouncer))
+        .connect_default()
+        .server("CAP * LS :")
+        .client("CAP END");
+}
+
+#[test]
 fn combines_isupport_tokens_with_negotiated_caps() {
     let session = session_with(
         Config::default().wanted_caps(["draft/chathistory"]),
