@@ -23,6 +23,9 @@
 "security::server_password_waits_for_sts" = [
   "security.s3.pass-after-sts-decision",
 ]
+"security::server_password_requires_sts_on_plaintext" = [
+  "security.sts.password-required",
+]
 "security::plaintext_credentials_require_explicit_opt_in" = [
   "security.t3.plaintext-credentials-opt-in",
 ]

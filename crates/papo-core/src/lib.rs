@@ -772,6 +772,10 @@ impl Config {
         self
     }
 
+    pub(crate) const fn allows_insecure_authentication(&self) -> bool {
+        self.allow_insecure_auth
+    }
+
     /// Sets the maximum time to wait for the welcome numeric.
     #[must_use]
     pub const fn welcome_timeout(mut self, timeout: Duration) -> Self {
@@ -2998,8 +3002,7 @@ impl Session {
         self.outbox.reset_connection();
         if self.connection.security == ConnectionSecurity::Plaintext
             && !self.config.allow_insecure_auth
-            && (self.config.password.is_some()
-                || self.config.webirc.is_some()
+            && (self.config.webirc.is_some()
                 || self.config.sasl.is_some()
                 || self.config.registration_on_connect.is_some())
         {

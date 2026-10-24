@@ -39,8 +39,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 See the [ping bot](examples/ping-bot) for the complete example and its live-server test.
 
-SASL, server passwords, WEBIRC, and account registration require `ircs://` or `wss://` by default.
-Apps with another trusted transport layer must use `Builder::allow_insecure_auth(true)`.
+SASL, WEBIRC, and account registration require `ircs://` or `wss://` by default. A server password
+on plaintext TCP is sent only after a valid IRC STS upgrade. Apps with another trusted transport
+layer must use `Builder::allow_insecure_auth(true)` to permit credentials without transport TLS.
 
 Pass a received message or `Sent` value to reply, react, unreact, or redact. That preserves a
 status-prefixed return address such as `@#ops`; the `Conversation` value identifies only the

@@ -271,6 +271,13 @@ impl Caps {
         if self.handle_sts(connection, outbox) {
             return;
         }
+        if connection.security == crate::sts::ConnectionSecurity::Plaintext
+            && config.password.is_some()
+            && !config.allows_insecure_authentication()
+        {
+            close_required(&cap::STS, "did not offer a valid TLS upgrade", outbox);
+            return;
+        }
         if let Some(required) = config
             .required_capabilities()
             .into_iter()

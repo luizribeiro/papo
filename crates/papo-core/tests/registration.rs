@@ -41,14 +41,42 @@ fn waits_for_the_final_capability_listing_before_sending_password() {
 }
 
 #[test]
-fn plaintext_server_password_requires_explicit_opt_in() {
-    Transcript::rate_limited(Config::default().password("correct horse battery staple"))
-        .connect()
-        .event(|event| {
-            matches!(event, Event::Close { kind: CloseKind::Other, reason, .. }
-                if reason.contains("plaintext"))
-        })
-        .no_client();
+fn plaintext_server_password_requires_sts() {
+    Transcript::rate_limited(
+        Config::default()
+            .rate_limit(papo_core::RateLimit::unlimited())
+            .password("correct horse battery staple"),
+    )
+    .connect_default()
+    .server("CAP * LS :batch")
+    .event(|event| {
+        matches!(event, Event::Close { kind: CloseKind::CapabilityUnavailable, reason, .. }
+                if reason.contains("sts"))
+    })
+    .no_client();
+}
+
+#[test]
+fn plaintext_server_password_accepts_an_sts_upgrade() {
+    Transcript::rate_limited(
+        Config::default()
+            .host("irc.example.net")
+            .rate_limit(papo_core::RateLimit::unlimited())
+            .password("correct horse battery staple"),
+    )
+    .connect_default()
+    .server("CAP * LS :sts=port=6697,duration=86400")
+    .event(|event| matches!(event, Event::StsUpgrade { port: 6697, .. }))
+    .event(|event| {
+        matches!(
+            event,
+            Event::Close {
+                kind: CloseKind::StsUpgrade,
+                ..
+            }
+        )
+    })
+    .no_client();
 }
 
 #[test]

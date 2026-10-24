@@ -21,11 +21,11 @@ fn is_foreign<T>(result: &Result<T, papo::Error>) -> bool {
     )
 }
 
-async fn next_binding_disconnect(events: &mut Events) -> Disconnected {
+async fn next_login_disconnect(events: &mut Events) -> Disconnected {
     loop {
         match events.next().await {
             Some(papo::Event::Disconnected(disconnected)) => return disconnected,
-            Some(papo::Event::Connected(_)) => panic!("unverified bouncer binding connected"),
+            Some(papo::Event::Connected(_)) => panic!("rejected login unexpectedly connected"),
             Some(_) => {}
             None => panic!("driver stopped without a disconnection event"),
         }
@@ -70,7 +70,7 @@ async fn selected_bouncer_network_requires_its_capability() {
     assert_eq!(wire.next_sent().await, "USER papo-bound 0 * papo-bound");
     wire.server(":irc.example CAP * LS :").await;
 
-    let disconnected = next_binding_disconnect(&mut events).await;
+    let disconnected = next_login_disconnect(&mut events).await;
     assert!(disconnected.reconnect_in.is_none());
     assert!(disconnect_diagnostic(&disconnected).contains("soju.im/bouncer-networks"));
     assert_eq!(wire.next_sent_or_closed().await, None);
@@ -93,7 +93,7 @@ async fn selected_bouncer_network_requires_matching_isupport() {
         wire.server(":soju.example 422 papo-bound :MOTD File is missing")
             .await;
 
-        let disconnected = next_binding_disconnect(&mut events).await;
+        let disconnected = next_login_disconnect(&mut events).await;
         assert!(disconnected.reconnect_in.is_none());
         assert!(disconnect_diagnostic(&disconnected).contains("selected network ID"));
     }
@@ -114,14 +114,14 @@ async fn deleted_bouncer_network_stops_during_reconnect() {
     while !matches!(events.next().await, Some(papo::Event::Connected(_))) {}
 
     wire.close().await;
-    let reconnecting = next_binding_disconnect(&mut events).await;
+    let reconnecting = next_login_disconnect(&mut events).await;
     assert!(reconnecting.is_reconnecting());
     tokio::time::advance(Duration::from_secs(2)).await;
     begin_bound_registration(&mut wire, "libera-42").await;
     wire.server("FAIL BOUNCER INVALID_NETID libera-42 :Invalid network ID")
         .await;
 
-    let stopped = next_binding_disconnect(&mut events).await;
+    let stopped = next_login_disconnect(&mut events).await;
     assert!(stopped.reconnect_in.is_none());
     assert!(disconnect_diagnostic(&stopped).contains("rejected the selected network ID"));
     assert_eq!(wire.next_sent_or_closed().await, None);
@@ -429,6 +429,30 @@ async fn server_password_waits_for_sts() {
     assert_eq!(wire.next_sent().await, "USER papo-wire 0 * papo-wire");
     wire.server(":offline.test CAP * LS :sts=port=6697,duration=86400")
         .await;
+    assert_eq!(wire.next_sent_or_closed().await, None);
+}
+
+#[tokio::test]
+async fn server_password_requires_sts_on_plaintext() {
+    let (_client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test")
+            .nick("papo-wire")
+            .password(PASSWORD)
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    assert_eq!(wire.next_sent().await, "CAP LS 302");
+    assert_eq!(wire.next_sent().await, "NICK papo-wire");
+    assert_eq!(wire.next_sent().await, "USER papo-wire 0 * papo-wire");
+    wire.server(":offline.test CAP * LS :batch").await;
+
+    let disconnected = next_login_disconnect(&mut events).await;
+    assert!(matches!(
+        disconnected.cause,
+        DisconnectCause::Connect(ref error)
+            if error.kind() == ConnectErrorKind::CapabilityUnavailable
+    ));
+    assert!(disconnect_diagnostic(&disconnected).contains("sts"));
     assert_eq!(wire.next_sent_or_closed().await, None);
 }
 

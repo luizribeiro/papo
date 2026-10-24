@@ -197,11 +197,13 @@ impl Builder {
     }
 
     /// Sets the server password sent with `PASS`.
+    ///
+    /// On a plaintext endpoint, the server must offer a valid `sts` upgrade before the password
+    /// is sent. [`Self::allow_insecure_auth`] explicitly permits sending it without that upgrade.
     pub fn password(mut self, password: impl Into<papo_core::Secret>) -> Self {
         let password = password.into();
         self.reject_binary_secret(&password);
         self.config.password = Some(password);
-        self.credentials_configured = true;
         self
     }
 
@@ -286,7 +288,8 @@ impl Builder {
     /// Allows configured credentials on an unencrypted `irc://` or `ws://` endpoint.
     ///
     /// Credentials are refused on plaintext endpoints by default. Enable this only when the
-    /// transport is protected by another trusted layer, such as a local test fixture.
+    /// transport is protected by another trusted layer, such as a local test fixture. This also
+    /// permits a server password when the server does not offer an `sts` upgrade.
     pub fn allow_insecure_auth(mut self, allow: bool) -> Self {
         self.allow_insecure_auth = allow;
         self.config = self.config.allow_insecure_auth(allow);
@@ -663,7 +666,10 @@ impl Builder {
             std::sync::Arc::new(std::sync::RwLock::new(self.network_settings(false)));
         self.config.origin = allocate_origin();
         if let Ok(address) = &self.address {
-            if !address.is_secure() && self.credentials_configured && !self.allow_insecure_auth {
+            if !address.is_secure()
+                && (self.credentials_configured || self.config.password.is_some())
+                && !self.allow_insecure_auth
+            {
                 self.invalid_input
                     .get_or_insert(InvalidInput::InsecureAuthentication);
             }
@@ -1339,7 +1345,6 @@ mod tests {
             options: Vec::new(),
         };
         let cases = [
-            Builder::new("irc://irc.example.net").password("server-password"),
             Builder::new("ws://irc.example.net/webirc").webirc(webirc()),
             Builder::new("irc://irc.example.net").sasl(Sasl::plain("alice", "sasl-password")),
             Builder::new("irc://irc.example.net")
