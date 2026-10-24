@@ -175,6 +175,13 @@ fn wire_address_exposures(snapshot: &str) -> Vec<&str> {
         .collect()
 }
 
+fn internal_crate_paths(snapshot: &str) -> Vec<&str> {
+    snapshot
+        .lines()
+        .filter(|line| line.contains("papo_core::") || line.contains("papo_proto::"))
+        .collect()
+}
+
 fn conversation_items(snapshot: &str) -> Vec<&str> {
     snapshot
         .lines()
@@ -260,6 +267,30 @@ fn address_check_matches_types_not_names() {
     assert_eq!(
         wire_address_exposures(snapshot),
         ["pub fn example::send(papo_proto::Address)"]
+    );
+}
+
+#[test]
+fn public_api_uses_only_papo_paths() {
+    for (name, snapshot) in [("papo", STABLE), ("papo unstable", UNSTABLE)] {
+        assert_eq!(
+            internal_crate_paths(snapshot),
+            Vec::<&str>::new(),
+            "{name} exposes an internal crate path"
+        );
+    }
+}
+
+#[test]
+fn internal_path_check_finds_core_and_proto_paths() {
+    let snapshot = "pub use papo::Nick\npub fn papo::core(papo_core::State)\n\
+                    pub fn papo::proto(papo_proto::Line)\n";
+    assert_eq!(
+        internal_crate_paths(snapshot),
+        [
+            "pub fn papo::core(papo_core::State)",
+            "pub fn papo::proto(papo_proto::Line)",
+        ]
     );
 }
 
