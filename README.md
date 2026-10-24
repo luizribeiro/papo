@@ -4,13 +4,9 @@
 typed asynchronous APIs, broad IRCv3 support with Ergo as its primary server, deterministic
 sans-I/O protocol handling, and tokio-based operation on native and WASI targets.
 
-The project is early in development; the API is not yet stable.
-
-- `papo-proto` parses and builds IRC protocol data without I/O.
-- `papo-core` implements deterministic sans-I/O IRC session behavior.
-- `papo` provides the tokio driver, transports, client handles, and event stream.
-- [`papo-bot`](crates/papo-bot) is an experimental, unpublished command-helper crate whose API
-  will change.
+The project is early in development; the API is not yet stable. `papo` is the library applications
+should use. The published `papo-proto` and `papo-core` packages are internal implementation crates
+required by `papo`; they are not intended for direct use and have no API stability guarantees.
 
 ## Quick start
 
@@ -20,7 +16,7 @@ use papo::{Client, Event};
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (client, mut events) = Client::builder("ircs://irc.example.net")
-        .nick("papo-bot")
+        .nick("papo-example")
         .autojoin(["#papo"])
         .connect()
         .await?;
@@ -114,8 +110,8 @@ channel-targeted, and own-session queries are never answered automatically.
 | `draft/extended-isupport` | — | default | — | `isupport` |
 <!-- caps:end -->
 
-Use `papo_proto::strip_formatting` when IRC formatting controls should be removed while
-preserving the message text.
+Use `papo::strip_formatting` when IRC formatting controls should be removed while preserving the
+message text.
 
 ## Running and shutting down
 

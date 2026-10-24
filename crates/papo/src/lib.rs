@@ -9,7 +9,7 @@
 //! #[tokio::main(flavor = "current_thread")]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     let (client, mut events) = Client::builder("ircs://irc.example.net")
-//!         .nick("papo-bot")
+//!         .nick("papo-example")
 //!         .autojoin(["#papo"])
 //!         .connect()
 //!         .await?;
@@ -58,19 +58,16 @@
 //!
 //! APIs gated by the `unstable` feature are outside the crate's semantic-versioning guarantees.
 //! Applications can opt in while libraries should leave the feature disabled.
-//! The repository also contains the experimental, unpublished
-//! [`papo-bot`](https://github.com/luizribeiro/papo/tree/main/crates/papo-bot) command helpers,
-//! whose API will change before publication.
 //! Browser builds (`wasm32-unknown-unknown`) connect only through `ws://` and `wss://`
 //! [`Endpoint::websocket`] endpoints. The browser owns TLS policy, and IRC STS does not apply to
 //! WebSocket connections, so TCP endpoint constructors, TLS setters, and STS stores are absent.
 //!
 //! # Frozen re-exports
 //!
-//! Identifier, state-model, authentication, capability, casemapping, typing, rate-limit, and STS
-//! types re-exported by this crate are part of `papo`'s public compatibility contract. The
-//! internal `papo-core` and `papo-proto` dependencies are pinned exactly so their implementations
-//! cannot change independently of this facade.
+//! `papo` is the public compatibility surface. Its re-exported identifier, state-model,
+//! authentication, capability, casemapping, typing, rate-limit, and STS types are part of that
+//! contract. The published `papo-core` and `papo-proto` dependencies are internal implementation
+//! crates with no API stability guarantees and are not intended for direct use.
 //!
 //! # Public type paths
 //!

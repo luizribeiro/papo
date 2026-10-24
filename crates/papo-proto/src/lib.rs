@@ -1,5 +1,4 @@
-//! IRC line parsing, formatting, casemapping, and typed protocol data with no I/O. Most users want
-//! the `papo` crate; use `papo-proto` directly for low-level IRC wire processing.
+//! Internal crate of `papo`; use `papo`. This crate has no API stability guarantees.
 //!
 //! The IRC specifications call each line a message; this crate uses "line" so
 //! "message" can consistently mean a chat message in the wider API.

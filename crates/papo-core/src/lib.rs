@@ -1,6 +1,4 @@
-//! A Sans-I/O IRC session state machine: protocol behavior, time, and randomness are driven by
-//! explicit inputs. Most users want the `papo` crate; use `papo-core` directly to embed its
-//! deterministic protocol engine behind a custom I/O layer.
+//! Internal crate of `papo`; use `papo`. This crate has no API stability guarantees.
 //!
 //! ## Capability implementation map
 //!
