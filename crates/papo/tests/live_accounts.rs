@@ -50,10 +50,12 @@ async fn registers_then_logs_in_with_sasl() {
             .await
             .unwrap();
         wait_connected(&mut authenticated_events, &account).await;
-        assert_eq!(
+        assert!(matches!(
             authenticated.state().account(),
-            &papo::Account::LoggedIn(support::account(&account))
-        );
+            papo::Account::LoggedIn(logged_in)
+                if logged_in == account.as_str()
+                    && logged_in.origin() == authenticated.origin()
+        ));
         authenticated.quit("SASL login verified").await.unwrap();
     })
     .await;
