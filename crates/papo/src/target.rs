@@ -52,17 +52,6 @@ impl<T: Target + ?Sized> Target for &T {
     }
 }
 
-impl sealed::Sealed for crate::Chat {}
-
-impl Target for crate::Chat {
-    fn __target(&self) -> (&str, crate::Origin) {
-        match self {
-            Self::Channel(channel) => channel.__target(),
-            Self::Private(nick) => nick.__target(),
-        }
-    }
-}
-
 impl sealed::Sealed for crate::Conversation {}
 
 impl Target for crate::Conversation {
@@ -87,7 +76,6 @@ mod tests {
         let channel = origin.__channel(mapping, "#papo");
         let nick = origin.__nick(mapping, "emily");
         let mask = origin.__mask(mapping, "$*.example.org");
-
         for target in [
             crate::Conversation::Channel(channel.clone()),
             crate::Conversation::Private(nick.clone()),
@@ -96,11 +84,13 @@ mod tests {
             assert_eq!(target.__target().1, origin);
         }
         assert_eq!(
-            crate::Conversation::Server.__target(),
-            ("*", crate::Origin::NONE)
+            crate::Conversation::Channel(channel).__target(),
+            ("#papo", origin)
         );
-        assert_eq!(crate::Chat::Channel(channel).__target(), ("#papo", origin));
-        assert_eq!(crate::Chat::Private(nick).__target(), ("emily", origin));
+        assert_eq!(
+            crate::Conversation::Private(nick).__target(),
+            ("emily", origin)
+        );
         assert_eq!(mask.__target(), ("$*.example.org", origin));
         assert_eq!("#papo".__target(), ("#papo", crate::Origin::NONE));
     }

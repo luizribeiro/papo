@@ -48,11 +48,11 @@ impl MessageRef {
 }
 
 fn recipient(
-    conversation: &crate::Chat,
+    conversation: &crate::Conversation,
     account: &Account,
     receipt: Option<papo_core::ReplyToken>,
 ) -> Option<RecipientGuard> {
-    let crate::Chat::Private(nick) = conversation else {
+    let crate::Conversation::Private(nick) = conversation else {
         return None;
     };
     Some(RecipientGuard {
@@ -78,7 +78,7 @@ impl From<&Message> for MessageRef {
         Self {
             address: message.return_address(),
             msgid: message.msgid.clone(),
-            origin: Some(chat_origin(&message.conversation)),
+            origin: Some(conversation_origin(&message.conversation)),
             channel_context: message.channel_context.clone(),
             recipient: recipient(&message.conversation, &message.account, message.reply_token),
         }
@@ -117,7 +117,7 @@ impl From<&Notice> for MessageRef {
         Self {
             address: notice.return_address(),
             msgid: notice.msgid.clone(),
-            origin: Some(chat_origin(&notice.conversation)),
+            origin: Some(conversation_origin(&notice.conversation)),
             channel_context: notice.channel_context.clone(),
             recipient: recipient(&notice.conversation, &notice.account, notice.reply_token),
         }
@@ -224,13 +224,6 @@ pub(crate) fn stamp_conversation(
             Conversation::Broadcast(origin.__mask(mask.casemapping(), mask.into_string()))
         }
         conversation => conversation,
-    }
-}
-
-pub(crate) fn chat_origin(conversation: &crate::Chat) -> crate::Origin {
-    match conversation {
-        crate::Chat::Channel(channel) => channel.origin(),
-        crate::Chat::Private(nick) => nick.origin(),
     }
 }
 

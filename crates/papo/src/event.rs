@@ -46,67 +46,8 @@ pub use user::{
     RealnameChanged, SplitServers,
 };
 
-/// A conversation that can receive an ordinary chat reply.
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
-#[non_exhaustive]
-pub enum Chat {
-    /// A channel conversation.
-    Channel(ChannelName),
-    /// A private conversation with a user.
-    Private(papo_proto::Nick),
-}
-
-impl Chat {
-    pub(crate) fn from_conversation(conversation: Conversation) -> Option<Self> {
-        match conversation {
-            Conversation::Channel(channel) => Some(Self::Channel(channel)),
-            Conversation::Private(nick) => Some(Self::Private(nick)),
-            _ => None,
-        }
-    }
-}
-
-impl AsRef<str> for Chat {
-    fn as_ref(&self) -> &str {
-        match self {
-            Self::Channel(channel) => channel,
-            Self::Private(nick) => nick,
-        }
-    }
-}
-
-impl std::fmt::Display for Chat {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str(self.as_ref())
-    }
-}
-
-impl PartialEq<str> for Chat {
-    fn eq(&self, other: &str) -> bool {
-        self.as_ref() == other
-    }
-}
-
-impl PartialEq<&str> for Chat {
-    fn eq(&self, other: &&str) -> bool {
-        self == *other
-    }
-}
-
-impl From<Chat> for Conversation {
-    fn from(value: Chat) -> Self {
-        match value {
-            Chat::Channel(channel) => Self::Channel(channel),
-            Chat::Private(nick) => Self::Private(nick),
-        }
-    }
-}
-
-impl From<&Chat> for Conversation {
-    fn from(value: &Chat) -> Self {
-        value.clone().into()
-    }
-}
+/// Compatibility name for an IRC conversation.
+pub type Chat = Conversation;
 
 /// The semantic kind of an incoming chat message.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -543,7 +484,7 @@ impl Message {
     /// Returns the client identity associated with this message.
     #[must_use]
     pub fn origin(&self) -> crate::Origin {
-        crate::message_ref::chat_origin(&self.conversation)
+        crate::message_ref::conversation_origin(&self.conversation)
     }
 
     /// Reports whether current state proves that a private response would reach another user.
@@ -634,9 +575,7 @@ impl Message {
         ) else {
             return Err(raw);
         };
-        let Some(conversation) = Chat::from_conversation(metadata.conversation) else {
-            return Err(raw);
-        };
+        let conversation = metadata.conversation;
         Ok(Self {
             actor: metadata.actor,
             authorship: metadata.authorship,
@@ -672,10 +611,7 @@ impl Message {
     /// See [`Conversation`] for status-prefixed line guidance.
     #[must_use]
     pub fn return_address(&self) -> String {
-        crate::message_ref::return_address(
-            &Conversation::from(&self.conversation),
-            self.status.as_deref(),
-        )
+        crate::message_ref::return_address(&self.conversation, self.status.as_deref())
     }
 
     /// Reports whether this message's actor is this client's user.
@@ -689,7 +625,7 @@ impl Notice {
     /// Returns the client identity associated with this notice.
     #[must_use]
     pub fn origin(&self) -> crate::Origin {
-        crate::message_ref::chat_origin(&self.conversation)
+        crate::message_ref::conversation_origin(&self.conversation)
     }
 
     /// Returns the address that reaches the recipients of the notice.
@@ -697,10 +633,7 @@ impl Notice {
     /// See [`Conversation`] for status-prefixed line guidance.
     #[must_use]
     pub fn return_address(&self) -> String {
-        crate::message_ref::return_address(
-            &Conversation::from(&self.conversation),
-            self.status.as_deref(),
-        )
+        crate::message_ref::return_address(&self.conversation, self.status.as_deref())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -745,9 +678,7 @@ impl Notice {
         ) else {
             return Err(raw);
         };
-        let Some(conversation) = Chat::from_conversation(metadata.conversation) else {
-            return Err(raw);
-        };
+        let conversation = metadata.conversation;
         Ok(Self {
             actor: metadata.actor,
             authorship: metadata.authorship,
@@ -1973,10 +1904,10 @@ mod tests {
     use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
     use super::{
-        Authorship, Chat, Conversation, CoreEvent, Event, Message as ChatMessage, MessageId,
-        MessageKind, MetadataChanged, ModeAction, ModeArg, NoticeKind, ServerNoticeKind,
-        ServerNoticeTarget, Source, StandardReplyKind, Warning, ctcp_parts,
-        from_core as from_core_with_mapping, historical_message_event, message_event_from_line,
+        Authorship, Conversation, CoreEvent, Event, Message as ChatMessage, MessageId, MessageKind,
+        MetadataChanged, ModeAction, ModeArg, NoticeKind, ServerNoticeKind, ServerNoticeTarget,
+        Source, StandardReplyKind, Warning, ctcp_parts, from_core as from_core_with_mapping,
+        historical_message_event, message_event_from_line,
     };
     use crate::Visibility;
     use papo_core::{
@@ -2194,7 +2125,7 @@ mod tests {
         );
         assert!(matches!(user, Event::Notice(notice)
             if notice.kind == NoticeKind::Text
-                && matches!(notice.conversation, Chat::Private(_))
+                && matches!(notice.conversation, Conversation::Private(_))
                 && matches!(&notice.account, Account::LoggedIn(account) if account == "emily")));
 
         let action = parse_event(
@@ -2455,8 +2386,8 @@ mod tests {
             "papo",
             UNIX_EPOCH,
         );
-        assert!(!matches!(channel.conversation, Chat::Private(_)));
-        assert!(matches!(&channel.conversation, Chat::Channel(name) if name == "#papo"));
+        assert!(!matches!(channel.conversation, Conversation::Private(_)));
+        assert!(matches!(&channel.conversation, Conversation::Channel(name) if name == "#papo"));
         assert_eq!(channel.return_address(), "#papo");
         assert_eq!(
             channel.actor,
@@ -2472,8 +2403,8 @@ mod tests {
             "papo",
             UNIX_EPOCH,
         );
-        assert!(matches!(private.conversation, Chat::Private(_)));
-        assert!(matches!(&private.conversation, Chat::Private(nick) if nick == "emily"));
+        assert!(matches!(private.conversation, Conversation::Private(_)));
+        assert!(matches!(&private.conversation, Conversation::Private(nick) if nick == "emily"));
         assert_eq!(private.return_address(), "emily");
 
         let server = parse_event(
@@ -2532,9 +2463,9 @@ mod tests {
         );
 
         assert_eq!(message.status.as_deref(), Some(['@'].as_slice()));
-        assert!(matches!(&message.conversation, Chat::Channel(name) if name == "#ops"));
+        assert!(matches!(&message.conversation, Conversation::Channel(name) if name == "#ops"));
         assert_eq!(message.return_address(), "@#ops");
-        assert!(!matches!(message.conversation, Chat::Private(_)));
+        assert!(!matches!(message.conversation, Conversation::Private(_)));
         assert_eq!(message.tags.get("bot"), Some(""));
     }
 
@@ -2558,7 +2489,7 @@ mod tests {
             tagged.server_time,
             Some(UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000))
         );
-        assert!(matches!(&tagged.conversation, Chat::Channel(name) if name == "#papo"));
+        assert!(matches!(&tagged.conversation, Conversation::Channel(name) if name == "#papo"));
         assert_eq!(tagged.msgid.as_deref(), Some("RfcBTzyxY120004"));
         assert!(matches!(&tagged.account, Account::LoggedIn(account) if account == "emily"));
         assert!(tagged.is_bot);
@@ -3259,7 +3190,7 @@ mod tests {
             };
             assert!(matches!(
                 message.conversation,
-                Chat::Private(ref nick) if nick == "alice"
+                Conversation::Private(ref nick) if nick == "alice"
             ));
         }
     }
