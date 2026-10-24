@@ -184,7 +184,10 @@ impl Builder {
     /// Selects an upstream bouncer network before the connection completes.
     #[cfg(feature = "unstable")]
     pub fn bouncer_network(mut self, id: crate::NetworkId) -> Self {
-        self.config = self.config.enable(crate::Feature::Bouncer);
+        self.config = self
+            .config
+            .enable(crate::Feature::Bouncer)
+            .without_caps([cap::BOUNCER_NETWORKS_NOTIFY.clone()]);
         self.config.bouncer_network = Some(id);
         self
     }
@@ -1020,6 +1023,10 @@ mod tests {
                 .config
                 .enabled_features
                 .contains(&crate::Feature::Bouncer)
+        );
+        assert_eq!(
+            enabled.config.disabled_caps,
+            ["soju.im/bouncer-networks-notify"]
         );
         for capability in [
             "soju.im/bouncer-networks",
