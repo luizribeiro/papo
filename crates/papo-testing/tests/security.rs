@@ -32,6 +32,16 @@ async fn next_login_disconnect(events: &mut Events) -> Disconnected {
     }
 }
 
+async fn next_active_event(events: &mut Events) -> papo::Event {
+    match events.next().await {
+        Some(papo::Event::Disconnected(disconnected)) => {
+            panic!("disconnected while waiting for an event: {disconnected}")
+        }
+        Some(event) => event,
+        None => panic!("driver stopped while waiting for an event"),
+    }
+}
+
 fn disconnect_diagnostic(disconnected: &Disconnected) -> String {
     match &disconnected.cause {
         DisconnectCause::Connect(error) => {
@@ -111,7 +121,10 @@ async fn deleted_bouncer_network_stops_during_reconnect() {
     .await;
     wire.server(":soju.example 422 papo-bound :MOTD File is missing")
         .await;
-    while !matches!(events.next().await, Some(papo::Event::Connected(_))) {}
+    while !matches!(
+        next_active_event(&mut events).await,
+        papo::Event::Connected(_)
+    ) {}
 
     wire.close().await;
     let reconnecting = next_login_disconnect(&mut events).await;
@@ -543,7 +556,10 @@ async fn invalid_source_nicks_cannot_close_the_client_with_auto_replies() {
             .reconnect(Reconnect::never()),
     );
     wire.register(&[]).await;
-    while !matches!(events.next().await, Some(papo::Event::Connected(_))) {}
+    while !matches!(
+        next_active_event(&mut events).await,
+        papo::Event::Connected(_)
+    ) {}
 
     wire.server("::evil!~e@h PRIVMSG papo-wire :\x01VERSION\x01")
         .await;
@@ -681,7 +697,10 @@ async fn unknown_playback_is_untyped_and_has_no_side_effects() {
             .ctcp_replies(papo::CtcpReplies::default().version(Some("papo offline security test"))),
     );
     wire.register(&["message-tags", "batch"]).await;
-    while !matches!(events.next().await, Some(papo::Event::Connected(_))) {}
+    while !matches!(
+        next_active_event(&mut events).await,
+        papo::Event::Connected(_)
+    ) {}
 
     for line in [
         ":papo-wire!~p@localhost JOIN #papo",
@@ -737,7 +756,10 @@ async fn expired_labeled_history_is_not_delivered_twice() {
         "draft/chathistory",
     ])
     .await;
-    while !matches!(events.next().await, Some(papo::Event::Connected(_))) {}
+    while !matches!(
+        next_active_event(&mut events).await,
+        papo::Event::Connected(_)
+    ) {}
 
     for line in [
         "@label=expired :offline.test BATCH +reply-42 labeled-response",
@@ -777,7 +799,10 @@ async fn late_labeled_reply_is_delivered_as_a_live_message() {
     );
     wire.register(&["message-tags", "batch", "labeled-response"])
         .await;
-    while !matches!(events.next().await, Some(papo::Event::Connected(_))) {}
+    while !matches!(
+        next_active_event(&mut events).await,
+        papo::Event::Connected(_)
+    ) {}
 
     wire.server("@label=expired :offline.test BATCH +reply-42 labeled-response")
         .await;
@@ -805,7 +830,10 @@ async fn oversized_multiline_fragments_are_live_messages() {
         "draft/multiline=max-bytes=10,max-lines=5",
     ])
     .await;
-    while !matches!(events.next().await, Some(papo::Event::Connected(_))) {}
+    while !matches!(
+        next_active_event(&mut events).await,
+        papo::Event::Connected(_)
+    ) {}
 
     wire.server(":offline.test BATCH +multiline draft/multiline #papo")
         .await;

@@ -75,7 +75,16 @@ async fn lists_adds_and_attaches_to_bouncer_networks() {
             .await
             .unwrap();
         assert_eq!(attached.state().bouncer_network(), Some(&id));
-        while !matches!(events.next().await, Some(Event::ChannelSynced(_))) {}
+        loop {
+            match events.next().await {
+                Some(Event::ChannelSynced(_)) => break,
+                Some(Event::Disconnected(disconnected)) => {
+                    panic!("disconnected while joining: {disconnected}")
+                }
+                Some(_) => {}
+                None => panic!("driver stopped while joining"),
+            }
+        }
         attached.quit("bouncer example checked").await.unwrap();
         manager.quit("bouncer example checked").await.unwrap();
     })

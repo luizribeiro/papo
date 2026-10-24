@@ -68,6 +68,16 @@ fn test_account(value: &str) -> crate::AccountName {
     crate::Casemapping::default().account(value)
 }
 
+async fn next_active_event(events: &mut crate::Events) -> Event {
+    match events.next().await {
+        Some(Event::Disconnected(disconnected)) => {
+            panic!("disconnected while waiting for an event: {disconnected}")
+        }
+        Some(event) => event,
+        None => panic!("driver stopped while waiting for an event"),
+    }
+}
+
 async fn assert_action_refusal<T: std::fmt::Debug + Send + 'static>(
     server: &mut DuplexStream,
     action: crate::RequestFuture<T>,
@@ -605,7 +615,7 @@ async fn manual_ctcp_replies_match_automatic_framing_and_target_the_actor() {
         b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n",
     )
     .await;
-    while !matches!(events.next().await, Some(Event::Connected(_))) {}
+    while !matches!(next_active_event(&mut events).await, Event::Connected(_)) {}
 
     server_line(
         &mut server,
@@ -646,7 +656,7 @@ async fn manual_ctcp_replies_reject_delimiters() {
         b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n:emily!~e@localhost PRIVMSG papo-driver :\x01VERSION\x01\r\n",
     )
     .await;
-    while !matches!(events.next().await, Some(Event::Connected(_))) {}
+    while !matches!(next_active_event(&mut events).await, Event::Connected(_)) {}
     let query = events.next().await.unwrap();
     let query = query.as_ctcp_query().unwrap();
     for invalid in [
@@ -6918,7 +6928,7 @@ async fn labelled_echo_is_consumed_before_an_own_live_line() {
         b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n",
     )
     .await;
-    while !matches!(events.next().await, Some(Event::Connected(_))) {}
+    while !matches!(next_active_event(&mut events).await, Event::Connected(_)) {}
 
     let sender = client.clone();
     let sent = tokio::spawn(async move { sender.privmsg("#papo", "from this device").await });
@@ -7639,7 +7649,10 @@ async fn client_reads_owned_state_snapshots() {
         b":papo-driver!papo@localhost JOIN #Papo\r\n:ergo.test 353 papo-driver = #Papo :@papo-driver +emily\r\n:ergo.test 366 papo-driver #Papo :End of NAMES list\r\n",
     )
     .await;
-    while !matches!(events.next().await, Some(Event::ChannelSynced(_))) {}
+    while !matches!(
+        next_active_event(&mut events).await,
+        Event::ChannelSynced(_)
+    ) {}
     let state = client.state();
     let channel = state.channel("#papo").unwrap();
     assert!(channel.is_synced());
@@ -7703,7 +7716,10 @@ async fn public_state_accessors_report_the_registered_session() {
     add_monitors(&mut server, &client, &["bob"]).await;
 
     server_line(&mut server, b":papo-driver!papo@localhost MODE papo-driver +iw\r\n:papo-driver!papo@localhost JOIN #Papo\r\n:ergo.test 353 papo-driver = #Papo :@papo-driver alice!~alice@cloak.example\r\n:ergo.test 366 papo-driver #Papo :End of NAMES list\r\n:ergo.test 730 papo-driver :bob!bob@users.example\r\n").await;
-    while !matches!(events.next().await, Some(Event::MonitorOnline(_))) {}
+    while !matches!(
+        next_active_event(&mut events).await,
+        Event::MonitorOnline(_)
+    ) {}
     client_line(&mut server, b"MODE #Papo\r\n").await;
     client_line(&mut server, b"WHO #Papo\r\n").await;
 

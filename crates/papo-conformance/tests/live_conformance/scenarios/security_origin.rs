@@ -139,7 +139,16 @@ async fn deleted_bound_network_stops_reconnecting(s: Scenario) -> papo_testing::
         )
         .connect()
         .await?;
-    while !matches!(events.next().await, Some(Event::Connected(_))) {}
+    loop {
+        match events.next().await {
+            Some(Event::Connected(_)) => break,
+            Some(Event::Disconnected(disconnected)) => {
+                panic!("bound client disconnected before reconnecting: {disconnected}")
+            }
+            Some(_) => {}
+            None => panic!("bound client stopped before reconnecting"),
+        }
+    }
 
     control.bouncer().remove(&id).await?;
     let reconnecting = loop {

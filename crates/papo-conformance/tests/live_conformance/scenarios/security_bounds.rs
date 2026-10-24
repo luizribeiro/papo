@@ -4,7 +4,27 @@ use papo_conformance_macros::scenario;
 use crate::Scenario;
 
 async fn connected(events: &mut papo::Events) {
-    while !matches!(events.next().await, Some(Event::Connected(_))) {}
+    while !matches!(next_active_event(events).await, Event::Connected(_)) {}
+}
+
+async fn next_active_event(events: &mut papo::Events) -> Event {
+    match events.next().await {
+        Some(Event::Disconnected(disconnected)) => {
+            panic!("disconnected while waiting for an event: {disconnected}")
+        }
+        Some(event) => event,
+        None => panic!("driver stopped while waiting for an event"),
+    }
+}
+
+async fn next_disconnect(events: &mut papo::Events) -> papo::Disconnected {
+    loop {
+        match events.next().await {
+            Some(Event::Disconnected(disconnected)) => return disconnected,
+            Some(_) => {}
+            None => panic!("driver stopped before reporting a disconnection"),
+        }
+    }
 }
 
 /// keeps ordinary server traffic responsive without cloning the complete state
@@ -22,7 +42,7 @@ async fn ordinary_traffic_avoids_state_snapshots(_s: Scenario) -> papo_testing::
             ":user{index:03}!~user@users.example PRIVMSG papo-wire :audit message {index}"
         ))
         .await;
-        while !matches!(events.next().await, Some(Event::Message(_))) {}
+        while !matches!(next_active_event(&mut events).await, Event::Message(_)) {}
     }
 
     let ping = tokio::spawn(async move { client.ping().await });
@@ -129,11 +149,11 @@ async fn hostile_batch_tags_hit_the_global_budget(_s: Scenario) -> papo_testing:
 
     loop {
         if matches!(
-            events.next().await,
-            Some(Event::Warning(papo::event::Warning::BatchAbandoned {
+            next_active_event(&mut events).await,
+            Event::Warning(papo::event::Warning::BatchAbandoned {
                 reason: papo::event::BatchAbandonReason::ByteLimit,
                 ..
-            }))
+            })
         ) {
             break;
         }
@@ -206,7 +226,10 @@ async fn unsolicited_monitor_presence_stays_inert(_s: Scenario) -> papo_testing:
     add.await.unwrap()?;
     wire.server(":offline.test 730 papo-wire :alice!~alice@cloak.example")
         .await;
-    while !matches!(events.next().await, Some(Event::MonitorOnline(_))) {}
+    while !matches!(
+        next_active_event(&mut events).await,
+        Event::MonitorOnline(_)
+    ) {}
     assert_eq!(client.state().monitor_online().count(), 1);
     Ok(())
 }
@@ -256,7 +279,7 @@ async fn confirmed_runtime_away_survives_reconnect(_s: Scenario) -> papo_testing
     away.await.unwrap()?;
 
     client.reconnect().await?;
-    while !matches!(events.next().await, Some(Event::Disconnected(_))) {}
+    _ = next_disconnect(&mut events).await;
     wire.close().await;
     wire.register(&[]).await;
     connected(&mut events).await;
@@ -288,10 +311,10 @@ async fn repeated_catchup_page_stops_after_two_requests(_s: Scenario) -> papo_te
         .await;
     wire.server("@time=2026-10-15T12:00:00.000Z;msgid=before-1 :alice!~alice@users.example PRIVMSG #papo :before disconnect")
         .await;
-    while !matches!(events.next().await, Some(Event::Message(_))) {}
+    while !matches!(next_active_event(&mut events).await, Event::Message(_)) {}
 
     client.reconnect().await?;
-    while !matches!(events.next().await, Some(Event::Disconnected(_))) {}
+    _ = next_disconnect(&mut events).await;
     wire.close().await;
     wire.register(&caps).await;
     connected(&mut events).await;
@@ -323,7 +346,7 @@ async fn repeated_catchup_page_stops_after_two_requests(_s: Scenario) -> papo_te
         wire.server(line).await;
     }
     loop {
-        if let Some(Event::History(history)) = events.next().await {
+        if let Event::History(history) = next_active_event(&mut events).await {
             assert_eq!(history.messages().count(), 1);
             break;
         }
