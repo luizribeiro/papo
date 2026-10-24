@@ -102,7 +102,7 @@ impl Builder {
     }
 
     pub(crate) fn from_endpoint(endpoint: impl crate::IntoEndpoint) -> Self {
-        let mut builder = Self::new("irc.example.net");
+        let mut builder = Self::new("ircs://irc.example.net");
         builder.address = crate::address::convert(endpoint);
         builder
     }
@@ -975,7 +975,7 @@ mod tests {
 
     #[test]
     fn fills_every_session_configuration_field() {
-        let builder = Builder::new("irc.example.net")
+        let builder = Builder::new("ircs://irc.example.net")
             .casemapping(crate::Casemapping::Ascii)
             .nick(crate::Casemapping::default().nick("ping-bot"))
             .alt_nicks([
@@ -1008,7 +1008,7 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn configured_nickname_regain_reaches_the_wire() {
-        let mut builder = Builder::new("irc.example.net")
+        let mut builder = Builder::new("ircs://irc.example.net")
             .nick("papo-driver")
             .username("papo")
             .realname("papo driver test")
@@ -1044,7 +1044,7 @@ mod tests {
 
     #[test]
     fn seeds_offline_state_name_rules() {
-        let (client, _events, _driver) = Builder::new("irc.example.net")
+        let (client, _events, _driver) = Builder::new("ircs://irc.example.net")
             .casemapping(crate::Casemapping::Ascii)
             .nick(crate::Casemapping::Ascii.nick("papo[bot]"))
             .build();
@@ -1058,7 +1058,7 @@ mod tests {
 
     #[test]
     fn account_registration_adds_or_retains_one_capability() {
-        let added = Builder::new("irc.example.net")
+        let added = Builder::new("ircs://irc.example.net")
             .without_caps(["draft/account-registration"])
             .create_account(NewAccount::new("realistic secret"))
             .config;
@@ -1071,7 +1071,7 @@ mod tests {
             1
         );
 
-        let added = Builder::new("irc.example.net")
+        let added = Builder::new("ircs://irc.example.net")
             .request_caps(["message-tags"])
             .create_account(NewAccount::new("realistic secret"))
             .config;
@@ -1084,7 +1084,7 @@ mod tests {
             1
         );
 
-        let retained = Builder::new("irc.example.net")
+        let retained = Builder::new("ircs://irc.example.net")
             .request_caps(["server-time", "account-registration"])
             .create_account(NewAccount::new("realistic secret"))
             .config;
@@ -1098,7 +1098,7 @@ mod tests {
 
     #[test]
     fn capabilities_extend_defaults_and_only_known_defaults_can_be_removed() {
-        let builder = Builder::new("irc.example.net")
+        let builder = Builder::new("ircs://irc.example.net")
             .request_caps(["message-tags", "example.com/custom-cap"])
             .without_caps(["away-notify"]);
         assert!(
@@ -1115,7 +1115,7 @@ mod tests {
                 .iter()
                 .any(|name| name == "example.com/custom-cap")
         );
-        let aliases = Builder::new("irc.example.net")
+        let aliases = Builder::new("ircs://irc.example.net")
             .without_caps(["read-marker", "account-registration"])
             .config;
         for removed in ["draft/read-marker", "draft/account-registration"] {
@@ -1130,7 +1130,7 @@ mod tests {
             "soju.im/webpush",
         ];
         for capability in unstable_caps {
-            let unstable = Builder::new("irc.example.net").without_caps([capability]);
+            let unstable = Builder::new("ircs://irc.example.net").without_caps([capability]);
             assert_eq!(unstable.invalid_input, None);
             assert_eq!(unstable.config.disabled_caps, [capability]);
         }
@@ -1140,7 +1140,8 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn enables_unstable_features_and_bouncer_selection_before_connecting() {
         let notify = "soju.im/bouncer-networks-notify";
-        let management = Builder::new("irc.example.net").enable(crate::Feature::Bouncer);
+        let management =
+            Builder::new("ircs://irc.example.net").enable(crate::Feature::Bouncer);
         assert!(
             management
                 .config
@@ -1150,7 +1151,7 @@ mod tests {
         );
         assert!(management.config.disabled_caps.is_empty());
 
-        let enabled = Builder::new("irc.example.net")
+        let enabled = Builder::new("ircs://irc.example.net")
             .enable(crate::Feature::Persistence)
             .enable(crate::Feature::Relay)
             .enable(crate::Feature::WebPush)
@@ -1244,14 +1245,14 @@ mod tests {
 
     #[test]
     fn nick_supplies_only_implicit_username_and_realname_defaults() {
-        let implicit = Builder::new("irc.example.net")
+        let implicit = Builder::new("ircs://irc.example.net")
             .nick(crate::Casemapping::default().nick("ping-bot"))
             .config;
         assert_eq!(
             (implicit.username.as_str(), implicit.realname.as_str()),
             ("ping-bot", "ping-bot")
         );
-        let explicit = Builder::new("irc.example.net")
+        let explicit = Builder::new("ircs://irc.example.net")
             .username("service")
             .realname("Papo service")
             .nick(crate::Casemapping::default().nick("ping-bot"))
@@ -1265,10 +1266,12 @@ mod tests {
     #[test]
     fn configures_timing_rate_and_event_capacity() {
         assert_eq!(
-            Builder::new("irc.example.net").config.request_timeout,
+            Builder::new("ircs://irc.example.net")
+                .config
+                .request_timeout,
             Duration::from_secs(30)
         );
-        let builder = Builder::new("irc.example.net")
+        let builder = Builder::new("ircs://irc.example.net")
             .rate_limit(RateLimit::unlimited())
             .ping_interval(Duration::from_secs(31))
             .ping_timeout(Duration::from_secs(93))
@@ -1285,11 +1288,11 @@ mod tests {
     fn configures_away_and_ctcp_replies() {
         let rate = RateLimit::new(4, Duration::from_secs(3)).unwrap();
         assert_eq!(
-            Builder::new("irc.example.net").config.ctcp,
+            Builder::new("ircs://irc.example.net").config.ctcp,
             CtcpReplies::default()
         );
         let replies = CtcpReplies::default().version(None).ping(false).rate(rate);
-        let builder = Builder::new("irc.example.net")
+        let builder = Builder::new("ircs://irc.example.net")
             .away_on_connect("Reviewing patches")
             .ctcp_replies(replies.clone());
         assert_eq!(
@@ -1303,7 +1306,7 @@ mod tests {
 
     #[test]
     fn debug_is_opaque_with_every_builder_secret() {
-        let builder = Builder::new("irc.example.net")
+        let builder = Builder::new("ircs://irc.example.net")
             .password("unique-network-password-9134")
             .webirc(crate::WebIrc {
                 password: "unique-webirc-password-3186".into(),
@@ -1333,7 +1336,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn defers_invalid_setters_until_build() {
         let cases = [(
-            Builder::new("irc.example.net").event_capacity(0),
+            Builder::new("ircs://irc.example.net").event_capacity(0),
             InvalidInput::ZeroEventCapacity,
         )];
         for (builder, expected) in cases {
@@ -1370,20 +1373,20 @@ mod tests {
     async fn defers_binary_text_secrets_until_build() {
         let byte_secret = || Secret::from_bytes([0xff]);
         let cases = [
-            Builder::new("irc.example.net").password(byte_secret()),
-            Builder::new("irc.example.net").webirc(crate::WebIrc {
+            Builder::new("ircs://irc.example.net").password(byte_secret()),
+            Builder::new("ircs://irc.example.net").webirc(crate::WebIrc {
                 password: byte_secret(),
                 gateway: "papo-gateway".into(),
                 client_ip: "192.0.2.42".parse().unwrap(),
                 client_hostname: None,
                 options: Vec::new(),
             }),
-            Builder::new("irc.example.net").sasl(Sasl::plain("alice", byte_secret())),
-            Builder::new("irc.example.net").create_account(
+            Builder::new("ircs://irc.example.net").sasl(Sasl::plain("alice", byte_secret())),
+            Builder::new("ircs://irc.example.net").create_account(
                 NewAccount::new(byte_secret())
                     .account(crate::Casemapping::default().account("alice")),
             ),
-            Builder::new("irc.example.net").autojoin_with_key("#staff", byte_secret()),
+            Builder::new("ircs://irc.example.net").autojoin_with_key("#staff", byte_secret()),
         ];
         for builder in cases {
             let (_client, _events, driver) = builder.build();
@@ -1394,7 +1397,7 @@ mod tests {
         }
 
         assert!(
-            Builder::new("irc.example.net")
+            Builder::new("ircs://irc.example.net")
                 .tls_client_cert(Vec::new(), byte_secret())
                 .invalid_input
                 .is_none()
@@ -1404,22 +1407,22 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn rejects_invalid_registration_messages_before_connecting() {
         let cases = [
-            Builder::new("irc.example.net")
+            Builder::new("ircs://irc.example.net")
                 .nick(crate::Casemapping::default().nick("papo\rOPER root password")),
-            Builder::new("irc.example.net")
+            Builder::new("ircs://irc.example.net")
                 .alt_nicks([crate::Casemapping::default().nick("papo-away\nQUIT")]),
-            Builder::new("irc.example.net").username("papo\0admin"),
-            Builder::new("irc.example.net").realname("Papo\rClient"),
-            Builder::new("irc.example.net").password("network\npassword"),
-            Builder::new("irc.example.net").webirc(crate::WebIrc {
+            Builder::new("ircs://irc.example.net").username("papo\0admin"),
+            Builder::new("ircs://irc.example.net").realname("Papo\rClient"),
+            Builder::new("ircs://irc.example.net").password("network\npassword"),
+            Builder::new("ircs://irc.example.net").webirc(crate::WebIrc {
                 password: "gateway-password".into(),
                 gateway: "papo\rgateway".into(),
                 client_ip: "192.0.2.42".parse().unwrap(),
                 client_hostname: None,
                 options: Vec::new(),
             }),
-            Builder::new("irc.example.net").away_on_connect("gone\nAWAY"),
-            Builder::new("irc.example.net")
+            Builder::new("ircs://irc.example.net").away_on_connect("gone\nAWAY"),
+            Builder::new("ircs://irc.example.net")
                 .username("u".repeat(250))
                 .realname("r".repeat(251)),
         ];
@@ -1434,7 +1437,7 @@ mod tests {
 
     #[test]
     fn accepts_webirc_without_options() {
-        let config = Builder::new("irc.example.net")
+        let config = Builder::new("ircs://irc.example.net")
             .webirc(crate::WebIrc {
                 password: "gateway-password".into(),
                 gateway: "papo-gateway".into(),
@@ -1450,7 +1453,6 @@ mod tests {
     fn address_security_reaches_the_session_configuration() {
         for (input, expected) in [
             ("ircs://irc.example.net", ConnectionSecurity::Secure),
-            ("irc.example.net", ConnectionSecurity::Secure),
             ("irc://irc.example.net", ConnectionSecurity::Plaintext),
             ("wss://irc.example.net", ConnectionSecurity::Secure),
             ("ws://irc.example.net", ConnectionSecurity::Plaintext),
@@ -1465,7 +1467,7 @@ mod tests {
 
     #[test]
     fn configures_tls_material_and_server_name() {
-        let builder = Builder::new("irc.example.net")
+        let builder = Builder::new("ircs://irc.example.net")
             .tls_extra_ca_pem(b"test CA".to_vec())
             .tls_client_cert(b"certificate".to_vec(), "private key")
             .tls_server_name("chat.example.net");
@@ -1477,12 +1479,12 @@ mod tests {
     #[test]
     fn configures_post_registration_defaults() {
         assert_eq!(
-            Builder::new("irc.example.net").config.who_on_join,
+            Builder::new("ircs://irc.example.net").config.who_on_join,
             crate::WhoOnJoin::Always
         );
         let staff = crate::Casemapping::default().channel("#staff");
-        assert!(!Builder::new("irc.example.net").bot(false).bot);
-        let builder = Builder::new("irc.example.net")
+        assert!(!Builder::new("ircs://irc.example.net").bot(false).bot);
+        let builder = Builder::new("ircs://irc.example.net")
             .bot(true)
             .autojoin(["#papo", "#papo-bots"])
             .autojoin_with_key(staff, "private channel key")
@@ -1507,7 +1509,7 @@ mod tests {
 
     #[test]
     fn autojoin_replaces_only_exact_names_before_registration() {
-        let builder = Builder::new("irc.example.net")
+        let builder = Builder::new("ircs://irc.example.net")
             .autojoin(["#papo", "#papo", "#PAPO"])
             .autojoin_with_key("#papo", "private channel key");
         assert_eq!(
@@ -1564,7 +1566,7 @@ mod tests {
     fn public_builder_accepts_owned_and_borrowed_server_addresses() {
         for (builder, protocol, port) in [
             (
-                crate::Client::builder("irc.example.net"),
+                crate::Client::builder("ircs://irc.example.net"),
                 Protocol::Ircs,
                 6697,
             ),
@@ -1586,10 +1588,14 @@ mod tests {
             .err()
             .unwrap();
         assert!(matches!(error, Error::InvalidInput(_)));
-        let error = within(Builder::new("irc.example.net").event_capacity(0).connect())
-            .await
-            .err()
-            .unwrap();
+        let error = within(
+            Builder::new("ircs://irc.example.net")
+                .event_capacity(0)
+                .connect(),
+        )
+        .await
+        .err()
+        .unwrap();
         assert_eq!(error.to_string(), "event queue capacity must be positive");
     }
 
