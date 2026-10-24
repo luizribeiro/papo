@@ -292,6 +292,12 @@ fn metadata_update<'a>(
 }
 
 impl State {
+    fn own_user(&self) -> &User {
+        self.users
+            .get(&self.nick)
+            .expect("own user is always present")
+    }
+
     pub(super) fn nick_authorship(&self, nick: &str) -> Authorship {
         if crate::names_equal(self.casemapping.casemapping(), nick, &self.nick) {
             Authorship::Own
@@ -1099,37 +1105,31 @@ impl State {
     /// Returns the session's username.
     #[must_use]
     pub fn username(&self) -> &str {
-        self.users[&self.nick]
-            .username
-            .as_deref()
-            .expect("own username is always known")
+        self.own_user().username.as_deref().unwrap_or_default()
     }
 
     /// Returns the session's hostname when known.
     #[must_use]
     pub fn host(&self) -> Option<&str> {
-        self.users[&self.nick].host.as_deref()
+        self.own_user().host.as_deref()
     }
 
     /// Returns the session's real name.
     #[must_use]
     pub fn realname(&self) -> &str {
-        self.users[&self.nick]
-            .realname
-            .as_deref()
-            .expect("own real name is always known")
+        self.own_user().realname.as_deref().unwrap_or_default()
     }
 
     /// Returns the session's account state.
     #[must_use]
     pub fn account(&self) -> &Account {
-        &self.users[&self.nick].account
+        &self.own_user().account
     }
 
     /// Returns the session's presence state.
     #[must_use]
     pub fn away(&self) -> &Away {
-        &self.users[&self.nick].away
+        &self.own_user().away
     }
 
     /// Returns a joined channel using the server's current casemapping.
