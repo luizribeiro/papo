@@ -1235,7 +1235,8 @@ pub enum Event {
     ///
     /// Pages returned by [`crate::Client::history`] resolve their request futures and are not
     /// emitted as events. Insert page items by server time because live traffic can arrive while
-    /// a batch remains open.
+    /// a batch remains open. Page items keep server delivery order, which is normally oldest to
+    /// newest but is not sorted by papo.
     History(Box<crate::HistoryPage>),
     /// A conversation's read marker advanced or was first reported.
     ReadMarkerChanged(ReadMarkerChanged),

@@ -274,6 +274,45 @@ fn assembles_deduplicated_context_aware_pages() {
 }
 
 #[test]
+fn recorded_ergo_latest_response_keeps_oldest_to_newest_order() {
+    let (mut session, now) = history_session("CHATHISTORY=1000 MSGREFTYPES=msgid,timestamp");
+    session
+        .chathistory(now, HistoryQuery::__latest("#papo".into(), None, 10))
+        .unwrap();
+    assert_eq!(
+        transmitted(&mut session),
+        "@label=0 CHATHISTORY LATEST #papo * 10"
+    );
+    for line in [
+        "@label=0 :ergo.test BATCH +reply labeled-response",
+        "@batch=reply;draft/chathistory-end :ergo.test BATCH +history chathistory #papo",
+        "@batch=history;time=2026-10-15T12:00:01.000Z;msgid=RKi9Cw :alice!~a@cloak PRIVMSG #papo :deploy started",
+        "@batch=history;time=2026-10-15T12:00:02.000Z;msgid=8sKY2A :bob!~b@cloak PRIVMSG #papo :migration completed",
+        "@batch=history;time=2026-10-15T12:00:03.000Z;msgid=T1pQ6g :alice!~a@cloak PRIVMSG #papo :health checks passed",
+        "@batch=reply :ergo.test BATCH -history",
+        ":ergo.test BATCH -reply",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+
+    let page = loop {
+        if let Some(Event::Response(response)) = session.poll_event() {
+            break response.history.expect("history page");
+        }
+    };
+    assert_eq!(
+        page.messages()
+            .map(|message| message.as_ref().param(1).unwrap())
+            .collect::<Vec<_>>(),
+        [
+            "deploy started",
+            "migration completed",
+            "health checks passed"
+        ]
+    );
+}
+
+#[test]
 fn empty_page_is_the_end_but_a_short_untagged_page_is_not() {
     let page = |lines: &[&str]| {
         let (mut session, now) = history_session("CHATHISTORY=1000 MSGREFTYPES=msgid,timestamp");

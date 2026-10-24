@@ -1782,11 +1782,16 @@ impl HistoryItem {
 }
 
 /// History page attached to a completed response.
+///
+/// Items remain in server delivery order. `IRCv3` recommends oldest-to-newest delivery but
+/// permits other orders, so papo does not sort the page.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HistoryPage {
     /// Conversation named by the history batch.
     pub conversation: Conversation,
-    /// Replayed items in server delivery order.
+    /// Replayed items in server delivery order, normally oldest to newest.
+    ///
+    /// The server is allowed to use a different order; papo does not sort the items.
     pub items: Vec<HistoryItem>,
     /// Whether the server reported that no further page exists.
     ///
@@ -1795,7 +1800,10 @@ pub struct HistoryPage {
 }
 
 impl HistoryPage {
-    /// Iterates over chat messages, excluding replayed activity items.
+    /// Iterates over chat messages in item order, excluding replayed activity items.
+    ///
+    /// This is normally oldest to newest, but remains server delivery order if the server does
+    /// not follow the `IRCv3` recommendation.
     pub fn messages(&self) -> impl Iterator<Item = &HistoryLine> {
         self.items.iter().filter_map(HistoryItem::as_message)
     }
@@ -2179,7 +2187,9 @@ pub enum Event {
     History {
         /// The conversation named by the batch.
         conversation: Conversation,
-        /// Replayed items in server delivery order.
+        /// Replayed items in server delivery order, normally oldest to newest.
+        ///
+        /// The server is allowed to use a different order; papo does not sort the items.
         items: Vec<HistoryItem>,
         /// Whether the server reported that no further page exists.
         end: bool,

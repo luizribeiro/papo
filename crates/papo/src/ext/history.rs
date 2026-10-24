@@ -518,12 +518,29 @@ pub enum HistoryReason {
 ///
 /// Event streams deliver a complete page when its batch closes. Applications should insert its
 /// items by server time rather than assuming the page arrived before later live events.
+/// Items remain in server delivery order. `IRCv3` recommends oldest-to-newest delivery but
+/// permits other orders, so papo does not sort the page.
+///
+/// For a server following the recommended order, the first and last messages can be selected
+/// directly:
+///
+/// ```no_run
+/// # async fn show_bounds(client: &papo::Client) -> Result<(), papo::Error> {
+/// let page = client.history("#papo").latest().await?;
+/// if let (Some(oldest), Some(newest)) = (page.messages().next(), page.messages().last()) {
+///     println!("{} … {}", oldest.text, newest.text);
+/// }
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct HistoryPage {
     /// Conversation whose history was requested.
     pub conversation: crate::Conversation,
-    /// Replayed entries in server delivery order.
+    /// Replayed entries in server delivery order, normally oldest to newest.
+    ///
+    /// The server is allowed to use a different order; papo does not sort the entries.
     pub items: Vec<Event>,
     /// Why this page was produced.
     pub reason: HistoryReason,
@@ -623,7 +640,10 @@ impl HistoryPage {
         crate::message_ref::conversation_origin(&self.conversation)
     }
 
-    /// Iterates over chat messages, excluding replayed activity items.
+    /// Iterates over chat messages in item order, excluding replayed activity items.
+    ///
+    /// This is normally oldest to newest, but remains server delivery order if the server does
+    /// not follow the `IRCv3` recommendation.
     pub fn messages(&self) -> impl Iterator<Item = &ChatMessage> {
         self.items.iter().filter_map(|item| match item {
             Event::Message(message) | Event::OwnMessage(message) => Some(message.as_ref()),
@@ -631,7 +651,11 @@ impl HistoryPage {
         })
     }
 
-    /// Returns the preferred cursor for the oldest item in this page.
+    /// Returns a paging cursor for the oldest end of this page, not the message itself.
+    ///
+    /// This uses the first delivered item. If the server does not follow the recommended
+    /// oldest-to-newest order, the cursor likewise refers to the first rather than necessarily
+    /// chronologically oldest item.
     #[must_use]
     pub fn oldest(&self) -> Option<HistoryReference> {
         let origin = crate::message_ref::conversation_origin(&self.conversation);
@@ -640,7 +664,11 @@ impl HistoryPage {
             .and_then(|event| event_reference(event, origin))
     }
 
-    /// Returns the preferred cursor for the newest item in this page.
+    /// Returns a paging cursor for the newest end of this page, not the message itself.
+    ///
+    /// This uses the last delivered item. If the server does not follow the recommended
+    /// oldest-to-newest order, the cursor likewise refers to the last rather than necessarily
+    /// chronologically newest item.
     #[must_use]
     pub fn newest(&self) -> Option<HistoryReference> {
         let origin = crate::message_ref::conversation_origin(&self.conversation);
@@ -878,6 +906,9 @@ impl IntoFuture for HistoryRequest {
 
 impl Client {
     /// Starts a chat history request for a conversation.
+    ///
+    /// The returned page keeps server delivery order. `IRCv3` recommends oldest-to-newest
+    /// delivery for every history subcommand but permits other orders; papo does not sort it.
     pub fn history(&self, target: impl Into<ConversationInput>) -> crate::History {
         crate::History {
             client: self.clone(),
