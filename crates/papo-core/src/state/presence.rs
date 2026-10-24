@@ -209,11 +209,15 @@ impl State {
         if !crate::names_equal(self.casemapping, nick, &self.nick) {
             return Some(Handled::No);
         }
-        self.host = Some(host.to_owned());
+        let own = self
+            .users
+            .get_mut(&self.nick)
+            .expect("own user is always present");
+        own.host = Some(host.to_owned());
         outbox.event(Event::HostChanged {
             actor: self.nick.to_string(),
             nick: self.nick.clone(),
-            username: self.user.clone(),
+            username: own.username.clone().expect("own username is always known"),
             host: host.to_owned(),
         });
         Some(Handled::Yes)
@@ -231,10 +235,6 @@ impl State {
             if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick)) {
                 user.update_userhost(Some(change.user), Some(change.host));
             }
-            if crate::names_equal(self.casemapping, nick, &self.nick) {
-                change.user.clone_into(&mut self.user);
-                self.host = Some(change.host.to_owned());
-            }
             outbox.event(Event::HostChanged {
                 actor: message.raw_source().unwrap_or(nick).to_owned(),
                 nick: self.casemapping.nick(nick),
@@ -246,9 +246,6 @@ impl State {
         let change = Setname::parse(message)?;
         if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick)) {
             user.realname = Some(change.realname.to_owned());
-        }
-        if crate::names_equal(self.casemapping, nick, &self.nick) {
-            change.realname.clone_into(&mut self.realname);
         }
         outbox.event(Event::RealnameChanged {
             actor: message.raw_source().unwrap_or(nick).to_owned(),

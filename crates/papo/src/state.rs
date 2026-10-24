@@ -23,9 +23,6 @@ pub enum ReadMarker {
 /// connection boundary are visible only here. Re-read the snapshot after
 /// [`crate::Event::MembersRefreshed`], [`crate::Event::Disconnected`], and
 /// [`crate::Event::Connected`].
-/// The identity and presence methods on this type are the source of truth for
-/// the client's own entry; a [`User`] with the same nickname is shared-user state.
-///
 /// ```
 /// fn member_count(state: &papo::State) -> Option<usize> {
 ///     state.channel("#papo").map(|channel| channel.members().count())

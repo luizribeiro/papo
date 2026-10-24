@@ -50,9 +50,6 @@ struct Departure {
 #[derive(Debug, Eq, PartialEq)]
 pub struct State {
     nick: Nick,
-    user: String,
-    host: Option<String>,
-    realname: String,
     account: Account,
     away: Away,
     user_modes: HashSet<char>,
@@ -90,9 +87,6 @@ impl Clone for State {
         STATE_CLONES.set(STATE_CLONES.get() + 1);
         Self {
             nick: self.nick.clone(),
-            user: self.user.clone(),
-            host: self.host.clone(),
-            realname: self.realname.clone(),
             account: self.account.clone(),
             away: self.away.clone(),
             user_modes: self.user_modes.clone(),
@@ -369,9 +363,6 @@ impl State {
         users.insert(nick.clone(), own);
         Self {
             nick,
-            user: config.username.clone(),
-            host: None,
-            realname: config.realname.clone(),
             account: Account::LoggedOut,
             away: Away::Present,
             user_modes: HashSet::new(),
@@ -768,23 +759,20 @@ impl State {
         if !crate::names_equal(self.casemapping, nick, own_nick) {
             return false;
         }
-        let realname_changed = self.realname != change.realname;
         let old_nick = self.nick.clone();
         self.rename_user(&old_nick, nick);
         self.nick = self.casemapping.nick(nick);
-        user.clone_into(&mut self.user);
-        self.host = Some(host.to_owned());
-        change.realname.clone_into(&mut self.realname);
         if let Some(own) = self.users.get_mut(&self.nick) {
+            let realname_changed = own.realname.as_deref() != Some(change.realname);
             own.update_userhost(Some(user), Some(host));
             own.realname = Some(change.realname.to_owned());
-        }
-        if realname_changed {
-            outbox.event(Event::RealnameChanged {
-                actor: message.raw_source().unwrap_or(nick).to_owned(),
-                nick: self.casemapping.nick(nick),
-                realname: change.realname.to_owned(),
-            });
+            if realname_changed {
+                outbox.event(Event::RealnameChanged {
+                    actor: message.raw_source().unwrap_or(nick).to_owned(),
+                    nick: self.casemapping.nick(nick),
+                    realname: change.realname.to_owned(),
+                });
+            }
         }
         true
     }
@@ -1114,19 +1102,25 @@ impl State {
     /// Returns the session's username.
     #[must_use]
     pub fn username(&self) -> &str {
-        &self.user
+        self.users[&self.nick]
+            .username
+            .as_deref()
+            .expect("own username is always known")
     }
 
     /// Returns the session's hostname when known.
     #[must_use]
     pub fn host(&self) -> Option<&str> {
-        self.host.as_deref()
+        self.users[&self.nick].host.as_deref()
     }
 
     /// Returns the session's real name.
     #[must_use]
     pub fn realname(&self) -> &str {
-        &self.realname
+        self.users[&self.nick]
+            .realname
+            .as_deref()
+            .expect("own real name is always known")
     }
 
     /// Returns the session's account state.

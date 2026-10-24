@@ -88,16 +88,9 @@ impl State {
         });
         let ours = crate::names_equal(self.casemapping, nick, &self.nick);
         if ours {
+            let old_nick = self.nick.clone();
+            self.rename_user(&old_nick, nick);
             self.nick = self.casemapping.nick(nick);
-            if let Some(username) = username {
-                username.clone_into(&mut self.user);
-            }
-            if let Some(host) = host {
-                self.host = Some(host.to_owned());
-            }
-            if let Some(realname) = join.realname {
-                realname.clone_into(&mut self.realname);
-            }
             let key = self.casemapping.channel(join.channel);
             if !self.channels.contains_key(&key) && self.channels.len() >= self.max_channels {
                 self.warn_limit(StateLimit::Channels, outbox);

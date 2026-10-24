@@ -61,6 +61,39 @@ fn own_user_exists_without_membership_and_survives_part_and_nick() {
     .ignore_rest();
 }
 
+fn assert_own_identity_matches(session: &papo_core::Session) {
+    let state = session.state();
+    let own = state.user(state.nick()).unwrap();
+    assert_eq!(own.username(), Some(state.username()));
+    assert_eq!(own.host(), state.host());
+    assert_eq!(own.realname(), Some(state.realname()));
+}
+
+#[test]
+fn own_identity_updates_have_one_user_row_before_and_after_membership() {
+    Transcript::new(
+        Config::default()
+            .nick("emily")
+            .username("em")
+            .realname("Emily Example"),
+    )
+    .inspect(assert_own_identity_matches)
+    .server(":ergo.test 396 emily account/emily :is now your displayed host")
+    .event(|event| matches!(event, Event::HostChanged { host, .. } if host == "account/emily"))
+    .inspect(assert_own_identity_matches)
+    .server(":emily!em@account/emily CHGHOST ~em users/emily")
+    .event(|event| matches!(event, Event::HostChanged { username, host, .. } if username == "~em" && host == "users/emily"))
+    .inspect(assert_own_identity_matches)
+    .server(":emily!~em@users/emily SETNAME :Emily Smith")
+    .event(|event| matches!(event, Event::RealnameChanged { realname, .. } if realname == "Emily Smith"))
+    .inspect(assert_own_identity_matches)
+    .server(":emily!~em@users/emily JOIN #papo")
+    .server(":emily!~em@users/emily PART #papo :Leaving")
+    .server(":emily!~em@users/emily NICK :emily-away")
+    .inspect(assert_own_identity_matches)
+    .ignore_rest();
+}
+
 #[test]
 fn a_server_without_accounts_keeps_our_entry_logged_out() {
     Transcript::new(Config::default().wanted_caps(std::iter::empty::<&str>()))
