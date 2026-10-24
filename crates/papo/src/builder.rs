@@ -555,9 +555,25 @@ impl Builder {
     ///
     /// Repeated exact names are replaced by the last entry. Once the server's casemapping is
     /// known, names that compare equal under that mapping are also deduplicated before joining.
+    /// [`Builder::connect`] can return before these channels are joined or synchronized. Wait for
+    /// [`crate::Event::ChannelSynced`] for each channel, or check that [`crate::State::channel`]
+    /// returns a channel whose [`crate::Channel::is_synced`] is `true`.
     ///
-    /// ```
-    /// # _ = papo::Client::builder("ircs://irc.example.net").autojoin(["#papo"]);
+    /// ```no_run
+    /// # async fn run() -> Result<(), papo::Error> {
+    /// use papo::{Client, Event};
+    ///
+    /// let (_client, mut events) = Client::builder("ircs://irc.example.net")
+    ///     .autojoin(["#papo"])
+    ///     .connect()
+    ///     .await?;
+    /// while let Some(event) = events.next().await {
+    ///     if matches!(event, Event::ChannelSynced(ref synced) if synced.channel == "#papo") {
+    ///         break;
+    ///     }
+    /// }
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn autojoin<I, S>(mut self, channels: I) -> Self
     where
@@ -636,6 +652,11 @@ impl Builder {
 
     /// Connects in a spawned driver and waits until the connection is ready.
     /// IRC calls this login handshake connection registration.
+    ///
+    /// This method returns after registration, before configured autojoins are necessarily joined
+    /// or synchronized. To wait for channel readiness, consume [`crate::Event::ChannelSynced`] or
+    /// check [`crate::State::channel`] and [`crate::Channel::is_synced`], as shown by
+    /// [`Builder::autojoin`].
     ///
     /// To observe [`crate::Event::Connecting`] during the first attempt, use
     /// [`Builder::build`] and poll its event stream while running the returned driver. This method
