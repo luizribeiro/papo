@@ -2882,6 +2882,36 @@ async fn account_required_cap_rejects_registration_without_sasl() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn missing_required_capability_has_a_typed_connect_error() {
+    let settings = config().metadata_subscriptions(["example.org/color"]);
+    let (client_stream, mut server) = tokio::io::duplex(4096);
+    let (registration, waiter) = tokio::sync::oneshot::channel();
+    let (_client, _events, driver) = Driver::with_stream_and_connect(
+        client_stream,
+        Session::new(settings),
+        super::DEFAULT_CHANNEL_CAPACITY,
+        Some(registration),
+        super::PostConnect::default(),
+    );
+    let driver = tokio::spawn(driver);
+    welcome_burst(&mut server).await;
+    server_line(
+        &mut server,
+        b":ergo.test CAP * LS :account-tag away-notify batch draft/chathistory echo-message extended-join invite-notify labeled-response message-tags multi-prefix server-time setname\r\n",
+    )
+    .await;
+
+    for result in [within(waiter).await.unwrap(), within(driver).await.unwrap()] {
+        assert!(matches!(
+            result,
+            Err(Error::Connect(error))
+                if error.kind() == crate::ConnectErrorKind::CapabilityUnavailable
+                    && error.to_string().contains("draft/metadata-3")
+        ));
+    }
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn terminal_numerics_have_specific_connect_errors() {
     for (line, expected, diagnostic) in [
         (

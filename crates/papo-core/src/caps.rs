@@ -503,6 +503,34 @@ mod tests {
     use super::*;
 
     #[test]
+    fn required_capability_is_found_in_realistic_request_batch() {
+        let config = Config::default().metadata_subscriptions(["example.org/color"]);
+        let advertised = LineRef::parse(
+            ":ergo.test CAP * LS :account-tag away-notify batch draft/chathistory \
+             draft/metadata-3 echo-message extended-join invite-notify labeled-response \
+             message-tags multi-prefix server-time setname",
+        )
+        .unwrap();
+        let requested = advertised
+            .param(2)
+            .unwrap()
+            .split_whitespace()
+            .map(str::to_owned)
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            required_in(&config, &requested),
+            Some(cap::METADATA.clone())
+        );
+
+        let optional = requested
+            .into_iter()
+            .filter(|name| Cap::from(name.as_str()) != cap::METADATA)
+            .collect::<Vec<_>>();
+        assert_eq!(required_in(&config, &optional), None);
+    }
+
+    #[test]
     fn advertised_capabilities_stay_bounded_and_keep_wanted_caps() {
         let now = Instant::now();
         let config = Config::default().wanted_caps(["vendor.example/wanted"]);
