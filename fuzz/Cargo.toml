@@ -34,5 +34,12 @@ test = false
 doc = false
 bench = false
 
+[[bin]]
+name = "server_url"
+path = "fuzz_targets/server_url.rs"
+test = false
+doc = false
+bench = false
+
 [workspace]
 members = ["."]
