@@ -980,12 +980,12 @@ pub(crate) fn historical_conversation(
         return crate::message_ref::stamp_conversation(conversation, own_nick.origin());
     }
     if let Some(Conversation::Private(nick)) = history_conversation {
-        return Conversation::Private(nick.clone());
+        return Conversation::Private(own_nick.origin().__nick(mapping, nick.as_ref()));
     }
     if authorship != Authorship::Own
         && message
             .param(0)
-            .is_some_and(|target| mapping.nick(target) != *own_nick)
+            .is_some_and(|target| own_nick.origin().__nick(mapping, target) != *own_nick)
         && let Some(papo_proto::Source::User { nick, .. }) = message.source()
     {
         return Conversation::Private(own_nick.origin().__nick(mapping, nick));
@@ -1018,6 +1018,7 @@ fn message_metadata(
     let envelope = line_envelope_with_account_tag(
         message,
         isupport.casemapping(),
+        origin,
         account_tag_enabled,
         received_at,
     );
@@ -1075,14 +1076,16 @@ pub(crate) struct EventEnvelope {
 pub(crate) fn line_envelope(
     line: &LineRef<'_>,
     casemapping: Casemapping,
+    origin: crate::Origin,
     received_at: SystemTime,
 ) -> EventEnvelope {
-    line_envelope_with_account_tag(line, casemapping, false, received_at)
+    line_envelope_with_account_tag(line, casemapping, origin, false, received_at)
 }
 
 pub(crate) fn line_envelope_with_account_tag(
     line: &LineRef<'_>,
     casemapping: Casemapping,
+    origin: crate::Origin,
     account_tag_enabled: bool,
     received_at: SystemTime,
 ) -> EventEnvelope {
@@ -1092,7 +1095,7 @@ pub(crate) fn line_envelope_with_account_tag(
         msgid: tag_owned(line, &["msgid"]).map(MessageId::from),
         server_time,
         received_at,
-        account: account_from_tag(line, casemapping, crate::Origin::NONE, account_tag_enabled),
+        account: account_from_tag(line, casemapping, origin, account_tag_enabled),
     }
 }
 
@@ -1100,18 +1103,19 @@ pub(crate) fn joined_from_line(
     line: &LineRef<'_>,
     authorship: Authorship,
     casemapping: Casemapping,
+    origin: crate::Origin,
     received_at: SystemTime,
 ) -> Option<Joined> {
     let join = papo_proto::Join::parse(line)?;
     let source @ papo_proto::Source::User { nick, .. } = line.source()? else {
         return None;
     };
-    let nick = casemapping.nick(nick);
-    let envelope = line_envelope(line, casemapping, received_at);
+    let nick = origin.__nick(casemapping, nick);
+    let envelope = line_envelope(line, casemapping, origin, received_at);
     let account = match (join.realname, join.account) {
         (None, _) => Account::Unknown,
         (Some(_), None) => Account::LoggedOut,
-        (Some(_), Some(account)) => Account::LoggedIn(casemapping.account(account)),
+        (Some(_), Some(account)) => Account::LoggedIn(origin.__account(casemapping, account)),
     };
     Some(Joined {
         msgid: envelope.msgid,
@@ -1119,8 +1123,8 @@ pub(crate) fn joined_from_line(
         received_at: envelope.received_at,
         account,
         realname: join.realname.map(str::to_owned),
-        channel: casemapping.channel(join.channel),
-        actor: source::from_proto(source, casemapping),
+        channel: origin.__channel(casemapping, join.channel),
+        actor: source::from_proto_with_origin(source, casemapping, origin),
         nick,
         authorship,
         netjoin: None,

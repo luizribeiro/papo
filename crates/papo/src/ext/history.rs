@@ -23,6 +23,7 @@ pub(crate) fn history_item(
 ) -> Event {
     let state = client.state();
     let mapping = state.casemapping();
+    let origin = client.origin();
     let account_tag_enabled = state.caps().contains_key(&crate::cap::ACCOUNT_TAG);
     match item {
         papo_core::HistoryItem::Message(item) => {
@@ -40,6 +41,7 @@ pub(crate) fn history_item(
                 message,
                 crate::Authorship::from_core(item.authorship),
                 mapping,
+                origin,
                 state.nick(),
                 state.isupport().inner(),
                 history_conversation,
@@ -53,6 +55,7 @@ pub(crate) fn history_item(
                     message,
                     crate::Authorship::from_core(item.authorship),
                     mapping,
+                    origin,
                     state.nick(),
                     state.isupport().inner(),
                     history_conversation,
@@ -83,6 +86,7 @@ pub(crate) fn history_item(
                 crate::Authorship::from_core(item.authorship),
                 history_conversation,
                 mapping,
+                origin,
                 account_tag_enabled,
                 received_at,
             )
@@ -112,6 +116,7 @@ pub(crate) fn history_item(
                     message,
                     crate::Authorship::from_core(item.authorship),
                     mapping,
+                    origin,
                     account_tag_enabled,
                     received_at,
                 )
@@ -147,6 +152,7 @@ fn reaction(
     message: &papo_proto::LineRef<'_>,
     authorship: crate::Authorship,
     mapping: crate::Casemapping,
+    origin: crate::Origin,
     own_nick: &crate::Nick,
     isupport: &papo_proto::Isupport,
     history_conversation: Option<&crate::Conversation>,
@@ -172,6 +178,7 @@ fn reaction(
     let envelope = crate::event_impl::line_envelope_with_account_tag(
         message,
         mapping,
+        origin,
         account_tag_enabled,
         received_at,
     );
@@ -180,7 +187,11 @@ fn reaction(
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         account: envelope.account,
-        actor: crate::event_impl::source::from_proto(message.source()?, mapping),
+        actor: crate::event_impl::source::from_proto_with_origin(
+            message.source()?,
+            mapping,
+            origin,
+        ),
         authorship,
         conversation,
         status,
@@ -195,6 +206,7 @@ fn redaction(
     message: &papo_proto::LineRef<'_>,
     authorship: crate::Authorship,
     mapping: crate::Casemapping,
+    origin: crate::Origin,
     own_nick: &crate::Nick,
     isupport: &papo_proto::Isupport,
     history_conversation: Option<&crate::Conversation>,
@@ -214,6 +226,7 @@ fn redaction(
     let envelope = crate::event_impl::line_envelope_with_account_tag(
         message,
         mapping,
+        origin,
         account_tag_enabled,
         received_at,
     );
@@ -222,7 +235,11 @@ fn redaction(
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         account: envelope.account,
-        actor: crate::event_impl::source::from_proto(message.source()?, mapping),
+        actor: crate::event_impl::source::from_proto_with_origin(
+            message.source()?,
+            mapping,
+            origin,
+        ),
         authorship,
         conversation,
         status,
@@ -241,7 +258,7 @@ fn joined(
     received_at: SystemTime,
 ) -> Option<Event> {
     let mapping = client.state().casemapping();
-    crate::event_impl::joined_from_line(message, authorship, mapping, received_at)
+    crate::event_impl::joined_from_line(message, authorship, mapping, client.origin(), received_at)
         .map(Event::Joined)
 }
 
@@ -257,6 +274,7 @@ fn parted(
     let envelope = crate::event_impl::line_envelope_with_account_tag(
         message,
         mapping,
+        client.origin(),
         state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
         received_at,
     );
@@ -265,10 +283,14 @@ fn parted(
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         account: envelope.account,
-        actor: crate::event_impl::source::from_proto(message.source()?, mapping),
-        channel: mapping.channel(message.param(0)?),
+        actor: crate::event_impl::source::from_proto_with_origin(
+            message.source()?,
+            mapping,
+            client.origin(),
+        ),
+        channel: state.channel_name(message.param(0)?),
         authorship,
-        nick: mapping.nick(nick),
+        nick: state.nickname(nick),
         reason: message
             .param(1)
             .filter(|reason| !reason.is_empty())
@@ -281,12 +303,14 @@ fn quit(
     authorship: crate::Authorship,
     history_conversation: Option<&crate::Conversation>,
     mapping: crate::Casemapping,
+    origin: crate::Origin,
     account_tag_enabled: bool,
     received_at: SystemTime,
 ) -> Option<Event> {
     let envelope = crate::event_impl::line_envelope_with_account_tag(
         message,
         mapping,
+        origin,
         account_tag_enabled,
         received_at,
     );
@@ -295,8 +319,12 @@ fn quit(
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         account: envelope.account,
-        actor: crate::event_impl::source::from_proto(message.source()?, mapping),
-        nick: mapping.nick(source_nick(message)?),
+        actor: crate::event_impl::source::from_proto_with_origin(
+            message.source()?,
+            mapping,
+            origin,
+        ),
+        nick: origin.__nick(mapping, source_nick(message)?),
         reason: message
             .param(0)
             .filter(|reason| !reason.is_empty())
@@ -323,6 +351,7 @@ fn kicked(
     let envelope = crate::event_impl::line_envelope_with_account_tag(
         message,
         mapping,
+        client.origin(),
         state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
         received_at,
     );
@@ -331,11 +360,15 @@ fn kicked(
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         account: envelope.account,
-        channel: mapping.channel(message.param(0)?),
+        channel: state.channel_name(message.param(0)?),
         authorship,
         subject_authorship,
-        subject: mapping.nick(nick),
-        actor: crate::event_impl::source::from_proto(message.source()?, mapping),
+        subject: state.nickname(nick),
+        actor: crate::event_impl::source::from_proto_with_origin(
+            message.source()?,
+            mapping,
+            client.origin(),
+        ),
         reason: message
             .param(2)
             .filter(|reason| !reason.is_empty())
@@ -355,6 +388,7 @@ fn nick_changed(
     let envelope = crate::event_impl::line_envelope_with_account_tag(
         message,
         mapping,
+        client.origin(),
         state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
         received_at,
     );
@@ -363,10 +397,14 @@ fn nick_changed(
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         account: envelope.account,
-        actor: crate::event_impl::source::from_proto(message.source()?, mapping),
+        actor: crate::event_impl::source::from_proto_with_origin(
+            message.source()?,
+            mapping,
+            client.origin(),
+        ),
         authorship,
-        old: mapping.nick(old),
-        new: mapping.nick(message.param(0)?),
+        old: state.nickname(old),
+        new: state.nickname(message.param(0)?),
     }))
 }
 
@@ -374,12 +412,14 @@ fn topic_changed(
     message: &papo_proto::LineRef<'_>,
     authorship: crate::Authorship,
     mapping: crate::Casemapping,
+    origin: crate::Origin,
     account_tag_enabled: bool,
     received_at: SystemTime,
 ) -> Option<Event> {
     let envelope = crate::event_impl::line_envelope_with_account_tag(
         message,
         mapping,
+        origin,
         account_tag_enabled,
         received_at,
     );
@@ -388,12 +428,16 @@ fn topic_changed(
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         account: envelope.account,
-        channel: mapping.channel(message.param(0)?),
+        channel: origin.__channel(mapping, message.param(0)?),
         topic: message
             .param(1)
             .filter(|topic| !topic.is_empty())
             .map(str::to_owned),
-        actor: crate::event_impl::source::from_proto(message.source()?, mapping),
+        actor: crate::event_impl::source::from_proto_with_origin(
+            message.source()?,
+            mapping,
+            origin,
+        ),
         authorship,
     }))
 }
@@ -410,6 +454,7 @@ fn mode_changed(
     let envelope = crate::event_impl::line_envelope_with_account_tag(
         message,
         mapping,
+        client.origin(),
         state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
         received_at,
     );
@@ -434,11 +479,15 @@ fn mode_changed(
         received_at: envelope.received_at,
         account: envelope.account,
         subject: if state.isupport().inner().is_channel(message.param(0)?) {
-            crate::Subject::Channel(mapping.channel(message.param(0)?))
+            crate::Subject::Channel(state.channel_name(message.param(0)?))
         } else {
-            crate::Subject::User(mapping.nick(message.param(0)?))
+            crate::Subject::User(state.nickname(message.param(0)?))
         },
-        actor: crate::event_impl::source::from_proto(message.source()?, mapping),
+        actor: crate::event_impl::source::from_proto_with_origin(
+            message.source()?,
+            mapping,
+            client.origin(),
+        ),
         authorship,
         subject_authorship,
         changes,
@@ -859,6 +908,7 @@ impl Client {
             items,
             end,
         } = page;
+        let conversation = crate::message_ref::stamp_conversation(conversation, self.origin());
         let items = items
             .into_iter()
             .map(|item| history_item(item, Some(&conversation), self, crate::rt::now_wall()))
@@ -914,7 +964,10 @@ impl Client {
                     targets
                         .into_iter()
                         .map(|(conversation, latest_server_time)| RecentConversation {
-                            conversation,
+                            conversation: crate::message_ref::stamp_conversation(
+                                conversation,
+                                client.origin(),
+                            ),
                             latest_server_time,
                         })
                         .collect()
@@ -1290,6 +1343,7 @@ mod tests {
             &line,
             crate::Authorship::Unknown,
             Casemapping::Ascii,
+            own_nick.origin(),
             &own_nick,
             &papo_proto::Isupport::default(),
             None,
@@ -1351,7 +1405,10 @@ mod tests {
             joined,
             PageEvent::Joined(event)
                 if event.channel == "#papo" && event.nick == "emily"
-                    && matches!(&event.account, crate::Account::LoggedIn(account) if account == "emily")
+                    && event.channel.origin() == client.origin()
+                    && event.nick.origin() == client.origin()
+                    && event.actor.nick().is_some_and(|nick| nick.origin() == client.origin())
+                    && matches!(&event.account, crate::Account::LoggedIn(account) if account == "emily" && account.origin() == client.origin())
                     && event.realname.as_deref() == Some("Emily Smith")
                     && event.authorship == crate::Authorship::Unknown
         ));
@@ -1388,6 +1445,9 @@ mod tests {
             parted,
             PageEvent::Parted(event)
                 if event.channel == "#papo" && event.nick == "emily"
+                    && event.channel.origin() == client.origin()
+                    && event.nick.origin() == client.origin()
+                    && event.actor.nick().is_some_and(|nick| nick.origin() == client.origin())
                     && event.reason.as_deref() == Some("Leaving for lunch")
                     && event.authorship == crate::Authorship::Unknown
         ));
@@ -1399,6 +1459,8 @@ mod tests {
             quit,
             PageEvent::Quit(event)
                 if event.nick == "emily"
+                    && event.nick.origin() == client.origin()
+                    && event.actor.nick().is_some_and(|nick| nick.origin() == client.origin())
                     && event.reason.as_deref() == Some("Connection reset by peer")
                     && event.channels.is_empty()
         ));
@@ -1410,6 +1472,8 @@ mod tests {
             kicked,
             PageEvent::Kicked(event)
                 if event.channel == "#papo" && event.subject == "emily"
+                    && event.channel.origin() == client.origin()
+                    && event.subject.origin() == client.origin()
                     && event.reason.as_deref() == Some("Requested by alice")
                     && matches!(event.actor, crate::Source::Server { ref name, .. } if name == "irc.example")
                     && event.subject_authorship == crate::Authorship::Unknown
@@ -1422,6 +1486,9 @@ mod tests {
             renamed,
             PageEvent::NickChanged(event)
                 if event.old == "emily" && event.new == "emily_"
+                    && event.old.origin() == client.origin()
+                    && event.new.origin() == client.origin()
+                    && event.actor.nick().is_some_and(|nick| nick.origin() == client.origin())
                     && event.authorship == crate::Authorship::Unknown
         ));
     }

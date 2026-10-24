@@ -3,10 +3,6 @@ use crate::Casemapping;
 #[doc(inline)]
 pub use papo_core::Source;
 
-pub(crate) fn from_proto(source: papo_proto::Source<'_>, casemapping: Casemapping) -> Source {
-    papo_core::Source::from_proto(source, casemapping)
-}
-
 pub(crate) fn from_proto_with_origin(
     source: papo_proto::Source<'_>,
     casemapping: Casemapping,
