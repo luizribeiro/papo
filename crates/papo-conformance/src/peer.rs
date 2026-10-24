@@ -127,20 +127,17 @@ impl Peer {
 
     /// Requests information about `nick` using this peer's server rules.
     pub fn whois(&self, nick: impl AsRef<str>) -> papo::RequestFuture<papo::Whois> {
-        self.client
-            .whois(self.client.state().casemapping().nick(nick.as_ref()))
+        self.client.whois(self.client.state().nickname(nick))
     }
 
     /// Requests users matching `mask` using this peer's server rules.
     pub fn who(&self, mask: impl AsRef<str>) -> papo::RequestFuture<Vec<papo::WhoEntry>> {
-        self.client
-            .who(self.client.state().casemapping().mask(mask.as_ref()))
+        self.client.who(self.client.state().mask(mask))
     }
 
     /// Joins `channel` using this peer's server rules.
     pub fn join(&self, channel: impl AsRef<str>) -> papo::JoinChannel {
-        self.client
-            .join(self.client.state().casemapping().channel(channel.as_ref()))
+        self.client.join(self.client.state().channel_name(channel))
     }
 
     /// Leaves `channel` using this peer's server rules.
@@ -149,10 +146,8 @@ impl Peer {
         channel: impl AsRef<str>,
         reason: impl Into<String>,
     ) -> papo::RequestFuture<()> {
-        self.client.part(
-            self.client.state().casemapping().channel(channel.as_ref()),
-            reason,
-        )
+        self.client
+            .part(self.client.state().channel_name(channel), reason)
     }
 
     /// Removes `nick` from `channel` using this peer's server rules.
@@ -162,10 +157,9 @@ impl Peer {
         nick: impl AsRef<str>,
         reason: impl AsRef<str>,
     ) -> papo::RequestFuture<()> {
-        let mapping = self.client.state().casemapping();
         self.client.kick(
-            mapping.channel(channel.as_ref()),
-            mapping.nick(nick.as_ref()),
+            self.client.state().channel_name(channel),
+            self.client.state().nickname(nick),
             reason,
         )
     }
@@ -176,10 +170,9 @@ impl Peer {
         channel: impl AsRef<str>,
         nick: impl AsRef<str>,
     ) -> papo::RequestFuture<()> {
-        let mapping = self.client.state().casemapping();
         self.client.invite(
-            mapping.channel(channel.as_ref()),
-            mapping.nick(nick.as_ref()),
+            self.client.state().channel_name(channel),
+            self.client.state().nickname(nick),
         )
     }
 
@@ -187,8 +180,7 @@ impl Peer {
     ///
     /// An empty nickname is invalid input.
     pub fn set_nick(&self, nick: impl AsRef<str>) -> papo::RequestFuture<()> {
-        self.client
-            .set_nick(self.client.state().casemapping().nick(nick.as_ref()))
+        self.client.set_nick(self.client.state().nickname(nick))
     }
 
     /// Changes `channel`'s topic using this peer's server rules.
@@ -199,10 +191,8 @@ impl Peer {
         channel: impl AsRef<str>,
         topic: impl Into<String>,
     ) -> papo::RequestFuture<()> {
-        self.client.set_topic(
-            self.client.state().casemapping().channel(channel.as_ref()),
-            topic,
-        )
+        self.client
+            .set_topic(self.client.state().channel_name(channel), topic)
     }
 
     /// Renames a channel using this peer's server rules.
@@ -212,10 +202,9 @@ impl Peer {
         new: impl AsRef<str>,
         reason: impl Into<String>,
     ) -> papo::RequestFuture<()> {
-        let mapping = self.client.state().casemapping();
         self.client.rename_channel(
-            mapping.channel(old.as_ref()),
-            mapping.channel(new.as_ref()),
+            self.client.state().channel_name(old),
+            self.client.state().channel_name(new),
             reason,
         )
     }

@@ -126,17 +126,17 @@ pub(super) async fn join_seen_by(
     observer: &mut Peer,
     channel: &str,
 ) -> papo_testing::Result<()> {
-    let member_nick = member.nick();
+    let member_nick = member.nick().to_string();
     member.join(channel).await?;
     let joined = observer
         .wait_for(|event| {
             event
                 .as_joined()
-                .filter(|joined| joined.nick == member_nick)
+                .filter(|joined| joined.nick == member_nick.as_str())
         })
         .await?;
     assert_eq!(joined.channel.as_ref(), channel);
-    assert_eq!(joined.nick, member_nick);
+    assert_eq!(joined.nick, member_nick.as_str());
     assert_eq!(joined.authorship, papo::Authorship::Other);
     Ok(())
 }
