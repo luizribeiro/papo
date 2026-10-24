@@ -5,7 +5,9 @@ mod support;
 
 use std::collections::BTreeMap;
 
-use papo_core::{Config, Event, Feature, NetworkConfig, NetworkId, NetworkState, StateLimit};
+use papo_core::{
+    CloseKind, Config, Event, Feature, NetworkConfig, NetworkId, NetworkState, StateLimit,
+};
 use papo_proto::Casemapping;
 use support::{Transcript, assert_session_debug_redacts, queue_debug_marker};
 
@@ -40,13 +42,17 @@ fn registered() -> Transcript {
     .client("CAP END")
 }
 
-#[test]
-fn binds_the_configured_network_before_cap_end() {
+fn bound_config() -> Config {
     let mut config = Config::default()
         .enable(Feature::Bouncer)
         .wanted_caps(["soju.im/bouncer-networks"]);
     config.bouncer_network = Some(NetworkId::from("42"));
-    Transcript::new(config)
+    config
+}
+
+#[test]
+fn binds_the_configured_network_before_cap_end() {
+    Transcript::new(bound_config())
         .connect_default()
         .server("CAP * LS :soju.im/bouncer-networks")
         .client("CAP REQ :soju.im/bouncer-networks")
@@ -54,6 +60,78 @@ fn binds_the_configured_network_before_cap_end() {
         .inspect(|session| assert_eq!(session.supports(papo_core::Feature::Bouncer), Ok(())))
         .client("BOUNCER BIND 42")
         .client("CAP END");
+}
+
+#[test]
+fn refuses_to_bind_without_an_acknowledged_capability() {
+    for response in ["CAP * LS :batch", "CAP * NAK :soju.im/bouncer-networks"] {
+        let transcript = Transcript::new(bound_config()).connect_default();
+        let transcript = if response.contains("NAK") {
+            transcript
+                .server("CAP * LS :soju.im/bouncer-networks")
+                .client("CAP REQ :soju.im/bouncer-networks")
+        } else {
+            transcript
+        };
+        transcript
+            .server(response)
+            .event(|event| {
+                matches!(event, Event::Close {
+                    kind: CloseKind::BouncerBindingFailed,
+                    reason,
+                    ..
+                } if reason.contains("acknowledged"))
+            })
+            .no_client();
+    }
+}
+
+#[test]
+fn requires_the_welcome_to_confirm_the_bound_network() {
+    for isupport in [
+        ":soju.example 005 papo CASEMAPPING=rfc1459 :are supported",
+        ":soju.example 005 papo BOUNCER_NETID=41 :are supported",
+    ] {
+        Transcript::new(bound_config())
+            .connect_default()
+            .server("CAP * LS :soju.im/bouncer-networks")
+            .client("CAP REQ :soju.im/bouncer-networks")
+            .server("CAP * ACK :soju.im/bouncer-networks")
+            .client("BOUNCER BIND 42")
+            .client("CAP END")
+            .welcome(":soju.example 001 papo :Welcome to soju")
+            .server(isupport)
+            .server(":soju.example 422 papo :MOTD File is missing")
+            .event(|event| {
+                matches!(event, Event::Close {
+                    kind: CloseKind::BouncerBindingFailed,
+                    reason,
+                    ..
+                } if reason.contains("confirm"))
+            });
+    }
+}
+
+#[test]
+fn treats_an_invalid_network_id_as_a_binding_failure() {
+    Transcript::new(bound_config())
+        .connect_default()
+        .server("CAP * LS :soju.im/bouncer-networks")
+        .client("CAP REQ :soju.im/bouncer-networks")
+        .server("CAP * ACK :soju.im/bouncer-networks")
+        .client("BOUNCER BIND 42")
+        .client("CAP END")
+        .server("FAIL BOUNCER INVALID_NETID 42 :Invalid network ID")
+        .event(|event| {
+            matches!(event, Event::Close {
+                kind: CloseKind::BouncerBindingFailed,
+                reason,
+                ..
+            } if reason.contains("rejected"))
+        })
+        .event(
+            |event| matches!(event, Event::StandardReply(reply) if reply.code == "INVALID_NETID"),
+        );
 }
 
 #[test]

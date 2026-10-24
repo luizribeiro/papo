@@ -2926,6 +2926,7 @@ fn fatal_close_kinds_are_fixed_by_protocol_evidence() {
         papo_core::CloseKind::ConnectionRestricted,
         papo_core::CloseKind::Banned,
         papo_core::CloseKind::WebIrcRejected,
+        papo_core::CloseKind::BouncerBindingFailed,
     ] {
         assert!(super::connect::is_fatal_failure(
             &Error::connection_lost(),

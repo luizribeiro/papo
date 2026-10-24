@@ -1,6 +1,8 @@
 use web_time::Instant;
 
-use papo_proto::{BuildError, Isupport, Line, LineRef};
+use papo_proto::{
+    Advertised, BuildError, Isupport, Line, LineRef, StandardReply, StandardReplyKind,
+};
 
 use crate::{Capabilities, CloseKind, Config, Event, Handled, Outbox, Welcome, webirc_line};
 
@@ -109,6 +111,19 @@ impl WelcomeState {
             outbox.close(CloseKind::WebIrcRejected, ERGO_WEBIRC_REJECTION.to_owned());
             return Handled::Yes;
         }
+        if config.selected_bouncer_network().is_some()
+            && StandardReply::parse(message).is_some_and(|reply| {
+                reply.kind == StandardReplyKind::Fail
+                    && reply.command.eq_ignore_ascii_case("BOUNCER")
+                    && reply.code.eq_ignore_ascii_case("INVALID_NETID")
+            })
+        {
+            outbox.close(
+                CloseKind::BouncerBindingFailed,
+                "the bouncer rejected the selected network ID".to_owned(),
+            );
+            return Handled::Yes;
+        }
         if message.command_is("465") {
             outbox.close(
                 CloseKind::Banned,
@@ -144,7 +159,7 @@ impl WelcomeState {
             {
                 outbox.event(Event::Motd { lines });
             }
-            self.complete(caps, isupport, outbox);
+            self.complete(config, caps, isupport, outbox);
             Handled::Yes
         } else if self.deadline.is_some() && message.command_is("464") {
             outbox.close(
@@ -222,6 +237,7 @@ impl WelcomeState {
     pub(super) fn handle_timeout(
         &mut self,
         now: Instant,
+        config: &Config,
         caps: &Capabilities,
         isupport: &Isupport,
         outbox: &mut Outbox,
@@ -236,7 +252,7 @@ impl WelcomeState {
             .welcome_deadline
             .is_some_and(|deadline| now >= deadline)
         {
-            self.complete(caps, isupport, outbox);
+            self.complete(config, caps, isupport, outbox);
         }
     }
 
@@ -273,9 +289,24 @@ impl WelcomeState {
         nick.clone_into(&mut self.nick);
     }
 
-    fn complete(&mut self, caps: &Capabilities, isupport: &Isupport, outbox: &mut Outbox) {
+    fn complete(
+        &mut self,
+        config: &Config,
+        caps: &Capabilities,
+        isupport: &Isupport,
+        outbox: &mut Outbox,
+    ) {
         self.welcome_deadline = None;
         self.motd_lines = None;
+        if let Some(expected) = config.selected_bouncer_network()
+            && isupport.get("BOUNCER_NETID") != Advertised::Value(expected)
+        {
+            outbox.close(
+                CloseKind::BouncerBindingFailed,
+                "the bouncer did not confirm the selected network ID".to_owned(),
+            );
+            return;
+        }
         self.connected = true;
         outbox.event(Event::Connected(Welcome {
             nick: self.origin.__nick(isupport.casemapping(), &self.nick),

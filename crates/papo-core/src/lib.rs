@@ -602,7 +602,7 @@ impl Default for Config {
 }
 
 impl Config {
-    fn selected_bouncer_network(&self) -> Option<&str> {
+    pub(crate) fn selected_bouncer_network(&self) -> Option<&str> {
         #[cfg(feature = "unstable")]
         return self.bouncer_network.as_ref().map(AsRef::as_ref);
         #[cfg(not(feature = "unstable"))]
@@ -1887,6 +1887,8 @@ pub enum CloseKind {
     ConnectionRestricted,
     /// The server banned the connection (`465`).
     Banned,
+    /// Binding to a selected bouncer network failed or could not be verified.
+    BouncerBindingFailed,
     /// Every configured connection nickname was rejected.
     NickCandidatesExhausted,
     /// Another protocol condition requires the connection to close.
@@ -3112,6 +3114,7 @@ impl Session {
         let was_connected = self.welcome_state.is_connected();
         self.welcome_state.handle_timeout(
             now,
+            &self.config,
             self.caps.enabled(),
             self.isupport.value(),
             &mut self.outbox,

@@ -324,9 +324,15 @@ impl Caps {
         outbox: &mut Outbox,
     ) {
         if self.negotiating && authentication_finished && self.pending.is_empty() && !self.ended {
-            if self.bouncer_enabled()
-                && let Some(id) = bouncer_network
-            {
+            if let Some(id) = bouncer_network {
+                if !self.bouncer_enabled() {
+                    outbox.close(
+                        crate::CloseKind::BouncerBindingFailed,
+                        "selected bouncer network requires acknowledged soju.im/bouncer-networks"
+                            .to_owned(),
+                    );
+                    return;
+                }
                 outbox.transmit_immediate("BOUNCER", ["BIND", id]);
             }
             outbox.connect_phase(ConnectPhase::WaitingForWelcome);

@@ -597,6 +597,7 @@ pub(super) fn is_fatal_failure(error: &Error, close_kind: Option<papo_core::Clos
                 | papo_core::CloseKind::ConnectionRestricted
                 | papo_core::CloseKind::Banned
                 | papo_core::CloseKind::WebIrcRejected
+                | papo_core::CloseKind::BouncerBindingFailed
         )
     ) {
         return true;
