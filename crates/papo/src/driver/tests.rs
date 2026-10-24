@@ -5569,7 +5569,9 @@ async fn typed_requests_match_unlabelled_responses() {
     });
     client_line(&mut server, b"WHOIS alice\r\n").await;
     server_line(&mut server, b":ergo.test 311 papo-driver alice ~alice host * :Alice Example\r\n:ergo.test 318 papo-driver alice :End of /WHOIS list\r\n").await;
-    assert_eq!(within(whois).await.unwrap().unwrap().nick, "alice");
+    let whois = within(whois).await.unwrap().unwrap();
+    assert_eq!(whois.nick, "alice");
+    assert_eq!(whois.nick.origin(), client.origin());
 
     let who = tokio::spawn({
         let client = client.clone();
@@ -5577,7 +5579,10 @@ async fn typed_requests_match_unlabelled_responses() {
     });
     client_line(&mut server, b"WHO #papo\r\n").await;
     server_line(&mut server, b":ergo.test 352 papo-driver #papo ~alice host ergo.test alice H@ :0 Alice Example\r\n:ergo.test 315 papo-driver #papo :End of WHO list\r\n").await;
-    assert_eq!(within(who).await.unwrap().unwrap()[0].nick, "alice");
+    let who = within(who).await.unwrap().unwrap();
+    assert_eq!(who[0].nick, "alice");
+    assert_eq!(who[0].nick.origin(), client.origin());
+    assert_eq!(who[0].channel.as_ref().unwrap().origin(), client.origin());
 
     let join = tokio::spawn({
         let client = client.clone();
@@ -5599,7 +5604,9 @@ async fn typed_requests_match_unlabelled_responses() {
     });
     client_line(&mut server, b"LIST\r\n").await;
     server_line(&mut server, b":ergo.test 322 papo-driver #papo 42 :Ergonomic IRC\r\n:ergo.test 323 papo-driver :End of /LIST\r\n").await;
-    assert_eq!(within(list).await.unwrap().unwrap()[0].members_count, 42);
+    let list = within(list).await.unwrap().unwrap();
+    assert_eq!(list[0].members_count, 42);
+    assert_eq!(list[0].name.origin(), client.origin());
 
     let mode = tokio::spawn({
         let client = client.clone();

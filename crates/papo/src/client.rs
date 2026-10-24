@@ -916,7 +916,12 @@ impl Client {
                     Some(ResponseMatcher::Whois(nick.to_string())),
                 )
                 .await?;
-            crate::requests::whois(response, &nick, client.state().isupport().inner())
+            crate::requests::whois(
+                response,
+                &nick,
+                client.state().isupport().inner(),
+                client.origin(),
+            )
         })
     }
 
@@ -951,7 +956,12 @@ impl Client {
             let response = client
                 .correlated(message, Some(ResponseMatcher::Who(mask.to_string())))
                 .await?;
-            crate::requests::who(response, state.isupport().inner(), extended)
+            crate::requests::who(
+                response,
+                state.isupport().inner(),
+                client.origin(),
+                extended,
+            )
         })
     }
 
@@ -1461,7 +1471,7 @@ impl Client {
             let response = client
                 .correlated(message, Some(ResponseMatcher::List))
                 .await?;
-            crate::requests::list(response, client.state().isupport().inner())
+            crate::requests::list(response, client.state().isupport().inner(), client.origin())
         })
     }
 

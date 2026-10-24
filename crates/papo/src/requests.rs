@@ -126,13 +126,14 @@ pub(crate) fn whois(
     response: Response,
     requested_nick: &str,
     isupport: &Isupport,
+    origin: crate::Origin,
 ) -> Result<Whois, Error> {
     if let Some(error) = response.error() {
         return Err(Error::server(error));
     }
     let mapping = isupport.casemapping();
     let mut result = Whois {
-        nick: mapping.nick(requested_nick),
+        nick: origin.__nick(mapping, requested_nick),
         username: None,
         host: None,
         realname: None,
@@ -151,7 +152,7 @@ pub(crate) fn whois(
         };
         match numeric {
             Numeric::RPL_WHOISUSER => {
-                result.nick = mapping.nick(message.param(1).unwrap_or(requested_nick));
+                result.nick = origin.__nick(mapping, message.param(1).unwrap_or(requested_nick));
                 result.username = message.param(2).map(str::to_owned);
                 result.host = message.param(3).map(str::to_owned);
                 result.realname = message.param(5).map(str::to_owned);
@@ -168,10 +169,12 @@ pub(crate) fn whois(
                     .param(2)
                     .into_iter()
                     .flat_map(str::split_ascii_whitespace)
-                    .map(|value| whois_channel(value, isupport)),
+                    .map(|value| whois_channel(value, isupport, origin)),
             ),
             Numeric::RPL_WHOISACCOUNT => {
-                result.account = message.param(2).map(|account| mapping.account(account));
+                result.account = message
+                    .param(2)
+                    .map(|account| origin.__account(mapping, account));
             }
             Numeric::RPL_AWAY => {
                 result.away = Away::__away_value(message.param(2).map(str::to_owned));
@@ -184,7 +187,7 @@ pub(crate) fn whois(
     Ok(result)
 }
 
-fn whois_channel(value: &str, isupport: &Isupport) -> WhoisChannel {
+fn whois_channel(value: &str, isupport: &Isupport, origin: crate::Origin) -> WhoisChannel {
     let prefixes: Vec<_> = value
         .chars()
         .take_while(|symbol| {
@@ -196,7 +199,7 @@ fn whois_channel(value: &str, isupport: &Isupport) -> WhoisChannel {
         .collect();
     let offset = prefixes.iter().map(|symbol| symbol.len_utf8()).sum();
     WhoisChannel {
-        name: isupport.casemapping().channel(&value[offset..]),
+        name: origin.__channel(isupport.casemapping(), &value[offset..]),
         prefixes,
     }
 }
@@ -204,6 +207,7 @@ fn whois_channel(value: &str, isupport: &Isupport) -> WhoisChannel {
 pub(crate) fn who(
     response: Response,
     isupport: &Isupport,
+    origin: crate::Origin,
     extended: bool,
 ) -> Result<Vec<WhoEntry>, Error> {
     if let Some(error) = response.error() {
@@ -219,12 +223,14 @@ pub(crate) fn who(
                 let reply = WhoxReply::parse(&message, WHOX_FIELDS)?;
                 let flags = reply.flags(isupport)?;
                 Some(WhoEntry {
-                    channel: reply.channel.map(|channel| mapping.channel(channel)),
-                    nick: mapping.nick(reply.nick?),
+                    channel: reply
+                        .channel
+                        .map(|channel| origin.__channel(mapping, channel)),
+                    nick: origin.__nick(mapping, reply.nick?),
                     username: reply.user?.to_owned(),
                     host: reply.host?.to_owned(),
                     account: reply.account.map_or(Account::LoggedOut, |account| {
-                        Account::LoggedIn(mapping.account(account))
+                        Account::LoggedIn(origin.__account(mapping, account))
                     }),
                     realname: reply.realname?.to_owned(),
                     away: match flags.presence {
@@ -237,13 +243,17 @@ pub(crate) fn who(
                     prefixes: flags.prefixes,
                 })
             } else {
-                plain_who(&message, isupport)
+                plain_who(&message, isupport, origin)
             }
         })
         .collect())
 }
 
-fn plain_who(message: &papo_proto::LineRef<'_>, isupport: &Isupport) -> Option<WhoEntry> {
+fn plain_who(
+    message: &papo_proto::LineRef<'_>,
+    isupport: &Isupport,
+    origin: crate::Origin,
+) -> Option<WhoEntry> {
     (message.command() == Command::Numeric(Numeric::RPL_WHOREPLY)).then_some(())?;
     let flags = message.param(6)?;
     let prefixes = isupport.prefix();
@@ -251,10 +261,10 @@ fn plain_who(message: &papo_proto::LineRef<'_>, isupport: &Isupport) -> Option<W
         channel: message
             .param(1)
             .filter(|value| *value != "*")
-            .map(|channel| isupport.casemapping().channel(channel)),
+            .map(|channel| origin.__channel(isupport.casemapping(), channel)),
         username: message.param(2)?.to_owned(),
         host: message.param(3)?.to_owned(),
-        nick: isupport.casemapping().nick(message.param(5)?),
+        nick: origin.__nick(isupport.casemapping(), message.param(5)?),
         account: Account::Unknown,
         realname: message.param(7)?.split_once(' ')?.1.to_owned(),
         away: if flags.contains('G') {
@@ -279,14 +289,22 @@ pub(crate) fn empty(response: &Response) -> Result<(), Error> {
         .map_or(Ok(()), |error| Err(Error::server(error)))
 }
 
-pub(crate) fn list(response: Response, isupport: &Isupport) -> Result<Vec<ListEntry>, Error> {
+pub(crate) fn list(
+    response: Response,
+    isupport: &Isupport,
+    origin: crate::Origin,
+) -> Result<Vec<ListEntry>, Error> {
     if let Some(error) = response.error() {
         return Err(Error::server(error));
     }
-    Ok(list_entries(response.lines, isupport))
+    Ok(list_entries(response.lines, isupport, origin))
 }
 
-fn list_entries(lines: impl IntoIterator<Item = Line>, isupport: &Isupport) -> Vec<ListEntry> {
+fn list_entries(
+    lines: impl IntoIterator<Item = Line>,
+    isupport: &Isupport,
+    origin: crate::Origin,
+) -> Vec<ListEntry> {
     lines
         .into_iter()
         .filter_map(|line| {
@@ -295,7 +313,7 @@ fn list_entries(lines: impl IntoIterator<Item = Line>, isupport: &Isupport) -> V
                 return None;
             }
             Some(ListEntry {
-                name: isupport.casemapping().channel(message.param(1)?),
+                name: origin.__channel(isupport.casemapping(), message.param(1)?),
                 members_count: message.param(2)?.parse().ok()?,
                 topic: message.param(3)?.to_owned(),
             })
@@ -328,7 +346,7 @@ mod tests {
 
     #[test]
     fn whois_channels_separate_advertised_membership_prefixes() {
-        let channel = whois_channel("@+#papo", &Isupport::default());
+        let channel = whois_channel("@+#papo", &Isupport::default(), crate::Origin::NONE);
 
         assert_eq!(channel.name, "#papo");
         assert_eq!(channel.prefixes, vec!['@', '+']);
@@ -358,8 +376,8 @@ mod tests {
             "0 Bob Example",
         ]);
 
-        let hidden = plain_who(&hidden.as_ref(), &isupport).unwrap();
-        let visible = plain_who(&visible.as_ref(), &isupport).unwrap();
+        let hidden = plain_who(&hidden.as_ref(), &isupport, crate::Origin::NONE).unwrap();
+        let visible = plain_who(&visible.as_ref(), &isupport, crate::Origin::NONE).unwrap();
         assert_eq!(
             (hidden.account, hidden.away),
             (Account::Unknown, Away::Present)
@@ -409,7 +427,7 @@ mod tests {
         let lines = (0..10_001).map(|index| {
             Line::new("322").with_params(["papo", &format!("#papo-{index}"), "42", "Ergonomic IRC"])
         });
-        let entries = list_entries(lines, &Isupport::default());
+        let entries = list_entries(lines, &Isupport::default(), crate::Origin::NONE);
         assert_eq!(entries.len(), 10_000);
         assert_eq!(entries.last().unwrap().name, "#papo-9999");
     }
@@ -418,7 +436,8 @@ mod tests {
     fn reply_names_capture_the_advertised_casemapping() {
         let mut isupport = Isupport::default();
         isupport.apply_tokens(["CASEMAPPING=ascii"]);
-        let channel = whois_channel("@#Papo[dev]", &isupport);
+        let origin = crate::Origin::__new(73);
+        let channel = whois_channel("@#Papo[dev]", &isupport, origin);
         let who = Line::new("352").with_params([
             "papo",
             "#Papo[dev]",
@@ -429,10 +448,12 @@ mod tests {
             "H@",
             "0 Alice Example",
         ]);
-        let who = plain_who(&who.as_ref(), &isupport).unwrap();
+        let who = plain_who(&who.as_ref(), &isupport, origin).unwrap();
 
         assert_eq!(channel.name.casemapping(), Casemapping::Ascii);
         assert_eq!(who.channel.unwrap().casemapping(), Casemapping::Ascii);
         assert_eq!(who.nick.casemapping(), Casemapping::Ascii);
+        assert_eq!(channel.name.origin(), origin);
+        assert_eq!(who.nick.origin(), origin);
     }
 }

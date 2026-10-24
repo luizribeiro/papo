@@ -84,7 +84,12 @@ impl Client {
                     password: account.password,
                 })
                 .await?;
-            account_registration_result(&response, "REGISTER", client.state().casemapping())
+            account_registration_result(
+                &response,
+                "REGISTER",
+                client.state().casemapping(),
+                client.origin(),
+            )
         })
     }
 
@@ -115,7 +120,12 @@ impl Client {
                     code,
                 })
                 .await?;
-            account_registration_result(&response, "VERIFY", client.state().casemapping())
+            account_registration_result(
+                &response,
+                "VERIFY",
+                client.state().casemapping(),
+                client.origin(),
+            )
         })
     }
 }
@@ -124,6 +134,7 @@ fn account_registration_result(
     response: &Response,
     command: &'static str,
     casemapping: crate::Casemapping,
+    origin: crate::Origin,
 ) -> Result<AccountCreation, Error> {
     if let Some(error) = response.error() {
         return Err(Error::server(error));
@@ -133,7 +144,8 @@ fn account_registration_result(
         .first()
         .ok_or_else(|| Error::unexpected_reply(command))?
         .as_ref();
-    let account = casemapping.account(
+    let account = origin.__account(
+        casemapping,
         message
             .param(1)
             .ok_or_else(|| Error::unexpected_reply(command))?,
@@ -200,7 +212,7 @@ mod tests {
         )
         .await;
         assert!(
-            matches!(within(register).await.unwrap().unwrap(), super::AccountCreation::VerificationRequired { account, .. } if account == "alice")
+            matches!(within(register).await.unwrap().unwrap(), super::AccountCreation::VerificationRequired { account, .. } if account == "alice" && account.origin() == client.origin())
         );
 
         let verify = tokio::spawn({
@@ -217,7 +229,7 @@ mod tests {
         )
         .await;
         assert!(
-            matches!(within(verify).await.unwrap().unwrap(), super::AccountCreation::Created { account } if account == "alice")
+            matches!(within(verify).await.unwrap().unwrap(), super::AccountCreation::Created { account } if account == "alice" && account.origin() == client.origin())
         );
 
         let verify = tokio::spawn({
