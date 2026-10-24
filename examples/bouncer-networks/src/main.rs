@@ -47,8 +47,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    let (_attached, mut events) = builder()
-        .bouncer_network(id.clone())
+    let (_attached, mut events) = manager
+        .bouncer()
+        .network(&id)
         .autojoin([CHANNEL])
         .connect()
         .await?;

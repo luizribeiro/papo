@@ -67,11 +67,9 @@ async fn lists_adds_and_attaches_to_bouncer_networks() {
             ]
         );
 
-        let (attached, mut events) = Client::builder(url)
-            .nick(&nick)
-            .sasl(Sasl::plain(bouncer.username(), bouncer.password()))
-            .allow_insecure_auth(true)
-            .bouncer_network(id.clone())
+        let (attached, mut events) = manager
+            .bouncer()
+            .network(&id)
             .autojoin(["#papo"])
             .connect()
             .await
