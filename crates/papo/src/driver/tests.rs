@@ -1212,7 +1212,8 @@ async fn eof_reconnects_and_emits_reconnected() {
     assert!(matches!(
         events.next().await,
         Some(Event::AutoJoinFailed { channel, error })
-            if channel == "#papo" && error.refusal() == crate::Refusal::BadChannelKey
+            if channel == "#papo" && channel.origin() == client.origin()
+                && error.refusal() == crate::Refusal::BadChannelKey
     ));
     within(second_server.shutdown()).await.unwrap();
     assert!(matches!(events.next().await, Some(Event::Disconnected(_))));

@@ -1275,7 +1275,7 @@ where
             } => {
                 if catchups.values().any(|catchup| {
                     matches!(&conversation, crate::Conversation::Channel(channel)
-                        if session.isupport().casemapping().channel(&catchup.target) == *channel)
+                        if channel == catchup.target.as_str())
                 }) {
                     continue;
                 }
@@ -1709,7 +1709,11 @@ fn after_connect(
                 }
                 line = line.param(key);
             }
-            let channel_name = session.isupport().casemapping().channel(&channel.channel);
+            let channel_name = session
+                .state()
+                .nick()
+                .origin()
+                .__channel(session.isupport().casemapping(), &channel.channel);
             match session.request_with_matcher(
                 now(),
                 line.clone(),
