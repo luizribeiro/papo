@@ -631,6 +631,7 @@ fn confirmed(
                 change.arg,
                 change.kind,
                 state.casemapping(),
+                state.nick().origin(),
             );
             if let Some(index) = remaining
                 .iter()

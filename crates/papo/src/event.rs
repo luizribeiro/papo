@@ -1956,10 +1956,11 @@ pub(crate) fn typed_mode_change(
     arg: Option<&str>,
     kind: papo_proto::ModeKind,
     casemapping: Casemapping,
+    origin: crate::Origin,
 ) -> ModeChange {
     let arg = arg.map(|arg| match kind {
-        papo_proto::ModeKind::Prefix(_) => ModeArg::Nick(casemapping.nick(arg)),
-        papo_proto::ModeKind::List => ModeArg::Mask(casemapping.mask(arg)),
+        papo_proto::ModeKind::Prefix(_) => ModeArg::Nick(origin.__nick(casemapping, arg)),
+        papo_proto::ModeKind::List => ModeArg::Mask(origin.__mask(casemapping, arg)),
         _ => ModeArg::Value(arg.to_owned()),
     });
     ModeChange { mode, action, arg }
@@ -3468,6 +3469,31 @@ mod tests {
                     && mode.changes[0].mode == 'o'
                     && matches!(&mode.changes[0].arg, Some(ModeArg::Nick(nick)) if nick == "emily")
         ));
+    }
+
+    #[test]
+    fn typed_mode_arguments_keep_the_client_origin() {
+        let origin = crate::Origin::__new(73);
+        for (kind, expected) in [
+            (papo_proto::ModeKind::Prefix(0), "nick"),
+            (papo_proto::ModeKind::List, "mask"),
+            (papo_proto::ModeKind::AlwaysArg, "value"),
+        ] {
+            let change = super::typed_mode_change(
+                ModeAction::Add,
+                'x',
+                Some("alice"),
+                kind,
+                Casemapping::default(),
+                origin,
+            );
+            match (expected, change.arg) {
+                ("nick", Some(ModeArg::Nick(value))) => assert_eq!(value.origin(), origin),
+                ("mask", Some(ModeArg::Mask(value))) => assert_eq!(value.origin(), origin),
+                ("value", Some(ModeArg::Value(value))) => assert_eq!(value, "alice"),
+                _ => panic!("unexpected typed mode argument"),
+            }
+        }
     }
 
     #[test]
