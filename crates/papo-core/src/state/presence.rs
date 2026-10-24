@@ -24,7 +24,7 @@ impl State {
                             });
                         }
                     }
-                    ("bot", _) => user.is_bot = true,
+                    ("bot", _) => user.is_bot = Some(true),
                     _ => {}
                 }
             }
@@ -176,7 +176,21 @@ impl State {
             .or_else(|| self.handle_account(message, outbox))
             .or_else(|| self.handle_away(message, own_away_message, outbox))
             .or_else(|| self.handle_identity_change(message, outbox))
+            .or_else(|| self.handle_bot_numeric(message))
             .or_else(|| self.handle_who(message, isupport, outbox))
+    }
+
+    fn handle_bot_numeric(&mut self, message: &LineRef<'_>) -> Option<Handled> {
+        if message.command() != Command::Numeric(Numeric::RPL_WHOISBOT) {
+            return None;
+        }
+        let Some(nick) = message.param(1) else {
+            return Some(Handled::No);
+        };
+        if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick)) {
+            user.is_bot = Some(true);
+        }
+        Some(Handled::Yes)
     }
 
     fn handle_visible_host(
@@ -319,7 +333,7 @@ impl State {
                 Some(WhoxPresence::Here) => Away::Present,
                 None => user.away.clone(),
             };
-            user.is_bot = flags.bot;
+            user.is_bot = Some(flags.bot);
         }
     }
 

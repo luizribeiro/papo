@@ -192,7 +192,7 @@ pub struct User {
     account: Account,
     away: Away,
     realname: Option<String>,
-    is_bot: bool,
+    is_bot: Option<bool>,
     monitored: bool,
     channels: BTreeSet<ChannelName>,
 }
@@ -1500,7 +1500,7 @@ impl User {
             account: Account::Unknown,
             away: Away::Unknown,
             realname: None,
-            is_bot: false,
+            is_bot: None,
             monitored: false,
             channels: BTreeSet::new(),
         }
@@ -1551,9 +1551,11 @@ impl User {
         self.realname.as_deref()
     }
 
-    /// Returns whether the user is known to be a bot.
+    /// Returns whether the user is known to be a bot or human.
+    ///
+    /// `None` means WHO flags, a bot tag, and numeric 335 have not reported this fact.
     #[must_use]
-    pub const fn is_bot(&self) -> bool {
+    pub const fn is_bot(&self) -> Option<bool> {
         self.is_bot
     }
 

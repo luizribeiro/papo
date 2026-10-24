@@ -214,7 +214,10 @@ impl Command {
             || config.ignore_bots
                 && (message.is_bot
                     || message.actor.nick().is_some_and(|nick| {
-                        client.state().user(nick).is_some_and(papo::User::is_bot)
+                        client
+                            .state()
+                            .user(nick)
+                            .is_some_and(|user| user.is_bot() == Some(true))
                     }))
         {
             return None;
@@ -793,7 +796,7 @@ mod tests {
                 .command(&client, &messages[0])
                 .is_some()
         );
-        assert!(client.state().user("emily").unwrap().is_bot());
+        assert_eq!(client.state().user("emily").unwrap().is_bot(), Some(true));
         assert!(!messages[2].is_bot);
         assert!(config.command(&client, &messages[2]).is_none());
         assert!(

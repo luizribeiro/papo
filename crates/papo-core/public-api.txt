@@ -2169,7 +2169,7 @@ pub const fn papo_core::User::account(&self) -> &papo_core::Account
 pub const fn papo_core::User::away(&self) -> &papo_core::Away
 pub fn papo_core::User::channels(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::ChannelName>
 pub fn papo_core::User::host(&self) -> core::option::Option<&str>
-pub const fn papo_core::User::is_bot(&self) -> bool
+pub const fn papo_core::User::is_bot(&self) -> core::option::Option<bool>
 pub fn papo_core::User::nick(&self) -> &papo::Nick
 pub fn papo_core::User::realname(&self) -> core::option::Option<&str>
 pub fn papo_core::User::username(&self) -> core::option::Option<&str>

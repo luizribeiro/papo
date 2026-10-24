@@ -1370,7 +1370,12 @@ fn bot_tag_marks_a_shared_user() {
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .server(":papo-bot!bot@services.example JOIN #papo")
         .server("@bot :papo-bot!bot@services.example PRIVMSG #papo :status green")
-        .inspect(|session| assert!(session.state().user("papo-bot").unwrap().is_bot()))
+        .inspect(|session| {
+            assert_eq!(
+                session.state().user("papo-bot").unwrap().is_bot(),
+                Some(true)
+            );
+        })
         .ignore_rest();
 }
 
@@ -1413,7 +1418,7 @@ fn sweeps_joined_channels_with_a_rate_limited_whox_query() {
         assert_eq!(dan.host(), Some("account/dan"));
         assert_eq!(dan.realname(), Some("Daniel Garcia"));
         assert_eq!(dan.away(), &Away::__away_value(None));
-        assert!(dan.is_bot());
+        assert_eq!(dan.is_bot(), Some(true));
     })
     .server(":alice!~alice@staff.example JOIN #papo alice :Alice Smith")
     .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "alice"))
@@ -1533,7 +1538,7 @@ fn falls_back_to_plain_who_without_whox() {
             assert_eq!(dan.host(), Some("account/dan"));
             assert_eq!(dan.realname(), Some("Daniel Garcia"));
             assert_eq!(dan.away(), &Away::__away_value(None));
-            assert!(dan.is_bot());
+            assert_eq!(dan.is_bot(), Some(true));
         })
         .no_event();
 }
@@ -1615,11 +1620,29 @@ fn plain_who_recognizes_each_bot_flag_source() {
         .server(":ergo.test 352 emily #papo bot users.example ergo.test relay-bot HZ :0 Relay Bot")
         .server(":ergo.test 352 emily #papo alice users.example ergo.test alice H :0 Alice Smith")
         .inspect(|session| {
-            assert!(session.state().user("service-bot").unwrap().is_bot());
-            assert!(session.state().user("relay-bot").unwrap().is_bot());
-            assert!(!session.state().user("alice").unwrap().is_bot());
+            assert_eq!(session.state().user("service-bot").unwrap().is_bot(), Some(true));
+            assert_eq!(session.state().user("relay-bot").unwrap().is_bot(), Some(true));
+            assert_eq!(session.state().user("alice").unwrap().is_bot(), Some(false));
         })
         .no_event();
+}
+
+#[test]
+fn bot_state_is_unknown_until_reported() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .server(":service-bot!bot@services.example JOIN #papo")
+        .inspect(|session| {
+            assert_eq!(session.state().user("service-bot").unwrap().is_bot(), None);
+        })
+        .server(":ergo.test 335 emily service-bot :is a bot on this network")
+        .inspect(|session| {
+            assert_eq!(
+                session.state().user("service-bot").unwrap().is_bot(),
+                Some(true)
+            );
+        })
+        .ignore_rest();
 }
 
 #[test]
