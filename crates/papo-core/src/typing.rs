@@ -131,10 +131,14 @@ impl TypingTable {
     }
 
     #[doc(hidden)]
-    pub fn get<'a>(&'a self, conversation: &'a Conversation) -> impl Iterator<Item = &'a Typer> {
+    pub fn get<'a>(
+        &'a self,
+        conversation: &Conversation,
+    ) -> impl Iterator<Item = &'a Typer> + use<'a> {
+        let conversation = conversation.clone();
         self.entries
             .iter()
-            .filter(move |(candidate, _)| candidate == conversation)
+            .filter(move |(candidate, _)| candidate == &conversation)
             .map(|(_, typer)| typer)
     }
 
