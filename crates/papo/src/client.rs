@@ -1405,15 +1405,13 @@ impl Client {
     /// [`Error::Disconnected`].
     pub fn set_topic(
         &self,
-        channel: impl crate::Target,
+        channel: impl crate::AsChannel,
         topic: impl Into<String>,
     ) -> crate::RequestFuture<()> {
-        let (channel, invalid_input) = self.target_input(channel);
         self.change_topic(
-            self.state().channel_name(channel),
+            crate::AsChannel::__parts(&channel).into_owned(),
             topic.into(),
             false,
-            invalid_input,
         )
     }
 
@@ -1422,34 +1420,28 @@ impl Client {
     /// # Errors
     ///
     /// Returns the same errors as [`Client::set_topic`].
-    pub fn clear_topic(&self, channel: impl crate::Target) -> crate::RequestFuture<()> {
-        let (channel, invalid_input) = self.target_input(channel);
+    pub fn clear_topic(&self, channel: impl crate::AsChannel) -> crate::RequestFuture<()> {
         self.change_topic(
-            self.state().channel_name(channel),
+            crate::AsChannel::__parts(&channel).into_owned(),
             String::new(),
             true,
-            invalid_input,
         )
     }
 
     fn change_topic(
         &self,
-        channel: crate::ChannelName,
+        channel: crate::target::sealed::Parts<'static>,
         topic: String,
         clear: bool,
-        invalid_input: Option<InvalidInput>,
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
         crate::RequestFuture::new(async move {
-            if let Some(error) = invalid_input {
-                return Err(error.into());
-            }
+            let channel =
+                client.resolve(crate::target::Role::Channel("topic: channel"), channel)?;
+            let channel = client.state().channel_name(channel);
             if topic.is_empty() && !clear {
                 return Err(InvalidInput::EmptyText.into());
             }
-            channel
-                .check(client.state().isupport().inner())
-                .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
             let response = client
                 .correlated(
                     Line::new("TOPIC").with_params([channel.to_string(), topic]),
