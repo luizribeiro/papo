@@ -728,10 +728,8 @@ impl Message {
         papo_proto::Formatted::new(&self.raw_text)
     }
 
-    /// Returns the plain-text IRC address for a response.
+    /// Returns the address that reaches the recipients of the message.
     ///
-    /// Broadcast messages return the sending user's nickname so a response cannot repeat the
-    /// broadcast. A broadcast without a user source returns `*`, which message APIs reject.
     /// See [`Conversation`] for status-prefixed line guidance.
     #[must_use]
     pub fn return_address(&self) -> crate::MessageRef {
@@ -1325,17 +1323,17 @@ pub enum Event {
     /// This includes unknown numerics, vendor commands, and new drafts. Match it only for display
     /// and logging; a future version may type it.
     Other(Unparsed),
-    /// A tag-only message with typed accessors for known client tags.
+    /// A tag-only message with no more specific typed event.
     TagMsg(TagMsg),
     /// A tag-only reaction or unreaction.
     Reacted(Reacted),
-    /// A tag-only typing notification.
+    /// A user's typing state changed.
     TypingChanged(TypingChanged),
     /// A message was redacted from a conversation's history.
     Redacted(Redacted),
     /// An unsolicited `IRCv3` standard reply.
     StandardReply(StandardReply),
-    /// Account creation completed and the connection is authenticated.
+    /// Account creation completed or requires verification.
     AccountCreation(crate::AccountCreation),
     /// The server reported the account's persistence state.
     #[cfg(feature = "unstable")]
@@ -1354,7 +1352,7 @@ pub enum Event {
     History(Box<crate::HistoryPage>),
     /// A conversation's read marker advanced or was first reported.
     ReadMarkerChanged(ReadMarkerChanged),
-    /// A server batch exceeded a retention bound or deadline.
+    /// A recoverable protocol or configuration problem occurred.
     Warning(Warning),
     /// The capabilities enabled on an established connection changed.
     CapsChanged(CapsChanged),
@@ -1392,14 +1390,12 @@ pub enum Event {
     RealnameChanged(RealnameChanged),
     /// A user or channel mode changed.
     ModeChanged(ModeChanged),
-    /// A channel topic changed live.
+    /// A channel topic changed.
     TopicChanged(TopicChanged),
-    /// Server input exceeded a configured state-retention bound.
     /// A monitored nickname came online or changed its userhost.
     MonitorOnline(MonitorOnline),
     /// A monitored nickname went offline.
     MonitorOffline(MonitorOffline),
-    /// The server rejected nicknames because its monitor list was full.
     /// The connection ended.
     Disconnected(Disconnected),
 }
