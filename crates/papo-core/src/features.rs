@@ -138,7 +138,15 @@ macro_rules! feature_enum {
                 }
             }
 
-            fn caps(self) -> [Option<cap::Cap>; 2] {
+            #[doc(hidden)]
+            #[must_use]
+            pub fn __variant_name(self) -> &'static str {
+                match self {
+                    $($(#[$gate])* Self::$variant => stringify!($variant),)*
+                }
+            }
+
+            pub(crate) fn caps(self) -> [Option<cap::Cap>; 2] {
                 match self {
                     $($(#[$gate])* Self::$variant => $caps,)*
                 }
@@ -236,6 +244,9 @@ impl Session {
     ///
     /// Returns the reason the feature is unavailable on this connection.
     pub fn supports(&self, feature: Feature) -> Result<(), UnsupportedReason> {
+        if self.config.feature_disabled(feature) {
+            return Err(UnsupportedReason::DisabledByClient);
+        }
         #[cfg(feature = "unstable")]
         if matches!(
             feature,

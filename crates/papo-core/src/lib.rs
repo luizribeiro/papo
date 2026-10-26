@@ -544,9 +544,10 @@ pub struct Config {
     pub wanted_caps: Vec<String>,
     /// Capability names explicitly disabled by the client.
     pub disabled_caps: Vec<String>,
-    /// Optional extension features explicitly enabled by the application.
-    #[cfg(feature = "unstable")]
-    pub enabled_features: BTreeSet<Feature>,
+    /// Optional features explicitly enabled by the application.
+    enabled_features: BTreeSet<Feature>,
+    /// Optional features explicitly disabled by the application.
+    disabled_features: BTreeSet<Feature>,
     /// Alternative nicknames to try when the requested nickname collides while connecting.
     pub alt_nicks: Vec<String>,
     /// Whether to reclaim the configured nickname after a connection-time collision.
@@ -605,8 +606,8 @@ impl Default for Config {
                 .map(|name| (*name).to_owned())
                 .collect(),
             disabled_caps: Vec::new(),
-            #[cfg(feature = "unstable")]
             enabled_features: BTreeSet::new(),
+            disabled_features: BTreeSet::new(),
             alt_nicks: Vec::new(),
             regain_nick: false,
             sasl: None,
@@ -640,6 +641,13 @@ impl Config {
         config.metadata_subscriptions.clear();
         config.required_caps.clear();
         config.registration_on_connect = None;
+        #[cfg(feature = "unstable")]
+        {
+            config.enabled_features.remove(&Feature::Bouncer);
+            config.wanted_caps.retain(|name| {
+                cap::canonical(name) != cap::canonical(cap::BOUNCER_NETWORKS_NOTIFY.as_str())
+            });
+        }
         config
     }
 
@@ -685,11 +693,23 @@ impl Config {
         }
     }
 
-    /// Enables an unstable extension feature before connecting.
-    #[cfg(feature = "unstable")]
+    /// Enables an optional feature before connecting.
     #[must_use]
     pub fn enable(mut self, feature: Feature) -> Self {
+        self.disabled_features.remove(&feature);
         self.enabled_features.insert(feature);
+        for required in feature.caps().iter().flatten() {
+            self.disabled_caps
+                .retain(|name| cap::canonical(name) != cap::canonical(required.as_str()));
+            if !self
+                .wanted_caps
+                .iter()
+                .any(|name| cap::canonical(name) == cap::canonical(required.as_str()))
+            {
+                self.wanted_caps.push(required.as_str().to_owned());
+            }
+        }
+        #[cfg(feature = "unstable")]
         for info in cap::ALL {
             if let cap::Request::OptIn(name, owner) = info.request
                 && owner == feature
@@ -699,6 +719,32 @@ impl Config {
             }
         }
         self
+    }
+
+    /// Disables an optional feature before connecting.
+    #[must_use]
+    pub fn disable(mut self, feature: Feature) -> Self {
+        self.enabled_features.remove(&feature);
+        self.disabled_features.insert(feature);
+        for required in feature.caps().iter().flatten() {
+            if !self.cap_disabled(required.as_str()) {
+                self.disabled_caps.push(required.as_str().to_owned());
+            }
+        }
+        #[cfg(feature = "unstable")]
+        for info in cap::ALL {
+            if let cap::Request::OptIn(name, owner) = info.request
+                && owner == feature
+                && !self.cap_disabled(name)
+            {
+                self.disabled_caps.push(name.to_owned());
+            }
+        }
+        self
+    }
+
+    pub(crate) fn feature_disabled(&self, feature: Feature) -> bool {
+        self.disabled_features.contains(&feature)
     }
 
     /// Sets the incoming line decoding policy.

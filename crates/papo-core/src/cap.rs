@@ -287,6 +287,22 @@ pub const fn is_known(name: &str) -> bool {
     !same(canonical(name), name) || known_primary(name)
 }
 
+/// Reports whether a capability is known in any build configuration.
+#[doc(hidden)]
+#[must_use]
+pub const fn __is_known(name: &str) -> bool {
+    is_known(name) || is_unstable(name)
+}
+
+/// Returns the feature that controls a known capability.
+#[doc(hidden)]
+#[must_use]
+pub fn __feature(name: &str) -> Option<Feature> {
+    ALL.iter()
+        .find(|info| info.name == canonical(name))
+        .and_then(|info| info.features.first().copied())
+}
+
 /// Reports whether a capability belongs to an opt-in unstable feature.
 #[doc(hidden)]
 #[must_use]
@@ -440,7 +456,11 @@ pub(crate) fn requestable(
                 || advertised_spelling(preferred, advertised).is_none()
         }
         #[cfg(feature = "unstable")]
-        Request::OptIn(_, feature) => config.enabled_features.contains(&feature),
+        Request::OptIn(_, feature) => {
+            config.enabled_features.contains(&feature)
+                || (info.name == BOUNCER_NETWORKS.as_str()
+                    && config.selected_bouncer_network().is_some())
+        }
         Request::Default(_) | Request::Automatic => true,
     }
 }

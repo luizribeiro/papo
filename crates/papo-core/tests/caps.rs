@@ -5,7 +5,9 @@ mod support;
 use std::time::Duration;
 
 use papo_core::sts::{ConnectionSecurity, StsAction};
-use papo_core::{CloseKind, Config, Connection, DEFAULT_WANTED_CAPS, Event, Session, cap::Cap};
+use papo_core::{
+    CloseKind, Config, Connection, DEFAULT_WANTED_CAPS, Event, Feature, Session, cap::Cap,
+};
 use support::Transcript;
 
 #[test]
@@ -240,16 +242,30 @@ fn requests_only_published_aliases_in_the_capability_namespace() {
 }
 
 #[test]
-fn explicitly_disabled_caps_are_never_requested() {
+fn disabled_features_are_never_requested() {
     Transcript::new(
         Config::default()
-            .without_caps(["chathistory", "server-time"])
-            .wanted_caps(["draft/chathistory", "server-time", "batch"]),
+            .disable(Feature::History)
+            .disable(Feature::ServerTime),
     )
     .connect_default()
     .server("CAP * LS :chathistory server-time batch")
     .client("CAP REQ :batch")
     .server("CAP * ACK :batch")
+    .client("CAP END");
+}
+
+#[test]
+fn the_last_feature_toggle_controls_negotiation() {
+    Transcript::new(
+        Config::default()
+            .disable(Feature::History)
+            .enable(Feature::History),
+    )
+    .connect_default()
+    .server("CAP * LS :draft/chathistory")
+    .client("CAP REQ :draft/chathistory")
+    .server("CAP * ACK :draft/chathistory")
     .client("CAP END");
 }
 
