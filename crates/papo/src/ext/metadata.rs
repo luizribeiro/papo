@@ -88,9 +88,13 @@ impl Metadata {
                 return Err(error.into());
             }
             let state = metadata.client.state();
-            state
-                .parse_target_inner(&target)
-                .map_err(|reason| crate::InvalidInput::invalid_name(target.clone(), reason))?;
+            state.parse_target_inner(&target).map_err(|reason| {
+                crate::InvalidInput::invalid_argument(
+                    "metadata.get: target",
+                    target.clone(),
+                    reason,
+                )
+            })?;
             for key in &keys {
                 key.check()
                     .map_err(|reason| crate::InvalidInput::InvalidMetadataKey {

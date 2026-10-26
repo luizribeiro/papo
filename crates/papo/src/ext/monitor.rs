@@ -85,11 +85,11 @@ impl Monitor {
             .map(|nick| crate::AsNick::__parts(&nick).into_owned())
             .collect::<Vec<_>>();
         crate::RequestFuture::new(async move {
-            preflight(&client)?;
             let nicks = nicks
                 .into_iter()
                 .map(|nick| client.resolve(crate::target::Role::Nick("monitor: nick"), nick))
                 .collect::<Result<Vec<_>, _>>()?;
+            preflight(&client)?;
             let (result, receiver) = oneshot::channel();
             let command = if add {
                 Command::MonitorAdd { nicks, result }

@@ -4414,6 +4414,94 @@ async fn role_errors_identify_the_invalid_argument() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn every_name_taking_method_returns_invalid_name() {
+    #[derive(Clone, Copy)]
+    enum Method {
+        Typing,
+        React,
+        Redact,
+        Whois,
+        Who,
+        Part,
+        KickChannel,
+        KickNick,
+        KickbanChannel,
+        KickbanNick,
+        InviteNick,
+        InviteChannel,
+        SetNick,
+        Topic,
+        Monitor,
+        Metadata,
+        VerifyAccount,
+        History,
+    }
+
+    let client = crate::Client::disconnected_for_test();
+    let cases = [
+        (Method::Typing, "typing: target", "bad target"),
+        (Method::React, "reaction: message", "bad target"),
+        (Method::Redact, "redact: message", "bad target"),
+        (Method::Whois, "whois: nick", "#staff"),
+        (Method::Who, "who: mask", "bad mask"),
+        (Method::Part, "part: channel", "staff"),
+        (Method::KickChannel, "kick: channel", "staff"),
+        (Method::KickNick, "kick: nick", "#staff"),
+        (Method::KickbanChannel, "kickban: channel", "staff"),
+        (Method::KickbanNick, "kickban: nick", "#staff"),
+        (Method::InviteNick, "invite: nick", "#staff"),
+        (Method::InviteChannel, "invite: channel", "staff"),
+        (Method::SetNick, "set_nick: nick", "#staff"),
+        (Method::Topic, "topic: channel", "staff"),
+        (Method::Monitor, "monitor: nick", "#staff"),
+        (Method::Metadata, "metadata.get: target", "bad target"),
+        (Method::VerifyAccount, "verify_account: account", "*"),
+        (Method::History, "history: conversation", "@#staff"),
+    ];
+
+    for (method, argument, bad) in cases {
+        let result = match method {
+            Method::Typing => client.typing(bad, crate::Typing::Active).await,
+            Method::React => client.react((bad, "RfcBTzyxY120004"), "eyes").await,
+            Method::Redact => client.redact((bad, "RfcBTzyxY120004"), "spam").await,
+            Method::Whois => client.whois(bad).await.map(drop),
+            Method::Who => client.who(bad).await.map(drop),
+            Method::Part => client.part(bad, "leaving").await,
+            Method::KickChannel => client.kick(bad, "alice", "spam").await,
+            Method::KickNick => client.kick("#staff", bad, "spam").await,
+            Method::KickbanChannel => client
+                .kickban(bad, "alice", "spam", "*!*@host")
+                .await
+                .map(drop),
+            Method::KickbanNick => client
+                .kickban("#staff", bad, "spam", "*!*@host")
+                .await
+                .map(drop),
+            Method::InviteNick => client.invite(bad, "#staff").await,
+            Method::InviteChannel => client.invite("alice", bad).await,
+            Method::SetNick => client.set_nick(bad).await,
+            Method::Topic => client.set_topic(bad, "Release planning").await,
+            Method::Monitor => client.monitor().add([bad]).await,
+            Method::Metadata => client
+                .metadata()
+                .get(bad, std::iter::empty::<crate::MetadataKey>())
+                .await
+                .map(drop),
+            Method::VerifyAccount => client.verify_account(bad, "392814").await.map(drop),
+            Method::History => client.history(bad).latest().await.map(drop),
+        };
+        assert!(matches!(
+            result,
+            Err(Error::InvalidInput(crate::InvalidInput::InvalidName {
+                argument: actual,
+                name,
+                ..
+            })) if actual == argument && name == bad
+        ));
+    }
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn raw_request_returns_every_line_from_a_labelled_batch() {
     let (mut server, client, mut events, driver) =
         scripted(config().wanted_caps(["labeled-response"]));
