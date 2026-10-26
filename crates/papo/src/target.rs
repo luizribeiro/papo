@@ -23,10 +23,35 @@ pub(crate) mod sealed {
     }
 }
 
-/// An IRC address accepted by client operations.
+#[derive(Clone, Copy)]
+pub(crate) enum Role {
+    Send(&'static str),
+    Channel(&'static str),
+    Nick(&'static str),
+    Conversation(&'static str),
+    Any(&'static str),
+    Opaque(&'static str),
+}
+
+impl Role {
+    pub(crate) const fn argument(self) -> &'static str {
+        match self {
+            Self::Send(argument)
+            | Self::Channel(argument)
+            | Self::Nick(argument)
+            | Self::Conversation(argument)
+            | Self::Any(argument)
+            | Self::Opaque(argument) => argument,
+        }
+    }
+}
+
+/// A destination accepted by message-sending operations.
 ///
-/// Plain text is interpreted for the receiving client. Typed names and conversations retain the
-/// client that produced them and are refused by another client.
+/// Plain text is interpreted for the receiving client. Typed names, conversations, and message
+/// references retain the client that produced them and are refused by another client. Status
+/// prefixes such as `@#ops` are preserved. Server-wide targets such as `*` and `$opers` are not
+/// accepted; use [`crate::Client::send_raw`] for operator commands that require them.
 pub trait Target: sealed::Sealed {
     /// Returns the destination and its safety metadata.
     #[doc(hidden)]
@@ -156,41 +181,57 @@ impl AsConversation for crate::ChannelName {
 impl sealed::Sealed for crate::Conversation {}
 
 impl Target for crate::Conversation {
-    fn __target(&self) -> (&str, crate::Origin) {
+    fn __parts(&self) -> sealed::Parts<'_> {
         match self {
-            Self::Channel(channel) => channel.__target(),
-            Self::Private(nick) => nick.__target(),
-            _ => ("*", crate::Origin::NONE),
+            Self::Channel(channel) => Target::__parts(channel),
+            Self::Private(nick) => Target::__parts(nick),
+            _ => text_parts("*"),
         }
     }
 }
 
+impl AsConversation for crate::Conversation {
+    fn __parts(&self) -> sealed::Parts<'_> {
+        match self {
+            Self::Channel(channel) => AsConversation::__parts(channel),
+            Self::Private(nick) => AsConversation::__parts(nick),
+            _ => text_parts("*"),
+        }
+    }
+}
+
+impl<T: sealed::Sealed + ?Sized> sealed::Sealed for &T {}
+
+macro_rules! reference_role {
+    ($trait:ident) => {
+        impl<T: $trait + ?Sized> $trait for &T {
+            fn __parts(&self) -> sealed::Parts<'_> {
+                <T as $trait>::__parts(*self)
+            }
+        }
+    };
+}
+
+reference_role!(Target);
+reference_role!(AsChannel);
+reference_role!(AsNick);
+reference_role!(AsConversation);
+
 #[cfg(test)]
 mod tests {
-    use super::Target;
+    use super::{AsChannel, AsConversation, AsNick, Target};
 
     #[test]
-    fn every_target_kind_reports_text_and_origin() {
+    fn typed_roles_report_text_and_origin() {
         let origin = crate::Origin::__new(19);
         let mapping = crate::Casemapping::default();
         let channel = origin.__channel(mapping, "#papo");
         let nick = origin.__nick(mapping, "emily");
-        let mask = origin.__mask(mapping, "$*.example.org");
-        for target in [
-            crate::Conversation::Channel(channel.clone()),
-            crate::Conversation::Private(nick.clone()),
-        ] {
-            assert_eq!(target.__target().1, origin);
-        }
-        assert_eq!(
-            crate::Conversation::Channel(channel).__target(),
-            ("#papo", origin)
-        );
-        assert_eq!(
-            crate::Conversation::Private(nick).__target(),
-            ("emily", origin)
-        );
-        assert_eq!(mask.__target(), ("$*.example.org", origin));
-        assert_eq!("#papo".__target(), ("#papo", crate::Origin::NONE));
+
+        assert_eq!(AsChannel::__parts(&channel).text, "#papo");
+        assert_eq!(AsConversation::__parts(&channel).origin, origin);
+        assert_eq!(AsNick::__parts(&nick).text, "emily");
+        assert_eq!(Target::__parts(&nick).origin, origin);
+        assert_eq!(Target::__parts(&"@#ops").text, "@#ops");
     }
 }

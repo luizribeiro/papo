@@ -78,11 +78,11 @@ fn request_futures_are_send() {
     assert_send_static(client.typing("#papo", Typing::Active));
     assert_send_static(client.redact(("#papo", MessageId::from("RfcBTzyxY120004")), ""));
     assert_send_static(client.whois("emily"));
-    assert_send_static(client.who(mapping.mask("#papo")));
+    assert_send_static(client.who(mapping.mask("#papo").to_string()));
     assert_send_static(client.join("#papo").into_future());
     assert_send_static(client.part(mapping.channel("#papo"), "tests complete"));
     assert_send_static(client.kick("#papo", "spambot", "flooding"));
-    assert_send_static(client.invite(mapping.channel("#papo"), mapping.nick("carol")));
+    assert_send_static(client.invite(mapping.nick("carol"), mapping.channel("#papo")));
     assert_send_static(client.set_nick("papo-away"));
     assert_send_static(client.set_away("reviewing patches"));
     assert_send_static(client.clear_away());

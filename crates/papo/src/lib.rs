@@ -205,8 +205,7 @@ pub use error::{
 pub use event_impl::{Authorship, Event, Message, MessageKind, Oper, Source, Tags};
 pub use ext::accounts::{AccountCreation, NewAccount};
 pub use ext::history::{
-    ConversationInput, History, HistoryPage, HistoryReason, HistoryReference, HistoryRequest,
-    RecentConversation,
+    History, HistoryPage, HistoryReason, HistoryReference, HistoryRequest, RecentConversation,
 };
 pub use ext::metadata::Metadata;
 pub use ext::monitor::Monitor;
@@ -246,7 +245,7 @@ pub use papo_proto::{
 pub use reconnect::Reconnect;
 pub use requests::{ListEntry, ListFilter, WhoEntry, Whois, WhoisChannel};
 pub use state::{ReadMarker, State};
-pub use target::Target;
+pub use target::{AsChannel, AsConversation, AsNick, Target};
 pub use webirc::WebIrc;
 
 /// A user or channel acted on by an IRC event.
@@ -268,8 +267,8 @@ pub mod event {
         CapsChanged, CasemappingChanged, ChannelRenamed, ChannelSynced, Connected, CtcpQuery,
         CtcpReply, FeaturesChanged, HostChanged, Invited, Joined, Kicked, MembersRefreshed,
         MetadataChanged, ModeChanged, MonitorOffline, MonitorOnline, Motd, NickChanged, Notice,
-        NoticeKind, Parted, Quit, Reacted, ReadMarkerChanged, RealnameChanged, Redacted,
-        ServerNotice, ServerNoticeKind, ServerNoticeTarget, SplitServers, StandardReply,
+        NoticeKind, Parted, Quit, Reacted, ReactionAction, ReadMarkerChanged, RealnameChanged,
+        Redacted, ServerNotice, ServerNoticeKind, ServerNoticeTarget, SplitServers, StandardReply,
         StandardReplyKind, TagMsg, TopicChanged, TypingChanged, TypingReason, Warning,
     };
     pub use crate::event_impl::{ConnectPhase, Connecting};
