@@ -58,10 +58,8 @@ pub struct Sent {
     ///
     /// See [`crate::Conversation`] for status-prefixed line guidance.
     pub status: Option<Vec<char>>,
-    /// Server-assigned identifier from a labelled echo.
-    pub msgid: Option<crate::MessageId>,
     /// Server-assigned identifiers for every confirmed IRC message line, in send order.
-    pub line_msgids: Vec<crate::MessageId>,
+    pub msgids: Vec<crate::MessageId>,
     /// Server time from a labelled echo.
     pub server_time: Option<SystemTime>,
     /// Compatibility fallbacks applied while sending.
@@ -271,6 +269,12 @@ impl IntoFuture for SendMessage {
 }
 
 impl Sent {
+    /// Returns the first sent line's server-assigned identifier, when present.
+    #[must_use]
+    pub fn msgid(&self) -> Option<&crate::MessageId> {
+        self.msgids.first()
+    }
+
     /// Returns the client identity associated with this message.
     #[must_use]
     pub fn origin(&self) -> crate::Origin {
@@ -281,8 +285,8 @@ impl Sent {
     ///
     /// See [`crate::Conversation`] for status-prefixed line guidance.
     #[must_use]
-    pub fn return_address(&self) -> String {
-        crate::message_ref::return_address(&self.conversation, self.status.as_deref())
+    pub fn return_address(&self) -> crate::MessageRef {
+        crate::MessageRef::from(self)
     }
 
     pub(crate) fn without_echo(
@@ -293,8 +297,7 @@ impl Sent {
         Self {
             conversation,
             status,
-            msgid: None,
-            line_msgids: Vec::new(),
+            msgids: Vec::new(),
             server_time: None,
             fallbacks,
         }
@@ -306,15 +309,14 @@ impl Sent {
         status: Option<Vec<char>>,
         fallbacks: Vec<Fallback>,
     ) -> Self {
-        let line_msgids = confirmations
+        let msgids = confirmations
             .iter()
             .map(|sent| crate::MessageId::from(sent.msgid.clone()))
             .collect::<Vec<_>>();
         Self {
             conversation,
             status,
-            msgid: line_msgids.first().cloned(),
-            line_msgids,
+            msgids,
             server_time: confirmations
                 .iter()
                 .find_map(|sent| sent.server_time.as_deref().and_then(time::parse)),
