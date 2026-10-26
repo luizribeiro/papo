@@ -164,11 +164,9 @@ pub fn joined(channel: impl Into<ChannelName>, nick: impl Into<Nick>, own: bool)
         msgid: None,
         server_time: None,
         received_at: SystemTime::UNIX_EPOCH,
-        account: crate::Account::Unknown,
         realname: None,
         channel: channel.into(),
-        actor: Source::User(user_source(nick.clone(), None, None)),
-        nick,
+        actor: user_source(nick, None, None),
         authorship: if own {
             Authorship::Own
         } else {

@@ -2,7 +2,7 @@ use std::time::SystemTime;
 
 use crate::{Account, Authorship, ChannelName, MessageId, Nick, Subject};
 
-use super::Source;
+use super::{Source, UserSource};
 
 /// A user joined a channel shared with the client.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -14,16 +14,12 @@ pub struct Joined {
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
     pub received_at: SystemTime,
-    /// The joining user's known account state.
-    pub account: Account,
     /// The joining user's real name, when supplied by the server.
     pub realname: Option<String>,
     /// The joined channel. See [`crate::Conversation`] for status-prefixed line guidance.
     pub channel: ChannelName,
     /// The joining user.
-    pub actor: Source,
-    /// The joining user's nickname.
-    pub nick: Nick,
+    pub actor: UserSource,
     /// Whether the joining user is this client's user.
     pub authorship: Authorship,
     /// The netjoin batch that carried this join, when applicable.
@@ -56,14 +52,10 @@ pub struct Parted {
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
     pub received_at: SystemTime,
-    /// The actor's account state reported by `account-tag`.
-    pub account: Account,
     /// The departing user.
-    pub actor: Source,
+    pub actor: UserSource,
     /// The departed channel. See [`crate::Conversation`] for status-prefixed line guidance.
     pub channel: ChannelName,
-    /// The departing user's nickname.
-    pub nick: Nick,
     /// The optional part reason.
     pub reason: Option<String>,
     /// Whether the departing user is this client's user.

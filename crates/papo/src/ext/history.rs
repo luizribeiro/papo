@@ -279,7 +279,6 @@ fn parted(
     client: &Client,
     received_at: SystemTime,
 ) -> Option<Event> {
-    let nick = source_nick(message)?;
     let state = client.state();
     let mapping = state.casemapping();
     let envelope = crate::event_impl::line_envelope_with_account_tag(
@@ -293,15 +292,15 @@ fn parted(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        account: envelope.account,
-        actor: crate::event_impl::source::from_proto_with_origin(
-            message.source()?,
+        actor: crate::event_impl::source::user_from_line(
+            message,
             mapping,
             client.origin(),
-        ),
+            state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
+            false,
+        )?,
         channel: state.channel_name(message.param(0)?),
         authorship,
-        nick: state.nickname(nick),
         reason: message
             .param(1)
             .filter(|reason| !reason.is_empty())
@@ -1434,11 +1433,10 @@ mod tests {
         assert!(matches!(
             joined,
             PageEvent::Joined(event)
-                if event.channel == "#papo" && event.nick == "emily"
+                if event.channel == "#papo" && event.actor.nick() == "emily"
                     && event.channel.origin() == client.origin()
-                    && event.nick.origin() == client.origin()
-                    && event.actor.nick().is_some_and(|nick| nick.origin() == client.origin())
-                    && matches!(&event.account, crate::Account::LoggedIn(account) if account == "emily" && account.origin() == client.origin())
+                    && event.actor.nick().origin() == client.origin()
+                    && matches!(event.actor.account(), crate::Account::LoggedIn(account) if account == "emily" && account.origin() == client.origin())
                     && event.realname.as_deref() == Some("Emily Smith")
                     && event.authorship == crate::Authorship::Unknown
         ));
@@ -1450,7 +1448,7 @@ mod tests {
             UNIX_EPOCH,
         );
         assert!(matches!(joined, PageEvent::Joined(event)
-            if event.account == crate::Account::LoggedOut
+            if event.actor.account() == &crate::Account::LoggedOut
                 && event.realname.as_deref() == Some("Bob")));
 
         let joined = history_item(
@@ -1460,7 +1458,7 @@ mod tests {
             UNIX_EPOCH,
         );
         assert!(matches!(joined, PageEvent::Joined(event)
-            if event.account == crate::Account::Unknown && event.realname.is_none()));
+            if event.actor.account() == &crate::Account::Unknown && event.realname.is_none()));
     }
 
     #[test]
@@ -1474,10 +1472,9 @@ mod tests {
         assert!(matches!(
             parted,
             PageEvent::Parted(event)
-                if event.channel == "#papo" && event.nick == "emily"
+                if event.channel == "#papo" && event.actor.nick() == "emily"
                     && event.channel.origin() == client.origin()
-                    && event.nick.origin() == client.origin()
-                    && event.actor.nick().is_some_and(|nick| nick.origin() == client.origin())
+                    && event.actor.nick().origin() == client.origin()
                     && event.reason.as_deref() == Some("Leaving for lunch")
                     && event.authorship == crate::Authorship::Unknown
         ));

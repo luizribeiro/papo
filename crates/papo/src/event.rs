@@ -1102,25 +1102,21 @@ pub(crate) fn joined_from_line(
     received_at: SystemTime,
 ) -> Option<Joined> {
     let join = papo_proto::Join::parse(line)?;
-    let source @ papo_proto::Source::User { nick, .. } = line.source()? else {
-        return None;
-    };
-    let nick = origin.__nick(casemapping, nick);
+    let mut actor = source::user_from_line(line, casemapping, origin, false, false)?;
     let envelope = line_envelope(line, casemapping, origin, received_at);
     let account = match (join.realname, join.account) {
         (None, _) => Account::Unknown,
         (Some(_), None) => Account::LoggedOut,
         (Some(_), Some(account)) => Account::LoggedIn(origin.__account(casemapping, account)),
     };
+    actor.set_account(account);
     Some(Joined {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        account,
         realname: join.realname.map(str::to_owned),
         channel: origin.__channel(casemapping, join.channel),
-        actor: source::from_proto_with_origin(source, casemapping, origin),
-        nick,
+        actor,
         authorship,
         netjoin: None,
     })
@@ -1731,22 +1727,28 @@ pub(crate) fn from_core(
             account,
             realname,
             channel,
-            nick,
             authorship,
             netjoin,
             ..
         } => {
             let envelope = map_envelope(&envelope);
-            let actor = source::from_prefix(actor, channel.casemapping(), origin);
+            let Some(actor) = source::user_from_prefix(
+                &actor,
+                channel.casemapping(),
+                origin,
+                account,
+                None,
+                None,
+            ) else {
+                return CoreEvent::Unknown;
+            };
             Event::Joined(Joined {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
-                account,
                 realname,
                 channel,
                 actor,
-                nick,
                 authorship: Authorship::from_core(authorship),
                 netjoin: netjoin.map(SplitServers::from_core),
             })
@@ -1761,20 +1763,22 @@ pub(crate) fn from_core(
             envelope,
             actor,
             channel,
-            nick,
             reason,
             authorship,
             ..
         } => {
             let envelope = map_envelope(&envelope);
+            let Some(actor) =
+                source::user_from_prefix(&actor, casemapping, origin, envelope.account, None, None)
+            else {
+                return CoreEvent::Unknown;
+            };
             Event::Parted(Parted {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
-                account: envelope.account,
-                actor: source::from_prefix(actor, casemapping, origin),
+                actor,
                 channel,
-                nick,
                 reason,
                 authorship: Authorship::from_core(authorship),
             })
@@ -2775,7 +2779,7 @@ mod tests {
             );
             assert_event_times(&event, expected_variant, server_time, received_at);
             let account = match &event {
-                Event::Parted(event) => Some(&event.account),
+                Event::Parted(event) => Some(event.actor.account()),
                 Event::Kicked(event) => Some(&event.account),
                 Event::Quit(event) => Some(&event.account),
                 Event::NickChanged(event) => Some(&event.account),
@@ -2966,14 +2970,11 @@ mod tests {
         };
 
         assert_eq!(joined.channel.casemapping(), Casemapping::Ascii);
-        let Source::User(user) = &joined.actor else {
-            panic!("join actor should be a user");
-        };
-        let actor = user.nick();
+        let actor = joined.actor.nick();
         assert_eq!(actor.casemapping(), Casemapping::Ascii);
-        assert_eq!(joined.nick.casemapping(), Casemapping::Ascii);
+        assert_eq!(joined.actor.nick().casemapping(), Casemapping::Ascii);
         assert_ne!(joined.channel, "#papo{dev}");
-        assert_ne!(joined.nick, "alice{bot}");
+        assert_ne!(joined.actor.nick(), "alice{bot}");
     }
 
     #[test]
@@ -2997,11 +2998,8 @@ mod tests {
         };
 
         assert_eq!(joined.channel.origin(), origin);
-        assert_eq!(joined.nick.origin(), origin);
-        assert_eq!(
-            joined.actor.nick().map(papo_proto::Nick::origin),
-            Some(origin)
-        );
+        assert_eq!(joined.actor.nick().origin(), origin);
+        assert_eq!(joined.actor.nick().origin(), origin);
         session.handle_line(
             Instant::now(),
             b"@account=alice :alice!~a@cloak.example PART #papo :deploying",
@@ -3015,7 +3013,9 @@ mod tests {
         ) else {
             panic!("part was not forwarded");
         };
-        assert!(matches!(parted.account, Account::LoggedIn(account) if account.origin() == origin));
+        assert!(
+            matches!(parted.actor.account(), Account::LoggedIn(account) if account.origin() == origin)
+        );
     }
 
     #[test]
@@ -3422,10 +3422,9 @@ mod tests {
         ));
         let joined = event.as_joined().unwrap();
         assert_eq!(joined.channel, "#papo");
-        assert_eq!(joined.actor.nick().map(AsRef::as_ref), Some("alice"));
-        assert_eq!(joined.nick, "alice");
+        assert_eq!(joined.actor.nick(), "alice");
         assert_eq!(joined.realname.as_deref(), Some("Alice Liddell"));
-        assert!(matches!(&joined.account, Account::LoggedIn(account) if account == "alice"));
+        assert!(matches!(joined.actor.account(), Account::LoggedIn(account) if account == "alice"));
         assert_eq!(joined.netjoin, None);
     }
 
@@ -3453,7 +3452,7 @@ mod tests {
         let joined_event = Event::Joined(joined.clone());
         assert_eq!(joined_event.server_time(), None);
         assert_eq!(joined_event.received_at(), Some(received_at));
-        assert_eq!(joined.account, Account::Unknown);
+        assert_eq!(joined.actor.account(), &Account::Unknown);
     }
 
     #[test]
@@ -3485,9 +3484,8 @@ mod tests {
             )),
             Event::Parted(parted)
                 if parted.channel == "#papo"
-                    && parted.nick == "emily"
-                    && parted.actor.nick().is_some_and(|nick| nick == "emily")
-                    && parted.account == Account::LoggedOut
+                    && parted.actor.nick() == "emily"
+                    && parted.actor.account() == &Account::LoggedOut
                     && parted.reason.as_deref() == Some("Leaving for lunch")
         ));
     }
@@ -3893,18 +3891,19 @@ mod tests {
     fn identifies_self_membership_and_nick_events_with_server_casemapping() {
         let mapping = Casemapping::Rfc1459;
         let actor = Source::from_proto(papo_proto::Source::Server("ergo.test"), mapping);
-        let own_actor =
-            Source::from_proto(papo_proto::Source::__user("Papo[Bot]", None, None), mapping);
+        let Source::User(own_actor) =
+            Source::from_proto(papo_proto::Source::__user("Papo[Bot]", None, None), mapping)
+        else {
+            unreachable!()
+        };
         let events = [
             Event::Joined(super::Joined {
                 msgid: None,
                 server_time: None,
                 received_at: UNIX_EPOCH,
-                account: Account::Unknown,
                 realname: None,
                 channel: mapping.channel("#papo"),
                 actor: own_actor.clone(),
-                nick: mapping.nick("Papo[Bot]"),
                 authorship: Authorship::Own,
                 netjoin: None,
             }),
@@ -3912,10 +3911,8 @@ mod tests {
                 msgid: None,
                 server_time: None,
                 received_at: UNIX_EPOCH,
-                account: Account::Unknown,
                 actor: own_actor.clone(),
                 channel: mapping.channel("#papo"),
-                nick: mapping.nick("Papo[Bot]"),
                 reason: None,
                 authorship: Authorship::Own,
             }),
@@ -3943,7 +3940,7 @@ mod tests {
                 server_time: None,
                 received_at: UNIX_EPOCH,
                 account: Account::Unknown,
-                actor: own_actor.clone(),
+                actor: Source::User(own_actor.clone()),
                 old: mapping.nick("Papo[Bot]"),
                 new: mapping.nick("papo-away"),
                 authorship: Authorship::Own,
@@ -3952,11 +3949,9 @@ mod tests {
                 msgid: None,
                 server_time: None,
                 received_at: UNIX_EPOCH,
-                account: Account::Unknown,
                 realname: None,
                 channel: mapping.channel("#papo"),
                 actor: own_actor,
-                nick: mapping.nick("Papo[Bot]"),
                 authorship: Authorship::Own,
                 netjoin: Some(super::SplitServers {
                     batch: "join".to_owned(),
