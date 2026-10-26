@@ -829,32 +829,29 @@ impl Client {
         let message = message.into();
         let reason = reason.into();
         crate::RequestFuture::new(async move {
-            let (target, message, origin, _, recipient) = message.into_parts();
-            client.check_origin(origin)?;
-            let Some(message) = message else {
+            if message.msgids().is_empty() {
                 return Err(InvalidInput::UnusableMessageReference.into());
-            };
+            }
+            let target = client.resolve(
+                crate::target::Role::Send("redact: message"),
+                crate::Target::__parts(&message),
+            )?;
             let state = client.state();
-            if recipient
-                .as_ref()
-                .is_some_and(|recipient| state.recipient_changed(recipient))
-            {
-                return Err(Error::TargetGone);
-            }
             Self::require_feature(&state, Feature::Redaction)?;
-            state
-                .parse_target_inner(&target)
-                .map(drop)
-                .and_then(|()| message.check())
-                .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
-            let mut params = vec![target.clone(), message.to_string()];
-            if !reason.is_empty() {
-                params.push(reason);
+            for message_id in message.msgids() {
+                message_id
+                    .check()
+                    .map_err(|error| InvalidInput::invalid_name(message_id.to_string(), error))?;
+                let mut params = vec![target.clone(), message_id.to_string()];
+                if !reason.is_empty() {
+                    params.push(reason.clone());
+                }
+                let response = client
+                    .correlated(Line::new("REDACT").with_params(params), None)
+                    .await?;
+                crate::requests::empty(&response)?;
             }
-            let response = client
-                .correlated(Line::new("REDACT").with_params(params), None)
-                .await?;
-            crate::requests::empty(&response)
+            Ok(())
         })
     }
 

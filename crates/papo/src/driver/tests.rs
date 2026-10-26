@@ -7030,6 +7030,70 @@ async fn redaction_requires_its_capability_and_propagates_fail() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn redacting_a_multiline_send_stops_at_the_first_refusal() {
+    let caps = ["draft/message-redaction", "labeled-response"];
+    let (mut server, client, _events, driver) = scripted(config().wanted_caps(caps));
+    let task = tokio::spawn(driver);
+    welcome_burst(&mut server).await;
+    server_line(
+        &mut server,
+        b":ergo.test CAP * LS :draft/message-redaction labeled-response\r\n",
+    )
+    .await;
+    client_line(
+        &mut server,
+        b"CAP REQ :draft/message-redaction labeled-response\r\n",
+    )
+    .await;
+    server_line(
+        &mut server,
+        b":ergo.test CAP * ACK :draft/message-redaction labeled-response\r\n",
+    )
+    .await;
+    client_line(&mut server, b"CAP END\r\n").await;
+
+    let sent = crate::Sent {
+        conversation: crate::Conversation::Channel(client.state().channel_name("#papo")),
+        status: None,
+        msgids: ["RfcBTzyxY120004", "RfcBTzyxY120005", "RfcBTzyxY120006"]
+            .map(crate::MessageId::from)
+            .into(),
+        server_time: None,
+        fallbacks: Vec::new(),
+    };
+    let sender = client.clone();
+    let redacted = tokio::spawn(async move { sender.redact(&sent, "superseded").await });
+    client_line(
+        &mut server,
+        b"@label=0 REDACT #papo RfcBTzyxY120004 superseded\r\n",
+    )
+    .await;
+    server_line(&mut server, b"@label=0 :ergo.test ACK\r\n").await;
+    client_line(
+        &mut server,
+        b"@label=1 REDACT #papo RfcBTzyxY120005 superseded\r\n",
+    )
+    .await;
+    server_line(
+        &mut server,
+        b"@label=1 :ergo.test FAIL REDACT FORBIDDEN #papo :Insufficient privileges\r\n",
+    )
+    .await;
+    assert!(matches!(
+        within(redacted).await.unwrap(),
+        Err(Error::Server(error)) if error.code() == "FORBIDDEN"
+    ));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), server.read_u8())
+            .await
+            .is_err()
+    );
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn labelled_echo_is_consumed_before_an_own_live_line() {
     let caps = ["echo-message", "labeled-response"];
     let (mut server, client, mut events, driver) = scripted(config().wanted_caps(caps));
