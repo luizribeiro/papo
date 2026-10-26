@@ -191,7 +191,7 @@ macro_rules! conversation_origin {
     ($($ty:ty),+ $(,)?) => {
         $(
             impl $ty {
-                /// Returns the client identity associated with this event.
+                /// Which `Client` produced this value (not the sender or the server).
                 #[must_use]
                 pub fn origin(&self) -> crate::Origin {
                     crate::message_ref::conversation_origin(&self.conversation)
@@ -575,7 +575,7 @@ pub(crate) fn incoming_from_core(
 }
 
 impl Message {
-    /// Returns the client identity associated with this message.
+    /// Which `Client` produced this value (not the sender or the server).
     #[must_use]
     pub fn origin(&self) -> crate::Origin {
         crate::message_ref::conversation_origin(&self.conversation)
@@ -716,7 +716,7 @@ impl Message {
 }
 
 impl Notice {
-    /// Returns the client identity associated with this notice.
+    /// Which `Client` produced this value (not the sender or the server).
     #[must_use]
     pub fn origin(&self) -> crate::Origin {
         crate::message_ref::conversation_origin(&self.conversation)

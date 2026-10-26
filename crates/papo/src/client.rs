@@ -262,7 +262,7 @@ impl Sent {
         self.msgids.first()
     }
 
-    /// Returns the client identity associated with this message.
+    /// Which `Client` produced this value (not the sender or the server).
     #[must_use]
     pub fn origin(&self) -> crate::Origin {
         crate::message_ref::conversation_origin(&self.conversation)
@@ -356,7 +356,7 @@ impl Client {
         Ok(text)
     }
 
-    /// Returns the opaque identity carried by values produced by this client.
+    /// Which `Client` produced this value (not the sender or the server).
     #[must_use]
     pub const fn origin(&self) -> crate::Origin {
         self.origin

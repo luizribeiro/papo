@@ -55,7 +55,7 @@ impl MessageRef {
         self.msgids.first()
     }
 
-    /// Returns the client identity associated with this reference.
+    /// Which `Client` produced this value (not the sender or the server).
     #[must_use]
     pub const fn origin(&self) -> crate::Origin {
         self.origin

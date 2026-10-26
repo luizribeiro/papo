@@ -9,8 +9,9 @@ use std::{
 
 use crate::{Casemapping, Isupport};
 
-/// Opaque identity of the client that produced a protocol value.
+/// Which `Client` produced this value (not the sender or the server).
 ///
+/// This opaque identity records the client that produced a protocol value.
 /// Values built directly through [`Casemapping`] have [`Origin::NONE`]. High-level clients
 /// assign a distinct origin so names from different clients do not compare equal.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -227,7 +228,9 @@ macro_rules! name_identifier {
                 self.casemapping
             }
 
-            /// Returns the client that produced this name, or [`Origin::NONE`] for offline names.
+            /// Which `Client` produced this value (not the sender or the server).
+            ///
+            /// Offline names carry [`Origin::NONE`].
             #[must_use]
             pub const fn origin(&self) -> Origin {
                 self.origin
@@ -318,7 +321,7 @@ impl NameParts<'_> {
         &self.text
     }
 
-    /// Returns the client identity retained by the argument.
+    /// Which `Client` produced this value (not the sender or the server).
     #[doc(hidden)]
     #[must_use]
     pub const fn origin(&self) -> Origin {

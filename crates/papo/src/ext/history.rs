@@ -569,7 +569,7 @@ pub struct RecentConversation {
 }
 
 impl HistoryPage {
-    /// Returns the client identity associated with this page.
+    /// Which `Client` produced this value (not the sender or the server).
     #[must_use]
     pub fn origin(&self) -> crate::Origin {
         crate::message_ref::conversation_origin(&self.conversation)
@@ -614,7 +614,7 @@ impl HistoryPage {
 }
 
 impl RecentConversation {
-    /// Returns the client identity associated with this conversation.
+    /// Which `Client` produced this value (not the sender or the server).
     #[must_use]
     pub fn origin(&self) -> crate::Origin {
         crate::message_ref::conversation_origin(&self.conversation)

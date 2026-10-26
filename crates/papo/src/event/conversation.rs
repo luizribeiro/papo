@@ -67,7 +67,7 @@ macro_rules! broadcast_origin {
     ($($ty:ty),+ $(,)?) => {
         $(
             impl $ty {
-                /// Returns the client identity associated with this event.
+                /// Which `Client` produced this value (not the sender or the server).
                 #[must_use]
                 pub fn origin(&self) -> crate::Origin {
                     broadcast_origin(&self.to, &self.actor)
@@ -241,7 +241,7 @@ macro_rules! origin {
     ($($ty:ty),+ $(,)?) => {
         $(
             impl $ty {
-                /// Returns the client identity associated with this event.
+                /// Which `Client` produced this value (not the sender or the server).
                 #[must_use]
                 pub fn origin(&self) -> crate::Origin {
                     crate::message_ref::conversation_origin(&self.conversation)
