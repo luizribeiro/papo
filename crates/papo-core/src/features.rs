@@ -5,8 +5,18 @@ use crate::{RequestError, Session, cap};
 macro_rules! feature_table {
     ($consumer:ident) => {
         $consumer! {
+            /// Published `IRCv3` capability change notifications, requiring `cap-notify`.
+            [] CapabilityNotifications => "capability notifications", [Some(cap::CAP_NOTIFY), None];
             /// Published `IRCv3` client-only message tags, requiring `message-tags`.
             [] MessageTags => "client-only message tags", [Some(cap::MESSAGE_TAGS), None];
+            /// Published `IRCv3` server timestamps, requiring `server-time`.
+            [] ServerTime => "server timestamps", [Some(cap::SERVER_TIME), None];
+            /// Published `IRCv3` message batches, requiring `batch`.
+            [] Batches => "message batches", [Some(cap::BATCH), None];
+            /// `IRCv3` draft event playback, requiring `draft/event-playback`.
+            [] EventPlayback => "event playback", [Some(cap::EVENT_PLAYBACK), None];
+            /// Published `IRCv3` message echoes, requiring `echo-message`.
+            [] EchoMessages => "message echoes", [Some(cap::ECHO_MESSAGE), None];
             /// Published `IRCv3` replies, requiring `message-tags` and an allowed `+reply` or
             /// `+draft/reply` client tag.
             [] Replies => "replies", [Some(cap::MESSAGE_TAGS), None];
@@ -55,15 +65,38 @@ macro_rules! feature_table {
             Relay => "relaymsg", [Some(cap::RELAYMSG), None];
             /// Published `IRCv3` labelled responses, requiring `labeled-response`.
             [] LabeledResponse => cap::LABELED_RESPONSE.constant_str(), [Some(cap::LABELED_RESPONSE), None];
+            /// Published `IRCv3` authentication exchange, requiring `sasl`.
+            [] Sasl => "SASL authentication", [Some(cap::SASL), None];
             /// Published `IRCv3` live away information, requiring `away-notify`.
             [] AwayTracking => "away tracking", [Some(cap::AWAY_NOTIFY), None];
             /// Published `IRCv3` live account information, requiring both `account-notify`
             /// and `account-tag`.
             [] AccountTracking => "account tracking", [Some(cap::ACCOUNT_NOTIFY), Some(cap::ACCOUNT_TAG)];
+            /// Published `IRCv3` extended join details, requiring `extended-join`.
+            [] ExtendedJoin => "extended join details", [Some(cap::EXTENDED_JOIN), None];
+            /// Published `IRCv3` complete membership prefixes, requiring `multi-prefix`.
+            [] MultiPrefix => "complete membership prefixes", [Some(cap::MULTI_PREFIX), None];
+            /// Published `IRCv3` user and host fields in names replies, requiring
+            /// `userhost-in-names`.
+            [] UserhostInNames => "user and host fields in names replies", [Some(cap::USERHOST_IN_NAMES), None];
             /// Published `IRCv3` live username and hostname information, requiring `chghost`.
             [] HostTracking => "host tracking", [Some(cap::CHGHOST), None];
             /// Published `IRCv3` invitation notifications, requiring `invite-notify`.
             [] InviteTracking => "invite tracking", [Some(cap::INVITE_NOTIFY), None];
+            /// Extended monitor replies, requiring `extended-monitor`.
+            [] ExtendedMonitor => "extended monitor replies", [Some(cap::EXTENDED_MONITOR), None];
+            /// Published `IRCv3` structured replies, requiring `standard-replies`.
+            [] StandardReplies => "structured replies", [Some(cap::STANDARD_REPLIES), None];
+            /// `IRCv3` draft operator tags, requiring `draft/oper-tag`.
+            [] OperatorTags => "operator tags", [Some(cap::OPER_TAG), None];
+            /// `IRCv3` draft registration-time away state, requiring `draft/pre-away`.
+            [] PreAway => "registration-time away state", [Some(cap::PRE_AWAY), None];
+            /// Suppression of implicit names replies, requiring `no-implicit-names`.
+            [] NoImplicitNames => "suppression of implicit names replies", [Some(cap::NO_IMPLICIT_NAMES), None];
+            /// `IRCv3` draft connection identity discovery, requiring `draft/whoami`.
+            [] WhoAmI => "connection identity discovery", [Some(cap::WHOAMI), None];
+            /// `IRCv3` draft extended ISUPPORT discovery, requiring `draft/extended-isupport`.
+            [] ExtendedIsupport => "extended ISUPPORT discovery", [Some(cap::EXTENDED_ISUPPORT), None];
             /// Published IRC half-operator channel membership, advertised through `PREFIX`.
             [] Halfop => "half-operator privileges", [None, None];
             /// Published IRC channel ban exceptions, advertised through `EXCEPTS`.

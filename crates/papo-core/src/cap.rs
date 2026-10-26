@@ -173,29 +173,29 @@ macro_rules! capabilities {
 }
 
 capabilities! {
-    [cap] CAP_NOTIFY = "cap-notify"; "Capability change notifications."; name: "cap-notify"; aliases: []; request: Request::Default("cap-notify"); features: []; code: [crate::caps];
+    [cap] CAP_NOTIFY = "cap-notify"; "Capability change notifications."; name: "cap-notify"; aliases: []; request: Request::Default("cap-notify"); features: [Feature::CapabilityNotifications]; code: [crate::caps];
     [cap] MESSAGE_TAGS = "message-tags"; "`IRCv3` message tags."; name: "message-tags"; aliases: []; request: Request::Default("message-tags"); features: [Feature::MessageTags, Feature::Replies, Feature::Reactions, Feature::Typing]; code: [crate::features, crate::replies];
-    [cap] SERVER_TIME = "server-time"; "Server-assigned message timestamps."; name: "server-time"; aliases: []; request: Request::Default("server-time"); features: []; code: [crate::state::read_marker];
-    [cap] BATCH = "batch"; "Batched messages."; name: "batch"; aliases: []; request: Request::Default("batch"); features: []; code: [crate::batch];
-    [cap] EVENT_PLAYBACK = "draft/event-playback"; "Replay of missed events."; name: "draft/event-playback"; aliases: []; request: Request::Default("draft/event-playback"); features: []; code: [crate::batch];
-    [cap] ECHO_MESSAGE = "echo-message"; "Echoes of sent messages."; name: "echo-message"; aliases: []; request: Request::Default("echo-message"); features: []; code: [crate::outgoing, crate::echo];
+    [cap] SERVER_TIME = "server-time"; "Server-assigned message timestamps."; name: "server-time"; aliases: []; request: Request::Default("server-time"); features: [Feature::ServerTime]; code: [crate::state::read_marker];
+    [cap] BATCH = "batch"; "Batched messages."; name: "batch"; aliases: []; request: Request::Default("batch"); features: [Feature::Batches]; code: [crate::batch];
+    [cap] EVENT_PLAYBACK = "draft/event-playback"; "Replay of missed events."; name: "draft/event-playback"; aliases: []; request: Request::Default("draft/event-playback"); features: [Feature::EventPlayback]; code: [crate::batch];
+    [cap] ECHO_MESSAGE = "echo-message"; "Echoes of sent messages."; name: "echo-message"; aliases: []; request: Request::Default("echo-message"); features: [Feature::EchoMessages]; code: [crate::outgoing, crate::echo];
     [cap] ACCOUNT_TAG = "account-tag"; "Account tags on messages."; name: "account-tag"; aliases: []; request: Request::Default("account-tag"); features: [Feature::AccountTracking]; code: [crate::state::presence];
-    [cap] EXTENDED_JOIN = "extended-join"; "Account and real-name fields on joins."; name: "extended-join"; aliases: []; request: Request::Default("extended-join"); features: []; code: [crate::state::membership];
-    [cap] MULTI_PREFIX = "multi-prefix"; "Every membership prefix in names replies."; name: "multi-prefix"; aliases: []; request: Request::Default("multi-prefix"); features: []; code: [crate::state::membership];
-    [cap] USERHOST_IN_NAMES = "userhost-in-names"; "User and host fields in names replies."; name: "userhost-in-names"; aliases: []; request: Request::Default("userhost-in-names"); features: []; code: [crate::state::membership];
+    [cap] EXTENDED_JOIN = "extended-join"; "Account and real-name fields on joins."; name: "extended-join"; aliases: []; request: Request::Default("extended-join"); features: [Feature::ExtendedJoin]; code: [crate::state::membership];
+    [cap] MULTI_PREFIX = "multi-prefix"; "Every membership prefix in names replies."; name: "multi-prefix"; aliases: []; request: Request::Default("multi-prefix"); features: [Feature::MultiPrefix]; code: [crate::state::membership];
+    [cap] USERHOST_IN_NAMES = "userhost-in-names"; "User and host fields in names replies."; name: "userhost-in-names"; aliases: []; request: Request::Default("userhost-in-names"); features: [Feature::UserhostInNames]; code: [crate::state::membership];
     [cap] CHGHOST = "chghost"; "Host-change notifications."; name: "chghost"; aliases: []; request: Request::Default("chghost"); features: [Feature::HostTracking]; code: [crate::state::presence];
     [cap] SETNAME = "setname"; "Real-name changes."; name: "setname"; aliases: []; request: Request::Default("setname"); features: [Feature::SetName]; code: [crate::state::presence];
     [cap] AWAY_NOTIFY = "away-notify"; "Away-state notifications."; name: "away-notify"; aliases: []; request: Request::Default("away-notify"); features: [Feature::AwayTracking]; code: [crate::state::presence];
     [cap] ACCOUNT_NOTIFY = "account-notify"; "Account-change notifications."; name: "account-notify"; aliases: []; request: Request::Default("account-notify"); features: [Feature::AccountTracking]; code: [crate::state::presence];
-    [cap] EXTENDED_MONITOR = "extended-monitor"; "Extended monitor replies."; name: "extended-monitor"; aliases: []; request: Request::Default("extended-monitor"); features: []; code: [crate::monitor];
+    [cap] EXTENDED_MONITOR = "extended-monitor"; "Extended monitor replies."; name: "extended-monitor"; aliases: []; request: Request::Default("extended-monitor"); features: [Feature::ExtendedMonitor]; code: [crate::monitor];
     [cap] INVITE_NOTIFY = "invite-notify"; "Invitation notifications."; name: "invite-notify"; aliases: []; request: Request::Default("invite-notify"); features: [Feature::InviteTracking]; code: [crate::replies];
-    [cap] STANDARD_REPLIES = "standard-replies"; "Structured standard replies."; name: "standard-replies"; aliases: []; request: Request::Default("standard-replies"); features: []; code: [crate::refusal, crate::replies];
+    [cap] STANDARD_REPLIES = "standard-replies"; "Structured standard replies."; name: "standard-replies"; aliases: []; request: Request::Default("standard-replies"); features: [Feature::StandardReplies]; code: [crate::refusal, crate::replies];
     [cap] LABELED_RESPONSE = "labeled-response"; "Labelled request correlation."; name: "labeled-response"; aliases: []; request: Request::Default("labeled-response"); features: [Feature::LabeledResponse]; code: [crate::outgoing, crate::labels];
     [cap] MULTILINE = "draft/multiline"; "Multiline messages."; name: "draft/multiline"; aliases: []; request: Request::Default("draft/multiline"); features: [Feature::Multiline]; code: [crate::outgoing, crate::batch];
-    [cap] OPER_TAG = "draft/oper-tag"; "Operator tags on messages."; name: "draft/oper-tag"; aliases: []; request: Request::Default("draft/oper-tag"); features: []; code: [crate::replies];
+    [cap] OPER_TAG = "draft/oper-tag"; "Operator tags on messages."; name: "draft/oper-tag"; aliases: []; request: Request::Default("draft/oper-tag"); features: [Feature::OperatorTags]; code: [crate::replies];
     [cap] METADATA = "draft/metadata-2"; "Client metadata."; name: "draft/metadata-3"; aliases: ["draft/metadata-2"]; request: Request::Default("draft/metadata-2"); features: [Feature::Metadata]; code: [crate::metadata, crate::state::metadata];
     [cap] METADATA_NOTIFY = "metadata-notify"; "Legacy metadata notifications."; name: "metadata-notify"; aliases: []; request: Request::Superseded("draft/metadata-3"); features: []; code: [crate::metadata, crate::state::metadata];
-    [cap] SASL = "sasl"; "SASL authentication."; name: "sasl"; aliases: []; request: Request::Automatic; features: []; code: [crate::sasl];
+    [cap] SASL = "sasl"; "SASL authentication."; name: "sasl"; aliases: []; request: Request::Automatic; features: [Feature::Sasl]; code: [crate::sasl];
     [cap] STS = "sts"; "Strict Transport Security policy."; name: "sts"; aliases: []; request: Request::Never; features: []; code: [crate::sts];
     [cap] NOPE = "ergo.chat/nope"; "Ergo capability-negotiation test trap."; name: "ergo.chat/nope"; aliases: []; request: Request::Never; features: []; code: [crate::caps];
     [cap] ACCOUNT_REQUIRED = "soju.im/account-required"; "Soju authentication requirement."; name: "soju.im/account-required"; aliases: []; request: Request::Never; features: []; code: [crate::caps];
@@ -209,10 +209,10 @@ capabilities! {
     #[cfg(feature = "unstable")] [cap] RELAYMSG = "draft/relaymsg"; "Relayed messages."; name: "draft/relaymsg"; aliases: []; request: Request::OptIn("draft/relaymsg", Feature::Relay); features: [Feature::Relay]; code: [crate::relaymsg];
     [cap] MESSAGE_REDACTION = "draft/message-redaction"; "Message redaction."; name: "draft/message-redaction"; aliases: []; request: Request::Default("draft/message-redaction"); features: [Feature::Redaction]; code: [crate::outgoing, crate::replies];
     #[cfg(feature = "unstable")] [cap] WEBPUSH = "draft/webpush"; "Web Push subscriptions."; name: "draft/webpush"; aliases: ["soju.im/webpush"]; request: Request::OptIn("draft/webpush", Feature::WebPush); features: [Feature::WebPush]; code: [crate::webpush];
-    [cap] PRE_AWAY = "draft/pre-away"; "Away state during registration."; name: "draft/pre-away"; aliases: []; request: Request::Default("draft/pre-away"); features: []; code: [crate::state];
-    [cap] NO_IMPLICIT_NAMES = "no-implicit-names"; "Suppression of implicit names replies."; name: "no-implicit-names"; aliases: ["draft/no-implicit-names"]; request: Request::Default("no-implicit-names"); features: []; code: [crate::state::membership];
-    [cap] WHOAMI = "draft/whoami"; "Current connection identity discovery."; name: "draft/whoami"; aliases: []; request: Request::Default("draft/whoami"); features: []; code: [crate::state];
-    [cap] EXTENDED_ISUPPORT = "draft/extended-isupport"; "Extended ISUPPORT discovery."; name: "draft/extended-isupport"; aliases: []; request: Request::Default("draft/extended-isupport"); features: []; code: [crate::isupport];
+    [cap] PRE_AWAY = "draft/pre-away"; "Away state during registration."; name: "draft/pre-away"; aliases: []; request: Request::Default("draft/pre-away"); features: [Feature::PreAway]; code: [crate::state];
+    [cap] NO_IMPLICIT_NAMES = "no-implicit-names"; "Suppression of implicit names replies."; name: "no-implicit-names"; aliases: ["draft/no-implicit-names"]; request: Request::Default("no-implicit-names"); features: [Feature::NoImplicitNames]; code: [crate::state::membership];
+    [cap] WHOAMI = "draft/whoami"; "Current connection identity discovery."; name: "draft/whoami"; aliases: []; request: Request::Default("draft/whoami"); features: [Feature::WhoAmI]; code: [crate::state];
+    [cap] EXTENDED_ISUPPORT = "draft/extended-isupport"; "Extended ISUPPORT discovery."; name: "draft/extended-isupport"; aliases: []; request: Request::Default("draft/extended-isupport"); features: [Feature::ExtendedIsupport]; code: [crate::isupport];
 }
 
 pub(crate) const CHATHISTORY_BATCH: &str = "chathistory";
