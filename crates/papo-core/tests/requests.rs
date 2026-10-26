@@ -154,11 +154,15 @@ fn parses_whois_channels_with_advertised_membership_prefixes() {
         [
             papo_core::WhoisChannel {
                 name: "#staff".into(),
-                prefixes: vec!['~', '&', '@'],
+                prefixes: vec![
+                    papo_core::Prefix::__new('q', '~'),
+                    papo_core::Prefix::__new('a', '&'),
+                    papo_core::Prefix::__new('o', '@'),
+                ],
             },
             papo_core::WhoisChannel {
                 name: "#papo".into(),
-                prefixes: vec!['+'],
+                prefixes: vec![papo_core::Prefix::__new('v', '+')],
             },
             papo_core::WhoisChannel {
                 name: "!support".into(),

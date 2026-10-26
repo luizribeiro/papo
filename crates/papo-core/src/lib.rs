@@ -1464,8 +1464,19 @@ struct UnlabelledRequest {
 pub struct WhoisChannel {
     /// Channel name without membership prefixes.
     pub name: String,
-    /// Advertised membership prefix symbols in wire order.
-    pub prefixes: Vec<char>,
+    /// Membership prefixes from highest to lowest rank.
+    pub prefixes: Vec<Prefix>,
+}
+
+impl WhoisChannel {
+    /// Returns the highest standard rank held in this channel.
+    #[must_use]
+    pub fn rank(&self) -> Option<Rank> {
+        self.prefixes
+            .iter()
+            .filter_map(|prefix| prefix.rank())
+            .max()
+    }
 }
 
 /// Completed response to a labelled request.
@@ -5010,11 +5021,7 @@ fn requested_message_feature(message: &LineRef<'_>) -> Option<Feature> {
 }
 
 fn parse_whois_channels(lines: &[Line], isupport: &papo_proto::Isupport) -> Vec<WhoisChannel> {
-    let symbols: Vec<_> = isupport
-        .prefix()
-        .into_iter()
-        .map(|prefix| prefix.symbol)
-        .collect();
+    let advertised = isupport.prefix();
     lines
         .iter()
         .filter_map(|line| {
@@ -5027,13 +5034,17 @@ fn parse_whois_channels(lines: &[Line], isupport: &papo_proto::Isupport) -> Vec<
         .filter_map(|channel| {
             let prefix_bytes = channel
                 .chars()
-                .take_while(|symbol| symbols.contains(symbol))
+                .take_while(|symbol| advertised.iter().any(|prefix| prefix.symbol() == *symbol))
                 .map(char::len_utf8)
                 .sum();
             let (prefixes, name) = channel.split_at(prefix_bytes);
             (!name.is_empty()).then(|| WhoisChannel {
                 name: name.to_owned(),
-                prefixes: prefixes.chars().collect(),
+                prefixes: advertised
+                    .iter()
+                    .copied()
+                    .filter(|prefix| prefixes.contains(prefix.symbol()))
+                    .collect(),
             })
         })
         .collect()
