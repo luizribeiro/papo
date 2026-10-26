@@ -350,7 +350,12 @@ impl State {
     #[must_use]
     #[cfg(feature = "unstable")]
     pub fn filehost(&self) -> Option<&str> {
-        self.isupport.filehost()
+        ["draft/FILEHOST", "soju.im/FILEHOST"]
+            .into_iter()
+            .find_map(|name| match self.isupport.get(name) {
+                crate::isupport::Advertised::Value(url) if url.starts_with("https://") => Some(url),
+                _ => None,
+            })
     }
 
     /// Returns the server-defined name comparison rules.
@@ -674,21 +679,28 @@ mod name_tests {
 
 #[cfg(all(test, feature = "unstable"))]
 mod tests {
-    use crate::Isupport;
+    use papo_core::{Config, Session};
+
+    use super::State;
 
     #[test]
     fn accepts_both_filehost_names_and_requires_https() {
         for name in ["soju.im/FILEHOST", "draft/FILEHOST"] {
-            let mut inner = papo_proto::Isupport::default();
-            inner.apply_tokens([format!("{name}=https://files.example.net/upload")]);
-            let isupport = Isupport::from_proto(inner.clone());
-            assert_eq!(
-                isupport.filehost(),
-                Some("https://files.example.net/upload")
+            let mut session = Session::new(Config::default());
+            session.handle_line(
+                crate::rt::now_mono(),
+                format!(":soju.test 005 papo {name}=https://files.example.net/upload :supported")
+                    .as_bytes(),
             );
+            let state = State::from_session(&session, true);
+            assert_eq!(state.filehost(), Some("https://files.example.net/upload"));
 
-            inner.apply_tokens([format!("{name}=http://files.example.net/upload")]);
-            assert_eq!(Isupport::from_proto(inner).filehost(), None);
+            session.handle_line(
+                crate::rt::now_mono(),
+                format!(":soju.test 005 papo {name}=http://files.example.net/upload :supported")
+                    .as_bytes(),
+            );
+            assert_eq!(State::from_session(&session, true).filehost(), None);
         }
     }
 }

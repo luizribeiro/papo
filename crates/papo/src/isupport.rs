@@ -36,8 +36,8 @@ impl Isupport {
 
     /// Returns the server's name casemapping.
     #[must_use]
-    pub fn casemapping(&self) -> Casemapping {
-        self.inner.casemapping()
+    pub fn casemapping(&self) -> Option<Casemapping> {
+        self.inner.__received().then(|| self.inner.casemapping())
     }
 
     /// Returns the channel-type prefix characters.
@@ -64,7 +64,7 @@ impl Isupport {
         self.inner.statusmsg()
     }
 
-    /// Reports whether a target starts with an advertised channel-type prefix.
+    /// Reports whether a target has an advertised channel prefix.
     #[must_use]
     pub fn is_channel(&self, name: &str) -> bool {
         self.inner.is_channel(name)
@@ -250,22 +250,6 @@ impl Isupport {
     pub fn elist(&self) -> Option<&str> {
         self.inner.elist()
     }
-
-    /// Returns the HTTPS endpoint advertised for file uploads.
-    ///
-    /// Uploads use an HTTP `POST` whose response supplies the uploaded URL in its `Location`
-    /// header. The caller authenticates that request with its own credentials; papo does not
-    /// expose authentication secrets. Non-HTTPS endpoints are ignored.
-    #[must_use]
-    #[cfg(feature = "unstable")]
-    pub fn filehost(&self) -> Option<&str> {
-        ["draft/FILEHOST", "soju.im/FILEHOST"]
-            .into_iter()
-            .find_map(|name| match self.get(name) {
-                Advertised::Value(url) if url.starts_with("https://") => Some(url),
-                _ => None,
-            })
-    }
 }
 
 #[cfg(all(test, not(browser)))]
@@ -276,6 +260,7 @@ mod tests {
     fn exposes_read_only_protocol_views() {
         let support = super::Isupport::default();
         assert_eq!(support.get("network"), super::Advertised::Absent);
+        assert_eq!(support.casemapping(), None);
         assert_eq!(support.chantypes(), "#&");
         assert_eq!(support.nicklen(), None);
         assert_eq!(support.msgreftypes(), ["msgid", "timestamp"]);
@@ -325,6 +310,8 @@ mod tests {
             inner.apply(&LineRef::parse(line).unwrap());
         }
         let support = super::Isupport::from_proto(inner);
+
+        assert_eq!(support.casemapping(), Some(crate::Casemapping::Ascii));
 
         assert_eq!(
             support.prefix(),
