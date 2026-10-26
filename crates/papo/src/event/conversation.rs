@@ -5,7 +5,7 @@ use crate::{Conversation, Mask, MessageId, Typing};
 use super::{Authorship, Source, Tags, TypingReason, UserSource};
 
 /// A server-wide audience addressed by `*` or a server mask.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum Broadcast {
     /// Every eligible client.

@@ -95,7 +95,7 @@ async fn broadcast_is_a_server_notice(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert!(matches!(
         broadcast.to,
-        papo::event::ServerNoticeTarget::Mask(_)
+        papo::event::Audience::Broadcast(papo::event::Broadcast::Mask(_))
     ));
     assert_eq!(
         crate::source_nick(&broadcast.actor),

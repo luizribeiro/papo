@@ -82,15 +82,13 @@ pub enum ServerNoticeKind {
 /// The audience addressed by a server notice.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
-pub enum ServerNoticeTarget {
+pub enum Audience {
     /// This client.
     Me,
-    /// Every eligible client, represented by `*` or an implicit `WALLOPS` audience.
-    All,
-    /// Users selected by a server mask.
-    Mask(papo_proto::Mask),
     /// A channel.
     Channel(ChannelName),
+    /// A server-wide audience.
+    Broadcast(Broadcast),
 }
 
 /// An incoming Client-to-Client Protocol query carried by `PRIVMSG`.
@@ -325,10 +323,12 @@ pub struct Notice {
 pub struct ServerNotice {
     /// The server or operator that sent the notice.
     pub actor: Source,
+    /// Whether the actor is this client's user.
+    pub authorship: Authorship,
     /// The command that carried the notice.
     pub kind: ServerNoticeKind,
     /// The notice's addressed audience.
-    pub to: ServerNoticeTarget,
+    pub to: Audience,
     /// `STATUSMSG` prefixes removed from a channel audience, in wire order.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
@@ -543,7 +543,16 @@ pub(crate) fn incoming_from_core(
         if !is_server_notice_line(&raw.as_ref()) {
             return Event::Other(raw);
         }
-        return ServerNotice::from_line(raw, None, None, origin, isupport, received_at)
+        return ServerNotice::from_line(
+            raw,
+            authorship,
+            None,
+            None,
+            origin,
+            isupport,
+            account_tag_enabled,
+            received_at,
+        )
             .map_or_else(Event::Other, |notice| Event::ServerNotice(Box::new(notice)));
     };
     message_event_from_line(
@@ -791,10 +800,12 @@ impl Notice {
 impl ServerNotice {
     fn from_line(
         raw: ProtoLine,
+        authorship: Authorship,
         conversation: Option<&Conversation>,
         status: Option<Vec<char>>,
         origin: crate::Origin,
         isupport: &Isupport,
+        account_tag_enabled: bool,
         received_at: SystemTime,
     ) -> Result<Self, ProtoLine> {
         let message = raw.as_ref();
@@ -812,26 +823,43 @@ impl ServerNotice {
             return Err(raw);
         };
         let to = if let Some(Conversation::Channel(channel)) = conversation {
-            ServerNoticeTarget::Channel(channel.clone())
+            Audience::Channel(channel.clone())
         } else if wallops || message.param(0) == Some("*") {
-            ServerNoticeTarget::All
+            Audience::Broadcast(Broadcast::Everyone)
         } else if let Some(target) = message.param(0).filter(|target| target.starts_with('$')) {
-            ServerNoticeTarget::Mask(origin.__mask(isupport.casemapping(), target))
+            Audience::Broadcast(Broadcast::Mask(
+                origin.__mask(isupport.casemapping(), target),
+            ))
         } else if let Some(target) = message
             .param(0)
             .filter(|target| isupport.is_channel(target))
         {
-            ServerNoticeTarget::Channel(origin.__channel(isupport.casemapping(), target))
+            Audience::Channel(origin.__channel(isupport.casemapping(), target))
         } else {
-            ServerNoticeTarget::Me
+            Audience::Me
         };
         let Some(source) = message.source() else {
             return Err(raw);
         };
-        let actor = source::from_proto_with_origin(source, isupport.casemapping(), origin);
+        let actor = match source {
+            papo_proto::Source::User { .. } => Source::User(
+                source::user_from_line(
+                    &message,
+                    isupport.casemapping(),
+                    origin,
+                    account_tag_enabled,
+                    false,
+                )
+                .expect("the parsed source is a user"),
+            ),
+            papo_proto::Source::Server(_) => {
+                source::from_proto_with_origin(source, isupport.casemapping(), origin)
+            }
+        };
         let envelope = line_envelope(&message, isupport.casemapping(), origin, received_at);
         Ok(Self {
             actor,
+            authorship,
             kind,
             to,
             status,
@@ -866,10 +894,12 @@ fn message_event_from_line(
         let origin = crate::message_ref::conversation_origin(&conversation);
         return ServerNotice::from_line(
             raw,
+            authorship,
             Some(&conversation),
             status,
             origin,
             isupport,
+            account_tag_enabled,
             received_at,
         )
         .map_or_else(Event::Other, |notice| Event::ServerNotice(Box::new(notice)));
@@ -2103,7 +2133,7 @@ mod tests {
     use super::{
         Authorship, Broadcast, Conversation, CoreEvent, Event, Message as ChatMessage, MessageId,
         MessageKind, MetadataChanged, ModeAction, ModeArg, NoticeKind, ServerNoticeKind,
-        ServerNoticeTarget, Source, StandardReplyKind, Warning, ctcp_parts,
+        Audience, Source, StandardReplyKind, Warning, ctcp_parts,
         from_core as from_core_with_mapping, historical_message_event, message_event_from_line,
     };
     use crate::Visibility;
@@ -2309,7 +2339,7 @@ mod tests {
                 }
                 ("broadcast", Event::ServerNotice(notice)) => {
                     assert_eq!(notice.actor.nick().unwrap().origin(), origin);
-                    assert!(matches!(notice.to, ServerNoticeTarget::Mask(mask)
+                    assert!(matches!(notice.to, Audience::Broadcast(Broadcast::Mask(mask))
                         if mask.origin() == origin));
                 }
                 (kind, event) => panic!("unexpected {kind} event: {event:?}"),
@@ -2360,7 +2390,8 @@ mod tests {
         );
         assert!(matches!(server, Event::ServerNotice(notice)
             if notice.kind == ServerNoticeKind::Notice
-                && notice.to == ServerNoticeTarget::Me
+                && notice.to == Audience::Me
+                && notice.authorship == Authorship::Other
                 && notice.status.is_none()));
 
         let wallops = message_event_from_line(
@@ -2379,23 +2410,27 @@ mod tests {
         );
         assert!(matches!(wallops, Event::ServerNotice(notice)
             if notice.kind == ServerNoticeKind::Wallops
-                && notice.to == ServerNoticeTarget::All));
+                && notice.to == Audience::Broadcast(Broadcast::Everyone)));
 
         let broadcast = message_event_from_line(
             Line::notice("$*.example.org", "Network maintenance begins soon")
-                .with_source("oper!o@staff"),
+                .with_source("oper!o@staff")
+                .with_tag("account", "network-admin"),
             None,
             Authorship::Other,
             Conversation::Private(isupport.casemapping().nick("papo")),
             None,
             None,
             &isupport,
-            false,
+            true,
             UNIX_EPOCH,
             None,
         );
         assert!(matches!(broadcast, Event::ServerNotice(notice)
-            if matches!(notice.to, ServerNoticeTarget::Mask(_))));
+            if matches!(notice.to, Audience::Broadcast(Broadcast::Mask(_)))
+                && notice.authorship == Authorship::Other
+                && matches!(notice.actor.user().map(|actor| actor.account()),
+                    Some(Account::LoggedIn(account)) if account == "network-admin")));
     }
 
     #[test]
@@ -2426,7 +2461,7 @@ mod tests {
                 UNIX_EPOCH,
             );
             assert!(matches!(event, Event::ServerNotice(notice)
-                if matches!(notice.to, ServerNoticeTarget::Channel(ref name) if name == channel)
+                if matches!(notice.to, Audience::Channel(ref name) if name == channel)
                     && notice.status.as_deref() == Some(status)));
         }
     }
@@ -2661,7 +2696,7 @@ mod tests {
         );
         assert!(matches!(server, Event::ServerNotice(notice)
             if notice.kind == ServerNoticeKind::Notice
-                && notice.to == ServerNoticeTarget::Me));
+                && notice.to == Audience::Me));
 
         let broadcast = parse_event(
             Line::notice("$*.example.org", "Maintenance begins soon").with_source("oper!o@staff"),
@@ -2670,7 +2705,7 @@ mod tests {
             UNIX_EPOCH,
         );
         assert!(matches!(broadcast, Event::ServerNotice(notice)
-            if matches!(&notice.to, ServerNoticeTarget::Mask(mask) if mask == "$*.example.org")));
+            if matches!(&notice.to, Audience::Broadcast(Broadcast::Mask(mask)) if mask == "$*.example.org")));
     }
 
     #[test]

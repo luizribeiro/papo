@@ -273,7 +273,7 @@ async fn soju_server_notice_history(s: Scenario) -> papo_testing::Result<()> {
         })
         .await?;
     assert_eq!(crate::source_nick(&notice.actor), Some("BouncerServ"));
-    let papo::event::ServerNoticeTarget::Mask(target) = &notice.to else {
+    let papo::event::Audience::Broadcast(papo::event::Broadcast::Mask(target)) = &notice.to else {
         panic!("server notice was not sent to a mask");
     };
     let target = target.to_string();

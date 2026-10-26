@@ -640,7 +640,10 @@ async fn operator_wallops(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     let delivered = bob.wait_for(Event::as_server_notice).await?;
     assert_eq!(delivered.kind, papo::event::ServerNoticeKind::Wallops);
-    assert_eq!(delivered.to, papo::event::ServerNoticeTarget::All);
+    assert_eq!(
+        delivered.to,
+        papo::event::Audience::Broadcast(papo::event::Broadcast::Everyone)
+    );
     assert_eq!(delivered.text, wallops);
     Ok(())
 }
