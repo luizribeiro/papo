@@ -503,6 +503,7 @@ impl AccountName {
     /// # Errors
     ///
     /// Returns an error for an empty name, the logout marker, or wire delimiters.
+    #[doc(hidden)]
     pub fn check(&self) -> Result<(), InvalidIdentifier> {
         check_parameter(self)?;
         if self.as_ref() == "*" {
@@ -562,6 +563,7 @@ impl Mask {
     ///
     /// Returns an error for an empty mask, wire delimiters, or a comma that would introduce
     /// another target.
+    #[doc(hidden)]
     pub fn check(&self) -> Result<(), InvalidIdentifier> {
         check_parameter(self)?;
         if self.contains(',') {

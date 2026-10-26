@@ -43,6 +43,12 @@ pub struct State {
 }
 
 impl State {
+    /// Returns builders and checks that use this snapshot's name rules and client identity.
+    #[must_use]
+    pub const fn name_rules(&self) -> crate::NameRules<'_> {
+        crate::NameRules { state: self }
+    }
+
     pub(crate) fn recipient_changed(&self, recipient: &crate::message_ref::RecipientGuard) -> bool {
         let Some(current) = self.core.user(&recipient.nick) else {
             return false;

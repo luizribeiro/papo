@@ -168,6 +168,7 @@ mod isupport_impl;
 mod message_ref;
 pub mod metadata;
 mod mode;
+mod name_rules;
 pub mod numeric;
 mod reconnect;
 mod requests;
@@ -218,6 +219,7 @@ pub use ext::{
 pub use isupport_impl::Isupport;
 pub use message_ref::MessageRef;
 pub use mode::{BanTarget, Extban, KickbanOutcome, ModesApplied, SetModes};
+pub use name_rules::{NameCheck, NameRules};
 #[doc(inline)]
 pub use papo_core::Secret;
 #[doc(inline)]
