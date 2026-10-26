@@ -2271,6 +2271,32 @@ mod tests {
         assert_eq!(ctcp.origin(), origin);
     }
 
+    #[test]
+    fn broadcast_ctcp_requires_a_broadcast_target() {
+        let parse = |line| {
+            super::broadcast_from_line(
+                LineRef::parse(line).unwrap().to_owned(),
+                Authorship::Other,
+                crate::Origin::NONE,
+                &Isupport::default(),
+                false,
+                false,
+                UNIX_EPOCH,
+            )
+        };
+
+        let masked = parse(":oper!o@staff PRIVMSG $*.example.org :\x01VERSION\x01").unwrap();
+        assert!(matches!(masked, Event::BroadcastCtcp(event)
+            if matches!(event.to, Broadcast::Mask(ref mask) if mask == "$*.example.org")));
+
+        let everyone = parse(":oper!o@staff PRIVMSG * :\x01VERSION\x01").unwrap();
+        assert!(matches!(everyone, Event::BroadcastCtcp(event)
+            if event.to == Broadcast::Everyone));
+
+        let ordinary = parse(":oper!o@staff PRIVMSG papo :\x01VERSION\x01").unwrap_err();
+        assert_eq!(ordinary.as_ref().param(0), Some("papo"));
+    }
+
     const MESSAGE_EVENT_METADATA_CASES: [(&str, &str, &str); 19] = [
         (
             "Message",
