@@ -1069,13 +1069,14 @@ impl State {
         &self,
         target: impl AsRef<str>,
     ) -> Result<(Option<Vec<char>>, Conversation), papo_proto::InvalidIdentifier> {
-        classify_target_with_names(
+        let (status, target) = classify_target_with_names(
             target.as_ref(),
             None,
             &self.nick,
             self.casemapping,
             &self.isupport,
-        )
+        )?;
+        Ok((status, target.into_conversation()))
     }
 
     /// Builds a conversation using the server's advertised name rules.

@@ -1,12 +1,28 @@
-use papo_proto::{Command, InvalidIdentifier, Isupport, LineRef, Source};
+use papo_proto::{Command, InvalidIdentifier, Isupport, LineRef, Mask, Source};
 
 use crate::{Conversation, Names, names_equal};
+
+pub(crate) enum LineTarget {
+    Conversation(Conversation),
+    Server,
+    Broadcast(Mask),
+}
+
+impl LineTarget {
+    pub(crate) fn into_conversation(self) -> Conversation {
+        match self {
+            Self::Conversation(conversation) => conversation,
+            Self::Server => Conversation::Server,
+            Self::Broadcast(mask) => Conversation::Broadcast(mask),
+        }
+    }
+}
 
 pub(crate) fn classify_line(
     line: &LineRef<'_>,
     own_nick: &str,
     isupport: &Isupport,
-) -> Result<(Option<Vec<char>>, Conversation), InvalidIdentifier> {
+) -> Result<(Option<Vec<char>>, LineTarget), InvalidIdentifier> {
     classify_line_with_names(
         line,
         own_nick,
@@ -20,9 +36,9 @@ pub(crate) fn classify_line_with_names(
     own_nick: &str,
     isupport: &Isupport,
     names: Names,
-) -> Result<(Option<Vec<char>>, Conversation), InvalidIdentifier> {
+) -> Result<(Option<Vec<char>>, LineTarget), InvalidIdentifier> {
     if line.command_is("WALLOPS") || matches!(line.command(), Command::Numeric(_)) {
-        return Ok((None, Conversation::Server));
+        return Ok((None, LineTarget::Server));
     }
     classify_target_with_names(
         line.param(0).unwrap_or(""),
@@ -39,7 +55,7 @@ pub(crate) fn classify_target_with_names(
     own_nick: &str,
     mapping: Names,
     isupport: &Isupport,
-) -> Result<(Option<Vec<char>>, Conversation), InvalidIdentifier> {
+) -> Result<(Option<Vec<char>>, LineTarget), InvalidIdentifier> {
     let mut remainder = target;
     let mut status = Vec::new();
     loop {
@@ -48,7 +64,7 @@ pub(crate) fn classify_target_with_names(
             channel.check(isupport)?;
             return Ok((
                 (!status.is_empty()).then_some(status),
-                Conversation::Channel(channel),
+                LineTarget::Conversation(Conversation::Channel(channel)),
             ));
         }
         let Some(prefix) = remainder.chars().next() else {
@@ -67,12 +83,12 @@ pub(crate) fn classify_target_with_names(
         return Err(InvalidIdentifier::InvalidPrefix(prefix));
     }
 
-    let conversation = if target.starts_with('$') {
+    let target = if target.starts_with('$') {
         let mask = mapping.mask(target);
         mask.check()?;
-        Conversation::Broadcast(mask)
+        LineTarget::Broadcast(mask)
     } else if target == "*" || matches!(source, Some(Source::Server(_))) {
-        Conversation::Server
+        LineTarget::Server
     } else {
         let other = match source {
             Some(Source::User { nick, .. }) if names_equal(mapping, target, own_nick) => nick,
@@ -80,7 +96,7 @@ pub(crate) fn classify_target_with_names(
         };
         let nick = mapping.nick(other);
         nick.check(isupport)?;
-        Conversation::Private(nick)
+        LineTarget::Conversation(Conversation::Private(nick))
     };
-    Ok((None, conversation))
+    Ok((None, target))
 }

@@ -299,6 +299,7 @@ pub fn classify_conversation(
     isupport: &papo_proto::Isupport,
 ) -> Result<(Option<Vec<char>>, Conversation), papo_proto::InvalidIdentifier> {
     conversation::classify_line(line, own_nick, isupport)
+        .map(|(status, target)| (status, target.into_conversation()))
 }
 
 /// Automatic replies to CTCP queries.

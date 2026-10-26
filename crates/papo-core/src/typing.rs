@@ -3,7 +3,10 @@ use std::{collections::VecDeque, sync::Arc, time::Duration};
 use papo_proto::{Command, LineRef, Nick, Source, Typing};
 use web_time::Instant;
 
-use crate::{Authorship, Conversation, Event, Session, conversation::classify_line_with_names};
+use crate::{
+    Authorship, Conversation, Event, Session,
+    conversation::classify_line_with_names,
+};
 
 const MAX_TYPERS_PER_CONVERSATION: usize = 32;
 const MAX_TYPERS: usize = 512;
@@ -350,11 +353,12 @@ impl Session {
         else {
             return false;
         };
-        let Ok((status, conversation)) =
+        let Ok((status, target)) =
             classify_line_with_names(message, self.nick(), self.isupport.value(), self.names())
         else {
             return false;
         };
+        let conversation = target.into_conversation();
         let authorship = self.authorship(message);
         if authorship == Authorship::Other {
             let nick = self.names().nick(nick);
@@ -402,11 +406,12 @@ impl Session {
         let Some(Source::User { nick, .. }) = message.source() else {
             return;
         };
-        let Ok((_, conversation)) =
+        let Ok((_, target)) =
             classify_line_with_names(message, self.nick(), self.isupport.value(), self.names())
         else {
             return;
         };
+        let conversation = target.into_conversation();
         let nick = self.names().nick(nick);
         if let Some(deadline) =
             TypingTable::stop_sender(&mut self.state.typing, &conversation, &nick)
