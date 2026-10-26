@@ -145,6 +145,27 @@ impl core::marker::Unpin for papo::event::NoticeKind
 impl core::marker::UnsafeUnpin for papo::event::NoticeKind
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::NoticeKind
 impl core::panic::unwind_safe::UnwindSafe for papo::event::NoticeKind
+#[non_exhaustive] pub enum papo::event::ReactionAction
+pub papo::event::ReactionAction::Added
+pub papo::event::ReactionAction::Removed
+impl core::clone::Clone for papo::event::ReactionAction
+pub fn papo::event::ReactionAction::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::ReactionAction
+impl core::cmp::PartialEq for papo::event::ReactionAction
+pub fn papo::event::ReactionAction::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::ReactionAction
+pub fn papo::event::ReactionAction::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::event::ReactionAction
+pub fn papo::event::ReactionAction::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for papo::event::ReactionAction
+impl core::marker::StructuralPartialEq for papo::event::ReactionAction
+impl core::marker::Freeze for papo::event::ReactionAction
+impl core::marker::Send for papo::event::ReactionAction
+impl core::marker::Sync for papo::event::ReactionAction
+impl core::marker::Unpin for papo::event::ReactionAction
+impl core::marker::UnsafeUnpin for papo::event::ReactionAction
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ReactionAction
+impl core::panic::unwind_safe::UnwindSafe for papo::event::ReactionAction
 #[non_exhaustive] pub enum papo::event::ServerNoticeKind
 pub papo::event::ServerNoticeKind::Notice
 pub papo::event::ServerNoticeKind::Privmsg
@@ -460,12 +481,14 @@ pub papo::event::CtcpQuery::tags: papo::Tags
 impl papo::event::CtcpQuery
 pub fn papo::event::CtcpQuery::origin(&self) -> papo::Origin
 impl papo::event::CtcpQuery
-pub fn papo::event::CtcpQuery::return_address(&self) -> alloc::string::String
+pub fn papo::event::CtcpQuery::return_address(&self) -> papo::MessageRef
 impl core::clone::Clone for papo::event::CtcpQuery
 pub fn papo::event::CtcpQuery::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::CtcpQuery
 impl core::cmp::PartialEq for papo::event::CtcpQuery
 pub fn papo::event::CtcpQuery::eq(&self, &Self) -> bool
+impl core::convert::From<&papo::event::CtcpQuery> for papo::MessageRef
+pub fn papo::MessageRef::from(&papo::event::CtcpQuery) -> Self
 impl core::fmt::Debug for papo::event::CtcpQuery
 pub fn papo::event::CtcpQuery::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::event::CtcpQuery
@@ -491,7 +514,7 @@ pub papo::event::CtcpReply::tags: papo::Tags
 impl papo::event::CtcpReply
 pub fn papo::event::CtcpReply::origin(&self) -> papo::Origin
 impl papo::event::CtcpReply
-pub fn papo::event::CtcpReply::return_address(&self) -> alloc::string::String
+pub fn papo::event::CtcpReply::return_address(&self) -> papo::MessageRef
 impl core::clone::Clone for papo::event::CtcpReply
 pub fn papo::event::CtcpReply::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::CtcpReply
@@ -763,30 +786,26 @@ pub papo::event::Notice::actor: papo::Source
 pub papo::event::Notice::authorship: papo::Authorship
 pub papo::event::Notice::channel_context: core::option::Option<papo::ChannelName>
 pub papo::event::Notice::conversation: papo::Conversation
+pub papo::event::Notice::in_reply_to: core::option::Option<papo::MessageId>
 pub papo::event::Notice::is_bot: bool
 pub papo::event::Notice::kind: papo::event::NoticeKind
 pub papo::event::Notice::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Notice::oper: core::option::Option<papo::Oper>
 pub papo::event::Notice::raw_text: alloc::string::String
 pub papo::event::Notice::received_at: std::time::SystemTime
-pub papo::event::Notice::reply_to: core::option::Option<papo::MessageId>
 pub papo::event::Notice::server_time: core::option::Option<std::time::SystemTime>
 pub papo::event::Notice::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo::event::Notice::tags: papo::Tags
 pub papo::event::Notice::text: alloc::string::String
 impl papo::event::Notice
 pub fn papo::event::Notice::origin(&self) -> papo::Origin
-pub fn papo::event::Notice::return_address(&self) -> alloc::string::String
+pub fn papo::event::Notice::return_address(&self) -> papo::MessageRef
 pub fn papo::event::Notice::spans(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo::Span<'_>>
 impl core::clone::Clone for papo::event::Notice
 pub fn papo::event::Notice::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Notice
 impl core::cmp::PartialEq for papo::event::Notice
 pub fn papo::event::Notice::eq(&self, &Self) -> bool
-impl core::convert::From<&alloc::boxed::Box<papo::event::Notice>> for papo::MessageRef
-pub fn papo::MessageRef::from(&alloc::boxed::Box<papo::event::Notice>) -> Self
-impl core::convert::From<&papo::event::Notice> for papo::MessageRef
-pub fn papo::MessageRef::from(&papo::event::Notice) -> Self
 impl core::fmt::Debug for papo::event::Notice
 pub fn papo::event::Notice::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::event::Notice
@@ -850,20 +869,20 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Quit
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Quit
 #[non_exhaustive] pub struct papo::event::Reacted
 pub papo::event::Reacted::account: papo::Account
+pub papo::event::Reacted::action: papo::event::ReactionAction
 pub papo::event::Reacted::actor: papo::Source
 pub papo::event::Reacted::authorship: papo::Authorship
 pub papo::event::Reacted::conversation: papo::Conversation
-pub papo::event::Reacted::message: papo::MessageId
 pub papo::event::Reacted::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Reacted::reaction: alloc::string::String
+pub papo::event::Reacted::reacts_to: papo::MessageId
 pub papo::event::Reacted::received_at: std::time::SystemTime
-pub papo::event::Reacted::removed: bool
 pub papo::event::Reacted::server_time: core::option::Option<std::time::SystemTime>
 pub papo::event::Reacted::status: core::option::Option<alloc::vec::Vec<char>>
 impl papo::event::Reacted
 pub fn papo::event::Reacted::origin(&self) -> papo::Origin
 impl papo::event::Reacted
-pub fn papo::event::Reacted::return_address(&self) -> alloc::string::String
+pub fn papo::event::Reacted::return_address(&self) -> papo::MessageRef
 impl core::clone::Clone for papo::event::Reacted
 pub fn papo::event::Reacted::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Reacted
@@ -923,16 +942,16 @@ pub papo::event::Redacted::account: papo::Account
 pub papo::event::Redacted::actor: papo::Source
 pub papo::event::Redacted::authorship: papo::Authorship
 pub papo::event::Redacted::conversation: papo::Conversation
-pub papo::event::Redacted::message: papo::MessageId
 pub papo::event::Redacted::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Redacted::reason: core::option::Option<alloc::string::String>
 pub papo::event::Redacted::received_at: std::time::SystemTime
+pub papo::event::Redacted::redacts: papo::MessageId
 pub papo::event::Redacted::server_time: core::option::Option<std::time::SystemTime>
 pub papo::event::Redacted::status: core::option::Option<alloc::vec::Vec<char>>
 impl papo::event::Redacted
 pub fn papo::event::Redacted::origin(&self) -> papo::Origin
 impl papo::event::Redacted
-pub fn papo::event::Redacted::return_address(&self) -> alloc::string::String
+pub fn papo::event::Redacted::return_address(&self) -> papo::MessageRef
 impl core::clone::Clone for papo::event::Redacted
 pub fn papo::event::Redacted::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Redacted
@@ -1024,7 +1043,7 @@ pub papo::event::TagMsg::tags: papo::Tags
 impl papo::event::TagMsg
 pub fn papo::event::TagMsg::origin(&self) -> papo::Origin
 impl papo::event::TagMsg
-pub fn papo::event::TagMsg::return_address(&self) -> alloc::string::String
+pub fn papo::event::TagMsg::return_address(&self) -> papo::MessageRef
 impl core::clone::Clone for papo::event::TagMsg
 pub fn papo::event::TagMsg::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::TagMsg
@@ -1076,7 +1095,7 @@ pub papo::event::TypingChanged::status: core::option::Option<alloc::vec::Vec<cha
 impl papo::event::TypingChanged
 pub fn papo::event::TypingChanged::origin(&self) -> papo::Origin
 impl papo::event::TypingChanged
-pub fn papo::event::TypingChanged::return_address(&self) -> alloc::string::String
+pub fn papo::event::TypingChanged::return_address(&self) -> papo::MessageRef
 impl core::clone::Clone for papo::event::TypingChanged
 pub fn papo::event::TypingChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::TypingChanged
@@ -1650,6 +1669,7 @@ pub papo::InvalidInput::InvalidExtbanAccount(alloc::string::String)
 pub papo::InvalidInput::InvalidHost(alloc::string::String)
 pub papo::InvalidInput::InvalidMessage(alloc::string::String)
 #[non_exhaustive] pub papo::InvalidInput::InvalidName
+pub papo::InvalidInput::InvalidName::argument: &'static str
 pub papo::InvalidInput::InvalidName::name: alloc::string::String
 pub papo::InvalidInput::InvalidName::reason: papo::InvalidIdentifier
 pub papo::InvalidInput::InvalidPort(alloc::string::String)
@@ -1849,18 +1869,18 @@ impl papo::Client
 pub fn papo::Client::action(&self, impl papo::Target, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub fn papo::Client::builder(impl papo::IntoEndpoint) -> papo::Builder
 pub fn papo::Client::clear_away(&self) -> papo::RequestFuture<()>
-pub fn papo::Client::clear_topic(&self, impl papo::Target) -> papo::RequestFuture<()>
+pub fn papo::Client::clear_topic(&self, impl papo::AsChannel) -> papo::RequestFuture<()>
 pub fn papo::Client::ctcp_reply(&self, &papo::event::CtcpQuery, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Client::invite(&self, impl papo::Target, impl papo::Target) -> papo::RequestFuture<()>
-pub fn papo::Client::join(&self, impl papo::Target) -> papo::JoinChannel
-pub fn papo::Client::kick(&self, impl papo::Target, impl papo::Target, impl core::convert::AsRef<str>) -> papo::RequestFuture<()>
-pub fn papo::Client::kickban(&self, impl papo::Target, impl papo::Target, impl core::convert::AsRef<str>, impl core::convert::Into<papo::BanTarget>) -> papo::RequestFuture<papo::KickbanOutcome>
+pub fn papo::Client::invite(&self, impl papo::AsNick, impl papo::AsChannel) -> papo::RequestFuture<()>
+pub fn papo::Client::join(&self, impl papo::AsChannel) -> papo::JoinChannel
+pub fn papo::Client::kick(&self, impl papo::AsChannel, impl papo::AsNick, impl core::convert::AsRef<str>) -> papo::RequestFuture<()>
+pub fn papo::Client::kickban(&self, impl papo::AsChannel, impl papo::AsNick, impl core::convert::AsRef<str>, impl core::convert::Into<papo::BanTarget>) -> papo::RequestFuture<papo::KickbanOutcome>
 pub fn papo::Client::list(&self, papo::ListFilter) -> papo::RequestFuture<alloc::vec::Vec<papo::ListEntry>>
 pub fn papo::Client::nick(&self) -> papo::Nick
 pub fn papo::Client::notice(&self, impl papo::Target, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub fn papo::Client::oper(&self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo::Secret>) -> papo::RequestFuture<()>
 pub const fn papo::Client::origin(&self) -> papo::Origin
-pub fn papo::Client::part(&self, impl papo::Target, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::part(&self, impl papo::AsChannel, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::ping(&self) -> papo::RequestFuture<core::time::Duration>
 pub fn papo::Client::privmsg(&self, impl papo::Target, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub fn papo::Client::quit(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
@@ -1871,31 +1891,31 @@ pub fn papo::Client::reply(&self, impl core::convert::Into<papo::MessageRef>, im
 pub fn papo::Client::request_raw(&self, papo::Line) -> papo::RequestFuture<alloc::vec::Vec<papo::Line>>
 pub fn papo::Client::send_raw(&self, papo::Line) -> papo::RequestFuture<()>
 pub fn papo::Client::set_away(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Client::set_nick(&self, impl papo::Target) -> papo::RequestFuture<()>
+pub fn papo::Client::set_nick(&self, impl papo::AsNick) -> papo::RequestFuture<()>
 pub fn papo::Client::set_realname(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Client::set_topic(&self, impl papo::Target, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::set_topic(&self, impl papo::AsChannel, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::state(&self) -> alloc::rcs::arc::Arc<papo::State>
 pub fn papo::Client::typing(&self, impl papo::Target, papo::Typing) -> papo::RequestFuture<()>
 pub fn papo::Client::unreact(&self, impl core::convert::Into<papo::MessageRef>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::who(&self, impl papo::Target) -> papo::RequestFuture<alloc::vec::Vec<papo::WhoEntry>>
-pub fn papo::Client::whois(&self, impl papo::Target) -> papo::RequestFuture<papo::Whois>
+pub fn papo::Client::whois(&self, impl papo::AsNick) -> papo::RequestFuture<papo::Whois>
 impl papo::Client
 pub fn papo::Client::create_account(&self, papo::NewAccount) -> papo::RequestFuture<papo::AccountCreation>
 pub fn papo::Client::verify_account(&self, impl core::convert::AsRef<str>, impl core::convert::Into<papo::Secret>) -> papo::RequestFuture<papo::AccountCreation>
 impl papo::Client
-pub fn papo::Client::fetch_read_marker(&self, impl core::convert::Into<ConversationInput>) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>
-pub fn papo::Client::history(&self, impl core::convert::Into<ConversationInput>) -> papo::History
-pub fn papo::Client::mark_read(&self, impl core::convert::Into<ConversationInput>, std::time::SystemTime) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>
+pub fn papo::Client::fetch_read_marker(&self, impl papo::AsConversation) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>
+pub fn papo::Client::history(&self, impl papo::AsConversation) -> papo::History
+pub fn papo::Client::mark_read(&self, impl papo::AsConversation, std::time::SystemTime) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>
 pub fn papo::Client::recent_conversations(&self, std::time::SystemTime, std::time::SystemTime) -> papo::RequestFuture<alloc::vec::Vec<papo::RecentConversation>>
 impl papo::Client
-pub fn papo::Client::list_modes(&self, impl papo::Target, papo::ListMode) -> papo::RequestFuture<alloc::vec::Vec<papo::ModeListEntry>>
+pub fn papo::Client::list_modes(&self, impl papo::AsChannel, papo::ListMode) -> papo::RequestFuture<alloc::vec::Vec<papo::ModeListEntry>>
 pub fn papo::Client::mode(&self, impl papo::Target) -> papo::SetModes
 impl papo::Client
 pub fn papo::Client::metadata(&self) -> papo::Metadata
 impl papo::Client
 pub fn papo::Client::monitor(&self) -> papo::Monitor
 impl papo::Client
-pub fn papo::Client::rename_channel(&self, impl papo::Target, impl papo::Target, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::rename_channel(&self, impl papo::AsChannel, impl papo::AsChannel, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 impl core::clone::Clone for papo::Client
 pub fn papo::Client::clone(&self) -> Self
 impl core::fmt::Debug for papo::Client
@@ -2226,13 +2246,13 @@ pub papo::Message::actor: papo::Source
 pub papo::Message::authorship: papo::Authorship
 pub papo::Message::channel_context: core::option::Option<papo::ChannelName>
 pub papo::Message::conversation: papo::Conversation
+pub papo::Message::in_reply_to: core::option::Option<papo::MessageId>
 pub papo::Message::is_bot: bool
 pub papo::Message::kind: papo::MessageKind
 pub papo::Message::msgid: core::option::Option<papo::MessageId>
 pub papo::Message::oper: core::option::Option<papo::Oper>
 pub papo::Message::raw_text: alloc::string::String
 pub papo::Message::received_at: std::time::SystemTime
-pub papo::Message::reply_to: core::option::Option<papo::MessageId>
 pub papo::Message::server_time: core::option::Option<std::time::SystemTime>
 pub papo::Message::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo::Message::tags: papo::Tags
@@ -2240,7 +2260,7 @@ pub papo::Message::text: alloc::string::String
 impl papo::Message
 pub fn papo::Message::is_own(&self) -> bool
 pub fn papo::Message::origin(&self) -> papo::Origin
-pub fn papo::Message::return_address(&self) -> alloc::string::String
+pub fn papo::Message::return_address(&self) -> papo::MessageRef
 pub fn papo::Message::spans(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo::Span<'_>>
 impl core::clone::Clone for papo::Message
 pub fn papo::Message::clone(&self) -> Self
@@ -2262,26 +2282,38 @@ impl core::marker::UnsafeUnpin for papo::Message
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Message
 impl core::panic::unwind_safe::UnwindSafe for papo::Message
 pub struct papo::MessageRef
+impl papo::MessageRef
+pub fn papo::MessageRef::msgid(&self) -> core::option::Option<&papo::MessageId>
+pub const fn papo::MessageRef::origin(&self) -> papo::Origin
 impl core::clone::Clone for papo::MessageRef
 pub fn papo::MessageRef::clone(&self) -> Self
 impl core::cmp::Eq for papo::MessageRef
 impl core::cmp::PartialEq for papo::MessageRef
 pub fn papo::MessageRef::eq(&self, &Self) -> bool
+impl core::cmp::PartialEq<&str> for papo::MessageRef
+pub fn papo::MessageRef::eq(&self, &&str) -> bool
+impl core::cmp::PartialEq<str> for papo::MessageRef
+pub fn papo::MessageRef::eq(&self, &str) -> bool
+impl core::convert::AsRef<str> for papo::MessageRef
+pub fn papo::MessageRef::as_ref(&self) -> &str
 impl core::convert::From<&alloc::boxed::Box<papo::Message>> for papo::MessageRef
 pub fn papo::MessageRef::from(&alloc::boxed::Box<papo::Message>) -> Self
-impl core::convert::From<&alloc::boxed::Box<papo::event::Notice>> for papo::MessageRef
-pub fn papo::MessageRef::from(&alloc::boxed::Box<papo::event::Notice>) -> Self
 impl core::convert::From<&papo::Message> for papo::MessageRef
 pub fn papo::MessageRef::from(&papo::Message) -> Self
 impl core::convert::From<&papo::Sent> for papo::MessageRef
 pub fn papo::MessageRef::from(&papo::Sent) -> Self
-impl core::convert::From<&papo::event::Notice> for papo::MessageRef
-pub fn papo::MessageRef::from(&papo::event::Notice) -> Self
+impl core::convert::From<&papo::event::CtcpQuery> for papo::MessageRef
+pub fn papo::MessageRef::from(&papo::event::CtcpQuery) -> Self
 impl core::convert::From<&papo::event::TagMsg> for papo::MessageRef
 pub fn papo::MessageRef::from(&papo::event::TagMsg) -> Self
 impl core::fmt::Debug for papo::MessageRef
 pub fn papo::MessageRef::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo::MessageRef
+pub fn papo::MessageRef::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::MessageRef
+impl papo::Target for papo::MessageRef
+impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(&papo::MessageRef, I)> for papo::MessageRef
+pub fn papo::MessageRef::from((&papo::MessageRef, I)) -> Self
 impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(&papo::ChannelName, I)> for papo::MessageRef
 pub fn papo::MessageRef::from((&papo::ChannelName, I)) -> Self
 impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(&papo::Nick, I)> for papo::MessageRef
@@ -2290,6 +2322,8 @@ impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(&str, I)> for
 pub fn papo::MessageRef::from((&str, I)) -> Self
 impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(alloc::string::String, I)> for papo::MessageRef
 pub fn papo::MessageRef::from((alloc::string::String, I)) -> Self
+impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(papo::MessageRef, I)> for papo::MessageRef
+pub fn papo::MessageRef::from((papo::MessageRef, I)) -> Self
 impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(papo::ChannelName, I)> for papo::MessageRef
 pub fn papo::MessageRef::from((papo::ChannelName, I)) -> Self
 impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(papo::Nick, I)> for papo::MessageRef
@@ -2453,7 +2487,7 @@ impl<T> !core::panic::unwind_safe::RefUnwindSafe for papo::RequestFuture<T>
 impl<T> !core::panic::unwind_safe::UnwindSafe for papo::RequestFuture<T>
 pub struct papo::SendMessage
 impl papo::SendMessage
-pub fn papo::SendMessage::channel_context(self, impl papo::Target) -> Self
+pub fn papo::SendMessage::channel_context(self, impl papo::AsChannel) -> Self
 pub fn papo::SendMessage::reply_to(self, impl core::convert::Into<papo::MessageId>) -> Self
 pub fn papo::SendMessage::tag(self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
 impl core::fmt::Debug for papo::SendMessage
@@ -2472,13 +2506,13 @@ impl core::panic::unwind_safe::UnwindSafe for papo::SendMessage
 #[non_exhaustive] pub struct papo::Sent
 pub papo::Sent::conversation: papo::Conversation
 pub papo::Sent::fallbacks: alloc::vec::Vec<papo::Fallback>
-pub papo::Sent::line_msgids: alloc::vec::Vec<papo::MessageId>
-pub papo::Sent::msgid: core::option::Option<papo::MessageId>
+pub papo::Sent::msgids: alloc::vec::Vec<papo::MessageId>
 pub papo::Sent::server_time: core::option::Option<std::time::SystemTime>
 pub papo::Sent::status: core::option::Option<alloc::vec::Vec<char>>
 impl papo::Sent
+pub fn papo::Sent::msgid(&self) -> core::option::Option<&papo::MessageId>
 pub fn papo::Sent::origin(&self) -> papo::Origin
-pub fn papo::Sent::return_address(&self) -> alloc::string::String
+pub fn papo::Sent::return_address(&self) -> papo::MessageRef
 impl core::clone::Clone for papo::Sent
 pub fn papo::Sent::clone(&self) -> Self
 impl core::cmp::Eq for papo::Sent
@@ -2584,11 +2618,11 @@ pub fn papo::State::nick(&self) -> &papo::Nick
 pub fn papo::State::nickname(&self, impl core::convert::AsRef<str>) -> papo::Nick
 pub fn papo::State::parse_extban(&self, &papo::Mask) -> core::option::Option<papo::Extban>
 pub fn papo::State::parse_target(&self, &str) -> core::result::Result<(core::option::Option<alloc::vec::Vec<char>>, papo::Conversation), papo::InvalidInput>
-pub fn papo::State::read_marker(&self, impl core::convert::AsRef<str>) -> core::option::Option<papo::ReadMarker>
+pub fn papo::State::read_marker(&self, impl papo::AsConversation) -> core::option::Option<papo::ReadMarker>
 pub fn papo::State::realname(&self) -> &str
 pub fn papo::State::same_list_entry(&self, &papo::Mask, impl core::convert::AsRef<str>) -> bool
 pub fn papo::State::supports(&self, papo::Feature) -> bool
-pub fn papo::State::typing<'a>(&'a self, &'a papo::Conversation) -> impl core::iter::traits::iterator::Iterator<Item = &'a papo::Typer>
+pub fn papo::State::typing(&self, impl papo::AsConversation) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Typer>
 pub fn papo::State::user(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo::User>
 pub fn papo::State::user_modes(&self) -> impl core::iter::traits::iterator::Iterator<Item = char> + '_
 pub fn papo::State::username(&self) -> &str
@@ -2718,6 +2752,32 @@ impl core::marker::UnsafeUnpin for papo::WhoisChannel
 impl core::panic::unwind_safe::RefUnwindSafe for papo::WhoisChannel
 impl core::panic::unwind_safe::UnwindSafe for papo::WhoisChannel
 pub const papo::VERSION: &str
+pub trait papo::AsChannel: papo::target::sealed::Sealed
+impl papo::AsChannel for alloc::borrow::Cow<'_, str>
+impl papo::AsChannel for alloc::boxed::Box<str>
+impl papo::AsChannel for alloc::rcs::arc::Arc<str>
+impl papo::AsChannel for alloc::string::String
+impl papo::AsChannel for papo::ChannelName
+impl papo::AsChannel for str
+impl<T: papo::AsChannel + ?core::marker::Sized> papo::AsChannel for &T
+pub trait papo::AsConversation: papo::target::sealed::Sealed
+impl papo::AsConversation for alloc::borrow::Cow<'_, str>
+impl papo::AsConversation for alloc::boxed::Box<str>
+impl papo::AsConversation for alloc::rcs::arc::Arc<str>
+impl papo::AsConversation for alloc::string::String
+impl papo::AsConversation for papo::Conversation
+impl papo::AsConversation for papo::ChannelName
+impl papo::AsConversation for papo::Nick
+impl papo::AsConversation for str
+impl<T: papo::AsConversation + ?core::marker::Sized> papo::AsConversation for &T
+pub trait papo::AsNick: papo::target::sealed::Sealed
+impl papo::AsNick for alloc::borrow::Cow<'_, str>
+impl papo::AsNick for alloc::boxed::Box<str>
+impl papo::AsNick for alloc::rcs::arc::Arc<str>
+impl papo::AsNick for alloc::string::String
+impl papo::AsNick for papo::Nick
+impl papo::AsNick for str
+impl<T: papo::AsNick + ?core::marker::Sized> papo::AsNick for &T
 pub trait papo::IntoEndpoint: papo::address::private::Sealed
 impl papo::IntoEndpoint for &str
 impl papo::IntoEndpoint for alloc::string::String
@@ -2727,9 +2787,9 @@ impl papo::Target for alloc::borrow::Cow<'_, str>
 impl papo::Target for alloc::boxed::Box<str>
 impl papo::Target for alloc::rcs::arc::Arc<str>
 impl papo::Target for alloc::string::String
+impl papo::Target for papo::MessageRef
 impl papo::Target for papo::Conversation
 impl papo::Target for papo::ChannelName
-impl papo::Target for papo::Mask
 impl papo::Target for papo::Nick
 impl papo::Target for str
 impl<T: papo::Target + ?core::marker::Sized> papo::Target for &T
