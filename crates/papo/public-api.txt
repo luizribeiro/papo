@@ -82,6 +82,24 @@ pub use papo::cap::WHOAMI
 pub mod papo::event
 pub use papo::event::BatchAbandonReason
 pub use papo::event::TypingReason
+#[non_exhaustive] pub enum papo::event::Broadcast
+pub papo::event::Broadcast::Everyone
+pub papo::event::Broadcast::Mask(papo::Mask)
+impl core::clone::Clone for papo::event::Broadcast
+pub fn papo::event::Broadcast::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::Broadcast
+impl core::cmp::PartialEq for papo::event::Broadcast
+pub fn papo::event::Broadcast::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::Broadcast
+pub fn papo::event::Broadcast::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::Broadcast
+impl core::marker::Freeze for papo::event::Broadcast
+impl core::marker::Send for papo::event::Broadcast
+impl core::marker::Sync for papo::event::Broadcast
+impl core::marker::Unpin for papo::event::Broadcast
+impl core::marker::UnsafeUnpin for papo::event::Broadcast
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Broadcast
+impl core::panic::unwind_safe::UnwindSafe for papo::event::Broadcast
 #[non_exhaustive] pub enum papo::event::ConnectPhase
 pub papo::event::ConnectPhase::Authenticating
 pub papo::event::ConnectPhase::Capabilities
@@ -263,6 +281,56 @@ impl core::marker::Unpin for papo::event::AwayChanged
 impl core::marker::UnsafeUnpin for papo::event::AwayChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::AwayChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::AwayChanged
+#[non_exhaustive] pub struct papo::event::BroadcastCtcp
+pub papo::event::BroadcastCtcp::account: papo::Account
+pub papo::event::BroadcastCtcp::actor: papo::Source
+pub papo::event::BroadcastCtcp::authorship: papo::Authorship
+pub papo::event::BroadcastCtcp::command: alloc::string::String
+pub papo::event::BroadcastCtcp::msgid: core::option::Option<papo::MessageId>
+pub papo::event::BroadcastCtcp::params: core::option::Option<alloc::string::String>
+pub papo::event::BroadcastCtcp::received_at: std::time::SystemTime
+pub papo::event::BroadcastCtcp::server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::BroadcastCtcp::tags: papo::Tags
+pub papo::event::BroadcastCtcp::to: papo::event::Broadcast
+impl papo::event::BroadcastCtcp
+pub fn papo::event::BroadcastCtcp::origin(&self) -> papo::Origin
+impl core::clone::Clone for papo::event::BroadcastCtcp
+pub fn papo::event::BroadcastCtcp::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::BroadcastCtcp
+impl core::cmp::PartialEq for papo::event::BroadcastCtcp
+pub fn papo::event::BroadcastCtcp::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::BroadcastCtcp
+pub fn papo::event::BroadcastCtcp::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::BroadcastCtcp
+impl core::marker::Freeze for papo::event::BroadcastCtcp
+impl core::marker::Send for papo::event::BroadcastCtcp
+impl core::marker::Sync for papo::event::BroadcastCtcp
+impl core::marker::Unpin for papo::event::BroadcastCtcp
+impl core::marker::UnsafeUnpin for papo::event::BroadcastCtcp
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::BroadcastCtcp
+impl core::panic::unwind_safe::UnwindSafe for papo::event::BroadcastCtcp
+#[non_exhaustive] pub struct papo::event::BroadcastTagMsg
+pub papo::event::BroadcastTagMsg::actor: papo::Source
+pub papo::event::BroadcastTagMsg::authorship: papo::Authorship
+pub papo::event::BroadcastTagMsg::tags: papo::Tags
+pub papo::event::BroadcastTagMsg::to: papo::event::Broadcast
+impl papo::event::BroadcastTagMsg
+pub fn papo::event::BroadcastTagMsg::origin(&self) -> papo::Origin
+impl core::clone::Clone for papo::event::BroadcastTagMsg
+pub fn papo::event::BroadcastTagMsg::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::BroadcastTagMsg
+impl core::cmp::PartialEq for papo::event::BroadcastTagMsg
+pub fn papo::event::BroadcastTagMsg::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::BroadcastTagMsg
+pub fn papo::event::BroadcastTagMsg::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::BroadcastTagMsg
+impl core::marker::Freeze for papo::event::BroadcastTagMsg
+impl core::marker::Send for papo::event::BroadcastTagMsg
+impl core::marker::Sync for papo::event::BroadcastTagMsg
+impl core::marker::Unpin for papo::event::BroadcastTagMsg
+impl core::marker::UnsafeUnpin for papo::event::BroadcastTagMsg
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::BroadcastTagMsg
+impl core::panic::unwind_safe::UnwindSafe for papo::event::BroadcastTagMsg
 #[non_exhaustive] pub struct papo::event::CapsChanged
 pub papo::event::CapsChanged::added: papo::Capabilities
 pub papo::event::CapsChanged::removed: papo::Capabilities
@@ -1356,6 +1424,8 @@ pub papo::Event::AccountCreation(papo::AccountCreation)
 pub papo::Event::AutoJoinFailed::channel: papo::ChannelName
 pub papo::Event::AutoJoinFailed::error: papo::ServerError
 pub papo::Event::AwayChanged(papo::event::AwayChanged)
+pub papo::Event::BroadcastCtcp(papo::event::BroadcastCtcp)
+pub papo::Event::BroadcastTagMsg(papo::event::BroadcastTagMsg)
 pub papo::Event::CapsChanged(papo::event::CapsChanged)
 pub papo::Event::CasemappingChanged(papo::event::CasemappingChanged)
 pub papo::Event::ChannelRenamed(papo::event::ChannelRenamed)
@@ -1400,6 +1470,10 @@ impl papo::Event
 pub const fn papo::Event::as_account_creation(&self) -> core::option::Option<&papo::AccountCreation>
 impl papo::Event
 pub const fn papo::Event::as_away_changed(&self) -> core::option::Option<&papo::event::AwayChanged>
+impl papo::Event
+pub const fn papo::Event::as_broadcast_ctcp(&self) -> core::option::Option<&papo::event::BroadcastCtcp>
+impl papo::Event
+pub const fn papo::Event::as_broadcast_tag_msg(&self) -> core::option::Option<&papo::event::BroadcastTagMsg>
 impl papo::Event
 pub const fn papo::Event::as_caps_changed(&self) -> core::option::Option<&papo::event::CapsChanged>
 impl papo::Event
