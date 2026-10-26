@@ -504,6 +504,7 @@ pub papo_core::Event::AccountChanged::account: papo_core::Account
 pub papo_core::Event::AccountChanged::actor: alloc::string::String
 pub papo_core::Event::AccountChanged::authorship: papo_core::Authorship
 pub papo_core::Event::AccountChanged::nick: papo::Nick
+pub papo_core::Event::AccountChanged::server_time: core::option::Option<std::time::SystemTime>
 #[non_exhaustive] pub papo_core::Event::AccountCreated
 pub papo_core::Event::AccountCreated::account: papo::AccountName
 pub papo_core::Event::AccountCreated::logged_in: bool
@@ -514,6 +515,7 @@ pub papo_core::Event::AwayChanged::actor: alloc::string::String
 pub papo_core::Event::AwayChanged::authorship: papo_core::Authorship
 pub papo_core::Event::AwayChanged::away: papo_core::Away
 pub papo_core::Event::AwayChanged::nick: papo::Nick
+pub papo_core::Event::AwayChanged::server_time: core::option::Option<std::time::SystemTime>
 #[non_exhaustive] pub papo_core::Event::BatchAbandoned
 pub papo_core::Event::BatchAbandoned::batch_type: alloc::string::String
 pub papo_core::Event::BatchAbandoned::reason: papo_core::BatchAbandonReason
@@ -553,6 +555,7 @@ pub papo_core::Event::HostChanged::actor: alloc::string::String
 pub papo_core::Event::HostChanged::authorship: papo_core::Authorship
 pub papo_core::Event::HostChanged::host: alloc::string::String
 pub papo_core::Event::HostChanged::nick: papo::Nick
+pub papo_core::Event::HostChanged::server_time: core::option::Option<std::time::SystemTime>
 pub papo_core::Event::HostChanged::username: alloc::string::String
 #[non_exhaustive] pub papo_core::Event::Invited
 pub papo_core::Event::Invited::actor: alloc::string::String
@@ -2319,6 +2322,7 @@ pub papo_core::TypingChanged::actor: alloc::string::String
 pub papo_core::TypingChanged::authorship: papo_core::Authorship
 pub papo_core::TypingChanged::conversation: papo::Conversation
 pub papo_core::TypingChanged::reason: papo_core::TypingReason
+pub papo_core::TypingChanged::server_time: core::option::Option<std::time::SystemTime>
 pub papo_core::TypingChanged::state: papo::Typing
 pub papo_core::TypingChanged::status: core::option::Option<papo::isupport::Prefix>
 impl papo_core::TypingChanged

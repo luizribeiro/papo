@@ -22,6 +22,47 @@ fn live_activity_retains_the_line_envelope() {
 }
 
 #[test]
+fn derived_events_keep_their_causal_time() {
+    let expected = papo_proto::time::parse("2026-10-20T18:42:11.123Z").unwrap();
+    let tagged = "time=2026-10-20T18:42:11.123Z;msgid=RfcBTzyxY120019";
+    Transcript::new(Config::default().nick("papo"))
+        .server(":papo!~papo@client.example JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server(":emily!~e@cloak.example JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server(&format!("@{tagged} :emily!~e@cloak.example ACCOUNT emily"))
+        .event(|event| {
+            matches!(event, Event::AccountChanged { server_time, .. }
+                if *server_time == Some(expected))
+        })
+        .server(&format!("@{tagged} :emily!~e@cloak.example AWAY :Lunch"))
+        .event(|event| {
+            matches!(event, Event::AwayChanged { server_time, .. }
+                if *server_time == Some(expected))
+        })
+        .server(&format!(
+            "@{tagged} :emily!~e@cloak.example CHGHOST emily users/emily"
+        ))
+        .event(|event| {
+            matches!(event, Event::HostChanged { server_time, .. }
+                if *server_time == Some(expected))
+        })
+        .server(&format!(
+            "@+typing=active;{tagged} :emily!~e@cloak.example TAGMSG #papo-dev"
+        ))
+        .event(|event| {
+            matches!(event, Event::TypingChanged(change)
+                if change.server_time == Some(expected))
+        })
+        .advance(Duration::from_secs(6))
+        .event(|event| {
+            matches!(event, Event::TypingChanged(change)
+                if change.server_time.is_none())
+        })
+        .ignore_rest();
+}
+
+#[test]
 fn history_keeps_each_lines_envelope_tags() {
     Transcript::new(Config::default())
         .server(":ergo.test BATCH +history chathistory #papo")

@@ -4,7 +4,7 @@ use papo_proto::{Command, LineRef, Nick, Prefix, Source, Typing};
 use web_time::Instant;
 
 use crate::{
-    Authorship, Conversation, Event, Session,
+    Authorship, Conversation, Event, LineEnvelope, Session,
     conversation::{LineTarget, classify_line_with_names},
 };
 
@@ -29,6 +29,10 @@ pub enum TypingReason {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct TypingChanged {
+    /// Valid server time on the line that caused the change, when supplied.
+    ///
+    /// This is `None` when a local typing deadline caused the change.
+    pub server_time: Option<std::time::SystemTime>,
     /// The user prefix associated with the typing state.
     pub actor: String,
     /// Whether the user is this session's user.
@@ -246,7 +250,7 @@ impl TypingTable {
         }
         expired
             .into_iter()
-            .map(|deadline| stopped(deadline, TypingReason::TimedOut))
+            .map(|deadline| stopped(deadline, TypingReason::TimedOut, None))
             .collect()
     }
 
@@ -374,6 +378,7 @@ impl Session {
         }
         .to_owned();
         let authorship = self.authorship(message);
+        let server_time = LineEnvelope::from_line(message).server_time();
         if authorship == Authorship::Other {
             let nick = self.names().nick(nick);
             let evicted = TypingTable::notify(
@@ -392,10 +397,12 @@ impl Session {
                 self.outbox.event(Event::TypingChanged(stopped(
                     deadline,
                     TypingReason::TimedOut,
+                    server_time,
                 )));
             }
         }
         self.outbox.event(Event::TypingChanged(TypingChanged {
+            server_time,
             actor: actor.to_owned(),
             authorship,
             conversation,
@@ -436,6 +443,7 @@ impl Session {
             self.outbox.event(Event::TypingChanged(stopped(
                 deadline,
                 TypingReason::Messaged,
+                LineEnvelope::from_line(message).server_time(),
             )));
         }
     }
@@ -503,6 +511,7 @@ impl Session {
                 self.outbox.event(Event::TypingChanged(stopped(
                     deadline,
                     TypingReason::Departed,
+                    LineEnvelope::from_line(message).server_time(),
                 )));
             }
         }
@@ -532,8 +541,13 @@ fn refold_conversation(conversation: &Conversation, mapping: crate::Names) -> Co
     }
 }
 
-fn stopped(deadline: Deadline, reason: TypingReason) -> TypingChanged {
+fn stopped(
+    deadline: Deadline,
+    reason: TypingReason,
+    server_time: Option<std::time::SystemTime>,
+) -> TypingChanged {
     TypingChanged {
+        server_time,
         actor: deadline.actor,
         authorship: Authorship::Other,
         conversation: deadline.conversation,

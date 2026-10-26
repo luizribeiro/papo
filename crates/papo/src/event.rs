@@ -3962,6 +3962,7 @@ mod tests {
     fn maps_account_changed() {
         assert!(matches!(
             forwarded(papo_core::Event::__account_changed(
+                None,
                 "emily!~em@users/emily".into(),
                 Casemapping::default().nick("emily"),
                 Account::LoggedIn(Casemapping::default().account("emily")),
@@ -3976,6 +3977,7 @@ mod tests {
     fn maps_away_changed() {
         assert!(matches!(
             forwarded(papo_core::Event::__away_changed(
+                None,
                 "emily!~em@users/emily".into(),
                 Casemapping::default().nick("emily"),
                 Away::__away_value(Some("Gone to lunch".into())),
@@ -4011,6 +4013,7 @@ mod tests {
     fn maps_host_changed() {
         assert!(matches!(
             forwarded(papo_core::Event::__host_changed(
+                None,
                 "emily!em@127.0.0.1".into(),
                 Casemapping::default().nick("emily"),
                 "~em".into(),
