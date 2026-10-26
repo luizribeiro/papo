@@ -282,8 +282,9 @@ impl State {
     ///
     /// `None` means no marker has been fetched or received.
     #[must_use]
-    pub fn read_marker(&self, target: impl AsRef<str>) -> Option<ReadMarker> {
-        self.core.read_marker(target).map(|marker| {
+    pub fn read_marker(&self, target: impl crate::AsConversation) -> Option<ReadMarker> {
+        let target = self.resolve_conversation(target)?;
+        self.core.read_marker(target.to_string()).map(|marker| {
             marker
                 .read_until
                 .map_or(ReadMarker::Unset, ReadMarker::ReadUntil)
@@ -336,11 +337,25 @@ impl State {
     }
 
     /// Iterates over users currently typing in `conversation`, in start order.
-    pub fn typing<'a>(
-        &'a self,
-        conversation: &'a crate::Conversation,
-    ) -> impl Iterator<Item = &'a crate::Typer> {
-        self.typing.get(conversation)
+    pub fn typing(
+        &self,
+        conversation: impl crate::AsConversation,
+    ) -> impl Iterator<Item = &crate::Typer> {
+        self.resolve_conversation(conversation)
+            .into_iter()
+            .flat_map(|conversation| self.typing.get(&conversation))
+    }
+
+    fn resolve_conversation(
+        &self,
+        conversation: impl crate::AsConversation,
+    ) -> Option<crate::Conversation> {
+        let parts = crate::AsConversation::__parts(&conversation);
+        let origin = self.nick().origin();
+        if parts.origin != crate::Origin::NONE && parts.origin != origin {
+            return None;
+        }
+        self.core.conversation(parts.text).ok()
     }
 
     /// Returns the capabilities enabled on the current connection.
@@ -456,6 +471,11 @@ mod name_tests {
         assert!(!Arc::ptr_eq(&initial.typing, &changed.typing));
         let conversation = changed.parse_target("#papo").unwrap().1;
         assert_eq!(changed.typing(&conversation).count(), 1);
+        assert_eq!(changed.typing("#PAPO").count(), 1);
+        assert_eq!(changed.typing(changed.channel_name("#papo")).count(), 1);
+        assert_eq!(changed.typing("@#papo").count(), 0);
+        let foreign = crate::Origin::__new(91).__channel(changed.casemapping(), "#papo");
+        assert_eq!(changed.typing(foreign).count(), 0);
     }
 
     #[test]
