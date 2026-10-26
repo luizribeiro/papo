@@ -243,7 +243,7 @@ pub(crate) fn from_reacted(line: &Reacted) -> MessageRef {
         &line.conversation,
         line.status.as_deref(),
         line.msgid.as_ref(),
-        &line.account,
+        line.actor.account(),
         None,
         None,
     )
@@ -254,7 +254,9 @@ pub(crate) fn from_redacted(line: &Redacted) -> MessageRef {
         &line.conversation,
         line.status.as_deref(),
         line.msgid.as_ref(),
-        &line.account,
+        line.actor
+            .user()
+            .map_or(&Account::Unknown, crate::UserSource::account),
         None,
         None,
     )

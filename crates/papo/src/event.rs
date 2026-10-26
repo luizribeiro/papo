@@ -459,10 +459,15 @@ fn broadcast_from_line(
         }
         _ => return Err(raw),
     };
-    let Some(source) = message.source() else {
+    let Some(actor) = source::user_from_line(
+        &message,
+        isupport.casemapping(),
+        origin,
+        account_tag_enabled,
+        false,
+    ) else {
         return Err(raw);
     };
-    let actor = source::from_proto_with_origin(source, isupport.casemapping(), origin);
     let tags = Tags::from_message(&message);
     if message.command_is("TAGMSG") {
         return Ok(Event::BroadcastTagMsg(BroadcastTagMsg {
@@ -491,7 +496,6 @@ fn broadcast_from_line(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        account: envelope.account,
         tags,
     }))
 }
@@ -1507,7 +1511,17 @@ pub(crate) fn from_core(
         }
         papo_core::Event::MultilineMessage(message) => return CoreEvent::Line(message.message),
         papo_core::Event::TypingChanged(change) => Event::TypingChanged(TypingChanged {
-            actor: source::from_prefix(change.actor, casemapping, origin),
+            actor: match source::user_from_prefix(
+                &change.actor,
+                casemapping,
+                origin,
+                Account::Unknown,
+                None,
+                None,
+            ) {
+                Some(actor) => actor,
+                None => return CoreEvent::Unknown,
+            },
             authorship: Authorship::from_core(change.authorship),
             conversation: change.conversation,
             status: change.status,
@@ -1516,12 +1530,24 @@ pub(crate) fn from_core(
         }),
         papo_core::Event::TagMessage(message) => {
             let envelope = map_envelope(&message.envelope);
+            let tags = Tags::from_pairs(message.tags);
+            let actor = match source::user_from_prefix(
+                &message.actor,
+                casemapping,
+                origin,
+                envelope.account,
+                tags.contains("bot").then_some(true),
+                None,
+            ) {
+                Some(actor) => actor,
+                None => return CoreEvent::Unknown,
+            };
             let tag = TagMsg {
-                actor: source::from_prefix(message.actor, casemapping, origin),
+                actor,
                 authorship: Authorship::from_core(message.authorship),
                 conversation: message.conversation,
                 status: message.status,
-                tags: Tags::from_pairs(message.tags),
+                tags,
             };
             let reply_to = tag
                 .tags
@@ -1541,7 +1567,6 @@ pub(crate) fn from_core(
                     msgid: envelope.msgid,
                     server_time: envelope.server_time,
                     received_at: envelope.received_at,
-                    account: envelope.account,
                     actor: tag.actor,
                     authorship: tag.authorship,
                     conversation: tag.conversation,
@@ -1578,8 +1603,18 @@ pub(crate) fn from_core(
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
-                account: envelope.account,
-                actor: source::from_prefix(redacted.actor, casemapping, origin),
+                actor: source::user_from_prefix(
+                    &redacted.actor,
+                    casemapping,
+                    origin,
+                    envelope.account,
+                    None,
+                    None,
+                )
+                .map_or_else(
+                    || source::from_prefix(redacted.actor, casemapping, origin),
+                    Source::User,
+                ),
                 authorship: Authorship::from_core(redacted.authorship),
                 conversation: redacted.conversation,
                 status: redacted.status,
@@ -2752,8 +2787,10 @@ mod tests {
                 assert_eq!(account, &Account::Unknown, "{expected_variant}");
             }
             match &event {
-                Event::Reacted(event) => assert_eq!(event.account, Account::Unknown),
-                Event::Redacted(event) => assert_eq!(event.account, Account::Unknown),
+                Event::Reacted(event) => assert_eq!(event.actor.account(), &Account::Unknown),
+                Event::Redacted(event) => {
+                    assert_eq!(event.actor.user().unwrap().account(), &Account::Unknown)
+                }
                 _ => {}
             }
         }
@@ -3096,7 +3133,7 @@ mod tests {
         let Event::Reacted(reaction) = forwarded(papo_core::Event::TagMessage(tag)) else {
             panic!("expected reaction")
         };
-        assert!(matches!(reaction.actor, Source::User(ref user) if user.nick() == "alice"));
+        assert_eq!(reaction.actor.nick(), "alice");
         assert!(
             matches!(&reaction.conversation, Conversation::Channel(channel) if channel == "#ops")
         );
@@ -3159,7 +3196,7 @@ mod tests {
             forwarded(event),
             Event::TypingChanged(change)
                 if change.state == Typing::Active
-                    && matches!(change.actor, Source::User(ref user) if user.nick() == "alice")
+                    && change.actor.nick() == "alice"
         ));
     }
 

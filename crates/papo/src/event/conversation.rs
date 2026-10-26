@@ -1,8 +1,8 @@
 use std::time::SystemTime;
 
-use crate::{Account, Conversation, Mask, MessageId, Typing};
+use crate::{Conversation, Mask, MessageId, Typing};
 
-use super::{Authorship, Source, Tags, TypingReason};
+use super::{Authorship, Source, Tags, TypingReason, UserSource};
 
 /// A server-wide audience addressed by `*` or a server mask.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -19,7 +19,7 @@ pub enum Broadcast {
 #[non_exhaustive]
 pub struct BroadcastCtcp {
     /// The user or server that sent the CTCP message.
-    pub actor: Source,
+    pub actor: UserSource,
     /// Whether the actor is this client's user.
     pub authorship: Authorship,
     /// The server-wide audience addressed by the message.
@@ -34,8 +34,6 @@ pub struct BroadcastCtcp {
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
     pub received_at: SystemTime,
-    /// The actor's account state reported by `account-tag`.
-    pub account: Account,
     /// All message tags in wire order.
     pub tags: Tags,
 }
@@ -45,7 +43,7 @@ pub struct BroadcastCtcp {
 #[non_exhaustive]
 pub struct BroadcastTagMsg {
     /// The user or server that sent the message.
-    pub actor: Source,
+    pub actor: UserSource,
     /// Whether the actor is this client's user.
     pub authorship: Authorship,
     /// The server-wide audience addressed by the message.
@@ -54,12 +52,10 @@ pub struct BroadcastTagMsg {
     pub tags: Tags,
 }
 
-fn broadcast_origin(to: &Broadcast, actor: &Source) -> crate::Origin {
+fn broadcast_origin(to: &Broadcast, actor: &UserSource) -> crate::Origin {
     match to {
         Broadcast::Mask(mask) => mask.origin(),
-        Broadcast::Everyone => actor
-            .nick()
-            .map_or(crate::Origin::NONE, crate::Nick::origin),
+        Broadcast::Everyone => actor.nick().origin(),
     }
 }
 
@@ -99,10 +95,8 @@ pub struct Reacted {
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
     pub received_at: SystemTime,
-    /// The actor's account state reported by `account-tag`.
-    pub account: Account,
-    /// The user or server that changed the reaction.
-    pub actor: Source,
+    /// The user that changed the reaction.
+    pub actor: UserSource,
     /// Whether the actor is this client's user.
     pub authorship: Authorship,
     /// The IRC conversation containing the message.
@@ -133,8 +127,6 @@ pub struct Redacted {
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
     pub received_at: SystemTime,
-    /// The actor's account state reported by `account-tag`.
-    pub account: Account,
     /// The user or server that removed the message.
     pub actor: Source,
     /// Whether the actor is this client's user.
@@ -158,7 +150,7 @@ pub struct Redacted {
 #[non_exhaustive]
 pub struct TypingChanged {
     /// The user or server that sent the notification.
-    pub actor: Source,
+    pub actor: UserSource,
     /// Whether the actor is this client's user.
     pub authorship: Authorship,
     /// The IRC conversation where typing is occurring.
@@ -180,7 +172,7 @@ pub struct TypingChanged {
 #[non_exhaustive]
 pub struct TagMsg {
     /// The user or server that sent the message.
-    pub actor: Source,
+    pub actor: UserSource,
     /// Whether the actor is this client's user.
     pub authorship: Authorship,
     /// The IRC conversation addressed by the message.
@@ -295,17 +287,23 @@ pub struct StandardReply {
 
 #[cfg(test)]
 mod tests {
-    use super::{Account, Authorship, Broadcast, BroadcastCtcp, BroadcastTagMsg, Tags};
+    use super::{Authorship, Broadcast, BroadcastCtcp, BroadcastTagMsg, Tags};
 
     #[test]
     fn broadcast_payloads_report_the_client_origin() {
         let origin = crate::Origin::__new(73);
         let mapping = crate::Casemapping::default();
-        let actor = super::super::source::from_proto_with_origin(
-            papo_proto::Source::__user("oper", Some("staff"), Some("staff.example")),
+        let actor = super::super::source::user_from_line(
+            &papo_proto::Line::new("TAGMSG")
+                .param("*")
+                .with_source("oper!staff@staff.example")
+                .as_ref(),
             mapping,
             origin,
-        );
+            false,
+            false,
+        )
+        .unwrap();
         for to in [
             Broadcast::Everyone,
             Broadcast::Mask(origin.__mask(mapping, "$*.example.org")),
@@ -327,7 +325,6 @@ mod tests {
             msgid: None,
             server_time: None,
             received_at: std::time::UNIX_EPOCH,
-            account: Account::Unknown,
             tags: Tags::default(),
         };
         assert_eq!(ctcp.origin(), origin);

@@ -190,6 +190,36 @@ pub(crate) fn user_from_line(
     })
 }
 
+pub(crate) fn user_from_prefix(
+    prefix: &str,
+    casemapping: Casemapping,
+    origin: crate::Origin,
+    account: Account,
+    is_bot: Option<bool>,
+    oper: Option<Oper>,
+) -> Option<UserSource> {
+    let line = papo_proto::Line::new("TAGMSG")
+        .param("*")
+        .with_source(prefix);
+    let papo_proto::Source::User {
+        nick,
+        username,
+        host,
+        ..
+    } = line.as_ref().source()?
+    else {
+        return None;
+    };
+    Some(UserSource {
+        nick: origin.__nick(casemapping, nick),
+        username: username.filter(|_| host.is_some()).map(str::to_owned),
+        host: host.map(str::to_owned),
+        account,
+        is_bot,
+        oper,
+    })
+}
+
 pub(crate) fn from_core(source: papo_core::Source, origin: crate::Origin) -> Option<Source> {
     match source {
         papo_core::Source::User {
