@@ -1,8 +1,8 @@
 use std::time::SystemTime;
 
-use crate::{Account, AccountName, Authorship, Away, ChannelName, MessageId, Nick, ServerName};
+use crate::{Account, Authorship, Away, ChannelName, MessageId, Nick, ServerName};
 
-use super::{Source, UserSource};
+use super::UserSource;
 
 /// A user disconnected from the network.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -63,11 +63,13 @@ pub struct AwayChanged {
 #[non_exhaustive]
 pub struct AccountChanged {
     /// The affected user.
-    pub actor: Source,
-    /// The affected user's nickname.
-    pub nick: Nick,
-    /// The authenticated account, or `None` when logged out.
-    pub account: Option<AccountName>,
+    pub actor: UserSource,
+    /// The account state after the change.
+    ///
+    /// This is separate from the account fact carried by [`Self::actor`].
+    pub new: Account,
+    /// Whether the affected user is this client's user.
+    pub authorship: Authorship,
 }
 
 /// A user's username or hostname changed.
@@ -75,13 +77,13 @@ pub struct AccountChanged {
 #[non_exhaustive]
 pub struct HostChanged {
     /// The affected user.
-    pub actor: Source,
-    /// The affected user's nickname.
-    pub nick: Nick,
+    pub actor: UserSource,
     /// The new username from `nick!user@host`; it may start with `~`.
-    pub username: String,
+    pub new_username: String,
     /// The user's new hostname.
-    pub host: String,
+    pub new_host: String,
+    /// Whether the affected user is this client's user.
+    pub authorship: Authorship,
 }
 
 /// A user's real name changed.
@@ -89,23 +91,19 @@ pub struct HostChanged {
 #[non_exhaustive]
 pub struct RealnameChanged {
     /// The affected user.
-    pub actor: Source,
-    /// The affected user's nickname.
-    pub nick: Nick,
+    pub actor: UserSource,
     /// The user's new real name.
-    pub realname: String,
+    pub new: String,
+    /// Whether the affected user is this client's user.
+    pub authorship: Authorship,
 }
 
 /// A monitored nickname came online.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct MonitorOnline {
-    /// The monitored nickname.
-    pub nick: Nick,
-    /// The username from `nick!user@host`, when supplied by the server; it may start with `~`.
-    pub username: Option<String>,
-    /// The user's current hostname, when supplied by the server.
-    pub host: Option<String>,
+    /// The monitored user reported online.
+    pub subject: UserSource,
 }
 
 /// A monitored nickname went offline.
@@ -113,7 +111,7 @@ pub struct MonitorOnline {
 #[non_exhaustive]
 pub struct MonitorOffline {
     /// The monitored nickname.
-    pub nick: Nick,
+    pub subject: Nick,
 }
 
 /// A netsplit or netjoin batch and its server names, in wire order.

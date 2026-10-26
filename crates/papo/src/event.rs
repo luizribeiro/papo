@@ -1902,45 +1902,89 @@ pub(crate) fn from_core(
         }),
         papo_core::Event::AccountChanged {
             actor,
-            nick,
             account,
+            authorship,
             ..
         } => Event::AccountChanged(AccountChanged {
-            actor: source::from_prefix(actor, casemapping, origin),
-            nick,
-            account: match account {
-                Account::LoggedIn(account) => Some(account),
-                _ => None,
+            actor: match source::user_from_prefix(
+                &actor,
+                casemapping,
+                origin,
+                if account_tag_enabled {
+                    account.clone()
+                } else {
+                    Account::Unknown
+                },
+                None,
+                None,
+            ) {
+                Some(actor) => actor,
+                None => return CoreEvent::Unknown,
             },
+            new: account,
+            authorship: Authorship::from_core(authorship),
         }),
         papo_core::Event::AwayChanged {
-            actor, nick, away, ..
-        } => Event::AwayChanged(AwayChanged {
-            actor: source::from_prefix(actor, casemapping, origin),
-            nick,
+            actor,
             away,
+            authorship,
+            ..
+        } => Event::AwayChanged(AwayChanged {
+            actor: match source::user_from_prefix(
+                &actor,
+                casemapping,
+                origin,
+                Account::Unknown,
+                None,
+                None,
+            ) {
+                Some(actor) => actor,
+                None => return CoreEvent::Unknown,
+            },
+            new: away,
+            authorship: Authorship::from_core(authorship),
         }),
         papo_core::Event::HostChanged {
             actor,
-            nick,
             username,
             host,
+            authorship,
             ..
         } => Event::HostChanged(HostChanged {
-            actor: source::from_prefix(actor, casemapping, origin),
-            nick,
-            username,
-            host,
+            actor: match source::user_from_prefix(
+                &actor,
+                casemapping,
+                origin,
+                Account::Unknown,
+                None,
+                None,
+            ) {
+                Some(actor) => actor,
+                None => return CoreEvent::Unknown,
+            },
+            new_username: username,
+            new_host: host,
+            authorship: Authorship::from_core(authorship),
         }),
         papo_core::Event::RealnameChanged {
             actor,
-            nick,
             realname,
+            authorship,
             ..
         } => Event::RealnameChanged(RealnameChanged {
-            actor: source::from_prefix(actor, casemapping, origin),
-            nick,
-            realname,
+            actor: match source::user_from_prefix(
+                &actor,
+                casemapping,
+                origin,
+                Account::Unknown,
+                None,
+                None,
+            ) {
+                Some(actor) => actor,
+                None => return CoreEvent::Unknown,
+            },
+            new: realname,
+            authorship: Authorship::from_core(authorship),
         }),
         papo_core::Event::ModeChanged {
             envelope,
@@ -2003,12 +2047,21 @@ pub(crate) fn from_core(
             host,
             ..
         } => Event::MonitorOnline(MonitorOnline {
-            nick,
-            username,
-            host,
+            subject: source::user_from_prefix(
+                &match (username, host) {
+                    (Some(username), Some(host)) => format!("{nick}!{username}@{host}"),
+                    _ => nick.to_string(),
+                },
+                casemapping,
+                origin,
+                Account::Unknown,
+                None,
+                None,
+            )
+            .expect("monitor subject is a user"),
         }),
         papo_core::Event::MonitorOffline { nick, .. } => {
-            Event::MonitorOffline(MonitorOffline { nick })
+            Event::MonitorOffline(MonitorOffline { subject: nick })
         }
         papo_core::Event::MonitorListFull { limit, nicks, .. } => {
             Event::Warning(Warning::MonitorListFull {
