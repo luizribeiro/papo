@@ -54,7 +54,7 @@ async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
         assert!(!crate::scenarios::support::conversation_is_private(
             &message.conversation
         ));
-        assert_eq!(message.return_address(), name);
+        assert_eq!(message.return_address(), name.as_str());
         assert_eq!(crate::source_nick(&message.actor), Some(bob_nick.as_ref()));
     }
 

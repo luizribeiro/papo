@@ -33,7 +33,7 @@ async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
         crate::scenarios::support::conversation_name(&message.conversation),
         Some(channel.as_str())
     );
-    assert_eq!(message.msgid.as_ref(), sent.msgid.as_ref());
+    assert_eq!(message.msgid.as_ref(), sent.msgid());
     assert_eq!(message.server_time, sent.server_time);
     assert!(matches!(
         &message.account,
@@ -172,7 +172,7 @@ async fn away_private_message(s: Scenario) -> papo_testing::Result<()> {
         Some(bob_nick.as_ref())
     );
     assert_eq!(message.text, text);
-    assert_eq!(message.msgid.as_ref(), sent.msgid.as_ref());
+    assert_eq!(message.msgid.as_ref(), sent.msgid());
     assert_eq!(message.server_time, sent.server_time);
     assert_eq!(
         alice.state().away(),

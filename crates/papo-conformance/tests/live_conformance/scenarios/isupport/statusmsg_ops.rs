@@ -106,7 +106,7 @@ async fn statusmsg_ops(s: Scenario) -> papo_testing::Result<()> {
     );
     assert_eq!(received.status.as_deref(), Some(['@'].as_slice()));
     assert_eq!(received.raw_text, "operators only");
-    assert_eq!(received.msgid.as_ref(), sent.msgid.as_ref());
+    assert_eq!(received.msgid.as_ref(), sent.msgid());
     assert_eq!(
         crate::source_nick(&received.actor),
         Some(alice_nick.as_ref())
@@ -181,7 +181,7 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| {
             event
                 .as_reacted()
-                .filter(|reaction| reaction.message == question_id && reaction.reaction == "🛡️")
+                .filter(|reaction| reaction.reacts_to == question_id && reaction.reaction == "🛡️")
         })
         .await?;
     assert_eq!(reaction.status.as_deref(), Some(['@'].as_slice()));
@@ -211,7 +211,7 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
             .wait_for(|event| message_text(event, "bare-channel threaded answer"))
             .await?;
         assert_eq!(leaked.status, None);
-        assert_eq!(leaked.reply_to.as_ref(), Some(&question_id));
+        assert_eq!(leaked.in_reply_to.as_ref(), Some(&question_id));
     }
 
     let bare_channel = bob.state().channel_name(&channel);
@@ -219,9 +219,9 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
     for peer in [&mut alice, &mut carol, &mut dave] {
         let leaked = peer
             .wait_for(|event| {
-                event
-                    .as_reacted()
-                    .filter(|reaction| reaction.message == question_id && reaction.reaction == "📣")
+                event.as_reacted().filter(|reaction| {
+                    reaction.reacts_to == question_id && reaction.reaction == "📣"
+                })
             })
             .await?;
         assert_eq!(leaked.status, None);

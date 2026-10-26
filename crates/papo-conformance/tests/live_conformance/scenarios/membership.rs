@@ -587,7 +587,7 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
             >= Some(Rank::Op)
     );
 
-    alice.invite(&channel, carol_nick.as_ref()).await?;
+    alice.invite(carol_nick.as_ref(), &channel).await?;
     let target = carol.wait_for(Event::as_invited).await?;
     let observer = bob.wait_for(Event::as_invited).await?;
 
@@ -648,17 +648,17 @@ async fn invite_rules(s: Scenario) -> papo_testing::Result<()> {
         .await?;
 
     assert_refusal(
-        bob.invite(&channel, carol_nick.as_ref()).await.unwrap_err(),
+        bob.invite(carol_nick.as_ref(), &channel).await.unwrap_err(),
         Refusal::ChannelOperatorPrivilegesNeeded,
         "482",
     );
     assert_refusal(
-        alice.invite(&channel, bob_nick.as_ref()).await.unwrap_err(),
+        alice.invite(bob_nick.as_ref(), &channel).await.unwrap_err(),
         Refusal::UserOnChannel,
         "443",
     );
 
-    alice.invite(&channel, carol_nick.as_ref()).await?;
+    alice.invite(carol_nick.as_ref(), &channel).await?;
     let invited = carol.wait_for(Event::as_invited).await?;
     assert_eq!(invited.channel.as_ref(), channel);
     assert_eq!(invited.subject, carol_nick);
@@ -1577,7 +1577,7 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
         Refusal::InviteOnlyChannel,
         "473",
     );
-    alice.invite(&channel, carol_nick.as_ref()).await?;
+    alice.invite(carol_nick.as_ref(), &channel).await?;
     let invited = carol.wait_for(Event::as_invited).await?;
     assert_eq!(invited.subject, carol_nick);
     assert_eq!(invited.channel.as_ref(), channel);

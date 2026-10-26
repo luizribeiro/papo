@@ -60,7 +60,7 @@ async fn batch(s: Scenario) -> papo_testing::Result<()> {
         .messages()
         .find(|message| message.raw_text == "batch correlation deployment")
         .expect("history contains the sent message");
-    assert_eq!(message.msgid.as_ref(), sent.msgid.as_ref());
+    assert_eq!(message.msgid.as_ref(), sent.msgid());
     assert_eq!(message.server_time, sent.server_time);
     Ok(())
 }

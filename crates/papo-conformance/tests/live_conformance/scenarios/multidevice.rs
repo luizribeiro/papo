@@ -66,7 +66,7 @@ async fn multidevice_message_fanout(s: Scenario) -> papo_testing::Result<()> {
         conversation_name(&received.conversation),
         Some(channel.as_str())
     );
-    assert_eq!(received.return_address(), channel);
+    assert_eq!(received.return_address(), channel.as_str());
     phone
         .expect_none(|event| {
             event
@@ -216,10 +216,10 @@ async fn multidevice_ops_message_operations(s: Scenario) -> papo_testing::Result
                 .filter(|message| message.text == "operators reviewing the deployment")
         })
         .await?;
-    let id = sent.msgid.as_ref().expect("message has an identifier");
+    let id = sent.msgid().expect("message has an identifier");
     assert_eq!(original.msgid.as_ref(), Some(id));
     assert_eq!(original.status.as_deref(), Some(['@'].as_slice()));
-    assert_eq!(original.return_address(), target);
+    assert_eq!(original.return_address(), target.as_str());
     observer
         .expect_none(|event| {
             event
@@ -238,9 +238,9 @@ async fn multidevice_ops_message_operations(s: Scenario) -> papo_testing::Result
                 .filter(|message| message.text == "operators approve the deployment")
         })
         .await?;
-    assert_eq!(reply.reply_to.as_ref(), Some(id));
+    assert_eq!(reply.in_reply_to.as_ref(), Some(id));
     assert_eq!(reply.status.as_deref(), Some(['@'].as_slice()));
-    assert_eq!(reply.return_address(), target);
+    assert_eq!(reply.return_address(), target.as_str());
     observer
         .expect_none(|event| {
             event
@@ -251,10 +251,10 @@ async fn multidevice_ops_message_operations(s: Scenario) -> papo_testing::Result
 
     desktop.react(&sent, "🛡️").await?;
     let added = phone.wait_for(Event::as_reacted).await?;
-    assert_eq!(&added.message, id);
+    assert_eq!(&added.reacts_to, id);
     assert_eq!(added.reaction, "🛡️");
     assert_eq!(added.status.as_deref(), Some(['@'].as_slice()));
-    assert_eq!(added.return_address(), target);
+    assert_eq!(added.return_address(), target.as_str());
     observer.expect_none(Event::as_reacted).await?;
 
     let Error::Server(refusal) = desktop
@@ -278,13 +278,13 @@ async fn multidevice_ops_message_operations(s: Scenario) -> papo_testing::Result
                 .filter(|message| message.text == "deployment note to remove")
         })
         .await?;
-    let id = sent.msgid.as_ref().expect("message has an identifier");
+    let id = sent.msgid().expect("message has an identifier");
     desktop.redact(&sent, "deployment superseded").await?;
     let removed = phone.wait_for(Event::as_redacted).await?;
-    assert_eq!(&removed.message, id);
+    assert_eq!(&removed.redacts, id);
     assert_eq!(removed.reason.as_deref(), Some("deployment superseded"));
     assert_eq!(removed.status, None);
-    assert_eq!(removed.return_address(), channel);
+    assert_eq!(removed.return_address(), channel.as_str());
     Ok(())
 }
 
@@ -510,10 +510,7 @@ async fn multidevice_dm_fanout_thread(s: Scenario) -> papo_testing::Result<()> {
     let on_desktop = desktop.wait_for(|event| chat_text(event, text)).await?;
     let on_phone = phone.wait_for(|event| chat_text(event, text)).await?;
     let on_tablet = tablet.wait_for(|event| chat_text(event, text)).await?;
-    let id = sent
-        .msgid
-        .as_ref()
-        .expect("direct message has an identifier");
+    let id = sent.msgid().expect("direct message has an identifier");
     for message in [&on_desktop, &on_phone, &on_tablet] {
         assert_eq!(message.msgid.as_ref(), Some(id));
         assert_eq!(message.authorship, papo::Authorship::Other);
@@ -532,7 +529,7 @@ async fn multidevice_dm_fanout_thread(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| chat_text(event, "reviewed from the phone"))
         .await?;
     assert_eq!(sibling_reply.authorship, papo::Authorship::Own);
-    assert_eq!(sibling_reply.reply_to.as_ref(), Some(id));
+    assert_eq!(sibling_reply.in_reply_to.as_ref(), Some(id));
     assert_eq!(
         conversation_name(&sibling_reply.conversation),
         Some(sender.nick().as_ref())
@@ -541,7 +538,7 @@ async fn multidevice_dm_fanout_thread(s: Scenario) -> papo_testing::Result<()> {
     let received_reply = sender
         .wait_for(|event| chat_text(event, "reviewed from the phone"))
         .await?;
-    assert_eq!(received_reply.reply_to.as_ref(), Some(id));
+    assert_eq!(received_reply.in_reply_to.as_ref(), Some(id));
     assert_eq!(received_reply.return_address(), desktop.nick().as_ref());
     desktop
         .expect_none(|event| chat_text(event, "reviewed from the phone"))

@@ -61,7 +61,7 @@ async fn draft_chathistory(s: Scenario) -> papo_testing::Result<()> {
             .map(|message| message.msgid.as_ref())
             .collect::<Vec<_>>(),
         sent.iter()
-            .map(|message| message.msgid.as_ref())
+            .map(|message| message.msgid())
             .collect::<Vec<_>>()
     );
     for message in messages {
@@ -123,7 +123,7 @@ async fn chathistory_paging(s: Scenario) -> papo_testing::Result<()> {
     let (_, reader, channel, sent) = history_peers(&s, &texts).await?;
     let ids = sent
         .iter()
-        .map(|message| message.msgid.as_ref().expect("Ergo supplies a message ID"))
+        .map(|message| message.msgid().expect("Ergo supplies a message ID"))
         .collect::<Vec<_>>();
 
     let before = reader

@@ -132,7 +132,7 @@ impl Peer {
 
     /// Requests users matching `mask` using this peer's server rules.
     pub fn who(&self, mask: impl AsRef<str>) -> papo::RequestFuture<Vec<papo::WhoEntry>> {
-        self.client.who(self.client.state().mask(mask))
+        self.client.who(self.client.state().mask(mask).to_string())
     }
 
     /// Joins `channel` using this peer's server rules.
@@ -167,12 +167,12 @@ impl Peer {
     /// Invites `nick` to `channel` using this peer's server rules.
     pub fn invite(
         &self,
-        channel: impl AsRef<str>,
         nick: impl AsRef<str>,
+        channel: impl AsRef<str>,
     ) -> papo::RequestFuture<()> {
         self.client.invite(
-            self.client.state().channel_name(channel),
             self.client.state().nickname(nick),
+            self.client.state().channel_name(channel),
         )
     }
 
