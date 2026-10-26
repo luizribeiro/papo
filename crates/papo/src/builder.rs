@@ -395,7 +395,12 @@ impl Builder {
     /// # _ = papo::Client::builder("ircs://irc.example.net", "papo-client").away_on_connect("At lunch");
     /// ```
     pub fn away_on_connect(mut self, text: impl Into<String>) -> Self {
-        self.config.away_on_connect = Some(AwayOnConnect::Message(text.into()));
+        let text = text.into();
+        if text.is_empty() {
+            self.invalid_input.get_or_insert(InvalidInput::EmptyText);
+        } else {
+            self.config.away_on_connect = Some(AwayOnConnect::Message(text));
+        }
         self
     }
 
@@ -466,6 +471,9 @@ impl Builder {
 
     /// Trusts only the certificates in a PEM document.
     ///
+    /// This and [`Self::tls_extra_ca_pem`] replace the previously configured roots; the last call
+    /// wins.
+    ///
     /// An IP endpoint can use a private CA while authenticating the DNS name in the certificate:
     ///
     /// ```no_run
@@ -488,6 +496,8 @@ impl Builder {
     }
 
     /// Adds certificates from a PEM document to the platform trust roots.
+    ///
+    /// This and [`Self::tls_ca_pem`] replace the previously configured roots; the last call wins.
     ///
     /// ```
     /// # _ = papo::Client::builder("ircs://irc.example.net", "papo-client").tls_extra_ca_pem(Vec::new());
@@ -1334,6 +1344,10 @@ mod tests {
                 InvalidInput::ZeroEventCapacity,
             ),
             (
+                Builder::new("ircs://irc.example.net").away_on_connect(""),
+                InvalidInput::EmptyText,
+            ),
+            (
                 Builder::new("ircs://irc.example.net").request_caps(["chathistory"]),
                 InvalidInput::KnownCapability {
                     capability: "chathistory".to_owned(),
@@ -1484,12 +1498,18 @@ mod tests {
     #[test]
     fn configures_tls_material_and_server_name() {
         let builder = Builder::new("ircs://irc.example.net")
+            .tls_ca_pem(b"replaced CA".to_vec())
             .tls_extra_ca_pem(b"test CA".to_vec())
             .tls_client_cert(b"certificate".to_vec(), "private key")
             .tls_server_name("chat.example.net");
         assert!(matches!(builder.tls.roots, TlsRoots::PlatformAndCa(pem) if pem == b"test CA"));
         assert!(builder.tls.client_certificate.is_some());
         assert_eq!(builder.tls.server_name.as_deref(), Some("chat.example.net"));
+
+        let builder = Builder::new("ircs://irc.example.net")
+            .tls_extra_ca_pem(b"replaced extra CA".to_vec())
+            .tls_ca_pem(b"only CA".to_vec());
+        assert!(matches!(builder.tls.roots, TlsRoots::Ca(pem) if pem == b"only CA"));
     }
 
     #[test]
