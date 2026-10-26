@@ -45,7 +45,7 @@ async fn typed_requests_round_trip_against_ergo() {
         );
         assert!(
             client
-                .who(support::mask(&channel))
+                .who(support::mask(&channel).to_string())
                 .await
                 .unwrap()
                 .iter()

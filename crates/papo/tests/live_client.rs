@@ -48,9 +48,9 @@ async fn registers_messages_itself_and_quits() {
             .unwrap();
         assert!(matches!(
             sent.conversation,
-            papo::Conversation::Private(other) if other == nick.as_str()
+            papo::Conversation::Private(ref other) if other == nick.as_str()
         ));
-        assert!(sent.msgid.is_some());
+        assert!(sent.msgid().is_some());
 
         client.quit("live client test complete").await.unwrap();
         loop {

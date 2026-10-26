@@ -53,7 +53,7 @@ async fn reply_between_two_clients_carries_the_original_msgid() {
             message.text == "pong" && source_nick(message).as_deref() == Some(nick_b.as_str())
         })
         .await;
-        assert_eq!(response.reply_to.as_ref(), Some(&ping_msgid));
+        assert_eq!(response.in_reply_to.as_ref(), Some(&ping_msgid));
 
         client_b.quit("live reply test complete").await.unwrap();
         client_a.quit("live reply test complete").await.unwrap();
@@ -119,7 +119,7 @@ async fn reactions_reach_another_client_with_reply_context() {
         assert_ne!(reaction.conversation, incoming.conversation);
         assert_eq!(reaction.origin(), client_a.origin());
         assert_eq!(reaction.status, incoming.status);
-        assert_eq!(&reaction.message, id);
+        assert_eq!(&reaction.reacts_to, id);
 
         client_b.quit("reaction test complete").await.unwrap();
         client_a.quit("reaction test complete").await.unwrap();
@@ -176,7 +176,7 @@ async fn multiline_capability_preserves_plain_and_batched_message_ids() {
             .privmsg(&channel, "plain message with multiline enabled")
             .await
             .unwrap();
-        let plain_id = plain.msgid.expect("plain echo supplies msgid");
+        let plain_id = plain.msgid().expect("plain echo supplies msgid").clone();
         assert!(plain.server_time.is_some());
         let incoming = wait_message(&mut events_b, |message| {
             message.raw_text == "plain message with multiline enabled"
@@ -188,7 +188,10 @@ async fn multiline_capability_preserves_plain_and_batched_message_ids() {
             .privmsg(&channel, "first deployment line\nsecond deployment line")
             .await
             .unwrap();
-        let multiline_id = multiline.msgid.expect("multiline echo supplies msgid");
+        let multiline_id = multiline
+            .msgid()
+            .expect("multiline echo supplies msgid")
+            .clone();
         assert!(multiline.server_time.is_some());
         let incoming = wait_message(&mut events_b, |message| {
             message.raw_text == "first deployment line\nsecond deployment line"
@@ -205,7 +208,7 @@ async fn multiline_capability_preserves_plain_and_batched_message_ids() {
             message.raw_text == "reply through the multiline id"
         })
         .await;
-        assert_eq!(reply.reply_to.as_ref(), Some(&multiline_id));
+        assert_eq!(reply.in_reply_to.as_ref(), Some(&multiline_id));
 
         client_b.quit("multiline id test complete").await.unwrap();
         client_a.quit("multiline id test complete").await.unwrap();

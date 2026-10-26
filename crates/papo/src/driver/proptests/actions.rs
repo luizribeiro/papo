@@ -46,7 +46,9 @@ async fn arbitrary_core_action_input_is_rejected_or_emits_valid_lines() {
         });
         check!({
             let first = first.clone();
-            move |client: &crate::Client| client.who(crate::Casemapping::default().mask(first))
+            move |client: &crate::Client| {
+                client.who(crate::Casemapping::default().mask(first).to_string())
+            }
         });
         check!({
             let (first, third) = (first.clone(), third.clone());
@@ -73,7 +75,7 @@ async fn arbitrary_core_action_input_is_rejected_or_emits_valid_lines() {
             let (first, second) = (first.clone(), second.clone());
             move |client: &crate::Client| {
                 let mapping = crate::Casemapping::default();
-                client.invite(mapping.channel(first), mapping.nick(second))
+                client.invite(mapping.nick(second), mapping.channel(first))
             }
         });
         check!({

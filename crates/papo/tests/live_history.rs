@@ -63,12 +63,12 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
                 .map(|message| message.msgid.as_deref())
                 .collect::<Vec<_>>(),
             sent.iter()
-                .map(|message| message.msgid.as_deref())
+                .map(|message| message.msgid().map(AsRef::as_ref))
                 .collect::<Vec<_>>()
         );
         assert!(messages.iter().all(|message| message.msgid.is_some()));
 
-        let third = sent[2].msgid.as_ref().expect("Ergo supplies a msgid");
+        let third = sent[2].msgid().expect("Ergo supplies a msgid");
         let before = client
             .history(&channel)
             .before(third)

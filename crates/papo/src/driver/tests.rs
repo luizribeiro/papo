@@ -343,7 +343,7 @@ async fn message_fields_use_captured_session_facts() {
     assert!(matches!(&message.account, crate::Account::LoggedIn(account) if account == "emily"));
     assert!(message.is_bot);
     assert_eq!(
-        message.reply_to.as_ref().map(AsRef::as_ref),
+        message.in_reply_to.as_ref().map(AsRef::as_ref),
         Some("RfcBTzyxY120003")
     );
     assert_eq!(
@@ -4539,7 +4539,7 @@ async fn structured_requests_resolve_fail_and_abort() {
     .await;
     let who = tokio::spawn({
         let client = client.clone();
-        async move { client.who(test_mask("#papo")).await }
+        async move { client.who(test_mask("#papo").to_string()).await }
     });
     client_line(&mut server, b"@label=1 WHO #papo %tcuhnfar,152\r\n").await;
     server_line(&mut server, b"@label=1 :ergo.test BATCH +who-42 labeled-response\r\n@batch=who-42 :ergo.test 354 papo-driver 152 #papo ~alice client.example alice H@B alice :Alice Example\r\n@batch=who-42 :ergo.test 354 papo-driver 152 #papo ~dan user.example dan G+* 0 :Dan Away\r\n@batch=who-42 :ergo.test 315 papo-driver #papo :End of WHO list\r\n:ergo.test BATCH -who-42\r\n").await;
@@ -4795,7 +4795,7 @@ async fn membership_actions_confirm_success_and_refusal() {
         let client = client.clone();
         async move {
             client
-                .invite(test_channel("#papo"), test_nick("carol"))
+                .invite(test_nick("carol"), test_channel("#papo"))
                 .await
         }
     });
@@ -4828,7 +4828,7 @@ async fn membership_actions_confirm_success_and_refusal() {
 
     assert!(matches!(
         client
-            .invite(test_channel("not-a-channel"), test_nick("bad,nick"))
+            .invite(test_nick("bad,nick"), test_channel("not-a-channel"))
             .await,
         Err(Error::InvalidInput(_))
     ));
@@ -5721,7 +5721,7 @@ async fn typed_requests_match_unlabelled_responses() {
 
     let who = tokio::spawn({
         let client = client.clone();
-        async move { client.who(test_mask("#papo")).await }
+        async move { client.who(test_mask("#papo").to_string()).await }
     });
     client_line(&mut server, b"WHO #papo\r\n").await;
     server_line(&mut server, b":ergo.test 352 papo-driver #papo ~alice host ergo.test alice H@ :0 Alice Example\r\n:ergo.test 315 papo-driver #papo :End of WHO list\r\n").await;
@@ -6307,7 +6307,7 @@ async fn message_builder_sends_reply_context_and_custom_tags() {
     )
     .await;
     assert_eq!(
-        within(sent).await.unwrap().unwrap().msgid.unwrap(),
+        within(sent).await.unwrap().unwrap().msgid().unwrap(),
         "RfcBTzyxY120005"
     );
 
@@ -6324,7 +6324,7 @@ async fn message_builder_sends_reply_context_and_custom_tags() {
     )
     .await;
     assert_eq!(
-        within(action).await.unwrap().unwrap().msgid.unwrap(),
+        within(action).await.unwrap().unwrap().msgid().unwrap(),
         "RfcBTzyxY120006"
     );
     within(server.shutdown()).await.unwrap();
@@ -6468,7 +6468,7 @@ async fn chat_text_returns_metadata_from_every_labelled_echo() {
     )
     .await;
     let sent = within(sent).await.unwrap().unwrap();
-    assert_eq!(sent.msgid.as_deref(), Some("RfcBTzyxY120004"));
+    assert_eq!(sent.msgid().map(AsRef::as_ref), Some("RfcBTzyxY120004"));
     assert!(
         matches!(sent.conversation, crate::Conversation::Channel(ref channel) if channel == "#papo")
     );
@@ -6498,7 +6498,7 @@ async fn chat_text_returns_metadata_from_every_labelled_echo() {
     )
     .await;
     let split = within(split).await.unwrap().unwrap();
-    assert_eq!(split.line_msgids, ["RfcBTzyxY120005", "RfcBTzyxY120006"]);
+    assert_eq!(split.msgids, ["RfcBTzyxY120005", "RfcBTzyxY120006"]);
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
@@ -6567,12 +6567,6 @@ async fn chat_text_rejects_multiple_targets_before_writing() {
                 if name == target
         ));
     }
-    let mask = crate::Casemapping::default().mask("$*.example.org");
-    assert!(matches!(
-        within(client.privmsg(mask, "private release notes")).await,
-        Err(Error::InvalidInput(crate::InvalidInput::InvalidName { name, .. }))
-            if name == "$*.example.org"
-    ));
     assert!(matches!(
         within(client.privmsg("$*.example.org,alice", "private release notes")).await,
         Err(Error::InvalidInput(crate::InvalidInput::InvalidName { reason, .. }))

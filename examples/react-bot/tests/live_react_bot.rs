@@ -44,7 +44,7 @@ async fn reacts_to_live_messages() {
         let Event::Reacted(reaction) = reaction else {
             unreachable!();
         };
-        assert_eq!(&reaction.message, sent.msgid.as_ref().unwrap());
+        assert_eq!(&reaction.reacts_to, sent.msgid().unwrap());
         assert_eq!(reaction.reaction, "👍");
 
         user.quit("reaction bot test complete").await.unwrap();

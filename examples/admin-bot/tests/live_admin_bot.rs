@@ -29,9 +29,9 @@ async fn parses_mentions_and_authorizes_by_account() {
 
         let ping = format!("{bot_nick}: ping");
         let sent = user.privmsg(&channels[0], &ping).await.unwrap();
-        let msgid = sent.msgid.expect("Ergo supplies msgid");
+        let msgid = sent.msgid().expect("Ergo supplies msgid");
         let response = wait_message(&mut user_events, "pong").await;
-        assert_eq!(response.reply_to.as_ref(), Some(&msgid));
+        assert_eq!(response.in_reply_to.as_ref(), Some(msgid));
 
         user.privmsg(&channels[0], format!("!op {admin_nick}"))
             .await

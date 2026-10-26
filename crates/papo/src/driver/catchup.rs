@@ -280,9 +280,9 @@ mod tests {
             authorship: crate::Authorship::Other,
             conversation: crate::Conversation::Channel(mapping.channel("#papo")),
             status: None,
-            message: "RfcBTzyxY120008".into(),
+            reacts_to: "RfcBTzyxY120008".into(),
             reaction: "👍".into(),
-            removed: false,
+            action: crate::event::ReactionAction::Added,
         };
         super::remember_live_reaction(std::iter::once(&mut catchup), &live);
         super::extend_catchup(

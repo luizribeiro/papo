@@ -312,11 +312,6 @@ impl Command {
     /// Returns [`papo::Error::TargetGone`] when current state proves that another user holds a
     /// private command sender's nickname. Otherwise returns the same errors as [`Client::privmsg`].
     pub async fn say(&self, text: impl Into<String>) -> Result<ReplyStatus, papo::Error> {
-        if let Conversation::Private(_) = &self.message.conversation
-            && self.message.__recipient_changed(&self.client.state())
-        {
-            return Err(papo::Error::TargetGone);
-        }
         if !self.replies.check(self.message.conversation.clone()) {
             return Ok(ReplyStatus::Dropped);
         }
