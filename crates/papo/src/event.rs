@@ -3253,6 +3253,28 @@ mod tests {
     }
 
     #[test]
+    fn maps_server_tag_messages_to_other() {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().nick("papo"));
+        session.handle_line(
+            now,
+            "@+typing=active;+draft/react=👍;+draft/reply=RKi9Cw :irc.example TAGMSG #papo"
+                .as_bytes(),
+        );
+        let Some(papo_core::Event::Line(line)) = session.poll_event() else {
+            panic!("expected untyped server TAGMSG");
+        };
+        let event = super::incoming_from_core(
+            line,
+            crate::Origin::NONE,
+            &Isupport::default(),
+            false,
+            UNIX_EPOCH,
+        );
+        assert!(matches!(event, Event::Other(line) if line.as_ref().command_is("TAGMSG")));
+    }
+
+    #[test]
     fn distinguishes_every_typing_tag_value() {
         let typing = |value: &str| {
             let tag = papo_core::TagMessage {

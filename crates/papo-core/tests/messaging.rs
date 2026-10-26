@@ -253,6 +253,13 @@ fn leaves_actorless_activity_lines_untyped() {
         .event(|event| matches!(event, Event::Line(line) if line.as_ref().command_is("REDACT")));
 }
 
+#[test]
+fn leaves_server_tag_messages_untyped() {
+    Transcript::new(Config::default())
+        .server("@+typing=active;+draft/react=👍;+draft/reply=RKi9Cw :irc.example TAGMSG #papo")
+        .event(|event| matches!(event, Event::Line(line) if line.as_ref().command_is("TAGMSG")));
+}
+
 fn wire(session: &mut Session) -> Option<String> {
     session
         .poll_transmit()

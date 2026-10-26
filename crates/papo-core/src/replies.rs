@@ -9,6 +9,9 @@ impl Session {
         if !message.command_is("TAGMSG") {
             return false;
         }
+        if !matches!(message.source(), Some(papo_proto::Source::User { .. })) {
+            return false;
+        }
         let Some(actor) = message.raw_source() else {
             return false;
         };
