@@ -221,8 +221,6 @@ pub use mode::{BanTarget, Extban, KickbanOutcome, ModesApplied, SetModes};
 #[doc(inline)]
 pub use papo_core::Secret;
 #[doc(inline)]
-pub use papo_proto::Prefix;
-#[doc(inline)]
 pub use papo_core::{
     Account, Away, Cap, Capabilities, Channel, Conversation, Feature, Member, ModeAction, ModeArg,
     ModeChange, ModeValue, Rank, Typer, User,
@@ -239,6 +237,8 @@ pub use papo_core::{ListMode, ModeListEntry, Refusal, StateLimit};
 pub use papo_core::{MetadataValue, Visibility};
 #[doc(inline)]
 pub use papo_core::{Unsupported, UnsupportedReason};
+#[doc(inline)]
+pub use papo_proto::Prefix;
 #[doc(inline)]
 pub use papo_proto::{
     AccountName, AsAccount, AsChannel, AsNick, Casemapping, ChannelName, Color, FormatBuilder,

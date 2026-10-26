@@ -1,5 +1,5 @@
-use papo::isupport::{Advertised, Prefix};
 use papo::{ModeAction, ModeArg, Nick, Rank, State};
+use papo::{Prefix, isupport::Advertised};
 use papo_conformance_macros::scenario;
 use papo_test_server::DeploymentProfile;
 
