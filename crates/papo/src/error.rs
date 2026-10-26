@@ -247,7 +247,12 @@ pub struct ServerError {
 impl ServerError {
     /// Creates a numeric refusal using the same classifier as received replies.
     #[must_use]
-    pub fn from_numeric(code: u16, params: Vec<String>) -> Self {
+    pub fn from_numeric<I, S>(code: u16, params: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        let params = params.into_iter().map(Into::into).collect::<Vec<_>>();
         if let Some(numeric) = papo_proto::Numeric::new(code) {
             return Self::from_core(papo_core::ServerError::__numeric(numeric, params));
         }
@@ -280,8 +285,12 @@ impl ServerError {
 
     /// Supplies the standard reply's diagnostic parameters in wire order.
     #[must_use]
-    pub fn context(mut self, context: Vec<String>) -> Self {
-        self.params = context;
+    pub fn context<I, S>(mut self, context: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>,
+    {
+        self.params = context.into_iter().map(Into::into).collect();
         self
     }
 
@@ -715,10 +724,7 @@ mod tests {
 
     #[test]
     fn server_errors_hide_core_shapes_behind_accessors() {
-        let error = ServerError::from_numeric(
-            404,
-            vec!["papo-driver".into(), "#rust".into(), "Cannot send".into()],
-        );
+        let error = ServerError::from_numeric(404, ["papo-driver", "#rust", "Cannot send"]);
         assert_eq!(error.refusal(), Refusal::CannotSendToChannel);
         assert_eq!(error.numeric(), Some(404));
         assert_eq!(error.command(), None);
@@ -728,7 +734,7 @@ mod tests {
         assert_eq!(error.to_string(), "server refusal 404: Cannot send");
 
         let standard = ServerError::standard("CHATHISTORY", "INVALID_PARAMS", "Invalid parameters")
-            .context(vec!["LATEST".into()]);
+            .context(["LATEST"]);
         assert_eq!(standard.command(), Some("CHATHISTORY"));
         assert_eq!(standard.refusal(), Refusal::InvalidParameters);
         assert_eq!(standard.numeric(), None);

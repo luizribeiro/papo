@@ -374,7 +374,7 @@ impl Client {
     /// let builder = papo::Client::builder("ircs://irc.example.net", "papo-bot");
     /// # _ = builder;
     /// ```
-    pub fn builder(endpoint: impl crate::IntoEndpoint, nick: impl AsRef<str>) -> crate::Builder {
+    pub fn builder(endpoint: impl crate::IntoEndpoint, nick: impl Into<String>) -> crate::Builder {
         crate::Builder::from_endpoint(endpoint, nick)
     }
 

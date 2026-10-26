@@ -76,9 +76,9 @@ macro_rules! network_setters {
         }
 
         /// Sets the connection nickname.
-        pub fn nick(mut self, nick: impl AsRef<str>) -> Self {
+        pub fn nick(mut self, nick: impl Into<String>) -> Self {
             if let Ok(config) = &mut self.config {
-                config.nick = Some(nick.as_ref().to_owned());
+                config.nick = Some(nick.into());
             }
             self
         }

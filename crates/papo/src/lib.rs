@@ -90,6 +90,12 @@
 //! payloads are in [`event`]. Feature modules contain their feature-specific helpers. Each public
 //! type has one public path; for example, [`Disconnected`] is at the root while [`event::Motd`]
 //! and [`event::CasemappingChanged`] are event payloads.
+//!
+//! # Argument conventions
+//!
+//! Text retained by `papo` takes `impl Into<String>`, while text inspected only for the duration
+//! of a call is borrowed as `&str` or `impl AsRef<str>`. Retained lists similarly take
+//! `IntoIterator` with items implementing `Into<String>`.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 

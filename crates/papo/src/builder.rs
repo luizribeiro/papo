@@ -97,10 +97,13 @@ impl Builder {
         }
     }
 
-    pub(crate) fn from_endpoint(endpoint: impl crate::IntoEndpoint, nick: impl AsRef<str>) -> Self {
+    pub(crate) fn from_endpoint(
+        endpoint: impl crate::IntoEndpoint,
+        nick: impl Into<String>,
+    ) -> Self {
         let mut builder = Self::new("ircs://irc.example.net");
         builder.address = crate::address::convert(endpoint);
-        let nick = nick.as_ref().to_owned();
+        let nick = nick.into();
         builder.config.nick.clone_from(&nick);
         builder.config.username.clone_from(&nick);
         builder.config.realname = nick;
@@ -149,12 +152,9 @@ impl Builder {
     pub fn alt_nicks<I, S>(mut self, nicks: I) -> Self
     where
         I: IntoIterator<Item = S>,
-        S: AsRef<str>,
+        S: Into<String>,
     {
-        self.config.alt_nicks = nicks
-            .into_iter()
-            .map(|nick| nick.as_ref().to_owned())
-            .collect();
+        self.config.alt_nicks = nicks.into_iter().map(Into::into).collect();
         self
     }
 
@@ -576,10 +576,10 @@ impl Builder {
     pub fn autojoin<I, S>(mut self, channels: I) -> Self
     where
         I: IntoIterator<Item = S>,
-        S: AsRef<str>,
+        S: Into<String>,
     {
         for channel in channels {
-            self.push_autojoin(Autojoin::new(channel.as_ref(), None));
+            self.push_autojoin(Autojoin::new(channel, None));
         }
         self
     }
@@ -594,12 +594,12 @@ impl Builder {
     /// ```
     pub fn autojoin_with_key(
         mut self,
-        channel: impl AsRef<str>,
+        channel: impl Into<String>,
         key: impl Into<papo_core::Secret>,
     ) -> Self {
         let key = key.into();
         self.reject_binary_secret(&key);
-        self.push_autojoin(Autojoin::new(channel.as_ref(), Some(key)));
+        self.push_autojoin(Autojoin::new(channel, Some(key)));
         self
     }
 
@@ -1722,14 +1722,18 @@ mod tests {
 
     #[test]
     fn public_builder_accepts_owned_and_borrowed_server_addresses() {
+        let borrowed_nick = "papo-client".to_owned();
         for (builder, protocol, port) in [
             (
-                crate::Client::builder("ircs://irc.example.net", "papo-client"),
+                crate::Client::builder("ircs://irc.example.net", &borrowed_nick),
                 Protocol::Ircs,
                 6697,
             ),
             (
-                crate::Client::builder(String::from("irc://irc.example.net:7000"), "papo-client"),
+                crate::Client::builder(
+                    String::from("irc://irc.example.net:7000"),
+                    borrowed_nick.clone(),
+                ),
                 Protocol::Irc,
                 7000,
             ),

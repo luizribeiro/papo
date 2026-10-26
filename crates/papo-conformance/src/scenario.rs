@@ -49,7 +49,7 @@ impl Scenario {
         let address = self.server.plaintext_addr();
         let endpoint = Endpoint::plaintext(address.ip().to_string(), address.port()).unwrap();
         let bouncer_login = self.server.bouncer_login(&name)?;
-        let builder = Client::builder(endpoint, nick)
+        let builder = Client::builder(endpoint, nick.as_ref())
             .realname("papo test peer")
             .allow_insecure_auth(true);
         Ok(match bouncer_login {

@@ -20,15 +20,15 @@ impl Extban {
     ///
     /// Returns an error for an empty name, `0`, logout marker `*`, wildcard
     /// characters, or text that cannot be sent as one IRC parameter.
-    pub fn account(name: impl AsRef<str>) -> Result<Self, InvalidInput> {
-        let name = name.as_ref();
+    pub fn account(name: impl Into<String>) -> Result<Self, InvalidInput> {
+        let name = name.into();
         if name == "0"
             || name.contains(['*', '?'])
-            || Casemapping::Ascii.account(name).check().is_err()
+            || Casemapping::Ascii.account(&name).check().is_err()
         {
-            return Err(InvalidInput::InvalidExtbanAccount(name.to_owned()));
+            return Err(InvalidInput::InvalidExtbanAccount(name));
         }
-        Ok(Self::Account(name.to_owned()))
+        Ok(Self::Account(name))
     }
 }
 

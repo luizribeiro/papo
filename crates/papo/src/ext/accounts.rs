@@ -30,8 +30,8 @@ impl NewAccount {
 
     /// Sets the requested account name.
     #[must_use]
-    pub fn account(mut self, account: impl AsRef<str>) -> Self {
-        self.account = Some(account.as_ref().to_owned());
+    pub fn account(mut self, account: impl Into<String>) -> Self {
+        self.account = Some(account.into());
         self
     }
 

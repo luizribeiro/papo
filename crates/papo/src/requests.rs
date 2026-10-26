@@ -111,12 +111,9 @@ impl ListRequest {
     pub fn channels<I, S>(mut self, channels: I) -> Self
     where
         I: IntoIterator<Item = S>,
-        S: AsRef<str>,
+        S: Into<String>,
     {
-        self.channels = channels
-            .into_iter()
-            .map(|channel| channel.as_ref().to_owned())
-            .collect();
+        self.channels = channels.into_iter().map(Into::into).collect();
         self
     }
 }

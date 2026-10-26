@@ -1584,7 +1584,7 @@ impl !core::panic::unwind_safe::UnwindSafe for papo::Event
 #[non_exhaustive] pub enum papo::Extban
 pub papo::Extban::Account(alloc::string::String)
 impl papo::Extban
-pub fn papo::Extban::account(impl core::convert::AsRef<str>) -> core::result::Result<Self, papo::InvalidInput>
+pub fn papo::Extban::account(impl core::convert::Into<alloc::string::String>) -> core::result::Result<Self, papo::InvalidInput>
 impl core::clone::Clone for papo::Extban
 pub fn papo::Extban::clone(&self) -> Self
 impl core::cmp::Eq for papo::Extban
@@ -1862,9 +1862,9 @@ impl core::panic::unwind_safe::UnwindSafe for papo::BanTarget
 pub struct papo::Builder
 impl papo::Builder
 pub fn papo::Builder::allow_insecure_auth(self, bool) -> Self
-pub fn papo::Builder::alt_nicks<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
-pub fn papo::Builder::autojoin<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
-pub fn papo::Builder::autojoin_with_key(self, impl core::convert::AsRef<str>, impl core::convert::Into<papo::Secret>) -> Self
+pub fn papo::Builder::alt_nicks<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
+pub fn papo::Builder::autojoin<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
+pub fn papo::Builder::autojoin_with_key(self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo::Secret>) -> Self
 pub fn papo::Builder::away_on_connect(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Builder::bot(self, bool) -> Self
 pub fn papo::Builder::build(self) -> (papo::Client, papo::Events, papo::Driver)
@@ -1909,7 +1909,7 @@ impl !core::panic::unwind_safe::UnwindSafe for papo::Builder
 pub struct papo::Client
 impl papo::Client
 pub fn papo::Client::action(&self, impl papo::Target, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
-pub fn papo::Client::builder(impl papo::IntoEndpoint, impl core::convert::AsRef<str>) -> papo::Builder
+pub fn papo::Client::builder(impl papo::IntoEndpoint, impl core::convert::Into<alloc::string::String>) -> papo::Builder
 pub fn papo::Client::clear_away(&self) -> papo::RequestFuture<()>
 pub fn papo::Client::clear_topic(&self, impl papo::AsChannel) -> papo::RequestFuture<()>
 pub fn papo::Client::ctcp_reply(&self, &papo::event::CtcpQuery, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
@@ -2260,7 +2260,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::ListEntry
 impl core::panic::unwind_safe::UnwindSafe for papo::ListEntry
 pub struct papo::ListRequest
 impl papo::ListRequest
-pub fn papo::ListRequest::channels<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
+pub fn papo::ListRequest::channels<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 impl core::fmt::Debug for papo::ListRequest
 pub fn papo::ListRequest::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::future::into_future::IntoFuture for papo::ListRequest
@@ -2444,7 +2444,7 @@ impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo::NameRules<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo::NameRules<'a>
 pub struct papo::NewAccount
 impl papo::NewAccount
-pub fn papo::NewAccount::account(self, impl core::convert::AsRef<str>) -> Self
+pub fn papo::NewAccount::account(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::NewAccount::email(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::NewAccount::new(impl core::convert::Into<papo::Secret>) -> Self
 impl core::clone::Clone for papo::NewAccount
@@ -2587,9 +2587,9 @@ pub struct papo::ServerError
 impl papo::ServerError
 pub fn papo::ServerError::code(&self) -> &str
 pub fn papo::ServerError::command(&self) -> core::option::Option<&str>
-pub fn papo::ServerError::context(self, alloc::vec::Vec<alloc::string::String>) -> Self
+pub fn papo::ServerError::context<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub fn papo::ServerError::description(&self) -> &str
-pub fn papo::ServerError::from_numeric(u16, alloc::vec::Vec<alloc::string::String>) -> Self
+pub fn papo::ServerError::from_numeric<I, S>(u16, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub const fn papo::ServerError::numeric(&self) -> core::option::Option<u16>
 pub fn papo::ServerError::params(&self) -> &[alloc::string::String]
 pub const fn papo::ServerError::refusal(&self) -> papo::Refusal
