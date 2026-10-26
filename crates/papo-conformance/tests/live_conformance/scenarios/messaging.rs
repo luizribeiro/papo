@@ -310,10 +310,10 @@ async fn own_message_without_echo(s: Scenario) -> papo_testing::Result<()> {
     let mut phone = s
         .connect_with(
             s.configure_account_session("alice-phone", account_key)?
-                .without_caps([papo::cap::ECHO_MESSAGE]),
+                .disable(papo::Feature::EchoMessages),
         )
         .await?;
-    assert!(phone.state().caps().get(&papo::cap::ECHO_MESSAGE).is_none());
+    assert!(phone.state().caps().get("echo-message").is_none());
 
     if phone.state().channel(&channel).is_none() {
         phone.join(&channel).await?;
@@ -450,7 +450,7 @@ async fn status_message_or_higher(s: Scenario) -> papo_testing::Result<()> {
     ]
 )]
 async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
-    let alice_builder = s.configure("alice")?.without_caps([papo::cap::MULTILINE]);
+    let alice_builder = s.configure("alice")?.disable(papo::Feature::Multiline);
     let (mut alice, mut bob, channel) = fixture_pair_with(&s, alice_builder).await?;
 
     alice.action(&channel, "waves hello").await?;

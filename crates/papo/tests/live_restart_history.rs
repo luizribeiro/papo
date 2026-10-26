@@ -53,14 +53,6 @@ async fn connect(server: &TestServer, account: &str, password: &str) -> (Client,
     )
     .allow_insecure_auth(true)
     .sasl(Sasl::plain(account, password))
-    .request_caps([
-        "message-tags",
-        "server-time",
-        "batch",
-        "echo-message",
-        "labeled-response",
-        "draft/chathistory",
-    ])
     .connect()
     .await
     .unwrap()

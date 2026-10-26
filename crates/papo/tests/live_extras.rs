@@ -21,14 +21,12 @@ async fn subscriber_receives_another_clients_metadata() {
         let writer_nick = unique("papo-metadata-writer");
         let reader_nick = unique("papo-metadata-reader");
         let (writer, mut writer_events) = Client::builder(address.clone(), support::nick(&writer_nick))
-            .request_caps(["draft/metadata-2", "labeled-response"])
             .autojoin([&channel])
             .connect()
             .await
             .unwrap();
         wait_synced(&mut writer_events, &channel).await;
         let (reader, mut reader_events) = Client::builder(address, support::nick(&reader_nick))
-            .request_caps(["draft/metadata-2", "labeled-response"])
             .autojoin([&channel])
             .connect()
             .await
@@ -79,15 +77,8 @@ async fn member_sees_channel_rename_and_relay_attribution() {
         let new_channel = format!("#{}", unique("papo-renamed"));
         let operator_nick = unique("papo-relay-operator");
         let member_nick = unique("papo-relay-member");
-        let capabilities = [
-            "draft/channel-rename",
-            "draft/relaymsg",
-            "labeled-response",
-            "message-tags",
-        ];
         let (operator, mut operator_events) =
             Client::builder(address.clone(), support::nick(&operator_nick))
-                .request_caps(capabilities)
                 .enable(papo::Feature::Relay)
                 .autojoin([&old_channel])
                 .connect()
@@ -95,7 +86,6 @@ async fn member_sees_channel_rename_and_relay_attribution() {
                 .unwrap();
         wait_synced(&mut operator_events, &old_channel).await;
         let (member, mut member_events) = Client::builder(address, support::nick(&member_nick))
-            .request_caps(capabilities)
             .enable(papo::Feature::Relay)
             .autojoin([&old_channel])
             .connect()

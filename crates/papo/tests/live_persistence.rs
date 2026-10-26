@@ -32,7 +32,6 @@ async fn persistent_server_restores_channels_without_a_client_join() {
         let (client, mut events) = Client::builder(address, support::nick(&account))
             .allow_insecure_auth(true)
             .sasl(Sasl::plain(&account, PASSWORD))
-            .request_caps(["sasl", "draft/persistence", "labeled-response"])
             .enable(papo::Feature::Persistence)
             .autojoin([&channel])
             .reconnect(Reconnect::exponential().max_delay(Duration::from_secs(1)))

@@ -24,7 +24,6 @@ async fn registers_then_logs_in_with_sasl() {
         let (registrar, mut registrar_events) =
             Client::builder(address.clone(), support::nick(&account))
                 .allow_insecure_auth(true)
-                .request_caps(["draft/account-registration", "labeled-response"])
                 .connect()
                 .await
                 .unwrap();
@@ -45,7 +44,6 @@ async fn registers_then_logs_in_with_sasl() {
             Client::builder(address, support::nick(&account))
                 .allow_insecure_auth(true)
                 .sasl(Sasl::plain(&account, PASSWORD))
-                .request_caps(["sasl"])
                 .connect()
                 .await
                 .unwrap();

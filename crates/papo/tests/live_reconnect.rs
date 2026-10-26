@@ -7,7 +7,7 @@ use support::within;
 
 use std::time::Duration;
 
-use papo::{Client, Endpoint, Event, Reconnect, Sasl, cap};
+use papo::{Client, Endpoint, Event, Feature, Reconnect, Sasl};
 use papo_test_server::{TestServer, register_account_at, unique};
 
 #[tokio::test(flavor = "current_thread")]
@@ -25,20 +25,13 @@ async fn fills_a_dropped_connection_gap_once_across_two_reconnects() {
         )
         .allow_insecure_auth(true)
         .sasl(Sasl::plain(&nick, password))
-        .request_caps([
-            "message-tags",
-            "server-time",
-            "batch",
-            "echo-message",
-            "labeled-response",
-            "draft/chathistory",
-        ])
-        .without_caps([cap::EVENT_PLAYBACK, cap::MULTILINE])
+        .disable(Feature::EventPlayback)
+        .disable(Feature::Multiline)
         .autojoin([&channel])
         .history_on_reconnect(true)
         .reconnect(Reconnect::exponential().max_delay(Duration::from_secs(5)));
         #[cfg(feature = "unstable")]
-        let builder = builder.without_caps([cap::PERSISTENCE]);
+        let builder = builder.disable(Feature::Persistence);
         let (client, mut events) = builder.connect().await.unwrap();
 
         wait_for(&mut events, "initial registration", |event| {

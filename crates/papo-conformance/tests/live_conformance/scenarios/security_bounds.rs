@@ -192,7 +192,6 @@ async fn duplicate_end_of_names_stays_inert(_s: Scenario) -> papo_testing::Resul
 async fn unsolicited_monitor_presence_stays_inert(_s: Scenario) -> papo_testing::Result<()> {
     let (client, mut events, mut wire) = papo_testing::wire(
         papo::Client::builder("irc://offline.test", "papo-wire")
-            .request_caps(["extended-monitor"])
             .rate_limit(papo::RateLimit::unlimited()),
     );
     wire.register(&["extended-monitor"]).await;
@@ -234,7 +233,6 @@ async fn large_autojoin_set_reaches_the_wire(_s: Scenario) -> papo_testing::Resu
     let channels = (0..300).map(|index| format!("#audit{index:03}"));
     let (_client, mut events, mut wire) = papo_testing::wire(
         papo::Client::builder("irc://offline.test", "papo-wire")
-            .request_caps(["labeled-response"])
             .autojoin(channels)
             .rate_limit(papo::RateLimit::unlimited()),
     );
@@ -290,7 +288,6 @@ async fn repeated_catchup_page_stops_after_two_requests(_s: Scenario) -> papo_te
     ];
     let (client, mut events, mut wire) = papo_testing::wire(
         papo::Client::builder("irc://offline.test", "papo-wire")
-            .request_caps(caps)
             .autojoin(["#papo"])
             .history_on_reconnect(true)
             .rate_limit(papo::RateLimit::unlimited()),

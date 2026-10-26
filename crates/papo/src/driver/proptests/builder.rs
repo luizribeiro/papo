@@ -89,7 +89,7 @@ async fn arbitrary_builder_setter_input_is_rejected_or_registers_validly() {
                 .email(b)
         ));
         probe!(builder, a, b, _c => builder.request_caps([a, b]));
-        probe!(builder, a, _b, _c => builder.without_caps([a]));
+        probe!(builder, _a, _b, _c => builder.disable(crate::Feature::MessageTags));
         probe!(builder, a, b, _c => builder.metadata_subscriptions([a, b]));
         probe!(builder, _a, _b, _c => builder.rate_limit(crate::RateLimit::unlimited()));
         probe!(builder, a, _b, _c => builder.ping_interval(Duration::from_secs(a.len() as u64)));

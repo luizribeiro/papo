@@ -321,7 +321,11 @@ fn connect_client(
         {
             builder = builder.enable(feature);
         }
-        builder = builder.request_caps(wanted_caps);
+        builder = builder.request_caps(
+            wanted_caps
+                .into_iter()
+                .filter(|name| !papo::__is_known_cap(name)),
+        );
     }
     let bouncer = server
         .bouncer_login(nick)

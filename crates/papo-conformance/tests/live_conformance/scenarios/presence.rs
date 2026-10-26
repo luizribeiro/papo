@@ -69,12 +69,7 @@ async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
     covers = ["ircv3.account-notify"]
 )]
 async fn account_notify(s: Scenario) -> papo_testing::Result<()> {
-    let mut alice = s
-        .connect_with(
-            s.configure("alice")?
-                .request_caps(["draft/account-registration"]),
-        )
-        .await?;
+    let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
     let alice_nick = alice.nick();
     let channel = s.channel_name();

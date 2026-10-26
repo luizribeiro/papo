@@ -5,7 +5,7 @@ mod support;
 
 use support::within;
 
-use papo::{Client, Endpoint, Event, Message as ChatMessage, cap};
+use papo::{Client, Endpoint, Event, Feature, Message as ChatMessage};
 use papo_test_server::{from_env, unique};
 
 #[tokio::test(flavor = "current_thread")]
@@ -22,16 +22,8 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
             .unwrap(),
             support::nick(&nick),
         )
-        .request_caps([
-            "message-tags",
-            "server-time",
-            "batch",
-            "echo-message",
-            "labeled-response",
-            "draft/chathistory",
-            "draft/read-marker",
-        ])
-        .without_caps([cap::EVENT_PLAYBACK, cap::MULTILINE])
+        .disable(Feature::EventPlayback)
+        .disable(Feature::Multiline)
         .autojoin([&channel])
         .connect()
         .await

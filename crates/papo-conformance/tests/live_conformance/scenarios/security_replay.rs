@@ -17,11 +17,7 @@ async fn reconnect_follows_channel_rename(s: Scenario) -> papo_testing::Result<(
     let old = s.channel_name();
     let renamed = format!("{old}-archive");
     let mut alice = s
-        .connect_with(
-            s.configure("alice")?
-                .request_caps(["draft/channel-rename"])
-                .autojoin([&old]),
-        )
+        .connect_with(s.configure("alice")?.autojoin([&old]))
         .await?;
     alice
         .wait_for(|event| {
@@ -145,7 +141,8 @@ async fn message_refusal_does_not_fail_part(s: Scenario) -> papo_testing::Result
     let mut bob = s
         .connect_with(
             s.configure("bob")?
-                .without_caps([papo::cap::LABELED_RESPONSE, papo::cap::ECHO_MESSAGE]),
+                .disable(papo::Feature::LabeledResponse)
+                .disable(papo::Feature::EchoMessages),
         )
         .await?;
     let channel = s.channel_name();
@@ -178,7 +175,7 @@ async fn wildcard_who_stays_separate_from_channel_who(s: Scenario) -> papo_testi
     let bob = s
         .connect_with(
             s.configure("bob")?
-                .without_caps([papo::cap::LABELED_RESPONSE]),
+                .disable(papo::Feature::LabeledResponse),
         )
         .await?;
     let channel = s.channel_name();

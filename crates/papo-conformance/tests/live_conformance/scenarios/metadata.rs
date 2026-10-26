@@ -11,12 +11,7 @@ use crate::{Scenario, scenarios::support::subject_name};
 async fn draft_metadata_2(s: Scenario) -> papo_testing::Result<()> {
     let key = "example.org/papo-conformance";
     let value = "fixture metadata value";
-    let mut alice = s
-        .connect_with(
-            s.configure("alice")?
-                .request_caps(["batch", "draft/metadata-2"]),
-        )
-        .await?;
+    let mut alice = s.connect("alice").await?;
     let nick = alice.state().nick().clone();
 
     alice.metadata().set(key, value).await?;
@@ -282,12 +277,8 @@ async fn draft_channel_rename(s: Scenario) -> papo_testing::Result<()> {
     let channel = s.channel_name();
     let renamed = format!("{channel}-renamed");
     let reason = "the project moved";
-    let mut alice = s
-        .connect_with(s.configure("alice")?.request_caps(["draft/channel-rename"]))
-        .await?;
-    let mut bob = s
-        .connect_with(s.configure("bob")?.request_caps(["draft/channel-rename"]))
-        .await?;
+    let mut alice = s.connect("alice").await?;
+    let mut bob = s.connect("bob").await?;
     let alice_nick = alice.nick();
     alice.join(channel.clone()).await?;
     bob.join(channel.clone()).await?;
