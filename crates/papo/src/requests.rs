@@ -2,8 +2,7 @@ use std::time::Duration;
 
 use papo_core::{Account, Away, Response};
 use papo_proto::{
-    AccountName, ChannelName, Command, Isupport, Line, Nick, Numeric, ServerName, WhoxPresence,
-    WhoxReply,
+    ChannelName, Command, Isupport, Line, Nick, Numeric, ServerName, WhoxPresence, WhoxReply,
 };
 
 use crate::{Error, Oper};
@@ -22,8 +21,8 @@ pub struct Whois {
     pub host: Option<String>,
     /// Real name reported by `RPL_WHOISUSER`.
     pub realname: Option<String>,
-    /// Logged-in account name, or `None` when the user is logged out.
-    pub account: Option<AccountName>,
+    /// The user's account state.
+    pub account: Account,
     /// Server to which the user is connected.
     pub server: Option<ServerName>,
     /// Visible channels, retaining membership prefixes.
@@ -31,7 +30,7 @@ pub struct Whois {
     /// The user's presence reported by WHOIS.
     pub away: Away,
     /// Whether the server identifies the user as a bot.
-    pub is_bot: bool,
+    pub is_bot: Option<bool>,
     /// Whether the server identifies the connection as secure.
     pub secure: bool,
     /// Duration for which the user has been idle.
@@ -69,7 +68,7 @@ pub struct WhoEntry {
     /// The user's IRC operator identity, when reported.
     pub oper: Option<Oper>,
     /// Whether the server identifies the user as a bot.
-    pub is_bot: bool,
+    pub is_bot: Option<bool>,
     /// Channel-membership prefixes in wire order.
     pub prefixes: Vec<char>,
 }
@@ -137,11 +136,11 @@ pub(crate) fn whois(
         username: None,
         host: None,
         realname: None,
-        account: None,
+        account: Account::LoggedOut,
         server: None,
         channels: Vec::new(),
         away: Away::Present,
-        is_bot: false,
+        is_bot: isupport.bot_mode().map(|_| false),
         secure: false,
         idle: None,
     };
@@ -172,14 +171,14 @@ pub(crate) fn whois(
                     .map(|value| whois_channel(value, isupport, origin)),
             ),
             Numeric::RPL_WHOISACCOUNT => {
-                result.account = message
-                    .param(2)
-                    .map(|account| origin.__account(mapping, account));
+                if let Some(account) = message.param(2) {
+                    result.account = Account::LoggedIn(origin.__account(mapping, account));
+                }
             }
             Numeric::RPL_AWAY => {
                 result.away = Away::__away_value(message.param(2).map(str::to_owned));
             }
-            Numeric::RPL_WHOISBOT => result.is_bot = true,
+            Numeric::RPL_WHOISBOT => result.is_bot = Some(true),
             Numeric::RPL_WHOISSECURE => result.secure = true,
             _ => {}
         }
@@ -239,7 +238,11 @@ pub(crate) fn who(
                         None => Away::Unknown,
                     },
                     oper: flags.oper.then_some(Oper { name: None }),
-                    is_bot: flags.bot,
+                    is_bot: if flags.bot {
+                        Some(true)
+                    } else {
+                        isupport.bot_mode().map(|_| false)
+                    },
                     prefixes: flags.prefixes,
                 })
             } else {
@@ -275,7 +278,11 @@ fn plain_who(
             Away::Unknown
         },
         oper: flags.contains('*').then_some(Oper { name: None }),
-        is_bot: flags.contains('B'),
+        is_bot: if flags.contains('B') {
+            Some(true)
+        } else {
+            isupport.bot_mode().map(|_| false)
+        },
         prefixes: flags
             .chars()
             .filter(|flag| prefixes.iter().any(|prefix| prefix.symbol == *flag))

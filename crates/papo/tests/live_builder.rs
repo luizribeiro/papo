@@ -31,7 +31,10 @@ async fn connects_with_sasl_and_applies_bot_defaults() {
         wait_connected(&mut events, &account).await;
         wait_joined(&mut events, &account, &channel).await;
 
-        assert!(client.whois(support::nick(&account)).await.unwrap().is_bot);
+        assert_eq!(
+            client.whois(support::nick(&account)).await.unwrap().is_bot,
+            Some(true)
+        );
         client.quit("builder test complete").await.unwrap();
     })
     .await;

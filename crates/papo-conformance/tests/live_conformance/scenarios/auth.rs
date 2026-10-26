@@ -141,7 +141,10 @@ async fn authenticate(s: Scenario, scram: bool) -> papo_testing::Result<()> {
 
     let whois = alice.whois(alice.state().nick().clone()).await?;
     assert_eq!(whois.nick, *alice.state().nick());
-    assert_eq!(whois.account.as_deref(), Some(account.as_str()));
+    assert_eq!(
+        whois.account.name().map(AsRef::as_ref),
+        Some(account.as_str())
+    );
     alice.expect_none(Event::as_account_changed).await?;
     Ok(())
 }
@@ -236,7 +239,7 @@ async fn account_creation(s: Scenario) -> papo_testing::Result<()> {
 
     let whois = alice.whois(nick.clone()).await?;
     assert_eq!(whois.nick, nick);
-    assert_eq!(whois.account, Some(account));
+    assert_eq!(whois.account, papo::Account::LoggedIn(account));
     alice.expect_none(Event::as_account_creation).await?;
     Ok(())
 }

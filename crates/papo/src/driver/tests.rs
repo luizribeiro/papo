@@ -4470,7 +4470,7 @@ fn assert_structured_who(who: &[crate::WhoEntry]) {
     );
     assert_eq!(
         (&who[0].away, who[0].is_bot, who[0].prefixes.as_slice()),
-        (&crate::Away::Present, true, ['@'].as_slice())
+        (&crate::Away::Present, Some(true), ['@'].as_slice())
     );
     assert_eq!(
         (
@@ -4514,7 +4514,10 @@ async fn structured_requests_resolve_fail_and_abort() {
         (Some("client.example"), Some("Alice Example"))
     );
     assert_eq!(
-        (whois.account.as_deref(), whois.server.as_deref()),
+        (
+            whois.account.name().map(AsRef::as_ref),
+            whois.server.as_deref()
+        ),
         (Some("alice"), Some("ergo.test"))
     );
     assert_eq!(whois.channels[0].name, "#papo");
@@ -4525,7 +4528,8 @@ async fn structured_requests_resolve_fail_and_abort() {
         whois.away,
         crate::Away::__away_value(Some("away from keyboard".into()))
     );
-    assert!(whois.is_bot && whois.secure);
+    assert_eq!(whois.is_bot, Some(true));
+    assert!(whois.secure);
     assert_eq!(whois.idle, Some(Duration::from_secs(42)));
 
     server_line(

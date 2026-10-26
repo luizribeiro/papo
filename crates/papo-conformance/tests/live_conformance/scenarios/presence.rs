@@ -388,7 +388,7 @@ async fn bot_mode(s: Scenario) -> papo_testing::Result<()> {
     );
     assert!(whois.host.as_ref().is_some_and(|host| !host.is_empty()));
     assert!(whois.realname.as_ref().is_some_and(|name| !name.is_empty()));
-    assert!(whois.is_bot);
+    assert_eq!(whois.is_bot, Some(true));
 
     let text = "automated conformance report";
     alice.privmsg(&channel, text).await?;
@@ -449,7 +449,7 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(alice_who.realname, "papo test peer");
     assert_eq!(alice_who.away, Away::__away_value(None));
     assert!(alice_who.oper.is_none());
-    assert!(!alice_who.is_bot);
+    assert_eq!(alice_who.is_bot, Some(false));
     assert_eq!(alice_who.prefixes, ['@']);
 
     // Plain WHO's numeric fields are the behavior under test, without WHOX rewriting them.
