@@ -72,12 +72,12 @@ async fn fills_a_dropped_connection_gap_once_across_two_reconnects() {
         .await;
         let history = wait_history(&mut events, &channel).await;
         let missed = history
-            .messages()
+            .chat_messages()
             .filter(|message| message.text.contains("missed during the outage"))
             .collect::<Vec<_>>();
         assert_eq!(missed.len(), 1);
         let delivered_ids = history
-            .messages()
+            .chat_messages()
             .filter_map(|message| message.msgid.as_ref().map(ToString::to_string))
             .collect::<Vec<_>>();
         reconnect_and_rejoin(&client, &mut events, &nick, &channel).await;
@@ -164,7 +164,7 @@ async fn assert_no_repeated_history(
             event = events.next() => match event {
                 Some(Event::History(history))
                     if matches!(&history.conversation, papo::Conversation::Channel(channel) if channel == target) => assert!(
-                    history.messages().all(|message| {
+                    history.chat_messages().all(|message| {
                         !message.text.contains("missed during the outage")
                             && message.msgid.as_ref().is_none_or(|msgid| {
                                 !delivered_ids.iter().any(|seen| seen.as_str() == msgid.as_ref())

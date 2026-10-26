@@ -38,7 +38,7 @@ async fn catch_up(client: &Client, channel: &str) -> Result<(), papo::Error> {
         .unwrap_or(UNIX_EPOCH);
     let history = client.history(channel).after(marker).limit(100).await?;
     let mut newest = None;
-    for message in history.messages() {
+    for message in history.chat_messages() {
         println!("{channel} {}", message.text);
         newest = message.server_time;
     }

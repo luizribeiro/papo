@@ -416,7 +416,7 @@ async fn message_fields_use_captured_session_facts() {
     };
     assert_eq!(page.reason, crate::HistoryReason::Replay);
     assert!(!page.end);
-    assert_eq!(page.messages().next().unwrap().text, "earlier");
+    assert_eq!(page.chat_messages().next().unwrap().text, "earlier");
     assert!(matches!(
         events.next().await,
         Some(Event::Warning(Warning::BatchAbandoned { .. }))
@@ -1899,17 +1899,17 @@ async fn reconnect_history_pages_stop_at_the_target_limit() {
     assert!(
         matches!(&history.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
     );
-    assert_eq!(history.messages().count(), 1_000);
+    assert_eq!(history.chat_messages().count(), 1_000);
     assert_eq!(
         history
-            .messages()
+            .chat_messages()
             .next()
             .map(|message| message.text.as_str()),
         Some("missed 1")
     );
     assert_eq!(
         history
-            .messages()
+            .chat_messages()
             .last()
             .map(|message| message.text.as_str()),
         Some("missed 1000")
@@ -1986,7 +1986,7 @@ async fn reconnect_history_advances_past_the_previous_catchup() {
     };
     assert_eq!(
         history
-            .messages()
+            .chat_messages()
             .map(|message| message.text.as_str())
             .collect::<Vec<_>>(),
         ["missed once"]

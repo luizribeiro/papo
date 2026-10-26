@@ -65,7 +65,7 @@ async fn stale_dm_history_target(s: Scenario) -> papo_testing::Result<()> {
         .limit(10)
         .await?;
     let message = page
-        .messages()
+        .chat_messages()
         .find(|message| message.text == text)
         .expect("direct-message history contains the stored message");
     assert_eq!(

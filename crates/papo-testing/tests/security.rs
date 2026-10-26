@@ -235,7 +235,7 @@ async fn cross_client_values_never_reach_either_wire() {
         second_wire.server(line).await;
     }
     let page = history.await.unwrap().unwrap();
-    let message = page.messages().next().unwrap().clone();
+    let message = page.chat_messages().next().unwrap().clone();
     assert_eq!(page.origin(), second.origin());
     assert_eq!(message.origin(), second.origin());
 
@@ -1168,7 +1168,7 @@ async fn expired_labeled_history_is_not_delivered_twice() {
         .and_then(|event| event.as_history().cloned())
         .expect("expired reply still produces one history page");
     assert_eq!(
-        page.messages()
+        page.chat_messages()
             .map(|message| message.text.as_str())
             .collect::<Vec<_>>(),
         ["earlier deployment"]

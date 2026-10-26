@@ -541,14 +541,15 @@ pub enum HistoryReason {
 /// Items remain in server delivery order. `IRCv3` recommends oldest-to-newest delivery but
 /// permits other orders, so papo does not sort the page.
 ///
-/// For a server following the recommended order, the first and last messages can be selected
-/// directly:
+/// Page bounds can be reused as paging cursors:
 ///
 /// ```no_run
 /// # async fn show_bounds(client: &papo::Client) -> Result<(), papo::Error> {
 /// let page = client.history("#papo").latest().await?;
-/// if let (Some(oldest), Some(newest)) = (page.messages().next(), page.messages().last()) {
-///     println!("{} … {}", oldest.text, newest.text);
+/// if let (Some(oldest), Some(newest)) = (page.oldest_reference(), page.newest_reference()) {
+///     let previous = client.history("#papo").before(oldest).await?;
+///     let following = client.history("#papo").after(newest).await?;
+///     println!("{} previous items; {} following items", previous.items.len(), following.items.len());
 /// }
 /// # Ok(())
 /// # }
@@ -591,11 +592,11 @@ impl HistoryPage {
         crate::message_ref::conversation_origin(&self.conversation)
     }
 
-    /// Iterates over chat messages in item order, excluding replayed activity items.
+    /// Iterates over `PRIVMSG` chat messages, including own messages, in item order.
     ///
-    /// This is normally oldest to newest, but remains server delivery order if the server does
-    /// not follow the `IRCv3` recommendation.
-    pub fn messages(&self) -> impl Iterator<Item = &ChatMessage> {
+    /// A user interface should render [`HistoryPage::items`] so notices and activity are not
+    /// dropped. This iterator remains in server delivery order.
+    pub fn chat_messages(&self) -> impl Iterator<Item = &ChatMessage> {
         self.items.iter().filter_map(|item| match item {
             Event::Message(message) | Event::OwnMessage(message) => Some(message.as_ref()),
             _ => None,
@@ -1767,7 +1768,7 @@ mod tests {
             }] if mask == "*!*@spammer.example"
         ));
         assert!(matches!(&page.items[5], Event::Other(line) if line.command() == "TAGMSG"));
-        let message = page.messages().next().unwrap();
+        let message = page.chat_messages().next().unwrap();
         assert_eq!(message.text, "earlier");
         let Some(Event::History(history)) = events.next().await else {
             panic!("expected replay batch event")
@@ -1778,7 +1779,7 @@ mod tests {
         assert!(matches!(history.items[3], Event::ModeChanged(_)));
         assert!(matches!(history.items[4], Event::ModeChanged(_)));
         assert!(matches!(&history.items[5], Event::Other(line) if line.command() == "TAGMSG"));
-        assert_eq!(history.messages().next().unwrap().text, "earlier");
+        assert_eq!(history.chat_messages().next().unwrap().text, "earlier");
         abort_task(task).await;
     }
 
@@ -1810,7 +1811,7 @@ mod tests {
         server_line(&mut server, b"@label=0 :soju.example BATCH +reply labeled-response\r\n@batch=reply;draft/chathistory-end :soju.example BATCH +history chathistory alice\r\n@batch=history;time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120004 :alice!~a@host PRIVMSG papo_away :can you send me the invoice?\r\n@batch=reply :soju.example BATCH -history\r\n:soju.example BATCH -reply\r\n").await;
 
         let page = within(request).await.unwrap().unwrap();
-        let message = page.messages().next().unwrap();
+        let message = page.chat_messages().next().unwrap();
         assert!(matches!(
             message.conversation,
             crate::Conversation::Private(ref nick) if nick == "alice"
@@ -1880,7 +1881,7 @@ mod tests {
         history_response(&mut server, 1).await;
         within(request).await.unwrap().unwrap();
 
-        let message_id = before.messages().next().unwrap().msgid.clone().unwrap();
+        let message_id = before.chat_messages().next().unwrap().msgid.clone().unwrap();
         let request = tokio::spawn({
             let client = client.clone();
             async move { client.history("#papo").around(&message_id).limit(52).await }

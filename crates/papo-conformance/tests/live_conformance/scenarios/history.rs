@@ -45,7 +45,7 @@ async fn draft_chathistory(s: Scenario) -> papo_testing::Result<()> {
     );
     assert!(page.end);
     let messages = page
-        .messages()
+        .chat_messages()
         .filter(|message| texts.contains(&message.text.as_str()))
         .collect::<Vec<_>>();
     assert_eq!(
@@ -91,14 +91,14 @@ async fn legacy_history(s: Scenario) -> papo_testing::Result<()> {
         conversation_name(&page.conversation),
         Some(channel.as_str())
     );
-    page.messages()
+    page.chat_messages()
         .find(|message| message.text == text)
         .expect("HISTORY replays the stored message");
     Ok(())
 }
 
 fn message_texts(page: &papo::HistoryPage, expected: &[&str]) -> Vec<String> {
-    page.messages()
+    page.chat_messages()
         .filter(|message| expected.contains(&message.text.as_str()))
         .map(|message| message.text.clone())
         .collect()
@@ -179,7 +179,7 @@ async fn terminal_history_page(s: Scenario) -> papo_testing::Result<()> {
             }
             Some(Cursor::Time(time)) => alice.history(&*channel).before(time).limit(10).await?,
         };
-        let messages = page.messages().collect::<Vec<_>>();
+        let messages = page.chat_messages().collect::<Vec<_>>();
         let page_texts = messages
             .iter()
             .map(|message| message.text.as_str())

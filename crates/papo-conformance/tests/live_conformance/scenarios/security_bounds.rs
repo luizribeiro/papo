@@ -335,7 +335,7 @@ async fn repeated_catchup_page_stops_after_two_requests(_s: Scenario) -> papo_te
     }
     loop {
         if let Event::History(history) = next_active_event(&mut events).await {
-            assert_eq!(history.messages().count(), 1);
+            assert_eq!(history.chat_messages().count(), 1);
             break;
         }
     }

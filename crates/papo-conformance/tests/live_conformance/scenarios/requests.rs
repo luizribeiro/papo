@@ -57,7 +57,7 @@ async fn batch(s: Scenario) -> papo_testing::Result<()> {
         Some(channel.as_str())
     );
     let message = page
-        .messages()
+        .chat_messages()
         .find(|message| message.raw_text == "batch correlation deployment")
         .expect("history contains the sent message");
     assert_eq!(message.msgid.as_ref(), sent.msgid());
