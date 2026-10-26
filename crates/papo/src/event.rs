@@ -1475,6 +1475,10 @@ impl Event {
             Self::Invited(event) => event.server_time,
             Self::ChannelRenamed(event) => event.server_time,
             Self::Other(line) => tagged(&line.as_ref()),
+            Self::AccountChanged(event) => event.server_time,
+            Self::AwayChanged(event) => event.server_time,
+            Self::HostChanged(event) => event.server_time,
+            Self::TypingChanged(event) => event.server_time,
             _ => None,
         }
     }
@@ -1499,6 +1503,10 @@ impl Event {
             Self::Quit(event) => Some(event.received_at),
             Self::NickChanged(event) => Some(event.received_at),
             Self::ChannelRenamed(event) => Some(event.received_at),
+            Self::AccountChanged(event) => Some(event.received_at),
+            Self::AwayChanged(event) => Some(event.received_at),
+            Self::HostChanged(event) => Some(event.received_at),
+            Self::TypingChanged(event) => Some(event.received_at),
             Self::ModeChanged(event) => Some(event.received_at),
             Self::TopicChanged(event) => Some(event.received_at),
             _ => None,
@@ -1599,6 +1607,8 @@ pub(crate) fn from_core(
         papo_core::Event::TypingChanged(change) => {
             let return_address = change.return_address();
             Event::TypingChanged(TypingChanged {
+                server_time: change.server_time,
+                received_at,
                 actor: match source::user_from_prefix(
                     &change.actor,
                     casemapping,
@@ -1687,6 +1697,8 @@ pub(crate) fn from_core(
                 _ => None,
             }) {
                 Event::TypingChanged(TypingChanged {
+                    server_time: tag.server_time,
+                    received_at: tag.received_at,
                     actor: tag.actor,
                     authorship: tag.authorship,
                     conversation: tag.conversation,
@@ -2023,11 +2035,14 @@ pub(crate) fn from_core(
             })
         }
         papo_core::Event::AccountChanged {
+            server_time,
             actor,
             account,
             authorship,
             ..
         } => Event::AccountChanged(AccountChanged {
+            server_time,
+            received_at,
             actor: match source::user_from_prefix(
                 &actor,
                 casemapping,
@@ -2047,11 +2062,14 @@ pub(crate) fn from_core(
             authorship: Authorship::from_core(authorship),
         }),
         papo_core::Event::AwayChanged {
+            server_time,
             actor,
             away,
             authorship,
             ..
         } => Event::AwayChanged(AwayChanged {
+            server_time,
+            received_at,
             actor: match source::user_from_prefix(
                 &actor,
                 casemapping,
@@ -2067,12 +2085,15 @@ pub(crate) fn from_core(
             authorship: Authorship::from_core(authorship),
         }),
         papo_core::Event::HostChanged {
+            server_time,
             actor,
             username,
             host,
             authorship,
             ..
         } => Event::HostChanged(HostChanged {
+            server_time,
+            received_at,
             actor: match source::user_from_prefix(
                 &actor,
                 casemapping,
@@ -3157,6 +3178,68 @@ mod tests {
         let untagged = convert(":emily!~emily@cloak.example PRIVMSG #papo :hello from Ergo");
         assert_eq!(untagged.msgid(), None);
         assert_eq!(untagged.server_time(), None);
+    }
+
+    #[test]
+    fn derived_event_times_follow_the_trigger_without_sharing_its_msgid() {
+        let received_at = UNIX_EPOCH + Duration::from_secs(42);
+        let server_time = UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000);
+        let cases = [
+            (
+                "AccountChanged",
+                "@msgid=RfcBTzyxY120201;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example ACCOUNT emily",
+            ),
+            (
+                "AwayChanged",
+                "@msgid=RfcBTzyxY120202;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example AWAY :Lunch",
+            ),
+            (
+                "HostChanged",
+                "@msgid=RfcBTzyxY120203;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example CHGHOST emily users/emily",
+            ),
+            (
+                "TypingChanged",
+                "@msgid=RfcBTzyxY120204;time=2026-02-03T04:05:06.789Z;+typing=active :emily!~emily@cloak.example TAGMSG #papo",
+            ),
+        ];
+
+        for (expected_variant, line) in cases {
+            let mut session = Session::new(Config::default().nick("papo"));
+            for setup in [
+                ":papo!~papo@client.example JOIN #papo",
+                ":emily!~emily@cloak.example JOIN #papo",
+            ] {
+                session.handle_line(Instant::now(), setup.as_bytes());
+                while session.poll_event().is_some() {}
+            }
+            session.handle_line(Instant::now(), line.as_bytes());
+            let event = std::iter::from_fn(|| session.poll_event())
+                .filter_map(|event| {
+                    match from_core_with_mapping(
+                        event,
+                        Casemapping::default(),
+                        crate::Origin::NONE,
+                        false,
+                        false,
+                        received_at,
+                    ) {
+                        CoreEvent::Forward(event) => Some(event),
+                        _ => None,
+                    }
+                })
+                .find(|event| {
+                    matches!(
+                        (expected_variant, event),
+                        ("AccountChanged", Event::AccountChanged(_))
+                            | ("AwayChanged", Event::AwayChanged(_))
+                            | ("HostChanged", Event::HostChanged(_))
+                            | ("TypingChanged", Event::TypingChanged(_))
+                    )
+                })
+                .expect("trigger produced the expected derived event");
+            assert_eq!(event.msgid(), None, "{expected_variant}");
+            assert_event_times(&event, expected_variant, server_time, received_at);
+        }
     }
 
     #[test]

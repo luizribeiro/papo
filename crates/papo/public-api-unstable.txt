@@ -246,6 +246,8 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::Warning
 pub papo::event::AccountChanged::actor: papo::UserSource
 pub papo::event::AccountChanged::authorship: papo::Authorship
 pub papo::event::AccountChanged::new: papo::Account
+pub papo::event::AccountChanged::received_at: std::time::SystemTime
+pub papo::event::AccountChanged::server_time: core::option::Option<std::time::SystemTime>
 impl core::clone::Clone for papo::event::AccountChanged
 pub fn papo::event::AccountChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::AccountChanged
@@ -265,6 +267,8 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::AccountChanged
 pub papo::event::AwayChanged::actor: papo::UserSource
 pub papo::event::AwayChanged::authorship: papo::Authorship
 pub papo::event::AwayChanged::new: papo::Away
+pub papo::event::AwayChanged::received_at: std::time::SystemTime
+pub papo::event::AwayChanged::server_time: core::option::Option<std::time::SystemTime>
 impl core::clone::Clone for papo::event::AwayChanged
 pub fn papo::event::AwayChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::AwayChanged
@@ -549,6 +553,8 @@ pub papo::event::HostChanged::actor: papo::UserSource
 pub papo::event::HostChanged::authorship: papo::Authorship
 pub papo::event::HostChanged::new_host: alloc::string::String
 pub papo::event::HostChanged::new_username: alloc::string::String
+pub papo::event::HostChanged::received_at: std::time::SystemTime
+pub papo::event::HostChanged::server_time: core::option::Option<std::time::SystemTime>
 impl core::clone::Clone for papo::event::HostChanged
 pub fn papo::event::HostChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::HostChanged
@@ -1080,6 +1086,8 @@ pub papo::event::TypingChanged::actor: papo::UserSource
 pub papo::event::TypingChanged::authorship: papo::Authorship
 pub papo::event::TypingChanged::conversation: papo::Conversation
 pub papo::event::TypingChanged::reason: papo::event::TypingReason
+pub papo::event::TypingChanged::received_at: std::time::SystemTime
+pub papo::event::TypingChanged::server_time: core::option::Option<std::time::SystemTime>
 pub papo::event::TypingChanged::state: papo::Typing
 pub papo::event::TypingChanged::status: core::option::Option<papo::Prefix>
 impl papo::event::TypingChanged

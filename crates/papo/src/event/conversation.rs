@@ -148,9 +148,18 @@ pub struct Redacted {
 }
 
 /// A user's typing state changed.
+///
+/// This derived event keeps the triggering line's time, or the local observation time for a
+/// timeout, but never carries a message identifier from another event.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct TypingChanged {
+    /// Valid server time on the triggering line, when supplied.
+    ///
+    /// This is `None` when a local typing deadline caused the change.
+    pub server_time: Option<SystemTime>,
+    /// Time at which the triggering line was received, or when a local timeout was observed.
+    pub received_at: SystemTime,
     /// The user or server that sent the notification.
     pub actor: UserSource,
     /// Whether the actor is this client's user.

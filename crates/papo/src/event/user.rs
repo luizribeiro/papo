@@ -47,9 +47,16 @@ pub struct NickChanged {
 }
 
 /// A user's away state changed.
+///
+/// This derived event keeps the triggering line's time but not its message identifier, so it
+/// cannot collide with the typed event produced from the same line during deduplication.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct AwayChanged {
+    /// Valid server time on the line that caused the change, when supplied.
+    pub server_time: Option<SystemTime>,
+    /// Time at which the triggering line was received.
+    pub received_at: SystemTime,
     /// The affected user.
     pub actor: UserSource,
     /// The user's new presence state.
@@ -59,9 +66,16 @@ pub struct AwayChanged {
 }
 
 /// A user's account state changed.
+///
+/// This derived event keeps the triggering line's time but not its message identifier, so it
+/// cannot collide with the typed event produced from the same line during deduplication.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct AccountChanged {
+    /// Valid server time on the line that caused the change, when supplied.
+    pub server_time: Option<SystemTime>,
+    /// Time at which the triggering line was received.
+    pub received_at: SystemTime,
     /// The affected user.
     pub actor: UserSource,
     /// The account state after the change.
@@ -73,9 +87,16 @@ pub struct AccountChanged {
 }
 
 /// A user's username or hostname changed.
+///
+/// This derived event keeps the triggering line's time but not its message identifier, so it
+/// cannot collide with the typed event produced from the same line during deduplication.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct HostChanged {
+    /// Valid server time on the line that caused the change, when supplied.
+    pub server_time: Option<SystemTime>,
+    /// Time at which the triggering line was received.
+    pub received_at: SystemTime,
     /// The affected user.
     pub actor: UserSource,
     /// The new username from `nick!user@host`; it may start with `~`.
