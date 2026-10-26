@@ -134,15 +134,12 @@ pub enum InvalidInput {
         actual: usize,
     },
     /// A relayed nickname lacks an advertised separator.
-    #[cfg(feature = "unstable")]
     #[error("relayed nickname has no allowed separator")]
     InvalidRelayNickname,
     /// A Web Push endpoint is not a nonempty HTTPS URL.
-    #[cfg(feature = "unstable")]
     #[error("invalid Web Push endpoint")]
     InvalidWebPushEndpoint,
     /// A Web Push key is not valid URL-safe base64.
-    #[cfg(feature = "unstable")]
     #[error("invalid Web Push key")]
     InvalidWebPushKey,
 }
