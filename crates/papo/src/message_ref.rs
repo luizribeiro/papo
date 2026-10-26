@@ -382,6 +382,43 @@ mod tests {
     use super::*;
 
     #[test]
+    fn received_reference_text_matches_each_return_address() {
+        let mapping = crate::Casemapping::default();
+        let actor = crate::__testing::user_source(
+            mapping.nick("alice"),
+            Some("~alice".into()),
+            Some("cloak.example".into()),
+        );
+        let channel =
+            crate::__testing::message(Some(actor.clone()), "#papo", "release approved", false);
+        let mut operators =
+            crate::__testing::message(Some(actor.clone()), "#ops", "restart completed", false);
+        operators.status = Some(crate::Prefix::__new('o', '@'));
+        operators.return_address = "@#ops".into();
+        let private = crate::__testing::message(Some(actor), "papo", "deployment details", true);
+
+        for (kind, message, expected) in [
+            ("channel", channel, "#papo"),
+            ("operators-only channel", operators, "@#ops"),
+            ("private", private, "alice"),
+        ] {
+            let reference = message.return_address();
+            assert_eq!(reference.to_string(), expected, "{kind}");
+            assert_eq!(AsRef::<str>::as_ref(&reference), expected, "{kind}");
+            assert!(<MessageRef as PartialEq<str>>::eq(&reference, expected));
+            assert!(!<MessageRef as PartialEq<str>>::eq(
+                &reference,
+                "different-address"
+            ));
+            assert!(<MessageRef as PartialEq<&str>>::eq(&reference, &expected));
+            assert!(!<MessageRef as PartialEq<&str>>::eq(
+                &reference,
+                &"different-address"
+            ));
+        }
+    }
+
+    #[test]
     fn references_preserve_addresses_origins_and_ids() {
         let mapping = crate::Casemapping::default();
         let origin = crate::Origin::__new(73);
