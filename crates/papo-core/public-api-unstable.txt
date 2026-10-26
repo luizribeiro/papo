@@ -44,6 +44,8 @@ impl core::cmp::PartialOrd for papo_core::cap::Cap
 pub fn papo_core::cap::Cap::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
 impl core::convert::AsRef<str> for papo_core::cap::Cap
 pub fn papo_core::cap::Cap::as_ref(&self) -> &str
+impl core::convert::From<&alloc::string::String> for papo_core::cap::Cap
+pub fn papo_core::cap::Cap::from(&alloc::string::String) -> Self
 impl core::convert::From<&str> for papo_core::cap::Cap
 pub fn papo_core::cap::Cap::from(&str) -> Self
 impl core::convert::From<alloc::string::String> for papo_core::cap::Cap
@@ -1502,6 +1504,8 @@ impl core::cmp::PartialOrd for papo_core::cap::Cap
 pub fn papo_core::cap::Cap::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
 impl core::convert::AsRef<str> for papo_core::cap::Cap
 pub fn papo_core::cap::Cap::as_ref(&self) -> &str
+impl core::convert::From<&alloc::string::String> for papo_core::cap::Cap
+pub fn papo_core::cap::Cap::from(&alloc::string::String) -> Self
 impl core::convert::From<&str> for papo_core::cap::Cap
 pub fn papo_core::cap::Cap::from(&str) -> Self
 impl core::convert::From<alloc::string::String> for papo_core::cap::Cap

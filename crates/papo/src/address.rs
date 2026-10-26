@@ -286,12 +286,13 @@ mod private {
 
 /// A value accepted by [`crate::Client::builder`].
 ///
-/// This trait is sealed; it is implemented for [`Endpoint`], `&str`, and [`String`].
+/// This trait is sealed; it is implemented for [`Endpoint`], `&str`, [`String`], and `&String`.
 pub trait IntoEndpoint: private::Sealed {}
 
 impl IntoEndpoint for Endpoint {}
 impl IntoEndpoint for &str {}
 impl IntoEndpoint for String {}
+impl IntoEndpoint for &String {}
 
 impl private::Sealed for Endpoint {
     fn into_endpoint(self) -> Result<Endpoint, InvalidInput> {
@@ -306,6 +307,12 @@ impl private::Sealed for &str {
 }
 
 impl private::Sealed for String {
+    fn into_endpoint(self) -> Result<Endpoint, InvalidInput> {
+        self.parse().map_err(InvalidInput::from)
+    }
+}
+
+impl private::Sealed for &String {
     fn into_endpoint(self) -> Result<Endpoint, InvalidInput> {
         self.parse().map_err(InvalidInput::from)
     }

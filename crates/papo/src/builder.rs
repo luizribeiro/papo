@@ -1722,6 +1722,7 @@ mod tests {
 
     #[test]
     fn public_builder_accepts_owned_and_borrowed_server_addresses() {
+        let borrowed_address = "ws://irc.example.net:8080/socket".to_owned();
         let borrowed_nick = "papo-client".to_owned();
         for (builder, protocol, port) in [
             (
@@ -1736,6 +1737,11 @@ mod tests {
                 ),
                 Protocol::Irc,
                 7000,
+            ),
+            (
+                crate::Client::builder(&borrowed_address, "papo-client"),
+                Protocol::Ws,
+                8080,
             ),
         ] {
             let address = builder.address.unwrap();

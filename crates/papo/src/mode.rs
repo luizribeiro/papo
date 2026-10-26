@@ -58,6 +58,12 @@ impl From<String> for BanTarget {
     }
 }
 
+impl From<&String> for BanTarget {
+    fn from(value: &String) -> Self {
+        Self::from(value.as_str())
+    }
+}
+
 impl From<Mask> for BanTarget {
     fn from(value: Mask) -> Self {
         Self(Target::Mask(value))
@@ -73,6 +79,12 @@ impl From<&Mask> for BanTarget {
 impl From<Extban> for BanTarget {
     fn from(value: Extban) -> Self {
         Self(Target::Extban(value))
+    }
+}
+
+impl From<&Extban> for BanTarget {
+    fn from(value: &Extban) -> Self {
+        Self(Target::Extban(value.clone()))
     }
 }
 
@@ -961,14 +973,22 @@ mod tests {
     #[test]
     fn ban_targets_accept_text_masks_and_extbans() {
         let mask = papo_proto::Casemapping::Ascii.mask("*!*@staff.example");
+        let text = "Nick".to_owned();
         assert!(matches!(BanTarget::from("Nick"), BanTarget(Target::Text(text)) if text == "Nick"));
+        assert!(
+            matches!(BanTarget::from(&text), BanTarget(Target::Text(value)) if value == "Nick")
+        );
         assert!(
             matches!(BanTarget::from(mask.clone()), BanTarget(Target::Mask(value)) if value == mask)
         );
+        let extban = Extban::account("alice").unwrap();
         assert!(matches!(
-            BanTarget::from(Extban::account("alice").unwrap()),
+            BanTarget::from(&extban),
             BanTarget(Target::Extban(Extban::Account(account))) if account == "alice"
         ));
+        assert!(
+            matches!(BanTarget::from(extban), BanTarget(Target::Extban(Extban::Account(account))) if account == "alice")
+        );
 
         let foreign =
             crate::Origin::__new(91).__mask(papo_proto::Casemapping::Rfc1459, "*!*@spam.example");

@@ -54,6 +54,12 @@ impl From<String> for Cap {
     }
 }
 
+impl From<&String> for Cap {
+    fn from(name: &String) -> Self {
+        Self::from(name.as_str())
+    }
+}
+
 impl From<Cap> for String {
     fn from(name: Cap) -> Self {
         name.0.into_owned()
@@ -503,6 +509,8 @@ mod tests {
             "draft/chathistory"
         );
         assert_eq!(Cap::from("chathistory").as_ref(), "chathistory");
+        let borrowed = "server-time".to_owned();
+        assert_eq!(Cap::from(&borrowed).as_ref(), "server-time");
     }
 
     #[test]

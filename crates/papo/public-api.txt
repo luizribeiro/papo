@@ -1590,6 +1590,8 @@ pub fn papo::Extban::clone(&self) -> Self
 impl core::cmp::Eq for papo::Extban
 impl core::cmp::PartialEq for papo::Extban
 pub fn papo::Extban::eq(&self, &Self) -> bool
+impl core::convert::From<&papo::Extban> for papo::BanTarget
+pub fn papo::BanTarget::from(&papo::Extban) -> Self
 impl core::convert::From<papo::Extban> for papo::BanTarget
 pub fn papo::BanTarget::from(papo::Extban) -> Self
 impl core::fmt::Debug for papo::Extban
@@ -1839,6 +1841,10 @@ pub fn papo::BanTarget::clone(&self) -> Self
 impl core::cmp::Eq for papo::BanTarget
 impl core::cmp::PartialEq for papo::BanTarget
 pub fn papo::BanTarget::eq(&self, &Self) -> bool
+impl core::convert::From<&alloc::string::String> for papo::BanTarget
+pub fn papo::BanTarget::from(&alloc::string::String) -> Self
+impl core::convert::From<&papo::Extban> for papo::BanTarget
+pub fn papo::BanTarget::from(&papo::Extban) -> Self
 impl core::convert::From<&papo::Mask> for papo::BanTarget
 pub fn papo::BanTarget::from(&papo::Mask) -> Self
 impl core::convert::From<&str> for papo::BanTarget
@@ -2339,6 +2345,8 @@ impl core::fmt::Display for papo::MessageRef
 pub fn papo::MessageRef::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::MessageRef
 impl papo::Target for papo::MessageRef
+impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(&alloc::string::String, I)> for papo::MessageRef
+pub fn papo::MessageRef::from((&alloc::string::String, I)) -> Self
 impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(&papo::MessageRef, I)> for papo::MessageRef
 pub fn papo::MessageRef::from((&papo::MessageRef, I)) -> Self
 impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(&papo::ChannelName, I)> for papo::MessageRef
@@ -2837,6 +2845,7 @@ impl papo::AsConversation for papo::Nick
 impl papo::AsConversation for str
 impl<T: papo::AsConversation + ?core::marker::Sized> papo::AsConversation for &T
 pub trait papo::IntoEndpoint: papo::address::private::Sealed
+impl papo::IntoEndpoint for &alloc::string::String
 impl papo::IntoEndpoint for &str
 impl papo::IntoEndpoint for alloc::string::String
 impl papo::IntoEndpoint for papo::Endpoint

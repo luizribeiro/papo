@@ -291,7 +291,7 @@ pub(crate) fn from_server_notice(notice: &ServerNotice) -> MessageRef {
     )
 }
 
-macro_rules! address_pairs {
+macro_rules! borrowed_address_pairs {
     ($($address:ty),+ $(,)?) => {
         $(
             /// Builds a reference from an explicit address and message identifier.
@@ -310,7 +310,14 @@ macro_rules! address_pairs {
     };
 }
 
-address_pairs!(&str, String);
+borrowed_address_pairs!(&str, &String);
+
+/// Builds a reference from an explicit address and message identifier.
+impl<I: Into<MessageId>> From<(String, I)> for MessageRef {
+    fn from((address, msgid): (String, I)) -> Self {
+        Self::new(address, vec![msgid.into()], crate::Origin::NONE, None, None)
+    }
+}
 
 macro_rules! typed_address_pairs {
     ($($address:ty),+ $(,)?) => {
@@ -468,5 +475,15 @@ mod tests {
         assert_eq!(replaced, "emily");
         assert_eq!(replaced.msgid(), Some(&MessageId::from("RfcBTzyxY120007")));
         assert_eq!(replaced.recipient, original.recipient);
+    }
+
+    #[test]
+    fn explicit_text_pairs_accept_owned_and_borrowed_strings() {
+        let borrowed = "#operations".to_owned();
+        let borrowed_reference = MessageRef::from((&borrowed, "RfcBTzyxY120008"));
+        let owned_reference = MessageRef::from(("maintenance".to_owned(), "RfcBTzyxY120009"));
+
+        assert_eq!(borrowed_reference, "#operations");
+        assert_eq!(owned_reference, "maintenance");
     }
 }
