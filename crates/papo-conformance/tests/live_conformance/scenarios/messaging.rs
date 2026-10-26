@@ -23,11 +23,11 @@ async fn fixture_pair_with(
         .wait_for(|event| {
             event
                 .as_joined()
-                .filter(|joined| joined.nick == bob_nick.as_ref())
+                .filter(|joined| joined.actor.nick() == bob_nick.as_ref())
         })
         .await?;
     assert_eq!(joined.channel.as_ref(), channel);
-    assert_eq!(joined.nick, bob_nick.as_ref());
+    assert_eq!(joined.actor.nick(), bob_nick.as_ref());
     assert_eq!(joined.authorship, papo::Authorship::Other);
     for peer in [&alice, &bob] {
         let state = peer.state();
@@ -218,7 +218,7 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     bob.wait_for(|event| {
         event
             .as_parted()
-            .filter(|parted| parted.nick == alice.nick().as_ref())
+            .filter(|parted| parted.actor.nick().as_ref() == alice.nick().as_ref())
     })
     .await?;
     assert_unverified_context(&alice, &mut bob, &channel, "context after part").await?;
@@ -359,7 +359,7 @@ async fn status_message(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| {
             event
                 .as_joined()
-                .filter(|joined| joined.nick == charlie_nick.as_ref())
+                .filter(|joined| joined.actor.nick() == charlie_nick.as_ref())
         })
         .await?;
 

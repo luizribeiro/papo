@@ -55,7 +55,7 @@ async fn casemapping_ascii(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| {
             event
                 .as_joined()
-                .filter(|joined| joined.nick.as_ref() == curly_nick)
+                .filter(|joined| joined.actor.nick().as_ref() == curly_nick)
         })
         .await?;
     assert_eq!(joined.channel.as_ref(), mixed_channel);
@@ -99,12 +99,12 @@ async fn casemapping_ascii(s: Scenario) -> papo_testing::Result<()> {
 
     let alice_joined = alice.wait_for(Event::as_joined).await?;
     assert_eq!(alice_joined.channel.as_ref(), chan);
-    assert_eq!(alice_joined.nick.as_ref(), alice_square_nick);
+    assert_eq!(alice_joined.actor.nick().as_ref(), alice_square_nick);
     assert_eq!(alice_joined.authorship, papo::Authorship::Own);
 
     let bob_joined = bob.wait_for(Event::as_joined).await?;
     assert_eq!(bob_joined.channel.as_ref(), folded);
-    assert_eq!(bob_joined.nick.as_ref(), bob_curly_nick);
+    assert_eq!(bob_joined.actor.nick().as_ref(), bob_curly_nick);
     assert_eq!(bob_joined.authorship, papo::Authorship::Own);
 
     alice.expect_none(Event::as_joined).await?;

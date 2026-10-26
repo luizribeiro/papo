@@ -105,7 +105,7 @@ async fn multidevice_away_shared_state(s: Scenario) -> papo_testing::Result<()> 
         .wait_for(|event| {
             event
                 .as_joined()
-                .filter(|joined| joined.nick == observer.nick().as_ref())
+                .filter(|joined| joined.actor.nick().as_ref() == observer.nick().as_ref())
         })
         .await?;
 

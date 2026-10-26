@@ -248,8 +248,8 @@ mod tests {
         }
         let events = peer.recent.iter().collect::<Vec<_>>();
         assert_eq!(events.len(), 20);
-        assert_eq!(events[0].as_joined().unwrap().nick.as_ref(), "user-1");
-        assert_eq!(events[19].as_joined().unwrap().nick.as_ref(), "user-20");
+        assert_eq!(events[0].as_joined().unwrap().actor.nick(), "user-1");
+        assert_eq!(events[19].as_joined().unwrap().actor.nick(), "user-20");
     }
 
     #[tokio::test]

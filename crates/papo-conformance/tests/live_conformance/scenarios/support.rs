@@ -115,11 +115,11 @@ pub(super) async fn join_seen_by(
         .wait_for(|event| {
             event
                 .as_joined()
-                .filter(|joined| joined.nick == member_nick.as_str())
+                .filter(|joined| joined.actor.nick() == member_nick.as_str())
         })
         .await?;
     assert_eq!(joined.channel.as_ref(), channel);
-    assert_eq!(joined.nick, member_nick.as_str());
+    assert_eq!(joined.actor.nick(), member_nick.as_str());
     assert_eq!(joined.authorship, papo::Authorship::Other);
     Ok(())
 }
