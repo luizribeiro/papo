@@ -504,6 +504,14 @@ fn broadcast_from_line(
     }))
 }
 
+fn is_server_notice_line(message: &LineRef<'_>) -> bool {
+    message.command_is("WALLOPS")
+        || message
+            .param(0)
+            .is_some_and(|target| target == "*" || target.starts_with('$'))
+        || matches!(message.source(), Some(papo_proto::Source::Server(_)))
+}
+
 pub(crate) fn incoming_from_core(
     received: papo_core::ReceivedLine,
     origin: crate::Origin,
@@ -536,6 +544,9 @@ pub(crate) fn incoming_from_core(
             Ok(event) => return event,
             Err(raw) => raw,
         };
+        if !is_server_notice_line(&raw.as_ref()) {
+            return Event::Other(raw);
+        }
         return ServerNotice::from_line(raw, None, None, origin, isupport, received_at)
             .map_or_else(Event::Other, |notice| Event::ServerNotice(Box::new(notice)));
     };
@@ -855,13 +866,7 @@ fn message_event_from_line(
     received_at: SystemTime,
     reply_token: Option<papo_core::ReplyToken>,
 ) -> Event {
-    let message = raw.as_ref();
-    let server_notice = message.command_is("WALLOPS")
-        || message
-            .param(0)
-            .is_some_and(|target| target == "*" || target.starts_with('$'))
-        || matches!(message.source(), Some(papo_proto::Source::Server(_)));
-    if server_notice {
+    if is_server_notice_line(&raw.as_ref()) {
         let origin = crate::message_ref::conversation_origin(&conversation);
         return ServerNotice::from_line(
             raw,
