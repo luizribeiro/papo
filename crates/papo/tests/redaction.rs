@@ -57,6 +57,7 @@ fn request_builders_and_extension_handles_have_opaque_debug_output() {
         format!("{:?}", client.join("#papo").key("secret")),
         "JoinChannel { .. }"
     );
+    assert_eq!(format!("{:?}", client.list_request()), "ListRequest { .. }");
     assert_eq!(format!("{:?}", client.mode("#papo")), "SetModes { .. }");
     assert_eq!(format!("{:?}", client.history("#papo")), "History { .. }");
     assert_eq!(

@@ -1458,6 +1458,11 @@ impl Client {
         })
     }
 
+    /// Starts a configurable request for visible channels.
+    pub fn list_request(&self) -> crate::ListRequest {
+        crate::ListRequest::new(self.clone())
+    }
+
     /// Lists visible channels matching `filter`.
     ///
     /// At most 10,000 entries are retained.

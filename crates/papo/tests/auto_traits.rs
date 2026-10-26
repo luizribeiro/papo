@@ -5,8 +5,8 @@ use std::{future::IntoFuture, time::SystemTime};
 use futures_core::Stream;
 use papo::{
     Builder, Client, Driver, Error, Event, Events, History, HistoryRequest, JoinChannel, Line,
-    ListFilter, Message as ChatMessage, MessageId, NewAccount, RequestFuture, SendMessage,
-    SetModes, State,
+    ListFilter, ListRequest, Message as ChatMessage, MessageId, NewAccount, RequestFuture,
+    SendMessage, SetModes, State,
 };
 use papo_proto::Typing;
 
@@ -49,6 +49,7 @@ fn public_handles_events_and_errors_keep_their_auto_traits() {
     assert_send::<Builder>();
     assert_send::<SendMessage>();
     assert_send::<JoinChannel>();
+    assert_send::<ListRequest>();
     assert_send::<SetModes>();
     assert_send::<History>();
     assert_send::<HistoryRequest>();
@@ -94,6 +95,7 @@ fn request_futures_are_send() {
     assert_send_static(client.set_topic("#papo", "Ergonomic IRC"));
     assert_send_static(client.clear_topic(mapping.channel("#papo")));
     assert_send_static(client.list(ListFilter::default()));
+    assert_send_static(client.list_request().into_future());
     assert_send_static(client.quit("trait check complete"));
 
     assert_extension_futures_are_send(&client, mapping);

@@ -1,6 +1,6 @@
-use std::time::Duration;
+use std::{future::IntoFuture, time::Duration};
 
-use papo_core::{Account, Away, Response};
+use papo_core::{Account, Away, Response, ResponseMatcher};
 use papo_proto::{
     ChannelName, Command, Isupport, Line, Nick, Numeric, ServerName, WhoxPresence, WhoxReply,
 };
@@ -86,6 +86,68 @@ impl WhoEntry {
     #[must_use]
     pub fn rank(&self) -> Option<Rank> {
         highest_rank(&self.prefixes)
+    }
+}
+
+/// Builds a request for visible channels.
+///
+/// Servers advertise supported mask filters with the `ELIST` ISUPPORT token. Papo sends
+/// configured channel masks even when `ELIST` is absent, leaving interpretation to the server.
+#[must_use = "requests do nothing unless awaited"]
+pub struct ListRequest {
+    client: crate::Client,
+    channels: Vec<String>,
+}
+
+impl ListRequest {
+    pub(crate) fn new(client: crate::Client) -> Self {
+        Self {
+            client,
+            channels: Vec::new(),
+        }
+    }
+
+    /// Restricts the request to the supplied comma-separated channel masks.
+    pub fn channels<I, S>(mut self, channels: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        self.channels = channels
+            .into_iter()
+            .map(|channel| channel.as_ref().to_owned())
+            .collect();
+        self
+    }
+}
+
+impl std::fmt::Debug for ListRequest {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        crate::opaque_debug("ListRequest", formatter)
+    }
+}
+
+impl IntoFuture for ListRequest {
+    type Output = Result<Vec<ListEntry>, Error>;
+    type IntoFuture = crate::RequestFuture<Vec<ListEntry>>;
+
+    fn into_future(self) -> Self::IntoFuture {
+        crate::RequestFuture::new(async move {
+            let message = if self.channels.is_empty() {
+                Line::new("LIST")
+            } else {
+                Line::new("LIST").with_params([self.channels.join(",")])
+            };
+            let response = self
+                .client
+                .correlated(message, Some(ResponseMatcher::List))
+                .await?;
+            list(
+                response,
+                self.client.state().isupport().inner(),
+                self.client.origin(),
+            )
+        })
     }
 }
 
