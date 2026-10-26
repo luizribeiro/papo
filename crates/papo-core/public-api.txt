@@ -635,7 +635,7 @@ pub papo_core::Event::StsPolicy(papo::sts::StsAction)
 pub papo_core::Event::StsUpgrade::port: u16
 pub papo_core::Event::TagMessage(papo_core::TagMessage)
 #[non_exhaustive] pub papo_core::Event::TopicChanged
-pub papo_core::Event::TopicChanged::actor: alloc::string::String
+pub papo_core::Event::TopicChanged::actor: papo_core::Source
 pub papo_core::Event::TopicChanged::authorship: papo_core::Authorship
 pub papo_core::Event::TopicChanged::channel: papo::ChannelName
 pub papo_core::Event::TopicChanged::envelope: papo_core::LineEnvelope

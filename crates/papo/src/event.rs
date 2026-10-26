@@ -1941,7 +1941,7 @@ pub(crate) fn from_core(
                 account: envelope.account,
                 channel,
                 topic,
-                actor: source::from_name(&actor, casemapping, origin),
+                actor,
                 authorship: Authorship::from_core(authorship),
             })
         }
@@ -3674,11 +3674,13 @@ mod tests {
     #[test]
     fn maps_topic_changed() {
         assert!(matches!(
-            forwarded(papo_core::Event::__topic_changed(papo_core::LineEnvelope::default(), Casemapping::default().channel("#papo"), Some("Rust 1.90 is out".into()), "alice".into(), papo_core::Authorship::Other)),
+            forwarded(papo_core::Event::__topic_changed(papo_core::LineEnvelope::default(), Casemapping::default().channel("#papo"), Some("Rust 1.90 is out".into()), papo_core::Source::from_proto(papo_proto::Source::__user("alice", Some("~alice"), Some("staff.example")), Casemapping::default()), papo_core::Authorship::Other)),
             Event::TopicChanged(changed)
                 if changed.channel == "#papo"
                     && changed.topic.as_deref() == Some("Rust 1.90 is out")
                     && changed.actor.nick().is_some_and(|nick| nick == "alice")
+                    && papo_proto::Mask::exact(&changed.actor)
+                        .is_some_and(|mask| mask == "alice!~alice@staff.example")
         ));
     }
 

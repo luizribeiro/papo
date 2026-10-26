@@ -912,13 +912,13 @@ impl State {
         };
         let live_envelope = live.then(|| crate::LineEnvelope::from_line(message));
         if let (Some(envelope), Some(channel), Some(actor)) =
-            (live_envelope.clone(), channel_name, source_name(message))
+            (live_envelope.clone(), channel_name, message.source())
         {
             outbox.event(Event::TopicChanged {
                 envelope,
                 channel: self.casemapping.channel(channel),
                 topic: topic.filter(|topic| !topic.is_empty()).map(str::to_owned),
-                actor: actor.to_owned(),
+                actor: Source::from_proto_with_names(actor, self.casemapping),
                 authorship: self.source_authorship(message),
             });
         }
@@ -1258,13 +1258,6 @@ fn typed_mode_change(change: ProtoModeChange<'_>, names: Names) -> ModeChange {
         action: change.action,
         arg,
     }
-}
-
-fn source_name<'a>(message: &'a LineRef<'_>) -> Option<&'a str> {
-    Some(match message.source()? {
-        ProtoSource::Server(name) => name,
-        ProtoSource::User { nick, .. } => nick,
-    })
 }
 
 impl Channel {

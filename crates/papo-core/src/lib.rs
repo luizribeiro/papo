@@ -2481,7 +2481,7 @@ pub enum Event {
         /// The new topic, or `None` when it was cleared.
         topic: Option<String>,
         /// The user or server that changed the topic.
-        actor: String,
+        actor: Source,
         /// Whether the actor is this session's user.
         authorship: Authorship,
     },
@@ -2524,7 +2524,7 @@ hidden_event_constructors! {
     __host_changed(actor: String, nick: Nick, username: String, host: String) => HostChanged;
     __realname_changed(actor: String, nick: Nick, realname: String) => RealnameChanged;
     __mode_changed(envelope: LineEnvelope, subject: Subject, actor: Source, authorship: Authorship, subject_authorship: Authorship, changes: Vec<ModeChange>) => ModeChanged;
-    __topic_changed(envelope: LineEnvelope, channel: ChannelName, topic: Option<String>, actor: String, authorship: Authorship) => TopicChanged;
+    __topic_changed(envelope: LineEnvelope, channel: ChannelName, topic: Option<String>, actor: Source, authorship: Authorship) => TopicChanged;
     __state_limit_reached(limit: StateLimit) => StateLimitReached;
     __monitor_online(nick: Nick, username: Option<String>, host: Option<String>) => MonitorOnline;
     __monitor_offline(nick: Nick) => MonitorOffline;

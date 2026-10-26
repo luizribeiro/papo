@@ -1203,7 +1203,7 @@ fn tracks_live_topic_changes_and_clearing() {
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .event(|event| matches!(event, Event::Joined { .. }))
         .server("@time=2026-10-22T13:14:15.250Z :alice!alice@staff.example TOPIC #papo :Rust 1.90 is out")
-        .event(|event| matches!(event, Event::TopicChanged { channel, topic, actor, .. } if channel == "#papo" && topic.as_deref() == Some("Rust 1.90 is out") && actor == "alice"))
+        .event(|event| matches!(event, Event::TopicChanged { channel, topic, actor, .. } if channel == "#papo" && topic.as_deref() == Some("Rust 1.90 is out") && actor.nick().is_some_and(|nick| nick == "alice")))
         .inspect(|session| {
             let channel = session.state().channel("#papo").unwrap();
             assert_eq!(channel.topic(), Some("Rust 1.90 is out"));
@@ -1218,7 +1218,7 @@ fn tracks_live_topic_changes_and_clearing() {
             );
         })
         .server("@time=2026-10-22T13:15:00.000Z :alice!alice@staff.example TOPIC #papo :")
-        .event(|event| matches!(event, Event::TopicChanged { channel, topic, actor, .. } if channel == "#papo" && topic.is_none() && actor == "alice"))
+        .event(|event| matches!(event, Event::TopicChanged { channel, topic, actor, .. } if channel == "#papo" && topic.is_none() && actor.nick().is_some_and(|nick| nick == "alice")))
         .inspect(|session| {
             let channel = session.state().channel("#papo").unwrap();
             assert_eq!(channel.topic(), None);
@@ -1230,6 +1230,82 @@ fn tracks_live_topic_changes_and_clearing() {
                 channel.topic_set_at(),
                 papo_proto::time::parse("2026-10-22T13:15:00.000Z")
             );
+        })
+        .no_event();
+}
+
+#[test]
+fn topic_events_and_state_keep_user_server_and_bare_nick_sources() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server(":alice!~a@host.example TOPIC #papo :Rust 1.90 is out")
+        .event(|event| {
+            matches!(
+                event,
+                Event::TopicChanged {
+                    actor: Source::User {
+                        nick,
+                        username: Some(username),
+                        host: Some(host),
+                        ..
+                    },
+                    ..
+                } if nick == "alice" && username == "~a" && host == "host.example"
+            )
+        })
+        .inspect(|session| {
+            assert!(matches!(
+                session.state().channel("#papo").unwrap().topic_set_by(),
+                Some(Source::User {
+                    nick,
+                    username: Some(username),
+                    host: Some(host),
+                    ..
+                }) if nick == "alice" && username == "~a" && host == "host.example"
+            ));
+        })
+        .server(":ergo.test TOPIC #papo :Scheduled maintenance")
+        .event(|event| {
+            matches!(
+                event,
+                Event::TopicChanged {
+                    actor: Source::Server { name, .. },
+                    ..
+                } if name == "ERGO.TEST"
+            )
+        })
+        .inspect(|session| {
+            assert!(matches!(
+                session.state().channel("#papo").unwrap().topic_set_by(),
+                Some(Source::Server { name, .. }) if name == "ERGO.TEST"
+            ));
+        })
+        .server(":ChanServ TOPIC #papo :Welcome to #papo")
+        .event(|event| {
+            matches!(
+                event,
+                Event::TopicChanged {
+                    actor: Source::User {
+                        nick,
+                        username: None,
+                        host: None,
+                        ..
+                    },
+                    ..
+                } if nick == "ChanServ"
+            )
+        })
+        .inspect(|session| {
+            assert!(matches!(
+                session.state().channel("#papo").unwrap().topic_set_by(),
+                Some(Source::User {
+                    nick,
+                    username: None,
+                    host: None,
+                    ..
+                }) if nick == "ChanServ"
+            ));
         })
         .no_event();
 }

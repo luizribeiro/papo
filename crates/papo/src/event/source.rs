@@ -25,15 +25,3 @@ pub(crate) fn from_prefix(
         origin,
     )
 }
-
-pub(crate) fn from_name(name: &str, casemapping: Casemapping, origin: crate::Origin) -> Source {
-    if name.contains('.') {
-        from_proto_with_origin(papo_proto::Source::Server(name), casemapping, origin)
-    } else {
-        from_proto_with_origin(
-            papo_proto::Source::__user(name, None, None),
-            casemapping,
-            origin,
-        )
-    }
-}
