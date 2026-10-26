@@ -12,9 +12,21 @@ pub enum InvalidInput {
     /// TLS trust, identity, or server-name input is invalid.
     #[error("invalid TLS configuration: {0}")]
     TlsConfig(String),
-    /// A capability cannot be removed because papo does not request it by default.
-    #[error("papo does not request capability {0:?} by default")]
-    UnknownCapability(String),
+    /// A known capability must be configured through its feature.
+    #[error("capability {capability:?} is known to papo; use enable(Feature::{feature})")]
+    #[non_exhaustive]
+    KnownCapability {
+        /// The rejected capability name.
+        capability: String,
+        /// The feature variant that controls it.
+        feature: &'static str,
+    },
+    /// A known capability is available only with papo's unstable Cargo feature.
+    #[error("capability {0:?} requires papo's `unstable` feature")]
+    UnstableCapability(String),
+    /// A known capability is configured through another typed builder method.
+    #[error("capability {0:?} is configured through its typed builder method")]
+    ManagedCapability(String),
     /// The event queue capacity is zero.
     #[error("event queue capacity must be positive")]
     ZeroEventCapacity,

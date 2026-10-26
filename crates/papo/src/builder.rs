@@ -5,9 +5,7 @@ use std::{
 };
 
 use papo_core::sts::{ConnectionSecurity, MemoryStsStore, StsStore};
-use papo_core::{
-    AwayOnConnect, Config, CtcpReplies, DEFAULT_WANTED_CAPS, RateLimit, Sasl, WhoOnJoin, cap,
-};
+use papo_core::{AwayOnConnect, Config, CtcpReplies, RateLimit, Sasl, WhoOnJoin, cap};
 use tokio::sync::oneshot;
 
 #[cfg(not(browser))]
@@ -292,11 +290,11 @@ impl Builder {
         self
     }
 
-    /// Adds capability names to request when advertised.
+    /// Adds capability names unknown to papo to request when advertised.
     ///
     /// ```
     /// let builder = papo::Client::builder("ircs://irc.example.net", "papo-client")
-    ///     .request_caps(["soju.im/bouncer-networks"]);
+    ///     .request_caps(["vendor.example/network-state"]);
     /// # _ = builder;
     /// ```
     pub fn request_caps<I, S>(mut self, caps: I) -> Self
@@ -305,44 +303,27 @@ impl Builder {
         S: Into<String>,
     {
         for capability in caps.into_iter().map(Into::into) {
-            let canonical = cap::canonical(&capability).to_owned();
-            self.config
-                .disabled_caps
-                .retain(|name| cap::canonical(name) != canonical);
+            if !cfg!(feature = "unstable") && cap::is_unstable(&capability) {
+                self.invalid_input
+                    .get_or_insert(InvalidInput::UnstableCapability(capability));
+                continue;
+            }
+            if let Some(feature) = cap::__feature(&capability) {
+                self.invalid_input
+                    .get_or_insert(InvalidInput::KnownCapability {
+                        capability,
+                        feature: feature.__variant_name(),
+                    });
+                continue;
+            }
+            if cap::is_known(&capability) {
+                self.invalid_input
+                    .get_or_insert(InvalidInput::ManagedCapability(capability));
+                continue;
+            }
             if !self.config.wanted_caps.contains(&capability) {
                 self.config.wanted_caps.push(capability);
             }
-        }
-        self
-    }
-
-    /// Removes default capability names from the request set.
-    ///
-    /// ```
-    /// let builder = papo::Client::builder("ircs://irc.example.net", "papo-client")
-    ///     .without_caps([papo::cap::AWAY_NOTIFY]);
-    /// # _ = builder;
-    /// ```
-    pub fn without_caps<I, S>(mut self, caps: I) -> Self
-    where
-        I: IntoIterator<Item = S>,
-        S: Into<String>,
-    {
-        for capability in caps.into_iter().map(Into::into) {
-            let canonical = cap::canonical(&capability).to_owned();
-            if !DEFAULT_WANTED_CAPS
-                .iter()
-                .any(|name| cap::canonical(name) == canonical)
-                && !cap::is_unstable(&capability)
-            {
-                self.invalid_input
-                    .get_or_insert(InvalidInput::UnknownCapability(capability));
-                continue;
-            }
-            self.config = self.config.without_caps([capability]);
-            self.config
-                .wanted_caps
-                .retain(|name| cap::canonical(name) != canonical);
         }
         self
     }
@@ -1006,8 +987,7 @@ mod tests {
         .realname("papo ping bot")
         .password("network password")
         .sasl(Sasl::plain("ping-bot", "correct horse battery staple"))
-        .device("phone")
-        .request_caps(["message-tags", "sasl"]);
+        .device("phone");
         let config = &builder.config;
         assert_eq!(config.casemapping, crate::Casemapping::Ascii);
         assert_eq!(config.nick, "ping-bot");
@@ -1022,7 +1002,7 @@ mod tests {
             config.wanted_caps[..DEFAULT_WANTED_CAPS.len()],
             DEFAULT_WANTED_CAPS[..]
         );
-        assert_eq!(config.wanted_caps.last().map(String::as_str), Some("sasl"));
+        assert_eq!(config.wanted_caps.len(), DEFAULT_WANTED_CAPS.len());
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -1357,10 +1337,31 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn defers_invalid_setters_until_build() {
-        let cases = [(
-            Builder::new("ircs://irc.example.net").event_capacity(0),
-            InvalidInput::ZeroEventCapacity,
-        )];
+        let cases = vec![
+            (
+                Builder::new("ircs://irc.example.net").event_capacity(0),
+                InvalidInput::ZeroEventCapacity,
+            ),
+            (
+                Builder::new("ircs://irc.example.net").request_caps(["chathistory"]),
+                InvalidInput::KnownCapability {
+                    capability: "chathistory".to_owned(),
+                    feature: "History",
+                },
+            ),
+            (
+                Builder::new("ircs://irc.example.net").request_caps(["sts"]),
+                InvalidInput::ManagedCapability("sts".to_owned()),
+            ),
+        ];
+        #[cfg(not(feature = "unstable"))]
+        let cases = cases
+            .into_iter()
+            .chain([(
+                Builder::new("ircs://irc.example.net").request_caps(["draft/persistence"]),
+                InvalidInput::UnstableCapability("draft/persistence".to_owned()),
+            )])
+            .collect::<Vec<_>>();
         for (builder, expected) in cases {
             let (_client, _events, driver) = builder.build();
             assert!(matches!(

@@ -8,8 +8,7 @@
 //!
 //! #[tokio::main(flavor = "current_thread")]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let (client, mut events) = Client::builder("ircs://irc.example.net", "papo-client")
-//!         .nick("papo-example")
+//!     let (client, mut events) = Client::builder("ircs://irc.example.net", "papo-example")
 //!         .autojoin(["#papo"])
 //!         .connect()
 //!         .await?;
@@ -183,7 +182,7 @@ mod webirc;
 #[path = "testing.rs"]
 pub mod __testing;
 
-pub mod cap;
+mod cap;
 pub mod tags;
 
 /// Read-only views of server features advertised through `RPL_ISUPPORT`.
@@ -196,6 +195,8 @@ pub mod isupport {
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub use action::RequestFuture;
+#[doc(hidden)]
+pub use papo_core::cap::__is_known as __is_known_cap;
 pub use address::{Endpoint, EndpointKind, IntoEndpoint, InvalidInput};
 pub use builder::Builder;
 pub use client::{Client, Fallback, JoinChannel, SendMessage, Sent};

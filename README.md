@@ -43,7 +43,8 @@ layer must use `Builder::allow_insecure_auth(true)` to permit credentials withou
 
 Builder settings that depend on a capability fail connection setup when it is unavailable. This
 includes account creation, metadata subscriptions, reconnect history, and selecting a bouncer
-network. In contrast, `enable(Feature::X)` and `request_caps` use capabilities only when offered.
+network. In contrast, `enable(Feature::X)` uses known capabilities only when offered;
+`request_caps` is reserved for vendor capabilities that papo does not know.
 
 Pass a received message or `Sent` value to reply, react, unreact, or redact. That preserves a
 status-prefixed return address such as `@#ops`; the `Conversation` value identifies only the

@@ -1,17 +1,7 @@
-//! Capability names understood by papo.
-
-pub use papo_core::cap::{
-    ACCOUNT_NOTIFY, EXTENDED_MONITOR, INVITE_NOTIFY, OPER_TAG, STANDARD_REPLIES, STS,
+pub(crate) use papo_core::cap::{
+    ACCOUNT_TAG, LABELED_RESPONSE, MESSAGE_TAGS, MULTILINE,
 };
-pub use papo_core::cap::{ACCOUNT_REGISTRATION, LABELED_RESPONSE, MULTILINE, SASL};
-pub use papo_core::cap::{
-    ACCOUNT_TAG, AWAY_NOTIFY, CHGHOST, EXTENDED_JOIN, MESSAGE_TAGS, MULTI_PREFIX, SETNAME,
-    USERHOST_IN_NAMES,
-};
-pub use papo_core::cap::{BATCH, CHATHISTORY, METADATA, READ_MARKER};
-pub use papo_core::cap::{CAP_NOTIFY, ECHO_MESSAGE, EVENT_PLAYBACK, SERVER_TIME};
-pub use papo_core::cap::{
-    CHANNEL_RENAME, EXTENDED_ISUPPORT, MESSAGE_REDACTION, NO_IMPLICIT_NAMES, PRE_AWAY, WHOAMI,
-};
+#[cfg(test)]
+pub(crate) use papo_core::cap::{MESSAGE_REDACTION, NO_IMPLICIT_NAMES};
 #[cfg(feature = "unstable")]
-pub use papo_core::cap::{PERSISTENCE, RELAYMSG, WEBPUSH};
+pub(crate) use papo_core::cap::RELAYMSG;

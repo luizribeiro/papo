@@ -958,7 +958,12 @@ mod tests {
         let variants = [
             InvalidInput::Url(crate::InvalidUrl::Empty),
             InvalidInput::TlsConfig("invalid PEM".into()),
-            InvalidInput::UnknownCapability("example/cap".into()),
+            InvalidInput::KnownCapability {
+                capability: "chathistory".into(),
+                feature: "History",
+            },
+            InvalidInput::UnstableCapability("draft/persistence".into()),
+            InvalidInput::ManagedCapability("sts".into()),
             InvalidInput::ZeroEventCapacity,
             InvalidInput::RateLimit(crate::InvalidRateLimit::EmptyBurst),
             InvalidInput::BinarySecret,
