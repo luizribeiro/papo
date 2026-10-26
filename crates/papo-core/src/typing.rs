@@ -1,6 +1,6 @@
 use std::{collections::VecDeque, sync::Arc, time::Duration};
 
-use papo_proto::{Command, LineRef, Nick, Source, Typing};
+use papo_proto::{Command, LineRef, Nick, Prefix, Source, Typing};
 use web_time::Instant;
 
 use crate::{
@@ -37,10 +37,11 @@ pub struct TypingChanged {
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
     pub conversation: Conversation,
-    /// `STATUSMSG` prefixes on the typing notification's wire address.
+    /// The lowest-ranked `STATUSMSG` prefix on the typing notification's wire address.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
-    pub status: Option<Vec<char>>,
+    pub status: Option<Prefix>,
+    return_address: String,
     /// The new typing state.
     pub state: Typing,
     /// Why the state changed.
@@ -53,7 +54,7 @@ impl TypingChanged {
     /// See [`Conversation`] for status-prefixed line guidance.
     #[must_use]
     pub fn return_address(&self) -> String {
-        return_address(&self.conversation, self.status.as_deref())
+        self.return_address.clone()
     }
 }
 
@@ -64,7 +65,8 @@ pub struct Typer {
     nick: Nick,
     conversation: Conversation,
     state: Typing,
-    status: Option<Vec<char>>,
+    status: Option<Prefix>,
+    return_address: String,
 }
 
 impl Typer {
@@ -80,12 +82,12 @@ impl Typer {
         matches!(self.state, Typing::Paused)
     }
 
-    /// Returns the `STATUSMSG` prefixes on the typing notification's wire address.
+    /// Returns the lowest-ranked `STATUSMSG` prefix on the typing notification's wire address.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
     #[must_use]
-    pub fn status(&self) -> Option<&[char]> {
-        self.status.as_deref()
+    pub const fn status(&self) -> Option<Prefix> {
+        self.status
     }
 
     /// Returns the address that reaches the recipients of the typing notification.
@@ -93,17 +95,8 @@ impl Typer {
     /// See [`Conversation`] for status-prefixed line guidance.
     #[must_use]
     pub fn return_address(&self) -> String {
-        return_address(&self.conversation, self.status.as_deref())
+        self.return_address.clone()
     }
-}
-
-fn return_address(conversation: &Conversation, status: Option<&[char]>) -> String {
-    status
-        .into_iter()
-        .flatten()
-        .copied()
-        .chain(conversation.as_str().chars())
-        .collect()
 }
 
 #[derive(Clone, Debug)]
@@ -118,7 +111,8 @@ struct Deadline {
     conversation: Conversation,
     nick: Nick,
     actor: String,
-    status: Option<Vec<char>>,
+    status: Option<Prefix>,
+    return_address: String,
     at: Instant,
 }
 
@@ -152,7 +146,8 @@ impl TypingTable {
         conversation: &Conversation,
         nick: Nick,
         actor: String,
-        status: Option<Vec<char>>,
+        status: Option<Prefix>,
+        return_address: String,
         state: Typing,
     ) -> Vec<Deadline> {
         let table = Arc::make_mut(table);
@@ -173,11 +168,13 @@ impl TypingTable {
                 nick: nick.clone(),
                 conversation: conversation.clone(),
                 state,
-                status: status.clone(),
+                status,
+                return_address: return_address.clone(),
             };
             if let Some(position) = entry {
                 if table.entries[position].1.state != state
                     || table.entries[position].1.status != status
+                    || table.entries[position].1.return_address != return_address
                 {
                     table.entries[position].1 = typer;
                 }
@@ -189,6 +186,7 @@ impl TypingTable {
                 nick,
                 actor,
                 status,
+                return_address,
                 at: now + Duration::from_secs(if state == Typing::Active { 6 } else { 30 }),
             };
             if let Some(position) = deadline {
@@ -362,6 +360,11 @@ impl Session {
         else {
             return false;
         };
+        let return_address = match &conversation {
+            Conversation::Channel(_) => message.param(0).unwrap_or(conversation.as_str()),
+            Conversation::Private(_) => conversation.as_str(),
+        }
+        .to_owned();
         let authorship = self.authorship(message);
         if authorship == Authorship::Other {
             let nick = self.names().nick(nick);
@@ -371,7 +374,8 @@ impl Session {
                 &conversation,
                 nick,
                 actor.to_owned(),
-                status.clone(),
+                status,
+                return_address.clone(),
                 state,
             );
             for deadline in evicted {
@@ -386,6 +390,7 @@ impl Session {
             authorship,
             conversation,
             status,
+            return_address,
             state,
             reason: TypingReason::Notified,
         }));
@@ -523,6 +528,7 @@ fn stopped(deadline: Deadline, reason: TypingReason) -> TypingChanged {
         authorship: Authorship::Other,
         conversation: deadline.conversation,
         status: deadline.status,
+        return_address: deadline.return_address,
         state: Typing::Done,
         reason,
     }
@@ -551,6 +557,7 @@ mod tests {
                     conversation: conversation.clone(),
                     state: Typing::Active,
                     status: None,
+                    return_address: "#papo".into(),
                 },
             ),
             (
@@ -560,6 +567,7 @@ mod tests {
                     conversation: other.clone(),
                     state: Typing::Paused,
                     status: None,
+                    return_address: "#rust".into(),
                 },
             ),
             (
@@ -568,7 +576,8 @@ mod tests {
                     nick: mapping.nick("carol"),
                     conversation: conversation.clone(),
                     state: Typing::Paused,
-                    status: Some(vec!['@']),
+                    status: Some(papo_proto::Prefix::__new('o', '@')),
+                    return_address: "@#papo".into(),
                 },
             ),
         ]);

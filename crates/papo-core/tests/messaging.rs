@@ -20,18 +20,7 @@ fn tag_message(line: &str) -> papo_core::TagMessage {
 }
 
 fn as_message(tag: &papo_core::TagMessage) -> Line {
-    let address = match &tag.conversation {
-        Conversation::Channel(channel) => tag
-            .status
-            .iter()
-            .flatten()
-            .copied()
-            .chain(channel.chars())
-            .collect(),
-        Conversation::Private(nick) => nick.to_string(),
-        _ => panic!("unexpected conversation kind"),
-    };
-    let mut message = Line::tagmsg(address);
+    let mut message = Line::tagmsg(tag.__return_address());
     message = message.with_source(&tag.actor);
     for (key, value) in &tag.tags {
         message = message.with_tag(key, value.as_deref().unwrap_or_default());
@@ -124,7 +113,7 @@ fn classifies_status_and_private_tag_messages() {
         panic!("expected channel typing event")
     };
     assert!(matches!(channel.conversation, Conversation::Channel(ref name) if name == "#ops"));
-    assert_eq!(channel.status, Some(vec!['@']));
+    assert_eq!(channel.status.map(papo_core::Prefix::symbol), Some('@'));
 
     session.handle_line(Instant::now(), b"@+typing=done :alice!~a@cloak TAGMSG papo");
     let Some(Event::TypingChanged(private)) = session.poll_event() else {

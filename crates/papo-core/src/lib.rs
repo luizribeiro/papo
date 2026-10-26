@@ -1878,12 +1878,22 @@ pub struct TagMessage {
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
     pub conversation: Conversation,
-    /// Advertised `STATUSMSG` prefixes on the wire address, in wire order.
+    /// The lowest-ranked advertised `STATUSMSG` prefix on the wire address.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
-    pub status: Option<Vec<char>>,
+    pub status: Option<Prefix>,
+    #[doc(hidden)]
+    pub return_address: String,
     /// Tags in wire order.
     pub tags: Vec<(String, Option<String>)>,
+}
+
+impl TagMessage {
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __return_address(&self) -> &str {
+        &self.return_address
+    }
 }
 
 /// A server-relayed message redaction.
@@ -1899,14 +1909,24 @@ pub struct Redacted {
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
     pub conversation: Conversation,
-    /// Advertised `STATUSMSG` prefixes on the wire address, in wire order.
+    /// The lowest-ranked advertised `STATUSMSG` prefix on the wire address.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
-    pub status: Option<Vec<char>>,
+    pub status: Option<Prefix>,
+    #[doc(hidden)]
+    pub return_address: String,
     /// Identifier of the redacted message.
     pub msgid: String,
     /// Optional human-readable reason.
     pub reason: Option<String>,
+}
+
+impl Redacted {
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __return_address(&self) -> &str {
+        &self.return_address
+    }
 }
 
 /// A failure to queue a request.

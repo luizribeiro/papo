@@ -159,8 +159,8 @@ fn status_uses_the_lowest_symbol_and_current_prefix_table() {
 
 #[test]
 fn preserves_ops_only_addresses_across_incoming_line_kinds_and_history() {
-    let is_ops = |status: Option<&[char]>, conversation: Option<&Conversation>| {
-        status == Some(['@'].as_slice())
+    let is_ops = |status: Option<Prefix>, conversation: Option<&Conversation>| {
+        status.map(Prefix::symbol) == Some('@')
             && matches!(conversation, Some(Conversation::Channel(channel)) if channel == "#ops")
     };
     Transcript::new(Config::default().nick("papo"))
@@ -183,17 +183,17 @@ fn preserves_ops_only_addresses_across_incoming_line_kinds_and_history() {
         .server("@+draft/react=👍;+reply=RfcBTzyxY120001 :bob!~b@cloak TAGMSG @#ops")
         .event(|event| {
             matches!(event, Event::TagMessage(line)
-                if is_ops(line.status.as_deref(), Some(&line.conversation)))
+                if is_ops(line.status, Some(&line.conversation)))
         })
         .server("@+typing=active :bob!~b@cloak TAGMSG @#ops")
         .event(|event| {
             matches!(event, Event::TypingChanged(line)
-                if is_ops(line.status.as_deref(), Some(&line.conversation)))
+                if is_ops(line.status, Some(&line.conversation)))
         })
         .server(":alice!~a@cloak REDACT @#ops RfcBTzyxY120001 :superseded")
         .event(|event| {
             matches!(event, Event::Redacted(line)
-                if is_ops(line.status.as_deref(), Some(&line.conversation)))
+                if is_ops(line.status, Some(&line.conversation)))
         })
         .server(":ergo.test BATCH +history chathistory #ops")
         .server(

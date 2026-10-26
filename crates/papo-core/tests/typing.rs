@@ -94,7 +94,7 @@ fn status_target_updates_typing_state_and_deadline() {
             let typers: Vec<_> = session.state().typing(&conversation).collect();
             assert_eq!(typers.len(), 1);
             assert!(typers[0].is_paused());
-            assert_eq!(typers[0].status(), Some(&['@'][..]));
+            assert_eq!(typers[0].status().map(papo_core::Prefix::symbol), Some('@'));
             assert_eq!(typers[0].return_address(), "@#papo");
         })
         .deadline(Some(Duration::from_secs(30)))

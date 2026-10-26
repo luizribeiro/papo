@@ -20,12 +20,14 @@ impl Session {
         else {
             return false;
         };
+        let return_address = return_address(message, &conversation);
         self.outbox.event(Event::TagMessage(TagMessage {
             envelope: LineEnvelope::from_line(message),
             actor: actor.to_owned(),
             authorship: self.authorship(message),
             conversation,
             status,
+            return_address,
             tags: message
                 .tags()
                 .map(|(key, value)| (key.to_owned(), value.map(std::borrow::Cow::into_owned)))
@@ -46,12 +48,14 @@ impl Session {
         else {
             return false;
         };
+        let return_address = return_address(message, &conversation);
         self.outbox.event(Event::Redacted(Redacted {
             envelope: LineEnvelope::from_line(message),
             actor: actor.to_owned(),
             authorship: self.authorship(message),
             conversation,
             status,
+            return_address,
             msgid: msgid.to_owned(),
             reason: message.param(2).map(str::to_owned),
         }));
@@ -79,6 +83,15 @@ impl Session {
             },
         });
         true
+    }
+}
+
+fn return_address(message: &LineRef<'_>, conversation: &crate::Conversation) -> String {
+    match conversation {
+        crate::Conversation::Channel(_) => {
+            message.param(0).unwrap_or(conversation.as_str()).to_owned()
+        }
+        crate::Conversation::Private(_) => conversation.as_str().to_owned(),
     }
 }
 
