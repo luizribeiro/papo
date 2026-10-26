@@ -352,6 +352,28 @@ pub struct ServerNotice {
     pub(crate) return_address: String,
 }
 
+/// A parsed IRC line without a more specific typed event.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct Unparsed {
+    /// The original parsed line.
+    pub line: ProtoLine,
+    /// The server-assigned message identifier, when supplied.
+    pub msgid: Option<MessageId>,
+    /// Valid server time, when supplied.
+    pub server_time: Option<SystemTime>,
+    /// Time at which the line was received.
+    pub received_at: SystemTime,
+}
+
+impl std::ops::Deref for Unparsed {
+    type Target = ProtoLine;
+
+    fn deref(&self) -> &Self::Target {
+        &self.line
+    }
+}
+
 struct MessageMetadata {
     actor: Source,
     authorship: Authorship,
@@ -535,7 +557,7 @@ pub(crate) fn incoming_from_core(
             && kind != crate::cap::MULTILINE.as_str()
             && !matches!(kind, "netsplit" | "netjoin")
     }) {
-        return Event::Other(received.into_line());
+        return unparsed_from_line(received.into_line(), received_at);
     }
     let conversation = received.conversation().cloned();
     let status = received.status();
@@ -556,7 +578,7 @@ pub(crate) fn incoming_from_core(
             Err(raw) => raw,
         };
         if !is_server_notice_line(&raw.as_ref()) {
-            return Event::Other(raw);
+            return unparsed_from_line(raw, received_at);
         }
         return ServerNotice::from_line(
             raw,
@@ -569,7 +591,10 @@ pub(crate) fn incoming_from_core(
             prove_not_bot,
             received_at,
         )
-        .map_or_else(Event::Other, |notice| Event::ServerNotice(Box::new(notice)));
+        .map_or_else(
+            |line| unparsed_from_line(line, received_at),
+            |notice| Event::ServerNotice(Box::new(notice)),
+        );
     };
     message_event_from_line(
         raw,
@@ -938,7 +963,10 @@ fn message_event_from_line(
             prove_not_bot,
             received_at,
         )
-        .map_or_else(Event::Other, |notice| Event::ServerNotice(Box::new(notice)));
+        .map_or_else(
+            |line| unparsed_from_line(line, received_at),
+            |notice| Event::ServerNotice(Box::new(notice)),
+        );
     }
     let raw = match ctcp_from_line(
         raw,
@@ -969,7 +997,10 @@ fn message_event_from_line(
             received_at,
             reply_token,
         )
-        .map_or_else(Event::Other, |notice| Event::Notice(Box::new(notice)));
+        .map_or_else(
+            |line| unparsed_from_line(line, received_at),
+            |notice| Event::Notice(Box::new(notice)),
+        );
     }
     let own = authorship == Authorship::Own;
     Message::new_with_context(
@@ -985,13 +1016,16 @@ fn message_event_from_line(
         received_at,
         reply_token,
     )
-    .map_or_else(Event::Other, |message| {
-        if own {
-            Event::OwnMessage(Box::new(message))
-        } else {
-            Event::Message(Box::new(message))
-        }
-    })
+    .map_or_else(
+        |line| unparsed_from_line(line, received_at),
+        |message| {
+            if own {
+                Event::OwnMessage(Box::new(message))
+            } else {
+                Event::Message(Box::new(message))
+            }
+        },
+    )
 }
 
 pub(crate) fn historical_message_event(
@@ -1007,7 +1041,7 @@ pub(crate) fn historical_message_event(
         snapshot.nick(),
         snapshot.isupport().inner(),
     ) else {
-        return Event::Other(raw);
+        return unparsed_from_line(raw, received_at);
     };
     let conversation = crate::message_ref::stamp_conversation(conversation, client.origin());
     let conversation = historical_conversation(
@@ -1242,6 +1276,19 @@ fn tag_owned(message: &LineRef<'_>, keys: &[&str]) -> Option<String> {
         .find_map(|key| message.tag(key).map(std::borrow::Cow::into_owned))
 }
 
+pub(crate) fn unparsed_from_line(line: ProtoLine, received_at: SystemTime) -> Event {
+    let message = line.as_ref();
+    let msgid = tag_owned(&message, &["msgid"]).map(MessageId::from);
+    let server_time = tag_owned(&message, &["time", "znc.in/server-time-iso"])
+        .and_then(|value| time::parse(&value));
+    Event::Other(Unparsed {
+        line,
+        msgid,
+        server_time,
+        received_at,
+    })
+}
+
 /// An event emitted by an IRC client.
 ///
 /// ```
@@ -1286,7 +1333,7 @@ pub enum Event {
     ///
     /// This includes unknown numerics, vendor commands, and new drafts. Match it only for display
     /// and logging; a future version may type it.
-    Other(ProtoLine),
+    Other(Unparsed),
     /// A tag-only message with typed accessors for known client tags.
     TagMsg(TagMsg),
     /// A tag-only reaction or unreaction.
@@ -1415,7 +1462,7 @@ variant_accessors! { Event;
     (MetadataChanged, as_metadata_changed, MetadataChanged),
     (AccountCreation, as_account_creation, crate::AccountCreation),
     (Warning, as_warning, Warning),
-    (Other, as_other, ProtoLine),
+    (Other, as_other, Unparsed),
 }
 
 impl Event {
@@ -1442,7 +1489,7 @@ impl Event {
             Self::ChannelRenamed(event) => event.msgid.clone(),
             Self::ModeChanged(event) => event.msgid.clone(),
             Self::TopicChanged(event) => event.msgid.clone(),
-            Self::Other(line) => tag_owned(&line.as_ref(), &["msgid"]).map(MessageId::from),
+            Self::Other(event) => event.msgid.clone(),
             _ => None,
         }
     }
@@ -1450,10 +1497,6 @@ impl Event {
     /// Returns the timestamp supplied by the server, when present and valid.
     #[must_use]
     pub fn server_time(&self) -> Option<SystemTime> {
-        let tagged = |line: &LineRef<'_>| {
-            tag_owned(line, &["time", "znc.in/server-time-iso"])
-                .and_then(|value| time::parse(&value))
-        };
         match self {
             Self::Message(event) | Self::OwnMessage(event) => event.server_time,
             Self::Notice(event) => event.server_time,
@@ -1474,11 +1517,11 @@ impl Event {
             Self::TopicChanged(event) => event.server_time,
             Self::Invited(event) => event.server_time,
             Self::ChannelRenamed(event) => event.server_time,
-            Self::Other(line) => tagged(&line.as_ref()),
             Self::AccountChanged(event) => event.server_time,
             Self::AwayChanged(event) => event.server_time,
             Self::HostChanged(event) => event.server_time,
             Self::TypingChanged(event) => event.server_time,
+            Self::Other(event) => event.server_time,
             _ => None,
         }
     }
@@ -1509,6 +1552,7 @@ impl Event {
             Self::TypingChanged(event) => Some(event.received_at),
             Self::ModeChanged(event) => Some(event.received_at),
             Self::TopicChanged(event) => Some(event.received_at),
+            Self::Other(event) => Some(event.received_at),
             _ => None,
         }
     }
@@ -2274,8 +2318,7 @@ mod tests {
         received_at: SystemTime,
     ) {
         assert_eq!(event.server_time(), Some(server_time), "{expected_variant}");
-        let expected =
-            (!matches!(expected_variant, "BroadcastTagMsg" | "Other")).then_some(received_at);
+        let expected = (!matches!(expected_variant, "BroadcastTagMsg")).then_some(received_at);
         assert_eq!(event.received_at(), expected, "{expected_variant}");
     }
 
@@ -2997,11 +3040,12 @@ mod tests {
         assert_eq!(tagged_event.received_at(), Some(received));
         assert_eq!(tagged.received_at, received);
         assert_eq!(
-            Event::Other(
+            super::unparsed_from_line(
                 Line::new("VENDOR")
                     .param("payload")
                     .with_tag("msgid", "Other120004")
-                    .with_tag("time", "2026-02-03T04:05:06.789Z")
+                    .with_tag("time", "2026-02-03T04:05:06.789Z"),
+                received,
             )
             .msgid()
             .as_deref(),

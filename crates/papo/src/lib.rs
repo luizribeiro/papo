@@ -311,7 +311,7 @@ pub mod event {
         MembersRefreshed, MetadataChanged, ModeChanged, MonitorOffline, MonitorOnline, Motd,
         NickChanged, Notice, NoticeKind, Parted, Quit, Reacted, ReactionAction, ReadMarkerChanged,
         RealnameChanged, Redacted, ServerNotice, ServerNoticeKind, SplitServers, StandardReply,
-        StandardReplyKind, TagMsg, TopicChanged, TypingChanged, TypingReason, Warning,
+        StandardReplyKind, TagMsg, TopicChanged, TypingChanged, TypingReason, Unparsed, Warning,
     };
     pub use crate::event_impl::{ConnectPhase, Connecting};
 }

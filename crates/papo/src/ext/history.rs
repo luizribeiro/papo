@@ -10,8 +10,8 @@ use crate::{
     event::{Kicked, ModeChanged, NickChanged, Parted, Quit, Reacted, Redacted, TopicChanged},
 };
 
-fn other(line: Line, _received_at: SystemTime) -> Event {
-    Event::Other(line)
+fn other(line: Line, received_at: SystemTime) -> Event {
+    crate::event_impl::unparsed_from_line(line, received_at)
 }
 
 #[allow(clippy::too_many_lines)]

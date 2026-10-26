@@ -1085,6 +1085,29 @@ impl core::marker::Unpin for papo::event::TypingChanged
 impl core::marker::UnsafeUnpin for papo::event::TypingChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::TypingChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::TypingChanged
+#[non_exhaustive] pub struct papo::event::Unparsed
+pub papo::event::Unparsed::line: papo::Line
+pub papo::event::Unparsed::msgid: core::option::Option<papo::MessageId>
+pub papo::event::Unparsed::received_at: std::time::SystemTime
+pub papo::event::Unparsed::server_time: core::option::Option<std::time::SystemTime>
+impl core::clone::Clone for papo::event::Unparsed
+pub fn papo::event::Unparsed::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::Unparsed
+impl core::cmp::PartialEq for papo::event::Unparsed
+pub fn papo::event::Unparsed::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::Unparsed
+pub fn papo::event::Unparsed::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::Unparsed
+impl core::ops::deref::Deref for papo::event::Unparsed
+pub type papo::event::Unparsed::Target = papo::Line
+pub fn papo::event::Unparsed::deref(&self) -> &Self::Target
+impl core::marker::Freeze for papo::event::Unparsed
+impl core::marker::Send for papo::event::Unparsed
+impl core::marker::Sync for papo::event::Unparsed
+impl core::marker::Unpin for papo::event::Unparsed
+impl core::marker::UnsafeUnpin for papo::event::Unparsed
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Unparsed
+impl core::panic::unwind_safe::UnwindSafe for papo::event::Unparsed
 pub mod papo::fail
 pub const papo::fail::ACCOUNT_EXISTS: &str
 pub const papo::fail::ACCOUNT_NAME_MUST_BE_NICK: &str
@@ -1443,7 +1466,7 @@ pub papo::Event::MonitorOnline(papo::event::MonitorOnline)
 pub papo::Event::Motd(papo::event::Motd)
 pub papo::Event::NickChanged(papo::event::NickChanged)
 pub papo::Event::Notice(alloc::boxed::Box<papo::event::Notice>)
-pub papo::Event::Other(papo::Line)
+pub papo::Event::Other(papo::event::Unparsed)
 pub papo::Event::OwnMessage(alloc::boxed::Box<papo::Message>)
 pub papo::Event::Parted(papo::event::Parted)
 pub papo::Event::Quit(papo::event::Quit)
@@ -1516,7 +1539,7 @@ pub const fn papo::Event::as_nick_changed(&self) -> core::option::Option<&papo::
 impl papo::Event
 pub fn papo::Event::as_notice(&self) -> core::option::Option<&papo::event::Notice>
 impl papo::Event
-pub const fn papo::Event::as_other(&self) -> core::option::Option<&papo::Line>
+pub const fn papo::Event::as_other(&self) -> core::option::Option<&papo::event::Unparsed>
 impl papo::Event
 pub fn papo::Event::as_own_message(&self) -> core::option::Option<&papo::Message>
 impl papo::Event
