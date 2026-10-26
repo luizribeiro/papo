@@ -222,11 +222,11 @@ fn parses_ergo_channel_shape_and_ranked_prefixes() {
     assert_eq!(
         support.prefix(),
         vec![
-            prefix('q', '~', 0),
-            prefix('a', '&', 1),
-            prefix('o', '@', 2),
-            prefix('h', '%', 3),
-            prefix('v', '+', 4),
+            prefix('q', '~'),
+            prefix('a', '&'),
+            prefix('o', '@'),
+            prefix('h', '%'),
+            prefix('v', '+'),
         ]
     );
     assert_eq!(
@@ -246,10 +246,7 @@ fn channel_shape_honors_defaults_empty_values_and_malformed_prefixes() {
     let mut support = Isupport::default();
     assert_eq!(support.chantypes(), "#&");
     assert!(support.is_channel("&local"));
-    assert_eq!(
-        support.prefix(),
-        vec![prefix('o', '@', 0), prefix('v', '+', 1)]
-    );
+    assert_eq!(support.prefix(), vec![prefix('o', '@'), prefix('v', '+')]);
 
     support.apply_tokens(["CHANTYPES=", "PREFIX="]);
     assert_eq!(support.chantypes(), "");
@@ -257,10 +254,7 @@ fn channel_shape_honors_defaults_empty_values_and_malformed_prefixes() {
     assert!(support.prefix().is_empty());
 
     support.apply_tokens(["PREFIX=(ov)@", "CHANMODES=a,b,c"]);
-    assert_eq!(
-        support.prefix(),
-        vec![prefix('o', '@', 0), prefix('v', '+', 1)]
-    );
+    assert_eq!(support.prefix(), vec![prefix('o', '@'), prefix('v', '+')]);
     assert_eq!(support.chanmodes(), None);
 }
 
@@ -465,8 +459,8 @@ fn extension_defaults_and_policies_are_typed() {
     assert!(!support.clienttagdeny().denies("+draft/reply"));
 }
 
-fn prefix(mode: char, symbol: char, rank: usize) -> Prefix {
-    Prefix { mode, symbol, rank }
+fn prefix(mode: char, symbol: char) -> Prefix {
+    Prefix::__new(mode, symbol)
 }
 
 fn limit(name: &str, limit: Option<usize>) -> Limit<'_> {

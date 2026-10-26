@@ -60,7 +60,9 @@ impl<'a> NamesEntry<'a> {
         let prefix_bytes = entry
             .char_indices()
             .take_while(|(_, character)| {
-                advertised.iter().any(|prefix| prefix.symbol == *character)
+                advertised
+                    .iter()
+                    .any(|prefix| prefix.symbol() == *character)
             })
             .map(|(index, character)| index + character.len_utf8())
             .last()

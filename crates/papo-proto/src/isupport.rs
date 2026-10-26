@@ -13,15 +13,63 @@ pub enum Advertised<'a> {
     Value(&'a str),
 }
 
-/// One ranked channel-membership mode and its visible prefix.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+/// One channel-membership mode and its visible prefix.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct Prefix {
-    /// The membership mode letter.
-    pub mode: char,
-    /// The symbol shown before a nickname.
-    pub symbol: char,
-    /// The zero-based rank, with zero being the highest privilege.
-    pub rank: usize,
+    mode: char,
+    symbol: char,
+}
+
+impl Prefix {
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __new(mode: char, symbol: char) -> Self {
+        Self { mode, symbol }
+    }
+
+    /// Returns the symbol shown before a nickname or channel target.
+    #[must_use]
+    pub const fn symbol(self) -> char {
+        self.symbol
+    }
+
+    /// Returns the membership mode letter.
+    ///
+    /// A status symbol not present in the server's `PREFIX` table has no known mode and returns
+    /// the null character.
+    #[must_use]
+    pub const fn mode(self) -> char {
+        self.mode
+    }
+
+    /// Returns the standard rank represented by this membership mode.
+    #[must_use]
+    pub const fn rank(self) -> Option<Rank> {
+        match self.mode {
+            'v' => Some(Rank::Voice),
+            'h' => Some(Rank::Halfop),
+            'o' => Some(Rank::Op),
+            'a' => Some(Rank::Admin),
+            'q' => Some(Rank::Owner),
+            _ => None,
+        }
+    }
+}
+
+/// A standard channel membership rank.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[non_exhaustive]
+pub enum Rank {
+    /// May speak in a moderated channel.
+    Voice,
+    /// Has half-operator privileges.
+    Halfop,
+    /// Has channel-operator privileges.
+    Op,
+    /// Has channel-administrator privileges.
+    Admin,
+    /// Has channel-owner privileges.
+    Owner,
 }
 
 /// The four standard channel-mode parameter groups.
@@ -487,8 +535,7 @@ fn parse_prefix(value: &str) -> Option<Vec<Prefix>> {
         modes
             .chars()
             .zip(symbols.chars())
-            .enumerate()
-            .map(|(rank, (mode, symbol))| Prefix { mode, symbol, rank })
+            .map(|(mode, symbol)| Prefix { mode, symbol })
             .collect(),
     )
 }

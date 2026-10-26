@@ -114,7 +114,7 @@ impl<'a> WhoxReply<'a> {
                 || isupport.bot_mode().is_some_and(|mode| flags.contains(mode)),
             prefixes: flags
                 .chars()
-                .filter(|flag| prefixes.iter().any(|prefix| prefix.symbol == *flag))
+                .filter(|flag| prefixes.iter().any(|prefix| prefix.symbol() == *flag))
                 .collect(),
         })
     }

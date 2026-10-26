@@ -11,8 +11,8 @@ pub enum ModeKind {
     ArgWhenSet,
     /// A mode that never takes an argument.
     NoArg,
-    /// A channel-membership mode with its zero-based privilege rank.
-    Prefix(usize),
+    /// A channel-membership mode and its visible prefix.
+    Prefix(Prefix),
     /// A mode whose parameter behavior was not advertised.
     ///
     /// Unknown modes consume no argument. A server that gives one an argument can
@@ -98,8 +98,8 @@ fn classify(mode: char, groups: Option<&ChanModes<'_>>, prefixes: &[Prefix]) -> 
     let Some(groups) = groups else {
         return ModeKind::Unknown;
     };
-    if let Some(prefix) = prefixes.iter().find(|prefix| prefix.mode == mode) {
-        ModeKind::Prefix(prefix.rank)
+    if let Some(prefix) = prefixes.iter().find(|prefix| prefix.mode() == mode) {
+        ModeKind::Prefix(*prefix)
     } else if groups.list.contains(mode) {
         ModeKind::List
     } else if groups.always.contains(mode) {
@@ -142,11 +142,10 @@ mod tests {
             when_set: "",
             never: "",
         };
-        let prefixes = [Prefix {
-            mode: 'o',
-            symbol: '@',
-            rank: 2,
-        }];
-        assert_eq!(classify('o', Some(&groups), &prefixes), ModeKind::Prefix(2));
+        let prefix = Prefix::__new('o', '@');
+        assert_eq!(
+            classify('o', Some(&groups), &[prefix]),
+            ModeKind::Prefix(prefix)
+        );
     }
 }

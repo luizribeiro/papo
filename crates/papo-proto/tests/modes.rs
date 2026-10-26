@@ -1,6 +1,6 @@
 //! Channel and user mode parsing behavior.
 
-use papo_proto::{Isupport, ModeAction, ModeChange, ModeChanges, ModeKind};
+use papo_proto::{Isupport, ModeAction, ModeChange, ModeChanges, ModeKind, Prefix};
 
 fn support(tokens: &[&str]) -> Isupport {
     let mut support = Isupport::default();
@@ -76,14 +76,24 @@ fn parses_mixed_ergo_prefix_and_list_modes() {
         ModeChanges::parse("+ob-v", ["alice", "*!*@spam.example", "bob"], &support)
             .collect::<Vec<_>>(),
         [
-            change(ModeAction::Add, 'o', Some("alice"), ModeKind::Prefix(2)),
+            change(
+                ModeAction::Add,
+                'o',
+                Some("alice"),
+                ModeKind::Prefix(Prefix::__new('o', '@')),
+            ),
             change(
                 ModeAction::Add,
                 'b',
                 Some("*!*@spam.example"),
                 ModeKind::List
             ),
-            change(ModeAction::Remove, 'v', Some("bob"), ModeKind::Prefix(4)),
+            change(
+                ModeAction::Remove,
+                'v',
+                Some("bob"),
+                ModeKind::Prefix(Prefix::__new('v', '+')),
+            ),
         ]
     );
 }
@@ -111,7 +121,12 @@ fn represents_missing_required_arguments_without_panicking() {
     assert_eq!(
         ModeChanges::parse("+ob", ["dan"], &support).collect::<Vec<_>>(),
         [
-            change(ModeAction::Add, 'o', Some("dan"), ModeKind::Prefix(0)),
+            change(
+                ModeAction::Add,
+                'o',
+                Some("dan"),
+                ModeKind::Prefix(Prefix::__new('o', '@')),
+            ),
             change(ModeAction::Add, 'b', None, ModeKind::List),
         ]
     );

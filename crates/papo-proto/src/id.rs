@@ -430,7 +430,7 @@ impl Nick {
             || isupport
                 .prefix()
                 .iter()
-                .any(|prefix| prefix.symbol == first)
+                .any(|prefix| prefix.symbol() == first)
         {
             return Err(InvalidIdentifier::InvalidPrefix(first));
         }
