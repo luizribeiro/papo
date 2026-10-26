@@ -3184,7 +3184,7 @@ mod tests {
         let mut session = Session::new(config);
         session.handle_line(
             Instant::now(),
-            b"@account=alice :alice!~a@cloak.example JOIN #papo * :Alice",
+            b"@account=alice :alice!~a@cloak.example JOIN #papo alice :Alice",
         );
         let CoreEvent::Forward(Event::Joined(joined)) = from_core_with_mapping(
             session.poll_event().expect("join event"),
@@ -3199,7 +3199,9 @@ mod tests {
 
         assert_eq!(joined.channel.origin(), origin);
         assert_eq!(joined.actor.nick().origin(), origin);
-        assert_eq!(joined.actor.nick().origin(), origin);
+        assert_eq!(joined.actor.username(), Some("~a"));
+        assert_eq!(joined.actor.host(), Some("cloak.example"));
+        assert!(matches!(joined.actor.account(), Account::LoggedIn(account) if account == "alice"));
         session.handle_line(
             Instant::now(),
             b"@account=alice :alice!~a@cloak.example PART #papo :deploying",
@@ -3850,6 +3852,26 @@ mod tests {
                 if changed.actor.nick() == "emily"
                     && changed.new == Away::__away_value(Some("Gone to lunch".into()))
         ));
+    }
+
+    #[test]
+    fn maps_away_numeric_actors_from_the_numeric_nick() {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().nick("emily"));
+        session.handle_line(now, b":emily!em@127.0.0.1 JOIN #papo");
+        _ = session.poll_event();
+        session.handle_line(now, b":dan!~dan@cloak.example JOIN #papo");
+        _ = session.poll_event();
+        session.handle_line(now, b":ergo.test 301 emily dan :Gone to lunch");
+
+        let away = forwarded(session.poll_event().expect("away event"));
+        let away = away.as_away_changed().expect("typed away event");
+        assert_eq!(away.actor.nick(), "dan");
+        assert_eq!(away.actor.username(), None);
+        assert_eq!(away.actor.host(), None);
+        assert_eq!(away.actor.account(), &Account::Unknown);
+        assert_eq!(away.actor.is_bot(), None);
+        assert_eq!(away.authorship, Authorship::Other);
     }
 
     #[test]
