@@ -707,15 +707,10 @@ impl Notice {
 }
 
 impl ServerNotice {
-    #[allow(clippy::too_many_arguments)]
     fn from_line(
         raw: ProtoLine,
-        batch_type: Option<&str>,
-        authorship: Authorship,
-        conversation: Conversation,
-        status: Option<Vec<char>>,
+        origin: crate::Origin,
         isupport: &Isupport,
-        account_tag_enabled: bool,
         received_at: SystemTime,
     ) -> Result<Self, ProtoLine> {
         let message = raw.as_ref();
@@ -732,7 +727,6 @@ impl ServerNotice {
         let Some(raw_text) = message.param(usize::from(!wallops)) else {
             return Err(raw);
         };
-        let origin = crate::message_ref::conversation_origin(&conversation);
         let to = if wallops || message.param(0) == Some("*") {
             ServerNoticeTarget::All
         } else if let Some(target) = message.param(0).filter(|target| target.starts_with('$')) {
@@ -745,28 +739,20 @@ impl ServerNotice {
         } else {
             ServerNoticeTarget::Me
         };
-        let Some(metadata) = message_metadata(
-            &message,
-            batch_type,
-            authorship,
-            conversation,
-            status,
-            isupport,
-            account_tag_enabled,
-            received_at,
-            None,
-        ) else {
+        let Some(source) = message.source() else {
             return Err(raw);
         };
+        let actor = source::from_proto_with_origin(source, isupport.casemapping(), origin);
+        let envelope = line_envelope(&message, isupport.casemapping(), origin, received_at);
         Ok(Self {
-            actor: metadata.actor,
+            actor,
             kind,
             to,
             text: strip_formatting(raw_text).into_owned(),
             raw_text: raw_text.to_owned(),
-            server_time: metadata.server_time,
-            received_at: metadata.received_at,
-            tags: metadata.tags,
+            server_time: envelope.server_time,
+            received_at: envelope.received_at,
+            tags: Tags::from_message(&message),
         })
     }
 
@@ -796,17 +782,9 @@ fn message_event_from_line(
             .is_some_and(|target| target == "*" || target.starts_with('$'))
         || matches!(message.source(), Some(papo_proto::Source::Server(_)));
     if server_notice {
-        return ServerNotice::from_line(
-            raw,
-            batch_type,
-            authorship,
-            conversation,
-            status,
-            isupport,
-            account_tag_enabled,
-            received_at,
-        )
-        .map_or_else(Event::Other, |notice| Event::ServerNotice(Box::new(notice)));
+        let origin = crate::message_ref::conversation_origin(&conversation);
+        return ServerNotice::from_line(raw, origin, isupport, received_at)
+            .map_or_else(Event::Other, |notice| Event::ServerNotice(Box::new(notice)));
     }
     let raw = match ctcp_from_line(
         raw,
@@ -2049,7 +2027,10 @@ mod tests {
         received_at: std::time::SystemTime,
     ) -> Event {
         let (status, conversation) =
-            papo_core::classify_conversation(&message.as_ref(), nick, isupport).unwrap();
+            papo_core::classify_conversation(&message.as_ref(), nick, isupport).unwrap_or((
+                None,
+                Conversation::Private(isupport.casemapping().nick(nick)),
+            ));
         message_event_from_line(
             message,
             None,
