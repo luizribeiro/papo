@@ -1154,19 +1154,17 @@ mod tests {
                 .any(|cap| cap == notify)
         );
         assert!(management.config.disabled_caps.is_empty());
+        let bound = Builder::new("ircs://irc.example.net")
+            .bouncer_network(crate::NetworkId::from("libera"));
+        assert!(!bound.config.wanted_caps.iter().any(|cap| cap == notify));
 
         let enabled = Builder::new("ircs://irc.example.net")
+            .enable(crate::Feature::Bouncer)
             .enable(crate::Feature::Persistence)
             .enable(crate::Feature::Relay)
             .enable(crate::Feature::WebPush)
             .bouncer_network(crate::NetworkId::from("libera"));
-        assert!(
-            enabled
-                .config
-                .enabled_features
-                .contains(&crate::Feature::Bouncer)
-        );
-        assert_eq!(enabled.config.disabled_caps, [notify]);
+        assert!(enabled.config.disabled_caps.is_empty());
         for capability in [
             "soju.im/bouncer-networks",
             "soju.im/bouncer-networks-notify",
@@ -1184,9 +1182,13 @@ mod tests {
         }
         let opted_in = Builder::new("ircs://irc.example.net")
             .bouncer_network(crate::NetworkId::from("libera"))
-            .request_caps([notify]);
+            .enable(crate::Feature::Bouncer);
         assert!(opted_in.config.wanted_caps.iter().any(|cap| cap == notify));
         assert!(opted_in.config.disabled_caps.is_empty());
+        let other_order = Builder::new("ircs://irc.example.net")
+            .enable(crate::Feature::Bouncer)
+            .bouncer_network(crate::NetworkId::from("libera"));
+        assert_eq!(opted_in.config.wanted_caps, other_order.config.wanted_caps);
 
         let reconnect = crate::Reconnect::never();
         let (control, _events, _driver) =
@@ -1211,12 +1213,7 @@ mod tests {
             Some("correct horse battery staple")
         );
         assert_eq!(network.config.rate_limit, RateLimit::unlimited());
-        assert!(
-            network
-                .config
-                .enabled_features
-                .contains(&crate::Feature::Relay)
-        );
+        assert!(network.config.wanted_caps.iter().any(|name| name == "draft/relaymsg"));
         assert_eq!(network.config.bouncer_network.as_deref(), Some("libera"));
         assert!(network.config.metadata_subscriptions.is_empty());
         assert_eq!(

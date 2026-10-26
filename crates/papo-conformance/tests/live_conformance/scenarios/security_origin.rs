@@ -214,9 +214,13 @@ async fn bouncer_notifications_are_single_source(s: Scenario) -> papo_testing::R
         .await?;
     bound.expect_none(Event::as_bouncer_network_changed).await?;
 
-    let notify = "soju.im/bouncer-networks-notify";
     let mut opted_in = s
-        .connect_with(control.bouncer().network(&id).request_caps([notify]))
+        .connect_with(
+            control
+                .bouncer()
+                .network(&id)
+                .enable(papo::Feature::Bouncer),
+        )
         .await?;
     opted_in.expect_none(Event::as_message).await?;
     let (endpoint, name) = config("bound-managed-change");

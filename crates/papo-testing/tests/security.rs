@@ -192,7 +192,8 @@ async fn bouncer_notifications_have_one_explicit_source() {
     let bound = requested_bouncer_caps(bound_builder("libera-42")).await;
     assert!(!bound.contains(notify));
 
-    let opted_in = requested_bouncer_caps(bound_builder("libera-42").request_caps([notify])).await;
+    let opted_in =
+        requested_bouncer_caps(bound_builder("libera-42").enable(papo::Feature::Bouncer)).await;
     assert!(opted_in.contains(notify));
 }
 

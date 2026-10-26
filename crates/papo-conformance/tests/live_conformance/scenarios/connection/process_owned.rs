@@ -55,8 +55,7 @@ pub(super) async fn bouncer_networks(s: Scenario) -> papo_testing::Result<()> {
             .realname("papo bouncer control")
             .password(login.password())
             .allow_insecure_auth(true)
-            .enable(papo::Feature::Bouncer)
-            .request_caps(["batch", "soju.im/bouncer-networks"]),
+            .enable(papo::Feature::Bouncer),
         )
         .await?;
     let initial = alice.bouncer().networks().await?;
@@ -132,7 +131,6 @@ pub(super) async fn sts(s: Scenario) -> papo_testing::Result<()> {
                 Endpoint::plaintext("localhost", server.plaintext_addr().port()).unwrap(),
                 &nick,
             )
-            .request_caps(["sts"])
             .tls_ca_pem(fs::read(server.ca_pem_path())?)
             .sts_store(store.clone()),
         )
