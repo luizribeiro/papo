@@ -51,18 +51,6 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
         ConversationClass::Event,
     ),
     (
-        "pub fn papo::Client::fetch_read_marker(&self, impl core::convert::Into<ConversationInput>) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>",
-        ConversationClass::History,
-    ),
-    (
-        "pub fn papo::Client::history(&self, impl core::convert::Into<ConversationInput>) -> papo::History",
-        ConversationClass::History,
-    ),
-    (
-        "pub fn papo::Client::mark_read(&self, impl core::convert::Into<ConversationInput>, std::time::SystemTime) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>",
-        ConversationClass::History,
-    ),
-    (
         "pub papo::HistoryPage::conversation: papo::Conversation",
         ConversationClass::History,
     ),
@@ -87,7 +75,7 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
         ConversationClass::State,
     ),
     (
-        "pub fn papo::State::typing<'a>(&'a self, &'a papo::Conversation) -> impl core::iter::traits::iterator::Iterator<Item = &'a papo::Typer>",
+        "impl papo::AsConversation for papo::Conversation",
         ConversationClass::State,
     ),
     (
@@ -177,10 +165,7 @@ fn internal_crate_paths(snapshot: &str) -> Vec<&str> {
 fn conversation_items(snapshot: &str) -> Vec<&str> {
     snapshot
         .lines()
-        .filter(|line| {
-            *line != "pub use papo::Conversation"
-                && (line.contains("papo::Conversation") || line.contains("ConversationInput"))
-        })
+        .filter(|line| *line != "pub use papo::Conversation" && line.contains("papo::Conversation"))
         .collect()
 }
 
@@ -303,15 +288,12 @@ fn conversation_items_are_classified() {
 }
 
 #[test]
-fn conversation_check_includes_indirect_inputs_but_not_the_reexport() {
+fn conversation_check_ignores_role_inputs_and_the_reexport() {
     let snapshot = "pub use papo::Conversation\n\
                     pub example::Event::conversation: papo::Conversation\n\
-                    pub fn example::history(impl core::convert::Into<ConversationInput>)\n";
+                    pub fn example::history(impl papo::AsConversation)\n";
     assert_eq!(
         conversation_items(snapshot),
-        [
-            "pub example::Event::conversation: papo::Conversation",
-            "pub fn example::history(impl core::convert::Into<ConversationInput>)",
-        ]
+        ["pub example::Event::conversation: papo::Conversation"]
     );
 }
