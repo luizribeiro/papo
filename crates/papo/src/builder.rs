@@ -907,6 +907,9 @@ mod tests {
         ));
 
         let tag = crate::event::TagMsg {
+            msgid: None,
+            server_time: None,
+            received_at: std::time::SystemTime::UNIX_EPOCH,
             actor: actor.clone(),
             authorship: crate::Authorship::Other,
             conversation: crate::Conversation::Private(first.state().name_rules().nick("emily")),

@@ -364,9 +364,12 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::CasemappingChanged
 #[non_exhaustive] pub struct papo::event::ChannelRenamed
 pub papo::event::ChannelRenamed::actor: papo::Source
 pub papo::event::ChannelRenamed::authorship: papo::Authorship
+pub papo::event::ChannelRenamed::msgid: core::option::Option<papo::MessageId>
 pub papo::event::ChannelRenamed::new: papo::ChannelName
 pub papo::event::ChannelRenamed::old: papo::ChannelName
 pub papo::event::ChannelRenamed::reason: core::option::Option<alloc::string::String>
+pub papo::event::ChannelRenamed::received_at: std::time::SystemTime
+pub papo::event::ChannelRenamed::server_time: core::option::Option<std::time::SystemTime>
 impl core::clone::Clone for papo::event::ChannelRenamed
 pub fn papo::event::ChannelRenamed::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::ChannelRenamed
@@ -542,6 +545,9 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::HostChanged
 pub papo::event::Invited::actor: papo::Source
 pub papo::event::Invited::authorship: papo::Authorship
 pub papo::event::Invited::channel: papo::ChannelName
+pub papo::event::Invited::msgid: core::option::Option<papo::MessageId>
+pub papo::event::Invited::received_at: std::time::SystemTime
+pub papo::event::Invited::server_time: core::option::Option<std::time::SystemTime>
 pub papo::event::Invited::subject: papo::Nick
 pub papo::event::Invited::subject_authorship: papo::Authorship
 impl core::clone::Clone for papo::event::Invited
@@ -926,6 +932,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::Redacted
 pub papo::event::ServerNotice::actor: papo::Source
 pub papo::event::ServerNotice::authorship: papo::Authorship
 pub papo::event::ServerNotice::kind: papo::event::ServerNoticeKind
+pub papo::event::ServerNotice::msgid: core::option::Option<papo::MessageId>
 pub papo::event::ServerNotice::raw_text: alloc::string::String
 pub papo::event::ServerNotice::received_at: std::time::SystemTime
 pub papo::event::ServerNotice::server_time: core::option::Option<std::time::SystemTime>
@@ -995,6 +1002,9 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::StandardReply
 pub papo::event::TagMsg::actor: papo::UserSource
 pub papo::event::TagMsg::authorship: papo::Authorship
 pub papo::event::TagMsg::conversation: papo::Conversation
+pub papo::event::TagMsg::msgid: core::option::Option<papo::MessageId>
+pub papo::event::TagMsg::received_at: std::time::SystemTime
+pub papo::event::TagMsg::server_time: core::option::Option<std::time::SystemTime>
 pub papo::event::TagMsg::status: core::option::Option<papo::Prefix>
 pub papo::event::TagMsg::tags: papo::Tags
 impl papo::event::TagMsg

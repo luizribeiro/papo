@@ -174,6 +174,12 @@ pub struct TypingChanged {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct TagMsg {
+    /// The server-assigned identifier of the tag-only line, when supplied.
+    pub msgid: Option<MessageId>,
+    /// Valid server time, when supplied.
+    pub server_time: Option<SystemTime>,
+    /// Time at which the line was received.
+    pub received_at: SystemTime,
     /// The user or server that sent the message.
     pub actor: UserSource,
     /// Whether the actor is this client's user.

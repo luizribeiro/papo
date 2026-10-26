@@ -341,6 +341,8 @@ pub struct ServerNotice {
     pub text: String,
     /// Text with IRC formatting retained.
     pub raw_text: String,
+    /// The server-assigned message identifier, when supplied.
+    pub msgid: Option<MessageId>,
     /// Valid server time, when supplied.
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
@@ -895,6 +897,7 @@ impl ServerNotice {
             status,
             text: strip_formatting(raw_text).into_owned(),
             raw_text: raw_text.to_owned(),
+            msgid: envelope.msgid,
             server_time: envelope.server_time,
             received_at: envelope.received_at,
             tags: Tags::from_message(&message),
@@ -1422,18 +1425,21 @@ impl Event {
         match self {
             Self::Message(event) | Self::OwnMessage(event) => event.msgid.clone(),
             Self::Notice(event) => event.msgid.clone(),
+            Self::ServerNotice(event) => event.msgid.clone(),
             Self::CtcpQuery(event) => event.msgid.clone(),
             Self::CtcpReply(event) => event.msgid.clone(),
             Self::BroadcastCtcp(event) => event.msgid.clone(),
             Self::BroadcastTagMsg(event) => event.tags.get("msgid").map(MessageId::from),
-            Self::TagMsg(event) => event.tags.get("msgid").map(MessageId::from),
+            Self::TagMsg(event) => event.msgid.clone(),
             Self::Reacted(event) => event.msgid.clone(),
             Self::Redacted(event) => event.msgid.clone(),
             Self::Joined(event) => event.msgid.clone(),
             Self::Parted(event) => event.msgid.clone(),
             Self::Kicked(event) => event.msgid.clone(),
+            Self::Invited(event) => event.msgid.clone(),
             Self::Quit(event) => event.msgid.clone(),
             Self::NickChanged(event) => event.msgid.clone(),
+            Self::ChannelRenamed(event) => event.msgid.clone(),
             Self::ModeChanged(event) => event.msgid.clone(),
             Self::TopicChanged(event) => event.msgid.clone(),
             Self::Other(line) => tag_owned(&line.as_ref(), &["msgid"]).map(MessageId::from),
@@ -1466,6 +1472,8 @@ impl Event {
             Self::NickChanged(event) => event.server_time,
             Self::ModeChanged(event) => event.server_time,
             Self::TopicChanged(event) => event.server_time,
+            Self::Invited(event) => event.server_time,
+            Self::ChannelRenamed(event) => event.server_time,
             Self::Other(line) => tagged(&line.as_ref()),
             _ => None,
         }
@@ -1481,13 +1489,16 @@ impl Event {
             Self::CtcpQuery(event) => Some(event.received_at),
             Self::CtcpReply(event) => Some(event.received_at),
             Self::BroadcastCtcp(event) => Some(event.received_at),
+            Self::TagMsg(event) => Some(event.received_at),
             Self::Reacted(event) => Some(event.received_at),
             Self::Redacted(event) => Some(event.received_at),
             Self::Joined(event) => Some(event.received_at),
             Self::Parted(event) => Some(event.received_at),
             Self::Kicked(event) => Some(event.received_at),
+            Self::Invited(event) => Some(event.received_at),
             Self::Quit(event) => Some(event.received_at),
             Self::NickChanged(event) => Some(event.received_at),
+            Self::ChannelRenamed(event) => Some(event.received_at),
             Self::ModeChanged(event) => Some(event.received_at),
             Self::TopicChanged(event) => Some(event.received_at),
             _ => None,
@@ -1628,6 +1639,9 @@ pub(crate) fn from_core(
                 return CoreEvent::Unknown;
             };
             let tag = TagMsg {
+                msgid: envelope.msgid,
+                server_time: envelope.server_time,
+                received_at: envelope.received_at,
                 actor,
                 authorship: Authorship::from_core(message.authorship),
                 conversation: message.conversation,
@@ -1650,9 +1664,9 @@ pub(crate) fn from_core(
                 });
             if let (Some((reaction, removed)), Some(msgid)) = (reaction, reply_to) {
                 Event::Reacted(Reacted {
-                    msgid: envelope.msgid,
-                    server_time: envelope.server_time,
-                    received_at: envelope.received_at,
+                    msgid: tag.msgid,
+                    server_time: tag.server_time,
+                    received_at: tag.received_at,
                     actor: tag.actor,
                     authorship: tag.authorship,
                     conversation: tag.conversation,
@@ -1905,19 +1919,26 @@ pub(crate) fn from_core(
             })
         }
         papo_core::Event::Invited {
+            envelope,
             channel,
             subject,
             actor,
             authorship,
             subject_authorship,
             ..
-        } => Event::Invited(Invited {
-            channel,
-            subject,
-            actor: source::from_prefix(actor, casemapping, origin),
-            authorship: Authorship::from_core(authorship),
-            subject_authorship: Authorship::from_core(subject_authorship),
-        }),
+        } => {
+            let envelope = map_envelope(&envelope);
+            Event::Invited(Invited {
+                msgid: envelope.msgid,
+                server_time: envelope.server_time,
+                received_at: envelope.received_at,
+                channel,
+                subject,
+                actor: source::from_prefix(actor, casemapping, origin),
+                authorship: Authorship::from_core(authorship),
+                subject_authorship: Authorship::from_core(subject_authorship),
+            })
+        }
         papo_core::Event::Quit {
             envelope,
             actor,
@@ -1981,19 +2002,26 @@ pub(crate) fn from_core(
             })
         }
         papo_core::Event::ChannelRenamed {
+            envelope,
             old,
             new,
             actor,
             authorship,
             reason,
             ..
-        } => Event::ChannelRenamed(ChannelRenamed {
-            old,
-            new,
-            actor: source::from_prefix(actor, casemapping, origin),
-            authorship: Authorship::from_core(authorship),
-            reason,
-        }),
+        } => {
+            let envelope = map_envelope(&envelope);
+            Event::ChannelRenamed(ChannelRenamed {
+                msgid: envelope.msgid,
+                server_time: envelope.server_time,
+                received_at: envelope.received_at,
+                old,
+                new,
+                actor: source::from_prefix(actor, casemapping, origin),
+                authorship: Authorship::from_core(authorship),
+                reason,
+            })
+        }
         papo_core::Event::AccountChanged {
             actor,
             account,
@@ -2225,8 +2253,8 @@ mod tests {
         received_at: SystemTime,
     ) {
         assert_eq!(event.server_time(), Some(server_time), "{expected_variant}");
-        let expected = (!matches!(expected_variant, "TagMsg" | "BroadcastTagMsg" | "Other"))
-            .then_some(received_at);
+        let expected =
+            (!matches!(expected_variant, "BroadcastTagMsg" | "Other")).then_some(received_at);
         assert_eq!(event.received_at(), expected, "{expected_variant}");
     }
 
@@ -2297,7 +2325,7 @@ mod tests {
         assert_eq!(ordinary.as_ref().param(0), Some("papo"));
     }
 
-    const MESSAGE_EVENT_METADATA_CASES: [(&str, &str, &str); 19] = [
+    const MESSAGE_EVENT_METADATA_CASES: [(&str, &str, &str); 21] = [
         (
             "Message",
             "RfcBTzyxY120113",
@@ -2369,6 +2397,11 @@ mod tests {
             "@msgid=RfcBTzyxY120107;time=2026-02-03T04:05:06.789Z :alice!~alice@cloak.example KICK #papo emily :Flooding",
         ),
         (
+            "Invited",
+            "RfcBTzyxY120120",
+            "@msgid=RfcBTzyxY120120;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example INVITE papo #papo",
+        ),
+        (
             "Quit",
             "RfcBTzyxY120108",
             "@msgid=RfcBTzyxY120108;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example QUIT :Client Quit",
@@ -2377,6 +2410,11 @@ mod tests {
             "NickChanged",
             "RfcBTzyxY120109",
             "@msgid=RfcBTzyxY120109;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example NICK emily_away",
+        ),
+        (
+            "ChannelRenamed",
+            "RfcBTzyxY120121",
+            "@msgid=RfcBTzyxY120121;time=2026-02-03T04:05:06.789Z :alice!~alice@cloak.example RENAME #papo #papo-dev :Release complete",
         ),
         (
             "ModeChanged",
@@ -3067,8 +3105,10 @@ mod tests {
                 Event::Joined(_) => "Joined",
                 Event::Parted(_) => "Parted",
                 Event::Kicked(_) => "Kicked",
+                Event::Invited(_) => "Invited",
                 Event::Quit(_) => "Quit",
                 Event::NickChanged(_) => "NickChanged",
+                Event::ChannelRenamed(_) => "ChannelRenamed",
                 Event::ModeChanged(_) => "ModeChanged",
                 Event::TopicChanged(_) => "TopicChanged",
                 Event::Other(_) => "Other",
@@ -3091,12 +3131,7 @@ mod tests {
                 }
                 _ => {}
             }
-            let expected_msgid = (expected_variant != "ServerNotice").then_some(msgid);
-            assert_eq!(
-                event.msgid().as_deref(),
-                expected_msgid,
-                "{expected_variant}"
-            );
+            assert_eq!(event.msgid().as_deref(), Some(msgid), "{expected_variant}");
             assert_event_times(&event, expected_variant, server_time, received_at);
             let account = match &event {
                 Event::Parted(event) => Some(event.actor.account()),
@@ -4442,6 +4477,9 @@ mod tests {
                 reason: None,
             }),
             Event::Invited(super::Invited {
+                msgid: None,
+                server_time: None,
+                received_at: UNIX_EPOCH,
                 channel: mapping.channel("#papo"),
                 subject: mapping.nick("Papo[Bot]"),
                 actor,

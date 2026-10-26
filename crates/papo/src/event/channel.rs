@@ -90,6 +90,12 @@ pub struct Kicked {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Invited {
+    /// The server-assigned identifier of the invitation line, when supplied.
+    pub msgid: Option<MessageId>,
+    /// Valid server time, when supplied.
+    pub server_time: Option<SystemTime>,
+    /// Time at which the line was received.
+    pub received_at: SystemTime,
     /// The invited channel. See [`crate::Conversation`] for status-prefixed line guidance.
     pub channel: ChannelName,
     /// The invited user.
@@ -166,6 +172,12 @@ impl ModeChanged {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct ChannelRenamed {
+    /// The server-assigned identifier of the rename line, when supplied.
+    pub msgid: Option<MessageId>,
+    /// Valid server time, when supplied.
+    pub server_time: Option<SystemTime>,
+    /// Time at which the line was received.
+    pub received_at: SystemTime,
     /// The previous channel name.
     pub old: ChannelName,
     /// The new channel name.

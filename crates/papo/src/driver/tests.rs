@@ -1351,6 +1351,9 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &session,
         &mut defaults,
         &Event::ChannelRenamed(crate::event::ChannelRenamed {
+            msgid: None,
+            server_time: None,
+            received_at: std::time::SystemTime::UNIX_EPOCH,
             old: crate::Origin::__new(73).__channel(crate::Casemapping::default(), "#RUST"),
             new: crate::Origin::__new(73).__channel(crate::Casemapping::default(), "#systems"),
             actor: crate::Source::User(crate::__testing::user_source(
