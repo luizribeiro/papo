@@ -429,6 +429,55 @@ async fn message_fields_use_captured_session_facts() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn live_bot_facts_require_message_tags_and_bot_mode() {
+    async fn observe(message_tags: bool, bot_mode: bool) -> Vec<Option<bool>> {
+        let settings = config().wanted_caps(message_tags.then_some("message-tags"));
+        let (mut server, _client, mut events, driver) = scripted(settings);
+        let task = tokio::spawn(driver);
+        welcome_burst(&mut server).await;
+        if message_tags {
+            server_line(&mut server, b":ergo.test CAP * LS :message-tags\r\n").await;
+            client_line(&mut server, b"CAP REQ :message-tags\r\n").await;
+            server_line(&mut server, b":ergo.test CAP * ACK :message-tags\r\n").await;
+        } else {
+            server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
+        }
+        client_line(&mut server, b"CAP END\r\n").await;
+        if bot_mode {
+            server_line(
+                &mut server,
+                b":ergo.test 005 papo-driver BOT=B :are supported\r\n",
+            )
+            .await;
+        }
+        server_line(
+            &mut server,
+            b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n",
+        )
+        .await;
+        assert!(matches!(events.next().await, Some(Event::Connected(_))));
+
+        server_line(
+            &mut server,
+            b":emily!~emily@localhost PRIVMSG #papo :release ready\r\n@bot :relay!~relay@localhost PRIVMSG #papo :build complete\r\n",
+        )
+        .await;
+        let facts = vec![
+            next_message(&mut events).await.actor.is_bot(),
+            next_message(&mut events).await.actor.is_bot(),
+        ];
+        within(server.shutdown()).await.unwrap();
+        assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+        facts
+    }
+
+    assert_eq!(observe(true, false).await, [None, Some(true)]);
+    assert_eq!(observe(false, true).await, [None, Some(true)]);
+    assert_eq!(observe(true, true).await, [Some(false), Some(true)]);
+    assert_eq!(observe(false, false).await, [None, Some(true)]);
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn multiline_messages_keep_addressing_across_a_nick_change() {
     let (mut server, client, mut events, driver) = scripted(config());
     let task = tokio::spawn(driver);

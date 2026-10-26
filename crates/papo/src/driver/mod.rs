@@ -1077,8 +1077,7 @@ where
             session.isupport().casemapping(),
             session.state().nick().origin(),
             session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
-            session.caps().contains_key(&crate::cap::MESSAGE_TAGS)
-                && session.isupport().bot_mode().is_some(),
+            can_prove_non_bot(session),
             crate::rt::now_wall(),
         );
         if let event::CoreEvent::RequestAborted { id, transmitted } = core_event {
@@ -1225,8 +1224,7 @@ where
             session.isupport().casemapping(),
             session.state().nick().origin(),
             session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
-            session.caps().contains_key(&crate::cap::MESSAGE_TAGS)
-                && session.isupport().bot_mode().is_some(),
+            can_prove_non_bot(session),
             crate::rt::now_wall(),
         ) {
             event::CoreEvent::Forward(event) => {
@@ -1282,8 +1280,7 @@ where
                     session.state().nick().origin(),
                     session.isupport(),
                     session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
-                    session.caps().contains_key(&crate::cap::MESSAGE_TAGS)
-                        && session.isupport().bot_mode().is_some(),
+                    can_prove_non_bot(session),
                     crate::rt::now_wall(),
                 );
                 if !enqueue_event(events, pending_events, event) {
@@ -1452,6 +1449,11 @@ fn should_read_ahead(
         || !catchups.is_empty()
         || registration.0.is_some()
         || quitting
+}
+
+fn can_prove_non_bot(session: &Session) -> bool {
+    session.caps().contains_key(&crate::cap::MESSAGE_TAGS)
+        && session.isupport().bot_mode().is_some()
 }
 
 async fn drain_transmit<S>(
