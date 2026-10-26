@@ -2345,7 +2345,7 @@ pub enum Event {
         /// The removed user.
         subject: Nick,
         /// The user or server that issued the kick.
-        actor: String,
+        actor: Source,
         /// Whether the actor is this session's user.
         authorship: Authorship,
         /// Whether the removed user is this session's user.
@@ -2516,7 +2516,7 @@ hidden_event_constructors! {
     __channel_synced(channel: ChannelName) => ChannelSynced;
     __members_refreshed(channel: ChannelName) => MembersRefreshed;
     __parted(envelope: LineEnvelope, channel: ChannelName, actor: String, nick: Nick, reason: Option<String>, authorship: Authorship) => Parted;
-    __kicked(envelope: LineEnvelope, channel: ChannelName, subject: Nick, actor: String, authorship: Authorship, subject_authorship: Authorship, reason: Option<String>) => Kicked;
+    __kicked(envelope: LineEnvelope, channel: ChannelName, subject: Nick, actor: Source, authorship: Authorship, subject_authorship: Authorship, reason: Option<String>) => Kicked;
     __quit(envelope: LineEnvelope, actor: String, nick: Nick, reason: Option<String>, channels: Vec<ChannelName>, authorship: Authorship, netsplit: Option<SplitServers>) => Quit;
     __nick_changed(envelope: LineEnvelope, actor: String, old: Nick, new: Nick, authorship: Authorship) => NickChanged;
     __account_changed(actor: String, nick: Nick, account: Account) => AccountChanged;

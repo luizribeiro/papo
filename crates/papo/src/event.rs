@@ -1779,7 +1779,7 @@ pub(crate) fn from_core(
                 account: envelope.account,
                 channel,
                 subject,
-                actor: source::from_name(&actor, casemapping, origin),
+                actor,
                 authorship: Authorship::from_core(authorship),
                 subject_authorship: Authorship::from_core(subject_authorship),
                 reason,
@@ -3470,7 +3470,14 @@ mod tests {
                 papo_core::LineEnvelope::default(),
                 Casemapping::default().channel("#papo"),
                 Casemapping::default().nick("emily"),
-                "alice".into(),
+                papo_core::Source::from_proto(
+                    papo_proto::Source::__user(
+                        "alice",
+                        Some("~alice"),
+                        Some("staff.example"),
+                    ),
+                    Casemapping::default(),
+                ),
                 papo_core::Authorship::Other,
                 papo_core::Authorship::Other,
                 Some("Flooding".into()),
@@ -3479,6 +3486,8 @@ mod tests {
                 if kicked.channel == "#papo"
                     && kicked.subject == "emily"
                     && kicked.actor.nick().is_some_and(|nick| nick == "alice")
+                    && papo_proto::Mask::exact(&kicked.actor)
+                        .is_some_and(|mask| mask == "alice!~alice@staff.example")
                     && kicked.reason.as_deref() == Some("Flooding")
         ));
     }

@@ -1928,13 +1928,59 @@ fn reports_parts_and_kicks_for_other_users_and_ourselves() {
         .server(":dan!dan@cloak.example JOIN #papo")
         .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "dan"))
         .server(":chanop!op@staff.example KICK #papo dan :Rule violation")
-        .event(|event| matches!(event, Event::Kicked { channel, subject, actor, reason, .. } if channel == "#papo" && subject == "dan" && channel.casemapping() == Casemapping::Ascii && subject.casemapping() == Casemapping::Ascii && actor == "chanop" && reason.as_deref() == Some("Rule violation")))
+        .event(|event| matches!(event, Event::Kicked { channel, subject, actor, reason, .. } if channel == "#papo" && subject == "dan" && channel.casemapping() == Casemapping::Ascii && subject.casemapping() == Casemapping::Ascii && actor.nick().is_some_and(|nick| nick == "chanop") && reason.as_deref() == Some("Rule violation")))
         .server(":emily!em@127.0.0.1 PART #papo :Requested")
         .event(|event| matches!(event, Event::Parted { nick, .. } if nick == "emily"))
         .server(":emily!em@127.0.0.1 JOIN #rust")
         .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "emily"))
         .server(":chanop!op@staff.example KICK #rust emily :Requested")
         .event(|event| matches!(event, Event::Kicked { subject, .. } if subject == "emily"))
+        .no_event();
+}
+
+#[test]
+fn kick_events_keep_user_server_and_bare_nick_sources() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":alice!~a@host.example KICK #papo bob :Flooding")
+        .event(|event| {
+            matches!(
+                event,
+                Event::Kicked {
+                    actor: Source::User {
+                        nick,
+                        username: Some(username),
+                        host: Some(host),
+                        ..
+                    },
+                    ..
+                } if nick == "alice" && username == "~a" && host == "host.example"
+            )
+        })
+        .server(":ergo.test KICK #papo bob :Channel cleanup")
+        .event(|event| {
+            matches!(
+                event,
+                Event::Kicked {
+                    actor: Source::Server { name, .. },
+                    ..
+                } if name == "ERGO.TEST"
+            )
+        })
+        .server(":ChanServ KICK #papo bob :Requested")
+        .event(|event| {
+            matches!(
+                event,
+                Event::Kicked {
+                    actor: Source::User {
+                        nick,
+                        username: None,
+                        host: None,
+                        ..
+                    },
+                    ..
+                } if nick == "ChanServ"
+            )
+        })
         .no_event();
 }
 

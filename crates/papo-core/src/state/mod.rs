@@ -638,17 +638,13 @@ impl State {
             else {
                 return Handled::No;
             };
-            let actor = match source {
-                ProtoSource::Server(name) => name,
-                ProtoSource::User { nick, .. } => nick,
-            };
             let authorship = self.source_authorship(message);
             let subject_authorship = self.nick_authorship(nick);
             outbox.event(Event::Kicked {
                 envelope: crate::LineEnvelope::from_line(message),
                 channel: mapping.channel(channel),
                 subject: mapping.nick(nick),
-                actor: actor.to_owned(),
+                actor: Source::from_proto_with_names(source, mapping),
                 authorship,
                 subject_authorship,
                 reason: message
