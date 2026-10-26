@@ -118,11 +118,7 @@ pub fn message(
     } else {
         crate::Conversation::Channel(crate::Casemapping::default().channel(&target))
     };
-    let return_address = match &conversation {
-        crate::Conversation::Channel(channel) => channel.to_string(),
-        crate::Conversation::Private(nick) => nick.to_string(),
-        _ => target,
-    };
+    let return_address = conversation.to_string();
     Message {
         actor: actor.unwrap_or_else(|| {
             user_source(crate::Casemapping::default().nick("unknown"), None, None)
@@ -222,9 +218,20 @@ mod tests {
             Some("a".into()),
             Some("cloak.example".into()),
         );
-        let message = message(Some(source), "bob", "hello from alice", true);
-        assert_eq!(message.return_address(), "alice");
-        assert_eq!(message.raw_text, "hello from alice");
+        let channel = message(Some(source.clone()), "#papo", "release ready", false);
+        assert!(matches!(
+            &channel.conversation,
+            crate::Conversation::Channel(_)
+        ));
+        assert_eq!(channel.return_address(), "#papo");
+
+        let private = message(Some(source), "papo", "hello from alice", true);
+        assert!(matches!(
+            &private.conversation,
+            crate::Conversation::Private(_)
+        ));
+        assert_eq!(private.return_address(), "alice");
+        assert_eq!(private.raw_text, "hello from alice");
 
         let joined = joined(
             crate::Casemapping::default().channel("#papo"),
