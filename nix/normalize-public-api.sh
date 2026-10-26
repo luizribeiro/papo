@@ -11,6 +11,7 @@ expressions=(
   -e 's#papo_core::Capabilities#papo::Capabilities#g'
   -e 's#papo::client::Client#papo::Client#g'
   -e 's#papo::event_impl::Message#papo::Message#g'
+  -e 's#papo::event_impl::source::UserSource#papo::UserSource#g'
   -e 's#papo::error::Error#papo::Error#g'
 )
 if [[ ${PAPO_PUBLIC_API_FACADE:-} == 1 ]]; then

@@ -1,7 +1,6 @@
 pub mod papo_bot
 #[non_exhaustive] pub enum papo_bot::ReplyStatus
 pub papo_bot::ReplyStatus::Dropped
-pub papo_bot::ReplyStatus::NoRecipient
 pub papo_bot::ReplyStatus::Sent
 impl core::clone::Clone for papo_bot::ReplyStatus
 pub fn papo_bot::ReplyStatus::clone(&self) -> Self
@@ -40,7 +39,7 @@ impl core::marker::UnsafeUnpin for papo_bot::BotConfig
 impl core::panic::unwind_safe::RefUnwindSafe for papo_bot::BotConfig
 impl core::panic::unwind_safe::UnwindSafe for papo_bot::BotConfig
 pub struct papo_bot::Command
-pub papo_bot::Command::actor: papo::event_impl::source::UserSource
+pub papo_bot::Command::actor: papo::UserSource
 impl papo_bot::Command
 pub const fn papo_bot::Command::account(&self) -> core::option::Option<&papo::AccountName>
 pub fn papo_bot::Command::account_in<I, S>(&self, I) -> bool where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
