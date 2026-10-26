@@ -42,14 +42,14 @@ fn everyday_api_is_nameable_from_the_facade() {
         "bold and blue"
     );
 
-    let channel = papo::Casemapping::Rfc1459.channel("#papo");
     let builder: papo::Builder = papo::Client::builder("ircs://irc.example.net")
         .nick("emily")
         .autojoin(["#papo"])
-        .autojoin_with_key(&channel, "correct horse battery staple");
+        .autojoin_with_key("#papo", "correct horse battery staple");
     let (client, mut events, driver): (papo::Client, papo::Events, papo::Driver) = builder.build();
 
     let state: std::sync::Arc<papo::State> = client.state();
+    let channel = state.channel_name("#papo");
     let _: &papo::Nick = state.nick();
     let _: Option<&papo::Channel> = state.channel(&channel);
     let _: Option<&papo::User> = state.user("emily");

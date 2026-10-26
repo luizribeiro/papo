@@ -466,6 +466,18 @@ mod tests {
 
     use super::{BotConfig, Command, ReplyRateLimiter, ReplyStatus};
 
+    fn nick(text: impl AsRef<str>) -> Nick {
+        papo_testing::nick(Casemapping::Rfc1459, text)
+    }
+
+    fn channel(text: impl AsRef<str>) -> papo::ChannelName {
+        papo_testing::channel(Casemapping::Rfc1459, text)
+    }
+
+    fn account(text: impl AsRef<str>) -> AccountName {
+        papo_testing::account(Casemapping::Rfc1459, text)
+    }
+
     #[test]
     fn reply_limiter_debug_is_opaque() {
         let limiter = ReplyRateLimiter::new(2, Duration::from_secs(5)).unwrap();
@@ -560,7 +572,7 @@ mod tests {
     fn client(casemapping: Casemapping) -> Client {
         let (client, _events, _driver) = Client::builder("ircs://irc.example")
             .casemapping(casemapping)
-            .nick(casemapping.nick("papo{bot}"))
+            .nick("papo{bot}")
             .stream(IdleStream)
             .build();
         client
@@ -569,7 +581,7 @@ mod tests {
     fn message(target: &str, text: &str) -> papo::Message {
         MessageBuilder::new(target, text)
             .actor(
-                Casemapping::Rfc1459.nick("emily"),
+                nick("emily"),
                 Some("~emily".into()),
                 Some("localhost".into()),
             )
@@ -606,15 +618,15 @@ mod tests {
     fn authorizes_only_tagged_accounts() {
         let tagged = MessageBuilder::new("#papo", "!op alice")
             .actor(
-                Casemapping::Rfc1459.nick("emily"),
+                nick("emily"),
                 Some("~emily".into()),
                 Some("localhost".into()),
             )
-            .account(Casemapping::Rfc1459.account("Emily"))
+            .account(account("Emily"))
             .build();
         let command = parse(&tagged, &BotConfig::new("!")).unwrap();
         let account: Option<&AccountName> = command.account();
-        assert_eq!(account, Some(&Casemapping::Rfc1459.account("Emily")));
+        assert_eq!(account, Some(&self::account("Emily")));
         assert!(command.account_in(["emily", "alice"]));
         assert!(!command.account_in(["carol"]));
 
@@ -637,7 +649,7 @@ mod tests {
             ":emily!~emily@localhost PRIVMSG #papo :!op alice\r\n",
         );
         let (client, mut events, driver) = Client::builder("ircs://irc.example")
-            .nick(Casemapping::Rfc1459.nick("papo{bot}"))
+            .nick("papo{bot}")
             .stream(TranscriptStream::new(transcript))
             .build();
         let driver = tokio::spawn(driver);
@@ -662,7 +674,7 @@ mod tests {
             ":emily!~emily@localhost PRIVMSG papo{bot} :!echo deployment ready\r\n",
         );
         let (receiving, mut events, driver) = Client::builder("ircs://irc.example")
-            .nick(Casemapping::Rfc1459.nick("papo{bot}"))
+            .nick("papo{bot}")
             .stream(TranscriptStream::new(transcript))
             .build();
         let driver = tokio::spawn(driver);
@@ -695,7 +707,7 @@ mod tests {
         let stream = TranscriptStream::new(transcript);
         let output = stream.output();
         let (client, mut events, driver) = Client::builder("ircs://irc.example")
-            .nick(Casemapping::Rfc1459.nick("papo{bot}"))
+            .nick("papo{bot}")
             .stream(stream)
             .build();
         let driver = tokio::spawn(driver);
@@ -737,7 +749,7 @@ mod tests {
         let stream = TranscriptStream::new(transcript);
         let output = stream.output();
         let (client, mut events, driver) = Client::builder("ircs://irc.example")
-            .nick(Casemapping::Rfc1459.nick("papo{bot}"))
+            .nick("papo{bot}")
             .stream(stream)
             .build();
         let driver = tokio::spawn(driver);
@@ -772,7 +784,7 @@ mod tests {
             ":emily!~emily@localhost PRIVMSG #papo :!ping\r\n",
         );
         let (client, mut events, driver) = Client::builder("ircs://irc.example")
-            .nick(Casemapping::Rfc1459.nick("papo{bot}"))
+            .nick("papo{bot}")
             .stream(TranscriptStream::new(transcript))
             .build();
         let driver = tokio::spawn(driver);
@@ -887,7 +899,7 @@ mod tests {
     fn reports_actor_and_rejects_non_commands() {
         let channel = parse(&message("#papo", "!ping"), &BotConfig::new("!")).unwrap();
         let actor: Option<&Nick> = channel.actor.nick();
-        assert_eq!(actor, Some(&Casemapping::Rfc1459.nick("emily")));
+        assert_eq!(actor, Some(&nick("emily")));
 
         let config = BotConfig::new("!").mention(false);
         assert!(parse(&message("#papo", "papo: ping"), &config).is_none());
@@ -916,9 +928,9 @@ mod tests {
     #[test]
     fn uses_name_equality_and_literal_window_boundary() {
         let limiter = ReplyRateLimiter::new(2, Duration::from_secs(5)).unwrap();
-        let upper = Conversation::Channel(Casemapping::Rfc1459.channel("#Papo"));
-        let lower = Conversation::Channel(Casemapping::Rfc1459.channel("#papo"));
-        let elsewhere = Conversation::Channel(Casemapping::Rfc1459.channel("#elsewhere"));
+        let upper = Conversation::Channel(channel("#Papo"));
+        let lower = Conversation::Channel(channel("#papo"));
+        let elsewhere = Conversation::Channel(channel("#elsewhere"));
         let start = Instant::now();
 
         assert!(limiter.check_at(&upper, start));
@@ -933,8 +945,7 @@ mod tests {
         let limiter = ReplyRateLimiter::new(2, Duration::from_secs(5)).unwrap();
         let now = Instant::now();
         for index in 0..2048 {
-            let target =
-                Conversation::Channel(Casemapping::Rfc1459.channel(format!("#papo-{index}")));
+            let target = Conversation::Channel(channel(format!("#papo-{index}")));
             assert_eq!(limiter.check_at(&target, now), index < 1024);
         }
         assert_eq!(limiter.targets.lock().unwrap().len(), 1024);
@@ -1006,7 +1017,7 @@ mod tests {
         let stream = TranscriptStream::new(transcript);
         let output = stream.output();
         let (client, mut events, driver) = Client::builder("ircs://irc.example")
-            .nick(Casemapping::Rfc1459.nick("papo{bot}"))
+            .nick("papo{bot}")
             .stream(stream)
             .build();
         let driver = tokio::spawn(driver);

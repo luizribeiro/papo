@@ -7,7 +7,7 @@ use crate::scenarios::support::{
 };
 
 fn rfc1459_nick(value: &str) -> papo::Nick {
-    Casemapping::Rfc1459.nick(value)
+    papo_testing::nick(Casemapping::Rfc1459, value)
 }
 
 /// folds []\~ onto {}|^ for nicknames, channels and state lookups under rfc1459

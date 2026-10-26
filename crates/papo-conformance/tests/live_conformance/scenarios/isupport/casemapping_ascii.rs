@@ -4,7 +4,7 @@ use papo_conformance_macros::scenario;
 use crate::Scenario;
 
 fn ascii_nick(value: &str) -> papo::Nick {
-    Casemapping::Ascii.nick(value)
+    papo_testing::nick(Casemapping::Ascii, value)
 }
 
 fn assert_same_channel(state: &papo::State, left: &str, right: &str) {

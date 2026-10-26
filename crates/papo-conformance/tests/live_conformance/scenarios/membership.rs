@@ -1187,7 +1187,7 @@ async fn topic(s: Scenario) -> papo_testing::Result<()> {
     assert!(synchronized.topic_set_at().is_some());
 
     alice
-        .clear_topic(alice.state().casemapping().channel(&channel))
+        .clear_topic(alice.state().channel_name(&channel))
         .await?;
     for peer in [&mut alice, &mut bob, &mut carol] {
         let changed = peer.wait_for(Event::as_topic_changed).await?;
@@ -1555,10 +1555,7 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
     alice.mode(&channel).remove('l').await?;
     wait_channel_mode(&mut bob, &channel, 'l').await?;
     let mask = format!("{carol_nick}!*@*");
-    alice
-        .mode(&channel)
-        .ban(alice.state().casemapping().mask(&mask))
-        .await?;
+    alice.mode(&channel).ban(alice.state().mask(&mask)).await?;
     wait_channel_mode(&mut bob, &channel, 'b').await?;
     assert_refusal(
         carol.join(&channel).key(key).await.unwrap_err(),
@@ -1568,7 +1565,7 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
 
     alice
         .mode(&channel)
-        .unban(alice.state().casemapping().mask(mask))
+        .unban(alice.state().mask(mask))
         .add('i')
         .await?;
     wait_channel_mode(&mut bob, &channel, 'i').await?;

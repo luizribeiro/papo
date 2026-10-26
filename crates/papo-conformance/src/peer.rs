@@ -241,8 +241,8 @@ mod tests {
         let (mut peer, _driver) = peer();
         for index in 0..21 {
             peer.remember(Event::Joined(papo::__testing::joined(
-                papo::Casemapping::default().channel("#papo"),
-                papo::Casemapping::default().nick(format!("user-{index}")),
+                papo_testing::channel(papo::Casemapping::default(), "#papo"),
+                papo_testing::nick(papo::Casemapping::default(), format!("user-{index}")),
                 false,
             )));
         }

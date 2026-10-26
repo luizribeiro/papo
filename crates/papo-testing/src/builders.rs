@@ -102,12 +102,12 @@ mod tests {
     fn builds_private_message_details_and_ordered_tags() {
         let message = MessageBuilder::new("bob", "formatted hello")
             .actor(
-                papo::Casemapping::default().nick("alice"),
+                crate::nick(papo::Casemapping::default(), "alice"),
                 Some("a".into()),
                 Some("cloak.example".into()),
             )
             .kind(MessageKind::Text)
-            .account(papo::Casemapping::default().account("alice"))
+            .account(crate::account(papo::Casemapping::default(), "alice"))
             .message_id("ergo-42")
             .raw_text("\u{2}formatted hello\u{2}")
             .tag("time", Some("2026-10-18T12:00:00.000Z".into()))

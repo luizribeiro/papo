@@ -12,9 +12,9 @@ use crate::{AccountName, ChannelName, Mask, Nick, Origin};
 /// `UTF8MAPPING`; the `Precis` variant and support for that advertisement require the `precis`
 /// feature.
 ///
-/// Applications using `papo` normally build names from text with the current or last-known rules
-/// through its `State` name factories. The methods on this type are useful with saved rules,
-/// offline data, and tests.
+/// Applications using `papo` build typed names through [`papo::State`](https://docs.rs/papo/latest/papo/struct.State.html)
+/// so the result also records which client produced it. Seed saved comparison rules with
+/// [`papo::Builder::casemapping`](https://docs.rs/papo/latest/papo/struct.Builder.html#method.casemapping).
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum Casemapping {
@@ -32,24 +32,28 @@ pub enum Casemapping {
 
 impl Casemapping {
     /// Creates a nickname carrying these server-defined comparison rules.
+    #[doc(hidden)]
     #[must_use]
     pub fn nick(self, text: impl AsRef<str>) -> Nick {
         Origin::NONE.__nick(self, text)
     }
 
     /// Creates a channel name carrying these server-defined comparison rules.
+    #[doc(hidden)]
     #[must_use]
     pub fn channel(self, text: impl AsRef<str>) -> ChannelName {
         Origin::NONE.__channel(self, text)
     }
 
     /// Creates an account name carrying these server-defined comparison rules.
+    #[doc(hidden)]
     #[must_use]
     pub fn account(self, text: impl AsRef<str>) -> AccountName {
         Origin::NONE.__account(self, text)
     }
 
     /// Creates a mask carrying these server-defined comparison rules.
+    #[doc(hidden)]
     #[must_use]
     pub fn mask(self, text: impl AsRef<str>) -> Mask {
         Origin::NONE.__mask(self, text)
@@ -69,6 +73,9 @@ impl Casemapping {
     }
 
     /// Returns the canonical spelling used to compare an IRC name.
+    ///
+    /// Use this when a persistent key must follow saved server comparison rules without carrying
+    /// a running client's identity.
     #[must_use]
     pub fn fold(self, name: &str) -> Cow<'_, str> {
         #[cfg(feature = "precis")]

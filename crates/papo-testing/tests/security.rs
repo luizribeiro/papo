@@ -785,10 +785,14 @@ async fn monitor_rejects_invalid_nicks_without_poisoning_the_wire() {
 #[tokio::test]
 async fn invalid_registration_fields_fail_before_opening_the_wire() {
     let cases = [
-        papo::Client::builder("irc://offline.test")
-            .nick(papo::Casemapping::default().nick("papo\rOPER root password")),
-        papo::Client::builder("irc://offline.test")
-            .alt_nicks([papo::Casemapping::default().nick("papo-away\nQUIT")]),
+        papo::Client::builder("irc://offline.test").nick(papo_testing::nick(
+            papo::Casemapping::default(),
+            "papo\rOPER root password",
+        )),
+        papo::Client::builder("irc://offline.test").alt_nicks([papo_testing::nick(
+            papo::Casemapping::default(),
+            "papo-away\nQUIT",
+        )]),
         papo::Client::builder("irc://offline.test").username("papo\0admin"),
         papo::Client::builder("irc://offline.test").realname("Papo\rClient"),
     ];

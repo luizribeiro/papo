@@ -12,5 +12,5 @@ mod wire;
 pub use builders::MessageBuilder;
 pub use error::{Error, FixtureError, Result, skip_reason, skipped};
 pub use event_builders::{AwayChangedBuilder, ConnectedBuilder, JoinedBuilder};
-pub use value_builders::{ErrorBuilder, StateBuilder};
+pub use value_builders::{ErrorBuilder, StateBuilder, account, channel, mask, nick};
 pub use wire::{Wire, wire};
