@@ -49,13 +49,16 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
         let channel_state = state.channel(&channel).unwrap();
         assert!(
             channel_state
-                .member(&bob_nick)
+                .member(bob_nick.as_ref())
                 .unwrap()
                 .prefixes()
                 .is_empty()
         );
         assert_eq!(
-            channel_state.member(&alice_nick).unwrap().prefixes(),
+            channel_state
+                .member(alice_nick.as_ref())
+                .unwrap()
+                .prefixes(),
             &['@'][..]
         );
     }
@@ -81,7 +84,11 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
     }
     for peer in [&alice, &bob, &carol] {
         let state = peer.state();
-        let member = state.channel(&channel).unwrap().member(&bob_nick).unwrap();
+        let member = state
+            .channel(&channel)
+            .unwrap()
+            .member(bob_nick.as_ref())
+            .unwrap();
         assert_eq!(member.prefixes(), &['@'][..]);
     }
     Ok(())

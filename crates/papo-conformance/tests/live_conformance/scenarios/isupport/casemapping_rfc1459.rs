@@ -105,7 +105,7 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
     let own_member = alice_state
         .channel(&chan)
         .unwrap()
-        .member(&alice_folded_nick)
+        .member(alice_folded_nick.as_str())
         .unwrap();
     assert_eq!(own_member.nick().as_ref(), alice_nick);
     assert_eq!(alice.state().channel_name(&chan), folded.as_str());

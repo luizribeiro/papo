@@ -95,14 +95,14 @@ async fn extended_join(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(joined.nick, alice_nick.as_ref());
     assert_eq!(joined.authorship, papo::Authorship::Other);
     let bob_state = bob.state();
-    let observed = bob_state.user(&alice_nick).unwrap();
+    let observed = bob_state.user(alice_nick.as_ref()).unwrap();
     assert_eq!(observed.realname(), Some("papo test peer"));
     assert!(matches!(observed.account(), Account::LoggedIn(name) if name == account.as_ref()));
     assert!(
         bob_state
             .channel(&channel)
             .unwrap()
-            .member(&alice_nick)
+            .member(alice_nick.as_ref())
             .is_some()
     );
     assert!(
@@ -110,7 +110,7 @@ async fn extended_join(s: Scenario) -> papo_testing::Result<()> {
             .state()
             .channel(&channel)
             .unwrap()
-            .member(&bob_nick)
+            .member(bob_nick.as_ref())
             .is_some()
     );
     bob.expect_none(Event::as_joined).await?;
@@ -141,14 +141,14 @@ async fn userhost_in_names(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(joined.channel.as_ref(), channel);
 
     let bob_state = bob.state();
-    let observed = bob_state.user(&alice_nick).unwrap();
+    let observed = bob_state.user(alice_nick.as_ref()).unwrap();
     assert!(observed.username().is_some_and(|user| !user.is_empty()));
     assert!(observed.host().is_some_and(|host| !host.is_empty()));
     assert!(
         bob_state
             .channel(&channel)
             .unwrap()
-            .member(&alice_nick)
+            .member(alice_nick.as_ref())
             .is_some()
     );
     assert!(
@@ -156,7 +156,7 @@ async fn userhost_in_names(s: Scenario) -> papo_testing::Result<()> {
             .state()
             .channel(&channel)
             .unwrap()
-            .member(&bob_nick)
+            .member(bob_nick.as_ref())
             .is_some()
     );
     Ok(())
@@ -271,7 +271,7 @@ async fn no_implicit_names(s: Scenario) -> papo_testing::Result<()> {
     let state = alice.state();
     let joined_channel = state.channel(&channel).unwrap();
     assert!(joined_channel.is_synced());
-    assert!(joined_channel.member(&alice_nick).is_some());
+    assert!(joined_channel.member(alice_nick.as_ref()).is_some());
     alice.expect_none(Event::as_channel_synced).await?;
     Ok(())
 }
@@ -327,7 +327,7 @@ async fn multiple_joins(s: Scenario) -> papo_testing::Result<()> {
                 .state()
                 .channel(channel)
                 .unwrap()
-                .member(&bob_nick)
+                .member(bob_nick.as_ref())
                 .is_some()
         );
     }
@@ -376,7 +376,7 @@ async fn multiple_joins(s: Scenario) -> papo_testing::Result<()> {
                 .state()
                 .channel(channel)
                 .unwrap()
-                .member(&bob_nick)
+                .member(bob_nick.as_ref())
                 .is_none()
         );
     }
@@ -524,7 +524,7 @@ async fn multi_prefix(s: Scenario) -> papo_testing::Result<()> {
     let prefixes = bob
         .state()
         .channel(&channel)
-        .and_then(|channel| channel.member(&alice_nick))
+        .and_then(|channel| channel.member(alice_nick.as_ref()))
         .map(|member| member.prefixes().to_vec());
     assert_eq!(prefixes.as_deref(), Some(&['@', '+'][..]));
     assert!(
@@ -532,7 +532,7 @@ async fn multi_prefix(s: Scenario) -> papo_testing::Result<()> {
             .state()
             .channel(&channel)
             .unwrap()
-            .member(&bob_nick)
+            .member(bob_nick.as_ref())
             .is_some()
     );
     bob.expect_none(|event| {
@@ -581,7 +581,7 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
         bob.state()
             .channel(&channel)
             .unwrap()
-            .member(&bob_nick)
+            .member(bob_nick.as_ref())
             .unwrap()
             .rank()
             >= Some(Rank::Op)
@@ -607,14 +607,14 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
             .state()
             .channel(&channel)
             .unwrap()
-            .member(&carol_nick)
+            .member(carol_nick.as_ref())
             .is_none()
     );
     assert!(
         bob.state()
             .channel(&channel)
             .unwrap()
-            .member(&carol_nick)
+            .member(carol_nick.as_ref())
             .is_none()
     );
     carol.expect_none(Event::as_invited).await?;
@@ -678,7 +678,7 @@ async fn invite_rules(s: Scenario) -> papo_testing::Result<()> {
             .state()
             .channel(&channel)
             .unwrap()
-            .member(&carol_nick)
+            .member(carol_nick.as_ref())
             .is_some()
     );
     assert!(
@@ -686,7 +686,7 @@ async fn invite_rules(s: Scenario) -> papo_testing::Result<()> {
             .state()
             .channel(&channel)
             .unwrap()
-            .member(&carol_nick)
+            .member(carol_nick.as_ref())
             .is_some()
     );
     Ok(())
@@ -719,7 +719,7 @@ async fn part(s: Scenario) -> papo_testing::Result<()> {
         bob.state()
             .channel(&channel)
             .unwrap()
-            .member(&alice_nick)
+            .member(alice_nick.as_ref())
             .is_none()
     );
     alice.expect_none(Event::as_parted).await?;
@@ -774,7 +774,7 @@ async fn part_multiple_and_refusal(s: Scenario) -> papo_testing::Result<()> {
             bob.state()
                 .channel(channel)
                 .unwrap()
-                .member(&alice_nick)
+                .member(alice_nick.as_ref())
                 .is_none()
         );
     }
@@ -820,7 +820,7 @@ async fn quit(s: Scenario) -> papo_testing::Result<()> {
         bob.state()
             .channel(&channel)
             .unwrap()
-            .member(&alice_nick)
+            .member(alice_nick.as_ref())
             .is_none()
     );
     bob.expect_none(Event::as_quit).await?;
@@ -856,7 +856,7 @@ async fn kick(s: Scenario) -> papo_testing::Result<()> {
             .state()
             .channel(&channel)
             .unwrap()
-            .member(&bob_nick)
+            .member(bob_nick.as_ref())
             .is_none()
     );
     assert!(bob.state().channel(&channel).is_none());
@@ -1062,7 +1062,7 @@ async fn nick_change_and_collision(s: Scenario) -> papo_testing::Result<()> {
         bob.state()
             .channel(&channel)
             .unwrap()
-            .member(&old_nick)
+            .member(old_nick.as_ref())
             .is_none()
     );
 

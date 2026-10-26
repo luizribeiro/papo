@@ -41,7 +41,7 @@ async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
     ));
     assert!(sent.fallbacks.is_empty());
     assert!(matches!(
-        bob.state().user(&alice_nick).unwrap().account(),
+        bob.state().user(alice_nick.as_ref()).unwrap().account(),
         Account::LoggedIn(observed) if observed == account.as_ref()
     ));
     alice
@@ -101,7 +101,7 @@ async fn account_notify(s: Scenario) -> papo_testing::Result<()> {
     );
     assert_eq!(alice.state().account(), &Account::LoggedIn(account.clone()));
     assert!(matches!(
-        bob.state().user(&alice_nick).unwrap().account(),
+        bob.state().user(alice_nick.as_ref()).unwrap().account(),
         Account::LoggedIn(observed) if observed == account.as_ref()
     ));
     alice.wait_for(Event::as_account_creation).await?;
@@ -132,7 +132,7 @@ async fn away_notify(s: Scenario) -> papo_testing::Result<()> {
         &Away::__away_value(Some(away.to_owned()))
     );
     assert_eq!(
-        bob.state().user(&alice_nick).unwrap().away(),
+        bob.state().user(alice_nick.as_ref()).unwrap().away(),
         &Away::__away_value(Some(away.to_owned()))
     );
 
@@ -143,7 +143,7 @@ async fn away_notify(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(returned.away, Away::Present);
     assert_eq!(alice.state().away(), &Away::Present);
     assert_eq!(
-        bob.state().user(&alice_nick).unwrap().away(),
+        bob.state().user(alice_nick.as_ref()).unwrap().away(),
         &Away::Present
     );
     bob.expect_none(Event::as_away_changed).await?;
@@ -225,11 +225,11 @@ async fn setname(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(observed.nick, alice_nick.as_ref());
     assert_eq!(observed.realname, realname);
     assert_eq!(
-        alice.state().user(&alice_nick).unwrap().realname(),
+        alice.state().user(alice_nick.as_ref()).unwrap().realname(),
         Some(realname)
     );
     assert_eq!(
-        bob.state().user(&alice_nick).unwrap().realname(),
+        bob.state().user(alice_nick.as_ref()).unwrap().realname(),
         Some(realname)
     );
     alice.expect_none(Event::as_realname_changed).await?;
@@ -283,7 +283,7 @@ async fn chghost(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(own.host, "conformance.example");
     for peer in [&alice, &bob] {
         let state = peer.state();
-        let user = state.user(&bob_nick).unwrap();
+        let user = state.user(bob_nick.as_ref()).unwrap();
         assert_eq!(user.username(), Some(own.username.as_str()));
         assert_eq!(user.host(), Some("conformance.example"));
     }
@@ -321,7 +321,7 @@ async fn monitor(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(changed.nick, bob_nick.as_ref());
     assert_eq!(changed.away, Away::__away_value(Some(away.to_owned())));
     assert_eq!(
-        alice.state().user(&bob_nick).unwrap().away(),
+        alice.state().user(bob_nick.as_ref()).unwrap().away(),
         &Away::__away_value(Some(away.to_owned()))
     );
 

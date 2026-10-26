@@ -62,8 +62,14 @@ async fn statusmsg_peers(s: &Scenario) -> papo_testing::Result<StatusmsgPeers> {
     for peer in [&alice, &bob, &carol, &dave] {
         let state = peer.state();
         let members = state.channel(&channel).expect("channel is in state");
-        assert_eq!(members.member(&bob_nick).unwrap().prefixes(), &['@'][..]);
-        assert_eq!(members.member(&carol_nick).unwrap().prefixes(), &['+'][..]);
+        assert_eq!(
+            members.member(bob_nick.as_ref()).unwrap().prefixes(),
+            &['@'][..]
+        );
+        assert_eq!(
+            members.member(carol_nick.as_ref()).unwrap().prefixes(),
+            &['+'][..]
+        );
     }
 
     Ok(StatusmsgPeers {

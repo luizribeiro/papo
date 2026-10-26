@@ -117,7 +117,10 @@ async fn multidevice_away_shared_state(s: Scenario) -> papo_testing::Result<()> 
         phone.expect_none(Event::as_away_changed).await?;
         observer.expect_none(Event::as_away_changed).await?;
         assert_eq!(phone.state().away(), &Away::Present);
-        assert_eq!(observer.state().user(&nick).unwrap().away(), &Away::Present);
+        assert_eq!(
+            observer.state().user(nick.as_ref()).unwrap().away(),
+            &Away::Present
+        );
         return Ok(());
     }
     let sibling = phone
@@ -137,7 +140,7 @@ async fn multidevice_away_shared_state(s: Scenario) -> papo_testing::Result<()> 
     assert_eq!(sibling.away, away);
     assert_eq!(visible.away, away);
     assert_eq!(phone.state().away(), &away);
-    assert_eq!(observer.state().user(&nick).unwrap().away(), &away);
+    assert_eq!(observer.state().user(nick.as_ref()).unwrap().away(), &away);
     phone.expect_none(Event::as_away_changed).await?;
     observer.expect_none(Event::as_away_changed).await?;
     Ok(())
@@ -334,7 +337,7 @@ async fn multidevice_nick_shared_state(s: Scenario) -> papo_testing::Result<()> 
             members
                 .channel(&channel)
                 .expect("joined channel remains in state")
-                .member(&old)
+                .member(old.as_ref())
                 .is_some()
         );
         assert!(members.channel(&channel).unwrap().member(&new).is_none());

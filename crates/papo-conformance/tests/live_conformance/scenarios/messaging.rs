@@ -33,8 +33,8 @@ async fn fixture_pair_with(
         let state = peer.state();
         let members = state.channel(&channel).expect("joined channel is in state");
         assert!(members.is_synced());
-        assert!(members.member(alice.nick()).is_some());
-        assert!(members.member(bob.nick()).is_some());
+        assert!(members.member(alice.nick().as_ref()).is_some());
+        assert!(members.member(bob.nick().as_ref()).is_some());
     }
     Ok((alice, bob, channel))
 }

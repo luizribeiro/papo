@@ -99,7 +99,7 @@ async fn metadata_subscriptions(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(bob_change.visibility, Visibility::Public);
     let bob_state = bob.state();
     let cached = bob_state
-        .metadata(&alice_nick)
+        .metadata(alice_nick.as_ref())
         .expect("subscriber caches the visible metadata");
     assert_eq!(cached[key].value, "available");
 
@@ -107,7 +107,7 @@ async fn metadata_subscriptions(s: Scenario) -> papo_testing::Result<()> {
     assert!(bob.state().metadata_subscriptions().next().is_none());
     alice.metadata().set(key, "busy").await?;
     bob.expect_none(Event::as_metadata_changed).await?;
-    assert_eq!(bob.state().metadata(&alice_nick), Some(cached));
+    assert_eq!(bob.state().metadata(alice_nick.as_ref()), Some(cached));
     Ok(())
 }
 
@@ -137,7 +137,7 @@ async fn metadata_does_not_cross_nick_handoffs(s: Scenario) -> papo_testing::Res
             })
         })
         .await?;
-    assert!(observer.state().metadata(&alice_nick).is_some());
+    assert!(observer.state().metadata(alice_nick.as_ref()).is_some());
 
     alice.quit("handoff").await?;
     observer
@@ -147,7 +147,7 @@ async fn metadata_does_not_cross_nick_handoffs(s: Scenario) -> papo_testing::Res
                 .filter(|quit| quit.nick == alice_nick.as_ref())
         })
         .await?;
-    assert!(observer.state().metadata(&alice_nick).is_none());
+    assert!(observer.state().metadata(alice_nick.as_ref()).is_none());
 
     mallory.set_nick(alice_nick.as_ref()).await?;
     observer
@@ -157,7 +157,7 @@ async fn metadata_does_not_cross_nick_handoffs(s: Scenario) -> papo_testing::Res
             })
         })
         .await?;
-    assert!(observer.state().metadata(&alice_nick).is_none());
+    assert!(observer.state().metadata(alice_nick.as_ref()).is_none());
     Ok(())
 }
 

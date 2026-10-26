@@ -174,7 +174,11 @@ async fn assert_dave_view(
     assert!(dave.state().caps().contains_key(&papo::cap::MULTI_PREFIX));
     dave.join(channel).await?;
     let state = dave.state();
-    let member = state.channel(channel).unwrap().member(bob_nick).unwrap();
+    let member = state
+        .channel(channel)
+        .unwrap()
+        .member(bob_nick.as_ref())
+        .unwrap();
     assert_eq!(member.prefixes(), allowed_symbols);
     assert!(member.rank() >= Some(Rank::Op));
     assert!(member.has(Rank::Op));
