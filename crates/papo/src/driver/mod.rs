@@ -1059,6 +1059,8 @@ where
             session.isupport().casemapping(),
             session.state().nick().origin(),
             session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
+            session.caps().contains_key(&crate::cap::MESSAGE_TAGS)
+                && session.isupport().bot_mode().is_some(),
             crate::rt::now_wall(),
         );
         if let event::CoreEvent::RequestAborted { id, transmitted } = core_event {
@@ -1205,6 +1207,8 @@ where
             session.isupport().casemapping(),
             session.state().nick().origin(),
             session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
+            session.caps().contains_key(&crate::cap::MESSAGE_TAGS)
+                && session.isupport().bot_mode().is_some(),
             crate::rt::now_wall(),
         ) {
             event::CoreEvent::Forward(event) => {
@@ -1260,6 +1264,8 @@ where
                     session.state().nick().origin(),
                     session.isupport(),
                     session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
+                    session.caps().contains_key(&crate::cap::MESSAGE_TAGS)
+                        && session.isupport().bot_mode().is_some(),
                     crate::rt::now_wall(),
                 );
                 if !enqueue_event(events, pending_events, event) {

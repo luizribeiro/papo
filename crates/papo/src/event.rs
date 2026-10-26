@@ -369,6 +369,7 @@ fn ctcp_from_line(
     status: Option<Vec<char>>,
     isupport: &Isupport,
     account_tag_enabled: bool,
+    prove_not_bot: bool,
     received_at: SystemTime,
     reply_token: Option<papo_core::ReplyToken>,
 ) -> Result<Event, ProtoLine> {
@@ -384,6 +385,7 @@ fn ctcp_from_line(
         status,
         isupport,
         account_tag_enabled,
+        prove_not_bot,
         received_at,
         reply_token,
     ) else {
@@ -445,6 +447,7 @@ fn broadcast_from_line(
     origin: crate::Origin,
     isupport: &Isupport,
     account_tag_enabled: bool,
+    prove_not_bot: bool,
     received_at: SystemTime,
 ) -> Result<Event, ProtoLine> {
     let message = raw.as_ref();
@@ -464,7 +467,7 @@ fn broadcast_from_line(
         isupport.casemapping(),
         origin,
         account_tag_enabled,
-        false,
+        prove_not_bot,
     ) else {
         return Err(raw);
     };
@@ -513,6 +516,7 @@ pub(crate) fn incoming_from_core(
     origin: crate::Origin,
     isupport: &Isupport,
     account_tag_enabled: bool,
+    prove_not_bot: bool,
     received_at: SystemTime,
 ) -> Event {
     let reply_token = received.__reply_token();
@@ -535,6 +539,7 @@ pub(crate) fn incoming_from_core(
             origin,
             isupport,
             account_tag_enabled,
+            prove_not_bot,
             received_at,
         ) {
             Ok(event) => return event,
@@ -551,6 +556,7 @@ pub(crate) fn incoming_from_core(
             origin,
             isupport,
             account_tag_enabled,
+            prove_not_bot,
             received_at,
         )
             .map_or_else(Event::Other, |notice| Event::ServerNotice(Box::new(notice)));
@@ -564,6 +570,7 @@ pub(crate) fn incoming_from_core(
         channel_context,
         isupport,
         account_tag_enabled,
+        prove_not_bot,
         received_at,
         Some(reply_token),
     )
@@ -617,6 +624,7 @@ impl Message {
             None,
             isupport,
             false,
+            false,
             received_at,
             None,
         )
@@ -632,6 +640,7 @@ impl Message {
         channel_context: Option<ChannelName>,
         isupport: &Isupport,
         account_tag_enabled: bool,
+        prove_not_bot: bool,
         received_at: SystemTime,
         reply_token: Option<papo_core::ReplyToken>,
     ) -> Result<Self, ProtoLine> {
@@ -659,6 +668,7 @@ impl Message {
             status,
             isupport,
             account_tag_enabled,
+            prove_not_bot,
             received_at,
             reply_token,
         ) else {
@@ -735,6 +745,7 @@ impl Notice {
         channel_context: Option<ChannelName>,
         isupport: &Isupport,
         account_tag_enabled: bool,
+        prove_not_bot: bool,
         received_at: SystemTime,
         reply_token: Option<papo_core::ReplyToken>,
     ) -> Result<Self, ProtoLine> {
@@ -762,6 +773,7 @@ impl Notice {
             status,
             isupport,
             account_tag_enabled,
+            prove_not_bot,
             received_at,
             reply_token,
         ) else {
@@ -806,6 +818,7 @@ impl ServerNotice {
         origin: crate::Origin,
         isupport: &Isupport,
         account_tag_enabled: bool,
+        prove_not_bot: bool,
         received_at: SystemTime,
     ) -> Result<Self, ProtoLine> {
         let message = raw.as_ref();
@@ -848,7 +861,7 @@ impl ServerNotice {
                     isupport.casemapping(),
                     origin,
                     account_tag_enabled,
-                    false,
+                    prove_not_bot,
                 )
                 .expect("the parsed source is a user"),
             ),
@@ -887,6 +900,7 @@ fn message_event_from_line(
     channel_context: Option<ChannelName>,
     isupport: &Isupport,
     account_tag_enabled: bool,
+    prove_not_bot: bool,
     received_at: SystemTime,
     reply_token: Option<papo_core::ReplyToken>,
 ) -> Event {
@@ -900,6 +914,7 @@ fn message_event_from_line(
             origin,
             isupport,
             account_tag_enabled,
+            prove_not_bot,
             received_at,
         )
         .map_or_else(Event::Other, |notice| Event::ServerNotice(Box::new(notice)));
@@ -912,6 +927,7 @@ fn message_event_from_line(
         status.clone(),
         isupport,
         account_tag_enabled,
+        prove_not_bot,
         received_at,
         reply_token,
     ) {
@@ -928,6 +944,7 @@ fn message_event_from_line(
             channel_context,
             isupport,
             account_tag_enabled,
+            prove_not_bot,
             received_at,
             reply_token,
         )
@@ -943,6 +960,7 @@ fn message_event_from_line(
         channel_context,
         isupport,
         account_tag_enabled,
+        prove_not_bot,
         received_at,
         reply_token,
     )
@@ -988,6 +1006,7 @@ pub(crate) fn historical_message_event(
         None,
         snapshot.isupport().inner(),
         snapshot.caps().contains_key(&crate::cap::ACCOUNT_TAG),
+        false,
         received_at,
         None,
     )
@@ -1027,6 +1046,7 @@ fn message_metadata(
     status: Option<Vec<char>>,
     isupport: &Isupport,
     account_tag_enabled: bool,
+    prove_not_bot: bool,
     received_at: SystemTime,
     reply_token: Option<papo_core::ReplyToken>,
 ) -> Option<MessageMetadata> {
@@ -1041,7 +1061,7 @@ fn message_metadata(
             isupport.casemapping(),
             origin,
             account_tag_enabled,
-            false,
+            prove_not_bot,
         )?),
         papo_proto::Source::Server(server) => Source::Server(server.into()),
     };
@@ -1515,6 +1535,7 @@ pub(crate) fn from_core(
     casemapping: Casemapping,
     origin: crate::Origin,
     account_tag_enabled: bool,
+    prove_not_bot: bool,
     received_at: SystemTime,
 ) -> CoreEvent {
     let map_envelope = |envelope| {
@@ -1562,7 +1583,11 @@ pub(crate) fn from_core(
                 casemapping,
                 origin,
                 envelope.account,
-                tags.contains("bot").then_some(true),
+                if tags.contains("bot") {
+                    Some(true)
+                } else {
+                    prove_not_bot.then_some(false)
+                },
                 None,
             ) {
                 Some(actor) => actor,
@@ -2149,6 +2174,7 @@ mod tests {
             Casemapping::default(),
             crate::Origin::NONE,
             false,
+            false,
             UNIX_EPOCH,
         )
     }
@@ -2292,6 +2318,7 @@ mod tests {
             None,
             isupport,
             false,
+            false,
             received_at,
             None,
         )
@@ -2324,6 +2351,7 @@ mod tests {
                 None,
                 None,
                 &isupport,
+                false,
                 false,
                 UNIX_EPOCH,
                 None,
@@ -2405,6 +2433,7 @@ mod tests {
             None,
             &isupport,
             false,
+            false,
             UNIX_EPOCH,
             None,
         );
@@ -2423,6 +2452,7 @@ mod tests {
             None,
             &isupport,
             true,
+            false,
             UNIX_EPOCH,
             None,
         );
@@ -2554,6 +2584,7 @@ mod tests {
                 None,
                 &isupport,
                 false,
+                false,
                 UNIX_EPOCH,
                 None,
             )
@@ -2618,6 +2649,7 @@ mod tests {
                 None,
                 &isupport,
                 true,
+                false,
                 UNIX_EPOCH,
                 None,
             )
@@ -2813,6 +2845,59 @@ mod tests {
     }
 
     #[test]
+    fn bot_false_requires_live_message_tags_and_advertised_bot_mode() {
+        let mut isupport = Isupport::default();
+        isupport.apply_tokens(["BOT=B"]);
+        let map = |line: Line, prove_not_bot| {
+            let event = message_event_from_line(
+                line,
+                None,
+                Authorship::Other,
+                Conversation::Channel(isupport.casemapping().channel("#papo")),
+                None,
+                None,
+                &isupport,
+                false,
+                prove_not_bot,
+                UNIX_EPOCH,
+                None,
+            );
+            match event {
+                Event::Message(message) => message.actor.is_bot(),
+                _ => panic!("expected message"),
+            }
+        };
+
+        let human = || Line::privmsg("#papo", "release ready").with_source("emily!e@host");
+        assert_eq!(map(human(), true), Some(false));
+        assert_eq!(map(human(), false), None);
+        assert_eq!(
+            map(human().with_tag("bot", ""), false),
+            Some(true)
+        );
+
+        let tag = papo_core::TagMessage {
+            envelope: papo_core::LineEnvelope::default(),
+            actor: "emily!e@host".into(),
+            authorship: papo_core::Authorship::Other,
+            conversation: Conversation::Channel(isupport.casemapping().channel("#papo")),
+            status: None,
+            tags: Vec::new(),
+        };
+        let CoreEvent::Forward(Event::TagMsg(tag)) = from_core_with_mapping(
+            papo_core::Event::TagMessage(tag),
+            isupport.casemapping(),
+            crate::Origin::NONE,
+            false,
+            true,
+            UNIX_EPOCH,
+        ) else {
+            panic!("expected tag message");
+        };
+        assert_eq!(tag.actor.is_bot(), Some(false));
+    }
+
+    #[test]
     #[allow(clippy::too_many_lines)]
     fn event_metadata_survives_live_line_conversion() {
         let received_at = UNIX_EPOCH + Duration::from_secs(42);
@@ -2826,6 +2911,7 @@ mod tests {
                 session.isupport().casemapping(),
                 crate::Origin::NONE,
                 session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
+                false,
                 received_at,
             ) {
                 CoreEvent::Forward(event) => event,
@@ -2834,6 +2920,7 @@ mod tests {
                     crate::Origin::NONE,
                     session.isupport(),
                     session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
+                    false,
                     received_at,
                 ),
                 _ => panic!("live line did not produce an event"),
@@ -2993,6 +3080,7 @@ mod tests {
                 None,
                 &isupport,
                 false,
+                false,
                 UNIX_EPOCH,
                 None,
             )
@@ -3006,6 +3094,7 @@ mod tests {
             Casemapping::default(),
             crate::Origin::NONE,
             true,
+            false,
             UNIX_EPOCH,
         ) else {
             panic!("event was not forwarded")
@@ -3073,6 +3162,7 @@ mod tests {
             Casemapping::Rfc1459,
             crate::Origin::NONE,
             false,
+            false,
             UNIX_EPOCH,
         ) else {
             panic!("join was not forwarded");
@@ -3101,6 +3191,7 @@ mod tests {
             Casemapping::default(),
             origin,
             true,
+            false,
             UNIX_EPOCH,
         ) else {
             panic!("join was not forwarded");
@@ -3118,6 +3209,7 @@ mod tests {
             Casemapping::default(),
             origin,
             true,
+            false,
             UNIX_EPOCH,
         ) else {
             panic!("part was not forwarded");
@@ -3139,6 +3231,7 @@ mod tests {
             Casemapping::Rfc1459,
             crate::Origin::NONE,
             false,
+            false,
             UNIX_EPOCH,
         ) else {
             panic!("expected queued join");
@@ -3147,6 +3240,7 @@ mod tests {
             session.poll_event().unwrap(),
             Casemapping::Rfc1459,
             crate::Origin::NONE,
+            false,
             false,
             UNIX_EPOCH,
         ) else {
@@ -3164,6 +3258,7 @@ mod tests {
             message,
             crate::Origin::NONE,
             &Isupport::default(),
+            false,
             false,
             UNIX_EPOCH,
         )
@@ -3184,6 +3279,7 @@ mod tests {
             line,
             crate::Origin::NONE,
             &Isupport::default(),
+            false,
             false,
             UNIX_EPOCH,
         )
@@ -3268,6 +3364,7 @@ mod tests {
             line,
             crate::Origin::NONE,
             &Isupport::default(),
+            false,
             false,
             UNIX_EPOCH,
         );
@@ -3572,6 +3669,7 @@ mod tests {
             session.poll_event().expect("join event"),
             Casemapping::default(),
             crate::Origin::NONE,
+            false,
             false,
             received_at,
         );
