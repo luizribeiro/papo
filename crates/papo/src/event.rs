@@ -40,7 +40,7 @@ pub use papo_core::{BatchAbandonReason, TypingReason};
 #[cfg(feature = "unstable")]
 pub use server::BouncerNetworkChanged;
 pub use server::{MetadataChanged, Warning};
-pub use source::Source;
+pub use source::{Source, UserSource};
 pub use tags::Tags;
 pub use user::{
     AccountChanged, AwayChanged, HostChanged, MonitorOffline, MonitorOnline, NickChanged, Quit,
