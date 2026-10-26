@@ -1588,7 +1588,9 @@ pub(crate) fn from_core(
                 } else {
                     prove_not_bot.then_some(false)
                 },
-                None,
+                tags.get("draft/oper").map(|name| Oper {
+                    name: (!name.is_empty()).then(|| name.to_owned()),
+                }),
             ) {
                 Some(actor) => actor,
                 None => return CoreEvent::Unknown,
@@ -3335,6 +3337,7 @@ mod tests {
                 ("+typing".into(), Some("paused".into())),
                 ("+draft/react".into(), Some("👍".into())),
                 ("+reply".into(), Some("RKi9Cw".into())),
+                ("draft/oper".into(), Some("network-admin".into())),
             ],
         };
         let Event::Reacted(reaction) = forwarded(papo_core::Event::TagMessage(tag)) else {
@@ -3348,6 +3351,10 @@ mod tests {
         assert_eq!(reaction.reaction, "👍");
         assert_eq!(reaction.reacts_to, "RKi9Cw");
         assert_eq!(reaction.action, crate::event::ReactionAction::Added);
+        assert_eq!(
+            reaction.actor.oper().and_then(|oper| oper.name.as_deref()),
+            Some("network-admin")
+        );
     }
 
     #[test]
