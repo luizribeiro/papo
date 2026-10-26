@@ -918,6 +918,7 @@ mod tests {
             authorship: crate::Authorship::Other,
             conversation: crate::Conversation::Private(first.state().nickname("emily")),
             status: None,
+            return_address: "emily".into(),
             tags: crate::Tags::default(),
         };
         assert!(matches!(

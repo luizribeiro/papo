@@ -280,6 +280,7 @@ mod tests {
             authorship: crate::Authorship::Other,
             conversation: crate::Conversation::Channel(mapping.channel("#papo")),
             status: None,
+            return_address: "#papo".into(),
             reacts_to: "RfcBTzyxY120008".into(),
             reaction: "👍".into(),
             action: crate::event::ReactionAction::Added,

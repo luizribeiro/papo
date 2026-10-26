@@ -118,6 +118,11 @@ pub fn message(
     } else {
         crate::Conversation::Channel(crate::Casemapping::default().channel(&target))
     };
+    let return_address = match &conversation {
+        crate::Conversation::Channel(channel) => channel.to_string(),
+        crate::Conversation::Private(nick) => nick.to_string(),
+        _ => target,
+    };
     Message {
         actor: actor.unwrap_or_else(|| {
             user_source(crate::Casemapping::default().nick("unknown"), None, None)
@@ -137,6 +142,7 @@ pub fn message(
         relayed_by: None,
         tags: Tags::default(),
         reply_token: None,
+        return_address,
     }
 }
 

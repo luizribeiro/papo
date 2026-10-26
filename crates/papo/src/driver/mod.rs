@@ -158,7 +158,7 @@ pub(crate) enum Command {
         kind: TextKind,
         target: String,
         conversation: crate::Conversation,
-        status: Option<Vec<char>>,
+        status: Option<crate::Prefix>,
         text: String,
         tags: Vec<(String, String)>,
         fallbacks: Vec<crate::Fallback>,
@@ -190,7 +190,8 @@ enum PendingRequest {
     },
     Text {
         conversation: crate::Conversation,
-        status: Option<Vec<char>>,
+        status: Option<crate::Prefix>,
+        return_address: String,
         fallbacks: Vec<crate::Fallback>,
         remaining: usize,
         confirmations: Vec<papo_core::SentInfo>,
@@ -217,6 +218,7 @@ impl PendingRequest {
             Self::Text {
                 conversation,
                 status,
+                return_address,
                 fallbacks,
                 remaining,
                 mut confirmations,
@@ -231,6 +233,7 @@ impl PendingRequest {
                     return Some(Self::Text {
                         conversation,
                         status,
+                        return_address,
                         fallbacks,
                         remaining: remaining - 1,
                         confirmations,
@@ -241,6 +244,7 @@ impl PendingRequest {
                     &confirmations,
                     conversation,
                     status,
+                    return_address,
                     fallbacks,
                 )));
                 None
@@ -261,7 +265,8 @@ enum PendingTransmit {
     Empty(oneshot::Sender<Result<(), Error>>),
     Text {
         conversation: crate::Conversation,
-        status: Option<Vec<char>>,
+        status: Option<crate::Prefix>,
+        return_address: String,
         fallbacks: Vec<crate::Fallback>,
         result: oneshot::Sender<Result<Sent, Error>>,
     },
@@ -274,10 +279,16 @@ impl PendingTransmit {
             Self::Text {
                 conversation,
                 status,
+                return_address,
                 fallbacks,
                 result,
             } => {
-                _ = result.send(Ok(Sent::without_echo(conversation, status, fallbacks)));
+                _ = result.send(Ok(Sent::without_echo(
+                    conversation,
+                    status,
+                    return_address,
+                    fallbacks,
+                )));
             }
         }
     }
@@ -957,13 +968,20 @@ where
                                 requests.insert(id, PendingRequest::Text {
                                     conversation,
                                     status,
+                                    return_address: target.clone(),
                                     fallbacks,
                                     remaining: sent.confirmations,
                                     confirmations: Vec::new(),
                                     result,
                                 });
                             } else if let Some(token) = sent.transmit {
-                                transmits.insert(token, PendingTransmit::Text { conversation, status, fallbacks, result });
+                                transmits.insert(token, PendingTransmit::Text {
+                                    conversation,
+                                    status,
+                                    return_address: target.clone(),
+                                    fallbacks,
+                                    result,
+                                });
                             }
                         }
                         Err(error) => {

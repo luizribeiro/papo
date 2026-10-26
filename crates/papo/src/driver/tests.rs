@@ -14,6 +14,10 @@ fn transport_failure(message: &'static str) -> Error {
     ))
 }
 
+fn prefix_symbols(prefixes: &[crate::Prefix]) -> Vec<char> {
+    prefixes.iter().map(|prefix| prefix.symbol()).collect()
+}
+
 fn reconnectable_stream(
     settings: Config,
     reconnect: Reconnect,
@@ -4471,21 +4475,25 @@ fn assert_structured_who(who: &[crate::WhoEntry]) {
         )
     );
     assert_eq!(
-        (&who[0].away, who[0].is_bot, who[0].prefixes.as_slice()),
-        (&crate::Away::Present, Some(true), ['@'].as_slice())
+        (
+            &who[0].away,
+            who[0].is_bot,
+            prefix_symbols(&who[0].prefixes)
+        ),
+        (&crate::Away::Present, Some(true), vec!['@'])
     );
     assert_eq!(
         (
             &who[1].account,
             &who[1].away,
             who[1].oper.as_ref().and_then(|oper| oper.name.as_deref()),
-            who[1].prefixes.as_slice()
+            prefix_symbols(&who[1].prefixes)
         ),
         (
             &crate::Account::LoggedOut,
             &crate::Away::__away_value(None),
             None,
-            ['+'].as_slice()
+            vec!['+']
         )
     );
 }
@@ -4523,9 +4531,9 @@ async fn structured_requests_resolve_fail_and_abort() {
         (Some("alice"), Some("ergo.test"))
     );
     assert_eq!(whois.channels[0].name, "#papo");
-    assert_eq!(whois.channels[0].prefixes, ['@']);
+    assert_eq!(prefix_symbols(&whois.channels[0].prefixes), ['@']);
     assert_eq!(whois.channels[1].name, "#rust");
-    assert_eq!(whois.channels[1].prefixes, ['+']);
+    assert_eq!(prefix_symbols(&whois.channels[1].prefixes), ['+']);
     assert_eq!(
         whois.away,
         crate::Away::__away_value(Some("away from keyboard".into()))
@@ -5382,7 +5390,7 @@ async fn mode_helpers_await_every_command_and_return_refusals() {
     let result = within(modes).await.unwrap().unwrap();
     assert_eq!(result.applied.len(), 3);
     assert!(
-        matches!(result.applied[0].arg, Some(crate::ModeArg::Nick(ref nick)) if nick == "alice")
+        matches!(result.applied[0].arg, Some(crate::ModeArg::Member { ref nick, .. }) if nick == "alice")
     );
     assert!(
         matches!(result.applied[2].arg, Some(crate::ModeArg::Mask(ref mask)) if mask == "*!*@spam.example")
@@ -6216,7 +6224,7 @@ async fn chat_text_uses_plain_splitting_and_rejects_empty_input() {
     assert!(
         matches!(sent.conversation, crate::Conversation::Channel(ref channel) if channel == "#ops")
     );
-    assert_eq!(sent.status, Some(vec!['@']));
+    assert_eq!(sent.status.map(crate::Prefix::symbol), Some('@'));
     let sent = client
         .privmsg("helper", "reviewed")
         .reply_to(crate::MessageId::from("RfcBTzyxY120004"))
@@ -7075,6 +7083,7 @@ async fn redacting_a_multiline_send_stops_at_the_first_refusal() {
     let sent = crate::Sent {
         conversation: crate::Conversation::Channel(client.state().channel_name("#papo")),
         status: None,
+        return_address: "#papo".into(),
         msgids: ["RfcBTzyxY120004", "RfcBTzyxY120005", "RfcBTzyxY120006"]
             .map(crate::MessageId::from)
             .into(),
@@ -7864,7 +7873,10 @@ async fn client_reads_owned_state_snapshots() {
     let state = client.state();
     let channel = state.channel("#papo").unwrap();
     assert!(channel.is_synced());
-    assert_eq!(channel.member("EMILY").unwrap().prefixes(), &['+']);
+    assert_eq!(
+        prefix_symbols(channel.member("EMILY").unwrap().prefixes()),
+        ['+']
+    );
 
     let unchanged = client.state();
     server_line(
