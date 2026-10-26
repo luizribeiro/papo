@@ -2375,7 +2375,7 @@ pub struct papo::Metadata
 impl papo::Metadata
 pub fn papo::Metadata::clear(&self) -> papo::RequestFuture<()>
 pub fn papo::Metadata::clear_on(&self, impl papo::Target) -> papo::RequestFuture<()>
-pub fn papo::Metadata::get<I, S>(&self, impl papo::Target, I) -> papo::RequestFuture<std::collections::hash::map::HashMap<papo::MetadataKey, papo::MetadataValue>> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
+pub fn papo::Metadata::get<I, S>(&self, impl papo::Target, I) -> papo::RequestFuture<std::collections::hash::map::HashMap<papo::MetadataKey, core::option::Option<papo::MetadataValue>>> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
 pub fn papo::Metadata::list(&self, impl papo::Target) -> papo::RequestFuture<std::collections::hash::map::HashMap<papo::MetadataKey, papo::MetadataValue>>
 pub fn papo::Metadata::remove(&self, impl core::convert::Into<papo::MetadataKey>) -> papo::RequestFuture<()>
 pub fn papo::Metadata::remove_on(&self, impl papo::Target, impl core::convert::Into<papo::MetadataKey>) -> papo::RequestFuture<()>

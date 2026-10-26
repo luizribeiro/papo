@@ -59,7 +59,9 @@ impl Metadata {
         crate::RequestFuture::new(async move { metadata.request(command).await })
     }
 
-    /// Gets selected keys and returns the user or channel's resulting cache.
+    /// Gets selected keys and returns only their resulting values.
+    ///
+    /// A key whose value is `None` was reported by the server as not set.
     ///
     /// # Errors
     ///
@@ -73,7 +75,7 @@ impl Metadata {
         &self,
         target: impl crate::Target,
         keys: I,
-    ) -> crate::RequestFuture<HashMap<crate::MetadataKey, MetadataValue>>
+    ) -> crate::RequestFuture<HashMap<crate::MetadataKey, Option<MetadataValue>>>
     where
         I: IntoIterator<Item = S>,
         S: Into<crate::MetadataKey>,
@@ -105,17 +107,21 @@ impl Metadata {
             metadata
                 .request(MetadataCommand::__get(
                     target.clone(),
-                    keys.into_iter()
+                    keys.iter()
+                        .cloned()
                         .map(crate::MetadataKey::into_string)
                         .collect(),
                 ))
                 .await?;
-            Ok(metadata
-                .client
-                .state()
-                .metadata(&target)
-                .cloned()
-                .unwrap_or_default())
+            let state = metadata.client.state();
+            let values = state.metadata(&target);
+            Ok(keys
+                .into_iter()
+                .map(|key| {
+                    let value = values.and_then(|values| values.get(&key)).cloned();
+                    (key, value)
+                })
+                .collect())
         })
     }
 
@@ -353,6 +359,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
+    #[allow(clippy::too_many_lines)]
     async fn metadata_reads_writes_and_updates_state() {
         let settings = config().wanted_caps(["batch", "draft/metadata-2", "labeled-response"]);
         let (mut server, client, mut events, driver) = scripted(settings);
@@ -365,21 +372,38 @@ mod tests {
         )
         .await;
 
-        let get = tokio::spawn({
-            let client = client.clone();
-            async move { client.metadata().get("alice", ["avatar"]).await }
-        });
-        client_line(&mut server, b"@label=0 METADATA alice GET avatar\r\n").await;
         server_line(
             &mut server,
-            b"@label=0 :ergo.test BATCH +get labeled-response\r\n@batch=get :ergo.test 761 papo-driver alice avatar * :https://cdn.example.net/alice.png\r\n:ergo.test BATCH -get\r\n",
+            b":ergo.test 761 papo-driver alice status * :working remotely\r\n",
+        )
+        .await;
+        assert!(matches!(
+            events.next().await,
+            Some(crate::Event::MetadataChanged(changed)) if changed.key == "status"
+        ));
+
+        let get = tokio::spawn({
+            let client = client.clone();
+            async move { client.metadata().get("alice", ["avatar", "pronouns"]).await }
+        });
+        client_line(
+            &mut server,
+            b"@label=0 METADATA alice GET avatar pronouns\r\n",
+        )
+        .await;
+        server_line(
+            &mut server,
+            b"@label=0 :ergo.test BATCH +get labeled-response\r\n@batch=get :ergo.test 761 papo-driver alice avatar * :https://cdn.example.net/alice.png\r\n@batch=get :ergo.test 766 papo-driver alice pronouns :key is not set\r\n:ergo.test BATCH -get\r\n",
         )
         .await;
         let metadata = within(get).await.unwrap().unwrap();
         assert_eq!(
-            metadata["avatar"].value,
+            metadata["avatar"].as_ref().unwrap().value,
             "https://cdn.example.net/alice.png"
         );
+        assert_eq!(metadata["pronouns"], None);
+        assert_eq!(metadata.len(), 2);
+        assert!(!metadata.contains_key("status"));
         assert_eq!(
             client.state().metadata("ALICE").unwrap()["avatar"].visibility,
             crate::Visibility::Public

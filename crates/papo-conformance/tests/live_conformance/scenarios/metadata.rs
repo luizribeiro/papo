@@ -24,10 +24,15 @@ async fn draft_metadata_2(s: Scenario) -> papo_testing::Result<()> {
     let values = alice.metadata().get(nick.clone(), [key]).await?;
     let stored = values
         .get(key)
-        .expect("the requested metadata key is cached");
+        .expect("the requested metadata key is returned")
+        .as_ref()
+        .expect("the requested metadata key is set");
     assert_eq!(stored.value, value);
     assert_eq!(stored.visibility, Visibility::Public);
-    assert_eq!(alice.state().metadata(&nick), Some(&values));
+    assert_eq!(
+        alice.state().metadata(&nick).unwrap().get(key),
+        Some(stored)
+    );
 
     alice.metadata().remove(key).await?;
     let removed = alice
