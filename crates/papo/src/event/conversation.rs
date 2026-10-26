@@ -50,6 +50,7 @@ pub struct BroadcastTagMsg {
     pub to: Broadcast,
     /// Tags in wire order with last-wins lookup.
     pub tags: Tags,
+    pub(crate) msgid: Option<MessageId>,
 }
 
 fn broadcast_origin(to: &Broadcast, actor: &UserSource) -> crate::Origin {

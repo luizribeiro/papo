@@ -509,6 +509,7 @@ fn broadcast_from_line(
             actor,
             authorship,
             to,
+            msgid: tag_owned(&message, &["msgid"]).map(MessageId::from),
             tags,
         }));
     }
@@ -1468,28 +1469,28 @@ variant_accessors! { Event;
 impl Event {
     /// Returns the server-assigned identifier carried by this event, when supplied.
     #[must_use]
-    pub fn msgid(&self) -> Option<MessageId> {
+    pub fn msgid(&self) -> Option<&MessageId> {
         match self {
-            Self::Message(event) | Self::OwnMessage(event) => event.msgid.clone(),
-            Self::Notice(event) => event.msgid.clone(),
-            Self::ServerNotice(event) => event.msgid.clone(),
-            Self::CtcpQuery(event) => event.msgid.clone(),
-            Self::CtcpReply(event) => event.msgid.clone(),
-            Self::BroadcastCtcp(event) => event.msgid.clone(),
-            Self::BroadcastTagMsg(event) => event.tags.get("msgid").map(MessageId::from),
-            Self::TagMsg(event) => event.msgid.clone(),
-            Self::Reacted(event) => event.msgid.clone(),
-            Self::Redacted(event) => event.msgid.clone(),
-            Self::Joined(event) => event.msgid.clone(),
-            Self::Parted(event) => event.msgid.clone(),
-            Self::Kicked(event) => event.msgid.clone(),
-            Self::Invited(event) => event.msgid.clone(),
-            Self::Quit(event) => event.msgid.clone(),
-            Self::NickChanged(event) => event.msgid.clone(),
-            Self::ChannelRenamed(event) => event.msgid.clone(),
-            Self::ModeChanged(event) => event.msgid.clone(),
-            Self::TopicChanged(event) => event.msgid.clone(),
-            Self::Other(event) => event.msgid.clone(),
+            Self::Message(event) | Self::OwnMessage(event) => event.msgid.as_ref(),
+            Self::Notice(event) => event.msgid.as_ref(),
+            Self::ServerNotice(event) => event.msgid.as_ref(),
+            Self::CtcpQuery(event) => event.msgid.as_ref(),
+            Self::CtcpReply(event) => event.msgid.as_ref(),
+            Self::BroadcastCtcp(event) => event.msgid.as_ref(),
+            Self::BroadcastTagMsg(event) => event.msgid.as_ref(),
+            Self::TagMsg(event) => event.msgid.as_ref(),
+            Self::Reacted(event) => event.msgid.as_ref(),
+            Self::Redacted(event) => event.msgid.as_ref(),
+            Self::Joined(event) => event.msgid.as_ref(),
+            Self::Parted(event) => event.msgid.as_ref(),
+            Self::Kicked(event) => event.msgid.as_ref(),
+            Self::Invited(event) => event.msgid.as_ref(),
+            Self::Quit(event) => event.msgid.as_ref(),
+            Self::NickChanged(event) => event.msgid.as_ref(),
+            Self::ChannelRenamed(event) => event.msgid.as_ref(),
+            Self::ModeChanged(event) => event.msgid.as_ref(),
+            Self::TopicChanged(event) => event.msgid.as_ref(),
+            Self::Other(event) => event.msgid.as_ref(),
             _ => None,
         }
     }
@@ -2346,6 +2347,7 @@ mod tests {
                 authorship: Authorship::Other,
                 to,
                 tags: Tags::default(),
+                msgid: None,
             };
             assert_eq!(event.origin(), origin);
         }
@@ -3035,7 +3037,10 @@ mod tests {
         assert!(matches!(tagged.actor.account(), Account::LoggedIn(account) if account == "emily"));
         assert_eq!(tagged.actor.is_bot(), Some(true));
         let tagged_event = Event::Message(Box::new(tagged.clone()));
-        assert_eq!(tagged_event.msgid().as_deref(), Some("RfcBTzyxY120004"));
+        assert_eq!(
+            tagged_event.msgid().map(AsRef::as_ref),
+            Some("RfcBTzyxY120004")
+        );
         assert_eq!(tagged_event.server_time(), tagged.server_time);
         assert_eq!(tagged_event.received_at(), Some(received));
         assert_eq!(tagged.received_at, received);
@@ -3048,7 +3053,7 @@ mod tests {
                 received,
             )
             .msgid()
-            .as_deref(),
+            .map(AsRef::as_ref),
             Some("Other120004")
         );
         assert_eq!(
@@ -3196,7 +3201,11 @@ mod tests {
                 }
                 _ => {}
             }
-            assert_eq!(event.msgid().as_deref(), Some(msgid), "{expected_variant}");
+            assert_eq!(
+                event.msgid().map(AsRef::as_ref),
+                Some(msgid),
+                "{expected_variant}"
+            );
             assert_event_times(&event, expected_variant, server_time, received_at);
             let account = match &event {
                 Event::Parted(event) => Some(event.actor.account()),
