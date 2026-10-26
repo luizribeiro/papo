@@ -20,6 +20,8 @@
 ]
 "security::nickname_handoffs_block_notices_and_ctcp_replies" = [
   "security.x-answer.notice-nick-handoff",
+]
+"security::ctcp_replies_refuse_nick_handoffs" = [
   "security.addr-10.ctcp-nick-handoff",
 ]
 "security::ops_only_return_addresses_survive_notice_and_typing_sends" = [

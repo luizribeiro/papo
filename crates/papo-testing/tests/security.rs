@@ -406,6 +406,7 @@ async fn nickname_handoffs_block_notices_and_ctcp_replies() {
         papo::Client::builder("irc://offline.test")
             .nick("papo-wire")
             .rate_limit(papo::RateLimit::unlimited())
+            .ctcp_replies(papo::CtcpReplies::off())
             .reconnect(Reconnect::never()),
     );
     wire.register(&["message-tags"]).await;
@@ -452,6 +453,64 @@ async fn nickname_handoffs_block_notices_and_ctcp_replies() {
         client.ctcp_reply(&query, "papo 0.1").await,
         Err(papo::Error::TargetGone)
     ));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), wire.next_sent())
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn ctcp_replies_refuse_nick_handoffs() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test")
+            .nick("papo-wire")
+            .rate_limit(papo::RateLimit::unlimited())
+            .ctcp_replies(papo::CtcpReplies::off())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&["message-tags"]).await;
+    connected(&mut events).await;
+    for line in [
+        ":papo-wire!p@localhost JOIN #review",
+        ":alice!~a@cloak.example JOIN #review",
+        ":mallory!~m@users.example JOIN #review",
+    ] {
+        wire.server(line).await;
+        assert!(matches!(
+            next_active_event(&mut events).await,
+            papo::Event::Joined(_)
+        ));
+    }
+    wire.server(":alice!~a@cloak.example PRIVMSG #review :\u{1}VERSION\u{1}")
+        .await;
+    let papo::Event::CtcpQuery(channel_query) = next_active_event(&mut events).await else {
+        panic!("expected a channel CTCP query")
+    };
+    wire.server(":alice!~a@cloak.example PRIVMSG papo-wire :\u{1}VERSION\u{1}")
+        .await;
+    let papo::Event::CtcpQuery(private_query) = next_active_event(&mut events).await else {
+        panic!("expected a private CTCP query")
+    };
+
+    wire.server(":alice!~a@cloak.example QUIT :Client Quit")
+        .await;
+    assert!(matches!(
+        next_active_event(&mut events).await,
+        papo::Event::Quit(_)
+    ));
+    wire.server(":mallory!~m@users.example NICK alice").await;
+    assert!(matches!(
+        next_active_event(&mut events).await,
+        papo::Event::NickChanged(_)
+    ));
+
+    for query in [&channel_query, &private_query] {
+        assert!(matches!(
+            client.ctcp_reply(query, "papo 0.1").await,
+            Err(papo::Error::TargetGone)
+        ));
+    }
     assert!(
         tokio::time::timeout(Duration::from_millis(10), wire.next_sent())
             .await
