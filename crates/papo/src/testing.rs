@@ -6,9 +6,34 @@ use papo_core::{Config, Session};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::{
-    Authorship, Capabilities, ChannelName, Message, MessageKind, Nick, Source, State, Tags,
+    AccountName, Authorship, Capabilities, Casemapping, ChannelName, Mask, Message, MessageKind,
+    Nick, Source, State, Tags,
     event::{AwayChanged, Connected, Joined},
 };
+
+/// Constructs an origin-free nickname for test fixtures.
+#[must_use]
+pub fn nickname(casemapping: Casemapping, text: impl AsRef<str>) -> Nick {
+    casemapping.nick(text)
+}
+
+/// Constructs an origin-free channel name for test fixtures.
+#[must_use]
+pub fn channel_name(casemapping: Casemapping, text: impl AsRef<str>) -> ChannelName {
+    casemapping.channel(text)
+}
+
+/// Constructs an origin-free account name for test fixtures.
+#[must_use]
+pub fn account_name(casemapping: Casemapping, text: impl AsRef<str>) -> AccountName {
+    casemapping.account(text)
+}
+
+/// Constructs an origin-free mask for test fixtures.
+#[must_use]
+pub fn mask(casemapping: Casemapping, text: impl AsRef<str>) -> Mask {
+    casemapping.mask(text)
+}
 
 /// Builds a client whose connection attempts use in-memory byte streams.
 pub fn wire_client(
