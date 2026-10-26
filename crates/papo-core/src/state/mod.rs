@@ -697,6 +697,17 @@ impl State {
             } else {
                 Authorship::Other
             };
+            let channels = if authorship == Authorship::Own {
+                self.channels
+                    .values()
+                    .map(|channel| channel.name.clone())
+                    .collect()
+            } else {
+                self.users
+                    .get(&mapping.nick(nick))
+                    .map(|user| user.channels.iter().cloned().collect())
+                    .unwrap_or_default()
+            };
             self.record_departure(nick, Some(new_nick));
             if crate::names_equal(mapping, nick, &self.nick)
                 || self.user(nick).is_some()
@@ -715,6 +726,7 @@ impl State {
                 actor: message.raw_source().unwrap_or(nick).to_owned(),
                 old: mapping.nick(nick),
                 new: mapping.nick(new_nick),
+                channels,
                 authorship,
             });
             return Handled::Yes;
@@ -792,6 +804,7 @@ impl State {
                     actor: message.raw_source().unwrap_or(nick).to_owned(),
                     nick: self.casemapping.nick(nick),
                     realname: change.realname.to_owned(),
+                    authorship: self.nick_authorship(nick),
                 });
             }
         }

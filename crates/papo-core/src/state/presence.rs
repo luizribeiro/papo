@@ -1,7 +1,7 @@
 use super::{
-    Account, AccountNotify, Away, AwayNotify, Chghost, Command, Event, Handled, Isupport, LineRef,
-    Numeric, Outbox, ProtoSource, Setname, State, WHOX_FIELDS, WHOX_TOKEN, WhoUser, WhoxFlags,
-    WhoxPresence, WhoxReply,
+    Account, AccountNotify, Authorship, Away, AwayNotify, Chghost, Command, Event, Handled,
+    Isupport, LineRef, Numeric, Outbox, ProtoSource, Setname, State, WHOX_FIELDS, WHOX_TOKEN,
+    WhoUser, WhoxFlags, WhoxPresence, WhoxReply,
 };
 
 impl State {
@@ -10,6 +10,7 @@ impl State {
             return;
         };
         let actor = message.raw_source().unwrap_or(nick).to_owned();
+        let authorship = self.nick_authorship(nick);
         if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick)) {
             for (key, value) in message.tags() {
                 match (key, value) {
@@ -21,6 +22,7 @@ impl State {
                                 actor: actor.clone(),
                                 nick: self.casemapping.nick(nick),
                                 account,
+                                authorship,
                             });
                         }
                     }
@@ -73,6 +75,7 @@ impl State {
                 actor,
                 nick: self.casemapping.nick(nick),
                 account,
+                authorship: self.nick_authorship(nick),
             });
         }
         Some(Handled::Yes)
@@ -111,6 +114,7 @@ impl State {
                     actor: message.raw_source().unwrap_or(nick).to_owned(),
                     nick: self.casemapping.nick(nick),
                     away: next,
+                    authorship: self.nick_authorship(nick),
                 });
             }
             return Some(Handled::Yes);
@@ -131,6 +135,7 @@ impl State {
                             actor: nick.to_owned(),
                             nick: self.casemapping.nick(nick),
                             away: next,
+                            authorship: self.nick_authorship(nick),
                         });
                     }
                 }
@@ -146,6 +151,7 @@ impl State {
                     actor: self.nick.to_string(),
                     nick: self.nick.clone(),
                     away: Away::Present,
+                    authorship: Authorship::Own,
                 });
             }
             Command::Numeric(Numeric::RPL_NOWAWAY)
@@ -162,6 +168,7 @@ impl State {
                     actor: self.nick.to_string(),
                     nick: self.nick.clone(),
                     away,
+                    authorship: Authorship::Own,
                 });
             }
             Command::Numeric(Numeric::RPL_UNAWAY | Numeric::RPL_NOWAWAY) => {}
@@ -222,6 +229,7 @@ impl State {
             nick: self.nick.clone(),
             username: own.username.clone().expect("own username is always known"),
             host: host.to_owned(),
+            authorship: Authorship::Own,
         });
         Some(Handled::Yes)
     }
@@ -243,6 +251,7 @@ impl State {
                 nick: self.casemapping.nick(nick),
                 username: change.user.to_owned(),
                 host: change.host.to_owned(),
+                authorship: self.nick_authorship(nick),
             });
             return Some(Handled::Yes);
         }
@@ -254,6 +263,7 @@ impl State {
             actor: message.raw_source().unwrap_or(nick).to_owned(),
             nick: self.casemapping.nick(nick),
             realname: change.realname.to_owned(),
+            authorship: self.nick_authorship(nick),
         });
         Some(Handled::Yes)
     }

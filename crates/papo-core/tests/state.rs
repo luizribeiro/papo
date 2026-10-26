@@ -5,8 +5,8 @@ mod support;
 use std::time::{Duration, Instant, UNIX_EPOCH};
 
 use papo_core::{
-    Account, Away, Config, Conversation, Event, ModeAction, ModeArg, ModeChange, ModeValue, Rank,
-    RateLimit, ResponseMatcher, Secret, Source, StateLimit, Subject, WhoOnJoin,
+    Account, Authorship, Away, Config, Conversation, Event, ModeAction, ModeArg, ModeChange,
+    ModeValue, Rank, RateLimit, ResponseMatcher, Secret, Source, StateLimit, Subject, WhoOnJoin,
 };
 use papo_proto::{AccountName, Casemapping, ChannelName, InvalidIdentifier, Line, Nick, Origin};
 use support::Transcript;
@@ -736,7 +736,7 @@ fn away_notify_separates_our_state_and_suppresses_repeated_messages() {
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .server(":dan!~dan@cloak.example JOIN #papo")
         .server(":dan!~dan@cloak.example AWAY :Gone to lunch")
-        .event_until(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message), .. }, .. } if nick == "dan" && message == "Gone to lunch"))
+        .event_until(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: Some(message), .. }, authorship: Authorship::Other, .. } if nick == "dan" && message == "Gone to lunch"))
         .inspect(|session| {
             assert_eq!(session.state().away(), &Away::Present);
             assert_eq!(
@@ -823,12 +823,12 @@ fn uncorrelated_away_numerics_report_an_unspecified_message() {
     Transcript::new(Config::default().nick("emily"))
         .inspect(|session| assert_eq!(session.state().away(), &Away::Present))
         .server(":ergo.test 306 emily :You have been marked as being away")
-        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: None, .. }, .. } if nick == "emily"))
+        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Away { message: None, .. }, authorship: Authorship::Own, .. } if nick == "emily"))
         .inspect(|session| {
             assert_eq!(session.state().away(), &Away::__away_value(None));
         })
         .server(":ergo.test 305 emily :You are no longer marked as being away")
-        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Present, .. } if nick == "emily"))
+        .event(|event| matches!(event, Event::AwayChanged { nick, away: Away::Present, authorship: Authorship::Own, .. } if nick == "emily"))
         .inspect(|session| assert_eq!(session.state().away(), &Away::Present))
         .no_event();
 }
@@ -2156,9 +2156,9 @@ fn reports_nick_changes_and_quit_channels_before_removal() {
         .server(":dan!dan@cloak.example JOIN #rust")
         .event(|event| matches!(event, Event::Joined { .. }))
         .server(":dan!dan@cloak.example NICK :dan-away")
-        .event(|event| matches!(event, Event::NickChanged { actor, old, new, .. } if actor == "dan!dan@cloak.example" && old == "dan" && new == "dan-away" && old.casemapping() == Casemapping::Ascii && new.casemapping() == Casemapping::Ascii))
+        .event(|event| matches!(event, Event::NickChanged { actor, old, new, channels, .. } if actor == "dan!dan@cloak.example" && old == "dan" && new == "dan-away" && *channels == ["#papo", "#rust"] && old.casemapping() == Casemapping::Ascii && new.casemapping() == Casemapping::Ascii))
         .server(":emily!em@127.0.0.1 NICK :emily_")
-        .event(|event| matches!(event, Event::NickChanged { old, new, .. } if old == "emily" && new == "emily_"))
+        .event(|event| matches!(event, Event::NickChanged { old, new, channels, .. } if old == "emily" && new == "emily_" && *channels == ["#papo", "#rust"]))
         .server(":dan-away!dan@cloak.example QUIT :Client exited")
         .event(|event| match event {
             Event::Quit { actor, nick, reason, channels, .. } => {

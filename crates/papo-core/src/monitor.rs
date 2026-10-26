@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashSet};
 
 use papo_proto::{Advertised, Casemapping, Isupport, LimitValue, LineRef, MAX_LINE_LEN, Nick};
 
-use crate::{Event, Feature, Handled, Names, Outbox, Unsupported, UnsupportedReason};
+use crate::{Authorship, Event, Feature, Handled, Names, Outbox, Unsupported, UnsupportedReason};
 
 const MAX_DESIRED: usize = 10_000;
 const MONITOR_PAYLOAD_LEN: usize = MAX_LINE_LEN - "MONITOR + \r\n".len();
@@ -273,6 +273,13 @@ impl Monitor {
                                 nick: self.casemapping.nick(nick),
                                 username: user.to_owned(),
                                 host: host.to_owned(),
+                                authorship: if internal_nick.is_some_and(|own| {
+                                    crate::names_equal(isupport.casemapping(), own, nick)
+                                }) {
+                                    Authorship::Own
+                                } else {
+                                    Authorship::Other
+                                },
                             });
                         }
                     }

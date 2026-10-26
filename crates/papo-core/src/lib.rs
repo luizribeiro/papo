@@ -2431,6 +2431,8 @@ pub enum Event {
         old: Nick,
         /// The new nickname.
         new: Nick,
+        /// Shared channels where papo knows the user is a member.
+        channels: Vec<ChannelName>,
         /// Whether the renamed user is this session's user.
         authorship: Authorship,
     },
@@ -2457,6 +2459,8 @@ pub enum Event {
         nick: Nick,
         /// The user's new account state.
         account: Account,
+        /// Whether the affected user is this session's user.
+        authorship: Authorship,
     },
     /// A user's away state changed.
     #[non_exhaustive]
@@ -2467,6 +2471,8 @@ pub enum Event {
         nick: Nick,
         /// The user's new presence state.
         away: Away,
+        /// Whether the affected user is this session's user.
+        authorship: Authorship,
     },
     /// A user's username or hostname changed.
     #[non_exhaustive]
@@ -2479,6 +2485,8 @@ pub enum Event {
         username: String,
         /// The user's new hostname.
         host: String,
+        /// Whether the affected user is this session's user.
+        authorship: Authorship,
     },
     /// A user's real name changed.
     #[non_exhaustive]
@@ -2489,6 +2497,8 @@ pub enum Event {
         nick: Nick,
         /// The user's new real name.
         realname: String,
+        /// Whether the affected user is this session's user.
+        authorship: Authorship,
     },
     /// A user or channel mode changed.
     #[non_exhaustive]
@@ -2553,11 +2563,11 @@ hidden_event_constructors! {
     __parted(envelope: LineEnvelope, channel: ChannelName, actor: String, nick: Nick, reason: Option<String>, authorship: Authorship) => Parted;
     __kicked(envelope: LineEnvelope, channel: ChannelName, subject: Nick, actor: Source, authorship: Authorship, subject_authorship: Authorship, reason: Option<String>) => Kicked;
     __quit(envelope: LineEnvelope, actor: String, nick: Nick, reason: Option<String>, channels: Vec<ChannelName>, authorship: Authorship, netsplit: Option<SplitServers>) => Quit;
-    __nick_changed(envelope: LineEnvelope, actor: String, old: Nick, new: Nick, authorship: Authorship) => NickChanged;
-    __account_changed(actor: String, nick: Nick, account: Account) => AccountChanged;
-    __away_changed(actor: String, nick: Nick, away: Away) => AwayChanged;
-    __host_changed(actor: String, nick: Nick, username: String, host: String) => HostChanged;
-    __realname_changed(actor: String, nick: Nick, realname: String) => RealnameChanged;
+    __nick_changed(envelope: LineEnvelope, actor: String, old: Nick, new: Nick, channels: Vec<ChannelName>, authorship: Authorship) => NickChanged;
+    __account_changed(actor: String, nick: Nick, account: Account, authorship: Authorship) => AccountChanged;
+    __away_changed(actor: String, nick: Nick, away: Away, authorship: Authorship) => AwayChanged;
+    __host_changed(actor: String, nick: Nick, username: String, host: String, authorship: Authorship) => HostChanged;
+    __realname_changed(actor: String, nick: Nick, realname: String, authorship: Authorship) => RealnameChanged;
     __mode_changed(envelope: LineEnvelope, subject: Subject, actor: Source, authorship: Authorship, subject_authorship: Authorship, changes: Vec<ModeChange>) => ModeChanged;
     __topic_changed(envelope: LineEnvelope, channel: ChannelName, topic: Option<String>, actor: Source, authorship: Authorship) => TopicChanged;
     __state_limit_reached(limit: StateLimit) => StateLimitReached;
