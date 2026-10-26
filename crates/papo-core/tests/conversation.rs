@@ -91,10 +91,22 @@ fn classifies_numerics_as_server_lines_without_a_source() {
 fn separates_advertised_status_from_the_channel() {
     Transcript::new(Config::default().nick("papo"))
         .server(":ergo.test 005 papo CHANTYPES=# STATUSMSG=@+ :are supported")
-        .server(":alice!~a@cloak NOTICE @#ops :Incident channel is restricted")
+        .server(":irc.example.net NOTICE @#ops :[Knock] by mallory!~m@203.0.113.9 (let me in)")
         .event(|event| {
             matches!(event, Event::Line(line)
                 if line.status() == Some(['@'].as_slice())
+                    && matches!(line.conversation(), Some(Conversation::Channel(channel)) if channel == "#ops"))
+        })
+        .server(":irc.example NOTICE @#chan :<mallory:#chan> text")
+        .event(|event| {
+            matches!(event, Event::Line(line)
+                if line.status() == Some(['@'].as_slice())
+                    && matches!(line.conversation(), Some(Conversation::Channel(channel)) if channel == "#chan"))
+        })
+        .server(":irc.example NOTICE @+#ops :Operators and voiced users only")
+        .event(|event| {
+            matches!(event, Event::Line(line)
+                if line.status() == Some(['@', '+'].as_slice())
                     && matches!(line.conversation(), Some(Conversation::Channel(channel)) if channel == "#ops"))
         })
         .no_event();
