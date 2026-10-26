@@ -124,27 +124,6 @@ impl core::marker::Unpin for papo::event::ConnectPhase
 impl core::marker::UnsafeUnpin for papo::event::ConnectPhase
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ConnectPhase
 impl core::panic::unwind_safe::UnwindSafe for papo::event::ConnectPhase
-#[non_exhaustive] pub enum papo::event::MessageKind
-pub papo::event::MessageKind::Action
-pub papo::event::MessageKind::Text
-impl core::clone::Clone for papo::MessageKind
-pub fn papo::MessageKind::clone(&self) -> Self
-impl core::cmp::Eq for papo::MessageKind
-impl core::cmp::PartialEq for papo::MessageKind
-pub fn papo::MessageKind::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::MessageKind
-pub fn papo::MessageKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for papo::MessageKind
-pub fn papo::MessageKind::hash<__H: core::hash::Hasher>(&self, &mut __H)
-impl core::marker::Copy for papo::MessageKind
-impl core::marker::StructuralPartialEq for papo::MessageKind
-impl core::marker::Freeze for papo::MessageKind
-impl core::marker::Send for papo::MessageKind
-impl core::marker::Sync for papo::MessageKind
-impl core::marker::Unpin for papo::MessageKind
-impl core::marker::UnsafeUnpin for papo::MessageKind
-impl core::panic::unwind_safe::RefUnwindSafe for papo::MessageKind
-impl core::panic::unwind_safe::UnwindSafe for papo::MessageKind
 #[non_exhaustive] pub enum papo::event::ReactionAction
 pub papo::event::ReactionAction::Added
 pub papo::event::ReactionAction::Removed

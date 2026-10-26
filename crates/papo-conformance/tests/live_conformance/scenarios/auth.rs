@@ -164,7 +164,7 @@ async fn services(s: Scenario) -> papo_testing::Result<()> {
     let nickserv = alice
         .wait_for(|event| {
             event.as_notice().filter(|message| {
-                message.kind == papo::event::MessageKind::Text
+                message.kind == papo::MessageKind::Text
                     && crate::source_nick(&message.actor) == Some("NickServ")
                     && message.text.contains(account.as_ref())
             })
@@ -183,7 +183,7 @@ async fn services(s: Scenario) -> papo_testing::Result<()> {
     let chanserv = alice
         .wait_for(|event| {
             event.as_notice().filter(|message| {
-                message.kind == papo::event::MessageKind::Text
+                message.kind == papo::MessageKind::Text
                     && crate::source_nick(&message.actor) == Some("ChanServ")
                     && message.text.contains(&channel)
             })
