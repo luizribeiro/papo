@@ -61,8 +61,7 @@ async fn nicklen_limit(s: Scenario) -> papo_testing::Result<()> {
         name,
         reason,
         ..
-    }) =
-        bob.set_nick(&over).await.unwrap_err()
+    }) = bob.set_nick(&over).await.unwrap_err()
     else {
         panic!("over-limit nickname did not return an invalid-input error");
     };
