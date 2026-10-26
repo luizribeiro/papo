@@ -11,6 +11,10 @@ use papo_core::{
 use papo_proto::{AccountName, Casemapping, ChannelName, InvalidIdentifier, Line, Nick, Origin};
 use support::Transcript;
 
+fn prefix_symbols(prefixes: &[papo_core::Prefix]) -> Vec<char> {
+    prefixes.iter().map(|prefix| prefix.symbol()).collect()
+}
+
 #[test]
 fn account_and_away_accessors_preserve_unknown_states() {
     let account = Casemapping::Rfc1459.account("emily");
@@ -244,7 +248,7 @@ fn parses_targets_with_advertised_status_and_channel_types() {
             assert!(matches!(
                 state.parse_target("@#ops"),
                 Ok((Some(status), Conversation::Channel(channel)))
-                    if status == ['@'] && channel == "#ops"
+                    if status.symbol() == '@' && channel == "#ops"
             ));
             assert!(matches!(
                 state.parse_target("!staff"),
@@ -284,7 +288,7 @@ fn rejects_invalid_targets_and_unadvertised_status_prefixes() {
             assert!(matches!(
                 state.parse_target("+#ops"),
                 Ok((Some(status), Conversation::Channel(channel)))
-                    if status == ['+'] && channel == "#ops"
+                    if status.symbol() == '+' && channel == "#ops"
             ));
         })
         .no_event();
@@ -342,7 +346,7 @@ fn disconnect_retains_the_last_advertised_rules() {
             assert!(matches!(
                 session.state().parse_target("@!ops"),
                 Ok((Some(status), Conversation::Channel(channel)))
-                    if status == ['@'] && channel == "!ops"
+                    if status.symbol() == '@' && channel == "!ops"
             ));
         })
         .no_event();
@@ -981,7 +985,7 @@ fn loads_a_split_ergo_names_burst_with_ranked_userhosts() {
             assert!(channel.is_synced());
             assert_eq!(channel.members().count(), 3);
             let emily = channel.member("emily").unwrap();
-            assert_eq!(emily.prefixes(), ['@', '+']);
+            assert_eq!(prefix_symbols(emily.prefixes()), ['@', '+']);
             assert_eq!(emily.rank(), Some(Rank::Op));
             assert!(emily.has(Rank::Op));
             assert!(emily.has(Rank::Voice));
@@ -1003,14 +1007,39 @@ fn ranks_names_prefixes_independently_of_wire_order() {
         .server(":ergo.test 353 emily = #papo :+@emily!em@127.0.0.1")
         .inspect(|session| {
             assert_eq!(
-                session
-                    .state()
-                    .channel("#papo")
-                    .unwrap()
-                    .member("emily")
-                    .unwrap()
-                    .prefixes(),
+                prefix_symbols(
+                    session
+                        .state()
+                        .channel("#papo")
+                        .unwrap()
+                        .member("emily")
+                        .unwrap()
+                        .prefixes()
+                ),
                 ['@', '+']
+            );
+        })
+        .no_event();
+}
+
+#[test]
+fn each_member_prefix_list_uses_the_table_active_when_built() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":ergo.test 005 emily PREFIX=(ov)@+ :are supported")
+        .server(":emily!em@127.0.0.1 JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server(":ergo.test 353 emily = #papo :+@alice!a@cloak.example")
+        .server(":ergo.test 005 emily PREFIX=(vo)+@ :are supported")
+        .server(":ergo.test 353 emily = #papo :@+bob!b@cloak.example")
+        .inspect(|session| {
+            let channel = session.state().channel("#papo").unwrap();
+            assert_eq!(
+                prefix_symbols(channel.member("alice").unwrap().prefixes()),
+                ['@', '+']
+            );
+            assert_eq!(
+                prefix_symbols(channel.member("bob").unwrap().prefixes()),
+                ['+', '@']
             );
         })
         .no_event();
@@ -1025,7 +1054,7 @@ fn solanum_prefix_without_halfop_reports_only_advertised_ranks() {
         .inspect(|session| {
             let channel = session.state().channel("#papo").unwrap();
             let emily = channel.member("emily").unwrap();
-            assert_eq!(emily.prefixes(), ['@', '+']);
+            assert_eq!(prefix_symbols(emily.prefixes()), ['@', '+']);
             assert_eq!(emily.rank(), Some(Rank::Op));
             assert!(emily.has(Rank::Op));
             assert!(emily.has(Rank::Voice));
@@ -1044,7 +1073,7 @@ fn inspircd_custom_prefix_does_not_invent_a_standard_rank() {
         .inspect(|session| {
             let channel = session.state().channel("#papo").unwrap();
             let service = channel.member("service").unwrap();
-            assert_eq!(service.prefixes(), ['!']);
+            assert_eq!(prefix_symbols(service.prefixes()), ['!']);
             assert_eq!(service.rank(), None);
             assert!(!service.has(Rank::Owner));
             assert_eq!(channel.member("emily").unwrap().rank(), Some(Rank::Op));
@@ -1079,19 +1108,19 @@ fn applies_membership_modes_in_advertised_rank_order() {
         .server(":alice!alice@staff.example MODE #papo +ov dan emily")
         .inspect(|session| {
             let channel = session.state().channel("#papo").unwrap();
-            assert_eq!(channel.member("dan").unwrap().prefixes(), ['@']);
-            assert_eq!(channel.member("emily").unwrap().prefixes(), ['+']);
+            assert_eq!(prefix_symbols(channel.member("dan").unwrap().prefixes()), ['@']);
+            assert_eq!(prefix_symbols(channel.member("emily").unwrap().prefixes()), ['+']);
         })
         .server(":alice!alice@staff.example MODE #papo +v-o dan dan")
         .inspect(|session| {
             assert_eq!(
-                session
+                prefix_symbols(session
                     .state()
                     .channel("#papo")
                     .unwrap()
                     .member("dan")
                     .unwrap()
-                    .prefixes(),
+                    .prefixes()),
                 ['+']
             );
         })
@@ -1338,15 +1367,15 @@ fn reports_mixed_channel_and_user_mode_changes() {
                 matches!(subject, Subject::Channel(channel) if channel == "#papo")
                     && actor.nick().is_some_and(|nick| nick == "alice")
                     && changes == &vec![
-                        ModeChange { mode: 'o', action: ModeAction::Add, arg: Some(ModeArg::Nick(Casemapping::Rfc1459.nick("alice"))) },
+                        ModeChange { mode: 'o', action: ModeAction::Add, arg: Some(ModeArg::Member { nick: Casemapping::Rfc1459.nick("alice"), prefix: papo_core::Prefix::__new('o', '@') }) },
                         ModeChange { mode: 'b', action: ModeAction::Add, arg: Some(ModeArg::Mask(Casemapping::Rfc1459.mask("*!*@spam.example"))) },
-                        ModeChange { mode: 'v', action: ModeAction::Remove, arg: Some(ModeArg::Nick(Casemapping::Rfc1459.nick("bob"))) },
+                        ModeChange { mode: 'v', action: ModeAction::Remove, arg: Some(ModeArg::Member { nick: Casemapping::Rfc1459.nick("bob"), prefix: papo_core::Prefix::__new('v', '+') }) },
                     ]
             }
             _ => false,
         })
         .server(":ChanServ!service@services.example MODE #papo +o emily")
-        .event(|event| matches!(event, Event::ModeChanged { own_nick: Some(own), changes, .. } if own == "emily" && changes == &vec![ModeChange { mode: 'o', action: ModeAction::Add, arg: Some(ModeArg::Nick(Casemapping::Rfc1459.nick("emily"))) }]))
+        .event(|event| matches!(event, Event::ModeChanged { own_nick: Some(own), changes, .. } if own == "emily" && changes == &vec![ModeChange { mode: 'o', action: ModeAction::Add, arg: Some(ModeArg::Member { nick: Casemapping::Rfc1459.nick("emily"), prefix: papo_core::Prefix::__new('o', '@') }) }]))
         .server(":alice!alice@staff.example MODE #papo +kl review-key-2026 50")
         .event(|event| {
             assert!(!format!("{event:?}").contains("review-key-2026"));
@@ -1464,7 +1493,7 @@ fn distinguishes_prefix_rank_and_channel_mode_argument_branches() {
         .server(":alice!alice@staff.example MODE #papo +m")
         .inspect(|session| {
             let channel = session.state().channel("#papo").unwrap();
-            assert_eq!(channel.member("dan").unwrap().prefixes(), ['@', '+']);
+            assert_eq!(prefix_symbols(channel.member("dan").unwrap().prefixes()), ['@', '+']);
             assert_eq!(channel.member("dan").unwrap().rank(), Some(Rank::Op));
             assert!(channel.member("dan").unwrap().has(Rank::Voice));
             assert!(!channel.member("dan").unwrap().has(Rank::Halfop));
