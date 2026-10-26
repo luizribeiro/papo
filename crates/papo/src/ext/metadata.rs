@@ -334,7 +334,7 @@ mod tests {
     async fn metadata_rejects_a_foreign_target() {
         let (first, _, _) = crate::Client::builder("ircs://irc.example.net").build();
         let (second, _, _) = crate::Client::builder("ircs://irc.example.net").build();
-        let channel = first.state().channel_name("#papo");
+        let channel = first.state().name_rules().channel("#papo");
 
         assert!(matches!(
             second.metadata().clear_on(channel).await,

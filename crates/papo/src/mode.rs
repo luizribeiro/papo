@@ -79,7 +79,7 @@ impl From<Extban> for BanTarget {
 impl BanTarget {
     pub(crate) fn resolve(self, state: &crate::State) -> Result<Mask, Error> {
         match self.0 {
-            Target::Text(value) => Ok(state.mask(value)),
+            Target::Text(value) => Ok(state.name_rules().mask(value)),
             Target::Mask(value) => Ok(value),
             Target::Extban(Extban::Account(account)) => {
                 if !state.supports(crate::Feature::AccountExtban) {
@@ -101,8 +101,8 @@ impl BanTarget {
                 let prefix = syntax
                     .prefix
                     .map_or(String::new(), |value| value.to_string());
-                let account = state.account_name(account);
-                Ok(state.mask(format!("{prefix}{kind}:{account}")))
+                let account = state.name_rules().account(account);
+                Ok(state.name_rules().mask(format!("{prefix}{kind}:{account}")))
             }
         }
     }
@@ -272,7 +272,7 @@ impl SetModes {
             }
             Err(error) => unreachable!("address resolution returned {error}"),
         };
-        let nick = self.client.state().nickname(nick);
+        let nick = self.client.state().name_rules().nick(nick);
         self.change(set, Selector::Prefix(mode), Some(Argument::Nick(nick)))
     }
 
@@ -293,7 +293,7 @@ impl SetModes {
             }
             Err(error) => unreachable!("address resolution returned {error}"),
         };
-        let nick = self.client.state().nickname(nick);
+        let nick = self.client.state().name_rules().nick(nick);
         self.change(set, Selector::Optional(feature), Some(Argument::Nick(nick)))
     }
 
@@ -423,7 +423,7 @@ impl Client {
             let channel =
                 client.resolve(crate::target::Role::Channel("list_modes: channel"), channel)?;
             let state = client.state();
-            let name = state.channel_name(&channel);
+            let name = state.name_rules().channel(&channel);
             let letter = match mode {
                 crate::ListMode::Ban => "b",
                 crate::ListMode::Except => "e",
@@ -488,9 +488,9 @@ impl Change {
         let arg = self.arg.as_ref().map(|argument| match (mode, kind) {
             ('k', _) => ModeArg::Key(crate::Secret::from(argument.text())),
             (_, ModeKind::Prefix(prefix)) => {
-                ModeArg::__member(state.nickname(argument.text()), prefix)
+                ModeArg::__member(state.name_rules().nick(argument.text()), prefix)
             }
-            (_, ModeKind::List) => ModeArg::Mask(state.mask(argument.text())),
+            (_, ModeKind::List) => ModeArg::Mask(state.name_rules().mask(argument.text())),
             _ => ModeArg::Value(argument.text().to_owned()),
         });
         Ok(ModeChange {
@@ -638,7 +638,7 @@ fn confirmed(
     let mut applied = Vec::new();
     for line in &response.lines {
         let line = line.as_ref();
-        let own_echo = matches!(line.source(), Some(Source::User { nick, .. }) if state.nickname(nick) == *state.nick());
+        let own_echo = matches!(line.source(), Some(Source::User { nick, .. }) if state.name_rules().nick(nick) == *state.nick());
         if !own_echo
             || line.command() != Command::Mode
             || !line
@@ -676,7 +676,7 @@ fn same_target(state: &crate::State, left: &str, right: &str) -> bool {
     if state.isupport().is_channel(left) {
         state.casemapping().channel(left) == right
     } else {
-        state.nickname(left) == right
+        state.name_rules().nick(left) == right
     }
 }
 
@@ -718,7 +718,7 @@ pub(crate) fn confirmed_ban(
         line.command() == Command::Mode
             && line
                 .param(0)
-                .is_some_and(|target| state.channel_name(target) == *channel)
+                .is_some_and(|target| state.name_rules().channel(target) == *channel)
             && line.param(1).is_some_and(|modes| {
                 ModeChanges::parse(modes, line.params().skip(2), state.isupport().inner()).any(
                     |change| {
@@ -761,8 +761,8 @@ mod tests {
     async fn mode_changes_reject_foreign_targets() {
         let (first, _, _) = crate::Client::builder("ircs://irc.example.net").build();
         let (second, _, _) = crate::Client::builder("ircs://irc.example.net").build();
-        let channel = first.state().channel_name("#papo");
-        let nick = first.state().nickname("emily");
+        let channel = first.state().name_rules().channel("#papo");
+        let nick = first.state().name_rules().nick("emily");
 
         assert!(matches!(
             second.mode(channel).op(nick).await,
@@ -810,7 +810,7 @@ mod tests {
         let ban = crate::ModeChange {
             mode: 'b',
             action: crate::ModeAction::Add,
-            arg: Some(crate::ModeArg::Mask(state.mask("alice!*@*"))),
+            arg: Some(crate::ModeArg::Mask(state.name_rules().mask("alice!*@*"))),
         };
         let invisible = crate::ModeChange {
             mode: 'i',
@@ -863,8 +863,8 @@ mod tests {
     fn confirms_only_the_matching_canonical_ban_echo() {
         let state =
             state(":ergo.test 005 papo CHANMODES=beI,k,l,imnst CASEMAPPING=rfc1459 :supported");
-        let channel = state.channel_name("#Papo[");
-        let ban = state.mask("Alice");
+        let channel = state.name_rules().channel("#Papo[");
+        let ban = state.name_rules().mask("Alice");
         let echo =
             |modes| papo_proto::Line::new("MODE").with_params(["#papo{", modes, "alice!*@*"]);
         assert!(confirmed_ban(&[echo("+b")], &state, &channel, &ban,));
@@ -1047,7 +1047,7 @@ mod tests {
         let change = Change {
             set: true,
             mode: Selector::Optional(Feature::Halfop),
-            arg: Some(Argument::Nick(supported.nickname("alice"))),
+            arg: Some(Argument::Nick(supported.name_rules().nick("alice"))),
         };
         assert!(matches!(
             change.resolve(&supported).unwrap().mode,
@@ -1060,7 +1060,7 @@ mod tests {
         let change = Change {
             set: true,
             mode: Selector::Optional(Feature::Halfop),
-            arg: Some(Argument::Nick(unsupported.nickname("alice"))),
+            arg: Some(Argument::Nick(unsupported.name_rules().nick("alice"))),
         };
         assert!(matches!(
             change.resolve(&unsupported),
@@ -1080,7 +1080,9 @@ mod tests {
             let change = Change {
                 set: true,
                 mode: Selector::Optional(feature),
-                arg: Some(Argument::Mask(state.mask("reviewer!*@trusted.example"))),
+                arg: Some(Argument::Mask(
+                    state.name_rules().mask("reviewer!*@trusted.example"),
+                )),
             };
             assert!(matches!(
                 change.resolve(&state).unwrap().mode,
@@ -1098,7 +1100,9 @@ mod tests {
             let change = Change {
                 set: true,
                 mode: Selector::Optional(feature),
-                arg: Some(Argument::Mask(state.mask("reviewer!*@trusted.example"))),
+                arg: Some(Argument::Mask(
+                    state.name_rules().mask("reviewer!*@trusted.example"),
+                )),
             };
             assert!(matches!(
                 change.resolve(&state),
@@ -1120,7 +1124,9 @@ mod tests {
             let change = Change {
                 set,
                 mode: Selector::Optional(Feature::Quiet),
-                arg: Some(Argument::Mask(solanum.mask("*!*@gateway.example"))),
+                arg: Some(Argument::Mask(
+                    solanum.name_rules().mask("*!*@gateway.example"),
+                )),
             };
             let resolved = change.resolve(&solanum).unwrap();
             assert_eq!(resolved.set, set);
@@ -1133,7 +1139,9 @@ mod tests {
         let change = Change {
             set: true,
             mode: Selector::Optional(Feature::Quiet),
-            arg: Some(Argument::Mask(ergo.mask("m:*!*@gateway.example"))),
+            arg: Some(Argument::Mask(
+                ergo.name_rules().mask("m:*!*@gateway.example"),
+            )),
         };
         assert!(matches!(
             change.resolve(&ergo),

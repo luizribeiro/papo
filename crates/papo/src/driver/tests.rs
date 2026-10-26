@@ -6196,13 +6196,13 @@ async fn conversation_targets_write_channel_and_private_names() {
     let task = tokio::spawn(driver);
     welcome_burst(&mut server).await;
 
-    let channel = crate::Conversation::Channel(client.state().channel_name("#release"));
+    let channel = crate::Conversation::Channel(client.state().name_rules().channel("#release"));
     within(client.privmsg(channel, "release approved"))
         .await
         .unwrap();
     client_line(&mut server, b"PRIVMSG #release :release approved\r\n").await;
 
-    let private = crate::Conversation::Private(client.state().nickname("alice"));
+    let private = crate::Conversation::Private(client.state().name_rules().nick("alice"));
     within(client.privmsg(private, "deployment details"))
         .await
         .unwrap();
@@ -7103,7 +7103,7 @@ async fn redacting_a_multiline_send_stops_at_the_first_refusal() {
     client_line(&mut server, b"CAP END\r\n").await;
 
     let sent = crate::Sent {
-        conversation: crate::Conversation::Channel(client.state().channel_name("#papo")),
+        conversation: crate::Conversation::Channel(client.state().name_rules().channel("#papo")),
         status: None,
         return_address: "#papo".into(),
         msgids: ["RfcBTzyxY120004", "RfcBTzyxY120005", "RfcBTzyxY120006"]
@@ -8181,8 +8181,8 @@ async fn client_exposes_capability_aliases_and_casemapping() {
     assert_eq!(state.isupport().nicklen(), Some(27));
     assert!(state.is_connected());
     assert_eq!(state.nick(), "PAPO-DRIVER");
-    assert_eq!(state.channel_name("#Papo"), "#papo");
-    assert!(state.channel_name("#PAPO[dev]") != "#papo{dev}");
+    assert_eq!(state.name_rules().channel("#Papo"), "#papo");
+    assert!(state.name_rules().channel("#PAPO[dev]") != "#papo{dev}");
     assert!(!state.supports(crate::Feature::History));
     assert!(
         !state

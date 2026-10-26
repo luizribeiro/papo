@@ -866,8 +866,8 @@ mod tests {
         let (second, _, _) = Builder::new("ircs://irc.example.net").build();
 
         assert_ne!(first.origin(), second.origin());
-        let first_channel = first.state().channel_name("#papo");
-        let second_channel = second.state().channel_name("#papo");
+        let first_channel = first.state().name_rules().channel("#papo");
+        let second_channel = second.state().name_rules().channel("#papo");
         assert_eq!(first_channel, "#papo");
         assert_eq!(second_channel, "#papo");
         assert_ne!(first_channel, second_channel);
@@ -877,7 +877,10 @@ mod tests {
     async fn sends_reject_values_from_another_client() {
         let (first, _, _) = Builder::new("ircs://irc.example.net").build();
         let (second, _, _) = Builder::new("ircs://irc.example.net").build();
-        let reference = (first.state().channel_name("#papo"), "RfcBTzyxY120004");
+        let reference = (
+            first.state().name_rules().channel("#papo"),
+            "RfcBTzyxY120004",
+        );
 
         assert!(matches!(
             second.reply(reference, "release ready").await,
@@ -885,7 +888,7 @@ mod tests {
                 crate::InvalidInput::ForeignReference
             ))
         ));
-        let channel = first.state().channel_name("#papo");
+        let channel = first.state().name_rules().channel("#papo");
         assert!(matches!(
             second.privmsg(channel, "release ready").await,
             Err(crate::Error::InvalidInput(
@@ -894,7 +897,7 @@ mod tests {
         ));
 
         let actor = crate::__testing::user_source(
-            first.state().nickname("emily"),
+            first.state().name_rules().nick("emily"),
             Some("~emily".into()),
             Some("cloak.example".into()),
         );
@@ -904,7 +907,8 @@ mod tests {
             "release ready",
             true,
         );
-        private.conversation = crate::Conversation::Private(first.state().nickname("emily"));
+        private.conversation =
+            crate::Conversation::Private(first.state().name_rules().nick("emily"));
         assert_eq!(private.origin(), first.origin());
         assert!(matches!(
             second.reply(&private, "ship it").await,
@@ -916,7 +920,7 @@ mod tests {
         let tag = crate::event::TagMsg {
             actor: actor.clone(),
             authorship: crate::Authorship::Other,
-            conversation: crate::Conversation::Private(first.state().nickname("emily")),
+            conversation: crate::Conversation::Private(first.state().name_rules().nick("emily")),
             status: None,
             return_address: "emily".into(),
             tags: crate::Tags::default(),

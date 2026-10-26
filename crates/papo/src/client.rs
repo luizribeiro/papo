@@ -137,7 +137,7 @@ impl IntoFuture for JoinChannel {
             let channel = self
                 .client
                 .resolve(crate::target::Role::Channel("join: channel"), self.channel)?;
-            let channel = self.client.state().channel_name(channel);
+            let channel = self.client.state().name_rules().channel(channel);
             self.client.join_channel(channel, self.key).await
         })
     }
@@ -331,11 +331,15 @@ impl Client {
         let state = self.state();
         let result = match role {
             crate::target::Role::Send(_) => state.parse_target_inner(&text).map(drop),
-            crate::target::Role::Channel(_) => {
-                state.channel_name(&text).check(state.isupport().inner())
-            }
-            crate::target::Role::Nick(_) => state.nickname(&text).check(state.isupport().inner()),
-            crate::target::Role::Account(_) => state.account_name(&text).check(),
+            crate::target::Role::Channel(_) => state
+                .name_rules()
+                .channel(&text)
+                .check(state.isupport().inner()),
+            crate::target::Role::Nick(_) => state
+                .name_rules()
+                .nick(&text)
+                .check(state.isupport().inner()),
+            crate::target::Role::Account(_) => state.name_rules().account(&text).check(),
             crate::target::Role::Conversation(_) => {
                 state.parse_target_inner(&text).and_then(|(status, _)| {
                     status.map(crate::Prefix::symbol).map_or(Ok(()), |prefix| {
@@ -343,7 +347,7 @@ impl Client {
                     })
                 })
             }
-            crate::target::Role::Any(_) => self.state().mask(&text).check(),
+            crate::target::Role::Any(_) => self.state().name_rules().mask(&text).check(),
             crate::target::Role::Opaque(_) => Ok(()),
         };
         result.map_err(|reason| {
@@ -928,7 +932,7 @@ impl Client {
         let nick = crate::AsNick::__parts(&nick).into_owned();
         crate::RequestFuture::new(async move {
             let nick = client.resolve(crate::target::Role::Nick("whois: nick"), nick)?;
-            let nick = client.state().nickname(nick);
+            let nick = client.state().name_rules().nick(nick);
             let response = client
                 .correlated(
                     Line::new("WHOIS").with_params([nick.to_string()]),
@@ -959,7 +963,7 @@ impl Client {
         let mask = crate::Target::__parts(&mask).into_owned();
         crate::RequestFuture::new(async move {
             let mask = client.resolve(crate::target::Role::Any("who: mask"), mask)?;
-            let mask = client.state().mask(mask);
+            let mask = client.state().name_rules().mask(mask);
             let state = client.state();
             let extended = state.isupport().whox();
             let message = if extended {
@@ -1069,7 +1073,7 @@ impl Client {
         let reason = reason.into();
         crate::RequestFuture::new(async move {
             let channel = client.resolve(crate::target::Role::Channel("part: channel"), channel)?;
-            let channel = client.state().channel_name(channel);
+            let channel = client.state().name_rules().channel(channel);
             let (result, receiver) = oneshot::channel();
             client
                 .commands
@@ -1114,8 +1118,8 @@ impl Client {
             let channel = client.resolve(crate::target::Role::Channel("kick: channel"), channel)?;
             let nick = client.resolve(crate::target::Role::Nick("kick: nick"), nick)?;
             let state = client.state();
-            let channel = state.channel_name(channel);
-            let nick = state.nickname(nick);
+            let channel = state.name_rules().channel(channel);
+            let nick = state.name_rules().nick(nick);
             validate_kick_reason(&state, &reason)?;
             let mut params = vec![channel.to_string(), nick.to_string()];
             if !reason.is_empty() {
@@ -1160,8 +1164,8 @@ impl Client {
                 client.resolve(crate::target::Role::Channel("kickban: channel"), channel)?;
             let nick = client.resolve(crate::target::Role::Nick("kickban: nick"), nick)?;
             let state = client.state();
-            let channel = state.channel_name(channel);
-            let nick = state.nickname(nick);
+            let channel = state.name_rules().channel(channel);
+            let nick = state.name_rules().nick(nick);
             validate_kick_reason(&state, &reason)?;
             let ban = ban.resolve(&state)?;
             let already_set = crate::mode::tracked_ban(&state, &channel, &ban);
@@ -1249,8 +1253,8 @@ impl Client {
             let channel =
                 client.resolve(crate::target::Role::Channel("invite: channel"), channel)?;
             let state = client.state();
-            let channel = state.channel_name(channel);
-            let nick = state.nickname(nick);
+            let channel = state.name_rules().channel(channel);
+            let nick = state.name_rules().nick(nick);
             let response = client
                 .correlated(
                     Line::new("INVITE").with_params([nick.to_string(), channel.to_string()]),
@@ -1281,7 +1285,7 @@ impl Client {
         let nick = crate::AsNick::__parts(&nick).into_owned();
         crate::RequestFuture::new(async move {
             let nick = client.resolve(crate::target::Role::Nick("set_nick: nick"), nick)?;
-            let nick = client.state().nickname(nick);
+            let nick = client.state().name_rules().nick(nick);
             let response = client
                 .correlated(
                     Line::new("NICK").with_params([nick.to_string()]),
@@ -1444,7 +1448,7 @@ impl Client {
         crate::RequestFuture::new(async move {
             let channel =
                 client.resolve(crate::target::Role::Channel("topic: channel"), channel)?;
-            let channel = client.state().channel_name(channel);
+            let channel = client.state().name_rules().channel(channel);
             if topic.is_empty() && !clear {
                 return Err(InvalidInput::EmptyText.into());
             }
