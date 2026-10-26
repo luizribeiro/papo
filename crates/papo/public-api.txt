@@ -2557,7 +2557,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::Sent
 pub struct papo::ServerError
 impl papo::ServerError
 pub fn papo::ServerError::code(&self) -> &str
-pub fn papo::ServerError::command(&self) -> &str
+pub fn papo::ServerError::command(&self) -> core::option::Option<&str>
 pub fn papo::ServerError::context(self, alloc::vec::Vec<alloc::string::String>) -> Self
 pub fn papo::ServerError::description(&self) -> &str
 pub fn papo::ServerError::from_numeric(u16, alloc::vec::Vec<alloc::string::String>) -> Self

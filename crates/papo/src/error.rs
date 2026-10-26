@@ -297,10 +297,10 @@ impl ServerError {
         self.numeric
     }
 
-    /// Returns the command named by a standard reply, or an empty string for a numeric.
+    /// Returns the command named by a standard reply, or `None` for a numeric.
     #[must_use]
-    pub fn command(&self) -> &str {
-        &self.command
+    pub fn command(&self) -> Option<&str> {
+        self.numeric.is_none().then_some(&self.command)
     }
 
     /// Returns the standard-reply code or three-digit numeric.
@@ -721,7 +721,7 @@ mod tests {
         );
         assert_eq!(error.refusal(), Refusal::CannotSendToChannel);
         assert_eq!(error.numeric(), Some(404));
-        assert_eq!(error.command(), "");
+        assert_eq!(error.command(), None);
         assert_eq!(error.code(), "404");
         assert_eq!(error.description(), "Cannot send");
         assert_eq!(error.params()[1], "#rust");
@@ -729,7 +729,7 @@ mod tests {
 
         let standard = ServerError::standard("CHATHISTORY", "INVALID_PARAMS", "Invalid parameters")
             .context(vec!["LATEST".into()]);
-        assert_eq!(standard.command(), "CHATHISTORY");
+        assert_eq!(standard.command(), Some("CHATHISTORY"));
         assert_eq!(standard.refusal(), Refusal::InvalidParameters);
         assert_eq!(standard.numeric(), None);
         assert_eq!(standard.code(), "INVALID_PARAMS");
