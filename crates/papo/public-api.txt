@@ -1,6 +1,9 @@
 pub mod papo
 pub use papo::Account
 pub use papo::AccountName
+pub use papo::AsAccount
+pub use papo::AsChannel
+pub use papo::AsNick
 pub use papo::Away
 pub use papo::Cap
 pub use papo::Capabilities
@@ -1901,7 +1904,7 @@ pub fn papo::Client::who(&self, impl papo::Target) -> papo::RequestFuture<alloc:
 pub fn papo::Client::whois(&self, impl papo::AsNick) -> papo::RequestFuture<papo::Whois>
 impl papo::Client
 pub fn papo::Client::create_account(&self, papo::NewAccount) -> papo::RequestFuture<papo::AccountCreation>
-pub fn papo::Client::verify_account(&self, impl core::convert::AsRef<str>, impl core::convert::Into<papo::Secret>) -> papo::RequestFuture<papo::AccountCreation>
+pub fn papo::Client::verify_account(&self, impl papo::AsAccount, impl core::convert::Into<papo::Secret>) -> papo::RequestFuture<papo::AccountCreation>
 impl papo::Client
 pub fn papo::Client::fetch_read_marker(&self, impl papo::AsConversation) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>
 pub fn papo::Client::history(&self, impl papo::AsConversation) -> papo::History
@@ -2371,9 +2374,9 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::ModesApplied
 impl core::panic::unwind_safe::UnwindSafe for papo::ModesApplied
 pub struct papo::Monitor
 impl papo::Monitor
-pub fn papo::Monitor::add<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
+pub fn papo::Monitor::add<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: papo::AsNick
 pub fn papo::Monitor::clear(&self) -> papo::RequestFuture<()>
-pub fn papo::Monitor::remove<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
+pub fn papo::Monitor::remove<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: papo::AsNick
 impl core::fmt::Debug for papo::Monitor
 pub fn papo::Monitor::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Freeze for papo::Monitor
@@ -2593,7 +2596,7 @@ pub fn papo::State::account_name(&self, impl core::convert::AsRef<str>) -> papo:
 pub fn papo::State::away(&self) -> &papo::Away
 pub const fn papo::State::caps(&self) -> &papo::Capabilities
 pub fn papo::State::casemapping(&self) -> papo::Casemapping
-pub fn papo::State::channel(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo::Channel>
+pub fn papo::State::channel(&self, impl papo::AsChannel) -> core::option::Option<&papo::Channel>
 pub fn papo::State::channel_name(&self, impl core::convert::AsRef<str>) -> papo::ChannelName
 pub fn papo::State::channels(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Channel>
 pub fn papo::State::conversation(&self, &str) -> core::result::Result<papo::Conversation, papo::InvalidInput>
@@ -2604,7 +2607,7 @@ pub fn papo::State::is_valid_channel(&self, &str) -> bool
 pub fn papo::State::is_valid_nick(&self, &str) -> bool
 pub fn papo::State::isupport(&self) -> &papo::Isupport
 pub fn papo::State::mask(&self, impl core::convert::AsRef<str>) -> papo::Mask
-pub fn papo::State::metadata(&self, impl core::convert::AsRef<str>) -> core::option::Option<&std::collections::hash::map::HashMap<papo::MetadataKey, papo::MetadataValue>>
+pub fn papo::State::metadata(&self, impl papo::Target) -> core::option::Option<&std::collections::hash::map::HashMap<papo::MetadataKey, papo::MetadataValue>>
 pub fn papo::State::metadata_subscriptions(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::MetadataKey>
 pub fn papo::State::monitor_online(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::User>
 pub fn papo::State::monitored(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Nick>
@@ -2617,7 +2620,7 @@ pub fn papo::State::realname(&self) -> &str
 pub fn papo::State::same_list_entry(&self, &papo::Mask, impl core::convert::AsRef<str>) -> bool
 pub fn papo::State::supports(&self, papo::Feature) -> bool
 pub fn papo::State::typing(&self, impl papo::AsConversation) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Typer>
-pub fn papo::State::user(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo::User>
+pub fn papo::State::user(&self, impl papo::AsNick) -> core::option::Option<&papo::User>
 pub fn papo::State::user_modes(&self) -> impl core::iter::traits::iterator::Iterator<Item = char> + '_
 pub fn papo::State::username(&self) -> &str
 impl core::clone::Clone for papo::State
@@ -2746,14 +2749,6 @@ impl core::marker::UnsafeUnpin for papo::WhoisChannel
 impl core::panic::unwind_safe::RefUnwindSafe for papo::WhoisChannel
 impl core::panic::unwind_safe::UnwindSafe for papo::WhoisChannel
 pub const papo::VERSION: &str
-pub trait papo::AsChannel: papo::target::sealed::Sealed
-impl papo::AsChannel for alloc::borrow::Cow<'_, str>
-impl papo::AsChannel for alloc::boxed::Box<str>
-impl papo::AsChannel for alloc::rcs::arc::Arc<str>
-impl papo::AsChannel for alloc::string::String
-impl papo::AsChannel for papo::ChannelName
-impl papo::AsChannel for str
-impl<T: papo::AsChannel + ?core::marker::Sized> papo::AsChannel for &T
 pub trait papo::AsConversation: papo::target::sealed::Sealed
 impl papo::AsConversation for alloc::borrow::Cow<'_, str>
 impl papo::AsConversation for alloc::boxed::Box<str>
@@ -2764,14 +2759,6 @@ impl papo::AsConversation for papo::ChannelName
 impl papo::AsConversation for papo::Nick
 impl papo::AsConversation for str
 impl<T: papo::AsConversation + ?core::marker::Sized> papo::AsConversation for &T
-pub trait papo::AsNick: papo::target::sealed::Sealed
-impl papo::AsNick for alloc::borrow::Cow<'_, str>
-impl papo::AsNick for alloc::boxed::Box<str>
-impl papo::AsNick for alloc::rcs::arc::Arc<str>
-impl papo::AsNick for alloc::string::String
-impl papo::AsNick for papo::Nick
-impl papo::AsNick for str
-impl<T: papo::AsNick + ?core::marker::Sized> papo::AsNick for &T
 pub trait papo::IntoEndpoint: papo::address::private::Sealed
 impl papo::IntoEndpoint for &str
 impl papo::IntoEndpoint for alloc::string::String

@@ -1539,7 +1539,7 @@ pub const fn papo_core::Channel::created_at(&self) -> core::option::Option<std::
 pub const fn papo_core::Channel::is_synced(&self) -> bool
 pub const fn papo_core::Channel::key(&self) -> core::option::Option<&papo::Secret>
 pub fn papo_core::Channel::list(&self, papo_core::ListMode) -> core::option::Option<&[papo_core::ModeListEntry]>
-pub fn papo_core::Channel::member(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::Member>
+pub fn papo_core::Channel::member(&self, impl papo::AsNick) -> core::option::Option<&papo_core::Member>
 pub fn papo_core::Channel::members(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::Member>
 pub fn papo_core::Channel::mode(&self, char) -> core::option::Option<papo_core::ModeValue<'_>>
 pub fn papo_core::Channel::modes(&self) -> impl core::iter::traits::iterator::Iterator<Item = (char, papo_core::ModeValue<'_>)>
@@ -2276,7 +2276,7 @@ pub fn papo_core::State::account(&self) -> &papo_core::Account
 pub fn papo_core::State::away(&self) -> &papo_core::Away
 pub fn papo_core::State::bouncer_networks(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::BouncerNetwork>
 pub const fn papo_core::State::casemapping(&self) -> papo::Casemapping
-pub fn papo_core::State::channel(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::Channel>
+pub fn papo_core::State::channel(&self, impl papo::AsChannel) -> core::option::Option<&papo_core::Channel>
 pub fn papo_core::State::channels(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::Channel>
 pub fn papo_core::State::conversation(&self, impl core::convert::AsRef<str>) -> core::result::Result<papo::Conversation, papo::InvalidIdentifier>
 pub fn papo_core::State::host(&self) -> core::option::Option<&str>
@@ -2292,7 +2292,7 @@ pub fn papo_core::State::read_marker(&self, impl core::convert::AsRef<str>) -> c
 pub fn papo_core::State::realname(&self) -> &str
 pub fn papo_core::State::same_list_entry(&self, &papo::Mask, impl core::convert::AsRef<str>) -> bool
 pub fn papo_core::State::typing<'a>(&'a self, &'a papo::Conversation) -> impl core::iter::traits::iterator::Iterator<Item = &'a papo_core::Typer>
-pub fn papo_core::State::user(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::User>
+pub fn papo_core::State::user(&self, impl papo::AsNick) -> core::option::Option<&papo_core::User>
 pub fn papo_core::State::user_modes(&self) -> impl core::iter::traits::iterator::Iterator<Item = char> + '_
 pub fn papo_core::State::username(&self) -> &str
 impl papo_core::State

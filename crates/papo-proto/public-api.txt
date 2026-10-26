@@ -54,11 +54,7 @@ pub papo_proto::Casemapping::Ascii
 pub papo_proto::Casemapping::Rfc1459
 pub papo_proto::Casemapping::Rfc1459Strict
 impl papo_proto::Casemapping
-pub fn papo_proto::Casemapping::account(self, impl core::convert::AsRef<str>) -> papo_proto::AccountName
-pub fn papo_proto::Casemapping::channel(self, impl core::convert::AsRef<str>) -> papo_proto::ChannelName
 pub fn papo_proto::Casemapping::fold(self, &str) -> alloc::borrow::Cow<'_, str>
-pub fn papo_proto::Casemapping::mask(self, impl core::convert::AsRef<str>) -> papo_proto::Mask
-pub fn papo_proto::Casemapping::nick(self, impl core::convert::AsRef<str>) -> papo_proto::Nick
 pub fn papo_proto::Casemapping::parse(&str) -> core::option::Option<Self>
 impl core::clone::Clone for papo_proto::Casemapping
 pub fn papo_proto::Casemapping::clone(&self) -> Self
@@ -466,6 +462,7 @@ pub fn papo_proto::AccountName::hash<H: core::hash::Hasher>(&self, &mut H)
 impl core::ops::deref::Deref for papo_proto::AccountName
 pub type papo_proto::AccountName::Target = str
 pub fn papo_proto::AccountName::deref(&self) -> &Self::Target
+impl papo_proto::AsAccount for papo_proto::AccountName
 impl core::marker::Freeze for papo_proto::AccountName
 impl core::marker::Send for papo_proto::AccountName
 impl core::marker::Sync for papo_proto::AccountName
@@ -603,6 +600,7 @@ pub fn papo_proto::ChannelName::hash<H: core::hash::Hasher>(&self, &mut H)
 impl core::ops::deref::Deref for papo_proto::ChannelName
 pub type papo_proto::ChannelName::Target = str
 pub fn papo_proto::ChannelName::deref(&self) -> &Self::Target
+impl papo_proto::AsChannel for papo_proto::ChannelName
 impl core::marker::Freeze for papo_proto::ChannelName
 impl core::marker::Send for papo_proto::ChannelName
 impl core::marker::Sync for papo_proto::ChannelName
@@ -1148,6 +1146,7 @@ pub fn papo_proto::Nick::hash<H: core::hash::Hasher>(&self, &mut H)
 impl core::ops::deref::Deref for papo_proto::Nick
 pub type papo_proto::Nick::Target = str
 pub fn papo_proto::Nick::deref(&self) -> &Self::Target
+impl papo_proto::AsNick for papo_proto::Nick
 impl core::marker::Freeze for papo_proto::Nick
 impl core::marker::Send for papo_proto::Nick
 impl core::marker::Sync for papo_proto::Nick
@@ -1732,6 +1731,30 @@ pub const papo_proto::MAX_CLIENT_TAG_DATA_LEN: usize
 pub const papo_proto::MAX_LINE_LEN: usize
 pub const papo_proto::MAX_TAG_SECTION_LEN: usize
 pub const papo_proto::NAME_ALIASES: &[(papo_proto::NameKind, &str, &str)]
+pub trait papo_proto::AsAccount: papo::name_argument::Sealed
+impl papo_proto::AsAccount for alloc::borrow::Cow<'_, str>
+impl papo_proto::AsAccount for alloc::boxed::Box<str>
+impl papo_proto::AsAccount for alloc::rcs::arc::Arc<str>
+impl papo_proto::AsAccount for alloc::string::String
+impl papo_proto::AsAccount for papo_proto::AccountName
+impl papo_proto::AsAccount for str
+impl<T: papo_proto::AsAccount + ?core::marker::Sized> papo_proto::AsAccount for &T
+pub trait papo_proto::AsChannel: papo::name_argument::Sealed
+impl papo_proto::AsChannel for alloc::borrow::Cow<'_, str>
+impl papo_proto::AsChannel for alloc::boxed::Box<str>
+impl papo_proto::AsChannel for alloc::rcs::arc::Arc<str>
+impl papo_proto::AsChannel for alloc::string::String
+impl papo_proto::AsChannel for papo_proto::ChannelName
+impl papo_proto::AsChannel for str
+impl<T: papo_proto::AsChannel + ?core::marker::Sized> papo_proto::AsChannel for &T
+pub trait papo_proto::AsNick: papo::name_argument::Sealed
+impl papo_proto::AsNick for alloc::borrow::Cow<'_, str>
+impl papo_proto::AsNick for alloc::boxed::Box<str>
+impl papo_proto::AsNick for alloc::rcs::arc::Arc<str>
+impl papo_proto::AsNick for alloc::string::String
+impl papo_proto::AsNick for papo_proto::Nick
+impl papo_proto::AsNick for str
+impl<T: papo_proto::AsNick + ?core::marker::Sized> papo_proto::AsNick for &T
 pub fn papo_proto::canonical(&str) -> &str
 pub fn papo_proto::escape_tag_value(&str) -> alloc::borrow::Cow<'_, str>
 pub fn papo_proto::parse_353<'a>(&papo_proto::LineRef<'a>) -> core::option::Option<(&'a str, &'a str, impl core::iter::traits::iterator::Iterator<Item = &'a str>)>
