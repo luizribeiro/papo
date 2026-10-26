@@ -109,9 +109,8 @@ impl std::fmt::Debug for SendMessage {
 #[must_use = "requests do nothing unless awaited"]
 pub struct JoinChannel {
     client: Client,
-    channel: crate::ChannelName,
+    channel: crate::target::sealed::Parts<'static>,
     key: Option<crate::Secret>,
-    invalid_input: Option<InvalidInput>,
 }
 
 impl std::fmt::Debug for JoinChannel {
@@ -134,10 +133,11 @@ impl IntoFuture for JoinChannel {
 
     fn into_future(self) -> Self::IntoFuture {
         crate::RequestFuture::new(async move {
-            if let Some(error) = self.invalid_input {
-                return Err(error.into());
-            }
-            self.client.join_channel(self.channel, self.key).await
+            let channel = self
+                .client
+                .resolve(crate::target::Role::Channel("join: channel"), self.channel)?;
+            let channel = self.client.state().channel_name(channel);
+            self.client.join_channel(channel, self.key).await
         })
     }
 }
@@ -989,13 +989,16 @@ impl Client {
     /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`] when refused. It can also
     /// return [`Error::InvalidInput`], [`Error::TooManyPendingRequests`], [`Error::Timeout`], or
     /// [`Error::Disconnected`].
-    pub fn join(&self, channel: impl crate::Target) -> JoinChannel {
-        let (channel, invalid_input) = self.target_input(channel);
+    /// ```compile_fail
+    /// # fn swapped(client: &papo::Client, nick: &papo::Nick) {
+    /// let _ = client.join(nick);
+    /// # }
+    /// ```
+    pub fn join(&self, channel: impl crate::AsChannel) -> JoinChannel {
         JoinChannel {
             client: self.clone(),
-            channel: self.state().channel_name(channel),
+            channel: crate::AsChannel::__parts(&channel).into_owned(),
             key: None,
-            invalid_input,
         }
     }
 
@@ -1055,20 +1058,15 @@ impl Client {
     /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
     pub fn part(
         &self,
-        channel: impl crate::Target,
+        channel: impl crate::AsChannel,
         reason: impl Into<String>,
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
-        let (channel, invalid_input) = self.target_input(channel);
-        let channel = self.state().channel_name(channel);
+        let channel = crate::AsChannel::__parts(&channel).into_owned();
         let reason = reason.into();
         crate::RequestFuture::new(async move {
-            if let Some(error) = invalid_input {
-                return Err(error.into());
-            }
-            channel
-                .check(client.state().isupport().inner())
-                .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
+            let channel = client.resolve(crate::target::Role::Channel("part: channel"), channel)?;
+            let channel = client.state().channel_name(channel);
             let (result, receiver) = oneshot::channel();
             client
                 .commands
