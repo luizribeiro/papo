@@ -1071,7 +1071,7 @@ impl core::marker::UnsafeUnpin for papo::event::TopicChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::TopicChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::TopicChanged
 #[non_exhaustive] pub struct papo::event::TypingChanged
-pub papo::event::TypingChanged::actor: papo::Source
+pub papo::event::TypingChanged::actor: papo::UserSource
 pub papo::event::TypingChanged::authorship: papo::Authorship
 pub papo::event::TypingChanged::conversation: papo::Conversation
 pub papo::event::TypingChanged::reason: papo::event::TypingReason
@@ -1751,9 +1751,35 @@ impl core::marker::Unpin for papo::ReadMarker
 impl core::marker::UnsafeUnpin for papo::ReadMarker
 impl core::panic::unwind_safe::RefUnwindSafe for papo::ReadMarker
 impl core::panic::unwind_safe::UnwindSafe for papo::ReadMarker
+#[non_exhaustive] pub enum papo::Source
+pub papo::Source::Server(papo::ServerName)
+pub papo::Source::User(papo::UserSource)
+impl papo::Source
+pub const fn papo::Source::nick(&self) -> core::option::Option<&papo::Nick>
+pub const fn papo::Source::user(&self) -> core::option::Option<&papo::UserSource>
+impl core::clone::Clone for papo::Source
+pub fn papo::Source::clone(&self) -> Self
+impl core::cmp::Eq for papo::Source
+impl core::cmp::PartialEq for papo::Source
+pub fn papo::Source::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::Source
+pub fn papo::Source::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo::Source
+pub fn papo::Source::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::Source
+impl core::marker::Freeze for papo::Source
+impl core::marker::Send for papo::Source
+impl core::marker::Sync for papo::Source
+impl core::marker::Unpin for papo::Source
+impl core::marker::UnsafeUnpin for papo::Source
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Source
+impl core::panic::unwind_safe::UnwindSafe for papo::Source
 #[non_exhaustive] pub enum papo::Subject
 pub papo::Subject::Channel(papo::ChannelName)
 pub papo::Subject::User(papo::Nick)
+impl papo::Subject
+pub const fn papo::Subject::channel(&self) -> core::option::Option<&papo::ChannelName>
+pub const fn papo::Subject::nick(&self) -> core::option::Option<&papo::Nick>
 impl core::clone::Clone for papo::Subject
 pub fn papo::Subject::clone(&self) -> Self
 impl core::cmp::Eq for papo::Subject
@@ -1761,6 +1787,10 @@ impl core::cmp::Ord for papo::Subject
 pub fn papo::Subject::cmp(&self, &Self) -> core::cmp::Ordering
 impl core::cmp::PartialEq for papo::Subject
 pub fn papo::Subject::eq(&self, &Self) -> bool
+impl core::cmp::PartialEq<&str> for papo::Subject
+pub fn papo::Subject::eq(&self, &&str) -> bool
+impl core::cmp::PartialEq<str> for papo::Subject
+pub fn papo::Subject::eq(&self, &str) -> bool
 impl core::cmp::PartialOrd for papo::Subject
 pub fn papo::Subject::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
 impl core::fmt::Debug for papo::Subject
@@ -2220,16 +2250,13 @@ impl core::marker::UnsafeUnpin for papo::ListFilter
 impl core::panic::unwind_safe::RefUnwindSafe for papo::ListFilter
 impl core::panic::unwind_safe::UnwindSafe for papo::ListFilter
 #[non_exhaustive] pub struct papo::Message
-pub papo::Message::account: papo::Account
-pub papo::Message::actor: papo::Source
+pub papo::Message::actor: papo::UserSource
 pub papo::Message::authorship: papo::Authorship
 pub papo::Message::channel_context: core::option::Option<papo::ChannelName>
 pub papo::Message::conversation: papo::Conversation
 pub papo::Message::in_reply_to: core::option::Option<papo::MessageId>
-pub papo::Message::is_bot: bool
 pub papo::Message::kind: papo::MessageKind
 pub papo::Message::msgid: core::option::Option<papo::MessageId>
-pub papo::Message::oper: core::option::Option<papo::Oper>
 pub papo::Message::raw_text: alloc::string::String
 pub papo::Message::received_at: std::time::SystemTime
 pub papo::Message::server_time: core::option::Option<std::time::SystemTime>
@@ -2638,6 +2665,31 @@ impl core::marker::Unpin for papo::Tags
 impl core::marker::UnsafeUnpin for papo::Tags
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Tags
 impl core::panic::unwind_safe::UnwindSafe for papo::Tags
+#[non_exhaustive] pub struct papo::UserSource
+impl papo::UserSource
+pub const fn papo::UserSource::account(&self) -> &papo::Account
+pub fn papo::UserSource::host(&self) -> core::option::Option<&str>
+pub const fn papo::UserSource::is_bot(&self) -> core::option::Option<bool>
+pub const fn papo::UserSource::nick(&self) -> &papo::Nick
+pub const fn papo::UserSource::oper(&self) -> core::option::Option<&papo::Oper>
+pub fn papo::UserSource::username(&self) -> core::option::Option<&str>
+impl core::clone::Clone for papo::UserSource
+pub fn papo::UserSource::clone(&self) -> Self
+impl core::cmp::Eq for papo::UserSource
+impl core::cmp::PartialEq for papo::UserSource
+pub fn papo::UserSource::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::UserSource
+pub fn papo::UserSource::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo::UserSource
+pub fn papo::UserSource::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::UserSource
+impl core::marker::Freeze for papo::UserSource
+impl core::marker::Send for papo::UserSource
+impl core::marker::Sync for papo::UserSource
+impl core::marker::Unpin for papo::UserSource
+impl core::marker::UnsafeUnpin for papo::UserSource
+impl core::panic::unwind_safe::RefUnwindSafe for papo::UserSource
+impl core::panic::unwind_safe::UnwindSafe for papo::UserSource
 pub struct papo::WebIrc
 pub papo::WebIrc::client_hostname: core::option::Option<alloc::string::String>
 pub papo::WebIrc::client_ip: core::net::ip_addr::IpAddr
@@ -2664,7 +2716,7 @@ pub papo::WhoEntry::account: papo::Account
 pub papo::WhoEntry::away: papo::Away
 pub papo::WhoEntry::channel: core::option::Option<papo::ChannelName>
 pub papo::WhoEntry::host: alloc::string::String
-pub papo::WhoEntry::is_bot: bool
+pub papo::WhoEntry::is_bot: core::option::Option<bool>
 pub papo::WhoEntry::nick: papo::Nick
 pub papo::WhoEntry::oper: core::option::Option<papo::Oper>
 pub papo::WhoEntry::prefixes: alloc::vec::Vec<char>
@@ -2686,12 +2738,12 @@ impl core::marker::UnsafeUnpin for papo::WhoEntry
 impl core::panic::unwind_safe::RefUnwindSafe for papo::WhoEntry
 impl core::panic::unwind_safe::UnwindSafe for papo::WhoEntry
 #[non_exhaustive] pub struct papo::Whois
-pub papo::Whois::account: core::option::Option<papo::AccountName>
+pub papo::Whois::account: papo::Account
 pub papo::Whois::away: papo::Away
 pub papo::Whois::channels: alloc::vec::Vec<papo::WhoisChannel>
 pub papo::Whois::host: core::option::Option<alloc::string::String>
 pub papo::Whois::idle: core::option::Option<core::time::Duration>
-pub papo::Whois::is_bot: bool
+pub papo::Whois::is_bot: core::option::Option<bool>
 pub papo::Whois::nick: papo::Nick
 pub papo::Whois::realname: core::option::Option<alloc::string::String>
 pub papo::Whois::secure: bool
