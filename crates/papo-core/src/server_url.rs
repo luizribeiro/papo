@@ -113,7 +113,7 @@ impl fmt::Display for ServerUrl {
 /// Why an IRC server URL could not be parsed.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
-pub enum InvalidServerUrl {
+pub enum InvalidUrl {
     /// The URL is empty.
     Empty,
     /// The URL has no scheme separator.
@@ -150,7 +150,7 @@ pub enum InvalidServerUrl {
     UnexpectedPath(String),
 }
 
-impl fmt::Display for InvalidServerUrl {
+impl fmt::Display for InvalidUrl {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Empty => formatter.write_str("server URL is empty"),
@@ -197,29 +197,29 @@ impl fmt::Display for InvalidServerUrl {
     }
 }
 
-impl std::error::Error for InvalidServerUrl {}
+impl std::error::Error for InvalidUrl {}
 impl FromStr for ServerUrl {
-    type Err = InvalidServerUrl;
+    type Err = InvalidUrl;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         if input.is_empty() {
-            return Err(InvalidServerUrl::Empty);
+            return Err(InvalidUrl::Empty);
         }
         if input.chars().any(char::is_whitespace) {
-            return Err(InvalidServerUrl::Whitespace);
+            return Err(InvalidUrl::Whitespace);
         }
         if input.chars().any(char::is_control) {
-            return Err(InvalidServerUrl::ControlCharacter);
+            return Err(InvalidUrl::ControlCharacter);
         }
         let Some((scheme, remainder)) = input.split_once("://") else {
-            return Err(InvalidServerUrl::MissingScheme);
+            return Err(InvalidUrl::MissingScheme);
         };
         let scheme = parse_scheme(scheme)?;
         if remainder.contains('#') {
-            return Err(InvalidServerUrl::Fragment);
+            return Err(InvalidUrl::Fragment);
         }
         if remainder.contains('?') {
-            return Err(InvalidServerUrl::Query);
+            return Err(InvalidUrl::Query);
         }
         let (authority, path) = match remainder.split_once('/') {
             Some((authority, path)) => (authority, Some(format!("/{path}"))),
@@ -228,17 +228,17 @@ impl FromStr for ServerUrl {
         if let Some(path) = &path
             && !scheme.permits_path()
         {
-            return Err(InvalidServerUrl::UnexpectedPath(path.clone()));
+            return Err(InvalidUrl::UnexpectedPath(path.clone()));
         }
         if authority.contains('@') {
-            return Err(InvalidServerUrl::Userinfo);
+            return Err(InvalidUrl::Userinfo);
         }
         if authority.is_empty() {
-            return Err(InvalidServerUrl::EmptyHost);
+            return Err(InvalidUrl::EmptyHost);
         }
         let (host, port, explicit_port) = parse_authority(authority, scheme.default_port())?;
         if path.as_deref().is_some_and(|path| path.contains('%')) {
-            return Err(InvalidServerUrl::PercentEncoding);
+            return Err(InvalidUrl::PercentEncoding);
         }
         Ok(Self {
             scheme,
@@ -249,7 +249,7 @@ impl FromStr for ServerUrl {
         })
     }
 }
-fn parse_scheme(value: &str) -> Result<ServerUrlScheme, InvalidServerUrl> {
+fn parse_scheme(value: &str) -> Result<ServerUrlScheme, InvalidUrl> {
     if value.eq_ignore_ascii_case("irc") {
         Ok(ServerUrlScheme::Irc)
     } else if value.eq_ignore_ascii_case("ircs") {
@@ -259,23 +259,20 @@ fn parse_scheme(value: &str) -> Result<ServerUrlScheme, InvalidServerUrl> {
     } else if value.eq_ignore_ascii_case("wss") {
         Ok(ServerUrlScheme::Wss)
     } else {
-        Err(InvalidServerUrl::UnsupportedScheme(value.to_owned()))
+        Err(InvalidUrl::UnsupportedScheme(value.to_owned()))
     }
 }
-fn parse_authority(
-    authority: &str,
-    default_port: u16,
-) -> Result<(String, u16, bool), InvalidServerUrl> {
+fn parse_authority(authority: &str, default_port: u16) -> Result<(String, u16, bool), InvalidUrl> {
     let (host, port) = if let Some(rest) = authority.strip_prefix('[') {
         let Some((host, suffix)) = rest.split_once(']') else {
-            return Err(InvalidServerUrl::InvalidHost(authority.to_owned()));
+            return Err(InvalidUrl::InvalidHost(authority.to_owned()));
         };
         if host.contains('%') {
-            return Err(InvalidServerUrl::ZoneIdentifier(host.to_owned()));
+            return Err(InvalidUrl::ZoneIdentifier(host.to_owned()));
         }
         let host = host
             .parse::<Ipv6Addr>()
-            .map_err(|_| InvalidServerUrl::InvalidHost(host.to_owned()))?
+            .map_err(|_| InvalidUrl::InvalidHost(host.to_owned()))?
             .to_string();
         let port = if suffix.is_empty() {
             None
@@ -283,13 +280,13 @@ fn parse_authority(
             Some(
                 suffix
                     .strip_prefix(':')
-                    .ok_or_else(|| InvalidServerUrl::InvalidHost(authority.to_owned()))?,
+                    .ok_or_else(|| InvalidUrl::InvalidHost(authority.to_owned()))?,
             )
         };
         (host, port)
     } else {
         if authority.matches(':').count() > 1 {
-            return Err(InvalidServerUrl::UnbracketedIpv6(authority.to_owned()));
+            return Err(InvalidUrl::UnbracketedIpv6(authority.to_owned()));
         }
         let (host, port) = authority
             .split_once(':')
@@ -300,27 +297,27 @@ fn parse_authority(
         return Ok((host, default_port, false));
     };
     if port.is_empty() || !port.bytes().all(|byte| byte.is_ascii_digit()) {
-        return Err(InvalidServerUrl::InvalidPort(port.to_owned()));
+        return Err(InvalidUrl::InvalidPort(port.to_owned()));
     }
     let parsed = port
         .parse::<u16>()
         .ok()
         .filter(|port| *port != 0)
-        .ok_or_else(|| InvalidServerUrl::InvalidPort(port.to_owned()))?;
+        .ok_or_else(|| InvalidUrl::InvalidPort(port.to_owned()))?;
     Ok((host, parsed, true))
 }
-fn validate_hostname(host: &str) -> Result<String, InvalidServerUrl> {
+fn validate_hostname(host: &str) -> Result<String, InvalidUrl> {
     if host.is_empty() {
-        return Err(InvalidServerUrl::EmptyHost);
+        return Err(InvalidUrl::EmptyHost);
     }
     if !host.is_ascii() {
-        return Err(InvalidServerUrl::NonAsciiHost(host.to_owned()));
+        return Err(InvalidUrl::NonAsciiHost(host.to_owned()));
     }
     if host.contains('%') {
-        return Err(InvalidServerUrl::PercentEncoding);
+        return Err(InvalidUrl::PercentEncoding);
     }
     if host.ends_with('.') {
-        return Err(InvalidServerUrl::TrailingDot(host.to_owned()));
+        return Err(InvalidUrl::TrailingDot(host.to_owned()));
     }
     let valid = host.len() <= 253
         && host.split('.').all(|label| {
@@ -333,7 +330,7 @@ fn validate_hostname(host: &str) -> Result<String, InvalidServerUrl> {
                     .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
         });
     if !valid || host.contains(['[', ']']) {
-        return Err(InvalidServerUrl::InvalidHost(host.to_owned()));
+        return Err(InvalidUrl::InvalidHost(host.to_owned()));
     }
     Ok(host.to_owned())
 }

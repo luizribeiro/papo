@@ -956,11 +956,7 @@ mod tests {
     #[test]
     fn every_public_invalid_input_variant_can_be_constructed() {
         let variants = [
-            InvalidInput::EmptyAddress,
-            InvalidInput::UnsupportedScheme("ftp".into()),
-            InvalidInput::InvalidHost("[not-an-address".into()),
-            InvalidInput::InvalidPort("0".into()),
-            InvalidInput::UnexpectedPath("/channels".into()),
+            InvalidInput::Url(crate::InvalidUrl::Empty),
             InvalidInput::TlsConfig("invalid PEM".into()),
             InvalidInput::UnknownCapability("example/cap".into()),
             InvalidInput::ZeroEventCapacity,

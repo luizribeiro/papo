@@ -1,13 +1,13 @@
 //! Shared server URL parser tests.
 
-use papo_core::server_url::{InvalidServerUrl, ServerUrl, ServerUrlScheme};
+use papo_core::server_url::{InvalidUrl, ServerUrl, ServerUrlScheme};
 use proptest::prelude::*;
 
 #[test]
 fn parses_a_server_url_and_rejects_an_empty_one() {
     let url = "IRCS://irc.oftc.net:6697".parse::<ServerUrl>().unwrap();
     assert_eq!((url.host(), url.port()), ("irc.oftc.net", 6697));
-    assert_eq!("".parse::<ServerUrl>(), Err(InvalidServerUrl::Empty));
+    assert_eq!("".parse::<ServerUrl>(), Err(InvalidUrl::Empty));
 }
 
 #[test]
@@ -146,91 +146,76 @@ fn rejects_every_forbidden_server_url_form_with_an_exact_error() {
         "d".repeat(63)
     );
     let cases = vec![
-        (String::new(), InvalidServerUrl::Empty),
-        ("irc.oftc.net".into(), InvalidServerUrl::MissingScheme),
+        (String::new(), InvalidUrl::Empty),
+        ("irc.oftc.net".into(), InvalidUrl::MissingScheme),
         (
             "ftp://irc.oftc.net".into(),
-            InvalidServerUrl::UnsupportedScheme("ftp".into()),
+            InvalidUrl::UnsupportedScheme("ftp".into()),
         ),
-        ("irc://".into(), InvalidServerUrl::EmptyHost),
-        ("irc://@host".into(), InvalidServerUrl::Userinfo),
-        ("irc://alice:secret@host".into(), InvalidServerUrl::Userinfo),
-        ("irc://host?network=oftc".into(), InvalidServerUrl::Query),
-        ("irc://host#x".into(), InvalidServerUrl::Fragment),
-        ("irc://ho st".into(), InvalidServerUrl::Whitespace),
-        ("irc://host\t".into(), InvalidServerUrl::Whitespace),
-        (
-            "irc://host\u{7f}".into(),
-            InvalidServerUrl::ControlCharacter,
-        ),
+        ("irc://".into(), InvalidUrl::EmptyHost),
+        ("irc://@host".into(), InvalidUrl::Userinfo),
+        ("irc://alice:secret@host".into(), InvalidUrl::Userinfo),
+        ("irc://host?network=oftc".into(), InvalidUrl::Query),
+        ("irc://host#x".into(), InvalidUrl::Fragment),
+        ("irc://ho st".into(), InvalidUrl::Whitespace),
+        ("irc://host\t".into(), InvalidUrl::Whitespace),
+        ("irc://host\u{7f}".into(), InvalidUrl::ControlCharacter),
         (
             "irc://exämple.org".into(),
-            InvalidServerUrl::NonAsciiHost("exämple.org".into()),
+            InvalidUrl::NonAsciiHost("exämple.org".into()),
         ),
         (
             "irc://irc.example.net.".into(),
-            InvalidServerUrl::TrailingDot("irc.example.net.".into()),
+            InvalidUrl::TrailingDot("irc.example.net.".into()),
         ),
         (
             "irc://[fe80::1%25eth0]".into(),
-            InvalidServerUrl::ZoneIdentifier("fe80::1%25eth0".into()),
+            InvalidUrl::ZoneIdentifier("fe80::1%25eth0".into()),
         ),
         (
             "irc://2001:db8::1".into(),
-            InvalidServerUrl::UnbracketedIpv6("2001:db8::1".into()),
+            InvalidUrl::UnbracketedIpv6("2001:db8::1".into()),
         ),
         (
             "irc://[2001:db8::1".into(),
-            InvalidServerUrl::InvalidHost("[2001:db8::1".into()),
+            InvalidUrl::InvalidHost("[2001:db8::1".into()),
         ),
         (
             "irc://[2001:db8::gg]".into(),
-            InvalidServerUrl::InvalidHost("2001:db8::gg".into()),
+            InvalidUrl::InvalidHost("2001:db8::gg".into()),
         ),
         (
             "irc://[::1]6697".into(),
-            InvalidServerUrl::InvalidHost("[::1]6697".into()),
+            InvalidUrl::InvalidHost("[::1]6697".into()),
         ),
         (
             "irc://-irc.example.net".into(),
-            InvalidServerUrl::InvalidHost("-irc.example.net".into()),
+            InvalidUrl::InvalidHost("-irc.example.net".into()),
         ),
         (
             format!("irc://{long_label}.example"),
-            InvalidServerUrl::InvalidHost(format!("{long_label}.example")),
+            InvalidUrl::InvalidHost(format!("{long_label}.example")),
         ),
         (
             format!("irc://{long_host}"),
-            InvalidServerUrl::InvalidHost(long_host),
+            InvalidUrl::InvalidHost(long_host),
         ),
-        (
-            "irc://host:".into(),
-            InvalidServerUrl::InvalidPort(String::new()),
-        ),
-        (
-            "irc://host:+1".into(),
-            InvalidServerUrl::InvalidPort("+1".into()),
-        ),
-        (
-            "irc://host:0".into(),
-            InvalidServerUrl::InvalidPort("0".into()),
-        ),
+        ("irc://host:".into(), InvalidUrl::InvalidPort(String::new())),
+        ("irc://host:+1".into(), InvalidUrl::InvalidPort("+1".into())),
+        ("irc://host:0".into(), InvalidUrl::InvalidPort("0".into())),
         (
             "irc://host:65536".into(),
-            InvalidServerUrl::InvalidPort("65536".into()),
+            InvalidUrl::InvalidPort("65536".into()),
         ),
-        (
-            "irc://host/".into(),
-            InvalidServerUrl::UnexpectedPath("/".into()),
-        ),
+        ("irc://host/".into(), InvalidUrl::UnexpectedPath("/".into())),
         (
             "irc://host/network".into(),
-            InvalidServerUrl::UnexpectedPath("/network".into()),
+            InvalidUrl::UnexpectedPath("/network".into()),
         ),
-        ("irc://ho%73t".into(), InvalidServerUrl::PercentEncoding),
+        ("irc://ho%73t".into(), InvalidUrl::PercentEncoding),
         (
             "wss://irc.example.net/%2F".into(),
-            InvalidServerUrl::PercentEncoding,
+            InvalidUrl::PercentEncoding,
         ),
     ];
     for (input, expected) in cases {

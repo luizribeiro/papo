@@ -11,7 +11,7 @@ use zeroize::{Zeroize, Zeroizing};
 
 use crate::{
     Feature, RequestError, RequestId, Secret, Session,
-    server_url::{InvalidServerUrl, ServerUrl, ServerUrlScheme},
+    server_url::{InvalidUrl, ServerUrl, ServerUrlScheme},
 };
 
 /// Stable identifier assigned to a network by a bouncer.
@@ -111,52 +111,6 @@ impl fmt::Display for NetworkState {
             Self::Connecting => "connecting",
             Self::Disconnected => "disconnected",
         })
-    }
-}
-
-/// Why an upstream network URL could not be parsed.
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[non_exhaustive]
-pub enum InvalidNetworkUrl {
-    /// The URL is empty.
-    Empty,
-    /// The URL scheme is missing or unsupported.
-    UnsupportedScheme(String),
-    /// The hostname or bracketed IPv6 literal is malformed.
-    InvalidHost(String),
-    /// The port is missing, zero, or greater than 65535.
-    InvalidPort(String),
-    /// The URL contains a path.
-    UnexpectedPath(String),
-    /// The shared server URL parser rejected the input.
-    Invalid(InvalidServerUrl),
-}
-
-impl fmt::Display for InvalidNetworkUrl {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Empty => formatter.write_str("upstream network URL is empty"),
-            Self::UnsupportedScheme(scheme) => write!(formatter, "unsupported scheme {scheme:?}"),
-            Self::InvalidHost(host) => write!(formatter, "invalid upstream host {host:?}"),
-            Self::InvalidPort(port) => write!(formatter, "invalid service port {port:?}"),
-            Self::UnexpectedPath(path) => write!(formatter, "unexpected URL path {path:?}"),
-            Self::Invalid(error) => error.fmt(formatter),
-        }
-    }
-}
-
-impl std::error::Error for InvalidNetworkUrl {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Invalid(error) => Some(error),
-            _ => None,
-        }
-    }
-}
-
-impl From<InvalidServerUrl> for InvalidNetworkUrl {
-    fn from(error: InvalidServerUrl) -> Self {
-        Self::Invalid(error)
     }
 }
 
@@ -301,15 +255,15 @@ impl NetworkConfig {
     ///
     /// # Errors
     ///
-    /// Returns [`InvalidNetworkUrl`] for an unsupported scheme, malformed host or port, or a URL
+    /// Returns [`InvalidUrl`] for an unsupported scheme, malformed host or port, or a URL
     /// containing a path, query, fragment, or user information.
-    pub fn from_url(url: &str) -> Result<Self, InvalidNetworkUrl> {
-        let url = url.parse::<ServerUrl>().map_err(InvalidNetworkUrl::from)?;
+    pub fn from_url(url: &str) -> Result<Self, InvalidUrl> {
+        let url = url.parse::<ServerUrl>()?;
         let tls = match url.scheme() {
             ServerUrlScheme::Irc => false,
             ServerUrlScheme::Ircs => true,
             scheme => {
-                return Err(InvalidServerUrl::UnsupportedScheme(scheme.to_string()).into());
+                return Err(InvalidUrl::UnsupportedScheme(scheme.to_string()));
             }
         };
         Ok(Self::new(url.host()).port(url.port()).tls(tls))
@@ -511,8 +465,8 @@ impl Session {
 mod tests {
     use papo_proto::LineRef;
 
-    use super::{BouncerNetwork, InvalidNetworkUrl, NetworkConfig, NetworkState, NetworkUpdate};
-    use crate::server_url::InvalidServerUrl;
+    use super::{BouncerNetwork, NetworkConfig, NetworkState, NetworkUpdate};
+    use crate::server_url::InvalidUrl;
 
     #[test]
     fn network_states_display_as_protocol_words() {
@@ -575,21 +529,15 @@ mod tests {
         }
         assert_eq!(
             NetworkConfig::from_url("irc://irc.oftc.net:0"),
-            Err(InvalidNetworkUrl::Invalid(InvalidServerUrl::InvalidPort(
-                "0".into()
-            )))
+            Err(InvalidUrl::InvalidPort("0".into()))
         );
         assert_eq!(
             NetworkConfig::from_url("wss://irc.oftc.net"),
-            Err(InvalidNetworkUrl::Invalid(
-                InvalidServerUrl::UnsupportedScheme("wss".into())
-            ))
+            Err(InvalidUrl::UnsupportedScheme("wss".into()))
         );
         assert_eq!(
             NetworkConfig::from_url("irc://[2001:db8::7]6697"),
-            Err(InvalidNetworkUrl::Invalid(InvalidServerUrl::InvalidHost(
-                "[2001:db8::7]6697".into()
-            )))
+            Err(InvalidUrl::InvalidHost("[2001:db8::7]6697".into()))
         );
     }
 
@@ -608,9 +556,9 @@ mod tests {
                 "IRC server URL cannot contain path \"/network\"",
             ),
         ] {
-            let error: InvalidNetworkUrl = NetworkConfig::from_url(url).unwrap_err();
+            let error: InvalidUrl = NetworkConfig::from_url(url).unwrap_err();
             assert_eq!(error.to_string(), expected);
-            assert!(std::error::Error::source(&error).is_some());
+            assert!(std::error::Error::source(&error).is_none());
         }
     }
 

@@ -96,6 +96,7 @@ include!("unstable/persistence_types.rs");
 
 pub use papo_proto::{Prefix, Rank, Secret, WireLine};
 pub use source::Source;
+pub use server_url::InvalidUrl;
 
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
@@ -110,9 +111,7 @@ use papo_proto::{
 };
 
 #[cfg(feature = "unstable")]
-pub use self::bouncer::{
-    BouncerNetwork, InvalidNetworkUrl, NetworkConfig, NetworkId, NetworkState,
-};
+pub use self::bouncer::{BouncerNetwork, NetworkConfig, NetworkId, NetworkState};
 use account_registration::{AccountRegistration, PendingRegistration, RegistrationPolicy};
 use batch::{BatchAction, BatchEvent, Batches, DispatchContext};
 use caps::Caps;

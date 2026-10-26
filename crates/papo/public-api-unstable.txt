@@ -18,8 +18,8 @@ pub use papo::CtcpReplies
 pub use papo::Feature
 pub use papo::FormatBuilder
 pub use papo::InvalidIdentifier
-pub use papo::InvalidNetworkUrl
 pub use papo::InvalidRateLimit
+pub use papo::InvalidUrl
 pub use papo::Line
 pub use papo::ListMode
 pub use papo::Mask
@@ -1692,19 +1692,14 @@ impl core::panic::unwind_safe::UnwindSafe for papo::HistoryReason
 #[non_exhaustive] pub enum papo::InvalidInput
 pub papo::InvalidInput::AccountNameMustMatchNick
 pub papo::InvalidInput::BinarySecret
-pub papo::InvalidInput::ControlCharacter
 pub papo::InvalidInput::CustomStreamNotReusable
 pub papo::InvalidInput::EmailRequired
-pub papo::InvalidInput::EmptyAddress
-pub papo::InvalidInput::EmptyHost
 pub papo::InvalidInput::EmptyText
 pub papo::InvalidInput::ForeignReference
-pub papo::InvalidInput::Fragment
 pub papo::InvalidInput::InsecureAuthentication
 pub papo::InvalidInput::InvalidClientTagKey(alloc::string::String)
 pub papo::InvalidInput::InvalidCtcp
 pub papo::InvalidInput::InvalidExtbanAccount(alloc::string::String)
-pub papo::InvalidInput::InvalidHost(alloc::string::String)
 #[non_exhaustive] pub papo::InvalidInput::InvalidMetadataKey
 pub papo::InvalidInput::InvalidMetadataKey::key: alloc::string::String
 pub papo::InvalidInput::InvalidMetadataKey::reason: papo::InvalidIdentifier
@@ -1713,7 +1708,6 @@ pub papo::InvalidInput::InvalidMode(alloc::string::String)
 pub papo::InvalidInput::InvalidName::argument: &'static str
 pub papo::InvalidInput::InvalidName::name: alloc::string::String
 pub papo::InvalidInput::InvalidName::reason: papo::InvalidIdentifier
-pub papo::InvalidInput::InvalidPort(alloc::string::String)
 pub papo::InvalidInput::InvalidRelayNickname
 pub papo::InvalidInput::InvalidRequest(alloc::string::String)
 pub papo::InvalidInput::InvalidWebPushEndpoint
@@ -1724,10 +1718,6 @@ pub papo::InvalidInput::KickReasonTooLong::maximum: usize
 #[non_exhaustive] pub papo::InvalidInput::MetadataValueTooLong
 pub papo::InvalidInput::MetadataValueTooLong::actual: usize
 pub papo::InvalidInput::MetadataValueTooLong::maximum: usize
-pub papo::InvalidInput::MissingScheme
-pub papo::InvalidInput::NonAsciiHost(alloc::string::String)
-pub papo::InvalidInput::PercentEncoding
-pub papo::InvalidInput::Query
 pub papo::InvalidInput::RateLimit(papo::InvalidRateLimit)
 #[non_exhaustive] pub papo::InvalidInput::Reaction
 pub papo::InvalidInput::Reaction::actual: usize
@@ -1736,17 +1726,11 @@ pub papo::InvalidInput::TlsConfig(alloc::string::String)
 #[non_exhaustive] pub papo::InvalidInput::TooManyMetadataSubscriptions
 pub papo::InvalidInput::TooManyMetadataSubscriptions::actual: usize
 pub papo::InvalidInput::TooManyMetadataSubscriptions::maximum: usize
-pub papo::InvalidInput::TrailingDot(alloc::string::String)
-pub papo::InvalidInput::UnbracketedIpv6(alloc::string::String)
-pub papo::InvalidInput::UnexpectedPath(alloc::string::String)
 pub papo::InvalidInput::UnknownCapability(alloc::string::String)
-pub papo::InvalidInput::UnsupportedScheme(alloc::string::String)
 pub papo::InvalidInput::UnusableMessageReference
-pub papo::InvalidInput::Userinfo
-pub papo::InvalidInput::Whitespace
+pub papo::InvalidInput::Url(papo::InvalidUrl)
 pub papo::InvalidInput::WireMessage(papo::BuildError)
 pub papo::InvalidInput::ZeroEventCapacity
-pub papo::InvalidInput::ZoneIdentifier(alloc::string::String)
 impl core::clone::Clone for papo::InvalidInput
 pub fn papo::InvalidInput::clone(&self) -> Self
 impl core::cmp::Eq for papo::InvalidInput
@@ -1756,6 +1740,8 @@ impl core::convert::From<papo::InvalidInput> for papo::Error
 pub fn papo::Error::from(papo::InvalidInput) -> Self
 impl core::convert::From<papo::InvalidRateLimit> for papo::InvalidInput
 pub fn papo::InvalidInput::from(papo::InvalidRateLimit) -> Self
+impl core::convert::From<papo::InvalidUrl> for papo::InvalidInput
+pub fn papo::InvalidInput::from(papo::InvalidUrl) -> Self
 impl core::error::Error for papo::InvalidInput
 pub fn papo::InvalidInput::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
 impl core::fmt::Debug for papo::InvalidInput

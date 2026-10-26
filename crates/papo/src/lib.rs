@@ -223,14 +223,15 @@ pub use name_rules::{NameCheck, NameRules};
 #[doc(inline)]
 pub use papo_core::Secret;
 #[doc(inline)]
+pub use papo_core::InvalidUrl;
+#[doc(inline)]
 pub use papo_core::{
     Account, Away, Cap, Capabilities, Channel, Conversation, Feature, Member, ModeAction, ModeArg,
     ModeChange, ModeValue, Rank, Typer, User,
 };
 #[cfg(feature = "unstable")]
 pub use papo_core::{
-    BouncerNetwork, InvalidNetworkUrl, NetworkConfig, NetworkId, NetworkState, PersistenceSetting,
-    PersistenceStatus,
+    BouncerNetwork, NetworkConfig, NetworkId, NetworkState, PersistenceSetting, PersistenceStatus,
 };
 #[doc(inline)]
 pub use papo_core::{CtcpReplies, InvalidRateLimit, RateLimit, Sasl, WhoOnJoin};

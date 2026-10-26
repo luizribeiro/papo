@@ -1595,76 +1595,80 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn public_builder_maps_each_server_url_error_exactly() {
         let cases = [
-            ("", InvalidInput::EmptyAddress, "server address is empty"),
+            (
+                "",
+                InvalidInput::Url(crate::InvalidUrl::Empty),
+                "server URL is empty",
+            ),
             (
                 "irc://",
-                InvalidInput::EmptyHost,
+                InvalidInput::Url(crate::InvalidUrl::EmptyHost),
                 "server URL host is empty",
             ),
             (
                 "irc://alice:secret@irc.oftc.net",
-                InvalidInput::Userinfo,
+                InvalidInput::Url(crate::InvalidUrl::Userinfo),
                 "server URL cannot contain user information",
             ),
             (
                 "irc://irc.oftc.net?network=oftc",
-                InvalidInput::Query,
+                InvalidInput::Url(crate::InvalidUrl::Query),
                 "server URL cannot contain a query",
             ),
             (
                 "irc://irc.oftc.net#support",
-                InvalidInput::Fragment,
+                InvalidInput::Url(crate::InvalidUrl::Fragment),
                 "server URL cannot contain a fragment",
             ),
             (
                 "irc://irc.oftc.net /support",
-                InvalidInput::Whitespace,
+                InvalidInput::Url(crate::InvalidUrl::Whitespace),
                 "server URL cannot contain whitespace",
             ),
             (
                 "irc://irc.oftc.net\u{7f}",
-                InvalidInput::ControlCharacter,
+                InvalidInput::Url(crate::InvalidUrl::ControlCharacter),
                 "server URL cannot contain control characters",
             ),
             (
                 "irc://irc%2Eoftc.net",
-                InvalidInput::PercentEncoding,
+                InvalidInput::Url(crate::InvalidUrl::PercentEncoding),
                 "server URL cannot contain percent-encoding",
             ),
             (
                 "irc://irc.réseau.example",
-                InvalidInput::NonAsciiHost("irc.réseau.example".into()),
+                InvalidInput::Url(crate::InvalidUrl::NonAsciiHost("irc.réseau.example".into())),
                 "non-ASCII server host \"irc.réseau.example\"; use its punycode xn-- form",
             ),
             (
                 "irc://irc.oftc.net.",
-                InvalidInput::TrailingDot("irc.oftc.net.".into()),
+                InvalidInput::Url(crate::InvalidUrl::TrailingDot("irc.oftc.net.".into())),
                 "server host \"irc.oftc.net.\" has a trailing dot",
             ),
             (
                 "irc://[fe80::1%25eth0]",
-                InvalidInput::ZoneIdentifier("fe80::1%25eth0".into()),
+                InvalidInput::Url(crate::InvalidUrl::ZoneIdentifier("fe80::1%25eth0".into())),
                 "IPv6 zone identifiers are not supported in \"fe80::1%25eth0\"",
             ),
             (
                 "irc://2001:db8::6697",
-                InvalidInput::UnbracketedIpv6("2001:db8::6697".into()),
+                InvalidInput::Url(crate::InvalidUrl::UnbracketedIpv6("2001:db8::6697".into())),
                 "IPv6 literal \"2001:db8::6697\" must be enclosed in brackets",
             ),
             (
                 "irc://[2001:db8::support]",
-                InvalidInput::InvalidHost("2001:db8::support".into()),
+                InvalidInput::Url(crate::InvalidUrl::InvalidHost("2001:db8::support".into())),
                 "invalid server host \"2001:db8::support\"",
             ),
             (
                 "ircs://irc.oftc.net:70000",
-                InvalidInput::InvalidPort("70000".into()),
+                InvalidInput::Url(crate::InvalidUrl::InvalidPort("70000".into())),
                 "invalid service port \"70000\"",
             ),
             (
                 "ircs://irc.oftc.net/support",
-                InvalidInput::UnexpectedPath("/support".into()),
-                "IRC server address cannot contain path \"/support\"",
+                InvalidInput::Url(crate::InvalidUrl::UnexpectedPath("/support".into())),
+                "IRC server URL cannot contain path \"/support\"",
             ),
         ];
 

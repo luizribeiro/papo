@@ -8,57 +8,9 @@ const REJECTED_ADDRESS_CHARACTERS: [char; 5] = ['?', '#', '@', ' ', '\t'];
 #[derive(Clone, Debug, Eq, Error, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum InvalidInput {
-    /// The address is empty.
-    #[error("server address is empty")]
-    EmptyAddress,
-    /// The URL scheme is not supported.
-    #[error("unsupported scheme {0:?}")]
-    UnsupportedScheme(String),
-    /// The URL has no scheme separator.
-    #[error("server URL scheme is missing; use ircs:// for TLS")]
-    MissingScheme,
-    /// The URL has no host.
-    #[error("server URL host is empty")]
-    EmptyHost,
-    /// The URL contains user information.
-    #[error("server URL cannot contain user information")]
-    Userinfo,
-    /// The URL contains a query.
-    #[error("server URL cannot contain a query")]
-    Query,
-    /// The URL contains a fragment.
-    #[error("server URL cannot contain a fragment")]
-    Fragment,
-    /// The URL contains whitespace.
-    #[error("server URL cannot contain whitespace")]
-    Whitespace,
-    /// The URL contains a control character.
-    #[error("server URL cannot contain control characters")]
-    ControlCharacter,
-    /// The URL contains percent-encoding.
-    #[error("server URL cannot contain percent-encoding")]
-    PercentEncoding,
-    /// The host is non-ASCII and must be supplied in punycode form.
-    #[error("non-ASCII server host {0:?}; use its punycode xn-- form")]
-    NonAsciiHost(String),
-    /// The host ends in a dot.
-    #[error("server host {0:?} has a trailing dot")]
-    TrailingDot(String),
-    /// An IPv6 literal contains a zone identifier.
-    #[error("IPv6 zone identifiers are not supported in {0:?}")]
-    ZoneIdentifier(String),
-    /// An IPv6 literal is missing brackets.
-    #[error("IPv6 literal {0:?} must be enclosed in brackets")]
-    UnbracketedIpv6(String),
-    /// The host or bracketed IPv6 literal is malformed.
-    #[error("invalid server host {0:?}")]
-    InvalidHost(String),
-    /// The service port is missing, zero, or greater than 65535.
-    #[error("invalid service port {0:?}")]
-    InvalidPort(String),
-    /// A TCP IRC URL contains a path, query, or fragment.
-    #[error("IRC server address cannot contain path {0:?}")]
-    UnexpectedPath(String),
+    /// A server URL is malformed or unsupported.
+    #[error(transparent)]
+    Url(#[from] crate::InvalidUrl),
     /// TLS trust, identity, or server-name input is invalid.
     #[error("invalid TLS configuration: {0}")]
     TlsConfig(String),
@@ -272,10 +224,10 @@ impl Endpoint {
     pub fn websocket(url: impl AsRef<str>) -> Result<Self, InvalidInput> {
         let url = url.as_ref();
         let Some((scheme, _)) = url.split_once("://") else {
-            return Err(InvalidInput::UnsupportedScheme(String::new()));
+            return Err(crate::InvalidUrl::MissingScheme.into());
         };
         if !scheme.eq_ignore_ascii_case("ws") && !scheme.eq_ignore_ascii_case("wss") {
-            return Err(InvalidInput::UnsupportedScheme(scheme.to_owned()));
+            return Err(crate::InvalidUrl::UnsupportedScheme(scheme.to_owned()).into());
         }
         url.parse().map(Self)
     }
@@ -307,7 +259,7 @@ impl Endpoint {
     fn tcp(host: impl Into<String>, port: u16, protocol: Protocol) -> Result<Self, InvalidInput> {
         let host = validate_host(host.into())?;
         if port == 0 {
-            return Err(InvalidInput::InvalidPort(port.to_string()));
+            return Err(crate::InvalidUrl::InvalidPort(port.to_string()).into());
         }
         Ok(Self(ServerAddress {
             protocol,
@@ -393,13 +345,15 @@ impl FromStr for ServerAddress {
 
         let url = input
             .parse::<papo_core::server_url::ServerUrl>()
-            .map_err(map_server_url_error)?;
+            .map_err(InvalidInput::from)?;
         let protocol = match url.scheme() {
             ServerUrlScheme::Irc => Protocol::Irc,
             ServerUrlScheme::Ircs => Protocol::Ircs,
             ServerUrlScheme::Ws => Protocol::Ws,
             ServerUrlScheme::Wss => Protocol::Wss,
-            scheme => return Err(InvalidInput::UnsupportedScheme(scheme.to_string())),
+            scheme => {
+                return Err(crate::InvalidUrl::UnsupportedScheme(scheme.to_string()).into());
+            }
         };
         Ok(Self {
             protocol,
@@ -510,34 +464,9 @@ const fn default_port(protocol: Protocol) -> u16 {
 
 fn validate_host(host: String) -> Result<String, InvalidInput> {
     if host.is_empty() || host.contains(REJECTED_ADDRESS_CHARACTERS) || host.contains(['[', ']']) {
-        return Err(InvalidInput::InvalidHost(host));
+        return Err(crate::InvalidUrl::InvalidHost(host).into());
     }
     Ok(host)
-}
-
-fn map_server_url_error(error: papo_core::server_url::InvalidServerUrl) -> InvalidInput {
-    use papo_core::server_url::InvalidServerUrl as Error;
-
-    match error {
-        Error::Empty => InvalidInput::EmptyAddress,
-        Error::MissingScheme => InvalidInput::MissingScheme,
-        Error::UnsupportedScheme(value) => InvalidInput::UnsupportedScheme(value),
-        Error::EmptyHost => InvalidInput::EmptyHost,
-        Error::Userinfo => InvalidInput::Userinfo,
-        Error::Query => InvalidInput::Query,
-        Error::Fragment => InvalidInput::Fragment,
-        Error::Whitespace => InvalidInput::Whitespace,
-        Error::ControlCharacter => InvalidInput::ControlCharacter,
-        Error::PercentEncoding => InvalidInput::PercentEncoding,
-        Error::NonAsciiHost(value) => InvalidInput::NonAsciiHost(value),
-        Error::TrailingDot(value) => InvalidInput::TrailingDot(value),
-        Error::ZoneIdentifier(value) => InvalidInput::ZoneIdentifier(value),
-        Error::UnbracketedIpv6(value) => InvalidInput::UnbracketedIpv6(value),
-        Error::InvalidHost(value) => InvalidInput::InvalidHost(value),
-        Error::InvalidPort(value) => InvalidInput::InvalidPort(value),
-        Error::UnexpectedPath(value) => InvalidInput::UnexpectedPath(value),
-        _ => InvalidInput::InvalidHost(error.to_string()),
-    }
 }
 
 #[cfg(all(test, not(browser)))]
@@ -611,12 +540,19 @@ mod tests {
             Endpoint::tls("irc.example.net", 0),
             Endpoint::plaintext("irc.example.net", 0),
         ] {
-            assert_eq!(endpoint, Err(InvalidInput::InvalidPort("0".into())));
+            assert_eq!(
+                endpoint,
+                Err(InvalidInput::Url(crate::InvalidUrl::InvalidPort(
+                    "0".into()
+                )))
+            );
         }
         for host in ["", "irc example.net"] {
             assert_eq!(
                 Endpoint::tls(host, 6697),
-                Err(InvalidInput::InvalidHost(host.into()))
+                Err(InvalidInput::Url(crate::InvalidUrl::InvalidHost(
+                    host.into()
+                )))
             );
         }
     }
@@ -707,7 +643,7 @@ mod tests {
             "ftp://irc.example.net"
                 .parse::<ServerAddress>()
                 .unwrap_err(),
-            InvalidInput::UnsupportedScheme("ftp".into())
+            InvalidInput::Url(crate::InvalidUrl::UnsupportedScheme("ftp".into()))
         );
         assert_eq!("irc://host:1".parse::<ServerAddress>().unwrap().port, 1);
         assert_eq!(
@@ -722,7 +658,9 @@ mod tests {
             assert!(
                 matches!(
                     input.parse::<ServerAddress>(),
-                    Err(InvalidInput::Userinfo | InvalidInput::InvalidHost(_))
+                    Err(InvalidInput::Url(
+                        crate::InvalidUrl::Userinfo | crate::InvalidUrl::InvalidHost(_)
+                    ))
                 ),
                 "accepted {input:?}"
             );
@@ -778,10 +716,12 @@ mod tests {
         ] {
             assert!(matches!(
                 input.parse::<ServerAddress>(),
-                Err(InvalidInput::Query
-                    | InvalidInput::Fragment
-                    | InvalidInput::Whitespace
-                    | InvalidInput::InvalidHost(_))
+                Err(InvalidInput::Url(
+                    crate::InvalidUrl::Query
+                        | crate::InvalidUrl::Fragment
+                        | crate::InvalidUrl::Whitespace
+                        | crate::InvalidUrl::InvalidHost(_)
+                ))
             ));
         }
     }

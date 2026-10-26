@@ -237,7 +237,7 @@ fn public_items_do_not_expose_wire_addresses() {
 #[test]
 fn address_check_matches_types_not_names() {
     let snapshot = "pub fn example::send(papo_proto::Address)\n\
-                    pub example::InvalidInput::EmptyAddress\n";
+                    pub example::InvalidInput::Url(papo::InvalidUrl)\n";
     assert_eq!(
         wire_address_exposures(snapshot),
         ["pub fn example::send(papo_proto::Address)"]
