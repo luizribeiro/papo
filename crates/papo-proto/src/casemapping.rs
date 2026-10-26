@@ -31,6 +31,22 @@ pub enum Casemapping {
 }
 
 impl Casemapping {
+    /// Returns the canonical token spelling for these comparison rules.
+    ///
+    /// `rfc7613` is papo's persistent spelling for `Precis`, even though servers such as
+    /// Ergo advertise those rules through `UTF8MAPPING`. A build without the `precis` feature
+    /// cannot parse that spelling.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Ascii => "ascii",
+            Self::Rfc1459 => "rfc1459",
+            Self::Rfc1459Strict => "rfc1459-strict",
+            #[cfg(feature = "precis")]
+            Self::Precis => "rfc7613",
+        }
+    }
+
     /// Creates a nickname carrying these server-defined comparison rules.
     #[doc(hidden)]
     #[must_use]
@@ -114,6 +130,21 @@ mod tests {
     use std::borrow::Cow;
 
     use super::Casemapping;
+
+    #[test]
+    fn canonical_spellings_round_trip_every_variant() {
+        let mappings = [
+            Casemapping::Ascii,
+            Casemapping::Rfc1459,
+            Casemapping::Rfc1459Strict,
+            #[cfg(feature = "precis")]
+            Casemapping::Precis,
+        ];
+
+        for mapping in mappings {
+            assert_eq!(Casemapping::parse(mapping.as_str()), Some(mapping));
+        }
+    }
 
     #[test]
     fn folds_every_character_defined_by_each_mapping() {
