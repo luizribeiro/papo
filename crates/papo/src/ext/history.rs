@@ -195,9 +195,13 @@ fn reaction(
         authorship,
         conversation,
         status,
-        message: reply_to.into(),
+        reacts_to: reply_to.into(),
         reaction,
-        removed,
+        action: if removed {
+            crate::event::ReactionAction::Removed
+        } else {
+            crate::event::ReactionAction::Added
+        },
     }))
 }
 
@@ -243,7 +247,7 @@ fn redaction(
         authorship,
         conversation,
         status,
-        message: message.param(1)?.into(),
+        redacts: message.param(1)?.into(),
         reason: message
             .param(2)
             .filter(|reason| !reason.is_empty())
@@ -1392,10 +1396,10 @@ mod tests {
                 if event.actor.nick().is_some_and(|nick| nick == "emily")
                     && matches!(&event.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
                     && event.status.is_none()
-                    && event.message == "RfcBTzyxY120004"
+                    && event.reacts_to == "RfcBTzyxY120004"
                     && event.reaction == "👍"
                     && matches!(&event.account, crate::Account::LoggedIn(account) if account == "emily")
-                    && !event.removed
+                    && event.action == crate::event::ReactionAction::Added
         ));
 
         let removal = history_item(
@@ -1411,7 +1415,7 @@ mod tests {
             PageEvent::Redacted(event)
                 if matches!(&event.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
                     && event.status.is_none()
-                    && event.message == "RfcBTzyxY120004"
+                    && event.redacts == "RfcBTzyxY120004"
                     && matches!(&event.account, crate::Account::LoggedIn(account) if account == "alice")
                     && event.reason.is_none()
         ));
@@ -1635,7 +1639,9 @@ mod tests {
         )));
         assert!(matches!(
             unreacted,
-            PageEvent::Reacted(event) if event.reaction == "👍" && event.removed
+            PageEvent::Reacted(event)
+                if event.reaction == "👍"
+                    && event.action == crate::event::ReactionAction::Removed
         ));
     }
 
