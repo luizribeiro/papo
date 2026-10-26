@@ -568,73 +568,6 @@ pub struct RecentConversation {
     pub latest_server_time: SystemTime,
 }
 
-/// Input accepted by history and read-marker operations.
-#[doc(hidden)]
-pub enum ConversationInput {
-    /// A wire address interpreted using the server's current rules.
-    Text(String),
-    /// An already classified conversation.
-    Conversation(crate::Conversation),
-}
-
-impl From<&str> for ConversationInput {
-    fn from(value: &str) -> Self {
-        Self::Text(value.to_owned())
-    }
-}
-
-impl From<String> for ConversationInput {
-    fn from(value: String) -> Self {
-        Self::Text(value)
-    }
-}
-
-impl From<&String> for ConversationInput {
-    fn from(value: &String) -> Self {
-        Self::Text(value.clone())
-    }
-}
-
-impl From<crate::Conversation> for ConversationInput {
-    fn from(value: crate::Conversation) -> Self {
-        Self::Conversation(value)
-    }
-}
-
-impl ConversationInput {
-    fn target(self, state: &crate::State, origin: crate::Origin) -> Result<String, Error> {
-        let conversation = match self {
-            Self::Text(target) => {
-                let (status, conversation) = state
-                    .parse_target_inner(&target)
-                    .map_err(|reason| crate::InvalidInput::invalid_name(target, reason))?;
-                if status.is_some() {
-                    return Err(crate::InvalidInput::InvalidMessage(
-                        "history conversations cannot have a status prefix".into(),
-                    )
-                    .into());
-                }
-                conversation
-            }
-            Self::Conversation(conversation) => {
-                let value_origin = crate::message_ref::conversation_origin(&conversation);
-                if value_origin != crate::Origin::NONE && value_origin != origin {
-                    return Err(crate::InvalidInput::ForeignReference.into());
-                }
-                conversation
-            }
-        };
-        match conversation {
-            crate::Conversation::Channel(channel) => Ok(channel.to_string()),
-            crate::Conversation::Private(nick) => Ok(nick.to_string()),
-            _ => Err(crate::InvalidInput::InvalidMessage(
-                "history requires a channel or private conversation".into(),
-            )
-            .into()),
-        }
-    }
-}
-
 impl HistoryPage {
     /// Returns the client identity associated with this page.
     #[must_use]
@@ -740,7 +673,7 @@ impl History {
         let before = reference.value;
         let query = self
             .target
-            .and_then(|target| self.client.check_origin(reference.origin).map(|()| target))
+            .and_then(|target| resolve_reference(&self.client, target, reference.origin))
             .map(|target| HistoryQuery::__before(target, before, DEFAULT_HISTORY_LIMIT));
         HistoryRequest {
             client: self.client,
@@ -754,7 +687,7 @@ impl History {
         let after = reference.value;
         let query = self
             .target
-            .and_then(|target| self.client.check_origin(reference.origin).map(|()| target))
+            .and_then(|target| resolve_reference(&self.client, target, reference.origin))
             .map(|target| HistoryQuery::__after(target, after, DEFAULT_HISTORY_LIMIT));
         HistoryRequest {
             client: self.client,
@@ -768,7 +701,7 @@ impl History {
         let around = reference.value;
         let query = self
             .target
-            .and_then(|target| self.client.check_origin(reference.origin).map(|()| target))
+            .and_then(|target| resolve_reference(&self.client, target, reference.origin))
             .map(|target| HistoryQuery::__around(target, around, DEFAULT_HISTORY_LIMIT));
         HistoryRequest {
             client: self.client,
@@ -784,13 +717,10 @@ impl History {
     ) -> HistoryRequest {
         let start = start.into();
         let end = end.into();
-        let origins = self
-            .client
-            .check_origin(start.origin)
-            .and_then(|()| self.client.check_origin(end.origin));
         let query = self
             .target
-            .and_then(|target| origins.map(|()| target))
+            .and_then(|target| resolve_reference(&self.client, target, start.origin))
+            .and_then(|target| resolve_reference(&self.client, target, end.origin))
             .map(|target| {
                 HistoryQuery::__between(target, start.value, end.value, DEFAULT_HISTORY_LIMIT)
             });
@@ -799,6 +729,21 @@ impl History {
             query,
         }
     }
+}
+
+fn resolve_reference(
+    client: &Client,
+    target: String,
+    origin: Option<crate::Origin>,
+) -> Result<String, Error> {
+    client.resolve(
+        crate::target::Role::Conversation("history: conversation"),
+        crate::target::sealed::Parts {
+            text: std::borrow::Cow::Owned(target),
+            origin: origin.unwrap_or(crate::Origin::NONE),
+            recipient: None,
+        },
+    )
 }
 
 /// A message identifier or timestamp accepted as an exclusive history bound.
@@ -911,10 +856,13 @@ impl Client {
     ///
     /// The returned page keeps server delivery order. `IRCv3` recommends oldest-to-newest
     /// delivery for every history subcommand but permits other orders; papo does not sort it.
-    pub fn history(&self, target: impl Into<ConversationInput>) -> crate::History {
+    pub fn history(&self, target: impl crate::AsConversation) -> crate::History {
         crate::History {
             client: self.clone(),
-            target: target.into().target(&self.state(), self.origin),
+            target: self.resolve(
+                crate::target::Role::Conversation("history: conversation"),
+                crate::AsConversation::__parts(&target),
+            ),
         }
     }
 
@@ -1023,13 +971,16 @@ impl Client {
     /// or [`Error::Disconnected`].
     pub fn mark_read(
         &self,
-        target: impl Into<ConversationInput>,
+        target: impl crate::AsConversation,
         time: SystemTime,
     ) -> crate::RequestFuture<Option<SystemTime>> {
         let client = self.clone();
-        let target = target.into();
+        let target = crate::AsConversation::__parts(&target).into_owned();
         crate::RequestFuture::new(async move {
-            let target = target.target(&client.state(), client.origin)?;
+            let target = client.resolve(
+                crate::target::Role::Conversation("mark_read: conversation"),
+                target,
+            )?;
             let (result, receiver) = oneshot::channel();
             client
                 .commands
@@ -1058,12 +1009,15 @@ impl Client {
     /// [`crate::Refusal`].
     pub fn fetch_read_marker(
         &self,
-        target: impl Into<ConversationInput>,
+        target: impl crate::AsConversation,
     ) -> crate::RequestFuture<Option<SystemTime>> {
         let client = self.clone();
-        let target = target.into();
+        let target = crate::AsConversation::__parts(&target).into_owned();
         crate::RequestFuture::new(async move {
-            let target = target.target(&client.state(), client.origin)?;
+            let target = client.resolve(
+                crate::target::Role::Conversation("fetch_read_marker: conversation"),
+                target,
+            )?;
             let (result, receiver) = oneshot::channel();
             client
                 .commands
@@ -1098,8 +1052,7 @@ mod tests {
     use crate::Event as PageEvent;
 
     use super::{
-        ConversationInput, HistoryPage, HistoryReason, HistoryReference, RecentConversation,
-        history_item, reaction,
+        HistoryPage, HistoryReason, HistoryReference, RecentConversation, history_item, reaction,
     };
 
     fn core_item(message: &str) -> HistoryLine {
@@ -1371,9 +1324,10 @@ mod tests {
             ),
         ] {
             assert_eq!(
-                ConversationInput::from(conversation)
-                    .target(&state, crate::Origin::NONE)
-                    .unwrap(),
+                state
+                    .conversation(&conversation.to_string())
+                    .unwrap()
+                    .to_string(),
                 expected
             );
         }
@@ -2110,6 +2064,9 @@ mod tests {
             client.state().read_marker("#PAPO"),
             Some(crate::ReadMarker::ReadUntil(expected))
         );
+        let foreign = crate::Origin::__new(91).__channel(client.state().casemapping(), "#papo");
+        assert_eq!(client.state().read_marker(foreign), None);
+        assert_eq!(client.state().read_marker("@#papo"), None);
 
         let request = tokio::spawn(async move { client.fetch_read_marker("#papo").await });
         client_line(&mut server, b"@label=2 MARKREAD #papo\r\n").await;
