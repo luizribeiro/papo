@@ -221,22 +221,36 @@ impl Builder {
     ///
     /// The connection fails unless the server acknowledges `soju.im/bouncer-networks` and its
     /// welcome confirms this exact ID through `BOUNCER_NETID`. Bound connections do not request
-    /// `soju.im/bouncer-networks-notify` by default; call [`Self::request_caps`] after this method
-    /// to opt this connection into network-change events.
+    /// network-change notifications by default; call [`Self::enable`] with
+    /// [`Feature::Bouncer`](crate::Feature::Bouncer) to opt in. Enabling before or after selecting
+    /// the network has the same effect.
     #[cfg(feature = "unstable")]
     pub fn bouncer_network(mut self, id: crate::NetworkId) -> Self {
-        self.config = self
-            .config
-            .enable(crate::Feature::Bouncer)
-            .without_caps([cap::BOUNCER_NETWORKS_NOTIFY.clone()]);
+        if !self.config.wanted_caps.iter().any(|name| {
+            cap::canonical(name) == cap::canonical(cap::BOUNCER_NETWORKS.as_str())
+        }) {
+            self.config
+                .wanted_caps
+                .push(cap::BOUNCER_NETWORKS.as_str().to_owned());
+        }
         self.config.bouncer_network = Some(id);
         self
     }
 
-    /// Enables an unstable extension feature for capability negotiation.
-    #[cfg(feature = "unstable")]
+    /// Enables an optional feature for capability negotiation.
+    ///
+    /// Stable features are already on by default. Calling this after [`Self::disable`] turns the
+    /// feature back on; the last call wins.
     pub fn enable(mut self, feature: crate::Feature) -> Self {
         self.config = self.config.enable(feature);
+        self
+    }
+
+    /// Disables an optional feature for capability negotiation.
+    ///
+    /// Calling [`Self::enable`] afterward turns the feature back on; the last call wins.
+    pub fn disable(mut self, feature: crate::Feature) -> Self {
+        self.config = self.config.disable(feature);
         self
     }
 
@@ -272,6 +286,7 @@ impl Builder {
                 .wanted_caps
                 .push(cap::ACCOUNT_REGISTRATION.into());
         }
+        self.config = self.config.enable(crate::Feature::AccountCreation);
         self.config =
             self.config
                 .create_account_on_connect(account.account, account.email, account.password);
@@ -816,7 +831,8 @@ mod tests {
     };
 
     use papo_core::{
-        CtcpReplies, DEFAULT_WANTED_CAPS, RateLimit, Sasl, Secret, sts::ConnectionSecurity,
+        CtcpReplies, DEFAULT_WANTED_CAPS, RateLimit, Sasl, Secret, cap,
+        sts::ConnectionSecurity,
     };
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -1057,9 +1073,9 @@ mod tests {
     }
 
     #[test]
-    fn account_registration_adds_or_retains_one_capability() {
+    fn account_registration_reenables_its_capability() {
         let added = Builder::new("ircs://irc.example.net")
-            .without_caps(["draft/account-registration"])
+            .disable(crate::Feature::AccountCreation)
             .create_account(NewAccount::new("realistic secret"))
             .config;
         assert_eq!(
@@ -1071,43 +1087,16 @@ mod tests {
             1
         );
 
-        let added = Builder::new("ircs://irc.example.net")
-            .request_caps(["message-tags"])
-            .create_account(NewAccount::new("realistic secret"))
-            .config;
-        assert_eq!(
-            added
-                .wanted_caps
-                .iter()
-                .filter(|name| name.as_str() == "draft/account-registration")
-                .count(),
-            1
-        );
-
-        let retained = Builder::new("ircs://irc.example.net")
-            .request_caps(["server-time", "account-registration"])
-            .create_account(NewAccount::new("realistic secret"))
-            .config;
-        assert!(
-            retained
-                .wanted_caps
-                .iter()
-                .any(|name| name == "account-registration")
-        );
+        assert!(!added.disabled_caps.iter().any(|name| {
+            cap::canonical(name) == cap::canonical("draft/account-registration")
+        }));
     }
 
     #[test]
-    fn capabilities_extend_defaults_and_only_known_defaults_can_be_removed() {
+    fn unknown_capabilities_extend_defaults_and_features_toggle_known_caps() {
         let builder = Builder::new("ircs://irc.example.net")
-            .request_caps(["message-tags", "example.com/custom-cap"])
-            .without_caps(["away-notify"]);
-        assert!(
-            !builder
-                .config
-                .wanted_caps
-                .iter()
-                .any(|name| name == "away-notify")
-        );
+            .request_caps(["example.com/custom-cap"])
+            .disable(crate::Feature::AwayTracking);
         assert!(
             builder
                 .config
@@ -1115,25 +1104,41 @@ mod tests {
                 .iter()
                 .any(|name| name == "example.com/custom-cap")
         );
-        let aliases = Builder::new("ircs://irc.example.net")
-            .without_caps(["read-marker", "account-registration"])
-            .config;
-        for removed in ["draft/read-marker", "draft/account-registration"] {
-            assert!(!aliases.wanted_caps.iter().any(|name| name == removed));
-        }
-        let unstable_caps = [
-            "soju.im/bouncer-networks",
-            "soju.im/bouncer-networks-notify",
-            "draft/persistence",
-            "draft/relaymsg",
-            "draft/webpush",
-            "soju.im/webpush",
-        ];
-        for capability in unstable_caps {
-            let unstable = Builder::new("ircs://irc.example.net").without_caps([capability]);
-            assert_eq!(unstable.invalid_input, None);
-            assert_eq!(unstable.config.disabled_caps, [capability]);
-        }
+        assert!(builder.config.disabled_caps.iter().any(|name| name == "away-notify"));
+
+        let enabled = builder.enable(crate::Feature::AwayTracking);
+        assert!(!enabled.config.disabled_caps.iter().any(|name| name == "away-notify"));
+    }
+
+    #[test]
+    fn known_capabilities_record_the_typed_configuration_error() {
+        let known = Builder::new("ircs://irc.example.net").request_caps(["chathistory"]);
+        assert_eq!(
+            known.invalid_input,
+            Some(InvalidInput::KnownCapability {
+                capability: "chathistory".to_owned(),
+                feature: "History",
+            })
+        );
+
+        let managed = Builder::new("ircs://irc.example.net").request_caps(["sts"]);
+        assert_eq!(
+            managed.invalid_input,
+            Some(InvalidInput::ManagedCapability("sts".to_owned()))
+        );
+    }
+
+    #[cfg(not(feature = "unstable"))]
+    #[test]
+    fn unstable_capabilities_record_the_cargo_feature_error() {
+        let builder =
+            Builder::new("ircs://irc.example.net").request_caps(["draft/persistence"]);
+        assert_eq!(
+            builder.invalid_input,
+            Some(InvalidInput::UnstableCapability(
+                "draft/persistence".to_owned()
+            ))
+        );
     }
 
     #[cfg(feature = "unstable")]
