@@ -1,9 +1,10 @@
 use std::{
-    borrow::Borrow,
+    borrow::{Borrow, Cow},
     cmp::Ordering,
     fmt,
     hash::{Hash, Hasher},
     ops::Deref,
+    sync::Arc,
 };
 
 use crate::{Casemapping, Isupport};
@@ -283,6 +284,127 @@ name_identifier!(
     Mask,
     "An IRC user or channel mask. High-level clients can compare server list entries with `papo::State::same_list_entry`."
 );
+
+mod name_argument {
+    use super::NameParts;
+
+    pub trait Sealed {
+        fn parts(&self) -> NameParts<'_>;
+    }
+}
+
+/// The text and client identity retained by a name argument.
+#[doc(hidden)]
+pub struct NameParts<'a> {
+    text: Cow<'a, str>,
+    origin: Origin,
+}
+
+impl NameParts<'_> {
+    /// Returns an owned copy of these argument parts.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn into_owned(self) -> NameParts<'static> {
+        NameParts {
+            text: Cow::Owned(self.text.into_owned()),
+            origin: self.origin,
+        }
+    }
+
+    /// Returns the argument text.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn text(&self) -> &str {
+        &self.text
+    }
+
+    /// Returns the client identity retained by the argument.
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn origin(&self) -> Origin {
+        self.origin
+    }
+}
+
+macro_rules! name_role {
+    ($trait:ident, $name:ty, $description:literal) => {
+        #[doc = $description]
+        pub trait $trait: name_argument::Sealed {
+            /// Returns the name and its client identity.
+            #[doc(hidden)]
+            fn __parts(&self) -> NameParts<'_> {
+                name_argument::Sealed::parts(self)
+            }
+        }
+
+        impl $trait for $name {}
+    };
+}
+
+macro_rules! typed_name_argument {
+    ($($ty:ty),+ $(,)?) => {
+        $(
+            impl name_argument::Sealed for $ty {
+                fn parts(&self) -> NameParts<'_> {
+                    NameParts { text: Cow::Borrowed(self.as_ref()), origin: self.origin() }
+                }
+            }
+        )+
+    };
+}
+
+typed_name_argument!(Nick, ChannelName, AccountName);
+
+name_role!(
+    AsNick,
+    Nick,
+    "A nickname argument accepted by nickname operations."
+);
+name_role!(
+    AsChannel,
+    ChannelName,
+    "A channel-name argument accepted by channel operations."
+);
+name_role!(
+    AsAccount,
+    AccountName,
+    "An account-name argument accepted by account operations."
+);
+
+macro_rules! text_name_argument {
+    ($($ty:ty),+ $(,)?) => {
+        $(
+            impl name_argument::Sealed for $ty {
+                fn parts(&self) -> NameParts<'_> {
+                    NameParts { text: Cow::Borrowed(self.as_ref()), origin: Origin::NONE }
+                }
+            }
+        )+
+    };
+}
+
+text_name_argument!(str, String, Box<str>, Cow<'_, str>, Arc<str>);
+
+impl<T: name_argument::Sealed + ?Sized> name_argument::Sealed for &T {
+    fn parts(&self) -> NameParts<'_> {
+        name_argument::Sealed::parts(*self)
+    }
+}
+
+macro_rules! text_name_role {
+    ($trait:ident) => {
+        impl $trait for str {}
+        impl $trait for String {}
+        impl $trait for Box<str> {}
+        impl $trait for Cow<'_, str> {}
+        impl $trait for Arc<str> {}
+        impl<T: $trait + ?Sized> $trait for &T {}
+    };
+}
+
+text_name_role!(AsNick);
+text_name_role!(AsChannel);
+text_name_role!(AsAccount);
 identifier!(MetadataKey, "An IRC metadata key.");
 identifier!(
     MessageId,
@@ -546,8 +668,22 @@ mod tests {
     use crate::{Casemapping, Isupport, LineRef};
 
     use super::{
-        Address, InvalidIdentifier, Mask, MaskSource, MessageId, MetadataKey, Nick, Origin,
+        Address, AsAccount, AsChannel, AsNick, InvalidIdentifier, Mask, MaskSource, MessageId,
+        MetadataKey, Nick, Origin,
     };
+
+    #[test]
+    fn name_arguments_retain_typed_origins_and_leave_text_unbound() {
+        let origin = Origin::__new(41);
+        let nick = origin.__nick(Casemapping::Rfc1459, "emily");
+        let channel = origin.__channel(Casemapping::Rfc1459, "#papo");
+        let account = origin.__account(Casemapping::Rfc1459, "emily");
+
+        assert_eq!(AsNick::__parts(&nick).origin(), origin);
+        assert_eq!(AsChannel::__parts(&channel).origin(), origin);
+        assert_eq!(AsAccount::__parts(&account).origin(), origin);
+        assert_eq!(AsNick::__parts(&"emily").origin(), Origin::NONE);
+    }
 
     #[test]
     fn origins_separate_equal_names_without_changing_text_comparison() {

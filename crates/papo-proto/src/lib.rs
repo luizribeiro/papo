@@ -30,8 +30,8 @@ pub use command::Command;
 pub use ctcp::Ctcp;
 pub use formatting::{Color, FormatBuilder, Formatted, Span, Style, strip_formatting};
 pub use id::{
-    AccountName, Address, ChannelName, InvalidIdentifier, Mask, MaskSource, MessageId, MetadataKey,
-    Nick, Origin,
+    AccountName, Address, AsAccount, AsChannel, AsNick, ChannelName, InvalidIdentifier, Mask,
+    MaskSource, MessageId, MetadataKey, NameParts, Nick, Origin,
 };
 pub use isupport::{
     Advertised, ChanModes, ClientTagDeny, Extban, Isupport, Limit, LimitValue, Prefix,
