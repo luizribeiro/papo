@@ -264,13 +264,13 @@ pub mod event {
     #[cfg(feature = "unstable")]
     pub use crate::event_impl::BouncerNetworkChanged;
     pub use crate::event_impl::{
-        AccountChanged, AwayChanged, BatchAbandonReason, CapsChanged, CasemappingChanged,
-        ChannelRenamed, ChannelSynced, Connected, CtcpQuery, CtcpReply, FeaturesChanged,
-        HostChanged, Invited, Joined, Kicked, MembersRefreshed, MetadataChanged, ModeChanged,
-        MonitorOffline, MonitorOnline, Motd, NickChanged, Notice, NoticeKind, Parted, Quit,
-        Reacted, ReadMarkerChanged, RealnameChanged, Redacted, ServerNotice, ServerNoticeKind,
-        ServerNoticeTarget, SplitServers, StandardReply, StandardReplyKind, TagMsg, TopicChanged,
-        TypingChanged, TypingReason, Warning,
+        AccountChanged, AwayChanged, BatchAbandonReason, Broadcast, BroadcastCtcp, BroadcastTagMsg,
+        CapsChanged, CasemappingChanged, ChannelRenamed, ChannelSynced, Connected, CtcpQuery,
+        CtcpReply, FeaturesChanged, HostChanged, Invited, Joined, Kicked, MembersRefreshed,
+        MetadataChanged, ModeChanged, MonitorOffline, MonitorOnline, Motd, NickChanged, Notice,
+        NoticeKind, Parted, Quit, Reacted, ReadMarkerChanged, RealnameChanged, Redacted,
+        ServerNotice, ServerNoticeKind, ServerNoticeTarget, SplitServers, StandardReply,
+        StandardReplyKind, TagMsg, TopicChanged, TypingChanged, TypingReason, Warning,
     };
     pub use crate::event_impl::{ConnectPhase, Connecting};
 }

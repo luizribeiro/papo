@@ -1,8 +1,83 @@
 use std::time::SystemTime;
 
-use crate::{Account, Conversation, MessageId, Typing};
+use crate::{Account, Conversation, Mask, MessageId, Typing};
 
 use super::{Authorship, Source, Tags, TypingReason};
+
+/// A server-wide audience addressed by `*` or a server mask.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Broadcast {
+    /// Every eligible client.
+    Everyone,
+    /// Clients selected by a server mask.
+    Mask(Mask),
+}
+
+/// A Client-to-Client Protocol query sent to a server-wide audience.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct BroadcastCtcp {
+    /// The user or server that sent the CTCP message.
+    pub actor: Source,
+    /// Whether the actor is this client's user.
+    pub authorship: Authorship,
+    /// The server-wide audience addressed by the message.
+    pub to: Broadcast,
+    /// The command with its original spelling.
+    pub command: String,
+    /// The command parameters, when present.
+    pub params: Option<String>,
+    /// The server-assigned message identifier, when supplied.
+    pub msgid: Option<MessageId>,
+    /// Valid server time, when supplied.
+    pub server_time: Option<SystemTime>,
+    /// Time at which the line was received.
+    pub received_at: SystemTime,
+    /// The actor's account state reported by `account-tag`.
+    pub account: Account,
+    /// All message tags in wire order.
+    pub tags: Tags,
+}
+
+/// A tag-only message sent to a server-wide audience.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct BroadcastTagMsg {
+    /// The user or server that sent the message.
+    pub actor: Source,
+    /// Whether the actor is this client's user.
+    pub authorship: Authorship,
+    /// The server-wide audience addressed by the message.
+    pub to: Broadcast,
+    /// Tags in wire order with last-wins lookup.
+    pub tags: Tags,
+}
+
+fn broadcast_origin(to: &Broadcast, actor: &Source) -> crate::Origin {
+    match to {
+        Broadcast::Mask(mask) => mask.origin(),
+        Broadcast::Everyone => actor
+            .nick()
+            .map_or(crate::Origin::NONE, crate::Nick::origin),
+    }
+}
+
+macro_rules! broadcast_origin {
+    ($($ty:ty),+ $(,)?) => {
+        $(
+            impl $ty {
+                /// Returns the client identity associated with this event.
+                #[must_use]
+                pub fn origin(&self) -> crate::Origin {
+                    broadcast_origin(&self.to, &self.actor)
+                }
+            }
+        )+
+    };
+}
+
+broadcast_origin!(BroadcastCtcp, BroadcastTagMsg);
 
 /// A reaction was added to or removed from a message.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -182,4 +257,45 @@ pub struct StandardReply {
     pub context: Vec<String>,
     /// Human-readable reply description.
     pub description: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Account, Authorship, Broadcast, BroadcastCtcp, BroadcastTagMsg, Tags};
+
+    #[test]
+    fn broadcast_payloads_report_the_client_origin() {
+        let origin = crate::Origin::__new(73);
+        let mapping = crate::Casemapping::default();
+        let actor = super::super::source::from_proto_with_origin(
+            papo_proto::Source::__user("oper", Some("staff"), Some("staff.example")),
+            mapping,
+            origin,
+        );
+        for to in [
+            Broadcast::Everyone,
+            Broadcast::Mask(origin.__mask(mapping, "$*.example.org")),
+        ] {
+            let event = BroadcastTagMsg {
+                actor: actor.clone(),
+                authorship: Authorship::Other,
+                to,
+                tags: Tags::default(),
+            };
+            assert_eq!(event.origin(), origin);
+        }
+        let ctcp = BroadcastCtcp {
+            actor,
+            authorship: Authorship::Other,
+            to: Broadcast::Mask(origin.__mask(mapping, "$*.example.org")),
+            command: "VERSION".into(),
+            params: None,
+            msgid: None,
+            server_time: None,
+            received_at: std::time::UNIX_EPOCH,
+            account: Account::Unknown,
+            tags: Tags::default(),
+        };
+        assert_eq!(ctcp.origin(), origin);
+    }
 }

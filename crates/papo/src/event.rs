@@ -33,7 +33,8 @@ pub use connection::{
     CapsChanged, CasemappingChanged, ConnectPhase, Connected, Connecting, FeaturesChanged, Motd,
 };
 pub use conversation::{
-    Reacted, ReadMarkerChanged, Redacted, StandardReply, StandardReplyKind, TagMsg, TypingChanged,
+    Broadcast, BroadcastCtcp, BroadcastTagMsg, Reacted, ReadMarkerChanged, Redacted, StandardReply,
+    StandardReplyKind, TagMsg, TypingChanged,
 };
 pub use papo_core::{BatchAbandonReason, TypingReason};
 #[cfg(feature = "unstable")]
@@ -1133,6 +1134,10 @@ pub enum Event {
     CtcpQuery(CtcpQuery),
     /// An incoming Client-to-Client Protocol reply.
     CtcpReply(CtcpReply),
+    /// A Client-to-Client Protocol query sent to a server-wide audience.
+    BroadcastCtcp(BroadcastCtcp),
+    /// A tag-only message sent to a server-wide audience.
+    BroadcastTagMsg(BroadcastTagMsg),
     /// A line papo did not turn into a typed event.
     ///
     /// This includes unknown numerics, vendor commands, and new drafts. Match it only for display
@@ -1230,6 +1235,8 @@ variant_accessors! { Event;
     (boxed ServerNotice, as_server_notice, ServerNotice),
     (CtcpQuery, as_ctcp_query, CtcpQuery),
     (CtcpReply, as_ctcp_reply, CtcpReply),
+    (BroadcastCtcp, as_broadcast_ctcp, BroadcastCtcp),
+    (BroadcastTagMsg, as_broadcast_tag_msg, BroadcastTagMsg),
     (boxed History, as_history, crate::HistoryPage),
     (Connected, as_connected, Connected),
     (Connecting, as_connecting, Connecting),
@@ -1276,6 +1283,8 @@ impl Event {
             Self::Notice(event) => event.msgid.clone(),
             Self::CtcpQuery(event) => event.msgid.clone(),
             Self::CtcpReply(event) => event.msgid.clone(),
+            Self::BroadcastCtcp(event) => event.msgid.clone(),
+            Self::BroadcastTagMsg(event) => event.tags.get("msgid").map(MessageId::from),
             Self::TagMsg(event) => event.tags.get("msgid").map(MessageId::from),
             Self::Reacted(event) => event.msgid.clone(),
             Self::Redacted(event) => event.msgid.clone(),
@@ -1304,6 +1313,8 @@ impl Event {
             Self::ServerNotice(event) => event.server_time,
             Self::CtcpQuery(event) => event.server_time,
             Self::CtcpReply(event) => event.server_time,
+            Self::BroadcastCtcp(event) => event.server_time,
+            Self::BroadcastTagMsg(event) => tagged_from_tags(&event.tags),
             Self::TagMsg(event) => tagged_from_tags(&event.tags),
             Self::Reacted(event) => event.server_time,
             Self::Redacted(event) => event.server_time,
@@ -1328,6 +1339,7 @@ impl Event {
             Self::ServerNotice(event) => Some(event.received_at),
             Self::CtcpQuery(event) => Some(event.received_at),
             Self::CtcpReply(event) => Some(event.received_at),
+            Self::BroadcastCtcp(event) => Some(event.received_at),
             Self::Reacted(event) => Some(event.received_at),
             Self::Redacted(event) => Some(event.received_at),
             Self::Joined(event) => Some(event.received_at),
