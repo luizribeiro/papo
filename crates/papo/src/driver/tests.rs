@@ -6510,6 +6510,19 @@ async fn chat_text_rejects_multiple_targets_before_writing() {
     let (_server, client, _events, driver) = scripted(config());
     let task = tokio::spawn(driver);
 
+    for target in ["*", "$*.example.org"] {
+        assert!(matches!(
+            within(client.privmsg(target, "private release notes")).await,
+            Err(Error::InvalidInput(crate::InvalidInput::InvalidName { name, .. }))
+                if name == target
+        ));
+    }
+    let mask = crate::Casemapping::default().mask("$*.example.org");
+    assert!(matches!(
+        within(client.privmsg(mask, "private release notes")).await,
+        Err(Error::InvalidInput(crate::InvalidInput::InvalidName { name, .. }))
+            if name == "$*.example.org"
+    ));
     assert!(matches!(
         within(client.privmsg("$*.example.org,alice", "private release notes")).await,
         Err(Error::InvalidInput(crate::InvalidInput::InvalidName { reason, .. }))
@@ -6708,6 +6721,13 @@ async fn typing_throttles_active_per_target_and_sends_terminal_states() {
     client_line(&mut server, b"CAP REQ :message-tags\r\n").await;
     server_line(&mut server, b":ergo.test CAP * ACK :message-tags\r\n").await;
     client_line(&mut server, b"CAP END\r\n").await;
+
+    for target in ["*", "$*.example.org"] {
+        assert!(matches!(
+            within(client.typing(target, Typing::Active)).await,
+            Err(Error::InvalidInput(_))
+        ));
+    }
 
     within(client.typing("#papo", Typing::Active))
         .await
