@@ -40,6 +40,8 @@ impl core::fmt::Debug for papo_proto::BuildError
 pub fn papo_proto::BuildError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo_proto::BuildError
 pub fn papo_proto::BuildError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_proto::BuildError
+pub fn papo_proto::BuildError::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo_proto::BuildError
 impl core::marker::StructuralPartialEq for papo_proto::BuildError
 impl core::marker::Freeze for papo_proto::BuildError
@@ -54,6 +56,7 @@ pub papo_proto::Casemapping::Ascii
 pub papo_proto::Casemapping::Rfc1459
 pub papo_proto::Casemapping::Rfc1459Strict
 impl papo_proto::Casemapping
+pub const fn papo_proto::Casemapping::as_str(self) -> &'static str
 pub fn papo_proto::Casemapping::fold(self, &str) -> alloc::borrow::Cow<'_, str>
 pub fn papo_proto::Casemapping::parse(&str) -> core::option::Option<Self>
 impl core::clone::Clone for papo_proto::Casemapping
@@ -461,8 +464,6 @@ impl papo_proto::AccountName
 pub const fn papo_proto::AccountName::casemapping(&self) -> papo_proto::Casemapping
 pub const fn papo_proto::AccountName::origin(&self) -> papo_proto::Origin
 impl papo_proto::AccountName
-pub fn papo_proto::AccountName::check(&self) -> core::result::Result<(), papo_proto::InvalidIdentifier>
-impl papo_proto::AccountName
 pub fn papo_proto::AccountName::into_string(self) -> alloc::string::String
 impl core::clone::Clone for papo_proto::AccountName
 pub fn papo_proto::AccountName::clone(&self) -> Self
@@ -700,25 +701,25 @@ impl<'a> core::marker::Unpin for papo_proto::Ctcp<'a>
 impl<'a> core::marker::UnsafeUnpin for papo_proto::Ctcp<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Ctcp<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Ctcp<'a>
-pub struct papo_proto::Extban<'a>
-pub papo_proto::Extban::prefix: core::option::Option<char>
-pub papo_proto::Extban::types: &'a str
-impl<'a> core::clone::Clone for papo_proto::Extban<'a>
-pub fn papo_proto::Extban<'a>::clone(&self) -> Self
-impl<'a> core::cmp::Eq for papo_proto::Extban<'a>
-impl<'a> core::cmp::PartialEq for papo_proto::Extban<'a>
-pub fn papo_proto::Extban<'a>::eq(&self, &Self) -> bool
-impl<'a> core::fmt::Debug for papo_proto::Extban<'a>
-pub fn papo_proto::Extban<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl<'a> core::marker::Copy for papo_proto::Extban<'a>
-impl<'a> core::marker::StructuralPartialEq for papo_proto::Extban<'a>
-impl<'a> core::marker::Freeze for papo_proto::Extban<'a>
-impl<'a> core::marker::Send for papo_proto::Extban<'a>
-impl<'a> core::marker::Sync for papo_proto::Extban<'a>
-impl<'a> core::marker::Unpin for papo_proto::Extban<'a>
-impl<'a> core::marker::UnsafeUnpin for papo_proto::Extban<'a>
-impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Extban<'a>
-impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Extban<'a>
+pub struct papo_proto::ExtbanSyntax<'a>
+pub papo_proto::ExtbanSyntax::prefix: core::option::Option<char>
+pub papo_proto::ExtbanSyntax::types: &'a str
+impl<'a> core::clone::Clone for papo_proto::ExtbanSyntax<'a>
+pub fn papo_proto::ExtbanSyntax<'a>::clone(&self) -> Self
+impl<'a> core::cmp::Eq for papo_proto::ExtbanSyntax<'a>
+impl<'a> core::cmp::PartialEq for papo_proto::ExtbanSyntax<'a>
+pub fn papo_proto::ExtbanSyntax<'a>::eq(&self, &Self) -> bool
+impl<'a> core::fmt::Debug for papo_proto::ExtbanSyntax<'a>
+pub fn papo_proto::ExtbanSyntax<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for papo_proto::ExtbanSyntax<'a>
+impl<'a> core::marker::StructuralPartialEq for papo_proto::ExtbanSyntax<'a>
+impl<'a> core::marker::Freeze for papo_proto::ExtbanSyntax<'a>
+impl<'a> core::marker::Send for papo_proto::ExtbanSyntax<'a>
+impl<'a> core::marker::Sync for papo_proto::ExtbanSyntax<'a>
+impl<'a> core::marker::Unpin for papo_proto::ExtbanSyntax<'a>
+impl<'a> core::marker::UnsafeUnpin for papo_proto::ExtbanSyntax<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::ExtbanSyntax<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::ExtbanSyntax<'a>
 pub struct papo_proto::FormatBuilder
 impl papo_proto::FormatBuilder
 pub fn papo_proto::FormatBuilder::as_str(&self) -> &str
@@ -787,7 +788,7 @@ pub fn papo_proto::Isupport::chathistory(&self) -> core::option::Option<papo_pro
 pub fn papo_proto::Isupport::clienttagdeny(&self) -> papo_proto::ClientTagDeny<'_>
 pub fn papo_proto::Isupport::elist(&self) -> core::option::Option<&str>
 pub fn papo_proto::Isupport::excepts(&self) -> core::option::Option<char>
-pub fn papo_proto::Isupport::extban(&self) -> core::option::Option<papo_proto::Extban<'_>>
+pub fn papo_proto::Isupport::extban(&self) -> core::option::Option<papo_proto::ExtbanSyntax<'_>>
 pub fn papo_proto::Isupport::get(&self, &str) -> papo_proto::Advertised<'_>
 pub fn papo_proto::Isupport::icon(&self) -> core::option::Option<&str>
 pub fn papo_proto::Isupport::icon_url(&self, u32) -> core::option::Option<alloc::borrow::Cow<'_, str>>
@@ -951,7 +952,6 @@ impl papo_proto::Mask
 pub const fn papo_proto::Mask::casemapping(&self) -> papo_proto::Casemapping
 pub const fn papo_proto::Mask::origin(&self) -> papo_proto::Origin
 impl papo_proto::Mask
-pub fn papo_proto::Mask::check(&self) -> core::result::Result<(), papo_proto::InvalidIdentifier>
 pub fn papo_proto::Mask::exact(&impl MaskSource) -> core::option::Option<Self>
 pub fn papo_proto::Mask::for_host(&impl MaskSource) -> core::option::Option<Self>
 pub fn papo_proto::Mask::for_nick(&papo_proto::Nick) -> Self
