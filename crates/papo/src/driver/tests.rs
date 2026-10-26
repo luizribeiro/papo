@@ -5919,7 +5919,7 @@ async fn typed_requests_match_unlabelled_responses() {
 
     let list = tokio::spawn({
         let client = client.clone();
-        async move { client.list(crate::ListFilter::default()).await }
+        async move { client.list().channels(std::iter::empty::<&str>()).await }
     });
     client_line(&mut server, b"LIST\r\n").await;
     server_line(&mut server, b":ergo.test 322 papo-driver #papo 42 :Ergonomic IRC\r\n:ergo.test 323 papo-driver :End of /LIST\r\n").await;

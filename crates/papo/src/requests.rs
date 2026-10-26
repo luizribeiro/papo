@@ -175,16 +175,6 @@ impl ListFilter {
             .collect();
         self
     }
-
-    pub(crate) fn parameter(&self) -> Option<String> {
-        (!self.channels.is_empty()).then(|| {
-            self.channels
-                .iter()
-                .map(AsRef::as_ref)
-                .collect::<Vec<_>>()
-                .join(",")
-        })
-    }
 }
 
 /// One channel returned by `LIST`.
@@ -429,20 +419,8 @@ mod tests {
     use papo_core::{Account, Away, Config, Event, ResponseMatcher, Session};
     use papo_proto::{Casemapping, Isupport, Line};
 
-    use super::{ListFilter, empty, list_entries, plain_who, whois_channel};
+    use super::{empty, list_entries, plain_who, whois_channel};
     use crate::Error;
-
-    #[test]
-    fn list_filter_encodes_empty_and_comma_separated_parameters() {
-        assert_eq!(ListFilter::default().parameter(), None);
-        assert_eq!(
-            ListFilter::default()
-                .channels(["#papo", "#rust-*", "##chat"])
-                .parameter()
-                .as_deref(),
-            Some("#papo,#rust-*,##chat")
-        );
-    }
 
     #[test]
     fn whois_channels_separate_advertised_membership_prefixes() {

@@ -1458,12 +1458,7 @@ impl Client {
         })
     }
 
-    /// Starts a configurable request for visible channels.
-    pub fn list_request(&self) -> crate::ListRequest {
-        crate::ListRequest::new(self.clone())
-    }
-
-    /// Lists visible channels matching `filter`.
+    /// Starts a request for visible channels.
     ///
     /// At most 10,000 entries are retained.
     ///
@@ -1472,18 +1467,8 @@ impl Client {
     /// Returns [`Error::Server`] with [`crate::Refusal::TryAgain`] or
     /// [`crate::Refusal::Other`] when refused. It can also return [`Error::InvalidInput`],
     /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
-    pub fn list(&self, filter: crate::ListFilter) -> crate::RequestFuture<Vec<crate::ListEntry>> {
-        let client = self.clone();
-        crate::RequestFuture::new(async move {
-            let message = match filter.parameter() {
-                Some(parameter) => Line::new("LIST").with_params([parameter]),
-                None => Line::new("LIST"),
-            };
-            let response = client
-                .correlated(message, Some(ResponseMatcher::List))
-                .await?;
-            crate::requests::list(response, client.state().isupport().inner(), client.origin())
-        })
+    pub fn list(&self) -> crate::ListRequest {
+        crate::ListRequest::new(self.clone())
     }
 
     /// Requests a clean disconnect and waits for the peer to close.

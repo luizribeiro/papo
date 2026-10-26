@@ -1,6 +1,6 @@
 use std::{env, fs, time::Duration};
 
-use papo::{ConnectErrorKind, Endpoint, Event, ListFilter, WebIrc, isupport::Advertised};
+use papo::{ConnectErrorKind, Endpoint, Event, WebIrc, isupport::Advertised};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
@@ -250,7 +250,7 @@ async fn channel_list(s: Scenario) -> papo_testing::Result<()> {
     alice.join(&channel).await?;
     alice.set_topic(&channel, "release coordination").await?;
 
-    let listed = alice.list(ListFilter::default()).await?;
+    let listed = alice.list().await?;
     let entry = listed
         .iter()
         .find(|entry| entry.name.as_ref() == channel)
@@ -285,13 +285,14 @@ async fn elist_filters(s: Scenario) -> papo_testing::Result<()> {
     }
     let mapping = alice.state().casemapping();
     let listed = alice
-        .list(ListFilter::default().channels([
+        .list()
+        .channels([
             mapping.mask(&channel),
             mapping.mask(">1"),
             mapping.mask("<3"),
             mapping.mask("C<10"),
             mapping.mask("T<10"),
-        ]))
+        ])
         .await?;
     let entry = listed
         .iter()

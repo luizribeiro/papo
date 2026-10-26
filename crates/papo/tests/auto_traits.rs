@@ -5,8 +5,8 @@ use std::{future::IntoFuture, time::SystemTime};
 use futures_core::Stream;
 use papo::{
     Builder, Client, Driver, Error, Event, Events, History, HistoryRequest, JoinChannel, Line,
-    ListFilter, ListRequest, Message as ChatMessage, MessageId, NewAccount, RequestFuture,
-    SendMessage, SetModes, State,
+    ListRequest, Message as ChatMessage, MessageId, NewAccount, RequestFuture, SendMessage,
+    SetModes, State,
 };
 use papo_proto::Typing;
 
@@ -94,8 +94,7 @@ fn request_futures_are_send() {
     assert_send_static(client.mode("#papo").add('t').into_future());
     assert_send_static(client.set_topic("#papo", "Ergonomic IRC"));
     assert_send_static(client.clear_topic(mapping.channel("#papo")));
-    assert_send_static(client.list(ListFilter::default()));
-    assert_send_static(client.list_request().into_future());
+    assert_send_static(client.list().into_future());
     assert_send_static(client.quit("trait check complete"));
 
     assert_extension_futures_are_send(&client, mapping);

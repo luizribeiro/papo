@@ -19,10 +19,9 @@ async fn arbitrary_action_builder_input_is_rejected_or_emits_valid_lines() {
             let first = first.clone();
             move |client| {
                 action(
-                    client.list(
-                        crate::ListFilter::default()
-                            .channels([crate::Casemapping::default().mask(first)]),
-                    ),
+                    client
+                        .list()
+                        .channels([crate::Casemapping::default().mask(first)]),
                 )
             }
         })

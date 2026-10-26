@@ -5,7 +5,7 @@ mod support;
 
 use support::within;
 
-use papo::{Client, Endpoint, Error, Event, ListFilter};
+use papo::{Client, Endpoint, Error, Event};
 use papo_test_server::{from_env, unique};
 
 #[tokio::test(flavor = "current_thread")]
@@ -60,16 +60,9 @@ async fn typed_requests_round_trip_against_ergo() {
             client.state().channel(&channel).unwrap().topic(),
             Some("Typed requests on Ergo")
         );
-        assert!(
-            client
-                .list(ListFilter::default())
-                .await
-                .unwrap()
-                .iter()
-                .any(|entry| {
-                    entry.name == channel.as_str() && entry.topic == "Typed requests on Ergo"
-                })
-        );
+        assert!(client.list().await.unwrap().iter().any(|entry| {
+            entry.name == channel.as_str() && entry.topic == "Typed requests on Ergo"
+        }));
 
         let missing = unique("papo-missing");
         assert!(matches!(
