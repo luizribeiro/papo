@@ -1081,31 +1081,35 @@ impl Client {
 
     /// Removes `nick` from `channel`, omitting an empty `reason` from the wire.
     ///
+    /// ```compile_fail
+    /// # fn swapped(
+    /// #     client: &papo::Client,
+    /// #     nick: &papo::Nick,
+    /// #     channel: &papo::ChannelName,
+    /// # ) {
+    /// let _ = client.kick(nick, channel, "spam");
+    /// # }
+    /// ```
+    ///
     /// # Errors
     ///
     /// Returns a typed server refusal, invalid-input error, timeout, or disconnect.
     pub fn kick(
         &self,
-        channel: impl crate::Target,
-        nick: impl crate::Target,
+        channel: impl crate::AsChannel,
+        nick: impl crate::AsNick,
         reason: impl AsRef<str>,
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
-        let (channel, channel_error) = self.target_input(channel);
-        let (nick, nick_error) = self.target_input(nick);
-        let state = self.state();
-        let channel = state.channel_name(channel);
-        let nick = state.nickname(nick);
+        let channel = crate::AsChannel::__parts(&channel).into_owned();
+        let nick = crate::AsNick::__parts(&nick).into_owned();
         let reason = reason.as_ref().to_owned();
         crate::RequestFuture::new(async move {
-            if let Some(error) = channel_error.or(nick_error) {
-                return Err(error.into());
-            }
+            let channel = client.resolve(crate::target::Role::Channel("kick: channel"), channel)?;
+            let nick = client.resolve(crate::target::Role::Nick("kick: nick"), nick)?;
             let state = client.state();
-            channel
-                .check(state.isupport().inner())
-                .and_then(|()| nick.check(state.isupport().inner()))
-                .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
+            let channel = state.channel_name(channel);
+            let nick = state.nickname(nick);
             validate_kick_reason(&state, &reason)?;
             let mut params = vec![channel.to_string(), nick.to_string()];
             if !reason.is_empty() {
@@ -1135,28 +1139,23 @@ impl Client {
     /// refusal and the errors documented by [`Client::kick`] are returned before an outcome.
     pub fn kickban(
         &self,
-        channel: impl crate::Target,
-        nick: impl crate::Target,
+        channel: impl crate::AsChannel,
+        nick: impl crate::AsNick,
         reason: impl AsRef<str>,
         ban: impl Into<crate::BanTarget>,
     ) -> crate::RequestFuture<crate::KickbanOutcome> {
         let client = self.clone();
-        let (channel, channel_error) = self.target_input(channel);
-        let (nick, nick_error) = self.target_input(nick);
-        let state = self.state();
-        let channel = state.channel_name(channel);
-        let nick = state.nickname(nick);
+        let channel = crate::AsChannel::__parts(&channel).into_owned();
+        let nick = crate::AsNick::__parts(&nick).into_owned();
         let reason = reason.as_ref().to_owned();
         let ban = ban.into();
         crate::RequestFuture::new(async move {
-            if let Some(error) = channel_error.or(nick_error) {
-                return Err(error.into());
-            }
+            let channel =
+                client.resolve(crate::target::Role::Channel("kickban: channel"), channel)?;
+            let nick = client.resolve(crate::target::Role::Nick("kickban: nick"), nick)?;
             let state = client.state();
-            channel
-                .check(state.isupport().inner())
-                .and_then(|()| nick.check(state.isupport().inner()))
-                .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
+            let channel = state.channel_name(channel);
+            let nick = state.nickname(nick);
             validate_kick_reason(&state, &reason)?;
             let ban = ban.resolve(&state)?;
             let already_set = crate::mode::tracked_ban(&state, &channel, &ban);
