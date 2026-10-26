@@ -5,7 +5,7 @@ use std::{
     ops::Deref,
 };
 
-use papo_proto::{Line, LineRef, Nick, Param};
+use papo_proto::{Line, LineRef, Param};
 use web_time::Instant;
 use zeroize::{Zeroize, Zeroizing};
 
@@ -177,7 +177,7 @@ pub struct BouncerNetwork {
     /// Whether the upstream connection uses TLS.
     pub tls: Option<bool>,
     /// Connection nickname.
-    pub nickname: Option<Nick>,
+    pub nick: Option<String>,
     /// Connection username.
     pub username: Option<String>,
     /// Connection real name.
@@ -231,7 +231,7 @@ impl BouncerNetwork {
             host: None,
             port: None,
             tls: None,
-            nickname: None,
+            nick: None,
             username: None,
             realname: None,
             error: None,
@@ -239,11 +239,7 @@ impl BouncerNetwork {
         }
     }
 
-    pub(crate) fn apply(
-        &mut self,
-        attributes: BTreeMap<String, Option<String>>,
-        casemapping: crate::Names,
-    ) {
+    pub(crate) fn apply(&mut self, attributes: BTreeMap<String, Option<String>>) {
         for (key, value) in attributes {
             match key.as_str() {
                 "name" => self.name = value,
@@ -257,7 +253,7 @@ impl BouncerNetwork {
                         _ => None,
                     });
                 }
-                "nickname" => self.nickname = value.map(|value| casemapping.nick(value)),
+                "nickname" => self.nick = value,
                 "username" => self.username = value,
                 "realname" => self.realname = value,
                 "error" => self.error = value,
@@ -291,7 +287,7 @@ pub struct NetworkConfig {
     name: Option<String>,
     port: Option<u16>,
     tls: Option<bool>,
-    nickname: Option<Nick>,
+    nick: Option<String>,
     username: Option<String>,
     realname: Option<String>,
     password: Option<Secret>,
@@ -327,7 +323,7 @@ impl NetworkConfig {
             name: None,
             port: None,
             tls: None,
-            nickname: None,
+            nick: None,
             username: None,
             realname: None,
             password: None,
@@ -357,8 +353,8 @@ impl NetworkConfig {
 
     /// Sets the connection nickname.
     #[must_use]
-    pub fn nickname(mut self, nickname: impl Into<Nick>) -> Self {
-        self.nickname = Some(nickname.into());
+    pub fn nick(mut self, nick: impl AsRef<str>) -> Self {
+        self.nick = Some(nick.as_ref().to_owned());
         self
     }
 
@@ -402,7 +398,7 @@ impl NetworkConfig {
                 .expect("writing to a String cannot fail");
         }
         for (key, value) in [
-            ("nickname", self.nickname.as_deref()),
+            ("nickname", self.nick.as_deref()),
             ("username", self.username.as_deref()),
             ("realname", self.realname.as_deref()),
         ] {
@@ -651,17 +647,14 @@ mod tests {
         .unwrap();
         let update = NetworkUpdate::parse(&message).unwrap();
         let mut network = BouncerNetwork::empty(update.id);
-        network.apply(update.attributes, crate::Names::default());
+        network.apply(update.attributes);
         assert_eq!(network.name.as_deref(), Some("My Network"));
         assert_eq!(network.state, Some(NetworkState::Connected));
         assert_eq!((network.port, network.tls), (Some(6697), Some(true)));
         assert_eq!(network.other["vendor.example/color"], "blue");
 
         let removal = LineRef::parse("BOUNCER NETWORK 42 name;vendor.example/color").unwrap();
-        network.apply(
-            NetworkUpdate::parse(&removal).unwrap().attributes,
-            crate::Names::default(),
-        );
+        network.apply(NetworkUpdate::parse(&removal).unwrap().attributes);
         assert_eq!(network.name, None);
         assert!(network.other.is_empty());
     }
@@ -674,7 +667,7 @@ mod tests {
         .unwrap();
         let update = NetworkUpdate::parse(&message).unwrap();
         let mut network = BouncerNetwork::empty(update.id);
-        network.apply(update.attributes, crate::Names::default());
+        network.apply(update.attributes);
         assert_eq!(network.other.get("vendor.example/color").unwrap(), "blue");
         assert!(!network.other.contains_key("pass"));
         assert!(!format!("{network:?}").contains("server-supplied-password"));

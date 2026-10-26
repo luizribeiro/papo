@@ -10,7 +10,7 @@ async fn arbitrary_bouncer_and_history_input_is_rejected_or_valid() {
                 .name(second.clone())
                 .port(u16::try_from(first.len() % 65_536).unwrap())
                 .tls(first.len() % 2 == 0)
-                .nickname(crate::Casemapping::default().nick(third.clone()))
+                .nick(&third)
                 .username(second.clone())
                 .realname(third.clone())
                 .password(first.clone())

@@ -33,7 +33,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let config = NetworkConfig::from_url(&upstream_url)?
         .name("second")
-        .nickname(manager.state().nickname(&nick));
+        .nick(&nick);
     let id = manager.bouncer().add(config).await?;
     while let Some(event) = manager_events.next().await {
         if let Event::BouncerNetworkChanged(changed) = event

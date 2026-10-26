@@ -1057,8 +1057,6 @@ impl State {
             .into_values()
             .map(|seen| (NameKey::new(&seen.target, mapping), seen))
             .collect();
-        #[cfg(feature = "unstable")]
-        self.refold_bouncer_networks(mapping);
         self.metadata = std::mem::take(&mut self.metadata)
             .into_iter()
             .map(|(target, values)| (NameKey::new(target.original(), mapping), values))

@@ -1,4 +1,4 @@
-use papo_proto::{Casemapping, LineRef};
+use papo_proto::LineRef;
 
 use crate::{BouncerNetwork, Event, Outbox, StateLimit, bouncer::NetworkUpdate};
 
@@ -41,19 +41,11 @@ impl State {
             .bouncer_networks
             .entry(update.id.clone())
             .or_insert_with(|| BouncerNetwork::empty(update.id.clone()));
-        network.apply(update.attributes, self.casemapping);
+        network.apply(update.attributes);
         outbox.event(Event::BouncerNetworkChanged {
             id: update.id,
             network: Some(network.clone()),
         });
         true
-    }
-
-    pub(super) fn refold_bouncer_networks(&mut self, mapping: Casemapping) {
-        for network in self.bouncer_networks.values_mut() {
-            if let Some(nick) = &mut network.nickname {
-                *nick = self.casemapping.origin().__nick(mapping, nick.as_ref());
-            }
-        }
     }
 }

@@ -77,7 +77,7 @@ pub(super) async fn bouncer_networks(s: Scenario) -> papo_testing::Result<()> {
         .port(upstream.port())
         .tls(false)
         .name(name.clone())
-        .nickname(
+        .nick(
             alice
                 .state()
                 .casemapping()
@@ -99,7 +99,7 @@ pub(super) async fn bouncer_networks(s: Scenario) -> papo_testing::Result<()> {
         .port(upstream.port())
         .tls(false)
         .name(changed_name.clone())
-        .nickname(
+        .nick(
             alice
                 .state()
                 .casemapping()

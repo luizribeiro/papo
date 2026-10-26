@@ -198,7 +198,7 @@ async fn bouncer_notifications_are_single_source(s: Scenario) -> papo_testing::R
             .port(upstream.port())
             .tls(false)
             .name(name.clone())
-            .nickname(papo_testing::nick(papo::Casemapping::default(), name))
+            .nick(name)
     };
     let added = control.bouncer().add(config("managed-change")).await?;
     let changed = control

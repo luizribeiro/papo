@@ -8,7 +8,6 @@ use std::collections::BTreeMap;
 use papo_core::{
     CloseKind, Config, Event, Feature, NetworkConfig, NetworkId, NetworkState, StateLimit,
 };
-use papo_proto::Casemapping;
 use support::{Transcript, assert_session_debug_redacts, queue_debug_marker};
 
 #[test]
@@ -154,7 +153,7 @@ fn sends_each_bouncer_network_operation() {
         .name("Libera Chat")
         .port(6697)
         .tls(true)
-        .nickname(Casemapping::default().nick("alice"));
+        .nick("alice");
     registered()
         .update(|session| {
             session
@@ -263,8 +262,7 @@ fn parses_each_network_attribute_and_rejects_nearby_commands() {
                     && network.host.as_deref() == Some("irc.example.org")
                     && network.port == Some(6697)
                     && network.tls == Some(false)
-                    && network.nickname.as_deref() == Some("alice")
-                    && network.nickname.as_ref().is_some_and(|nick| nick.casemapping() == Casemapping::Rfc1459)
+                    && network.nick.as_deref() == Some("alice")
                     && network.username.as_deref() == Some("alice_")
                     && network.realname.as_deref() == Some("Alice Example")
                     && network.error.as_deref() == Some("Connection refused")
@@ -286,7 +284,7 @@ fn parses_each_network_attribute_and_rejects_nearby_commands() {
 }
 
 #[test]
-fn refolds_cached_network_nicknames_when_casemapping_changes() {
+fn preserves_upstream_nickname_text_when_casemapping_changes() {
     registered()
         .server("BOUNCER NETWORK 42 nickname=Alice[bot]")
         .event(|event| matches!(event, Event::BouncerNetworkChanged { .. }))
@@ -298,11 +296,10 @@ fn refolds_cached_network_nicknames_when_casemapping_changes() {
                 .bouncer_networks()
                 .next()
                 .unwrap()
-                .nickname
+                .nick
                 .as_ref()
                 .unwrap();
-            assert_eq!(nick.casemapping(), Casemapping::Ascii);
-            assert_ne!(nick, "alice{bot}");
+            assert_eq!(nick, "Alice[bot]");
         })
         .ignore_rest();
 }
