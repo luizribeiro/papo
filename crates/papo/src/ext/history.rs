@@ -1256,6 +1256,7 @@ mod tests {
             if message.authorship == crate::Authorship::Unknown && !message.is_own()));
         assert!(matches!(&items[3], PageEvent::NickChanged(changed)
             if changed.actor.nick() == "papo-old" && changed.new == "papo"
+                && changed.channels == ["#papo"]
                 && changed.authorship == crate::Authorship::Own));
         assert!(matches!(&items[4], PageEvent::Quit(quit)
             if quit.channels == ["#papo"]
