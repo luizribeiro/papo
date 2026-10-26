@@ -5,7 +5,7 @@ use std::time::SystemTime;
 use papo_proto::Nick;
 use papo_proto::{
     Casemapping, ChannelName, Ctcp as ProtoCtcp, Isupport, Line as ProtoLine, LineRef, MessageId,
-    strip_formatting, time,
+    Prefix, strip_formatting, time,
 };
 
 use crate::{Client, Disconnected, ModeAction, ModeArg, ModeChange};
@@ -103,10 +103,10 @@ pub struct CtcpQuery {
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
     pub conversation: Conversation,
-    /// `STATUSMSG` prefixes removed from the wire address, in wire order.
+    /// The lowest-ranked `STATUSMSG` prefix on the wire address.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
-    pub status: Option<Vec<char>>,
+    pub status: Option<Prefix>,
     /// The command with its original spelling.
     pub command: String,
     /// The command parameters, when present.
@@ -120,6 +120,7 @@ pub struct CtcpQuery {
     /// All message tags in wire order.
     pub tags: Tags,
     pub(crate) reply_token: Option<papo_core::ReplyToken>,
+    pub(crate) return_address: String,
 }
 
 /// An incoming Client-to-Client Protocol reply carried by `NOTICE`.
@@ -134,10 +135,10 @@ pub struct CtcpReply {
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
     pub conversation: Conversation,
-    /// `STATUSMSG` prefixes removed from the wire address, in wire order.
+    /// The lowest-ranked `STATUSMSG` prefix on the wire address.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
-    pub status: Option<Vec<char>>,
+    pub status: Option<Prefix>,
     /// The command with its original spelling.
     pub command: String,
     /// The command parameters, when present.
@@ -151,6 +152,7 @@ pub struct CtcpReply {
     /// All message tags in wire order.
     pub tags: Tags,
     pub(crate) reply_token: Option<papo_core::ReplyToken>,
+    pub(crate) return_address: String,
 }
 
 macro_rules! ctcp_return_address {
@@ -243,10 +245,10 @@ pub struct Message {
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
     pub conversation: Conversation,
-    /// `STATUSMSG` prefixes removed from the wire address, in wire order.
+    /// The lowest-ranked `STATUSMSG` prefix on the wire address.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
-    pub status: Option<Vec<char>>,
+    pub status: Option<Prefix>,
     /// Display text with IRC formatting removed.
     pub text: String,
     /// Text with IRC formatting retained and the CTCP wrapper removed from an `ACTION`.
@@ -272,6 +274,7 @@ pub struct Message {
     /// All message tags in wire order.
     pub tags: Tags,
     pub(crate) reply_token: Option<papo_core::ReplyToken>,
+    pub(crate) return_address: String,
 }
 
 /// An incoming `NOTICE` from another user.
@@ -286,10 +289,10 @@ pub struct Notice {
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
     pub conversation: Conversation,
-    /// `STATUSMSG` prefixes removed from the wire address, in wire order.
+    /// The lowest-ranked `STATUSMSG` prefix on the wire address.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
-    pub status: Option<Vec<char>>,
+    pub status: Option<Prefix>,
     /// Display text with IRC formatting removed.
     pub text: String,
     /// Text with IRC formatting retained and the CTCP wrapper removed from an `ACTION`.
@@ -315,6 +318,7 @@ pub struct Notice {
     /// All message tags in wire order.
     pub tags: Tags,
     pub(crate) reply_token: Option<papo_core::ReplyToken>,
+    pub(crate) return_address: String,
 }
 
 /// A notice or broadcast sent by a server or to a server-wide audience.
@@ -329,10 +333,10 @@ pub struct ServerNotice {
     pub kind: ServerNoticeKind,
     /// The notice's addressed audience.
     pub to: Audience,
-    /// `STATUSMSG` prefixes removed from a channel audience, in wire order.
+    /// The lowest-ranked `STATUSMSG` prefix on a channel audience.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
-    pub status: Option<Vec<char>>,
+    pub status: Option<Prefix>,
     /// Display text with IRC formatting removed.
     pub text: String,
     /// Text with IRC formatting retained.
@@ -343,13 +347,15 @@ pub struct ServerNotice {
     pub received_at: SystemTime,
     /// All message tags in wire order.
     pub tags: Tags,
+    pub(crate) return_address: String,
 }
 
 struct MessageMetadata {
     actor: Source,
     authorship: Authorship,
     conversation: Conversation,
-    status: Option<Vec<char>>,
+    status: Option<Prefix>,
+    return_address: String,
     msgid: Option<MessageId>,
     server_time: Option<SystemTime>,
     received_at: SystemTime,
@@ -366,7 +372,7 @@ fn ctcp_from_line(
     batch_type: Option<&str>,
     authorship: Authorship,
     conversation: Conversation,
-    status: Option<Vec<char>>,
+    status: Option<Prefix>,
     isupport: &Isupport,
     account_tag_enabled: bool,
     prove_not_bot: bool,
@@ -407,6 +413,7 @@ fn ctcp_from_line(
             received_at: metadata.received_at,
             tags: metadata.tags,
             reply_token: metadata.reply_token,
+            return_address: metadata.return_address,
         }))
     } else {
         Ok(Event::CtcpQuery(CtcpQuery {
@@ -421,6 +428,7 @@ fn ctcp_from_line(
             received_at: metadata.received_at,
             tags: metadata.tags,
             reply_token: metadata.reply_token,
+            return_address: metadata.return_address,
         }))
     }
 }
@@ -528,7 +536,7 @@ pub(crate) fn incoming_from_core(
         return Event::Other(received.into_line());
     }
     let conversation = received.conversation().cloned();
-    let status = received.status().map(<[char]>::to_vec);
+    let status = received.status();
     let channel_context = received.channel_context().cloned();
     let authorship = Authorship::from_core(received.authorship());
     let (raw, batch_type) = received.into_parts();
@@ -634,7 +642,7 @@ impl Message {
         batch_type: Option<&str>,
         authorship: Authorship,
         conversation: Conversation,
-        status: Option<Vec<char>>,
+        status: Option<Prefix>,
         channel_context: Option<ChannelName>,
         isupport: &Isupport,
         account_tag_enabled: bool,
@@ -693,6 +701,7 @@ impl Message {
             relayed_by: metadata.relayed_by,
             tags: metadata.tags,
             reply_token: metadata.reply_token,
+            return_address: metadata.return_address,
         })
     }
 
@@ -739,7 +748,7 @@ impl Notice {
         batch_type: Option<&str>,
         authorship: Authorship,
         conversation: Conversation,
-        status: Option<Vec<char>>,
+        status: Option<Prefix>,
         channel_context: Option<ChannelName>,
         isupport: &Isupport,
         account_tag_enabled: bool,
@@ -798,6 +807,7 @@ impl Notice {
             relayed_by: metadata.relayed_by,
             tags: metadata.tags,
             reply_token: metadata.reply_token,
+            return_address: metadata.return_address,
         })
     }
 
@@ -808,12 +818,20 @@ impl Notice {
 }
 
 impl ServerNotice {
+    /// Returns the address that reaches the recipients of the notice.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
+    #[must_use]
+    pub fn return_address(&self) -> crate::MessageRef {
+        crate::message_ref::from_server_notice(self)
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn from_line(
         raw: ProtoLine,
         authorship: Authorship,
         conversation: Option<&Conversation>,
-        status: Option<Vec<char>>,
+        status: Option<Prefix>,
         origin: crate::Origin,
         isupport: &Isupport,
         account_tag_enabled: bool,
@@ -880,6 +898,7 @@ impl ServerNotice {
             server_time: envelope.server_time,
             received_at: envelope.received_at,
             tags: Tags::from_message(&message),
+            return_address: message.param(0).unwrap_or("*").to_owned(),
         })
     }
 
@@ -895,7 +914,7 @@ fn message_event_from_line(
     batch_type: Option<&str>,
     authorship: Authorship,
     conversation: Conversation,
-    status: Option<Vec<char>>,
+    status: Option<Prefix>,
     channel_context: Option<ChannelName>,
     isupport: &Isupport,
     account_tag_enabled: bool,
@@ -923,7 +942,7 @@ fn message_event_from_line(
         batch_type,
         authorship,
         conversation.clone(),
-        status.clone(),
+        status,
         isupport,
         account_tag_enabled,
         prove_not_bot,
@@ -1042,7 +1061,7 @@ fn message_metadata(
     _batch_type: Option<&str>,
     authorship: Authorship,
     conversation: Conversation,
-    status: Option<Vec<char>>,
+    status: Option<Prefix>,
     isupport: &Isupport,
     account_tag_enabled: bool,
     prove_not_bot: bool,
@@ -1076,11 +1095,13 @@ fn message_metadata(
     #[cfg(feature = "unstable")]
     let relayed_by = tag_owned(message, &[crate::cap::RELAYMSG.as_str()])
         .map(|nick| origin.__nick(isupport.casemapping(), nick));
+    let return_address = return_address(message, &conversation);
     Some(MessageMetadata {
         actor,
         authorship,
         conversation,
         status,
+        return_address,
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
@@ -1090,6 +1111,14 @@ fn message_metadata(
         tags,
         reply_token,
     })
+}
+
+pub(crate) fn return_address(message: &LineRef<'_>, conversation: &Conversation) -> String {
+    match conversation {
+        Conversation::Channel(channel) => message.param(0).unwrap_or(channel).to_owned(),
+        Conversation::Private(nick) => nick.to_string(),
+        _ => message.param(0).unwrap_or("*").to_owned(),
+    }
 }
 
 fn account_from_tag(
@@ -1556,25 +1585,30 @@ pub(crate) fn from_core(
             return CoreEvent::Line(message);
         }
         papo_core::Event::MultilineMessage(message) => return CoreEvent::Line(message.message),
-        papo_core::Event::TypingChanged(change) => Event::TypingChanged(TypingChanged {
-            actor: match source::user_from_prefix(
-                &change.actor,
-                casemapping,
-                origin,
-                Account::Unknown,
-                None,
-                None,
-            ) {
-                Some(actor) => actor,
-                None => return CoreEvent::Unknown,
-            },
-            authorship: Authorship::from_core(change.authorship),
-            conversation: change.conversation,
-            status: change.status,
-            state: change.state,
-            reason: change.reason,
-        }),
+        papo_core::Event::TypingChanged(change) => {
+            let return_address = change.return_address();
+            Event::TypingChanged(TypingChanged {
+                actor: match source::user_from_prefix(
+                    &change.actor,
+                    casemapping,
+                    origin,
+                    Account::Unknown,
+                    None,
+                    None,
+                ) {
+                    Some(actor) => actor,
+                    None => return CoreEvent::Unknown,
+                },
+                authorship: Authorship::from_core(change.authorship),
+                conversation: change.conversation,
+                status: change.status,
+                return_address,
+                state: change.state,
+                reason: change.reason,
+            })
+        }
         papo_core::Event::TagMessage(message) => {
+            let return_address = message.__return_address().to_owned();
             let envelope = map_envelope(&message.envelope);
             let tags = Tags::from_pairs(message.tags);
             let Some(actor) = source::user_from_prefix(
@@ -1598,6 +1632,7 @@ pub(crate) fn from_core(
                 authorship: Authorship::from_core(message.authorship),
                 conversation: message.conversation,
                 status: message.status,
+                return_address,
                 tags,
             };
             let reply_to = tag
@@ -1622,6 +1657,7 @@ pub(crate) fn from_core(
                     authorship: tag.authorship,
                     conversation: tag.conversation,
                     status: tag.status,
+                    return_address: tag.return_address,
                     reacts_to: msgid.into(),
                     reaction: reaction.to_owned(),
                     action: if removed {
@@ -1641,6 +1677,7 @@ pub(crate) fn from_core(
                     authorship: tag.authorship,
                     conversation: tag.conversation,
                     status: tag.status,
+                    return_address: tag.return_address,
                     state,
                     reason: TypingReason::Notified,
                 })
@@ -1649,6 +1686,7 @@ pub(crate) fn from_core(
             }
         }
         papo_core::Event::Redacted(redacted) => {
+            let return_address = redacted.__return_address().to_owned();
             let envelope = map_envelope(&redacted.envelope);
             Event::Redacted(Redacted {
                 msgid: envelope.msgid,
@@ -1669,6 +1707,7 @@ pub(crate) fn from_core(
                 authorship: Authorship::from_core(redacted.authorship),
                 conversation: redacted.conversation,
                 status: redacted.status,
+                return_address,
                 redacts: redacted.msgid.into(),
                 reason: redacted.reason.filter(|reason| !reason.is_empty()),
             })
@@ -2515,17 +2554,17 @@ mod tests {
             (
                 ":irc.example.net NOTICE @#ops :[Knock] by mallory!~m@203.0.113.9 (let me in)",
                 "#ops",
-                &['@'][..],
+                '@',
             ),
             (
                 ":irc.example NOTICE @#chan :<mallory:#chan> text",
                 "#chan",
-                &['@'][..],
+                '@',
             ),
             (
                 ":irc.example NOTICE @+#ops :Operators and voiced users only",
                 "#ops",
-                &['@', '+'][..],
+                '+',
             ),
         ] {
             let event = parse_event(
@@ -2536,7 +2575,7 @@ mod tests {
             );
             assert!(matches!(event, Event::ServerNotice(notice)
                 if matches!(notice.to, Audience::Channel(ref name) if name == channel)
-                    && notice.status.as_deref() == Some(status)));
+                    && notice.status.map(crate::Prefix::symbol) == Some(status)));
         }
     }
 
@@ -2811,7 +2850,7 @@ mod tests {
         let mut isupport = Isupport::default();
         isupport.apply_tokens(["CHANTYPES=#", "STATUSMSG=@+"]);
         let message = event(
-            Line::privmsg("@#ops", "operators only")
+            Line::privmsg("@+#ops", "operators and voiced users")
                 .with_source("emily!~emily@localhost")
                 .with_tag("bot", ""),
             &isupport,
@@ -2819,9 +2858,9 @@ mod tests {
             UNIX_EPOCH,
         );
 
-        assert_eq!(message.status.as_deref(), Some(['@'].as_slice()));
+        assert_eq!(message.status.map(crate::Prefix::symbol), Some('+'));
         assert!(matches!(&message.conversation, Conversation::Channel(name) if name == "#ops"));
-        assert_eq!(message.return_address(), "@#ops");
+        assert_eq!(message.return_address(), "@+#ops");
         assert!(!matches!(message.conversation, Conversation::Private(_)));
         assert_eq!(message.tags.get("bot"), Some(""));
     }
@@ -2923,6 +2962,7 @@ mod tests {
             authorship: papo_core::Authorship::Other,
             conversation: Conversation::Channel(isupport.casemapping().channel("#papo")),
             status: None,
+            return_address: "#papo".into(),
             tags: Vec::new(),
         };
         let CoreEvent::Forward(Event::TagMsg(tag)) = from_core_with_mapping(
@@ -3371,7 +3411,8 @@ mod tests {
             actor: "alice!~a@cloak".into(),
             authorship: papo_core::Authorship::Other,
             conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#ops")),
-            status: Some(vec!['@']),
+            status: Some(crate::Prefix::__new('o', '@')),
+            return_address: "@#ops".into(),
             tags: vec![
                 ("+typing".into(), Some("paused".into())),
                 ("+draft/react".into(), Some("👍".into())),
@@ -3429,7 +3470,8 @@ mod tests {
                 conversation: papo_core::Conversation::Channel(
                     Casemapping::default().channel("#ops"),
                 ),
-                status: Some(vec!['@']),
+                status: Some(crate::Prefix::__new('o', '@')),
+                return_address: "@#ops".into(),
                 tags: vec![("+typing".into(), Some(value.into()))],
             };
             match forwarded(papo_core::Event::TagMessage(tag)) {
@@ -3454,7 +3496,8 @@ mod tests {
             actor: "alice!~a@cloak".into(),
             authorship: papo_core::Authorship::Other,
             conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#ops")),
-            status: Some(vec!['@']),
+            status: Some(crate::Prefix::__new('o', '@')),
+            return_address: "@#ops".into(),
             tags: vec![("+typing".into(), Some("active".into()))],
         };
         assert!(
@@ -3483,7 +3526,8 @@ mod tests {
             actor: "alice!~a@cloak".into(),
             authorship: papo_core::Authorship::Other,
             conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#ops")),
-            status: Some(vec!['@']),
+            status: Some(crate::Prefix::__new('o', '@')),
+            return_address: "@#ops".into(),
             msgid: "RKi9Cw".into(),
             reason: Some(String::new()),
         };
