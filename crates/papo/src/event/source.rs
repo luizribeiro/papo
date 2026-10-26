@@ -284,7 +284,7 @@ pub(crate) fn from_prefix(
 mod tests {
     use papo_proto::{Casemapping, Mask};
 
-    use super::UserSource;
+    use super::{Source, UserSource};
     use crate::{Account, Oper};
 
     #[test]
@@ -334,5 +334,22 @@ mod tests {
         assert_eq!(source.is_bot(), None);
         assert_eq!(source.oper(), None);
         assert_eq!(Mask::exact(&source), None);
+    }
+
+    #[test]
+    fn displays_user_nicks_and_server_names() {
+        let mapping = Casemapping::Ascii;
+        let full = Source::from_proto(
+            papo_proto::Source::__user("emily", Some("~emily"), Some("localhost")),
+            mapping,
+        );
+        let bare = Source::from_proto(papo_proto::Source::__user("ChanServ", None, None), mapping);
+        let server = Source::from_proto(papo_proto::Source::Server("irc.example.net"), mapping);
+
+        assert_eq!(full.user().unwrap().to_string(), "emily");
+        assert_eq!(full.to_string(), "emily");
+        assert_eq!(bare.user().unwrap().to_string(), "ChanServ");
+        assert_eq!(bare.to_string(), "ChanServ");
+        assert_eq!(server.to_string(), "irc.example.net");
     }
 }
