@@ -56,42 +56,6 @@ pub use papo::User
 pub use papo::Visibility
 pub use papo::WhoOnJoin
 pub use papo::strip_formatting
-pub mod papo::cap
-pub use papo::cap::ACCOUNT_NOTIFY
-pub use papo::cap::ACCOUNT_REGISTRATION
-pub use papo::cap::ACCOUNT_TAG
-pub use papo::cap::AWAY_NOTIFY
-pub use papo::cap::BATCH
-pub use papo::cap::CAP_NOTIFY
-pub use papo::cap::CHANNEL_RENAME
-pub use papo::cap::CHATHISTORY
-pub use papo::cap::CHGHOST
-pub use papo::cap::ECHO_MESSAGE
-pub use papo::cap::EVENT_PLAYBACK
-pub use papo::cap::EXTENDED_ISUPPORT
-pub use papo::cap::EXTENDED_JOIN
-pub use papo::cap::EXTENDED_MONITOR
-pub use papo::cap::INVITE_NOTIFY
-pub use papo::cap::LABELED_RESPONSE
-pub use papo::cap::MESSAGE_REDACTION
-pub use papo::cap::MESSAGE_TAGS
-pub use papo::cap::METADATA
-pub use papo::cap::MULTILINE
-pub use papo::cap::MULTI_PREFIX
-pub use papo::cap::NO_IMPLICIT_NAMES
-pub use papo::cap::OPER_TAG
-pub use papo::cap::PERSISTENCE
-pub use papo::cap::PRE_AWAY
-pub use papo::cap::READ_MARKER
-pub use papo::cap::RELAYMSG
-pub use papo::cap::SASL
-pub use papo::cap::SERVER_TIME
-pub use papo::cap::SETNAME
-pub use papo::cap::STANDARD_REPLIES
-pub use papo::cap::STS
-pub use papo::cap::USERHOST_IN_NAMES
-pub use papo::cap::WEBPUSH
-pub use papo::cap::WHOAMI
 pub mod papo::event
 pub use papo::event::BatchAbandonReason
 pub use papo::event::TypingReason
@@ -1714,6 +1678,10 @@ pub papo::InvalidInput::InvalidWebPushKey
 #[non_exhaustive] pub papo::InvalidInput::KickReasonTooLong
 pub papo::InvalidInput::KickReasonTooLong::actual: usize
 pub papo::InvalidInput::KickReasonTooLong::maximum: usize
+#[non_exhaustive] pub papo::InvalidInput::KnownCapability
+pub papo::InvalidInput::KnownCapability::capability: alloc::string::String
+pub papo::InvalidInput::KnownCapability::feature: &'static str
+pub papo::InvalidInput::ManagedCapability(alloc::string::String)
 #[non_exhaustive] pub papo::InvalidInput::MetadataValueTooLong
 pub papo::InvalidInput::MetadataValueTooLong::actual: usize
 pub papo::InvalidInput::MetadataValueTooLong::maximum: usize
@@ -1725,7 +1693,7 @@ pub papo::InvalidInput::TlsConfig(alloc::string::String)
 #[non_exhaustive] pub papo::InvalidInput::TooManyMetadataSubscriptions
 pub papo::InvalidInput::TooManyMetadataSubscriptions::actual: usize
 pub papo::InvalidInput::TooManyMetadataSubscriptions::maximum: usize
-pub papo::InvalidInput::UnknownCapability(alloc::string::String)
+pub papo::InvalidInput::UnstableCapability(alloc::string::String)
 pub papo::InvalidInput::UnusableMessageReference
 pub papo::InvalidInput::Url(papo::InvalidUrl)
 pub papo::InvalidInput::WireMessage(papo::BuildError)
@@ -1948,7 +1916,7 @@ pub async fn papo::Builder::connect(self) -> core::result::Result<(papo::Client,
 pub const fn papo::Builder::connect_timeout(self, core::time::Duration) -> Self
 pub fn papo::Builder::create_account(self, papo::NewAccount) -> Self
 pub fn papo::Builder::ctcp_replies(self, papo::CtcpReplies) -> Self
-pub fn papo::Builder::device(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::Builder::disable(self, papo::Feature) -> Self
 pub fn papo::Builder::enable(self, papo::Feature) -> Self
 pub fn papo::Builder::event_capacity(self, usize) -> Self
 pub fn papo::Builder::history_on_reconnect(self, bool) -> Self
@@ -1972,7 +1940,6 @@ pub fn papo::Builder::tls_server_name(self, impl core::convert::Into<alloc::stri
 pub fn papo::Builder::username(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Builder::webirc(self, papo::WebIrc) -> Self
 pub fn papo::Builder::who_on_join(self, papo::WhoOnJoin) -> Self
-pub fn papo::Builder::without_caps<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 impl core::fmt::Debug for papo::Builder
 pub fn papo::Builder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Freeze for papo::Builder

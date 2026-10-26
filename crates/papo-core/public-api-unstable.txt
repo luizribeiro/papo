@@ -688,10 +688,17 @@ pub papo_core::Feature::AccountCreation
 pub papo_core::Feature::AccountExtban
 pub papo_core::Feature::AccountTracking
 pub papo_core::Feature::AwayTracking
+pub papo_core::Feature::Batches
 pub papo_core::Feature::BotMode
 pub papo_core::Feature::Bouncer
+pub papo_core::Feature::CapabilityNotifications
 pub papo_core::Feature::ChannelRename
+pub papo_core::Feature::EchoMessages
+pub papo_core::Feature::EventPlayback
 pub papo_core::Feature::Excepts
+pub papo_core::Feature::ExtendedIsupport
+pub papo_core::Feature::ExtendedJoin
+pub papo_core::Feature::ExtendedMonitor
 pub papo_core::Feature::Halfop
 pub papo_core::Feature::History
 pub papo_core::Feature::HostTracking
@@ -701,17 +708,26 @@ pub papo_core::Feature::LabeledResponse
 pub papo_core::Feature::MessageTags
 pub papo_core::Feature::Metadata
 pub papo_core::Feature::Monitor
+pub papo_core::Feature::MultiPrefix
 pub papo_core::Feature::Multiline
+pub papo_core::Feature::NoImplicitNames
+pub papo_core::Feature::OperatorTags
 pub papo_core::Feature::Persistence
+pub papo_core::Feature::PreAway
 pub papo_core::Feature::Quiet
 pub papo_core::Feature::Reactions
 pub papo_core::Feature::ReadMarkers
 pub papo_core::Feature::Redaction
 pub papo_core::Feature::Relay
 pub papo_core::Feature::Replies
+pub papo_core::Feature::Sasl
+pub papo_core::Feature::ServerTime
 pub papo_core::Feature::SetName
+pub papo_core::Feature::StandardReplies
 pub papo_core::Feature::Typing
+pub papo_core::Feature::UserhostInNames
 pub papo_core::Feature::WebPush
+pub papo_core::Feature::WhoAmI
 impl papo_core::Feature
 pub fn papo_core::Feature::name(self) -> &'static str
 impl core::clone::Clone for papo_core::Feature
@@ -1539,9 +1555,7 @@ pub papo_core::Config::casemapping: papo::Casemapping
 pub papo_core::Config::connection_security: papo::sts::ConnectionSecurity
 pub papo_core::Config::ctcp: papo_core::CtcpReplies
 pub papo_core::Config::decoding: papo_core::Decoding
-pub papo_core::Config::device: core::option::Option<alloc::string::String>
 pub papo_core::Config::disabled_caps: alloc::vec::Vec<alloc::string::String>
-pub papo_core::Config::enabled_features: alloc::collections::btree::set::BTreeSet<papo_core::Feature>
 pub papo_core::Config::host: alloc::string::String
 pub papo_core::Config::max_batch_lines: usize
 pub papo_core::Config::max_channels: usize
@@ -1572,7 +1586,7 @@ pub const fn papo_core::Config::connection_security(self, papo::sts::ConnectionS
 pub fn papo_core::Config::create_account_on_connect(self, core::option::Option<impl core::convert::Into<alloc::string::String>>, core::option::Option<impl core::convert::Into<alloc::string::String>>, impl core::convert::Into<papo::Secret>) -> Self
 pub fn papo_core::Config::ctcp(self, papo_core::CtcpReplies) -> Self
 pub const fn papo_core::Config::decoding(self, papo_core::Decoding) -> Self
-pub fn papo_core::Config::device(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo_core::Config::disable(self, papo_core::Feature) -> Self
 pub fn papo_core::Config::enable(self, papo_core::Feature) -> Self
 pub fn papo_core::Config::host(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub const fn papo_core::Config::max_batch_lines(self, usize) -> Self
@@ -2062,6 +2076,7 @@ pub struct papo_core::Sasl
 impl papo_core::Sasl
 pub fn papo_core::Sasl::any(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo::Secret>) -> Self
 pub fn papo_core::Sasl::authzid(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo_core::Sasl::device(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo_core::Sasl::external() -> Self
 pub fn papo_core::Sasl::oauth_bearer(impl core::convert::Into<papo::Secret>) -> Self
 pub const fn papo_core::Sasl::optional(self) -> Self
