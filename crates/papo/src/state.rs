@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use papo_core::{Account, Away, Capabilities, Channel, Feature, Session, UnsupportedReason, User};
-use papo_proto::{AccountName, Casemapping, ChannelName, Mask, Nick};
+use papo_proto::{Casemapping, Mask, Nick};
 
 use crate::Isupport;
 
@@ -171,18 +171,6 @@ impl State {
         self.core.nick()
     }
 
-    /// Builds a nickname with the current or last-known server-defined comparison rules.
-    #[must_use]
-    pub fn nickname(&self, text: impl AsRef<str>) -> Nick {
-        self.nick().origin().__nick(self.casemapping(), text)
-    }
-
-    /// Reports whether `text` is a nickname accepted by the server's advertised rules.
-    #[must_use]
-    pub fn is_valid_nick(&self, text: &str) -> bool {
-        self.nickname(text).check(self.isupport.inner()).is_ok()
-    }
-
     /// Returns the client's account state.
     ///
     /// This is always [`Account::LoggedIn`] or [`Account::LoggedOut`]. Logged out also covers
@@ -190,12 +178,6 @@ impl State {
     #[must_use]
     pub fn account(&self) -> &Account {
         self.core.account()
-    }
-
-    /// Builds an account name with the current or last-known server-defined comparison rules.
-    #[must_use]
-    pub fn account_name(&self, text: impl AsRef<str>) -> AccountName {
-        self.nick().origin().__account(self.casemapping(), text)
     }
 
     /// Returns the client's presence state.
@@ -233,18 +215,6 @@ impl State {
     #[must_use]
     pub fn channel(&self, name: impl crate::AsChannel) -> Option<&Channel> {
         self.core.channel(name)
-    }
-
-    /// Builds a channel name with the current or last-known server-defined comparison rules.
-    #[must_use]
-    pub fn channel_name(&self, text: impl AsRef<str>) -> ChannelName {
-        self.nick().origin().__channel(self.casemapping(), text)
-    }
-
-    /// Reports whether `text` is a channel name accepted by the server's advertised rules.
-    #[must_use]
-    pub fn is_valid_channel(&self, text: &str) -> bool {
-        self.channel_name(text).check(self.isupport.inner()).is_ok()
     }
 
     /// Iterates over joined channels in unspecified order.
@@ -392,12 +362,6 @@ impl State {
         self.core.casemapping()
     }
 
-    /// Builds a mask with the current or last-known server-defined comparison rules.
-    #[must_use]
-    pub fn mask(&self, text: impl AsRef<str>) -> Mask {
-        self.nick().origin().__mask(self.casemapping(), text)
-    }
-
     /// Reports whether two masks identify the same server list entry.
     ///
     /// Bare nickname masks compare as their canonical `nick!*@*` form. Account
@@ -495,10 +459,10 @@ mod name_tests {
         );
         let state = State::from_session(&session, false);
 
-        let nick = state.nickname("Alice[bot]");
-        let channel = state.channel_name("#Papo[dev]");
-        let account = state.account_name("Alice[bot]");
-        let mask = state.mask("*!alice@[gateway]");
+        let nick = state.name_rules().nick("Alice[bot]");
+        let channel = state.name_rules().channel("#Papo[dev]");
+        let account = state.name_rules().account("Alice[bot]");
+        let mask = state.name_rules().mask("*!alice@[gateway]");
 
         for mapping in [
             nick.casemapping(),
@@ -524,11 +488,32 @@ mod name_tests {
             ":ergo.test 005 papo NICKLEN=32 CHANTYPES=# CHANNELLEN=64 :are supported by this server",
         );
 
-        assert!(state.is_valid_nick(&"n".repeat(32)));
-        assert!(!state.is_valid_nick(&"n".repeat(33)));
-        assert!(state.is_valid_channel(&format!("#{}", "c".repeat(63))));
-        assert!(!state.is_valid_channel(&format!("#{}", "c".repeat(64))));
-        assert!(!state.is_valid_channel("&staff"));
+        let names = state.name_rules();
+        assert_eq!(names.check_nick(&"n".repeat(32)), NameCheck::Valid);
+        assert!(matches!(
+            names.check_nick(&"n".repeat(33)),
+            NameCheck::Invalid(InvalidIdentifier::TooLong {
+                length: 33,
+                maximum: 32,
+                ..
+            })
+        ));
+        assert_eq!(
+            names.check_channel(&format!("#{}", "c".repeat(63))),
+            NameCheck::Valid
+        );
+        assert!(matches!(
+            names.check_channel(&format!("#{}", "c".repeat(64))),
+            NameCheck::Invalid(InvalidIdentifier::TooLong {
+                length: 65,
+                maximum: 64,
+                ..
+            })
+        ));
+        assert!(matches!(
+            names.check_channel("&staff"),
+            NameCheck::Invalid(InvalidIdentifier::InvalidPrefix('&'))
+        ));
     }
 
     #[test]
@@ -573,6 +558,27 @@ mod name_tests {
         ] {
             assert_eq!(names.check_channel(text), NameCheck::Invalid(reason));
         }
+    }
+
+    #[test]
+    fn checks_with_last_known_rules_after_disconnect() {
+        let now = crate::rt::now_mono();
+        let mut session = Session::new(Config::default());
+        session.handle_line(
+            now,
+            b":ergo.test 005 papo NICKLEN=32 CHANTYPES=# :are supported",
+        );
+        session.handle_disconnected(now);
+        let state = State::from_session(&session, false);
+
+        assert_eq!(
+            state.name_rules().check_nick("long_nickname"),
+            NameCheck::Valid
+        );
+        assert!(matches!(
+            state.name_rules().check_channel("&staff"),
+            NameCheck::Invalid(InvalidIdentifier::InvalidPrefix('&'))
+        ));
     }
 
     #[test]
@@ -659,10 +665,10 @@ mod name_tests {
         let state = state_with_isupport(
             ":irc.unreal.example 005 papo ACCOUNTEXTBAN=account,a CHANMODES=beI,fkL,lFH,cdimnprstzCDGKMNOPQRSTVZ EXTBAN=~,acfijmnpqrtACFGOST :are supported",
         );
-        assert!(state.same_list_entry(&state.mask("Bob"), "bob!*@*"));
-        assert!(state.same_list_entry(&state.mask("~a:Alice"), "~account:alice"));
-        assert!(!state.same_list_entry(&state.mask("Bob"), "alice!*@*"));
-        assert!(!state.same_list_entry(&state.mask("~a:Alice"), "*!*@staff.example"));
+        assert!(state.same_list_entry(&state.name_rules().mask("Bob"), "bob!*@*"));
+        assert!(state.same_list_entry(&state.name_rules().mask("~a:Alice"), "~account:alice"));
+        assert!(!state.same_list_entry(&state.name_rules().mask("Bob"), "alice!*@*"));
+        assert!(!state.same_list_entry(&state.name_rules().mask("~a:Alice"), "*!*@staff.example"));
     }
 }
 
