@@ -21,16 +21,14 @@ async fn reply_between_two_clients_carries_the_original_msgid() {
         let nick_a = unique("papo-sender");
         let nick_b = unique("papo-replier");
 
-        let (client_a, mut events_a) = Client::builder(address.clone())
-            .nick(support::nick(&nick_a))
+        let (client_a, mut events_a) = Client::builder(address.clone(), support::nick(&nick_a))
             .autojoin([&channel])
             .connect()
             .await
             .unwrap();
         wait_ready(&mut events_a, &nick_a, &channel).await;
 
-        let (client_b, mut events_b) = Client::builder(address)
-            .nick(support::nick(&nick_b))
+        let (client_b, mut events_b) = Client::builder(address, support::nick(&nick_b))
             .autojoin([&channel])
             .connect()
             .await
@@ -217,8 +215,7 @@ async fn multiline_capability_preserves_plain_and_batched_message_ids() {
 }
 
 async fn client(address: Endpoint, nick: &str, channel: &str) -> (Client, papo::Events) {
-    let (client, mut events) = Client::builder(address)
-        .nick(support::nick(nick))
+    let (client, mut events) = Client::builder(address, support::nick(nick))
         .autojoin([channel])
         .connect()
         .await
@@ -233,8 +230,7 @@ async fn account_client(
     password: &str,
     channel: &str,
 ) -> (Client, papo::Events) {
-    let (client, mut events) = Client::builder(address)
-        .nick(support::nick(account))
+    let (client, mut events) = Client::builder(address, support::nick(account))
         .allow_insecure_auth(true)
         .sasl(Sasl::plain(account, password))
         .autojoin([channel])

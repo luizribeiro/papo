@@ -27,7 +27,7 @@ static NEXT_PING: AtomicU64 = AtomicU64::new(0);
 ///
 /// ```no_run
 /// # async fn send() -> Result<(), papo::Error> {
-/// let (client, _events) = papo::Client::builder("ircs://irc.example.net")
+/// let (client, _events) = papo::Client::builder("ircs://irc.example.net", "papo-client")
 ///     .nick("papo-client")
 ///     .connect()
 ///     .await?;
@@ -366,17 +366,17 @@ impl Client {
         self.origin
     }
 
-    /// Starts configuring a client for `endpoint`.
+    /// Starts configuring a client for `endpoint` with the primary `nick`.
     ///
     /// String endpoints must start with `irc://`, `ircs://`, `ws://`, or `wss://`.
     /// Use `ircs://` for IRC over TLS; bare hostnames are rejected.
     ///
     /// ```
-    /// let builder = papo::Client::builder("ircs://irc.example.net");
+    /// let builder = papo::Client::builder("ircs://irc.example.net", "papo-bot");
     /// # _ = builder;
     /// ```
-    pub fn builder(endpoint: impl crate::IntoEndpoint) -> crate::Builder {
-        crate::Builder::from_endpoint(endpoint)
+    pub fn builder(endpoint: impl crate::IntoEndpoint, nick: impl AsRef<str>) -> crate::Builder {
+        crate::Builder::from_endpoint(endpoint, nick)
     }
 
     /// Returns the latest immutable state snapshot.

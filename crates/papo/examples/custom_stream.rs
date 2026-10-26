@@ -10,8 +10,7 @@ use futures_io::{AsyncRead, AsyncWrite};
 use papo::Client;
 
 fn main() {
-    let _ = Client::builder("irc://custom-transport.invalid")
-        .nick("papo-custom")
+    let _ = Client::builder("irc://custom-transport.invalid", "papo-custom")
         .stream(HostStream)
         .build();
 }

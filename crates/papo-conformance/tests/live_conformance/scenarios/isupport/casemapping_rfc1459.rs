@@ -32,10 +32,10 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
     let square_nick = format!("[{stem}]");
     let curly_nick = format!("{{{stem}}}");
     let mut square = s
-        .connect_with(s.configure("square")?.nick(rfc1459_nick(&square_nick)))
+        .connect_with(s.configure_nick("square", rfc1459_nick(&square_nick))?)
         .await?;
     let curly = s
-        .connect_with(s.configure("curly")?.nick(rfc1459_nick(&curly_nick)))
+        .connect_with(s.configure_nick("curly", rfc1459_nick(&curly_nick))?)
         .await?;
     assert_eq!(square.state().nick().as_ref(), square_nick);
     assert_ne!(curly.state().nick().as_ref(), curly_nick);

@@ -13,8 +13,7 @@ async fn sigterm_sends_quit_and_exits_successfully() {
         let server = from_env();
         let nick = unique("papo-shutdown");
         let server_url = format!("irc://{}", server.plaintext_addr());
-        let (observer, mut events) = Client::builder(server_url.clone())
-            .nick(unique("papo-observer"))
+        let (observer, mut events) = Client::builder(server_url.clone(), unique("papo-observer"))
             .connect()
             .await
             .unwrap();

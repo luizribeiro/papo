@@ -46,7 +46,7 @@ async fn assert_unavailable(
 }
 
 fn builder() -> papo::Builder {
-    papo::Client::builder("ircs://offline.test").nick("papo-wire")
+    papo::Client::builder("ircs://offline.test", "papo-wire")
 }
 
 #[tokio::test]

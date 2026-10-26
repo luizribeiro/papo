@@ -209,11 +209,8 @@ mod tests {
     #[tokio::test(start_paused = true)]
     async fn debug_identifies_the_fixture_without_exposing_its_state() {
         let secret = "unique-wire-password-7462";
-        let (_client, _events, wire) = wire(
-            papo::Client::builder("irc://offline.test")
-                .nick("papo-wire")
-                .password(secret),
-        );
+        let (_client, _events, wire) =
+            wire(papo::Client::builder("irc://offline.test", "papo-wire").password(secret));
 
         let debug = format!("{wire:?}");
         assert_eq!(debug, "Wire { .. }");
@@ -243,8 +240,7 @@ mod tests {
     #[tokio::test(start_paused = true)]
     async fn exchanges_complete_irc_lines() {
         let (_client, mut events, mut wire) = wire(
-            papo::Client::builder("irc://offline.test")
-                .nick("papo-wire")
+            papo::Client::builder("irc://offline.test", "papo-wire")
                 .reconnect(papo::Reconnect::never()),
         );
         assert_eq!(wire.next_sent().await, "CAP LS 302");
@@ -262,8 +258,7 @@ mod tests {
     #[tokio::test(start_paused = true)]
     async fn dropping_wire_stops_the_client_driver() {
         let (_client, mut events, mut wire) = wire(
-            papo::Client::builder("irc://offline.test")
-                .nick("papo-wire")
+            papo::Client::builder("irc://offline.test", "papo-wire")
                 .reconnect(papo::Reconnect::never()),
         );
         assert_eq!(wire.next_sent().await, "CAP LS 302");
@@ -282,8 +277,7 @@ mod tests {
     #[tokio::test(start_paused = true)]
     async fn bot_answers_ping_entirely_offline() {
         let (client, mut events, mut wire) = wire(
-            papo::Client::builder("irc://offline.test")
-                .nick("papo-wire")
+            papo::Client::builder("irc://offline.test", "papo-wire")
                 .reconnect(papo::Reconnect::never()),
         );
         wire.register(&["message-tags"]).await;
@@ -307,8 +301,7 @@ mod tests {
     #[tokio::test(start_paused = true)]
     async fn reconnects_after_the_pipe_closes() {
         let (_client, mut events, mut wire) = wire(
-            papo::Client::builder("irc://offline.test")
-                .nick("papo-wire")
+            papo::Client::builder("irc://offline.test", "papo-wire")
                 .rate_limit(papo::RateLimit::unlimited())
                 .reconnect(
                     papo::Reconnect::exponential()
@@ -332,8 +325,7 @@ mod tests {
     #[tokio::test(start_paused = true)]
     async fn request_timeout_uses_the_paused_clock() {
         let (client, _events, mut wire) = wire(
-            papo::Client::builder("irc://offline.test")
-                .nick("papo-wire")
+            papo::Client::builder("irc://offline.test", "papo-wire")
                 .rate_limit(papo::RateLimit::unlimited())
                 .request_timeout(Duration::from_secs(10))
                 .reconnect(papo::Reconnect::never()),
@@ -354,8 +346,7 @@ mod tests {
     #[tokio::test(start_paused = true)]
     async fn raw_request_resolves_with_labelled_reply_lines() {
         let (client, _events, mut wire) = wire(
-            papo::Client::builder("irc://offline.test")
-                .nick("papo-wire")
+            papo::Client::builder("irc://offline.test", "papo-wire")
                 .rate_limit(papo::RateLimit::unlimited())
                 .reconnect(papo::Reconnect::never()),
         );
@@ -384,8 +375,7 @@ mod tests {
     #[tokio::test(start_paused = true)]
     async fn accepts_the_literal_server_line_bound() {
         let (_client, _events, mut wire) = wire(
-            papo::Client::builder("irc://offline.test")
-                .nick("papo-wire")
+            papo::Client::builder("irc://offline.test", "papo-wire")
                 .reconnect(papo::Reconnect::never()),
         );
         wire.server("x".repeat(8191 + 512)).await;
@@ -395,8 +385,7 @@ mod tests {
     #[should_panic(expected = "server line exceeds 8703 bytes")]
     async fn rejects_one_byte_beyond_the_literal_server_line_bound() {
         let (_client, _events, mut wire) = wire(
-            papo::Client::builder("irc://offline.test")
-                .nick("papo-wire")
+            papo::Client::builder("irc://offline.test", "papo-wire")
                 .reconnect(papo::Reconnect::never()),
         );
         wire.server("x".repeat(8191 + 512 + 1)).await;
@@ -406,8 +395,7 @@ mod tests {
     #[should_panic(expected = "server input must be one line")]
     async fn rejects_embedded_server_line_endings() {
         let (_client, _events, mut wire) = wire(
-            papo::Client::builder("irc://offline.test")
-                .nick("papo-wire")
+            papo::Client::builder("irc://offline.test", "papo-wire")
                 .reconnect(papo::Reconnect::never()),
         );
         wire.server("PING :one\r\nPING :two").await;

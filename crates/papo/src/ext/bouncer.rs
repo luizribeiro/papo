@@ -13,7 +13,7 @@ use crate::{
 /// use papo::{Client, Feature, Sasl};
 ///
 /// # async fn run() -> Result<(), Box<dyn std::error::Error>> {
-/// let (control, _control_events) = Client::builder("ircs://bouncer.example.net")
+/// let (control, _control_events) = Client::builder("ircs://bouncer.example.net", "papo-client")
 ///     .nick("alice")
 ///     .sasl(Sasl::plain("alice", "correct horse battery staple"))
 ///     .enable(Feature::Bouncer)

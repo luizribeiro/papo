@@ -20,16 +20,14 @@ async fn subscriber_receives_another_clients_metadata() {
         let channel = format!("#{}", unique("papo-metadata"));
         let writer_nick = unique("papo-metadata-writer");
         let reader_nick = unique("papo-metadata-reader");
-        let (writer, mut writer_events) = Client::builder(address.clone())
-            .nick(support::nick(&writer_nick))
+        let (writer, mut writer_events) = Client::builder(address.clone(), support::nick(&writer_nick))
             .request_caps(["draft/metadata-2", "labeled-response"])
             .autojoin([&channel])
             .connect()
             .await
             .unwrap();
         wait_synced(&mut writer_events, &channel).await;
-        let (reader, mut reader_events) = Client::builder(address)
-            .nick(support::nick(&reader_nick))
+        let (reader, mut reader_events) = Client::builder(address, support::nick(&reader_nick))
             .request_caps(["draft/metadata-2", "labeled-response"])
             .autojoin([&channel])
             .connect()
@@ -87,17 +85,16 @@ async fn member_sees_channel_rename_and_relay_attribution() {
             "labeled-response",
             "message-tags",
         ];
-        let (operator, mut operator_events) = Client::builder(address.clone())
-            .nick(support::nick(&operator_nick))
-            .request_caps(capabilities)
-            .enable(papo::Feature::Relay)
-            .autojoin([&old_channel])
-            .connect()
-            .await
-            .unwrap();
+        let (operator, mut operator_events) =
+            Client::builder(address.clone(), support::nick(&operator_nick))
+                .request_caps(capabilities)
+                .enable(papo::Feature::Relay)
+                .autojoin([&old_channel])
+                .connect()
+                .await
+                .unwrap();
         wait_synced(&mut operator_events, &old_channel).await;
-        let (member, mut member_events) = Client::builder(address)
-            .nick(support::nick(&member_nick))
+        let (member, mut member_events) = Client::builder(address, support::nick(&member_nick))
             .request_caps(capabilities)
             .enable(papo::Feature::Relay)
             .autojoin([&old_channel])

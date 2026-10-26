@@ -101,9 +101,13 @@ impl Builder {
         }
     }
 
-    pub(crate) fn from_endpoint(endpoint: impl crate::IntoEndpoint) -> Self {
+    pub(crate) fn from_endpoint(endpoint: impl crate::IntoEndpoint, nick: impl AsRef<str>) -> Self {
         let mut builder = Self::new("ircs://irc.example.net");
         builder.address = crate::address::convert(endpoint);
+        let nick = nick.as_ref().to_owned();
+        builder.config.nick.clone_from(&nick);
+        builder.config.username.clone_from(&nick);
+        builder.config.realname = nick;
         builder
     }
 
@@ -142,19 +146,6 @@ impl Builder {
     /// advertised rules remain available while disconnected.
     pub const fn casemapping(mut self, casemapping: crate::Casemapping) -> Self {
         self.config.casemapping = casemapping;
-        self
-    }
-
-    /// Sets the primary nickname.
-    pub fn nick(mut self, nick: impl AsRef<str>) -> Self {
-        let nick = nick.as_ref().to_owned();
-        self.config.nick.clone_from(&nick);
-        if !self.username_set {
-            self.config.username.clone_from(&nick);
-        }
-        if !self.realname_set {
-            self.config.realname.clone_from(&nick);
-        }
         self
     }
 
@@ -269,7 +260,7 @@ impl Builder {
     /// ```
     /// let account = papo::NewAccount::new("correct horse battery staple")
     ///     .account("alice");
-    /// # _ = papo::Client::builder("ircs://irc.example.net").create_account(account);
+    /// # _ = papo::Client::builder("ircs://irc.example.net", "papo-client").create_account(account);
     /// ```
     pub fn create_account(mut self, account: NewAccount) -> Self {
         self.reject_binary_secret(&account.password);
@@ -304,7 +295,7 @@ impl Builder {
     /// Adds capability names to request when advertised.
     ///
     /// ```
-    /// let builder = papo::Client::builder("ircs://irc.example.net")
+    /// let builder = papo::Client::builder("ircs://irc.example.net", "papo-client")
     ///     .request_caps(["soju.im/bouncer-networks"]);
     /// # _ = builder;
     /// ```
@@ -328,7 +319,7 @@ impl Builder {
     /// Removes default capability names from the request set.
     ///
     /// ```
-    /// let builder = papo::Client::builder("ircs://irc.example.net")
+    /// let builder = papo::Client::builder("ircs://irc.example.net", "papo-client")
     ///     .without_caps([papo::cap::AWAY_NOTIFY]);
     /// # _ = builder;
     /// ```
@@ -403,7 +394,7 @@ impl Builder {
     ///
     /// ```
     /// # use std::time::Duration;
-    /// # _ = papo::Client::builder("ircs://irc.example.net")
+    /// # _ = papo::Client::builder("ircs://irc.example.net", "papo-client")
     /// #     .request_timeout(Duration::from_secs(15));
     /// ```
     pub fn request_timeout(mut self, timeout: Duration) -> Self {
@@ -414,7 +405,7 @@ impl Builder {
     /// Sets the away message announced while connecting.
     ///
     /// ```
-    /// # _ = papo::Client::builder("ircs://irc.example.net").away_on_connect("At lunch");
+    /// # _ = papo::Client::builder("ircs://irc.example.net", "papo-client").away_on_connect("At lunch");
     /// ```
     pub fn away_on_connect(mut self, text: impl Into<String>) -> Self {
         self.config.away_on_connect = Some(AwayOnConnect::Message(text.into()));
@@ -428,7 +419,7 @@ impl Builder {
     ///
     /// ```
     /// # use papo::CtcpReplies;
-    /// # _ = papo::Client::builder("ircs://irc.example.net")
+    /// # _ = papo::Client::builder("ircs://irc.example.net", "papo-client")
     /// #     .ctcp_replies(CtcpReplies::default().version(Some("papo bot")));
     /// ```
     pub fn ctcp_replies(mut self, replies: CtcpReplies) -> Self {
@@ -495,7 +486,7 @@ impl Builder {
     /// use std::fs;
     ///
     /// let ca_pem = fs::read("private-ca.pem")?;
-    /// let (_client, _events) = papo::Client::builder("ircs://127.0.0.1:6697")
+    /// let (_client, _events) = papo::Client::builder("ircs://127.0.0.1:6697", "papo-client")
     ///     .tls_ca_pem(ca_pem)
     ///     .tls_server_name("irc.internal.example")
     ///     .connect()
@@ -512,7 +503,7 @@ impl Builder {
     /// Adds certificates from a PEM document to the platform trust roots.
     ///
     /// ```
-    /// # _ = papo::Client::builder("ircs://irc.example.net").tls_extra_ca_pem(Vec::new());
+    /// # _ = papo::Client::builder("ircs://irc.example.net", "papo-client").tls_extra_ca_pem(Vec::new());
     /// ```
     #[cfg(not(browser))]
     pub fn tls_extra_ca_pem(mut self, pem: impl Into<Vec<u8>>) -> Self {
@@ -525,7 +516,7 @@ impl Builder {
     /// ```no_run
     /// # fn configure(cert: &std::path::Path, key: &std::path::Path) -> std::io::Result<papo::Builder> {
     /// use std::fs;
-    /// let builder = papo::Client::builder("ircs://irc.example.net")
+    /// let builder = papo::Client::builder("ircs://irc.example.net", "papo-client")
     ///     .tls_client_cert(fs::read(cert)?, fs::read(key)?);
     /// # Ok(builder)
     /// # }
@@ -572,7 +563,7 @@ impl Builder {
     /// # async fn run() -> Result<(), papo::Error> {
     /// use papo::{Client, Event};
     ///
-    /// let (_client, mut events) = Client::builder("ircs://irc.example.net")
+    /// let (_client, mut events) = Client::builder("ircs://irc.example.net", "papo-client")
     ///     .autojoin(["#papo"])
     ///     .connect()
     ///     .await?;
@@ -601,7 +592,7 @@ impl Builder {
     /// that compare equal under that mapping are also deduplicated before joining.
     ///
     /// ```
-    /// # _ = papo::Client::builder("ircs://irc.example.net").autojoin_with_key("#staff", "secret");
+    /// # _ = papo::Client::builder("ircs://irc.example.net", "papo-client").autojoin_with_key("#staff", "secret");
     /// ```
     pub fn autojoin_with_key(
         mut self,
@@ -1001,20 +992,22 @@ mod tests {
 
     #[test]
     fn fills_every_session_configuration_field() {
-        let builder = Builder::new("ircs://irc.example.net")
-            .casemapping(crate::Casemapping::Ascii)
-            .nick(crate::Casemapping::default().nick("ping-bot"))
-            .alt_nicks([
-                crate::Casemapping::default().nick("ping-bot_"),
-                crate::Casemapping::default().nick("ping-bot__"),
-            ])
-            .regain_nick(true)
-            .username("ping")
-            .realname("papo ping bot")
-            .password("network password")
-            .sasl(Sasl::plain("ping-bot", "correct horse battery staple"))
-            .device("phone")
-            .request_caps(["message-tags", "sasl"]);
+        let builder = Builder::from_endpoint(
+            "ircs://irc.example.net",
+            crate::Casemapping::default().nick("ping-bot"),
+        )
+        .casemapping(crate::Casemapping::Ascii)
+        .alt_nicks([
+            crate::Casemapping::default().nick("ping-bot_"),
+            crate::Casemapping::default().nick("ping-bot__"),
+        ])
+        .regain_nick(true)
+        .username("ping")
+        .realname("papo ping bot")
+        .password("network password")
+        .sasl(Sasl::plain("ping-bot", "correct horse battery staple"))
+        .device("phone")
+        .request_caps(["message-tags", "sasl"]);
         let config = &builder.config;
         assert_eq!(config.casemapping, crate::Casemapping::Ascii);
         assert_eq!(config.nick, "ping-bot");
@@ -1034,8 +1027,7 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn configured_nickname_regain_reaches_the_wire() {
-        let mut builder = Builder::new("ircs://irc.example.net")
-            .nick("papo-driver")
+        let mut builder = Builder::from_endpoint("ircs://irc.example.net", "papo-driver")
             .username("papo")
             .realname("papo driver test")
             .alt_nicks(["papo-driver_"])
@@ -1070,10 +1062,12 @@ mod tests {
 
     #[test]
     fn seeds_offline_state_name_rules() {
-        let (client, _events, _driver) = Builder::new("ircs://irc.example.net")
-            .casemapping(crate::Casemapping::Ascii)
-            .nick(crate::Casemapping::Ascii.nick("papo[bot]"))
-            .build();
+        let (client, _events, _driver) = Builder::from_endpoint(
+            "ircs://irc.example.net",
+            crate::Casemapping::Ascii.nick("papo[bot]"),
+        )
+        .casemapping(crate::Casemapping::Ascii)
+        .build();
 
         let state = client.state();
         assert!(!state.is_connected());
@@ -1210,19 +1204,19 @@ mod tests {
         assert!(opted_in.config.disabled_caps.is_empty());
 
         let reconnect = crate::Reconnect::never();
-        let (control, _events, _driver) = Builder::new("ircs://soju.example:7443")
-            .nick("alice")
-            .password("correct horse battery staple")
-            .rate_limit(RateLimit::unlimited())
-            .reconnect(reconnect)
-            .connect_timeout(Duration::from_secs(17))
-            .tls_server_name("bouncer.example")
-            .enable(crate::Feature::Relay)
-            .metadata_subscriptions(["example.org/color"])
-            .event_capacity(17)
-            .autojoin(["#papo"])
-            .history_on_reconnect(true)
-            .build();
+        let (control, _events, _driver) =
+            Builder::from_endpoint("ircs://soju.example:7443", "alice")
+                .password("correct horse battery staple")
+                .rate_limit(RateLimit::unlimited())
+                .reconnect(reconnect)
+                .connect_timeout(Duration::from_secs(17))
+                .tls_server_name("bouncer.example")
+                .enable(crate::Feature::Relay)
+                .metadata_subscriptions(["example.org/color"])
+                .event_capacity(17)
+                .autojoin(["#papo"])
+                .history_on_reconnect(true)
+                .build();
 
         let network = control.bouncer().network(&crate::NetworkId::from("libera"));
         assert_eq!(network.address.as_ref().unwrap().port, 7443);
@@ -1268,19 +1262,23 @@ mod tests {
     }
 
     #[test]
-    fn nick_supplies_only_implicit_username_and_realname_defaults() {
-        let implicit = Builder::new("ircs://irc.example.net")
-            .nick(crate::Casemapping::default().nick("ping-bot"))
-            .config;
+    fn required_nick_supplies_implicit_username_and_realname_defaults() {
+        let implicit = Builder::from_endpoint(
+            "ircs://irc.example.net",
+            crate::Casemapping::default().nick("ping-bot"),
+        )
+        .config;
         assert_eq!(
             (implicit.username.as_str(), implicit.realname.as_str()),
             ("ping-bot", "ping-bot")
         );
-        let explicit = Builder::new("ircs://irc.example.net")
-            .username("service")
-            .realname("Papo service")
-            .nick(crate::Casemapping::default().nick("ping-bot"))
-            .config;
+        let explicit = Builder::from_endpoint(
+            "ircs://irc.example.net",
+            crate::Casemapping::default().nick("ping-bot"),
+        )
+        .username("service")
+        .realname("Papo service")
+        .config;
         assert_eq!(
             (explicit.username.as_str(), explicit.realname.as_str()),
             ("service", "Papo service")
@@ -1431,8 +1429,10 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn rejects_invalid_registration_messages_before_connecting() {
         let cases = [
-            Builder::new("ircs://irc.example.net")
-                .nick(crate::Casemapping::default().nick("papo\rOPER root password")),
+            Builder::from_endpoint(
+                "ircs://irc.example.net",
+                crate::Casemapping::default().nick("papo\rOPER root password"),
+            ),
             Builder::new("ircs://irc.example.net")
                 .alt_nicks([crate::Casemapping::default().nick("papo-away\nQUIT")]),
             Builder::new("ircs://irc.example.net").username("papo\0admin"),
@@ -1558,7 +1558,7 @@ mod tests {
     #[tokio::test(flavor = "current_thread")]
     async fn build_rejects_invalid_tls_input_before_connecting() {
         let (_client, _events, driver) =
-            crate::Client::builder(crate::Endpoint::tls("localhost", 9).unwrap())
+            crate::Client::builder(crate::Endpoint::tls("localhost", 9).unwrap(), "papo-client")
                 .tls_ca_pem(Vec::new())
                 .reconnect(crate::Reconnect::never())
                 .build();
@@ -1578,13 +1578,14 @@ mod tests {
             "irc example.net",
             "irc.example.net\t",
         ] {
-            let (_client, _events, driver) = crate::Client::builder(input).build();
+            let (_client, _events, driver) = crate::Client::builder(input, "papo-client").build();
             assert!(
                 matches!(within(driver).await, Err(Error::InvalidInput(_))),
                 "accepted {input:?}"
             );
         }
-        let (_client, _events, driver) = crate::Client::builder("irc.example.net").build();
+        let (_client, _events, driver) =
+            crate::Client::builder("irc.example.net", "papo-client").build();
         assert_eq!(
             within(driver).await.unwrap_err().to_string(),
             "server URL scheme is missing; use ircs:// for TLS"
@@ -1668,7 +1669,7 @@ mod tests {
         ];
 
         for (input, expected, message) in cases {
-            let (_client, _events, driver) = crate::Client::builder(input).build();
+            let (_client, _events, driver) = crate::Client::builder(input, "papo-client").build();
             let error = within(driver).await.unwrap_err();
             let Error::InvalidInput(actual) = error else {
                 panic!("wrong error kind for {input:?}: {error:?}");
@@ -1682,12 +1683,12 @@ mod tests {
     fn public_builder_accepts_owned_and_borrowed_server_addresses() {
         for (builder, protocol, port) in [
             (
-                crate::Client::builder("ircs://irc.example.net"),
+                crate::Client::builder("ircs://irc.example.net", "papo-client"),
                 Protocol::Ircs,
                 6697,
             ),
             (
-                crate::Client::builder(String::from("irc://irc.example.net:7000")),
+                crate::Client::builder(String::from("irc://irc.example.net:7000"), "papo-client"),
                 Protocol::Irc,
                 7000,
             ),
@@ -1741,13 +1742,15 @@ mod tests {
         let (stream, mut server) = tokio::io::duplex(4096);
         let lifecycle = Arc::new(AtomicUsize::new(0));
         let connecting = tokio::spawn(
-            Builder::new("irc://custom.example")
-                .nick(crate::Casemapping::default().nick("papo-custom"))
-                .stream(ObservedStream {
-                    inner: crate::driver::test_support::TokioIo(stream),
-                    lifecycle: Arc::clone(&lifecycle),
-                })
-                .connect(),
+            Builder::from_endpoint(
+                "irc://custom.example",
+                crate::Casemapping::default().nick("papo-custom"),
+            )
+            .stream(ObservedStream {
+                inner: crate::driver::test_support::TokioIo(stream),
+                lifecycle: Arc::clone(&lifecycle),
+            })
+            .connect(),
         );
         let expected = b"CAP LS 302\r\nNICK papo-custom\r\nUSER papo-custom 0 * papo-custom\r\n";
         let mut burst = vec![0; expected.len()];

@@ -16,8 +16,7 @@ use papo_testing::wire;
 #[tokio::test(start_paused = true)]
 async fn ping() {
     let (client, mut events, mut wire) = wire(
-        papo::Client::builder("irc://offline.test")
-            .nick("papo-bot")
+        papo::Client::builder("irc://offline.test", "papo-bot")
             .reconnect(papo::Reconnect::never()),
     );
     wire.register(&["message-tags"]).await;

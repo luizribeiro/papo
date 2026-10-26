@@ -31,8 +31,7 @@ async fn next_disconnect(events: &mut papo::Events) -> papo::Disconnected {
 #[scenario(covers = ["security.h3.state-clone-bound"])]
 async fn ordinary_traffic_avoids_state_snapshots(_s: Scenario) -> papo_testing::Result<()> {
     let (client, mut events, mut wire) = papo_testing::wire(
-        papo::Client::builder("irc://offline.test")
-            .nick("papo-wire")
+        papo::Client::builder("irc://offline.test", "papo-wire")
             .rate_limit(papo::RateLimit::unlimited()),
     );
     wire.register(&[]).await;
@@ -58,8 +57,7 @@ async fn ordinary_traffic_avoids_state_snapshots(_s: Scenario) -> papo_testing::
 #[scenario(covers = ["security.h4.isupport-bound"])]
 async fn hostile_isupport_stays_bounded(_s: Scenario) -> papo_testing::Result<()> {
     let (client, mut events, mut wire) = papo_testing::wire(
-        papo::Client::builder("irc://offline.test")
-            .nick("papo-wire")
+        papo::Client::builder("irc://offline.test", "papo-wire")
             .rate_limit(papo::RateLimit::unlimited()),
     );
     wire.register(&[]).await;
@@ -95,8 +93,7 @@ async fn hostile_isupport_stays_bounded(_s: Scenario) -> papo_testing::Result<()
 #[scenario(covers = ["security.h5.capability-bound"])]
 async fn hostile_cap_new_stays_bounded(_s: Scenario) -> papo_testing::Result<()> {
     let (_client, mut events, mut wire) = papo_testing::wire(
-        papo::Client::builder("irc://offline.test")
-            .nick("papo-wire")
+        papo::Client::builder("irc://offline.test", "papo-wire")
             .request_caps(["vendor.example/late"])
             .rate_limit(papo::RateLimit::unlimited()),
     );
@@ -120,8 +117,7 @@ async fn hostile_cap_new_stays_bounded(_s: Scenario) -> papo_testing::Result<()>
 #[scenario(covers = ["security.h6.batch-byte-bound"])]
 async fn hostile_batch_tags_hit_the_global_budget(_s: Scenario) -> papo_testing::Result<()> {
     let (client, mut events, mut wire) = papo_testing::wire(
-        papo::Client::builder("irc://offline.test")
-            .nick("papo-wire")
+        papo::Client::builder("irc://offline.test", "papo-wire")
             .rate_limit(papo::RateLimit::unlimited()),
     );
     wire.register(&["batch", "labeled-response"]).await;
@@ -165,8 +161,7 @@ async fn hostile_batch_tags_hit_the_global_budget(_s: Scenario) -> papo_testing:
 #[scenario(covers = ["security.h8.single-channel-sync"])]
 async fn duplicate_end_of_names_stays_inert(_s: Scenario) -> papo_testing::Result<()> {
     let (client, mut events, mut wire) = papo_testing::wire(
-        papo::Client::builder("irc://offline.test")
-            .nick("papo-wire")
+        papo::Client::builder("irc://offline.test", "papo-wire")
             .rate_limit(papo::RateLimit::unlimited()),
     );
     wire.register(&[]).await;
@@ -196,8 +191,7 @@ async fn duplicate_end_of_names_stays_inert(_s: Scenario) -> papo_testing::Resul
 #[scenario(covers = ["security.h11.monitored-presence-only"])]
 async fn unsolicited_monitor_presence_stays_inert(_s: Scenario) -> papo_testing::Result<()> {
     let (client, mut events, mut wire) = papo_testing::wire(
-        papo::Client::builder("irc://offline.test")
-            .nick("papo-wire")
+        papo::Client::builder("irc://offline.test", "papo-wire")
             .request_caps(["extended-monitor"])
             .rate_limit(papo::RateLimit::unlimited()),
     );
@@ -239,8 +233,7 @@ async fn unsolicited_monitor_presence_stays_inert(_s: Scenario) -> papo_testing:
 async fn large_autojoin_set_reaches_the_wire(_s: Scenario) -> papo_testing::Result<()> {
     let channels = (0..300).map(|index| format!("#audit{index:03}"));
     let (_client, mut events, mut wire) = papo_testing::wire(
-        papo::Client::builder("irc://offline.test")
-            .nick("papo-wire")
+        papo::Client::builder("irc://offline.test", "papo-wire")
             .request_caps(["labeled-response"])
             .autojoin(channels)
             .rate_limit(papo::RateLimit::unlimited()),
@@ -263,8 +256,7 @@ async fn large_autojoin_set_reaches_the_wire(_s: Scenario) -> papo_testing::Resu
 #[scenario(covers = ["security.d7.away-reconnect"])]
 async fn confirmed_runtime_away_survives_reconnect(_s: Scenario) -> papo_testing::Result<()> {
     let (client, mut events, mut wire) = papo_testing::wire(
-        papo::Client::builder("irc://offline.test")
-            .nick("papo-wire")
+        papo::Client::builder("irc://offline.test", "papo-wire")
             .rate_limit(papo::RateLimit::unlimited()),
     );
     wire.register(&[]).await;
@@ -297,8 +289,7 @@ async fn repeated_catchup_page_stops_after_two_requests(_s: Scenario) -> papo_te
         "server-time",
     ];
     let (client, mut events, mut wire) = papo_testing::wire(
-        papo::Client::builder("irc://offline.test")
-            .nick("papo-wire")
+        papo::Client::builder("irc://offline.test", "papo-wire")
             .request_caps(caps)
             .autojoin(["#papo"])
             .history_on_reconnect(true)

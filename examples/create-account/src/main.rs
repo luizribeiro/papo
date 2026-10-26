@@ -12,7 +12,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     if let Ok(email) = env::var("IRC_EMAIL") {
         account = account.email(email);
     }
-    let mut builder = Client::builder(url).nick(&nick).create_account(account);
+    let mut builder = Client::builder(url, &nick).create_account(account);
     if env::var_os("IRC_ALLOW_INSECURE_AUTH").is_some() {
         builder = builder.allow_insecure_auth(true);
     }

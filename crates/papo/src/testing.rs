@@ -201,7 +201,7 @@ mod tests {
 
     #[tokio::test]
     async fn wire_client_connects_through_memory() {
-        let builder = crate::Client::builder("irc://offline.test").nick("papo-wire");
+        let builder = crate::Client::builder("irc://offline.test", "papo-wire");
         let (_client, _events, driver, mut connections) = super::wire_client(builder);
         let task = tokio::spawn(driver);
         let (mut server, endpoint) = connections.recv().await.unwrap();

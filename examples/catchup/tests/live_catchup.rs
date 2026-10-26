@@ -23,8 +23,7 @@ async fn prints_three_unread_messages_and_advances_the_marker() {
         let poster_nick = unique("papo-poster");
         create_account(&server, &account, PASSWORD).unwrap();
 
-        let (persistent, mut persistent_events) = Client::builder(endpoint.clone())
-            .nick(&account)
+        let (persistent, mut persistent_events) = Client::builder(endpoint.clone(), &account)
             .allow_insecure_auth(true)
             .sasl(Sasl::plain(&account, PASSWORD))
             .request_caps(["sasl", "draft/persistence", "labeled-response"])
@@ -42,8 +41,7 @@ async fn prints_three_unread_messages_and_advances_the_marker() {
             .await
             .unwrap();
 
-        let (poster, mut poster_events) = Client::builder(endpoint.clone())
-            .nick(&poster_nick)
+        let (poster, mut poster_events) = Client::builder(endpoint.clone(), &poster_nick)
             .autojoin([&channel])
             .connect()
             .await
@@ -80,8 +78,7 @@ async fn prints_three_unread_messages_and_advances_the_marker() {
             texts.map(|text| format!("{channel} {text}"))
         );
 
-        let (reader, mut reader_events) = Client::builder(endpoint)
-            .nick(&account)
+        let (reader, mut reader_events) = Client::builder(endpoint, &account)
             .allow_insecure_auth(true)
             .sasl(Sasl::plain(&account, PASSWORD))
             .request_caps(["draft/read-marker"])

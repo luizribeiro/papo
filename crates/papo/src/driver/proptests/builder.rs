@@ -15,6 +15,7 @@ async fn check_builder(configure: impl FnOnce(crate::Builder) -> crate::Builder)
     let (stream, mut server) = tokio::io::duplex(4096);
     let (client, events, driver) = configure(crate::Client::builder(
         crate::Endpoint::plaintext("127.0.0.1", 6667).unwrap(),
+        "papo-proptest",
     ))
     .stream(crate::driver::test_support::TokioIo(stream))
     .build();
@@ -55,7 +56,13 @@ async fn arbitrary_builder_setter_input_is_rejected_or_registers_validly() {
                 check_builder(move |$builder| $configured).await;
             }};
         }
-        probe!(builder, a, _b, _c => builder.nick(crate::Casemapping::default().nick(a)));
+        probe!(builder, a, _b, _c => {
+            drop(builder);
+            crate::Client::builder(
+                crate::Endpoint::plaintext("127.0.0.1", 6667).unwrap(),
+                crate::Casemapping::default().nick(a),
+            )
+        });
         probe!(builder, a, b, _c => builder.alt_nicks([
             crate::Casemapping::default().nick(a),
             crate::Casemapping::default().nick(b),

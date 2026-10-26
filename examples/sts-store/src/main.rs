@@ -20,6 +20,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let store = FileStore::open(path)?;
     let policy = store.get("irc.example.net").ok_or("policy was not saved")?;
     println!("{} requires TLS on port {}", policy.host, policy.port);
-    let _builder = Client::builder(url).sts_store(store);
+    let _builder = Client::builder(url, "papo-client").sts_store(store);
     Ok(())
 }

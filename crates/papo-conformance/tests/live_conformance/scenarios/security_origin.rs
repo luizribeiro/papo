@@ -35,11 +35,13 @@ async fn provisioned_control(
     let address = s.server.plaintext_addr();
     let control = s
         .connect_with(
-            Client::builder(Endpoint::plaintext(address.ip().to_string(), address.port()).unwrap())
-                .nick(&network_name)
-                .sasl(Sasl::plain(bouncer.username(), bouncer.password()))
-                .allow_insecure_auth(true)
-                .enable(Feature::Bouncer),
+            Client::builder(
+                Endpoint::plaintext(address.ip().to_string(), address.port()).unwrap(),
+                &network_name,
+            )
+            .sasl(Sasl::plain(bouncer.username(), bouncer.password()))
+            .allow_insecure_auth(true)
+            .enable(Feature::Bouncer),
         )
         .await
         .map_err(|error| io::Error::other(format!("management connection failed: {error:?}")))?;
@@ -87,8 +89,8 @@ async fn bound_client_reference(s: Scenario) -> papo_testing::Result<()> {
         .connect_with(
             Client::builder(
                 Endpoint::plaintext(upstream.ip().to_string(), upstream.port()).unwrap(),
+                papo_test_server::unique("origin-sender"),
             )
-            .nick(papo_test_server::unique("origin-sender"))
             .allow_insecure_auth(true),
         )
         .await?;

@@ -64,7 +64,7 @@ pub(super) async fn connect(
         server.plaintext_addr().port(),
     )
     .unwrap();
-    let mut builder = Client::builder(endpoint).nick(nick).autojoin(channels);
+    let mut builder = Client::builder(endpoint, nick).autojoin(channels);
     if authenticated {
         builder = builder
             .allow_insecure_auth(true)

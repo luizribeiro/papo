@@ -16,7 +16,7 @@ pub fn run(port: MessagePort, url: String, nick: String) {
 }
 
 async fn forward_events(port: &MessagePort, url: String, nick: String) -> Result<(), papo::Error> {
-    let (_client, mut events) = Client::builder(url).nick(nick).connect().await?;
+    let (_client, mut events) = Client::builder(url, nick).connect().await?;
     while let Some(event) = events.next().await {
         post(port, &format!("{event:?}"));
     }

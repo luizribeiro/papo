@@ -21,8 +21,7 @@ async fn prints_membership_snapshot_and_changes() {
         let peer_nick = unique("papo-peer");
         let renamed = unique("papo-renamed");
         let server_url = format!("irc://{}", server.plaintext_addr());
-        let (user, mut events) = Client::builder(server_url.clone())
-            .nick(&user_nick)
+        let (user, mut events) = Client::builder(server_url.clone(), &user_nick)
             .autojoin([CHANNEL])
             .connect()
             .await
@@ -40,8 +39,7 @@ async fn prints_membership_snapshot_and_changes() {
         .await;
         lurker.wait_for("members #papo:").await;
 
-        let (peer, mut peer_events) = Client::builder(server_url)
-            .nick(&peer_nick)
+        let (peer, mut peer_events) = Client::builder(server_url, &peer_nick)
             .autojoin([CHANNEL])
             .connect()
             .await

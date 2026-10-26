@@ -16,8 +16,7 @@ async fn joins_and_replies_to_channel_pings() {
         let bot_nick = unique("papo-ping-bot");
         let user_nick = unique("papo-ping-user");
         let server_url = format!("irc://{}", server.plaintext_addr());
-        let (user, mut events) = Client::builder(server_url.clone())
-            .nick(user_nick)
+        let (user, mut events) = Client::builder(server_url.clone(), user_nick)
             .autojoin([CHANNEL])
             .connect()
             .await

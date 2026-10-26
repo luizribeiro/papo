@@ -50,14 +50,16 @@ pub(super) async fn bouncer_networks(s: Scenario) -> papo_testing::Result<()> {
     let address = s.server.plaintext_addr();
     let alice = s
         .connect_with(
-            Client::builder(Endpoint::plaintext(address.ip().to_string(), address.port()).unwrap())
-                .nick(network_nick)
-                .username(login.username())
-                .realname("papo bouncer control")
-                .password(login.password())
-                .allow_insecure_auth(true)
-                .enable(papo::Feature::Bouncer)
-                .request_caps(["batch", "soju.im/bouncer-networks"]),
+            Client::builder(
+                Endpoint::plaintext(address.ip().to_string(), address.port()).unwrap(),
+                network_nick,
+            )
+            .username(login.username())
+            .realname("papo bouncer control")
+            .password(login.password())
+            .allow_insecure_auth(true)
+            .enable(papo::Feature::Bouncer)
+            .request_caps(["batch", "soju.im/bouncer-networks"]),
         )
         .await?;
     let initial = alice.bouncer().networks().await?;
@@ -132,8 +134,8 @@ pub(super) async fn sts(s: Scenario) -> papo_testing::Result<()> {
         .connect_with(
             Client::builder(
                 Endpoint::plaintext("localhost", server.plaintext_addr().port()).unwrap(),
+                &nick,
             )
-            .nick(&nick)
             .request_caps(["sts"])
             .tls_ca_pem(fs::read(server.ca_pem_path())?)
             .sts_store(store.clone()),

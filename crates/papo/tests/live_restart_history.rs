@@ -47,19 +47,21 @@ async fn retains_message(persistent: bool) -> bool {
 }
 
 async fn connect(server: &TestServer, account: &str, password: &str) -> (Client, papo::Events) {
-    Client::builder(Endpoint::plaintext("localhost", server.plaintext_addr().port()).unwrap())
-        .nick(support::nick(account))
-        .allow_insecure_auth(true)
-        .sasl(Sasl::plain(account, password))
-        .request_caps([
-            "message-tags",
-            "server-time",
-            "batch",
-            "echo-message",
-            "labeled-response",
-            "draft/chathistory",
-        ])
-        .connect()
-        .await
-        .unwrap()
+    Client::builder(
+        Endpoint::plaintext("localhost", server.plaintext_addr().port()).unwrap(),
+        support::nick(account),
+    )
+    .allow_insecure_auth(true)
+    .sasl(Sasl::plain(account, password))
+    .request_caps([
+        "message-tags",
+        "server-time",
+        "batch",
+        "echo-message",
+        "labeled-response",
+        "draft/chathistory",
+    ])
+    .connect()
+    .await
+    .unwrap()
 }

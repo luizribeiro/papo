@@ -10,8 +10,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let nick = env::var("IRC_NICK").unwrap_or_else(|_| "papo-admin".into());
     let admin = env::var("IRC_ADMIN")?;
     let channel = env::var("IRC_CHANNEL").unwrap_or_else(|_| "#papo-admin".into());
-    let (client, mut events) = Client::builder(url)
-        .nick(nick)
+    let (client, mut events) = Client::builder(url, nick)
         .bot(true)
         .autojoin([&channel])
         .connect()

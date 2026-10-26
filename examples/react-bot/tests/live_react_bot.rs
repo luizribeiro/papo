@@ -15,8 +15,7 @@ async fn reacts_to_live_messages() {
         let server = from_env();
         let bot_nick = unique("papo-react-bot");
         let server_url = format!("irc://{}", server.plaintext_addr());
-        let (user, mut events) = Client::builder(server_url.clone())
-            .nick(unique("papo-react-user"))
+        let (user, mut events) = Client::builder(server_url.clone(), unique("papo-react-user"))
             .autojoin([CHANNEL])
             .connect()
             .await

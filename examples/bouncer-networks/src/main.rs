@@ -20,8 +20,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let password = env::var("IRC_PASSWORD")?;
 
     let builder = || {
-        Client::builder(bouncer_url.clone())
-            .nick(&nick)
+        Client::builder(bouncer_url.clone(), &nick)
             .sasl(Sasl::plain(&account, password.clone()))
             .allow_insecure_auth(bouncer_url.starts_with("irc://"))
             .enable(Feature::Bouncer)

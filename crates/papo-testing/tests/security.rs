@@ -49,8 +49,7 @@ async fn connected(events: &mut Events) {
 async fn client_pair(caps: &[&str]) -> (ClientPair, ClientPair) {
     let make = |endpoint, nick| {
         wire(
-            papo::Client::builder(endpoint)
-                .nick(nick)
+            papo::Client::builder(endpoint, nick)
                 .rate_limit(papo::RateLimit::unlimited())
                 .reconnect(Reconnect::never()),
         )
@@ -91,8 +90,7 @@ async fn begin_bound_registration(wire: &mut Wire, network: &str) {
 }
 
 fn bound_builder(network: &str) -> papo::Builder {
-    papo::Client::builder("irc://soju.offline.test")
-        .nick("papo-bound")
+    papo::Client::builder("irc://soju.offline.test", "papo-bound")
         .rate_limit(papo::RateLimit::unlimited())
         .bouncer_network(papo::NetworkId::from(network))
 }
@@ -185,8 +183,7 @@ async fn requested_bouncer_caps(builder: papo::Builder) -> BTreeSet<String> {
 async fn bouncer_notifications_have_one_explicit_source() {
     let notify = "soju.im/bouncer-networks-notify";
     let management = requested_bouncer_caps(
-        papo::Client::builder("irc://soju.offline.test")
-            .nick("papo-control")
+        papo::Client::builder("irc://soju.offline.test", "papo-control")
             .enable(papo::Feature::Bouncer),
     )
     .await;
@@ -202,13 +199,11 @@ async fn bouncer_notifications_have_one_explicit_source() {
 #[tokio::test]
 async fn cross_client_values_never_reach_either_wire() {
     let (first, _first_events, mut first_wire) = wire(
-        papo::Client::builder("irc://first.offline.test")
-            .nick("papo-first")
+        papo::Client::builder("irc://first.offline.test", "papo-first")
             .reconnect(Reconnect::never()),
     );
     let (second, _second_events, mut second_wire) = wire(
-        papo::Client::builder("irc://second.offline.test")
-            .nick("papo-second")
+        papo::Client::builder("irc://second.offline.test", "papo-second")
             .reconnect(Reconnect::never()),
     );
     first_wire.register(&["message-tags"]).await;
@@ -365,14 +360,12 @@ async fn foreign_names_cannot_read_another_clients_state() {
 #[tokio::test]
 async fn foreign_return_addresses_cannot_send_typing_or_notices() {
     let (first, mut first_events, mut first_wire) = wire(
-        papo::Client::builder("irc://first.offline.test")
-            .nick("papo-first")
+        papo::Client::builder("irc://first.offline.test", "papo-first")
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never()),
     );
     let (_second, mut second_events, mut second_wire) = wire(
-        papo::Client::builder("irc://second.offline.test")
-            .nick("papo-second")
+        papo::Client::builder("irc://second.offline.test", "papo-second")
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never()),
     );
@@ -403,8 +396,7 @@ async fn foreign_return_addresses_cannot_send_typing_or_notices() {
 #[tokio::test]
 async fn nickname_handoffs_block_notices_and_ctcp_replies() {
     let (client, mut events, mut wire) = wire(
-        papo::Client::builder("irc://offline.test")
-            .nick("papo-wire")
+        papo::Client::builder("irc://offline.test", "papo-wire")
             .rate_limit(papo::RateLimit::unlimited())
             .ctcp_replies(papo::CtcpReplies::off())
             .reconnect(Reconnect::never()),
@@ -463,8 +455,7 @@ async fn nickname_handoffs_block_notices_and_ctcp_replies() {
 #[tokio::test]
 async fn ctcp_replies_refuse_nick_handoffs() {
     let (client, mut events, mut wire) = wire(
-        papo::Client::builder("irc://offline.test")
-            .nick("papo-wire")
+        papo::Client::builder("irc://offline.test", "papo-wire")
             .rate_limit(papo::RateLimit::unlimited())
             .ctcp_replies(papo::CtcpReplies::off())
             .reconnect(Reconnect::never()),
@@ -521,8 +512,7 @@ async fn ctcp_replies_refuse_nick_handoffs() {
 #[tokio::test]
 async fn ops_only_return_addresses_survive_notice_and_typing_sends() {
     let (client, mut events, mut wire) = wire(
-        papo::Client::builder("irc://offline.test")
-            .nick("papo-wire")
+        papo::Client::builder("irc://offline.test", "papo-wire")
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never()),
     );
@@ -572,8 +562,7 @@ impl papo::sts::StsStore for CaseSensitiveStsStore {
 
 async fn start_scram(address: &str) -> (papo::Client, Events, Wire) {
     let (client, events, mut wire) = wire(
-        papo::Client::builder(address)
-            .nick("papo-wire")
+        papo::Client::builder(address, "papo-wire")
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never())
             .sasl(Sasl::any("alice", PASSWORD))
@@ -592,8 +581,7 @@ async fn start_scram(address: &str) -> (papo::Client, Events, Wire) {
 
 async fn start_cap_negotiation() -> (papo::Client, Events, Wire) {
     let (client, events, mut wire) = wire(
-        papo::Client::builder("irc://offline.test")
-            .nick("papo-wire")
+        papo::Client::builder("irc://offline.test", "papo-wire")
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never())
             .sasl(Sasl::any("alice", PASSWORD))
@@ -746,8 +734,7 @@ async fn scram_never_falls_back_to_plain_unsafely() {
 #[tokio::test]
 async fn server_password_waits_for_sts() {
     let (_client, _events, mut wire) = wire(
-        papo::Client::builder("irc://offline.test")
-            .nick("papo-wire")
+        papo::Client::builder("irc://offline.test", "papo-wire")
             .password(PASSWORD)
             .allow_insecure_auth(true)
             .rate_limit(papo::RateLimit::unlimited())
@@ -764,8 +751,7 @@ async fn server_password_waits_for_sts() {
 #[tokio::test]
 async fn server_password_requires_sts_on_plaintext() {
     let (_client, mut events, mut wire) = wire(
-        papo::Client::builder("irc://offline.test")
-            .nick("papo-wire")
+        papo::Client::builder("irc://offline.test", "papo-wire")
             .password(PASSWORD)
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never()),
@@ -787,8 +773,7 @@ async fn server_password_requires_sts_on_plaintext() {
 
 #[tokio::test]
 async fn plaintext_credentials_require_explicit_opt_in() {
-    let result = papo::Client::builder("irc://offline.test")
-        .nick("papo-wire")
+    let result = papo::Client::builder("irc://offline.test", "papo-wire")
         .sasl(Sasl::plain("alice", PASSWORD))
         .reconnect(Reconnect::never())
         .connect()
@@ -799,8 +784,7 @@ async fn plaintext_credentials_require_explicit_opt_in() {
 #[tokio::test]
 async fn plain_text_rejects_ctcp_delimiters() {
     let (client, _events, mut wire) = wire(
-        papo::Client::builder("irc://offline.test")
-            .nick("papo-wire")
+        papo::Client::builder("irc://offline.test", "papo-wire")
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never()),
     );
@@ -821,8 +805,7 @@ async fn plain_text_rejects_ctcp_delimiters() {
 #[tokio::test]
 async fn monitor_rejects_invalid_nicks_without_poisoning_the_wire() {
     let (client, _events, mut wire) = wire(
-        papo::Client::builder("irc://offline.test")
-            .nick("papo-wire")
+        papo::Client::builder("irc://offline.test", "papo-wire")
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never()),
     );
@@ -844,16 +827,16 @@ async fn monitor_rejects_invalid_nicks_without_poisoning_the_wire() {
 #[tokio::test]
 async fn invalid_registration_fields_fail_before_opening_the_wire() {
     let cases = [
-        papo::Client::builder("irc://offline.test").nick(papo_testing::nick(
-            papo::Casemapping::default(),
-            "papo\rOPER root password",
-        )),
-        papo::Client::builder("irc://offline.test").alt_nicks([papo_testing::nick(
+        papo::Client::builder(
+            "irc://offline.test",
+            papo_testing::nick(papo::Casemapping::default(), "papo\rOPER root password"),
+        ),
+        papo::Client::builder("irc://offline.test", "papo-client").alt_nicks([papo_testing::nick(
             papo::Casemapping::default(),
             "papo-away\nQUIT",
         )]),
-        papo::Client::builder("irc://offline.test").username("papo\0admin"),
-        papo::Client::builder("irc://offline.test").realname("Papo\rClient"),
+        papo::Client::builder("irc://offline.test", "papo-client").username("papo\0admin"),
+        papo::Client::builder("irc://offline.test", "papo-client").realname("Papo\rClient"),
     ];
     for builder in cases {
         assert!(matches!(
@@ -866,8 +849,7 @@ async fn invalid_registration_fields_fail_before_opening_the_wire() {
 #[tokio::test]
 async fn invalid_source_nicks_cannot_close_the_client_with_auto_replies() {
     let (_client, mut events, mut wire) = wire(
-        papo::Client::builder("irc://offline.test")
-            .nick("papo-wire")
+        papo::Client::builder("irc://offline.test", "papo-wire")
             .ctcp_replies(
                 papo::CtcpReplies::default()
                     .version(Some("papo test build"))
@@ -915,8 +897,7 @@ async fn stored_sts_matches_a_normalized_hostname() {
         ),
     );
     let (_client, _events, mut wire) = wire(
-        papo::Client::builder("irc://IRC.Example.net")
-            .nick("papo-wire")
+        papo::Client::builder("irc://IRC.Example.net", "papo-wire")
             .reconnect(Reconnect::never())
             .sts_store(store),
     );
@@ -929,8 +910,7 @@ async fn oversized_sts_duration_still_persists() {
     let store = CaseSensitiveStsStore::default();
     let inspection = store.clone();
     let (_client, _events, mut wire) = wire(
-        papo::Client::builder("ircs://offline.test")
-            .nick("papo-wire")
+        papo::Client::builder("ircs://offline.test", "papo-wire")
             .reconnect(Reconnect::never())
             .sts_store(store),
     );
@@ -967,8 +947,7 @@ async fn stored_sts_ports_stay_with_their_transport() {
         papo::sts::StsPolicy::new("offline.test", 443, expiry, duration).websocket(true),
     );
     let (_client, _events, mut irc_wire) = wire(
-        papo::Client::builder("irc://offline.test")
-            .nick("papo-wire")
+        papo::Client::builder("irc://offline.test", "papo-wire")
             .reconnect(Reconnect::never())
             .sts_store(websocket_store),
     );
@@ -980,16 +959,14 @@ async fn stored_sts_ports_stay_with_their_transport() {
         papo::sts::StsPolicy::new("offline.test", 6697, expiry, duration),
     );
     let (_client, _events, mut websocket_wire) = wire(
-        papo::Client::builder("ws://offline.test/webirc")
-            .nick("papo-wire")
+        papo::Client::builder("ws://offline.test/webirc", "papo-wire")
             .reconnect(Reconnect::never())
             .sts_store(tcp_store),
     );
     assert_eq!(websocket_wire.endpoint().await, "wss://offline.test/webirc");
 
     let (_client, _events, mut live_upgrade) = wire(
-        papo::Client::builder("ws://offline.test/webirc")
-            .nick("papo-wire")
+        papo::Client::builder("ws://offline.test/webirc", "papo-wire")
             .rate_limit(papo::RateLimit::unlimited()),
     );
     assert_eq!(live_upgrade.endpoint().await, "ws://offline.test/webirc");
@@ -1010,8 +987,7 @@ async fn stored_sts_ports_stay_with_their_transport() {
 #[tokio::test(start_paused = true)]
 async fn unknown_playback_is_untyped_and_has_no_side_effects() {
     let (client, mut events, mut wire) = wire(
-        papo::Client::builder("irc://offline.test")
-            .nick("papo-wire")
+        papo::Client::builder("irc://offline.test", "papo-wire")
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never())
             .ctcp_replies(papo::CtcpReplies::default().version(Some("papo offline security test"))),
@@ -1064,8 +1040,7 @@ async fn unknown_playback_is_untyped_and_has_no_side_effects() {
 #[tokio::test]
 async fn typing_status_change_preserves_the_latest_audience() {
     let (client, mut events, mut wire) = wire(
-        papo::Client::builder("irc://offline.test")
-            .nick("papo-wire")
+        papo::Client::builder("irc://offline.test", "papo-wire")
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never()),
     );
@@ -1099,8 +1074,7 @@ async fn typing_status_change_preserves_the_latest_audience() {
 #[tokio::test]
 async fn channel_keys_are_redacted_across_state_and_events() {
     let (client, mut events, mut wire) = wire(
-        papo::Client::builder("irc://offline.test")
-            .nick("papo-wire")
+        papo::Client::builder("irc://offline.test", "papo-wire")
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never()),
     );
@@ -1161,8 +1135,7 @@ async fn channel_keys_are_redacted_across_state_and_events() {
 #[tokio::test(start_paused = true)]
 async fn expired_labeled_history_is_not_delivered_twice() {
     let (_client, mut events, mut wire) = wire(
-        papo::Client::builder("irc://offline.test")
-            .nick("papo-wire")
+        papo::Client::builder("irc://offline.test", "papo-wire")
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never()),
     );
@@ -1209,8 +1182,7 @@ async fn expired_labeled_history_is_not_delivered_twice() {
 #[tokio::test(start_paused = true)]
 async fn late_labeled_reply_is_delivered_as_a_live_message() {
     let (_client, mut events, mut wire) = wire(
-        papo::Client::builder("irc://offline.test")
-            .nick("papo-wire")
+        papo::Client::builder("irc://offline.test", "papo-wire")
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never()),
     );
@@ -1236,8 +1208,7 @@ async fn late_labeled_reply_is_delivered_as_a_live_message() {
 #[tokio::test(start_paused = true)]
 async fn oversized_multiline_fragments_are_live_messages() {
     let (_client, mut events, mut wire) = wire(
-        papo::Client::builder("irc://offline.test")
-            .nick("papo-wire")
+        papo::Client::builder("irc://offline.test", "papo-wire")
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never()),
     );

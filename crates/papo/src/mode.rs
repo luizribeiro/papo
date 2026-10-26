@@ -761,8 +761,9 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn mode_changes_reject_foreign_targets() {
-        let (first, _, _) = crate::Client::builder("ircs://irc.example.net").build();
-        let (second, _, _) = crate::Client::builder("ircs://irc.example.net").build();
+        let (first, _, _) = crate::Client::builder("ircs://irc.example.net", "papo-client").build();
+        let (second, _, _) =
+            crate::Client::builder("ircs://irc.example.net", "papo-client").build();
         let channel = first.state().name_rules().channel("#papo");
         let nick = first.state().name_rules().nick("emily");
 

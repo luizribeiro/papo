@@ -8,7 +8,7 @@ platform storage instead.
 cargo run -p papo-sts-store -- ircs://irc.example.net /tmp/papo-sts.txt
 ```
 
-Pass the opened store to the client with `Client::builder(url).sts_store(store)`.
+Pass the opened store to the client with `Client::builder(url, "papo-client").sts_store(store)`.
 
 Sample output:
 

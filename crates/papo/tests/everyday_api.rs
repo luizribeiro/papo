@@ -42,8 +42,7 @@ fn everyday_api_is_nameable_from_the_facade() {
         "bold and blue"
     );
 
-    let builder: papo::Builder = papo::Client::builder("ircs://irc.example.net")
-        .nick("emily")
+    let builder: papo::Builder = papo::Client::builder("ircs://irc.example.net", "emily")
         .autojoin(["#papo"])
         .autojoin_with_key("#papo", "correct horse battery staple");
     let (client, mut events, driver): (papo::Client, papo::Events, papo::Driver) = builder.build();
@@ -70,7 +69,7 @@ fn everyday_api_is_nameable_from_the_facade() {
 
     let next_event = events.next();
     drop(next_event);
-    let connect = papo::Client::builder("ircs://irc.example.net").connect();
+    let connect = papo::Client::builder("ircs://irc.example.net", "papo-client").connect();
     drop(connect);
     let _: fn(papo::Event) = inspect_event;
     let _: fn(&papo::Client, papo::Event) = moderate_message;

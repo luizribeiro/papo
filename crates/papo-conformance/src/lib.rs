@@ -309,8 +309,7 @@ fn connect_client(
     sasl: Option<Sasl>,
 ) -> Result<Connection, String> {
     let ca_pem = std::fs::read(server.ca_pem_path()).map_err(|error| error.to_string())?;
-    let mut builder = Client::builder(endpoint)
-        .nick(nick)
+    let mut builder = Client::builder(endpoint, nick)
         .username("papo")
         .realname(realname)
         .allow_insecure_auth(true)

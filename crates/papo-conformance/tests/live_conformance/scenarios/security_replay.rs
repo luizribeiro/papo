@@ -106,8 +106,7 @@ async fn parted_rejoin_is_not_restored(s: Scenario) -> papo_testing::Result<()> 
 #[scenario(covers = ["security.h1.abandoned-batch-members-not-live"])]
 async fn abandoned_batch_members_stay_replay_only(_s: Scenario) -> papo_testing::Result<()> {
     let (client, _events, mut wire) = papo_testing::wire(
-        papo::Client::builder("irc://offline.test")
-            .nick("papo-wire")
+        papo::Client::builder("irc://offline.test", "papo-wire")
             .rate_limit(papo::RateLimit::unlimited()),
     );
     wire.register(&["batch"]).await;
@@ -203,8 +202,7 @@ async fn wildcard_who_stays_separate_from_channel_who(s: Scenario) -> papo_testi
 #[scenario(covers = ["security.r6.early-account-request-id"])]
 async fn early_account_creation_reserves_its_request_id(_s: Scenario) -> papo_testing::Result<()> {
     let (client, _events, mut wire) = papo_testing::wire(
-        papo::Client::builder("irc://offline.test")
-            .nick("papo-wire")
+        papo::Client::builder("irc://offline.test", "papo-wire")
             .allow_insecure_auth(true)
             .rate_limit(papo::RateLimit::unlimited()),
     );

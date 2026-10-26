@@ -39,6 +39,25 @@ impl Scenario {
         )
     }
 
+    /// Configures a client with an explicit nickname.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a selected bouncer network cannot be provisioned.
+    pub fn configure_nick(&self, label: &str, nick: impl AsRef<str>) -> Result<Builder> {
+        let name = unique_name(label);
+        let address = self.server.plaintext_addr();
+        let endpoint = Endpoint::plaintext(address.ip().to_string(), address.port()).unwrap();
+        let bouncer_login = self.server.bouncer_login(&name)?;
+        let builder = Client::builder(endpoint, nick)
+            .realname("papo test peer")
+            .allow_insecure_auth(true);
+        Ok(match bouncer_login {
+            Some(login) => builder.sasl(Sasl::plain(login.username(), login.password())),
+            None => builder,
+        })
+    }
+
     /// Configures a named client for an explicit endpoint.
     ///
     /// # Errors
@@ -201,8 +220,7 @@ impl Scenario {
     }
 
     fn builder_named_at(name: String, endpoint: impl IntoEndpoint) -> Builder {
-        Client::builder(endpoint)
-            .nick(name)
+        Client::builder(endpoint, name)
             .realname("papo test peer")
             .allow_insecure_auth(true)
     }

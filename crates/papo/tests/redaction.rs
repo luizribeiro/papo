@@ -31,7 +31,7 @@ fn public_credentials_are_redacted_from_debug_output() {
 
 #[test]
 fn runtime_handles_have_opaque_debug_output() {
-    let (client, events, driver) = Client::builder("irc://irc.example.net")
+    let (client, events, driver) = Client::builder("irc://irc.example.net", "papo-client")
         .password("unique-network-password-1597")
         .build();
     assert_eq!(format!("{client:?}"), "Client { .. }");
@@ -45,7 +45,7 @@ fn runtime_handles_have_opaque_debug_output() {
 
 #[test]
 fn request_builders_and_extension_handles_have_opaque_debug_output() {
-    let builder = Client::builder("irc://irc.example.net");
+    let builder = Client::builder("irc://irc.example.net", "papo-client");
     assert_eq!(format!("{builder:?}"), "Builder { .. }");
 
     let (client, _events, _driver) = builder.build();
@@ -70,7 +70,8 @@ fn request_builders_and_extension_handles_have_opaque_debug_output() {
 #[cfg(feature = "unstable")]
 #[test]
 fn unstable_extension_handles_have_opaque_debug_output() {
-    let (client, _events, _driver) = Client::builder("irc://irc.example.net").build();
+    let (client, _events, _driver) =
+        Client::builder("irc://irc.example.net", "papo-client").build();
     assert_eq!(format!("{:?}", client.bouncer()), "Bouncer { .. }");
     assert_eq!(format!("{:?}", client.persistence()), "Persistence { .. }");
     assert_eq!(format!("{:?}", client.webpush()), "WebPush { .. }");

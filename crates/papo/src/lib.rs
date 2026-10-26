@@ -8,7 +8,7 @@
 //!
 //! #[tokio::main(flavor = "current_thread")]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let (client, mut events) = Client::builder("ircs://irc.example.net")
+//!     let (client, mut events) = Client::builder("ircs://irc.example.net", "papo-client")
 //!         .nick("papo-example")
 //!         .autojoin(["#papo"])
 //!         .connect()

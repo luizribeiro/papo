@@ -19,23 +19,24 @@ async fn fills_a_dropped_connection_gap_once_across_two_reconnects() {
         let channel = format!("#{}", unique("papo-reconnect"));
         let password = "q7Hx-2mZp_9vLcT4wRfB";
         register_account_at(server.plaintext_addr(), &nick, password).unwrap();
-        let builder =
-            Client::builder(Endpoint::plaintext("localhost", proxy.address().port()).unwrap())
-                .nick(support::nick(&nick))
-                .allow_insecure_auth(true)
-                .sasl(Sasl::plain(&nick, password))
-                .request_caps([
-                    "message-tags",
-                    "server-time",
-                    "batch",
-                    "echo-message",
-                    "labeled-response",
-                    "draft/chathistory",
-                ])
-                .without_caps([cap::EVENT_PLAYBACK, cap::MULTILINE])
-                .autojoin([&channel])
-                .history_on_reconnect(true)
-                .reconnect(Reconnect::exponential().max_delay(Duration::from_secs(5)));
+        let builder = Client::builder(
+            Endpoint::plaintext("localhost", proxy.address().port()).unwrap(),
+            support::nick(&nick),
+        )
+        .allow_insecure_auth(true)
+        .sasl(Sasl::plain(&nick, password))
+        .request_caps([
+            "message-tags",
+            "server-time",
+            "batch",
+            "echo-message",
+            "labeled-response",
+            "draft/chathistory",
+        ])
+        .without_caps([cap::EVENT_PLAYBACK, cap::MULTILINE])
+        .autojoin([&channel])
+        .history_on_reconnect(true)
+        .reconnect(Reconnect::exponential().max_delay(Duration::from_secs(5)));
         #[cfg(feature = "unstable")]
         let builder = builder.without_caps([cap::PERSISTENCE]);
         let (client, mut events) = builder.connect().await.unwrap();
@@ -119,13 +120,14 @@ async fn reconnect_and_rejoin(
 
 async fn connect_poster(server: &TestServer, channel: &str) -> Client {
     let poster_nick = unique("papo-reconnect-poster");
-    let (poster, mut events) =
-        Client::builder(Endpoint::plaintext("localhost", server.plaintext_addr().port()).unwrap())
-            .nick(support::nick(&poster_nick))
-            .autojoin([channel])
-            .connect()
-            .await
-            .unwrap();
+    let (poster, mut events) = Client::builder(
+        Endpoint::plaintext("localhost", server.plaintext_addr().port()).unwrap(),
+        support::nick(&poster_nick),
+    )
+    .autojoin([channel])
+    .connect()
+    .await
+    .unwrap();
     wait_for(
         &mut events,
         "poster channel sync",

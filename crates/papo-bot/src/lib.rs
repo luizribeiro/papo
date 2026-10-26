@@ -564,9 +564,8 @@ mod tests {
     }
 
     fn client(casemapping: Casemapping) -> Client {
-        let (client, _events, _driver) = Client::builder("ircs://irc.example")
+        let (client, _events, _driver) = Client::builder("ircs://irc.example", "papo{bot}")
             .casemapping(casemapping)
-            .nick("papo{bot}")
             .stream(IdleStream)
             .build();
         client
@@ -642,8 +641,7 @@ mod tests {
             ":emily!~emily@localhost ACCOUNT Emily\r\n",
             ":emily!~emily@localhost PRIVMSG #papo :!op alice\r\n",
         );
-        let (client, mut events, driver) = Client::builder("ircs://irc.example")
-            .nick("papo{bot}")
+        let (client, mut events, driver) = Client::builder("ircs://irc.example", "papo{bot}")
             .stream(TranscriptStream::new(transcript))
             .build();
         let driver = tokio::spawn(driver);
@@ -667,8 +665,7 @@ mod tests {
             ":ergo.test 422 papo{bot} :MOTD File is missing\r\n",
             ":emily!~emily@localhost PRIVMSG papo{bot} :!echo deployment ready\r\n",
         );
-        let (receiving, mut events, driver) = Client::builder("ircs://irc.example")
-            .nick("papo{bot}")
+        let (receiving, mut events, driver) = Client::builder("ircs://irc.example", "papo{bot}")
             .stream(TranscriptStream::new(transcript))
             .build();
         let driver = tokio::spawn(driver);
@@ -700,8 +697,7 @@ mod tests {
         );
         let stream = TranscriptStream::new(transcript);
         let output = stream.output();
-        let (client, mut events, driver) = Client::builder("ircs://irc.example")
-            .nick("papo{bot}")
+        let (client, mut events, driver) = Client::builder("ircs://irc.example", "papo{bot}")
             .stream(stream)
             .build();
         let driver = tokio::spawn(driver);
@@ -742,8 +738,7 @@ mod tests {
         );
         let stream = TranscriptStream::new(transcript);
         let output = stream.output();
-        let (client, mut events, driver) = Client::builder("ircs://irc.example")
-            .nick("papo{bot}")
+        let (client, mut events, driver) = Client::builder("ircs://irc.example", "papo{bot}")
             .stream(stream)
             .build();
         let driver = tokio::spawn(driver);
@@ -777,8 +772,7 @@ mod tests {
             "@bot :emily!~emily@localhost PRIVMSG #Papo :!ping\r\n",
             ":emily!~emily@localhost PRIVMSG #papo :!ping\r\n",
         );
-        let (client, mut events, driver) = Client::builder("ircs://irc.example")
-            .nick("papo{bot}")
+        let (client, mut events, driver) = Client::builder("ircs://irc.example", "papo{bot}")
             .stream(TranscriptStream::new(transcript))
             .build();
         let driver = tokio::spawn(driver);
@@ -969,8 +963,7 @@ mod tests {
         );
         let stream = TranscriptStream::new(transcript);
         let output = stream.output();
-        let (client, mut events, driver) = Client::builder("ircs://irc.example")
-            .nick("papo{bot}")
+        let (client, mut events, driver) = Client::builder("ircs://irc.example", "papo{bot}")
             .stream(stream)
             .build();
         let driver = tokio::spawn(driver);
@@ -1003,8 +996,7 @@ mod tests {
         );
         let stream = TranscriptStream::new(transcript);
         let output = stream.output();
-        let (client, mut events, driver) = Client::builder("ircs://irc.example")
-            .nick("papo{bot}")
+        let (client, mut events, driver) = Client::builder("ircs://irc.example", "papo{bot}")
             .stream(stream)
             .build();
         let driver = tokio::spawn(driver);

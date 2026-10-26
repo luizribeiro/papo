@@ -19,8 +19,7 @@ async fn typed_requests_round_trip_against_ergo() {
         .unwrap();
         let nick = unique("papo-requests");
         let channel = format!("#{}", unique("papo-requests"));
-        let (client, mut events) = Client::builder(address)
-            .nick(support::nick(&nick))
+        let (client, mut events) = Client::builder(address, support::nick(&nick))
             .connect()
             .await
             .unwrap();

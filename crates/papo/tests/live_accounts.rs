@@ -21,13 +21,13 @@ async fn registers_then_logs_in_with_sasl() {
         )
         .unwrap();
         let account = unique("papo-account");
-        let (registrar, mut registrar_events) = Client::builder(address.clone())
-            .nick(support::nick(&account))
-            .allow_insecure_auth(true)
-            .request_caps(["draft/account-registration", "labeled-response"])
-            .connect()
-            .await
-            .unwrap();
+        let (registrar, mut registrar_events) =
+            Client::builder(address.clone(), support::nick(&account))
+                .allow_insecure_auth(true)
+                .request_caps(["draft/account-registration", "labeled-response"])
+                .connect()
+                .await
+                .unwrap();
         wait_connected(&mut registrar_events, &account).await;
         assert!(matches!(
             registrar
@@ -41,14 +41,14 @@ async fn registers_then_logs_in_with_sasl() {
         ));
         registrar.quit("account created").await.unwrap();
 
-        let (authenticated, mut authenticated_events) = Client::builder(address)
-            .nick(support::nick(&account))
-            .allow_insecure_auth(true)
-            .sasl(Sasl::plain(&account, PASSWORD))
-            .request_caps(["sasl"])
-            .connect()
-            .await
-            .unwrap();
+        let (authenticated, mut authenticated_events) =
+            Client::builder(address, support::nick(&account))
+                .allow_insecure_auth(true)
+                .sasl(Sasl::plain(&account, PASSWORD))
+                .request_caps(["sasl"])
+                .connect()
+                .await
+                .unwrap();
         wait_connected(&mut authenticated_events, &account).await;
         assert!(matches!(
             authenticated.state().account(),

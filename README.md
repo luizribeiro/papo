@@ -15,8 +15,7 @@ use papo::{Client, Event};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let (client, mut events) = Client::builder("ircs://irc.example.net")
-        .nick("papo-example")
+    let (client, mut events) = Client::builder("ircs://irc.example.net", "papo-example")
         .autojoin(["#papo"])
         .connect()
         .await?;
@@ -118,7 +117,7 @@ message text.
 
 ## Running and shutting down
 
-`Client::builder(...).connect()` needs a running tokio runtime on native targets. It spawns the
+`Client::builder(..., "papo-client").connect()` needs a running tokio runtime on native targets. It spawns the
 driver and waits for the first connection to finish. For explicit driver ownership, call
 `build()`, spawn or otherwise poll the returned `Driver` first, and only then await client
 actions. An action cannot complete while its driver is not being polled.

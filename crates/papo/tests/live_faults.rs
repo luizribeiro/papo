@@ -21,8 +21,8 @@ async fn stale_credentials_end_reconnect_with_a_connect_cause() {
         register_account_at(server.plaintext_addr(), &account, first).unwrap();
         let (client, mut events) = Client::builder(
             Endpoint::plaintext("localhost", server.plaintext_addr().port()).unwrap(),
+            support::nick(&account),
         )
-        .nick(support::nick(&account))
         .allow_insecure_auth(true)
         .sasl(Sasl::plain(&account, first))
         .reconnect(
@@ -60,13 +60,11 @@ async fn solanum_kline_after_welcome_stops_reconnecting() {
     within(async {
         let server = SolanumServer::start().unwrap();
         let endpoint = Endpoint::plaintext("localhost", server.endpoints()[0].port()).unwrap();
-        let (operator, mut operator_events) = Client::builder(endpoint.clone())
-            .nick("papo-oper")
+        let (operator, mut operator_events) = Client::builder(endpoint.clone(), "papo-oper")
             .connect()
             .await
             .unwrap();
-        let (_victim, mut victim_events) = Client::builder(endpoint)
-            .nick("papo-kline")
+        let (_victim, mut victim_events) = Client::builder(endpoint, "papo-kline")
             .username("klineuser")
             .reconnect(Reconnect::exponential().max_delay(Duration::from_millis(10)))
             .connect()
@@ -113,12 +111,13 @@ async fn quit_returns_within_its_bound_when_the_peer_stops_reading() {
         let server = TestServer::start_default().unwrap();
         let proxy = server.fault_proxy().unwrap();
         let nick = unique("papo-black-hole");
-        let (client, mut events) =
-            Client::builder(Endpoint::plaintext("localhost", proxy.address().port()).unwrap())
-                .nick(support::nick(&nick))
-                .connect()
-                .await
-                .unwrap();
+        let (client, mut events) = Client::builder(
+            Endpoint::plaintext("localhost", proxy.address().port()).unwrap(),
+            support::nick(&nick),
+        )
+        .connect()
+        .await
+        .unwrap();
         wait_for(&mut events, |event| matches!(event, Event::Connected(_))).await;
         proxy.black_hole().unwrap();
 

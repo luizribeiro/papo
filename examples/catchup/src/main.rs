@@ -10,8 +10,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let nick = env::var("IRC_NICK").unwrap_or_else(|_| "papo-catchup".into());
     let password = env::var("IRC_PASSWORD")?;
     let channel = env::var("IRC_CHANNEL").unwrap_or_else(|_| "#papo".into());
-    let mut builder = Client::builder(url)
-        .nick(&nick)
+    let mut builder = Client::builder(url, &nick)
         .sasl(Sasl::plain(&nick, password))
         .autojoin([&channel]);
     if env::var_os("IRC_ALLOW_INSECURE_AUTH").is_some() {

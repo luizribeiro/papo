@@ -15,8 +15,8 @@ async fn connect_waits_for_registration_after_an_sts_upgrade() {
         let nick = unique("papo-sts");
         let (client, mut events) = Client::builder(
             Endpoint::plaintext("localhost", server.plaintext_addr().port()).unwrap(),
+            support::nick(&nick),
         )
-        .nick(support::nick(&nick))
         .request_caps(["sts"])
         .tls_ca_pem(std::fs::read(server.ca_pem_path()).unwrap())
         .connect()

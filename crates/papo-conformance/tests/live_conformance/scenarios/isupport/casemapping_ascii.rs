@@ -37,9 +37,9 @@ async fn casemapping_ascii(s: Scenario) -> papo_testing::Result<()> {
         (square, curly)
     } else {
         (
-            s.connect_with(s.configure("square")?.nick(ascii_nick(&square_nick)))
+            s.connect_with(s.configure_nick("square", ascii_nick(&square_nick))?)
                 .await?,
-            s.connect_with(s.configure("curly")?.nick(ascii_nick(&curly_nick)))
+            s.connect_with(s.configure_nick("curly", ascii_nick(&curly_nick))?)
                 .await?,
         )
     };

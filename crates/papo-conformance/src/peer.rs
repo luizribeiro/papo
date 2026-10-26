@@ -236,7 +236,8 @@ mod tests {
     use super::Peer;
 
     fn peer() -> (Peer, papo::Driver) {
-        let (client, events, driver) = Client::builder("ircs://irc.example.test").build();
+        let (client, events, driver) =
+            Client::builder("ircs://irc.example.test", "papo-client").build();
         (Peer::new(client, events), driver)
     }
 
