@@ -136,7 +136,7 @@ async fn authenticate(s: Scenario, scram: bool) -> papo_testing::Result<()> {
     assert!(connected.caps.contains_key("sasl"));
     assert_eq!(
         alice.state().account(),
-        &papo::Account::LoggedIn(alice.state().account_name(&account))
+        &papo::Account::LoggedIn(alice.state().name_rules().account(&account))
     );
 
     let whois = alice.whois(alice.state().nick().clone()).await?;
@@ -220,7 +220,7 @@ async fn account_creation(s: Scenario) -> papo_testing::Result<()> {
         )
         .await?;
     let nick = alice.state().nick().clone();
-    let account = alice.state().account_name(nick.as_ref());
+    let account = alice.state().name_rules().account(nick.as_ref());
     let outcome = alice
         .create_account(NewAccount::new(PASSWORD).account(account.clone()))
         .await?;

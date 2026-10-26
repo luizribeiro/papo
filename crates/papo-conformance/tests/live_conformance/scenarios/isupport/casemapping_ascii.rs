@@ -8,7 +8,7 @@ fn ascii_nick(value: &str) -> papo::Nick {
 }
 
 fn assert_same_channel(state: &papo::State, left: &str, right: &str) {
-    assert_eq!(state.channel_name(left), right);
+    assert_eq!(state.name_rules().channel(left), right);
 }
 
 /// folds only ASCII letters for nicknames, channels and state lookups under ascii
@@ -117,7 +117,7 @@ async fn casemapping_ascii(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(found.name().as_ref(), chan);
     assert!(bob.state().channel(&chan).is_none());
 
-    let channel_name = alice.state().channel_name(&chan);
+    let channel_name = alice.state().name_rules().channel(&chan);
     assert_ne!(channel_name, folded.as_str());
     assert_eq!(channel_name, chan.to_ascii_uppercase().as_str());
 

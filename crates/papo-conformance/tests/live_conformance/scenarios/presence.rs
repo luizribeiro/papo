@@ -80,7 +80,7 @@ async fn account_notify(s: Scenario) -> papo_testing::Result<()> {
     let channel = s.channel_name();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
-    let account = alice.state().account_name(alice_nick.as_ref());
+    let account = alice.state().name_rules().account(alice_nick.as_ref());
 
     let outcome = alice
         .create_account(NewAccount::new("q7Hx-2mZp_9vLcT4wRfB").account(account.clone()))

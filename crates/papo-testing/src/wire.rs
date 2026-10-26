@@ -340,7 +340,7 @@ mod tests {
         );
         wire.register(&[]).await;
         let request = tokio::spawn({
-            let nick = client.state().nickname("alice");
+            let nick = client.state().name_rules().nick("alice");
             async move { client.whois(nick).await }
         });
         assert_eq!(wire.next_sent().await, "WHOIS alice");

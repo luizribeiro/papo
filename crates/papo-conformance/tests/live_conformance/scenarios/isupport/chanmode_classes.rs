@@ -30,7 +30,7 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
 
     alice
         .mode(&channel)
-        .ban(alice.state().mask(MASK))
+        .ban(alice.state().name_rules().mask(MASK))
         .add_with('k', KEY)
         .add_with('l', LIMIT)
         .remove('n')
@@ -73,7 +73,7 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
 
     alice
         .mode(&channel)
-        .unban(alice.state().mask(MASK))
+        .unban(alice.state().name_rules().mask(MASK))
         .remove_with('k', KEY)
         .remove('l')
         .await?;

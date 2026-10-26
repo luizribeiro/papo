@@ -1212,7 +1212,7 @@ async fn topic(s: Scenario) -> papo_testing::Result<()> {
     assert!(synchronized.topic_set_at().is_some());
 
     alice
-        .clear_topic(alice.state().channel_name(&channel))
+        .clear_topic(alice.state().name_rules().channel(&channel))
         .await?;
     for peer in [&mut alice, &mut bob, &mut carol] {
         let changed = peer.wait_for(Event::as_topic_changed).await?;
@@ -1266,7 +1266,10 @@ async fn channel_mode_lists(s: Scenario) -> papo_testing::Result<()> {
     let channel = s.channel_name();
     let mapping = alice.state().casemapping();
     let channel_name = mapping.channel(&channel);
-    let mask = alice.state().mask("troublesome!*@gateway.example");
+    let mask = alice
+        .state()
+        .name_rules()
+        .mask("troublesome!*@gateway.example");
     alice.join(&channel).await?;
     alice.mode(&channel).ban(&mask).await?;
 
@@ -1328,7 +1331,10 @@ async fn channel_mode_lists(s: Scenario) -> papo_testing::Result<()> {
 async fn channel_mode_exceptions(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     let channel = s.channel_name();
-    let mask = alice.state().mask("reviewer!*@trusted.example");
+    let mask = alice
+        .state()
+        .name_rules()
+        .mask("reviewer!*@trusted.example");
     alice.join(&channel).await?;
     alice
         .mode(&channel)
@@ -1580,7 +1586,10 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
     alice.mode(&channel).remove('l').await?;
     wait_channel_mode(&mut bob, &channel, 'l').await?;
     let mask = format!("{carol_nick}!*@*");
-    alice.mode(&channel).ban(alice.state().mask(&mask)).await?;
+    alice
+        .mode(&channel)
+        .ban(alice.state().name_rules().mask(&mask))
+        .await?;
     wait_channel_mode(&mut bob, &channel, 'b').await?;
     assert_refusal(
         carol.join(&channel).key(key).await.unwrap_err(),
@@ -1590,7 +1599,7 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
 
     alice
         .mode(&channel)
-        .unban(alice.state().mask(mask))
+        .unban(alice.state().name_rules().mask(mask))
         .add('i')
         .await?;
     wait_channel_mode(&mut bob, &channel, 'i').await?;

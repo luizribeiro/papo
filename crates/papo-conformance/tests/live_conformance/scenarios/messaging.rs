@@ -199,7 +199,7 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     let channel = s.channel_name();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
-    let channel = alice.state().channel_name(channel);
+    let channel = alice.state().name_rules().channel(channel);
     let sent = alice
         .privmsg(bob.nick().as_ref(), "private thread reply")
         .channel_context(&channel)
@@ -405,7 +405,7 @@ async fn status_message_or_higher(s: Scenario) -> papo_testing::Result<()> {
     let mut bob = s.connect("bob").await?;
     let mut carol = s.connect("carol").await?;
     let mut dave = s.connect("dave").await?;
-    let channel = alice.state().channel_name(s.channel_name());
+    let channel = alice.state().name_rules().channel(s.channel_name());
     alice.join(&channel).await?;
     bob.join(&channel).await?;
     carol.join(&channel).await?;
@@ -764,7 +764,7 @@ async fn typing_status_target(s: Scenario) -> papo_testing::Result<()> {
     let mut bob = s.connect("bob").await?;
     let mut carol = s.connect("carol").await?;
     let mut dave = s.connect("dave").await?;
-    let channel = alice.state().channel_name(s.channel_name());
+    let channel = alice.state().name_rules().channel(s.channel_name());
     alice.join(&channel).await?;
     bob.join(&channel).await?;
     carol.join(&channel).await?;
@@ -878,7 +878,10 @@ async fn draft_message_redaction(s: Scenario) -> papo_testing::Result<()> {
 
     let Error::Server(refusal) = alice
         .redact(
-            (alice.state().channel_name(&channel), "missing-message-id"),
+            (
+                alice.state().name_rules().channel(&channel),
+                "missing-message-id",
+            ),
             "unknown message",
         )
         .await

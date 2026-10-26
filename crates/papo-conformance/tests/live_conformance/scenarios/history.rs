@@ -156,7 +156,7 @@ async fn terminal_history_page(s: Scenario) -> papo_testing::Result<()> {
     }
 
     let alice = s.connect("alice").await?;
-    let channel = alice.state().channel_name(s.channel_name());
+    let channel = alice.state().name_rules().channel(s.channel_name());
     alice.join(&channel).await?;
     let texts = (1..=25)
         .map(|number| format!("deployment log entry {number:02}"))
@@ -288,7 +288,7 @@ async fn soju_server_notice_history(s: Scenario) -> papo_testing::Result<()> {
             SystemTime::now() + Duration::from_secs(60),
         )
         .await?;
-    let bouncer = alice.state().nickname("BouncerServ");
+    let bouncer = alice.state().name_rules().nick("BouncerServ");
     assert!(targets.iter().all(|entry| {
         let Some(name) = crate::scenarios::support::conversation_name(&entry.conversation) else {
             return true;
