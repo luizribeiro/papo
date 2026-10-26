@@ -1,6 +1,8 @@
+use std::fmt;
+
 use crate::{
-    Account, ChannelName, Conversation, Message, MessageId, Nick, Sent, event::Notice,
-    event::TagMsg,
+    Account, ChannelName, Conversation, Message, MessageId, Nick, Sent,
+    event::{CtcpQuery, CtcpReply, Notice, Reacted, Redacted, TagMsg, TypingChanged},
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -10,49 +12,106 @@ pub(crate) struct RecipientGuard {
     pub(crate) receipt: Option<papo_core::ReplyToken>,
 }
 
-/// An address and server identifier for a chat message.
+/// An IRC return address with optional server message identifiers.
 ///
-/// Message references are accepted by replies, reactions, and redactions. Construct one from a
-/// received [`Message`], a sent [`Sent`], or an `(address, message_id)` pair. A line or [`Sent`]
-/// preserves its complete return address; use a pair only when the caller has an explicit address. A
-/// [`Conversation`] alone is not an address. See [`Conversation`] for status-prefixed line
-/// guidance. References built from received private lines also preserve the evidence used to
-/// refuse a send after another user takes the sender's nickname.
+/// A reference preserves the address exactly as it arrived, including a status prefix such as
+/// `@#ops`, together with the originating client and any evidence needed to detect a nickname
+/// changing hands. Construct one from a received [`Message`], a sent [`Sent`], or an explicit
+/// `(address, message_id)` pair. A [`Conversation`] alone is not a return address; see
+/// [`Conversation`] for status-prefixed audience guidance.
+///
+/// Some lines, including typing notifications, have no server message identifier. Their references
+/// remain valid send destinations, but [`crate::Client::react`], [`crate::Client::unreact`], and
+/// [`crate::Client::redact`] return [`crate::InvalidInput::UnusableMessageReference`].
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MessageRef {
     address: String,
-    msgid: Option<MessageId>,
-    origin: Option<crate::Origin>,
+    msgids: Vec<MessageId>,
+    origin: crate::Origin,
     channel_context: Option<ChannelName>,
     recipient: Option<RecipientGuard>,
 }
 
 impl MessageRef {
-    pub(crate) fn into_parts(
-        self,
-    ) -> (
-        String,
-        Option<MessageId>,
-        Option<crate::Origin>,
-        Option<ChannelName>,
-        Option<RecipientGuard>,
-    ) {
-        (
-            self.address,
-            self.msgid,
-            self.origin,
-            self.channel_context,
-            self.recipient,
-        )
+    fn new(
+        address: String,
+        msgids: Vec<MessageId>,
+        origin: crate::Origin,
+        channel_context: Option<ChannelName>,
+        recipient: Option<RecipientGuard>,
+    ) -> Self {
+        Self {
+            address,
+            msgids,
+            origin,
+            channel_context,
+            recipient,
+        }
+    }
+
+    /// Returns the first line's server-assigned identifier, when present.
+    #[must_use]
+    pub fn msgid(&self) -> Option<&MessageId> {
+        self.msgids.first()
+    }
+
+    /// Returns the client identity associated with this reference.
+    #[must_use]
+    pub const fn origin(&self) -> crate::Origin {
+        self.origin
+    }
+
+    pub(crate) fn channel_context(&self) -> Option<&ChannelName> {
+        self.channel_context.as_ref()
+    }
+
+    pub(crate) fn msgids(&self) -> &[MessageId] {
+        &self.msgids
+    }
+}
+
+impl fmt::Display for MessageRef {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.address)
+    }
+}
+
+impl AsRef<str> for MessageRef {
+    fn as_ref(&self) -> &str {
+        &self.address
+    }
+}
+
+impl PartialEq<str> for MessageRef {
+    fn eq(&self, other: &str) -> bool {
+        self.address == other
+    }
+}
+
+impl PartialEq<&str> for MessageRef {
+    fn eq(&self, other: &&str) -> bool {
+        self == *other
+    }
+}
+
+impl crate::target::sealed::Sealed for MessageRef {}
+
+impl crate::Target for MessageRef {
+    fn __parts(&self) -> crate::target::sealed::Parts<'_> {
+        crate::target::sealed::Parts {
+            text: std::borrow::Cow::Borrowed(&self.address),
+            origin: self.origin,
+            recipient: self.recipient.clone(),
+        }
     }
 }
 
 fn recipient(
-    conversation: &crate::Conversation,
+    conversation: &Conversation,
     account: &Account,
     receipt: Option<papo_core::ReplyToken>,
 ) -> Option<RecipientGuard> {
-    let crate::Conversation::Private(nick) = conversation else {
+    let Conversation::Private(nick) = conversation else {
         return None;
     };
     Some(RecipientGuard {
