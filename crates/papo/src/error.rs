@@ -842,6 +842,12 @@ mod tests {
             Error::TooManyPendingRequests
         ));
         assert!(matches!(
+            Error::request(Request::Build(papo_proto::BuildError::InvalidParam(1))),
+            Error::InvalidInput(InvalidInput::WireMessage(
+                papo_proto::BuildError::InvalidParam(1)
+            ))
+        ));
+        assert!(matches!(
             Error::request(Request::InvalidMessageReference),
             Error::InvalidInput(InvalidInput::UnusableMessageReference)
         ));
