@@ -259,6 +259,41 @@ pub enum Subject {
     User(Nick),
 }
 
+impl Subject {
+    /// Returns the user nickname when this subject is a user.
+    #[must_use]
+    pub const fn nick(&self) -> Option<&Nick> {
+        match self {
+            Self::User(nick) => Some(nick),
+            Self::Channel(_) => None,
+        }
+    }
+
+    /// Returns the channel name when this subject is a channel.
+    #[must_use]
+    pub const fn channel(&self) -> Option<&ChannelName> {
+        match self {
+            Self::Channel(channel) => Some(channel),
+            Self::User(_) => None,
+        }
+    }
+}
+
+impl PartialEq<str> for Subject {
+    fn eq(&self, other: &str) -> bool {
+        match self {
+            Self::Channel(channel) => channel == other,
+            Self::User(nick) => nick == other,
+        }
+    }
+}
+
+impl PartialEq<&str> for Subject {
+    fn eq(&self, other: &&str) -> bool {
+        self == *other
+    }
+}
+
 /// Payloads carried by [`Event`].
 pub mod event {
     #[cfg(feature = "unstable")]
