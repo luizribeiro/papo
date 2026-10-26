@@ -298,14 +298,13 @@ async fn ctcp_playback_has_no_automatic_reply(s: Scenario) -> papo_testing::Resu
     assert!(page.items.iter().any(|item| {
         matches!(item, papo::Event::CtcpQuery(query)
             if query.command == "VERSION"
-                && crate::source_nick(&query.actor) == Some(alice.nick().as_ref()))
+                && query.actor.nick().as_ref() == alice.nick().as_ref())
     }));
     alice
         .expect_none(|event| {
-            event.as_ctcp_reply().filter(|ctcp| {
-                ctcp.command == "VERSION"
-                    && crate::source_nick(&ctcp.actor) == Some(bob_nick.as_ref())
-            })
+            event
+                .as_ctcp_reply()
+                .filter(|ctcp| ctcp.command == "VERSION" && ctcp.actor.nick() == &bob_nick)
         })
         .await?;
     Ok(())

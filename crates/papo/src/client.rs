@@ -470,21 +470,13 @@ impl Client {
         text: impl Into<String>,
     ) -> crate::RequestFuture<()> {
         let target = crate::target::sealed::Parts {
-            text: std::borrow::Cow::Owned(
-                query
-                    .actor
-                    .nick()
-                    .map(ToString::to_string)
-                    .unwrap_or_default(),
-            ),
+            text: std::borrow::Cow::Owned(query.actor.nick().to_string()),
             origin: crate::message_ref::conversation_origin(&query.conversation),
             recipient: crate::message_ref::actor_recipient(query),
         };
         let text = text.into();
-        let reply = query.actor.nick().and_then(|nick| {
-            Ctcp::build(&query.command, (!text.is_empty()).then_some(text.as_str()))
-                .map(|body| Line::notice(nick.as_ref(), body))
-        });
+        let reply = Ctcp::build(&query.command, (!text.is_empty()).then_some(text.as_str()))
+            .map(|body| Line::notice(query.actor.nick().as_ref(), body));
         let client = self.clone();
         crate::RequestFuture::new(async move {
             client.resolve(crate::target::Role::Send("ctcp_reply: query"), target)?;

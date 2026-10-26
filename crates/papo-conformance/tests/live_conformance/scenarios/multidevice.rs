@@ -376,8 +376,7 @@ async fn multidevice_ctcp_session_replies(s: Scenario) -> papo_testing::Result<(
         let reply = sender
             .wait_for(|event| {
                 event.as_ctcp_reply().filter(|reply| {
-                    reply.command == "VERSION"
-                        && crate::source_nick(&reply.actor) == Some(nick.as_ref())
+                    reply.command == "VERSION" && reply.actor.nick().as_ref() == nick.as_ref()
                 })
             })
             .await?;

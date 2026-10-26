@@ -123,8 +123,8 @@ fn recipient(
 
 pub(crate) fn actor_recipient(query: &CtcpQuery) -> Option<RecipientGuard> {
     Some(RecipientGuard {
-        nick: query.actor.nick()?.clone(),
-        account: query.account.clone(),
+        nick: query.actor.nick().clone(),
+        account: query.actor.account().clone(),
         receipt: query.reply_token,
     })
 }
@@ -195,7 +195,7 @@ impl From<&CtcpQuery> for MessageRef {
             &query.conversation,
             query.status.as_deref(),
             query.msgid.as_ref(),
-            &query.account,
+            query.actor.account(),
             query.reply_token,
             None,
         )
@@ -232,7 +232,7 @@ pub(crate) fn from_ctcp_reply(reply: &CtcpReply) -> MessageRef {
         &reply.conversation,
         reply.status.as_deref(),
         reply.msgid.as_ref(),
-        &reply.account,
+        reply.actor.account(),
         reply.reply_token,
         None,
     )

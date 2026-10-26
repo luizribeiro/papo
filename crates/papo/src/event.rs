@@ -97,8 +97,8 @@ pub enum ServerNoticeTarget {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct CtcpQuery {
-    /// The user or server that sent the CTCP message.
-    pub actor: Source,
+    /// The user that sent the CTCP message.
+    pub actor: UserSource,
     /// Whether the actor is this client's user.
     pub authorship: Authorship,
     /// The IRC conversation to which the CTCP message belongs.
@@ -119,8 +119,6 @@ pub struct CtcpQuery {
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
     pub received_at: SystemTime,
-    /// The actor's account state reported by `account-tag`.
-    pub account: Account,
     /// All message tags in wire order.
     pub tags: Tags,
     pub(crate) reply_token: Option<papo_core::ReplyToken>,
@@ -130,8 +128,8 @@ pub struct CtcpQuery {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct CtcpReply {
-    /// The user or server that sent the CTCP reply.
-    pub actor: Source,
+    /// The user that sent the CTCP reply.
+    pub actor: UserSource,
     /// Whether the actor is this client's user.
     pub authorship: Authorship,
     /// The IRC conversation to which the CTCP reply belongs.
@@ -152,8 +150,6 @@ pub struct CtcpReply {
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
     pub received_at: SystemTime,
-    /// The actor's account state reported by `account-tag`.
-    pub account: Account,
     /// All message tags in wire order.
     pub tags: Tags,
     pub(crate) reply_token: Option<papo_core::ReplyToken>,
@@ -408,9 +404,12 @@ fn ctcp_from_line(
     ) else {
         return Err(raw);
     };
+    let Source::User(actor) = metadata.actor else {
+        return Err(raw);
+    };
     if reply {
         Ok(Event::CtcpReply(CtcpReply {
-            actor: metadata.actor,
+            actor,
             authorship: metadata.authorship,
             conversation: metadata.conversation,
             status: metadata.status,
@@ -419,13 +418,12 @@ fn ctcp_from_line(
             msgid: metadata.msgid,
             server_time: metadata.server_time,
             received_at: metadata.received_at,
-            account: metadata.account,
             tags: metadata.tags,
             reply_token: metadata.reply_token,
         }))
     } else {
         Ok(Event::CtcpQuery(CtcpQuery {
-            actor: metadata.actor,
+            actor,
             authorship: metadata.authorship,
             conversation: metadata.conversation,
             status: metadata.status,
@@ -434,7 +432,6 @@ fn ctcp_from_line(
             msgid: metadata.msgid,
             server_time: metadata.server_time,
             received_at: metadata.received_at,
-            account: metadata.account,
             tags: metadata.tags,
             reply_token: metadata.reply_token,
         }))
@@ -1019,9 +1016,16 @@ fn message_metadata(
         Conversation::Private(nick) => nick.origin(),
         _ => crate::Origin::NONE,
     };
-    let actor = message
-        .source()
-        .map(|source| source::from_proto_with_origin(source, isupport.casemapping(), origin))?;
+    let actor = match message.source()? {
+        papo_proto::Source::User { .. } => Source::User(source::user_from_line(
+            message,
+            isupport.casemapping(),
+            origin,
+            account_tag_enabled,
+            false,
+        )?),
+        papo_proto::Source::Server(server) => Source::Server(server.into()),
+    };
     let tags = Tags::from_message(message);
     let envelope = line_envelope_with_account_tag(
         message,
@@ -2432,12 +2436,14 @@ mod tests {
         assert_eq!(version.command, "VERSION");
         assert_eq!(version.params, None);
         assert_eq!(version.return_address(), "@#ops");
-        assert!(matches!(&version.account, Account::LoggedIn(account) if account == "emily"));
+        assert!(
+            matches!(version.actor.account(), Account::LoggedIn(account) if account == "emily")
+        );
         let reply_event = parse("NOTICE", "\x01VERSION papo-0.1\x01");
         let reply = reply_event.as_ctcp_reply().unwrap();
         assert_eq!(reply.params.as_deref(), Some("papo-0.1"));
         assert_eq!(reply.return_address(), "@#ops");
-        assert!(matches!(&reply.account, Account::LoggedIn(account) if account == "emily"));
+        assert!(matches!(reply.actor.account(), Account::LoggedIn(account) if account == "emily"));
         let action_notice = parse("NOTICE", "\x01ACTION waves\x01");
         assert!(matches!(action_notice, Event::Notice(notice)
             if notice.kind == NoticeKind::Action && notice.text == "waves"));

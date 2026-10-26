@@ -503,7 +503,7 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| {
             event
                 .as_ctcp_reply()
-                .filter(|ctcp| crate::source_nick(&ctcp.actor) == Some(bob.nick().as_ref()))
+                .filter(|ctcp| ctcp.actor.nick().as_ref() == bob.nick().as_ref())
         })
         .await?;
     assert_eq!(reply.command, "VERSION");
@@ -527,8 +527,7 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
     let reply = alice
         .wait_for(|event| {
             event.as_ctcp_reply().filter(|ctcp| {
-                crate::source_nick(&ctcp.actor) == Some(carol.nick().as_ref())
-                    && ctcp.command == "PING"
+                ctcp.actor.nick().as_ref() == carol.nick().as_ref() && ctcp.command == "PING"
             })
         })
         .await?;
@@ -563,7 +562,7 @@ async fn ctcp_channel_query(s: Scenario) -> papo_testing::Result<()> {
         .expect_none(|event| {
             event
                 .as_ctcp_reply()
-                .filter(|ctcp| crate::source_nick(&ctcp.actor) == Some(bob.nick().as_ref()))
+                .filter(|ctcp| ctcp.actor.nick().as_ref() == bob.nick().as_ref())
         })
         .await?;
     bob.ctcp_reply(&query, "papo conformance client").await?;
@@ -571,7 +570,7 @@ async fn ctcp_channel_query(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| {
             event.as_ctcp_reply().filter(|ctcp| {
                 conversation_name(&ctcp.conversation) == Some(bob.nick().as_ref())
-                    && crate::source_nick(&ctcp.actor) == Some(bob.nick().as_ref())
+                    && ctcp.actor.nick().as_ref() == bob.nick().as_ref()
             })
         })
         .await?;
@@ -601,7 +600,7 @@ async fn ctcp_soju_backlog(s: Scenario) -> papo_testing::Result<()> {
         .expect_none(|event| {
             event
                 .as_ctcp_reply()
-                .filter(|ctcp| crate::source_nick(&ctcp.actor) == Some(bob_nick.as_ref()))
+                .filter(|ctcp| ctcp.actor.nick() == &bob_nick)
         })
         .await?;
 
@@ -617,7 +616,7 @@ async fn ctcp_soju_backlog(s: Scenario) -> papo_testing::Result<()> {
         .expect_none(|event| {
             event
                 .as_ctcp_reply()
-                .filter(|ctcp| crate::source_nick(&ctcp.actor) == Some(bob_nick.as_ref()))
+                .filter(|ctcp| ctcp.actor.nick() == &bob_nick)
         })
         .await?;
     Ok(())

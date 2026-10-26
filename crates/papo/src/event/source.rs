@@ -139,6 +139,53 @@ pub(crate) fn from_proto_with_origin(
     }
 }
 
+pub(crate) fn user_from_line(
+    line: &papo_proto::LineRef<'_>,
+    casemapping: Casemapping,
+    origin: crate::Origin,
+    account_tag_enabled: bool,
+    prove_not_bot: bool,
+) -> Option<UserSource> {
+    let papo_proto::Source::User {
+        nick,
+        username,
+        host,
+        ..
+    } = line.source()?
+    else {
+        return None;
+    };
+    let account = line.tag("account").map_or_else(
+        || {
+            if account_tag_enabled {
+                Account::LoggedOut
+            } else {
+                Account::Unknown
+            }
+        },
+        |account| Account::LoggedIn(origin.__account(casemapping, account)),
+    );
+    let is_bot = if line.tags().any(|(key, _)| key == "bot") {
+        Some(true)
+    } else {
+        prove_not_bot.then_some(false)
+    };
+    let oper = line
+        .tags()
+        .find(|(key, _)| *key == "draft/oper")
+        .map(|(_, value)| Oper {
+            name: value.map(std::borrow::Cow::into_owned),
+        });
+    Some(UserSource {
+        nick: origin.__nick(casemapping, nick),
+        username: username.filter(|_| host.is_some()).map(str::to_owned),
+        host: host.map(str::to_owned),
+        account,
+        is_bot,
+        oper,
+    })
+}
+
 pub(crate) fn from_core(source: papo_core::Source, origin: crate::Origin) -> Option<Source> {
     match source {
         papo_core::Source::User {
