@@ -310,5 +310,5 @@ async fn wait_own_message(
 }
 
 fn source_nick(message: &ChatMessage) -> Option<String> {
-    message.actor.nick().map(ToString::to_string)
+    Some(message.actor.nick().to_string())
 }

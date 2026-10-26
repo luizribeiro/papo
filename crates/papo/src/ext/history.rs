@@ -1249,7 +1249,7 @@ mod tests {
         assert!(matches!(&items[0], PageEvent::OwnMessage(message)
             if message.msgid.as_deref() == Some("RfcBTzyxY120004")
                 && message.server_time == Some(first_time)
-                && matches!(&message.account, crate::Account::LoggedIn(account) if account == "papo")));
+                && matches!(message.actor.account(), crate::Account::LoggedIn(account) if account == "papo")));
         assert!(matches!(&items[3], PageEvent::NickChanged(changed)
             if changed.msgid.as_deref() == Some("RfcBTzyxY120007")
                 && matches!(&changed.account, crate::Account::LoggedIn(account) if account == "papo")));

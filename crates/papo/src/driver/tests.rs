@@ -340,8 +340,10 @@ async fn message_fields_use_captured_session_facts() {
     ));
     assert_eq!(message.return_address(), "#papo");
     assert_eq!(message.msgid.as_deref(), Some("RfcBTzyxY120004"));
-    assert!(matches!(&message.account, crate::Account::LoggedIn(account) if account == "emily"));
-    assert!(message.is_bot);
+    assert!(
+        matches!(message.actor.account(), crate::Account::LoggedIn(account) if account == "emily")
+    );
+    assert_eq!(message.actor.is_bot(), Some(true));
     assert_eq!(
         message.in_reply_to.as_ref().map(AsRef::as_ref),
         Some("RfcBTzyxY120003")
@@ -1289,7 +1291,11 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         &Event::ChannelRenamed(crate::event::ChannelRenamed {
             old: crate::Origin::__new(73).__channel(crate::Casemapping::default(), "#RUST"),
             new: crate::Origin::__new(73).__channel(crate::Casemapping::default(), "#systems"),
-            actor: crate::__testing::user_source(test_nick("oper"), None, None),
+            actor: crate::Source::User(crate::__testing::user_source(
+                test_nick("oper"),
+                None,
+                None,
+            )),
             authorship: crate::Authorship::Other,
             reason: Some("Community renamed".into()),
         }),
@@ -1306,7 +1312,11 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             account: crate::Account::Unknown,
             realname: None,
             channel: test_channel("#papo"),
-            actor: crate::__testing::user_source(test_nick("papo-driver"), None, None),
+            actor: crate::Source::User(crate::__testing::user_source(
+                test_nick("papo-driver"),
+                None,
+                None,
+            )),
             nick: test_nick("papo-driver"),
             authorship: crate::Authorship::Own,
             netjoin: None,
@@ -1322,7 +1332,11 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             account: crate::Account::Unknown,
             realname: None,
             channel: test_channel("#visitors"),
-            actor: crate::__testing::user_source(test_nick("alice"), None, None),
+            actor: crate::Source::User(crate::__testing::user_source(
+                test_nick("alice"),
+                None,
+                None,
+            )),
             nick: test_nick("alice"),
             authorship: crate::Authorship::Other,
             netjoin: None,
@@ -1338,7 +1352,11 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
             account: crate::Account::Unknown,
-            actor: crate::__testing::user_source(test_nick("alice"), None, None),
+            actor: crate::Source::User(crate::__testing::user_source(
+                test_nick("alice"),
+                None,
+                None,
+            )),
             channel: test_channel("#staff"),
             nick: test_nick("alice"),
             reason: Some("lunch".into()),
@@ -1374,7 +1392,11 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
             account: crate::Account::Unknown,
-            actor: crate::__testing::user_source(test_nick("papo-driver"), None, None),
+            actor: crate::Source::User(crate::__testing::user_source(
+                test_nick("papo-driver"),
+                None,
+                None,
+            )),
             channel: test_channel("#Papo"),
             nick: test_nick("papo-driver"),
             reason: None,
@@ -1466,7 +1488,11 @@ fn rejoin_set_stops_at_ten_thousand_channels() {
         account: crate::Account::Unknown,
         realname: None,
         channel: test_channel("#overflow"),
-        actor: crate::__testing::user_source(test_nick("papo-driver"), None, None),
+        actor: crate::Source::User(crate::__testing::user_source(
+            test_nick("papo-driver"),
+            None,
+            None,
+        )),
         nick: test_nick("papo-driver"),
         authorship: crate::Authorship::Own,
         netjoin: None,

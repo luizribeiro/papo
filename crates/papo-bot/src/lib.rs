@@ -50,7 +50,7 @@ use web_time::Instant;
 
 use papo::{
     Account, AccountName, Client, Conversation, InvalidRateLimit, Message as ChatMessage,
-    MessageKind, Source,
+    MessageKind, UserSource,
 };
 
 const MAX_RATE_TARGETS: usize = 1024;
@@ -195,8 +195,8 @@ pub enum ReplyStatus {
 /// A parsed command from a live private message.
 #[derive(Clone, Debug)]
 pub struct Command {
-    /// The user or server that sent the command.
-    pub actor: Source,
+    /// The user that sent the command.
+    pub actor: UserSource,
     client: Client,
     message: ChatMessage,
     name: String,
@@ -212,13 +212,11 @@ impl Command {
             || message.kind != MessageKind::Text
             || message.origin() != papo::Origin::NONE && message.origin() != client.origin()
             || config.ignore_bots
-                && (message.is_bot
-                    || message.actor.nick().is_some_and(|nick| {
-                        client
-                            .state()
-                            .user(nick)
-                            .is_some_and(|user| user.is_bot() == Some(true))
-                    }))
+                && (message.actor.is_bot() == Some(true)
+                    || client
+                        .state()
+                        .user(message.actor.nick())
+                        .is_some_and(|user| user.is_bot() == Some(true)))
         {
             return None;
         }
@@ -229,7 +227,7 @@ impl Command {
             return None;
         }
         let rest = body[name_end..].trim_start();
-        let account = message.account.clone();
+        let account = message.actor.account().clone();
         Some(Self {
             actor: message.actor.clone(),
             client: client.clone(),
@@ -357,9 +355,7 @@ impl Command {
         &self,
         text: impl Into<String>,
     ) -> Result<ReplyStatus, papo::Error> {
-        let Some(target) = self.message.actor.nick() else {
-            return Ok(ReplyStatus::NoRecipient);
-        };
+        let target = self.message.actor.nick();
         if self.message.__recipient_changed(&self.client.state()) {
             return Err(papo::Error::TargetGone);
         }
@@ -795,7 +791,7 @@ mod tests {
 
         let config = BotConfig::new("!");
         assert!(client.state().user("weatherbot").is_none());
-        assert!(messages[0].is_bot);
+        assert_eq!(messages[0].actor.is_bot(), Some(true));
         assert!(config.command(&client, &messages[0]).is_none());
         assert!(
             BotConfig::new("!")
@@ -804,7 +800,7 @@ mod tests {
                 .is_some()
         );
         assert_eq!(client.state().user("emily").unwrap().is_bot(), Some(true));
-        assert!(!messages[2].is_bot);
+        assert_eq!(messages[2].actor.is_bot(), None);
         assert!(config.command(&client, &messages[2]).is_none());
         assert!(
             BotConfig::new("!")
@@ -898,7 +894,7 @@ mod tests {
     #[test]
     fn reports_actor_and_rejects_non_commands() {
         let channel = parse(&message("#papo", "!ping"), &BotConfig::new("!")).unwrap();
-        let actor: Option<&Nick> = channel.actor.nick();
+        let actor: Option<&Nick> = Some(channel.actor.nick());
         assert_eq!(actor, Some(&nick("emily")));
 
         let config = BotConfig::new("!").mention(false);

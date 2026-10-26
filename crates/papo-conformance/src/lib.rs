@@ -37,8 +37,25 @@ type FixtureResult = papo_testing::Result<()>;
 pub type ScenarioFuture = Pin<Box<dyn Future<Output = FixtureResult>>>;
 
 #[doc(hidden)]
-pub fn source_nick(source: &papo::Source) -> Option<&str> {
-    source.nick().map(AsRef::<str>::as_ref)
+pub trait SourceNick {
+    fn source_nick(&self) -> Option<&str>;
+}
+
+impl SourceNick for papo::Source {
+    fn source_nick(&self) -> Option<&str> {
+        self.nick().map(AsRef::<str>::as_ref)
+    }
+}
+
+impl SourceNick for papo::UserSource {
+    fn source_nick(&self) -> Option<&str> {
+        Some(self.nick())
+    }
+}
+
+#[doc(hidden)]
+pub fn source_nick(source: &(impl SourceNick + ?Sized)) -> Option<&str> {
+    source.source_nick()
 }
 
 #[derive(Clone, Copy)]
