@@ -335,6 +335,10 @@ pub struct ServerNotice {
     pub kind: ServerNoticeKind,
     /// The notice's addressed audience.
     pub to: ServerNoticeTarget,
+    /// `STATUSMSG` prefixes removed from a channel audience, in wire order.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
+    pub status: Option<Vec<char>>,
     /// Display text with IRC formatting removed.
     pub text: String,
     /// Text with IRC formatting retained.
@@ -532,7 +536,7 @@ pub(crate) fn incoming_from_core(
             Ok(event) => return event,
             Err(raw) => raw,
         };
-        return ServerNotice::from_line(raw, origin, isupport, received_at)
+        return ServerNotice::from_line(raw, None, None, origin, isupport, received_at)
             .map_or_else(Event::Other, |notice| Event::ServerNotice(Box::new(notice)));
     };
     message_event_from_line(
@@ -780,6 +784,8 @@ impl Notice {
 impl ServerNotice {
     fn from_line(
         raw: ProtoLine,
+        conversation: Option<&Conversation>,
+        status: Option<Vec<char>>,
         origin: crate::Origin,
         isupport: &Isupport,
         received_at: SystemTime,
@@ -798,7 +804,9 @@ impl ServerNotice {
         let Some(raw_text) = message.param(usize::from(!wallops)) else {
             return Err(raw);
         };
-        let to = if wallops || message.param(0) == Some("*") {
+        let to = if let Some(Conversation::Channel(channel)) = conversation {
+            ServerNoticeTarget::Channel(channel.clone())
+        } else if wallops || message.param(0) == Some("*") {
             ServerNoticeTarget::All
         } else if let Some(target) = message.param(0).filter(|target| target.starts_with('$')) {
             ServerNoticeTarget::Mask(origin.__mask(isupport.casemapping(), target))
@@ -819,6 +827,7 @@ impl ServerNotice {
             actor,
             kind,
             to,
+            status,
             text: strip_formatting(raw_text).into_owned(),
             raw_text: raw_text.to_owned(),
             server_time: envelope.server_time,
@@ -854,8 +863,15 @@ fn message_event_from_line(
         || matches!(message.source(), Some(papo_proto::Source::Server(_)));
     if server_notice {
         let origin = crate::message_ref::conversation_origin(&conversation);
-        return ServerNotice::from_line(raw, origin, isupport, received_at)
-            .map_or_else(Event::Other, |notice| Event::ServerNotice(Box::new(notice)));
+        return ServerNotice::from_line(
+            raw,
+            Some(&conversation),
+            status,
+            origin,
+            isupport,
+            received_at,
+        )
+        .map_or_else(Event::Other, |notice| Event::ServerNotice(Box::new(notice)));
     }
     let raw = match ctcp_from_line(
         raw,
@@ -2221,7 +2237,36 @@ mod tests {
         );
         assert!(matches!(server, Event::ServerNotice(notice)
             if notice.kind == ServerNoticeKind::Notice
-                && notice.to == ServerNoticeTarget::Me));
+                && notice.to == ServerNoticeTarget::Me
+                && notice.status.is_none()));
+
+        for (line, channel, status) in [
+            (
+                ":irc.example.net NOTICE @#ops :[Knock] by mallory!~m@203.0.113.9 (let me in)",
+                "#ops",
+                &['@'][..],
+            ),
+            (
+                ":irc.example NOTICE @#chan :<mallory:#chan> text",
+                "#chan",
+                &['@'][..],
+            ),
+            (
+                ":irc.example NOTICE @+#ops :Operators and voiced users only",
+                "#ops",
+                &['@', '+'][..],
+            ),
+        ] {
+            let event = parse_event(
+                LineRef::parse(line).unwrap().to_owned(),
+                &isupport,
+                "papo",
+                UNIX_EPOCH,
+            );
+            assert!(matches!(event, Event::ServerNotice(notice)
+                if matches!(notice.to, ServerNoticeTarget::Channel(ref name) if name == channel)
+                    && notice.status.as_deref() == Some(status)));
+        }
 
         let wallops = message_event_from_line(
             Line::new("WALLOPS")

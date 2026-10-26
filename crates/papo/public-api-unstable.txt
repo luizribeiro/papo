@@ -983,6 +983,7 @@ pub papo::event::ServerNotice::kind: papo::event::ServerNoticeKind
 pub papo::event::ServerNotice::raw_text: alloc::string::String
 pub papo::event::ServerNotice::received_at: std::time::SystemTime
 pub papo::event::ServerNotice::server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::ServerNotice::status: core::option::Option<alloc::vec::Vec<char>>
 pub papo::event::ServerNotice::tags: papo::Tags
 pub papo::event::ServerNotice::text: alloc::string::String
 pub papo::event::ServerNotice::to: papo::event::ServerNoticeTarget
