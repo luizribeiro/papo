@@ -106,6 +106,7 @@ pub(crate) fn history_item(
                     message,
                     crate::Authorship::from_core(item.authorship),
                     client,
+                    history_conversation,
                     received_at,
                 )
             })
@@ -328,13 +329,13 @@ fn quit(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        account: envelope.account,
-        actor: crate::event_impl::source::from_proto_with_origin(
-            message.source()?,
+        actor: crate::event_impl::source::user_from_line(
+            message,
             mapping,
             origin,
-        ),
-        nick: origin.__nick(mapping, source_nick(message)?),
+            account_tag_enabled,
+            false,
+        )?,
         reason: message
             .param(0)
             .filter(|reason| !reason.is_empty())
@@ -390,9 +391,10 @@ fn nick_changed(
     message: &papo_proto::LineRef<'_>,
     authorship: crate::Authorship,
     client: &Client,
+    history_conversation: Option<&crate::Conversation>,
     received_at: SystemTime,
 ) -> Option<Event> {
-    let old = source_nick(message)?;
+    source_nick(message)?;
     let state = client.state();
     let mapping = state.casemapping();
     let envelope = crate::event_impl::line_envelope_with_account_tag(
@@ -406,15 +408,19 @@ fn nick_changed(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        account: envelope.account,
-        actor: crate::event_impl::source::from_proto_with_origin(
-            message.source()?,
+        actor: crate::event_impl::source::user_from_line(
+            message,
             mapping,
             client.origin(),
-        ),
+            state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
+            false,
+        )?,
         authorship,
-        old: state.nickname(old),
         new: state.nickname(message.param(0)?),
+        channels: match history_conversation {
+            Some(crate::Conversation::Channel(channel)) => vec![channel.clone()],
+            _ => Vec::new(),
+        },
     }))
 }
 
@@ -1245,12 +1251,12 @@ mod tests {
         assert!(matches!(&items[2], PageEvent::Message(message)
             if message.authorship == crate::Authorship::Unknown && !message.is_own()));
         assert!(matches!(&items[3], PageEvent::NickChanged(changed)
-            if changed.old == "papo-old" && changed.new == "papo"
+            if changed.actor.nick() == "papo-old" && changed.new == "papo"
                 && changed.authorship == crate::Authorship::Own));
         assert!(matches!(&items[4], PageEvent::Quit(quit)
             if quit.channels == ["#papo"]
                 && quit.authorship == crate::Authorship::Other
-                && matches!(&quit.account, crate::Account::LoggedIn(account) if account == "emily")));
+                && matches!(quit.actor.account(), crate::Account::LoggedIn(account) if account == "emily")));
         let first_time = papo_proto::time::parse("2026-10-19T14:31:08.123Z").unwrap();
         assert!(matches!(&items[0], PageEvent::OwnMessage(message)
             if message.msgid.as_deref() == Some("RfcBTzyxY120004")
@@ -1258,7 +1264,7 @@ mod tests {
                 && matches!(message.actor.account(), crate::Account::LoggedIn(account) if account == "papo")));
         assert!(matches!(&items[3], PageEvent::NickChanged(changed)
             if changed.msgid.as_deref() == Some("RfcBTzyxY120007")
-                && matches!(&changed.account, crate::Account::LoggedIn(account) if account == "papo")));
+                && matches!(changed.actor.account(), crate::Account::LoggedIn(account) if account == "papo")));
     }
 
     #[test]
@@ -1485,9 +1491,8 @@ mod tests {
         assert!(matches!(
             quit,
             PageEvent::Quit(event)
-                if event.nick == "emily"
-                    && event.nick.origin() == client.origin()
-                    && event.actor.nick().is_some_and(|nick| nick.origin() == client.origin())
+                if event.actor.nick() == "emily"
+                    && event.actor.nick().origin() == client.origin()
                     && event.reason.as_deref() == Some("Connection reset by peer")
                     && event.channels.is_empty()
         ));
@@ -1512,10 +1517,9 @@ mod tests {
         assert!(matches!(
             renamed,
             PageEvent::NickChanged(event)
-                if event.old == "emily" && event.new == "emily_"
-                    && event.old.origin() == client.origin()
+                if event.actor.nick() == "emily" && event.new == "emily_"
+                    && event.actor.nick().origin() == client.origin()
                     && event.new.origin() == client.origin()
-                    && event.actor.nick().is_some_and(|nick| nick.origin() == client.origin())
                     && event.authorship == crate::Authorship::Unknown
         ));
     }

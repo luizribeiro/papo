@@ -2,7 +2,7 @@ use std::time::SystemTime;
 
 use crate::{Account, AccountName, Authorship, Away, ChannelName, MessageId, Nick, ServerName};
 
-use super::Source;
+use super::{Source, UserSource};
 
 /// A user disconnected from the network.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -14,15 +14,11 @@ pub struct Quit {
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
     pub received_at: SystemTime,
-    /// The actor's account state reported by `account-tag`.
-    pub account: Account,
     /// The disconnected user.
-    pub actor: Source,
-    /// The disconnected user's nickname.
-    pub nick: Nick,
+    pub actor: UserSource,
     /// The optional quit reason.
     pub reason: Option<String>,
-    /// Shared channels captured before the user was removed.
+    /// Shared channels where papo knows the user is a member.
     pub channels: Vec<ChannelName>,
     /// Whether the disconnected user is this client's user.
     pub authorship: Authorship,
@@ -40,14 +36,12 @@ pub struct NickChanged {
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
     pub received_at: SystemTime,
-    /// The actor's account state reported by `account-tag`.
-    pub account: Account,
     /// The renamed user before the change.
-    pub actor: Source,
-    /// The previous nickname.
-    pub old: Nick,
+    pub actor: UserSource,
     /// The new nickname.
     pub new: Nick,
+    /// Shared channels where papo knows the user is a member.
+    pub channels: Vec<ChannelName>,
     /// Whether the renamed user is this client's user.
     pub authorship: Authorship,
 }
@@ -57,11 +51,11 @@ pub struct NickChanged {
 #[non_exhaustive]
 pub struct AwayChanged {
     /// The affected user.
-    pub actor: Source,
-    /// The affected user's nickname.
-    pub nick: Nick,
+    pub actor: UserSource,
     /// The user's new presence state.
-    pub away: Away,
+    pub new: Away,
+    /// Whether the affected user is this client's user.
+    pub authorship: Authorship,
 }
 
 /// A user's account state changed.

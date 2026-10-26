@@ -1827,7 +1827,7 @@ pub(crate) fn from_core(
         papo_core::Event::Quit {
             envelope,
             actor,
-            nick,
+            nick: _,
             reason,
             channels,
             authorship,
@@ -1839,9 +1839,17 @@ pub(crate) fn from_core(
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
-                account: envelope.account,
-                actor: source::from_prefix(actor, casemapping, origin),
-                nick,
+                actor: match source::user_from_prefix(
+                    &actor,
+                    casemapping,
+                    origin,
+                    envelope.account,
+                    None,
+                    None,
+                ) {
+                    Some(actor) => actor,
+                    None => return CoreEvent::Unknown,
+                },
                 reason,
                 channels,
                 authorship: Authorship::from_core(authorship),
@@ -1851,8 +1859,9 @@ pub(crate) fn from_core(
         papo_core::Event::NickChanged {
             envelope,
             actor,
-            old,
+            old: _,
             new,
+            channels,
             authorship,
             ..
         } => {
@@ -1861,10 +1870,19 @@ pub(crate) fn from_core(
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
-                account: envelope.account,
-                actor: source::from_prefix(actor, casemapping, origin),
-                old,
+                actor: match source::user_from_prefix(
+                    &actor,
+                    casemapping,
+                    origin,
+                    envelope.account,
+                    None,
+                    None,
+                ) {
+                    Some(actor) => actor,
+                    None => return CoreEvent::Unknown,
+                },
                 new,
+                channels,
                 authorship: Authorship::from_core(authorship),
             })
         }
@@ -2781,8 +2799,8 @@ mod tests {
             let account = match &event {
                 Event::Parted(event) => Some(event.actor.account()),
                 Event::Kicked(event) => Some(&event.account),
-                Event::Quit(event) => Some(&event.account),
-                Event::NickChanged(event) => Some(&event.account),
+                Event::Quit(event) => Some(event.actor.account()),
+                Event::NickChanged(event) => Some(event.actor.account()),
                 Event::ModeChanged(event) => Some(&event.account),
                 Event::TopicChanged(event) => Some(&event.account),
                 _ => None,
@@ -3535,8 +3553,7 @@ mod tests {
                 None,
             )),
             Event::Quit(quit)
-                if quit.nick == "emily"
-                    && quit.actor.nick().is_some_and(|nick| nick == "emily")
+                if quit.actor.nick() == "emily"
                     && quit.reason.as_deref() == Some("Client exited")
                     && quit.channels == ["#papo", "#rust"]
                     && quit.netsplit.is_none()
@@ -3586,11 +3603,12 @@ mod tests {
                 "emily!~emily@cloak.example".into(),
                 Casemapping::default().nick("emily"),
                 Casemapping::default().nick("em"),
+                vec![Casemapping::default().channel("#papo")],
                 papo_core::Authorship::Other,
             )),
             Event::NickChanged(changed)
-                if changed.actor.nick().is_some_and(|nick| nick == "emily")
-                    && changed.old == "emily" && changed.new == "em"
+                if changed.actor.nick() == "emily" && changed.new == "em"
+                    && changed.channels == ["#papo"]
         ));
     }
 
@@ -3939,10 +3957,9 @@ mod tests {
                 msgid: None,
                 server_time: None,
                 received_at: UNIX_EPOCH,
-                account: Account::Unknown,
-                actor: Source::User(own_actor.clone()),
-                old: mapping.nick("Papo[Bot]"),
+                actor: own_actor.clone(),
                 new: mapping.nick("papo-away"),
+                channels: vec![mapping.channel("#papo")],
                 authorship: Authorship::Own,
             }),
             Event::Joined(super::Joined {

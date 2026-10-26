@@ -32,8 +32,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
             Event::Joined(joined) => println!("join {} {}", joined.channel, joined.actor.nick()),
             Event::Parted(parted) => println!("part {} {}", parted.channel, parted.actor.nick()),
-            Event::Quit(quit) => println!("quit {}", quit.nick),
-            Event::NickChanged(changed) => println!("nick {} -> {}", changed.old, changed.new),
+            Event::Quit(quit) => println!("quit {}", quit.actor.nick()),
+            Event::NickChanged(changed) => {
+                println!("nick {} -> {}", changed.actor.nick(), changed.new);
+            }
             _ => continue,
         }
         std::io::stdout().flush()?;
