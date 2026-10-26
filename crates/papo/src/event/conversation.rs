@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use crate::{Conversation, Mask, MessageId, Typing};
+use crate::{Conversation, Mask, MessageId, Prefix, Typing};
 
 use super::{Authorship, Source, Tags, TypingReason, UserSource};
 
@@ -103,10 +103,11 @@ pub struct Reacted {
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
     pub conversation: Conversation,
-    /// `STATUSMSG` prefixes on the wire address, in wire order.
+    /// The lowest-ranked `STATUSMSG` prefix on the wire address.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
-    pub status: Option<Vec<char>>,
+    pub status: Option<Prefix>,
+    pub(crate) return_address: String,
     /// The message being reacted to.
     pub reacts_to: MessageId,
     /// The reaction text, usually an emoji.
@@ -135,10 +136,11 @@ pub struct Redacted {
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
     pub conversation: Conversation,
-    /// `STATUSMSG` prefixes on the wire address, in wire order.
+    /// The lowest-ranked `STATUSMSG` prefix on the wire address.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
-    pub status: Option<Vec<char>>,
+    pub status: Option<Prefix>,
+    pub(crate) return_address: String,
     /// The message removed from history.
     pub redacts: MessageId,
     /// The optional human-readable reason.
@@ -157,10 +159,11 @@ pub struct TypingChanged {
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
     pub conversation: Conversation,
-    /// `STATUSMSG` prefixes on the wire address, in wire order.
+    /// The lowest-ranked `STATUSMSG` prefix on the wire address.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
-    pub status: Option<Vec<char>>,
+    pub status: Option<Prefix>,
+    pub(crate) return_address: String,
     /// The new typing state.
     pub state: Typing,
     /// Why the state changed.
@@ -179,10 +182,11 @@ pub struct TagMsg {
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
     pub conversation: Conversation,
-    /// `STATUSMSG` prefixes on the wire address, in wire order.
+    /// The lowest-ranked `STATUSMSG` prefix on the wire address.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
-    pub status: Option<Vec<char>>,
+    pub status: Option<Prefix>,
+    pub(crate) return_address: String,
     /// Tags in wire order with last-wins lookup.
     pub tags: Tags,
 }

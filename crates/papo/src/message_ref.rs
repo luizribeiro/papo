@@ -2,7 +2,7 @@ use std::fmt;
 
 use crate::{
     Account, ChannelName, Conversation, Message, MessageId, Nick, Sent,
-    event::{CtcpQuery, CtcpReply, Notice, Reacted, Redacted, TagMsg, TypingChanged},
+    event::{CtcpQuery, CtcpReply, Notice, Reacted, Redacted, ServerNotice, TagMsg, TypingChanged},
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -138,15 +138,19 @@ pub(crate) fn message_actor_recipient(message: &Message) -> RecipientGuard {
 }
 
 fn from_received(
+    address: &str,
     conversation: &Conversation,
-    status: Option<&[char]>,
     msgid: Option<&MessageId>,
     account: &Account,
     receipt: Option<papo_core::ReplyToken>,
     channel_context: Option<ChannelName>,
 ) -> MessageRef {
+    let address = match conversation {
+        Conversation::Private(nick) => nick.to_string(),
+        _ => address.to_owned(),
+    };
     MessageRef::new(
-        address(conversation, status),
+        address,
         msgid.into_iter().cloned().collect(),
         conversation_origin(conversation),
         channel_context,
@@ -158,8 +162,8 @@ fn from_received(
 impl From<&Message> for MessageRef {
     fn from(message: &Message) -> Self {
         from_received(
+            &message.return_address,
             &message.conversation,
-            message.status.as_deref(),
             message.msgid.as_ref(),
             message.actor.account(),
             message.reply_token,
@@ -179,7 +183,7 @@ impl From<&Box<Message>> for MessageRef {
 impl From<&Sent> for MessageRef {
     fn from(message: &Sent) -> Self {
         Self::new(
-            address(&message.conversation, message.status.as_deref()),
+            message.return_address.clone(),
             message.msgids.clone(),
             conversation_origin(&message.conversation),
             None,
@@ -192,8 +196,8 @@ impl From<&Sent> for MessageRef {
 impl From<&CtcpQuery> for MessageRef {
     fn from(query: &CtcpQuery) -> Self {
         from_received(
+            &query.return_address,
             &query.conversation,
-            query.status.as_deref(),
             query.msgid.as_ref(),
             query.actor.account(),
             query.reply_token,
@@ -206,8 +210,8 @@ impl From<&CtcpQuery> for MessageRef {
 impl From<&TagMsg> for MessageRef {
     fn from(message: &TagMsg) -> Self {
         from_received(
+            &message.return_address,
             &message.conversation,
-            message.status.as_deref(),
             message.tags.get("msgid").map(MessageId::from).as_ref(),
             &Account::Unknown,
             None,
@@ -218,8 +222,8 @@ impl From<&TagMsg> for MessageRef {
 
 pub(crate) fn from_notice(notice: &Notice) -> MessageRef {
     from_received(
+        &notice.return_address,
         &notice.conversation,
-        notice.status.as_deref(),
         notice.msgid.as_ref(),
         notice.actor.account(),
         notice.reply_token,
@@ -229,8 +233,8 @@ pub(crate) fn from_notice(notice: &Notice) -> MessageRef {
 
 pub(crate) fn from_ctcp_reply(reply: &CtcpReply) -> MessageRef {
     from_received(
+        &reply.return_address,
         &reply.conversation,
-        reply.status.as_deref(),
         reply.msgid.as_ref(),
         reply.actor.account(),
         reply.reply_token,
@@ -240,8 +244,8 @@ pub(crate) fn from_ctcp_reply(reply: &CtcpReply) -> MessageRef {
 
 pub(crate) fn from_reacted(line: &Reacted) -> MessageRef {
     from_received(
+        &line.return_address,
         &line.conversation,
-        line.status.as_deref(),
         line.msgid.as_ref(),
         line.actor.account(),
         None,
@@ -251,8 +255,8 @@ pub(crate) fn from_reacted(line: &Reacted) -> MessageRef {
 
 pub(crate) fn from_redacted(line: &Redacted) -> MessageRef {
     from_received(
+        &line.return_address,
         &line.conversation,
-        line.status.as_deref(),
         line.msgid.as_ref(),
         line.actor
             .user()
@@ -264,10 +268,28 @@ pub(crate) fn from_redacted(line: &Redacted) -> MessageRef {
 
 pub(crate) fn from_typing(line: &TypingChanged) -> MessageRef {
     from_received(
+        &line.return_address,
         &line.conversation,
-        line.status.as_deref(),
         None,
         &Account::Unknown,
+        None,
+        None,
+    )
+}
+
+pub(crate) fn from_server_notice(notice: &ServerNotice) -> MessageRef {
+    let origin = match &notice.to {
+        crate::Audience::Channel(channel) => channel.origin(),
+        crate::Audience::Broadcast(crate::Broadcast::Mask(mask)) => mask.origin(),
+        crate::Audience::Broadcast(crate::Broadcast::Everyone) | crate::Audience::Me => notice
+            .actor
+            .user()
+            .map_or(crate::Origin::NONE, |user| user.nick().origin()),
+    };
+    MessageRef::new(
+        notice.return_address.clone(),
+        Vec::new(),
+        origin,
         None,
         None,
     )
@@ -350,19 +372,6 @@ pub(crate) fn stamp_conversation(
     }
 }
 
-pub(crate) fn address(conversation: &Conversation, status: Option<&[char]>) -> String {
-    status
-        .into_iter()
-        .flatten()
-        .copied()
-        .chain(match conversation {
-            Conversation::Channel(channel) => channel.chars(),
-            Conversation::Private(nick) => nick.chars(),
-            _ => "*".chars(),
-        })
-        .collect()
-}
-
 #[cfg(test)]
 mod tests {
     use std::time::SystemTime;
@@ -384,7 +393,8 @@ mod tests {
             false,
         );
         received.conversation = Conversation::Channel(origin.__channel(mapping, "#ops"));
-        received.status = Some(vec!['@']);
+        received.status = Some(crate::Prefix::__new('o', '@'));
+        received.return_address = "@#ops".into();
         received.msgid = Some("RfcBTzyxY120004".into());
         let reference = received.return_address();
         assert_eq!(reference, "@#ops");
@@ -393,7 +403,8 @@ mod tests {
 
         let sent = Sent {
             conversation: Conversation::Channel(origin.__channel(mapping, "#ops")),
-            status: Some(vec!['@']),
+            status: Some(crate::Prefix::__new('o', '@')),
+            return_address: "@#ops".into(),
             msgids: vec!["RfcBTzyxY120005".into(), "RfcBTzyxY120006".into()],
             server_time: Some(SystemTime::UNIX_EPOCH),
             fallbacks: Vec::new(),

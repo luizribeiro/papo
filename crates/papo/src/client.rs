@@ -54,10 +54,11 @@ pub struct Sent {
     ///
     /// See [`crate::Conversation`] for status-prefixed line guidance.
     pub conversation: crate::Conversation,
-    /// `STATUSMSG` prefixes on the wire address, in wire order.
+    /// The lowest-ranked `STATUSMSG` prefix on the wire address.
     ///
     /// See [`crate::Conversation`] for status-prefixed line guidance.
-    pub status: Option<Vec<char>>,
+    pub status: Option<crate::Prefix>,
+    pub(crate) return_address: String,
     /// Server-assigned identifiers for every confirmed IRC message line, in send order.
     pub msgids: Vec<crate::MessageId>,
     /// Server time from a labelled echo.
@@ -278,12 +279,14 @@ impl Sent {
 
     pub(crate) fn without_echo(
         conversation: crate::Conversation,
-        status: Option<Vec<char>>,
+        status: Option<crate::Prefix>,
+        return_address: String,
         fallbacks: Vec<Fallback>,
     ) -> Self {
         Self {
             conversation,
             status,
+            return_address,
             msgids: Vec::new(),
             server_time: None,
             fallbacks,
@@ -293,7 +296,8 @@ impl Sent {
     pub(crate) fn from_confirmations(
         confirmations: &[papo_core::SentInfo],
         conversation: crate::Conversation,
-        status: Option<Vec<char>>,
+        status: Option<crate::Prefix>,
+        return_address: String,
         fallbacks: Vec<Fallback>,
     ) -> Self {
         let msgids = confirmations
@@ -303,6 +307,7 @@ impl Sent {
         Self {
             conversation,
             status,
+            return_address,
             msgids,
             server_time: confirmations
                 .iter()
@@ -333,11 +338,9 @@ impl Client {
             crate::target::Role::Account(_) => state.account_name(&text).check(),
             crate::target::Role::Conversation(_) => {
                 state.parse_target_inner(&text).and_then(|(status, _)| {
-                    status
-                        .and_then(|status| status.first().copied())
-                        .map_or(Ok(()), |prefix| {
-                            Err(crate::InvalidIdentifier::InvalidPrefix(prefix))
-                        })
+                    status.map(crate::Prefix::symbol).map_or(Ok(()), |prefix| {
+                        Err(crate::InvalidIdentifier::InvalidPrefix(prefix))
+                    })
                 })
             }
             crate::target::Role::Any(_) => self.state().mask(&text).check(),
@@ -882,7 +885,12 @@ impl Client {
                 message = message.with_tag(key, value);
             }
             self.send_message(message).await?;
-            return Ok(Sent::without_echo(conversation, status, fallbacks));
+            return Ok(Sent::without_echo(
+                conversation,
+                status,
+                target.to_owned(),
+                fallbacks,
+            ));
         }
         let (result, receiver) = oneshot::channel();
         self.commands

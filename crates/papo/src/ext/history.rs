@@ -183,6 +183,7 @@ fn reaction(
         account_tag_enabled,
         received_at,
     );
+    let return_address = crate::event_impl::return_address(message, &conversation);
     Some(Event::Reacted(Reacted {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
@@ -197,6 +198,7 @@ fn reaction(
         authorship,
         conversation,
         status,
+        return_address,
         reacts_to: reply_to.into(),
         reaction,
         action: if removed {
@@ -236,6 +238,7 @@ fn redaction(
         account_tag_enabled,
         received_at,
     );
+    let return_address = crate::event_impl::return_address(message, &conversation);
     Some(Event::Redacted(Redacted {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
@@ -255,6 +258,7 @@ fn redaction(
         authorship,
         conversation,
         status,
+        return_address,
         redacts: message.param(1)?.into(),
         reason: message
             .param(2)
@@ -1740,7 +1744,7 @@ mod tests {
             [crate::ModeChange {
                 mode: 'o',
                 action: crate::ModeAction::Add,
-                arg: Some(crate::ModeArg::Nick(nick)),
+                arg: Some(crate::ModeArg::Member { nick, .. }),
                 ..
             }] if nick == "alice"
         ));

@@ -148,7 +148,7 @@ impl ModeChanged {
     #[must_use]
     pub fn about(&self, change: &crate::ModeChange) -> Authorship {
         let affected = match change.arg.as_ref() {
-            Some(crate::ModeArg::Nick(nick)) => Some(nick),
+            Some(crate::ModeArg::Member { nick, .. }) => Some(nick),
             _ => match &self.subject {
                 Subject::User(nick) => Some(nick),
                 Subject::Channel(_) => return Authorship::Other,
