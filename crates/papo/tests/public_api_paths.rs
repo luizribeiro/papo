@@ -59,20 +59,20 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
         ConversationClass::Event,
     ),
     (
+        "pub fn papo::NameRules<'_>::conversation(&self, &str) -> core::result::Result<papo::Conversation, papo::InvalidInput>",
+        ConversationClass::State,
+    ),
+    (
+        "pub fn papo::NameRules<'_>::target(&self, &str) -> core::result::Result<(core::option::Option<papo::Prefix>, papo::Conversation), papo::InvalidInput>",
+        ConversationClass::State,
+    ),
+    (
         "pub papo::RecentConversation::conversation: papo::Conversation",
         ConversationClass::History,
     ),
     (
         "pub papo::Sent::conversation: papo::Conversation",
         ConversationClass::Outgoing,
-    ),
-    (
-        "pub fn papo::State::conversation(&self, &str) -> core::result::Result<papo::Conversation, papo::InvalidInput>",
-        ConversationClass::State,
-    ),
-    (
-        "pub fn papo::State::parse_target(&self, &str) -> core::result::Result<(core::option::Option<papo::Prefix>, papo::Conversation), papo::InvalidInput>",
-        ConversationClass::State,
     ),
     (
         "impl papo::AsConversation for papo::Conversation",

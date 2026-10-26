@@ -5,6 +5,7 @@ pub use papo::AsAccount
 pub use papo::AsChannel
 pub use papo::AsNick
 pub use papo::Away
+pub use papo::BuildError
 pub use papo::Cap
 pub use papo::Capabilities
 pub use papo::Casemapping
@@ -1149,7 +1150,7 @@ pub mod papo::isupport
 pub use papo::isupport::Advertised
 pub use papo::isupport::ChanModes
 pub use papo::isupport::ClientTagDeny
-pub use papo::isupport::Extban
+pub use papo::isupport::ExtbanSyntax
 pub use papo::isupport::Limit
 pub use papo::isupport::LimitValue
 pub mod papo::metadata
@@ -1644,6 +1645,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::HistoryReason
 pub papo::InvalidInput::AccountNameMustMatchNick
 pub papo::InvalidInput::BinarySecret
 pub papo::InvalidInput::ControlCharacter
+pub papo::InvalidInput::CustomStreamNotReusable
 pub papo::InvalidInput::EmailRequired
 pub papo::InvalidInput::EmptyAddress
 pub papo::InvalidInput::EmptyHost
@@ -1651,14 +1653,20 @@ pub papo::InvalidInput::EmptyText
 pub papo::InvalidInput::ForeignReference
 pub papo::InvalidInput::Fragment
 pub papo::InvalidInput::InsecureAuthentication
+pub papo::InvalidInput::InvalidClientTagKey(alloc::string::String)
+pub papo::InvalidInput::InvalidCtcp
 pub papo::InvalidInput::InvalidExtbanAccount(alloc::string::String)
 pub papo::InvalidInput::InvalidHost(alloc::string::String)
-pub papo::InvalidInput::InvalidMessage(alloc::string::String)
+#[non_exhaustive] pub papo::InvalidInput::InvalidMetadataKey
+pub papo::InvalidInput::InvalidMetadataKey::key: alloc::string::String
+pub papo::InvalidInput::InvalidMetadataKey::reason: papo::InvalidIdentifier
+pub papo::InvalidInput::InvalidMode(alloc::string::String)
 #[non_exhaustive] pub papo::InvalidInput::InvalidName
 pub papo::InvalidInput::InvalidName::argument: &'static str
 pub papo::InvalidInput::InvalidName::name: alloc::string::String
 pub papo::InvalidInput::InvalidName::reason: papo::InvalidIdentifier
 pub papo::InvalidInput::InvalidPort(alloc::string::String)
+pub papo::InvalidInput::InvalidRequest(alloc::string::String)
 #[non_exhaustive] pub papo::InvalidInput::KickReasonTooLong
 pub papo::InvalidInput::KickReasonTooLong::actual: usize
 pub papo::InvalidInput::KickReasonTooLong::maximum: usize
@@ -1685,6 +1693,7 @@ pub papo::InvalidInput::UnsupportedScheme(alloc::string::String)
 pub papo::InvalidInput::UnusableMessageReference
 pub papo::InvalidInput::Userinfo
 pub papo::InvalidInput::Whitespace
+pub papo::InvalidInput::WireMessage(papo::BuildError)
 pub papo::InvalidInput::ZeroEventCapacity
 pub papo::InvalidInput::ZoneIdentifier(alloc::string::String)
 impl core::clone::Clone for papo::InvalidInput
@@ -1733,6 +1742,26 @@ impl core::marker::Unpin for papo::MessageKind
 impl core::marker::UnsafeUnpin for papo::MessageKind
 impl core::panic::unwind_safe::RefUnwindSafe for papo::MessageKind
 impl core::panic::unwind_safe::UnwindSafe for papo::MessageKind
+#[non_exhaustive] pub enum papo::NameCheck
+pub papo::NameCheck::Invalid(papo::InvalidIdentifier)
+pub papo::NameCheck::Unknown
+pub papo::NameCheck::Valid
+impl core::clone::Clone for papo::NameCheck
+pub fn papo::NameCheck::clone(&self) -> Self
+impl core::cmp::Eq for papo::NameCheck
+impl core::cmp::PartialEq for papo::NameCheck
+pub fn papo::NameCheck::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::NameCheck
+pub fn papo::NameCheck::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo::NameCheck
+impl core::marker::StructuralPartialEq for papo::NameCheck
+impl core::marker::Freeze for papo::NameCheck
+impl core::marker::Send for papo::NameCheck
+impl core::marker::Sync for papo::NameCheck
+impl core::marker::Unpin for papo::NameCheck
+impl core::marker::UnsafeUnpin for papo::NameCheck
+impl core::panic::unwind_safe::RefUnwindSafe for papo::NameCheck
+impl core::panic::unwind_safe::UnwindSafe for papo::NameCheck
 #[non_exhaustive] pub enum papo::ReadMarker
 pub papo::ReadMarker::ReadUntil(std::time::SystemTime)
 pub papo::ReadMarker::Unset
@@ -2132,7 +2161,7 @@ pub fn papo::Isupport::account_required(&self) -> bool
 pub fn papo::Isupport::accountextban(&self) -> alloc::vec::Vec<&str>
 pub fn papo::Isupport::awaylen(&self) -> core::option::Option<usize>
 pub fn papo::Isupport::bot_mode(&self) -> core::option::Option<char>
-pub fn papo::Isupport::casemapping(&self) -> papo::Casemapping
+pub fn papo::Isupport::casemapping(&self) -> core::option::Option<papo::Casemapping>
 pub fn papo::Isupport::chanlimit(&self) -> alloc::vec::Vec<papo::isupport::Limit<'_>>
 pub fn papo::Isupport::chanmodes(&self) -> core::option::Option<papo::isupport::ChanModes<'_>>
 pub fn papo::Isupport::channellen(&self) -> core::option::Option<usize>
@@ -2141,7 +2170,7 @@ pub fn papo::Isupport::chathistory(&self) -> core::option::Option<papo::isupport
 pub fn papo::Isupport::clienttagdeny(&self) -> papo::isupport::ClientTagDeny<'_>
 pub fn papo::Isupport::elist(&self) -> core::option::Option<&str>
 pub fn papo::Isupport::excepts(&self) -> core::option::Option<char>
-pub fn papo::Isupport::extban(&self) -> core::option::Option<papo::isupport::Extban<'_>>
+pub fn papo::Isupport::extban(&self) -> core::option::Option<papo::isupport::ExtbanSyntax<'_>>
 pub fn papo::Isupport::get(&self, &str) -> papo::isupport::Advertised<'_>
 pub fn papo::Isupport::icon(&self) -> core::option::Option<&str>
 pub fn papo::Isupport::icon_url(&self, u32) -> core::option::Option<alloc::borrow::Cow<'_, str>>
@@ -2396,6 +2425,32 @@ impl core::marker::Unpin for papo::Monitor
 impl core::marker::UnsafeUnpin for papo::Monitor
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Monitor
 impl core::panic::unwind_safe::UnwindSafe for papo::Monitor
+pub struct papo::NameRules<'a>
+impl papo::NameRules<'_>
+pub fn papo::NameRules<'_>::account(&self, impl core::convert::AsRef<str>) -> papo::AccountName
+pub fn papo::NameRules<'_>::channel(&self, impl core::convert::AsRef<str>) -> papo::ChannelName
+pub fn papo::NameRules<'_>::mask(&self, impl core::convert::AsRef<str>) -> papo::Mask
+pub fn papo::NameRules<'_>::nick(&self, impl core::convert::AsRef<str>) -> papo::Nick
+impl papo::NameRules<'_>
+pub fn papo::NameRules<'_>::check_channel(&self, &str) -> papo::NameCheck
+pub fn papo::NameRules<'_>::check_nick(&self, &str) -> papo::NameCheck
+impl papo::NameRules<'_>
+pub fn papo::NameRules<'_>::conversation(&self, &str) -> core::result::Result<papo::Conversation, papo::InvalidInput>
+pub fn papo::NameRules<'_>::target(&self, &str) -> core::result::Result<(core::option::Option<papo::Prefix>, papo::Conversation), papo::InvalidInput>
+impl papo::NameRules<'_>
+pub fn papo::NameRules<'_>::parse_extban(&self, &papo::Mask) -> core::option::Option<papo::Extban>
+impl<'a> core::clone::Clone for papo::NameRules<'a>
+pub fn papo::NameRules<'a>::clone(&self) -> Self
+impl<'a> core::fmt::Debug for papo::NameRules<'a>
+pub fn papo::NameRules<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for papo::NameRules<'a>
+impl<'a> core::marker::Freeze for papo::NameRules<'a>
+impl<'a> core::marker::Send for papo::NameRules<'a>
+impl<'a> core::marker::Sync for papo::NameRules<'a>
+impl<'a> core::marker::Unpin for papo::NameRules<'a>
+impl<'a> core::marker::UnsafeUnpin for papo::NameRules<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo::NameRules<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo::NameRules<'a>
 pub struct papo::NewAccount
 impl papo::NewAccount
 pub fn papo::NewAccount::account(self, impl core::convert::AsRef<str>) -> Self
@@ -2602,29 +2657,21 @@ impl core::panic::unwind_safe::UnwindSafe for papo::SetModes
 pub struct papo::State
 impl papo::State
 pub fn papo::State::account(&self) -> &papo::Account
-pub fn papo::State::account_name(&self, impl core::convert::AsRef<str>) -> papo::AccountName
 pub fn papo::State::away(&self) -> &papo::Away
 pub const fn papo::State::caps(&self) -> &papo::Capabilities
 pub fn papo::State::casemapping(&self) -> papo::Casemapping
 pub fn papo::State::channel(&self, impl papo::AsChannel) -> core::option::Option<&papo::Channel>
-pub fn papo::State::channel_name(&self, impl core::convert::AsRef<str>) -> papo::ChannelName
 pub fn papo::State::channels(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Channel>
-pub fn papo::State::conversation(&self, &str) -> core::result::Result<papo::Conversation, papo::InvalidInput>
 pub fn papo::State::features(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo::Feature> + '_
 pub fn papo::State::host(&self) -> core::option::Option<&str>
 pub const fn papo::State::is_connected(&self) -> bool
-pub fn papo::State::is_valid_channel(&self, &str) -> bool
-pub fn papo::State::is_valid_nick(&self, &str) -> bool
 pub fn papo::State::isupport(&self) -> &papo::Isupport
-pub fn papo::State::mask(&self, impl core::convert::AsRef<str>) -> papo::Mask
 pub fn papo::State::metadata(&self, impl papo::Target) -> core::option::Option<&std::collections::hash::map::HashMap<papo::MetadataKey, papo::MetadataValue>>
 pub fn papo::State::metadata_subscriptions(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::MetadataKey>
 pub fn papo::State::monitor_online(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::User>
 pub fn papo::State::monitored(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Nick>
+pub const fn papo::State::name_rules(&self) -> papo::NameRules<'_>
 pub fn papo::State::nick(&self) -> &papo::Nick
-pub fn papo::State::nickname(&self, impl core::convert::AsRef<str>) -> papo::Nick
-pub fn papo::State::parse_extban(&self, &papo::Mask) -> core::option::Option<papo::Extban>
-pub fn papo::State::parse_target(&self, &str) -> core::result::Result<(core::option::Option<papo::Prefix>, papo::Conversation), papo::InvalidInput>
 pub fn papo::State::read_marker(&self, impl papo::AsConversation) -> core::option::Option<papo::ReadMarker>
 pub fn papo::State::realname(&self) -> &str
 pub fn papo::State::same_list_entry(&self, &papo::Mask, impl core::convert::AsRef<str>) -> bool
