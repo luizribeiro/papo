@@ -1,4 +1,4 @@
-use papo_proto::{Command, InvalidIdentifier, Isupport, LineRef, Source};
+use papo_proto::{Command, InvalidIdentifier, Isupport, LineRef, Prefix, Source};
 
 use crate::{Conversation, Names, names_equal};
 
@@ -21,7 +21,7 @@ pub(crate) fn classify_line(
     line: &LineRef<'_>,
     own_nick: &str,
     isupport: &Isupport,
-) -> Result<(Option<Vec<char>>, LineTarget), InvalidIdentifier> {
+) -> Result<(Option<Prefix>, LineTarget), InvalidIdentifier> {
     classify_line_with_names(
         line,
         own_nick,
@@ -35,7 +35,7 @@ pub(crate) fn classify_line_with_names(
     own_nick: &str,
     isupport: &Isupport,
     names: Names,
-) -> Result<(Option<Vec<char>>, LineTarget), InvalidIdentifier> {
+) -> Result<(Option<Prefix>, LineTarget), InvalidIdentifier> {
     if line.command_is("WALLOPS") || matches!(line.command(), Command::Numeric(_)) {
         return Ok((None, LineTarget::Server));
     }
@@ -54,7 +54,7 @@ pub(crate) fn classify_target_with_names(
     own_nick: &str,
     mapping: Names,
     isupport: &Isupport,
-) -> Result<(Option<Vec<char>>, LineTarget), InvalidIdentifier> {
+) -> Result<(Option<Prefix>, LineTarget), InvalidIdentifier> {
     let mut remainder = target;
     let mut status = Vec::new();
     loop {
@@ -62,7 +62,13 @@ pub(crate) fn classify_target_with_names(
             let channel = mapping.channel(remainder);
             channel.check(isupport)?;
             return Ok((
-                (!status.is_empty()).then_some(status),
+                status.last().copied().map(|symbol| {
+                    isupport
+                        .prefix()
+                        .into_iter()
+                        .find(|prefix| prefix.symbol() == symbol)
+                        .unwrap_or_else(|| Prefix::__new('\0', symbol))
+                }),
                 LineTarget::Conversation(Conversation::Channel(channel)),
             ));
         }

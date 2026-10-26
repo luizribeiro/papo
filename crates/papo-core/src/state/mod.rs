@@ -1093,7 +1093,7 @@ impl State {
     pub fn parse_target(
         &self,
         target: impl AsRef<str>,
-    ) -> Result<(Option<Vec<char>>, Conversation), papo_proto::InvalidIdentifier> {
+    ) -> Result<(Option<Prefix>, Conversation), papo_proto::InvalidIdentifier> {
         let (status, target) = classify_target_with_names(
             target.as_ref(),
             None,
@@ -1120,7 +1120,7 @@ impl State {
     ) -> Result<Conversation, papo_proto::InvalidIdentifier> {
         let text = text.as_ref();
         let (status, conversation) = self.parse_target(text)?;
-        match status.and_then(|status| status.first().copied()) {
+        match status.map(Prefix::symbol) {
             Some(prefix) => Err(papo_proto::InvalidIdentifier::InvalidPrefix(prefix)),
             None => Ok(conversation),
         }

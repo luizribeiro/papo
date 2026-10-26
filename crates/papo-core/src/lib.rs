@@ -315,13 +315,13 @@ pub enum Authorship {
     Unknown,
 }
 
-/// Classifies the IRC conversation and `STATUSMSG` prefixes addressed by a line.
+/// Classifies the IRC conversation and lowest-ranked `STATUSMSG` prefix addressed by a line.
 #[doc(hidden)]
 pub fn classify_conversation(
     line: &LineRef<'_>,
     own_nick: &str,
     isupport: &papo_proto::Isupport,
-) -> Result<(Option<Vec<char>>, Conversation), papo_proto::InvalidIdentifier> {
+) -> Result<(Option<Prefix>, Conversation), papo_proto::InvalidIdentifier> {
     let (status, target) = conversation::classify_line(line, own_nick, isupport)?;
     target.into_conversation().map_or_else(
         || Err(papo_proto::InvalidIdentifier::InvalidCharacter('*')),
@@ -2626,7 +2626,7 @@ pub struct ReceivedLine {
     batch_type: Option<String>,
     authorship: Authorship,
     conversation: Option<Conversation>,
-    status: Option<Vec<char>>,
+    status: Option<Prefix>,
     channel_context: Option<ChannelName>,
     reply_token: ReplyToken,
 }
@@ -2667,12 +2667,12 @@ impl ReceivedLine {
         self.conversation.as_ref()
     }
 
-    /// Returns the advertised `STATUSMSG` prefixes removed from the line's address.
+    /// Returns the lowest-ranked advertised `STATUSMSG` prefix on the line's address.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
     #[must_use]
-    pub fn status(&self) -> Option<&[char]> {
-        self.status.as_deref()
+    pub const fn status(&self) -> Option<Prefix> {
+        self.status
     }
 
     /// Returns channel context verified against shared membership when the line was received.

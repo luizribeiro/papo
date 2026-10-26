@@ -2,7 +2,7 @@
 
 mod support;
 
-use papo_core::{Config, Conversation, Event, Subject};
+use papo_core::{Config, Conversation, Event, Prefix, Rank, Subject};
 use papo_proto::{Casemapping, InvalidIdentifier};
 use support::Transcript;
 
@@ -113,20 +113,46 @@ fn separates_advertised_status_from_the_channel() {
         .server(":irc.example.net NOTICE @#ops :[Knock] by mallory!~m@203.0.113.9 (let me in)")
         .event(|event| {
             matches!(event, Event::Line(line)
-                if line.status() == Some(['@'].as_slice())
+                if line.status().map(Prefix::symbol) == Some('@')
                     && matches!(line.conversation(), Some(Conversation::Channel(channel)) if channel == "#ops"))
         })
         .server(":irc.example NOTICE @#chan :<mallory:#chan> text")
         .event(|event| {
             matches!(event, Event::Line(line)
-                if line.status() == Some(['@'].as_slice())
+                if line.status().map(Prefix::symbol) == Some('@')
                     && matches!(line.conversation(), Some(Conversation::Channel(channel)) if channel == "#chan"))
         })
         .server(":irc.example NOTICE @+#ops :Operators and voiced users only")
         .event(|event| {
             matches!(event, Event::Line(line)
-                if line.status() == Some(['@', '+'].as_slice())
+                if line.status().map(Prefix::symbol) == Some('+')
                     && matches!(line.conversation(), Some(Conversation::Channel(channel)) if channel == "#ops"))
+        })
+        .no_event();
+}
+
+#[test]
+fn status_uses_the_lowest_symbol_and_current_prefix_table() {
+    Transcript::new(Config::default().nick("papo"))
+        .server(":ergo.test 005 papo CHANTYPES=# PREFIX=(ov)@+ STATUSMSG=@+! :are supported")
+        .server(":alice!~a@cloak PRIVMSG @+#ops :ranked audience")
+        .event(|event| {
+            matches!(event, Event::Line(line)
+                if line.status().is_some_and(|prefix|
+                    prefix.symbol() == '+' && prefix.mode() == 'v' && prefix.rank() == Some(Rank::Voice)))
+        })
+        .server(":alice!~a@cloak PRIVMSG !#ops :vendor audience")
+        .event(|event| {
+            matches!(event, Event::Line(line)
+                if line.status().is_some_and(|prefix|
+                    prefix.symbol() == '!' && prefix.mode() == '\0' && prefix.rank().is_none()))
+        })
+        .server(":ergo.test 005 papo PREFIX=(vo)+@ :are supported")
+        .server(":alice!~a@cloak PRIVMSG @#ops :updated rank")
+        .event(|event| {
+            matches!(event, Event::Line(line)
+                if line.status().is_some_and(|prefix|
+                    prefix.symbol() == '@' && prefix.mode() == 'v' && prefix.rank() == Some(Rank::Voice)))
         })
         .no_event();
 }
@@ -205,7 +231,7 @@ fn strips_status_only_when_the_remainder_is_a_channel() {
             assert!(matches!(
                 session.state().parse_target("@+modeless"),
                 Ok((Some(status), Conversation::Channel(channel)))
-                    if status == ['@'] && channel == "+modeless"
+                    if status.symbol() == '@' && channel == "+modeless"
             ));
         })
         .server(":alice!~a@cloak PRIVMSG +modeless :meeting notes")
