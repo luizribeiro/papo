@@ -2849,6 +2849,24 @@ mod tests {
     }
 
     #[test]
+    fn return_address_falls_back_to_the_classified_conversation() {
+        let mapping = crate::Casemapping::default();
+        let incomplete = Line::new("PRIVMSG");
+        let channel = Conversation::Channel(mapping.channel("#papo"));
+        assert_eq!(
+            super::return_address(&incomplete.as_ref(), &channel),
+            "#papo"
+        );
+
+        let private_line = Line::privmsg("papo", "hello from Alice");
+        let private = Conversation::Private(mapping.nick("alice"));
+        assert_eq!(
+            super::return_address(&private_line.as_ref(), &private),
+            "alice"
+        );
+    }
+
+    #[test]
     fn raw_message_construction_does_not_trust_channel_context() {
         let tagged = |line| {
             event(
