@@ -234,18 +234,18 @@ fn parses_targets_with_advertised_status_and_channel_types() {
                 state.parse_target("!staff"),
                 Ok((None, Conversation::Channel(channel))) if channel == "!staff"
             ));
-            assert!(matches!(
+            assert_eq!(
                 state.parse_target("$*.example.org"),
-                Ok((None, Conversation::Broadcast(mask))) if mask == "$*.example.org"
-            ));
+                Err(InvalidIdentifier::InvalidPrefix('$'))
+            );
             assert!(matches!(
                 state.parse_target("emily"),
                 Ok((None, Conversation::Private(nick))) if nick == "emily"
             ));
-            assert!(matches!(
+            assert_eq!(
                 state.parse_target("*"),
-                Ok((None, Conversation::Server))
-            ));
+                Err(InvalidIdentifier::InvalidCharacter('*'))
+            );
         })
         .no_event();
 }

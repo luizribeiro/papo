@@ -1,19 +1,18 @@
-use papo_proto::{Command, InvalidIdentifier, Isupport, LineRef, Mask, Source};
+use papo_proto::{Command, InvalidIdentifier, Isupport, LineRef, Source};
 
 use crate::{Conversation, Names, names_equal};
 
 pub(crate) enum LineTarget {
     Conversation(Conversation),
     Server,
-    Broadcast(Mask),
+    Broadcast,
 }
 
 impl LineTarget {
-    pub(crate) fn into_conversation(self) -> Conversation {
+    pub(crate) fn into_conversation(self) -> Option<Conversation> {
         match self {
-            Self::Conversation(conversation) => conversation,
-            Self::Server => Conversation::Server,
-            Self::Broadcast(mask) => Conversation::Broadcast(mask),
+            Self::Conversation(conversation) => Some(conversation),
+            Self::Server | Self::Broadcast => None,
         }
     }
 }
@@ -86,7 +85,7 @@ pub(crate) fn classify_target_with_names(
     let target = if target.starts_with('$') {
         let mask = mapping.mask(target);
         mask.check()?;
-        LineTarget::Broadcast(mask)
+        LineTarget::Broadcast
     } else if target == "*" || matches!(source, Some(Source::Server(_))) {
         LineTarget::Server
     } else {

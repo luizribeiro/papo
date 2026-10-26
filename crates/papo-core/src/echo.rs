@@ -1,9 +1,6 @@
 use papo_proto::{Command, ModeChanges, Numeric};
 
-use crate::{
-    Event, Line, LineRef, ReceivedLine, Session,
-    conversation::classify_line_with_names,
-};
+use crate::{Event, Line, LineRef, ReceivedLine, Session, conversation::classify_line_with_names};
 
 impl Session {
     pub(super) fn enqueue_labelled_echo(&mut self, message: &LineRef<'_>) {
@@ -44,7 +41,7 @@ impl Session {
             self.names(),
         )
         .map_or((None, None), |(status, target)| {
-            (status, Some(target.into_conversation()))
+            (status, target.into_conversation())
         });
         let channel_context = self.verified_channel_context(&line.as_ref(), conversation.as_ref());
         ReceivedLine {

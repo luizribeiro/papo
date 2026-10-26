@@ -1,7 +1,7 @@
 use crate::{
     Authorship, Event, LineEnvelope, LineRef, Redacted, Session, StandardReply, StandardReplyView,
     TagMessage,
-    conversation::classify_line_with_names,
+    conversation::{LineTarget, classify_line_with_names},
 };
 
 impl Session {
@@ -12,12 +12,11 @@ impl Session {
         let Some(actor) = message.raw_source() else {
             return false;
         };
-        let Ok((status, target)) =
+        let Ok((status, LineTarget::Conversation(conversation))) =
             classify_line_with_names(message, self.nick(), self.isupport.value(), self.names())
         else {
             return false;
         };
-        let conversation = target.into_conversation();
         self.outbox.event(Event::TagMessage(TagMessage {
             envelope: LineEnvelope::from_line(message),
             actor: actor.to_owned(),
@@ -39,12 +38,11 @@ impl Session {
         ) else {
             return false;
         };
-        let Ok((status, target)) =
+        let Ok((status, LineTarget::Conversation(conversation))) =
             classify_line_with_names(message, self.nick(), self.isupport.value(), self.names())
         else {
             return false;
         };
-        let conversation = target.into_conversation();
         self.outbox.event(Event::Redacted(Redacted {
             envelope: LineEnvelope::from_line(message),
             actor: actor.to_owned(),

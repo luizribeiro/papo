@@ -26,7 +26,7 @@ use crate::{
     Authorship, Capabilities, Config, Conversation, Event, Handled, LastSeen, ListMode,
     MetadataValue, ModeArg, ModeChange, ModeListEntry, ModeValue, NameKey, Names, Outbox,
     ReadMarker, Secret, Source, StateLimit, Subject, WhoOnJoin,
-    conversation::classify_target_with_names,
+    conversation::{LineTarget, classify_target_with_names},
     monitor::Monitor,
     typing::{Typer, TypingTable},
 };
@@ -1016,7 +1016,7 @@ impl State {
             .collect();
         self.read_markers = std::mem::take(&mut self.read_markers)
             .into_values()
-            .filter_map(|mut marker| {
+            .map(|mut marker| {
                 match &mut marker.conversation {
                     Conversation::Channel(channel) => {
                         *channel = self
@@ -1027,14 +1027,12 @@ impl State {
                     Conversation::Private(nick) => {
                         *nick = self.casemapping.origin().__nick(mapping, nick.as_ref());
                     }
-                    Conversation::Server | Conversation::Broadcast(_) => return None,
                 }
                 let name = match &marker.conversation {
                     Conversation::Channel(channel) => channel.as_ref(),
                     Conversation::Private(nick) => nick.as_ref(),
-                    Conversation::Server | Conversation::Broadcast(_) => unreachable!(),
                 };
-                Some((NameKey::new(name, mapping), marker))
+                (NameKey::new(name, mapping), marker)
             })
             .collect();
         self.last_seen = std::mem::take(&mut self.last_seen)
@@ -1064,7 +1062,7 @@ impl State {
     ///
     /// # Errors
     ///
-    /// Returns an error when the address is not a valid channel, nickname, server mask, or `*`.
+    /// Returns an error when the address is not a valid channel or nickname.
     pub fn parse_target(
         &self,
         target: impl AsRef<str>,
@@ -1076,7 +1074,11 @@ impl State {
             self.casemapping,
             &self.isupport,
         )?;
-        Ok((status, target.into_conversation()))
+        match target {
+            LineTarget::Conversation(conversation) => Ok((status, conversation)),
+            LineTarget::Server => Err(papo_proto::InvalidIdentifier::InvalidCharacter('*')),
+            LineTarget::Broadcast => Err(papo_proto::InvalidIdentifier::InvalidPrefix('$')),
+        }
     }
 
     /// Builds a conversation using the server's advertised name rules.

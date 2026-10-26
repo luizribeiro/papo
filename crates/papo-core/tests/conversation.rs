@@ -30,12 +30,6 @@ fn compares_every_conversation_kind_with_text() {
         "Bob",
         "alice",
     );
-    assert_text_comparison(&Conversation::Server, "*", "#papo");
-    assert_text_comparison(
-        &Conversation::Broadcast(Casemapping::Rfc1459.mask("$*.Example.org")),
-        "$*.example.org",
-        "#papo",
-    );
 }
 
 #[test]
@@ -43,16 +37,16 @@ fn classifies_server_broadcast_and_private_conversations() {
     Transcript::new(Config::default().nick("papo"))
         .server(":ergo.test NOTICE * :*** Looking up your hostname...")
         .event(|event| {
-            matches!(event, Event::Line(line) if line.conversation() == Some(&Conversation::Server))
+            matches!(event, Event::Line(line) if line.conversation().is_none())
         })
         .server("NOTICE * :*** Checking Ident")
         .event(|event| {
-            matches!(event, Event::Line(line) if line.conversation() == Some(&Conversation::Server))
+            matches!(event, Event::Line(line) if line.conversation().is_none())
         })
         .server(":irc.solanum.example NOTICE papo :Server maintenance begins soon")
         .event(|event| {
             matches!(event, Event::Line(line)
-                if line.conversation() == Some(&Conversation::Server) && line.status().is_none())
+                if line.conversation().is_none() && line.status().is_none())
         })
         .server(":irc.example NOTICE #staff :Services will restart shortly")
         .event(|event| {
@@ -62,12 +56,12 @@ fn classifies_server_broadcast_and_private_conversations() {
         .server(":irc.example NOTICE $*.example.org :Maintenance begins soon")
         .event(|event| {
             matches!(event, Event::Line(line)
-                if matches!(line.conversation(), Some(Conversation::Broadcast(mask)) if mask == "$*.example.org"))
+                if line.conversation().is_none())
         })
         .server(":ergo.test WALLOPS :Network maintenance begins soon")
         .event(|event| {
             matches!(event, Event::Line(line)
-                if line.conversation() == Some(&Conversation::Server))
+                if line.conversation().is_none())
         })
         .server(":bob!~bob@users.example PRIVMSG papo :Are you around?")
         .event(|event| {
@@ -88,7 +82,7 @@ fn classifies_numerics_as_server_lines_without_a_source() {
         .server("404 papo #papo :Cannot send to channel")
         .event(|event| {
             matches!(event, Event::Line(line)
-                if line.conversation() == Some(&Conversation::Server))
+                if line.conversation().is_none())
         })
         .no_event();
 }

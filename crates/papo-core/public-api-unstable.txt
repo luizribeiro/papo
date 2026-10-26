@@ -439,10 +439,8 @@ impl core::marker::UnsafeUnpin for papo_core::ConnectPhase
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::ConnectPhase
 impl core::panic::unwind_safe::UnwindSafe for papo_core::ConnectPhase
 #[non_exhaustive] pub enum papo::Conversation
-pub papo::Conversation::Broadcast(papo::Mask)
 pub papo::Conversation::Channel(papo::ChannelName)
 pub papo::Conversation::Private(papo::Nick)
-pub papo::Conversation::Server
 impl core::clone::Clone for papo::Conversation
 pub fn papo::Conversation::clone(&self) -> Self
 impl core::cmp::Eq for papo::Conversation

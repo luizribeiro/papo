@@ -226,13 +226,6 @@ pub enum Conversation {
     ///
     /// The session's own nickname represents a notes-to-self conversation.
     Private(Nick),
-    /// Messages sent by the server, including messages addressed to `*`.
-    Server,
-    /// Operator broadcasts addressed to a server mask.
-    ///
-    /// Ergo rewrites these messages to each recipient's nickname, so they appear as private
-    /// conversations when received from Ergo.
-    Broadcast(Mask),
 }
 
 impl Conversation {
@@ -240,8 +233,6 @@ impl Conversation {
         match self {
             Self::Channel(channel) => channel,
             Self::Private(nick) => nick,
-            Self::Server => "*",
-            Self::Broadcast(mask) => mask,
         }
     }
 }
@@ -257,8 +248,6 @@ impl PartialEq<str> for Conversation {
         match self {
             Self::Channel(channel) => channel == other,
             Self::Private(nick) => nick == other,
-            Self::Server => other == "*",
-            Self::Broadcast(mask) => mask == other,
         }
     }
 }
@@ -298,8 +287,11 @@ pub fn classify_conversation(
     own_nick: &str,
     isupport: &papo_proto::Isupport,
 ) -> Result<(Option<Vec<char>>, Conversation), papo_proto::InvalidIdentifier> {
-    conversation::classify_line(line, own_nick, isupport)
-        .map(|(status, target)| (status, target.into_conversation()))
+    let (status, target) = conversation::classify_line(line, own_nick, isupport)?;
+    target.into_conversation().map_or_else(
+        || Err(papo_proto::InvalidIdentifier::InvalidCharacter('*')),
+        |conversation| Ok((status, conversation)),
+    )
 }
 
 /// Automatic replies to CTCP queries.

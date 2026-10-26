@@ -532,6 +532,12 @@ mod name_tests {
             state.conversation("@#papo"),
             Err(crate::InvalidInput::InvalidName { name, .. }) if name == "@#papo"
         ));
+        for target in ["*", "$*.example.org"] {
+            assert!(matches!(
+                state.conversation(target),
+                Err(crate::InvalidInput::InvalidName { name, .. }) if name == target
+            ));
+        }
     }
 
     #[test]

@@ -29,8 +29,6 @@ fn as_message(tag: &papo_core::TagMessage) -> Line {
             .chain(channel.chars())
             .collect(),
         Conversation::Private(nick) => nick.to_string(),
-        Conversation::Server => "*".to_owned(),
-        Conversation::Broadcast(mask) => mask.to_string(),
         _ => panic!("unexpected conversation kind"),
     };
     let mut message = Line::tagmsg(address);
@@ -90,7 +88,7 @@ fn reports_react_and_unreact_with_a_reply() {
 
 #[test]
 fn reports_tagmsg_without_known_tags() {
-    let tag = tag_message("@+example.org/read=cursor-42 :soju.example TAGMSG papo");
+    let tag = tag_message("@+example.org/read=cursor-42 :alice!~a@cloak TAGMSG papo");
     assert_eq!(
         tag.tags,
         [("+example.org/read".into(), Some("cursor-42".into()))]
@@ -154,7 +152,7 @@ fn classifies_wallops_as_server_conversations_without_reading_the_text_as_a_targ
                 event,
                 Event::Line(line)
                     if line.as_ref().command_is("WALLOPS")
-                        && matches!(line.conversation(), Some(Conversation::Server))
+                        && line.conversation().is_none()
             )
         })
         .server(":alice!~a@staff.example WALLOPS :maintenance")
@@ -163,7 +161,7 @@ fn classifies_wallops_as_server_conversations_without_reading_the_text_as_a_targ
                 event,
                 Event::Line(line)
                     if line.as_ref().command_is("WALLOPS")
-                        && matches!(line.conversation(), Some(Conversation::Server))
+                        && line.conversation().is_none()
             )
         });
 }
