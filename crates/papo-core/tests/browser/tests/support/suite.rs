@@ -66,7 +66,7 @@ async fn high_level_client_uses_the_browser_websocket() {
         .privmsg(&channel, "hello from the high-level browser driver")
         .await
         .unwrap();
-    assert!(sent.msgid.is_some());
+    assert!(sent.msgid().is_some());
 
     client
         .send_raw(Line::new("QUIT").with_params(["exercise browser reconnect backoff"]))
