@@ -3955,8 +3955,8 @@ mod tests {
                 authorship: Authorship::Own,
                 netjoin: Some(super::SplitServers {
                     batch: "join".to_owned(),
-                    first: "irc.example".to_owned(),
-                    second: "irc.remote".to_owned(),
+                    first: "irc.example".into(),
+                    second: "irc.remote".into(),
                 }),
             }),
         ];

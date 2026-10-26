@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use crate::{Account, AccountName, Authorship, Away, ChannelName, MessageId, Nick};
+use crate::{Account, AccountName, Authorship, Away, ChannelName, MessageId, Nick, ServerName};
 
 use super::Source;
 
@@ -145,19 +145,19 @@ pub struct SplitServers {
     /// The server's opaque batch reference.
     pub batch: String,
     /// The first server name in the batch parameters.
-    pub first: String,
+    pub first: ServerName,
     /// The second server name in the batch parameters.
     ///
     /// Wire order does not establish which server is nearer to this client.
-    pub second: String,
+    pub second: ServerName,
 }
 
 impl SplitServers {
     pub(super) fn from_core(value: papo_core::SplitServers) -> Self {
         Self {
             batch: value.batch,
-            first: value.first,
-            second: value.second,
+            first: value.first.into(),
+            second: value.second.into(),
         }
     }
 }
