@@ -238,7 +238,7 @@ impl Authorship {
 #[non_exhaustive]
 pub struct Message {
     /// The user that sent the message.
-    pub actor: Source,
+    pub actor: UserSource,
     /// Whether the actor is this client's user.
     pub authorship: Authorship,
     /// The chat conversation to which the message belongs.
@@ -261,8 +261,6 @@ pub struct Message {
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
     pub received_at: SystemTime,
-    /// The actor's account state reported by `account-tag`.
-    pub account: Account,
     /// The identifier referenced by a reply tag.
     pub in_reply_to: Option<MessageId>,
     /// Channel context whose membership was verified when this private message was received.
@@ -273,10 +271,6 @@ pub struct Message {
     /// Nickname of the client that submitted a relayed message.
     #[cfg(feature = "unstable")]
     pub relayed_by: Option<Nick>,
-    /// Whether the message carried the `bot` tag.
-    pub is_bot: bool,
-    /// The actor's IRC operator identity, when tagged.
-    pub oper: Option<Oper>,
     /// All message tags in wire order.
     pub tags: Tags,
     pub(crate) reply_token: Option<papo_core::ReplyToken>,
@@ -666,9 +660,12 @@ impl Message {
         ) else {
             return Err(raw);
         };
+        let Source::User(actor) = metadata.actor else {
+            return Err(raw);
+        };
         let conversation = metadata.conversation;
         Ok(Self {
-            actor: metadata.actor,
+            actor,
             authorship: metadata.authorship,
             conversation,
             status: metadata.status,
@@ -678,13 +675,10 @@ impl Message {
             msgid: metadata.msgid,
             server_time: metadata.server_time,
             received_at: metadata.received_at,
-            account: metadata.account,
             in_reply_to: metadata.reply_to,
             channel_context,
             #[cfg(feature = "unstable")]
             relayed_by: metadata.relayed_by,
-            is_bot: metadata.is_bot,
-            oper: metadata.oper,
             tags: metadata.tags,
             reply_token: metadata.reply_token,
         })
@@ -1038,7 +1032,6 @@ fn message_metadata(
     #[cfg(feature = "unstable")]
     let relayed_by = tag_owned(message, &[crate::cap::RELAYMSG.as_str()])
         .map(|nick| origin.__nick(isupport.casemapping(), nick));
-    let oper_tag = message.tags().find(|(key, _)| *key == "draft/oper");
     Some(MessageMetadata {
         actor,
         authorship,
@@ -1052,9 +1045,12 @@ fn message_metadata(
         #[cfg(feature = "unstable")]
         relayed_by,
         is_bot: tags.contains("bot"),
-        oper: oper_tag.map(|(_, value)| Oper {
-            name: value.map(std::borrow::Cow::into_owned),
-        }),
+        oper: message
+            .tags()
+            .find(|(key, _)| *key == "draft/oper")
+            .map(|(_, value)| Oper {
+                name: value.map(std::borrow::Cow::into_owned),
+            }),
         tags,
         reply_token,
     })
@@ -2209,7 +2205,7 @@ mod tests {
             match (kind, event) {
                 ("channel", Event::Message(message)) => {
                     assert_eq!(message.origin(), origin);
-                    assert_eq!(message.actor.nick().unwrap().origin(), origin);
+                    assert_eq!(message.actor.nick().origin(), origin);
                 }
                 ("private", Event::Notice(notice)) => {
                     assert_eq!(notice.origin(), origin);
@@ -2400,7 +2396,7 @@ mod tests {
     fn classifies_chat_and_ctcp_messages() {
         let message = chat("PRIVMSG", "hello");
         assert_eq!(message.kind, MessageKind::Text);
-        assert_eq!(message.account, Account::Unknown);
+        assert_eq!(message.actor.account(), &Account::Unknown);
         assert_eq!(
             chat("PRIVMSG", "\x01ACTION waves\x01").kind,
             MessageKind::Action
@@ -2547,13 +2543,9 @@ mod tests {
         assert!(!matches!(channel.conversation, Conversation::Private(_)));
         assert!(matches!(&channel.conversation, Conversation::Channel(name) if name == "#papo"));
         assert_eq!(channel.return_address(), "#papo");
-        assert_eq!(
-            channel.actor,
-            Source::from_proto(
-                papo_proto::Source::__user("emily", Some("~emily"), Some("localhost")),
-                Casemapping::default(),
-            )
-        );
+        assert_eq!(channel.actor.nick(), "emily");
+        assert_eq!(channel.actor.username(), Some("~emily"));
+        assert_eq!(channel.actor.host(), Some("localhost"));
 
         let private = event(
             Line::privmsg("papo", "hello").with_source("emily!~emily@localhost"),
@@ -2649,8 +2641,8 @@ mod tests {
         );
         assert!(matches!(&tagged.conversation, Conversation::Channel(name) if name == "#papo"));
         assert_eq!(tagged.msgid.as_deref(), Some("RfcBTzyxY120004"));
-        assert!(matches!(&tagged.account, Account::LoggedIn(account) if account == "emily"));
-        assert!(tagged.is_bot);
+        assert!(matches!(tagged.actor.account(), Account::LoggedIn(account) if account == "emily"));
+        assert_eq!(tagged.actor.is_bot(), Some(true));
         let tagged_event = Event::Message(Box::new(tagged.clone()));
         assert_eq!(tagged_event.msgid().as_deref(), Some("RfcBTzyxY120004"));
         assert_eq!(tagged_event.server_time(), tagged.server_time);
@@ -2675,7 +2667,7 @@ mod tests {
         assert_eq!(reply.unwrap(), "RfcBTzyxY120003");
         #[cfg(feature = "unstable")]
         assert_eq!(tagged.relayed_by.as_deref(), Some("bridge-bot"));
-        assert!(!chat("PRIVMSG", "human message").is_bot);
+        assert_eq!(chat("PRIVMSG", "human message").actor.is_bot(), None);
 
         for time in [None, Some("not-a-time")] {
             let mut message =
@@ -2802,14 +2794,11 @@ mod tests {
             UNIX_EPOCH,
         );
 
-        let Source::User(user) = &message.actor else {
-            panic!("message should have a user source");
-        };
-        let nick = user.nick();
+        let nick = message.actor.nick();
         assert_eq!(nick.casemapping(), Casemapping::Ascii);
         assert!(matches!(
-            message.account,
-            Account::LoggedIn(ref account) if account.casemapping() == Casemapping::Ascii
+            message.actor.account(),
+            Account::LoggedIn(account) if account.casemapping() == Casemapping::Ascii
         ));
         assert_ne!(nick, "alice{bot}");
         #[cfg(feature = "unstable")]
@@ -2833,16 +2822,17 @@ mod tests {
             tagged(
                 "@draft/oper=network-admin :alice!a@localhost PRIVMSG #papo :Scheduled maintenance"
             )
-            .oper
-            .and_then(|oper| oper.name),
-            Some("network-admin".to_owned())
+            .actor
+            .oper()
+            .and_then(|oper| oper.name.as_deref()),
+            Some("network-admin")
         );
         let unnamed = tagged("@draft/oper :alice!a@localhost PRIVMSG #papo :Scheduled maintenance");
         assert!(unnamed.tags.contains("draft/oper"));
-        assert_eq!(unnamed.oper.unwrap().name, None);
+        assert_eq!(unnamed.actor.oper().unwrap().name, None);
         let ordinary = chat("PRIVMSG", "ordinary message");
         assert!(!ordinary.tags.contains("draft/oper"));
-        assert_eq!(ordinary.oper, None);
+        assert_eq!(ordinary.actor.oper(), None);
     }
 
     #[test]

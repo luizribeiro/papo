@@ -7,7 +7,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::{
     AccountName, Authorship, Capabilities, Casemapping, ChannelName, Mask, Message, MessageKind,
-    Nick, Source, State, Tags,
+    Nick, Source, State, Tags, UserSource,
     event::{AwayChanged, Connected, Joined},
 };
 
@@ -83,13 +83,16 @@ pub fn user_source(
     nick: impl Into<Nick>,
     username: Option<String>,
     host: Option<String>,
-) -> Source {
+) -> UserSource {
     let nick = nick.into();
     let source = Source::from_proto(
         papo_proto::Source::__user(&nick, username.as_deref(), host.as_deref()),
         nick.casemapping(),
     );
     drop((username, host));
+    let Source::User(source) = source else {
+        unreachable!("a user prefix produces a user source")
+    };
     source
 }
 
@@ -102,7 +105,7 @@ pub fn tags(values: Vec<(String, Option<String>)>) -> Tags {
 /// Constructs the minimal message payload extended by `papo-testing`.
 #[must_use]
 pub fn message(
-    actor: Option<Source>,
+    actor: Option<UserSource>,
     target: impl Into<String>,
     text: impl Into<String>,
     private: bool,
@@ -110,20 +113,14 @@ pub fn message(
     let text = text.into();
     let target = target.into();
     let conversation = if private {
-        let other: &str = match actor.as_ref().and_then(Source::nick) {
-            Some(nick) => AsRef::<str>::as_ref(nick),
-            None => &target,
-        };
+        let other = actor.as_ref().map_or(target.as_str(), |actor| actor.nick());
         crate::Conversation::Private(crate::Casemapping::default().nick(other))
     } else {
         crate::Conversation::Channel(crate::Casemapping::default().channel(&target))
     };
     Message {
         actor: actor.unwrap_or_else(|| {
-            Source::from_proto(
-                papo_proto::Source::Server("irc.example"),
-                crate::Casemapping::default(),
-            )
+            user_source(crate::Casemapping::default().nick("unknown"), None, None)
         }),
         authorship: Authorship::Other,
         conversation,
@@ -134,16 +131,18 @@ pub fn message(
         msgid: None,
         server_time: None,
         received_at: SystemTime::UNIX_EPOCH,
-        account: crate::Account::Unknown,
         in_reply_to: None,
         channel_context: None,
         #[cfg(feature = "unstable")]
         relayed_by: None,
-        is_bot: false,
-        oper: None,
         tags: Tags::default(),
         reply_token: None,
     }
+}
+
+/// Sets the account fact on a test message actor.
+pub fn set_message_account(message: &mut Message, account: crate::Account) {
+    message.actor.set_account(account);
 }
 
 /// Constructs a connected event payload.
@@ -168,7 +167,7 @@ pub fn joined(channel: impl Into<ChannelName>, nick: impl Into<Nick>, own: bool)
         account: crate::Account::Unknown,
         realname: None,
         channel: channel.into(),
-        actor: user_source(nick.clone(), None, None),
+        actor: Source::User(user_source(nick.clone(), None, None)),
         nick,
         authorship: if own {
             Authorship::Own
@@ -184,7 +183,7 @@ pub fn joined(channel: impl Into<ChannelName>, nick: impl Into<Nick>, own: bool)
 pub fn away_changed(nick: impl Into<Nick>, away: crate::Away) -> AwayChanged {
     let nick = nick.into();
     AwayChanged {
-        actor: user_source(nick.clone(), None, None),
+        actor: Source::User(user_source(nick.clone(), None, None)),
         nick,
         away,
     }

@@ -131,8 +131,8 @@ pub(crate) fn actor_recipient(query: &CtcpQuery) -> Option<RecipientGuard> {
 
 pub(crate) fn message_actor_recipient(message: &Message) -> Option<RecipientGuard> {
     Some(RecipientGuard {
-        nick: message.actor.nick()?.clone(),
-        account: message.account.clone(),
+        nick: message.actor.nick().clone(),
+        account: message.actor.account().clone(),
         receipt: message.reply_token,
     })
 }
@@ -161,7 +161,7 @@ impl From<&Message> for MessageRef {
             &message.conversation,
             message.status.as_deref(),
             message.msgid.as_ref(),
-            &message.account,
+            message.actor.account(),
             message.reply_token,
             message.channel_context.clone(),
         )

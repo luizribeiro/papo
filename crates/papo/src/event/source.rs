@@ -15,6 +15,10 @@ pub struct UserSource {
 }
 
 impl UserSource {
+    pub(crate) fn set_account(&mut self, account: Account) {
+        self.account = account;
+    }
+
     /// Returns the user's nickname.
     #[must_use]
     pub const fn nick(&self) -> &Nick {
