@@ -252,7 +252,7 @@ pub papo_proto::ModeKind::AlwaysArg
 pub papo_proto::ModeKind::ArgWhenSet
 pub papo_proto::ModeKind::List
 pub papo_proto::ModeKind::NoArg
-pub papo_proto::ModeKind::Prefix(usize)
+pub papo_proto::ModeKind::Prefix(papo_proto::Prefix)
 pub papo_proto::ModeKind::Unknown
 impl core::clone::Clone for papo_proto::ModeKind
 pub fn papo_proto::ModeKind::clone(&self) -> Self
@@ -321,6 +321,34 @@ impl core::marker::Unpin for papo_proto::ParseError
 impl core::marker::UnsafeUnpin for papo_proto::ParseError
 impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::ParseError
 impl core::panic::unwind_safe::UnwindSafe for papo_proto::ParseError
+#[non_exhaustive] pub enum papo_proto::Rank
+pub papo_proto::Rank::Admin
+pub papo_proto::Rank::Halfop
+pub papo_proto::Rank::Op
+pub papo_proto::Rank::Owner
+pub papo_proto::Rank::Voice
+impl core::clone::Clone for papo_proto::Rank
+pub fn papo_proto::Rank::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::Rank
+impl core::cmp::Ord for papo_proto::Rank
+pub fn papo_proto::Rank::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for papo_proto::Rank
+pub fn papo_proto::Rank::eq(&self, &Self) -> bool
+impl core::cmp::PartialOrd for papo_proto::Rank
+pub fn papo_proto::Rank::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for papo_proto::Rank
+pub fn papo_proto::Rank::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_proto::Rank
+pub fn papo_proto::Rank::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for papo_proto::Rank
+impl core::marker::StructuralPartialEq for papo_proto::Rank
+impl core::marker::Freeze for papo_proto::Rank
+impl core::marker::Send for papo_proto::Rank
+impl core::marker::Sync for papo_proto::Rank
+impl core::marker::Unpin for papo_proto::Rank
+impl core::marker::UnsafeUnpin for papo_proto::Rank
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::Rank
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::Rank
 pub enum papo_proto::Source<'a>
 pub papo_proto::Source::Server(&'a str)
 #[non_exhaustive] pub papo_proto::Source::User
@@ -1404,9 +1432,10 @@ impl<'a> core::marker::UnsafeUnpin for papo_proto::Params<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Params<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Params<'a>
 pub struct papo_proto::Prefix
-pub papo_proto::Prefix::mode: char
-pub papo_proto::Prefix::rank: usize
-pub papo_proto::Prefix::symbol: char
+impl papo_proto::Prefix
+pub const fn papo_proto::Prefix::mode(self) -> char
+pub const fn papo_proto::Prefix::rank(self) -> core::option::Option<papo_proto::Rank>
+pub const fn papo_proto::Prefix::symbol(self) -> char
 impl core::clone::Clone for papo_proto::Prefix
 pub fn papo_proto::Prefix::clone(&self) -> Self
 impl core::cmp::Eq for papo_proto::Prefix
@@ -1414,6 +1443,8 @@ impl core::cmp::PartialEq for papo_proto::Prefix
 pub fn papo_proto::Prefix::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo_proto::Prefix
 pub fn papo_proto::Prefix::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_proto::Prefix
+pub fn papo_proto::Prefix::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo_proto::Prefix
 impl core::marker::StructuralPartialEq for papo_proto::Prefix
 impl core::marker::Freeze for papo_proto::Prefix

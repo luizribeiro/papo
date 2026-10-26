@@ -2,7 +2,7 @@
 
 use papo_proto::{
     Advertised, Casemapping, ChanModes, Extban, Isupport, Limit, LimitValue, LineRef, Numeric,
-    Prefix,
+    Prefix, Rank,
 };
 
 #[test]
@@ -239,6 +239,37 @@ fn parses_ergo_channel_shape_and_ranked_prefixes() {
         })
     );
     assert_eq!(support.statusmsg(), Some("~&@%+"));
+}
+
+#[test]
+fn prefix_accessors_map_ergo_and_solanum_rank_letters() {
+    for (token, expected) in [
+        (
+            "PREFIX=(qaohv)~&@%+",
+            vec![
+                ('q', '~', Some(Rank::Owner)),
+                ('a', '&', Some(Rank::Admin)),
+                ('o', '@', Some(Rank::Op)),
+                ('h', '%', Some(Rank::Halfop)),
+                ('v', '+', Some(Rank::Voice)),
+            ],
+        ),
+        (
+            "PREFIX=(ov)@+",
+            vec![('o', '@', Some(Rank::Op)), ('v', '+', Some(Rank::Voice))],
+        ),
+    ] {
+        let mut support = Isupport::default();
+        support.apply_tokens([token]);
+        assert_eq!(
+            support
+                .prefix()
+                .into_iter()
+                .map(|prefix| (prefix.mode(), prefix.symbol(), prefix.rank()))
+                .collect::<Vec<_>>(),
+            expected
+        );
+    }
 }
 
 #[test]
