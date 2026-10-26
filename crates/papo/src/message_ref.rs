@@ -216,29 +216,78 @@ impl From<&TagMsg> for MessageRef {
     }
 }
 
+pub(crate) fn from_notice(notice: &Notice) -> MessageRef {
+    from_received(
+        &notice.conversation,
+        notice.status.as_deref(),
+        notice.msgid.as_ref(),
+        &notice.account,
+        notice.reply_token,
+        notice.channel_context.clone(),
+    )
+}
+
+pub(crate) fn from_ctcp_reply(reply: &CtcpReply) -> MessageRef {
+    from_received(
+        &reply.conversation,
+        reply.status.as_deref(),
+        reply.msgid.as_ref(),
+        &reply.account,
+        reply.reply_token,
+        None,
+    )
+}
+
+pub(crate) fn from_reacted(line: &Reacted) -> MessageRef {
+    from_received(
+        &line.conversation,
+        line.status.as_deref(),
+        line.msgid.as_ref(),
+        &line.account,
+        None,
+        None,
+    )
+}
+
+pub(crate) fn from_redacted(line: &Redacted) -> MessageRef {
+    from_received(
+        &line.conversation,
+        line.status.as_deref(),
+        line.msgid.as_ref(),
+        &line.account,
+        None,
+        None,
+    )
+}
+
+pub(crate) fn from_typing(line: &TypingChanged) -> MessageRef {
+    from_received(
+        &line.conversation,
+        line.status.as_deref(),
+        None,
+        &Account::Unknown,
+        None,
+        None,
+    )
+}
+
 macro_rules! address_pairs {
     ($($address:ty),+ $(,)?) => {
         $(
             /// Builds a reference from an explicit address and message identifier.
-            ///
-            /// See [`Conversation`] for status-prefixed line guidance.
             impl<I: Into<MessageId>> From<($address, I)> for MessageRef {
                 fn from((address, msgid): ($address, I)) -> Self {
-                    Self {
-                        address: <$address as AsRef<str>>::as_ref(&address).to_owned(),
-                        msgid: Some(msgid.into()),
-                        origin: origin_of(&address),
-                        channel_context: None,
-                        recipient: None,
-                    }
+                    Self::new(
+                        AsRef::<str>::as_ref(&address).to_owned(),
+                        vec![msgid.into()],
+                        crate::Origin::NONE,
+                        None,
+                        None,
+                    )
                 }
             }
         )+
     };
-}
-
-fn origin_of<T: ?Sized>(_address: &T) -> Option<crate::Origin> {
-    None
 }
 
 address_pairs!(&str, String);
@@ -248,25 +297,33 @@ macro_rules! typed_address_pairs {
         $(
             impl<I: Into<MessageId>> From<($address, I)> for MessageRef {
                 fn from((address, msgid): ($address, I)) -> Self {
-                    Self {
-                        address: address.as_ref().to_owned(),
-                        msgid: Some(msgid.into()),
-                        origin: Some(address.origin()),
-                        channel_context: None,
-                        recipient: None,
-                    }
+                    Self::new(
+                        address.as_ref().to_owned(),
+                        vec![msgid.into()],
+                        address.origin(),
+                        None,
+                        None,
+                    )
                 }
             }
         )+
     };
 }
 
-typed_address_pairs!(
-    crate::ChannelName,
-    &crate::ChannelName,
-    crate::Nick,
-    &crate::Nick
-);
+typed_address_pairs!(ChannelName, &ChannelName, Nick, &Nick);
+
+impl<I: Into<MessageId>> From<(MessageRef, I)> for MessageRef {
+    fn from((mut reference, msgid): (MessageRef, I)) -> Self {
+        reference.msgids = vec![msgid.into()];
+        reference
+    }
+}
+
+impl<I: Into<MessageId>> From<(&MessageRef, I)> for MessageRef {
+    fn from((reference, msgid): (&MessageRef, I)) -> Self {
+        Self::from((reference.clone(), msgid))
+    }
+}
 
 pub(crate) fn conversation_origin(conversation: &Conversation) -> crate::Origin {
     match conversation {
@@ -291,7 +348,7 @@ pub(crate) fn stamp_conversation(
     }
 }
 
-pub(crate) fn return_address(conversation: &Conversation, status: Option<&[char]>) -> String {
+pub(crate) fn address(conversation: &Conversation, status: Option<&[char]>) -> String {
     status
         .into_iter()
         .flatten()
