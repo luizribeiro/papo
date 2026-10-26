@@ -99,6 +99,29 @@ fn received_conversations_keep_the_session_origin() {
 }
 
 #[test]
+fn tag_messages_preserve_the_exact_return_address() {
+    Transcript::new(Config::default().nick("papo"))
+        .server(":ergo.test 005 papo CHANTYPES=# STATUSMSG=@+ :are supported")
+        .server("@msgid=SojuTag42 :alice!~a@cloak TAGMSG #papo")
+        .event(|event| {
+            matches!(event, Event::TagMessage(message) if message.__return_address() == "#papo")
+        })
+        .server("@msgid=RfcBTzyxY120001 :alice!~a@cloak TAGMSG @#ops")
+        .event(|event| {
+            matches!(event, Event::TagMessage(message) if message.__return_address() == "@#ops")
+        })
+        .server("@msgid=RfcBTzyxY120002 :alice!~a@cloak TAGMSG @+#ops")
+        .event(|event| {
+            matches!(event, Event::TagMessage(message) if message.__return_address() == "@+#ops")
+        })
+        .server("@msgid=RfcBTzyxY120003 :alice!~a@cloak TAGMSG papo")
+        .event(|event| {
+            matches!(event, Event::TagMessage(message) if message.__return_address() == "alice")
+        })
+        .no_event();
+}
+
+#[test]
 fn classifies_status_and_private_tag_messages() {
     let mut session = Session::new(Config::default().nick("papo"));
     session.handle_line(
@@ -231,6 +254,29 @@ fn reports_redactions_with_and_without_a_reason() {
         assert!(matches!(redacted.msgid.as_str(), "RKi9Cw" | "8sKY2A"));
         assert_eq!(redacted.reason.as_deref(), expected_reason);
     }
+}
+
+#[test]
+fn redactions_preserve_the_exact_return_address() {
+    Transcript::new(Config::default().nick("papo"))
+        .server(":ergo.test 005 papo CHANTYPES=# STATUSMSG=@+ :are supported")
+        .server(":alice!~a@cloak REDACT #papo RfcBTzyxY120001 :superseded")
+        .event(|event| {
+            matches!(event, Event::Redacted(redacted) if redacted.__return_address() == "#papo")
+        })
+        .server(":alice!~a@cloak REDACT @#ops RfcBTzyxY120002 :superseded")
+        .event(|event| {
+            matches!(event, Event::Redacted(redacted) if redacted.__return_address() == "@#ops")
+        })
+        .server(":alice!~a@cloak REDACT @+#ops RfcBTzyxY120003 :superseded")
+        .event(|event| {
+            matches!(event, Event::Redacted(redacted) if redacted.__return_address() == "@+#ops")
+        })
+        .server(":alice!~a@cloak REDACT papo RfcBTzyxY120004 :superseded")
+        .event(|event| {
+            matches!(event, Event::Redacted(redacted) if redacted.__return_address() == "alice")
+        })
+        .no_event();
 }
 
 #[test]
