@@ -2153,10 +2153,11 @@ mod tests {
     use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
     use super::{
-        Audience, Authorship, Broadcast, Conversation, CoreEvent, Event, Message as ChatMessage,
-        MessageId, MessageKind, MetadataChanged, ModeAction, ModeArg, ModeChange, NoticeKind,
-        ServerNoticeKind, Source, StandardReplyKind, UserSource, Warning, ctcp_parts,
-        from_core as from_core_with_mapping, historical_message_event, message_event_from_line,
+        Audience, Authorship, Broadcast, BroadcastCtcp, BroadcastTagMsg, Conversation, CoreEvent,
+        Event, Message as ChatMessage, MessageId, MessageKind, MetadataChanged, ModeAction,
+        ModeArg, ModeChange, NoticeKind, ServerNoticeKind, Source, StandardReplyKind, Tags,
+        UserSource, Warning, ctcp_parts, from_core as from_core_with_mapping,
+        historical_message_event, message_event_from_line,
     };
     use crate::{Subject, Visibility};
     use papo_core::{
@@ -2186,6 +2187,47 @@ mod tests {
         let expected = (!matches!(expected_variant, "TagMsg" | "BroadcastTagMsg" | "Other"))
             .then_some(received_at);
         assert_eq!(event.received_at(), expected, "{expected_variant}");
+    }
+
+    #[test]
+    fn broadcast_payloads_report_the_client_origin() {
+        let origin = crate::Origin::__new(73);
+        let mapping = Casemapping::default();
+        let actor = super::source::user_from_line(
+            &Line::new("TAGMSG")
+                .param("*")
+                .with_source("oper!staff@staff.example")
+                .as_ref(),
+            mapping,
+            origin,
+            false,
+            false,
+        )
+        .unwrap();
+        for to in [
+            Broadcast::Everyone,
+            Broadcast::Mask(origin.__mask(mapping, "$*.example.org")),
+        ] {
+            let event = BroadcastTagMsg {
+                actor: actor.clone(),
+                authorship: Authorship::Other,
+                to,
+                tags: Tags::default(),
+            };
+            assert_eq!(event.origin(), origin);
+        }
+        let ctcp = BroadcastCtcp {
+            actor,
+            authorship: Authorship::Other,
+            to: Broadcast::Mask(origin.__mask(mapping, "$*.example.org")),
+            command: "VERSION".into(),
+            params: None,
+            msgid: None,
+            server_time: None,
+            received_at: UNIX_EPOCH,
+            tags: Tags::default(),
+        };
+        assert_eq!(ctcp.origin(), origin);
     }
 
     const MESSAGE_EVENT_METADATA_CASES: [(&str, &str, &str); 19] = [
