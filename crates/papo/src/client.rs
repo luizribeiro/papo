@@ -786,16 +786,11 @@ impl Client {
     /// [`Error::InvalidInput`] or [`Error::Disconnected`].
     pub fn typing(&self, target: impl crate::Target, state: Typing) -> crate::RequestFuture<()> {
         let client = self.clone();
-        let (target, invalid_input) = self.target_input(target);
+        let target = crate::Target::__parts(&target).into_owned();
         crate::RequestFuture::new(async move {
-            if let Some(error) = invalid_input {
-                return Err(error.into());
-            }
+            let target = client.resolve(crate::target::Role::Send("typing: target"), target)?;
             let snapshot = client.state();
             Self::require_feature(&snapshot, Feature::Typing)?;
-            snapshot
-                .parse_target_inner(&target)
-                .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
             let (result, receiver) = oneshot::channel();
             client
                 .commands
