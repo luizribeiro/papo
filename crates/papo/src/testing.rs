@@ -201,7 +201,7 @@ pub fn state(nick: impl Into<String>, connected: bool) -> State {
 
 #[cfg(all(test, not(browser)))]
 mod tests {
-    use super::{connected, joined, message, state, user_source};
+    use super::{connected, joined, message, set_message_account, state, user_source};
 
     #[tokio::test]
     async fn wire_client_connects_through_memory() {
@@ -242,5 +242,25 @@ mod tests {
         let snapshot = state("bob", true);
         assert_eq!(snapshot.nick().as_ref(), "bob");
         assert!(snapshot.is_connected());
+    }
+
+    #[test]
+    fn sets_message_actor_account() {
+        let mapping = crate::Casemapping::default();
+        let source = user_source(
+            mapping.nick("emily"),
+            Some("~emily".into()),
+            Some("localhost".into()),
+        );
+        let mut message = message(Some(source), "#papo", "release ready", false);
+
+        set_message_account(
+            &mut message,
+            crate::Account::LoggedIn(mapping.account("emily")),
+        );
+
+        assert!(
+            matches!(message.actor.account(), crate::Account::LoggedIn(account) if account == "emily")
+        );
     }
 }
