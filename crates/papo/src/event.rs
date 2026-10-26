@@ -281,7 +281,7 @@ pub struct Message {
 #[non_exhaustive]
 pub struct Notice {
     /// The user that sent the notice.
-    pub actor: Source,
+    pub actor: UserSource,
     /// Whether the actor is this client's user.
     pub authorship: Authorship,
     /// The chat conversation to which the notice belongs.
@@ -304,8 +304,6 @@ pub struct Notice {
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
     pub received_at: SystemTime,
-    /// The actor's account state reported by `account-tag`.
-    pub account: Account,
     /// The identifier referenced by a reply tag.
     pub in_reply_to: Option<MessageId>,
     /// Channel context whose membership was verified when this private notice was received.
@@ -316,10 +314,6 @@ pub struct Notice {
     /// Nickname of the client that submitted a relayed notice.
     #[cfg(feature = "unstable")]
     pub relayed_by: Option<Nick>,
-    /// Whether the notice carried the `bot` tag.
-    pub is_bot: bool,
-    /// The actor's IRC operator identity, when tagged.
-    pub oper: Option<Oper>,
     /// All message tags in wire order.
     pub tags: Tags,
     pub(crate) reply_token: Option<papo_core::ReplyToken>,
@@ -359,12 +353,9 @@ struct MessageMetadata {
     msgid: Option<MessageId>,
     server_time: Option<SystemTime>,
     received_at: SystemTime,
-    account: Account,
     reply_to: Option<MessageId>,
     #[cfg(feature = "unstable")]
     relayed_by: Option<Nick>,
-    is_bot: bool,
-    oper: Option<Oper>,
     tags: Tags,
     reply_token: Option<papo_core::ReplyToken>,
 }
@@ -763,9 +754,12 @@ impl Notice {
         ) else {
             return Err(raw);
         };
+        let Source::User(actor) = metadata.actor else {
+            return Err(raw);
+        };
         let conversation = metadata.conversation;
         Ok(Self {
-            actor: metadata.actor,
+            actor,
             authorship: metadata.authorship,
             conversation,
             status: metadata.status,
@@ -775,13 +769,10 @@ impl Notice {
             msgid: metadata.msgid,
             server_time: metadata.server_time,
             received_at: metadata.received_at,
-            account: metadata.account,
             in_reply_to: metadata.reply_to,
             channel_context,
             #[cfg(feature = "unstable")]
             relayed_by: metadata.relayed_by,
-            is_bot: metadata.is_bot,
-            oper: metadata.oper,
             tags: metadata.tags,
             reply_token: metadata.reply_token,
         })
@@ -1040,17 +1031,9 @@ fn message_metadata(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        account: account_from_tag(message, isupport.casemapping(), origin, account_tag_enabled),
         reply_to,
         #[cfg(feature = "unstable")]
         relayed_by,
-        is_bot: tags.contains("bot"),
-        oper: message
-            .tags()
-            .find(|(key, _)| *key == "draft/oper")
-            .map(|(_, value)| Oper {
-                name: value.map(std::borrow::Cow::into_owned),
-            }),
         tags,
         reply_token,
     })
@@ -2209,7 +2192,7 @@ mod tests {
                 }
                 ("private", Event::Notice(notice)) => {
                     assert_eq!(notice.origin(), origin);
-                    assert_eq!(notice.actor.nick().unwrap().origin(), origin);
+                    assert_eq!(notice.actor.nick().origin(), origin);
                 }
                 ("broadcast", Event::ServerNotice(notice)) => {
                     assert_eq!(notice.actor.nick().unwrap().origin(), origin);
@@ -2236,7 +2219,7 @@ mod tests {
         assert!(matches!(user, Event::Notice(notice)
             if notice.kind == NoticeKind::Text
                 && matches!(notice.conversation, Conversation::Private(_))
-                && matches!(&notice.account, Account::LoggedIn(account) if account == "emily")));
+                && matches!(notice.actor.account(), Account::LoggedIn(account) if account == "emily")));
 
         let action = parse_event(
             Line::notice("@#ops", "\x01ACTION nods hello\x01")

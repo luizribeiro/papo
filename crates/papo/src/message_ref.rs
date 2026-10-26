@@ -221,7 +221,7 @@ pub(crate) fn from_notice(notice: &Notice) -> MessageRef {
         &notice.conversation,
         notice.status.as_deref(),
         notice.msgid.as_ref(),
-        &notice.account,
+        notice.actor.account(),
         notice.reply_token,
         notice.channel_context.clone(),
     )
