@@ -2141,7 +2141,10 @@ pub(crate) fn typed_mode_change(
 ) -> ModeChange {
     let arg = arg.map(|arg| match (mode, kind) {
         ('k', _) => ModeArg::Key(crate::Secret::from(arg)),
-        (_, papo_proto::ModeKind::Prefix(_)) => ModeArg::Nick(origin.__nick(casemapping, arg)),
+        (_, papo_proto::ModeKind::Prefix(prefix)) => ModeArg::Member {
+            nick: origin.__nick(casemapping, arg),
+            prefix,
+        },
         (_, papo_proto::ModeKind::List) => ModeArg::Mask(origin.__mask(casemapping, arg)),
         _ => ModeArg::Value(arg.to_owned()),
     });
@@ -3951,9 +3954,10 @@ mod tests {
         let mode_changes = vec![papo_core::ModeChange {
             mode: 'o',
             action: papo_core::ModeAction::Add,
-            arg: Some(papo_core::ModeArg::Nick(
-                Casemapping::default().nick("emily"),
-            )),
+            arg: Some(papo_core::ModeArg::Member {
+                nick: Casemapping::default().nick("emily"),
+                prefix: crate::Prefix::__new('o', '@'),
+            }),
         }];
         assert!(matches!(
             forwarded(papo_core::Event::__mode_changed(papo_core::LineEnvelope::default(), papo_core::Subject::Channel(Casemapping::default().channel("#papo")), papo_core::Source::from_proto(papo_proto::Source::__user("alice", Some("~alice"), Some("staff.example")), Casemapping::default()), papo_core::Authorship::Other, papo_core::Authorship::Other, Some(Casemapping::default().nick("emily")), mode_changes.clone())),
@@ -3965,7 +3969,7 @@ mod tests {
                     && mode.changes.len() == 1
                     && mode.changes[0].action == ModeAction::Add
                     && mode.changes[0].mode == 'o'
-                    && matches!(&mode.changes[0].arg, Some(ModeArg::Nick(nick)) if nick == "emily")
+                    && matches!(&mode.changes[0].arg, Some(ModeArg::Member { nick, .. }) if nick == "emily")
         ));
     }
 
@@ -4022,7 +4026,7 @@ mod tests {
         assert_eq!(mode.authorship, Authorship::Other);
         assert_eq!(mode.own_nick.as_ref().map(AsRef::as_ref), Some("emily"));
         assert!(
-            matches!(&mode.changes[0].arg, Some(ModeArg::Nick(nick)) if nick == "emily"),
+            matches!(&mode.changes[0].arg, Some(ModeArg::Member { nick, .. }) if nick == "emily"),
             "{:?}",
             mode.changes[0]
         );
@@ -4052,12 +4056,18 @@ mod tests {
         let own = ModeChange {
             mode: 'o',
             action: ModeAction::Add,
-            arg: Some(ModeArg::Nick(mapping.nick("emily"))),
+            arg: Some(ModeArg::Member {
+                nick: mapping.nick("emily"),
+                prefix: crate::Prefix::__new('o', '@'),
+            }),
         };
         let other = ModeChange {
             mode: 'v',
             action: ModeAction::Add,
-            arg: Some(ModeArg::Nick(mapping.nick("alice"))),
+            arg: Some(ModeArg::Member {
+                nick: mapping.nick("alice"),
+                prefix: crate::Prefix::__new('v', '+'),
+            }),
         };
         let channel = mode_event(Subject::Channel(mapping.channel("#papo")), Some("emily"));
         assert_eq!(channel.about(&own), Authorship::Own);
@@ -4083,7 +4093,11 @@ mod tests {
     fn typed_mode_arguments_keep_the_client_origin() {
         let origin = crate::Origin::__new(73);
         for (mode, kind, expected) in [
-            ('x', papo_proto::ModeKind::Prefix(0), "nick"),
+            (
+                'x',
+                papo_proto::ModeKind::Prefix(crate::Prefix::__new('x', '!')),
+                "nick",
+            ),
             ('x', papo_proto::ModeKind::List, "mask"),
             ('k', papo_proto::ModeKind::AlwaysArg, "key"),
             ('x', papo_proto::ModeKind::AlwaysArg, "value"),
@@ -4097,7 +4111,9 @@ mod tests {
                 origin,
             );
             match (expected, change.arg) {
-                ("nick", Some(ModeArg::Nick(value))) => assert_eq!(value.origin(), origin),
+                ("nick", Some(ModeArg::Member { nick: value, .. })) => {
+                    assert_eq!(value.origin(), origin)
+                }
                 ("mask", Some(ModeArg::Mask(value))) => assert_eq!(value.origin(), origin),
                 ("key", Some(ModeArg::Key(value))) => assert_eq!(value.expose(), Some("alice")),
                 ("value", Some(ModeArg::Value(value))) => assert_eq!(value, "alice"),
