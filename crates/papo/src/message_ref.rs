@@ -368,37 +368,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn return_addresses_follow_one_rule_for_every_conversation_kind() {
-        let mapping = crate::Casemapping::default();
-        for (conversation, status, expected) in [
-            (
-                Conversation::Channel(mapping.channel("#papo")),
-                None,
-                "#papo",
-            ),
-            (
-                Conversation::Channel(mapping.channel("#ops")),
-                Some(&['@'][..]),
-                "@#ops",
-            ),
-            (
-                Conversation::Channel(mapping.channel("#staff")),
-                Some(&['@', '+'][..]),
-                "@+#staff",
-            ),
-            (Conversation::Private(mapping.nick("emily")), None, "emily"),
-        ] {
-            assert_eq!(return_address(&conversation, status), expected);
-        }
-    }
-
-    #[test]
-    fn references_preserve_received_and_sent_addresses() {
+    fn references_preserve_addresses_origins_and_ids() {
         let mapping = crate::Casemapping::default();
         let origin = crate::Origin::__new(73);
-        let received = crate::__testing::message(
+        let mut received = crate::__testing::message(
             Some(crate::__testing::user_source(
-                mapping.nick("emily"),
+                origin.__nick(mapping, "emily"),
                 Some("~emily".into()),
                 Some("cloak.example".into()),
             )),
@@ -406,68 +381,46 @@ mod tests {
             "deploy complete",
             false,
         );
-        let mut received = received;
+        received.conversation = Conversation::Channel(origin.__channel(mapping, "#ops"));
         received.status = Some(vec!['@']);
         received.msgid = Some("RfcBTzyxY120004".into());
-        let reference = MessageRef::from(&received);
-        assert_eq!(reference.address, "@#ops");
-        assert_eq!(reference.msgid, Some("RfcBTzyxY120004".into()));
-        assert_eq!(reference.channel_context, None);
+        let reference = received.return_address();
+        assert_eq!(reference, "@#ops");
+        assert_eq!(reference.msgid(), Some(&MessageId::from("RfcBTzyxY120004")));
+        assert_eq!(reference.origin(), origin);
 
         let sent = Sent {
             conversation: Conversation::Channel(origin.__channel(mapping, "#ops")),
             status: Some(vec!['@']),
-            msgid: Some("RfcBTzyxY120005".into()),
-            line_msgids: vec!["RfcBTzyxY120005".into()],
+            msgids: vec!["RfcBTzyxY120005".into(), "RfcBTzyxY120006".into()],
             server_time: Some(SystemTime::UNIX_EPOCH),
             fallbacks: Vec::new(),
         };
-        let reference = MessageRef::from(&sent);
-        assert_eq!(reference.address, "@#ops");
-        assert_eq!(reference.msgid, Some("RfcBTzyxY120005".into()));
-        assert_eq!(reference.origin, Some(origin));
-        assert_eq!(reference.channel_context, None);
-        assert_eq!(sent.return_address(), "@#ops");
-        assert_eq!(sent.origin(), origin);
-
-        let tag = TagMsg {
-            actor: received.actor,
-            authorship: received.authorship,
-            conversation: Conversation::Channel(mapping.channel("#ops")),
-            status: Some(vec!['@']),
-            tags: crate::__testing::tags(vec![("msgid".into(), Some("RfcBTzyxY120006".into()))]),
-        };
-        let reference = MessageRef::from(&tag);
-        assert_eq!(reference.address, "@#ops");
-        assert_eq!(reference.msgid, Some("RfcBTzyxY120006".into()));
-        assert_eq!(reference.channel_context, None);
+        let reference = sent.return_address();
+        assert_eq!(reference, "@#ops");
+        assert_eq!(reference.msgids.len(), 2);
+        assert_eq!(reference.origin(), origin);
     }
 
     #[test]
-    fn references_accept_written_text_addresses() {
+    fn explicit_pairs_replace_an_existing_references_id_and_keep_its_guard() {
         let mapping = crate::Casemapping::default();
-        let origin = crate::Origin::__new(73);
-        let id = MessageId::from("RfcBTzyxY120006");
-        let references = [
-            MessageRef::from(("#papo", &id)),
-            MessageRef::from(("@#ops".to_owned(), &id)),
-            MessageRef::from((origin.__channel(mapping, "#rust"), &id)),
-            MessageRef::from((&origin.__channel(mapping, "#bots"), &id)),
-            MessageRef::from((origin.__nick(mapping, "emily"), &id)),
-            MessageRef::from((&origin.__nick(mapping, "alice"), &id)),
-        ];
-        for (reference, (expected, expected_origin)) in references.into_iter().zip([
-            ("#papo", None),
-            ("@#ops", None),
-            ("#rust", Some(origin)),
-            ("#bots", Some(origin)),
-            ("emily", Some(origin)),
-            ("alice", Some(origin)),
-        ]) {
-            assert_eq!(reference.address, expected);
-            assert_eq!(reference.msgid, Some(id.clone()));
-            assert_eq!(reference.origin, expected_origin);
-            assert_eq!(reference.channel_context, None);
-        }
+        let mut message = crate::__testing::message(
+            Some(crate::__testing::user_source(
+                mapping.nick("emily"),
+                Some("~emily".into()),
+                Some("cloak.example".into()),
+            )),
+            "papo",
+            "deploy complete",
+            false,
+        );
+        message.conversation = Conversation::Private(mapping.nick("emily"));
+        message.msgid = Some("RfcBTzyxY120004".into());
+        let original = message.return_address();
+        let replaced = MessageRef::from((&original, "RfcBTzyxY120007"));
+        assert_eq!(replaced, "emily");
+        assert_eq!(replaced.msgid(), Some(&MessageId::from("RfcBTzyxY120007")));
+        assert_eq!(replaced.recipient, original.recipient);
     }
 }
