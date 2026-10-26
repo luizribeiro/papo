@@ -18,7 +18,7 @@ fn public_browser_values_and_actions_remain_send() {
     assert_send::<ClientEvent>();
     assert_send::<Error>();
     assert_send::<RequestFuture<()>>();
-    let (client, _, driver) = Client::builder(papo::Endpoint::websocket(env!("PAPO_BROWSER_WS")).unwrap(), "papo-client")
+    let (client, _, driver) = Client::builder(env!("PAPO_BROWSER_WS"), "papo-client")
         .build();
     assert_send_value(client.reconnect());
     drop(driver);
@@ -29,7 +29,7 @@ async fn high_level_client_uses_the_browser_websocket() {
     let account = env!("PAPO_BROWSER_ACCOUNT");
     let password = env!("PAPO_BROWSER_PASSWORD");
     let channel = format!("#{}-channel", account);
-    let (client, mut events) = Client::builder(papo::Endpoint::websocket(env!("PAPO_BROWSER_WS")).unwrap(), account)
+    let (client, mut events) = Client::builder(env!("PAPO_BROWSER_WS"), account)
         .sasl(Sasl::plain(account, password))
         .allow_insecure_auth(true)
         .autojoin([&channel])
@@ -43,7 +43,7 @@ async fn high_level_client_uses_the_browser_websocket() {
     .await;
 
     let peer_nick = format!("{account}-peer");
-    let (peer, mut peer_events) = Client::builder(papo::Endpoint::websocket(env!("PAPO_BROWSER_WS")).unwrap(), &peer_nick)
+    let (peer, mut peer_events) = Client::builder(env!("PAPO_BROWSER_WS"), &peer_nick)
         .autojoin([&channel])
         .connect()
         .await

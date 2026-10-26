@@ -64,13 +64,10 @@ async fn connects_through_the_configured_websocket_url() {
     within(async {
         let server = from_env();
         let nick = unique("papo-builder-ws");
-        let (client, mut events) = Client::builder(
-            Endpoint::websocket(server.websocket_url()).unwrap(),
-            support::nick(&nick),
-        )
-        .connect()
-        .await
-        .unwrap();
+        let (client, mut events) = Client::builder(server.websocket_url(), support::nick(&nick))
+            .connect()
+            .await
+            .unwrap();
         wait_connected(&mut events, &nick).await;
         client
             .quit("WebSocket builder test complete")

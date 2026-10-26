@@ -36,7 +36,7 @@ mod driver {
     /// Returns the public connection or shutdown diagnostic as a JavaScript string.
     #[wasm_bindgen]
     pub async fn driver_probe(url: String) -> Result<(), wasm_bindgen::JsValue> {
-        let (client, _) = Client::builder(Endpoint::websocket(url).map_err(js_error)?, "papo-browser-probe")
+        let (client, _) = Client::builder(url.parse::<Endpoint>().map_err(js_error)?, "papo-browser-probe")
             .connect()
             .await
             .map_err(js_error)?;

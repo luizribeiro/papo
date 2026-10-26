@@ -409,7 +409,7 @@ async fn register_over_environment(
     let ca = secure
         .then(|| fs::read(s.server.ca_pem_path()))
         .transpose()?;
-    register_over(s, Endpoint::websocket(address).unwrap(), ca).await
+    register_over(s, address.parse::<Endpoint>().unwrap(), ca).await
 }
 
 async fn register_over(

@@ -75,7 +75,7 @@
 //! APIs gated by the `unstable` feature are outside the crate's semantic-versioning guarantees.
 //! Applications can opt in while libraries should leave the feature disabled.
 //! Browser builds (`wasm32-unknown-unknown`) connect only through `ws://` and `wss://`
-//! [`Endpoint::websocket`] endpoints. The browser owns TLS policy, and IRC STS does not apply to
+//! `ws://` and `wss://` [`Endpoint`] values. The browser owns TLS policy, and IRC STS does not apply to
 //! WebSocket connections, so TCP endpoint constructors, TLS setters, and STS stores are absent.
 //!
 //! # Frozen re-exports
@@ -221,9 +221,9 @@ pub use message_ref::MessageRef;
 pub use mode::{BanTarget, Extban, KickbanOutcome, ModesApplied, SetModes};
 pub use name_rules::{NameCheck, NameRules};
 #[doc(inline)]
-pub use papo_core::Secret;
-#[doc(inline)]
 pub use papo_core::InvalidUrl;
+#[doc(inline)]
+pub use papo_core::Secret;
 #[doc(inline)]
 pub use papo_core::{
     Account, Away, Cap, Capabilities, Channel, Conversation, Feature, Member, ModeAction, ModeArg,

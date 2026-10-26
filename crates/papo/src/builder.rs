@@ -81,7 +81,7 @@ impl Builder {
             .ctcp
             .version(Some(&format!("papo {}", crate::VERSION)));
         Self {
-            address: address.parse(),
+            address: address.parse().map_err(InvalidInput::from),
             config,
             event_capacity: crate::driver::DEFAULT_CHANNEL_CAPACITY,
             tls: TlsConfig::default(),

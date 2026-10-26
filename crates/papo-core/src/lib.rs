@@ -95,8 +95,8 @@ mod welcome;
 include!("unstable/persistence_types.rs");
 
 pub use papo_proto::{Prefix, Rank, Secret, WireLine};
-pub use source::Source;
 pub use server_url::InvalidUrl;
+pub use source::Source;
 
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},

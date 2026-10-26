@@ -2,8 +2,6 @@ use std::{fmt, str::FromStr};
 
 use thiserror::Error;
 
-const REJECTED_ADDRESS_CHARACTERS: [char; 5] = ['?', '#', '@', ' ', '\t'];
-
 /// An invalid client configuration value.
 #[derive(Clone, Debug, Eq, Error, Hash, PartialEq)]
 #[non_exhaustive]
@@ -189,8 +187,7 @@ impl Endpoint {
     /// # _ = endpoint;
     /// ```
     ///
-    #[cfg(sockets)]
-    pub fn tls(host: impl Into<String>, port: u16) -> Result<Self, InvalidInput> {
+    pub fn tls(host: impl Into<String>, port: u16) -> Result<Self, crate::InvalidUrl> {
         Self::tcp(host, port, Protocol::Ircs)
     }
 
@@ -205,31 +202,8 @@ impl Endpoint {
     /// # _ = endpoint;
     /// ```
     ///
-    #[cfg(sockets)]
-    pub fn plaintext(host: impl Into<String>, port: u16) -> Result<Self, InvalidInput> {
+    pub fn plaintext(host: impl Into<String>, port: u16) -> Result<Self, crate::InvalidUrl> {
         Self::tcp(host, port, Protocol::Irc)
-    }
-
-    /// Creates a WebSocket endpoint from a `ws://` or `wss://` URL.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the URL has the wrong scheme or a malformed host or port.
-    ///
-    /// ```
-    /// let endpoint = papo::Endpoint::websocket("wss://irc.example.net/webirc");
-    /// # _ = endpoint;
-    /// ```
-    ///
-    pub fn websocket(url: impl AsRef<str>) -> Result<Self, InvalidInput> {
-        let url = url.as_ref();
-        let Some((scheme, _)) = url.split_once("://") else {
-            return Err(crate::InvalidUrl::MissingScheme.into());
-        };
-        if !scheme.eq_ignore_ascii_case("ws") && !scheme.eq_ignore_ascii_case("wss") {
-            return Err(crate::InvalidUrl::UnsupportedScheme(scheme.to_owned()).into());
-        }
-        url.parse().map(Self)
     }
 
     /// Returns the endpoint's hostname.
@@ -255,19 +229,23 @@ impl Endpoint {
         }
     }
 
-    #[cfg(sockets)]
-    fn tcp(host: impl Into<String>, port: u16, protocol: Protocol) -> Result<Self, InvalidInput> {
-        let host = validate_host(host.into())?;
-        if port == 0 {
-            return Err(crate::InvalidUrl::InvalidPort(port.to_string()).into());
-        }
-        Ok(Self(ServerAddress {
-            protocol,
-            host,
-            port,
-            explicit_port: true,
-            websocket_path: None,
-        }))
+    fn tcp(
+        host: impl Into<String>,
+        port: u16,
+        protocol: Protocol,
+    ) -> Result<Self, crate::InvalidUrl> {
+        let host = host.into();
+        let scheme = match protocol {
+            Protocol::Irc => "irc",
+            Protocol::Ircs => "ircs",
+            Protocol::Ws | Protocol::Wss => unreachable!("TCP constructor used for WebSocket"),
+        };
+        let (open, close) = if host.contains(':') {
+            ("[", "]")
+        } else {
+            ("", "")
+        };
+        format!("{scheme}://{open}{host}{close}:{port}").parse()
     }
 
     pub(crate) fn into_address(self) -> ServerAddress {
@@ -278,6 +256,14 @@ impl Endpoint {
 impl fmt::Display for Endpoint {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(formatter)
+    }
+}
+
+impl FromStr for Endpoint {
+    type Err = crate::InvalidUrl;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        input.parse().map(Self)
     }
 }
 
@@ -306,13 +292,13 @@ impl private::Sealed for Endpoint {
 
 impl private::Sealed for &str {
     fn into_endpoint(self) -> Result<Endpoint, InvalidInput> {
-        self.parse().map(Endpoint)
+        self.parse().map_err(InvalidInput::from)
     }
 }
 
 impl private::Sealed for String {
     fn into_endpoint(self) -> Result<Endpoint, InvalidInput> {
-        self.parse().map(Endpoint)
+        self.parse().map_err(InvalidInput::from)
     }
 }
 
@@ -338,21 +324,19 @@ pub(crate) struct ServerAddress {
 }
 
 impl FromStr for ServerAddress {
-    type Err = InvalidInput;
+    type Err = crate::InvalidUrl;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         use papo_core::server_url::ServerUrlScheme;
 
-        let url = input
-            .parse::<papo_core::server_url::ServerUrl>()
-            .map_err(InvalidInput::from)?;
+        let url = input.parse::<papo_core::server_url::ServerUrl>()?;
         let protocol = match url.scheme() {
             ServerUrlScheme::Irc => Protocol::Irc,
             ServerUrlScheme::Ircs => Protocol::Ircs,
             ServerUrlScheme::Ws => Protocol::Ws,
             ServerUrlScheme::Wss => Protocol::Wss,
             scheme => {
-                return Err(crate::InvalidUrl::UnsupportedScheme(scheme.to_string()).into());
+                return Err(crate::InvalidUrl::UnsupportedScheme(scheme.to_string()));
             }
         };
         Ok(Self {
@@ -462,13 +446,6 @@ const fn default_port(protocol: Protocol) -> u16 {
     }
 }
 
-fn validate_host(host: String) -> Result<String, InvalidInput> {
-    if host.is_empty() || host.contains(REJECTED_ADDRESS_CHARACTERS) || host.contains(['[', ']']) {
-        return Err(crate::InvalidUrl::InvalidHost(host).into());
-    }
-    Ok(host)
-}
-
 #[cfg(all(test, not(browser)))]
 mod tests {
     use super::{Endpoint, EndpointKind, InvalidInput, Protocol, ServerAddress};
@@ -497,7 +474,8 @@ mod tests {
             (Protocol::Irc, "irc.example.net", 7000)
         );
 
-        let websocket = Endpoint::websocket("wss://irc.example.net:8443/webirc")
+        let websocket = "wss://irc.example.net:8443/webirc"
+            .parse::<Endpoint>()
             .unwrap()
             .0;
         assert_eq!(
@@ -515,7 +493,7 @@ mod tests {
         assert_eq!(tls.kind(), EndpointKind::Tls);
         assert_eq!(tls.to_string(), "ircs://[2001:db8::7]:6697");
 
-        let socket = Endpoint::websocket("ws://irc.example.net/webirc").unwrap();
+        let socket = "ws://irc.example.net/webirc".parse::<Endpoint>().unwrap();
         assert_eq!(socket.host(), "irc.example.net");
         assert_eq!(socket.port(), 80);
         assert_eq!(socket.kind(), EndpointKind::WebSocket);
@@ -523,14 +501,17 @@ mod tests {
     }
 
     #[test]
-    fn websocket_rejects_non_websocket_schemes_and_userinfo() {
-        for url in [
-            "irc.example.net",
-            "irc://irc.example.net",
-            "https://irc.example.net/webirc",
-            "wss://alice@irc.example.net/webirc",
+    fn endpoint_from_str_accepts_every_transport() {
+        for (url, expected) in [
+            ("irc://irc.example.net", EndpointKind::Plaintext),
+            ("ircs://irc.example.net", EndpointKind::Tls),
+            ("ws://irc.example.net/webirc", EndpointKind::WebSocket),
+            (
+                "wss://irc.example.net/webirc",
+                EndpointKind::SecureWebSocket,
+            ),
         ] {
-            assert!(Endpoint::websocket(url).is_err(), "accepted {url:?}");
+            assert_eq!(url.parse::<Endpoint>().unwrap().kind(), expected);
         }
     }
 
@@ -540,20 +521,18 @@ mod tests {
             Endpoint::tls("irc.example.net", 0),
             Endpoint::plaintext("irc.example.net", 0),
         ] {
-            assert_eq!(
-                endpoint,
-                Err(InvalidInput::Url(crate::InvalidUrl::InvalidPort(
-                    "0".into()
-                )))
-            );
+            assert_eq!(endpoint, Err(crate::InvalidUrl::InvalidPort("0".into())));
         }
-        for host in ["", "irc example.net"] {
-            assert_eq!(
-                Endpoint::tls(host, 6697),
-                Err(InvalidInput::Url(crate::InvalidUrl::InvalidHost(
-                    host.into()
-                )))
-            );
+        for (host, expected) in [
+            ("", crate::InvalidUrl::EmptyHost),
+            ("irc example.net", crate::InvalidUrl::Whitespace),
+            (
+                "irc.réseau.example",
+                crate::InvalidUrl::NonAsciiHost("irc.réseau.example".into()),
+            ),
+            ("irc.example.net\u{7f}", crate::InvalidUrl::ControlCharacter),
+        ] {
+            assert_eq!(Endpoint::tls(host, 6697), Err(expected));
         }
     }
 
@@ -643,7 +622,7 @@ mod tests {
             "ftp://irc.example.net"
                 .parse::<ServerAddress>()
                 .unwrap_err(),
-            InvalidInput::Url(crate::InvalidUrl::UnsupportedScheme("ftp".into()))
+            crate::InvalidUrl::UnsupportedScheme("ftp".into())
         );
         assert_eq!("irc://host:1".parse::<ServerAddress>().unwrap().port, 1);
         assert_eq!(
@@ -658,9 +637,7 @@ mod tests {
             assert!(
                 matches!(
                     input.parse::<ServerAddress>(),
-                    Err(InvalidInput::Url(
-                        crate::InvalidUrl::Userinfo | crate::InvalidUrl::InvalidHost(_)
-                    ))
+                    Err(crate::InvalidUrl::Userinfo | crate::InvalidUrl::InvalidHost(_))
                 ),
                 "accepted {input:?}"
             );
@@ -716,12 +693,10 @@ mod tests {
         ] {
             assert!(matches!(
                 input.parse::<ServerAddress>(),
-                Err(InvalidInput::Url(
-                    crate::InvalidUrl::Query
-                        | crate::InvalidUrl::Fragment
-                        | crate::InvalidUrl::Whitespace
-                        | crate::InvalidUrl::InvalidHost(_)
-                ))
+                Err(crate::InvalidUrl::Query
+                    | crate::InvalidUrl::Fragment
+                    | crate::InvalidUrl::Whitespace
+                    | crate::InvalidUrl::InvalidHost(_))
             ));
         }
     }

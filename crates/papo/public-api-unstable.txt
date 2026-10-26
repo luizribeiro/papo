@@ -2098,10 +2098,9 @@ pub struct papo::Endpoint(_)
 impl papo::Endpoint
 pub fn papo::Endpoint::host(&self) -> &str
 pub fn papo::Endpoint::kind(&self) -> papo::EndpointKind
-pub fn papo::Endpoint::plaintext(impl core::convert::Into<alloc::string::String>, u16) -> core::result::Result<Self, papo::InvalidInput>
+pub fn papo::Endpoint::plaintext(impl core::convert::Into<alloc::string::String>, u16) -> core::result::Result<Self, papo::InvalidUrl>
 pub fn papo::Endpoint::port(&self) -> u16
-pub fn papo::Endpoint::tls(impl core::convert::Into<alloc::string::String>, u16) -> core::result::Result<Self, papo::InvalidInput>
-pub fn papo::Endpoint::websocket(impl core::convert::AsRef<str>) -> core::result::Result<Self, papo::InvalidInput>
+pub fn papo::Endpoint::tls(impl core::convert::Into<alloc::string::String>, u16) -> core::result::Result<Self, papo::InvalidUrl>
 impl core::clone::Clone for papo::Endpoint
 pub fn papo::Endpoint::clone(&self) -> Self
 impl core::cmp::Eq for papo::Endpoint
@@ -2114,6 +2113,9 @@ pub fn papo::Endpoint::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::R
 impl core::hash::Hash for papo::Endpoint
 pub fn papo::Endpoint::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::StructuralPartialEq for papo::Endpoint
+impl core::str::traits::FromStr for papo::Endpoint
+pub type papo::Endpoint::Err = papo::InvalidUrl
+pub fn papo::Endpoint::from_str(&str) -> core::result::Result<Self, Self::Err>
 impl papo::IntoEndpoint for papo::Endpoint
 impl core::marker::Freeze for papo::Endpoint
 impl core::marker::Send for papo::Endpoint
