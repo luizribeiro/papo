@@ -205,6 +205,6 @@ fn joined(event: &Event, nick: &str, channel: &str) -> bool {
     matches!(
         event,
         Event::Joined(papo::event::Joined { channel: joined,
-            nick: joined_nick, .. }) if joined == channel && joined_nick == nick
+            actor, .. }) if joined == channel && actor.nick() == nick
     )
 }

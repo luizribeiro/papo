@@ -35,7 +35,7 @@ async fn reacts_to_live_messages() {
         );
         wait_for(
             &mut events,
-            |event| matches!(event, Event::Joined(joined) if joined.nick == bot_nick.as_str()),
+            |event| matches!(event, Event::Joined(joined) if joined.actor.nick() == bot_nick.as_str()),
         )
         .await;
 

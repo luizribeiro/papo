@@ -30,8 +30,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 members.sort();
                 println!("members {}: {}", synced.channel, members.join(" "));
             }
-            Event::Joined(joined) => println!("join {} {}", joined.channel, joined.nick),
-            Event::Parted(parted) => println!("part {} {}", parted.channel, parted.nick),
+            Event::Joined(joined) => println!("join {} {}", joined.channel, joined.actor.nick()),
+            Event::Parted(parted) => println!("part {} {}", parted.channel, parted.actor.nick()),
             Event::Quit(quit) => println!("quit {}", quit.nick),
             Event::NickChanged(changed) => println!("nick {} -> {}", changed.old, changed.new),
             _ => continue,

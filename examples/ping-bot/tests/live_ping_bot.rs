@@ -36,7 +36,7 @@ async fn joins_and_replies_to_channel_pings() {
         );
         wait_for(
             &mut events,
-            |event| matches!(event, Event::Joined(joined) if joined.nick == bot_nick.as_str()),
+            |event| matches!(event, Event::Joined(joined) if joined.actor.nick() == bot_nick.as_str()),
         )
         .await;
 

@@ -265,9 +265,9 @@ async fn wait_ready(events: &mut papo::Events, nick: &str, channel: &str) {
             Some(Event::Connected(welcome)) => registered = welcome.nick == nick,
             Some(Event::Joined(papo::event::Joined {
                 channel: joined,
-                nick: joined_nick,
+                actor,
                 ..
-            })) if registered && joined == channel && joined_nick == nick => return,
+            })) if registered && joined == channel && actor.nick() == nick => return,
             Some(Event::Disconnected(disconnected)) => {
                 panic!("disconnected while joining: {disconnected}")
             }

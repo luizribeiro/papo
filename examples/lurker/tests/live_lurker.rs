@@ -35,7 +35,7 @@ async fn prints_membership_snapshot_and_changes() {
         let mut lurker = Lurker::start(&server_url, &observer_nick);
         wait_for(
             &mut events,
-            |event| matches!(event, Event::Joined(joined) if joined.nick == observer_nick.as_str()),
+            |event| matches!(event, Event::Joined(joined) if joined.actor.nick() == observer_nick.as_str()),
         )
         .await;
         lurker.wait_for("members #papo:").await;

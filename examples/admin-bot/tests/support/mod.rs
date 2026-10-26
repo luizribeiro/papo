@@ -128,7 +128,7 @@ pub(super) async fn wait_op(events: &mut Events, channel: &str, nick: &str) {
 
 pub(super) async fn wait_join(events: &mut Events, nick: &str) {
     wait_for(events, format!("{nick} to join"), |event| {
-        matches!(event, Event::Joined(ref joined) if joined.nick == nick).then_some(())
+        matches!(event, Event::Joined(ref joined) if joined.actor.nick() == nick).then_some(())
     })
     .await;
 }

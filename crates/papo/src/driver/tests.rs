@@ -1309,15 +1309,9 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             msgid: None,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
-            account: crate::Account::Unknown,
             realname: None,
             channel: test_channel("#papo"),
-            actor: crate::Source::User(crate::__testing::user_source(
-                test_nick("papo-driver"),
-                None,
-                None,
-            )),
-            nick: test_nick("papo-driver"),
+            actor: crate::__testing::user_source(test_nick("papo-driver"), None, None),
             authorship: crate::Authorship::Own,
             netjoin: None,
         }),
@@ -1329,15 +1323,9 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             msgid: None,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
-            account: crate::Account::Unknown,
             realname: None,
             channel: test_channel("#visitors"),
-            actor: crate::Source::User(crate::__testing::user_source(
-                test_nick("alice"),
-                None,
-                None,
-            )),
-            nick: test_nick("alice"),
+            actor: crate::__testing::user_source(test_nick("alice"), None, None),
             authorship: crate::Authorship::Other,
             netjoin: None,
         }),
@@ -1351,14 +1339,8 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             msgid: None,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
-            account: crate::Account::Unknown,
-            actor: crate::Source::User(crate::__testing::user_source(
-                test_nick("alice"),
-                None,
-                None,
-            )),
+            actor: crate::__testing::user_source(test_nick("alice"), None, None),
             channel: test_channel("#staff"),
-            nick: test_nick("alice"),
             reason: Some("lunch".into()),
             authorship: crate::Authorship::Other,
         }),
@@ -1391,14 +1373,8 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             msgid: None,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
-            account: crate::Account::Unknown,
-            actor: crate::Source::User(crate::__testing::user_source(
-                test_nick("papo-driver"),
-                None,
-                None,
-            )),
+            actor: crate::__testing::user_source(test_nick("papo-driver"), None, None),
             channel: test_channel("#Papo"),
-            nick: test_nick("papo-driver"),
             reason: None,
             authorship: crate::Authorship::Own,
         }),
@@ -1485,15 +1461,9 @@ fn rejoin_set_stops_at_ten_thousand_channels() {
         msgid: None,
         server_time: None,
         received_at: SystemTime::UNIX_EPOCH,
-        account: crate::Account::Unknown,
         realname: None,
         channel: test_channel("#overflow"),
-        actor: crate::Source::User(crate::__testing::user_source(
-            test_nick("papo-driver"),
-            None,
-            None,
-        )),
-        nick: test_nick("papo-driver"),
+        actor: crate::__testing::user_source(test_nick("papo-driver"), None, None),
         authorship: crate::Authorship::Own,
         netjoin: None,
     });
@@ -4791,8 +4761,7 @@ async fn own_join_after_a_nick_change_is_marked_as_self() {
     )
     .await;
     let joined = events.next().await.unwrap().as_joined().unwrap().clone();
-    assert_eq!(joined.actor.nick().map(AsRef::as_ref), Some("papo-renamed"));
-    assert_eq!(joined.nick, "papo-renamed");
+    assert_eq!(joined.actor.nick(), "papo-renamed");
     assert_eq!(joined.channel, "#papo-self");
     assert_eq!(joined.authorship, crate::Authorship::Own);
     server_line(
