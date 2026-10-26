@@ -147,7 +147,7 @@ fn status_uses_the_lowest_symbol_and_current_prefix_table() {
                 if line.status().is_some_and(|prefix|
                     prefix.symbol() == '!' && prefix.mode() == '\0' && prefix.rank().is_none()))
         })
-        .server(":ergo.test 005 papo PREFIX=(vo)+@ :are supported")
+        .server(":ergo.test 005 papo PREFIX=(vo)@+ :are supported")
         .server(":alice!~a@cloak PRIVMSG @#ops :updated rank")
         .event(|event| {
             matches!(event, Event::Line(line)
