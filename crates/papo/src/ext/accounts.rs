@@ -104,21 +104,19 @@ impl Client {
     /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
     pub fn verify_account(
         &self,
-        account: impl AsRef<str>,
+        account: impl crate::AsAccount,
         code: impl Into<crate::Secret>,
     ) -> crate::RequestFuture<AccountCreation> {
         let client = self.clone();
-        let account = self.state().account_name(account.as_ref());
+        let account = crate::AsAccount::__parts(&account).into_owned();
         let code = code.into();
         crate::RequestFuture::new(async move {
-            account
-                .check()
-                .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
+            let account = client.resolve(
+                crate::target::Role::Account("verify_account: account"),
+                account,
+            )?;
             let response = client
-                .core_request(CoreRequest::Verify {
-                    account: account.into_string(),
-                    code,
-                })
+                .core_request(CoreRequest::Verify { account, code })
                 .await?;
             account_registration_result(
                 &response,

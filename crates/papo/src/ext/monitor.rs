@@ -1,6 +1,6 @@
 use tokio::sync::oneshot;
 
-use crate::{Client, Error, Feature, InvalidInput, driver::Command};
+use crate::{Client, Error, Feature, driver::Command};
 
 /// Handle for the declarative server-side monitor list.
 pub struct Monitor {
@@ -35,7 +35,7 @@ impl Monitor {
     pub fn add<I, S>(&self, nicks: I) -> crate::RequestFuture<()>
     where
         I: IntoIterator<Item = S>,
-        S: AsRef<str>,
+        S: crate::AsNick,
     {
         self.change(nicks, true)
     }
@@ -49,7 +49,7 @@ impl Monitor {
     pub fn remove<I, S>(&self, nicks: I) -> crate::RequestFuture<()>
     where
         I: IntoIterator<Item = S>,
-        S: AsRef<str>,
+        S: crate::AsNick,
     {
         self.change(nicks, false)
     }
@@ -77,22 +77,19 @@ impl Monitor {
     fn change<I, S>(&self, nicks: I, add: bool) -> crate::RequestFuture<()>
     where
         I: IntoIterator<Item = S>,
-        S: AsRef<str>,
+        S: crate::AsNick,
     {
         let client = self.client.clone();
         let nicks = nicks
             .into_iter()
-            .map(|nick| nick.as_ref().to_owned())
+            .map(|nick| crate::AsNick::__parts(&nick).into_owned())
             .collect::<Vec<_>>();
         crate::RequestFuture::new(async move {
             preflight(&client)?;
-            let state = client.state();
-            for nick in &nicks {
-                state
-                    .nickname(nick)
-                    .check(state.isupport().inner())
-                    .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
-            }
+            let nicks = nicks
+                .into_iter()
+                .map(|nick| client.resolve(crate::target::Role::Nick("monitor: nick"), nick))
+                .collect::<Result<Vec<_>, _>>()?;
             let (result, receiver) = oneshot::channel();
             let command = if add {
                 Command::MonitorAdd { nicks, result }

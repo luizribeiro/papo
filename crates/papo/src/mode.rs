@@ -33,6 +33,9 @@ impl Extban {
 }
 
 /// A mask or extended ban accepted by channel list-mode actions.
+///
+/// Typed masks may be reused across clients so the same host or account can be moderated on
+/// multiple networks.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BanTarget(Target);
 
@@ -961,6 +964,15 @@ mod tests {
             BanTarget::from(Extban::account("alice").unwrap()),
             BanTarget(Target::Extban(Extban::Account(account))) if account == "alice"
         ));
+
+        let foreign =
+            crate::Origin::__new(91).__mask(papo_proto::Casemapping::Rfc1459, "*!*@spam.example");
+        assert_eq!(
+            BanTarget::from(foreign.clone())
+                .resolve(&state(":ergo.test 005 papo CASEMAPPING=rfc1459 :supported"))
+                .unwrap(),
+            foreign
+        );
     }
 
     #[test]
