@@ -56,8 +56,8 @@ async fn sasl_failure(s: Scenario) -> papo_testing::Result<()> {
         error,
         papo::Error::Connect(error)
             if error.kind() == ConnectErrorKind::Sasl
-                && std::error::Error::source(error)
-                    .is_some_and(|source| source.to_string().contains("SASL"))
+                && error.to_string().contains("SASL")
+                && std::error::Error::source(error).is_none()
     ));
     Ok(())
 }

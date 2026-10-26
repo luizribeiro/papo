@@ -135,8 +135,49 @@ impl ConnectError {
     }
 
     pub(crate) fn login(kind: ConnectErrorKind, message: impl Into<String>) -> Self {
-        Self::new(kind, ConnectFailure(message.into()))
+        let message = message.into();
+        let message = if displays_server_reason(kind) {
+            sanitize_server_reason(&message)
+        } else {
+            message
+        };
+        Self::new(kind, ConnectFailure(message))
     }
+}
+
+const fn displays_server_reason(kind: ConnectErrorKind) -> bool {
+    matches!(
+        kind,
+        ConnectErrorKind::Banned
+            | ConnectErrorKind::Server
+            | ConnectErrorKind::PasswordIncorrect
+            | ConnectErrorKind::AccountRequired
+            | ConnectErrorKind::WebIrcRejected
+            | ConnectErrorKind::Sasl
+    )
+}
+
+fn sanitize_server_reason(reason: &str) -> String {
+    let mut clean = String::with_capacity(reason.len());
+    let mut escape = 0;
+    for character in reason.chars() {
+        escape = match (escape, character) {
+            (0, '\u{1b}') | (1, ' '..='/') => 1,
+            (0, '\u{009b}') | (1, '[') => 2,
+            (0, '\u{0090}' | '\u{009d}' | '\u{009e}' | '\u{009f}')
+            | (1, 'P' | 'X' | ']' | '^' | '_') => 3,
+            (0, character) if !character.is_control() => {
+                clean.push(character);
+                0
+            }
+            (2, '@'..='~') | (3, '\u{7}' | '\u{009c}') | (4, '\\') => 0,
+            (2, _) => 2,
+            (3 | 4, '\u{1b}') => 4,
+            (3 | 4, _) => 3,
+            _ => 0,
+        };
+    }
+    clean
 }
 
 #[derive(Debug, Error)]
@@ -175,13 +216,20 @@ impl fmt::Display for ConnectError {
             ConnectErrorKind::WelcomeTimedOut => "IRC login timed out",
             ConnectErrorKind::Other => "the connection could not be completed",
         };
-        formatter.write_str(message)
+        formatter.write_str(message)?;
+        if displays_server_reason(self.kind) {
+            let reason = self.source.to_string();
+            if !reason.is_empty() {
+                write!(formatter, ": {reason}")?;
+            }
+        }
+        Ok(())
     }
 }
 
 impl std::error::Error for ConnectError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        Some(self.source.as_ref())
+        (!displays_server_reason(self.kind)).then_some(self.source.as_ref())
     }
 }
 
@@ -821,8 +869,9 @@ mod tests {
             Error::disconnected_close(papo_core::CloseKind::Banned, "K-lined: open proxy".into()),
             Error::Connect(error)
                 if error.kind() == ConnectErrorKind::Banned
-                    && std::error::Error::source(&error)
-                        .is_some_and(|source| source.to_string() == "K-lined: open proxy")
+                    && error.to_string()
+                        == "the server banned this connection: K-lined: open proxy"
+                    && std::error::Error::source(&error).is_none()
         ));
         assert!(matches!(
             Error::disconnected_close(papo_core::CloseKind::PingTimeout, "ping timeout".into()),
@@ -926,7 +975,10 @@ mod tests {
         ] {
             let error = ConnectError::new(kind, io::Error::other("recorded cause"));
             assert_eq!(error.kind(), kind);
-            assert!(std::error::Error::source(&error).is_some());
+            assert_eq!(
+                std::error::Error::source(&error).is_none(),
+                super::displays_server_reason(kind)
+            );
         }
 
         for cause in [

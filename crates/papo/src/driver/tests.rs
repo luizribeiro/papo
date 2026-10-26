@@ -14,6 +14,12 @@ fn transport_failure(message: &'static str) -> Error {
     ))
 }
 
+fn error_chain(error: &(dyn std::error::Error + 'static)) -> Vec<String> {
+    std::iter::successors(Some(error), |error| error.source())
+        .map(ToString::to_string)
+        .collect()
+}
+
 fn prefix_symbols(prefixes: &[crate::Prefix]) -> Vec<char> {
     prefixes.iter().map(|prefix| prefix.symbol()).collect()
 }
@@ -2916,13 +2922,13 @@ async fn required_sasl_failure_rejects_connect_waiter() {
     )
     .await;
 
-    assert!(matches!(
-        within(waiter).await.unwrap(),
-        Err(Error::Connect(error))
-            if error.kind() == crate::ConnectErrorKind::Sasl
-                && std::error::Error::source(&error)
-                    .is_some_and(|source| source.to_string().contains("SASL"))
-    ));
+    let Err(Error::Connect(error)) = within(waiter).await.unwrap() else {
+        panic!("expected SASL connection failure")
+    };
+    let displayed = "SASL authentication failed: PLAIN: SASL authentication failed; every configured SASL mechanism failed";
+    assert_eq!(error.kind(), crate::ConnectErrorKind::Sasl);
+    assert_eq!(error.to_string(), displayed);
+    assert_eq!(error_chain(&error), [displayed]);
     assert!(matches!(
         within(driver).await.unwrap(),
         Err(Error::Connect(error)) if error.kind() == crate::ConnectErrorKind::Sasl
@@ -2996,17 +3002,22 @@ async fn terminal_numerics_have_specific_connect_errors() {
         (
             ":solanum.example 463 * :No more connections allowed in your connection class\r\n",
             crate::ConnectErrorKind::Server,
-            "No more connections allowed in your connection class",
+            "the server rejected the connection: No more connections allowed in your connection class",
         ),
         (
             ":ergo.test 464 * :Password incorrect\r\n",
             crate::ConnectErrorKind::PasswordIncorrect,
-            "Password incorrect",
+            "the server rejected the connection password: Password incorrect",
         ),
         (
-            ":ergo.test 465 papo-driver :You are banned from this server\r\n",
+            ":solanum.example 465 papo-driver :K-lined: spam\r\n",
             crate::ConnectErrorKind::Banned,
-            "You are banned from this server",
+            "the server banned this connection: K-lined: spam",
+        ),
+        (
+            ":solanum.example 465 papo-driver :\x07\x1b[31mK-lined: spam\x1b[0m\t\r\n",
+            crate::ConnectErrorKind::Banned,
+            "the server banned this connection: K-lined: spam",
         ),
     ] {
         let (client_stream, mut server) = tokio::io::duplex(4096);
@@ -3022,13 +3033,12 @@ async fn terminal_numerics_have_specific_connect_errors() {
         welcome_burst(&mut server).await;
         server_line(&mut server, line.as_bytes()).await;
 
-        assert!(matches!(
-            within(waiter).await.unwrap(),
-            Err(Error::Connect(error))
-                if error.kind() == expected
-                    && std::error::Error::source(&error)
-                        .is_some_and(|source| source.to_string() == diagnostic)
-        ));
+        let Err(Error::Connect(error)) = within(waiter).await.unwrap() else {
+            panic!("expected terminal connection failure")
+        };
+        assert_eq!(error.kind(), expected);
+        assert_eq!(error.to_string(), diagnostic);
+        assert_eq!(error_chain(&error), [diagnostic]);
         assert!(matches!(
             within(driver).await.unwrap(),
             Err(Error::Connect(error)) if error.kind() == expected
@@ -3196,9 +3206,9 @@ async fn server_error_before_welcome_is_a_connection_failure() {
         &disconnected.cause,
         crate::DisconnectCause::Connect(error)
             if error.kind() == crate::ConnectErrorKind::Server
-                && std::error::Error::source(error).is_some_and(|source| {
-                    source.to_string() == "Too many clients from your network"
-                })
+                && error.to_string()
+                    == "the server rejected the connection: Too many clients from your network"
+                && std::error::Error::source(error).is_none()
     ));
     assert!(matches!(
         within(waiter).await.unwrap(),
@@ -3260,8 +3270,8 @@ async fn assert_pre_welcome_refusal_backoff(line: Option<&'static [u8]>, expecte
                 cause: crate::DisconnectCause::Connect(ref error),
                 reconnect_in: Some(actual),
             })) if error.kind() == crate::ConnectErrorKind::Server
-                && std::error::Error::source(error)
-                    .is_some_and(|source| source.to_string() == expected)
+                && error.to_string() == expected
+                && std::error::Error::source(error).is_none()
                 && actual == delay
         ));
         tokio::time::advance(delay.checked_sub(Duration::from_nanos(1)).unwrap()).await;
@@ -3281,10 +3291,14 @@ async fn assert_pre_welcome_refusal_backoff(line: Option<&'static [u8]>, expecte
 async fn pre_welcome_server_refusals_retry_slowly_and_keep_their_text() {
     assert_pre_welcome_refusal_backoff(
         Some(b"ERROR :Too many clients from your network\r\n"),
-        "Too many clients from your network",
+        "the server rejected the connection: Too many clients from your network",
     )
     .await;
-    assert_pre_welcome_refusal_backoff(None, "server closed the connection").await;
+    assert_pre_welcome_refusal_backoff(
+        None,
+        "the server rejected the connection: server closed the connection",
+    )
+    .await;
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -3325,10 +3339,9 @@ async fn webirc_rejection_is_a_specific_connection_failure() {
         &disconnected.cause,
         crate::DisconnectCause::Connect(error)
             if error.kind() == crate::ConnectErrorKind::WebIrcRejected
-                && std::error::Error::source(error).is_some_and(|source| {
-                    source.to_string()
-                        == "WEBIRC command is not usable from your address or incorrect password given"
-                })
+                && error.to_string()
+                    == "the server rejected the WEBIRC gateway: WEBIRC command is not usable from your address or incorrect password given"
+                && std::error::Error::source(error).is_none()
     ));
     assert!(matches!(
         within(waiter).await.unwrap(),
@@ -3388,8 +3401,9 @@ async fn nick_candidates_exhaustion_ends_login_immediately() {
         &disconnected.cause,
         crate::DisconnectCause::Connect(error)
             if error.kind() == crate::ConnectErrorKind::Server
-                && std::error::Error::source(error)
-                    .is_some_and(|source| source.to_string() == "nick candidates exhausted")
+                && error.to_string()
+                    == "the server rejected the connection: nick candidates exhausted"
+                && std::error::Error::source(error).is_none()
     ));
     assert!(matches!(
         within(waiter).await.unwrap(),

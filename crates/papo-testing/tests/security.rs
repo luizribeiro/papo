@@ -654,8 +654,8 @@ fn assert_sasl_failure(disconnected: &Disconnected, reason: &str) {
         &disconnected.cause,
         DisconnectCause::Connect(error)
             if error.kind() == ConnectErrorKind::Sasl
-                && std::error::Error::source(error)
-                    .is_some_and(|source| source.to_string().contains(reason))
+                && error.to_string().contains(reason)
+                && std::error::Error::source(error).is_none()
         ),
         "unexpected disconnection: {disconnected:?}"
     );
