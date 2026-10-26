@@ -3243,6 +3243,33 @@ mod tests {
     }
 
     #[test]
+    fn typing_timeout_uses_its_observation_time_without_a_server_time() {
+        let now = Instant::now();
+        let received_at = UNIX_EPOCH + Duration::from_secs(73);
+        let mut session = Session::new(Config::default().nick("papo"));
+        session.handle_line(
+            now,
+            b"@+typing=active :emily!~emily@cloak.example TAGMSG #papo",
+        );
+        while session.poll_event().is_some() {}
+        session.handle_timeout(now + Duration::from_secs(6));
+        let CoreEvent::Forward(event) = from_core_with_mapping(
+            session.poll_event().expect("typing timeout event"),
+            Casemapping::default(),
+            crate::Origin::NONE,
+            false,
+            false,
+            received_at,
+        ) else {
+            panic!("expected forwarded typing timeout")
+        };
+        assert!(matches!(event, Event::TypingChanged(_)));
+        assert_eq!(event.msgid(), None);
+        assert_eq!(event.server_time(), None);
+        assert_eq!(event.received_at(), Some(received_at));
+    }
+
+    #[test]
     fn message_names_capture_the_active_casemapping() {
         let mut isupport = Isupport::default();
         isupport.apply_tokens(["CASEMAPPING=ascii", "NICKLEN=30"]);
