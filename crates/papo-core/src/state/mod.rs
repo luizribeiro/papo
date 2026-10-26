@@ -687,7 +687,7 @@ impl State {
             else {
                 return Handled::No;
             };
-            let authorship = if self.nick_authorship(nick) == Authorship::Own
+            let authorship = if self.source_authorship(message) == Authorship::Own
                 || self.nick_authorship(new_nick) == Authorship::Own
             {
                 Authorship::Own

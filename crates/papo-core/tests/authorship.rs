@@ -119,6 +119,43 @@ fn sibling_device_away_is_own() {
 }
 
 #[test]
+fn nick_change_channels_distinguish_sibling_devices_from_other_users() {
+    Transcript::new(Config::default().sasl(Sasl::plain("papo", "correct horse battery staple")))
+        .connect_default()
+        .server("CAP * LS :sasl=PLAIN account-tag")
+        .client("CAP REQ :account-tag sasl")
+        .server("CAP * ACK :account-tag sasl")
+        .client("AUTHENTICATE PLAIN")
+        .server("AUTHENTICATE +")
+        .client("AUTHENTICATE AHBhcG8AY29ycmVjdCBob3JzZSBiYXR0ZXJ5IHN0YXBsZQ==")
+        .server(":ergo.test 900 papo papo!~papo@localhost papo :You are now logged in as papo")
+        .server(":ergo.test 903 papo :SASL authentication successful")
+        .client("CAP END")
+        .server(":papo!~papo@localhost JOIN #papo")
+        .server(":papo!~papo@localhost JOIN #rust")
+        .server("@account=papo :papo-phone!~papo@localhost JOIN #papo")
+        .server(":emily!~emily@localhost JOIN #rust")
+        .server("@account=papo :papo-phone!~papo@localhost NICK papo-mobile")
+        .event_until(|event| {
+            matches!(event, Event::NickChanged {
+                old,
+                channels,
+                authorship: Authorship::Own,
+                ..
+            } if old == "papo-phone" && *channels == ["#papo", "#rust"])
+        })
+        .server(":emily!~emily@localhost NICK emily-away")
+        .event(|event| {
+            matches!(event, Event::NickChanged {
+                old,
+                channels,
+                authorship: Authorship::Other,
+                ..
+            } if old == "emily" && *channels == ["#rust"])
+        });
+}
+
+#[test]
 fn history_authorship_requires_an_account_tag() {
     Transcript::new(Config::default().sasl(Sasl::plain("papo", "correct horse battery staple")))
         .connect_default()
