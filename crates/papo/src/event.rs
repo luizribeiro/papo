@@ -584,7 +584,7 @@ pub(crate) fn incoming_from_core(
         )
         .map_or_else(
             |line| unparsed_from_line(line, received_at),
-            |notice| Event::ServerNotice(Box::new(notice)),
+            Event::ServerNotice,
         );
     };
     message_event_from_line(
@@ -954,7 +954,7 @@ fn message_event_from_line(
         )
         .map_or_else(
             |line| unparsed_from_line(line, received_at),
-            |notice| Event::ServerNotice(Box::new(notice)),
+            Event::ServerNotice,
         );
     }
     let raw = match ctcp_from_line(
@@ -986,10 +986,7 @@ fn message_event_from_line(
             received_at,
             reply_token,
         )
-        .map_or_else(
-            |line| unparsed_from_line(line, received_at),
-            |notice| Event::Notice(Box::new(notice)),
-        );
+        .map_or_else(|line| unparsed_from_line(line, received_at), Event::Notice);
     }
     let own = authorship == Authorship::Own;
     Message::new_with_context(
@@ -1009,9 +1006,9 @@ fn message_event_from_line(
         |line| unparsed_from_line(line, received_at),
         |message| {
             if own {
-                Event::OwnMessage(Box::new(message))
+                Event::OwnMessage(message)
             } else {
-                Event::Message(Box::new(message))
+                Event::Message(message)
             }
         },
     )
@@ -1300,16 +1297,16 @@ pub enum Event {
     /// A complete message of the day received while connecting.
     Motd(Motd),
     /// An incoming `PRIVMSG` or `ACTION` from another user.
-    Message(Box<Message>),
+    Message(Message),
     /// A message authored by this account from another connection.
     ///
     /// Correlated echoes of this connection's sends resolve through [`crate::Sent`] and are not
     /// duplicated here. Log those sends from the send future's result.
-    OwnMessage(Box<Message>),
+    OwnMessage(Message),
     /// An incoming `NOTICE` from a user.
-    Notice(Box<Notice>),
+    Notice(Notice),
     /// A server notice, broadcast, `*` message, or `WALLOPS`.
-    ServerNotice(Box<ServerNotice>),
+    ServerNotice(ServerNotice),
     /// An incoming Client-to-Client Protocol query.
     CtcpQuery(CtcpQuery),
     /// An incoming Client-to-Client Protocol reply.
@@ -1349,7 +1346,7 @@ pub enum Event {
     /// emitted as events. Insert page items by server time because live traffic can arrive while
     /// a batch remains open. Page items keep server delivery order, which is normally oldest to
     /// newest but is not sorted by papo.
-    History(Box<crate::HistoryPage>),
+    History(crate::HistoryPage),
     /// A conversation's read marker advanced or was first reported.
     ReadMarkerChanged(ReadMarkerChanged),
     /// A recoverable protocol or configuration problem occurred.
@@ -1401,15 +1398,15 @@ pub enum Event {
 }
 
 variant_accessors! { Event;
-    (boxed Message, as_message, Message),
-    (boxed OwnMessage, as_own_message, Message),
-    (boxed Notice, as_notice, Notice),
-    (boxed ServerNotice, as_server_notice, ServerNotice),
+    (Message, as_message, Message),
+    (OwnMessage, as_own_message, Message),
+    (Notice, as_notice, Notice),
+    (ServerNotice, as_server_notice, ServerNotice),
     (CtcpQuery, as_ctcp_query, CtcpQuery),
     (CtcpReply, as_ctcp_reply, CtcpReply),
     (BroadcastCtcp, as_broadcast_ctcp, BroadcastCtcp),
     (BroadcastTagMsg, as_broadcast_tag_msg, BroadcastTagMsg),
-    (boxed History, as_history, crate::HistoryPage),
+    (History, as_history, crate::HistoryPage),
     (Connected, as_connected, Connected),
     (Connecting, as_connecting, Connecting),
     (Motd, as_motd, Motd),
@@ -2282,6 +2279,11 @@ mod tests {
     };
     use papo_proto::{Casemapping, Isupport, Line, LineRef, Typing};
 
+    #[test]
+    fn event_size_remains_bounded() {
+        assert!(std::mem::size_of::<Event>() <= 640);
+    }
+
     fn from_core(event: papo_core::Event) -> CoreEvent {
         from_core_with_mapping(
             event,
@@ -3017,7 +3019,7 @@ mod tests {
         assert_eq!(tagged.msgid.as_deref(), Some("RfcBTzyxY120004"));
         assert!(matches!(tagged.actor.account(), Account::LoggedIn(account) if account == "emily"));
         assert_eq!(tagged.actor.is_bot(), Some(true));
-        let tagged_event = Event::Message(Box::new(tagged.clone()));
+        let tagged_event = Event::Message(tagged.clone());
         assert_eq!(
             tagged_event.msgid().map(AsRef::as_ref),
             Some("RfcBTzyxY120004")
@@ -3038,7 +3040,7 @@ mod tests {
             Some("Other120004")
         );
         assert_eq!(
-            Event::Message(Box::new(chat("PRIVMSG", "human message"))).server_time(),
+            Event::Message(chat("PRIVMSG", "human message")).server_time(),
             None
         );
         let reply: Option<&MessageId> = tagged.in_reply_to.as_ref();

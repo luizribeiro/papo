@@ -598,7 +598,7 @@ impl HistoryPage {
     /// dropped. This iterator remains in server delivery order.
     pub fn chat_messages(&self) -> impl Iterator<Item = &ChatMessage> {
         self.items.iter().filter_map(|item| match item {
-            Event::Message(message) | Event::OwnMessage(message) => Some(message.as_ref()),
+            Event::Message(message) | Event::OwnMessage(message) => Some(message),
             _ => None,
         })
     }
@@ -1063,7 +1063,7 @@ mod tests {
         }
     }
 
-    fn historical_message(line: Line, received_at: SystemTime) -> Box<crate::Message> {
+    fn historical_message(line: Line, received_at: SystemTime) -> crate::Message {
         let PageEvent::Message(message) = crate::event_impl::historical_message_event(
             line,
             crate::Authorship::Unknown,

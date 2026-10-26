@@ -1447,29 +1447,29 @@ pub papo::Event::CtcpQuery(papo::event::CtcpQuery)
 pub papo::Event::CtcpReply(papo::event::CtcpReply)
 pub papo::Event::Disconnected(papo::Disconnected)
 pub papo::Event::FeaturesChanged(papo::event::FeaturesChanged)
-pub papo::Event::History(alloc::boxed::Box<papo::HistoryPage>)
+pub papo::Event::History(papo::HistoryPage)
 pub papo::Event::HostChanged(papo::event::HostChanged)
 pub papo::Event::Invited(papo::event::Invited)
 pub papo::Event::Joined(papo::event::Joined)
 pub papo::Event::Kicked(papo::event::Kicked)
 pub papo::Event::MembersRefreshed(papo::event::MembersRefreshed)
-pub papo::Event::Message(alloc::boxed::Box<papo::Message>)
+pub papo::Event::Message(papo::Message)
 pub papo::Event::MetadataChanged(papo::event::MetadataChanged)
 pub papo::Event::ModeChanged(papo::event::ModeChanged)
 pub papo::Event::MonitorOffline(papo::event::MonitorOffline)
 pub papo::Event::MonitorOnline(papo::event::MonitorOnline)
 pub papo::Event::Motd(papo::event::Motd)
 pub papo::Event::NickChanged(papo::event::NickChanged)
-pub papo::Event::Notice(alloc::boxed::Box<papo::event::Notice>)
+pub papo::Event::Notice(papo::event::Notice)
 pub papo::Event::Other(papo::event::Unparsed)
-pub papo::Event::OwnMessage(alloc::boxed::Box<papo::Message>)
+pub papo::Event::OwnMessage(papo::Message)
 pub papo::Event::Parted(papo::event::Parted)
 pub papo::Event::Quit(papo::event::Quit)
 pub papo::Event::Reacted(papo::event::Reacted)
 pub papo::Event::ReadMarkerChanged(papo::event::ReadMarkerChanged)
 pub papo::Event::RealnameChanged(papo::event::RealnameChanged)
 pub papo::Event::Redacted(papo::event::Redacted)
-pub papo::Event::ServerNotice(alloc::boxed::Box<papo::event::ServerNotice>)
+pub papo::Event::ServerNotice(papo::event::ServerNotice)
 pub papo::Event::StandardReply(papo::event::StandardReply)
 pub papo::Event::TagMsg(papo::event::TagMsg)
 pub papo::Event::TopicChanged(papo::event::TopicChanged)
@@ -1508,7 +1508,7 @@ pub const fn papo::Event::as_disconnected(&self) -> core::option::Option<&papo::
 impl papo::Event
 pub const fn papo::Event::as_features_changed(&self) -> core::option::Option<&papo::event::FeaturesChanged>
 impl papo::Event
-pub fn papo::Event::as_history(&self) -> core::option::Option<&papo::HistoryPage>
+pub const fn papo::Event::as_history(&self) -> core::option::Option<&papo::HistoryPage>
 impl papo::Event
 pub const fn papo::Event::as_host_changed(&self) -> core::option::Option<&papo::event::HostChanged>
 impl papo::Event
@@ -1520,7 +1520,7 @@ pub const fn papo::Event::as_kicked(&self) -> core::option::Option<&papo::event:
 impl papo::Event
 pub const fn papo::Event::as_members_refreshed(&self) -> core::option::Option<&papo::event::MembersRefreshed>
 impl papo::Event
-pub fn papo::Event::as_message(&self) -> core::option::Option<&papo::Message>
+pub const fn papo::Event::as_message(&self) -> core::option::Option<&papo::Message>
 impl papo::Event
 pub const fn papo::Event::as_metadata_changed(&self) -> core::option::Option<&papo::event::MetadataChanged>
 impl papo::Event
@@ -1534,11 +1534,11 @@ pub const fn papo::Event::as_motd(&self) -> core::option::Option<&papo::event::M
 impl papo::Event
 pub const fn papo::Event::as_nick_changed(&self) -> core::option::Option<&papo::event::NickChanged>
 impl papo::Event
-pub fn papo::Event::as_notice(&self) -> core::option::Option<&papo::event::Notice>
+pub const fn papo::Event::as_notice(&self) -> core::option::Option<&papo::event::Notice>
 impl papo::Event
 pub const fn papo::Event::as_other(&self) -> core::option::Option<&papo::event::Unparsed>
 impl papo::Event
-pub fn papo::Event::as_own_message(&self) -> core::option::Option<&papo::Message>
+pub const fn papo::Event::as_own_message(&self) -> core::option::Option<&papo::Message>
 impl papo::Event
 pub const fn papo::Event::as_parted(&self) -> core::option::Option<&papo::event::Parted>
 impl papo::Event
@@ -1552,7 +1552,7 @@ pub const fn papo::Event::as_realname_changed(&self) -> core::option::Option<&pa
 impl papo::Event
 pub const fn papo::Event::as_redacted(&self) -> core::option::Option<&papo::event::Redacted>
 impl papo::Event
-pub fn papo::Event::as_server_notice(&self) -> core::option::Option<&papo::event::ServerNotice>
+pub const fn papo::Event::as_server_notice(&self) -> core::option::Option<&papo::event::ServerNotice>
 impl papo::Event
 pub const fn papo::Event::as_standard_reply(&self) -> core::option::Option<&papo::event::StandardReply>
 impl papo::Event
@@ -2299,8 +2299,6 @@ pub fn papo::Message::clone(&self) -> Self
 impl core::cmp::Eq for papo::Message
 impl core::cmp::PartialEq for papo::Message
 pub fn papo::Message::eq(&self, &Self) -> bool
-impl core::convert::From<&alloc::boxed::Box<papo::Message>> for papo::MessageRef
-pub fn papo::MessageRef::from(&alloc::boxed::Box<papo::Message>) -> Self
 impl core::convert::From<&papo::Message> for papo::MessageRef
 pub fn papo::MessageRef::from(&papo::Message) -> Self
 impl core::fmt::Debug for papo::Message
@@ -2328,8 +2326,6 @@ impl core::cmp::PartialEq<str> for papo::MessageRef
 pub fn papo::MessageRef::eq(&self, &str) -> bool
 impl core::convert::AsRef<str> for papo::MessageRef
 pub fn papo::MessageRef::as_ref(&self) -> &str
-impl core::convert::From<&alloc::boxed::Box<papo::Message>> for papo::MessageRef
-pub fn papo::MessageRef::from(&alloc::boxed::Box<papo::Message>) -> Self
 impl core::convert::From<&papo::Message> for papo::MessageRef
 pub fn papo::MessageRef::from(&papo::Message) -> Self
 impl core::convert::From<&papo::Sent> for papo::MessageRef

@@ -137,7 +137,7 @@ async fn wait_history(events: &mut papo::Events, target: &str) -> papo::HistoryP
                 Some(Event::History(history))
                     if matches!(&history.conversation, papo::Conversation::Channel(channel) if channel == target) =>
                 {
-                    return *history;
+                    return history;
                 }
                 Some(Event::Disconnected(disconnected)) => {
                     panic!("disconnected: {disconnected}")

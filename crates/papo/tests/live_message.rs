@@ -279,7 +279,7 @@ async fn wait_message(
 ) -> ChatMessage {
     loop {
         match events.next().await {
-            Some(Event::Message(message)) if accepted(&message) => return *message,
+            Some(Event::Message(message)) if accepted(&message) => return message,
             Some(Event::Disconnected(disconnected)) => {
                 panic!("disconnected while waiting for a message: {disconnected}")
             }
@@ -295,7 +295,7 @@ async fn wait_own_message(
 ) -> ChatMessage {
     loop {
         match events.next().await {
-            Some(Event::OwnMessage(message)) if accepted(&message) => return *message,
+            Some(Event::OwnMessage(message)) if accepted(&message) => return message,
             Some(Event::Disconnected(disconnected)) => {
                 panic!("disconnected while waiting for an own message: {disconnected}")
             }

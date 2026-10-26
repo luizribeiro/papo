@@ -1321,12 +1321,12 @@ where
                         )
                     })
                     .collect();
-                let event = Event::History(Box::new(crate::HistoryPage {
+                let event = Event::History(crate::HistoryPage {
                     conversation,
                     items,
                     end,
                     reason: crate::HistoryReason::Replay,
-                }));
+                });
                 if !enqueue_event(events, pending_events, event) {
                     return Ok(Some((
                         papo_core::CloseKind::Other,

@@ -175,13 +175,6 @@ impl From<&Message> for MessageRef {
     }
 }
 
-/// Preserves the boxed message's return address and identifier.
-impl From<&Box<Message>> for MessageRef {
-    fn from(message: &Box<Message>) -> Self {
-        Self::from(message.as_ref())
-    }
-}
-
 /// Preserves the sent message's return address and every line identifier.
 impl From<&Sent> for MessageRef {
     fn from(message: &Sent) -> Self {

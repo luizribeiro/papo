@@ -70,7 +70,7 @@ async fn wait_for(events: &mut papo::Events, mut wanted: impl FnMut(&Event) -> b
 async fn wait_message(events: &mut papo::Events, text: &str) -> Message {
     loop {
         match events.next().await {
-            Some(Event::Message(message)) if message.text == text => return *message,
+            Some(Event::Message(message)) if message.text == text => return message,
             Some(_) => {}
             None => panic!("driver stopped while waiting for {text}"),
         }

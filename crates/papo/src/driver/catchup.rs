@@ -105,12 +105,12 @@ pub(super) fn advance_catchup(
             )
         })
         .collect();
-    Some(Event::History(Box::new(crate::HistoryPage {
+    Some(Event::History(crate::HistoryPage {
         conversation,
         items,
         end: page_end,
         reason: crate::HistoryReason::Catchup,
-    })))
+    }))
 }
 
 pub(super) fn extend_catchup(

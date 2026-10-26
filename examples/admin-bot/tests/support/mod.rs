@@ -95,7 +95,7 @@ pub(super) async fn wait_synced(events: &mut Events, channels: &[String]) {
 
 pub(super) async fn wait_message(events: &mut Events, text: &str) -> Message {
     wait_for(events, text, |event| match event {
-        Event::Message(message) if message.text == text => Some(*message),
+        Event::Message(message) if message.text == text => Some(message),
         _ => None,
     })
     .await
@@ -103,7 +103,7 @@ pub(super) async fn wait_message(events: &mut Events, text: &str) -> Message {
 
 pub(super) async fn wait_message_starting_with(events: &mut Events, text: &str) -> Message {
     wait_for(events, text, |event| match event {
-        Event::Message(message) if message.text.starts_with(text) => Some(*message),
+        Event::Message(message) if message.text.starts_with(text) => Some(message),
         _ => None,
     })
     .await

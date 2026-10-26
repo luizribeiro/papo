@@ -584,7 +584,7 @@ mod tests {
     async fn next_message(events: &mut papo::Events) -> papo::Message {
         loop {
             match events.next().await {
-                Some(papo::Event::Message(message)) => return *message,
+                Some(papo::Event::Message(message)) => return message,
                 Some(papo::Event::Disconnected(disconnected)) => {
                     panic!("disconnected while waiting for a message: {disconnected}")
                 }
