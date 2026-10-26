@@ -54,7 +54,11 @@ async fn netsplit_members_are_quits(s: Scenario) -> papo_testing::Result<()> {
         .send_raw(papo::Line::new("SQUIT").with_params(["services.papo.test", "conformance test"]))
         .await?;
     let quit = alice
-        .wait_for(|event| event.as_quit().filter(|quit| quit.actor.nick() == "ChanServ"))
+        .wait_for(|event| {
+            event
+                .as_quit()
+                .filter(|quit| quit.actor.nick() == "ChanServ")
+        })
         .await?;
     let split = quit
         .netsplit

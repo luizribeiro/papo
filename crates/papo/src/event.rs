@@ -559,7 +559,7 @@ pub(crate) fn incoming_from_core(
             prove_not_bot,
             received_at,
         )
-            .map_or_else(Event::Other, |notice| Event::ServerNotice(Box::new(notice)));
+        .map_or_else(Event::Other, |notice| Event::ServerNotice(Box::new(notice)));
     };
     message_event_from_line(
         raw,
@@ -1851,8 +1851,7 @@ pub(crate) fn from_core(
             ..
         } => {
             let envelope = map_envelope(&envelope);
-            let Some(actor) =
-                source::from_core_with_account(actor, origin, envelope.account)
+            let Some(actor) = source::from_core_with_account(actor, origin, envelope.account)
             else {
                 return CoreEvent::Unknown;
             };
@@ -2054,8 +2053,7 @@ pub(crate) fn from_core(
             ..
         } => {
             let envelope = map_envelope(&envelope);
-            let Some(actor) =
-                source::from_core_with_account(actor, origin, envelope.account)
+            let Some(actor) = source::from_core_with_account(actor, origin, envelope.account)
             else {
                 return CoreEvent::Unknown;
             };
@@ -2083,8 +2081,7 @@ pub(crate) fn from_core(
             ..
         } => {
             let envelope = map_envelope(&envelope);
-            let Some(actor) =
-                source::from_core_with_account(actor, origin, envelope.account)
+            let Some(actor) = source::from_core_with_account(actor, origin, envelope.account)
             else {
                 return CoreEvent::Unknown;
             };
@@ -2158,10 +2155,10 @@ mod tests {
     use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
     use super::{
-        Authorship, Broadcast, Conversation, CoreEvent, Event, Message as ChatMessage, MessageId,
-        MessageKind, MetadataChanged, ModeAction, ModeArg, NoticeKind, ServerNoticeKind,
-        Audience, Source, StandardReplyKind, Warning, ctcp_parts,
-        from_core as from_core_with_mapping, historical_message_event, message_event_from_line,
+        Audience, Authorship, Broadcast, Conversation, CoreEvent, Event, Message as ChatMessage,
+        MessageId, MessageKind, MetadataChanged, ModeAction, ModeArg, NoticeKind, ServerNoticeKind,
+        Source, StandardReplyKind, Warning, ctcp_parts, from_core as from_core_with_mapping,
+        historical_message_event, message_event_from_line,
     };
     use crate::Visibility;
     use papo_core::{
@@ -2369,8 +2366,10 @@ mod tests {
                 }
                 ("broadcast", Event::ServerNotice(notice)) => {
                     assert_eq!(notice.actor.nick().unwrap().origin(), origin);
-                    assert!(matches!(notice.to, Audience::Broadcast(Broadcast::Mask(mask))
-                        if mask.origin() == origin));
+                    assert!(
+                        matches!(notice.to, Audience::Broadcast(Broadcast::Mask(mask))
+                        if mask.origin() == origin)
+                    );
                 }
                 (kind, event) => panic!("unexpected {kind} event: {event:?}"),
             }
@@ -2873,10 +2872,7 @@ mod tests {
         let human = || Line::privmsg("#papo", "release ready").with_source("emily!e@host");
         assert_eq!(map(human(), true), Some(false));
         assert_eq!(map(human(), false), None);
-        assert_eq!(
-            map(human().with_tag("bot", ""), false),
-            Some(true)
-        );
+        assert_eq!(map(human().with_tag("bot", ""), false), Some(true));
 
         let tag = papo_core::TagMessage {
             envelope: papo_core::LineEnvelope::default(),
@@ -3937,10 +3933,16 @@ mod tests {
     fn nests_account_tags_on_server_capable_mode_actors() {
         let now = Instant::now();
         let mut session = Session::new(Config::default().nick("emily"));
-        session.handle_line(now, b":irc.example 005 emily CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(ov)@+ :are supported");
+        session.handle_line(
+            now,
+            b":irc.example 005 emily CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(ov)@+ :are supported",
+        );
         while session.poll_event().is_some() {}
         session.handle_line(now, b":emily!em@127.0.0.1 JOIN #papo");
-        assert!(matches!(session.poll_event(), Some(papo_core::Event::Joined { .. })));
+        assert!(matches!(
+            session.poll_event(),
+            Some(papo_core::Event::Joined { .. })
+        ));
         session.handle_line(
             now,
             b"@account=services :ChanServ!service@services.example MODE #papo +o emily",
@@ -3959,10 +3961,16 @@ mod tests {
     fn mode_about_uses_the_build_time_nick() {
         let now = Instant::now();
         let mut session = Session::new(Config::default().nick("emily"));
-        session.handle_line(now, b":irc.example 005 emily CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(ov)@+ :are supported");
+        session.handle_line(
+            now,
+            b":irc.example 005 emily CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(ov)@+ :are supported",
+        );
         while session.poll_event().is_some() {}
         session.handle_line(now, b":emily!em@127.0.0.1 JOIN #papo");
-        assert!(matches!(session.poll_event(), Some(papo_core::Event::Joined { .. })));
+        assert!(matches!(
+            session.poll_event(),
+            Some(papo_core::Event::Joined { .. })
+        ));
         session.handle_line(
             now,
             b":ChanServ!service@services.example MODE #papo +o emily",

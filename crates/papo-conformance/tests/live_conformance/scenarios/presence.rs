@@ -263,14 +263,16 @@ async fn chghost(s: Scenario) -> papo_testing::Result<()> {
     let own = bob
         .wait_for(|event| {
             event.as_host_changed().filter(|changed| {
-                changed.actor.nick() == bob_nick.as_ref() && changed.new_host == "conformance.example"
+                changed.actor.nick() == bob_nick.as_ref()
+                    && changed.new_host == "conformance.example"
             })
         })
         .await?;
     let observed = alice
         .wait_for(|event| {
             event.as_host_changed().filter(|changed| {
-                changed.actor.nick() == bob_nick.as_ref() && changed.new_host == "conformance.example"
+                changed.actor.nick() == bob_nick.as_ref()
+                    && changed.new_host == "conformance.example"
             })
         })
         .await?;
@@ -311,7 +313,10 @@ async fn monitor(s: Scenario) -> papo_testing::Result<()> {
     let monitored = state.monitor_online().collect::<Vec<_>>();
     assert_eq!(monitored.len(), 1);
     assert_eq!(monitored[0].nick(), bob_nick.as_ref());
-    assert_eq!(monitored[0].username(), online.subject.username().as_deref());
+    assert_eq!(
+        monitored[0].username(),
+        online.subject.username().as_deref()
+    );
     assert_eq!(monitored[0].host(), online.subject.host().as_deref());
 
     let away = "reading the monitor specification";
