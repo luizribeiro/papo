@@ -46,6 +46,27 @@ async fn connected(events: &mut Events) {
     while !matches!(next_active_event(events).await, papo::Event::Connected(_)) {}
 }
 
+async fn client_pair(caps: &[&str]) -> (ClientPair, ClientPair) {
+    let make = |endpoint, nick| {
+        wire(
+            papo::Client::builder(endpoint)
+                .nick(nick)
+                .rate_limit(papo::RateLimit::unlimited())
+                .reconnect(Reconnect::never()),
+        )
+    };
+    let (first, first_events, mut first_wire) = make("irc://first.offline.test", "papo-first");
+    let (second, second_events, mut second_wire) = make("irc://second.offline.test", "papo-second");
+    first_wire.register(caps).await;
+    second_wire.register(caps).await;
+    (
+        (first, first_events, first_wire),
+        (second, second_events, second_wire),
+    )
+}
+
+type ClientPair = (papo::Client, Events, Wire);
+
 fn disconnect_diagnostic(disconnected: &Disconnected) -> String {
     match &disconnected.cause {
         DisconnectCause::Connect(error) => {
@@ -242,6 +263,103 @@ async fn cross_client_values_never_reach_either_wire() {
             .await
             .is_err()
     );
+}
+
+#[tokio::test]
+async fn foreign_monitor_add_never_reaches_either_wire() {
+    let ((first, _first_events, mut first_wire), (second, _second_events, mut second_wire)) =
+        client_pair(&[]).await;
+    second_wire
+        .server(":offline.test 005 papo-second MONITOR=100 :are supported")
+        .await;
+    while second.state().isupport().monitor().is_none() {
+        tokio::task::yield_now().await;
+    }
+
+    assert!(is_foreign(
+        &second
+            .monitor()
+            .add([first.state().nickname("alice")])
+            .await
+    ));
+    assert_no_wire(&mut first_wire, &mut second_wire).await;
+}
+
+#[tokio::test]
+async fn foreign_monitor_remove_never_reaches_either_wire() {
+    let ((first, _first_events, mut first_wire), (second, _second_events, mut second_wire)) =
+        client_pair(&[]).await;
+    second_wire
+        .server(":offline.test 005 papo-second MONITOR=100 :are supported")
+        .await;
+    while second.state().isupport().monitor().is_none() {
+        tokio::task::yield_now().await;
+    }
+
+    assert!(is_foreign(
+        &second
+            .monitor()
+            .remove([first.state().nickname("alice")])
+            .await
+    ));
+    assert_no_wire(&mut first_wire, &mut second_wire).await;
+}
+
+#[tokio::test]
+async fn foreign_account_verification_never_reaches_either_wire() {
+    let ((first, _first_events, mut first_wire), (second, _second_events, mut second_wire)) =
+        client_pair(&[]).await;
+
+    assert!(is_foreign(
+        &second
+            .verify_account(first.state().account_name("alice"), "392814")
+            .await
+    ));
+    assert_no_wire(&mut first_wire, &mut second_wire).await;
+}
+
+async fn assert_no_wire(first: &mut Wire, second: &mut Wire) {
+    for wire in [first, second] {
+        assert!(
+            tokio::time::timeout(Duration::from_millis(10), wire.next_sent())
+                .await
+                .is_err()
+        );
+    }
+}
+
+#[tokio::test]
+async fn foreign_names_cannot_read_another_clients_state() {
+    let ((first, _first_events, _first_wire), (second, _second_events, mut second_wire)) =
+        client_pair(&["draft/metadata-2", "draft/read-marker"]).await;
+    for line in [
+        ":papo-second!papo@localhost JOIN #papo",
+        ":alice!~alice@cloak.example JOIN #papo",
+        ":offline.test 761 papo-second alice avatar * :https://cdn.example.net/alice.png",
+        ":offline.test MARKREAD #papo timestamp=2026-10-26T12:00:00.000Z",
+    ] {
+        second_wire.server(line).await;
+    }
+    while second.state().metadata("alice").is_none()
+        || second.state().read_marker("#papo").is_none()
+    {
+        tokio::task::yield_now().await;
+    }
+
+    let foreign_channel = first.state().channel_name("#papo");
+    let foreign_nick = first.state().nickname("alice");
+    assert!(second.state().channel("#papo").is_some());
+    assert!(second.state().channel(&foreign_channel).is_none());
+    assert!(second.state().user("alice").is_some());
+    assert!(second.state().user(&foreign_nick).is_none());
+    assert!(second.state().metadata("alice").is_some());
+    assert!(second.state().metadata(&foreign_nick).is_none());
+    assert!(second.state().read_marker("#papo").is_some());
+    assert!(second.state().read_marker(&foreign_channel).is_none());
+    let state = second.state();
+    let channel = state.channel("#papo").unwrap();
+    assert!(channel.member("alice").is_some());
+    assert!(channel.member(&foreign_nick).is_none());
 }
 
 #[tokio::test]

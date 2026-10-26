@@ -88,6 +88,8 @@ ids = [
   "security.ctcp.live-only", "security.ctcp.private-target-only",
   "security.history.unknown-batch-isolation",
   "security.origin.cross-client-wire", "security.origin.bound-client-wire",
+  "security.x-origin.monitor-add", "security.x-origin.monitor-remove",
+  "security.x-origin.verify-account", "security.x-origin.state-lookups",
   "security.addr-3.foreign-return-address", "security.addr-3.ops-only-return-address",
   "security.addr-10.ctcp-nick-handoff", "security.x-answer.foreign-notice",
   "security.x-answer.notice-nick-handoff",

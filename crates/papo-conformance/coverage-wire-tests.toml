@@ -2,6 +2,18 @@
 "security::cross_client_values_never_reach_either_wire" = [
   "security.origin.cross-client-wire",
 ]
+"security::foreign_monitor_add_never_reaches_either_wire" = [
+  "security.x-origin.monitor-add",
+]
+"security::foreign_monitor_remove_never_reaches_either_wire" = [
+  "security.x-origin.monitor-remove",
+]
+"security::foreign_account_verification_never_reaches_either_wire" = [
+  "security.x-origin.verify-account",
+]
+"security::foreign_names_cannot_read_another_clients_state" = [
+  "security.x-origin.state-lookups",
+]
 "security::foreign_return_addresses_cannot_send_typing_or_notices" = [
   "security.addr-3.foreign-return-address",
   "security.x-answer.foreign-notice",
