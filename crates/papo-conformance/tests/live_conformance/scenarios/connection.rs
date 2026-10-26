@@ -109,11 +109,10 @@ async fn isupport(s: Scenario) -> papo_testing::Result<()> {
 
     let prefixes = support.prefix();
     assert!(!prefixes.is_empty());
-    assert!(prefixes.iter().enumerate().all(|(rank, prefix)| {
-        prefix.rank == rank
-            && support
-                .statusmsg()
-                .is_some_and(|set| set.contains(prefix.symbol))
+    assert!(prefixes.iter().all(|prefix| {
+        support
+            .statusmsg()
+            .is_some_and(|set| set.contains(prefix.symbol()))
     }));
     let modes = support.chanmodes().expect("CHANMODES has four groups");
     assert!(!modes.list.is_empty());

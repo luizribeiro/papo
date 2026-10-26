@@ -374,14 +374,17 @@ async fn status_message(s: Scenario) -> papo_testing::Result<()> {
         conversation_name(&received.conversation),
         Some(channel.as_str())
     );
-    assert_eq!(received.status.as_deref(), Some(['+'].as_slice()));
+    assert_eq!(received.status.map(papo::Prefix::symbol), Some('+'));
     assert_eq!(received.raw_text, "voiced members only");
     assert_eq!(received.msgid.as_ref(), sent.msgid());
     assert!(
         bob.state()
             .channel(&channel)
             .and_then(|members| members.member(bob.nick()))
-            .is_some_and(|member| member.prefixes().contains(&'+'))
+            .is_some_and(|member| member
+                .prefixes()
+                .iter()
+                .any(|prefix| prefix.symbol() == '+'))
     );
     charlie
         .expect_none(|event| message_text(event, "voiced members only"))
@@ -424,7 +427,7 @@ async fn status_message_or_higher(s: Scenario) -> papo_testing::Result<()> {
             conversation_name(&message.conversation),
             Some(channel.as_ref())
         );
-        assert_eq!(message.status.as_deref(), Some(['+'].as_slice()));
+        assert_eq!(message.status.map(papo::Prefix::symbol), Some('+'));
         assert_eq!(message.raw_text, "voiced members only");
         assert_eq!(message.msgid.as_ref(), sent.msgid());
     }
@@ -779,7 +782,7 @@ async fn typing_status_target(s: Scenario) -> papo_testing::Result<()> {
         conversation_name(&typing.conversation),
         Some(channel.as_ref())
     );
-    assert_eq!(typing.status, Some(vec!['@']));
+    assert_eq!(typing.status.map(papo::Prefix::symbol), Some('@'));
     assert_eq!(typing.state, Typing::Active);
     carol.expect_none(Event::as_typing_changed).await?;
     dave.expect_none(Event::as_typing_changed).await?;

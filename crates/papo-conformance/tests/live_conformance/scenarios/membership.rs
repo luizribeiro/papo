@@ -528,7 +528,7 @@ async fn multi_prefix(s: Scenario) -> papo_testing::Result<()> {
         .find(|change| change.mode == 'v')
         .unwrap();
     assert_eq!(voice.action, ModeAction::Add);
-    assert!(matches!(voice.arg.clone(), Some(ModeArg::Nick(nick)) if nick == alice_nick));
+    assert!(matches!(voice.arg.clone(), Some(ModeArg::Member { nick, .. }) if nick == alice_nick));
     bob.join(&channel).await?;
     let joined = alice.wait_for(Event::as_joined).await?;
     assert_eq!(joined.channel.as_ref(), channel);
@@ -538,7 +538,15 @@ async fn multi_prefix(s: Scenario) -> papo_testing::Result<()> {
         .channel(&channel)
         .and_then(|channel| channel.member(alice_nick.as_ref()))
         .map(|member| member.prefixes().to_vec());
-    assert_eq!(prefixes.as_deref(), Some(&['@', '+'][..]));
+    assert_eq!(
+        prefixes.map(|prefixes| {
+            prefixes
+                .iter()
+                .map(|prefix| prefix.symbol())
+                .collect::<Vec<_>>()
+        }),
+        Some(vec!['@', '+'])
+    );
     assert!(
         alice
             .state()
@@ -588,7 +596,9 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
         .find(|change| change.mode == 'o')
         .unwrap();
     assert_eq!(operator.action, ModeAction::Add);
-    assert!(matches!(operator.arg.clone(), Some(ModeArg::Nick(nick)) if nick == bob_nick.as_ref()));
+    assert!(
+        matches!(operator.arg.clone(), Some(ModeArg::Member { nick, .. }) if nick == bob_nick.as_ref())
+    );
     assert!(
         bob.state()
             .channel(&channel)

@@ -21,16 +21,11 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
     join_seen_by(&carol, &mut alice, &channel).await?;
 
     let prefixes = alice.state().isupport().prefix();
-    let operator_rank = prefixes
+    let operator_position = prefixes
         .iter()
-        .find(|prefix| prefix.symbol == '@')
-        .expect("PREFIX must advertise the channel-operator symbol")
-        .rank;
-    let above: Vec<_> = prefixes
-        .iter()
-        .copied()
-        .filter(|prefix| prefix.rank < operator_rank)
-        .collect();
+        .position(|prefix| prefix.symbol() == '@')
+        .expect("PREFIX must advertise the channel-operator symbol");
+    let above: Vec<_> = prefixes.iter().copied().take(operator_position).collect();
     if above.is_empty() {
         return s.skip("PREFIX advertises no status mode above channel operator");
     }
@@ -38,7 +33,7 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
     for prefix in &above {
         let error = alice
             .mode(&channel)
-            .add_with(prefix.mode, bob_nick.to_string())
+            .add_with(prefix.mode(), bob_nick.to_string())
             .await
             .unwrap_err();
         assert_above_rank_refusal(error);
@@ -59,7 +54,7 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
                 .member(alice_nick.as_ref())
                 .unwrap()
                 .prefixes(),
-            &['@'][..]
+            &[papo::Prefix::__new('o', '@')]
         );
     }
     bob.expect_none(|event| channel_mode(event, &channel))
@@ -79,7 +74,7 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
         let change = &promoted.changes[0];
         assert_eq!(change.action, ModeAction::Add);
         assert!(
-            matches!(change.arg.clone(), Some(ModeArg::Nick(nick)) if nick == bob_nick.as_ref())
+            matches!(change.arg.clone(), Some(ModeArg::Member { nick, .. }) if nick == bob_nick.as_ref())
         );
     }
     for peer in [&alice, &bob, &carol] {
@@ -89,7 +84,7 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
             .unwrap()
             .member(bob_nick.as_ref())
             .unwrap();
-        assert_eq!(member.prefixes(), &['@'][..]);
+        assert_eq!(member.prefixes(), &[papo::Prefix::__new('o', '@')]);
     }
     Ok(())
 }

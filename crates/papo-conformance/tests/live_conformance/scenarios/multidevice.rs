@@ -223,7 +223,7 @@ async fn multidevice_ops_message_operations(s: Scenario) -> papo_testing::Result
         .await?;
     let id = sent.msgid().expect("message has an identifier");
     assert_eq!(original.msgid.as_ref(), Some(id));
-    assert_eq!(original.status.as_deref(), Some(['@'].as_slice()));
+    assert_eq!(original.status.map(papo::Prefix::symbol), Some('@'));
     assert_eq!(original.return_address(), target.as_str());
     observer
         .expect_none(|event| {
@@ -244,7 +244,7 @@ async fn multidevice_ops_message_operations(s: Scenario) -> papo_testing::Result
         })
         .await?;
     assert_eq!(reply.in_reply_to.as_ref(), Some(id));
-    assert_eq!(reply.status.as_deref(), Some(['@'].as_slice()));
+    assert_eq!(reply.status.map(papo::Prefix::symbol), Some('@'));
     assert_eq!(reply.return_address(), target.as_str());
     observer
         .expect_none(|event| {
@@ -258,7 +258,7 @@ async fn multidevice_ops_message_operations(s: Scenario) -> papo_testing::Result
     let added = phone.wait_for(Event::as_reacted).await?;
     assert_eq!(&added.reacts_to, id);
     assert_eq!(added.reaction, "🛡️");
-    assert_eq!(added.status.as_deref(), Some(['@'].as_slice()));
+    assert_eq!(added.status.map(papo::Prefix::symbol), Some('@'));
     assert_eq!(added.return_address(), target.as_str());
     observer.expect_none(Event::as_reacted).await?;
 

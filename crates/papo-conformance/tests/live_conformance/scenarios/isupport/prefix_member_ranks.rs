@@ -27,8 +27,8 @@ async fn prefix_member_ranks(s: Scenario) -> papo_testing::Result<()> {
     let expected = parse_prefix_token(alice.state().isupport());
     assert_eq!(alice.state().isupport().prefix(), expected);
     let allowed = allowed_prefixes(&expected);
-    let allowed_symbols: Vec<char> = allowed.iter().map(|prefix| prefix.symbol).collect();
-    let has_halfop = allowed.iter().any(|prefix| prefix.mode == 'h');
+    let allowed_symbols: Vec<char> = allowed.iter().map(|prefix| prefix.symbol()).collect();
+    let has_halfop = allowed.iter().any(|prefix| prefix.mode() == 'h');
     let expected_symbols: &[char] = match DeploymentProfile::from_env()? {
         DeploymentProfile::ErgoDefault
         | DeploymentProfile::ErgoPersistent
@@ -85,22 +85,16 @@ fn parse_prefix_token(support: &papo::Isupport) -> Vec<Prefix> {
     modes
         .chars()
         .zip(symbols.chars())
-        .enumerate()
-        .map(|(rank, (mode, symbol))| Prefix { mode, symbol, rank })
+        .map(|(mode, symbol)| Prefix::__new(mode, symbol))
         .collect()
 }
 
 fn allowed_prefixes(expected: &[Prefix]) -> Vec<Prefix> {
-    let op_rank = expected
+    let op_position = expected
         .iter()
-        .find(|prefix| prefix.symbol == '@')
-        .expect("the operator prefix @ must be advertised")
-        .rank;
-    expected
-        .iter()
-        .copied()
-        .filter(|prefix| prefix.rank >= op_rank)
-        .collect()
+        .position(|prefix| prefix.symbol() == '@')
+        .expect("the operator prefix @ must be advertised");
+    expected.iter().copied().skip(op_position).collect()
 }
 
 fn member_prefixes(state: &State, channel: &str, nick: &str) -> Vec<char> {
@@ -110,7 +104,9 @@ fn member_prefixes(state: &State, channel: &str, nick: &str) -> Vec<char> {
         .member(nick)
         .unwrap()
         .prefixes()
-        .to_vec()
+        .iter()
+        .map(|prefix| prefix.symbol())
+        .collect()
 }
 
 async fn grant_rank(
@@ -121,15 +117,15 @@ async fn grant_rank(
     bob_nick: &Nick,
     prefix: Prefix,
 ) -> papo_testing::Result<()> {
-    if prefix.mode == 'h' {
+    if prefix.mode() == 'h' {
         alice.mode(channel).halfop(bob_nick.as_ref()).await?;
     } else {
         alice
             .mode(channel)
-            .add_with(prefix.mode, bob_nick.to_string())
+            .add_with(prefix.mode(), bob_nick.to_string())
             .await?;
     }
-    let changed = wait_channel_mode(bob, channel, prefix.mode).await?;
+    let changed = wait_channel_mode(bob, channel, prefix.mode()).await?;
     assert_eq!(
         crate::source_nick(&changed.actor),
         Some(alice_nick.as_ref())
@@ -137,8 +133,10 @@ async fn grant_rank(
     assert_eq!(changed.changes.len(), 1);
     let change = &changed.changes[0];
     assert_eq!(change.action, ModeAction::Add);
-    assert_eq!(change.mode, prefix.mode);
-    assert!(matches!(change.arg.clone(), Some(ModeArg::Nick(nick)) if nick == bob_nick.as_ref()));
+    assert_eq!(change.mode, prefix.mode());
+    assert!(
+        matches!(change.arg.clone(), Some(ModeArg::Member { nick, prefix: changed }) if nick == bob_nick.as_ref() && changed == prefix)
+    );
     Ok(())
 }
 
@@ -179,11 +177,24 @@ async fn assert_dave_view(
         .unwrap()
         .member(bob_nick.as_ref())
         .unwrap();
-    assert_eq!(member.prefixes(), allowed_symbols);
+    assert_eq!(
+        member
+            .prefixes()
+            .iter()
+            .map(|prefix| prefix.symbol())
+            .collect::<Vec<_>>(),
+        allowed_symbols
+    );
     assert!(member.rank() >= Some(Rank::Op));
     assert!(member.has(Rank::Op));
     assert!(member.has(Rank::Voice));
     assert_eq!(member.has(Rank::Halfop), has_halfop);
-    assert_eq!(member.prefixes().contains(&'%'), has_halfop);
+    assert_eq!(
+        member
+            .prefixes()
+            .iter()
+            .any(|prefix| prefix.symbol() == '%'),
+        has_halfop
+    );
     Ok(())
 }

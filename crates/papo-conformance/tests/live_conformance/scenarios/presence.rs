@@ -452,7 +452,14 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(alice_who.away, Away::__away_value(None));
     assert!(alice_who.oper.is_none());
     assert_eq!(alice_who.is_bot, Some(false));
-    assert_eq!(alice_who.prefixes, ['@']);
+    assert_eq!(
+        alice_who
+            .prefixes
+            .iter()
+            .map(|prefix| prefix.symbol())
+            .collect::<Vec<_>>(),
+        ['@']
+    );
 
     // Plain WHO's numeric fields are the behavior under test, without WHOX rewriting them.
     let plain = bob

@@ -55,7 +55,7 @@ async fn statusmsg_peers(s: &Scenario) -> papo_testing::Result<StatusmsgPeers> {
                 .unwrap();
             assert_eq!(change.action, ModeAction::Add);
             assert!(
-                matches!(change.arg.clone(), Some(ModeArg::Nick(value)) if value == nick.as_ref())
+                matches!(change.arg.clone(), Some(ModeArg::Member { nick: value, .. }) if value == nick.as_ref())
             );
         }
     }
@@ -64,11 +64,11 @@ async fn statusmsg_peers(s: &Scenario) -> papo_testing::Result<StatusmsgPeers> {
         let members = state.channel(&channel).expect("channel is in state");
         assert_eq!(
             members.member(bob_nick.as_ref()).unwrap().prefixes(),
-            &['@'][..]
+            &[papo::Prefix::__new('o', '@')]
         );
         assert_eq!(
             members.member(carol_nick.as_ref()).unwrap().prefixes(),
-            &['+'][..]
+            &[papo::Prefix::__new('v', '+')]
         );
     }
 
@@ -110,7 +110,7 @@ async fn statusmsg_ops(s: Scenario) -> papo_testing::Result<()> {
         crate::scenarios::support::conversation_name(&received.conversation),
         Some(channel.as_str())
     );
-    assert_eq!(received.status.as_deref(), Some(['@'].as_slice()));
+    assert_eq!(received.status.map(papo::Prefix::symbol), Some('@'));
     assert_eq!(received.raw_text, "operators only");
     assert_eq!(received.msgid.as_ref(), sent.msgid());
     assert_eq!(
@@ -152,7 +152,7 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
         crate::scenarios::support::conversation_name(&question.conversation),
         Some(channel.as_str())
     );
-    assert_eq!(question.status.as_deref(), Some(['@'].as_slice()));
+    assert_eq!(question.status.map(papo::Prefix::symbol), Some('@'));
     for peer in [&mut carol, &mut dave] {
         peer.expect_none(|event| message_text(event, "operators-only question"))
             .await?;
@@ -166,7 +166,7 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
         crate::scenarios::support::conversation_name(&answer.conversation),
         Some(channel.as_str())
     );
-    assert_eq!(answer.status.as_deref(), Some(['@'].as_slice()));
+    assert_eq!(answer.status.map(papo::Prefix::symbol), Some('@'));
     for peer in [&mut carol, &mut dave] {
         peer.expect_none(|event| message_text(event, "operators-only answer"))
             .await?;
@@ -190,7 +190,7 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
                 .filter(|reaction| reaction.reacts_to == question_id && reaction.reaction == "🛡️")
         })
         .await?;
-    assert_eq!(reaction.status.as_deref(), Some(['@'].as_slice()));
+    assert_eq!(reaction.status.map(papo::Prefix::symbol), Some('@'));
     for peer in [&mut carol, &mut dave] {
         peer.expect_none(|event| {
             event
@@ -203,7 +203,7 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
     bob.typing(question.return_address(), Typing::Active)
         .await?;
     let typing = alice.wait_for(papo::Event::as_typing_changed).await?;
-    assert_eq!(typing.status.as_deref(), Some(['@'].as_slice()));
+    assert_eq!(typing.status.map(papo::Prefix::symbol), Some('@'));
     assert_eq!(typing.state, Typing::Active);
     for peer in [&mut carol, &mut dave] {
         peer.expect_none(papo::Event::as_typing_changed).await?;

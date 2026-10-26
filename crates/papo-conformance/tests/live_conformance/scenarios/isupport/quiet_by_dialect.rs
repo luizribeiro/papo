@@ -27,7 +27,7 @@ fn pick_dialect(alice: &Peer) -> Option<Dialect> {
     let has_q_list = support
         .chanmodes()
         .is_some_and(|modes| modes.list.contains('q'));
-    let q_is_prefix = support.prefix().iter().any(|prefix| prefix.mode == 'q');
+    let q_is_prefix = support.prefix().iter().any(|prefix| prefix.mode() == 'q');
     if has_q_list && !q_is_prefix {
         return Some(Dialect::ListMode);
     }
