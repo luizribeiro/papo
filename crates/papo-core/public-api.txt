@@ -571,7 +571,7 @@ pub papo_core::Event::MetadataChanged::visibility: papo_core::Visibility
 pub papo_core::Event::MetadataSyncLater::retry_after: core::option::Option<core::time::Duration>
 pub papo_core::Event::MetadataSyncLater::target: alloc::string::String
 #[non_exhaustive] pub papo_core::Event::ModeChanged
-pub papo_core::Event::ModeChanged::actor: alloc::string::String
+pub papo_core::Event::ModeChanged::actor: papo_core::Source
 pub papo_core::Event::ModeChanged::authorship: papo_core::Authorship
 pub papo_core::Event::ModeChanged::changes: alloc::vec::Vec<papo_core::ModeChange>
 pub papo_core::Event::ModeChanged::envelope: papo_core::LineEnvelope

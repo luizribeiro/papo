@@ -202,7 +202,15 @@ fn live_mode_changes_update_only_a_completed_list() {
         .unwrap();
     assert_eq!(entries.len(), 2);
     assert_eq!(entries[1].mask, "carol");
-    assert_eq!(entries[1].actor.as_ref().unwrap().to_string(), "alice");
+    assert!(matches!(
+        entries[1].actor.as_ref().unwrap(),
+        papo_core::Source::User {
+            nick,
+            username: Some(username),
+            host: Some(host),
+            ..
+        } if nick == "alice" && username == "~alice" && host == "staff.example"
+    ));
     assert_eq!(
         entries[1].set_at,
         papo_proto::time::parse("2026-10-21T12:00:00.000Z")

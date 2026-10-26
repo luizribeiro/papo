@@ -1919,7 +1919,7 @@ pub(crate) fn from_core(
                     papo_core::Subject::User(nick) => crate::Subject::User(nick),
                     _ => return CoreEvent::Unknown,
                 },
-                actor: source::from_name(&actor, casemapping, origin),
+                actor,
                 authorship: Authorship::from_core(authorship),
                 subject_authorship: Authorship::from_core(subject_authorship),
                 changes,
@@ -3631,10 +3631,12 @@ mod tests {
             )),
         }];
         assert!(matches!(
-            forwarded(papo_core::Event::__mode_changed(papo_core::LineEnvelope::default(), papo_core::Subject::Channel(Casemapping::default().channel("#papo")), "alice".into(), papo_core::Authorship::Other, papo_core::Authorship::Other, mode_changes.clone())),
+            forwarded(papo_core::Event::__mode_changed(papo_core::LineEnvelope::default(), papo_core::Subject::Channel(Casemapping::default().channel("#papo")), papo_core::Source::from_proto(papo_proto::Source::__user("alice", Some("~alice"), Some("staff.example")), Casemapping::default()), papo_core::Authorship::Other, papo_core::Authorship::Other, mode_changes.clone())),
             Event::ModeChanged(mode)
                 if matches!(mode.subject, crate::Subject::Channel(ref channel) if channel == "#papo")
                     && mode.actor.nick().is_some_and(|nick| nick == "alice")
+                    && papo_proto::Mask::exact(&mode.actor)
+                        .is_some_and(|mask| mask == "alice!~alice@staff.example")
                     && mode.changes.len() == 1
                     && mode.changes[0].action == ModeAction::Add
                     && mode.changes[0].mode == 'o'

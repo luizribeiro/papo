@@ -1244,7 +1244,7 @@ fn reports_mixed_channel_and_user_mode_changes() {
         .event(|event| match event {
             Event::ModeChanged { subject, actor, changes, .. } => {
                 matches!(subject, Subject::Channel(channel) if channel == "#papo")
-                    && actor == "alice"
+                    && actor.nick().is_some_and(|nick| nick == "alice")
                     && changes == &vec![
                         ModeChange { mode: 'o', action: ModeAction::Add, arg: Some(ModeArg::Nick(Casemapping::Rfc1459.nick("alice"))) },
                         ModeChange { mode: 'b', action: ModeAction::Add, arg: Some(ModeArg::Mask(Casemapping::Rfc1459.mask("*!*@spam.example"))) },
@@ -1262,7 +1262,53 @@ fn reports_mixed_channel_and_user_mode_changes() {
             ])
         })
         .server(":ergo.test MODE emily +i")
-        .event(|event| matches!(event, Event::ModeChanged { subject: Subject::User(nick), actor, changes, .. } if nick == "emily" && actor == "ergo.test" && changes == &vec![ModeChange { mode: 'i', action: ModeAction::Add, arg: None }]))
+        .event(|event| matches!(event, Event::ModeChanged { subject: Subject::User(nick), actor: Source::Server { name, .. }, changes, .. } if nick == "emily" && name == "ERGO.TEST" && changes == &vec![ModeChange { mode: 'i', action: ModeAction::Add, arg: None }]))
+        .no_event();
+}
+
+#[test]
+fn mode_events_keep_user_server_and_bare_nick_sources() {
+    Transcript::new(Config::default().nick("emily"))
+        .server(":alice!~a@host.example MODE #papo +i")
+        .event(|event| {
+            matches!(
+                event,
+                Event::ModeChanged {
+                    actor: Source::User {
+                        nick,
+                        username: Some(username),
+                        host: Some(host),
+                        ..
+                    },
+                    ..
+                } if nick == "alice" && username == "~a" && host == "host.example"
+            )
+        })
+        .server(":ergo.test MODE #papo -i")
+        .event(|event| {
+            matches!(
+                event,
+                Event::ModeChanged {
+                    actor: Source::Server { name, .. },
+                    ..
+                } if name == "ERGO.TEST"
+            )
+        })
+        .server(":ChanServ MODE #papo +m")
+        .event(|event| {
+            matches!(
+                event,
+                Event::ModeChanged {
+                    actor: Source::User {
+                        nick,
+                        username: None,
+                        host: None,
+                        ..
+                    },
+                    ..
+                } if nick == "ChanServ"
+            )
+        })
         .no_event();
 }
 

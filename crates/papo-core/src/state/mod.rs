@@ -803,7 +803,7 @@ impl State {
                 .param(0)
                 .filter(|_| message.command() == Command::Mode),
             message.param(1),
-            source_name(message),
+            message.source(),
         ) else {
             return false;
         };
@@ -824,7 +824,7 @@ impl State {
             } else {
                 Subject::User(self.casemapping.nick(target))
             },
-            actor: actor.to_owned(),
+            actor: Source::from_proto_with_names(actor, self.casemapping),
             authorship: self.source_authorship(message),
             subject_authorship: match message.source() {
                 _ if isupport.is_channel(target) => Authorship::Other,
