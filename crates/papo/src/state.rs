@@ -406,23 +406,6 @@ impl State {
     pub fn same_list_entry(&self, a: &Mask, b: impl AsRef<str>) -> bool {
         self.core.same_list_entry(a, b)
     }
-
-    /// Parses an account extended ban advertised by the current server.
-    #[must_use]
-    pub fn parse_extban(&self, mask: &Mask) -> Option<crate::Extban> {
-        let syntax = self.isupport.extban()?;
-        let body = match syntax.prefix {
-            Some(prefix) => mask.strip_prefix(prefix)?,
-            None => mask.as_ref(),
-        };
-        let (kind, account) = body.split_once(':')?;
-        if !self.isupport.accountextban().contains(&kind)
-            || crate::Extban::account(account).is_err()
-        {
-            return None;
-        }
-        Some(crate::Extban::Account(account.to_owned()))
-    }
 }
 
 #[cfg(test)]
@@ -638,7 +621,7 @@ mod name_tests {
             let state = state_with_isupport(line);
             for spelling in spellings {
                 assert!(matches!(
-                    state.parse_extban(&state.mask(spelling)),
+                    state.name_rules().parse_extban(&state.name_rules().mask(spelling)),
                     Some(Extban::Account(account)) if account == "Alice"
                 ));
             }
@@ -651,14 +634,23 @@ mod name_tests {
             ":ergo.test 005 papo CHANMODES=Ibe,k,fl,CEMRUimnstu EXTBAN=,m :are supported",
         );
         for value in ["m:*!*@staff.example", "$a:alice", "account:alice"] {
-            assert_eq!(ergo.parse_extban(&ergo.mask(value)), None);
+            assert_eq!(
+                ergo.name_rules()
+                    .parse_extban(&ergo.name_rules().mask(value)),
+                None
+            );
         }
 
         let unreal = state_with_isupport(
             ":irc.unreal.example 005 papo ACCOUNTEXTBAN=account,a CHANMODES=beI,fkL,lFH,cdimnprstzCDGKMNOPQRSTVZ EXTBAN=~,acfijmnpqrtACFGOST :are supported",
         );
         for value in ["account:alice", "~quiet:alice", "~account:bo?"] {
-            assert_eq!(unreal.parse_extban(&unreal.mask(value)), None);
+            assert_eq!(
+                unreal
+                    .name_rules()
+                    .parse_extban(&unreal.name_rules().mask(value)),
+                None
+            );
         }
     }
 
