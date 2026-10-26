@@ -912,16 +912,17 @@ impl Client {
     /// [`crate::Refusal::NoSuchServer`], [`crate::Refusal::TryAgain`], or
     /// [`crate::Refusal::Other`] when refused. It can also return [`Error::InvalidInput`],
     /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
-    pub fn whois(&self, nick: impl crate::Target) -> crate::RequestFuture<crate::Whois> {
+    /// ```compile_fail
+    /// # fn swapped(client: &papo::Client, channel: &papo::ChannelName) {
+    /// let _ = client.whois(channel);
+    /// # }
+    /// ```
+    pub fn whois(&self, nick: impl crate::AsNick) -> crate::RequestFuture<crate::Whois> {
         let client = self.clone();
-        let (nick, invalid_input) = self.target_input(nick);
-        let nick = self.state().nickname(nick);
+        let nick = crate::AsNick::__parts(&nick).into_owned();
         crate::RequestFuture::new(async move {
-            if let Some(error) = invalid_input {
-                return Err(error.into());
-            }
-            nick.check(client.state().isupport().inner())
-                .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
+            let nick = client.resolve(crate::target::Role::Nick("whois: nick"), nick)?;
+            let nick = client.state().nickname(nick);
             let response = client
                 .correlated(
                     Line::new("WHOIS").with_params([nick.to_string()]),
@@ -949,14 +950,10 @@ impl Client {
     /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
     pub fn who(&self, mask: impl crate::Target) -> crate::RequestFuture<Vec<crate::WhoEntry>> {
         let client = self.clone();
-        let (mask, invalid_input) = self.target_input(mask);
-        let mask = self.state().mask(mask);
+        let mask = crate::Target::__parts(&mask).into_owned();
         crate::RequestFuture::new(async move {
-            if let Some(error) = invalid_input {
-                return Err(error.into());
-            }
-            mask.check()
-                .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
+            let mask = client.resolve(crate::target::Role::Any("who: mask"), mask)?;
+            let mask = client.state().mask(mask);
             let state = client.state();
             let extended = state.isupport().whox();
             let message = if extended {
