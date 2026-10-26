@@ -12,6 +12,22 @@ use papo_proto::{AccountName, Casemapping, ChannelName, InvalidIdentifier, Line,
 use support::Transcript;
 
 #[test]
+fn account_and_away_accessors_preserve_unknown_states() {
+    let account = Casemapping::Rfc1459.account("emily");
+    assert_eq!(Account::Unknown.name(), None);
+    assert_eq!(Account::LoggedOut.name(), None);
+    assert_eq!(Account::LoggedIn(account.clone()).name(), Some(&account));
+
+    assert_eq!(Away::Unknown.message(), None);
+    assert_eq!(Away::Present.message(), None);
+    assert_eq!(Away::__away_value(None).message(), None);
+    assert_eq!(
+        Away::__away_value(Some("reviewing the release".into())).message(),
+        Some("reviewing the release")
+    );
+}
+
+#[test]
 fn starts_with_configured_identity_and_empty_shared_state() {
     let mut config = Config::default().nick("emily").username("em");
     config.origin = Origin::__new(73);

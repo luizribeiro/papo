@@ -199,6 +199,17 @@ pub enum Account {
     LoggedIn(AccountName),
 }
 
+impl Account {
+    /// Returns the authenticated account name, when the user is known to be logged in.
+    #[must_use]
+    pub const fn name(&self) -> Option<&AccountName> {
+        match self {
+            Self::LoggedIn(name) => Some(name),
+            Self::Unknown | Self::LoggedOut => None,
+        }
+    }
+}
+
 /// A user's known presence state.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -216,6 +227,17 @@ pub enum Away {
 }
 
 impl Away {
+    /// Returns the away message, when the user is away and the server supplied one.
+    #[must_use]
+    pub fn message(&self) -> Option<&str> {
+        match self {
+            Self::Away {
+                message: Some(message),
+            } => Some(message),
+            Self::Unknown | Self::Present | Self::Away { message: None } => None,
+        }
+    }
+
     #[doc(hidden)]
     #[must_use]
     pub fn __away_value(message: Option<String>) -> Self {
