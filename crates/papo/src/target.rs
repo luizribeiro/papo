@@ -59,7 +59,6 @@ impl Target for crate::Conversation {
         match self {
             Self::Channel(channel) => channel.__target(),
             Self::Private(nick) => nick.__target(),
-            Self::Broadcast(mask) => mask.__target(),
             _ => ("*", crate::Origin::NONE),
         }
     }
@@ -79,7 +78,6 @@ mod tests {
         for target in [
             crate::Conversation::Channel(channel.clone()),
             crate::Conversation::Private(nick.clone()),
-            crate::Conversation::Broadcast(mask.clone()),
         ] {
             assert_eq!(target.__target().1, origin);
         }

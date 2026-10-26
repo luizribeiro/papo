@@ -788,12 +788,12 @@ fn message_event_from_line(
     received_at: SystemTime,
     reply_token: Option<papo_core::ReplyToken>,
 ) -> Event {
-    let server_notice = raw.as_ref().command_is("WALLOPS")
-        || matches!(
-            conversation,
-            Conversation::Server | Conversation::Broadcast(_)
-        )
-        || matches!(raw.as_ref().source(), Some(papo_proto::Source::Server(_)));
+    let message = raw.as_ref();
+    let server_notice = message.command_is("WALLOPS")
+        || message
+            .param(0)
+            .is_some_and(|target| target == "*" || target.starts_with('$'))
+        || matches!(message.source(), Some(papo_proto::Source::Server(_)));
     if server_notice {
         return ServerNotice::from_line(
             raw,
@@ -936,7 +936,6 @@ fn message_metadata(
     let origin = match &conversation {
         Conversation::Channel(channel) => channel.origin(),
         Conversation::Private(nick) => nick.origin(),
-        Conversation::Broadcast(mask) => mask.origin(),
         _ => crate::Origin::NONE,
     };
     let actor = message
@@ -2069,11 +2068,6 @@ mod tests {
                 Line::notice("papo", "hello").with_source("emily!~e@localhost"),
                 Conversation::Private(origin.__nick(mapping, "emily")),
             ),
-            (
-                "broadcast",
-                Line::notice("$*.example.org", "maintenance").with_source("operator!~o@localhost"),
-                Conversation::Broadcast(origin.__mask(mapping, "$*.example.org")),
-            ),
         ];
 
         for (kind, line, conversation) in cases {
@@ -2160,7 +2154,7 @@ mod tests {
                 .with_source("irc.example"),
             None,
             Authorship::Other,
-            Conversation::Server,
+            Conversation::Private(isupport.casemapping().nick("papo")),
             None,
             None,
             &isupport,
@@ -2177,7 +2171,7 @@ mod tests {
                 .with_source("oper!o@staff"),
             None,
             Authorship::Other,
-            Conversation::Broadcast(isupport.casemapping().mask("$*.example.org")),
+            Conversation::Private(isupport.casemapping().nick("papo")),
             None,
             None,
             &isupport,

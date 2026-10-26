@@ -913,28 +913,19 @@ mod tests {
             ))
         ));
 
-        for conversation in [
-            crate::Conversation::Private(first.state().nickname("emily")),
-            crate::Conversation::Broadcast(
-                first
-                    .origin()
-                    .__mask(crate::Casemapping::default(), "$*.example.org"),
-            ),
-        ] {
-            let tag = crate::event::TagMsg {
-                actor: actor.clone(),
-                authorship: crate::Authorship::Other,
-                conversation,
-                status: None,
-                tags: crate::Tags::default(),
-            };
-            assert!(matches!(
-                second.reply(&tag, "ship it").await,
-                Err(crate::Error::InvalidInput(
-                    crate::InvalidInput::ForeignReference
-                ))
-            ));
-        }
+        let tag = crate::event::TagMsg {
+            actor: actor.clone(),
+            authorship: crate::Authorship::Other,
+            conversation: crate::Conversation::Private(first.state().nickname("emily")),
+            status: None,
+            tags: crate::Tags::default(),
+        };
+        assert!(matches!(
+            second.reply(&tag, "ship it").await,
+            Err(crate::Error::InvalidInput(
+                crate::InvalidInput::ForeignReference
+            ))
+        ));
     }
 
     #[cfg(tls)]

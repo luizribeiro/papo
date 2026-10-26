@@ -204,7 +204,6 @@ pub(crate) fn conversation_origin(conversation: &Conversation) -> crate::Origin 
     match conversation {
         Conversation::Channel(channel) => channel.origin(),
         Conversation::Private(nick) => nick.origin(),
-        Conversation::Broadcast(mask) => mask.origin(),
         _ => crate::Origin::NONE,
     }
 }
@@ -220,9 +219,6 @@ pub(crate) fn stamp_conversation(
         Conversation::Private(nick) => {
             Conversation::Private(origin.__nick(nick.casemapping(), nick.into_string()))
         }
-        Conversation::Broadcast(mask) => {
-            Conversation::Broadcast(origin.__mask(mask.casemapping(), mask.into_string()))
-        }
         conversation => conversation,
     }
 }
@@ -235,7 +231,6 @@ pub(crate) fn return_address(conversation: &Conversation, status: Option<&[char]
         .chain(match conversation {
             Conversation::Channel(channel) => channel.chars(),
             Conversation::Private(nick) => nick.chars(),
-            Conversation::Broadcast(mask) => mask.chars(),
             _ => "*".chars(),
         })
         .collect()
@@ -267,12 +262,6 @@ mod tests {
                 "@+#staff",
             ),
             (Conversation::Private(mapping.nick("emily")), None, "emily"),
-            (Conversation::Server, None, "*"),
-            (
-                Conversation::Broadcast(mapping.mask("$*.example.org")),
-                None,
-                "$*.example.org",
-            ),
         ] {
             assert_eq!(return_address(&conversation, status), expected);
         }
