@@ -453,7 +453,7 @@ mod name_tests {
     use papo_core::{Config, Session};
 
     use super::State;
-    use crate::{Casemapping, Extban};
+    use crate::{Casemapping, Extban, InvalidIdentifier, NameCheck};
 
     fn state_with_isupport(line: &str) -> State {
         let mut session = Session::new(Config::default());
@@ -570,9 +570,42 @@ mod name_tests {
             ":solanum.test 005 papo NICKLEN=30 CHANTYPES=&# CHANNELLEN=50 :are supported by this server",
         );
 
-        assert!(state.is_valid_channel("&staff"));
-        assert!(state.is_valid_channel("#papo"));
-        assert!(!state.is_valid_channel("papo"));
+        let names = state.name_rules();
+        assert_eq!(names.check_channel("&staff"), NameCheck::Valid);
+        assert_eq!(names.check_channel("#papo"), NameCheck::Valid);
+        assert!(matches!(
+            names.check_channel("papo"),
+            NameCheck::Invalid(InvalidIdentifier::InvalidPrefix('p'))
+        ));
+    }
+
+    #[test]
+    fn checks_only_universal_rules_before_isupport() {
+        let session = Session::new(Config::default());
+        let state = State::from_session(&session, false);
+        let names = state.name_rules();
+
+        for nick in ["long_nickname", "#channel_like"] {
+            assert_eq!(names.check_nick(nick), NameCheck::Unknown);
+        }
+        for channel in ["#papo", "!support", "not-prefixed"] {
+            assert_eq!(names.check_channel(channel), NameCheck::Unknown);
+        }
+        for (text, reason) in [
+            ("", InvalidIdentifier::Empty),
+            (":server", InvalidIdentifier::InvalidPrefix(':')),
+            ("guest nick", InvalidIdentifier::InvalidCharacter(' ')),
+            ("guest\rnick", InvalidIdentifier::InvalidCharacter('\r')),
+        ] {
+            assert_eq!(names.check_nick(text), NameCheck::Invalid(reason));
+        }
+        for (text, reason) in [
+            ("", InvalidIdentifier::Empty),
+            ("#team chat", InvalidIdentifier::InvalidCharacter(' ')),
+            ("#team\nJOIN", InvalidIdentifier::InvalidCharacter('\n')),
+        ] {
+            assert_eq!(names.check_channel(text), NameCheck::Invalid(reason));
+        }
     }
 
     #[test]
