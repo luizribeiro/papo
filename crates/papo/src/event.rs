@@ -2294,7 +2294,7 @@ mod tests {
     #[test]
     fn chat_compares_with_string_references() {
         let message = event(
-            LineRef::parse(":emily!~emily@cloak.example PRIVMSG #papo :hello from Ergo")
+            LineRef::parse(":alice!a@h PRIVMSG #papo :!op")
                 .unwrap()
                 .to_owned(),
             &Isupport::default(),
@@ -2302,8 +2302,17 @@ mod tests {
             UNIX_EPOCH,
         );
 
-        assert_eq!(message.conversation, "#papo");
+        assert_eq!(message.conversation, "#Papo");
         assert_ne!(message.conversation, "#other");
+
+        let private = event(
+            Line::privmsg("papo", "release ready").with_source("[bot]!b@h"),
+            &Isupport::default(),
+            "papo",
+            UNIX_EPOCH,
+        );
+        assert_eq!(private.conversation, "{bot}");
+        assert_ne!(private.conversation, "[other]");
     }
 
     #[test]
