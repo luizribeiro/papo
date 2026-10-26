@@ -30,7 +30,7 @@ impl NameRules<'_> {
     /// Checks channel-name user input without guessing server prefixes or limits.
     ///
     /// Builders never validate or fail. This returns [`NameCheck::Unknown`] before the first
-    /// `005` when the text passes universal rules. See [`Conversation`] for ops-only guidance.
+    /// `005` when the text passes universal rules. See [`crate::Conversation`] for ops-only guidance.
     ///
     /// ```
     /// # fn example(state: &papo::State) {

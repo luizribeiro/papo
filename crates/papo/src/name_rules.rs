@@ -61,7 +61,7 @@ impl NameRules<'_> {
     ///
     /// This never validates or fails. The value carries this client's identity and current or
     /// last-known casemapping. Use [`Self::check_channel`] for user input. See
-    /// [`Conversation`] for ops-only return-address guidance.
+    /// [`crate::Conversation`] for ops-only return-address guidance.
     ///
     /// ```
     /// # fn example(state: &papo::State) {
