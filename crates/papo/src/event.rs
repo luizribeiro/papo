@@ -46,9 +46,6 @@ pub use user::{
     RealnameChanged, SplitServers,
 };
 
-/// Compatibility name for an IRC conversation.
-pub type Chat = Conversation;
-
 /// The semantic kind of an incoming chat message.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
