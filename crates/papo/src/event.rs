@@ -2240,34 +2240,6 @@ mod tests {
                 && notice.to == ServerNoticeTarget::Me
                 && notice.status.is_none()));
 
-        for (line, channel, status) in [
-            (
-                ":irc.example.net NOTICE @#ops :[Knock] by mallory!~m@203.0.113.9 (let me in)",
-                "#ops",
-                &['@'][..],
-            ),
-            (
-                ":irc.example NOTICE @#chan :<mallory:#chan> text",
-                "#chan",
-                &['@'][..],
-            ),
-            (
-                ":irc.example NOTICE @+#ops :Operators and voiced users only",
-                "#ops",
-                &['@', '+'][..],
-            ),
-        ] {
-            let event = parse_event(
-                LineRef::parse(line).unwrap().to_owned(),
-                &isupport,
-                "papo",
-                UNIX_EPOCH,
-            );
-            assert!(matches!(event, Event::ServerNotice(notice)
-                if matches!(notice.to, ServerNoticeTarget::Channel(ref name) if name == channel)
-                    && notice.status.as_deref() == Some(status)));
-        }
-
         let wallops = message_event_from_line(
             Line::new("WALLOPS")
                 .param("Network maintenance begins soon")
@@ -2301,6 +2273,39 @@ mod tests {
         );
         assert!(matches!(broadcast, Event::ServerNotice(notice)
             if matches!(notice.to, ServerNoticeTarget::Mask(_))));
+    }
+
+    #[test]
+    fn routes_status_prefixed_server_notices() {
+        let mut isupport = Isupport::default();
+        isupport.apply_tokens(["CHANTYPES=#", "STATUSMSG=@+"]);
+        for (line, channel, status) in [
+            (
+                ":irc.example.net NOTICE @#ops :[Knock] by mallory!~m@203.0.113.9 (let me in)",
+                "#ops",
+                &['@'][..],
+            ),
+            (
+                ":irc.example NOTICE @#chan :<mallory:#chan> text",
+                "#chan",
+                &['@'][..],
+            ),
+            (
+                ":irc.example NOTICE @+#ops :Operators and voiced users only",
+                "#ops",
+                &['@', '+'][..],
+            ),
+        ] {
+            let event = parse_event(
+                LineRef::parse(line).unwrap().to_owned(),
+                &isupport,
+                "papo",
+                UNIX_EPOCH,
+            );
+            assert!(matches!(event, Event::ServerNotice(notice)
+                if matches!(notice.to, ServerNoticeTarget::Channel(ref name) if name == channel)
+                    && notice.status.as_deref() == Some(status)));
+        }
     }
 
     #[test]

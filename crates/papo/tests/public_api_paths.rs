@@ -27,6 +27,10 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
         ConversationClass::Event,
     ),
     (
+        "pub papo::event::Notice::conversation: papo::Conversation",
+        ConversationClass::Event,
+    ),
+    (
         "pub papo::event::Reacted::conversation: papo::Conversation",
         ConversationClass::Event,
     ),
@@ -47,14 +51,6 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
         ConversationClass::Event,
     ),
     (
-        "pub papo::Message::conversation: papo::Conversation",
-        ConversationClass::Event,
-    ),
-    (
-        "pub papo::event::Notice::conversation: papo::Conversation",
-        ConversationClass::Event,
-    ),
-    (
         "pub fn papo::Client::fetch_read_marker(&self, impl core::convert::Into<ConversationInput>) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>",
         ConversationClass::History,
     ),
@@ -69,6 +65,10 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
     (
         "pub papo::HistoryPage::conversation: papo::Conversation",
         ConversationClass::History,
+    ),
+    (
+        "pub papo::Message::conversation: papo::Conversation",
+        ConversationClass::Event,
     ),
     (
         "pub papo::RecentConversation::conversation: papo::Conversation",

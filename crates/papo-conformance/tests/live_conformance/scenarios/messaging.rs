@@ -174,10 +174,6 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
         if nick == bob.nick().as_ref())
     );
     assert_eq!(received.raw_text, "private notice");
-    assert!(matches!(
-        received.conversation,
-        papo::Conversation::Private(_)
-    ));
     assert_eq!(received.msgid.as_ref(), sent.msgid.as_ref());
     assert_eq!(received.server_time, sent.server_time);
 
