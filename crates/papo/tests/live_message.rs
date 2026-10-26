@@ -39,7 +39,7 @@ async fn reply_between_two_clients_carries_the_original_msgid() {
 
         client_a.privmsg(&channel, "!ping").await.unwrap();
         let incoming = wait_message(&mut events_b, |message| {
-            message.text == "!ping" && source_nick(message).as_deref() == Some(nick_a.as_str())
+            message.text == "!ping" && message.actor.nick() == nick_a.as_str()
         })
         .await;
         assert!(!matches!(
@@ -50,7 +50,7 @@ async fn reply_between_two_clients_carries_the_original_msgid() {
         client_b.reply(&incoming, "pong").await.unwrap();
 
         let response = wait_message(&mut events_a, |message| {
-            message.text == "pong" && source_nick(message).as_deref() == Some(nick_b.as_str())
+            message.text == "pong" && message.actor.nick() == nick_b.as_str()
         })
         .await;
         assert_eq!(response.in_reply_to.as_ref(), Some(&ping_msgid));
@@ -307,8 +307,4 @@ async fn wait_own_message(
             None => panic!("driver stopped while waiting for an own message"),
         }
     }
-}
-
-fn source_nick(message: &ChatMessage) -> Option<String> {
-    Some(message.actor.nick().to_string())
 }

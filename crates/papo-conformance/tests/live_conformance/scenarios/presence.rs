@@ -313,11 +313,8 @@ async fn monitor(s: Scenario) -> papo_testing::Result<()> {
     let monitored = state.monitor_online().collect::<Vec<_>>();
     assert_eq!(monitored.len(), 1);
     assert_eq!(monitored[0].nick(), bob_nick.as_ref());
-    assert_eq!(
-        monitored[0].username(),
-        online.subject.username().as_deref()
-    );
-    assert_eq!(monitored[0].host(), online.subject.host().as_deref());
+    assert_eq!(monitored[0].username(), online.subject.username());
+    assert_eq!(monitored[0].host(), online.subject.host());
 
     let away = "reading the monitor specification";
     bob.set_away(away).await?;

@@ -587,9 +587,7 @@ impl Message {
     #[doc(hidden)]
     #[must_use]
     pub fn __recipient_changed(&self, state: &crate::State) -> bool {
-        crate::message_ref::message_actor_recipient(self)
-            .as_ref()
-            .is_some_and(|recipient| state.recipient_changed(recipient))
+        state.recipient_changed(&crate::message_ref::message_actor_recipient(self))
     }
 
     #[allow(dead_code)]
@@ -810,6 +808,7 @@ impl Notice {
 }
 
 impl ServerNotice {
+    #[allow(clippy::too_many_arguments)]
     fn from_line(
         raw: ProtoLine,
         authorship: Authorship,
@@ -1578,7 +1577,7 @@ pub(crate) fn from_core(
         papo_core::Event::TagMessage(message) => {
             let envelope = map_envelope(&message.envelope);
             let tags = Tags::from_pairs(message.tags);
-            let actor = match source::user_from_prefix(
+            let Some(actor) = source::user_from_prefix(
                 &message.actor,
                 casemapping,
                 origin,
@@ -1591,9 +1590,8 @@ pub(crate) fn from_core(
                 tags.get("draft/oper").map(|name| Oper {
                     name: (!name.is_empty()).then(|| name.to_owned()),
                 }),
-            ) {
-                Some(actor) => actor,
-                None => return CoreEvent::Unknown,
+            ) else {
+                return CoreEvent::Unknown;
             };
             let tag = TagMsg {
                 actor,
@@ -2157,8 +2155,8 @@ mod tests {
     use super::{
         Audience, Authorship, Broadcast, Conversation, CoreEvent, Event, Message as ChatMessage,
         MessageId, MessageKind, MetadataChanged, ModeAction, ModeArg, NoticeKind, ServerNoticeKind,
-        Source, StandardReplyKind, Warning, ctcp_parts, from_core as from_core_with_mapping,
-        historical_message_event, message_event_from_line,
+        Source, StandardReplyKind, UserSource, Warning, ctcp_parts,
+        from_core as from_core_with_mapping, historical_message_event, message_event_from_line,
     };
     use crate::Visibility;
     use papo_core::{
@@ -2460,7 +2458,7 @@ mod tests {
         assert!(matches!(broadcast, Event::ServerNotice(notice)
             if matches!(notice.to, Audience::Broadcast(Broadcast::Mask(_)))
                 && notice.authorship == Authorship::Other
-                && matches!(notice.actor.user().map(|actor| actor.account()),
+                && matches!(notice.actor.user().map(UserSource::account),
                     Some(Account::LoggedIn(account)) if account == "network-admin")));
     }
 
@@ -2974,11 +2972,11 @@ mod tests {
             assert_event_times(&event, expected_variant, server_time, received_at);
             let account = match &event {
                 Event::Parted(event) => Some(event.actor.account()),
-                Event::Kicked(event) => event.actor.user().map(|user| user.account()),
+                Event::Kicked(event) => event.actor.user().map(UserSource::account),
                 Event::Quit(event) => Some(event.actor.account()),
                 Event::NickChanged(event) => Some(event.actor.account()),
-                Event::ModeChanged(event) => event.actor.user().map(|user| user.account()),
-                Event::TopicChanged(event) => event.actor.user().map(|user| user.account()),
+                Event::ModeChanged(event) => event.actor.user().map(UserSource::account),
+                Event::TopicChanged(event) => event.actor.user().map(UserSource::account),
                 _ => None,
             };
             if let Some(account) = account {
@@ -2987,7 +2985,7 @@ mod tests {
             match &event {
                 Event::Reacted(event) => assert_eq!(event.actor.account(), &Account::Unknown),
                 Event::Redacted(event) => {
-                    assert_eq!(event.actor.user().unwrap().account(), &Account::Unknown)
+                    assert_eq!(event.actor.user().unwrap().account(), &Account::Unknown);
                 }
                 _ => {}
             }
@@ -3952,7 +3950,7 @@ mod tests {
         assert!(matches!(
             mode.as_mode_changed()
                 .and_then(|event| event.actor.user())
-                .map(|actor| actor.account()),
+                .map(UserSource::account),
             Some(Account::LoggedIn(account)) if account == "services"
         ));
     }

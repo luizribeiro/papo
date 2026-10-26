@@ -121,20 +121,20 @@ fn recipient(
     })
 }
 
-pub(crate) fn actor_recipient(query: &CtcpQuery) -> Option<RecipientGuard> {
-    Some(RecipientGuard {
+pub(crate) fn actor_recipient(query: &CtcpQuery) -> RecipientGuard {
+    RecipientGuard {
         nick: query.actor.nick().clone(),
         account: query.actor.account().clone(),
         receipt: query.reply_token,
-    })
+    }
 }
 
-pub(crate) fn message_actor_recipient(message: &Message) -> Option<RecipientGuard> {
-    Some(RecipientGuard {
+pub(crate) fn message_actor_recipient(message: &Message) -> RecipientGuard {
+    RecipientGuard {
         nick: message.actor.nick().clone(),
         account: message.actor.account().clone(),
         receipt: message.reply_token,
-    })
+    }
 }
 
 fn from_received(

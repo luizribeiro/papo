@@ -12,7 +12,7 @@ fn exposes_and_compares_every_subject_kind() {
     ];
 
     for (subject, text) in subjects {
-        assert!(subject == text);
+        assert_eq!(subject, text);
         assert!(subject != "#elsewhere");
     }
     assert_eq!(Subject::Channel(channel.clone()).channel(), Some(&channel));

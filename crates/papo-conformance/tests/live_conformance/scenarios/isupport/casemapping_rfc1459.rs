@@ -15,6 +15,7 @@ fn rfc1459_nick(value: &str) -> papo::Nick {
     requires(isupport = ["CASEMAPPING"]),
     covers = ["base.isupport.casemapping", "base.isupport.casemapping-rfc1459"]
 )]
+#[allow(clippy::too_many_lines)]
 async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;

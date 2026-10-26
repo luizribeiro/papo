@@ -461,8 +461,8 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::InvalidInput`] when the actor is a server or the command or text contains a
-    /// CTCP or IRC line delimiter. It returns
+    /// Returns [`Error::InvalidInput`] when the command or text contains a CTCP or IRC line
+    /// delimiter. It returns
     /// [`Error::Disconnected`] if the driver stops before writing the reply.
     pub fn ctcp_reply(
         &self,
@@ -472,7 +472,7 @@ impl Client {
         let target = crate::target::sealed::Parts {
             text: std::borrow::Cow::Owned(query.actor.nick().to_string()),
             origin: crate::message_ref::conversation_origin(&query.conversation),
-            recipient: crate::message_ref::actor_recipient(query),
+            recipient: Some(crate::message_ref::actor_recipient(query)),
         };
         let text = text.into();
         let reply = Ctcp::build(&query.command, (!text.is_empty()).then_some(text.as_str()))
