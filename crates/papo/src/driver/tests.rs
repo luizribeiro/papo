@@ -4355,9 +4355,48 @@ async fn join_rejects_an_invalid_channel_name_before_queueing() {
     assert!(matches!(
         client.join(test_channel("rust")).await,
         Err(Error::InvalidInput(crate::InvalidInput::InvalidName {
+            argument: "join: channel",
             name,
             reason: crate::InvalidIdentifier::InvalidPrefix('r'),
         })) if name == "rust"
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn role_errors_identify_the_invalid_argument() {
+    let client = crate::Client::disconnected_for_test();
+
+    assert!(matches!(
+        client.kick("alice", "bob", "policy violation").await,
+        Err(Error::InvalidInput(crate::InvalidInput::InvalidName {
+            argument: "kick: channel",
+            name,
+            ..
+        })) if name == "alice"
+    ));
+    assert!(matches!(
+        client.kick("#papo", "#ops", "policy violation").await,
+        Err(Error::InvalidInput(crate::InvalidInput::InvalidName {
+            argument: "kick: nick",
+            name,
+            ..
+        })) if name == "#ops"
+    ));
+    assert!(matches!(
+        client.set_nick("#papo").await,
+        Err(Error::InvalidInput(crate::InvalidInput::InvalidName {
+            argument: "set_nick: nick",
+            name,
+            ..
+        })) if name == "#papo"
+    ));
+    assert!(matches!(
+        client.history("@#ops").latest().await,
+        Err(Error::InvalidInput(crate::InvalidInput::InvalidName {
+            argument: "history: conversation",
+            name,
+            ..
+        })) if name == "@#ops"
     ));
 }
 

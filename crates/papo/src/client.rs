@@ -324,22 +324,45 @@ impl Sent {
 }
 
 impl Client {
-    pub(crate) fn target_input(
+    pub(crate) fn resolve(
         &self,
-        target: impl crate::Target,
-    ) -> (String, Option<InvalidInput>) {
-        let (target, origin) = target.__target();
-        let error = (origin != crate::Origin::NONE && origin != self.origin)
-            .then_some(InvalidInput::ForeignReference);
-        (target.to_owned(), error)
-    }
-
-    pub(crate) fn check_origin(&self, origin: Option<crate::Origin>) -> Result<(), Error> {
-        if origin.is_some_and(|origin| origin != crate::Origin::NONE && origin != self.origin) {
-            Err(InvalidInput::ForeignReference.into())
-        } else {
-            Ok(())
+        role: crate::target::Role,
+        parts: crate::target::sealed::Parts<'_>,
+    ) -> Result<String, Error> {
+        if parts.origin != crate::Origin::NONE && parts.origin != self.origin {
+            return Err(InvalidInput::ForeignReference.into());
         }
+        let text = parts.text.into_owned();
+        let state = self.state();
+        let result = match role {
+            crate::target::Role::Send(_) => state.parse_target_inner(&text).map(drop),
+            crate::target::Role::Channel(_) => {
+                state.channel_name(&text).check(state.isupport().inner())
+            }
+            crate::target::Role::Nick(_) => state.nickname(&text).check(state.isupport().inner()),
+            crate::target::Role::Conversation(_) => {
+                state.parse_target_inner(&text).and_then(|(status, _)| {
+                    status
+                        .and_then(|status| status.first().copied())
+                        .map_or(Ok(()), |prefix| {
+                            Err(crate::InvalidIdentifier::InvalidPrefix(prefix))
+                        })
+                })
+            }
+            crate::target::Role::Any(_) => self.state().mask(&text).check(),
+            crate::target::Role::Opaque(_) => Ok(()),
+        };
+        result.map_err(|reason| {
+            InvalidInput::invalid_argument(role.argument(), text.clone(), reason)
+        })?;
+        if parts
+            .recipient
+            .as_ref()
+            .is_some_and(|recipient| state.recipient_changed(recipient))
+        {
+            return Err(Error::TargetGone);
+        }
+        Ok(text)
     }
 
     /// Returns the opaque identity carried by values produced by this client.

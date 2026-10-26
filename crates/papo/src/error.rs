@@ -860,7 +860,7 @@ mod tests {
                 "draft/example".into(),
                 papo_proto::InvalidIdentifier::InvalidCharacter('/'),
             )),
-            Error::InvalidInput(InvalidInput::InvalidName { name, reason })
+            Error::InvalidInput(InvalidInput::InvalidName { name, reason, .. })
                 if name == "draft/example"
                     && reason == papo_proto::InvalidIdentifier::InvalidCharacter('/')
         ));
@@ -964,6 +964,7 @@ mod tests {
             InvalidInput::BinarySecret,
             InvalidInput::InvalidMessage("embedded CR".into()),
             InvalidInput::InvalidName {
+                argument: "name",
                 name: String::new(),
                 reason: crate::InvalidIdentifier::Empty,
             },

@@ -81,9 +81,11 @@ pub enum InvalidInput {
     #[error("invalid IRC message: {0}")]
     InvalidMessage(String),
     /// An IRC name is invalid in its protocol context.
-    #[error("invalid IRC name {name:?}")]
+    #[error("{argument} `{name}` is not a valid IRC name: {reason}")]
     #[non_exhaustive]
     InvalidName {
+        /// The operation and argument role of the rejected name.
+        argument: &'static str,
         /// The rejected name.
         name: String,
         /// Why the protocol rejected the name.
@@ -161,6 +163,19 @@ pub enum InvalidInput {
 impl InvalidInput {
     pub(crate) fn invalid_name(name: impl Into<String>, reason: crate::InvalidIdentifier) -> Self {
         Self::InvalidName {
+            argument: "name",
+            name: name.into(),
+            reason,
+        }
+    }
+
+    pub(crate) fn invalid_argument(
+        argument: &'static str,
+        name: impl Into<String>,
+        reason: crate::InvalidIdentifier,
+    ) -> Self {
+        Self::InvalidName {
+            argument,
             name: name.into(),
             reason,
         }
