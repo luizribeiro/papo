@@ -2,6 +2,17 @@
 "security::cross_client_values_never_reach_either_wire" = [
   "security.origin.cross-client-wire",
 ]
+"security::foreign_return_addresses_cannot_send_typing_or_notices" = [
+  "security.addr-3.foreign-return-address",
+  "security.x-answer.foreign-notice",
+]
+"security::nickname_handoffs_block_notices_and_ctcp_replies" = [
+  "security.x-answer.notice-nick-handoff",
+  "security.addr-10.ctcp-nick-handoff",
+]
+"security::ops_only_return_addresses_survive_notice_and_typing_sends" = [
+  "security.addr-3.ops-only-return-address",
+]
 "security::selected_bouncer_network_requires_its_capability" = [
   "security.bouncer.required-capability",
 ]
