@@ -254,15 +254,6 @@ impl Builder {
         self
     }
 
-    /// Appends `@<device>` to the SASL username for PLAIN and SCRAM.
-    ///
-    /// Bouncers and servers can use the suffix to distinguish a user's clients. This setting has
-    /// no effect with EXTERNAL or OAUTHBEARER.
-    pub fn device(mut self, device: impl Into<String>) -> Self {
-        self.config.device = Some(device.into());
-        self
-    }
-
     /// Creates an account while connecting.
     ///
     /// This requires `draft/account-registration` with `before-connect`; a named account that
@@ -1002,8 +993,7 @@ mod tests {
         .username("ping")
         .realname("papo ping bot")
         .password("network password")
-        .sasl(Sasl::plain("ping-bot", "correct horse battery staple"))
-        .device("phone");
+        .sasl(Sasl::plain("ping-bot", "correct horse battery staple").device("phone"));
         let config = &builder.config;
         assert_eq!(config.casemapping, crate::Casemapping::Ascii);
         assert_eq!(config.nick, "ping-bot");
@@ -1013,7 +1003,6 @@ mod tests {
         assert_eq!(config.realname, "papo ping bot");
         assert_eq!(config.password, Some(Secret::new("network password")));
         assert!(config.sasl.is_some());
-        assert_eq!(config.device.as_deref(), Some("phone"));
         assert_eq!(
             config.wanted_caps[..DEFAULT_WANTED_CAPS.len()],
             DEFAULT_WANTED_CAPS[..]

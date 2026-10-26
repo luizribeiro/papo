@@ -554,8 +554,6 @@ pub struct Config {
     pub regain_nick: bool,
     /// SASL mechanisms to try in preference order.
     pub sasl: Option<Sasl>,
-    /// Ergo multiclient device identifier appended to the authentication identity.
-    pub device: Option<String>,
     /// Maximum number of channels retained in session state.
     pub max_channels: usize,
     /// Maximum number of members retained for one channel.
@@ -611,7 +609,6 @@ impl Default for Config {
             alt_nicks: Vec::new(),
             regain_nick: false,
             sasl: None,
-            device: None,
             max_channels: DEFAULT_MAX_CHANNELS,
             max_members_per_channel: DEFAULT_MAX_MEMBERS_PER_CHANNEL,
             max_open_batches: DEFAULT_MAX_OPEN_BATCHES,
@@ -948,13 +945,6 @@ impl Config {
     #[must_use]
     pub fn sasl(mut self, sasl: Sasl) -> Self {
         self.sasl = Some(sasl);
-        self
-    }
-
-    /// Sets the Ergo multiclient device identifier.
-    #[must_use]
-    pub fn device(mut self, device: impl Into<String>) -> Self {
-        self.device = Some(device.into());
         self
     }
 

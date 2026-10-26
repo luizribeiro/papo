@@ -196,16 +196,17 @@ impl IntoFuture for ChangeNetwork {
 /// Handle for upstream bouncer network management.
 ///
 /// A control connection can discover networks and create separate device connections to one of
-/// them. Put [`crate::Builder::device`] on each network-bound builder returned by [`Self::network`],
-/// rather than on the control connection. Network names need not be unique, so applications that
-/// select by name must define how to resolve multiple matches.
+/// them. Configure [`crate::Sasl::device`] on each network-bound builder returned by
+/// [`Self::network`]. Network names need not be unique, so applications that select by name must
+/// define how to resolve multiple matches.
 ///
 /// ```no_run
 /// use papo::{Client, Feature, Sasl};
 ///
 /// # async fn run() -> Result<(), Box<dyn std::error::Error>> {
+/// let password = "correct horse battery staple";
 /// let (control, _control_events) = Client::builder("ircs://bouncer.example.net", "alice")
-///     .sasl(Sasl::plain("alice", "correct horse battery staple"))
+///     .sasl(Sasl::plain("alice", password))
 ///     .enable(Feature::Bouncer)
 ///     .connect()
 ///     .await?;
@@ -224,14 +225,14 @@ impl IntoFuture for ChangeNetwork {
 /// let (_phone, _phone_events) = control
 ///     .bouncer()
 ///     .network(&network.id)
-///     .device("phone")
+///     .sasl(Sasl::plain("alice", password).device("phone"))
 ///     .autojoin(["#papo"])
 ///     .connect()
 ///     .await?;
 /// let (_laptop, _laptop_events) = control
 ///     .bouncer()
 ///     .network(&network.id)
-///     .device("laptop")
+///     .sasl(Sasl::plain("alice", password).device("laptop"))
 ///     .autojoin(["#papo"])
 ///     .connect()
 ///     .await?;

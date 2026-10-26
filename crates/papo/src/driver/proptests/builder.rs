@@ -79,10 +79,9 @@ async fn arbitrary_builder_setter_input_is_rejected_or_registers_validly() {
                 options: vec![(b, Some(c.clone())), (c, None)],
             }
         ));
-        probe!(builder, a, b, _c => builder.sasl(crate::Sasl::plain(a, b)));
+        probe!(builder, a, b, c => builder.sasl(crate::Sasl::plain(a, b).device(c)));
         #[cfg(feature = "unstable")]
         probe!(builder, a, _b, _c => builder.bouncer_network(crate::NetworkId::from(a)));
-        probe!(builder, a, _b, _c => builder.device(a));
         probe!(builder, a, b, c => builder.create_account(
             crate::NewAccount::new(c)
                 .account(crate::Casemapping::default().account(a))

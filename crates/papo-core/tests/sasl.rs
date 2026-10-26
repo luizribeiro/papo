@@ -24,11 +24,10 @@ fn secure_sasl(sasl: Sasl) -> Config {
 
 #[test]
 fn configures_mechanisms_policy_and_entropy() {
-    let config = Config::default()
-        .sasl(Sasl::any("alice", "correct horse battery staple"))
-        .device("phone");
+    let config = Config::default().sasl(
+        Sasl::any("alice", "correct horse battery staple").device("phone"),
+    );
     assert!(config.sasl.is_some());
-    assert_eq!(config.device.as_deref(), Some("phone"));
 
     let session = Session::with_entropy(config, Box::new(FixedEntropy));
     assert!(format!("{session:?}").contains("has_entropy: true"));
@@ -149,6 +148,10 @@ fn debug_output_redacts_a_queued_oauth_bearer_response() {
 #[test]
 fn external_accepts_an_authorization_identity() {
     assert_ne!(Sasl::external(), Sasl::external().authzid("alice"));
+    assert_ne!(
+        Sasl::plain("alice", "hunter2"),
+        Sasl::plain("alice", "hunter2").authzid("admin")
+    );
 }
 
 #[test]
@@ -251,9 +254,11 @@ fn inactive_authenticate_messages_are_surfaced_unchanged() {
 #[test]
 fn authenticates_with_plain_and_records_the_account() {
     Transcript::new(
-        Config::default()
-            .sasl(Sasl::plain("alice", "correct horse battery staple"))
-            .device("phone"),
+        Config::default().sasl(
+            Sasl::plain("alice", "correct horse battery staple")
+                .device("phone")
+                .authzid("admin"),
+        ),
     )
     .connect_default()
     .server("CAP * LS :sasl=SCRAM-SHA-256,PLAIN")
@@ -261,7 +266,7 @@ fn authenticates_with_plain_and_records_the_account() {
     .server("CAP * ACK :sasl")
     .client("AUTHENTICATE PLAIN")
     .server("AUTHENTICATE +")
-    .client("AUTHENTICATE AGFsaWNlQHBob25lAGNvcnJlY3QgaG9yc2UgYmF0dGVyeSBzdGFwbGU=")
+    .client("AUTHENTICATE YWRtaW4AYWxpY2VAcGhvbmUAY29ycmVjdCBob3JzZSBiYXR0ZXJ5IHN0YXBsZQ==")
     .server(":ergo.test 900 alice alice!~u@host alice :You are now logged in as alice")
     .inspect(|session| assert_eq!(session.account(), Some("alice")))
     .no_client()
@@ -447,6 +452,10 @@ fn authenticates_when_sasl_arrives_after_connect() {
             matches!(event, Event::CapsChanged { added, .. }
             if added.contains_key("sasl"))
         })
+        .event(|event| {
+            matches!(event, Event::FeaturesChanged { added, .. }
+                if added.contains(&papo_core::Feature::Sasl))
+        })
         .server("AUTHENTICATE +")
         .client("AUTHENTICATE AGFsaWNlAGh1bnRlcjI=")
         .server(":ergo.test 900 papo papo!u@host alice :logged in")
@@ -472,6 +481,10 @@ fn aborts_reauthentication_when_sasl_disappears_and_accepts_907() {
             matches!(event, Event::CapsChanged { added, .. }
             if added.contains_key("sasl"))
         })
+        .event(|event| {
+            matches!(event, Event::FeaturesChanged { added, .. }
+                if added.contains(&papo_core::Feature::Sasl))
+        })
         .server("CAP * DEL :sasl")
         .event(|event| {
             matches!(event, Event::CapsChanged { removed, .. }
@@ -481,6 +494,10 @@ fn aborts_reauthentication_when_sasl_disappears_and_accepts_907() {
             matches!(event, Event::AuthenticationFailed { reason, .. }
             if reason.contains("disappeared"))
         })
+        .event(|event| {
+            matches!(event, Event::FeaturesChanged { removed, .. }
+                if removed.contains(&papo_core::Feature::Sasl))
+        })
         .deadline(Some(std::time::Duration::from_secs(60)))
         .server("CAP * NEW :sasl")
         .client("CAP REQ :sasl")
@@ -489,6 +506,10 @@ fn aborts_reauthentication_when_sasl_disappears_and_accepts_907() {
         .event(|event| {
             matches!(event, Event::CapsChanged { added, .. }
             if added.contains_key("sasl"))
+        })
+        .event(|event| {
+            matches!(event, Event::FeaturesChanged { added, .. }
+                if added.contains(&papo_core::Feature::Sasl))
         })
         .server(":ergo.test 907 papo :already authenticated")
         .no_client()

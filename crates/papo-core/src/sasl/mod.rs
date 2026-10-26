@@ -19,11 +19,16 @@ const SASL_TIMEOUT: Duration = Duration::from_secs(30);
 pub struct Sasl {
     pub(crate) mechanisms: Vec<Mechanism>,
     pub(crate) required: bool,
+    device: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum Mechanism {
-    Plain { username: String, password: Secret },
+    Plain {
+        username: String,
+        password: Secret,
+        authzid: Option<String>,
+    },
     OAuthBearer { token: Secret },
     External { authzid: Option<String> },
     ScramSha256 { username: String, password: Secret },
@@ -50,8 +55,10 @@ impl Sasl {
             mechanisms: vec![Mechanism::Plain {
                 username: username.into(),
                 password: password.into(),
+                authzid: None,
             }],
             required: true,
+            device: None,
         }
     }
 
@@ -63,6 +70,7 @@ impl Sasl {
                 token: token.into(),
             }],
             required: true,
+            device: None,
         }
     }
 
@@ -72,20 +80,34 @@ impl Sasl {
         Self {
             mechanisms: vec![Mechanism::External { authzid: None }],
             required: true,
+            device: None,
         }
     }
 
-    /// Sets the authorization identity sent by SASL EXTERNAL.
+    /// Sets the authorization identity sent by SASL PLAIN or EXTERNAL.
     ///
-    /// This has no effect on PLAIN or SCRAM-SHA-256 mechanisms.
+    /// This has no effect on SCRAM-SHA-256 or OAUTHBEARER mechanisms.
     #[must_use]
     pub fn authzid(mut self, authzid: impl Into<String>) -> Self {
         for mechanism in &mut self.mechanisms {
-            if let Mechanism::External { authzid: current } = mechanism {
-                *current = Some(authzid.into());
-                break;
+            match mechanism {
+                Mechanism::Plain { authzid: current, .. }
+                | Mechanism::External { authzid: current } => {
+                    *current = Some(authzid.into());
+                    break;
+                }
+                Mechanism::OAuthBearer { .. } | Mechanism::ScramSha256 { .. } => {}
             }
         }
+        self
+    }
+
+    /// Appends `@<device>` to the PLAIN or SCRAM-SHA-256 authentication identity.
+    ///
+    /// Bouncers and servers can use the suffix to distinguish a user's clients.
+    #[must_use]
+    pub fn device(mut self, device: impl Into<String>) -> Self {
+        self.device = Some(device.into());
         self
     }
 
@@ -98,6 +120,7 @@ impl Sasl {
                 password: password.into(),
             }],
             required: true,
+            device: None,
         }
     }
 
@@ -115,9 +138,14 @@ impl Sasl {
                     username: username.clone(),
                     password: password.clone(),
                 },
-                Mechanism::Plain { username, password },
+                Mechanism::Plain {
+                    username,
+                    password,
+                    authzid: None,
+                },
             ],
             required: true,
+            device: None,
         }
     }
 
@@ -252,7 +280,7 @@ impl SaslSession {
             },
             configured,
             account: None,
-            device: config.device.clone(),
+            device: config.sasl.as_ref().and_then(|sasl| sasl.device.clone()),
             challenge: String::new(),
             entropy,
             require: config.sasl.as_ref().is_some_and(|sasl| sasl.required),
@@ -414,11 +442,18 @@ impl SaslSession {
             return Handled::Yes;
         }
         let response = match mechanism {
-            Mechanism::Plain { username, password } => {
+            Mechanism::Plain {
+                username,
+                password,
+                authzid,
+            } => {
                 let authcid = with_device(username, self.device.as_deref());
                 password.expose().map(|password| {
-                    let mut response =
-                        Zeroizing::new(Vec::with_capacity(authcid.len() + password.len() + 2));
+                    let authzid = authzid.as_deref().unwrap_or("");
+                    let mut response = Zeroizing::new(Vec::with_capacity(
+                        authzid.len() + authcid.len() + password.len() + 2,
+                    ));
+                    response.extend_from_slice(authzid.as_bytes());
                     response.push(0);
                     response.extend_from_slice(authcid.as_bytes());
                     response.push(0);
