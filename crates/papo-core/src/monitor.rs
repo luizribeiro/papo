@@ -228,63 +228,7 @@ impl Monitor {
                 let Some(entries) = message.param(1) else {
                     return Handled::No;
                 };
-                let mut handled = false;
-                for entry in entries.split(',') {
-                    if let Some((nick, user, host)) = parse_entry(entry) {
-                        handled = true;
-                        if !self.accepts_presence(nick, isupport, internal_nick) {
-                            continue;
-                        }
-                        let (was_online, userhost_changed) = {
-                            let previous = self
-                                .presence
-                                .get(&self.casemapping.nick(nick))
-                                .and_then(|presence| {
-                                    let Presence::Online {
-                                        nick: _,
-                                        user,
-                                        host,
-                                    } = presence
-                                    else {
-                                        return None;
-                                    };
-                                    Some((user.as_deref(), host.as_deref()))
-                                });
-                            (
-                                previous.is_some(),
-                                previous.is_some_and(|old| old != (user, host)),
-                            )
-                        };
-                        let next = Presence::Online {
-                            nick: nick.to_owned(),
-                            user: user.map(str::to_owned),
-                            host: host.map(str::to_owned),
-                        };
-                        let changed = self.replace_presence(nick, next, isupport);
-                        if !was_online && changed {
-                            outbox.event(Event::MonitorOnline {
-                                nick: self.casemapping.nick(nick),
-                                username: user.map(str::to_owned),
-                                host: host.map(str::to_owned),
-                            });
-                        } else if userhost_changed && let (Some(user), Some(host)) = (user, host) {
-                            outbox.event(Event::HostChanged {
-                                actor: nick.to_owned(),
-                                nick: self.casemapping.nick(nick),
-                                username: user.to_owned(),
-                                host: host.to_owned(),
-                                authorship: if internal_nick.is_some_and(|own| {
-                                    crate::names_equal(isupport.casemapping(), own, nick)
-                                }) {
-                                    Authorship::Own
-                                } else {
-                                    Authorship::Other
-                                },
-                            });
-                        }
-                    }
-                }
-                if !handled {
+                if !self.handle_online(entries, isupport, internal_nick, outbox) {
                     return Handled::No;
                 }
             }
@@ -323,6 +267,62 @@ impl Monitor {
             _ => return Handled::No,
         }
         Handled::Yes
+    }
+
+    fn handle_online(
+        &mut self,
+        entries: &str,
+        isupport: &Isupport,
+        internal_nick: Option<&str>,
+        outbox: &mut Outbox,
+    ) -> bool {
+        let mut handled = false;
+        for entry in entries.split(',') {
+            let Some((nick, user, host)) = parse_entry(entry) else {
+                continue;
+            };
+            handled = true;
+            if !self.accepts_presence(nick, isupport, internal_nick) {
+                continue;
+            }
+            let previous = self
+                .presence
+                .get(&self.casemapping.nick(nick))
+                .and_then(|presence| match presence {
+                    Presence::Online { user, host, .. } => Some((user.as_deref(), host.as_deref())),
+                    Presence::Offline(_) => None,
+                });
+            let was_online = previous.is_some();
+            let userhost_changed = previous.is_some_and(|old| old != (user, host));
+            let next = Presence::Online {
+                nick: nick.to_owned(),
+                user: user.map(str::to_owned),
+                host: host.map(str::to_owned),
+            };
+            let changed = self.replace_presence(nick, next, isupport);
+            if !was_online && changed {
+                outbox.event(Event::MonitorOnline {
+                    nick: self.casemapping.nick(nick),
+                    username: user.map(str::to_owned),
+                    host: host.map(str::to_owned),
+                });
+            } else if userhost_changed && let (Some(user), Some(host)) = (user, host) {
+                outbox.event(Event::HostChanged {
+                    actor: nick.to_owned(),
+                    nick: self.casemapping.nick(nick),
+                    username: user.to_owned(),
+                    host: host.to_owned(),
+                    authorship: if internal_nick
+                        .is_some_and(|own| crate::names_equal(isupport.casemapping(), own, nick))
+                    {
+                        Authorship::Own
+                    } else {
+                        Authorship::Other
+                    },
+                });
+            }
+        }
+        handled
     }
 
     fn handle_offline(
