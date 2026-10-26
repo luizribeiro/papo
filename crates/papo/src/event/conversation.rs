@@ -79,6 +79,16 @@ macro_rules! broadcast_origin {
 
 broadcast_origin!(BroadcastCtcp, BroadcastTagMsg);
 
+/// Whether a reaction was added to or removed from a message.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[non_exhaustive]
+pub enum ReactionAction {
+    /// The reaction was added.
+    Added,
+    /// The reaction was removed.
+    Removed,
+}
+
 /// A reaction was added to or removed from a message.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -104,13 +114,13 @@ pub struct Reacted {
     /// See [`Conversation`] for status-prefixed line guidance.
     pub status: Option<Vec<char>>,
     /// The message being reacted to.
-    pub message: MessageId,
+    pub reacts_to: MessageId,
     /// The reaction text, usually an emoji.
     ///
     /// Compare it exactly; papo performs no case folding or Unicode normalization.
     pub reaction: String,
-    /// Whether the reaction was removed.
-    pub removed: bool,
+    /// Whether the reaction was added or removed.
+    pub action: ReactionAction,
 }
 
 /// A message was removed from history.
@@ -138,7 +148,7 @@ pub struct Redacted {
     /// See [`Conversation`] for status-prefixed line guidance.
     pub status: Option<Vec<char>>,
     /// The message removed from history.
-    pub message: MessageId,
+    pub redacts: MessageId,
     /// The optional human-readable reason.
     pub reason: Option<String>,
 }
@@ -185,23 +195,47 @@ pub struct TagMsg {
     pub tags: Tags,
 }
 
-macro_rules! return_address {
-    ($($ty:ty),+ $(,)?) => {
-        $(
-            impl $ty {
-                /// Returns the address that reaches the recipients of this line.
-                ///
-                /// See [`Conversation`] for status-prefixed line guidance.
-                #[must_use]
-                pub fn return_address(&self) -> String {
-                    crate::message_ref::return_address(&self.conversation, self.status.as_deref())
-                }
-            }
-        )+
-    };
+impl Reacted {
+    /// Returns the address that reaches the recipients of this line.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
+    #[must_use]
+    pub fn return_address(&self) -> crate::MessageRef {
+        crate::message_ref::from_reacted(self)
+    }
 }
 
-return_address!(Reacted, Redacted, TypingChanged, TagMsg);
+impl Redacted {
+    /// Returns the address that reaches the recipients of this line.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
+    #[must_use]
+    pub fn return_address(&self) -> crate::MessageRef {
+        crate::message_ref::from_redacted(self)
+    }
+}
+
+impl TypingChanged {
+    /// Returns the address that reaches the recipients of this line.
+    ///
+    /// A typing notification has no message identifier, so reactions and redactions using this
+    /// reference fail with [`crate::InvalidInput::UnusableMessageReference`]. See
+    /// [`Conversation`] for status-prefixed line guidance.
+    #[must_use]
+    pub fn return_address(&self) -> crate::MessageRef {
+        crate::message_ref::from_typing(self)
+    }
+}
+
+impl TagMsg {
+    /// Returns the address that reaches the recipients of this line.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
+    #[must_use]
+    pub fn return_address(&self) -> crate::MessageRef {
+        crate::MessageRef::from(self)
+    }
+}
 
 macro_rules! origin {
     ($($ty:ty),+ $(,)?) => {

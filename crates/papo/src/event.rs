@@ -33,8 +33,8 @@ pub use connection::{
     CapsChanged, CasemappingChanged, ConnectPhase, Connected, Connecting, FeaturesChanged, Motd,
 };
 pub use conversation::{
-    Broadcast, BroadcastCtcp, BroadcastTagMsg, Reacted, ReadMarkerChanged, Redacted, StandardReply,
-    StandardReplyKind, TagMsg, TypingChanged,
+    Broadcast, BroadcastCtcp, BroadcastTagMsg, Reacted, ReactionAction, ReadMarkerChanged,
+    Redacted, StandardReply, StandardReplyKind, TagMsg, TypingChanged,
 };
 pub use papo_core::{BatchAbandonReason, TypingReason};
 #[cfg(feature = "unstable")]
@@ -167,15 +167,25 @@ macro_rules! ctcp_return_address {
                 ///
                 /// See [`Conversation`] for status-prefixed line guidance.
                 #[must_use]
-                pub fn return_address(&self) -> String {
-                    crate::message_ref::return_address(&self.conversation, self.status.as_deref())
+                pub fn return_address(&self) -> crate::MessageRef {
+                    crate::message_ref::from_ctcp_reply(self)
                 }
             }
         )+
     };
 }
 
-ctcp_return_address!(CtcpQuery, CtcpReply);
+ctcp_return_address!(CtcpReply);
+
+impl CtcpQuery {
+    /// Returns the address that reaches the recipients of the CTCP line.
+    ///
+    /// See [`Conversation`] for status-prefixed line guidance.
+    #[must_use]
+    pub fn return_address(&self) -> crate::MessageRef {
+        crate::MessageRef::from(self)
+    }
+}
 
 macro_rules! conversation_origin {
     ($($ty:ty),+ $(,)?) => {
@@ -258,7 +268,7 @@ pub struct Message {
     /// The actor's account state reported by `account-tag`.
     pub account: Account,
     /// The identifier referenced by a reply tag.
-    pub reply_to: Option<MessageId>,
+    pub in_reply_to: Option<MessageId>,
     /// Channel context whose membership was verified when this private message was received.
     ///
     /// This proves that the actor and client shared the channel at receipt, not that the actor
@@ -307,7 +317,7 @@ pub struct Notice {
     /// The actor's account state reported by `account-tag`.
     pub account: Account,
     /// The identifier referenced by a reply tag.
-    pub reply_to: Option<MessageId>,
+    pub in_reply_to: Option<MessageId>,
     /// Channel context whose membership was verified when this private notice was received.
     ///
     /// This proves that the actor and client shared the channel at receipt, not that the actor
@@ -575,7 +585,7 @@ impl Message {
     #[doc(hidden)]
     #[must_use]
     pub fn __recipient_changed(&self, state: &crate::State) -> bool {
-        crate::message_ref::actor_recipient(self)
+        crate::message_ref::message_actor_recipient(self)
             .as_ref()
             .is_some_and(|recipient| state.recipient_changed(recipient))
     }
@@ -672,7 +682,7 @@ impl Message {
             server_time: metadata.server_time,
             received_at: metadata.received_at,
             account: metadata.account,
-            reply_to: metadata.reply_to,
+            in_reply_to: metadata.reply_to,
             channel_context,
             #[cfg(feature = "unstable")]
             relayed_by: metadata.relayed_by,
@@ -694,8 +704,8 @@ impl Message {
     /// broadcast. A broadcast without a user source returns `*`, which message APIs reject.
     /// See [`Conversation`] for status-prefixed line guidance.
     #[must_use]
-    pub fn return_address(&self) -> String {
-        crate::message_ref::return_address(&self.conversation, self.status.as_deref())
+    pub fn return_address(&self) -> crate::MessageRef {
+        crate::MessageRef::from(self)
     }
 
     /// Reports whether this message's actor is this client's user.
@@ -716,8 +726,8 @@ impl Notice {
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
     #[must_use]
-    pub fn return_address(&self) -> String {
-        crate::message_ref::return_address(&self.conversation, self.status.as_deref())
+    pub fn return_address(&self) -> crate::MessageRef {
+        crate::message_ref::from_notice(self)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -775,7 +785,7 @@ impl Notice {
             server_time: metadata.server_time,
             received_at: metadata.received_at,
             account: metadata.account,
-            reply_to: metadata.reply_to,
+            in_reply_to: metadata.reply_to,
             channel_context,
             #[cfg(feature = "unstable")]
             relayed_by: metadata.relayed_by,
@@ -1553,9 +1563,13 @@ pub(crate) fn from_core(
                     authorship: tag.authorship,
                     conversation: tag.conversation,
                     status: tag.status,
-                    message: msgid.into(),
+                    reacts_to: msgid.into(),
                     reaction: reaction.to_owned(),
-                    removed,
+                    action: if removed {
+                        ReactionAction::Removed
+                    } else {
+                        ReactionAction::Added
+                    },
                 })
             } else if let Some(state) = tag.tags.get("+typing").and_then(|state| match state {
                 "active" => Some(crate::Typing::Active),
@@ -1586,7 +1600,7 @@ pub(crate) fn from_core(
                 authorship: Authorship::from_core(redacted.authorship),
                 conversation: redacted.conversation,
                 status: redacted.status,
-                message: redacted.msgid.into(),
+                redacts: redacted.msgid.into(),
                 reason: redacted.reason.filter(|reason| !reason.is_empty()),
             })
         }
@@ -2229,10 +2243,9 @@ mod tests {
         assert_eq!(notice.kind, NoticeKind::Action);
         assert_eq!(notice.text, "nods hello");
         assert_eq!(notice.return_address(), "@#ops");
-        let (address, msgid, _, context, _) = crate::MessageRef::from(&notice).into_parts();
-        assert_eq!(address, "@#ops");
-        assert_eq!(msgid, Some("RfcBTzyxY120007".into()));
-        assert_eq!(context, None);
+        let reference = notice.return_address();
+        assert_eq!(reference, "@#ops");
+        assert_eq!(reference.msgid(), Some(&MessageId::from("RfcBTzyxY120007")));
 
         let server = parse_event(
             Line::notice("papo", "Network maintenance begins soon").with_source("irc.example"),
@@ -2643,7 +2656,7 @@ mod tests {
             Event::Message(Box::new(chat("PRIVMSG", "human message"))).server_time(),
             None
         );
-        let reply: Option<&MessageId> = tagged.reply_to.as_ref();
+        let reply: Option<&MessageId> = tagged.in_reply_to.as_ref();
         assert_eq!(reply.unwrap(), "RfcBTzyxY120003");
         #[cfg(feature = "unstable")]
         assert_eq!(tagged.relayed_by.as_deref(), Some("bridge-bot"));
@@ -3097,8 +3110,8 @@ mod tests {
         );
         assert_eq!(reaction.return_address(), "@#ops");
         assert_eq!(reaction.reaction, "👍");
-        assert_eq!(reaction.message, "RKi9Cw");
-        assert!(!reaction.removed);
+        assert_eq!(reaction.reacts_to, "RKi9Cw");
+        assert_eq!(reaction.action, crate::event::ReactionAction::Added);
     }
 
     #[test]
@@ -3176,7 +3189,7 @@ mod tests {
                     && mapped.conversation == redacted.conversation
                     && mapped.status == redacted.status
                     && mapped.return_address() == "@#ops"
-                    && mapped.message.as_ref() == redacted.msgid
+                    && mapped.redacts.as_ref() == redacted.msgid
                     && mapped.reason.is_none()
         ));
     }
