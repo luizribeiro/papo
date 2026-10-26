@@ -173,6 +173,39 @@ fn parses_whois_channels_with_advertised_membership_prefixes() {
 }
 
 #[test]
+fn reports_the_highest_whois_channel_rank() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    session.handle_line(
+        now,
+        b":ergo.test 005 papo PREFIX=(qaohv)~&@%+ CHANTYPES=# :are supported",
+    );
+    session
+        .request_with_matcher(
+            now,
+            Line::new("WHOIS").with_params(["alice"]),
+            ResponseMatcher::Whois("alice".into()),
+        )
+        .unwrap();
+    session.handle_line(now, b":ergo.test 319 papo alice :~@#chan +#voice");
+    session.handle_line(now, b":ergo.test 318 papo alice :End of /WHOIS list");
+
+    let Some(Event::Response(response)) = session.poll_event() else {
+        panic!("expected a WHOIS response")
+    };
+    assert_eq!(response.whois_channels[0].name, "#chan");
+    assert_eq!(
+        response.whois_channels[0].rank(),
+        Some(papo_core::Rank::Owner)
+    );
+    assert_eq!(response.whois_channels[1].name, "#voice");
+    assert_eq!(
+        response.whois_channels[1].rank(),
+        Some(papo_core::Rank::Voice)
+    );
+}
+
+#[test]
 fn unlabelled_join_waits_for_channel_sync() {
     let now = Instant::now();
     let mut session = Session::new(
