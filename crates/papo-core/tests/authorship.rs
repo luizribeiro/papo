@@ -94,6 +94,31 @@ fn live_message_from_another_session_of_our_account_is_own() {
 }
 
 #[test]
+fn sibling_device_away_is_own() {
+    Transcript::new(Config::default().sasl(Sasl::plain("papo", "correct horse battery staple")))
+        .connect_default()
+        .server("CAP * LS :sasl=PLAIN account-tag away-notify")
+        .client("CAP REQ :account-tag away-notify sasl")
+        .server("CAP * ACK :account-tag away-notify sasl")
+        .client("AUTHENTICATE PLAIN")
+        .server("AUTHENTICATE +")
+        .client("AUTHENTICATE AHBhcG8AY29ycmVjdCBob3JzZSBiYXR0ZXJ5IHN0YXBsZQ==")
+        .server(":ergo.test 900 papo papo!~papo@localhost papo :You are now logged in as papo")
+        .server(":ergo.test 903 papo :SASL authentication successful")
+        .client("CAP END")
+        .server(":papo!~papo@localhost JOIN #papo")
+        .server("@account=papo :papo-phone!~papo@localhost JOIN #papo")
+        .server("@account=papo :papo-phone!~papo@localhost AWAY :reviewing the production rollout")
+        .event_until(|event| {
+            matches!(event, Event::AwayChanged {
+                nick,
+                authorship: Authorship::Own,
+                ..
+            } if nick == "papo-phone")
+        });
+}
+
+#[test]
 fn history_authorship_requires_an_account_tag() {
     Transcript::new(Config::default().sasl(Sasl::plain("papo", "correct horse battery staple")))
         .connect_default()

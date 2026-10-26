@@ -10,7 +10,7 @@ impl State {
             return;
         };
         let actor = message.raw_source().unwrap_or(nick).to_owned();
-        let authorship = self.nick_authorship(nick);
+        let authorship = self.source_authorship(message);
         if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick)) {
             for (key, value) in message.tags() {
                 match (key, value) {
@@ -75,7 +75,7 @@ impl State {
                 actor,
                 nick: self.casemapping.nick(nick),
                 account,
-                authorship: self.nick_authorship(nick),
+                authorship: self.source_authorship(message),
             });
         }
         Some(Handled::Yes)
@@ -114,7 +114,7 @@ impl State {
                     actor: message.raw_source().unwrap_or(nick).to_owned(),
                     nick: self.casemapping.nick(nick),
                     away: next,
-                    authorship: self.nick_authorship(nick),
+                    authorship: self.source_authorship(message),
                 });
             }
             return Some(Handled::Yes);
@@ -251,7 +251,7 @@ impl State {
                 nick: self.casemapping.nick(nick),
                 username: change.user.to_owned(),
                 host: change.host.to_owned(),
-                authorship: self.nick_authorship(nick),
+                authorship: self.source_authorship(message),
             });
             return Some(Handled::Yes);
         }
@@ -263,7 +263,7 @@ impl State {
             actor: message.raw_source().unwrap_or(nick).to_owned(),
             nick: self.casemapping.nick(nick),
             realname: change.realname.to_owned(),
-            authorship: self.nick_authorship(nick),
+            authorship: self.source_authorship(message),
         });
         Some(Handled::Yes)
     }

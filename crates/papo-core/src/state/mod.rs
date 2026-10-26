@@ -330,7 +330,16 @@ impl State {
 
     pub(super) fn source_authorship(&self, message: &LineRef<'_>) -> Authorship {
         match message.source() {
-            Some(ProtoSource::User { nick, .. }) => self.nick_authorship(nick),
+            Some(ProtoSource::User { nick, .. })
+                if self.nick_authorship(nick) == Authorship::Own
+                    || message.tag("account").is_some_and(|actor| {
+                        self.account()
+                            .name()
+                            .is_some_and(|own| self.casemapping.account(actor.as_ref()) == *own)
+                    }) =>
+            {
+                Authorship::Own
+            }
             _ => Authorship::Other,
         }
     }

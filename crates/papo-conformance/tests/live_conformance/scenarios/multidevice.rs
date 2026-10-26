@@ -140,7 +140,7 @@ async fn multidevice_away_shared_state(s: Scenario) -> papo_testing::Result<()> 
     assert_eq!(sibling.new, away);
     assert_eq!(visible.new, away);
     assert_eq!(sibling.authorship, Authorship::Own);
-    assert_eq!(visible.authorship, Authorship::Own);
+    assert_eq!(visible.authorship, Authorship::Other);
     assert_eq!(phone.state().away(), &away);
     assert_eq!(observer.state().user(nick.as_ref()).unwrap().away(), &away);
     phone.expect_none(Event::as_away_changed).await?;
