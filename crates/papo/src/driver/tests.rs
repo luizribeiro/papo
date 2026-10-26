@@ -647,6 +647,17 @@ async fn manual_ctcp_replies_match_automatic_framing_and_target_the_actor() {
     within(client.ctcp_reply(channel_query, "")).await.unwrap();
     client_line(&mut server, b"NOTICE dan \x01PING\x01\r\n").await;
 
+    let mut own_query = channel_query.clone();
+    own_query.authorship = crate::Authorship::Own;
+    within(client.ctcp_reply(&own_query, "from another device"))
+        .await
+        .unwrap();
+    client_line(
+        &mut server,
+        b"NOTICE dan :\x01PING from another device\x01\r\n",
+    )
+    .await;
+
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }

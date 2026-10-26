@@ -454,6 +454,8 @@ impl Client {
     /// A [`crate::event::CtcpReply`] cannot be passed to this method.
     /// Status-prefixed channel queries are answered privately to their actor; see
     /// [`crate::Conversation`] for the distinction between a conversation and a return address.
+    /// Queries authored by this client's user are allowed so sibling devices can answer one
+    /// another; the actor identity guard still refuses a reply after the nickname changes hands.
     ///
     /// # Errors
     ///
@@ -465,12 +467,22 @@ impl Client {
         query: &crate::event::CtcpQuery,
         text: impl Into<String>,
     ) -> crate::RequestFuture<()> {
-        let origin = crate::message_ref::conversation_origin(&query.conversation);
+        let target = crate::target::sealed::Parts {
+            text: std::borrow::Cow::Owned(
+                query
+                    .actor
+                    .nick()
+                    .map(ToString::to_string)
+                    .unwrap_or_default(),
+            ),
+            origin: crate::message_ref::conversation_origin(&query.conversation),
+            recipient: crate::message_ref::actor_recipient(query),
+        };
         let text = text.into();
         let reply = papo_core::__ctcp_reply(&query.actor, &query.command, &text);
         let client = self.clone();
         crate::RequestFuture::new(async move {
-            client.check_origin(Some(origin))?;
+            client.resolve(crate::target::Role::Send("ctcp_reply: query"), target)?;
             let reply = reply.ok_or_else(|| {
                 InvalidInput::InvalidMessage("invalid CTCP reply query or text".into())
             })?;
