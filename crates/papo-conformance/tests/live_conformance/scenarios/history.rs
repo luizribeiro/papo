@@ -1,6 +1,6 @@
 use std::time::{Duration, SystemTime};
 
-use papo::{Error, Event, Sent};
+use papo::{Error, Event, MessageId, Sent};
 use papo_conformance_macros::scenario;
 
 use crate::scenarios::support::conversation_name;
@@ -126,30 +126,18 @@ async fn chathistory_paging(s: Scenario) -> papo_testing::Result<()> {
         .map(|message| message.msgid().expect("Ergo supplies a message ID"))
         .collect::<Vec<_>>();
 
-    let before = reader
-        .history(&channel)
-        .before(ids[3].as_ref())
-        .limit(10)
-        .await?;
+    let before = reader.history(&channel).before(ids[3]).limit(10).await?;
     assert_eq!(message_texts(&before, &texts), texts[..3]);
 
-    let after = reader
-        .history(&channel)
-        .after(ids[1].as_ref())
-        .limit(10)
-        .await?;
+    let after = reader.history(&channel).after(ids[1]).limit(10).await?;
     assert_eq!(message_texts(&after, &texts), texts[2..]);
 
-    let around = reader
-        .history(&channel)
-        .around(ids[2].as_ref())
-        .limit(3)
-        .await?;
+    let around = reader.history(&channel).around(ids[2]).limit(3).await?;
     assert_eq!(message_texts(&around, &texts), texts[1..4]);
 
     let between = reader
         .history(&channel)
-        .between(ids[0].as_ref(), ids[4].as_ref())
+        .between(ids[0], ids[4])
         .limit(10)
         .await?;
     assert_eq!(message_texts(&between, &texts), texts[1..4]);
@@ -182,7 +170,13 @@ async fn terminal_history_page(s: Scenario) -> papo_testing::Result<()> {
     loop {
         let page = match cursor {
             None => alice.history(&*channel).latest().limit(10).await?,
-            Some(Cursor::Id(ref id)) => alice.history(&*channel).before(id).limit(10).await?,
+            Some(Cursor::Id(ref id)) => {
+                alice
+                    .history(&*channel)
+                    .before(MessageId::from(id.clone()))
+                    .limit(10)
+                    .await?
+            }
             Some(Cursor::Time(time)) => alice.history(&*channel).before(time).limit(10).await?,
         };
         let messages = page.messages().collect::<Vec<_>>();

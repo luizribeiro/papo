@@ -2078,14 +2078,8 @@ pub fn papo::HistoryReference::clone(&self) -> Self
 impl core::cmp::Eq for papo::HistoryReference
 impl core::cmp::PartialEq for papo::HistoryReference
 pub fn papo::HistoryReference::eq(&self, &Self) -> bool
-impl core::convert::From<&alloc::string::String> for papo::HistoryReference
-pub fn papo::HistoryReference::from(&alloc::string::String) -> Self
 impl core::convert::From<&papo::MessageId> for papo::HistoryReference
 pub fn papo::HistoryReference::from(&papo::MessageId) -> Self
-impl core::convert::From<&str> for papo::HistoryReference
-pub fn papo::HistoryReference::from(&str) -> Self
-impl core::convert::From<alloc::string::String> for papo::HistoryReference
-pub fn papo::HistoryReference::from(alloc::string::String) -> Self
 impl core::convert::From<papo::MessageId> for papo::HistoryReference
 pub fn papo::HistoryReference::from(papo::MessageId) -> Self
 impl core::convert::From<std::time::SystemTime> for papo::HistoryReference

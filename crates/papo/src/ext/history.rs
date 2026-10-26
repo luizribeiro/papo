@@ -773,24 +773,6 @@ impl From<&crate::MessageId> for HistoryReference {
     }
 }
 
-impl From<&str> for HistoryReference {
-    fn from(value: &str) -> Self {
-        Self::new(MsgRef::Msgid(value.to_owned()), None)
-    }
-}
-
-impl From<&String> for HistoryReference {
-    fn from(value: &String) -> Self {
-        Self::from(value.as_str())
-    }
-}
-
-impl From<String> for HistoryReference {
-    fn from(value: String) -> Self {
-        Self::new(MsgRef::Msgid(value), None)
-    }
-}
-
 impl From<SystemTime> for HistoryReference {
     fn from(value: SystemTime) -> Self {
         Self::new(MsgRef::Timestamp(value), None)
@@ -1080,7 +1062,7 @@ mod tests {
     #[test]
     fn converts_ids_timestamps_and_message_events() {
         assert!(
-            matches!(HistoryReference::from("2Zl7JeYG6I8fG9q1lJ55BQ").value, MsgRef::Msgid(id) if id == "2Zl7JeYG6I8fG9q1lJ55BQ")
+            matches!(HistoryReference::from(crate::MessageId::from("2Zl7JeYG6I8fG9q1lJ55BQ")).value, MsgRef::Msgid(id) if id == "2Zl7JeYG6I8fG9q1lJ55BQ")
         );
         assert!(
             matches!(HistoryReference::from(UNIX_EPOCH).value, MsgRef::Timestamp(time) if time == UNIX_EPOCH)
@@ -1625,9 +1607,10 @@ mod tests {
             around.query,
             Ok(HistoryQuery::Around { limit: 100, .. })
         ));
-        let between = client
-            .history("#papo")
-            .between("RfcBTzyxY119998", "RfcBTzyxY120003");
+        let between = client.history("#papo").between(
+            crate::MessageId::from("RfcBTzyxY119998"),
+            crate::MessageId::from("RfcBTzyxY120003"),
+        );
         assert!(matches!(
             between.query,
             Ok(HistoryQuery::Between { limit: 100, .. })
@@ -1850,7 +1833,7 @@ mod tests {
             async move {
                 client
                     .history("#papo")
-                    .before("RfcBTzyxY119999")
+                    .before(crate::MessageId::from("RfcBTzyxY119999"))
                     .limit(50)
                     .await
             }
@@ -1897,7 +1880,10 @@ mod tests {
         let request = tokio::spawn(async move {
             client
                 .history("#papo")
-                .between("RfcBTzyxY119998", "RfcBTzyxY120003")
+                .between(
+                    crate::MessageId::from("RfcBTzyxY119998"),
+                    crate::MessageId::from("RfcBTzyxY120003"),
+                )
                 .limit(53)
                 .await
         });

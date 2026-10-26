@@ -38,19 +38,32 @@ async fn arbitrary_bouncer_and_history_input_is_rejected_or_valid() {
             action(
                 client
                     .history(first.clone())
-                    .before(second.clone())
+                    .before(crate::MessageId::from(second.clone()))
                     .limit(third.len()),
             )
         })
         .await;
-        check_action(|client| action(client.history(first.clone()).after(second.clone()))).await;
-        check_action(|client| action(client.history(first.clone()).around(second.clone()))).await;
         check_action(|client| {
             action(
                 client
                     .history(first.clone())
-                    .between(second.clone(), third.clone()),
+                    .after(crate::MessageId::from(second.clone())),
             )
+        })
+        .await;
+        check_action(|client| {
+            action(
+                client
+                    .history(first.clone())
+                    .around(crate::MessageId::from(second.clone())),
+            )
+        })
+        .await;
+        check_action(|client| {
+            action(client.history(first.clone()).between(
+                crate::MessageId::from(second.clone()),
+                crate::MessageId::from(third.clone()),
+            ))
         })
         .await;
         check_action(|client| action(client.mark_read(first.clone(), UNIX_EPOCH))).await;
