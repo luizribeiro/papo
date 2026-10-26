@@ -530,6 +530,7 @@ pub papo_core::Event::CasemappingChanged::old: papo::Casemapping
 #[non_exhaustive] pub papo_core::Event::ChannelRenamed
 pub papo_core::Event::ChannelRenamed::actor: alloc::string::String
 pub papo_core::Event::ChannelRenamed::authorship: papo_core::Authorship
+pub papo_core::Event::ChannelRenamed::envelope: papo_core::LineEnvelope
 pub papo_core::Event::ChannelRenamed::new: papo::ChannelName
 pub papo_core::Event::ChannelRenamed::old: papo::ChannelName
 pub papo_core::Event::ChannelRenamed::reason: core::option::Option<alloc::string::String>
@@ -557,6 +558,7 @@ pub papo_core::Event::HostChanged::username: alloc::string::String
 pub papo_core::Event::Invited::actor: alloc::string::String
 pub papo_core::Event::Invited::authorship: papo_core::Authorship
 pub papo_core::Event::Invited::channel: papo::ChannelName
+pub papo_core::Event::Invited::envelope: papo_core::LineEnvelope
 pub papo_core::Event::Invited::subject: papo::Nick
 pub papo_core::Event::Invited::subject_authorship: papo_core::Authorship
 #[non_exhaustive] pub papo_core::Event::Joined

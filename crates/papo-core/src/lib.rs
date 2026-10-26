@@ -2471,6 +2471,8 @@ pub enum Event {
     /// A user was invited to a channel.
     #[non_exhaustive]
     Invited {
+        /// Identity and time tags from the invitation line.
+        envelope: LineEnvelope,
         /// The invited channel.
         channel: ChannelName,
         /// The invited user.
@@ -2519,6 +2521,8 @@ pub enum Event {
     /// A joined channel was renamed.
     #[non_exhaustive]
     ChannelRenamed {
+        /// Identity and time tags from the rename line.
+        envelope: LineEnvelope,
         /// The previous channel name.
         old: ChannelName,
         /// The new channel name.
@@ -2633,11 +2637,9 @@ hidden_event_constructors! {
     __malformed(line: Vec<u8>) => Malformed;
     __features_changed(added: Vec<Feature>, removed: Vec<Feature>) => FeaturesChanged;
     __casemapping_changed(old: Casemapping, new: Casemapping) => CasemappingChanged;
-    __invited(channel: ChannelName, subject: Nick, actor: String, authorship: Authorship, subject_authorship: Authorship) => Invited;
     __joined(envelope: LineEnvelope, actor: String, account: Account, realname: Option<String>, channel: ChannelName, nick: Nick, authorship: Authorship, netjoin: Option<SplitServers>) => Joined;
     __account_created(account: AccountName, logged_in: bool) => AccountCreated;
     __verification_required(account: AccountName, message: String) => VerificationRequired;
-    __channel_renamed(old: ChannelName, new: ChannelName, actor: String, authorship: Authorship, reason: Option<String>) => ChannelRenamed;
     __metadata_changed(subject: Subject, key: String, value: Option<String>, visibility: Visibility) => MetadataChanged;
     __metadata_sync_later(target: String, retry_after: Option<Duration>) => MetadataSyncLater;
     __channel_synced(channel: ChannelName) => ChannelSynced;
@@ -2658,6 +2660,46 @@ hidden_event_constructors! {
     __monitor_list_full(limit: usize, nicks: Vec<Nick>) => MonitorListFull;
     __history(conversation: Conversation, items: Vec<HistoryItem>, end: bool) => History;
     __batch_abandoned(reference: String, batch_type: String, reason: BatchAbandonReason) => BatchAbandoned;
+}
+
+impl Event {
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __invited(
+        channel: ChannelName,
+        subject: Nick,
+        actor: String,
+        authorship: Authorship,
+        subject_authorship: Authorship,
+    ) -> Self {
+        Self::Invited {
+            envelope: LineEnvelope::default(),
+            channel,
+            subject,
+            actor,
+            authorship,
+            subject_authorship,
+        }
+    }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __channel_renamed(
+        old: ChannelName,
+        new: ChannelName,
+        actor: String,
+        authorship: Authorship,
+        reason: Option<String>,
+    ) -> Self {
+        Self::ChannelRenamed {
+            envelope: LineEnvelope::default(),
+            old,
+            new,
+            actor,
+            authorship,
+            reason,
+        }
+    }
 }
 
 #[cfg(feature = "unstable")]

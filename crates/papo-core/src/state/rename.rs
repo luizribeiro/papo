@@ -38,6 +38,7 @@ impl State {
                 .insert(NameKey::new(new, self.casemapping), values);
         }
         outbox.event(Event::ChannelRenamed {
+            envelope: crate::LineEnvelope::from_line(message),
             old: self.casemapping.channel(old),
             new: self.casemapping.channel(new),
             actor: actor.to_owned(),

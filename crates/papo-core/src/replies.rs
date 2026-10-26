@@ -72,6 +72,7 @@ impl Session {
         };
         let casemapping = self.names();
         self.outbox.event(Event::Invited {
+            envelope: crate::LineEnvelope::from_line(message),
             channel: casemapping.channel(channel),
             subject: casemapping.nick(nick),
             actor: by.to_owned(),
