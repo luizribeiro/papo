@@ -271,6 +271,8 @@ pub fn papo::sts::reschedule_on_disconnect(papo::sts::StsPolicy, std::time::Syst
 pub papo_core::Account::LoggedIn(papo::AccountName)
 pub papo_core::Account::LoggedOut
 pub papo_core::Account::Unknown
+impl papo_core::Account
+pub const fn papo_core::Account::name(&self) -> core::option::Option<&papo::AccountName>
 impl core::clone::Clone for papo_core::Account
 pub fn papo_core::Account::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::Account
@@ -317,6 +319,8 @@ impl core::panic::unwind_safe::UnwindSafe for papo_core::Authorship
 pub papo_core::Away::Away::message: core::option::Option<alloc::string::String>
 pub papo_core::Away::Present
 pub papo_core::Away::Unknown
+impl papo_core::Away
+pub fn papo_core::Away::message(&self) -> core::option::Option<&str>
 impl core::clone::Clone for papo_core::Away
 pub fn papo_core::Away::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::Away
@@ -489,6 +493,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo_core::Decoding
 #[non_exhaustive] pub papo_core::Event::AccountChanged
 pub papo_core::Event::AccountChanged::account: papo_core::Account
 pub papo_core::Event::AccountChanged::actor: alloc::string::String
+pub papo_core::Event::AccountChanged::authorship: papo_core::Authorship
 pub papo_core::Event::AccountChanged::nick: papo::Nick
 #[non_exhaustive] pub papo_core::Event::AccountCreated
 pub papo_core::Event::AccountCreated::account: papo::AccountName
@@ -497,6 +502,7 @@ pub papo_core::Event::AccountCreated::logged_in: bool
 pub papo_core::Event::AuthenticationFailed::reason: alloc::string::String
 #[non_exhaustive] pub papo_core::Event::AwayChanged
 pub papo_core::Event::AwayChanged::actor: alloc::string::String
+pub papo_core::Event::AwayChanged::authorship: papo_core::Authorship
 pub papo_core::Event::AwayChanged::away: papo_core::Away
 pub papo_core::Event::AwayChanged::nick: papo::Nick
 #[non_exhaustive] pub papo_core::Event::BatchAbandoned
@@ -531,6 +537,7 @@ pub papo_core::Event::History::items: alloc::vec::Vec<papo_core::HistoryItem>
 pub papo_core::Event::HistoryTargets(alloc::vec::Vec<(papo::Conversation, std::time::SystemTime)>)
 #[non_exhaustive] pub papo_core::Event::HostChanged
 pub papo_core::Event::HostChanged::actor: alloc::string::String
+pub papo_core::Event::HostChanged::authorship: papo_core::Authorship
 pub papo_core::Event::HostChanged::host: alloc::string::String
 pub papo_core::Event::HostChanged::nick: papo::Nick
 pub papo_core::Event::HostChanged::username: alloc::string::String
@@ -575,6 +582,7 @@ pub papo_core::Event::ModeChanged::actor: papo_core::Source
 pub papo_core::Event::ModeChanged::authorship: papo_core::Authorship
 pub papo_core::Event::ModeChanged::changes: alloc::vec::Vec<papo_core::ModeChange>
 pub papo_core::Event::ModeChanged::envelope: papo_core::LineEnvelope
+pub papo_core::Event::ModeChanged::own_nick: core::option::Option<papo::Nick>
 pub papo_core::Event::ModeChanged::subject: papo_core::Subject
 pub papo_core::Event::ModeChanged::subject_authorship: papo_core::Authorship
 #[non_exhaustive] pub papo_core::Event::MonitorListFull
@@ -592,6 +600,7 @@ pub papo_core::Event::MultilineMessage(papo_core::MultilineMessage)
 #[non_exhaustive] pub papo_core::Event::NickChanged
 pub papo_core::Event::NickChanged::actor: alloc::string::String
 pub papo_core::Event::NickChanged::authorship: papo_core::Authorship
+pub papo_core::Event::NickChanged::channels: alloc::vec::Vec<papo::ChannelName>
 pub papo_core::Event::NickChanged::envelope: papo_core::LineEnvelope
 pub papo_core::Event::NickChanged::new: papo::Nick
 pub papo_core::Event::NickChanged::old: papo::Nick
@@ -613,6 +622,7 @@ pub papo_core::Event::Quit::reason: core::option::Option<alloc::string::String>
 pub papo_core::Event::ReadMarkerChanged(papo_core::ReadMarker)
 #[non_exhaustive] pub papo_core::Event::RealnameChanged
 pub papo_core::Event::RealnameChanged::actor: alloc::string::String
+pub papo_core::Event::RealnameChanged::authorship: papo_core::Authorship
 pub papo_core::Event::RealnameChanged::nick: papo::Nick
 pub papo_core::Event::RealnameChanged::realname: alloc::string::String
 pub papo_core::Event::Redacted(papo_core::Redacted)
@@ -1236,6 +1246,9 @@ impl core::panic::unwind_safe::UnwindSafe for papo_core::StateLimit
 #[non_exhaustive] pub enum papo_core::Subject
 pub papo_core::Subject::Channel(papo::ChannelName)
 pub papo_core::Subject::User(papo::Nick)
+impl papo_core::Subject
+pub const fn papo_core::Subject::channel(&self) -> core::option::Option<&papo::ChannelName>
+pub const fn papo_core::Subject::nick(&self) -> core::option::Option<&papo::Nick>
 impl core::clone::Clone for papo_core::Subject
 pub fn papo_core::Subject::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::Subject
@@ -1243,6 +1256,10 @@ impl core::cmp::Ord for papo_core::Subject
 pub fn papo_core::Subject::cmp(&self, &Self) -> core::cmp::Ordering
 impl core::cmp::PartialEq for papo_core::Subject
 pub fn papo_core::Subject::eq(&self, &Self) -> bool
+impl core::cmp::PartialEq<&str> for papo_core::Subject
+pub fn papo_core::Subject::eq(&self, &&str) -> bool
+impl core::cmp::PartialEq<str> for papo_core::Subject
+pub fn papo_core::Subject::eq(&self, &str) -> bool
 impl core::cmp::PartialOrd for papo_core::Subject
 pub fn papo_core::Subject::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
 impl core::fmt::Debug for papo_core::Subject

@@ -40,7 +40,7 @@ impl core::marker::UnsafeUnpin for papo_bot::BotConfig
 impl core::panic::unwind_safe::RefUnwindSafe for papo_bot::BotConfig
 impl core::panic::unwind_safe::UnwindSafe for papo_bot::BotConfig
 pub struct papo_bot::Command
-pub papo_bot::Command::actor: papo::Source
+pub papo_bot::Command::actor: papo::event_impl::source::UserSource
 impl papo_bot::Command
 pub const fn papo_bot::Command::account(&self) -> core::option::Option<&papo::AccountName>
 pub fn papo_bot::Command::account_in<I, S>(&self, I) -> bool where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
