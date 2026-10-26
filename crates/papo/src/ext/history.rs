@@ -370,15 +370,15 @@ fn kicked(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        account: envelope.account,
         channel: state.channel_name(message.param(0)?),
         authorship,
         subject_authorship,
         subject: state.nickname(nick),
-        actor: crate::event_impl::source::from_proto_with_origin(
+        actor: crate::event_impl::source::from_proto_with_account(
             message.source()?,
             mapping,
             client.origin(),
+            envelope.account,
         ),
         reason: message
             .param(2)
@@ -443,16 +443,16 @@ fn topic_changed(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        account: envelope.account,
         channel: origin.__channel(mapping, message.param(0)?),
         topic: message
             .param(1)
             .filter(|topic| !topic.is_empty())
             .map(str::to_owned),
-        actor: crate::event_impl::source::from_proto_with_origin(
+        actor: crate::event_impl::source::from_proto_with_account(
             message.source()?,
             mapping,
             origin,
+            envelope.account,
         ),
         authorship,
     }))
@@ -494,16 +494,16 @@ fn mode_changed(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        account: envelope.account,
         subject: if state.isupport().inner().is_channel(message.param(0)?) {
             crate::Subject::Channel(state.channel_name(message.param(0)?))
         } else {
             crate::Subject::User(state.nickname(message.param(0)?))
         },
-        actor: crate::event_impl::source::from_proto_with_origin(
+        actor: crate::event_impl::source::from_proto_with_account(
             message.source()?,
             mapping,
             client.origin(),
+            envelope.account,
         ),
         authorship,
         subject_authorship,

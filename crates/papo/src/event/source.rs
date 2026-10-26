@@ -143,6 +143,19 @@ pub(crate) fn from_proto_with_origin(
     }
 }
 
+pub(crate) fn from_proto_with_account(
+    source: papo_proto::Source<'_>,
+    casemapping: Casemapping,
+    origin: crate::Origin,
+    account: Account,
+) -> Source {
+    let mut source = from_proto_with_origin(source, casemapping, origin);
+    if let Source::User(user) = &mut source {
+        user.set_account(account);
+    }
+    source
+}
+
 pub(crate) fn user_from_line(
     line: &papo_proto::LineRef<'_>,
     casemapping: Casemapping,
@@ -238,6 +251,18 @@ pub(crate) fn from_core(source: papo_core::Source, origin: crate::Origin) -> Opt
         papo_core::Source::Server { name, .. } => Some(Source::Server(name)),
         _ => None,
     }
+}
+
+pub(crate) fn from_core_with_account(
+    source: papo_core::Source,
+    origin: crate::Origin,
+    account: Account,
+) -> Option<Source> {
+    let mut source = from_core(source, origin)?;
+    if let Source::User(user) = &mut source {
+        user.set_account(account);
+    }
+    Some(source)
 }
 
 pub(crate) fn from_prefix(

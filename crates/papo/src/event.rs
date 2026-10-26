@@ -1794,14 +1794,15 @@ pub(crate) fn from_core(
             ..
         } => {
             let envelope = map_envelope(&envelope);
-            let Some(actor) = source::from_core(actor, origin) else {
+            let Some(actor) =
+                source::from_core_with_account(actor, origin, envelope.account)
+            else {
                 return CoreEvent::Unknown;
             };
             Event::Kicked(Kicked {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
-                account: envelope.account,
                 channel,
                 subject,
                 actor,
@@ -1996,14 +1997,15 @@ pub(crate) fn from_core(
             ..
         } => {
             let envelope = map_envelope(&envelope);
-            let Some(actor) = source::from_core(actor, origin) else {
+            let Some(actor) =
+                source::from_core_with_account(actor, origin, envelope.account)
+            else {
                 return CoreEvent::Unknown;
             };
             Event::ModeChanged(ModeChanged {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
-                account: envelope.account,
                 subject: match subject {
                     papo_core::Subject::Channel(channel) => crate::Subject::Channel(channel),
                     papo_core::Subject::User(nick) => crate::Subject::User(nick),
@@ -2024,14 +2026,15 @@ pub(crate) fn from_core(
             ..
         } => {
             let envelope = map_envelope(&envelope);
-            let Some(actor) = source::from_core(actor, origin) else {
+            let Some(actor) =
+                source::from_core_with_account(actor, origin, envelope.account)
+            else {
                 return CoreEvent::Unknown;
             };
             Event::TopicChanged(TopicChanged {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
-                account: envelope.account,
                 channel,
                 topic,
                 actor,
@@ -2851,11 +2854,11 @@ mod tests {
             assert_event_times(&event, expected_variant, server_time, received_at);
             let account = match &event {
                 Event::Parted(event) => Some(event.actor.account()),
-                Event::Kicked(event) => Some(&event.account),
+                Event::Kicked(event) => event.actor.user().map(|user| user.account()),
                 Event::Quit(event) => Some(event.actor.account()),
                 Event::NickChanged(event) => Some(event.actor.account()),
-                Event::ModeChanged(event) => Some(&event.account),
-                Event::TopicChanged(event) => Some(&event.account),
+                Event::ModeChanged(event) => event.actor.user().map(|user| user.account()),
+                Event::TopicChanged(event) => event.actor.user().map(|user| user.account()),
                 _ => None,
             };
             if let Some(account) = account {
@@ -3747,6 +3750,26 @@ mod tests {
     }
 
     #[test]
+    fn nests_account_tags_on_server_capable_mode_actors() {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().nick("emily"));
+        session.handle_line(now, b":emily!em@127.0.0.1 JOIN #papo");
+        assert!(matches!(session.poll_event(), Some(papo_core::Event::Joined { .. })));
+        session.handle_line(
+            now,
+            b"@account=services :ChanServ!service@services.example MODE #papo +o emily",
+        );
+
+        let mode = forwarded(session.poll_event().expect("mode event"));
+        assert!(matches!(
+            mode.as_mode_changed()
+                .and_then(|event| event.actor.user())
+                .map(|actor| actor.account()),
+            Some(Account::LoggedIn(account)) if account == "services"
+        ));
+    }
+
+    #[test]
     fn typed_mode_arguments_keep_the_client_origin() {
         let origin = crate::Origin::__new(73);
         for (mode, kind, expected) in [
@@ -3995,7 +4018,6 @@ mod tests {
                 msgid: None,
                 server_time: None,
                 received_at: UNIX_EPOCH,
-                account: Account::Unknown,
                 channel: mapping.channel("#papo"),
                 subject: mapping.nick("Papo[Bot]"),
                 actor: actor.clone(),

@@ -1352,7 +1352,6 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             msgid: None,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
-            account: crate::Account::Unknown,
             channel: test_channel("#staff"),
             subject: test_nick("alice"),
             actor: crate::Source::from_proto(
@@ -1387,7 +1386,6 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             msgid: None,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
-            account: crate::Account::Unknown,
             channel: test_channel("#staff"),
             subject: test_nick("papo-driver"),
             actor: crate::Source::from_proto(
