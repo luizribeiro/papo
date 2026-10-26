@@ -56,12 +56,19 @@ async fn nicklen_limit(s: Scenario) -> papo_testing::Result<()> {
 
     let over = format!("{at_limit}r");
     assert_eq!(over.chars().count(), n + 1);
-    let Error::InvalidInput(InvalidInput::InvalidMessage(text)) =
-        bob.set_nick(over).await.unwrap_err()
+    let Error::InvalidInput(InvalidInput::InvalidName {
+        argument,
+        name,
+        reason,
+        ..
+    }) =
+        bob.set_nick(&over).await.unwrap_err()
     else {
         panic!("over-limit nickname did not return an invalid-input error");
     };
-    assert_eq!(text, InvalidIdentifier::__too_long(n + 1, n).to_string());
+    assert_eq!(argument, "set_nick: nick");
+    assert_eq!(name, over);
+    assert_eq!(reason, InvalidIdentifier::__too_long(n + 1, n));
 
     bob.expect_none(Event::as_nick_changed).await?;
     alice.expect_none(Event::as_nick_changed).await?;
