@@ -1961,10 +1961,10 @@ mod tests {
     use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
     use super::{
-        Authorship, Conversation, CoreEvent, Event, Message as ChatMessage, MessageId, MessageKind,
-        MetadataChanged, ModeAction, ModeArg, NoticeKind, ServerNoticeKind, ServerNoticeTarget,
-        Source, StandardReplyKind, Warning, ctcp_parts, from_core as from_core_with_mapping,
-        historical_message_event, message_event_from_line,
+        Authorship, Broadcast, Conversation, CoreEvent, Event, Message as ChatMessage, MessageId,
+        MessageKind, MetadataChanged, ModeAction, ModeArg, NoticeKind, ServerNoticeKind,
+        ServerNoticeTarget, Source, StandardReplyKind, Warning, ctcp_parts,
+        from_core as from_core_with_mapping, historical_message_event, message_event_from_line,
     };
     use crate::Visibility;
     use papo_core::{
@@ -1990,11 +1990,12 @@ mod tests {
         received_at: SystemTime,
     ) {
         assert_eq!(event.server_time(), Some(server_time), "{expected_variant}");
-        let expected = (!matches!(expected_variant, "TagMsg" | "Other")).then_some(received_at);
+        let expected = (!matches!(expected_variant, "TagMsg" | "BroadcastTagMsg" | "Other"))
+            .then_some(received_at);
         assert_eq!(event.received_at(), expected, "{expected_variant}");
     }
 
-    const MESSAGE_EVENT_METADATA_CASES: [(&str, &str, &str); 17] = [
+    const MESSAGE_EVENT_METADATA_CASES: [(&str, &str, &str); 19] = [
         (
             "Message",
             "RfcBTzyxY120113",
@@ -2024,6 +2025,16 @@ mod tests {
             "CtcpReply",
             "RfcBTzyxY120117",
             "@msgid=RfcBTzyxY120117;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example NOTICE #papo :\x01VERSION Ergo-2.15.0\x01",
+        ),
+        (
+            "BroadcastCtcp",
+            "RfcBTzyxY120118",
+            "@msgid=RfcBTzyxY120118;time=2026-02-03T04:05:06.789Z :oper!staff@staff.example PRIVMSG $*.example.org :\x01VERSION\x01",
+        ),
+        (
+            "BroadcastTagMsg",
+            "RfcBTzyxY120119",
+            "@msgid=RfcBTzyxY120119;time=2026-02-03T04:05:06.789Z;+typing=active;+draft/react=👍;+reply=RfcBTzyxY120001 :oper!staff@staff.example TAGMSG *",
         ),
         (
             "TagMsg",
@@ -2622,6 +2633,8 @@ mod tests {
                 Event::ServerNotice(_) => "ServerNotice",
                 Event::CtcpQuery(_) => "CtcpQuery",
                 Event::CtcpReply(_) => "CtcpReply",
+                Event::BroadcastCtcp(_) => "BroadcastCtcp",
+                Event::BroadcastTagMsg(_) => "BroadcastTagMsg",
                 Event::TagMsg(_) => "TagMsg",
                 Event::Reacted(_) => "Reacted",
                 Event::Redacted(_) => "Redacted",
@@ -2636,6 +2649,22 @@ mod tests {
                 _ => "unexpected",
             };
             assert_eq!(actual_variant, expected_variant);
+            match expected_variant {
+                "BroadcastCtcp" => {
+                    let broadcast = event.as_broadcast_ctcp().unwrap();
+                    assert_eq!(broadcast.command, "VERSION");
+                    assert!(
+                        matches!(&broadcast.to, Broadcast::Mask(mask) if mask == "$*.example.org")
+                    );
+                }
+                "BroadcastTagMsg" => {
+                    let broadcast = event.as_broadcast_tag_msg().unwrap();
+                    assert!(matches!(broadcast.to, Broadcast::Everyone));
+                    assert_eq!(broadcast.tags.get("+typing"), Some("active"));
+                    assert_eq!(broadcast.tags.get("+draft/react"), Some("👍"));
+                }
+                _ => {}
+            }
             let expected_msgid = (expected_variant != "ServerNotice").then_some(msgid);
             assert_eq!(
                 event.msgid().as_deref(),
