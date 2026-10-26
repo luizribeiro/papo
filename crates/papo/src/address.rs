@@ -79,7 +79,32 @@ pub enum InvalidInput {
     InsecureAuthentication,
     /// An outbound IRC message cannot be represented on the wire.
     #[error("invalid IRC message: {0}")]
-    InvalidMessage(String),
+    WireMessage(#[source] crate::BuildError),
+    /// A CTCP command or text contains a framing or IRC line delimiter.
+    #[error("invalid CTCP command or text")]
+    InvalidCtcp,
+    /// A client-only message tag key does not begin with `+`.
+    #[error("client-only message tag {0:?} must start with '+'")]
+    InvalidClientTagKey(String),
+    /// A custom stream cannot be reused for another bouncer network connection.
+    #[error("a custom stream cannot be copied to a bouncer network connection")]
+    CustomStreamNotReusable,
+    /// A mode change is not valid under the server's advertised mode rules.
+    #[error("invalid mode change: {0}")]
+    InvalidMode(String),
+    /// A metadata key is invalid.
+    #[error("metadata key {key:?} is invalid: {reason}")]
+    #[non_exhaustive]
+    InvalidMetadataKey {
+        /// The rejected metadata key.
+        key: String,
+        /// Why the protocol rejected the key.
+        #[source]
+        reason: crate::InvalidIdentifier,
+    },
+    /// A request contains input unsupported by its protocol command.
+    #[error("invalid request input: {0}")]
+    InvalidRequest(String),
     /// An IRC name is invalid in its protocol context.
     #[error("{argument} `{name}` is not a valid IRC name: {reason}")]
     #[non_exhaustive]

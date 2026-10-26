@@ -328,7 +328,7 @@ impl IntoFuture for SetModes {
             let state = self.client.state();
             state
                 .parse_target_inner(&self.target)
-                .map_err(|error| invalid(error.to_string()))?;
+                .map_err(|reason| InvalidInput::invalid_name(self.target.clone(), reason))?;
             let changes = self
                 .changes
                 .into_iter()
@@ -534,8 +534,10 @@ impl Argument {
             Self::Raw(_) => Ok(()),
             Self::Nick(value) => value
                 .check(isupport)
-                .map_err(|error| invalid(error.to_string())),
-            Self::Mask(value) => value.check().map_err(|error| invalid(error.to_string())),
+                .map_err(|reason| InvalidInput::invalid_name(value.to_string(), reason).into()),
+            Self::Mask(value) => value
+                .check()
+                .map_err(|reason| InvalidInput::invalid_name(value.to_string(), reason).into()),
             Self::Ban(_) => unreachable!("ban targets are resolved before validation"),
         }
     }
@@ -734,7 +736,7 @@ pub(crate) fn confirmed_ban(
 }
 
 fn invalid(message: impl Into<String>) -> Error {
-    InvalidInput::InvalidMessage(message.into()).into()
+    InvalidInput::InvalidMode(message.into()).into()
 }
 
 #[cfg(all(test, not(browser)))]

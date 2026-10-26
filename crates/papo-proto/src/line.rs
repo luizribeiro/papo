@@ -82,7 +82,7 @@ impl From<Utf8Error> for ParseError {
 }
 
 /// A failure to build a valid IRC wire line.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum BuildError {
     /// The command is empty or contains a wire delimiter.

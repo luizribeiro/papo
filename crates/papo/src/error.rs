@@ -585,7 +585,7 @@ impl Error {
     }
 
     pub(crate) fn build(error: papo_proto::BuildError) -> Self {
-        Self::InvalidInput(InvalidInput::InvalidMessage(error.to_string()))
+        Self::InvalidInput(InvalidInput::WireMessage(error))
     }
 
     pub(crate) fn server(error: papo_core::ServerError) -> Self {
@@ -595,9 +595,7 @@ impl Error {
     pub(crate) fn request(error: papo_core::RequestError) -> Self {
         use papo_core::RequestError as Request;
         match error {
-            Request::Build(error) => {
-                Self::InvalidInput(InvalidInput::InvalidMessage(error.to_string()))
-            }
+            Request::Build(error) => Self::InvalidInput(InvalidInput::WireMessage(error)),
             Request::EmptyText => Self::InvalidInput(InvalidInput::EmptyText),
             Request::InvalidSecret => Self::InvalidInput(InvalidInput::BinarySecret),
             Request::InsecureAuthentication => {
@@ -613,7 +611,7 @@ impl Error {
                 Self::InvalidInput(InvalidInput::AccountNameMustMatchNick)
             }
             Request::InvalidMetadataKey { key, reason, .. } => {
-                Self::InvalidInput(InvalidInput::invalid_name(key, reason))
+                Self::InvalidInput(InvalidInput::InvalidMetadataKey { key, reason })
             }
             Request::MetadataValueTooLong {
                 maximum, actual, ..
@@ -629,7 +627,7 @@ impl Error {
             }
             #[cfg(feature = "unstable")]
             Request::InvalidWebPushKey => Self::InvalidInput(InvalidInput::InvalidWebPushKey),
-            _ => Self::InvalidInput(InvalidInput::InvalidMessage(error.to_string())),
+            _ => Self::InvalidInput(InvalidInput::InvalidRequest(error.to_string())),
         }
     }
 }
@@ -860,8 +858,8 @@ mod tests {
                 "draft/example".into(),
                 papo_proto::InvalidIdentifier::InvalidCharacter('/'),
             )),
-            Error::InvalidInput(InvalidInput::InvalidName { name, reason, .. })
-                if name == "draft/example"
+            Error::InvalidInput(InvalidInput::InvalidMetadataKey { key, reason, .. })
+                if key == "draft/example"
                     && reason == papo_proto::InvalidIdentifier::InvalidCharacter('/')
         ));
         assert!(matches!(
@@ -962,7 +960,16 @@ mod tests {
             InvalidInput::ZeroEventCapacity,
             InvalidInput::RateLimit(crate::InvalidRateLimit::EmptyBurst),
             InvalidInput::BinarySecret,
-            InvalidInput::InvalidMessage("embedded CR".into()),
+            InvalidInput::WireMessage(crate::BuildError::InvalidParam(0)),
+            InvalidInput::InvalidCtcp,
+            InvalidInput::InvalidClientTagKey("account".into()),
+            InvalidInput::CustomStreamNotReusable,
+            InvalidInput::InvalidMode("mode has an invalid argument".into()),
+            InvalidInput::InvalidMetadataKey {
+                key: "Display-Name".into(),
+                reason: crate::InvalidIdentifier::InvalidCharacter('D'),
+            },
+            InvalidInput::InvalidRequest("unsupported history status".into()),
             InvalidInput::InvalidName {
                 argument: "name",
                 name: String::new(),
@@ -1050,9 +1057,9 @@ mod tests {
             "the IRC operation was interrupted: the server disconnected: maintenance restart"
         );
         assert_eq!(
-            Error::InvalidInput(InvalidInput::InvalidMessage("invalid IRC line".into()))
+            Error::InvalidInput(InvalidInput::WireMessage(crate::BuildError::InvalidCommand))
                 .to_string(),
-            "invalid IRC message: invalid IRC line"
+            "invalid IRC message: IRC command is invalid"
         );
     }
 }

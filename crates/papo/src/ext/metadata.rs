@@ -90,10 +90,13 @@ impl Metadata {
             let state = metadata.client.state();
             state
                 .parse_target_inner(&target)
-                .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
+                .map_err(|reason| crate::InvalidInput::invalid_name(target.clone(), reason))?;
             for key in &keys {
                 key.check()
-                    .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
+                    .map_err(|reason| crate::InvalidInput::InvalidMetadataKey {
+                        key: key.to_string(),
+                        reason,
+                    })?;
             }
             metadata
                 .request(MetadataCommand::__get(

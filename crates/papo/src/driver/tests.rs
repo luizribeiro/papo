@@ -692,7 +692,7 @@ async fn manual_ctcp_replies_reject_delimiters() {
     ] {
         assert!(matches!(
             client.ctcp_reply(query, invalid).await,
-            Err(Error::InvalidInput(crate::InvalidInput::InvalidMessage(_)))
+            Err(Error::InvalidInput(crate::InvalidInput::InvalidCtcp))
         ));
     }
 
@@ -5530,7 +5530,7 @@ async fn mode_changes_validate_every_chunk_before_sending() {
             .add('m')
             .add_with('k', "bad\r\nOPER")
             .await,
-        Err(Error::InvalidInput(crate::InvalidInput::InvalidMessage(_)))
+        Err(Error::InvalidInput(crate::InvalidInput::InvalidMode(_)))
     ));
     let mut byte = [0];
     assert!(
@@ -6375,7 +6375,9 @@ async fn message_tag_without_client_prefix_is_invalid_input() {
                 .tag("account", "alice")
         )
         .await,
-        Err(Error::InvalidInput(crate::InvalidInput::InvalidMessage(_)))
+        Err(Error::InvalidInput(
+            crate::InvalidInput::InvalidClientTagKey(_)
+        ))
     ));
 
     within(server.shutdown()).await.unwrap();
@@ -6604,7 +6606,7 @@ async fn actions_reject_every_ctcp_delimiter_without_panicking() {
     for text in ["", "waves\rnow", "waves\nnow", "waves\0now", "waves\x01now"] {
         assert!(matches!(
             within(client.action("#papo", text)).await,
-            Err(Error::InvalidInput(crate::InvalidInput::InvalidMessage(_)))
+            Err(Error::InvalidInput(crate::InvalidInput::InvalidCtcp))
         ));
     }
 
@@ -7224,7 +7226,7 @@ async fn client_send_raw_rejects_invalid_lines() {
     ] {
         assert!(matches!(
             client.send_raw(line).await,
-            Err(Error::InvalidInput(crate::InvalidInput::InvalidMessage(_)))
+            Err(Error::InvalidInput(crate::InvalidInput::WireMessage(_)))
         ));
     }
     within(server.shutdown()).await.unwrap();
@@ -7244,7 +7246,7 @@ async fn quit_resolves_when_the_server_closed_first() {
     assert!(client.quit("leaving for maintenance").await.is_ok());
     assert!(matches!(
         client.quit("maintenance\nQUIT").await,
-        Err(Error::InvalidInput(crate::InvalidInput::InvalidMessage(_)))
+        Err(Error::InvalidInput(crate::InvalidInput::WireMessage(_)))
     ));
     assert!(matches!(
         events.next().await,

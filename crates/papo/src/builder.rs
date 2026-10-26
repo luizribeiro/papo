@@ -118,9 +118,7 @@ impl Builder {
         builder.credentials_configured = settings.credentials_configured;
         builder.allow_insecure_auth = settings.allow_insecure_auth;
         if !settings.reusable_transport {
-            builder.invalid_input = Some(InvalidInput::InvalidMessage(
-                "a custom stream cannot be copied to a bouncer network connection".to_owned(),
-            ));
+            builder.invalid_input = Some(InvalidInput::CustomStreamNotReusable);
         }
         builder
     }
@@ -829,7 +827,7 @@ fn connect_input_error(config: &Config) -> Option<InvalidInput> {
     config
         .validate_registration()
         .err()
-        .map(|error| InvalidInput::InvalidMessage(error.to_string()))
+        .map(InvalidInput::WireMessage)
 }
 
 #[cfg(all(test, not(browser)))]
@@ -1265,8 +1263,7 @@ mod tests {
             .unwrap();
         assert!(matches!(
             error,
-            Error::InvalidInput(InvalidInput::InvalidMessage(message))
-                if message.contains("custom stream")
+            Error::InvalidInput(InvalidInput::CustomStreamNotReusable)
         ));
     }
 
@@ -1457,7 +1454,7 @@ mod tests {
             let (_client, _events, driver) = builder.build();
             assert!(matches!(
                 within(driver).await,
-                Err(Error::InvalidInput(InvalidInput::InvalidMessage(_)))
+                Err(Error::InvalidInput(InvalidInput::WireMessage(_)))
             ));
         }
     }

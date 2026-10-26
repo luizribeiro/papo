@@ -202,10 +202,7 @@ impl IntoFuture for SendMessage {
             let state = self.client.state();
             for (key, _) in &self.tags {
                 if !key.starts_with('+') {
-                    return Err(InvalidInput::InvalidMessage(format!(
-                        "client-only message tag {key:?} must start with '+'"
-                    ))
-                    .into());
+                    return Err(InvalidInput::InvalidClientTagKey(key.clone()).into());
                 }
             }
             if !self.tags.is_empty() {
@@ -487,9 +484,7 @@ impl Client {
         let client = self.clone();
         crate::RequestFuture::new(async move {
             client.resolve(crate::target::Role::Send("ctcp_reply: query"), target)?;
-            let reply = reply.ok_or_else(|| {
-                InvalidInput::InvalidMessage("invalid CTCP reply query or text".into())
-            })?;
+            let reply = reply.ok_or(InvalidInput::InvalidCtcp)?;
             client.send_message(reply).await
         })
     }
@@ -630,9 +625,7 @@ impl Client {
             request
         } else {
             let mut request = self.privmsg(target, text);
-            request.invalid_input = Some(InvalidInput::InvalidMessage(
-                "invalid CTCP ACTION text".to_owned(),
-            ));
+            request.invalid_input = Some(InvalidInput::InvalidCtcp);
             request
         }
     }
@@ -875,9 +868,7 @@ impl Client {
             .map_err(|reason| InvalidInput::invalid_name(target, reason))?;
         if !self.state().is_connected() {
             let text = if action {
-                Ctcp::action(text).ok_or_else(|| {
-                    InvalidInput::InvalidMessage("invalid CTCP ACTION text".to_owned())
-                })?
+                Ctcp::action(text).ok_or(InvalidInput::InvalidCtcp)?
             } else {
                 text.to_owned()
             };
