@@ -42,6 +42,10 @@ async fn next_active_event(events: &mut Events) -> papo::Event {
     }
 }
 
+async fn connected(events: &mut Events) {
+    while !matches!(next_active_event(events).await, papo::Event::Connected(_)) {}
+}
+
 fn disconnect_diagnostic(disconnected: &Disconnected) -> String {
     match &disconnected.cause {
         DisconnectCause::Connect(error) => {
@@ -238,6 +242,138 @@ async fn cross_client_values_never_reach_either_wire() {
             .await
             .is_err()
     );
+}
+
+#[tokio::test]
+async fn foreign_return_addresses_cannot_send_typing_or_notices() {
+    let (first, mut first_events, mut first_wire) = wire(
+        papo::Client::builder("irc://first.offline.test")
+            .nick("papo-first")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    let (_second, mut second_events, mut second_wire) = wire(
+        papo::Client::builder("irc://second.offline.test")
+            .nick("papo-second")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    first_wire.register(&["message-tags"]).await;
+    second_wire.register(&["message-tags"]).await;
+    connected(&mut first_events).await;
+    connected(&mut second_events).await;
+
+    second_wire
+        .server(":alice!~a@cloak.example PRIVMSG papo-second :release ready")
+        .await;
+    let papo::Event::Message(message) = next_active_event(&mut second_events).await else {
+        panic!("expected a private message")
+    };
+    let address = message.return_address();
+
+    assert!(is_foreign(
+        &first.typing(address.clone(), papo::Typing::Active).await
+    ));
+    assert!(is_foreign(&first.notice(address, "acknowledged").await));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), first_wire.next_sent())
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn nickname_handoffs_block_notices_and_ctcp_replies() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test")
+            .nick("papo-wire")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&["message-tags"]).await;
+    connected(&mut events).await;
+    for line in [
+        ":papo-wire!p@localhost JOIN #review",
+        ":alice!~a@cloak.example JOIN #review",
+        ":mallory!~m@users.example JOIN #review",
+    ] {
+        wire.server(line).await;
+        assert!(matches!(
+            next_active_event(&mut events).await,
+            papo::Event::Joined(_)
+        ));
+    }
+    wire.server(":alice!~a@cloak.example NOTICE papo-wire :release status")
+        .await;
+    let papo::Event::Notice(notice) = next_active_event(&mut events).await else {
+        panic!("expected a private notice")
+    };
+    wire.server(":alice!~a@cloak.example PRIVMSG #review :\u{1}VERSION\u{1}")
+        .await;
+    let papo::Event::CtcpQuery(query) = next_active_event(&mut events).await else {
+        panic!("expected a CTCP query")
+    };
+
+    wire.server(":alice!~a@cloak.example QUIT :Client Quit")
+        .await;
+    assert!(matches!(
+        next_active_event(&mut events).await,
+        papo::Event::Quit(_)
+    ));
+    wire.server(":mallory!~m@users.example NICK alice").await;
+    assert!(matches!(
+        next_active_event(&mut events).await,
+        papo::Event::NickChanged(_)
+    ));
+
+    assert!(matches!(
+        client.notice(notice.return_address(), "classified").await,
+        Err(papo::Error::TargetGone)
+    ));
+    assert!(matches!(
+        client.ctcp_reply(&query, "papo 0.1").await,
+        Err(papo::Error::TargetGone)
+    ));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), wire.next_sent())
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn ops_only_return_addresses_survive_notice_and_typing_sends() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test")
+            .nick("papo-wire")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&["message-tags"]).await;
+    connected(&mut events).await;
+    wire.server(":offline.test 005 papo-wire STATUSMSG=@+ :are supported")
+        .await;
+    wire.server(":alice!~a@cloak.example NOTICE @#ops :release status")
+        .await;
+    let papo::Event::Notice(notice) = next_active_event(&mut events).await else {
+        panic!("expected an operators-only notice")
+    };
+    wire.server("@+typing=paused :alice!~a@cloak.example TAGMSG @#ops")
+        .await;
+    let papo::Event::TypingChanged(typing) = next_active_event(&mut events).await else {
+        panic!("expected an operators-only typing notification")
+    };
+
+    client
+        .notice(notice.return_address(), "acknowledged")
+        .await
+        .unwrap();
+    assert_eq!(wire.next_sent().await, "NOTICE @#ops acknowledged");
+    client
+        .typing(typing.return_address(), papo::Typing::Active)
+        .await
+        .unwrap();
+    assert_eq!(wire.next_sent().await, "@+typing=active TAGMSG @#ops");
 }
 
 #[derive(Clone, Default)]
