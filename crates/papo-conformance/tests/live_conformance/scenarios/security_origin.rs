@@ -1,8 +1,8 @@
 use std::{io, time::Duration};
 
 use papo::{
-    Client, DisconnectCause, Endpoint, Error, Event, Feature, InvalidInput, NetworkConfig,
-    NetworkId, NetworkState, Reconnect, Sasl, event::BouncerNetworkChanged,
+    Client, DisconnectCause, Endpoint, Error, Event, Feature, InvalidInput, NetworkId,
+    NetworkState, Reconnect, Sasl, event::BouncerNetworkChanged,
 };
 use papo_conformance_macros::scenario;
 
@@ -196,13 +196,15 @@ async fn bouncer_notifications_are_single_source(s: Scenario) -> papo_testing::R
     let upstream = bouncer.upstream_addr();
     let config = |prefix: &str| {
         let name = papo_test_server::unique(prefix);
-        NetworkConfig::new(upstream.ip().to_string())
-            .port(upstream.port())
-            .tls(false)
-            .name(name.clone())
-            .nick(name)
+        (format!("irc://{upstream}"), name)
     };
-    let added = control.bouncer().add(config("managed-change")).await?;
+    let (endpoint, name) = config("managed-change");
+    let added = control
+        .bouncer()
+        .add(endpoint)
+        .name(&name)
+        .nick(name)
+        .await?;
     let changed = control
         .wait_for(|event| connected_network_change(event, &added))
         .await?;
@@ -217,9 +219,12 @@ async fn bouncer_notifications_are_single_source(s: Scenario) -> papo_testing::R
         .connect_with(control.bouncer().network(&id).request_caps([notify]))
         .await?;
     opted_in.expect_none(Event::as_message).await?;
+    let (endpoint, name) = config("bound-managed-change");
     let added = opted_in
         .bouncer()
-        .add(config("bound-managed-change"))
+        .add(endpoint)
+        .name(&name)
+        .nick(name)
         .await?;
     opted_in
         .wait_for(|event| connected_network_change(event, &added))

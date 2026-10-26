@@ -5,9 +5,7 @@ mod support;
 
 use std::collections::BTreeMap;
 
-use papo_core::{
-    CloseKind, Config, Event, Feature, NetworkConfig, NetworkId, NetworkState, StateLimit,
-};
+use papo_core::{CloseKind, Config, Event, Feature, NetworkId, NetworkState, StateLimit};
 use support::{Transcript, assert_session_debug_redacts, queue_debug_marker};
 
 #[test]
@@ -149,11 +147,28 @@ fn ignores_nearby_standard_replies_when_binding_a_network() {
 
 #[test]
 fn sends_each_bouncer_network_operation() {
-    let config = NetworkConfig::new("irc.libera.chat")
-        .name("Libera Chat")
-        .port(6697)
-        .tls(true)
-        .nick("alice");
+    let config = papo_core::__bouncer_attributes(
+        Some("irc.libera.chat"),
+        Some("Libera Chat"),
+        Some(6697),
+        Some(true),
+        Some("alice"),
+        None,
+        None,
+        None,
+    )
+    .unwrap();
+    let change = papo_core::__bouncer_attributes(
+        None,
+        Some("Libera IRC"),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+    )
+    .unwrap();
     registered()
         .update(|session| {
             session
@@ -169,7 +184,7 @@ fn sends_each_bouncer_network_operation() {
         .event(|event| matches!(event, Event::Response(response) if response.lines.len() == 1))
         .update(|session| {
             session
-                .bouncer_add(std::time::Instant::now(), &config)
+                .bouncer_add(std::time::Instant::now(), config.clone())
                 .unwrap();
         })
         .client(r"@label=1 BOUNCER ADDNETWORK host=irc.libera.chat;name=Libera\sChat;port=6697;tls=1;nickname=alice")
@@ -177,10 +192,10 @@ fn sends_each_bouncer_network_operation() {
         .event(|event| matches!(event, Event::Response(response) if response.lines.len() == 1))
         .update(|session| {
             session
-                .bouncer_change(std::time::Instant::now(), &NetworkId::from("43"), &config)
+                .bouncer_change(std::time::Instant::now(), &NetworkId::from("43"), change.clone())
                 .unwrap();
         })
-        .client(r"@label=2 BOUNCER CHANGENETWORK 43 host=irc.libera.chat;name=Libera\sChat;port=6697;tls=1;nickname=alice")
+        .client(r"@label=2 BOUNCER CHANGENETWORK 43 name=Libera\sIRC")
         .server("@label=2 BOUNCER CHANGENETWORK 43")
         .event(|event| matches!(event, Event::Response(response) if response.lines.len() == 1))
         .update(|session| {
@@ -196,11 +211,22 @@ fn sends_each_bouncer_network_operation() {
 
 #[test]
 fn redacts_a_queued_bouncer_network_password() {
-    let config = NetworkConfig::new("irc.example.org").password("unique-bouncer-password-9241");
+    let password = papo_core::Secret::new("unique-bouncer-password-9241");
+    let config = papo_core::__bouncer_attributes(
+        Some("irc.example.org"),
+        None,
+        Some(6667),
+        Some(false),
+        None,
+        None,
+        None,
+        Some(&password),
+    )
+    .unwrap();
     registered()
         .update(|session| {
             session
-                .bouncer_add(std::time::Instant::now(), &config)
+                .bouncer_add(std::time::Instant::now(), config.clone())
                 .unwrap();
             queue_debug_marker(session);
         })
@@ -208,7 +234,7 @@ fn redacts_a_queued_bouncer_network_password() {
             assert_session_debug_redacts(session, "unique-bouncer-password-9241");
         })
         .client(
-            "@label=0 BOUNCER ADDNETWORK host=irc.example.org;pass=unique-bouncer-password-9241",
+            "@label=0 BOUNCER ADDNETWORK host=irc.example.org;port=6667;tls=0;pass=unique-bouncer-password-9241",
         )
         .client("PRIVMSG #papo :ordinary debug marker");
 }

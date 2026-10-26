@@ -177,16 +177,27 @@ fn wipes_bouncer_password_attribute_buffers() {
     session.handle_line(now, b"CAP * ACK :soju.im/bouncer-networks labeled-response");
     while session.poll_transmit().is_some() {}
 
-    let config = papo_core::NetworkConfig::new("irc.example.org").password(PASSWORD);
-    session.bouncer_add(now, &config).unwrap();
+    let password = papo_core::Secret::new(PASSWORD);
+    let config = papo_core::__bouncer_attributes(
+        Some("irc.example.org"),
+        None,
+        Some(6667),
+        Some(false),
+        None,
+        None,
+        None,
+        Some(&password),
+    )
+    .unwrap();
+    session.bouncer_add(now, config).unwrap();
     let line = session.poll_transmit().unwrap();
     assert!(
         line.windows(PASSWORD.len())
             .any(|window| window == PASSWORD.as_bytes())
     );
     drop(line);
-    drop(config);
     drop(session);
+    drop(password);
     TARGET.store(0, Ordering::SeqCst);
     assert!(!LEAKED.load(Ordering::SeqCst));
 }

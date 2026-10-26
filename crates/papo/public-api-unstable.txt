@@ -32,7 +32,6 @@ pub use papo::ModeArg
 pub use papo::ModeChange
 pub use papo::ModeListEntry
 pub use papo::ModeValue
-pub use papo::NetworkConfig
 pub use papo::NetworkId
 pub use papo::NetworkState
 pub use papo::Nick
@@ -1872,6 +1871,26 @@ impl core::marker::Unpin for papo::Subject
 impl core::marker::UnsafeUnpin for papo::Subject
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Subject
 impl core::panic::unwind_safe::UnwindSafe for papo::Subject
+pub struct papo::AddNetwork
+impl papo::AddNetwork
+pub fn papo::AddNetwork::name(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::AddNetwork::nick(self, impl core::convert::AsRef<str>) -> Self
+pub fn papo::AddNetwork::password(self, impl core::convert::Into<papo::Secret>) -> Self
+pub fn papo::AddNetwork::realname(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::AddNetwork::username(self, impl core::convert::Into<alloc::string::String>) -> Self
+impl core::fmt::Debug for papo::AddNetwork
+pub fn papo::AddNetwork::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::future::into_future::IntoFuture for papo::AddNetwork
+pub type papo::AddNetwork::IntoFuture = papo::RequestFuture<papo::NetworkId>
+pub type papo::AddNetwork::Output = core::result::Result<papo::NetworkId, papo::Error>
+pub fn papo::AddNetwork::into_future(self) -> Self::IntoFuture
+impl core::marker::Freeze for papo::AddNetwork
+impl core::marker::Send for papo::AddNetwork
+impl core::marker::Sync for papo::AddNetwork
+impl core::marker::Unpin for papo::AddNetwork
+impl core::marker::UnsafeUnpin for papo::AddNetwork
+impl core::panic::unwind_safe::RefUnwindSafe for papo::AddNetwork
+impl core::panic::unwind_safe::UnwindSafe for papo::AddNetwork
 pub struct papo::BanTarget(_)
 impl core::clone::Clone for papo::BanTarget
 pub fn papo::BanTarget::clone(&self) -> Self
@@ -1900,8 +1919,8 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::BanTarget
 impl core::panic::unwind_safe::UnwindSafe for papo::BanTarget
 pub struct papo::Bouncer
 impl papo::Bouncer
-pub fn papo::Bouncer::add(&self, papo::NetworkConfig) -> papo::RequestFuture<papo::NetworkId>
-pub fn papo::Bouncer::change(&self, &papo::NetworkId, papo::NetworkConfig) -> papo::RequestFuture<()>
+pub fn papo::Bouncer::add(&self, impl papo::IntoEndpoint) -> papo::AddNetwork
+pub fn papo::Bouncer::change(&self, &papo::NetworkId) -> papo::ChangeNetwork
 pub fn papo::Bouncer::network(&self, &papo::NetworkId) -> papo::Builder
 pub fn papo::Bouncer::networks(&self) -> papo::RequestFuture<alloc::vec::Vec<papo::BouncerNetwork>>
 pub fn papo::Bouncer::remove(&self, &papo::NetworkId) -> papo::RequestFuture<()>
@@ -1963,6 +1982,26 @@ impl core::marker::Unpin for papo::Builder
 impl core::marker::UnsafeUnpin for papo::Builder
 impl !core::panic::unwind_safe::RefUnwindSafe for papo::Builder
 impl !core::panic::unwind_safe::UnwindSafe for papo::Builder
+pub struct papo::ChangeNetwork
+impl papo::ChangeNetwork
+pub fn papo::ChangeNetwork::name(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::ChangeNetwork::nick(self, impl core::convert::AsRef<str>) -> Self
+pub fn papo::ChangeNetwork::password(self, impl core::convert::Into<papo::Secret>) -> Self
+pub fn papo::ChangeNetwork::realname(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::ChangeNetwork::username(self, impl core::convert::Into<alloc::string::String>) -> Self
+impl core::fmt::Debug for papo::ChangeNetwork
+pub fn papo::ChangeNetwork::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::future::into_future::IntoFuture for papo::ChangeNetwork
+pub type papo::ChangeNetwork::IntoFuture = papo::RequestFuture<()>
+pub type papo::ChangeNetwork::Output = core::result::Result<(), papo::Error>
+pub fn papo::ChangeNetwork::into_future(self) -> Self::IntoFuture
+impl core::marker::Freeze for papo::ChangeNetwork
+impl core::marker::Send for papo::ChangeNetwork
+impl core::marker::Sync for papo::ChangeNetwork
+impl core::marker::Unpin for papo::ChangeNetwork
+impl core::marker::UnsafeUnpin for papo::ChangeNetwork
+impl core::panic::unwind_safe::RefUnwindSafe for papo::ChangeNetwork
+impl core::panic::unwind_safe::UnwindSafe for papo::ChangeNetwork
 pub struct papo::Client
 impl papo::Client
 pub fn papo::Client::action(&self, impl papo::Target, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage

@@ -9,10 +9,7 @@ use papo_proto::{Line, LineRef, Param};
 use web_time::Instant;
 use zeroize::{Zeroize, Zeroizing};
 
-use crate::{
-    Feature, RequestError, RequestId, Secret, Session,
-    server_url::{InvalidUrl, ServerUrl, ServerUrlScheme},
-};
+use crate::{Feature, RequestError, RequestId, Secret, Session};
 
 /// Stable identifier assigned to a network by a bouncer.
 ///
@@ -234,138 +231,48 @@ fn parse_state(value: &str) -> Option<NetworkState> {
     }
 }
 
-/// Attributes used to add or change an upstream bouncer network.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct NetworkConfig {
-    host: String,
-    name: Option<String>,
+#[doc(hidden)]
+#[allow(clippy::too_many_arguments)]
+pub fn __bouncer_attributes(
+    host: Option<&str>,
+    name: Option<&str>,
     port: Option<u16>,
     tls: Option<bool>,
-    nick: Option<String>,
-    username: Option<String>,
-    realname: Option<String>,
-    password: Option<Secret>,
-}
-
-impl NetworkConfig {
-    /// Creates a configuration from an `irc://` or `ircs://` URL.
-    ///
-    /// Brackets are required around IPv6 literals. When the URL omits a port, IRC defaults to
-    /// 6667 and IRC over TLS defaults to 6697.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`InvalidUrl`] for an unsupported scheme, malformed host or port, or a URL
-    /// containing a path, query, fragment, or user information.
-    pub fn from_url(url: &str) -> Result<Self, InvalidUrl> {
-        let url = url.parse::<ServerUrl>()?;
-        let tls = match url.scheme() {
-            ServerUrlScheme::Irc => false,
-            ServerUrlScheme::Ircs => true,
-            scheme => {
-                return Err(InvalidUrl::UnsupportedScheme(scheme.to_string()));
-            }
-        };
-        Ok(Self::new(url.host()).port(url.port()).tls(tls))
+    nick: Option<&str>,
+    username: Option<&str>,
+    realname: Option<&str>,
+    password: Option<&Secret>,
+) -> Result<Param, RequestError> {
+    let password = password
+        .map(|secret| secret.expose().ok_or(RequestError::InvalidSecret))
+        .transpose()?;
+    let mut attributes = Zeroizing::new(String::new());
+    if let Some(value) = host {
+        push_attribute(&mut attributes, "host", value);
     }
-
-    /// Creates a configuration for an upstream hostname or IP address.
-    #[must_use]
-    pub fn new(host: impl Into<String>) -> Self {
-        Self {
-            host: host.into(),
-            name: None,
-            port: None,
-            tls: None,
-            nick: None,
-            username: None,
-            realname: None,
-            password: None,
+    if let Some(value) = name {
+        push_attribute(&mut attributes, "name", value);
+    }
+    if let Some(value) = port {
+        write!(attributes, ";port={value}").expect("writing to a String cannot fail");
+    }
+    if let Some(value) = tls {
+        write!(attributes, ";tls={}", u8::from(value)).expect("writing to a String cannot fail");
+    }
+    for (key, value) in [
+        ("nickname", nick),
+        ("username", username),
+        ("realname", realname),
+    ] {
+        if let Some(value) = value {
+            push_attribute(&mut attributes, key, value);
         }
     }
-
-    /// Sets the human-readable network name.
-    #[must_use]
-    pub fn name(mut self, name: impl Into<String>) -> Self {
-        self.name = Some(name.into());
-        self
-    }
-
-    /// Sets the upstream TCP port.
-    #[must_use]
-    pub const fn port(mut self, port: u16) -> Self {
-        self.port = Some(port);
-        self
-    }
-
-    /// Selects whether the upstream connection uses TLS.
-    #[must_use]
-    pub const fn tls(mut self, tls: bool) -> Self {
-        self.tls = Some(tls);
-        self
-    }
-
-    /// Sets the connection nickname.
-    #[must_use]
-    pub fn nick(mut self, nick: impl AsRef<str>) -> Self {
-        self.nick = Some(nick.as_ref().to_owned());
-        self
-    }
-
-    /// Sets the connection username.
-    #[must_use]
-    pub fn username(mut self, username: impl Into<String>) -> Self {
-        self.username = Some(username.into());
-        self
-    }
-
-    /// Sets the connection real name.
-    #[must_use]
-    pub fn realname(mut self, realname: impl Into<String>) -> Self {
-        self.realname = Some(realname.into());
-        self
-    }
-
-    /// Sets the upstream server password.
-    #[must_use]
-    pub fn password(mut self, password: impl Into<Secret>) -> Self {
-        self.password = Some(password.into());
-        self
-    }
-
-    pub(crate) fn attributes(&self) -> Result<Param, RequestError> {
-        let password = self
-            .password
-            .as_ref()
-            .map(|secret| secret.expose().ok_or(RequestError::InvalidSecret))
-            .transpose()?;
-        let mut attributes = Zeroizing::new(String::new());
-        push_attribute(&mut attributes, "host", &self.host);
-        if let Some(value) = &self.name {
-            push_attribute(&mut attributes, "name", value);
-        }
-        if let Some(value) = self.port {
-            write!(attributes, ";port={value}").expect("writing to a String cannot fail");
-        }
-        if let Some(value) = self.tls {
-            write!(attributes, ";tls={}", u8::from(value))
-                .expect("writing to a String cannot fail");
-        }
-        for (key, value) in [
-            ("nickname", self.nick.as_deref()),
-            ("username", self.username.as_deref()),
-            ("realname", self.realname.as_deref()),
-        ] {
-            if let Some(value) = value {
-                push_attribute(&mut attributes, key, value);
-            }
-        }
-        if let Some(password) = password {
-            push_attribute(&mut attributes, "pass", password);
-            Ok(Param::from(Secret::from(attributes.as_str())))
-        } else {
-            Ok(Param::from(attributes.as_str()))
-        }
+    if let Some(password) = password {
+        push_attribute(&mut attributes, "pass", password);
+        Ok(Param::from(Secret::from(attributes.as_str())))
+    } else {
+        Ok(Param::from(attributes.as_str()))
     }
 }
 
@@ -410,13 +317,11 @@ impl Session {
     pub fn bouncer_add(
         &mut self,
         now: Instant,
-        config: &NetworkConfig,
+        attributes: Param,
     ) -> Result<RequestId, RequestError> {
         self.request_for_feature(
             now,
-            Line::new("BOUNCER")
-                .param("ADDNETWORK")
-                .param(config.attributes()?),
+            Line::new("BOUNCER").param("ADDNETWORK").param(attributes),
             Feature::Bouncer,
         )
     }
@@ -431,14 +336,14 @@ impl Session {
         &mut self,
         now: Instant,
         id: &NetworkId,
-        config: &NetworkConfig,
+        attributes: Param,
     ) -> Result<RequestId, RequestError> {
         self.request_for_feature(
             now,
             Line::new("BOUNCER")
                 .param("CHANGENETWORK")
                 .param(id.as_ref())
-                .param(config.attributes()?),
+                .param(attributes),
             Feature::Bouncer,
         )
     }
@@ -465,8 +370,7 @@ impl Session {
 mod tests {
     use papo_proto::LineRef;
 
-    use super::{BouncerNetwork, NetworkConfig, NetworkState, NetworkUpdate};
-    use crate::server_url::InvalidUrl;
+    use super::{BouncerNetwork, NetworkState, NetworkUpdate};
 
     #[test]
     fn network_states_display_as_protocol_words() {
@@ -480,109 +384,40 @@ mod tests {
     }
 
     #[test]
-    fn network_config_parses_irc_urls() {
-        let config = NetworkConfig::from_url("ircs://irc.oftc.net").unwrap();
+    fn bouncer_attributes_escape_values_and_redact_password() {
+        let password = crate::Secret::new("unique-bouncer-password-9241");
+        let attributes = super::__bouncer_attributes(
+            Some("irc.example.org"),
+            Some("Example Network"),
+            Some(6697),
+            Some(true),
+            Some("alice"),
+            Some("alice"),
+            Some("Alice; Example"),
+            Some(&password),
+        )
+        .unwrap();
         assert_eq!(
-            &*config.attributes().unwrap(),
-            "host=irc.oftc.net;port=6697;tls=1"
+            &*attributes,
+            r"host=irc.example.org;name=Example\sNetwork;port=6697;tls=1;nickname=alice;username=alice;realname=Alice\:\sExample;pass=unique-bouncer-password-9241"
         );
+        assert!(!format!("{attributes:?}").contains("unique-bouncer-password-9241"));
     }
 
     #[test]
-    fn network_config_parses_plaintext_and_ipv6_urls() {
-        for (url, expected) in [
-            (
-                "irc://irc.oftc.net:7000",
-                "host=irc.oftc.net;port=7000;tls=0",
-            ),
-            (
-                "irc://[2001:db8::7]:6669",
-                "host=2001:db8::7;port=6669;tls=0",
-            ),
-        ] {
-            assert_eq!(
-                &*NetworkConfig::from_url(url).unwrap().attributes().unwrap(),
-                expected
-            );
-        }
-    }
-
-    #[test]
-    fn network_config_rejects_malformed_urls() {
-        for url in [
-            "",
-            "irc.oftc.net:6697",
-            "wss://irc.oftc.net",
-            "irc://",
-            "irc://[2001:db8::7",
-            "irc://2001:db8::7",
-            "irc://irc.oftc.net:0",
-            "irc://irc.oftc.net:65536",
-            "irc://irc.oftc.net:",
-            "irc://alice@irc.oftc.net",
-            "irc://irc.oftc.net/network",
-            "irc://irc.oftc.net/",
-            "irc://irc.oftc.net?network=oftc",
-            "irc://irc.oftc.net#network",
-        ] {
-            assert!(NetworkConfig::from_url(url).is_err(), "accepted {url:?}");
-        }
-        assert_eq!(
-            NetworkConfig::from_url("irc://irc.oftc.net:0"),
-            Err(InvalidUrl::InvalidPort("0".into()))
-        );
-        assert_eq!(
-            NetworkConfig::from_url("wss://irc.oftc.net"),
-            Err(InvalidUrl::UnsupportedScheme("wss".into()))
-        );
-        assert_eq!(
-            NetworkConfig::from_url("irc://[2001:db8::7]6697"),
-            Err(InvalidUrl::InvalidHost("[2001:db8::7]6697".into()))
-        );
-    }
-
-    #[test]
-    fn invalid_network_urls_display_exact_diagnostics() {
-        for (url, expected) in [
-            ("", "server URL is empty"),
-            ("wss://irc.oftc.net", "unsupported scheme \"wss\""),
-            (
-                "irc://[2001:db8::7]6697",
-                "invalid server host \"[2001:db8::7]6697\"",
-            ),
-            ("irc://irc.oftc.net:65536", "invalid service port \"65536\""),
-            (
-                "irc://irc.oftc.net/network",
-                "IRC server URL cannot contain path \"/network\"",
-            ),
-        ] {
-            let error: InvalidUrl = NetworkConfig::from_url(url).unwrap_err();
-            assert_eq!(error.to_string(), expected);
-            assert!(std::error::Error::source(&error).is_none());
-        }
-    }
-
-    #[test]
-    fn network_config_escapes_attributes_and_redacts_password() {
-        let config = NetworkConfig::new("irc.example.org")
-            .name("Example Network")
-            .port(6697)
-            .tls(true)
-            .realname("Alice; Example")
-            .password("unique-bouncer-password-9241");
-        assert_eq!(
-            &*config.attributes().unwrap(),
-            r"host=irc.example.org;name=Example\sNetwork;port=6697;tls=1;realname=Alice\:\sExample;pass=unique-bouncer-password-9241"
-        );
-        assert!(!format!("{config:?}").contains("unique-bouncer-password-9241"));
-    }
-
-    #[test]
-    fn network_config_rejects_a_byte_password() {
-        let config =
-            NetworkConfig::new("irc.example.org").password(crate::Secret::from_bytes([0xff]));
+    fn bouncer_attributes_reject_a_byte_password() {
+        let password = crate::Secret::from_bytes([0xff]);
         assert!(matches!(
-            config.attributes(),
+            super::__bouncer_attributes(
+                Some("irc.example.org"),
+                None,
+                Some(6667),
+                Some(false),
+                None,
+                None,
+                None,
+                Some(&password),
+            ),
             Err(crate::RequestError::InvalidSecret)
         ));
     }

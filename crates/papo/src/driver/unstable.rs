@@ -1,6 +1,6 @@
-use papo_core::{
-    NetworkConfig, NetworkId, PersistenceSetting, RequestError, RequestId, Secret, Session,
-};
+use papo_core::{NetworkId, PersistenceSetting, RequestError, RequestId, Secret, Session};
+
+use crate::ext::bouncer::NetworkConfig;
 
 use super::{CoreRequest, now};
 
@@ -31,9 +31,9 @@ impl UnstableRequest {
             Self::PersistenceGet => session.persistence_get(now())?,
             Self::PersistenceSet(setting) => session.persistence_set(now(), setting)?,
             Self::BouncerNetworks => return session.bouncer_networks(now()),
-            Self::BouncerAdd(config) => return session.bouncer_add(now(), &config),
+            Self::BouncerAdd(config) => return session.bouncer_add(now(), config.attributes()?),
             Self::BouncerChange(id, config) => {
-                return session.bouncer_change(now(), &id, &config);
+                return session.bouncer_change(now(), &id, config.attributes()?);
             }
             Self::BouncerRemove(id) => return session.bouncer_remove(now(), &id),
             Self::Relay {

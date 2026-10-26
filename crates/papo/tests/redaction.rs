@@ -73,6 +73,26 @@ fn unstable_extension_handles_have_opaque_debug_output() {
     let (client, _events, _driver) =
         Client::builder("irc://irc.example.net", "papo-client").build();
     assert_eq!(format!("{:?}", client.bouncer()), "Bouncer { .. }");
+    assert_eq!(
+        format!(
+            "{:?}",
+            client
+                .bouncer()
+                .add("ircs://irc.example.org")
+                .password("unique-upstream-password-9631")
+        ),
+        "AddNetwork { .. }"
+    );
+    assert_eq!(
+        format!(
+            "{:?}",
+            client
+                .bouncer()
+                .change(&papo::NetworkId::from("libera"))
+                .password("unique-upstream-password-1742")
+        ),
+        "ChangeNetwork { .. }"
+    );
     assert_eq!(format!("{:?}", client.persistence()), "Persistence { .. }");
     assert_eq!(format!("{:?}", client.webpush()), "WebPush { .. }");
 }

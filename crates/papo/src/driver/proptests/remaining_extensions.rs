@@ -5,22 +5,29 @@ use super::*;
 #[tokio::test(flavor = "current_thread")]
 async fn arbitrary_bouncer_and_history_input_is_rejected_or_valid() {
     for (first, second, third) in inputs() {
-        let config = || {
-            crate::NetworkConfig::new(first.clone())
-                .name(second.clone())
-                .port(u16::try_from(first.len() % 65_536).unwrap())
-                .tls(first.len() % 2 == 0)
-                .nick(&third)
-                .username(second.clone())
-                .realname(third.clone())
-                .password(first.clone())
-        };
-        check_action(|client| action(client.bouncer().add(config()))).await;
         check_action(|client| {
             action(
                 client
                     .bouncer()
-                    .change(&crate::NetworkId::from(first.clone()), config()),
+                    .add(format!("irc://{first}:6667"))
+                    .name(second.clone())
+                    .nick(&third)
+                    .username(second.clone())
+                    .realname(third.clone())
+                    .password(first.clone()),
+            )
+        })
+        .await;
+        check_action(|client| {
+            action(
+                client
+                    .bouncer()
+                    .change(&crate::NetworkId::from(first.clone()))
+                    .name(second.clone())
+                    .nick(&third)
+                    .username(second.clone())
+                    .realname(third.clone())
+                    .password(first.clone()),
             )
         })
         .await;

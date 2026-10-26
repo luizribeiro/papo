@@ -1854,32 +1854,6 @@ impl core::marker::Unpin for papo_core::MultilineMessage
 impl core::marker::UnsafeUnpin for papo_core::MultilineMessage
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::MultilineMessage
 impl core::panic::unwind_safe::UnwindSafe for papo_core::MultilineMessage
-pub struct papo_core::NetworkConfig
-impl papo_core::NetworkConfig
-pub fn papo_core::NetworkConfig::from_url(&str) -> core::result::Result<Self, InvalidUrl>
-pub fn papo_core::NetworkConfig::name(self, impl core::convert::Into<alloc::string::String>) -> Self
-pub fn papo_core::NetworkConfig::new(impl core::convert::Into<alloc::string::String>) -> Self
-pub fn papo_core::NetworkConfig::nick(self, impl core::convert::AsRef<str>) -> Self
-pub fn papo_core::NetworkConfig::password(self, impl core::convert::Into<papo::Secret>) -> Self
-pub const fn papo_core::NetworkConfig::port(self, u16) -> Self
-pub fn papo_core::NetworkConfig::realname(self, impl core::convert::Into<alloc::string::String>) -> Self
-pub const fn papo_core::NetworkConfig::tls(self, bool) -> Self
-pub fn papo_core::NetworkConfig::username(self, impl core::convert::Into<alloc::string::String>) -> Self
-impl core::clone::Clone for papo_core::NetworkConfig
-pub fn papo_core::NetworkConfig::clone(&self) -> Self
-impl core::cmp::Eq for papo_core::NetworkConfig
-impl core::cmp::PartialEq for papo_core::NetworkConfig
-pub fn papo_core::NetworkConfig::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo_core::NetworkConfig
-pub fn papo_core::NetworkConfig::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo_core::NetworkConfig
-impl core::marker::Freeze for papo_core::NetworkConfig
-impl core::marker::Send for papo_core::NetworkConfig
-impl core::marker::Sync for papo_core::NetworkConfig
-impl core::marker::Unpin for papo_core::NetworkConfig
-impl core::marker::UnsafeUnpin for papo_core::NetworkConfig
-impl core::panic::unwind_safe::RefUnwindSafe for papo_core::NetworkConfig
-impl core::panic::unwind_safe::UnwindSafe for papo_core::NetworkConfig
 pub struct papo_core::NetworkId(_)
 impl papo_core::NetworkId
 pub fn papo_core::NetworkId::into_string(self) -> alloc::string::String
@@ -2165,8 +2139,8 @@ pub const fn papo_core::Session::state_generation(&self) -> u64
 pub fn papo_core::Session::verify(&mut self, std::time::Instant, &str, impl core::convert::Into<papo::Secret>) -> core::result::Result<(), papo_core::RequestError>
 pub fn papo_core::Session::with_entropy(papo_core::Config, alloc::boxed::Box<(dyn papo_core::Entropy + core::marker::Send)>) -> Self
 impl papo_core::Session
-pub fn papo_core::Session::bouncer_add(&mut self, std::time::Instant, &papo_core::NetworkConfig) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
-pub fn papo_core::Session::bouncer_change(&mut self, std::time::Instant, &papo_core::NetworkId, &papo_core::NetworkConfig) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
+pub fn papo_core::Session::bouncer_add(&mut self, std::time::Instant, papo::Param) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
+pub fn papo_core::Session::bouncer_change(&mut self, std::time::Instant, &papo_core::NetworkId, papo::Param) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
 pub fn papo_core::Session::bouncer_networks(&mut self, std::time::Instant) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
 pub fn papo_core::Session::bouncer_remove(&mut self, std::time::Instant, &papo_core::NetworkId) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
 impl papo_core::Session

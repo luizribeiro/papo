@@ -150,7 +150,7 @@ fn assert_extension_futures_are_send(client: &Client, mapping: papo::Casemapping
 #[cfg(feature = "unstable")]
 #[test]
 fn unstable_request_futures_are_send() {
-    use papo::{NetworkConfig, NetworkId, PersistenceSetting, PushKeys};
+    use papo::{NetworkId, PersistenceSetting, PushKeys};
 
     let mapping = papo::Casemapping::default();
     let (client, _, _) = Client::builder("ircs://irc.example.net", "papo-client").build();
@@ -158,12 +158,8 @@ fn unstable_request_futures_are_send() {
     assert_send_static(client.persistence().set(PersistenceSetting::On));
     let network = NetworkId::from("42");
     assert_send_static(client.bouncer().networks());
-    assert_send_static(client.bouncer().add(NetworkConfig::new("irc.libera.chat")));
-    assert_send_static(
-        client
-            .bouncer()
-            .change(&network, NetworkConfig::new("irc.libera.chat")),
-    );
+    assert_send_static(client.bouncer().add("ircs://irc.libera.chat").into_future());
+    assert_send_static(client.bouncer().change(&network).into_future());
     assert_send_static(client.bouncer().remove(&network));
     assert_send_static(client.webpush().register(
         "https://push.example.net/message/ErgoTest/alice",

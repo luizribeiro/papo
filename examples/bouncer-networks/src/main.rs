@@ -2,7 +2,7 @@
 
 use std::{env, error::Error};
 
-use papo::{Client, Event, Feature, NetworkConfig, NetworkState, Sasl};
+use papo::{Client, Event, Feature, NetworkState, Sasl};
 
 const CHANNEL: &str = "#papo";
 
@@ -30,10 +30,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
         print_network("network", &network);
     }
 
-    let config = NetworkConfig::from_url(&upstream_url)?
+    let id = manager
+        .bouncer()
+        .add(upstream_url)
         .name("second")
-        .nick(&nick);
-    let id = manager.bouncer().add(config).await?;
+        .nick(&nick)
+        .await?;
     while let Some(event) = manager_events.next().await {
         if let Event::BouncerNetworkChanged(changed) = event
             && changed.id == id

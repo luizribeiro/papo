@@ -5,10 +5,7 @@ use std::{
 };
 
 use papo::{Client, Endpoint, NetworkId};
-use papo_core::{
-    NetworkConfig,
-    sts::{StsPolicy, StsStore},
-};
+use papo_core::sts::{StsPolicy, StsStore};
 
 use crate::Scenario;
 
@@ -75,17 +72,17 @@ pub(super) async fn bouncer_networks(s: Scenario) -> papo_testing::Result<()> {
     let upstream = bouncer.upstream_addr();
     let host = upstream.ip().to_string();
     let name = papo_test_server::unique("managed-network");
-    let config = NetworkConfig::new(host.clone())
-        .port(upstream.port())
-        .tls(false)
+    let endpoint = format!("irc://{upstream}");
+    let upstream_nick = alice
+        .state()
+        .casemapping()
+        .nick(papo_test_server::unique("upstream-alice"));
+    let id = alice
+        .bouncer()
+        .add(endpoint)
         .name(name.clone())
-        .nick(
-            alice
-                .state()
-                .casemapping()
-                .nick(papo_test_server::unique("upstream-alice")),
-        );
-    let id = alice.bouncer().add(config).await?;
+        .nick(upstream_nick)
+        .await?;
     let added = alice.bouncer().networks().await?;
     let network = added
         .iter()
@@ -97,17 +94,16 @@ pub(super) async fn bouncer_networks(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(network.port, Some(upstream.port()));
 
     let changed_name = papo_test_server::unique("renamed-network");
-    let changed = NetworkConfig::new(host)
-        .port(upstream.port())
-        .tls(false)
+    let upstream_nick = alice
+        .state()
+        .casemapping()
+        .nick(papo_test_server::unique("upstream-bob"));
+    alice
+        .bouncer()
+        .change(&id)
         .name(changed_name.clone())
-        .nick(
-            alice
-                .state()
-                .casemapping()
-                .nick(papo_test_server::unique("upstream-bob")),
-        );
-    alice.bouncer().change(&id, changed).await?;
+        .nick(upstream_nick)
+        .await?;
     let changed = alice.bouncer().networks().await?;
     assert_eq!(
         changed

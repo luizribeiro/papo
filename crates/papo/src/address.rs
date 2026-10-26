@@ -306,6 +306,11 @@ pub(crate) fn convert(value: impl IntoEndpoint) -> Result<ServerAddress, Invalid
     private::Sealed::into_endpoint(value).map(Endpoint::into_address)
 }
 
+#[cfg(feature = "unstable")]
+pub(crate) fn endpoint(value: impl IntoEndpoint) -> Result<Endpoint, InvalidInput> {
+    private::Sealed::into_endpoint(value)
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum Protocol {
     Irc,

@@ -111,7 +111,7 @@ use papo_proto::{
 };
 
 #[cfg(feature = "unstable")]
-pub use self::bouncer::{BouncerNetwork, NetworkConfig, NetworkId, NetworkState};
+pub use self::bouncer::{__bouncer_attributes, BouncerNetwork, NetworkId, NetworkState};
 use account_registration::{AccountRegistration, PendingRegistration, RegistrationPolicy};
 use batch::{BatchAction, BatchEvent, Batches, DispatchContext};
 use caps::Caps;

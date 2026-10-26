@@ -212,7 +212,7 @@ pub use ext::metadata::Metadata;
 pub use ext::monitor::Monitor;
 #[cfg(feature = "unstable")]
 pub use ext::{
-    bouncer::Bouncer,
+    bouncer::{AddNetwork, Bouncer, ChangeNetwork},
     persistence::Persistence,
     webpush::{PushKeys, WebPush},
 };
@@ -231,7 +231,7 @@ pub use papo_core::{
 };
 #[cfg(feature = "unstable")]
 pub use papo_core::{
-    BouncerNetwork, NetworkConfig, NetworkId, NetworkState, PersistenceSetting, PersistenceStatus,
+    BouncerNetwork, NetworkId, NetworkState, PersistenceSetting, PersistenceStatus,
 };
 #[doc(inline)]
 pub use papo_core::{CtcpReplies, InvalidRateLimit, RateLimit, Sasl, WhoOnJoin};
