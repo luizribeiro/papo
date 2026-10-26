@@ -1808,7 +1808,6 @@ pub(crate) fn from_core(
             subject,
             key,
             value,
-            visibility,
             ..
         } => Event::MetadataChanged(MetadataChanged {
             subject: match subject {
@@ -1818,7 +1817,6 @@ pub(crate) fn from_core(
             },
             key: key.into(),
             value,
-            visibility,
         }),
         papo_core::Event::History {
             conversation,
@@ -3879,8 +3877,9 @@ mod tests {
             Event::MetadataChanged(changed)
                 if matches!(changed.subject, crate::Subject::Channel(ref channel) if channel == "#papo")
                     && changed.key == "pronouns"
-                    && changed.value.as_deref() == Some("they/them")
-                    && matches!(changed.visibility, Visibility::Restricted(ref policy) if policy == "members")
+                    && matches!(changed.value, Some(ref value)
+                        if value.value == "they/them"
+                            && matches!(value.visibility, Visibility::Restricted(ref policy) if policy == "members"))
         ));
         assert!(matches!(
             forwarded(papo_core::Event::__metadata_changed(
@@ -3889,10 +3888,7 @@ mod tests {
                 None,
                 Visibility::Public
             )),
-            Event::MetadataChanged(MetadataChanged {
-                visibility: Visibility::Public,
-                ..
-            })
+            Event::MetadataChanged(MetadataChanged { value: None, .. })
         ));
         assert!(matches!(
             from_core(papo_core::Event::__metadata_sync_later(

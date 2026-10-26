@@ -2280,9 +2280,7 @@ pub enum Event {
         /// Metadata key.
         key: String,
         /// New server-returned value, or `None` when cleared.
-        value: Option<String>,
-        /// Visibility policy reported by the server.
-        visibility: Visibility,
+        value: Option<MetadataValue>,
     },
     /// The server deferred metadata synchronization for a user or channel.
     #[non_exhaustive]
@@ -2646,7 +2644,6 @@ hidden_event_constructors! {
     __joined(envelope: LineEnvelope, actor: String, account: Account, realname: Option<String>, channel: ChannelName, nick: Nick, authorship: Authorship, netjoin: Option<SplitServers>) => Joined;
     __account_created(account: AccountName, logged_in: bool) => AccountCreated;
     __verification_required(account: AccountName, message: String) => VerificationRequired;
-    __metadata_changed(subject: Subject, key: String, value: Option<String>, visibility: Visibility) => MetadataChanged;
     __metadata_sync_later(target: String, retry_after: Option<Duration>) => MetadataSyncLater;
     __channel_synced(channel: ChannelName) => ChannelSynced;
     __members_refreshed(channel: ChannelName) => MembersRefreshed;
@@ -2666,6 +2663,23 @@ hidden_event_constructors! {
     __monitor_list_full(limit: usize, nicks: Vec<Nick>) => MonitorListFull;
     __history(conversation: Conversation, items: Vec<HistoryItem>, end: bool) => History;
     __batch_abandoned(reference: String, batch_type: String, reason: BatchAbandonReason) => BatchAbandoned;
+}
+
+impl Event {
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __metadata_changed(
+        subject: Subject,
+        key: String,
+        value: Option<String>,
+        visibility: Visibility,
+    ) -> Self {
+        Self::MetadataChanged {
+            subject,
+            key,
+            value: value.map(|value| MetadataValue { value, visibility }),
+        }
+    }
 }
 
 impl Event {

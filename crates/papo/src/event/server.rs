@@ -1,6 +1,6 @@
 use std::fmt;
 
-use crate::{MetadataKey, Nick, Subject, Unsupported, Visibility};
+use crate::{MetadataKey, MetadataValue, Nick, Subject, Unsupported};
 use papo_core::{BatchAbandonReason, StateLimit};
 
 /// An upstream bouncer network was added, updated, or removed.
@@ -23,9 +23,7 @@ pub struct MetadataChanged {
     /// Metadata key.
     pub key: MetadataKey,
     /// New server-returned value, or `None` when cleared.
-    pub value: Option<String>,
-    /// Visibility policy reported by the server.
-    pub visibility: Visibility,
+    pub value: Option<MetadataValue>,
 }
 
 /// A channel join configured or remembered by papo was refused.

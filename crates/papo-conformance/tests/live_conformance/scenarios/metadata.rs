@@ -18,8 +18,14 @@ async fn draft_metadata_2(s: Scenario) -> papo_testing::Result<()> {
     let changed = alice.wait_for(Event::as_metadata_changed).await?;
     assert_eq!(subject_name(&changed.subject), nick.as_ref());
     assert_eq!(changed.key.as_ref(), key);
-    assert_eq!(changed.value.as_deref(), Some(value));
-    assert_eq!(changed.visibility, Visibility::Public);
+    assert_eq!(
+        changed.value.as_ref().map(|value| value.value.as_str()),
+        Some(value)
+    );
+    assert_eq!(
+        changed.value.as_ref().unwrap().visibility,
+        Visibility::Public
+    );
 
     let values = alice.metadata().get(nick.clone(), [key]).await?;
     let stored = values
@@ -45,7 +51,6 @@ async fn draft_metadata_2(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(subject_name(&removed.subject), nick.as_ref());
     assert_eq!(removed.key.as_ref(), key);
     assert_eq!(removed.value, None);
-    assert_eq!(removed.visibility, Visibility::Public);
     assert!(
         alice
             .state()
@@ -94,9 +99,14 @@ async fn metadata_subscriptions(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(subject_name(&alice_change.subject), alice_nick.as_ref());
     assert_eq!(alice_change.key, bob_change.key);
     assert_eq!(alice_change.value, bob_change.value);
-    assert_eq!(alice_change.visibility, bob_change.visibility);
-    assert_eq!(bob_change.value.as_deref(), Some("available"));
-    assert_eq!(bob_change.visibility, Visibility::Public);
+    assert_eq!(
+        bob_change.value.as_ref().map(|value| value.value.as_str()),
+        Some("available")
+    );
+    assert_eq!(
+        bob_change.value.as_ref().unwrap().visibility,
+        Visibility::Public
+    );
     let bob_state = bob.state();
     let cached = bob_state
         .metadata(alice_nick.as_ref())
@@ -185,8 +195,14 @@ async fn channel_metadata(s: Scenario) -> papo_testing::Result<()> {
             })
         })
         .await?;
-    assert_eq!(bob_change.value.as_deref(), Some(value));
-    assert_eq!(bob_change.visibility, Visibility::Public);
+    assert_eq!(
+        bob_change.value.as_ref().map(|value| value.value.as_str()),
+        Some(value)
+    );
+    assert_eq!(
+        bob_change.value.as_ref().unwrap().visibility,
+        Visibility::Public
+    );
 
     let mut charlie = s
         .connect_with(s.configure("charlie")?.metadata_subscriptions([key]))
@@ -202,7 +218,6 @@ async fn channel_metadata(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(subject_name(&charlie_change.subject), channel);
     assert_eq!(charlie_change.key, bob_change.key);
     assert_eq!(charlie_change.value, bob_change.value);
-    assert_eq!(charlie_change.visibility, bob_change.visibility);
     for peer in [&alice, &bob, &charlie] {
         let state = peer.state();
         let values = state

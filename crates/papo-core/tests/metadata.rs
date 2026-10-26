@@ -3,8 +3,8 @@
 mod support;
 
 use papo_core::{
-    Config, Event, MetadataCommand, MetadataLimits, Refusal, RequestError, StateLimit, Subject,
-    Visibility,
+    Config, Event, MetadataCommand, MetadataLimits, MetadataValue, Refusal, RequestError,
+    StateLimit, Subject, Visibility,
 };
 use std::time::Duration;
 use support::Transcript;
@@ -206,14 +206,18 @@ fn requests_published_metadata_name_and_reads_known_limits() {
     })
     .client("@label=2 METADATA alice GET avatar pronouns")
     .server("@label=0 :ergo.test 761 alice ALICE avatar * :https://cdn.example.net/a.png")
-    .event(|event| matches!(event, Event::MetadataChanged { subject, key, value: Some(value), visibility, .. }
+    .event(|event| matches!(event, Event::MetadataChanged { subject, key, value: Some(value), .. }
         if subject_name(subject) == "ALICE" && key == "avatar"
-            && value == "https://cdn.example.net/a.png" && visibility == &Visibility::Public))
+            && value.value == "https://cdn.example.net/a.png"
+            && value.visibility == Visibility::Public))
     .event(|event| matches!(event, Event::Response(_)))
     .server("@label=1 :ergo.test 761 alice ALICE pronouns channel :they/them")
     .event(|event| matches!(event, Event::MetadataChanged {
         key,
-        visibility: Visibility::Restricted(policy),
+        value: Some(MetadataValue {
+            visibility: Visibility::Restricted(policy),
+            ..
+        }),
         ..
     } if key == "pronouns" && policy == "channel"))
     .event(|event| matches!(event, Event::Response(_)))

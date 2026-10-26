@@ -45,7 +45,10 @@ async fn subscriber_receives_another_clients_metadata() {
                     if matches!(&changed.subject, papo::Subject::User(nick) if nick == writer_nick.as_str())
                         && changed.key == "status" =>
                 {
-                    assert_eq!(changed.value.as_deref(), Some("available for review"));
+                    assert_eq!(
+                        changed.value.as_ref().map(|value| value.value.as_str()),
+                        Some("available for review")
+                    );
                     break;
                 }
                 Some(Event::Disconnected(disconnected)) => {

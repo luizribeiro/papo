@@ -88,8 +88,12 @@ impl State {
         outbox: &mut Outbox,
     ) {
         let visibility = Visibility::from_wire(visibility);
+        let value = value.map(|value| MetadataValue {
+            value: value.to_owned(),
+            visibility,
+        });
         let target_key = NameKey::new(target, self.casemapping);
-        if let Some(value) = value {
+        if let Some(value) = &value {
             if !self.metadata.contains_key(&target_key)
                 && self.metadata.len() >= MAX_METADATA_TARGETS
             {
@@ -103,13 +107,10 @@ impl State {
                 self.warn_limit(StateLimit::MetadataKeys, outbox);
                 return;
             }
-            self.metadata.entry(target_key).or_default().insert(
-                key.into(),
-                MetadataValue {
-                    value: value.to_owned(),
-                    visibility: visibility.clone(),
-                },
-            );
+            self.metadata
+                .entry(target_key)
+                .or_default()
+                .insert(key.into(), value.clone());
         } else if let Some(values) = self.metadata.get_mut(&target_key) {
             _ = values.remove(key);
             if values.is_empty() {
@@ -123,8 +124,7 @@ impl State {
                 Subject::User(self.casemapping.nick(target))
             },
             key: key.to_owned(),
-            value: value.map(str::to_owned),
-            visibility,
+            value,
         });
     }
 }
