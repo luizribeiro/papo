@@ -26,6 +26,22 @@ impl Client {
 }
 
 impl Metadata {
+    fn target(
+        &self,
+        target: impl crate::Target,
+        argument: &'static str,
+    ) -> (String, Option<crate::InvalidInput>) {
+        let result = self.client.resolve(
+            crate::target::Role::Opaque(argument),
+            crate::Target::__parts(&target),
+        );
+        match result {
+            Ok(target) => (target, None),
+            Err(Error::InvalidInput(error)) => (String::new(), Some(error)),
+            Err(error) => unreachable!("address resolution returned {error}"),
+        }
+    }
+
     async fn request(&self, command: MetadataCommand) -> Result<(), Error> {
         let response = self
             .client
@@ -65,7 +81,7 @@ impl Metadata {
         let metadata = Self {
             client: self.client.clone(),
         };
-        let (target, invalid_input) = self.client.target_input(target);
+        let (target, invalid_input) = self.target(target, "metadata.get: target");
         let keys = keys.into_iter().map(Into::into).collect::<Vec<_>>();
         crate::RequestFuture::new(async move {
             if let Some(error) = invalid_input {
@@ -112,16 +128,11 @@ impl Metadata {
         let metadata = Self {
             client: self.client.clone(),
         };
-        let (target, invalid_input) = self.client.target_input(target);
+        let (target, invalid_input) = self.target(target, "metadata.list: target");
         crate::RequestFuture::new(async move {
             if let Some(error) = invalid_input {
                 return Err(error.into());
             }
-            metadata
-                .client
-                .state()
-                .parse_target_inner(&target)
-                .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
             metadata
                 .request(MetadataCommand::__list(target.clone()))
                 .await?;
@@ -182,7 +193,7 @@ impl Metadata {
         let metadata = Self {
             client: self.client.clone(),
         };
-        let (target, invalid_input) = self.client.target_input(target);
+        let (target, invalid_input) = self.target(target, "metadata.set_on: target");
         let key = key.into().into_string();
         let value = value.into();
         crate::RequestFuture::new(async move {
@@ -207,7 +218,7 @@ impl Metadata {
         let metadata = Self {
             client: self.client.clone(),
         };
-        let (target, invalid_input) = self.client.target_input(target);
+        let (target, invalid_input) = self.target(target, "metadata.remove_on: target");
         let key = key.into().into_string();
         crate::RequestFuture::new(async move {
             if let Some(error) = invalid_input {
@@ -237,7 +248,7 @@ impl Metadata {
         let metadata = Self {
             client: self.client.clone(),
         };
-        let (target, invalid_input) = self.client.target_input(target);
+        let (target, invalid_input) = self.target(target, "metadata.clear_on: target");
         crate::RequestFuture::new(async move {
             if let Some(error) = invalid_input {
                 return Err(error.into());
@@ -305,16 +316,11 @@ impl Metadata {
         let metadata = Self {
             client: self.client.clone(),
         };
-        let (target, invalid_input) = self.client.target_input(target);
+        let (target, invalid_input) = self.target(target, "metadata.sync: target");
         crate::RequestFuture::new(async move {
             if let Some(error) = invalid_input {
                 return Err(error.into());
             }
-            metadata
-                .client
-                .state()
-                .parse_target_inner(&target)
-                .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
             metadata.request(MetadataCommand::__sync(target)).await
         })
     }
