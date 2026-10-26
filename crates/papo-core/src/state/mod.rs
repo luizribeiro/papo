@@ -14,10 +14,10 @@ use std::{
 };
 
 use papo_proto::{
-    Account as AccountNotify, AccountName, Away as AwayNotify, Casemapping, ChannelName, Chghost,
-    Command, Isupport, Join, LineRef, Mask, MetadataKey, ModeChange as ProtoModeChange,
-    ModeChanges, ModeKind, NamesEntry, Nick, Numeric, Prefix, Setname, Source as ProtoSource,
-    WhoxFlags, WhoxPresence, WhoxReply, parse_353, time,
+    Account as AccountNotify, AccountName, AsChannel, AsNick, Away as AwayNotify, Casemapping,
+    ChannelName, Chghost, Command, Isupport, Join, LineRef, Mask, MetadataKey,
+    ModeChange as ProtoModeChange, ModeChanges, ModeKind, NamesEntry, Nick, Numeric, Origin,
+    Prefix, Setname, Source as ProtoSource, WhoxFlags, WhoxPresence, WhoxReply, parse_353, time,
 };
 
 #[cfg(test)]
@@ -1136,9 +1136,15 @@ impl State {
     }
 
     /// Returns a joined channel using the server's current casemapping.
+    ///
+    /// A typed channel carrying a different client origin returns `None`.
     #[must_use]
-    pub fn channel(&self, name: impl AsRef<str>) -> Option<&Channel> {
-        self.channels.get(&self.casemapping.channel(name.as_ref()))
+    pub fn channel(&self, name: impl AsChannel) -> Option<&Channel> {
+        let name = AsChannel::__parts(&name);
+        if name.origin() != Origin::NONE && name.origin() != self.casemapping.origin() {
+            return None;
+        }
+        self.channels.get(&self.casemapping.channel(name.text()))
     }
 
     /// Iterates over joined channels in unspecified order.
@@ -1164,9 +1170,15 @@ impl State {
     }
 
     /// Returns a shared user using the server's current casemapping.
+    ///
+    /// A typed nickname carrying a different client origin returns `None`.
     #[must_use]
-    pub fn user(&self, nick: impl AsRef<str>) -> Option<&User> {
-        self.users.get(&self.casemapping.nick(nick.as_ref()))
+    pub fn user(&self, nick: impl AsNick) -> Option<&User> {
+        let nick = AsNick::__parts(&nick);
+        if nick.origin() != Origin::NONE && nick.origin() != self.casemapping.origin() {
+            return None;
+        }
+        self.users.get(&self.casemapping.nick(nick.text()))
     }
 
     /// Returns cached metadata using the server's current casemapping.
@@ -1458,9 +1470,15 @@ impl Channel {
     }
 
     /// Returns a member using the server's current casemapping.
+    ///
+    /// A typed nickname carrying a different client origin returns `None`.
     #[must_use]
-    pub fn member(&self, nick: impl AsRef<str>) -> Option<&Member> {
-        self.members.get(&self.casemapping.nick(nick.as_ref()))
+    pub fn member(&self, nick: impl AsNick) -> Option<&Member> {
+        let nick = AsNick::__parts(&nick);
+        if nick.origin() != Origin::NONE && nick.origin() != self.casemapping.origin() {
+            return None;
+        }
+        self.members.get(&self.casemapping.nick(nick.text()))
     }
 }
 

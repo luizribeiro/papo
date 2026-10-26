@@ -243,8 +243,10 @@ impl State {
     }
 
     /// Returns a joined channel using the server's casemapping.
+    ///
+    /// A typed channel produced by another [`crate::Client`] returns `None`.
     #[must_use]
-    pub fn channel(&self, name: impl AsRef<str>) -> Option<&Channel> {
+    pub fn channel(&self, name: impl crate::AsChannel) -> Option<&Channel> {
         self.core.channel(name)
     }
 
@@ -280,7 +282,8 @@ impl State {
 
     /// Returns the newest read marker value reported for a conversation.
     ///
-    /// `None` means no marker has been fetched or received.
+    /// `None` means no marker has been fetched or received. A typed conversation produced by
+    /// another [`crate::Client`] also returns `None`.
     #[must_use]
     pub fn read_marker(&self, target: impl crate::AsConversation) -> Option<ReadMarker> {
         let target = self.resolve_conversation(target)?;
@@ -302,12 +305,18 @@ impl State {
     ///
     /// User metadata fetched without a shared channel or `MONITOR` relationship is a snapshot.
     /// It is discarded when a visible `NICK` or `QUIT` invalidates that identity.
+    /// A typed name produced by another [`crate::Client`] returns `None`.
     #[must_use]
     pub fn metadata(
         &self,
-        target: impl AsRef<str>,
+        target: impl crate::Target,
     ) -> Option<&HashMap<crate::MetadataKey, crate::MetadataValue>> {
-        self.core.metadata(target)
+        let target = crate::Target::__parts(&target);
+        let origin = self.nick().origin();
+        if target.origin != crate::Origin::NONE && target.origin != origin {
+            return None;
+        }
+        self.core.metadata(target.text)
     }
 
     /// Returns metadata keys confirmed in the server-side subscription list.
@@ -316,8 +325,10 @@ impl State {
     }
 
     /// Returns a known user using the server's casemapping.
+    ///
+    /// A typed nickname produced by another [`crate::Client`] returns `None`.
     #[must_use]
-    pub fn user(&self, nick: impl AsRef<str>) -> Option<&User> {
+    pub fn user(&self, nick: impl crate::AsNick) -> Option<&User> {
         self.core.user(nick)
     }
 
@@ -337,6 +348,8 @@ impl State {
     }
 
     /// Iterates over users currently typing in `conversation`, in start order.
+    ///
+    /// A typed conversation produced by another [`crate::Client`] produces an empty iterator.
     pub fn typing(
         &self,
         conversation: impl crate::AsConversation,
@@ -476,6 +489,28 @@ mod name_tests {
         assert_eq!(changed.typing("@#papo").count(), 0);
         let foreign = crate::Origin::__new(91).__channel(changed.casemapping(), "#papo");
         assert_eq!(changed.typing(foreign).count(), 0);
+    }
+
+    #[test]
+    fn metadata_lookup_refuses_a_name_from_another_client() {
+        let local = crate::Origin::__new(73);
+        let mut config = Config::default().nick("papo");
+        config.origin = local;
+        let mut session = Session::new(config);
+        session.handle_line(
+            crate::rt::now_mono(),
+            b":ergo.test 761 papo alice avatar * :https://cdn.example.net/alice.png",
+        );
+        let state = State::from_session(&session, true);
+
+        assert!(state.metadata("ALICE").is_some());
+        assert!(
+            state
+                .metadata(local.__nick(state.casemapping(), "alice"))
+                .is_some()
+        );
+        let foreign = crate::Origin::__new(91).__nick(state.casemapping(), "alice");
+        assert!(state.metadata(foreign).is_none());
     }
 
     #[test]

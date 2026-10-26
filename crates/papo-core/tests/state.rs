@@ -435,6 +435,32 @@ fn tracks_our_join_and_another_member_with_rfc1459_keys() {
 }
 
 #[test]
+fn typed_state_lookups_refuse_names_from_another_client() {
+    let local = Origin::__new(73);
+    let foreign = Origin::__new(91);
+    let mut config = Config::default().nick("emily");
+    config.origin = local;
+    Transcript::new(config)
+        .server(":emily!em@cloak.example JOIN #papo")
+        .server(":dan!dan@cloak.example JOIN #papo")
+        .inspect(|session| {
+            let state = session.state();
+            let channel = local.__channel(Casemapping::Rfc1459, "#papo");
+            let nick = local.__nick(Casemapping::Rfc1459, "dan");
+            assert!(state.channel(&channel).is_some());
+            assert!(state.user(&nick).is_some());
+            assert!(state.channel("#PAPO").unwrap().member("DAN").is_some());
+
+            let channel = foreign.__channel(Casemapping::Rfc1459, "#papo");
+            let nick = foreign.__nick(Casemapping::Rfc1459, "dan");
+            assert!(state.channel(&channel).is_none());
+            assert!(state.user(&nick).is_none());
+            assert!(state.channel("#papo").unwrap().member(&nick).is_none());
+        })
+        .ignore_rest();
+}
+
+#[test]
 fn read_models_expose_typed_identifiers() {
     Transcript::new(Config::default().nick("emily"))
         .server(":emily!em@127.0.0.1 JOIN #papo emily :Emily")
