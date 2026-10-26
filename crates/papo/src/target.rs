@@ -1,7 +1,26 @@
 use std::{borrow::Cow, sync::Arc};
 
-mod sealed {
+pub(crate) mod sealed {
+    use std::borrow::Cow;
+
     pub trait Sealed {}
+
+    #[derive(Clone)]
+    pub struct Parts<'a> {
+        pub(crate) text: Cow<'a, str>,
+        pub(crate) origin: crate::Origin,
+        pub(crate) recipient: Option<crate::message_ref::RecipientGuard>,
+    }
+
+    impl Parts<'_> {
+        pub(crate) fn into_owned(self) -> Parts<'static> {
+            Parts {
+                text: Cow::Owned(self.text.into_owned()),
+                origin: self.origin,
+                recipient: self.recipient,
+            }
+        }
+    }
 }
 
 /// An IRC address accepted by client operations.
@@ -9,46 +28,128 @@ mod sealed {
 /// Plain text is interpreted for the receiving client. Typed names and conversations retain the
 /// client that produced them and are refused by another client.
 pub trait Target: sealed::Sealed {
-    /// Returns the wire text and its client identity.
+    /// Returns the destination and its safety metadata.
     #[doc(hidden)]
-    fn __target(&self) -> (&str, crate::Origin);
+    fn __parts(&self) -> sealed::Parts<'_>;
 }
 
-macro_rules! text_targets {
+/// A channel-name argument accepted by channel operations.
+///
+/// Text is interpreted using the receiving client's current `ISUPPORT` rules. A typed
+/// [`crate::ChannelName`] retains the client that produced it.
+pub trait AsChannel: sealed::Sealed {
+    /// Returns the channel name and its safety metadata.
+    #[doc(hidden)]
+    fn __parts(&self) -> sealed::Parts<'_>;
+}
+
+/// A nickname argument accepted by nickname operations.
+///
+/// Text is interpreted using the receiving client's current `ISUPPORT` rules. A typed
+/// [`crate::Nick`] retains the client that produced it.
+pub trait AsNick: sealed::Sealed {
+    /// Returns the nickname and its safety metadata.
+    #[doc(hidden)]
+    fn __parts(&self) -> sealed::Parts<'_>;
+}
+
+/// A channel or private-conversation argument.
+///
+/// Text is interpreted using the receiving client's current `ISUPPORT` rules. Status-prefixed
+/// addresses such as `@#ops` are not conversations; see [`crate::Conversation`] for guidance.
+pub trait AsConversation: sealed::Sealed {
+    /// Returns the conversation name and its safety metadata.
+    #[doc(hidden)]
+    fn __parts(&self) -> sealed::Parts<'_>;
+}
+
+fn text_parts(text: &str) -> sealed::Parts<'_> {
+    sealed::Parts {
+        text: Cow::Borrowed(text),
+        origin: crate::Origin::NONE,
+        recipient: None,
+    }
+}
+
+macro_rules! text_roles {
     ($($ty:ty),+ $(,)?) => {
         $(
             impl sealed::Sealed for $ty {}
+
             impl Target for $ty {
-                fn __target(&self) -> (&str, crate::Origin) {
-                    (self.as_ref(), crate::Origin::NONE)
+                fn __parts(&self) -> sealed::Parts<'_> {
+                    text_parts(self.as_ref())
+                }
+            }
+
+            impl AsChannel for $ty {
+                fn __parts(&self) -> sealed::Parts<'_> {
+                    text_parts(self.as_ref())
+                }
+            }
+
+            impl AsNick for $ty {
+                fn __parts(&self) -> sealed::Parts<'_> {
+                    text_parts(self.as_ref())
+                }
+            }
+
+            impl AsConversation for $ty {
+                fn __parts(&self) -> sealed::Parts<'_> {
+                    text_parts(self.as_ref())
                 }
             }
         )+
     };
 }
 
-text_targets!(str, String, Box<str>, Cow<'_, str>, Arc<str>);
+text_roles!(str, String, Box<str>, Cow<'_, str>, Arc<str>);
 
-macro_rules! name_targets {
-    ($($ty:ty),+ $(,)?) => {
-        $(
-            impl sealed::Sealed for $ty {}
-            impl Target for $ty {
-                fn __target(&self) -> (&str, crate::Origin) {
-                    (self.as_ref(), self.origin())
-                }
-            }
-        )+
-    };
+fn name_parts(text: &str, origin: crate::Origin) -> sealed::Parts<'_> {
+    sealed::Parts {
+        text: Cow::Borrowed(text),
+        origin,
+        recipient: None,
+    }
 }
 
-name_targets!(crate::Nick, crate::ChannelName, crate::Mask);
+impl sealed::Sealed for crate::Nick {}
 
-impl<T: Target + ?Sized> sealed::Sealed for &T {}
+impl Target for crate::Nick {
+    fn __parts(&self) -> sealed::Parts<'_> {
+        name_parts(self.as_ref(), self.origin())
+    }
+}
 
-impl<T: Target + ?Sized> Target for &T {
-    fn __target(&self) -> (&str, crate::Origin) {
-        (*self).__target()
+impl AsNick for crate::Nick {
+    fn __parts(&self) -> sealed::Parts<'_> {
+        name_parts(self.as_ref(), self.origin())
+    }
+}
+
+impl AsConversation for crate::Nick {
+    fn __parts(&self) -> sealed::Parts<'_> {
+        name_parts(self.as_ref(), self.origin())
+    }
+}
+
+impl sealed::Sealed for crate::ChannelName {}
+
+impl Target for crate::ChannelName {
+    fn __parts(&self) -> sealed::Parts<'_> {
+        name_parts(self.as_ref(), self.origin())
+    }
+}
+
+impl AsChannel for crate::ChannelName {
+    fn __parts(&self) -> sealed::Parts<'_> {
+        name_parts(self.as_ref(), self.origin())
+    }
+}
+
+impl AsConversation for crate::ChannelName {
+    fn __parts(&self) -> sealed::Parts<'_> {
+        name_parts(self.as_ref(), self.origin())
     }
 }
 
