@@ -2259,26 +2259,6 @@ impl core::marker::Unpin for papo::ListEntry
 impl core::marker::UnsafeUnpin for papo::ListEntry
 impl core::panic::unwind_safe::RefUnwindSafe for papo::ListEntry
 impl core::panic::unwind_safe::UnwindSafe for papo::ListEntry
-pub struct papo::ListFilter
-impl papo::ListFilter
-pub fn papo::ListFilter::channels<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>
-impl core::clone::Clone for papo::ListFilter
-pub fn papo::ListFilter::clone(&self) -> Self
-impl core::cmp::Eq for papo::ListFilter
-impl core::cmp::PartialEq for papo::ListFilter
-pub fn papo::ListFilter::eq(&self, &Self) -> bool
-impl core::default::Default for papo::ListFilter
-pub fn papo::ListFilter::default() -> Self
-impl core::fmt::Debug for papo::ListFilter
-pub fn papo::ListFilter::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::ListFilter
-impl core::marker::Freeze for papo::ListFilter
-impl core::marker::Send for papo::ListFilter
-impl core::marker::Sync for papo::ListFilter
-impl core::marker::Unpin for papo::ListFilter
-impl core::marker::UnsafeUnpin for papo::ListFilter
-impl core::panic::unwind_safe::RefUnwindSafe for papo::ListFilter
-impl core::panic::unwind_safe::UnwindSafe for papo::ListFilter
 pub struct papo::ListRequest
 impl papo::ListRequest
 pub fn papo::ListRequest::channels<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::AsRef<str>

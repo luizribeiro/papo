@@ -151,32 +151,6 @@ impl IntoFuture for ListRequest {
     }
 }
 
-/// Optional channel names or masks supplied to `LIST`.
-///
-/// Servers advertise their supported mask filters with the `ELIST` ISUPPORT
-/// token. Papo does not require that token: when it is absent, the configured
-/// filter is still sent and the server decides how to interpret or reject it.
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct ListFilter {
-    channels: Vec<String>,
-}
-
-impl ListFilter {
-    /// Restricts the request to the supplied comma-separated channel masks.
-    #[must_use]
-    pub fn channels<I, S>(mut self, channels: I) -> Self
-    where
-        I: IntoIterator<Item = S>,
-        S: AsRef<str>,
-    {
-        self.channels = channels
-            .into_iter()
-            .map(|channel| channel.as_ref().to_owned())
-            .collect();
-        self
-    }
-}
-
 /// One channel returned by `LIST`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]

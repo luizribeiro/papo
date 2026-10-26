@@ -250,7 +250,7 @@ pub use papo_proto::{
     Span, Style, Typing, strip_formatting,
 };
 pub use reconnect::Reconnect;
-pub use requests::{ListEntry, ListFilter, ListRequest, WhoEntry, Whois, WhoisChannel};
+pub use requests::{ListEntry, ListRequest, WhoEntry, Whois, WhoisChannel};
 pub use state::{ReadMarker, State};
 pub use target::{AsConversation, Target};
 pub use webirc::WebIrc;
