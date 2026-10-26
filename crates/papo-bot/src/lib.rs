@@ -188,8 +188,6 @@ pub enum ReplyStatus {
     Sent,
     /// The response exceeded the conversation's rate limit.
     Dropped,
-    /// The command actor was a server and therefore had no private recipient.
-    NoRecipient,
 }
 
 /// A parsed command from a live private message.
@@ -986,16 +984,9 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn private_notices_handle_users_and_servers() {
+    async fn private_notices_handle_users() {
         let user = parse(&message("#papo", "!ping"), &BotConfig::new("!")).unwrap();
         assert!(user.private_notice("pong").await.is_err());
-
-        let incoming = MessageBuilder::new("#papo", "!ping").build();
-        let server = parse(&incoming, &BotConfig::new("!")).unwrap();
-        assert_eq!(
-            server.private_notice("pong").await.unwrap(),
-            ReplyStatus::NoRecipient
-        );
     }
 
     #[tokio::test(flavor = "current_thread")]
