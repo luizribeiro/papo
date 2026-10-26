@@ -1,5 +1,7 @@
 pub mod papo_core
 pub use papo_core::ModeAction
+pub use papo_core::Prefix
+pub use papo_core::Rank
 pub use papo_core::Secret
 pub use papo_core::WireLine
 pub mod papo_core::cap
@@ -889,7 +891,9 @@ impl core::panic::unwind_safe::UnwindSafe for papo_core::MetadataCommand
 #[non_exhaustive] pub enum papo_core::ModeArg
 pub papo_core::ModeArg::Key(papo::Secret)
 pub papo_core::ModeArg::Mask(papo::Mask)
-pub papo_core::ModeArg::Nick(papo::Nick)
+pub papo_core::ModeArg::Member
+pub papo_core::ModeArg::Member::nick: papo::Nick
+pub papo_core::ModeArg::Member::prefix: papo::isupport::Prefix
 pub papo_core::ModeArg::Value(alloc::string::String)
 impl core::clone::Clone for papo_core::ModeArg
 pub fn papo_core::ModeArg::clone(&self) -> Self
@@ -946,34 +950,6 @@ impl core::marker::Unpin for papo_core::MsgRef
 impl core::marker::UnsafeUnpin for papo_core::MsgRef
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::MsgRef
 impl core::panic::unwind_safe::UnwindSafe for papo_core::MsgRef
-#[non_exhaustive] pub enum papo_core::Rank
-pub papo_core::Rank::Admin
-pub papo_core::Rank::Halfop
-pub papo_core::Rank::Op
-pub papo_core::Rank::Owner
-pub papo_core::Rank::Voice
-impl core::clone::Clone for papo_core::Rank
-pub fn papo_core::Rank::clone(&self) -> Self
-impl core::cmp::Eq for papo_core::Rank
-impl core::cmp::Ord for papo_core::Rank
-pub fn papo_core::Rank::cmp(&self, &Self) -> core::cmp::Ordering
-impl core::cmp::PartialEq for papo_core::Rank
-pub fn papo_core::Rank::eq(&self, &Self) -> bool
-impl core::cmp::PartialOrd for papo_core::Rank
-pub fn papo_core::Rank::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
-impl core::fmt::Debug for papo_core::Rank
-pub fn papo_core::Rank::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for papo_core::Rank
-pub fn papo_core::Rank::hash<__H: core::hash::Hasher>(&self, &mut __H)
-impl core::marker::Copy for papo_core::Rank
-impl core::marker::StructuralPartialEq for papo_core::Rank
-impl core::marker::Freeze for papo_core::Rank
-impl core::marker::Send for papo_core::Rank
-impl core::marker::Sync for papo_core::Rank
-impl core::marker::Unpin for papo_core::Rank
-impl core::marker::UnsafeUnpin for papo_core::Rank
-impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Rank
-impl core::panic::unwind_safe::UnwindSafe for papo_core::Rank
 #[non_exhaustive] pub enum papo_core::Refusal
 pub papo_core::Refusal::AccountExists
 pub papo_core::Refusal::AccountLocked
@@ -1653,10 +1629,10 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::LineEnvelope
 impl core::panic::unwind_safe::UnwindSafe for papo_core::LineEnvelope
 pub struct papo_core::Member
 impl papo_core::Member
-pub fn papo_core::Member::has(&self, papo_core::Rank) -> bool
+pub fn papo_core::Member::has(&self, papo::isupport::Rank) -> bool
 pub fn papo_core::Member::nick(&self) -> &papo::Nick
-pub fn papo_core::Member::prefixes(&self) -> &[char]
-pub fn papo_core::Member::rank(&self) -> core::option::Option<papo_core::Rank>
+pub fn papo_core::Member::prefixes(&self) -> &[papo::isupport::Prefix]
+pub fn papo_core::Member::rank(&self) -> core::option::Option<papo::isupport::Rank>
 impl core::clone::Clone for papo_core::Member
 pub fn papo_core::Member::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::Member
@@ -1818,7 +1794,7 @@ pub const fn papo_core::ReceivedLine::channel_context(&self) -> core::option::Op
 pub const fn papo_core::ReceivedLine::conversation(&self) -> core::option::Option<&papo::Conversation>
 pub fn papo_core::ReceivedLine::into_line(self) -> papo::Line
 pub fn papo_core::ReceivedLine::into_parts(self) -> (papo::Line, core::option::Option<alloc::string::String>)
-pub fn papo_core::ReceivedLine::status(&self) -> core::option::Option<&[char]>
+pub const fn papo_core::ReceivedLine::status(&self) -> core::option::Option<papo::isupport::Prefix>
 impl core::clone::Clone for papo_core::ReceivedLine
 pub fn papo_core::ReceivedLine::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::ReceivedLine
@@ -1844,7 +1820,7 @@ pub papo_core::Redacted::conversation: papo::Conversation
 pub papo_core::Redacted::envelope: papo_core::LineEnvelope
 pub papo_core::Redacted::msgid: alloc::string::String
 pub papo_core::Redacted::reason: core::option::Option<alloc::string::String>
-pub papo_core::Redacted::status: core::option::Option<alloc::vec::Vec<char>>
+pub papo_core::Redacted::status: core::option::Option<papo::isupport::Prefix>
 impl core::clone::Clone for papo_core::Redacted
 pub fn papo_core::Redacted::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::Redacted
@@ -2064,7 +2040,7 @@ pub fn papo_core::State::metadata_target_count(&self) -> usize
 pub fn papo_core::State::monitor_online(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::User>
 pub fn papo_core::State::monitored(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Nick>
 pub fn papo_core::State::nick(&self) -> &papo::Nick
-pub fn papo_core::State::parse_target(&self, impl core::convert::AsRef<str>) -> core::result::Result<(core::option::Option<alloc::vec::Vec<char>>, papo::Conversation), papo::InvalidIdentifier>
+pub fn papo_core::State::parse_target(&self, impl core::convert::AsRef<str>) -> core::result::Result<(core::option::Option<papo::isupport::Prefix>, papo::Conversation), papo::InvalidIdentifier>
 pub fn papo_core::State::read_marker(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::ReadMarker>
 pub fn papo_core::State::realname(&self) -> &str
 pub fn papo_core::State::same_list_entry(&self, &papo::Mask, impl core::convert::AsRef<str>) -> bool
@@ -2092,7 +2068,7 @@ pub papo_core::TagMessage::actor: alloc::string::String
 pub papo_core::TagMessage::authorship: papo_core::Authorship
 pub papo_core::TagMessage::conversation: papo::Conversation
 pub papo_core::TagMessage::envelope: papo_core::LineEnvelope
-pub papo_core::TagMessage::status: core::option::Option<alloc::vec::Vec<char>>
+pub papo_core::TagMessage::status: core::option::Option<papo::isupport::Prefix>
 pub papo_core::TagMessage::tags: alloc::vec::Vec<(alloc::string::String, core::option::Option<alloc::string::String>)>
 impl core::clone::Clone for papo_core::TagMessage
 pub fn papo_core::TagMessage::clone(&self) -> Self
@@ -2114,7 +2090,7 @@ impl papo_core::Typer
 pub const fn papo_core::Typer::is_paused(&self) -> bool
 pub const fn papo_core::Typer::nick(&self) -> &papo::Nick
 pub fn papo_core::Typer::return_address(&self) -> alloc::string::String
-pub fn papo_core::Typer::status(&self) -> core::option::Option<&[char]>
+pub const fn papo_core::Typer::status(&self) -> core::option::Option<papo::isupport::Prefix>
 impl core::clone::Clone for papo_core::Typer
 pub fn papo_core::Typer::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::Typer
@@ -2136,7 +2112,7 @@ pub papo_core::TypingChanged::authorship: papo_core::Authorship
 pub papo_core::TypingChanged::conversation: papo::Conversation
 pub papo_core::TypingChanged::reason: papo_core::TypingReason
 pub papo_core::TypingChanged::state: papo::Typing
-pub papo_core::TypingChanged::status: core::option::Option<alloc::vec::Vec<char>>
+pub papo_core::TypingChanged::status: core::option::Option<papo::isupport::Prefix>
 impl papo_core::TypingChanged
 pub fn papo_core::TypingChanged::return_address(&self) -> alloc::string::String
 impl core::clone::Clone for papo_core::TypingChanged
@@ -2246,7 +2222,9 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Welcome
 impl core::panic::unwind_safe::UnwindSafe for papo_core::Welcome
 pub struct papo_core::WhoisChannel
 pub papo_core::WhoisChannel::name: alloc::string::String
-pub papo_core::WhoisChannel::prefixes: alloc::vec::Vec<char>
+pub papo_core::WhoisChannel::prefixes: alloc::vec::Vec<papo::isupport::Prefix>
+impl papo_core::WhoisChannel
+pub fn papo_core::WhoisChannel::rank(&self) -> core::option::Option<papo::isupport::Rank>
 impl core::clone::Clone for papo_core::WhoisChannel
 pub fn papo_core::WhoisChannel::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::WhoisChannel
