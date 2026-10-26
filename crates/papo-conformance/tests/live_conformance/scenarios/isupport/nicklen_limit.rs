@@ -30,10 +30,10 @@ async fn nicklen_limit(s: Scenario) -> papo_testing::Result<()> {
     let own = bob.wait_for(Event::as_nick_changed).await?;
     let observed = alice.wait_for(Event::as_nick_changed).await?;
     for changed in [&own, &observed] {
-        assert_eq!(changed.old, original.as_ref());
+        assert_eq!(changed.actor.nick(), original.as_ref());
         assert_eq!(changed.new.as_ref(), at_limit);
     }
-    assert_eq!(own.old, original);
+    assert_eq!(own.actor.nick(), &original);
     assert_eq!(own.authorship, papo::Authorship::Own);
     assert_eq!(observed.authorship, papo::Authorship::Other);
     assert_eq!(bob.state().nick(), at_limit.as_str());

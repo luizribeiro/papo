@@ -1,6 +1,6 @@
 use std::time::{Duration, SystemTime};
 
-use papo::{Away, Error, Event, Refusal};
+use papo::{Authorship, Away, Error, Event, Refusal};
 use papo_conformance_macros::scenario;
 
 use super::support::conversation_name;
@@ -127,18 +127,20 @@ async fn multidevice_away_shared_state(s: Scenario) -> papo_testing::Result<()> 
         .wait_for(|event| {
             event
                 .as_away_changed()
-                .filter(|changed| changed.nick == nick.as_ref())
+                .filter(|changed| changed.actor.nick() == nick.as_ref())
         })
         .await?;
     let visible = observer
         .wait_for(|event| {
             event
                 .as_away_changed()
-                .filter(|changed| changed.nick == nick.as_ref())
+                .filter(|changed| changed.actor.nick() == nick.as_ref())
         })
         .await?;
-    assert_eq!(sibling.away, away);
-    assert_eq!(visible.away, away);
+    assert_eq!(sibling.new, away);
+    assert_eq!(visible.new, away);
+    assert_eq!(sibling.authorship, Authorship::Own);
+    assert_eq!(visible.authorship, Authorship::Own);
     assert_eq!(phone.state().away(), &away);
     assert_eq!(observer.state().user(nick.as_ref()).unwrap().away(), &away);
     phone.expect_none(Event::as_away_changed).await?;
@@ -317,7 +319,7 @@ async fn multidevice_nick_shared_state(s: Scenario) -> papo_testing::Result<()> 
             phone.wait_for(Event::as_nick_changed).await?,
             tablet.wait_for(Event::as_nick_changed).await?,
         ] {
-            assert_eq!(changed.old, old.as_ref());
+            assert_eq!(changed.actor.nick(), old.as_ref());
             assert_eq!(changed.new.as_ref(), new);
             assert_eq!(changed.authorship, papo::Authorship::Own);
         }

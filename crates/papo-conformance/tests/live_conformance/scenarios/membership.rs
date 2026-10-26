@@ -54,7 +54,7 @@ async fn netsplit_members_are_quits(s: Scenario) -> papo_testing::Result<()> {
         .send_raw(papo::Line::new("SQUIT").with_params(["services.papo.test", "conformance test"]))
         .await?;
     let quit = alice
-        .wait_for(|event| event.as_quit().filter(|quit| quit.nick == "ChanServ"))
+        .wait_for(|event| event.as_quit().filter(|quit| quit.actor.nick() == "ChanServ"))
         .await?;
     let split = quit
         .netsplit
@@ -819,7 +819,7 @@ async fn quit(s: Scenario) -> papo_testing::Result<()> {
         }
     ));
     assert_eq!(disconnected.reconnect_in, None);
-    assert_eq!(observed.nick, alice_nick.as_ref());
+    assert_eq!(observed.actor.nick(), alice_nick.as_ref());
     let observed_reason = observed.reason.as_deref().unwrap();
     assert!(observed_reason == reason || observed_reason == format!("Quit: {reason}"));
     assert_eq!(observed.channels.len(), 1);
@@ -1045,7 +1045,7 @@ async fn nick_change_and_collision(s: Scenario) -> papo_testing::Result<()> {
     let observed = bob.wait_for(Event::as_nick_changed).await?;
 
     for changed in [&own, &observed] {
-        assert_eq!(changed.old, old_nick.as_ref());
+        assert_eq!(changed.actor.nick(), old_nick.as_ref());
         assert_eq!(changed.new.as_ref(), new_nick);
     }
     assert_eq!(own.authorship, papo::Authorship::Own);

@@ -45,13 +45,13 @@ async fn private_reply_after_nick_takeover(s: Scenario) -> papo_testing::Result<
     bot.wait_for(|event| {
         event
             .as_quit()
-            .filter(|quit| quit.nick == alice_nick.as_ref())
+            .filter(|quit| quit.actor.nick() == alice_nick.as_ref())
     })
     .await?;
     mallory.set_nick(alice_nick.as_ref()).await?;
     bot.wait_for(|event| {
         event.as_nick_changed().filter(|changed| {
-            changed.old == mallory_nick.as_ref() && changed.new == alice_nick.as_ref()
+            changed.actor.nick() == mallory_nick.as_ref() && changed.new == alice_nick.as_ref()
         })
     })
     .await?;

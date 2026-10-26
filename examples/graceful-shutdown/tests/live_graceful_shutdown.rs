@@ -28,7 +28,7 @@ async fn sigterm_sends_quit_and_exits_successfully() {
             .unwrap();
         wait_for(
             &mut events,
-            |event| matches!(event, Event::MonitorOnline(online) if online.nick == nick.as_str()),
+            |event| matches!(event, Event::MonitorOnline(online) if online.subject.nick() == nick.as_str()),
         )
         .await;
         sleep(Duration::from_millis(100)).await;
@@ -46,7 +46,7 @@ async fn sigterm_sends_quit_and_exits_successfully() {
         };
         assert!(status.success());
         wait_for(&mut events, |event| {
-            matches!(event, Event::MonitorOffline(offline) if offline.nick == nick.as_str())
+            matches!(event, Event::MonitorOffline(offline) if offline.subject == nick.as_str())
         })
         .await;
 

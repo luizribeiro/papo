@@ -69,14 +69,14 @@ async fn casemapping_ascii(s: Scenario) -> papo_testing::Result<()> {
     let alice_square_nick = format!("{base}[x]");
     alice.set_nick(alice_square_nick.clone()).await?;
     let alice_changed = alice.wait_for(Event::as_nick_changed).await?;
-    assert_eq!(alice_changed.old, base);
+    assert_eq!(alice_changed.actor.nick(), &base);
     assert_eq!(alice_changed.new.as_ref(), alice_square_nick);
     assert_eq!(alice_changed.authorship, papo::Authorship::Own);
 
     let bob_curly_nick = format!("{}{{X}}", base.to_ascii_uppercase());
     bob.set_nick(bob_curly_nick.clone()).await?;
     let bob_changed = bob.wait_for(Event::as_nick_changed).await?;
-    assert_eq!(bob_changed.old, bob_original);
+    assert_eq!(bob_changed.actor.nick(), &bob_original);
     assert_eq!(bob_changed.new.as_ref(), bob_curly_nick);
     assert_eq!(bob_changed.authorship, papo::Authorship::Own);
     assert_eq!(bob.state().nick(), bob_curly_nick.as_str());

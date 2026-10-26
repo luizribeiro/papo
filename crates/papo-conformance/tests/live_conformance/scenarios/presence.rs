@@ -94,9 +94,9 @@ async fn account_notify(s: Scenario) -> papo_testing::Result<()> {
     ));
     let changed = bob.wait_for(Event::as_account_changed).await?;
 
-    assert_eq!(changed.nick, alice_nick.as_ref());
+    assert_eq!(changed.actor.nick(), alice_nick.as_ref());
     assert_eq!(
-        changed.account.as_ref().map(AsRef::as_ref),
+        changed.new.name().as_ref().map(AsRef::as_ref),
         Some(account.as_ref())
     );
     assert_eq!(alice.state().account(), &Account::LoggedIn(account.clone()));
@@ -125,8 +125,8 @@ async fn away_notify(s: Scenario) -> papo_testing::Result<()> {
     alice.set_away(away).await?;
     let changed = bob.wait_for(Event::as_away_changed).await?;
 
-    assert_eq!(changed.nick, alice_nick.as_ref());
-    assert_eq!(changed.away, Away::__away_value(Some(away.to_owned())));
+    assert_eq!(changed.actor.nick(), alice_nick.as_ref());
+    assert_eq!(changed.new, Away::__away_value(Some(away.to_owned())));
     assert_eq!(
         alice.state().away(),
         &Away::__away_value(Some(away.to_owned()))
@@ -139,8 +139,8 @@ async fn away_notify(s: Scenario) -> papo_testing::Result<()> {
     alice.clear_away().await?;
     let returned = bob.wait_for(Event::as_away_changed).await?;
 
-    assert_eq!(returned.nick, alice_nick.as_ref());
-    assert_eq!(returned.away, Away::Present);
+    assert_eq!(returned.actor.nick(), alice_nick.as_ref());
+    assert_eq!(returned.new, Away::Present);
     assert_eq!(alice.state().away(), &Away::Present);
     assert_eq!(
         bob.state().user(alice_nick.as_ref()).unwrap().away(),
@@ -220,10 +220,10 @@ async fn setname(s: Scenario) -> papo_testing::Result<()> {
     let own = alice.wait_for(Event::as_realname_changed).await?;
     let observed = bob.wait_for(Event::as_realname_changed).await?;
 
-    assert_eq!(own.nick, alice_nick);
-    assert_eq!(own.realname, realname);
-    assert_eq!(observed.nick, alice_nick.as_ref());
-    assert_eq!(observed.realname, realname);
+    assert_eq!(own.actor.nick(), &alice_nick);
+    assert_eq!(own.new, realname);
+    assert_eq!(observed.actor.nick(), alice_nick.as_ref());
+    assert_eq!(observed.new, realname);
     assert_eq!(
         alice.state().user(alice_nick.as_ref()).unwrap().realname(),
         Some(realname)
@@ -263,28 +263,28 @@ async fn chghost(s: Scenario) -> papo_testing::Result<()> {
     let own = bob
         .wait_for(|event| {
             event.as_host_changed().filter(|changed| {
-                changed.nick == bob_nick.as_ref() && changed.host == "conformance.example"
+                changed.actor.nick() == bob_nick.as_ref() && changed.new_host == "conformance.example"
             })
         })
         .await?;
     let observed = alice
         .wait_for(|event| {
             event.as_host_changed().filter(|changed| {
-                changed.nick == bob_nick.as_ref() && changed.host == "conformance.example"
+                changed.actor.nick() == bob_nick.as_ref() && changed.new_host == "conformance.example"
             })
         })
         .await?;
 
-    assert_eq!(own.nick, observed.nick.as_ref());
-    assert_eq!(own.username, observed.username);
-    assert_eq!(own.host, observed.host);
-    assert_eq!(own.nick, bob_nick);
-    assert!(!own.username.is_empty());
-    assert_eq!(own.host, "conformance.example");
+    assert_eq!(own.actor.nick(), observed.actor.nick().as_ref());
+    assert_eq!(own.new_username, observed.new_username);
+    assert_eq!(own.new_host, observed.new_host);
+    assert_eq!(own.actor.nick(), &bob_nick);
+    assert!(!own.new_username.is_empty());
+    assert_eq!(own.new_host, "conformance.example");
     for peer in [&alice, &bob] {
         let state = peer.state();
         let user = state.user(bob_nick.as_ref()).unwrap();
-        assert_eq!(user.username(), Some(own.username.as_str()));
+        assert_eq!(user.username(), Some(own.new_username.as_str()));
         assert_eq!(user.host(), Some("conformance.example"));
     }
     Ok(())
@@ -306,20 +306,20 @@ async fn monitor(s: Scenario) -> papo_testing::Result<()> {
     alice.monitor().add([bob_nick.as_ref()]).await?;
     let online = alice.wait_for(Event::as_monitor_online).await?;
 
-    assert_eq!(online.nick, bob_nick.as_ref());
+    assert_eq!(online.subject.nick(), bob_nick.as_ref());
     let state = alice.state();
     let monitored = state.monitor_online().collect::<Vec<_>>();
     assert_eq!(monitored.len(), 1);
     assert_eq!(monitored[0].nick(), bob_nick.as_ref());
-    assert_eq!(monitored[0].username(), online.username.as_deref());
-    assert_eq!(monitored[0].host(), online.host.as_deref());
+    assert_eq!(monitored[0].username(), online.subject.username().as_deref());
+    assert_eq!(monitored[0].host(), online.subject.host().as_deref());
 
     let away = "reading the monitor specification";
     bob.set_away(away).await?;
     let changed = alice.wait_for(Event::as_away_changed).await?;
 
-    assert_eq!(changed.nick, bob_nick.as_ref());
-    assert_eq!(changed.away, Away::__away_value(Some(away.to_owned())));
+    assert_eq!(changed.actor.nick(), bob_nick.as_ref());
+    assert_eq!(changed.new, Away::__away_value(Some(away.to_owned())));
     assert_eq!(
         alice.state().user(bob_nick.as_ref()).unwrap().away(),
         &Away::__away_value(Some(away.to_owned()))
@@ -329,7 +329,7 @@ async fn monitor(s: Scenario) -> papo_testing::Result<()> {
     bob.set_nick(new_nick.clone()).await?;
     let offline = alice.wait_for(Event::as_monitor_offline).await?;
 
-    assert_eq!(offline.nick, bob_nick.as_ref());
+    assert_eq!(offline.subject, bob_nick.as_ref());
     assert_eq!(bob.state().nick(), new_nick.as_str());
     assert!(
         alice
@@ -592,10 +592,10 @@ async fn operator_commands(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| {
             event
                 .as_quit()
-                .filter(|quit| quit.nick == charlie_nick.as_ref())
+                .filter(|quit| quit.actor.nick() == charlie_nick.as_ref())
         })
         .await?;
-    assert_eq!(quit.nick, charlie_nick.as_ref());
+    assert_eq!(quit.actor.nick(), charlie_nick.as_ref());
     assert!(
         quit.reason
             .as_deref()

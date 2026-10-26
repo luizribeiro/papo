@@ -8214,7 +8214,7 @@ async fn monitor_offline_snapshot_keeps_other_online_users() {
 
     server_line(&mut server, b":ergo.test 731 papo-driver :alice\r\n").await;
     assert!(
-        matches!(events.next().await, Some(Event::MonitorOffline(offline)) if offline.nick == "alice")
+        matches!(events.next().await, Some(Event::MonitorOffline(offline)) if offline.subject == "alice")
     );
     let online: Vec<_> = client
         .state()

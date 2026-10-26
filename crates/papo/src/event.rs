@@ -3672,9 +3672,10 @@ mod tests {
                 "emily!~em@users/emily".into(),
                 Casemapping::default().nick("emily"),
                 Account::LoggedIn(Casemapping::default().account("emily")),
+                papo_core::Authorship::Other,
             )),
             Event::AccountChanged(changed)
-                if changed.nick == "emily" && changed.account.as_deref() == Some("emily")
+                if changed.actor.nick() == "emily" && changed.new.name().is_some_and(|account| account == "emily")
         ));
     }
 
@@ -3685,10 +3686,11 @@ mod tests {
                 "emily!~em@users/emily".into(),
                 Casemapping::default().nick("emily"),
                 Away::__away_value(Some("Gone to lunch".into())),
+                papo_core::Authorship::Other,
             )),
             Event::AwayChanged(changed)
-                if changed.nick == "emily"
-                    && changed.away == Away::__away_value(Some("Gone to lunch".into()))
+                if changed.actor.nick() == "emily"
+                    && changed.new == Away::__away_value(Some("Gone to lunch".into()))
         ));
     }
 
@@ -3700,9 +3702,10 @@ mod tests {
                 Casemapping::default().nick("emily"),
                 "~em".into(),
                 "users/emily".into(),
+                papo_core::Authorship::Other,
             )),
             Event::HostChanged(changed)
-                if changed.nick == "emily" && changed.username == "~em" && changed.host == "users/emily"
+                if changed.actor.nick() == "emily" && changed.new_username == "~em" && changed.new_host == "users/emily"
         ));
     }
 
@@ -3713,9 +3716,10 @@ mod tests {
                 "emily!~em@users/emily".into(),
                 Casemapping::default().nick("emily"),
                 "Emily Smith".into(),
+                papo_core::Authorship::Other,
             )),
             Event::RealnameChanged(changed)
-                if changed.nick == "emily" && changed.realname == "Emily Smith"
+                if changed.actor.nick() == "emily" && changed.new == "Emily Smith"
         ));
     }
 
@@ -3850,13 +3854,13 @@ mod tests {
         assert!(matches!(
             forwarded(papo_core::Event::__monitor_online(Casemapping::default().nick("alice"), Some("~alice".into()), Some("cloak.example".into()))),
             Event::MonitorOnline(online)
-                if online.nick == "alice" && online.username.as_deref() == Some("~alice")
-                    && online.host.as_deref() == Some("cloak.example")
+                if online.subject.nick() == "alice" && online.subject.username() == Some("~alice")
+                    && online.subject.host() == Some("cloak.example")
         ));
         assert!(matches!(
             forwarded(papo_core::Event::__monitor_online(Casemapping::default().nick("bob"), None, None)),
             Event::MonitorOnline(online)
-                if online.nick == "bob" && online.username.is_none() && online.host.is_none()
+                if online.subject.nick() == "bob" && online.subject.username().is_none() && online.subject.host().is_none()
         ));
     }
 
@@ -3864,7 +3868,7 @@ mod tests {
     fn maps_monitor_offline() {
         assert!(matches!(
             forwarded(papo_core::Event::__monitor_offline(Casemapping::default().nick("alice"))),
-            Event::MonitorOffline(offline) if offline.nick == "alice"
+            Event::MonitorOffline(offline) if offline.subject == "alice"
         ));
     }
 

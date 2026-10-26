@@ -85,7 +85,7 @@ impl AwayChangedBuilder {
     /// Sets the user's new presence state.
     #[must_use]
     pub fn away(mut self, away: papo::Away) -> Self {
-        self.0.away = away;
+        self.0.new = away;
         self
     }
 
@@ -120,7 +120,7 @@ mod tests {
             .away(papo::Away::__away_value(Some("reviewing IRCv3".into())))
             .build();
         assert_eq!(
-            away.away,
+            away.new,
             papo::Away::__away_value(Some("reviewing IRCv3".into()))
         );
     }

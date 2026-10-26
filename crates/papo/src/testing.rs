@@ -179,11 +179,10 @@ pub fn joined(channel: impl Into<ChannelName>, nick: impl Into<Nick>, own: bool)
 /// Constructs an away-state event payload.
 #[must_use]
 pub fn away_changed(nick: impl Into<Nick>, away: crate::Away) -> AwayChanged {
-    let nick = nick.into();
     AwayChanged {
-        actor: Source::User(user_source(nick.clone(), None, None)),
-        nick,
-        away,
+        actor: user_source(nick, None, None),
+        new: away,
+        authorship: Authorship::Other,
     }
 }
 
