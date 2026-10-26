@@ -487,7 +487,10 @@ impl Change {
         let kind = mode_kind(state.isupport().inner(), mode);
         let arg = self.arg.as_ref().map(|argument| match (mode, kind) {
             ('k', _) => ModeArg::Key(crate::Secret::from(argument.text())),
-            (_, ModeKind::Prefix(_)) => ModeArg::Nick(state.nickname(argument.text())),
+            (_, ModeKind::Prefix(prefix)) => ModeArg::Member {
+                nick: state.nickname(argument.text()),
+                prefix,
+            },
             (_, ModeKind::List) => ModeArg::Mask(state.mask(argument.text())),
             _ => ModeArg::Value(argument.text().to_owned()),
         });
@@ -584,8 +587,8 @@ fn validate(isupport: &Isupport, change: &Change) -> Result<char, Error> {
         Selector::Prefix(mode) => isupport
             .prefix()
             .into_iter()
-            .find(|prefix| prefix.mode == mode)
-            .map(|prefix| prefix.mode)
+            .find(|prefix| prefix.mode() == mode)
+            .map(crate::Prefix::mode)
             .ok_or_else(|| invalid(format!("prefix mode {mode} was not advertised")))?,
         Selector::Optional(_) => unreachable!("optional modes are resolved before validation"),
     };
@@ -607,12 +610,12 @@ fn mode_kind(isupport: &Isupport, mode: char) -> ModeKind {
     let prefix = isupport
         .prefix()
         .into_iter()
-        .any(|prefix| prefix.mode == mode);
+        .find(|prefix| prefix.mode() == mode);
     let Some(groups) = isupport.chanmodes() else {
         return ModeKind::Unknown;
     };
-    if prefix {
-        ModeKind::Prefix(0)
+    if let Some(prefix) = prefix {
+        ModeKind::Prefix(prefix)
     } else if groups.list.contains(mode) {
         ModeKind::List
     } else if groups.always.contains(mode) {

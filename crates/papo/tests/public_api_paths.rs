@@ -71,7 +71,7 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
         ConversationClass::State,
     ),
     (
-        "pub fn papo::State::parse_target(&self, &str) -> core::result::Result<(core::option::Option<alloc::vec::Vec<char>>, papo::Conversation), papo::InvalidInput>",
+        "pub fn papo::State::parse_target(&self, &str) -> core::result::Result<(core::option::Option<papo::Prefix>, papo::Conversation), papo::InvalidInput>",
         ConversationClass::State,
     ),
     (

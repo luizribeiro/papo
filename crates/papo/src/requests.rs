@@ -5,7 +5,7 @@ use papo_proto::{
     ChannelName, Command, Isupport, Line, Nick, Numeric, ServerName, WhoxPresence, WhoxReply,
 };
 
-use crate::{Error, Oper};
+use crate::{Error, Oper, Prefix, Rank};
 
 pub(crate) const WHOX_FIELDS: &str = "%tcuhnfar,152";
 
@@ -44,7 +44,15 @@ pub struct WhoisChannel {
     /// Channel name without membership prefixes.
     pub name: ChannelName,
     /// Membership prefixes in server-advertised order.
-    pub prefixes: Vec<char>,
+    pub prefixes: Vec<Prefix>,
+}
+
+impl WhoisChannel {
+    /// Returns the highest standard rank held in this channel.
+    #[must_use]
+    pub fn rank(&self) -> Option<Rank> {
+        highest_rank(&self.prefixes)
+    }
 }
 
 /// One user returned by a `WHO` request.
@@ -70,7 +78,15 @@ pub struct WhoEntry {
     /// Whether the server identifies the user as a bot.
     pub is_bot: Option<bool>,
     /// Channel-membership prefixes in wire order.
-    pub prefixes: Vec<char>,
+    pub prefixes: Vec<Prefix>,
+}
+
+impl WhoEntry {
+    /// Returns the highest standard channel rank reported for this user.
+    #[must_use]
+    pub fn rank(&self) -> Option<Rank> {
+        highest_rank(&self.prefixes)
+    }
 }
 
 /// Optional channel names or masks supplied to `LIST`.
@@ -187,19 +203,19 @@ pub(crate) fn whois(
 }
 
 fn whois_channel(value: &str, isupport: &Isupport, origin: crate::Origin) -> WhoisChannel {
-    let prefixes: Vec<_> = value
+    let symbols: String = value
         .chars()
         .take_while(|symbol| {
             isupport
                 .prefix()
                 .iter()
-                .any(|prefix| prefix.symbol == *symbol)
+                .any(|prefix| prefix.symbol() == *symbol)
         })
         .collect();
-    let offset = prefixes.iter().map(|symbol| symbol.len_utf8()).sum();
+    let offset = symbols.len();
     WhoisChannel {
         name: origin.__channel(isupport.casemapping(), &value[offset..]),
-        prefixes,
+        prefixes: ordered_prefixes(&symbols, isupport),
     }
 }
 
@@ -243,7 +259,10 @@ pub(crate) fn who(
                     } else {
                         isupport.bot_mode().map(|_| false)
                     },
-                    prefixes: flags.prefixes,
+                    prefixes: ordered_prefixes(
+                        &flags.prefixes.iter().collect::<String>(),
+                        isupport,
+                    ),
                 })
             } else {
                 plain_who(&message, isupport, origin)
@@ -283,11 +302,23 @@ fn plain_who(
         } else {
             isupport.bot_mode().map(|_| false)
         },
-        prefixes: flags
-            .chars()
-            .filter(|flag| prefixes.iter().any(|prefix| prefix.symbol == *flag))
+        prefixes: prefixes
+            .into_iter()
+            .filter(|prefix| flags.contains(prefix.symbol()))
             .collect(),
     })
+}
+
+fn ordered_prefixes(symbols: &str, isupport: &Isupport) -> Vec<Prefix> {
+    isupport
+        .prefix()
+        .into_iter()
+        .filter(|prefix| symbols.contains(prefix.symbol()))
+        .collect()
+}
+
+fn highest_rank(prefixes: &[Prefix]) -> Option<Rank> {
+    prefixes.iter().filter_map(|prefix| prefix.rank()).max()
 }
 
 pub(crate) fn empty(response: &Response) -> Result<(), Error> {
@@ -353,10 +384,20 @@ mod tests {
 
     #[test]
     fn whois_channels_separate_advertised_membership_prefixes() {
-        let channel = whois_channel("@+#papo", &Isupport::default(), crate::Origin::NONE);
+        let mut support = Isupport::default();
+        support.apply_tokens(["PREFIX=(qaohv)~&@%+"]);
+        let channel = whois_channel("~@#papo", &support, crate::Origin::NONE);
 
         assert_eq!(channel.name, "#papo");
-        assert_eq!(channel.prefixes, vec!['@', '+']);
+        assert_eq!(
+            channel
+                .prefixes
+                .iter()
+                .map(|prefix| prefix.symbol())
+                .collect::<Vec<_>>(),
+            ['~', '@']
+        );
+        assert_eq!(channel.rank(), Some(crate::Rank::Owner));
     }
 
     #[test]
@@ -369,7 +410,7 @@ mod tests {
             "staff.example",
             "ergo.test",
             "alice",
-            "H@!",
+            "H*@",
             "0 Alice Example",
         ]);
         let visible = Line::new("352").with_params([
@@ -386,18 +427,22 @@ mod tests {
         let hidden = plain_who(&hidden.as_ref(), &isupport, crate::Origin::NONE).unwrap();
         let visible = plain_who(&visible.as_ref(), &isupport, crate::Origin::NONE).unwrap();
         assert_eq!(
-            (hidden.account, hidden.away),
-            (Account::Unknown, Away::Present)
+            (&hidden.account, &hidden.away),
+            (&Account::Unknown, &Away::Present)
         );
         assert_eq!(
-            (visible.account, visible.away),
-            (Account::Unknown, Away::__away_value(None))
+            (&visible.account, &visible.away),
+            (&Account::Unknown, &Away::__away_value(None))
         );
-        assert_eq!((hidden.channel, hidden.prefixes), (None, vec!['@']));
+        assert_eq!(hidden.channel, None);
+        assert_eq!(hidden.prefixes[0].symbol(), '@');
+        assert!(hidden.oper.is_some());
+        assert_eq!(hidden.rank(), Some(crate::Rank::Op));
         assert_eq!(
-            (visible.channel.as_deref(), visible.prefixes),
-            (Some("#rust"), vec!['+'])
+            (visible.channel.as_deref(), visible.prefixes[0].symbol()),
+            (Some("#rust"), '+')
         );
+        assert_eq!(visible.rank(), Some(crate::Rank::Voice));
     }
 
     #[test]

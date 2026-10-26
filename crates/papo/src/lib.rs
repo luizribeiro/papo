@@ -202,7 +202,9 @@ pub use driver::{Driver, Events};
 pub use error::{
     ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, ServerError,
 };
-pub use event_impl::{Authorship, Event, Message, MessageKind, Oper, Source, Tags, UserSource};
+pub use event_impl::{
+    Audience, Authorship, Broadcast, Event, Message, MessageKind, Oper, Source, Tags, UserSource,
+};
 pub use ext::accounts::{AccountCreation, NewAccount};
 pub use ext::history::{
     History, HistoryPage, HistoryReason, HistoryReference, HistoryRequest, RecentConversation,
@@ -223,7 +225,7 @@ pub use papo_core::Secret;
 #[doc(inline)]
 pub use papo_core::{
     Account, Away, Cap, Capabilities, Channel, Conversation, Feature, Member, ModeAction, ModeArg,
-    ModeChange, ModeValue, Rank, Typer, User,
+    ModeChange, ModeValue, Prefix, Rank, Typer, User,
 };
 #[cfg(feature = "unstable")]
 pub use papo_core::{

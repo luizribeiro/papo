@@ -329,31 +329,11 @@ mod tests {
         assert_eq!(
             support.prefix(),
             [
-                super::Prefix {
-                    mode: 'q',
-                    symbol: '~',
-                    rank: 0
-                },
-                super::Prefix {
-                    mode: 'a',
-                    symbol: '&',
-                    rank: 1
-                },
-                super::Prefix {
-                    mode: 'o',
-                    symbol: '@',
-                    rank: 2
-                },
-                super::Prefix {
-                    mode: 'h',
-                    symbol: '%',
-                    rank: 3
-                },
-                super::Prefix {
-                    mode: 'v',
-                    symbol: '+',
-                    rank: 4
-                },
+                super::Prefix::__new('q', '~'),
+                super::Prefix::__new('a', '&'),
+                super::Prefix::__new('o', '@'),
+                super::Prefix::__new('h', '%'),
+                super::Prefix::__new('v', '+'),
             ]
         );
         assert_eq!(support.chanmodes().unwrap().never, "CEMRUimnstu");

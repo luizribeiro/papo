@@ -58,13 +58,13 @@ impl State {
     pub(crate) fn parse_target_inner(
         &self,
         target: impl AsRef<str>,
-    ) -> Result<(Option<Vec<char>>, crate::Conversation), crate::InvalidIdentifier> {
+    ) -> Result<(Option<crate::Prefix>, crate::Conversation), crate::InvalidIdentifier> {
         self.core.parse_target(target)
     }
 
     /// Parses an IRC address using the server's advertised `STATUSMSG` and name rules.
     ///
-    /// The returned status prefixes are separate from the conversation name.
+    /// The returned lowest-ranked status prefix is separate from the conversation name.
     ///
     /// # Errors
     ///
@@ -72,7 +72,7 @@ impl State {
     pub fn parse_target(
         &self,
         target: &str,
-    ) -> Result<(Option<Vec<char>>, crate::Conversation), crate::InvalidInput> {
+    ) -> Result<(Option<crate::Prefix>, crate::Conversation), crate::InvalidInput> {
         self.core
             .parse_target(target)
             .map_err(|reason| crate::InvalidInput::invalid_name(target, reason))
@@ -581,7 +581,7 @@ mod name_tests {
         assert!(matches!(
             state.parse_target("@#papo"),
             Ok((Some(status), conversation))
-                if status == ['@'] && conversation == "#papo"
+                if status.symbol() == '@' && conversation == "#papo"
         ));
         assert!(matches!(
             state.conversation("@#papo"),
