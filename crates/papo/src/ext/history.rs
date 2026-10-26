@@ -1881,7 +1881,13 @@ mod tests {
         history_response(&mut server, 1).await;
         within(request).await.unwrap().unwrap();
 
-        let message_id = before.chat_messages().next().unwrap().msgid.clone().unwrap();
+        let message_id = before
+            .chat_messages()
+            .next()
+            .unwrap()
+            .msgid
+            .clone()
+            .unwrap();
         let request = tokio::spawn({
             let client = client.clone();
             async move { client.history("#papo").around(&message_id).limit(52).await }

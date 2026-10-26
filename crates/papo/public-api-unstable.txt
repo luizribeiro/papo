@@ -124,27 +124,27 @@ impl core::marker::Unpin for papo::event::ConnectPhase
 impl core::marker::UnsafeUnpin for papo::event::ConnectPhase
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ConnectPhase
 impl core::panic::unwind_safe::UnwindSafe for papo::event::ConnectPhase
-#[non_exhaustive] pub enum papo::event::NoticeKind
-pub papo::event::NoticeKind::Action
-pub papo::event::NoticeKind::Text
-impl core::clone::Clone for papo::event::NoticeKind
-pub fn papo::event::NoticeKind::clone(&self) -> Self
-impl core::cmp::Eq for papo::event::NoticeKind
-impl core::cmp::PartialEq for papo::event::NoticeKind
-pub fn papo::event::NoticeKind::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::event::NoticeKind
-pub fn papo::event::NoticeKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for papo::event::NoticeKind
-pub fn papo::event::NoticeKind::hash<__H: core::hash::Hasher>(&self, &mut __H)
-impl core::marker::Copy for papo::event::NoticeKind
-impl core::marker::StructuralPartialEq for papo::event::NoticeKind
-impl core::marker::Freeze for papo::event::NoticeKind
-impl core::marker::Send for papo::event::NoticeKind
-impl core::marker::Sync for papo::event::NoticeKind
-impl core::marker::Unpin for papo::event::NoticeKind
-impl core::marker::UnsafeUnpin for papo::event::NoticeKind
-impl core::panic::unwind_safe::RefUnwindSafe for papo::event::NoticeKind
-impl core::panic::unwind_safe::UnwindSafe for papo::event::NoticeKind
+#[non_exhaustive] pub enum papo::event::MessageKind
+pub papo::event::MessageKind::Action
+pub papo::event::MessageKind::Text
+impl core::clone::Clone for papo::MessageKind
+pub fn papo::MessageKind::clone(&self) -> Self
+impl core::cmp::Eq for papo::MessageKind
+impl core::cmp::PartialEq for papo::MessageKind
+pub fn papo::MessageKind::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::MessageKind
+pub fn papo::MessageKind::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::MessageKind
+pub fn papo::MessageKind::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for papo::MessageKind
+impl core::marker::StructuralPartialEq for papo::MessageKind
+impl core::marker::Freeze for papo::MessageKind
+impl core::marker::Send for papo::MessageKind
+impl core::marker::Sync for papo::MessageKind
+impl core::marker::Unpin for papo::MessageKind
+impl core::marker::UnsafeUnpin for papo::MessageKind
+impl core::panic::unwind_safe::RefUnwindSafe for papo::MessageKind
+impl core::panic::unwind_safe::UnwindSafe for papo::MessageKind
 #[non_exhaustive] pub enum papo::event::ReactionAction
 pub papo::event::ReactionAction::Added
 pub papo::event::ReactionAction::Removed
@@ -785,7 +785,7 @@ pub papo::event::Notice::authorship: papo::Authorship
 pub papo::event::Notice::channel_context: core::option::Option<papo::ChannelName>
 pub papo::event::Notice::conversation: papo::Conversation
 pub papo::event::Notice::in_reply_to: core::option::Option<papo::MessageId>
-pub papo::event::Notice::kind: papo::event::NoticeKind
+pub papo::event::Notice::kind: papo::MessageKind
 pub papo::event::Notice::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Notice::raw_text: alloc::string::String
 pub papo::event::Notice::received_at: std::time::SystemTime

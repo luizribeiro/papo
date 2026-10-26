@@ -366,7 +366,7 @@ async fn message_fields_use_captured_session_facts() {
     server_line(&mut server, b":emily!~e@localhost NOTICE papo-driver :maintenance soon\r\n:emily!~e@localhost PRIVMSG #papo :\x01ACTION deploys \x02bold\x02 and \x1ditalic\x1d then \x02\x1dboth\x0f in \x0304red and \x04FF0000hex\x01\r\n:dan!~d@cloak PRIVMSG #papo :\x01ACTION tests a split message\r\n:emily!~e@localhost PRIVMSG papo-driver :\x01VERSION\x01\r\n:dan!~d@cloak PRIVMSG papo-driver :\x01PING 1731513600\x01\r\n:soju.example NOTICE papo-driver :\x01VERSION soju 0.8.2\x01\r\n").await;
     let notice = events.next().await.unwrap();
     let notice = notice.as_notice().unwrap();
-    assert_eq!(notice.kind, crate::event::NoticeKind::Text);
+    assert_eq!(notice.kind, crate::event::MessageKind::Text);
     assert!(matches!(
         notice.conversation,
         crate::Conversation::Private(_)

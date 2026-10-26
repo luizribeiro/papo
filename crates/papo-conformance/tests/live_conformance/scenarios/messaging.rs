@@ -110,7 +110,7 @@ async fn server_time(s: Scenario) -> papo_testing::Result<()> {
     let message = bob
         .wait_for(|event| notice_text(event, "maintenance at midnight"))
         .await?;
-    assert_eq!(message.kind, papo::event::NoticeKind::Text);
+    assert_eq!(message.kind, papo::event::MessageKind::Text);
     assert_eq!(
         crate::source_nick(&message.actor),
         Some(alice.nick().as_ref())
@@ -168,7 +168,7 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     let received = alice
         .wait_for(|event| notice_text(event, "private notice"))
         .await?;
-    assert_eq!(received.kind, papo::event::NoticeKind::Text);
+    assert_eq!(received.kind, papo::event::MessageKind::Text);
     assert!(
         matches!(&received.conversation, papo::Conversation::Private(nick)
         if nick == bob.nick().as_ref())
@@ -488,7 +488,7 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
     let notice = bob
         .wait_for(|event| notice_text(event, "nods hello"))
         .await?;
-    assert_eq!(notice.kind, papo::event::NoticeKind::Action);
+    assert_eq!(notice.kind, papo::event::MessageKind::Action);
 
     alice
         .send_raw(

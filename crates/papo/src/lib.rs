@@ -308,8 +308,8 @@ pub mod event {
         AccountChanged, Audience, AwayChanged, BatchAbandonReason, Broadcast, BroadcastCtcp,
         BroadcastTagMsg, CapsChanged, CasemappingChanged, ChannelRenamed, ChannelSynced, Connected,
         CtcpQuery, CtcpReply, FeaturesChanged, HostChanged, Invited, Joined, Kicked,
-        MembersRefreshed, MetadataChanged, ModeChanged, MonitorOffline, MonitorOnline, Motd,
-        NickChanged, Notice, NoticeKind, Parted, Quit, Reacted, ReactionAction, ReadMarkerChanged,
+        MembersRefreshed, MessageKind, MetadataChanged, ModeChanged, MonitorOffline, MonitorOnline,
+        Motd, NickChanged, Notice, Parted, Quit, Reacted, ReactionAction, ReadMarkerChanged,
         RealnameChanged, Redacted, ServerNotice, ServerNoticeKind, SplitServers, StandardReply,
         StandardReplyKind, TagMsg, TopicChanged, TypingChanged, TypingReason, Unparsed, Warning,
     };

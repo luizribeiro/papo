@@ -47,23 +47,13 @@ pub use user::{
     RealnameChanged, SplitServers,
 };
 
-/// The semantic kind of an incoming chat message.
+/// The semantic kind of an incoming user message or notice.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum MessageKind {
     /// A regular text message.
     Text,
     /// A CTCP `ACTION`.
-    Action,
-}
-
-/// The semantic kind of an incoming user notice.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-#[non_exhaustive]
-pub enum NoticeKind {
-    /// A regular `NOTICE`.
-    Text,
-    /// A CTCP `ACTION` sent with `NOTICE`.
     Action,
 }
 
@@ -298,7 +288,7 @@ pub struct Notice {
     /// Text with IRC formatting retained and the CTCP wrapper removed from an `ACTION`.
     pub raw_text: String,
     /// The semantic notice kind.
-    pub kind: NoticeKind,
+    pub kind: MessageKind,
     /// The server-assigned message identifier, when supplied.
     pub msgid: Option<MessageId>,
     /// Valid server time, when supplied.
@@ -793,10 +783,10 @@ impl Notice {
         };
         let (kind, displayed) = match ProtoCtcp::parse(raw_text) {
             Some(ctcp) if ctcp.command.eq_ignore_ascii_case("ACTION") => {
-                (NoticeKind::Action, ctcp.params.unwrap_or(""))
+                (MessageKind::Action, ctcp.params.unwrap_or(""))
             }
             Some(_) => return Err(raw),
-            None => (NoticeKind::Text, raw_text),
+            None => (MessageKind::Text, raw_text),
         };
         let text = strip_formatting(displayed).into_owned();
         let raw_text = displayed.to_owned();
@@ -2290,9 +2280,9 @@ mod tests {
     use super::{
         Audience, Authorship, Broadcast, BroadcastCtcp, BroadcastTagMsg, Conversation, CoreEvent,
         Event, Message as ChatMessage, MessageId, MessageKind, MetadataChanged, ModeAction,
-        ModeArg, ModeChange, NoticeKind, ServerNoticeKind, Source, StandardReplyKind, Tags,
-        UserSource, Warning, ctcp_parts, from_core as from_core_with_mapping,
-        historical_message_event, message_event_from_line,
+        ModeArg, ModeChange, ServerNoticeKind, Source, StandardReplyKind, Tags, UserSource,
+        Warning, ctcp_parts, from_core as from_core_with_mapping, historical_message_event,
+        message_event_from_line,
     };
     use crate::{Subject, Visibility};
     use papo_core::{
@@ -2600,7 +2590,7 @@ mod tests {
             UNIX_EPOCH,
         );
         assert!(matches!(user, Event::Notice(notice)
-            if notice.kind == NoticeKind::Text
+            if notice.kind == MessageKind::Text
                 && matches!(notice.conversation, Conversation::Private(_))
                 && matches!(notice.actor.account(), Account::LoggedIn(account) if account == "emily")));
 
@@ -2615,7 +2605,7 @@ mod tests {
         let Event::Notice(notice) = action else {
             panic!("expected user notice")
         };
-        assert_eq!(notice.kind, NoticeKind::Action);
+        assert_eq!(notice.kind, MessageKind::Action);
         assert_eq!(notice.text, "nods hello");
         assert_eq!(notice.return_address(), "@#ops");
         let reference = notice.return_address();
@@ -2816,7 +2806,7 @@ mod tests {
         assert!(matches!(reply.actor.account(), Account::LoggedIn(account) if account == "emily"));
         let action_notice = parse("NOTICE", "\x01ACTION waves\x01");
         assert!(matches!(action_notice, Event::Notice(notice)
-            if notice.kind == NoticeKind::Action && notice.text == "waves"));
+            if notice.kind == MessageKind::Action && notice.text == "waves"));
         assert!(
             ChatMessage::new(
                 Line::new("FAIL").with_params(["PRIVMSG", "\x01VERSION\x01"]),
