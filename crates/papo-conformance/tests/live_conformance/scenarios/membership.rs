@@ -1181,7 +1181,10 @@ async fn topic(s: Scenario) -> papo_testing::Result<()> {
     let synchronized = state.channel(&channel).unwrap();
     assert_eq!(synchronized.topic(), Some(text));
     assert_eq!(
-        synchronized.topic_set_by().and_then(crate::source_nick),
+        synchronized
+            .topic_set_by()
+            .and_then(papo_core::Source::nick)
+            .map(AsRef::<str>::as_ref),
         Some(alice_nick.as_ref())
     );
     assert!(synchronized.topic_set_at().is_some());
@@ -1599,8 +1602,8 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
 
 fn assert_actor_or_server(source: &Source, actor: &str) {
     match source {
-        Source::User { nick, .. } => assert_eq!(nick, actor),
-        Source::Server { name, .. } => assert!(!name.is_empty()),
+        Source::User(user) => assert_eq!(user.nick(), actor),
+        Source::Server(name) => assert!(!name.is_empty()),
         _ => panic!("mode source is neither a user nor a server"),
     }
 }

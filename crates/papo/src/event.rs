@@ -1772,6 +1772,9 @@ pub(crate) fn from_core(
             ..
         } => {
             let envelope = map_envelope(&envelope);
+            let Some(actor) = source::from_core(actor, origin) else {
+                return CoreEvent::Unknown;
+            };
             Event::Kicked(Kicked {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
@@ -1909,6 +1912,9 @@ pub(crate) fn from_core(
             ..
         } => {
             let envelope = map_envelope(&envelope);
+            let Some(actor) = source::from_core(actor, origin) else {
+                return CoreEvent::Unknown;
+            };
             Event::ModeChanged(ModeChanged {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
@@ -1934,6 +1940,9 @@ pub(crate) fn from_core(
             ..
         } => {
             let envelope = map_envelope(&envelope);
+            let Some(actor) = source::from_core(actor, origin) else {
+                return CoreEvent::Unknown;
+            };
             Event::TopicChanged(TopicChanged {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
@@ -2787,9 +2796,10 @@ mod tests {
             UNIX_EPOCH,
         );
 
-        let Source::User { nick, .. } = &message.actor else {
+        let Source::User(user) = &message.actor else {
             panic!("message should have a user source");
         };
+        let nick = user.nick();
         assert_eq!(nick.casemapping(), Casemapping::Ascii);
         assert!(matches!(
             message.account,
@@ -2910,8 +2920,10 @@ mod tests {
         assert_eq!(invited.subject, "papo");
         assert!(matches!(
             &invited.actor,
-            Source::User { nick, username: Some(username), host: Some(host), .. }
-                if nick == "emily" && username == "~emily" && host == "localhost"
+            Source::User(user)
+                if user.nick() == "emily"
+                    && user.username() == Some("~emily")
+                    && user.host() == Some("localhost")
         ));
         assert_eq!(invited.subject_authorship, Authorship::Own);
     }
@@ -2938,9 +2950,10 @@ mod tests {
         };
 
         assert_eq!(joined.channel.casemapping(), Casemapping::Ascii);
-        let Source::User { nick: actor, .. } = &joined.actor else {
+        let Source::User(user) = &joined.actor else {
             panic!("join actor should be a user");
         };
+        let actor = user.nick();
         assert_eq!(actor.casemapping(), Casemapping::Ascii);
         assert_eq!(joined.nick.casemapping(), Casemapping::Ascii);
         assert_ne!(joined.channel, "#papo{dev}");
@@ -3104,7 +3117,7 @@ mod tests {
         let Event::Reacted(reaction) = forwarded(papo_core::Event::TagMessage(tag)) else {
             panic!("expected reaction")
         };
-        assert!(matches!(reaction.actor, Source::User { ref nick, .. } if nick == "alice"));
+        assert!(matches!(reaction.actor, Source::User(ref user) if user.nick() == "alice"));
         assert!(
             matches!(&reaction.conversation, Conversation::Channel(channel) if channel == "#ops")
         );
@@ -3167,7 +3180,7 @@ mod tests {
             forwarded(event),
             Event::TypingChanged(change)
                 if change.state == Typing::Active
-                    && matches!(change.actor, Source::User { ref nick, .. } if nick == "alice")
+                    && matches!(change.actor, Source::User(ref user) if user.nick() == "alice")
         ));
     }
 
@@ -3185,7 +3198,7 @@ mod tests {
         assert!(matches!(
             forwarded(papo_core::Event::Redacted(redacted.clone())),
             Event::Redacted(mapped)
-                if matches!(mapped.actor, Source::User { ref nick, .. } if nick == "alice")
+                if matches!(mapped.actor, Source::User(ref user) if user.nick() == "alice")
                     && mapped.conversation == redacted.conversation
                     && mapped.status == redacted.status
                     && mapped.return_address() == "@#ops"
@@ -3294,7 +3307,7 @@ mod tests {
         assert!(matches!(
             forwarded(papo_core::Event::__channel_renamed(Casemapping::default().channel("#rust"), Casemapping::default().channel("#rust-lang"), "ergo.test".into(), papo_core::Authorship::Other, None)),
             Event::ChannelRenamed(renamed)
-                if matches!(renamed.actor, Source::Server { ref name, .. } if name == "ergo.test")
+                if matches!(renamed.actor, Source::Server(ref name) if name == "ergo.test")
                     && renamed.reason.is_none()
         ));
     }

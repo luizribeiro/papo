@@ -5,7 +5,7 @@ mod support;
 
 use support::within;
 
-use papo::{Client, Endpoint, Event, Message as ChatMessage, Sasl, Source};
+use papo::{Client, Endpoint, Event, Message as ChatMessage, Sasl};
 use papo_test_server::{create_account, from_env, unique};
 
 #[tokio::test(flavor = "current_thread")]
@@ -310,8 +310,5 @@ async fn wait_own_message(
 }
 
 fn source_nick(message: &ChatMessage) -> Option<String> {
-    match &message.actor {
-        Source::User { nick, .. } => Some(nick.to_string()),
-        _ => None,
-    }
+    message.actor.nick().map(ToString::to_string)
 }

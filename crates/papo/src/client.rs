@@ -481,7 +481,10 @@ impl Client {
             recipient: crate::message_ref::actor_recipient(query),
         };
         let text = text.into();
-        let reply = papo_core::__ctcp_reply(&query.actor, &query.command, &text);
+        let reply = query.actor.nick().and_then(|nick| {
+            Ctcp::build(&query.command, (!text.is_empty()).then_some(text.as_str()))
+                .map(|body| Line::notice(nick.as_ref(), body))
+        });
         let client = self.clone();
         crate::RequestFuture::new(async move {
             client.resolve(crate::target::Role::Send("ctcp_reply: query"), target)?;

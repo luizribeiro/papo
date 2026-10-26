@@ -1377,9 +1377,10 @@ mod tests {
         ) else {
             panic!("reaction should be typed");
         };
-        let crate::Source::User { nick, .. } = event.actor else {
+        let crate::Source::User(user) = event.actor else {
             panic!("reaction should have a user source");
         };
+        let nick = user.nick();
 
         assert_eq!(nick.casemapping(), Casemapping::Ascii);
         assert_eq!(event.account, crate::Account::LoggedOut);
@@ -1500,7 +1501,7 @@ mod tests {
                     && event.channel.origin() == client.origin()
                     && event.subject.origin() == client.origin()
                     && event.reason.as_deref() == Some("Requested by alice")
-                    && matches!(event.actor, crate::Source::Server { ref name, .. } if name == "irc.example")
+                    && matches!(event.actor, crate::Source::Server(ref name) if name == "irc.example")
                     && event.subject_authorship == crate::Authorship::Unknown
         ));
 

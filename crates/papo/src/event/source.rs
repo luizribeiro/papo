@@ -64,15 +64,99 @@ impl papo_proto::MaskSource for UserSource {
     }
 }
 
-#[doc(inline)]
-pub use papo_core::Source;
+/// The user or server that caused an IRC event.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Source {
+    /// A user and the identity facts carried by the line.
+    User(UserSource),
+    /// A server name.
+    Server(crate::ServerName),
+}
+
+impl Source {
+    /// Returns the nickname for a user source.
+    #[must_use]
+    pub const fn nick(&self) -> Option<&Nick> {
+        match self {
+            Self::User(user) => Some(user.nick()),
+            Self::Server(_) => None,
+        }
+    }
+
+    /// Returns the user source when the actor is a user.
+    #[must_use]
+    pub const fn user(&self) -> Option<&UserSource> {
+        match self {
+            Self::User(user) => Some(user),
+            Self::Server(_) => None,
+        }
+    }
+
+    /// Builds a source from a parsed protocol prefix without line tags.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn from_proto(source: papo_proto::Source<'_>, casemapping: Casemapping) -> Self {
+        from_proto_with_origin(source, casemapping, crate::Origin::NONE)
+    }
+}
+
+impl fmt::Display for Source {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::User(user) => user.fmt(formatter),
+            Self::Server(server) => server.fmt(formatter),
+        }
+    }
+}
+
+impl papo_proto::MaskSource for Source {
+    fn mask_parts(&self) -> Option<(&Nick, &str, &str)> {
+        self.user()?.mask_parts()
+    }
+}
 
 pub(crate) fn from_proto_with_origin(
     source: papo_proto::Source<'_>,
     casemapping: Casemapping,
     origin: crate::Origin,
 ) -> Source {
-    papo_core::Source::__from_proto(source, casemapping, origin)
+    match source {
+        papo_proto::Source::User {
+            nick,
+            username,
+            host,
+            ..
+        } => Source::User(UserSource {
+            nick: origin.__nick(casemapping, nick),
+            username: username.filter(|_| host.is_some()).map(str::to_owned),
+            host: host.map(str::to_owned),
+            account: Account::Unknown,
+            is_bot: None,
+            oper: None,
+        }),
+        papo_proto::Source::Server(server) => Source::Server(server.into()),
+    }
+}
+
+pub(crate) fn from_core(source: papo_core::Source, origin: crate::Origin) -> Option<Source> {
+    match source {
+        papo_core::Source::User {
+            nick,
+            username,
+            host,
+            ..
+        } => Some(Source::User(UserSource {
+            nick: origin.__nick(nick.casemapping(), nick.as_ref()),
+            username: username.filter(|_| host.is_some()),
+            host,
+            account: Account::Unknown,
+            is_bot: None,
+            oper: None,
+        })),
+        papo_core::Source::Server { name, .. } => Some(Source::Server(name)),
+        _ => None,
+    }
 }
 
 pub(crate) fn from_prefix(
