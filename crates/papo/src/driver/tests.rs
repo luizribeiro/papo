@@ -6191,6 +6191,28 @@ async fn message_reply_obeys_tags_and_clienttagdeny() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn conversation_targets_write_channel_and_private_names() {
+    let (mut server, client, _events, driver) = scripted(config());
+    let task = tokio::spawn(driver);
+    welcome_burst(&mut server).await;
+
+    let channel = crate::Conversation::Channel(client.state().channel_name("#release"));
+    within(client.privmsg(channel, "release approved"))
+        .await
+        .unwrap();
+    client_line(&mut server, b"PRIVMSG #release :release approved\r\n").await;
+
+    let private = crate::Conversation::Private(client.state().nickname("alice"));
+    within(client.privmsg(private, "deployment details"))
+        .await
+        .unwrap();
+    client_line(&mut server, b"PRIVMSG alice :deployment details\r\n").await;
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn chat_text_uses_plain_splitting_and_rejects_empty_input() {
     let (mut server, client, _events, driver) = scripted(config());
     let task = tokio::spawn(driver);
