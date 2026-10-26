@@ -137,11 +137,9 @@ mod tests {
             Casemapping::Ascii,
             Casemapping::Rfc1459,
             Casemapping::Rfc1459Strict,
-            #[cfg(feature = "precis")]
-            Casemapping::Precis,
         ];
 
-        for mapping in mappings {
+        for mapping in mappings.into_iter().chain(Casemapping::parse("rfc7613")) {
             assert_eq!(Casemapping::parse(mapping.as_str()), Some(mapping));
         }
     }
