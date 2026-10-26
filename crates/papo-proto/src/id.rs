@@ -689,6 +689,27 @@ mod tests {
     }
 
     #[test]
+    fn name_parts_retain_text_and_origin_when_owned() {
+        let origin = Origin::__new(41);
+        let nick = origin.__nick(Casemapping::Rfc1459, "emily");
+        let channel = origin.__channel(Casemapping::Rfc1459, "#papo");
+
+        let nick_parts = AsNick::__parts(&nick);
+        assert_eq!(nick_parts.text(), "emily");
+        assert_eq!(nick_parts.origin(), origin);
+        let owned_nick_parts = nick_parts.into_owned();
+        assert_eq!(owned_nick_parts.text(), "emily");
+        assert_eq!(owned_nick_parts.origin(), origin);
+
+        let channel_parts = AsChannel::__parts(&channel);
+        assert_eq!(channel_parts.text(), "#papo");
+        assert_eq!(channel_parts.origin(), origin);
+        let owned_channel_parts = channel_parts.into_owned();
+        assert_eq!(owned_channel_parts.text(), "#papo");
+        assert_eq!(owned_channel_parts.origin(), origin);
+    }
+
+    #[test]
     fn origins_separate_equal_names_without_changing_text_comparison() {
         let first = Origin::__new(41).__channel(Casemapping::Rfc1459, "#Papo");
         let same_client = Origin::__new(41).__channel(Casemapping::Rfc1459, "#papo");
