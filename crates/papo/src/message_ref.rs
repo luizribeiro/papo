@@ -121,7 +121,15 @@ fn recipient(
     })
 }
 
-pub(crate) fn actor_recipient(message: &Message) -> Option<RecipientGuard> {
+pub(crate) fn actor_recipient(query: &CtcpQuery) -> Option<RecipientGuard> {
+    Some(RecipientGuard {
+        nick: query.actor.nick()?.clone(),
+        account: query.account.clone(),
+        receipt: query.reply_token,
+    })
+}
+
+pub(crate) fn message_actor_recipient(message: &Message) -> Option<RecipientGuard> {
     Some(RecipientGuard {
         nick: message.actor.nick()?.clone(),
         account: message.account.clone(),
@@ -129,81 +137,82 @@ pub(crate) fn actor_recipient(message: &Message) -> Option<RecipientGuard> {
     })
 }
 
+fn from_received(
+    conversation: &Conversation,
+    status: Option<&[char]>,
+    msgid: Option<&MessageId>,
+    account: &Account,
+    receipt: Option<papo_core::ReplyToken>,
+    channel_context: Option<ChannelName>,
+) -> MessageRef {
+    MessageRef::new(
+        address(conversation, status),
+        msgid.into_iter().cloned().collect(),
+        conversation_origin(conversation),
+        channel_context,
+        recipient(conversation, account, receipt),
+    )
+}
+
 /// Preserves the received message's return address and identifier.
-///
-/// See [`Conversation`] for status-prefixed line guidance.
 impl From<&Message> for MessageRef {
     fn from(message: &Message) -> Self {
-        Self {
-            address: message.return_address(),
-            msgid: message.msgid.clone(),
-            origin: Some(conversation_origin(&message.conversation)),
-            channel_context: message.channel_context.clone(),
-            recipient: recipient(&message.conversation, &message.account, message.reply_token),
-        }
+        from_received(
+            &message.conversation,
+            message.status.as_deref(),
+            message.msgid.as_ref(),
+            &message.account,
+            message.reply_token,
+            message.channel_context.clone(),
+        )
     }
 }
 
 /// Preserves the boxed message's return address and identifier.
-///
-/// See [`Conversation`] for status-prefixed line guidance.
 impl From<&Box<Message>> for MessageRef {
     fn from(message: &Box<Message>) -> Self {
         Self::from(message.as_ref())
     }
 }
 
-/// Preserves the sent message's return address and identifier.
-///
-/// See [`Conversation`] for status-prefixed line guidance.
+/// Preserves the sent message's return address and every line identifier.
 impl From<&Sent> for MessageRef {
     fn from(message: &Sent) -> Self {
-        Self {
-            address: message.return_address(),
-            msgid: message.msgid.clone(),
-            origin: Some(conversation_origin(&message.conversation)),
-            channel_context: None,
-            recipient: None,
-        }
+        Self::new(
+            address(&message.conversation, message.status.as_deref()),
+            message.msgids.clone(),
+            conversation_origin(&message.conversation),
+            None,
+            None,
+        )
     }
 }
 
-/// Preserves the received notice's return address and identifier.
-///
-/// See [`Conversation`] for status-prefixed line guidance.
-impl From<&Notice> for MessageRef {
-    fn from(notice: &Notice) -> Self {
-        Self {
-            address: notice.return_address(),
-            msgid: notice.msgid.clone(),
-            origin: Some(conversation_origin(&notice.conversation)),
-            channel_context: notice.channel_context.clone(),
-            recipient: recipient(&notice.conversation, &notice.account, notice.reply_token),
-        }
-    }
-}
-
-/// Preserves the boxed notice's return address and identifier.
-///
-/// See [`Conversation`] for status-prefixed line guidance.
-impl From<&Box<Notice>> for MessageRef {
-    fn from(notice: &Box<Notice>) -> Self {
-        Self::from(notice.as_ref())
+/// Preserves the CTCP query's return address and identifier.
+impl From<&CtcpQuery> for MessageRef {
+    fn from(query: &CtcpQuery) -> Self {
+        from_received(
+            &query.conversation,
+            query.status.as_deref(),
+            query.msgid.as_ref(),
+            &query.account,
+            query.reply_token,
+            None,
+        )
     }
 }
 
 /// Preserves the tag-only message's return address and identifier.
-///
-/// See [`Conversation`] for status-prefixed line guidance.
 impl From<&TagMsg> for MessageRef {
     fn from(message: &TagMsg) -> Self {
-        Self {
-            address: message.return_address(),
-            msgid: message.tags.get("msgid").map(MessageId::from),
-            origin: Some(conversation_origin(&message.conversation)),
-            channel_context: None,
-            recipient: None,
-        }
+        from_received(
+            &message.conversation,
+            message.status.as_deref(),
+            message.tags.get("msgid").map(MessageId::from).as_ref(),
+            &Account::Unknown,
+            None,
+            None,
+        )
     }
 }
 
