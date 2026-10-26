@@ -1221,29 +1221,30 @@ impl Client {
 
     /// Invites `nick` to `channel`.
     ///
+    /// ```compile_fail
+    /// # fn swapped(client: &papo::Client, nick: &papo::Nick, channel: &papo::ChannelName) {
+    /// let _ = client.invite(channel, nick);
+    /// # }
+    /// ```
+    ///
     /// # Errors
     ///
     /// Returns a typed server refusal, invalid-input error, timeout, or disconnect.
     pub fn invite(
         &self,
-        channel: impl crate::Target,
-        nick: impl crate::Target,
+        nick: impl crate::AsNick,
+        channel: impl crate::AsChannel,
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
-        let (channel, channel_error) = self.target_input(channel);
-        let (nick, nick_error) = self.target_input(nick);
-        let state = self.state();
-        let channel = state.channel_name(channel);
-        let nick = state.nickname(nick);
+        let channel = crate::AsChannel::__parts(&channel).into_owned();
+        let nick = crate::AsNick::__parts(&nick).into_owned();
         crate::RequestFuture::new(async move {
-            if let Some(error) = channel_error.or(nick_error) {
-                return Err(error.into());
-            }
+            let nick = client.resolve(crate::target::Role::Nick("invite: nick"), nick)?;
+            let channel =
+                client.resolve(crate::target::Role::Channel("invite: channel"), channel)?;
             let state = client.state();
-            channel
-                .check(state.isupport().inner())
-                .and_then(|()| nick.check(state.isupport().inner()))
-                .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
+            let channel = state.channel_name(channel);
+            let nick = state.nickname(nick);
             let response = client
                 .correlated(
                     Line::new("INVITE").with_params([nick.to_string(), channel.to_string()]),
@@ -1264,16 +1265,17 @@ impl Client {
     /// # Errors
     ///
     /// Returns a typed server refusal, invalid-input error, timeout, or disconnect.
-    pub fn set_nick(&self, nick: impl crate::Target) -> crate::RequestFuture<()> {
+    /// ```compile_fail
+    /// # fn swapped(client: &papo::Client, channel: &papo::ChannelName) {
+    /// let _ = client.set_nick(channel);
+    /// # }
+    /// ```
+    pub fn set_nick(&self, nick: impl crate::AsNick) -> crate::RequestFuture<()> {
         let client = self.clone();
-        let (nick, invalid_input) = self.target_input(nick);
-        let nick = self.state().nickname(nick);
+        let nick = crate::AsNick::__parts(&nick).into_owned();
         crate::RequestFuture::new(async move {
-            if let Some(error) = invalid_input {
-                return Err(error.into());
-            }
-            nick.check(client.state().isupport().inner())
-                .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
+            let nick = client.resolve(crate::target::Role::Nick("set_nick: nick"), nick)?;
+            let nick = client.state().nickname(nick);
             let response = client
                 .correlated(
                     Line::new("NICK").with_params([nick.to_string()]),
