@@ -173,10 +173,7 @@ async fn wildcard_who_stays_separate_from_channel_who(s: Scenario) -> papo_testi
     }
     let alice = s.connect("alice").await?;
     let bob = s
-        .connect_with(
-            s.configure("bob")?
-                .disable(papo::Feature::LabeledResponse),
-        )
+        .connect_with(s.configure("bob")?.disable(papo::Feature::LabeledResponse))
         .await?;
     let channel = s.channel_name();
     let alice_nick = alice.nick();

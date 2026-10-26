@@ -226,9 +226,12 @@ impl Builder {
     /// the network has the same effect.
     #[cfg(feature = "unstable")]
     pub fn bouncer_network(mut self, id: crate::NetworkId) -> Self {
-        if !self.config.wanted_caps.iter().any(|name| {
-            cap::canonical(name) == cap::canonical(cap::BOUNCER_NETWORKS.as_str())
-        }) {
+        if !self
+            .config
+            .wanted_caps
+            .iter()
+            .any(|name| cap::canonical(name) == cap::canonical(cap::BOUNCER_NETWORKS.as_str()))
+        {
             self.config
                 .wanted_caps
                 .push(cap::BOUNCER_NETWORKS.as_str().to_owned());
@@ -832,8 +835,7 @@ mod tests {
     };
 
     use papo_core::{
-        CtcpReplies, DEFAULT_WANTED_CAPS, RateLimit, Sasl, Secret, cap,
-        sts::ConnectionSecurity,
+        CtcpReplies, DEFAULT_WANTED_CAPS, RateLimit, Sasl, Secret, cap, sts::ConnectionSecurity,
     };
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
@@ -1086,9 +1088,11 @@ mod tests {
             1
         );
 
-        assert!(!added.disabled_caps.iter().any(|name| {
-            cap::canonical(name) == cap::canonical("draft/account-registration")
-        }));
+        assert!(
+            !added.disabled_caps.iter().any(|name| {
+                cap::canonical(name) == cap::canonical("draft/account-registration")
+            })
+        );
     }
 
     #[test]
@@ -1103,10 +1107,22 @@ mod tests {
                 .iter()
                 .any(|name| name == "example.com/custom-cap")
         );
-        assert!(builder.config.disabled_caps.iter().any(|name| name == "away-notify"));
+        assert!(
+            builder
+                .config
+                .disabled_caps
+                .iter()
+                .any(|name| name == "away-notify")
+        );
 
         let enabled = builder.enable(crate::Feature::AwayTracking);
-        assert!(!enabled.config.disabled_caps.iter().any(|name| name == "away-notify"));
+        assert!(
+            !enabled
+                .config
+                .disabled_caps
+                .iter()
+                .any(|name| name == "away-notify")
+        );
     }
 
     #[test]
@@ -1130,8 +1146,7 @@ mod tests {
     #[cfg(not(feature = "unstable"))]
     #[test]
     fn unstable_capabilities_record_the_cargo_feature_error() {
-        let builder =
-            Builder::new("ircs://irc.example.net").request_caps(["draft/persistence"]);
+        let builder = Builder::new("ircs://irc.example.net").request_caps(["draft/persistence"]);
         assert_eq!(
             builder.invalid_input,
             Some(InvalidInput::UnstableCapability(
@@ -1212,7 +1227,13 @@ mod tests {
             Some("correct horse battery staple")
         );
         assert_eq!(network.config.rate_limit, RateLimit::unlimited());
-        assert!(network.config.wanted_caps.iter().any(|name| name == "draft/relaymsg"));
+        assert!(
+            network
+                .config
+                .wanted_caps
+                .iter()
+                .any(|name| name == "draft/relaymsg")
+        );
         assert_eq!(network.config.bouncer_network.as_deref(), Some("libera"));
         assert!(network.config.metadata_subscriptions.is_empty());
         assert_eq!(

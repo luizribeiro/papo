@@ -3888,6 +3888,11 @@ async fn cap_new_and_del_forward_capability_changes() {
         matches!(events.next().await, Some(Event::CapsChanged(changed))
         if changed.added.get("server-time") == Some(&Some("2027".to_owned())))
     );
+    assert!(matches!(
+        events.next().await,
+        Some(Event::FeaturesChanged(changed))
+            if changed.added.contains(&crate::Feature::ServerTime)
+    ));
     server_line(
         &mut server,
         b":ergo.test CAP papo-driver DEL :server-time\r\n",
@@ -3897,6 +3902,11 @@ async fn cap_new_and_del_forward_capability_changes() {
         matches!(events.next().await, Some(Event::CapsChanged(changed))
         if changed.removed.contains_key("server-time"))
     );
+    assert!(matches!(
+        events.next().await,
+        Some(Event::FeaturesChanged(changed))
+            if changed.removed.contains(&crate::Feature::ServerTime)
+    ));
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),

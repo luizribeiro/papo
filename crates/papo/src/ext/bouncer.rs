@@ -15,7 +15,7 @@ pub(crate) struct NetworkConfig {
 }
 
 impl NetworkConfig {
-    fn from_endpoint(endpoint: crate::Endpoint) -> Result<Self, crate::InvalidInput> {
+    fn from_endpoint(endpoint: &crate::Endpoint) -> Result<Self, crate::InvalidInput> {
         let tls = match endpoint.kind() {
             crate::EndpointKind::Plaintext => false,
             crate::EndpointKind::Tls => true,
@@ -68,7 +68,6 @@ impl NetworkConfig {
 macro_rules! network_setters {
     () => {
         /// Sets the human-readable network name.
-        #[must_use]
         pub fn name(mut self, name: impl Into<String>) -> Self {
             if let Ok(config) = &mut self.config {
                 config.name = Some(name.into());
@@ -77,7 +76,6 @@ macro_rules! network_setters {
         }
 
         /// Sets the connection nickname.
-        #[must_use]
         pub fn nick(mut self, nick: impl AsRef<str>) -> Self {
             if let Ok(config) = &mut self.config {
                 config.nick = Some(nick.as_ref().to_owned());
@@ -86,7 +84,6 @@ macro_rules! network_setters {
         }
 
         /// Sets the connection username.
-        #[must_use]
         pub fn username(mut self, username: impl Into<String>) -> Self {
             if let Ok(config) = &mut self.config {
                 config.username = Some(username.into());
@@ -95,7 +92,6 @@ macro_rules! network_setters {
         }
 
         /// Sets the connection real name.
-        #[must_use]
         pub fn realname(mut self, realname: impl Into<String>) -> Self {
             if let Ok(config) = &mut self.config {
                 config.realname = Some(realname.into());
@@ -104,7 +100,6 @@ macro_rules! network_setters {
         }
 
         /// Sets the upstream server password.
-        #[must_use]
         pub fn password(mut self, password: impl Into<crate::Secret>) -> Self {
             if let Ok(config) = &mut self.config {
                 config.password = Some(password.into());
@@ -304,7 +299,8 @@ impl Bouncer {
     /// [`Error::Unsupported`] for [`crate::Feature::Bouncer`], [`Error::Server`] when refused, or
     /// an error documented by [`Client::request_raw`].
     pub fn add(&self, endpoint: impl crate::IntoEndpoint) -> AddNetwork {
-        let config = crate::address::endpoint(endpoint).and_then(NetworkConfig::from_endpoint);
+        let config = crate::address::unstable::endpoint(endpoint)
+            .and_then(|endpoint| NetworkConfig::from_endpoint(&endpoint));
         AddNetwork {
             client: self.client.clone(),
             config,

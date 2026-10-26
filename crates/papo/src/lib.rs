@@ -195,8 +195,6 @@ pub mod isupport {
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub use action::RequestFuture;
-#[doc(hidden)]
-pub use papo_core::cap::__is_known as __is_known_cap;
 pub use address::{Endpoint, EndpointKind, IntoEndpoint, InvalidInput};
 pub use builder::Builder;
 pub use client::{Client, Fallback, JoinChannel, SendMessage, Sent};
@@ -225,6 +223,8 @@ pub use name_rules::{NameCheck, NameRules};
 pub use papo_core::InvalidUrl;
 #[doc(inline)]
 pub use papo_core::Secret;
+#[doc(hidden)]
+pub use papo_core::cap::__is_known as __is_known_cap;
 #[doc(inline)]
 pub use papo_core::{
     Account, Away, Cap, Capabilities, Channel, Conversation, Feature, Member, ModeAction, ModeArg,

@@ -147,10 +147,7 @@ async fn assert_carol_view(
     bob_nick: &Nick,
 ) -> papo_testing::Result<()> {
     let carol = s
-        .connect_with(
-            s.configure("carol")?
-                .disable(papo::Feature::MultiPrefix),
-        )
+        .connect_with(s.configure("carol")?.disable(papo::Feature::MultiPrefix))
         .await?;
     assert!(!carol.state().caps().contains_key("multi-prefix"));
     carol.join(channel).await?;

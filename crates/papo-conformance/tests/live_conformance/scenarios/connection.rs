@@ -134,12 +134,7 @@ async fn isupport(s: Scenario) -> papo_testing::Result<()> {
 )]
 async fn extended_isupport(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
-    assert!(
-        alice
-            .state()
-            .caps()
-            .contains_key("draft/extended-isupport")
-    );
+    assert!(alice.state().caps().contains_key("draft/extended-isupport"));
     assert!(!alice.state().isupport().chantypes().is_empty());
     assert!(!alice.state().isupport().prefix().is_empty());
     alice.expect_none(Event::as_disconnected).await?;

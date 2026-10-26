@@ -319,9 +319,7 @@ pub(crate) fn convert(value: impl IntoEndpoint) -> Result<ServerAddress, Invalid
 }
 
 #[cfg(feature = "unstable")]
-pub(crate) fn endpoint(value: impl IntoEndpoint) -> Result<Endpoint, InvalidInput> {
-    private::Sealed::into_endpoint(value)
-}
+pub(crate) mod unstable;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) enum Protocol {

@@ -24,9 +24,8 @@ fn secure_sasl(sasl: Sasl) -> Config {
 
 #[test]
 fn configures_mechanisms_policy_and_entropy() {
-    let config = Config::default().sasl(
-        Sasl::any("alice", "correct horse battery staple").device("phone"),
-    );
+    let config =
+        Config::default().sasl(Sasl::any("alice", "correct horse battery staple").device("phone"));
     assert!(config.sasl.is_some());
 
     let session = Session::with_entropy(config, Box::new(FixedEntropy));

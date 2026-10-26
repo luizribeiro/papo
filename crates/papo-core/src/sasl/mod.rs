@@ -29,9 +29,16 @@ pub(crate) enum Mechanism {
         password: Secret,
         authzid: Option<String>,
     },
-    OAuthBearer { token: Secret },
-    External { authzid: Option<String> },
-    ScramSha256 { username: String, password: Secret },
+    OAuthBearer {
+        token: Secret,
+    },
+    External {
+        authzid: Option<String>,
+    },
+    ScramSha256 {
+        username: String,
+        password: Secret,
+    },
 }
 
 impl Sasl {
@@ -91,7 +98,9 @@ impl Sasl {
     pub fn authzid(mut self, authzid: impl Into<String>) -> Self {
         for mechanism in &mut self.mechanisms {
             match mechanism {
-                Mechanism::Plain { authzid: current, .. }
+                Mechanism::Plain {
+                    authzid: current, ..
+                }
                 | Mechanism::External { authzid: current } => {
                     *current = Some(authzid.into());
                     break;
@@ -449,11 +458,11 @@ impl SaslSession {
             } => {
                 let authcid = with_device(username, self.device.as_deref());
                 password.expose().map(|password| {
-                    let authzid = authzid.as_deref().unwrap_or("");
+                    let authorization_identity = authzid.as_deref().unwrap_or("");
                     let mut response = Zeroizing::new(Vec::with_capacity(
-                        authzid.len() + authcid.len() + password.len() + 2,
+                        authorization_identity.len() + authcid.len() + password.len() + 2,
                     ));
-                    response.extend_from_slice(authzid.as_bytes());
+                    response.extend_from_slice(authorization_identity.as_bytes());
                     response.push(0);
                     response.extend_from_slice(authcid.as_bytes());
                     response.push(0);
