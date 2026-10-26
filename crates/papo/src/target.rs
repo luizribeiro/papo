@@ -21,6 +21,16 @@ pub(crate) mod sealed {
             }
         }
     }
+
+    impl<'a> From<papo_proto::NameParts<'a>> for Parts<'a> {
+        fn from(parts: papo_proto::NameParts<'a>) -> Self {
+            Self {
+                text: Cow::Owned(parts.text().to_owned()),
+                origin: parts.origin(),
+                recipient: None,
+            }
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -28,6 +38,7 @@ pub(crate) enum Role {
     Send(&'static str),
     Channel(&'static str),
     Nick(&'static str),
+    Account(&'static str),
     Conversation(&'static str),
     Any(&'static str),
     Opaque(&'static str),
@@ -39,6 +50,7 @@ impl Role {
             Self::Send(argument)
             | Self::Channel(argument)
             | Self::Nick(argument)
+            | Self::Account(argument)
             | Self::Conversation(argument)
             | Self::Any(argument)
             | Self::Opaque(argument) => argument,
@@ -54,26 +66,6 @@ impl Role {
 /// accepted; use [`crate::Client::send_raw`] for operator commands that require them.
 pub trait Target: sealed::Sealed {
     /// Returns the destination and its safety metadata.
-    #[doc(hidden)]
-    fn __parts(&self) -> sealed::Parts<'_>;
-}
-
-/// A channel-name argument accepted by channel operations.
-///
-/// Text is interpreted using the receiving client's current `ISUPPORT` rules. A typed
-/// [`crate::ChannelName`] retains the client that produced it.
-pub trait AsChannel: sealed::Sealed {
-    /// Returns the channel name and its safety metadata.
-    #[doc(hidden)]
-    fn __parts(&self) -> sealed::Parts<'_>;
-}
-
-/// A nickname argument accepted by nickname operations.
-///
-/// Text is interpreted using the receiving client's current `ISUPPORT` rules. A typed
-/// [`crate::Nick`] retains the client that produced it.
-pub trait AsNick: sealed::Sealed {
-    /// Returns the nickname and its safety metadata.
     #[doc(hidden)]
     fn __parts(&self) -> sealed::Parts<'_>;
 }
@@ -107,18 +99,6 @@ macro_rules! text_roles {
                 }
             }
 
-            impl AsChannel for $ty {
-                fn __parts(&self) -> sealed::Parts<'_> {
-                    text_parts(self.as_ref())
-                }
-            }
-
-            impl AsNick for $ty {
-                fn __parts(&self) -> sealed::Parts<'_> {
-                    text_parts(self.as_ref())
-                }
-            }
-
             impl AsConversation for $ty {
                 fn __parts(&self) -> sealed::Parts<'_> {
                     text_parts(self.as_ref())
@@ -146,12 +126,6 @@ impl Target for crate::Nick {
     }
 }
 
-impl AsNick for crate::Nick {
-    fn __parts(&self) -> sealed::Parts<'_> {
-        name_parts(self.as_ref(), self.origin())
-    }
-}
-
 impl AsConversation for crate::Nick {
     fn __parts(&self) -> sealed::Parts<'_> {
         name_parts(self.as_ref(), self.origin())
@@ -161,12 +135,6 @@ impl AsConversation for crate::Nick {
 impl sealed::Sealed for crate::ChannelName {}
 
 impl Target for crate::ChannelName {
-    fn __parts(&self) -> sealed::Parts<'_> {
-        name_parts(self.as_ref(), self.origin())
-    }
-}
-
-impl AsChannel for crate::ChannelName {
     fn __parts(&self) -> sealed::Parts<'_> {
         name_parts(self.as_ref(), self.origin())
     }
@@ -213,13 +181,12 @@ macro_rules! reference_role {
 }
 
 reference_role!(Target);
-reference_role!(AsChannel);
-reference_role!(AsNick);
 reference_role!(AsConversation);
 
 #[cfg(test)]
 mod tests {
-    use super::{AsChannel, AsConversation, AsNick, Target};
+    use super::{AsConversation, Target};
+    use crate::{AsChannel, AsNick};
 
     #[test]
     fn typed_roles_report_text_and_origin() {
@@ -228,9 +195,9 @@ mod tests {
         let channel = origin.__channel(mapping, "#papo");
         let nick = origin.__nick(mapping, "emily");
 
-        assert_eq!(AsChannel::__parts(&channel).text, "#papo");
+        assert_eq!(AsChannel::__parts(&channel).text(), "#papo");
         assert_eq!(AsConversation::__parts(&channel).origin, origin);
-        assert_eq!(AsNick::__parts(&nick).text, "emily");
+        assert_eq!(AsNick::__parts(&nick).text(), "emily");
         assert_eq!(Target::__parts(&nick).origin, origin);
         assert_eq!(Target::__parts(&"@#ops").text, "@#ops");
     }

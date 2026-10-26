@@ -239,13 +239,14 @@ pub use papo_core::{MetadataValue, Visibility};
 pub use papo_core::{Unsupported, UnsupportedReason};
 #[doc(inline)]
 pub use papo_proto::{
-    AccountName, Casemapping, ChannelName, Color, FormatBuilder, InvalidIdentifier, Line, Mask,
-    MessageId, MetadataKey, Nick, Origin, ServerName, Span, Style, Typing, strip_formatting,
+    AccountName, AsAccount, AsChannel, AsNick, Casemapping, ChannelName, Color, FormatBuilder,
+    InvalidIdentifier, Line, Mask, MessageId, MetadataKey, Nick, Origin, ServerName, Span, Style,
+    Typing, strip_formatting,
 };
 pub use reconnect::Reconnect;
 pub use requests::{ListEntry, ListFilter, WhoEntry, Whois, WhoisChannel};
 pub use state::{ReadMarker, State};
-pub use target::{AsChannel, AsConversation, AsNick, Target};
+pub use target::{AsConversation, Target};
 pub use webirc::WebIrc;
 
 /// A user or channel acted on by an IRC event.

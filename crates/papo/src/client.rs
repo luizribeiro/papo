@@ -154,7 +154,7 @@ impl SendMessage {
 
     /// Supplies channel context for a private message.
     pub fn channel_context(mut self, channel: impl crate::AsChannel) -> Self {
-        self.channel_context = Some(crate::AsChannel::__parts(&channel).into_owned());
+        self.channel_context = Some(crate::AsChannel::__parts(&channel).into_owned().into());
         self
     }
 
@@ -313,11 +313,12 @@ impl Sent {
 }
 
 impl Client {
-    pub(crate) fn resolve(
+    pub(crate) fn resolve<'a>(
         &self,
         role: crate::target::Role,
-        parts: crate::target::sealed::Parts<'_>,
+        parts: impl Into<crate::target::sealed::Parts<'a>>,
     ) -> Result<String, Error> {
+        let parts = parts.into();
         if parts.origin != crate::Origin::NONE && parts.origin != self.origin {
             return Err(InvalidInput::ForeignReference.into());
         }
@@ -329,6 +330,7 @@ impl Client {
                 state.channel_name(&text).check(state.isupport().inner())
             }
             crate::target::Role::Nick(_) => state.nickname(&text).check(state.isupport().inner()),
+            crate::target::Role::Account(_) => state.account_name(&text).check(),
             crate::target::Role::Conversation(_) => {
                 state.parse_target_inner(&text).and_then(|(status, _)| {
                     status
@@ -995,7 +997,7 @@ impl Client {
     pub fn join(&self, channel: impl crate::AsChannel) -> JoinChannel {
         JoinChannel {
             client: self.clone(),
-            channel: crate::AsChannel::__parts(&channel).into_owned(),
+            channel: crate::AsChannel::__parts(&channel).into_owned().into(),
             key: None,
         }
     }
@@ -1410,7 +1412,7 @@ impl Client {
         topic: impl Into<String>,
     ) -> crate::RequestFuture<()> {
         self.change_topic(
-            crate::AsChannel::__parts(&channel).into_owned(),
+            crate::AsChannel::__parts(&channel).into_owned().into(),
             topic.into(),
             false,
         )
@@ -1423,7 +1425,7 @@ impl Client {
     /// Returns the same errors as [`Client::set_topic`].
     pub fn clear_topic(&self, channel: impl crate::AsChannel) -> crate::RequestFuture<()> {
         self.change_topic(
-            crate::AsChannel::__parts(&channel).into_owned(),
+            crate::AsChannel::__parts(&channel).into_owned().into(),
             String::new(),
             true,
         )
