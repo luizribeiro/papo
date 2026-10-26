@@ -2513,6 +2513,8 @@ pub enum Event {
         authorship: Authorship,
         /// Whether the distinct subject is this session's user.
         subject_authorship: Authorship,
+        /// This session's nickname when the event was built.
+        own_nick: Option<Nick>,
         /// Parsed mode operations in wire order.
         changes: Vec<ModeChange>,
     },
@@ -2568,7 +2570,7 @@ hidden_event_constructors! {
     __away_changed(actor: String, nick: Nick, away: Away, authorship: Authorship) => AwayChanged;
     __host_changed(actor: String, nick: Nick, username: String, host: String, authorship: Authorship) => HostChanged;
     __realname_changed(actor: String, nick: Nick, realname: String, authorship: Authorship) => RealnameChanged;
-    __mode_changed(envelope: LineEnvelope, subject: Subject, actor: Source, authorship: Authorship, subject_authorship: Authorship, changes: Vec<ModeChange>) => ModeChanged;
+    __mode_changed(envelope: LineEnvelope, subject: Subject, actor: Source, authorship: Authorship, subject_authorship: Authorship, own_nick: Option<Nick>, changes: Vec<ModeChange>) => ModeChanged;
     __topic_changed(envelope: LineEnvelope, channel: ChannelName, topic: Option<String>, actor: Source, authorship: Authorship) => TopicChanged;
     __state_limit_reached(limit: StateLimit) => StateLimitReached;
     __monitor_online(nick: Nick, username: Option<String>, host: Option<String>) => MonitorOnline;

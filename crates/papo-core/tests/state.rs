@@ -1345,6 +1345,8 @@ fn reports_mixed_channel_and_user_mode_changes() {
             }
             _ => false,
         })
+        .server(":ChanServ!service@services.example MODE #papo +o emily")
+        .event(|event| matches!(event, Event::ModeChanged { own_nick: Some(own), changes, .. } if own == "emily" && changes == &vec![ModeChange { mode: 'o', action: ModeAction::Add, arg: Some(ModeArg::Nick(Casemapping::Rfc1459.nick("emily"))) }]))
         .server(":alice!alice@staff.example MODE #papo +kl review-key-2026 50")
         .event(|event| {
             assert!(!format!("{event:?}").contains("review-key-2026"));

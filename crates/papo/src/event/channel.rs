@@ -138,10 +138,88 @@ pub struct ModeChanged {
     pub actor: Source,
     /// Whether the actor is this client's user.
     pub authorship: Authorship,
-    /// Whether the distinct subject is this client's user.
-    pub subject_authorship: Authorship,
     /// Parsed mode operations in wire order.
     pub changes: Vec<crate::ModeChange>,
+    pub(crate) own_nick: Option<Nick>,
+}
+
+impl ModeChanged {
+    /// Returns whether this mode change is about this client's user.
+    #[must_use]
+    pub fn about(&self, change: &crate::ModeChange) -> Authorship {
+        let affected = match change.arg.as_ref() {
+            Some(crate::ModeArg::Nick(nick)) => Some(nick),
+            _ => match &self.subject {
+                Subject::User(nick) => Some(nick),
+                Subject::Channel(_) => return Authorship::Other,
+            },
+        };
+        match (self.own_nick.as_ref(), affected) {
+            (Some(own), Some(affected)) if own == affected => Authorship::Own,
+            (Some(_), Some(_)) => Authorship::Other,
+            _ => Authorship::Unknown,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::SystemTime;
+
+    use papo_proto::Casemapping;
+
+    use super::{Authorship, ModeChanged, Source, Subject};
+    use crate::{ModeAction, ModeArg, ModeChange};
+
+    fn event(subject: Subject, own_nick: Option<&str>) -> ModeChanged {
+        let mapping = Casemapping::default();
+        ModeChanged {
+            msgid: None,
+            server_time: None,
+            received_at: SystemTime::UNIX_EPOCH,
+            subject,
+            actor: Source::from_proto(
+                papo_proto::Source::__user("ChanServ", Some("service"), Some("services.example")),
+                mapping,
+            ),
+            authorship: Authorship::Other,
+            changes: Vec::new(),
+            own_nick: own_nick.map(|nick| mapping.nick(nick)),
+        }
+    }
+
+    #[test]
+    fn mode_about_covers_nick_arguments_user_subjects_and_history() {
+        let mapping = Casemapping::default();
+        let own = ModeChange {
+            mode: 'o',
+            action: ModeAction::Add,
+            arg: Some(ModeArg::Nick(mapping.nick("emily"))),
+        };
+        let other = ModeChange {
+            mode: 'v',
+            action: ModeAction::Add,
+            arg: Some(ModeArg::Nick(mapping.nick("alice"))),
+        };
+        let channel = event(Subject::Channel(mapping.channel("#papo")), Some("emily"));
+        assert_eq!(channel.about(&own), Authorship::Own);
+        assert_eq!(channel.about(&other), Authorship::Other);
+        assert_eq!(
+            event(Subject::Channel(mapping.channel("#papo")), None).about(&own),
+            Authorship::Unknown
+        );
+
+        let user_mode = ModeChange {
+            mode: 'i',
+            action: ModeAction::Add,
+            arg: None,
+        };
+        assert_eq!(
+            event(Subject::User(mapping.nick("emily")), Some("emily")).about(&user_mode),
+            Authorship::Own
+        );
+        assert_eq!(channel.about(&user_mode), Authorship::Other);
+    }
 }
 
 /// A joined channel was renamed.

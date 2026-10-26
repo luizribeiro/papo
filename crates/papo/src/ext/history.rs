@@ -461,7 +461,7 @@ fn topic_changed(
 fn mode_changed(
     message: &papo_proto::LineRef<'_>,
     authorship: crate::Authorship,
-    subject_authorship: crate::Authorship,
+    _subject_authorship: crate::Authorship,
     client: &Client,
     received_at: SystemTime,
 ) -> Option<Event> {
@@ -506,8 +506,8 @@ fn mode_changed(
             envelope.account,
         ),
         authorship,
-        subject_authorship,
         changes,
+        own_nick: None,
     }))
 }
 

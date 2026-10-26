@@ -865,6 +865,7 @@ impl State {
                 _ if isupport.is_channel(target) => Authorship::Other,
                 _ => self.nick_authorship(target),
             },
+            own_nick: Some(self.nick.clone()),
             changes,
         });
         true

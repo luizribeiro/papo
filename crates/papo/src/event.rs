@@ -1992,7 +1992,7 @@ pub(crate) fn from_core(
             subject,
             actor,
             authorship,
-            subject_authorship,
+            own_nick,
             changes,
             ..
         } => {
@@ -2013,7 +2013,7 @@ pub(crate) fn from_core(
                 },
                 actor,
                 authorship: Authorship::from_core(authorship),
-                subject_authorship: Authorship::from_core(subject_authorship),
+                own_nick,
                 changes,
             })
         }
@@ -3736,7 +3736,7 @@ mod tests {
             )),
         }];
         assert!(matches!(
-            forwarded(papo_core::Event::__mode_changed(papo_core::LineEnvelope::default(), papo_core::Subject::Channel(Casemapping::default().channel("#papo")), papo_core::Source::from_proto(papo_proto::Source::__user("alice", Some("~alice"), Some("staff.example")), Casemapping::default()), papo_core::Authorship::Other, papo_core::Authorship::Other, mode_changes.clone())),
+            forwarded(papo_core::Event::__mode_changed(papo_core::LineEnvelope::default(), papo_core::Subject::Channel(Casemapping::default().channel("#papo")), papo_core::Source::from_proto(papo_proto::Source::__user("alice", Some("~alice"), Some("staff.example")), Casemapping::default()), papo_core::Authorship::Other, papo_core::Authorship::Other, Some(Casemapping::default().nick("emily")), mode_changes.clone())),
             Event::ModeChanged(mode)
                 if matches!(mode.subject, crate::Subject::Channel(ref channel) if channel == "#papo")
                     && mode.actor.nick().is_some_and(|nick| nick == "alice")
@@ -3753,6 +3753,8 @@ mod tests {
     fn nests_account_tags_on_server_capable_mode_actors() {
         let now = Instant::now();
         let mut session = Session::new(Config::default().nick("emily"));
+        session.handle_line(now, b":irc.example 005 emily CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(ov)@+ :are supported");
+        while session.poll_event().is_some() {}
         session.handle_line(now, b":emily!em@127.0.0.1 JOIN #papo");
         assert!(matches!(session.poll_event(), Some(papo_core::Event::Joined { .. })));
         session.handle_line(
@@ -3767,6 +3769,32 @@ mod tests {
                 .map(|actor| actor.account()),
             Some(Account::LoggedIn(account)) if account == "services"
         ));
+    }
+
+    #[test]
+    fn mode_about_uses_the_build_time_nick() {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().nick("emily"));
+        session.handle_line(now, b":irc.example 005 emily CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(ov)@+ :are supported");
+        while session.poll_event().is_some() {}
+        session.handle_line(now, b":emily!em@127.0.0.1 JOIN #papo");
+        assert!(matches!(session.poll_event(), Some(papo_core::Event::Joined { .. })));
+        session.handle_line(
+            now,
+            b":ChanServ!service@services.example MODE #papo +o emily",
+        );
+
+        let event = forwarded(session.poll_event().expect("mode event"));
+        let mode = event.as_mode_changed().expect("typed mode event");
+        assert!(mode.actor.nick().is_some_and(|nick| nick == "ChanServ"));
+        assert_eq!(mode.authorship, Authorship::Other);
+        assert_eq!(mode.own_nick.as_ref().map(AsRef::as_ref), Some("emily"));
+        assert!(
+            matches!(&mode.changes[0].arg, Some(ModeArg::Nick(nick)) if nick == "emily"),
+            "{:?}",
+            mode.changes[0]
+        );
+        assert_eq!(mode.about(&mode.changes[0]), Authorship::Own);
     }
 
     #[test]
