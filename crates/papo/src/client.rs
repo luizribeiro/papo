@@ -728,9 +728,7 @@ impl Client {
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
         crate::RequestFuture::new(async move {
-            let (target, message, origin, _, recipient) = message.into_parts();
-            client.check_origin(origin)?;
-            let Some(message) = message else {
+            let Some(message_id) = message.msgid().cloned() else {
                 return Err(InvalidInput::UnusableMessageReference.into());
             };
             if emoji.is_empty() {
@@ -743,19 +741,15 @@ impl Client {
                 }
                 .into());
             }
+            let target = client.resolve(
+                crate::target::Role::Send("reaction: message"),
+                crate::Target::__parts(&message),
+            )?;
             let state = client.state();
-            if recipient
-                .as_ref()
-                .is_some_and(|recipient| state.recipient_changed(recipient))
-            {
-                return Err(Error::TargetGone);
-            }
             Self::require_feature(&state, Feature::Reactions)?;
-            state
-                .parse_target_inner(&target)
-                .map(drop)
-                .and_then(|()| message.check())
-                .map_err(|error| InvalidInput::InvalidMessage(error.to_string()))?;
+            message_id
+                .check()
+                .map_err(|error| InvalidInput::invalid_name(message_id.to_string(), error))?;
             let denied = state.isupport().clienttagdeny();
             // Feature preflight rejects the only state where both aliases are unavailable.
             let reply_tag = event_impl::allowed_alias(&denied, "+reply", "+draft/reply")
@@ -767,7 +761,7 @@ impl Client {
                 )));
             }
             let message = Line::tagmsg(target)
-                .with_tag(reply_tag, message.as_ref())
+                .with_tag(reply_tag, message_id.as_ref())
                 .with_tag(reaction_tag, emoji);
             if state.supports(Feature::LabeledResponse) {
                 let response = client.correlated(message, None).await?;
