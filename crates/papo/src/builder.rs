@@ -914,7 +914,7 @@ mod tests {
         ));
 
         let tag = crate::event::TagMsg {
-            actor: crate::Source::User(actor.clone()),
+            actor: actor.clone(),
             authorship: crate::Authorship::Other,
             conversation: crate::Conversation::Private(first.state().nickname("emily")),
             status: None,

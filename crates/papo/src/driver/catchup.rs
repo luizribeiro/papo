@@ -272,10 +272,10 @@ mod tests {
             msgid: Some("RfcBTzyxY120010".into()),
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
-            account: crate::Account::LoggedIn(mapping.account("emily")),
-            actor: crate::Source::from_proto(
-                papo_proto::Source::__user("emily", Some("~e"), Some("cloak.example")),
-                mapping,
+            actor: crate::__testing::user_source(
+                mapping.nick("emily"),
+                Some("~e".into()),
+                Some("cloak.example".into()),
             ),
             authorship: crate::Authorship::Other,
             conversation: crate::Conversation::Channel(mapping.channel("#papo")),

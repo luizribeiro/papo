@@ -186,12 +186,13 @@ fn reaction(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        account: envelope.account,
-        actor: crate::event_impl::source::from_proto_with_origin(
-            message.source()?,
+        actor: crate::event_impl::source::user_from_line(
+            message,
             mapping,
             origin,
-        ),
+            account_tag_enabled,
+            false,
+        )?,
         authorship,
         conversation,
         status,
@@ -238,12 +239,18 @@ fn redaction(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        account: envelope.account,
-        actor: crate::event_impl::source::from_proto_with_origin(
-            message.source()?,
-            mapping,
-            origin,
-        ),
+        actor: match message.source()? {
+            papo_proto::Source::User { .. } => {
+                crate::Source::User(crate::event_impl::source::user_from_line(
+                    message,
+                    mapping,
+                    origin,
+                    account_tag_enabled,
+                    false,
+                )?)
+            }
+            papo_proto::Source::Server(server) => crate::Source::Server(server.into()),
+        },
         authorship,
         conversation,
         status,
@@ -1329,12 +1336,12 @@ mod tests {
         assert!(matches!(
             reacted,
             PageEvent::Reacted(event)
-                if event.actor.nick().is_some_and(|nick| nick == "emily")
+                if event.actor.nick() == "emily"
                     && matches!(&event.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
                     && event.status.is_none()
                     && event.reacts_to == "RfcBTzyxY120004"
                     && event.reaction == "👍"
-                    && matches!(&event.account, crate::Account::LoggedIn(account) if account == "emily")
+                    && matches!(event.actor.account(), crate::Account::LoggedIn(account) if account == "emily")
                     && event.action == crate::event::ReactionAction::Added
         ));
 
@@ -1352,7 +1359,7 @@ mod tests {
                 if matches!(&event.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
                     && event.status.is_none()
                     && event.redacts == "RfcBTzyxY120004"
-                    && matches!(&event.account, crate::Account::LoggedIn(account) if account == "alice")
+                    && matches!(event.actor.user().unwrap().account(), crate::Account::LoggedIn(account) if account == "alice")
                     && event.reason.is_none()
         ));
     }
@@ -1377,13 +1384,10 @@ mod tests {
         ) else {
             panic!("reaction should be typed");
         };
-        let crate::Source::User(user) = event.actor else {
-            panic!("reaction should have a user source");
-        };
-        let nick = user.nick();
+        let nick = event.actor.nick();
 
         assert_eq!(nick.casemapping(), Casemapping::Ascii);
-        assert_eq!(event.account, crate::Account::LoggedOut);
+        assert_eq!(event.actor.account(), &crate::Account::LoggedOut);
         assert_ne!(nick, "alice{bot}");
     }
 
