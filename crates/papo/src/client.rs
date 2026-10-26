@@ -90,14 +90,13 @@ pub enum Fallback {
 pub struct SendMessage {
     client: Client,
     kind: TextKind,
-    target: String,
+    target: crate::target::sealed::Parts<'static>,
     text: String,
     reply_to: Option<crate::MessageId>,
-    channel_context: Option<crate::ChannelName>,
+    channel_context: Option<crate::target::sealed::Parts<'static>>,
     tags: Vec<(String, String)>,
     action: bool,
     invalid_input: Option<InvalidInput>,
-    recipient: Option<crate::message_ref::RecipientGuard>,
 }
 
 impl std::fmt::Debug for SendMessage {
@@ -154,10 +153,8 @@ impl SendMessage {
     }
 
     /// Supplies channel context for a private message.
-    pub fn channel_context(mut self, channel: impl crate::Target) -> Self {
-        let (channel, error) = self.client.target_input(channel);
-        self.invalid_input = self.invalid_input.or(error);
-        self.channel_context = Some(self.client.state().channel_name(channel));
+    pub fn channel_context(mut self, channel: impl crate::AsChannel) -> Self {
+        self.channel_context = Some(crate::AsChannel::__parts(&channel).into_owned());
         self
     }
 
@@ -189,14 +186,19 @@ impl IntoFuture for SendMessage {
             if let Some(error) = self.invalid_input {
                 return Err(error.into());
             }
+            let target = self
+                .client
+                .resolve(crate::target::Role::Send("target"), self.target)?;
+            let channel_context = self
+                .channel_context
+                .map(|channel| {
+                    self.client.resolve(
+                        crate::target::Role::Channel("channel_context: channel"),
+                        channel,
+                    )
+                })
+                .transpose()?;
             let state = self.client.state();
-            if self
-                .recipient
-                .as_ref()
-                .is_some_and(|recipient| state.recipient_changed(recipient))
-            {
-                return Err(Error::TargetGone);
-            }
             for (key, _) in &self.tags {
                 if !key.starts_with('+') {
                     return Err(InvalidInput::InvalidMessage(format!(
@@ -215,18 +217,10 @@ impl IntoFuture for SendMessage {
                     )));
                 }
             }
-            state
-                .parse_target_inner(&self.target)
-                .map_err(|reason| InvalidInput::invalid_name(self.target.clone(), reason))?;
             if let Some(message) = &self.reply_to {
                 message
                     .check()
                     .map_err(|reason| InvalidInput::invalid_name(message.to_string(), reason))?;
-            }
-            if let Some(channel) = &self.channel_context {
-                channel
-                    .check(state.isupport().inner())
-                    .map_err(|reason| InvalidInput::invalid_name(channel.to_string(), reason))?;
             }
             let mut tags = self.tags;
             let mut fallbacks = Vec::new();
@@ -239,30 +233,23 @@ impl IntoFuture for SendMessage {
                 } else if self.reply_to.is_some() {
                     fallbacks.push(Fallback::ReplyTagDropped);
                 }
-                if let Some(channel) = self.channel_context.as_ref()
+                if let Some(channel) = channel_context.as_ref()
                     && let Some(tag) = event_impl::allowed_alias(
                         &denied,
                         "+channel-context",
                         "+draft/channel-context",
                     )
                 {
-                    tags.push((tag.to_owned(), channel.to_string()));
-                } else if self.channel_context.is_some() {
+                    tags.push((tag.to_owned(), channel.clone()));
+                } else if channel_context.is_some() {
                     fallbacks.push(Fallback::ContextTagDropped);
                 }
             } else {
                 fallbacks.extend(self.reply_to.map(|_| Fallback::ReplyTagDropped));
-                fallbacks.extend(self.channel_context.map(|_| Fallback::ContextTagDropped));
+                fallbacks.extend(channel_context.map(|_| Fallback::ContextTagDropped));
             }
             self.client
-                .send_text(
-                    self.kind,
-                    &self.target,
-                    &self.text,
-                    tags,
-                    fallbacks,
-                    self.action,
-                )
+                .send_text(self.kind, &target, &self.text, tags, fallbacks, self.action)
                 .await
         })
     }
@@ -572,18 +559,16 @@ impl Client {
     /// [`crate::Refusal::InputTooLong`],
     /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`].
     pub fn privmsg(&self, target: impl crate::Target, text: impl Into<String>) -> SendMessage {
-        let (target, invalid_input) = self.target_input(target);
         SendMessage {
             client: self.clone(),
             kind: TextKind::Privmsg,
-            target,
+            target: crate::Target::__parts(&target).into_owned(),
             text: text.into(),
             reply_to: None,
             channel_context: None,
             tags: Vec::new(),
             action: false,
-            invalid_input,
-            recipient: None,
+            invalid_input: None,
         }
     }
 
@@ -601,18 +586,16 @@ impl Client {
     /// [`crate::Refusal::InputTooLong`],
     /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`].
     pub fn notice(&self, target: impl crate::Target, text: impl Into<String>) -> SendMessage {
-        let (target, invalid_input) = self.target_input(target);
         SendMessage {
             client: self.clone(),
             kind: TextKind::Notice,
-            target,
+            target: crate::Target::__parts(&target).into_owned(),
             text: text.into(),
             reply_to: None,
             channel_context: None,
             tags: Vec::new(),
             action: false,
-            invalid_input,
-            recipient: None,
+            invalid_input: None,
         }
     }
 
@@ -643,6 +626,14 @@ impl Client {
     /// Passing the received line or [`Sent`] preserves its return address. See
     /// [`crate::Conversation`] for status-prefixed line guidance.
     ///
+    /// A notice is not a reply input:
+    ///
+    /// ```compile_fail
+    /// # fn notice(client: &papo::Client, notice: &papo::event::Notice) {
+    /// let _ = client.reply(notice, "automatic response");
+    /// # }
+    /// ```
+    ///
     /// For a private received line, papo returns [`Error::TargetGone`] when current state proves
     /// that another user holds the sender's nickname. It does not follow the sender to a new
     /// nickname. When state cannot identify the current holder, including a sender who shares no
@@ -657,12 +648,10 @@ impl Client {
         message: impl Into<crate::MessageRef>,
         text: impl Into<String>,
     ) -> SendMessage {
-        let (target, msgid, origin, channel_context, recipient) = message.into().into_parts();
-        let mut request = self.privmsg(target, text);
-        if let Err(Error::InvalidInput(error)) = self.check_origin(origin) {
-            request.invalid_input = Some(error);
-        }
-        request.recipient = recipient;
+        let message = message.into();
+        let msgid = message.msgid().cloned();
+        let channel_context = message.channel_context().cloned();
+        let mut request = self.privmsg(message, text);
         if let Some(id) = msgid {
             request = request.reply_to(id);
         }
