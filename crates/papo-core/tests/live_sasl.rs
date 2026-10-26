@@ -43,7 +43,8 @@ fn authenticates_with_plain_and_scram_against_live_ergo() {
         Sasl::plain(&account, "wrong-password-4917"),
     )
     .expect_err("required SASL accepted a wrong password");
-    assert!(reason.contains("SASL failed"));
+    assert!(reason.contains("PLAIN:"));
+    assert!(!reason.starts_with("SASL failed:"));
 }
 
 fn authenticate(server: &ServerInfo, account: &str, sasl: Sasl) -> Result<Session, String> {

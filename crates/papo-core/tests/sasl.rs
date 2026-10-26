@@ -548,7 +548,7 @@ fn required_sasl_distinguishes_unavailable_from_failed_login() {
         .server(":ergo.test 904 alice :SASL authentication failed")
         .event(|event| {
             matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason, .. }
-                if reason.contains("PLAIN"))
+                if reason == "PLAIN: SASL authentication failed; every configured SASL mechanism failed")
         })
         .no_client();
 }
@@ -606,7 +606,7 @@ fn account_required_closes_and_verification_note_surfaces() {
     .server(":ergo.test NOTE AUTHENTICATE VERIFICATION_REQUIRED alice :Verify your account")
     .event(|event| matches!(event, Event::StandardReply(reply) if reply.code == "VERIFICATION_REQUIRED"))
     .server(":ergo.test FAIL * ACCOUNT_REQUIRED :Authentication required")
-    .event(|event| matches!(event, Event::Close { kind: CloseKind::AccountRequired, reason, .. } if reason.contains("Authentication required")))
+    .event(|event| matches!(event, Event::Close { kind: CloseKind::AccountRequired, reason, .. } if reason == "Authentication required"))
     .event(|event| matches!(event, Event::StandardReply(reply) if reply.code == "ACCOUNT_REQUIRED"))
     .no_client();
 }

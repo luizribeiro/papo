@@ -551,10 +551,10 @@ impl SaslSession {
             self.deadline = None;
             outbox.close(
                 crate::CloseKind::AccountRequired,
-                format!(
-                    "SASL failed: {}",
-                    message.param(2).unwrap_or("the server requires an account")
-                ),
+                message
+                    .param(2)
+                    .unwrap_or("the server requires an account")
+                    .to_owned(),
             );
         } else {
             return false;
@@ -731,7 +731,7 @@ impl SaslSession {
         self.aborting = false;
         self.abort_outcome = AbortOutcome::Retry;
         self.failures.push(reason.to_owned());
-        let reason = format!("SASL failed: {}", self.failures.join("; "));
+        let reason = self.failures.join("; ");
         if self.require {
             outbox.close(
                 if self.failure_kind == FailureKind::Unavailable {
