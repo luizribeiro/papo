@@ -60,8 +60,8 @@ same-named channels on two clients compare unequal, while either still compares 
 plain string. Converting a typed value to a string explicitly discards this protection.
 
 papo answers private, live CTCP `PING` and `VERSION` queries by default; the VERSION text is
-`papo <version>`. Use `CtcpReplies::default().ping(false)`, `.version(Some("my-app 2.3"))`, or
-`.version(None)` to change either reply, and `CtcpReplies::off()` to answer nothing automatically.
+`papo <version>`. Use `CtcpReplies::default().ping(false)`, `.version("my-app 2.3")`, or
+`.without_version()` to change either reply, and `CtcpReplies::off()` to answer nothing automatically.
 Other queries are emitted as `Event::CtcpQuery` and can be answered with `Client::ctcp_reply`.
 Replies arrive separately as `Event::CtcpReply`, so they cannot be passed to `ctcp_reply`. Replayed,
 channel-targeted, and own-session queries are never answered automatically.

@@ -279,7 +279,7 @@ async fn ctcp_playback_has_no_automatic_reply(s: Scenario) -> papo_testing::Resu
     let phone = s
         .connect_with(
             s.configure_account_session("bob-phone", bob_nick.to_string())?
-                .ctcp_replies(CtcpReplies::default().version(Some("papo security test"))),
+                .ctcp_replies(CtcpReplies::default().version("papo security test")),
         )
         .await?;
     let page = phone

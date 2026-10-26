@@ -315,7 +315,7 @@ fn connected_ctcp(replies: CtcpReplies) -> Transcript {
 fn answers_supported_ctcp_queries_and_applies_safety_rules() {
     let now = Instant::now();
     let replies = CtcpReplies::default()
-        .version(Some("papo test build"))
+        .version("papo test build")
         .rate(RateLimit::unlimited());
     let mut session = Session::new(
         Config::default()
@@ -381,7 +381,7 @@ fn assert_ctcp_combination(replies: CtcpReplies, version: Option<&str>, ping: bo
 #[test]
 fn playback_batches_do_not_trigger_automatic_ctcp_replies() {
     let replies = CtcpReplies::default()
-        .version(Some("papo test build"))
+        .version("papo test build")
         .rate(RateLimit::unlimited());
     Transcript::new(Config::default().nick("papo").ctcp(replies))
         .server(":irc.example.net BATCH +zncplayback znc.in/playback")
@@ -420,21 +420,21 @@ fn configures_every_ping_and_version_combination_from_both_starting_points() {
             Some(default_version.as_str()),
             false,
         ),
-        (CtcpReplies::default().version(None), None, true),
+        (CtcpReplies::default().without_version(), None, true),
         (
-            CtcpReplies::default().version(None).ping(false),
+            CtcpReplies::default().without_version().ping(false),
             None,
             false,
         ),
         (CtcpReplies::off(), None, false),
         (CtcpReplies::off().ping(true), None, true),
         (
-            CtcpReplies::off().version(Some("ferrobot 2.3")),
+            CtcpReplies::off().version("ferrobot 2.3"),
             Some("ferrobot 2.3"),
             false,
         ),
         (
-            CtcpReplies::off().ping(true).version(Some("ferrobot 2.3")),
+            CtcpReplies::off().ping(true).version("ferrobot 2.3"),
             Some("ferrobot 2.3"),
             true,
         ),
@@ -446,7 +446,7 @@ fn configures_every_ping_and_version_combination_from_both_starting_points() {
 #[test]
 fn reports_ctcp_queries_replies_and_actions_while_auto_answering() {
     let replies = CtcpReplies::default()
-        .version(Some("papo test build"))
+        .version("papo test build")
         .rate(RateLimit::unlimited());
     Transcript::new(
         Config::default()
@@ -475,7 +475,7 @@ fn reports_ctcp_queries_replies_and_actions_while_auto_answering() {
 fn drops_an_automatic_reply_with_an_invalid_target() {
     connected_ctcp(
         CtcpReplies::default()
-            .version(Some("papo test build"))
+            .version("papo test build")
             .rate(RateLimit::unlimited()),
     )
     .server("::evil!~e@h PRIVMSG papo :\x01VERSION\x01")
@@ -525,7 +525,7 @@ fn disabled_ctcp_replies_answer_nothing() {
 
 #[test]
 fn disabling_version_still_answers_ping() {
-    connected_ctcp(CtcpReplies::default().version(None))
+    connected_ctcp(CtcpReplies::default().without_version())
         .server(":alice!~a@cloak PRIVMSG papo :\x01VERSION\x01")
         .no_client()
         .event(|event| matches!(event, Event::Line(_)))
@@ -591,7 +591,7 @@ fn connectivity_batches_keep_live_ctcp_queries_answerable() {
 #[test]
 fn caps_ctcp_replies_across_several_senders() {
     let replies = CtcpReplies::default()
-        .version(Some("papo test build"))
+        .version("papo test build")
         .rate(RateLimit::new(2, std::time::Duration::from_secs(2)).unwrap());
     connected_ctcp(replies)
         .server(":alice!~a@cloak PRIVMSG papo :\x01VERSION\x01")

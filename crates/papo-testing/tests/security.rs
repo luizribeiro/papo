@@ -853,7 +853,7 @@ async fn invalid_source_nicks_cannot_close_the_client_with_auto_replies() {
         papo::Client::builder("irc://offline.test", "papo-wire")
             .ctcp_replies(
                 papo::CtcpReplies::default()
-                    .version(Some("papo test build"))
+                    .version("papo test build")
                     .rate(papo::RateLimit::unlimited()),
             )
             .reconnect(Reconnect::never()),
@@ -991,7 +991,7 @@ async fn unknown_playback_is_untyped_and_has_no_side_effects() {
         papo::Client::builder("irc://offline.test", "papo-wire")
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never())
-            .ctcp_replies(papo::CtcpReplies::default().version(Some("papo offline security test"))),
+            .ctcp_replies(papo::CtcpReplies::default().version("papo offline security test")),
     );
     wire.register(&["message-tags", "batch"]).await;
     while !matches!(

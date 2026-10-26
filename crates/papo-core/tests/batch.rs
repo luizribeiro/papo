@@ -1028,7 +1028,7 @@ fn unsupported_batch_lines_neither_change_state_nor_trigger_replies() {
     let mut session = Session::new(
         Config::default().ctcp(
             papo_core::CtcpReplies::default()
-                .version(Some("papo test build"))
+                .version("papo test build")
                 .rate(RateLimit::unlimited()),
         ),
     );

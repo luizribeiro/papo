@@ -1652,7 +1652,8 @@ impl papo_core::CtcpReplies
 pub fn papo_core::CtcpReplies::off() -> Self
 pub const fn papo_core::CtcpReplies::ping(self, bool) -> Self
 pub const fn papo_core::CtcpReplies::rate(self, papo_core::RateLimit) -> Self
-pub fn papo_core::CtcpReplies::version(self, core::option::Option<&str>) -> Self
+pub fn papo_core::CtcpReplies::version(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo_core::CtcpReplies::without_version(self) -> Self
 impl core::clone::Clone for papo_core::CtcpReplies
 pub fn papo_core::CtcpReplies::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::CtcpReplies

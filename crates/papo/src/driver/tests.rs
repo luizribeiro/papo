@@ -658,7 +658,7 @@ async fn manual_ctcp_replies_match_automatic_framing_and_target_the_actor() {
     let mut automatic = Session::new(
         config().rate_limit(crate::RateLimit::unlimited()).ctcp(
             crate::CtcpReplies::off()
-                .version(Some("ferrobot 2.3"))
+                .version("ferrobot 2.3")
                 .rate(crate::RateLimit::unlimited()),
         ),
     );

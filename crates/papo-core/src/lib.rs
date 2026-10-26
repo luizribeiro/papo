@@ -333,7 +333,7 @@ pub fn classify_conversation(
 /// | Query | Answered by default | Configuration |
 /// |---|---|---|
 /// | `PING` | Yes, by echoing its parameters | [`ping(false)`](Self::ping) disables it |
-/// | `VERSION` | Yes, with `papo <version>` | [`version(Some(...))`](Self::version) changes it; [`version(None)`](Self::version) disables it |
+/// | `VERSION` | Yes, with `papo <version>` | [`version(...)`](Self::version) changes it; [`without_version`](Self::without_version) disables it |
 /// | Anything else | No | Handle the CTCP event and call `Client::ctcp_reply` |
 ///
 /// Automatic replies are sent only for live queries addressed privately to this session's nick.
@@ -354,7 +354,7 @@ pub fn classify_conversation(
 ///
 /// ```
 /// # use papo_core::CtcpReplies;
-/// let replies = CtcpReplies::default().version(Some("ferrobot 2.3"));
+/// let replies = CtcpReplies::default().version("ferrobot 2.3");
 /// # _ = replies;
 /// ```
 ///
@@ -363,7 +363,7 @@ pub fn classify_conversation(
 /// ```
 /// # use papo_core::CtcpReplies;
 /// let ping_only = CtcpReplies::off().ping(true);
-/// let version_only = CtcpReplies::off().version(Some("ferrobot 2.3"));
+/// let version_only = CtcpReplies::off().version("ferrobot 2.3");
 /// # _ = (ping_only, version_only);
 /// ```
 ///
@@ -425,13 +425,20 @@ impl CtcpReplies {
         }
     }
 
-    /// Sets the VERSION reply, or disables it with `None`.
+    /// Sets the VERSION reply.
     ///
     /// Prefer an application name and version without operating-system or build details, which
     /// make clients easier to fingerprint.
     #[must_use]
-    pub fn version(mut self, text: Option<&str>) -> Self {
-        self.version = text.map(str::to_owned);
+    pub fn version(mut self, text: impl Into<String>) -> Self {
+        self.version = Some(text.into());
+        self
+    }
+
+    /// Disables the VERSION reply.
+    #[must_use]
+    pub fn without_version(mut self) -> Self {
+        self.version = None;
         self
     }
 

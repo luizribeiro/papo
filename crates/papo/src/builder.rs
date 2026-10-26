@@ -75,9 +75,7 @@ impl fmt::Debug for Builder {
 impl Builder {
     pub(crate) fn new(address: &str) -> Self {
         let mut config = Config::default();
-        config.ctcp = config
-            .ctcp
-            .version(Some(&format!("papo {}", crate::VERSION)));
+        config.ctcp = config.ctcp.version(format!("papo {}", crate::VERSION));
         Self {
             address: address.parse().map_err(InvalidInput::from),
             config,
@@ -415,7 +413,7 @@ impl Builder {
     /// ```
     /// # use papo::CtcpReplies;
     /// # _ = papo::Client::builder("ircs://irc.example.net", "papo-client")
-    /// #     .ctcp_replies(CtcpReplies::default().version(Some("papo bot")));
+    /// #     .ctcp_replies(CtcpReplies::default().version("papo bot"));
     /// ```
     pub fn ctcp_replies(mut self, replies: CtcpReplies) -> Self {
         self.config.ctcp = replies;
@@ -1318,7 +1316,10 @@ mod tests {
             Builder::new("ircs://irc.example.net").config.ctcp,
             CtcpReplies::default()
         );
-        let replies = CtcpReplies::default().version(None).ping(false).rate(rate);
+        let replies = CtcpReplies::default()
+            .without_version()
+            .ping(false)
+            .rate(rate);
         let builder = Builder::new("ircs://irc.example.net")
             .away_on_connect("Reviewing patches")
             .ctcp_replies(replies.clone());
