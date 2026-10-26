@@ -3,6 +3,7 @@ use papo_proto::{AccountName, ChannelName, Mask, Nick};
 use crate::{InvalidIdentifier, State};
 
 mod check;
+mod parse;
 
 /// The result of checking a name against universal and server-advertised rules.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

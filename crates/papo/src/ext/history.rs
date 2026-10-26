@@ -304,7 +304,7 @@ fn parted(
             state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
             false,
         )?,
-        channel: state.channel_name(message.param(0)?),
+        channel: state.name_rules().channel(message.param(0)?),
         authorship,
         reason: message
             .param(1)
@@ -374,10 +374,10 @@ fn kicked(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        channel: state.channel_name(message.param(0)?),
+        channel: state.name_rules().channel(message.param(0)?),
         authorship,
         subject_authorship,
-        subject: state.nickname(nick),
+        subject: state.name_rules().nick(nick),
         actor: crate::event_impl::source::from_proto_with_account(
             message.source()?,
             mapping,
@@ -420,7 +420,7 @@ fn nick_changed(
             false,
         )?,
         authorship,
-        new: state.nickname(message.param(0)?),
+        new: state.name_rules().nick(message.param(0)?),
         channels: match history_conversation {
             Some(crate::Conversation::Channel(channel)) => vec![channel.clone()],
             _ => Vec::new(),
@@ -499,9 +499,9 @@ fn mode_changed(
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         subject: if state.isupport().inner().is_channel(message.param(0)?) {
-            crate::Subject::Channel(state.channel_name(message.param(0)?))
+            crate::Subject::Channel(state.name_rules().channel(message.param(0)?))
         } else {
-            crate::Subject::User(state.nickname(message.param(0)?))
+            crate::Subject::User(state.name_rules().nick(message.param(0)?))
         },
         actor: crate::event_impl::source::from_proto_with_account(
             message.source()?,
@@ -1124,8 +1124,8 @@ mod tests {
         let (first, _, _) = crate::Client::builder("ircs://irc.example.net").build();
         let (second, _, _) = crate::Client::builder("ircs://irc.example.net").build();
         for conversation in [
-            crate::Conversation::Channel(first.state().channel_name("#papo")),
-            crate::Conversation::Private(first.state().nickname("emily")),
+            crate::Conversation::Channel(first.state().name_rules().channel("#papo")),
+            crate::Conversation::Private(first.state().name_rules().nick("emily")),
         ] {
             assert!(first.history(conversation.clone()).latest().query.is_ok());
             assert!(matches!(
@@ -1140,13 +1140,13 @@ mod tests {
         let (first, _, _) = crate::Client::builder("ircs://irc.example.net").build();
         let (second, _, _) = crate::Client::builder("ircs://irc.example.net").build();
         let page = HistoryPage {
-            conversation: crate::Conversation::Channel(first.state().channel_name("#papo")),
+            conversation: crate::Conversation::Channel(first.state().name_rules().channel("#papo")),
             items: Vec::new(),
             reason: HistoryReason::Requested,
             end: false,
         };
         let recent = RecentConversation {
-            conversation: crate::Conversation::Private(first.state().nickname("emily")),
+            conversation: crate::Conversation::Private(first.state().name_rules().nick("emily")),
             latest_server_time: UNIX_EPOCH,
         };
 
@@ -1313,16 +1313,17 @@ mod tests {
         let state = client.state();
         for (conversation, expected) in [
             (
-                crate::Conversation::Channel(state.channel_name("#Papo[dev]")),
+                crate::Conversation::Channel(state.name_rules().channel("#Papo[dev]")),
                 "#Papo[dev]",
             ),
             (
-                crate::Conversation::Private(state.nickname("Emily_")),
+                crate::Conversation::Private(state.name_rules().nick("Emily_")),
                 "Emily_",
             ),
         ] {
             assert_eq!(
                 state
+                    .name_rules()
                     .conversation(&conversation.to_string())
                     .unwrap()
                     .to_string(),
@@ -1726,7 +1727,8 @@ mod tests {
             client.history("$opers").latest().await,
             Err(Error::InvalidInput(_))
         ));
-        let conversation = crate::Conversation::Channel(client.state().channel_name("#papo"));
+        let conversation =
+            crate::Conversation::Channel(client.state().name_rules().channel("#papo"));
         let request = tokio::spawn(async move { client.history(conversation).latest().await });
         client_line(&mut server, b"@label=0 CHATHISTORY LATEST #papo * 100\r\n").await;
         server_line(&mut server, b"@label=0 :ergo.test BATCH +reply labeled-response\r\n@batch=reply;draft/chathistory-end :ergo.test BATCH +history chathistory #papo\r\n@batch=history;time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120004 :emily!~e@localhost PRIVMSG #papo :earlier\r\n@batch=history;+draft/react=eyes;+reply=RfcBTzyxY120004 :emily!~e@localhost TAGMSG #papo\r\n@batch=history :emily!~e@localhost JOIN #papo emily :Emily Smith\r\n@batch=history :ChanServ!service@services MODE #papo +o alice\r\n@batch=history :OperServ!service@services MODE #papo +b *!*@spammer.example\r\n@batch=history :emily!~e@localhost TAGMSG #papo\r\n@batch=reply :ergo.test BATCH -history\r\n:ergo.test BATCH -reply\r\n").await;
@@ -1939,7 +1941,7 @@ mod tests {
         let (mut server, client, mut events, driver) = scripted(config);
         let task = tokio::spawn(driver);
         complete_connect_history(&mut server, &mut events).await;
-        let channel = client.state().channel_name("#papo");
+        let channel = client.state().name_rules().channel("#papo");
         let request = tokio::spawn(async move {
             client
                 .recent_conversations(
@@ -1987,7 +1989,7 @@ mod tests {
             Err(Error::InvalidInput(_))
         ));
         assert_eq!(client.state().read_marker("#papo"), None);
-        let channel = crate::Conversation::Channel(client.state().channel_name("#papo"));
+        let channel = crate::Conversation::Channel(client.state().name_rules().channel("#papo"));
         let request = tokio::spawn(async move { client.mark_read(channel, time).await });
         client_line(
             &mut server,
@@ -2027,7 +2029,7 @@ mod tests {
             client.fetch_read_marker("$opers").await,
             Err(Error::InvalidInput(_))
         ));
-        let channel = crate::Conversation::Channel(client.state().channel_name("#papo"));
+        let channel = crate::Conversation::Channel(client.state().name_rules().channel("#papo"));
         let request = tokio::spawn({
             let client = client.clone();
             async move { client.fetch_read_marker(channel).await }

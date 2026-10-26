@@ -49,16 +49,16 @@ fn everyday_api_is_nameable_from_the_facade() {
     let (client, mut events, driver): (papo::Client, papo::Events, papo::Driver) = builder.build();
 
     let state: std::sync::Arc<papo::State> = client.state();
-    let channel = state.channel_name("#papo");
+    let channel = state.name_rules().channel("#papo");
     let _: &papo::Nick = state.nick();
     let _: Option<&papo::Channel> = state.channel(&channel);
     let _: Option<&papo::User> = state.user("emily");
-    let _: papo::ChannelName = state.channel_name("#papo");
-    let _: papo::Nick = state.nickname("emily");
-    let conversation = state.conversation("Emily").unwrap();
+    let _: papo::ChannelName = state.name_rules().channel("#papo");
+    let _: papo::Nick = state.name_rules().nick("emily");
+    let conversation = state.name_rules().conversation("Emily").unwrap();
     assert_eq!(conversation, "emily");
     assert_eq!(conversation.to_string(), "Emily");
-    let (status, conversation) = state.parse_target("#papo").unwrap();
+    let (status, conversation) = state.name_rules().target("#papo").unwrap();
     assert_eq!(status, None);
     assert_eq!(conversation, "#papo");
 

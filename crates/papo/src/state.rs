@@ -68,32 +68,11 @@ impl State {
         self.core.parse_target(target)
     }
 
-    /// Parses an IRC address using the server's advertised `STATUSMSG` and name rules.
-    ///
-    /// The returned lowest-ranked status prefix is separate from the conversation name.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when `target` is not a valid address.
-    pub fn parse_target(
+    pub(crate) fn conversation_inner(
         &self,
-        target: &str,
-    ) -> Result<(Option<crate::Prefix>, crate::Conversation), crate::InvalidInput> {
-        self.core
-            .parse_target(target)
-            .map_err(|reason| crate::InvalidInput::invalid_name(target, reason))
-    }
-
-    /// Builds a conversation using the current or last-known server-defined name rules.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when `text` is not a valid conversation name or includes a
-    /// `STATUSMSG` prefix.
-    pub fn conversation(&self, text: &str) -> Result<crate::Conversation, crate::InvalidInput> {
-        self.core
-            .conversation(text)
-            .map_err(|reason| crate::InvalidInput::invalid_name(text, reason))
+        text: impl AsRef<str>,
+    ) -> Result<crate::Conversation, crate::InvalidIdentifier> {
+        self.core.conversation(text)
     }
 
     pub(crate) fn from_session(session: &Session, connected: bool) -> Self {
@@ -488,10 +467,15 @@ mod name_tests {
 
         assert!(Arc::ptr_eq(&initial.core, &changed.core));
         assert!(!Arc::ptr_eq(&initial.typing, &changed.typing));
-        let conversation = changed.parse_target("#papo").unwrap().1;
+        let conversation = changed.name_rules().target("#papo").unwrap().1;
         assert_eq!(changed.typing(&conversation).count(), 1);
         assert_eq!(changed.typing("#PAPO").count(), 1);
-        assert_eq!(changed.typing(changed.channel_name("#papo")).count(), 1);
+        assert_eq!(
+            changed
+                .typing(changed.name_rules().channel("#papo"))
+                .count(),
+            1
+        );
         assert_eq!(changed.typing("@#papo").count(), 0);
         let foreign = crate::Origin::__new(91).__channel(changed.casemapping(), "#papo");
         assert_eq!(changed.typing(foreign).count(), 0);
@@ -614,21 +598,21 @@ mod name_tests {
             ":ergo.test 005 papo CASEMAPPING=rfc1459 NICKLEN=32 CHANTYPES=# STATUSMSG=@ :are supported by this server",
         );
 
-        let conversation = state.conversation("Alice[bot]").unwrap();
+        let conversation = state.name_rules().conversation("Alice[bot]").unwrap();
         assert_eq!(conversation, "alice{bot}");
         assert_eq!(conversation.to_string(), "Alice[bot]");
         assert!(matches!(
-            state.parse_target("@#papo"),
+            state.name_rules().target("@#papo"),
             Ok((Some(status), conversation))
                 if status.symbol() == '@' && conversation == "#papo"
         ));
         assert!(matches!(
-            state.conversation("@#papo"),
+            state.name_rules().conversation("@#papo"),
             Err(crate::InvalidInput::InvalidName { name, .. }) if name == "@#papo"
         ));
         for target in ["*", "$*.example.org"] {
             assert!(matches!(
-                state.conversation(target),
+                state.name_rules().conversation(target),
                 Err(crate::InvalidInput::InvalidName { name, .. }) if name == target
             ));
         }
