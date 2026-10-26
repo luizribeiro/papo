@@ -14,25 +14,20 @@ impl Client {
     /// [`crate::Error::TooManyPendingRequests`], [`crate::Error::Timeout`], or [`crate::Error::Disconnected`].
     pub fn rename_channel(
         &self,
-        old: impl crate::Target,
-        new: impl crate::Target,
+        old: impl crate::AsChannel,
+        new: impl crate::AsChannel,
         reason: impl Into<String>,
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
-        let (old, old_error) = self.target_input(old);
-        let (new, new_error) = self.target_input(new);
-        let state = self.state();
-        let old = state.channel_name(old);
-        let new = state.channel_name(new);
+        let old = crate::AsChannel::__parts(&old).into_owned();
+        let new = crate::AsChannel::__parts(&new).into_owned();
         let reason = reason.into();
         crate::RequestFuture::new(async move {
-            if let Some(error) = old_error.or(new_error) {
-                return Err(error.into());
-            }
+            let old = client.resolve(crate::target::Role::Channel("rename_channel: old"), old)?;
+            let new = client.resolve(crate::target::Role::Channel("rename_channel: new"), new)?;
             let state = client.state();
-            old.check(state.isupport().inner())
-                .and_then(|()| new.check(state.isupport().inner()))
-                .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
+            let old = state.channel_name(old);
+            let new = state.channel_name(new);
             let response = client
                 .core_request(CoreRequest::Rename {
                     old: old.into_string(),
@@ -58,26 +53,21 @@ impl Client {
     #[cfg(feature = "unstable")]
     pub fn relay(
         &self,
-        channel: impl crate::Target,
-        nick: impl crate::Target,
+        channel: impl crate::AsChannel,
+        nick: impl crate::AsNick,
         text: impl Into<String>,
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
-        let (channel, channel_error) = self.target_input(channel);
-        let (nick, nick_error) = self.target_input(nick);
-        let state = self.state();
-        let channel = state.channel_name(channel);
-        let nick = state.nickname(nick);
+        let channel = crate::AsChannel::__parts(&channel).into_owned();
+        let nick = crate::AsNick::__parts(&nick).into_owned();
         let text = text.into();
         crate::RequestFuture::new(async move {
-            if let Some(error) = channel_error.or(nick_error) {
-                return Err(error.into());
-            }
+            let channel =
+                client.resolve(crate::target::Role::Channel("relay: channel"), channel)?;
+            let nick = client.resolve(crate::target::Role::Nick("relay: nick"), nick)?;
             let state = client.state();
-            channel
-                .check(state.isupport().inner())
-                .and_then(|()| nick.check(state.isupport().inner()))
-                .map_err(|error| crate::InvalidInput::InvalidMessage(error.to_string()))?;
+            let channel = state.channel_name(channel);
+            let nick = state.nickname(nick);
             let response = client
                 .core_request(UnstableRequest::Relay {
                     channel: channel.into_string(),

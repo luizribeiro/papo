@@ -258,8 +258,17 @@ impl SetModes {
     }
 
     fn prefix(mut self, set: bool, mode: char, nick: impl crate::Target) -> Self {
-        let (nick, error) = self.client.target_input(nick);
-        self.invalid_input = self.invalid_input.or(error);
+        let nick = match self.client.resolve(
+            crate::target::Role::Nick("mode: nick"),
+            crate::Target::__parts(&nick),
+        ) {
+            Ok(nick) => nick,
+            Err(crate::Error::InvalidInput(error)) => {
+                self.invalid_input = self.invalid_input.or(Some(error));
+                String::new()
+            }
+            Err(error) => unreachable!("address resolution returned {error}"),
+        };
         let nick = self.client.state().nickname(nick);
         self.change(set, Selector::Prefix(mode), Some(Argument::Nick(nick)))
     }
@@ -270,8 +279,17 @@ impl SetModes {
         feature: crate::Feature,
         nick: impl crate::Target,
     ) -> Self {
-        let (nick, error) = self.client.target_input(nick);
-        self.invalid_input = self.invalid_input.or(error);
+        let nick = match self.client.resolve(
+            crate::target::Role::Nick("mode: nick"),
+            crate::Target::__parts(&nick),
+        ) {
+            Ok(nick) => nick,
+            Err(crate::Error::InvalidInput(error)) => {
+                self.invalid_input = self.invalid_input.or(Some(error));
+                String::new()
+            }
+            Err(error) => unreachable!("address resolution returned {error}"),
+        };
         let nick = self.client.state().nickname(nick);
         self.change(set, Selector::Optional(feature), Some(Argument::Nick(nick)))
     }
@@ -364,7 +382,14 @@ impl IntoFuture for SetModes {
 impl Client {
     /// Starts a validated mode-change request for a user or channel.
     pub fn mode(&self, target: impl crate::Target) -> SetModes {
-        let (target, invalid_input) = self.target_input(target);
+        let (target, invalid_input) = match self.resolve(
+            crate::target::Role::Send("mode: target"),
+            crate::Target::__parts(&target),
+        ) {
+            Ok(target) => (target, None),
+            Err(crate::Error::InvalidInput(error)) => (String::new(), Some(error)),
+            Err(error) => unreachable!("address resolution returned {error}"),
+        };
         SetModes {
             client: self.clone(),
             target,
@@ -386,19 +411,16 @@ impl Client {
     /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
     pub fn list_modes(
         &self,
-        channel: impl crate::Target,
+        channel: impl crate::AsChannel,
         mode: crate::ListMode,
     ) -> RequestFuture<Vec<crate::ModeListEntry>> {
         let client = self.clone();
-        let (channel, invalid_input) = self.target_input(channel);
+        let channel = crate::AsChannel::__parts(&channel).into_owned();
         RequestFuture::new(async move {
-            if let Some(error) = invalid_input {
-                return Err(error.into());
-            }
+            let channel =
+                client.resolve(crate::target::Role::Channel("list_modes: channel"), channel)?;
             let state = client.state();
             let name = state.channel_name(&channel);
-            name.check(state.isupport().inner())
-                .map_err(|error| invalid(error.to_string()))?;
             let letter = match mode {
                 crate::ListMode::Ban => "b",
                 crate::ListMode::Except => "e",
