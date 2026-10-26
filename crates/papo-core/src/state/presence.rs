@@ -387,7 +387,11 @@ impl State {
             prefixes: isupport
                 .prefix()
                 .into_iter()
-                .filter_map(|prefix| raw_flags.contains(prefix.symbol).then_some(prefix.symbol))
+                .filter_map(|prefix| {
+                    raw_flags
+                        .contains(prefix.symbol())
+                        .then_some(prefix.symbol())
+                })
                 .collect(),
         };
         self.apply_who_user(

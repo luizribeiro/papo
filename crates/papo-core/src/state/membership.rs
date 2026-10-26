@@ -1,6 +1,6 @@
 use super::{
-    Account, Arc, Channel, Command, Event, Handled, Isupport, Join, LineRef, Member, Numeric,
-    Outbox, ProtoSource, State, StateLimit, User,
+    Account, Channel, Command, Event, Handled, Isupport, Join, LineRef, Member, Numeric, Outbox,
+    ProtoSource, State, StateLimit, User,
 };
 
 impl State {
@@ -164,7 +164,7 @@ impl State {
         nick: &str,
         user: Option<&str>,
         host: Option<&str>,
-        mut prefixes: Vec<char>,
+        prefixes: Vec<char>,
         outbox: &mut Outbox,
     ) {
         let mapping = self.casemapping;
@@ -179,19 +179,17 @@ impl State {
             return;
         }
         if let Some(channel) = self.channels.get_mut(&channel_key) {
-            prefixes.sort_by_key(|symbol| {
-                channel
-                    .prefix_order
-                    .iter()
-                    .position(|prefix| prefix.symbol == *symbol)
-            });
-            prefixes.dedup();
+            let prefixes = channel
+                .prefix_order
+                .iter()
+                .copied()
+                .filter(|prefix| prefixes.contains(&prefix.symbol()))
+                .collect();
             channel.members.insert(
                 nick_key,
                 Member {
                     nick: mapping.nick(nick),
                     prefixes,
-                    prefix_order: Arc::clone(&channel.prefix_order),
                 },
             );
             let shared = self

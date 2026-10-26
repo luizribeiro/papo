@@ -228,7 +228,7 @@ impl Session {
                 return support
                     .prefix()
                     .iter()
-                    .any(|prefix| prefix.mode == 'h')
+                    .any(|prefix| prefix.mode() == 'h')
                     .then_some(())
                     .ok_or(UnsupportedReason::NotOffered);
             }

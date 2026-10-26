@@ -94,7 +94,7 @@ mod welcome;
 #[cfg(feature = "unstable")]
 include!("unstable/persistence_types.rs");
 
-pub use papo_proto::{Secret, WireLine};
+pub use papo_proto::{Prefix, Rank, Secret, WireLine};
 pub use source::Source;
 
 use std::{
@@ -134,7 +134,7 @@ pub use refusal::Refusal;
 use sasl::SaslSession;
 pub use sasl::{Entropy, Sasl};
 use state::MetadataContext;
-pub use state::{Account, Away, Channel, Member, Rank, State, User};
+pub use state::{Account, Away, Channel, Member, State, User};
 use sts::ConnectionSecurity;
 #[doc(hidden)]
 pub use typing::TypingTable;
@@ -1071,8 +1071,13 @@ pub struct ModeListEntry {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum ModeArg {
-    /// A nickname for a channel-membership mode advertised in `PREFIX`.
-    Nick(Nick),
+    /// A member and the channel-membership prefix changed for them.
+    Member {
+        /// The affected member.
+        nick: Nick,
+        /// The membership prefix corresponding to the mode.
+        prefix: Prefix,
+    },
     /// A mask for a list mode advertised in the first `CHANMODES` group.
     Mask(Mask),
     /// A channel key (`+k`).

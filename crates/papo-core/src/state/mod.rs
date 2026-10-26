@@ -17,7 +17,8 @@ use papo_proto::{
     Account as AccountNotify, AccountName, AsChannel, AsNick, Away as AwayNotify, Casemapping,
     ChannelName, Chghost, Command, Isupport, Join, LineRef, Mask, MetadataKey,
     ModeChange as ProtoModeChange, ModeChanges, ModeKind, NamesEntry, Nick, Numeric, Origin,
-    Prefix, Setname, Source as ProtoSource, WhoxFlags, WhoxPresence, WhoxReply, parse_353, time,
+    Prefix, Rank, Setname, Source as ProtoSource, WhoxFlags, WhoxPresence, WhoxReply, parse_353,
+    time,
 };
 
 #[cfg(test)]
@@ -153,24 +154,7 @@ pub struct Channel {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Member {
     nick: Nick,
-    prefixes: Vec<char>,
-    prefix_order: Arc<[Prefix]>,
-}
-
-/// A standard channel membership rank.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-#[non_exhaustive]
-pub enum Rank {
-    /// May speak in a moderated channel.
-    Voice,
-    /// Has half-operator privileges.
-    Halfop,
-    /// Has channel-operator privileges.
-    Op,
-    /// Has channel-administrator privileges.
-    Admin,
-    /// Has channel-owner privileges.
-    Owner,
+    prefixes: Vec<Prefix>,
 }
 
 /// State known about a user sharing a channel or followed through MONITOR.
@@ -538,6 +522,10 @@ impl State {
     pub(crate) fn update_isupport(&mut self, isupport: &Isupport) {
         self.update_casemapping(isupport.casemapping());
         self.isupport.clone_from(isupport);
+        let prefix_order: Arc<[Prefix]> = isupport.prefix().into();
+        for channel in self.channels.values_mut() {
+            channel.prefix_order = Arc::clone(&prefix_order);
+        }
     }
 
     pub(crate) fn sync_own_account(&mut self, account: Option<&str>) {
@@ -1292,7 +1280,10 @@ impl State {
 fn typed_mode_change(change: ProtoModeChange<'_>, names: Names) -> ModeChange {
     let arg = change.arg.map(|arg| match (change.mode, change.kind) {
         ('k', _) => ModeArg::Key(Secret::from(arg)),
-        (_, ModeKind::Prefix(_)) => ModeArg::Nick(names.nick(arg)),
+        (_, ModeKind::Prefix(prefix)) => ModeArg::Member {
+            nick: names.nick(arg),
+            prefix,
+        },
         (_, ModeKind::List) => ModeArg::Mask(names.mask(arg)),
         _ => ModeArg::Value(arg.to_owned()),
     });
@@ -1333,7 +1324,6 @@ impl Channel {
             self.modes.clear();
             self.key = None;
         }
-        let prefixes = isupport.prefix();
         for change in ModeChanges::parse(modestring, args, isupport) {
             if change.mode == 'k' {
                 if change.action == papo_proto::ModeAction::Add {
@@ -1346,25 +1336,22 @@ impl Channel {
                 continue;
             }
             match change.kind {
-                ModeKind::Prefix(rank) => {
-                    let (Some(nick), Some(prefix)) = (change.arg, prefixes.get(rank)) else {
+                ModeKind::Prefix(prefix) => {
+                    let Some(nick) = change.arg else {
                         continue;
                     };
                     let Some(member) = self.members.get_mut(&self.casemapping.nick(nick)) else {
                         continue;
                     };
                     if change.action == papo_proto::ModeAction::Add
-                        && !member.prefixes.contains(&prefix.symbol)
+                        && !member.prefixes.contains(&prefix)
                     {
-                        member.prefixes.push(prefix.symbol);
-                        member.prefixes.sort_by_key(|symbol| {
-                            member
-                                .prefix_order
-                                .iter()
-                                .position(|item| item.symbol == *symbol)
+                        member.prefixes.push(prefix);
+                        member.prefixes.sort_by_key(|held| {
+                            self.prefix_order.iter().position(|item| item == held)
                         });
                     } else if change.action == papo_proto::ModeAction::Remove {
-                        member.prefixes.retain(|symbol| *symbol != prefix.symbol);
+                        member.prefixes.retain(|held| *held != prefix);
                     }
                 }
                 ModeKind::AlwaysArg | ModeKind::ArgWhenSet | ModeKind::NoArg => {
@@ -1523,7 +1510,7 @@ impl Member {
 
     /// Returns channel-prefix symbols from highest to lowest rank.
     #[must_use]
-    pub fn prefixes(&self) -> &[char] {
+    pub fn prefixes(&self) -> &[Prefix] {
         &self.prefixes
     }
 
@@ -1534,10 +1521,9 @@ impl Member {
     /// `member.rank() >= Some(Rank::Op)`. `None` fails every such threshold.
     #[must_use]
     pub fn rank(&self) -> Option<Rank> {
-        self.prefix_order
+        self.prefixes
             .iter()
-            .filter(|prefix| self.prefixes.contains(&prefix.symbol))
-            .filter_map(|prefix| Rank::from_mode(prefix.mode))
+            .filter_map(|prefix| prefix.rank())
             .max()
     }
 
@@ -1547,22 +1533,9 @@ impl Member {
     /// only [`Rank::Owner`], so `member.has(Rank::Op)` is false for them.
     #[must_use]
     pub fn has(&self, rank: Rank) -> bool {
-        self.prefix_order.iter().any(|prefix| {
-            Rank::from_mode(prefix.mode) == Some(rank) && self.prefixes.contains(&prefix.symbol)
-        })
-    }
-}
-
-impl Rank {
-    fn from_mode(mode: char) -> Option<Self> {
-        match mode {
-            'v' => Some(Self::Voice),
-            'h' => Some(Self::Halfop),
-            'o' => Some(Self::Op),
-            'a' => Some(Self::Admin),
-            'q' => Some(Self::Owner),
-            _ => None,
-        }
+        self.prefixes
+            .iter()
+            .any(|prefix| prefix.rank() == Some(rank))
     }
 }
 
