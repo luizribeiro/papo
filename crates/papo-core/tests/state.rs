@@ -1367,15 +1367,15 @@ fn reports_mixed_channel_and_user_mode_changes() {
                 matches!(subject, Subject::Channel(channel) if channel == "#papo")
                     && actor.nick().is_some_and(|nick| nick == "alice")
                     && changes == &vec![
-                        ModeChange { mode: 'o', action: ModeAction::Add, arg: Some(ModeArg::Member { nick: Casemapping::Rfc1459.nick("alice"), prefix: papo_core::Prefix::__new('o', '@') }) },
+                        ModeChange { mode: 'o', action: ModeAction::Add, arg: Some(ModeArg::__member(Casemapping::Rfc1459.nick("alice"), papo_core::Prefix::__new('o', '@'))) },
                         ModeChange { mode: 'b', action: ModeAction::Add, arg: Some(ModeArg::Mask(Casemapping::Rfc1459.mask("*!*@spam.example"))) },
-                        ModeChange { mode: 'v', action: ModeAction::Remove, arg: Some(ModeArg::Member { nick: Casemapping::Rfc1459.nick("bob"), prefix: papo_core::Prefix::__new('v', '+') }) },
+                        ModeChange { mode: 'v', action: ModeAction::Remove, arg: Some(ModeArg::__member(Casemapping::Rfc1459.nick("bob"), papo_core::Prefix::__new('v', '+'))) },
                     ]
             }
             _ => false,
         })
         .server(":ChanServ!service@services.example MODE #papo +o emily")
-        .event(|event| matches!(event, Event::ModeChanged { own_nick: Some(own), changes, .. } if own == "emily" && changes == &vec![ModeChange { mode: 'o', action: ModeAction::Add, arg: Some(ModeArg::Member { nick: Casemapping::Rfc1459.nick("emily"), prefix: papo_core::Prefix::__new('o', '@') }) }]))
+        .event(|event| matches!(event, Event::ModeChanged { own_nick: Some(own), changes, .. } if own == "emily" && changes == &vec![ModeChange { mode: 'o', action: ModeAction::Add, arg: Some(ModeArg::__member(Casemapping::Rfc1459.nick("emily"), papo_core::Prefix::__new('o', '@'))) }]))
         .server(":alice!alice@staff.example MODE #papo +kl review-key-2026 50")
         .event(|event| {
             assert!(!format!("{event:?}").contains("review-key-2026"));

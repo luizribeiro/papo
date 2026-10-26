@@ -16,6 +16,7 @@ expressions=(
 )
 if [[ ${PAPO_PUBLIC_API_FACADE:-} == 1 ]]; then
   expressions+=(
+    -e 's#papo::isupport::Prefix#papo::Prefix#g'
     -e 's#papo_core::(BatchAbandonReason|CtcpReplies|ListMode|ModeAction|ModeArg|ModeChange|ModeListEntry|PersistenceSetting|PersistenceStatus|StateLimit|WhoOnJoin)#papo::\1#g'
   )
 fi

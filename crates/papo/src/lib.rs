@@ -188,7 +188,7 @@ pub mod tags;
 /// Read-only views of server features advertised through `RPL_ISUPPORT`.
 pub mod isupport {
     #[doc(inline)]
-    pub use papo_proto::{Advertised, ChanModes, ClientTagDeny, Extban, Limit, LimitValue, Prefix};
+    pub use papo_proto::{Advertised, ChanModes, ClientTagDeny, Extban, Limit, LimitValue};
 }
 
 /// The version of the `papo` crate.
@@ -202,9 +202,7 @@ pub use driver::{Driver, Events};
 pub use error::{
     ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, ServerError,
 };
-pub use event_impl::{
-    Audience, Authorship, Broadcast, Event, Message, MessageKind, Oper, Source, Tags, UserSource,
-};
+pub use event_impl::{Authorship, Event, Message, MessageKind, Oper, Source, Tags, UserSource};
 pub use ext::accounts::{AccountCreation, NewAccount};
 pub use ext::history::{
     History, HistoryPage, HistoryReason, HistoryReference, HistoryRequest, RecentConversation,
@@ -223,9 +221,11 @@ pub use mode::{BanTarget, Extban, KickbanOutcome, ModesApplied, SetModes};
 #[doc(inline)]
 pub use papo_core::Secret;
 #[doc(inline)]
+pub use papo_proto::Prefix;
+#[doc(inline)]
 pub use papo_core::{
     Account, Away, Cap, Capabilities, Channel, Conversation, Feature, Member, ModeAction, ModeArg,
-    ModeChange, ModeValue, Prefix, Rank, Typer, User,
+    ModeChange, ModeValue, Rank, Typer, User,
 };
 #[cfg(feature = "unstable")]
 pub use papo_core::{

@@ -487,10 +487,9 @@ impl Change {
         let kind = mode_kind(state.isupport().inner(), mode);
         let arg = self.arg.as_ref().map(|argument| match (mode, kind) {
             ('k', _) => ModeArg::Key(crate::Secret::from(argument.text())),
-            (_, ModeKind::Prefix(prefix)) => ModeArg::Member {
-                nick: state.nickname(argument.text()),
-                prefix,
-            },
+            (_, ModeKind::Prefix(prefix)) => {
+                ModeArg::__member(state.nickname(argument.text()), prefix)
+            }
             (_, ModeKind::List) => ModeArg::Mask(state.mask(argument.text())),
             _ => ModeArg::Value(argument.text().to_owned()),
         });

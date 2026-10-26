@@ -101,7 +101,7 @@ impl State {
                 Channel::new(join.channel, self.casemapping, isupport, false),
             );
         }
-        self.add_member(join.channel, nick, username, host, Vec::new(), outbox);
+        self.add_member(join.channel, nick, username, host, &[], outbox);
         if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick))
             && join.realname.is_some()
         {
@@ -164,7 +164,7 @@ impl State {
         nick: &str,
         user: Option<&str>,
         host: Option<&str>,
-        prefixes: Vec<char>,
+        prefixes: &[char],
         outbox: &mut Outbox,
     ) {
         let mapping = self.casemapping;

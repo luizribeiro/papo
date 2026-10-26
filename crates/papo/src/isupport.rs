@@ -1,4 +1,4 @@
-use papo_proto::{Advertised, ChanModes, ClientTagDeny, Extban, Limit, LimitValue, Prefix};
+use papo_proto::{Advertised, ChanModes, ClientTagDeny, Extban, Limit, LimitValue};
 
 use std::borrow::Cow;
 
@@ -48,7 +48,7 @@ impl Isupport {
 
     /// Returns channel membership prefixes from highest to lowest rank.
     #[must_use]
-    pub fn prefix(&self) -> Vec<Prefix> {
+    pub fn prefix(&self) -> Vec<crate::Prefix> {
         self.inner.prefix()
     }
 
@@ -329,11 +329,11 @@ mod tests {
         assert_eq!(
             support.prefix(),
             [
-                super::Prefix::__new('q', '~'),
-                super::Prefix::__new('a', '&'),
-                super::Prefix::__new('o', '@'),
-                super::Prefix::__new('h', '%'),
-                super::Prefix::__new('v', '+'),
+                crate::Prefix::__new('q', '~'),
+                crate::Prefix::__new('a', '&'),
+                crate::Prefix::__new('o', '@'),
+                crate::Prefix::__new('h', '%'),
+                crate::Prefix::__new('v', '+'),
             ]
         );
         assert_eq!(support.chanmodes().unwrap().never, "CEMRUimnstu");

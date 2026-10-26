@@ -315,7 +315,7 @@ impl State {
                 host: reply.host,
                 realname: reply.realname,
             },
-            flags,
+            &flags,
             outbox,
         );
         if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick)) {
@@ -324,13 +324,13 @@ impl State {
         Some(Handled::Yes)
     }
 
-    fn apply_who_user(&mut self, reply: WhoUser<'_>, flags: WhoxFlags, outbox: &mut Outbox) {
+    fn apply_who_user(&mut self, reply: WhoUser<'_>, flags: &WhoxFlags, outbox: &mut Outbox) {
         self.add_member(
             reply.channel,
             reply.nick,
             reply.username,
             reply.host,
-            flags.prefixes,
+            &flags.prefixes,
             outbox,
         );
         if let Some(user) = self.users.get_mut(&self.casemapping.nick(reply.nick)) {
@@ -402,7 +402,7 @@ impl State {
                 host: Some(host),
                 realname: Some(realname),
             },
-            flags,
+            &flags,
             outbox,
         );
         Some(Handled::Yes)

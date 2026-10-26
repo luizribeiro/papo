@@ -2,7 +2,10 @@ use std::fmt;
 
 use crate::{
     Account, ChannelName, Conversation, Message, MessageId, Nick, Sent,
-    event::{CtcpQuery, CtcpReply, Notice, Reacted, Redacted, ServerNotice, TagMsg, TypingChanged},
+    event::{
+        Audience, Broadcast, CtcpQuery, CtcpReply, Notice, Reacted, Redacted, ServerNotice, TagMsg,
+        TypingChanged,
+    },
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -279,9 +282,9 @@ pub(crate) fn from_typing(line: &TypingChanged) -> MessageRef {
 
 pub(crate) fn from_server_notice(notice: &ServerNotice) -> MessageRef {
     let origin = match &notice.to {
-        crate::Audience::Channel(channel) => channel.origin(),
-        crate::Audience::Broadcast(crate::Broadcast::Mask(mask)) => mask.origin(),
-        crate::Audience::Broadcast(crate::Broadcast::Everyone) | crate::Audience::Me => notice
+        Audience::Channel(channel) => channel.origin(),
+        Audience::Broadcast(Broadcast::Mask(mask)) => mask.origin(),
+        Audience::Broadcast(Broadcast::Everyone) | Audience::Me => notice
             .actor
             .user()
             .map_or(crate::Origin::NONE, |user| user.nick().origin()),

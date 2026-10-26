@@ -116,6 +116,11 @@ struct Deadline {
     at: Instant,
 }
 
+struct TypingAddress {
+    status: Option<Prefix>,
+    return_address: String,
+}
+
 impl TypingTable {
     pub(crate) fn new() -> Arc<Self> {
         Arc::new(Self {
@@ -146,10 +151,13 @@ impl TypingTable {
         conversation: &Conversation,
         nick: Nick,
         actor: String,
-        status: Option<Prefix>,
-        return_address: String,
+        address: TypingAddress,
         state: Typing,
     ) -> Vec<Deadline> {
+        let TypingAddress {
+            status,
+            return_address,
+        } = address;
         let table = Arc::make_mut(table);
         let mut evicted = Vec::new();
         let entry = table
@@ -374,8 +382,10 @@ impl Session {
                 &conversation,
                 nick,
                 actor.to_owned(),
-                status,
-                return_address.clone(),
+                TypingAddress {
+                    status,
+                    return_address: return_address.clone(),
+                },
                 state,
             );
             for deadline in evicted {

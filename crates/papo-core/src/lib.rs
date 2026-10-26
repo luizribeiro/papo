@@ -1072,6 +1072,7 @@ pub struct ModeListEntry {
 #[non_exhaustive]
 pub enum ModeArg {
     /// A member and the channel-membership prefix changed for them.
+    #[non_exhaustive]
     Member {
         /// The affected member.
         nick: Nick,
@@ -1084,6 +1085,14 @@ pub enum ModeArg {
     Key(Secret),
     /// A value for any other mode that takes an argument.
     Value(String),
+}
+
+impl ModeArg {
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __member(nick: Nick, prefix: Prefix) -> Self {
+        Self::Member { nick, prefix }
+    }
 }
 
 /// The stored value of a channel mode.

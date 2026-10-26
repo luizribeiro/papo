@@ -753,7 +753,7 @@ impl State {
                         entry.nick,
                         entry.user,
                         entry.host,
-                        entry.prefixes,
+                        &entry.prefixes,
                         outbox,
                     );
                 }
