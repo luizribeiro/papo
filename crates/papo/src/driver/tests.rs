@@ -6442,19 +6442,28 @@ async fn message_tag_obeys_clienttagdeny() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn chat_text_returns_metadata_from_every_labelled_echo() {
-    let config = config().wanted_caps(["echo-message", "labeled-response"]);
+    let caps = [
+        "draft/message-redaction",
+        "echo-message",
+        "labeled-response",
+    ];
+    let config = config().wanted_caps(caps);
     let (mut server, client, _events, driver) = scripted(config);
     let task = tokio::spawn(driver);
     welcome_burst(&mut server).await;
     server_line(
         &mut server,
-        b":ergo.test CAP * LS :echo-message labeled-response\r\n",
+        b":ergo.test CAP * LS :draft/message-redaction echo-message labeled-response\r\n",
     )
     .await;
-    client_line(&mut server, b"CAP REQ :echo-message labeled-response\r\n").await;
+    client_line(
+        &mut server,
+        b"CAP REQ :draft/message-redaction echo-message labeled-response\r\n",
+    )
+    .await;
     server_line(
         &mut server,
-        b":ergo.test CAP * ACK :echo-message labeled-response\r\n",
+        b":ergo.test CAP * ACK :draft/message-redaction echo-message labeled-response\r\n",
     )
     .await;
     client_line(&mut server, b"CAP END\r\n").await;
@@ -6499,6 +6508,22 @@ async fn chat_text_returns_metadata_from_every_labelled_echo() {
     .await;
     let split = within(split).await.unwrap().unwrap();
     assert_eq!(split.msgids, ["RfcBTzyxY120005", "RfcBTzyxY120006"]);
+
+    let sender = client.clone();
+    let redacted = tokio::spawn(async move { sender.redact(&split, "superseded").await });
+    client_line(
+        &mut server,
+        b"@label=2 REDACT #papo RfcBTzyxY120005 superseded\r\n",
+    )
+    .await;
+    server_line(&mut server, b"@label=2 :ergo.test ACK\r\n").await;
+    client_line(
+        &mut server,
+        b"@label=3 REDACT #papo RfcBTzyxY120006 superseded\r\n",
+    )
+    .await;
+    server_line(&mut server, b"@label=3 :ergo.test ACK\r\n").await;
+    within(redacted).await.unwrap().unwrap();
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));

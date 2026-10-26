@@ -637,7 +637,6 @@ impl Client {
     ///
     /// Passing the received line or [`Sent`] preserves its return address. See
     /// [`crate::Conversation`] for status-prefixed line guidance.
-    ///
     /// A notice is not a reply input:
     ///
     /// ```compile_fail
@@ -809,6 +808,8 @@ impl Client {
     ///
     /// Passing the received line or [`Sent`] preserves its return address. See
     /// [`crate::Conversation`] for status-prefixed line guidance.
+    /// A sent message split across multiple lines is redacted in send order. Redaction stops at
+    /// the first error, and any earlier lines remain redacted.
     ///
     /// # Errors
     ///
