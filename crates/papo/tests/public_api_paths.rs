@@ -120,9 +120,6 @@ fn duplicate_type_paths(snapshot: &str) -> Vec<Vec<&str>> {
     paths
         .into_values()
         .filter(|paths| paths.len() > 1)
-        .filter(|paths| {
-            paths.iter().copied().collect::<Vec<_>>() != ["papo::Extban", "papo::isupport::Extban"]
-        })
         .map(|paths| paths.into_iter().collect())
         .collect()
 }

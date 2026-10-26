@@ -1,8 +1,8 @@
 //! Raw ISUPPORT token accumulation behavior.
 
 use papo_proto::{
-    Advertised, Casemapping, ChanModes, Extban, Isupport, Limit, LimitValue, LineRef, Numeric,
-    Prefix, Rank,
+    Advertised, Casemapping, ChanModes, ExtbanSyntax, Isupport, Limit, LimitValue, LineRef,
+    Numeric, Prefix, Rank,
 };
 
 #[test]
@@ -413,7 +413,7 @@ fn parses_ergo_list_ban_history_and_flag_tokens() {
     assert_eq!(support.excepts(), Some('e'));
     assert_eq!(
         support.extban(),
-        Some(Extban {
+        Some(ExtbanSyntax {
             prefix: None,
             types: "m",
         })

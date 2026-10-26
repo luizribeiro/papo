@@ -189,7 +189,7 @@ pub mod tags;
 /// Read-only views of server features advertised through `RPL_ISUPPORT`.
 pub mod isupport {
     #[doc(inline)]
-    pub use papo_proto::{Advertised, ChanModes, ClientTagDeny, Extban, Limit, LimitValue};
+    pub use papo_proto::{Advertised, ChanModes, ClientTagDeny, ExtbanSyntax, Limit, LimitValue};
 }
 
 /// The version of the `papo` crate.

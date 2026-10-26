@@ -107,7 +107,7 @@ pub enum LimitValue {
 
 /// The prefix and type letters used for extended bans.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct Extban<'a> {
+pub struct ExtbanSyntax<'a> {
     /// The optional character introducing an extended ban.
     pub prefix: Option<char>,
     /// The supported extended-ban type letters.
@@ -497,9 +497,9 @@ impl Isupport {
 
     /// Returns the extended-ban prefix and supported types.
     #[must_use]
-    pub fn extban(&self) -> Option<Extban<'_>> {
+    pub fn extban(&self) -> Option<ExtbanSyntax<'_>> {
         let (prefix, types) = self.value("EXTBAN")?.split_once(',')?;
-        Some(Extban {
+        Some(ExtbanSyntax {
             prefix: if prefix.is_empty() {
                 None
             } else {

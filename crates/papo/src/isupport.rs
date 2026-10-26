@@ -1,4 +1,4 @@
-use papo_proto::{Advertised, ChanModes, ClientTagDeny, Extban, Limit, LimitValue};
+use papo_proto::{Advertised, ChanModes, ClientTagDeny, ExtbanSyntax, Limit, LimitValue};
 
 use std::borrow::Cow;
 
@@ -235,7 +235,7 @@ impl Isupport {
 
     /// Returns the extended-ban prefix and supported types.
     #[must_use]
-    pub fn extban(&self) -> Option<Extban<'_>> {
+    pub fn extban(&self) -> Option<ExtbanSyntax<'_>> {
         self.inner.extban()
     }
 
@@ -348,7 +348,7 @@ mod tests {
         assert_eq!(support.invex(), Some('I'));
         assert_eq!(
             support.extban(),
-            Some(super::Extban {
+            Some(super::ExtbanSyntax {
                 prefix: None,
                 types: "m"
             })
