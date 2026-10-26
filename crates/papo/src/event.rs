@@ -443,8 +443,66 @@ fn ctcp_parts(message: &LineRef<'_>) -> Option<(String, Option<String>, bool)> {
     })
 }
 
+fn broadcast_from_line(
+    raw: ProtoLine,
+    authorship: Authorship,
+    origin: crate::Origin,
+    isupport: &Isupport,
+    account_tag_enabled: bool,
+    received_at: SystemTime,
+) -> Result<Event, ProtoLine> {
+    let message = raw.as_ref();
+    let to = match message.param(0) {
+        Some("*") => Broadcast::Everyone,
+        Some(target) if target.starts_with('$') => {
+            let mask = origin.__mask(isupport.casemapping(), target);
+            if mask.check().is_err() {
+                return Err(raw);
+            }
+            Broadcast::Mask(mask)
+        }
+        _ => return Err(raw),
+    };
+    let Some(source) = message.source() else {
+        return Err(raw);
+    };
+    let actor = source::from_proto_with_origin(source, isupport.casemapping(), origin);
+    let tags = Tags::from_message(&message);
+    if message.command_is("TAGMSG") {
+        return Ok(Event::BroadcastTagMsg(BroadcastTagMsg {
+            actor,
+            authorship,
+            to,
+            tags,
+        }));
+    }
+    let Some((command, params, false)) = ctcp_parts(&message) else {
+        return Err(raw);
+    };
+    let envelope = line_envelope_with_account_tag(
+        &message,
+        isupport.casemapping(),
+        origin,
+        account_tag_enabled,
+        received_at,
+    );
+    Ok(Event::BroadcastCtcp(BroadcastCtcp {
+        actor,
+        authorship,
+        to,
+        command,
+        params,
+        msgid: envelope.msgid,
+        server_time: envelope.server_time,
+        received_at: envelope.received_at,
+        account: envelope.account,
+        tags,
+    }))
+}
+
 pub(crate) fn incoming_from_core(
     received: papo_core::ReceivedLine,
+    origin: crate::Origin,
     isupport: &Isupport,
     account_tag_enabled: bool,
     received_at: SystemTime,
@@ -457,13 +515,26 @@ pub(crate) fn incoming_from_core(
     }) {
         return Event::Other(received.into_line());
     }
-    let Some(conversation) = received.conversation().cloned() else {
-        return Event::Other(received.into_line());
-    };
+    let conversation = received.conversation().cloned();
     let status = received.status().map(<[char]>::to_vec);
     let channel_context = received.channel_context().cloned();
     let authorship = Authorship::from_core(received.authorship());
     let (raw, batch_type) = received.into_parts();
+    let Some(conversation) = conversation else {
+        let raw = match broadcast_from_line(
+            raw,
+            authorship,
+            origin,
+            isupport,
+            account_tag_enabled,
+            received_at,
+        ) {
+            Ok(event) => return event,
+            Err(raw) => raw,
+        };
+        return ServerNotice::from_line(raw, origin, isupport, received_at)
+            .map_or_else(Event::Other, |notice| Event::ServerNotice(Box::new(notice)));
+    };
     message_event_from_line(
         raw,
         batch_type.as_deref(),
@@ -2534,6 +2605,7 @@ mod tests {
                 CoreEvent::Forward(event) => event,
                 CoreEvent::Line(line) => super::incoming_from_core(
                     line,
+                    crate::Origin::NONE,
                     session.isupport(),
                     session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
                     received_at,
@@ -2844,7 +2916,13 @@ mod tests {
         let CoreEvent::Line(message) = from_core(event) else {
             panic!("message was not mapped")
         };
-        super::incoming_from_core(message, &Isupport::default(), false, UNIX_EPOCH)
+        super::incoming_from_core(
+            message,
+            crate::Origin::NONE,
+            &Isupport::default(),
+            false,
+            UNIX_EPOCH,
+        )
     }
 
     fn batched_event(kind: &str, command: &str) -> Event {
@@ -2858,7 +2936,13 @@ mod tests {
         let CoreEvent::Line(line) = from_core(core) else {
             panic!("batch fallback was not a line")
         };
-        super::incoming_from_core(line, &Isupport::default(), false, UNIX_EPOCH)
+        super::incoming_from_core(
+            line,
+            crate::Origin::NONE,
+            &Isupport::default(),
+            false,
+            UNIX_EPOCH,
+        )
     }
 
     fn labelled_session(now: Instant, config: Config) -> Session {

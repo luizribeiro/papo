@@ -1257,6 +1257,7 @@ where
                 drop_bad_rejoin_key(session, defaults, &message.as_ref());
                 let event = crate::event_impl::incoming_from_core(
                     message,
+                    session.state().nick().origin(),
                     session.isupport(),
                     session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
                     crate::rt::now_wall(),
