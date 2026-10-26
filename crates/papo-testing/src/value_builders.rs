@@ -5,25 +5,25 @@ use papo::{DisconnectCause, Disconnected, Error, ServerError, State};
 /// Builds an origin-free nickname for test input.
 #[must_use]
 pub fn nick(casemapping: papo::Casemapping, text: impl AsRef<str>) -> papo::Nick {
-    papo::__testing::nickname(casemapping, text)
+    papo::__testing::nickname(casemapping, text.as_ref())
 }
 
 /// Builds an origin-free channel name for test input.
 #[must_use]
 pub fn channel(casemapping: papo::Casemapping, text: impl AsRef<str>) -> papo::ChannelName {
-    papo::__testing::channel_name(casemapping, text)
+    papo::__testing::channel_name(casemapping, text.as_ref())
 }
 
 /// Builds an origin-free account name for test input.
 #[must_use]
 pub fn account(casemapping: papo::Casemapping, text: impl AsRef<str>) -> papo::AccountName {
-    papo::__testing::account_name(casemapping, text)
+    papo::__testing::account_name(casemapping, text.as_ref())
 }
 
 /// Builds an origin-free mask for test input.
 #[must_use]
 pub fn mask(casemapping: papo::Casemapping, text: impl AsRef<str>) -> papo::Mask {
-    papo::__testing::mask(casemapping, text)
+    papo::__testing::mask(casemapping, text.as_ref())
 }
 
 /// Builds a minimal immutable client-state snapshot.

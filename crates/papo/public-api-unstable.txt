@@ -2527,10 +2527,10 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::Monitor
 impl core::panic::unwind_safe::UnwindSafe for papo::Monitor
 pub struct papo::NameRules<'a>
 impl papo::NameRules<'_>
-pub fn papo::NameRules<'_>::account(&self, impl core::convert::AsRef<str>) -> papo::AccountName
-pub fn papo::NameRules<'_>::channel(&self, impl core::convert::AsRef<str>) -> papo::ChannelName
-pub fn papo::NameRules<'_>::mask(&self, impl core::convert::AsRef<str>) -> papo::Mask
-pub fn papo::NameRules<'_>::nick(&self, impl core::convert::AsRef<str>) -> papo::Nick
+pub fn papo::NameRules<'_>::account(&self, impl core::convert::Into<alloc::string::String>) -> papo::AccountName
+pub fn papo::NameRules<'_>::channel(&self, impl core::convert::Into<alloc::string::String>) -> papo::ChannelName
+pub fn papo::NameRules<'_>::mask(&self, impl core::convert::Into<alloc::string::String>) -> papo::Mask
+pub fn papo::NameRules<'_>::nick(&self, impl core::convert::Into<alloc::string::String>) -> papo::Nick
 impl papo::NameRules<'_>
 pub fn papo::NameRules<'_>::check_channel(&self, &str) -> papo::NameCheck
 pub fn papo::NameRules<'_>::check_nick(&self, &str) -> papo::NameCheck

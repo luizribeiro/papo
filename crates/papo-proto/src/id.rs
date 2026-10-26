@@ -29,26 +29,26 @@ impl Origin {
 
     #[doc(hidden)]
     #[must_use]
-    pub fn __nick(self, casemapping: Casemapping, text: impl AsRef<str>) -> Nick {
-        Nick::new(text.as_ref().to_owned(), casemapping, self)
+    pub fn __nick(self, casemapping: Casemapping, text: impl Into<String>) -> Nick {
+        Nick::new(text.into(), casemapping, self)
     }
 
     #[doc(hidden)]
     #[must_use]
-    pub fn __channel(self, casemapping: Casemapping, text: impl AsRef<str>) -> ChannelName {
-        ChannelName::new(text.as_ref().to_owned(), casemapping, self)
+    pub fn __channel(self, casemapping: Casemapping, text: impl Into<String>) -> ChannelName {
+        ChannelName::new(text.into(), casemapping, self)
     }
 
     #[doc(hidden)]
     #[must_use]
-    pub fn __account(self, casemapping: Casemapping, text: impl AsRef<str>) -> AccountName {
-        AccountName::new(text.as_ref().to_owned(), casemapping, self)
+    pub fn __account(self, casemapping: Casemapping, text: impl Into<String>) -> AccountName {
+        AccountName::new(text.into(), casemapping, self)
     }
 
     #[doc(hidden)]
     #[must_use]
-    pub fn __mask(self, casemapping: Casemapping, text: impl AsRef<str>) -> Mask {
-        Mask::new(text.as_ref().to_owned(), casemapping, self)
+    pub fn __mask(self, casemapping: Casemapping, text: impl Into<String>) -> Mask {
+        Mask::new(text.into(), casemapping, self)
     }
 }
 
@@ -238,6 +238,18 @@ macro_rules! name_identifier {
         }
 
         original_text!($name, original);
+
+        impl From<$name> for String {
+            fn from(value: $name) -> Self {
+                value.into_string()
+            }
+        }
+
+        impl From<&$name> for String {
+            fn from(value: &$name) -> Self {
+                value.to_string()
+            }
+        }
 
         impl PartialEq for $name {
             fn eq(&self, other: &Self) -> bool {

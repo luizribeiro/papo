@@ -13,25 +13,25 @@ use crate::{
 
 /// Constructs an origin-free nickname for test fixtures.
 #[must_use]
-pub fn nickname(casemapping: Casemapping, text: impl AsRef<str>) -> Nick {
+pub fn nickname(casemapping: Casemapping, text: impl Into<String>) -> Nick {
     casemapping.nick(text)
 }
 
 /// Constructs an origin-free channel name for test fixtures.
 #[must_use]
-pub fn channel_name(casemapping: Casemapping, text: impl AsRef<str>) -> ChannelName {
+pub fn channel_name(casemapping: Casemapping, text: impl Into<String>) -> ChannelName {
     casemapping.channel(text)
 }
 
 /// Constructs an origin-free account name for test fixtures.
 #[must_use]
-pub fn account_name(casemapping: Casemapping, text: impl AsRef<str>) -> AccountName {
+pub fn account_name(casemapping: Casemapping, text: impl Into<String>) -> AccountName {
     casemapping.account(text)
 }
 
 /// Constructs an origin-free mask for test fixtures.
 #[must_use]
-pub fn mask(casemapping: Casemapping, text: impl AsRef<str>) -> Mask {
+pub fn mask(casemapping: Casemapping, text: impl Into<String>) -> Mask {
     casemapping.mask(text)
 }
 

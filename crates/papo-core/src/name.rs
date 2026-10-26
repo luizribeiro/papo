@@ -30,19 +30,19 @@ impl Names {
         self.origin
     }
 
-    pub(crate) fn nick(self, text: impl AsRef<str>) -> Nick {
+    pub(crate) fn nick(self, text: impl Into<String>) -> Nick {
         self.origin.__nick(self.casemapping, text)
     }
 
-    pub(crate) fn channel(self, text: impl AsRef<str>) -> ChannelName {
+    pub(crate) fn channel(self, text: impl Into<String>) -> ChannelName {
         self.origin.__channel(self.casemapping, text)
     }
 
-    pub(crate) fn account(self, text: impl AsRef<str>) -> AccountName {
+    pub(crate) fn account(self, text: impl Into<String>) -> AccountName {
         self.origin.__account(self.casemapping, text)
     }
 
-    pub(crate) fn mask(self, text: impl AsRef<str>) -> Mask {
+    pub(crate) fn mask(self, text: impl Into<String>) -> Mask {
         self.origin.__mask(self.casemapping, text)
     }
 }

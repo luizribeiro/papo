@@ -50,7 +50,7 @@ impl NameRules<'_> {
     /// # }
     /// ```
     #[must_use]
-    pub fn nick(&self, text: impl AsRef<str>) -> Nick {
+    pub fn nick(&self, text: impl Into<String>) -> Nick {
         self.state
             .nick()
             .origin()
@@ -70,7 +70,7 @@ impl NameRules<'_> {
     /// # }
     /// ```
     #[must_use]
-    pub fn channel(&self, text: impl AsRef<str>) -> ChannelName {
+    pub fn channel(&self, text: impl Into<String>) -> ChannelName {
         self.state
             .nick()
             .origin()
@@ -89,7 +89,7 @@ impl NameRules<'_> {
     /// # }
     /// ```
     #[must_use]
-    pub fn account(&self, text: impl AsRef<str>) -> AccountName {
+    pub fn account(&self, text: impl Into<String>) -> AccountName {
         self.state
             .nick()
             .origin()
@@ -108,7 +108,7 @@ impl NameRules<'_> {
     /// # }
     /// ```
     #[must_use]
-    pub fn mask(&self, text: impl AsRef<str>) -> Mask {
+    pub fn mask(&self, text: impl Into<String>) -> Mask {
         self.state
             .nick()
             .origin()
