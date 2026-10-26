@@ -141,6 +141,7 @@ pub struct Isupport {
     tokens: HashMap<String, Option<String>>,
     generation: u64,
     limit_reached: bool,
+    received: bool,
 }
 
 const MAX_TOKENS: usize = 1_024;
@@ -174,6 +175,7 @@ impl Isupport {
         if line.command() != Command::Numeric(Numeric::RPL_ISUPPORT) {
             return;
         }
+        self.received = true;
         let mut params = line.params();
         params.next();
         let Some(mut pending) = params.next() else {
@@ -234,6 +236,12 @@ impl Isupport {
     #[must_use]
     pub const fn __limit_reached(&self) -> bool {
         self.limit_reached
+    }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __received(&self) -> bool {
+        self.received
     }
 
     fn insert(&mut self, key: &str, value: Option<String>) -> bool {
@@ -666,7 +674,18 @@ fn unescape(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::Isupport;
+    use super::{Isupport, LineRef};
+
+    #[test]
+    fn records_an_isupport_reply_even_without_tokens() {
+        let mut isupport = Isupport::default();
+        assert!(!isupport.__received());
+
+        isupport.apply(&LineRef::parse(":ergo.test 005 papo :are supported").unwrap());
+
+        assert!(isupport.__received());
+        assert_eq!(isupport.__generation(), 0);
+    }
 
     #[test]
     fn generation_changes_only_when_a_token_changes() {
