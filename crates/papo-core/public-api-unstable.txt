@@ -931,7 +931,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo_core::MetadataCommand
 #[non_exhaustive] pub enum papo_core::ModeArg
 pub papo_core::ModeArg::Key(papo::Secret)
 pub papo_core::ModeArg::Mask(papo::Mask)
-pub papo_core::ModeArg::Member
+#[non_exhaustive] pub papo_core::ModeArg::Member
 pub papo_core::ModeArg::Member::nick: papo::Nick
 pub papo_core::ModeArg::Member::prefix: papo::isupport::Prefix
 pub papo_core::ModeArg::Value(alloc::string::String)

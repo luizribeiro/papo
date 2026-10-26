@@ -86,46 +86,46 @@ pub mod papo::event
 pub use papo::event::BatchAbandonReason
 pub use papo::event::TypingReason
 #[non_exhaustive] pub enum papo::event::Audience
-pub papo::event::Audience::Broadcast(papo::Broadcast)
+pub papo::event::Audience::Broadcast(papo::event::Broadcast)
 pub papo::event::Audience::Channel(papo::ChannelName)
 pub papo::event::Audience::Me
-impl core::clone::Clone for papo::Audience
-pub fn papo::Audience::clone(&self) -> Self
-impl core::cmp::Eq for papo::Audience
-impl core::cmp::PartialEq for papo::Audience
-pub fn papo::Audience::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::Audience
-pub fn papo::Audience::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for papo::Audience
-pub fn papo::Audience::hash<__H: core::hash::Hasher>(&self, &mut __H)
-impl core::marker::StructuralPartialEq for papo::Audience
-impl core::marker::Freeze for papo::Audience
-impl core::marker::Send for papo::Audience
-impl core::marker::Sync for papo::Audience
-impl core::marker::Unpin for papo::Audience
-impl core::marker::UnsafeUnpin for papo::Audience
-impl core::panic::unwind_safe::RefUnwindSafe for papo::Audience
-impl core::panic::unwind_safe::UnwindSafe for papo::Audience
+impl core::clone::Clone for papo::event::Audience
+pub fn papo::event::Audience::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::Audience
+impl core::cmp::PartialEq for papo::event::Audience
+pub fn papo::event::Audience::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::Audience
+pub fn papo::event::Audience::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::event::Audience
+pub fn papo::event::Audience::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for papo::event::Audience
+impl core::marker::Freeze for papo::event::Audience
+impl core::marker::Send for papo::event::Audience
+impl core::marker::Sync for papo::event::Audience
+impl core::marker::Unpin for papo::event::Audience
+impl core::marker::UnsafeUnpin for papo::event::Audience
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Audience
+impl core::panic::unwind_safe::UnwindSafe for papo::event::Audience
 #[non_exhaustive] pub enum papo::event::Broadcast
 pub papo::event::Broadcast::Everyone
 pub papo::event::Broadcast::Mask(papo::Mask)
-impl core::clone::Clone for papo::Broadcast
-pub fn papo::Broadcast::clone(&self) -> Self
-impl core::cmp::Eq for papo::Broadcast
-impl core::cmp::PartialEq for papo::Broadcast
-pub fn papo::Broadcast::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::Broadcast
-pub fn papo::Broadcast::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for papo::Broadcast
-pub fn papo::Broadcast::hash<__H: core::hash::Hasher>(&self, &mut __H)
-impl core::marker::StructuralPartialEq for papo::Broadcast
-impl core::marker::Freeze for papo::Broadcast
-impl core::marker::Send for papo::Broadcast
-impl core::marker::Sync for papo::Broadcast
-impl core::marker::Unpin for papo::Broadcast
-impl core::marker::UnsafeUnpin for papo::Broadcast
-impl core::panic::unwind_safe::RefUnwindSafe for papo::Broadcast
-impl core::panic::unwind_safe::UnwindSafe for papo::Broadcast
+impl core::clone::Clone for papo::event::Broadcast
+pub fn papo::event::Broadcast::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::Broadcast
+impl core::cmp::PartialEq for papo::event::Broadcast
+pub fn papo::event::Broadcast::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::Broadcast
+pub fn papo::event::Broadcast::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::event::Broadcast
+pub fn papo::event::Broadcast::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for papo::event::Broadcast
+impl core::marker::Freeze for papo::event::Broadcast
+impl core::marker::Send for papo::event::Broadcast
+impl core::marker::Sync for papo::event::Broadcast
+impl core::marker::Unpin for papo::event::Broadcast
+impl core::marker::UnsafeUnpin for papo::event::Broadcast
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Broadcast
+impl core::panic::unwind_safe::UnwindSafe for papo::event::Broadcast
 #[non_exhaustive] pub enum papo::event::ConnectPhase
 pub papo::event::ConnectPhase::Authenticating
 pub papo::event::ConnectPhase::Capabilities
@@ -315,7 +315,7 @@ pub papo::event::BroadcastCtcp::params: core::option::Option<alloc::string::Stri
 pub papo::event::BroadcastCtcp::received_at: std::time::SystemTime
 pub papo::event::BroadcastCtcp::server_time: core::option::Option<std::time::SystemTime>
 pub papo::event::BroadcastCtcp::tags: papo::Tags
-pub papo::event::BroadcastCtcp::to: papo::Broadcast
+pub papo::event::BroadcastCtcp::to: papo::event::Broadcast
 impl papo::event::BroadcastCtcp
 pub fn papo::event::BroadcastCtcp::origin(&self) -> papo::Origin
 impl core::clone::Clone for papo::event::BroadcastCtcp
@@ -337,7 +337,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::BroadcastCtcp
 pub papo::event::BroadcastTagMsg::actor: papo::UserSource
 pub papo::event::BroadcastTagMsg::authorship: papo::Authorship
 pub papo::event::BroadcastTagMsg::tags: papo::Tags
-pub papo::event::BroadcastTagMsg::to: papo::Broadcast
+pub papo::event::BroadcastTagMsg::to: papo::event::Broadcast
 impl papo::event::BroadcastTagMsg
 pub fn papo::event::BroadcastTagMsg::origin(&self) -> papo::Origin
 impl core::clone::Clone for papo::event::BroadcastTagMsg
@@ -478,7 +478,7 @@ pub papo::event::CtcpQuery::msgid: core::option::Option<papo::MessageId>
 pub papo::event::CtcpQuery::params: core::option::Option<alloc::string::String>
 pub papo::event::CtcpQuery::received_at: std::time::SystemTime
 pub papo::event::CtcpQuery::server_time: core::option::Option<std::time::SystemTime>
-pub papo::event::CtcpQuery::status: core::option::Option<papo::isupport::Prefix>
+pub papo::event::CtcpQuery::status: core::option::Option<papo::Prefix>
 pub papo::event::CtcpQuery::tags: papo::Tags
 impl papo::event::CtcpQuery
 pub fn papo::event::CtcpQuery::origin(&self) -> papo::Origin
@@ -510,7 +510,7 @@ pub papo::event::CtcpReply::msgid: core::option::Option<papo::MessageId>
 pub papo::event::CtcpReply::params: core::option::Option<alloc::string::String>
 pub papo::event::CtcpReply::received_at: std::time::SystemTime
 pub papo::event::CtcpReply::server_time: core::option::Option<std::time::SystemTime>
-pub papo::event::CtcpReply::status: core::option::Option<papo::isupport::Prefix>
+pub papo::event::CtcpReply::status: core::option::Option<papo::Prefix>
 pub papo::event::CtcpReply::tags: papo::Tags
 impl papo::event::CtcpReply
 pub fn papo::event::CtcpReply::origin(&self) -> papo::Origin
@@ -786,7 +786,7 @@ pub papo::event::Notice::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Notice::raw_text: alloc::string::String
 pub papo::event::Notice::received_at: std::time::SystemTime
 pub papo::event::Notice::server_time: core::option::Option<std::time::SystemTime>
-pub papo::event::Notice::status: core::option::Option<papo::isupport::Prefix>
+pub papo::event::Notice::status: core::option::Option<papo::Prefix>
 pub papo::event::Notice::tags: papo::Tags
 pub papo::event::Notice::text: alloc::string::String
 impl papo::event::Notice
@@ -865,7 +865,7 @@ pub papo::event::Reacted::reaction: alloc::string::String
 pub papo::event::Reacted::reacts_to: papo::MessageId
 pub papo::event::Reacted::received_at: std::time::SystemTime
 pub papo::event::Reacted::server_time: core::option::Option<std::time::SystemTime>
-pub papo::event::Reacted::status: core::option::Option<papo::isupport::Prefix>
+pub papo::event::Reacted::status: core::option::Option<papo::Prefix>
 impl papo::event::Reacted
 pub fn papo::event::Reacted::origin(&self) -> papo::Origin
 impl papo::event::Reacted
@@ -933,7 +933,7 @@ pub papo::event::Redacted::reason: core::option::Option<alloc::string::String>
 pub papo::event::Redacted::received_at: std::time::SystemTime
 pub papo::event::Redacted::redacts: papo::MessageId
 pub papo::event::Redacted::server_time: core::option::Option<std::time::SystemTime>
-pub papo::event::Redacted::status: core::option::Option<papo::isupport::Prefix>
+pub papo::event::Redacted::status: core::option::Option<papo::Prefix>
 impl papo::event::Redacted
 pub fn papo::event::Redacted::origin(&self) -> papo::Origin
 impl papo::event::Redacted
@@ -960,10 +960,10 @@ pub papo::event::ServerNotice::kind: papo::event::ServerNoticeKind
 pub papo::event::ServerNotice::raw_text: alloc::string::String
 pub papo::event::ServerNotice::received_at: std::time::SystemTime
 pub papo::event::ServerNotice::server_time: core::option::Option<std::time::SystemTime>
-pub papo::event::ServerNotice::status: core::option::Option<papo::isupport::Prefix>
+pub papo::event::ServerNotice::status: core::option::Option<papo::Prefix>
 pub papo::event::ServerNotice::tags: papo::Tags
 pub papo::event::ServerNotice::text: alloc::string::String
-pub papo::event::ServerNotice::to: papo::Audience
+pub papo::event::ServerNotice::to: papo::event::Audience
 impl papo::event::ServerNotice
 pub fn papo::event::ServerNotice::return_address(&self) -> papo::MessageRef
 pub fn papo::event::ServerNotice::spans(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo::Span<'_>>
@@ -1026,7 +1026,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::StandardReply
 pub papo::event::TagMsg::actor: papo::UserSource
 pub papo::event::TagMsg::authorship: papo::Authorship
 pub papo::event::TagMsg::conversation: papo::Conversation
-pub papo::event::TagMsg::status: core::option::Option<papo::isupport::Prefix>
+pub papo::event::TagMsg::status: core::option::Option<papo::Prefix>
 pub papo::event::TagMsg::tags: papo::Tags
 impl papo::event::TagMsg
 pub fn papo::event::TagMsg::origin(&self) -> papo::Origin
@@ -1078,7 +1078,7 @@ pub papo::event::TypingChanged::authorship: papo::Authorship
 pub papo::event::TypingChanged::conversation: papo::Conversation
 pub papo::event::TypingChanged::reason: papo::event::TypingReason
 pub papo::event::TypingChanged::state: papo::Typing
-pub papo::event::TypingChanged::status: core::option::Option<papo::isupport::Prefix>
+pub papo::event::TypingChanged::status: core::option::Option<papo::Prefix>
 impl papo::event::TypingChanged
 pub fn papo::event::TypingChanged::origin(&self) -> papo::Origin
 impl papo::event::TypingChanged
@@ -1152,7 +1152,6 @@ pub use papo::isupport::ClientTagDeny
 pub use papo::isupport::Extban
 pub use papo::isupport::Limit
 pub use papo::isupport::LimitValue
-pub use papo::isupport::Prefix
 pub mod papo::metadata
 pub mod papo::metadata::keys
 pub const papo::metadata::keys::AVATAR: &str
@@ -1274,27 +1273,6 @@ impl core::marker::Unpin for papo::AccountCreation
 impl core::marker::UnsafeUnpin for papo::AccountCreation
 impl core::panic::unwind_safe::RefUnwindSafe for papo::AccountCreation
 impl core::panic::unwind_safe::UnwindSafe for papo::AccountCreation
-#[non_exhaustive] pub enum papo::Audience
-pub papo::Audience::Broadcast(papo::Broadcast)
-pub papo::Audience::Channel(papo::ChannelName)
-pub papo::Audience::Me
-impl core::clone::Clone for papo::Audience
-pub fn papo::Audience::clone(&self) -> Self
-impl core::cmp::Eq for papo::Audience
-impl core::cmp::PartialEq for papo::Audience
-pub fn papo::Audience::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::Audience
-pub fn papo::Audience::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for papo::Audience
-pub fn papo::Audience::hash<__H: core::hash::Hasher>(&self, &mut __H)
-impl core::marker::StructuralPartialEq for papo::Audience
-impl core::marker::Freeze for papo::Audience
-impl core::marker::Send for papo::Audience
-impl core::marker::Sync for papo::Audience
-impl core::marker::Unpin for papo::Audience
-impl core::marker::UnsafeUnpin for papo::Audience
-impl core::panic::unwind_safe::RefUnwindSafe for papo::Audience
-impl core::panic::unwind_safe::UnwindSafe for papo::Audience
 #[non_exhaustive] pub enum papo::Authorship
 pub papo::Authorship::Other
 pub papo::Authorship::Own
@@ -1321,26 +1299,6 @@ impl core::marker::Unpin for papo::Authorship
 impl core::marker::UnsafeUnpin for papo::Authorship
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Authorship
 impl core::panic::unwind_safe::UnwindSafe for papo::Authorship
-#[non_exhaustive] pub enum papo::Broadcast
-pub papo::Broadcast::Everyone
-pub papo::Broadcast::Mask(papo::Mask)
-impl core::clone::Clone for papo::Broadcast
-pub fn papo::Broadcast::clone(&self) -> Self
-impl core::cmp::Eq for papo::Broadcast
-impl core::cmp::PartialEq for papo::Broadcast
-pub fn papo::Broadcast::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::Broadcast
-pub fn papo::Broadcast::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for papo::Broadcast
-pub fn papo::Broadcast::hash<__H: core::hash::Hasher>(&self, &mut __H)
-impl core::marker::StructuralPartialEq for papo::Broadcast
-impl core::marker::Freeze for papo::Broadcast
-impl core::marker::Send for papo::Broadcast
-impl core::marker::Sync for papo::Broadcast
-impl core::marker::Unpin for papo::Broadcast
-impl core::marker::UnsafeUnpin for papo::Broadcast
-impl core::panic::unwind_safe::RefUnwindSafe for papo::Broadcast
-impl core::panic::unwind_safe::UnwindSafe for papo::Broadcast
 #[non_exhaustive] pub enum papo::ConnectErrorKind
 pub papo::ConnectErrorKind::AccountRequired
 pub papo::ConnectErrorKind::Banned
@@ -2198,7 +2156,7 @@ pub fn papo::Isupport::msgreftypes(&self) -> alloc::vec::Vec<&str>
 pub fn papo::Isupport::namelen(&self) -> core::option::Option<usize>
 pub fn papo::Isupport::network(&self) -> core::option::Option<&str>
 pub fn papo::Isupport::nicklen(&self) -> core::option::Option<usize>
-pub fn papo::Isupport::prefix(&self) -> alloc::vec::Vec<papo::isupport::Prefix>
+pub fn papo::Isupport::prefix(&self) -> alloc::vec::Vec<papo::Prefix>
 pub fn papo::Isupport::safelist(&self) -> bool
 pub fn papo::Isupport::saferate(&self) -> bool
 pub fn papo::Isupport::statusmsg(&self) -> core::option::Option<&str>
@@ -2303,7 +2261,7 @@ pub papo::Message::msgid: core::option::Option<papo::MessageId>
 pub papo::Message::raw_text: alloc::string::String
 pub papo::Message::received_at: std::time::SystemTime
 pub papo::Message::server_time: core::option::Option<std::time::SystemTime>
-pub papo::Message::status: core::option::Option<papo::isupport::Prefix>
+pub papo::Message::status: core::option::Option<papo::Prefix>
 pub papo::Message::tags: papo::Tags
 pub papo::Message::text: alloc::string::String
 impl papo::Message
@@ -2557,7 +2515,7 @@ pub papo::Sent::conversation: papo::Conversation
 pub papo::Sent::fallbacks: alloc::vec::Vec<papo::Fallback>
 pub papo::Sent::msgids: alloc::vec::Vec<papo::MessageId>
 pub papo::Sent::server_time: core::option::Option<std::time::SystemTime>
-pub papo::Sent::status: core::option::Option<papo::isupport::Prefix>
+pub papo::Sent::status: core::option::Option<papo::Prefix>
 impl papo::Sent
 pub fn papo::Sent::msgid(&self) -> core::option::Option<&papo::MessageId>
 pub fn papo::Sent::origin(&self) -> papo::Origin
@@ -2666,7 +2624,7 @@ pub fn papo::State::monitored(&self) -> impl core::iter::traits::iterator::Itera
 pub fn papo::State::nick(&self) -> &papo::Nick
 pub fn papo::State::nickname(&self, impl core::convert::AsRef<str>) -> papo::Nick
 pub fn papo::State::parse_extban(&self, &papo::Mask) -> core::option::Option<papo::Extban>
-pub fn papo::State::parse_target(&self, &str) -> core::result::Result<(core::option::Option<papo::isupport::Prefix>, papo::Conversation), papo::InvalidInput>
+pub fn papo::State::parse_target(&self, &str) -> core::result::Result<(core::option::Option<papo::Prefix>, papo::Conversation), papo::InvalidInput>
 pub fn papo::State::read_marker(&self, impl papo::AsConversation) -> core::option::Option<papo::ReadMarker>
 pub fn papo::State::realname(&self) -> &str
 pub fn papo::State::same_list_entry(&self, &papo::Mask, impl core::convert::AsRef<str>) -> bool
@@ -2762,7 +2720,7 @@ pub papo::WhoEntry::host: alloc::string::String
 pub papo::WhoEntry::is_bot: core::option::Option<bool>
 pub papo::WhoEntry::nick: papo::Nick
 pub papo::WhoEntry::oper: core::option::Option<papo::Oper>
-pub papo::WhoEntry::prefixes: alloc::vec::Vec<papo::isupport::Prefix>
+pub papo::WhoEntry::prefixes: alloc::vec::Vec<papo::Prefix>
 pub papo::WhoEntry::realname: alloc::string::String
 pub papo::WhoEntry::username: alloc::string::String
 impl papo::WhoEntry
@@ -2811,7 +2769,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::Whois
 impl core::panic::unwind_safe::UnwindSafe for papo::Whois
 #[non_exhaustive] pub struct papo::WhoisChannel
 pub papo::WhoisChannel::name: papo::ChannelName
-pub papo::WhoisChannel::prefixes: alloc::vec::Vec<papo::isupport::Prefix>
+pub papo::WhoisChannel::prefixes: alloc::vec::Vec<papo::Prefix>
 impl papo::WhoisChannel
 pub fn papo::WhoisChannel::rank(&self) -> core::option::Option<papo::isupport::Rank>
 impl core::clone::Clone for papo::WhoisChannel
