@@ -28,6 +28,16 @@ pub struct MetadataChanged {
     pub visibility: Visibility,
 }
 
+/// A channel join configured or remembered by papo was refused.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct AutoJoinFailed {
+    /// The channel papo tried to join.
+    pub channel: crate::ChannelName,
+    /// The server's typed refusal.
+    pub error: crate::ServerError,
+}
+
 /// A recoverable protocol or configuration warning.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]

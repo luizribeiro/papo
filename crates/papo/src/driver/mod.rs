@@ -1360,10 +1360,10 @@ where
                     let id = response.id;
                     if let PendingRequest::AutoJoin { channel } = result {
                         if let Some(error) = response.error() {
-                            let event = Event::AutoJoinFailed {
+                            let event = Event::AutoJoinFailed(crate::event::AutoJoinFailed {
                                 channel,
                                 error: crate::ServerError::from_core(error),
-                            };
+                            });
                             if !enqueue_event(events, pending_events, event) {
                                 return Ok(Some((
                                     papo_core::CloseKind::Other,

@@ -263,6 +263,24 @@ impl core::marker::Unpin for papo::event::AccountChanged
 impl core::marker::UnsafeUnpin for papo::event::AccountChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::AccountChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::AccountChanged
+#[non_exhaustive] pub struct papo::event::AutoJoinFailed
+pub papo::event::AutoJoinFailed::channel: papo::ChannelName
+pub papo::event::AutoJoinFailed::error: papo::ServerError
+impl core::clone::Clone for papo::event::AutoJoinFailed
+pub fn papo::event::AutoJoinFailed::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::AutoJoinFailed
+impl core::cmp::PartialEq for papo::event::AutoJoinFailed
+pub fn papo::event::AutoJoinFailed::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::AutoJoinFailed
+pub fn papo::event::AutoJoinFailed::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::event::AutoJoinFailed
+impl core::marker::Freeze for papo::event::AutoJoinFailed
+impl core::marker::Send for papo::event::AutoJoinFailed
+impl core::marker::Sync for papo::event::AutoJoinFailed
+impl core::marker::Unpin for papo::event::AutoJoinFailed
+impl core::marker::UnsafeUnpin for papo::event::AutoJoinFailed
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::AutoJoinFailed
+impl core::panic::unwind_safe::UnwindSafe for papo::event::AutoJoinFailed
 #[non_exhaustive] pub struct papo::event::AwayChanged
 pub papo::event::AwayChanged::actor: papo::UserSource
 pub papo::event::AwayChanged::authorship: papo::Authorship
@@ -1474,9 +1492,7 @@ impl !core::panic::unwind_safe::UnwindSafe for papo::Error
 #[non_exhaustive] pub enum papo::Event
 pub papo::Event::AccountChanged(papo::event::AccountChanged)
 pub papo::Event::AccountCreation(papo::AccountCreation)
-#[non_exhaustive] pub papo::Event::AutoJoinFailed
-pub papo::Event::AutoJoinFailed::channel: papo::ChannelName
-pub papo::Event::AutoJoinFailed::error: papo::ServerError
+pub papo::Event::AutoJoinFailed(papo::event::AutoJoinFailed)
 pub papo::Event::AwayChanged(papo::event::AwayChanged)
 pub papo::Event::BouncerNetworkChanged(papo::event::BouncerNetworkChanged)
 pub papo::Event::BroadcastCtcp(papo::event::BroadcastCtcp)
@@ -1524,6 +1540,8 @@ impl papo::Event
 pub const fn papo::Event::as_account_changed(&self) -> core::option::Option<&papo::event::AccountChanged>
 impl papo::Event
 pub const fn papo::Event::as_account_creation(&self) -> core::option::Option<&papo::AccountCreation>
+impl papo::Event
+pub const fn papo::Event::as_auto_join_failed(&self) -> core::option::Option<&papo::event::AutoJoinFailed>
 impl papo::Event
 pub const fn papo::Event::as_away_changed(&self) -> core::option::Option<&papo::event::AwayChanged>
 impl papo::Event

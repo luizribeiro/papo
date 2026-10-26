@@ -39,7 +39,7 @@ pub use conversation::{
 pub use papo_core::{BatchAbandonReason, TypingReason};
 #[cfg(feature = "unstable")]
 pub use server::BouncerNetworkChanged;
-pub use server::{MetadataChanged, Warning};
+pub use server::{AutoJoinFailed, MetadataChanged, Warning};
 pub use source::{Source, UserSource};
 pub use tags::Tags;
 pub use user::{
@@ -1363,13 +1363,7 @@ pub enum Event {
     /// Server-defined name comparison rules changed between connections.
     CasemappingChanged(CasemappingChanged),
     /// A channel join configured or remembered by papo was refused.
-    #[non_exhaustive]
-    AutoJoinFailed {
-        /// The channel papo tried to join.
-        channel: ChannelName,
-        /// The server's typed refusal.
-        error: crate::ServerError,
-    },
+    AutoJoinFailed(AutoJoinFailed),
     /// A user joined a channel shared with the client.
     Joined(Joined),
     /// Initial channel membership synchronization completed.
@@ -1427,6 +1421,7 @@ variant_accessors! { Event;
     (CapsChanged, as_caps_changed, CapsChanged),
     (FeaturesChanged, as_features_changed, FeaturesChanged),
     (CasemappingChanged, as_casemapping_changed, CasemappingChanged),
+    (AutoJoinFailed, as_auto_join_failed, AutoJoinFailed),
     (Reacted, as_reacted, Reacted),
     (Redacted, as_redacted, Redacted),
     (TypingChanged, as_typing_changed, TypingChanged),

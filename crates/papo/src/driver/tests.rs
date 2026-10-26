@@ -1302,12 +1302,11 @@ async fn eof_reconnects_and_emits_reconnected() {
         b":ergo.test 475 papo-driver #papo :Cannot join channel (+k)\r\n",
     )
     .await;
-    assert!(matches!(
-        events.next().await,
-        Some(Event::AutoJoinFailed { channel, error })
-            if channel == "#papo" && channel.origin() == client.origin()
-                && error.refusal() == crate::Refusal::BadChannelKey
-    ));
+    let failed = events.next().await.unwrap();
+    let failed = failed.as_auto_join_failed().unwrap();
+    assert_eq!(failed.channel, "#papo");
+    assert_eq!(failed.channel.origin(), client.origin());
+    assert_eq!(failed.error.refusal(), crate::Refusal::BadChannelKey);
     within(second_server.shutdown()).await.unwrap();
     assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
 
@@ -3760,8 +3759,9 @@ async fn registration_sets_advertised_bot_mode_and_joins_each_channel() {
     .await;
     assert!(matches!(
         events.next().await,
-        Some(Event::AutoJoinFailed { channel, error })
-            if channel == "#PAPO" && error.refusal() == crate::Refusal::InviteOnlyChannel
+        Some(Event::AutoJoinFailed(failed))
+            if failed.channel == "#PAPO"
+                && failed.error.refusal() == crate::Refusal::InviteOnlyChannel
     ));
     server_line(
         &mut server,
