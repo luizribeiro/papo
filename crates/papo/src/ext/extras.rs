@@ -5,6 +5,8 @@ use crate::{Client, driver::CoreRequest};
 impl Client {
     /// Requests a channel rename.
     ///
+    /// An empty `reason` means no reason.
+    ///
     /// # Errors
     ///
     /// Returns [`crate::Error::Unsupported`] for [`crate::Feature::ChannelRename`] with reason

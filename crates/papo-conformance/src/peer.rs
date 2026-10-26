@@ -144,6 +144,8 @@ impl Peer {
     }
 
     /// Leaves `channel` using this peer's server rules.
+    ///
+    /// An empty `reason` means no reason.
     pub fn part(
         &self,
         channel: impl AsRef<str>,
@@ -154,11 +156,13 @@ impl Peer {
     }
 
     /// Removes `nick` from `channel` using this peer's server rules.
+    ///
+    /// An empty `reason` means no reason.
     pub fn kick(
         &self,
         channel: impl AsRef<str>,
         nick: impl AsRef<str>,
-        reason: impl AsRef<str>,
+        reason: impl Into<String>,
     ) -> papo::RequestFuture<()> {
         self.client.kick(
             self.client.state().name_rules().channel(channel),
@@ -200,6 +204,8 @@ impl Peer {
     }
 
     /// Renames a channel using this peer's server rules.
+    ///
+    /// An empty `reason` means no reason.
     pub fn rename_channel(
         &self,
         old: impl AsRef<str>,

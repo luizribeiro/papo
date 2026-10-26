@@ -2016,8 +2016,8 @@ pub fn papo::Client::clear_topic(&self, impl papo::AsChannel) -> papo::RequestFu
 pub fn papo::Client::ctcp_reply(&self, &papo::event::CtcpQuery, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::invite(&self, impl papo::AsNick, impl papo::AsChannel) -> papo::RequestFuture<()>
 pub fn papo::Client::join(&self, impl papo::AsChannel) -> papo::JoinChannel
-pub fn papo::Client::kick(&self, impl papo::AsChannel, impl papo::AsNick, impl core::convert::AsRef<str>) -> papo::RequestFuture<()>
-pub fn papo::Client::kickban(&self, impl papo::AsChannel, impl papo::AsNick, impl core::convert::AsRef<str>, impl core::convert::Into<papo::BanTarget>) -> papo::RequestFuture<papo::KickbanOutcome>
+pub fn papo::Client::kick(&self, impl papo::AsChannel, impl papo::AsNick, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::kickban(&self, impl papo::AsChannel, impl papo::AsNick, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo::BanTarget>) -> papo::RequestFuture<papo::KickbanOutcome>
 pub fn papo::Client::list(&self, papo::ListFilter) -> papo::RequestFuture<alloc::vec::Vec<papo::ListEntry>>
 pub fn papo::Client::nick(&self) -> papo::Nick
 pub fn papo::Client::notice(&self, impl papo::Target, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage

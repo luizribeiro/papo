@@ -806,6 +806,7 @@ impl Client {
     /// [`crate::Conversation`] for status-prefixed line guidance.
     /// A sent message split across multiple lines is redacted in send order. Redaction stops at
     /// the first error, and any earlier lines remain redacted.
+    /// An empty `reason` means no reason.
     ///
     /// # Errors
     ///
@@ -1041,7 +1042,9 @@ impl Client {
         Ok(())
     }
 
-    /// Leaves a channel, omitting an empty `reason` from the wire.
+    /// Leaves a channel.
+    ///
+    /// An empty `reason` means no reason.
     ///
     /// While disconnected, this removes the channel from the automatic rejoin set and returns
     /// [`Error::Disconnected`] without writing a `PART`. If a bouncer restores the channel after
@@ -1079,7 +1082,9 @@ impl Client {
         })
     }
 
-    /// Removes `nick` from `channel`, omitting an empty `reason` from the wire.
+    /// Removes `nick` from `channel`.
+    ///
+    /// An empty `reason` means no reason.
     ///
     /// ```compile_fail
     /// # fn swapped(
@@ -1098,12 +1103,12 @@ impl Client {
         &self,
         channel: impl crate::AsChannel,
         nick: impl crate::AsNick,
-        reason: impl AsRef<str>,
+        reason: impl Into<String>,
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
         let channel = crate::AsChannel::__parts(&channel).into_owned();
         let nick = crate::AsNick::__parts(&nick).into_owned();
-        let reason = reason.as_ref().to_owned();
+        let reason = reason.into();
         crate::RequestFuture::new(async move {
             let channel = client.resolve(crate::target::Role::Channel("kick: channel"), channel)?;
             let nick = client.resolve(crate::target::Role::Nick("kick: nick"), nick)?;
@@ -1132,6 +1137,7 @@ impl Client {
     ///
     /// The ban remains set when the kick is refused. Leaving or changing nickname during ban
     /// confirmation produces [`Error::TargetGone`] in [`crate::KickbanOutcome::kick`].
+    /// An empty `reason` means no reason.
     ///
     /// # Errors
     ///
@@ -1141,13 +1147,13 @@ impl Client {
         &self,
         channel: impl crate::AsChannel,
         nick: impl crate::AsNick,
-        reason: impl AsRef<str>,
+        reason: impl Into<String>,
         ban: impl Into<crate::BanTarget>,
     ) -> crate::RequestFuture<crate::KickbanOutcome> {
         let client = self.clone();
         let channel = crate::AsChannel::__parts(&channel).into_owned();
         let nick = crate::AsNick::__parts(&nick).into_owned();
-        let reason = reason.as_ref().to_owned();
+        let reason = reason.into();
         let ban = ban.into();
         crate::RequestFuture::new(async move {
             let channel =
@@ -1481,6 +1487,7 @@ impl Client {
     /// when that limit is reached. An I/O failure while waiting for closure
     /// also resolves to `Ok(())`. A timed-out acknowledgement is recorded in
     /// the final [`crate::Event::Disconnected`].
+    /// An empty `reason` means no reason.
     ///
     /// # Errors
     ///
