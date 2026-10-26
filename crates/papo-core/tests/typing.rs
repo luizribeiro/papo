@@ -143,6 +143,42 @@ fn public_target_replaces_status_typing_state() {
 }
 
 #[test]
+fn changed_status_updates_typing_with_the_same_return_address() {
+    Transcript::new(Config::default().nick("papo"))
+        .server(":ergo.test 005 papo PREFIX=(ov)@+ STATUSMSG=@+ :are supported")
+        .server("@+typing=active :alice!~a@cloak TAGMSG @#papo")
+        .event(|event| matches!(event, Event::TypingChanged(_)))
+        .server(":ergo.test 005 papo PREFIX=(vo)@+ STATUSMSG=@+ :are supported")
+        .server("@+typing=active :ALICE!~a@cloak TAGMSG @#papo")
+        .event(|event| matches!(event, Event::TypingChanged(_)))
+        .inspect(|session| {
+            let conversation = conversation(session, "#papo");
+            let typer = session.state().typing(&conversation).next().unwrap();
+            assert_eq!(typer.status().map(papo_core::Prefix::mode), Some('v'));
+            assert_eq!(typer.return_address(), "@#papo");
+        })
+        .no_event();
+}
+
+#[test]
+fn changed_return_address_updates_typing_with_the_same_status() {
+    Transcript::new(Config::default().nick("papo"))
+        .server(":ergo.test 005 papo PREFIX=(ov)@+ STATUSMSG=@+ :are supported")
+        .server("@+typing=active :alice!~a@cloak TAGMSG @#papo")
+        .event(|event| matches!(event, Event::TypingChanged(_)))
+        .server(":ergo.test 005 papo PREFIX=(ov)@+ STATUSMSG=!@+ :are supported")
+        .server("@+typing=active :ALICE!~a@cloak TAGMSG !@#papo")
+        .event(|event| matches!(event, Event::TypingChanged(_)))
+        .inspect(|session| {
+            let conversation = conversation(session, "#papo");
+            let typer = session.state().typing(&conversation).next().unwrap();
+            assert_eq!(typer.status().map(papo_core::Prefix::mode), Some('o'));
+            assert_eq!(typer.return_address(), "!@#papo");
+        })
+        .no_event();
+}
+
+#[test]
 fn typing_tag_on_chat_message_is_not_a_notification() {
     Transcript::new(Config::default().nick("papo"))
         .server(":ergo.test 005 papo STATUSMSG=@+ :are supported by this server")
