@@ -1606,6 +1606,10 @@ mod tests {
         }
 
         type TlsCase = (fn(Builder) -> Builder, &'static str);
+        let default = Builder::new("irc://irc.example.net");
+        assert!(matches!(default.tls.roots, TlsRoots::Platform));
+        assert!(!default.tls.has_custom_settings());
+
         let cases: [TlsCase; 4] = [
             (bad_ca, "invalid certificate PEM"),
             (bad_certificate, "certificate PEM contains no certificates"),
