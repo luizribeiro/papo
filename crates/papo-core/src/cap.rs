@@ -550,6 +550,78 @@ mod tests {
     }
 
     #[test]
+    fn identifies_features_and_request_policy_for_ergo_capabilities() {
+        let defaults = [
+            ("cap-notify", Feature::CapabilityNotifications),
+            ("message-tags", Feature::MessageTags),
+            ("server-time", Feature::ServerTime),
+            ("batch", Feature::Batches),
+            ("draft/event-playback", Feature::EventPlayback),
+            ("echo-message", Feature::EchoMessages),
+            ("account-tag", Feature::AccountTracking),
+            ("extended-join", Feature::ExtendedJoin),
+            ("multi-prefix", Feature::MultiPrefix),
+            ("userhost-in-names", Feature::UserhostInNames),
+            ("chghost", Feature::HostTracking),
+            ("setname", Feature::SetName),
+            ("away-notify", Feature::AwayTracking),
+            ("account-notify", Feature::AccountTracking),
+            ("extended-monitor", Feature::ExtendedMonitor),
+            ("invite-notify", Feature::InviteTracking),
+            ("standard-replies", Feature::StandardReplies),
+            ("labeled-response", Feature::LabeledResponse),
+            ("draft/multiline", Feature::Multiline),
+            ("draft/oper-tag", Feature::OperatorTags),
+            ("draft/metadata-2", Feature::Metadata),
+            ("draft/account-registration", Feature::AccountCreation),
+            ("draft/chathistory", Feature::History),
+            ("draft/read-marker", Feature::ReadMarkers),
+            ("draft/channel-rename", Feature::ChannelRename),
+            ("draft/message-redaction", Feature::Redaction),
+            ("draft/pre-away", Feature::PreAway),
+            ("no-implicit-names", Feature::NoImplicitNames),
+            ("draft/whoami", Feature::WhoAmI),
+            ("draft/extended-isupport", Feature::ExtendedIsupport),
+        ];
+        let advertised = defaults
+            .iter()
+            .map(|(name, _)| (Cap::from(*name), None))
+            .collect::<Capabilities>();
+        let wanted = defaults
+            .iter()
+            .map(|(name, _)| (*name).to_owned())
+            .collect::<Vec<_>>();
+
+        assert_eq!(defaults.len(), DEFAULTS.len());
+        for (name, feature) in defaults {
+            assert!(__is_known(name), "{name}");
+            assert_eq!(__feature(name), Some(feature), "{name}");
+            assert!(
+                requestable(name, &advertised, &wanted, &Config::default()),
+                "{name}"
+            );
+        }
+
+        assert!(__is_known("draft/persistence"));
+        assert!(!__is_known("vendor.example/network-state"));
+        assert_eq!(__feature("vendor.example/network-state"), None);
+        assert!(requestable(
+            "vendor.example/network-state",
+            &advertised,
+            &wanted,
+            &Config::default()
+        ));
+
+        let metadata = Capabilities::from([(Cap::from("draft/metadata-2"), None)]);
+        assert!(!requestable(
+            "metadata-notify",
+            &metadata,
+            &["draft/metadata-2".to_owned()],
+            &Config::default()
+        ));
+    }
+
+    #[test]
     fn requests_published_spellings_from_ergo_cap_ls() {
         for (advertised, requested) in [
             (
@@ -595,6 +667,39 @@ mod tests {
                 .find(|info| info.name == "draft/webpush")
                 .unwrap();
             assert!(accepts_request_aliases(webpush));
+
+            let advertised = Capabilities::from([
+                (Cap::from("soju.im/bouncer-networks"), None),
+                (Cap::from("draft/persistence"), None),
+            ]);
+            let wanted = vec![
+                "soju.im/bouncer-networks".to_owned(),
+                "draft/persistence".to_owned(),
+            ];
+            let bound = Config {
+                bouncer_network: Some(crate::NetworkId::from("libera")),
+                ..Config::default()
+            };
+
+            assert_eq!(__feature("draft/persistence"), Some(Feature::Persistence));
+            assert!(requestable(
+                "soju.im/bouncer-networks",
+                &advertised,
+                &wanted,
+                &bound
+            ));
+            assert!(!requestable(
+                "draft/persistence",
+                &advertised,
+                &wanted,
+                &bound
+            ));
+            assert!(requestable(
+                "draft/persistence",
+                &advertised,
+                &wanted,
+                &Config::default().enable(Feature::Persistence)
+            ));
         }
     }
 }
