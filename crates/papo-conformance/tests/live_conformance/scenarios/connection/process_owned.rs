@@ -151,6 +151,56 @@ pub(super) async fn sts(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+pub(super) async fn server_password_waits_for_live_sts(_s: Scenario) -> papo_testing::Result<()> {
+    let server = papo_test_server::TestServer::start_with_sts_and_hostname_lookup()?;
+    let proxy = server.hostname_notice_proxy()?;
+    let endpoint = format!("irc://localhost:{}", proxy.address().port());
+    let result = Client::builder(endpoint, papo_test_server::unique("alice-pass-sts"))
+        .password("server-password-must-stay-encrypted")
+        .tls_ca_pem(fs::read(server.ca_pem_path())?)
+        .connect()
+        .await;
+
+    let from_server = tokio::time::timeout(Duration::from_secs(1), async {
+        loop {
+            let (_, bytes) = proxy.wire_bytes();
+            if bytes
+                .windows(b" CAP * LS ".len())
+                .any(|line| line == b" CAP * LS ")
+            {
+                break bytes;
+            }
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("Ergo answered CAP LS through the plaintext proxy");
+    let (from_client, _) = proxy.wire_bytes();
+    let from_client = String::from_utf8(from_client)?;
+    assert!(from_client.contains("CAP LS 302\r\n"));
+    assert!(
+        !from_client.contains("PASS"),
+        "plaintext wire contained PASS"
+    );
+
+    let from_server = String::from_utf8(from_server)?;
+    let notice = from_server
+        .find("NOTICE * :*** Looking up your hostname...")
+        .unwrap_or_else(|| panic!("Ergo sent its hostname lookup notice: {from_server:?}"));
+    let cap_ls = from_server
+        .find(" CAP * LS ")
+        .expect("Ergo answered CAP LS");
+    assert!(
+        notice < cap_ls,
+        "Ergo's hostname notice did not precede CAP LS: {from_server:?}"
+    );
+    let (client, _events) = result.unwrap_or_else(|error| {
+        panic!("STS reconnect failed: {error}; client={from_client:?}; server={from_server:?}")
+    });
+    client.quit("live STS credential check complete").await?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use std::time::{Duration, SystemTime};

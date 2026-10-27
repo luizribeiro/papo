@@ -375,6 +375,12 @@ async fn sts(s: Scenario) -> papo_testing::Result<()> {
     process_owned::sts(s).await
 }
 
+/// keeps a server password off the plaintext hop while Ergo advertises STS
+#[scenario(covers = ["security.adv-1.live-pass-before-sts"])]
+async fn server_password_waits_for_live_sts(s: Scenario) -> papo_testing::Result<()> {
+    process_owned::server_password_waits_for_live_sts(s).await
+}
+
 /// registers over a WebSocket transport
 #[scenario(covers = [
     "core.websocket.plain-transport",
