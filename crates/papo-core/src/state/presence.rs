@@ -11,7 +11,7 @@ impl State {
         };
         let actor = message.raw_source().unwrap_or(nick).to_owned();
         let authorship = self.source_authorship(message);
-        if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick)) {
+        if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) {
             for (key, value) in message.tags() {
                 match (key, value) {
                     ("account", Some(account)) => {
@@ -68,7 +68,7 @@ impl State {
         };
         let account = Account::from_notify(account.account, self.casemapping);
         let actor = message.raw_source().unwrap_or(nick).to_owned();
-        if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick))
+        if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref())
             && user.account != account
         {
             user.account = account.clone();
@@ -102,7 +102,7 @@ impl State {
             };
             let user_changed = self
                 .users
-                .get_mut(&self.casemapping.nick(nick))
+                .get_mut(self.casemapping.fold(nick).as_ref())
                 .is_some_and(|user| {
                     if user.away == next {
                         false
@@ -127,7 +127,7 @@ impl State {
                 let (Some(nick), Some(away)) = (message.param(1), message.param(2)) else {
                     return Some(Handled::No);
                 };
-                if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick)) {
+                if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) {
                     let server_time = crate::LineEnvelope::from_line(message).server_time();
                     let message = away.to_owned();
                     let next = Away::Away {
@@ -145,11 +145,9 @@ impl State {
                     }
                 }
             }
-            Command::Numeric(Numeric::RPL_UNAWAY)
-                if self.users[&self.nick].away != Away::Present =>
-            {
+            Command::Numeric(Numeric::RPL_UNAWAY) if self.own_user().away != Away::Present => {
                 self.users
-                    .get_mut(&self.nick)
+                    .get_mut(self.casemapping.fold(&self.nick).as_ref())
                     .expect("own user is always present")
                     .away = Away::Present;
                 outbox.event(Event::AwayChanged {
@@ -161,13 +159,13 @@ impl State {
                 });
             }
             Command::Numeric(Numeric::RPL_NOWAWAY)
-                if !matches!(self.users[&self.nick].away, Away::Away { .. }) =>
+                if !matches!(self.own_user().away, Away::Away { .. }) =>
             {
                 let away = Away::Away {
                     message: own_away_message.map(str::to_owned),
                 };
                 self.users
-                    .get_mut(&self.nick)
+                    .get_mut(self.casemapping.fold(&self.nick).as_ref())
                     .expect("own user is always present")
                     .away = away.clone();
                 outbox.event(Event::AwayChanged {
@@ -206,7 +204,7 @@ impl State {
         let Some(nick) = message.param(1) else {
             return Some(Handled::No);
         };
-        if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick)) {
+        if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) {
             user.is_bot = Some(true);
         }
         Some(Handled::Yes)
@@ -228,7 +226,7 @@ impl State {
         }
         let own = self
             .users
-            .get_mut(&self.nick)
+            .get_mut(self.casemapping.fold(&self.nick).as_ref())
             .expect("own user is always present");
         own.host = Some(host.to_owned());
         outbox.event(Event::HostChanged {
@@ -251,7 +249,7 @@ impl State {
             return None;
         };
         if let Some(change) = Chghost::parse(message) {
-            if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick)) {
+            if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) {
                 user.update_userhost(Some(change.user), Some(change.host));
             }
             outbox.event(Event::HostChanged {
@@ -265,7 +263,7 @@ impl State {
             return Some(Handled::Yes);
         }
         let change = Setname::parse(message)?;
-        if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick)) {
+        if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) {
             user.realname = Some(change.realname.to_owned());
         }
         outbox.event(Event::RealnameChanged {
@@ -327,7 +325,7 @@ impl State {
             &flags,
             outbox,
         );
-        if let Some(user) = self.users.get_mut(&self.casemapping.nick(nick)) {
+        if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) {
             user.account = Account::from_notify(reply.account, self.casemapping);
         }
         Some(Handled::Yes)
@@ -342,7 +340,10 @@ impl State {
             &flags.prefixes,
             outbox,
         );
-        if let Some(user) = self.users.get_mut(&self.casemapping.nick(reply.nick)) {
+        if let Some(user) = self
+            .users
+            .get_mut(self.casemapping.fold(reply.nick).as_ref())
+        {
             user.realname = reply.realname.map(str::to_owned);
             user.away = match flags.presence {
                 Some(WhoxPresence::Gone) => match &user.away {

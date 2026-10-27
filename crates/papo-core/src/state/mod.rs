@@ -55,7 +55,7 @@ pub struct State {
     casemapping: Names,
     isupport: Isupport,
     channels: BTreeMap<ChannelName, Channel>,
-    users: BTreeMap<Nick, User>,
+    users: BTreeMap<NameKey<String>, User>,
     monitored: Vec<Nick>,
     who_sweeps: BTreeMap<ChannelName, usize>,
     who_on_join: WhoOnJoin,
@@ -137,7 +137,7 @@ pub(crate) fn clone_count() -> usize {
 pub struct Channel {
     name: ChannelName,
     casemapping: Names,
-    members: BTreeMap<Nick, Member>,
+    members: BTreeMap<NameKey<String>, Member>,
     modes: HashMap<char, Option<String>>,
     key: Option<Secret>,
     lists: HashMap<ListMode, Vec<ModeListEntry>>,
@@ -299,8 +299,9 @@ fn metadata_update<'a>(
 
 impl State {
     fn own_user(&self) -> &User {
+        let nick = self.casemapping.fold(&self.nick);
         self.users
-            .get(&self.nick)
+            .get(nick.as_ref())
             .expect("own user is always present")
     }
 
@@ -350,7 +351,8 @@ impl State {
                     .into_iter()
                     .map(|nick| {
                         let key = self.casemapping.nick(nick);
-                        let user = self.users.get(&key).cloned();
+                        let folded = self.casemapping.fold(nick);
+                        let user = self.users.get(folded.as_ref()).cloned();
                         (key, user)
                     })
                     .collect(),
@@ -377,7 +379,7 @@ impl State {
         own.away = Away::Present;
         own.realname = Some(config.realname.clone());
         let mut users = BTreeMap::new();
-        users.insert(nick.clone(), own);
+        users.insert(NameKey::new(nick.as_ref(), names), own);
         Self {
             nick,
             user_modes: HashSet::new(),
@@ -510,13 +512,13 @@ impl State {
         for (nick, username, host) in monitor.online() {
             let user = self
                 .users
-                .entry(self.casemapping.nick(nick))
+                .entry(NameKey::new(nick, self.casemapping))
                 .or_insert_with(|| User::new(nick, username, host, self.casemapping));
             user.monitored = true;
         }
         let own = self.nick.clone();
         self.users
-            .retain(|nick, user| *nick == own || user.monitored || !user.channels.is_empty());
+            .retain(|_, user| user.nick == own || user.monitored || !user.channels.is_empty());
     }
 
     pub(crate) fn update_isupport(&mut self, isupport: &Isupport) {
@@ -530,7 +532,7 @@ impl State {
 
     pub(crate) fn sync_own_account(&mut self, account: Option<&str>) {
         self.users
-            .get_mut(&self.nick)
+            .get_mut(self.casemapping.fold(&self.nick).as_ref())
             .expect("own user is always present")
             .account = Account::from_notify(account, self.casemapping);
     }
@@ -566,7 +568,7 @@ impl State {
         nick: &str,
     ) {
         self.update_casemapping(isupport.casemapping());
-        let key = self.casemapping.nick(nick);
+        let key = NameKey::new(nick, self.casemapping);
         if let Some((username, host)) = monitor.online_nick(nick, isupport) {
             self.users
                 .entry(key)
@@ -574,7 +576,7 @@ impl State {
                 .monitored = true;
         } else if let Some(user) = self.users.get_mut(&key) {
             user.monitored = false;
-            if user.channels.is_empty() && key != self.nick {
+            if user.channels.is_empty() && user.nick != self.nick {
                 self.users.remove(&key);
             }
         }
@@ -701,7 +703,7 @@ impl State {
                     .collect()
             } else {
                 self.users
-                    .get(&mapping.nick(nick))
+                    .get(mapping.fold(nick).as_ref())
                     .map(|user| user.channels.iter().cloned().collect())
                     .unwrap_or_default()
             };
@@ -792,7 +794,10 @@ impl State {
         let old_nick = self.nick.clone();
         self.rename_user(&old_nick, nick);
         self.nick = self.casemapping.nick(nick);
-        if let Some(own) = self.users.get_mut(&self.nick) {
+        if let Some(own) = self
+            .users
+            .get_mut(self.casemapping.fold(&self.nick).as_ref())
+        {
             let realname_changed = own.realname.as_deref() != Some(change.realname);
             own.update_userhost(Some(user), Some(host));
             own.realname = Some(change.realname.to_owned());
@@ -917,7 +922,7 @@ impl State {
         }
         if let Some(bot_mode) = isupport.bot_mode() {
             self.users
-                .get_mut(&self.nick)
+                .get_mut(self.casemapping.fold(&self.nick).as_ref())
                 .expect("own user is always present")
                 .is_bot = Some(self.user_modes.contains(&bot_mode));
         }
@@ -1001,7 +1006,7 @@ impl State {
                             .casemapping
                             .origin()
                             .__nick(mapping, member.nick.as_ref());
-                        (member.nick.clone(), member)
+                        (NameKey::new(member.nick.as_ref(), mapping), member)
                     })
                     .collect();
                 (channel.name.clone(), channel)
@@ -1029,7 +1034,7 @@ impl State {
                             .__channel(mapping, channel.as_ref())
                     })
                     .collect();
-                (user.nick.clone(), user)
+                (NameKey::new(user.nick.as_ref(), mapping), user)
             })
             .collect();
         self.who_sweeps = std::mem::take(&mut self.who_sweeps)
@@ -1205,7 +1210,7 @@ impl State {
         if nick.origin() != Origin::NONE && nick.origin() != self.casemapping.origin() {
             return None;
         }
-        self.users.get(&self.casemapping.nick(nick.text()))
+        self.users.get(nick.__folded(self.casemapping()).as_ref())
     }
 
     /// Returns cached metadata using the server's current casemapping.
@@ -1340,7 +1345,8 @@ impl Channel {
                     let Some(nick) = change.arg else {
                         continue;
                     };
-                    let Some(member) = self.members.get_mut(&self.casemapping.nick(nick)) else {
+                    let Some(member) = self.members.get_mut(self.casemapping.fold(nick).as_ref())
+                    else {
                         continue;
                     };
                     if change.action == papo_proto::ModeAction::Add
@@ -1497,7 +1503,8 @@ impl Channel {
         if nick.origin() != Origin::NONE && nick.origin() != self.casemapping.origin() {
             return None;
         }
-        self.members.get(&self.casemapping.nick(nick.text()))
+        self.members
+            .get(nick.__folded(self.casemapping.casemapping()).as_ref())
     }
 }
 
