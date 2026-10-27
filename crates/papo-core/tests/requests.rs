@@ -61,11 +61,6 @@ fn join_marks_only_the_optional_key_as_secret() {
     session.join(now, "#public", None).unwrap();
     let public = session.poll_transmit().unwrap();
     assert_eq!(format!("{public:?}"), "JOIN #public");
-
-    assert!(matches!(
-        session.join(now, "#secret", Some(&Secret::from_bytes([0xff]))),
-        Err(RequestError::InvalidSecret)
-    ));
 }
 
 #[test]

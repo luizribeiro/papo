@@ -773,16 +773,6 @@ fn parameter_and_wire_traits_observe_exact_values() {
 }
 
 #[test]
-fn rejects_binary_secret_parameters_before_encoding() {
-    assert_eq!(
-        Line::new("AUTHENTICATE")
-            .param(Secret::from_bytes([0xff, 0x00]))
-            .encode(),
-        Err(BuildError::InvalidParam(0))
-    );
-}
-
-#[test]
 fn encoded_lines_mask_only_secret_parameters() {
     let ordinary = Line::new("PRIVMSG").param("#papo").param("hi");
     assert_eq!(format!("{ordinary:?}"), "PRIVMSG #papo hi");

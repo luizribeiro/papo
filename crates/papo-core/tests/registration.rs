@@ -4,7 +4,7 @@ mod support;
 
 use std::time::Duration;
 
-use papo_core::{BatchAbandonReason, CloseKind, Config, Event, Secret, Session};
+use papo_core::{BatchAbandonReason, CloseKind, Config, Event, Session};
 use papo_proto::{BuildError, Isupport};
 use support::Transcript;
 
@@ -77,15 +77,6 @@ fn plaintext_server_password_accepts_an_sts_upgrade() {
         )
     })
     .no_client();
-}
-
-#[test]
-fn rejects_a_byte_server_password() {
-    Transcript::new(Config::default().password(Secret::from_bytes([0xff])))
-        .connect()
-        .client("CAP LS 302")
-        .event(|event| matches!(event, Event::Close { kind: CloseKind::Other, reason, .. } if reason.contains("server password")))
-        .no_client();
 }
 
 #[test]

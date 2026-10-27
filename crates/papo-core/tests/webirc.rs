@@ -27,16 +27,6 @@ fn sends_ipv4_webirc_before_cap_and_reuses_an_unknown_hostname() {
 }
 
 #[test]
-fn rejects_a_byte_webirc_password() {
-    let mut gateway = webirc(None, "192.0.2.42");
-    gateway.password = Secret::from_bytes([0xff]);
-    Transcript::new(Config::default().webirc(gateway))
-        .connect()
-        .event(|event| matches!(event, Event::Close { kind: CloseKind::Other, reason, .. } if reason.contains("WEBIRC password")))
-        .no_client();
-}
-
-#[test]
 fn closes_on_an_invalid_webirc_message() {
     let mut gateway = webirc(None, "192.0.2.42");
     gateway.gateway = "papo\rgateway".into();

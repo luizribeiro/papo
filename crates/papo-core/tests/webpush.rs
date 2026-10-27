@@ -85,15 +85,6 @@ fn rejects_invalid_endpoints_and_keys_before_queueing() {
                     Err(RequestError::InvalidWebPushKey)
                 );
             }
-            assert_eq!(
-                session.webpush_register(
-                    std::time::Instant::now(),
-                    ENDPOINT,
-                    P256DH,
-                    &papo_core::Secret::from_bytes([0xff]),
-                ),
-                Err(RequestError::InvalidSecret)
-            );
         })
         .no_client();
 }

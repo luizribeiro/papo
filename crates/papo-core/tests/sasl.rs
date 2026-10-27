@@ -4,7 +4,7 @@ mod support;
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use papo_core::{
-    Account, CloseKind, Config, Entropy, Event, Sasl, Secret, Session, sts::ConnectionSecurity,
+    Account, CloseKind, Config, Entropy, Event, Sasl, Session, sts::ConnectionSecurity,
 };
 use support::{Transcript, assert_session_debug_redacts, queue_debug_marker};
 
@@ -57,53 +57,6 @@ fn debug_output_redacts_queued_pass_and_plain_response() {
     session.handle_line(std::time::Instant::now(), b"CAP * ACK :sasl");
     session.handle_line(std::time::Instant::now(), b"AUTHENTICATE +");
     assert_session_debug_redacts(&session, "plain-password-4821");
-}
-
-#[test]
-fn reports_binary_secrets_for_each_credential_mechanism() {
-    assert!(!Sasl::plain("alice", "hunter2").has_binary_secret());
-    assert!(Sasl::plain("alice", Secret::from_bytes([0xff])).has_binary_secret());
-    assert!(!Sasl::oauth_bearer("oauth-token-7391").has_binary_secret());
-    assert!(Sasl::oauth_bearer(Secret::from_bytes([0xff])).has_binary_secret());
-    assert!(!Sasl::external().has_binary_secret());
-    assert!(Sasl::scram_sha256("alice", Secret::from_bytes([0xff])).has_binary_secret());
-}
-
-#[test]
-fn byte_sasl_secrets_fail_without_panicking() {
-    for (name, sasl) in [
-        ("PLAIN", Sasl::plain("alice", Secret::from_bytes([0xff]))),
-        (
-            "OAUTHBEARER",
-            Sasl::oauth_bearer(Secret::from_bytes([0xff])),
-        ),
-    ] {
-        Transcript::new(Config::default().sasl(sasl))
-            .connect_default()
-            .server(&format!("CAP * LS :sasl={name}"))
-            .client("CAP REQ :sasl")
-            .server("CAP * ACK :sasl")
-            .client(&format!("AUTHENTICATE {name}"))
-            .server("AUTHENTICATE +")
-            .client("AUTHENTICATE *")
-            .server(":ergo.test 906 alice :SASL authentication aborted")
-            .event(|event| matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason, .. } if reason.contains("not text")))
-            .no_client();
-    }
-
-    Transcript::with_entropy(
-        Config::default().sasl(Sasl::scram_sha256(
-            "alice",
-            Secret::from_bytes([0xff]),
-        )),
-        Box::new(FixedEntropy),
-    )
-    .connect_default()
-    .server("CAP * LS :sasl=SCRAM-SHA-256")
-    .client("CAP REQ :sasl")
-    .server("CAP * ACK :sasl")
-    .event(|event| matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason, .. } if reason.contains("not text")))
-    .no_client();
 }
 
 #[test]

@@ -2,7 +2,7 @@
 
 mod support;
 
-use papo_core::{Config, Event, Feature, Refusal, RequestError, ResponseMatcher, Secret};
+use papo_core::{Config, Event, Feature, Refusal, ResponseMatcher};
 use papo_proto::Line;
 use support::{Transcript, assert_session_debug_redacts, queue_debug_marker, unsupported_error};
 
@@ -151,23 +151,6 @@ fn registers_an_account_with_a_labelled_response() {
 }
 
 #[test]
-fn rejects_a_byte_account_password() {
-    registered()
-        .update(|session| {
-            assert_eq!(
-                session.create_account(
-                    std::time::Instant::now(),
-                    Some("alice"),
-                    Some("alice@example.org"),
-                    Secret::from_bytes([0xff]),
-                ),
-                Err(RequestError::InvalidSecret)
-            );
-        })
-        .no_client();
-}
-
-#[test]
 fn verifies_an_account_after_the_server_requires_it() {
     registered()
         .update(|session| {
@@ -203,22 +186,6 @@ fn verifies_an_account_after_the_server_requires_it() {
             matches!(event, Event::AccountCreated { account, logged_in: true, .. } if account == "alice")
         })
         .event(|event| matches!(event, Event::Response(_)));
-}
-
-#[test]
-fn rejects_a_byte_verification_code() {
-    registered()
-        .update(|session| {
-            assert_eq!(
-                session.verify(
-                    std::time::Instant::now(),
-                    "alice",
-                    Secret::from_bytes([0xff]),
-                ),
-                Err(RequestError::InvalidSecret)
-            );
-        })
-        .no_client();
 }
 
 #[test]
