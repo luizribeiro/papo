@@ -9,6 +9,45 @@ use papo::{Client, Endpoint, Event};
 use papo_test_server::{from_env, unique};
 
 #[tokio::test(flavor = "current_thread")]
+async fn metadata_wildcard_sets_the_current_user() {
+    within(async {
+        let address = format!("irc://{}", from_env().plaintext_addr());
+        let nick = unique("papo-metadata-wildcard");
+        let (client, mut events) = Client::builder(address, support::nick(&nick))
+            .connect()
+            .await
+            .unwrap();
+        client
+            .send_raw(papo::Line::new("METADATA").with_params([
+                "*",
+                "SET",
+                "example.org/papo-wildcard",
+                "accepted by Ergo",
+            ]))
+            .await
+            .unwrap();
+        loop {
+            match events.next().await {
+                Some(Event::MetadataChanged(changed))
+                    if changed.key == "example.org/papo-wildcard" =>
+                {
+                    assert!(matches!(
+                        changed.subject,
+                        papo::Subject::User(subject) if subject == nick.as_str()
+                    ));
+                    break;
+                }
+                Some(Event::Disconnected(disconnected)) => panic!("disconnected: {disconnected}"),
+                Some(_) => {}
+                None => panic!("client stopped before the metadata echo"),
+            }
+        }
+        client.quit("wildcard accepted").await.unwrap();
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn subscriber_receives_another_clients_metadata() {
     within(async {
         let server = from_env();

@@ -59,6 +59,46 @@ impl Metadata {
         crate::RequestFuture::new(async move { metadata.request(command).await })
     }
 
+    fn set_target(
+        &self,
+        target: String,
+        invalid_input: Option<crate::InvalidInput>,
+        key: impl Into<crate::MetadataKey>,
+        value: Option<String>,
+    ) -> crate::RequestFuture<()> {
+        let metadata = Self {
+            client: self.client.clone(),
+        };
+        let key = key.into().into_string();
+        crate::RequestFuture::new(async move {
+            if let Some(error) = invalid_input {
+                return Err(error.into());
+            }
+            if value.as_ref().is_some_and(String::is_empty) {
+                return Err(crate::InvalidInput::EmptyText.into());
+            }
+            metadata
+                .request(MetadataCommand::__set(target, key, value))
+                .await
+        })
+    }
+
+    fn clear_target(
+        &self,
+        target: String,
+        invalid_input: Option<crate::InvalidInput>,
+    ) -> crate::RequestFuture<()> {
+        let metadata = Self {
+            client: self.client.clone(),
+        };
+        crate::RequestFuture::new(async move {
+            if let Some(error) = invalid_input {
+                return Err(error.into());
+            }
+            metadata.request(MetadataCommand::__clear(target)).await
+        })
+    }
+
     /// Gets selected keys and returns only their resulting values.
     ///
     /// A key whose value is `None` was reported by the server as not set.
@@ -175,14 +215,12 @@ impl Metadata {
         key: impl Into<crate::MetadataKey>,
         value: impl Into<String>,
     ) -> crate::RequestFuture<()> {
-        let target = self.client.nick();
-        self.set_on(target, key, value)
+        self.set_target("*".into(), None, key, Some(value.into()))
     }
 
     /// Removes one metadata key for the current nickname.
     pub fn remove(&self, key: impl Into<crate::MetadataKey>) -> crate::RequestFuture<()> {
-        let target = self.client.nick();
-        self.remove_on(target, key)
+        self.set_target("*".into(), None, key, None)
     }
 
     /// Sets one metadata key on a user or channel.
@@ -203,23 +241,8 @@ impl Metadata {
         key: impl Into<crate::MetadataKey>,
         value: impl Into<String>,
     ) -> crate::RequestFuture<()> {
-        let metadata = Self {
-            client: self.client.clone(),
-        };
         let (target, invalid_input) = self.target(target, "metadata.set_on: target");
-        let key = key.into().into_string();
-        let value = value.into();
-        crate::RequestFuture::new(async move {
-            if let Some(error) = invalid_input {
-                return Err(error.into());
-            }
-            if value.is_empty() {
-                return Err(crate::InvalidInput::EmptyText.into());
-            }
-            metadata
-                .request(MetadataCommand::__set(target, key, Some(value)))
-                .await
-        })
+        self.set_target(target, invalid_input, key, Some(value.into()))
     }
 
     /// Removes one metadata key from a user or channel.
@@ -228,19 +251,8 @@ impl Metadata {
         target: impl crate::AsConversation,
         key: impl Into<crate::MetadataKey>,
     ) -> crate::RequestFuture<()> {
-        let metadata = Self {
-            client: self.client.clone(),
-        };
         let (target, invalid_input) = self.target(target, "metadata.remove_on: target");
-        let key = key.into().into_string();
-        crate::RequestFuture::new(async move {
-            if let Some(error) = invalid_input {
-                return Err(error.into());
-            }
-            metadata
-                .request(MetadataCommand::__set(target, key, None))
-                .await
-        })
+        self.set_target(target, invalid_input, key, None)
     }
 
     /// Clears all metadata for the current nickname.
@@ -253,21 +265,13 @@ impl Metadata {
     /// [`crate::Refusal::Other`]. Request limits, timeouts, and disconnects retain their matching
     /// [`Error`] variants.
     pub fn clear(&self) -> crate::RequestFuture<()> {
-        self.clear_on(self.client.nick())
+        self.clear_target("*".into(), None)
     }
 
     /// Clears all metadata on a user or channel.
     pub fn clear_on(&self, target: impl crate::AsConversation) -> crate::RequestFuture<()> {
-        let metadata = Self {
-            client: self.client.clone(),
-        };
         let (target, invalid_input) = self.target(target, "metadata.clear_on: target");
-        crate::RequestFuture::new(async move {
-            if let Some(error) = invalid_input {
-                return Err(error.into());
-            }
-            metadata.request(MetadataCommand::__clear(target)).await
-        })
+        self.clear_target(target, invalid_input)
     }
 
     /// Subscribes to metadata keys.
@@ -439,17 +443,21 @@ mod tests {
             let client = client.clone();
             async move { client.metadata().set("status", "testing").await }
         });
-        client_line(
-            &mut server,
-            b"@label=2 METADATA papo-driver SET status testing\r\n",
-        )
-        .await;
+        client_line(&mut server, b"@label=2 METADATA * SET status testing\r\n").await;
         server_line(
             &mut server,
             b"@label=2 :ergo.test 761 papo-driver papo-driver status * testing\r\n",
         )
         .await;
         assert!(within(set).await.unwrap().is_ok());
+
+        let remove = tokio::spawn({
+            let client = client.clone();
+            async move { client.metadata().remove("status").await }
+        });
+        client_line(&mut server, b"@label=3 METADATA * SET status\r\n").await;
+        server_line(&mut server, b"@label=3 :ergo.test ACK\r\n").await;
+        assert!(within(remove).await.unwrap().is_ok());
 
         assert!(matches!(
             client.metadata().set("status", "").await,
@@ -473,12 +481,12 @@ mod tests {
         });
         client_line(
             &mut server,
-            b"@label=3 METADATA bob SET timezone America/New_York\r\n",
+            b"@label=4 METADATA bob SET timezone America/New_York\r\n",
         )
         .await;
         server_line(
             &mut server,
-            b"@label=3 :ergo.test 761 papo-driver bob timezone * America/New_York\r\n",
+            b"@label=4 :ergo.test 761 papo-driver bob timezone * America/New_York\r\n",
         )
         .await;
         assert!(within(set_on).await.unwrap().is_ok());
@@ -502,7 +510,7 @@ mod tests {
             let client = client.clone();
             async move { client.metadata().clear().await }
         });
-        client_line(&mut server, b"@label=0 METADATA papo-driver CLEAR\r\n").await;
+        client_line(&mut server, b"@label=0 METADATA * CLEAR\r\n").await;
         server_line(&mut server, b"@label=0 :ergo.test ACK\r\n").await;
         assert!(within(clear).await.unwrap().is_ok());
 
@@ -553,7 +561,7 @@ mod tests {
         assert!(within(sync).await.unwrap().is_ok());
 
         let clear = tokio::spawn(async move { client.metadata().clear().await });
-        client_line(&mut server, b"@label=4 METADATA papo-driver CLEAR\r\n").await;
+        client_line(&mut server, b"@label=4 METADATA * CLEAR\r\n").await;
         server_line(
             &mut server,
             b"@label=4 :ergo.test FAIL METADATA VALUE_INVALID :Metadata request rejected\r\n",
