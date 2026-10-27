@@ -1335,18 +1335,6 @@ where
         ) {
             event::CoreEvent::Forward(event) => {
                 catchup::remember_live_event(catchups.values_mut(), &event);
-                if is_resolved_sent_duplicate(resolved_sent, &event) {
-                    continue;
-                }
-                if should_hold_sent_candidate(requests, &event) {
-                    if !hold_event(events, pending_events, event) {
-                        return Ok(Some((
-                            papo_core::CloseKind::Other,
-                            SLOW_CONSUMER_REASON.to_owned(),
-                        )));
-                    }
-                    continue;
-                }
                 if let Event::ChannelSynced(synced) = &event {
                     resolve_sync_waiters(session, sync_waiters, &synced.channel);
                 }

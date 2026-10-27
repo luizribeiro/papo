@@ -7691,7 +7691,8 @@ async fn redacting_a_multiline_send_stops_at_the_first_refusal() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn labelled_echo_and_note_to_self_duplicate_are_consumed() {
+#[allow(clippy::too_many_lines)]
+async fn resolved_send_suppression_is_own_scoped_and_one_shot() {
     let caps = ["echo-message", "labeled-response"];
     let (mut server, client, mut events, driver) = scripted(config().wanted_caps(caps));
     let task = tokio::spawn(driver);
@@ -7720,45 +7721,146 @@ async fn labelled_echo_and_note_to_self_duplicate_are_consumed() {
     client_line(&mut server, b"@label=0 PRIVMSG #papo :from this device\r\n").await;
     server_line(
         &mut server,
+        b"@msgid=RfcBTzyxY120005 :papo-driver!other@session.example PRIVMSG #papo :from another device\r\n",
+    )
+    .await;
+    server_line(
+        &mut server,
         b"@label=0;msgid=RfcBTzyxY120004 :papo-driver!papo@localhost PRIVMSG #papo :from this device\r\n",
     )
     .await;
     assert!(within(sent).await.unwrap().is_ok());
 
+    let sibling = next_event(&mut events).await.unwrap();
+    assert_eq!(
+        sibling.as_message().unwrap().authorship,
+        crate::Authorship::Own
+    );
     server_line(
         &mut server,
-        b"@msgid=RfcBTzyxY120005 :papo-driver!papo@localhost PRIVMSG #papo :from another device\r\n",
+        b"@msgid=RfcBTzyxY120004 :emily!e@cloak.example PRIVMSG #papo :coincidental identifier\r\n",
     )
     .await;
-    let event = next_event(&mut events).await.unwrap();
-    let other = event.as_message().unwrap();
-    assert_eq!(other.authorship, crate::Authorship::Own);
-    assert_eq!(other.text, "from another device");
+    assert_eq!(
+        next_event(&mut events)
+            .await
+            .unwrap()
+            .as_message()
+            .unwrap()
+            .text,
+        "coincidental identifier"
+    );
+    server_line(
+        &mut server,
+        b"@msgid=RfcBTzyxY120004 :papo-driver!papo@localhost PRIVMSG #papo :from this device\r\n",
+    )
+    .await;
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), events.next())
+            .await
+            .is_err()
+    );
+    server_line(
+        &mut server,
+        b"@msgid=RfcBTzyxY120004 :papo-driver!papo@localhost PRIVMSG #papo :second delivery\r\n",
+    )
+    .await;
+    assert_eq!(
+        next_event(&mut events)
+            .await
+            .unwrap()
+            .as_message()
+            .unwrap()
+            .text,
+        "second delivery"
+    );
+
+    let sender = client.clone();
+    let sent = tokio::spawn(async move { sender.notice("#papo", "release paused").await });
+    client_line(&mut server, b"@label=1 NOTICE #papo :release paused\r\n").await;
+    server_line(
+        &mut server,
+        b"@label=1;msgid=RfcBTzyxY120006 :papo-driver!papo@localhost NOTICE #papo :release paused\r\n",
+    )
+    .await;
+    assert!(within(sent).await.unwrap().is_ok());
+    server_line(
+        &mut server,
+        b"@msgid=RfcBTzyxY120006 :emily!e@cloak.example NOTICE #papo :coincidental notice identifier\r\n",
+    )
+    .await;
+    assert_eq!(
+        next_event(&mut events)
+            .await
+            .unwrap()
+            .as_notice()
+            .unwrap()
+            .text,
+        "coincidental notice identifier"
+    );
+    server_line(
+        &mut server,
+        b"@msgid=RfcBTzyxY120006 :papo-driver!papo@localhost NOTICE #papo :release paused\r\n",
+    )
+    .await;
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), events.next())
+            .await
+            .is_err()
+    );
+    server_line(
+        &mut server,
+        b"@msgid=RfcBTzyxY120006 :papo-driver!papo@localhost NOTICE #papo :second notice delivery\r\n",
+    )
+    .await;
+    assert_eq!(
+        next_event(&mut events)
+            .await
+            .unwrap()
+            .as_notice()
+            .unwrap()
+            .text,
+        "second notice delivery"
+    );
 
     let sender = client.clone();
     let sent = tokio::spawn(async move { sender.privmsg("papo-driver", "remember this").await });
     client_line(
         &mut server,
-        b"@label=1 PRIVMSG papo-driver :remember this\r\n",
+        b"@label=2 PRIVMSG papo-driver :remember this\r\n",
     )
     .await;
     server_line(
         &mut server,
-        b"@msgid=RfcBTzyxY120006 :papo-driver!papo@localhost PRIVMSG papo-driver :remember this\r\n",
+        b"@msgid=RfcBTzyxY120007 :papo-driver!papo@localhost PRIVMSG papo-driver :remember this\r\n",
     )
     .await;
     server_line(
         &mut server,
-        b"@label=1;msgid=RfcBTzyxY120006 :papo-driver!papo@localhost PRIVMSG papo-driver :remember this\r\n",
+        b"@label=2;msgid=RfcBTzyxY120007 :papo-driver!papo@localhost PRIVMSG papo-driver :remember this\r\n",
     )
     .await;
     assert_eq!(
         within(sent).await.unwrap().unwrap().msgids,
-        [crate::MessageId::from("RfcBTzyxY120006")]
+        [crate::MessageId::from("RfcBTzyxY120007")]
     );
     server_line(
         &mut server,
-        b"@msgid=RfcBTzyxY120007 :emily!e@localhost PRIVMSG papo-driver :next message\r\n",
+        b"@msgid=RfcBTzyxY120007 :papo-driver!papo@localhost PRIVMSG papo-driver :remember this\r\n",
+    )
+    .await;
+    assert_eq!(
+        next_event(&mut events)
+            .await
+            .unwrap()
+            .as_message()
+            .unwrap()
+            .text,
+        "remember this"
+    );
+    server_line(
+        &mut server,
+        b"@msgid=RfcBTzyxY120008 :emily!e@localhost PRIVMSG papo-driver :next message\r\n",
     )
     .await;
     let event = next_event(&mut events).await.unwrap();
