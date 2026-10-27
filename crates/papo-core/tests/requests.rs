@@ -6,17 +6,52 @@ use std::{collections::BTreeMap, time::Instant};
 
 use papo_core::{
     Config, Conversation, Event, ListMode, RateLimit, Refusal, RequestError, RequestId,
-    ResponseMatcher, Secret, ServerError, Session, TextKind, WhoOnJoin,
+    ResponseMatcher, Secret, ServerError, Session, TextKind, WhoOnJoin, sts::ConnectionSecurity,
 };
 use papo_proto::{Command, Line, LineRef, Numeric};
 
 fn labelled_session(now: Instant) -> Session {
-    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    labelled_session_with(now, Config::default())
+}
+
+fn labelled_session_with(now: Instant, config: Config) -> Session {
+    let mut session = Session::new(config.rate_limit(RateLimit::unlimited()));
     session.handle_connected(now);
     session.handle_line(now, b"CAP * LS :labeled-response");
     session.handle_line(now, b"CAP * ACK :labeled-response");
     while session.poll_transmit().is_some() {}
     session
+}
+
+#[test]
+fn credential_request_requires_secure_transport_or_explicit_opt_in() {
+    let now = Instant::now();
+    let credential_request = || {
+        Line::new("OPER")
+            .param("admin")
+            .param(Secret::new("operator-password-3751"))
+    };
+
+    let mut plaintext = labelled_session(now);
+    let refused = request(&mut plaintext, now, credential_request());
+    assert!(plaintext.poll_transmit().is_none());
+    assert!(matches!(
+        plaintext.poll_event(),
+        Some(Event::RequestCredentialsRefused { id, .. }) if id == refused
+    ));
+
+    for config in [
+        Config::default().allow_insecure_auth(true),
+        Config::default().connection_security(ConnectionSecurity::Secure),
+    ] {
+        let mut allowed = labelled_session_with(now, config);
+        request(&mut allowed, now, credential_request());
+        assert_eq!(
+            allowed.poll_transmit().unwrap().as_ref(),
+            b"@label=0 OPER admin operator-password-3751\r\n"
+        );
+        assert!(allowed.poll_event().is_none());
+    }
 }
 
 fn echo_session(now: Instant) -> Session {
