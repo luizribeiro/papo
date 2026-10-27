@@ -343,7 +343,18 @@ impl Client {
                     })
                 })
             }
-            crate::target::Role::Any(_) => self.state().name_rules().mask(&text).check(),
+            crate::target::Role::Mask(_) => {
+                if let Some(prefix) = text.chars().next().filter(|prefix| {
+                    state
+                        .isupport()
+                        .statusmsg()
+                        .is_some_and(|statusmsg| statusmsg.contains(*prefix))
+                }) {
+                    Err(crate::InvalidIdentifier::InvalidPrefix(prefix))
+                } else {
+                    state.name_rules().mask(&text).check()
+                }
+            }
         };
         result.map_err(|reason| {
             InvalidInput::invalid_argument(role.argument(), text.clone(), reason)
@@ -948,11 +959,11 @@ impl Client {
     /// Returns [`Error::Server`] with [`crate::Refusal::TryAgain`] or
     /// [`crate::Refusal::Other`] when refused. It can also return [`Error::InvalidInput`],
     /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
-    pub fn who(&self, mask: impl crate::Target) -> crate::RequestFuture<Vec<crate::WhoEntry>> {
+    pub fn who(&self, mask: impl crate::AsMask) -> crate::RequestFuture<Vec<crate::WhoEntry>> {
         let client = self.clone();
-        let mask = crate::Target::__parts(&mask).into_owned();
+        let mask = crate::AsMask::__parts(&mask).into_owned();
         crate::RequestFuture::new(async move {
-            let mask = client.resolve(crate::target::Role::Any("who: mask"), mask)?;
+            let mask = client.resolve(crate::target::Role::Mask("who: mask"), mask)?;
             let mask = client.state().name_rules().mask(mask);
             let state = client.state();
             let extended = state.isupport().whox();

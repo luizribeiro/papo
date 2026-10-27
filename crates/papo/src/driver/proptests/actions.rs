@@ -46,9 +46,7 @@ async fn arbitrary_core_action_input_is_rejected_or_emits_valid_lines() {
         });
         check!({
             let first = first.clone();
-            move |client: &crate::Client| {
-                client.who(crate::Casemapping::default().mask(first).to_string())
-            }
+            move |client: &crate::Client| client.who(crate::Casemapping::default().mask(first))
         });
         check!({
             let (first, third) = (first.clone(), third.clone());

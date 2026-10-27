@@ -4490,6 +4490,34 @@ async fn role_errors_identify_the_invalid_argument() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn who_rejects_an_advertised_status_prefix() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":ergo.test 005 papo-driver STATUSMSG=@+ :are supported\r\n",
+    )
+    .await;
+    within(async {
+        while client.state().isupport().statusmsg() != Some("@+") {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await;
+
+    assert!(matches!(
+        client.who("@#staff").await,
+        Err(Error::InvalidInput(crate::InvalidInput::InvalidName {
+            argument: "who: mask",
+            reason: crate::InvalidIdentifier::InvalidPrefix('@'),
+            ..
+        }))
+    ));
+    abort_task(driver).await;
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn every_name_taking_method_returns_invalid_name() {
     #[derive(Clone, Copy)]
     enum Method {

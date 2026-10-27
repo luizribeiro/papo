@@ -1944,7 +1944,7 @@ pub fn papo::Client::set_topic(&self, impl papo::AsChannel, impl core::convert::
 pub fn papo::Client::state(&self) -> alloc::rcs::arc::Arc<papo::State>
 pub fn papo::Client::typing(&self, impl papo::Target, papo::Typing) -> papo::RequestFuture<()>
 pub fn papo::Client::unreact(&self, impl core::convert::Into<papo::MessageRef>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Client::who(&self, impl papo::Target) -> papo::RequestFuture<alloc::vec::Vec<papo::WhoEntry>>
+pub fn papo::Client::who(&self, impl papo::AsMask) -> papo::RequestFuture<alloc::vec::Vec<papo::WhoEntry>>
 pub fn papo::Client::whois(&self, impl papo::AsNick) -> papo::RequestFuture<papo::Whois>
 impl papo::Client
 pub fn papo::Client::create_account(&self, papo::NewAccount) -> papo::RequestFuture<papo::AccountCreation>
@@ -2842,6 +2842,16 @@ impl papo::AsConversation for papo::ChannelName
 impl papo::AsConversation for papo::Nick
 impl papo::AsConversation for str
 impl<T: papo::AsConversation + ?core::marker::Sized> papo::AsConversation for &T
+pub trait papo::AsMask: papo::target::sealed::Sealed
+impl papo::AsMask for alloc::borrow::Cow<'_, str>
+impl papo::AsMask for alloc::boxed::Box<str>
+impl papo::AsMask for alloc::rcs::arc::Arc<str>
+impl papo::AsMask for alloc::string::String
+impl papo::AsMask for papo::ChannelName
+impl papo::AsMask for papo::Mask
+impl papo::AsMask for papo::Nick
+impl papo::AsMask for str
+impl<T: papo::AsMask + ?core::marker::Sized> papo::AsMask for &T
 pub trait papo::IntoEndpoint: papo::address::private::Sealed
 impl papo::IntoEndpoint for &alloc::string::String
 impl papo::IntoEndpoint for &str

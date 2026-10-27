@@ -40,7 +40,7 @@ pub(crate) enum Role {
     Nick(&'static str),
     Account(&'static str),
     Conversation(&'static str),
-    Any(&'static str),
+    Mask(&'static str),
 }
 
 impl Role {
@@ -51,7 +51,7 @@ impl Role {
             | Self::Nick(argument)
             | Self::Account(argument)
             | Self::Conversation(argument)
-            | Self::Any(argument) => argument,
+            | Self::Mask(argument) => argument,
         }
     }
 }
@@ -78,6 +78,16 @@ pub trait AsConversation: sealed::Sealed {
     fn __parts(&self) -> sealed::Parts<'_>;
 }
 
+/// A mask, nickname, or channel accepted by [`crate::Client::who`].
+///
+/// Text is interpreted using the receiving client's current `ISUPPORT` rules. A typed value
+/// retains the client that produced it. Status-prefixed addresses such as `@#ops` are refused.
+pub trait AsMask: sealed::Sealed {
+    /// Returns the mask and its safety metadata.
+    #[doc(hidden)]
+    fn __parts(&self) -> sealed::Parts<'_>;
+}
+
 fn text_parts(text: &str) -> sealed::Parts<'_> {
     sealed::Parts {
         text: Cow::Borrowed(text),
@@ -98,6 +108,12 @@ macro_rules! text_roles {
             }
 
             impl AsConversation for $ty {
+                fn __parts(&self) -> sealed::Parts<'_> {
+                    text_parts(self.as_ref())
+                }
+            }
+
+            impl AsMask for $ty {
                 fn __parts(&self) -> sealed::Parts<'_> {
                     text_parts(self.as_ref())
                 }
@@ -130,6 +146,12 @@ impl AsConversation for crate::Nick {
     }
 }
 
+impl AsMask for crate::Nick {
+    fn __parts(&self) -> sealed::Parts<'_> {
+        name_parts(self.as_ref(), self.origin())
+    }
+}
+
 impl sealed::Sealed for crate::ChannelName {}
 
 impl Target for crate::ChannelName {
@@ -139,6 +161,20 @@ impl Target for crate::ChannelName {
 }
 
 impl AsConversation for crate::ChannelName {
+    fn __parts(&self) -> sealed::Parts<'_> {
+        name_parts(self.as_ref(), self.origin())
+    }
+}
+
+impl AsMask for crate::ChannelName {
+    fn __parts(&self) -> sealed::Parts<'_> {
+        name_parts(self.as_ref(), self.origin())
+    }
+}
+
+impl sealed::Sealed for crate::Mask {}
+
+impl AsMask for crate::Mask {
     fn __parts(&self) -> sealed::Parts<'_> {
         name_parts(self.as_ref(), self.origin())
     }
@@ -180,10 +216,11 @@ macro_rules! reference_role {
 
 reference_role!(Target);
 reference_role!(AsConversation);
+reference_role!(AsMask);
 
 #[cfg(test)]
 mod tests {
-    use super::{AsConversation, Target};
+    use super::{AsConversation, AsMask, Target};
     use crate::{AsChannel, AsNick};
 
     #[test]
@@ -192,10 +229,13 @@ mod tests {
         let mapping = crate::Casemapping::default();
         let channel = origin.__channel(mapping, "#papo");
         let nick = origin.__nick(mapping, "emily");
+        let mask = origin.__mask(mapping, "*!*@gateway.example");
 
         assert_eq!(AsChannel::__parts(&channel).text(), "#papo");
         assert_eq!(AsConversation::__parts(&channel).origin, origin);
         assert_eq!(AsNick::__parts(&nick).text(), "emily");
+        assert_eq!(AsMask::__parts(&mask).text, "*!*@gateway.example");
+        assert_eq!(AsMask::__parts(&mask).origin, origin);
         assert_eq!(Target::__parts(&nick).origin, origin);
         assert_eq!(Target::__parts(&"@#ops").text, "@#ops");
     }

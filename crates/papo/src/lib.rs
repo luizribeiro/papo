@@ -244,7 +244,7 @@ pub use papo_proto::{
 pub use reconnect::Reconnect;
 pub use requests::{ListEntry, ListRequest, WhoEntry, Whois, WhoisChannel};
 pub use state::{ReadMarker, State};
-pub use target::{AsConversation, Target};
+pub use target::{AsConversation, AsMask, Target};
 pub use webirc::WebIrc;
 
 /// A user or channel acted on by an IRC event.
