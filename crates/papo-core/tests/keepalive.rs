@@ -121,3 +121,17 @@ fn closes_at_120_seconds_of_silence_but_any_pong_resets_the_timeout() {
         .client("PING papo-1")
         .no_event();
 }
+
+#[test]
+fn maximum_durations_disable_keepalive_deadlines() {
+    Transcript::new(
+        Config::default()
+            .welcome_timeout(Duration::MAX)
+            .ping_interval(Duration::MAX)
+            .ping_timeout(Duration::MAX),
+    )
+    .connect_default()
+    .advance(Duration::from_hours(24))
+    .no_client()
+    .no_event();
+}

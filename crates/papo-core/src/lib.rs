@@ -113,6 +113,18 @@ mod outgoing;
 #[path = "unstable/persistence.rs"]
 mod persistence;
 mod ratelimit;
+
+/// Computes a monotonic deadline, returning `None` when the duration cannot be represented.
+///
+/// `Duration::MAX` therefore consistently means that no deadline is scheduled.
+#[doc(hidden)]
+#[must_use]
+pub fn deadline(
+    now: web_time::Instant,
+    duration: std::time::Duration,
+) -> Option<web_time::Instant> {
+    now.checked_add(duration)
+}
 mod refusal;
 #[cfg(feature = "unstable")]
 #[path = "unstable/relaymsg.rs"]
@@ -919,6 +931,8 @@ impl Config {
     }
 
     /// Sets the maximum time to wait for the welcome numeric.
+    ///
+    /// [`Duration::MAX`] disables this deadline.
     #[must_use]
     pub const fn welcome_timeout(mut self, timeout: Duration) -> Self {
         self.welcome_timeout = timeout;
@@ -926,6 +940,8 @@ impl Config {
     }
 
     /// Sets the idle interval before sending a keepalive probe.
+    ///
+    /// [`Duration::MAX`] disables keepalive probes.
     #[must_use]
     pub const fn ping_interval(mut self, interval: Duration) -> Self {
         self.ping_interval = interval;
@@ -933,6 +949,8 @@ impl Config {
     }
 
     /// Sets the maximum time allowed without an incoming line.
+    ///
+    /// [`Duration::MAX`] disables the silence deadline.
     #[must_use]
     pub const fn ping_timeout(mut self, timeout: Duration) -> Self {
         self.ping_timeout = timeout;
@@ -1042,6 +1060,8 @@ impl Config {
     }
 
     /// Sets how long an incomplete batch remains open.
+    ///
+    /// [`Duration::MAX`] disables this deadline.
     #[must_use]
     pub const fn batch_timeout(mut self, timeout: Duration) -> Self {
         self.batch_timeout = timeout;
@@ -1049,6 +1069,8 @@ impl Config {
     }
 
     /// Sets how long a labelled request remains pending.
+    ///
+    /// [`Duration::MAX`] disables this deadline.
     #[must_use]
     pub const fn request_timeout(mut self, timeout: Duration) -> Self {
         self.request_timeout = timeout;
@@ -3453,7 +3475,7 @@ impl Session {
             .iter()
             .filter(|(_, (_, started, _, _, _))| {
                 started
-                    .and_then(|started| started.checked_add(self.config.request_timeout))
+                    .and_then(|started| crate::deadline(started, self.config.request_timeout))
                     .is_some_and(|deadline| now >= deadline)
             })
             .map(|(_, (id, _, _, _, _))| *id)
@@ -3471,7 +3493,7 @@ impl Session {
         for request in pending {
             if request
                 .started
-                .and_then(|started| started.checked_add(self.config.request_timeout))
+                .and_then(|started| crate::deadline(started, self.config.request_timeout))
                 .is_some_and(|deadline| now >= deadline)
             {
                 if let ResponseMatcher::ListMode { channel, mode } = &request.matcher {
@@ -4210,7 +4232,8 @@ impl Session {
             self.requests
                 .values()
                 .filter_map(|(_, started, _, _, _)| {
-                    started.and_then(|started| started.checked_add(self.config.request_timeout))
+                    started
+                        .and_then(|started| crate::deadline(started, self.config.request_timeout))
                 })
                 .min(),
             self.unlabelled_requests
@@ -4218,7 +4241,7 @@ impl Session {
                 .filter_map(|request| {
                     request
                         .started
-                        .and_then(|started| started.checked_add(self.config.request_timeout))
+                        .and_then(|started| crate::deadline(started, self.config.request_timeout))
                 })
                 .min(),
         ]
@@ -4849,9 +4872,7 @@ impl Session {
             return true;
         };
         self.ctcp_sources.retain(|(_, replied)| {
-            replied
-                .checked_add(CTCP_REPLY_INTERVAL)
-                .is_some_and(|deadline| now < deadline)
+            crate::deadline(*replied, CTCP_REPLY_INTERVAL).is_some_and(|deadline| now < deadline)
         });
         if self.ctcp_sources.iter().any(|(source, _)| source == nick) {
             return true;

@@ -354,10 +354,7 @@ impl Batches {
             .open
             .iter()
             .filter(|(_, batch)| {
-                batch
-                    .opened
-                    .checked_add(self.timeout)
-                    .is_some_and(|deadline| now >= deadline)
+                crate::deadline(batch.opened, self.timeout).is_some_and(|deadline| now >= deadline)
             })
             .map(|(reference, _)| reference.clone())
             .collect();
@@ -380,7 +377,7 @@ impl Batches {
     pub(crate) fn next_deadline(&self) -> Option<Instant> {
         self.open
             .values()
-            .filter_map(|batch| batch.opened.checked_add(self.timeout))
+            .filter_map(|batch| crate::deadline(batch.opened, self.timeout))
             .min()
     }
 

@@ -22,16 +22,16 @@ impl Keepalive {
     pub(super) fn handle_connected(&mut self, now: Instant, interval: Duration, timeout: Duration) {
         self.interval = interval;
         self.timeout = timeout;
-        self.next_ping = Some(now + interval);
-        self.silence_deadline = Some(now + timeout);
+        self.next_ping = crate::deadline(now, interval);
+        self.silence_deadline = crate::deadline(now, timeout);
         self.pending_ping = None;
         self.counter = 0;
         self.lag = None;
     }
 
     pub(super) fn handle_incoming(&mut self, now: Instant) {
-        self.next_ping = Some(now + self.interval);
-        self.silence_deadline = Some(now + self.timeout);
+        self.next_ping = crate::deadline(now, self.interval);
+        self.silence_deadline = crate::deadline(now, self.timeout);
     }
 
     pub(super) fn handle_message(

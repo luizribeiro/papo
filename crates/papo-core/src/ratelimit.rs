@@ -110,7 +110,9 @@ impl RateLimiter {
         while self.next_token.is_some_and(|deadline| now >= deadline) {
             self.tokens += 1;
             let next_token = self.next_token.and_then(|deadline| {
-                (self.tokens < self.config.burst).then(|| deadline + self.config.refill)
+                (self.tokens < self.config.burst)
+                    .then(|| crate::deadline(deadline, self.config.refill))
+                    .flatten()
             });
             self.set_next_token(next_token);
         }
@@ -125,7 +127,9 @@ impl RateLimiter {
         }
         self.tokens -= 1;
         if self.next_token.is_none() {
-            let next_token = self.now.map(|now| now + self.config.refill);
+            let next_token = self
+                .now
+                .and_then(|now| crate::deadline(now, self.config.refill));
             self.set_next_token(next_token);
         }
         true

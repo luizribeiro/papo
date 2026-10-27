@@ -207,13 +207,19 @@ impl TypingTable {
             } else {
                 table.entries.push_back((conversation.clone(), typer));
             }
+            let Some(at) = crate::deadline(
+                now,
+                Duration::from_secs(if state == Typing::Active { 6 } else { 30 }),
+            ) else {
+                return evicted;
+            };
             let value = Deadline {
                 conversation: conversation.clone(),
                 nick,
                 actor,
                 status,
                 return_address,
-                at: now + Duration::from_secs(if state == Typing::Active { 6 } else { 30 }),
+                at,
             };
             if let Some(position) = deadline {
                 table.deadlines[position] = value;

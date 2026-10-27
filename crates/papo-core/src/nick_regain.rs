@@ -47,7 +47,7 @@ impl NickRegain {
         }
         if isupport.monitor().is_none() {
             self.watch = Watch::Ison {
-                next_poll: Some(now + ISON_INTERVAL),
+                next_poll: crate::deadline(now, ISON_INTERVAL),
                 claim_pending: false,
             };
             return;
@@ -188,7 +188,7 @@ fn handle_ison(
             .split_whitespace()
             .any(|nick| names_equal(isupport.casemapping(), nick, &config.nick))
         {
-            *next_poll = Some(now + ISON_INTERVAL);
+            *next_poll = crate::deadline(now, ISON_INTERVAL);
         } else {
             *claim_pending = true;
             outbox.transmit("NICK", [&config.nick]);
@@ -197,7 +197,7 @@ fn handle_ison(
     } else {
         if *claim_pending && unavailable_primary(message, config, isupport) {
             *claim_pending = false;
-            *next_poll = Some(now + ISON_INTERVAL);
+            *next_poll = crate::deadline(now, ISON_INTERVAL);
         }
         false
     }

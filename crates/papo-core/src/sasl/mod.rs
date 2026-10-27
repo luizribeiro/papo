@@ -413,7 +413,7 @@ impl SaslSession {
         let challenge = match receive_challenge(&mut self.challenge, chunk) {
             Ok(Some(challenge)) => challenge,
             Ok(None) => {
-                self.deadline = Some(now + SASL_TIMEOUT);
+                self.deadline = crate::deadline(now, SASL_TIMEOUT);
                 return Handled::Yes;
             }
             Err(()) => {
@@ -434,7 +434,7 @@ impl SaslSession {
                     return Handled::Yes;
                 }
             }
-            self.deadline = Some(now + SASL_TIMEOUT);
+            self.deadline = crate::deadline(now, SASL_TIMEOUT);
             return Handled::Yes;
         }
         let response = match mechanism {
@@ -472,7 +472,7 @@ impl SaslSession {
         };
         transmit_response(&response, outbox);
         self.awaiting_challenge = false;
-        self.deadline = Some(now + SASL_TIMEOUT);
+        self.deadline = crate::deadline(now, SASL_TIMEOUT);
         Handled::Yes
     }
 
@@ -626,7 +626,7 @@ impl SaslSession {
             self.active = Some(mechanism);
             self.awaiting_challenge = true;
             self.challenge.clear();
-            self.deadline = Some(now + SASL_TIMEOUT);
+            self.deadline = crate::deadline(now, SASL_TIMEOUT);
             return;
         }
     }
@@ -654,7 +654,7 @@ impl SaslSession {
         self.record_active_failure(reason);
         self.aborting = true;
         self.abort_outcome = outcome;
-        self.deadline = Some(now + SASL_TIMEOUT);
+        self.deadline = crate::deadline(now, SASL_TIMEOUT);
         outbox.transmit("AUTHENTICATE", ["*"]);
     }
 

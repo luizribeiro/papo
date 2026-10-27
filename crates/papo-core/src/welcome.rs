@@ -54,7 +54,7 @@ impl WelcomeState {
             return;
         }
         self.nick.clone_from(&config.nick);
-        self.deadline = Some(now + config.welcome_timeout);
+        self.deadline = crate::deadline(now, config.welcome_timeout);
         self.welcome_deadline = None;
         self.welcome_text = None;
         self.motd_lines = None;
@@ -119,7 +119,7 @@ impl WelcomeState {
             self.welcome_text = Some(message.param(1).unwrap_or_default().to_owned());
             self.motd_lines = None;
             self.deadline = None;
-            self.welcome_deadline = Some(now + WELCOME_BURST_TIMEOUT);
+            self.welcome_deadline = crate::deadline(now, WELCOME_BURST_TIMEOUT);
             Handled::No
         } else if self.welcome_deadline.is_some() && message.command_is("375") {
             self.motd_lines = Some(Vec::new());
