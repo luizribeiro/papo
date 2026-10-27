@@ -61,8 +61,12 @@ pub fn papo_proto::Casemapping::fold(self, &str) -> alloc::borrow::Cow<'_, str>
 impl core::clone::Clone for papo_proto::Casemapping
 pub fn papo_proto::Casemapping::clone(&self) -> Self
 impl core::cmp::Eq for papo_proto::Casemapping
+impl core::cmp::Ord for papo_proto::Casemapping
+pub fn papo_proto::Casemapping::cmp(&self, &Self) -> core::cmp::Ordering
 impl core::cmp::PartialEq for papo_proto::Casemapping
 pub fn papo_proto::Casemapping::eq(&self, &Self) -> bool
+impl core::cmp::PartialOrd for papo_proto::Casemapping
+pub fn papo_proto::Casemapping::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
 impl core::default::Default for papo_proto::Casemapping
 pub fn papo_proto::Casemapping::default() -> Self
 impl core::fmt::Debug for papo_proto::Casemapping

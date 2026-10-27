@@ -15,7 +15,7 @@ use crate::{AccountName, ChannelName, Mask, Nick, Origin};
 /// Applications using `papo` build typed names through [`papo::State`](https://docs.rs/papo/latest/papo/struct.State.html)
 /// so the result also records which client produced it. Seed saved comparison rules with
 /// [`papo::Builder::casemapping`](https://docs.rs/papo/latest/papo/struct.Builder.html#method.casemapping).
-#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[non_exhaustive]
 pub enum Casemapping {
     /// Only ASCII letters are case-insensitive.

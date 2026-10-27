@@ -199,7 +199,7 @@ macro_rules! name_identifier {
         #[doc = $description]
         ///
         /// The original spelling is retained for display. Equality, ordering, and hashing compare
-        /// folded text using the server-defined casemapping captured at creation. Build a name
+        /// the captured casemapping, client identity, and folded text. Build a name
         /// from text with the matching [`Casemapping`](crate::Casemapping) method, or with a
         /// `papo::State` name factory when using the high-level client.
         #[derive(Clone, Debug)]
@@ -241,7 +241,9 @@ macro_rules! name_identifier {
 
         impl PartialEq for $name {
             fn eq(&self, other: &Self) -> bool {
-                self.origin == other.origin && self.folded == other.folded
+                self.origin == other.origin
+                    && self.casemapping == other.casemapping
+                    && self.folded == other.folded
             }
         }
 
@@ -249,7 +251,7 @@ macro_rules! name_identifier {
 
         impl Hash for $name {
             fn hash<H: Hasher>(&self, state: &mut H) {
-                (self.origin, &self.folded).hash(state);
+                (self.origin, self.casemapping, &self.folded).hash(state);
             }
         }
 
@@ -261,7 +263,11 @@ macro_rules! name_identifier {
 
         impl Ord for $name {
             fn cmp(&self, other: &Self) -> Ordering {
-                (self.origin, &self.folded).cmp(&(other.origin, &other.folded))
+                (self.origin, self.casemapping, &self.folded).cmp(&(
+                    other.origin,
+                    other.casemapping,
+                    &other.folded,
+                ))
             }
         }
 
@@ -963,7 +969,11 @@ mod tests {
         assert_eq!(nick, "Alice[bot]");
         assert_eq!(nick, "alice{bot}");
         assert_eq!(nick.to_string(), "Alice[bot]");
-        assert_eq!(values.get(&Casemapping::Ascii.nick("alice{bot}")), Some(&7));
+        assert_eq!(values.get(&Casemapping::Ascii.nick("alice{bot}")), None);
+        assert_ne!(
+            Casemapping::Rfc1459.channel("#rust[de]"),
+            Casemapping::Ascii.channel("#rust{de}")
+        );
         assert_eq!(nick.casemapping(), Casemapping::Rfc1459);
         assert_eq!(Nick::from(&nick).into_string(), "Alice[bot]");
     }

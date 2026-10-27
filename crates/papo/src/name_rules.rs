@@ -45,8 +45,8 @@ impl NameRules<'_> {
     ///
     /// ```
     /// # fn example(state: &papo::State) {
-    /// let nick = state.name_rules().nick("Alice[bot]");
-    /// assert_eq!(nick, "alice{bot}");
+    /// let nick = state.name_rules().nick("AliceBot");
+    /// assert_eq!(nick, "alicebot");
     /// # }
     /// ```
     #[must_use]

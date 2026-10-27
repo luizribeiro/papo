@@ -8162,7 +8162,7 @@ async fn public_state_accessors_report_the_registered_session() {
     assert_eq!(state.nick(), &nick);
     assert_eq!(
         state.account(),
-        &crate::Account::LoggedIn(test_account("emily"))
+        &crate::Account::LoggedIn(crate::Casemapping::Ascii.account("emily"))
     );
     assert_eq!(
         state.away(),
@@ -8203,7 +8203,7 @@ async fn public_state_accessors_report_the_registered_session() {
     assert_eq!(snapshot.nick(), "papo-driver");
     assert_eq!(
         snapshot.account(),
-        &crate::Account::LoggedIn(test_account("emily"))
+        &crate::Account::LoggedIn(crate::Casemapping::Ascii.account("emily"))
     );
 
     within(server.shutdown()).await.unwrap();
@@ -8368,6 +8368,27 @@ async fn client_exposes_capability_aliases_and_casemapping() {
             .features()
             .any(|feature| feature == crate::Feature::History)
     );
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn pre_isupport_account_does_not_match_a_bracket_variant_under_ascii() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let provisional = client.state().name_rules().account("[ops]");
+    let driver = tokio::spawn(driver);
+    welcome_burst(&mut server).await;
+    server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
+    client_line(&mut server, b"CAP END\r\n").await;
+    server_line(&mut server, b":ergo.test 005 papo-driver CASEMAPPING=ascii :are supported\r\n:ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
+    while !matches!(events.next().await, Some(Event::Connected(_))) {}
+
+    let confirmed = client.state().name_rules().account("{ops}");
+    assert_ne!(provisional, confirmed);
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
