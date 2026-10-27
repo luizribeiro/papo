@@ -132,15 +132,16 @@
               CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER = nixTestRunner;
             }
           );
-        browserCargoVendor = craneLib.vendorCargoDeps {
-          src = cargoSource;
-          cargoLock = ./crates/papo-core/tests/browser/Cargo.lock;
+        browserCargoVendor = craneLib.vendorMultipleCargoDeps {
+          cargoLockList = [
+            ./Cargo.lock
+            ./crates/papo-core/tests/browser/Cargo.lock
+          ];
         };
         browserCraneArgs = craneArgs // {
           pname = "papo-core-browser-tests";
           cargoArtifacts = null;
           cargoVendorDir = browserCargoVendor;
-          cargoLock = ./crates/papo-core/tests/browser/Cargo.lock;
         };
         papoTestServer = craneLib.buildPackage (
           craneArgs
