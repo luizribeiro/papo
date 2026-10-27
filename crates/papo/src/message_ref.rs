@@ -1,12 +1,124 @@
 use std::fmt;
 
 use crate::{
-    Account, ChannelName, Conversation, Message, MessageId, Nick, Sent,
+    Account, Authorship, ChannelName, Conversation, Message, MessageId, Nick, Sent, Source,
     event::{
         Audience, Broadcast, CtcpQuery, CtcpReply, Notice, Reacted, Redacted, ServerNotice, TagMsg,
         TypingChanged,
     },
 };
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct Receipt {
+    identity: Box<ReceiptIdentity>,
+    address: String,
+    origin: crate::Origin,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ReceiptIdentity {
+    actor: Source,
+    actor_account: Account,
+    token: Option<papo_core::ReplyToken>,
+    recipient: Option<Nick>,
+}
+
+#[allow(dead_code)]
+impl Receipt {
+    pub(crate) fn new(
+        actor: Source,
+        _authorship: Authorship,
+        conversation: &Conversation,
+        token: Option<papo_core::ReplyToken>,
+        address: String,
+    ) -> Self {
+        let actor_account = actor
+            .user()
+            .map_or(Account::Unknown, |user| user.account().clone());
+        let origin = conversation_origin(conversation);
+        let recipient = match conversation {
+            Conversation::Private(nick) => Some(nick.clone()),
+            _ => None,
+        };
+        Self {
+            identity: Box::new(ReceiptIdentity {
+                actor,
+                actor_account,
+                token,
+                recipient,
+            }),
+            address,
+            origin,
+        }
+    }
+
+    pub(crate) fn without_recipient(
+        actor: Source,
+        token: Option<papo_core::ReplyToken>,
+        address: String,
+        origin: crate::Origin,
+    ) -> Self {
+        let actor_account = actor
+            .user()
+            .map_or(Account::Unknown, |user| user.account().clone());
+        Self {
+            identity: Box::new(ReceiptIdentity {
+                actor,
+                actor_account,
+                token,
+                recipient: None,
+            }),
+            address,
+            origin,
+        }
+    }
+
+    fn reference(
+        &self,
+        msgids: Vec<MessageId>,
+        channel_context: Option<ChannelName>,
+    ) -> MessageRef {
+        let account = self.identity.actor.user().map_or_else(
+            || self.identity.actor_account.clone(),
+            |user| user.account().clone(),
+        );
+        let recipient = self.identity.recipient.as_ref().map(|nick| RecipientGuard {
+            nick: nick.clone(),
+            account,
+            receipt: self.identity.token,
+        });
+        MessageRef::new(
+            self.address.clone(),
+            msgids,
+            self.origin,
+            channel_context,
+            recipient,
+        )
+    }
+
+    pub(crate) fn recipient(&self) -> Option<RecipientGuard> {
+        self.reference(Vec::new(), None).recipient
+    }
+
+    pub(crate) fn actor_recipient(&self) -> Option<RecipientGuard> {
+        let actor = self.identity.actor.user()?;
+        Some(RecipientGuard {
+            nick: actor.nick().clone(),
+            account: actor.account().clone(),
+            receipt: self.identity.token,
+        })
+    }
+}
+
+#[allow(dead_code)]
+pub(crate) trait ReplyReference {
+    fn receipt(&self) -> &Receipt;
+    fn msgids(&self) -> Vec<MessageId>;
+    fn channel_context(&self) -> Option<ChannelName> {
+        None
+    }
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct RecipientGuard {
