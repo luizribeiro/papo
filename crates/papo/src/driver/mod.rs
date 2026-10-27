@@ -56,6 +56,7 @@ pub(crate) const DEFAULT_CHANNEL_CAPACITY: usize = 1024;
 const QUIT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 const STABLE_CONNECTION: Duration = Duration::from_secs(60);
 const MAX_REJOIN_CHANNELS: usize = 10_000;
+#[allow(dead_code)]
 pub(super) const SLOW_CONSUMER_REASON: &str = "SlowConsumer";
 
 type BoxConnection = Box<dyn Io>;
@@ -870,11 +871,7 @@ where
         .await
         {
             Ok(Some((kind, reason))) => {
-                let error = if reason == SLOW_CONSUMER_REASON {
-                    Error::disconnected_slow_consumer()
-                } else {
-                    Error::disconnected_close(kind, reason.clone())
-                };
+                let error = Error::disconnected_close(kind, reason.clone());
                 break (reason, error, Some(kind), false);
             }
             Ok(None) => {}
@@ -1302,24 +1299,14 @@ where
         let Some(phase) = crate::ConnectPhase::from_core(phase) else {
             continue;
         };
-        if !enqueue_event(
+        enqueue_event(
             events,
             pending_events,
             Event::Connecting(crate::event::Connecting { attempt, phase }),
-        ) {
-            return Ok(Some((
-                papo_core::CloseKind::Other,
-                SLOW_CONSUMER_REASON.to_owned(),
-            )));
-        }
+        );
     }
     drop_closed_waiters(requests, sync_waiters, registration);
-    if !reconcile_pending_events(events, pending_events, requests, resolved_sent) {
-        return Ok(Some((
-            papo_core::CloseKind::Other,
-            SLOW_CONSUMER_REASON.to_owned(),
-        )));
-    }
+    reconcile_pending_events(events, pending_events, requests, resolved_sent);
     let read_ahead = should_read_ahead(requests, sync_waiters, catchups, registration, quitting);
     while (pending_events.is_empty() || read_ahead || after_timeout)
         && let Some(core_event) = session.poll_event()
@@ -1345,12 +1332,7 @@ where
                     event,
                     Event::AccountCreation(crate::AccountCreation::VerificationRequired { .. })
                 );
-                if !enqueue_event(events, pending_events, event) {
-                    return Ok(Some((
-                        papo_core::CloseKind::Other,
-                        SLOW_CONSUMER_REASON.to_owned(),
-                    )));
-                }
+                enqueue_event(events, pending_events, event);
                 if completes_registration {
                     events.receiver.finish_connecting();
                     registration.succeeded();
@@ -1371,12 +1353,7 @@ where
                     caps: welcome.caps,
                     reconnected,
                 });
-                if !enqueue_event(events, pending_events, event) {
-                    return Ok(Some((
-                        papo_core::CloseKind::Other,
-                        SLOW_CONSUMER_REASON.to_owned(),
-                    )));
-                }
+                enqueue_event(events, pending_events, event);
                 events.receiver.finish_connecting();
                 registration.succeeded();
             }
@@ -1395,20 +1372,10 @@ where
                     continue;
                 }
                 if should_hold_sent_candidate(requests, &event) {
-                    if !hold_event(events, pending_events, event) {
-                        return Ok(Some((
-                            papo_core::CloseKind::Other,
-                            SLOW_CONSUMER_REASON.to_owned(),
-                        )));
-                    }
+                    hold_event(events, pending_events, event);
                     continue;
                 }
-                if !enqueue_event(events, pending_events, event) {
-                    return Ok(Some((
-                        papo_core::CloseKind::Other,
-                        SLOW_CONSUMER_REASON.to_owned(),
-                    )));
-                }
+                enqueue_event(events, pending_events, event);
             }
             event::CoreEvent::History {
                 conversation,
@@ -1447,12 +1414,7 @@ where
                     end,
                     reason: crate::HistoryReason::Replay,
                 });
-                if !enqueue_event(events, pending_events, event) {
-                    return Ok(Some((
-                        papo_core::CloseKind::Other,
-                        SLOW_CONSUMER_REASON.to_owned(),
-                    )));
-                }
+                enqueue_event(events, pending_events, event);
             }
             event::CoreEvent::Response(response) => {
                 for line in &response.lines {
@@ -1469,12 +1431,8 @@ where
                 if let Some(catchup) = catchups.remove(&response.id) {
                     if let Some(event) =
                         advance_catchup(session, events, catchups, defaults, catchup, response)
-                        && !enqueue_event(events, pending_events, event)
                     {
-                        return Ok(Some((
-                            papo_core::CloseKind::Other,
-                            SLOW_CONSUMER_REASON.to_owned(),
-                        )));
+                        enqueue_event(events, pending_events, event);
                     }
                 } else if let Some(result) = requests.remove(&response.id) {
                     let id = response.id;
@@ -1484,12 +1442,7 @@ where
                                 channel,
                                 error: crate::ServerError::from_core(error),
                             });
-                            if !enqueue_event(events, pending_events, event) {
-                                return Ok(Some((
-                                    papo_core::CloseKind::Other,
-                                    SLOW_CONSUMER_REASON.to_owned(),
-                                )));
-                            }
+                            enqueue_event(events, pending_events, event);
                         }
                     } else if let Some(result) = result.respond(response, resolved_sent) {
                         requests.insert(id, result);
@@ -1545,15 +1498,6 @@ where
                     apply_sts_action(store.as_ref(), sts_port, sts_websocket, &action);
                 }
             }
-            event::CoreEvent::Close {
-                kind: papo_core::CloseKind::PingTimeout,
-                ..
-            } if after_timeout => {
-                return Ok(Some((
-                    papo_core::CloseKind::Other,
-                    SLOW_CONSUMER_REASON.to_owned(),
-                )));
-            }
             event::CoreEvent::Close { kind, reason } => return Ok(Some((kind, reason))),
             event::CoreEvent::RequestUnsupported { id, unsupported } => {
                 join_keys.remove(&id);
@@ -1564,12 +1508,7 @@ where
             }
             event::CoreEvent::Unknown => {}
         }
-        if !reconcile_pending_events(events, pending_events, requests, resolved_sent) {
-            return Ok(Some((
-                papo_core::CloseKind::Other,
-                SLOW_CONSUMER_REASON.to_owned(),
-            )));
-        }
+        reconcile_pending_events(events, pending_events, requests, resolved_sent);
     }
     drain_transmit(stream, session, pending_write, transmits, deadline).await?;
     Ok(None)
@@ -1620,7 +1559,7 @@ fn reconcile_pending_events(
     pending: &mut VecDeque<Event>,
     requests: &BTreeMap<RequestId, PendingRequest>,
     resolved_sent: &mut VecDeque<String>,
-) -> bool {
+) {
     let hold = requests.values().any(PendingRequest::is_text);
     let mut retained = VecDeque::new();
     while let Some(event) = pending.pop_front() {
@@ -1629,12 +1568,11 @@ fn reconcile_pending_events(
         }
         if hold {
             retained.push_back(event);
-        } else if !send_event(events, event) {
-            return false;
+        } else {
+            send_event(events, event);
         }
     }
     *pending = retained;
-    true
 }
 
 fn should_read_ahead(
@@ -1851,9 +1789,6 @@ fn enqueue_event(events: &EventSink, pending: &mut VecDeque<Event>, event: Event
 }
 
 fn hold_event(events: &EventSink, pending: &mut VecDeque<Event>, event: Event) -> bool {
-    if events.regular.is_closed() {
-        return false;
-    }
     if pending.len() == events.receiver.capacity {
         pending.pop_front();
         events.dropped.fetch_add(1, Ordering::Relaxed);
@@ -1866,10 +1801,8 @@ fn send_event(events: &EventSink, event: Event) -> bool {
     if events.receiver.discard_oldest_if_full() {
         events.dropped.fetch_add(1, Ordering::Relaxed);
     }
-    !matches!(
-        events.regular.try_send(event),
-        Err(mpsc::error::TrySendError::Closed(_))
-    )
+    _ = events.regular.try_send(event);
+    true
 }
 
 fn resolve_sync_waiters(

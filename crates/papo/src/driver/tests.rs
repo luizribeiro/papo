@@ -7962,10 +7962,11 @@ fn resolved_send_identifiers_keep_the_latest_literal_capacity() {
 }
 
 #[test]
-fn held_events_drop_the_oldest_and_reject_a_closed_receiver() {
+fn held_events_drop_the_oldest_with_a_closed_receiver() {
     let session = Session::new(config());
     let channels = super::channels(1, &session);
     channels.event_sink.receiver.finish_connecting();
+    channels.events.receiver.inner.lock().unwrap().close();
     let mut pending = VecDeque::new();
     for text in ["first deployment", "second deployment"] {
         assert!(super::hold_event(
@@ -7980,18 +7981,6 @@ fn held_events_drop_the_oldest_and_reject_a_closed_receiver() {
         "second deployment"
     );
     assert_eq!(channels.event_sink.dropped.load(Ordering::Relaxed), 1);
-
-    channels.events.receiver.inner.lock().unwrap().close();
-    assert!(!super::hold_event(
-        &channels.event_sink,
-        &mut pending,
-        Event::Message(crate::__testing::message(
-            None,
-            "#papo",
-            "third deployment",
-            false,
-        )),
-    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
