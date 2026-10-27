@@ -3182,6 +3182,7 @@ enum Transmission {
         started: bool,
         token: Option<TransmitToken>,
         request: Option<RequestId>,
+        recipient: Option<RecipientGuard>,
     },
 }
 
@@ -3270,6 +3271,16 @@ impl Outbox {
         token: Option<TransmitToken>,
         request: Option<RequestId>,
     ) {
+        self.transmit_guarded_batch(lines, token, request, None);
+    }
+
+    fn transmit_guarded_batch(
+        &mut self,
+        lines: Vec<WireLine>,
+        token: Option<TransmitToken>,
+        request: Option<RequestId>,
+        recipient: Option<RecipientGuard>,
+    ) {
         let credentials_allowed = lines
             .iter()
             .all(|line| self.credentials_allowed(line, token, request));
@@ -3279,6 +3290,7 @@ impl Outbox {
                 started: false,
                 token,
                 request,
+                recipient,
             });
         } else if let Some(token) = token {
             self.event(Event::TransmitAborted { token });
@@ -4306,47 +4318,70 @@ impl Session {
     /// Returns the next wire line with its optional write-completion identifier.
     #[doc(hidden)]
     pub fn poll_transmit_tracked(&mut self) -> Option<Transmit> {
-        let batch_open = matches!(
-            self.outbox.transmits.front(),
-            Some(Transmission::Batch { started: true, .. })
-        );
-        if !batch_open {
-            while let Some(line) = self.outbox.immediate.pop_front() {
+        loop {
+            let batch_open = matches!(
+                self.outbox.transmits.front(),
+                Some(Transmission::Batch { started: true, .. })
+            );
+            if !batch_open && let Some(line) = self.outbox.immediate.pop_front() {
                 if let Some(transmit) = self.prepare_queued_line(line) {
                     return Some(transmit);
                 }
+                continue;
             }
-        }
-        if self.outbox.transmits.is_empty()
-            || !self.rate_limit.take(self.isupport.value().saferate())
-        {
-            return None;
-        }
-        match self.outbox.transmits.pop_front()? {
-            Transmission::Line(line) => self.prepare_queued_line(line),
-            Transmission::Batch {
-                mut lines,
-                token,
-                request,
-                ..
-            } => {
-                let line = lines.pop_front();
-                let last = lines.is_empty();
-                if !lines.is_empty() {
-                    self.outbox.transmits.push_front(Transmission::Batch {
-                        lines,
-                        started: true,
-                        token,
-                        request,
-                    });
+            if self.outbox.transmits.is_empty()
+                || !self.rate_limit.take(self.isupport.value().saferate())
+            {
+                return None;
+            }
+            match self.outbox.transmits.pop_front()? {
+                Transmission::Line(line) => {
+                    if let Some(transmit) = self.prepare_queued_line(line) {
+                        return Some(transmit);
+                    }
                 }
-                if last {
-                    self.mark_request_started(request);
+                Transmission::Batch {
+                    mut lines,
+                    token,
+                    request,
+                    recipient,
+                    ..
+                } => {
+                    let Some(line) = lines.pop_front() else {
+                        continue;
+                    };
+                    let last = lines.is_empty();
+                    let queued = QueuedLine {
+                        line,
+                        token: last.then_some(token).flatten(),
+                        request: last.then_some(request).flatten(),
+                        recipient: (!last).then(|| recipient.clone()).flatten(),
+                    };
+                    let Some(transmit) = self.prepare_queued_line(queued) else {
+                        if !last {
+                            if let Some(close) = lines.pop_back() {
+                                self.outbox.immediate.push_front(QueuedLine {
+                                    line: close,
+                                    token: None,
+                                    request: None,
+                                    recipient: None,
+                                });
+                            }
+                            self.recipient_gone(token, request);
+                        }
+                        continue;
+                    };
+                    if !last {
+                        self.outbox.transmits.push_front(Transmission::Batch {
+                            lines,
+                            started: true,
+                            token,
+                            request,
+                            recipient,
+                        });
+                    }
+                    return Some(transmit);
                 }
-                line.map(|line| Transmit {
-                    line,
-                    token: last.then_some(token).flatten(),
-                })
             }
         }
     }
