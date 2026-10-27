@@ -1693,7 +1693,6 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::HistoryReason
 impl core::panic::unwind_safe::UnwindSafe for papo::HistoryReason
 #[non_exhaustive] pub enum papo::InvalidInput
 pub papo::InvalidInput::AccountNameMustMatchNick
-pub papo::InvalidInput::BinarySecret
 pub papo::InvalidInput::CustomStreamNotReusable
 pub papo::InvalidInput::EmailRequired
 pub papo::InvalidInput::EmptyText

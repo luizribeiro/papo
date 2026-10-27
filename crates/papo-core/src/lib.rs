@@ -1986,8 +1986,6 @@ pub enum RequestError {
     PendingLimit,
     /// The text contains no nonempty lines to send.
     EmptyText,
-    /// A byte secret was supplied to a text-only protocol field.
-    InvalidSecret,
     /// Credentials require an explicit opt-in on this plaintext connection.
     InsecureAuthentication,
     /// An optional protocol feature is unavailable.
@@ -2077,7 +2075,6 @@ impl std::fmt::Display for RequestError {
             Self::Build(error) => error.fmt(formatter),
             Self::PendingLimit => formatter.write_str("too many labelled requests are pending"),
             Self::EmptyText => formatter.write_str("text has no nonempty lines"),
-            Self::InvalidSecret => formatter.write_str("byte secret cannot be used as text"),
             Self::InsecureAuthentication => formatter
                 .write_str("credentials require an explicit opt-in on a plaintext connection"),
             Self::Unsupported(unsupported) => unsupported.fmt(formatter),
@@ -2111,7 +2108,6 @@ impl std::error::Error for RequestError {
             Self::Build(error) => Some(error),
             Self::PendingLimit
             | Self::EmptyText
-            | Self::InvalidSecret
             | Self::InsecureAuthentication
             | Self::Unsupported(_)
             | Self::InvalidMessageReference

@@ -33,9 +33,6 @@ pub enum InvalidInput {
     /// A rate-limit configuration is invalid.
     #[error(transparent)]
     RateLimit(#[from] crate::InvalidRateLimit),
-    /// A byte secret was supplied to a text-only protocol field.
-    #[error("byte secret cannot be used as text")]
-    BinarySecret,
     /// Credentials were configured for an unencrypted endpoint without an explicit opt-in.
     #[error("credentials on a plaintext endpoint require allow_insecure_auth(true)")]
     InsecureAuthentication,

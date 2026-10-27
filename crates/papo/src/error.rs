@@ -654,7 +654,6 @@ impl Error {
         match error {
             Request::Build(error) => Self::InvalidInput(InvalidInput::WireMessage(error)),
             Request::EmptyText => Self::InvalidInput(InvalidInput::EmptyText),
-            Request::InvalidSecret => Self::InvalidInput(InvalidInput::BinarySecret),
             Request::InsecureAuthentication => {
                 Self::InvalidInput(InvalidInput::InsecureAuthentication)
             }
@@ -1024,7 +1023,6 @@ mod tests {
             InvalidInput::ManagedCapability("sts".into()),
             InvalidInput::ZeroEventCapacity,
             InvalidInput::RateLimit(crate::InvalidRateLimit::EmptyBurst),
-            InvalidInput::BinarySecret,
             InvalidInput::WireMessage(crate::BuildError::InvalidParam(0)),
             InvalidInput::InvalidCtcp,
             InvalidInput::InvalidClientTagKey("account".into()),

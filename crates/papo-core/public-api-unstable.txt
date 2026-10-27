@@ -1173,7 +1173,6 @@ pub papo_core::RequestError::InvalidMessageReference
 pub papo_core::RequestError::InvalidMetadataKey::key: alloc::string::String
 pub papo_core::RequestError::InvalidMetadataKey::reason: papo::InvalidIdentifier
 pub papo_core::RequestError::InvalidRelayNickname
-pub papo_core::RequestError::InvalidSecret
 pub papo_core::RequestError::InvalidWebPushEndpoint
 pub papo_core::RequestError::InvalidWebPushKey
 #[non_exhaustive] pub papo_core::RequestError::MetadataValueTooLong
