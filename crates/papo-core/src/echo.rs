@@ -51,7 +51,7 @@ impl Session {
             conversation,
             status,
             channel_context,
-            reply_token: self.state.reply_token(),
+            reply_token: self.state.__reply_token(),
         }
     }
 

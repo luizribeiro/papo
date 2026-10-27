@@ -467,7 +467,10 @@ impl State {
         self.last_seen_order = last_seen_order;
     }
 
-    pub(crate) const fn reply_token(&self) -> crate::ReplyToken {
+    /// Returns the receipt position used to guard a response built outside the core.
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __reply_token(&self) -> crate::ReplyToken {
         crate::ReplyToken {
             origin: self.casemapping.origin(),
             epoch: self.reply_epoch,
