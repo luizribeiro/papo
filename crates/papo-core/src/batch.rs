@@ -410,10 +410,10 @@ impl Batches {
             })
             .cloned()
             .collect();
-        let types: BTreeMap<_, _> = references
-            .iter()
-            .map(|candidate| (candidate.clone(), self.open[candidate].kind.clone()))
-            .collect();
+        let mut types = BTreeMap::new();
+        for candidate in &references {
+            types.insert(candidate.clone(), self.open[candidate].kind.clone());
+        }
         let batch_type = types[reference].clone();
         let history_target = is_history(&batch_type)
             .then(|| self.open[reference].params.first().cloned())

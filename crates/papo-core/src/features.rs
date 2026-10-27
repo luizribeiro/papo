@@ -226,11 +226,13 @@ impl std::error::Error for Unsupported {}
 
 impl Session {
     pub(crate) fn supported_features(&self) -> std::collections::BTreeSet<Feature> {
-        Feature::ALL
-            .iter()
-            .copied()
-            .filter(|&feature| self.supports(feature).is_ok())
-            .collect()
+        let mut supported = std::collections::BTreeSet::new();
+        for &feature in Feature::ALL {
+            if self.supports(feature).is_ok() {
+                supported.insert(feature);
+            }
+        }
+        supported
     }
 
     pub(crate) fn require_feature(&self, feature: Feature) -> Result<(), RequestError> {

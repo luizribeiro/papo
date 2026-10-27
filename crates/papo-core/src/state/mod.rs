@@ -455,15 +455,12 @@ impl State {
             user.reply_epoch = reply_epoch;
         }
         self.isupport.clone_from(isupport);
-        self.last_seen = last_seen
-            .into_values()
-            .map(|seen| {
-                (
-                    NameKey::new(&seen.target, self.casemapping.casemapping()),
-                    seen,
-                )
-            })
-            .collect();
+        for seen in last_seen.into_values() {
+            self.last_seen.insert(
+                NameKey::new(&seen.target, self.casemapping.casemapping()),
+                seen,
+            );
+        }
         self.last_seen_order = last_seen_order;
     }
 
@@ -1389,9 +1386,28 @@ impl Channel {
                         && !member.prefixes.contains(&prefix)
                     {
                         member.prefixes.push(prefix);
-                        member.prefixes.sort_by_key(|held| {
-                            self.prefix_order.iter().position(|item| item == held)
-                        });
+                        for index in 1..member.prefixes.len() {
+                            let mut index = index;
+                            while index > 0 {
+                                let Some((current, previous)) = member
+                                    .prefixes
+                                    .get(index)
+                                    .zip(member.prefixes.get(index - 1))
+                                else {
+                                    break;
+                                };
+                                let out_of_order = self
+                                    .prefix_order
+                                    .iter()
+                                    .position(|item| item == current)
+                                    < self.prefix_order.iter().position(|item| item == previous);
+                                if !out_of_order {
+                                    break;
+                                }
+                                member.prefixes.swap(index, index - 1);
+                                index -= 1;
+                            }
+                        }
                     } else if change.action == papo_proto::ModeAction::Remove {
                         member.prefixes.retain(|held| *held != prefix);
                     }

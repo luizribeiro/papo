@@ -426,10 +426,11 @@ impl Monitor {
         }
         self.casemapping = Names::new(mapping, self.casemapping.origin());
         let names = self.casemapping;
-        self.presence = std::mem::take(&mut self.presence)
-            .into_values()
-            .map(|presence| (names.nick(presence.nick()), presence))
-            .collect();
+        let mut refolded = BTreeMap::new();
+        for presence in std::mem::take(&mut self.presence).into_values() {
+            refolded.insert(names.nick(presence.nick()), presence);
+        }
+        self.presence = refolded;
     }
 
     fn warn_unsupported(&mut self, reason: UnsupportedReason, outbox: &mut Outbox) {
