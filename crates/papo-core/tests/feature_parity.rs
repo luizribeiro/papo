@@ -54,10 +54,11 @@ fn state_debug(session: &Session) -> String {
     let channels = state
         .channels()
         .map(|channel| {
-            let members = channel
+            let mut members = channel
                 .members()
                 .map(|member| (member.nick().to_string(), member.prefixes().to_vec()))
                 .collect::<Vec<_>>();
+            members.sort_by(|left, right| left.0.cmp(&right.0));
             (channel.name().to_string(), channel.is_synced(), members)
         })
         .collect::<Vec<_>>();
