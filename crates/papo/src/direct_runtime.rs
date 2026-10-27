@@ -36,3 +36,41 @@ pub(crate) async fn release(client: &crate::Client, recipient: papo_core::Recipi
         .send(crate::driver::Command::DirectRelease { recipient })
         .await;
 }
+
+#[expect(dead_code, reason = "used by guarded direct construction")]
+pub(crate) fn require_monitor_slot(state: &crate::State, nick: &str) -> Result<(), Error> {
+    crate::Client::require_feature(state, crate::Feature::Monitor)?;
+    if state.monitored().any(|known| known == nick) {
+        return Ok(());
+    }
+    if let Some(crate::isupport::LimitValue::Limited(limit)) = state.isupport().monitor()
+        && state.monitored().len() >= limit
+    {
+        return Err(Error::MonitorFull { limit });
+    }
+    Ok(())
+}
+
+#[expect(dead_code, reason = "used by guarded direct construction")]
+pub(crate) fn who_account(
+    client: &crate::Client,
+    nick: &str,
+    response: &papo_core::Response,
+) -> Result<Account, Error> {
+    if let Some(error) = response.error() {
+        return Err(Error::server(error));
+    }
+    let account = response.lines.iter().find_map(|line| {
+        let line = line.as_ref();
+        (line.command_is("354") && line.param(1).is_some_and(|found| found == nick))
+            .then(|| line.param(2))
+            .flatten()
+    });
+    match account {
+        None => Err(Error::TargetGone),
+        Some("0" | "*") => Ok(Account::LoggedOut),
+        Some(account) => Ok(Account::LoggedIn(
+            client.state().name_rules().account(account),
+        )),
+    }
+}
