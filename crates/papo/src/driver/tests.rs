@@ -3061,7 +3061,7 @@ async fn terminal_numerics_have_specific_connect_errors() {
         (
             ":solanum.example 465 papo-driver :\x07\x1b[31mK-lined: spam\x1b[0m\t\r\n",
             crate::ConnectErrorKind::Banned,
-            "the server banned this connection: K-lined: spam",
+            "the server banned this connection: K-lined: spam\t",
         ),
     ] {
         let (client_stream, mut server) = tokio::io::duplex(4096);

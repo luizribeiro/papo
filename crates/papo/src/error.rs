@@ -139,7 +139,7 @@ impl ConnectError {
     pub(crate) fn login(kind: ConnectErrorKind, message: impl Into<String>) -> Self {
         let message = message.into();
         let message = if displays_server_reason(kind) {
-            sanitize_server_reason(&message)
+            papo_proto::display_text(&message).into_owned()
         } else {
             message
         };
@@ -157,29 +157,6 @@ const fn displays_server_reason(kind: ConnectErrorKind) -> bool {
             | ConnectErrorKind::WebIrcRejected
             | ConnectErrorKind::Sasl
     )
-}
-
-fn sanitize_server_reason(reason: &str) -> String {
-    let mut clean = String::with_capacity(reason.len());
-    let mut escape = 0;
-    for character in reason.chars() {
-        escape = match (escape, character) {
-            (0, '\u{1b}') | (1, ' '..='/') => 1,
-            (0, '\u{009b}') | (1, '[') => 2,
-            (0, '\u{0090}' | '\u{009d}' | '\u{009e}' | '\u{009f}')
-            | (1, 'P' | 'X' | ']' | '^' | '_') => 3,
-            (0, character) if !character.is_control() => {
-                clean.push(character);
-                0
-            }
-            (2, '@'..='~') | (3, '\u{7}' | '\u{009c}') | (4, '\\') => 0,
-            (2, _) => 2,
-            (3 | 4, '\u{1b}') => 4,
-            (3 | 4, _) => 3,
-            _ => 0,
-        };
-    }
-    clean
 }
 
 #[derive(Debug, Error)]
@@ -373,18 +350,11 @@ impl ServerError {
 
 impl fmt::Display for ServerError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let description = papo_proto::display_text(&self.description);
         if self.command.is_empty() {
-            write!(
-                formatter,
-                "server refusal {}: {}",
-                self.code, self.description
-            )
+            write!(formatter, "server refusal {}: {description}", self.code)
         } else {
-            write!(
-                formatter,
-                "{} {}: {}",
-                self.command, self.code, self.description
-            )
+            write!(formatter, "{} {}: {description}", self.command, self.code)
         }
     }
 }
@@ -445,12 +415,24 @@ impl fmt::Display for DisconnectCause {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::ConnectionLost { message } => {
-                write!(formatter, "the connection was lost: {message}")
+                write!(
+                    formatter,
+                    "the connection was lost: {}",
+                    papo_proto::display_text(message)
+                )
             }
             Self::Connect(error) => error.fmt(formatter),
-            Self::Server { message } => write!(formatter, "the server disconnected: {message}"),
+            Self::Server { message } => write!(
+                formatter,
+                "the server disconnected: {}",
+                papo_proto::display_text(message)
+            ),
             Self::PingTimeout => formatter.write_str("the server stopped responding"),
-            Self::Protocol { message } => write!(formatter, "protocol failure: {message}"),
+            Self::Protocol { message } => write!(
+                formatter,
+                "protocol failure: {}",
+                papo_proto::display_text(message)
+            ),
             Self::SlowConsumer => formatter.write_str("the event consumer was too slow"),
             Self::Requested { .. } => formatter.write_str("the client disconnected"),
         }
@@ -879,6 +861,53 @@ mod tests {
         ] {
             let error = ConnectError::login(kind, reason);
             assert_eq!(error.to_string(), expected, "numeric {numeric}");
+        }
+    }
+
+    #[test]
+    fn server_and_disconnect_diagnostics_sanitize_display_but_keep_raw_text() {
+        let payload = "\x1b]52;c;cm0gLXJmIH4=\x07\x1b[2JClosing Link\rforged";
+        let standard = ServerError::standard("JOIN", "CHANNEL_FULL", payload);
+        assert_eq!(standard.description(), payload);
+        assert_eq!(
+            standard.to_string(),
+            "JOIN CHANNEL_FULL: Closing Linkforged"
+        );
+
+        let numeric = ServerError::from_numeric(404, ["papo", "#papo", payload]);
+        assert_eq!(numeric.description(), payload);
+        assert_eq!(
+            numeric.to_string(),
+            "server refusal 404: Closing Linkforged"
+        );
+
+        for (cause, expected) in [
+            (
+                DisconnectCause::ConnectionLost {
+                    message: payload.into(),
+                },
+                "the connection was lost: Closing Linkforged",
+            ),
+            (
+                DisconnectCause::Server {
+                    message: payload.into(),
+                },
+                "the server disconnected: Closing Linkforged",
+            ),
+            (
+                DisconnectCause::Protocol {
+                    message: payload.into(),
+                },
+                "protocol failure: Closing Linkforged",
+            ),
+        ] {
+            assert_eq!(cause.to_string(), expected);
+            match cause {
+                DisconnectCause::ConnectionLost { message }
+                | DisconnectCause::Server { message }
+                | DisconnectCause::Protocol { message } => assert_eq!(message, payload),
+                _ => unreachable!(),
+            }
         }
     }
 

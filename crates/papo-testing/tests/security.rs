@@ -65,6 +65,37 @@ async fn server_sized_tags_are_safe_to_format_through_events() {
 }
 
 #[tokio::test]
+async fn server_refusal_and_disconnect_text_is_safe_to_display() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://hostile.offline.test", "papo")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&[]).await;
+    connected(&mut events).await;
+
+    let join_client = client.clone();
+    let join = tokio::spawn(async move { join_client.join("#papo").await });
+    assert_eq!(wire.next_sent().await, "JOIN #papo");
+    wire.server("FAIL JOIN CHANNEL_FULL #papo :\x1b]0;owned\x07\x1b[2Jfull")
+        .await;
+    let error = join.await.unwrap().unwrap_err();
+    assert_eq!(error.to_string(), "JOIN CHANNEL_FULL: full");
+    let papo::Error::Server(server) = error else {
+        panic!("expected server refusal")
+    };
+    assert_eq!(server.description(), "\x1b]0;owned\x07\x1b[2Jfull");
+
+    wire.server("ERROR :\x1b]52;c;cm0gLXJmIH4=\x07Closing Link")
+        .await;
+    let disconnected = next_login_disconnect(&mut events).await;
+    assert_eq!(
+        disconnected.to_string(),
+        "the server rejected the connection: Closing Link"
+    );
+}
+
+#[tokio::test]
 async fn bare_dotted_monitor_entry_reports_online_without_panicking() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("irc://hostile.offline.test", "papo")

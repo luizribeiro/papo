@@ -76,6 +76,9 @@
 "security::server_sized_tags_are_safe_to_format_through_events" = [
   "security.adv-16.infallible-line-formatting",
 ]
+"security::server_refusal_and_disconnect_text_is_safe_to_display" = [
+  "security.adv-21.safe-error-display",
+]
 "security::bare_dotted_monitor_entry_reports_online_without_panicking" = [
   "security.adv-17.monitor-user-source",
 ]
