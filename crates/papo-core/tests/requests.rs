@@ -759,6 +759,32 @@ fn matches_other_unlabelled_request_boundaries() {
 }
 
 #[test]
+fn unlabelled_list_overflow_finishes_with_the_literal_entry_limit() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    let id = session
+        .request_with_matcher(now, Line::new("LIST"), ResponseMatcher::List)
+        .unwrap();
+    for index in 0..10_001 {
+        session.handle_line(
+            now,
+            format!(":ergo.test 322 papo #channel-{index} 3 :[+nt] chat").as_bytes(),
+        );
+    }
+
+    let response = std::iter::from_fn(|| session.poll_event()).find_map(|event| match event {
+        Event::Response(response) if response.id == id => Some(response),
+        _ => None,
+    });
+    let response = response.expect("overflow must finish the request");
+    assert_eq!(
+        response.state_limit,
+        Some(papo_core::StateLimit::ListEntries)
+    );
+    assert_eq!(response.lines.len(), 10_000);
+}
+
+#[test]
 fn matches_unlabelled_membership_and_nick_actions() {
     let mut session = Session::new(Config::default().nick("papo"));
     assert_unlabelled(

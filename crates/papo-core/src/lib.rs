@@ -54,6 +54,7 @@ mod batch;
 #[cfg(feature = "unstable")]
 #[path = "unstable/bouncer.rs"]
 mod bouncer;
+mod bounded;
 pub mod cap;
 mod caps;
 mod channel_rename;
@@ -1219,6 +1220,13 @@ pub enum ResponseMatcher {
 }
 
 impl ResponseMatcher {
+    fn response_row_limit(&self) -> usize {
+        match self {
+            Self::ListMode { .. } => 1_000,
+            _ => 10_000,
+        }
+    }
+
     #[doc(hidden)]
     #[must_use]
     pub fn __kick(channel: String, nick: String) -> Self {
@@ -1235,18 +1243,6 @@ impl ResponseMatcher {
     #[must_use]
     pub fn __list_mode(channel: String, mode: ListMode) -> Self {
         Self::ListMode { channel, mode }
-    }
-
-    pub(crate) fn is_list_row(&self, message: &LineRef<'_>, mapping: Casemapping) -> bool {
-        let Self::ListMode { channel, mode } = self else {
-            return false;
-        };
-        let Command::Numeric(numeric) = message.command() else {
-            return false;
-        };
-        numeric.code() == mode.numerics().0
-            && Self::target_is(message, 1, channel, mapping)
-            && (*mode != ListMode::Quiet || message.param(2) == Some("q"))
     }
 
     fn standard_failure(message: &LineRef<'_>, command: &str) -> bool {
@@ -1508,7 +1504,7 @@ struct UnlabelledRequest {
     matcher: ResponseMatcher,
     fence: Option<String>,
     deferred: Option<WireLine>,
-    lines: Vec<Line>,
+    lines: bounded::BoundedCollection<Line>,
 }
 
 /// One channel reported by a `WHOIS` response.
@@ -3820,6 +3816,7 @@ impl Session {
         message: Line,
         matcher: ResponseMatcher,
     ) -> Result<RequestId, RequestError> {
+        let response_row_limit = matcher.response_row_limit();
         let who_sweep = match &matcher {
             ResponseMatcher::Who(channel)
                 if message.as_ref().command() == Command::Who
@@ -3851,7 +3848,7 @@ impl Session {
                     matcher,
                     fence: None,
                     deferred: None,
-                    lines: Vec::new(),
+                    lines: bounded::BoundedCollection::new(response_row_limit),
                 });
             }
             if let Some(channel) = who_sweep {
@@ -3893,7 +3890,7 @@ impl Session {
             matcher,
             fence: fence.clone(),
             deferred,
-            lines: Vec::new(),
+            lines: bounded::BoundedCollection::new(response_row_limit),
         });
         if let Some(message) = away_message {
             self.away_messages.insert(id, message);
@@ -5364,6 +5361,11 @@ mod tests {
     }
 
     #[test]
+    fn response_paths_use_the_bounded_collection() {
+        assert!(!include_str!("labels.rs").contains("request.lines.push("));
+    }
+
+    #[test]
     fn additional_connections_drop_one_connection_actions() {
         let mut config = Config::default()
             .nick("alice")
@@ -5445,7 +5447,7 @@ mod tests {
                 },
                 fence: None,
                 deferred: None,
-                lines: Vec::new(),
+                lines: crate::bounded::BoundedCollection::new(1_000),
             },
             UnlabelledRequest {
                 id: RequestId(42),
@@ -5456,7 +5458,7 @@ mod tests {
                 },
                 fence: None,
                 deferred: None,
-                lines: Vec::new(),
+                lines: crate::bounded::BoundedCollection::new(1_000),
             },
         ]);
 
@@ -5556,7 +5558,6 @@ mod tests {
         let line = |wire| LineRef::parse(wire).unwrap();
 
         let ban_row = line(":ergo.test 367 papo #papo{ *!*@gateway.example oper 1761048000");
-        assert!(ban.is_list_row(&ban_row, mapping));
         assert_eq!(ban.matches(&ban_row, mapping, "papo", &state), Some(false));
         for wire in [
             ":ergo.test 348 papo #papo{ *!*@staff.example oper 1761048000",
@@ -5564,7 +5565,6 @@ mod tests {
             ":ergo.test 482 papo #other :You're not a channel operator",
         ] {
             let message = line(wire);
-            assert!(!ban.is_list_row(&message, mapping), "accepted {wire}");
             assert_eq!(
                 ban.matches(&message, mapping, "papo", &state),
                 None,
@@ -5574,15 +5574,12 @@ mod tests {
 
         let wrong_quiet =
             line(":solanum.example 728 papo #papo{ b *!*@noisy.example oper 1761048000");
-        assert!(!quiet.is_list_row(&wrong_quiet, mapping));
         assert_eq!(quiet.matches(&wrong_quiet, mapping, "papo", &state), None);
         let quiet_end = line(":solanum.example 729 papo #papo{ q :End of channel quiet list");
-        assert!(!quiet.is_list_row(&quiet_end, mapping));
         assert_eq!(
             quiet.matches(&quiet_end, mapping, "papo", &state),
             Some(true)
         );
-        assert!(!ResponseMatcher::Ping("token".into()).is_list_row(&ban_row, mapping));
     }
 
     #[test]
