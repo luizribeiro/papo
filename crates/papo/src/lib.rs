@@ -220,7 +220,7 @@ pub use papo_core::cap::__is_known as __is_known_cap;
 #[doc(inline)]
 pub use papo_core::{
     Account, Away, Cap, Capabilities, Channel, Conversation, Feature, Member, ModeAction, ModeArg,
-    ModeChange, ModeValue, Rank, Typer, User,
+    ModeChange, ModeValue, Rank, Typer, Typers, User,
 };
 #[cfg(feature = "unstable")]
 pub use papo_core::{

@@ -44,6 +44,7 @@ pub use papo::Span
 pub use papo::StateLimit
 pub use papo::Style
 pub use papo::Typer
+pub use papo::Typers
 pub use papo::Typing
 pub use papo::Unsupported
 pub use papo::UnsupportedReason
@@ -2674,7 +2675,7 @@ pub fn papo::State::read_marker(&self, impl papo::AsConversation) -> core::optio
 pub fn papo::State::realname(&self) -> &str
 pub fn papo::State::same_list_entry(&self, &papo::Mask, impl core::convert::AsRef<str>) -> bool
 pub fn papo::State::supports(&self, papo::Feature) -> bool
-pub fn papo::State::typing(&self, impl papo::AsConversation) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Typer>
+pub fn papo::State::typing(&self, impl papo::AsConversation) -> papo::Typers<'_>
 pub fn papo::State::user(&self, impl papo::AsNick) -> core::option::Option<&papo::User>
 pub fn papo::State::user_modes(&self) -> impl core::iter::traits::iterator::Iterator<Item = char> + '_
 pub fn papo::State::username(&self) -> &str

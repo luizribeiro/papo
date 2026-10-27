@@ -137,7 +137,7 @@ pub use state::{Account, Away, Channel, Member, State, User};
 use sts::ConnectionSecurity;
 #[doc(hidden)]
 pub use typing::TypingTable;
-pub use typing::{Typer, TypingChanged, TypingReason};
+pub use typing::{Typer, Typers, TypingChanged, TypingReason};
 use welcome::WelcomeState;
 
 const MAX_INCOMING_LINE_LEN: usize = MAX_TAG_SECTION_LEN + MAX_LINE_LEN;

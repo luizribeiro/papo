@@ -301,13 +301,8 @@ impl State {
     /// Iterates over users currently typing in `conversation`, in start order.
     ///
     /// A typed conversation produced by another [`crate::Client`] produces an empty iterator.
-    pub fn typing(
-        &self,
-        conversation: impl crate::AsConversation,
-    ) -> impl Iterator<Item = &crate::Typer> {
-        self.resolve_conversation(conversation)
-            .into_iter()
-            .flat_map(|conversation| self.typing.get(&conversation))
+    pub fn typing(&self, conversation: impl crate::AsConversation) -> crate::Typers<'_> {
+        self.typing.get(self.resolve_conversation(conversation))
     }
 
     fn resolve_conversation(

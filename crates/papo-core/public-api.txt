@@ -2074,7 +2074,7 @@ pub fn papo_core::State::parse_target(&self, impl core::convert::AsRef<str>) -> 
 pub fn papo_core::State::read_marker(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::ReadMarker>
 pub fn papo_core::State::realname(&self) -> &str
 pub fn papo_core::State::same_list_entry(&self, &papo::Mask, impl core::convert::AsRef<str>) -> bool
-pub fn papo_core::State::typing<'a>(&'a self, &'a papo::Conversation) -> impl core::iter::traits::iterator::Iterator<Item = &'a papo_core::Typer>
+pub fn papo_core::State::typing(&self, &papo::Conversation) -> papo_core::Typers<'_>
 pub fn papo_core::State::user(&self, impl papo::AsNick) -> core::option::Option<&papo_core::User>
 pub fn papo_core::State::user_modes(&self) -> impl core::iter::traits::iterator::Iterator<Item = char> + '_
 pub fn papo_core::State::username(&self) -> &str
@@ -2136,6 +2136,17 @@ impl core::marker::Unpin for papo_core::Typer
 impl core::marker::UnsafeUnpin for papo_core::Typer
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Typer
 impl core::panic::unwind_safe::UnwindSafe for papo_core::Typer
+pub struct papo_core::Typers<'a>
+impl<'a> core::iter::traits::iterator::Iterator for papo_core::Typers<'a>
+pub type papo_core::Typers<'a>::Item = &'a papo_core::Typer
+pub fn papo_core::Typers<'a>::next(&mut self) -> core::option::Option<Self::Item>
+impl<'a> core::marker::Freeze for papo_core::Typers<'a>
+impl<'a> core::marker::Send for papo_core::Typers<'a>
+impl<'a> core::marker::Sync for papo_core::Typers<'a>
+impl<'a> core::marker::Unpin for papo_core::Typers<'a>
+impl<'a> core::marker::UnsafeUnpin for papo_core::Typers<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_core::Typers<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo_core::Typers<'a>
 #[non_exhaustive] pub struct papo_core::TypingChanged
 pub papo_core::TypingChanged::actor: alloc::string::String
 pub papo_core::TypingChanged::authorship: papo_core::Authorship

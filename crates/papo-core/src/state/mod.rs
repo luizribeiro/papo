@@ -29,7 +29,7 @@ use crate::{
     ReadMarker, Secret, Source, StateLimit, Subject, WhoOnJoin,
     conversation::{LineTarget, classify_target_with_names},
     monitor::Monitor,
-    typing::{Typer, TypingTable},
+    typing::{Typers, TypingTable},
 };
 #[cfg(feature = "unstable")]
 use crate::{BouncerNetwork, NetworkId, PersistenceSetting, PersistenceStatus, cap};
@@ -1275,8 +1275,8 @@ impl State {
     }
 
     /// Iterates over users currently typing in `conversation`, in start order.
-    pub fn typing<'a>(&'a self, conversation: &'a Conversation) -> impl Iterator<Item = &'a Typer> {
-        self.typing.get(conversation)
+    pub fn typing(&self, conversation: &Conversation) -> Typers<'_> {
+        self.typing.get(Some(conversation.clone()))
     }
 
     #[doc(hidden)]

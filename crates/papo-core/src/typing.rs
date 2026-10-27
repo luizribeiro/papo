@@ -110,6 +110,23 @@ pub struct TypingTable {
     deadlines: VecDeque<Deadline>,
 }
 
+/// An iterator over users typing in one conversation.
+pub struct Typers<'a> {
+    entries: std::collections::vec_deque::Iter<'a, (Conversation, Typer)>,
+    conversation: Option<Conversation>,
+}
+
+impl<'a> Iterator for Typers<'a> {
+    type Item = &'a Typer;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let conversation = self.conversation.as_ref()?;
+        self.entries
+            .find(|(candidate, _)| candidate == conversation)
+            .map(|(_, typer)| typer)
+    }
+}
+
 #[derive(Clone, Debug)]
 struct Deadline {
     conversation: Conversation,
@@ -134,15 +151,11 @@ impl TypingTable {
     }
 
     #[doc(hidden)]
-    pub fn get<'a>(
-        &'a self,
-        conversation: &Conversation,
-    ) -> impl Iterator<Item = &'a Typer> + use<'a> {
-        let conversation = conversation.clone();
-        self.entries
-            .iter()
-            .filter(move |(candidate, _)| candidate == &conversation)
-            .map(|(_, typer)| typer)
+    pub fn get(&self, conversation: Option<Conversation>) -> Typers<'_> {
+        Typers {
+            entries: self.entries.iter(),
+            conversation,
+        }
     }
 
     pub(crate) fn same_entries(&self, other: &Self) -> bool {
@@ -606,7 +619,10 @@ mod tests {
             ),
         ]);
 
-        let nicks: Vec<_> = table.get(&conversation).map(|typer| &typer.nick).collect();
+        let nicks: Vec<_> = table
+            .get(Some(conversation))
+            .map(|typer| &typer.nick)
+            .collect();
         assert_eq!(nicks, ["Alice", "carol"]);
     }
 }
