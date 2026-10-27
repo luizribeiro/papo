@@ -7871,6 +7871,135 @@ async fn resolved_send_suppression_is_own_scoped_and_one_shot() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn non_text_request_does_not_hold_an_own_line() {
+    let (mut server, client, mut events, driver) =
+        scripted(config().wanted_caps(["labeled-response"]));
+    let task = tokio::spawn(driver);
+    complete_connect_labelled(&mut server, &mut events).await;
+
+    let request =
+        tokio::spawn(async move { client.request_raw(crate::Line::new("MOTD")).await.unwrap() });
+    client_line(&mut server, b"@label=0 MOTD\r\n").await;
+    server_line(
+        &mut server,
+        b"@msgid=RfcBTzyxY120009 :papo-driver!other@session.example PRIVMSG #papo :from another device\r\n",
+    )
+    .await;
+    assert_eq!(
+        next_event(&mut events)
+            .await
+            .unwrap()
+            .as_message()
+            .unwrap()
+            .text,
+        "from another device"
+    );
+    server_line(&mut server, b"@label=0 :ergo.test ACK\r\n").await;
+    assert!(within(request).await.unwrap().is_empty());
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn raw_text_lines_reset_typing_only_for_their_target() {
+    let (mut server, client, mut events, driver) = scripted(config().wanted_caps(["message-tags"]));
+    let task = tokio::spawn(driver);
+    complete_connect_caps(&mut server, &mut events, "message-tags", "message-tags").await;
+
+    within(client.typing("#papo", Typing::Active))
+        .await
+        .unwrap();
+    client_line(&mut server, b"@+typing=active TAGMSG #papo\r\n").await;
+    within(client.send_raw(crate::Line::new("WHOIS").with_params(["emily"])))
+        .await
+        .unwrap();
+    client_line(&mut server, b"WHOIS emily\r\n").await;
+    within(client.typing("#papo", Typing::Active))
+        .await
+        .unwrap();
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), server.read_u8())
+            .await
+            .is_err()
+    );
+
+    for (line, expected) in [
+        (
+            crate::Line::new("PRIVMSG").with_params(["#papo", "release deployed"]),
+            b"PRIVMSG #papo :release deployed\r\n".as_slice(),
+        ),
+        (
+            crate::Line::new("NOTICE").with_params(["#papo", "release paused"]),
+            b"NOTICE #papo :release paused\r\n".as_slice(),
+        ),
+    ] {
+        within(client.send_raw(line)).await.unwrap();
+        client_line(&mut server, expected).await;
+        within(client.typing("#papo", Typing::Active))
+            .await
+            .unwrap();
+        client_line(&mut server, b"@+typing=active TAGMSG #papo\r\n").await;
+    }
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[test]
+fn resolved_send_identifiers_keep_the_latest_literal_capacity() {
+    let confirmations: Vec<_> = (0..1_025)
+        .map(|index| papo_core::SentInfo {
+            msgid: format!("RfcBTzyxY12{index:04}"),
+            server_time: None,
+        })
+        .collect();
+    let mut resolved = VecDeque::new();
+
+    super::remember_resolved_sent(&mut resolved, &confirmations);
+
+    assert_eq!(resolved.len(), 1_024);
+    assert_eq!(
+        resolved.front().map(String::as_str),
+        Some("RfcBTzyxY120001")
+    );
+    assert_eq!(resolved.back().map(String::as_str), Some("RfcBTzyxY121024"));
+}
+
+#[test]
+fn held_events_drop_the_oldest_and_reject_a_closed_receiver() {
+    let session = Session::new(config());
+    let channels = super::channels(1, &session);
+    channels.event_sink.receiver.finish_connecting();
+    let mut pending = VecDeque::new();
+    for text in ["first deployment", "second deployment"] {
+        assert!(super::hold_event(
+            &channels.event_sink,
+            &mut pending,
+            Event::Message(crate::__testing::message(None, "#papo", text, false)),
+        ));
+    }
+    assert_eq!(pending.len(), 1);
+    assert_eq!(
+        pending.front().unwrap().as_message().unwrap().text,
+        "second deployment"
+    );
+    assert_eq!(channels.event_sink.dropped.load(Ordering::Relaxed), 1);
+
+    channels.events.receiver.inner.lock().unwrap().close();
+    assert!(!super::hold_event(
+        &channels.event_sink,
+        &mut pending,
+        Event::Message(crate::__testing::message(
+            None,
+            "#papo",
+            "third deployment",
+            false,
+        )),
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn private_reply_keeps_channel_context() {
     assert_reply_wire(
         true,
