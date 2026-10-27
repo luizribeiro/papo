@@ -611,6 +611,46 @@ async fn private_reply_refuses_a_different_known_account() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn own_private_message_uses_the_peers_known_account_guard() {
+    let caps = [
+        "account-tag",
+        "draft/message-redaction",
+        "extended-join",
+        "labeled-response",
+    ];
+    let (mut server, client, mut events, driver) = scripted(config().wanted_caps(caps));
+    let task = tokio::spawn(driver);
+    complete_connect_caps(
+        &mut server,
+        &mut events,
+        "account-tag draft/message-redaction extended-join labeled-response",
+        "account-tag draft/message-redaction extended-join labeled-response",
+    )
+    .await;
+    server_line(
+        &mut server,
+        b":papo-driver!p@localhost JOIN #review papo :Papo Driver\r\n:alice!~alice@cloak.example JOIN #review alice :Alice Example\r\n@account=papo;msgid=Ergo8ZZ9 :papo-driver!p@localhost PRIVMSG alice :typo here\r\n",
+    )
+    .await;
+    assert!(matches!(events.next().await, Some(Event::Joined(_))));
+    assert!(matches!(events.next().await, Some(Event::Joined(_))));
+    let message = events
+        .next()
+        .await
+        .and_then(|event| event.as_own_message().cloned())
+        .expect("expected own message");
+
+    let sender = client.clone();
+    let redacted = tokio::spawn(async move { sender.redact(&message, "corrected").await });
+    client_line(&mut server, b"@label=0 REDACT alice Ergo8ZZ9 corrected\r\n").await;
+    server_line(&mut server, b"@label=0 :ergo.test ACK\r\n").await;
+    assert!(within(redacted).await.unwrap().is_ok());
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn private_reply_sends_when_the_recipient_is_unknown() {
     let (mut server, client, mut events, driver) = scripted(config());
     let task = tokio::spawn(driver);

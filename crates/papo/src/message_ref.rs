@@ -23,14 +23,18 @@ struct ReceiptIdentity {
 impl Receipt {
     pub(crate) fn new(
         actor: Source,
-        _authorship: Authorship,
+        authorship: Authorship,
         conversation: &Conversation,
         token: Option<papo_core::ReplyToken>,
         address: String,
     ) -> Self {
-        let actor_account = actor
-            .user()
-            .map_or(Account::Unknown, |user| user.account().clone());
+        let actor_account = if authorship == Authorship::Own {
+            Account::Unknown
+        } else {
+            actor
+                .user()
+                .map_or(Account::Unknown, |user| user.account().clone())
+        };
         let origin = conversation_origin(conversation);
         let recipient = match conversation {
             Conversation::Private(nick) => Some(nick.clone()),
@@ -74,13 +78,9 @@ impl Receipt {
         msgids: Vec<MessageId>,
         channel_context: Option<ChannelName>,
     ) -> MessageRef {
-        let account = self.identity.actor.user().map_or_else(
-            || self.identity.actor_account.clone(),
-            |user| user.account().clone(),
-        );
         let recipient = self.identity.recipient.as_ref().map(|nick| RecipientGuard {
             nick: nick.clone(),
-            account,
+            account: self.identity.actor_account.clone(),
             receipt: self.identity.token,
         });
         MessageRef::new(
