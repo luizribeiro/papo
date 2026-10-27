@@ -837,6 +837,51 @@ mod tests {
         assert_eq!(timed_out.kind(), ConnectErrorKind::TimedOut);
     }
 
+    #[test]
+    fn hostile_terminal_numeric_reasons_strip_control_strings() {
+        for (numeric, kind, reason, expected) in [
+            (
+                465,
+                ConnectErrorKind::Banned,
+                "\x1b]8;;https://malicious.example/ban\x07K-lined: open proxy\x1b]8;;\x07",
+                "the server banned this connection: K-lined: open proxy",
+            ),
+            (
+                904,
+                ConnectErrorKind::Sasl,
+                "\x1b]52;c;Y29ycmVjdCBob3JzZSBiYXR0ZXJ5IHN0YXBsZQ==\x1b\\SASL credentials rejected",
+                "SASL authentication failed: SASL credentials rejected",
+            ),
+            (
+                465,
+                ConnectErrorKind::Banned,
+                "\x1bP1;2;3|terminal payload\x1b\\K-lined: compromised host",
+                "the server banned this connection: K-lined: compromised host",
+            ),
+            (
+                465,
+                ConnectErrorKind::Banned,
+                "\x1b_private command\x1b\\\x1b^privacy message\x1b\\\x1bXsos message\x1b\\K-lined: abusive client",
+                "the server banned this connection: K-lined: abusive client",
+            ),
+            (
+                904,
+                ConnectErrorKind::Sasl,
+                "\u{0090}device control\u{009c}\u{009d}clipboard\u{0007}\u{009e}privacy\u{009c}\u{009f}application\u{009c}Account suspended",
+                "SASL authentication failed: Account suspended",
+            ),
+            (
+                904,
+                ConnectErrorKind::Sasl,
+                "SASL authentication failed\x1b]unterminated clipboard payload",
+                "SASL authentication failed: SASL authentication failed",
+            ),
+        ] {
+            let error = ConnectError::login(kind, reason);
+            assert_eq!(error.to_string(), expected, "numeric {numeric}");
+        }
+    }
+
     #[cfg(tls)]
     #[test]
     fn late_tls_configuration_errors_do_not_become_other() {
