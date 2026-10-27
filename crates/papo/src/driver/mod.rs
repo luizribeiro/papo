@@ -23,7 +23,7 @@ use std::{
     io,
     pin::Pin,
     sync::{
-        Arc, RwLock,
+        Arc, Mutex, RwLock,
         atomic::{AtomicBool, Ordering},
     },
     task,
@@ -317,6 +317,35 @@ struct Quit {
     results: Vec<oneshot::Sender<Result<(), Error>>>,
 }
 
+struct EventReceiver {
+    inner: Mutex<mpsc::Receiver<Event>>,
+}
+
+impl EventReceiver {
+    fn poll_recv(&self, context: &mut task::Context<'_>) -> task::Poll<Option<Event>> {
+        self.inner
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .poll_recv(context)
+    }
+
+    #[allow(dead_code)]
+    fn len(&self) -> usize {
+        self.inner
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .len()
+    }
+
+    #[allow(dead_code)]
+    fn max_capacity(&self) -> usize {
+        self.inner
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .max_capacity()
+    }
+}
+
 #[derive(Clone, Default)]
 struct TestHooks {
     #[cfg(test)]
@@ -415,7 +444,7 @@ impl From<&str> for Autojoin {
 /// [`Builder::event_capacity`](crate::Builder::event_capacity) to avoid this.
 pub struct Events {
     _commands: mpsc::Sender<Command>,
-    receiver: mpsc::Receiver<Event>,
+    receiver: Arc<EventReceiver>,
     disconnected: Option<oneshot::Receiver<VecDeque<Event>>>,
     pending: VecDeque<Event>,
     #[allow(dead_code)]
@@ -602,6 +631,9 @@ impl Driver {
 pub(crate) fn channels(capacity: usize, session: &Session) -> Channels {
     let (command_sender, command_receiver) = mpsc::channel(DEFAULT_CHANNEL_CAPACITY);
     let (event_sender, event_receiver) = mpsc::channel(capacity);
+    let event_receiver = Arc::new(EventReceiver {
+        inner: Mutex::new(event_receiver),
+    });
     let (disconnect_sender, disconnect_receiver) = oneshot::channel();
     let connected = Arc::new(AtomicBool::new(false));
     let test_hooks = TestHooks::default();
