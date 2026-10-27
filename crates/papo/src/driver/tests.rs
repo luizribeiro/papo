@@ -8263,7 +8263,7 @@ async fn session_deadline_sends_keepalive_ping() {
     assert_eq!(&ping, b"PING papo-0\r\n");
     tokio::time::advance(Duration::from_secs(90)).await;
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::PingTimeout,
             reconnect_in: None,
@@ -8285,7 +8285,7 @@ async fn ping_timeout_after_welcome_retries_normally() {
     client_line(&mut server, b"PING papo-0\r\n").await;
     tokio::time::advance(Duration::from_secs(90)).await;
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::PingTimeout,
             reconnect_in: Some(delay),
@@ -8328,7 +8328,10 @@ async fn client_reads_owned_state_snapshots() {
         b":ergo.test NOTICE papo-driver :maintenance soon\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::ServerNotice(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::ServerNotice(_))
+    ));
     assert!(Arc::ptr_eq(&unchanged, &client.state()));
 
     server_line(
@@ -8336,7 +8339,10 @@ async fn client_reads_owned_state_snapshots() {
         b":papo-driver!papo@localhost PART #Papo :leaving\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Parted(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Parted(_))
+    ));
     assert!(!Arc::ptr_eq(&unchanged, &client.state()));
     assert!(client.state().channel("#papo").is_none());
 
@@ -8373,7 +8379,7 @@ async fn public_state_accessors_report_the_registered_session() {
     server_line(&mut server, b":ergo.test 900 papo-driver papo-driver!papo@localhost emily :You are now logged in as emily\r\n:ergo.test 903 papo-driver :SASL authentication successful\r\n").await;
     client_line(&mut server, b"CAP END\r\n").await;
     server_line(&mut server, b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::Connected(_))));
+    assert_connected(&mut events).await;
     assert_eq!(client.state().away(), &crate::Away::Present);
     server_line(&mut server, b":ergo.test 005 papo-driver CASEMAPPING=ascii CHANTYPES=# PREFIX=(ov)@+ MONITOR=100 NICKLEN=27 BOUNCER_NETID=42 draft/FILEHOST=https://files.example.net/upload :are supported\r\n").await;
 
@@ -8466,12 +8472,18 @@ async fn every_state_change_replaces_the_snapshot() {
     let mut previous = client.state();
 
     server_line(&mut server, b":papo-driver!papo@localhost JOIN #Papo\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::Joined(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Joined(_))
+    ));
     previous = changed_snapshot(&client, &previous, "JOIN");
     assert!(previous.channel("#papo").is_some());
 
     server_line(&mut server, b":ergo.test MODE papo-driver +i\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::ModeChanged(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::ModeChanged(_))
+    ));
     previous = changed_snapshot(&client, &previous, "MODE");
     assert_eq!(previous.user_modes().collect::<Vec<_>>(), ['i']);
 
@@ -8480,7 +8492,10 @@ async fn every_state_change_replaces_the_snapshot() {
         b":emily!em@staff.example TOPIC #Papo :Release planning\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::TopicChanged(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::TopicChanged(_))
+    ));
     previous = changed_snapshot(&client, &previous, "TOPIC");
     assert_eq!(
         previous.channel("#papo").unwrap().topic(),
@@ -8493,7 +8508,7 @@ async fn every_state_change_replaces_the_snapshot() {
     )
     .await;
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::AccountChanged(_))
     ));
     previous = changed_snapshot(&client, &previous, "ACCOUNT");
@@ -8507,7 +8522,10 @@ async fn every_state_change_replaces_the_snapshot() {
         b":papo-driver!papo@localhost AWAY :Gone to lunch\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::AwayChanged(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::AwayChanged(_))
+    ));
     previous = changed_snapshot(&client, &previous, "AWAY");
     assert_eq!(
         previous.user("papo-driver").unwrap().away(),
@@ -8519,7 +8537,10 @@ async fn every_state_change_replaces_the_snapshot() {
         b":papo-driver!papo@localhost NICK papo-reader\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::NickChanged(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::NickChanged(_))
+    ));
     previous = changed_snapshot(&client, &previous, "NICK");
     assert_eq!(previous.nick(), "papo-reader");
 
@@ -8528,13 +8549,16 @@ async fn every_state_change_replaces_the_snapshot() {
         b":ergo.test 730 papo-reader :alice!~alice@cloak.example\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::MonitorOnline(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::MonitorOnline(_))
+    ));
     previous = changed_snapshot(&client, &previous, "MONITOR online");
     assert_eq!(previous.monitor_online().count(), 1);
 
     server_line(&mut server, b":ergo.test 731 papo-reader :alice\r\n").await;
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::MonitorOffline(_))
     ));
     previous = changed_snapshot(&client, &previous, "MONITOR offline");
@@ -8554,7 +8578,10 @@ async fn every_state_change_replaces_the_snapshot() {
         b":papo-reader!papo@localhost PART #Papo :Leaving\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Parted(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Parted(_))
+    ));
     let current = changed_snapshot(&client, &previous, "PART");
     assert!(current.channel("#papo").is_none());
 
@@ -8585,12 +8612,12 @@ async fn client_exposes_capability_aliases_and_casemapping() {
     )
     .await;
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::CasemappingChanged(changed))
             if changed.old == crate::Casemapping::Rfc1459
                 && changed.new == crate::Casemapping::Ascii
     ));
-    assert!(matches!(events.next().await, Some(Event::Connected(_))));
+    assert_connected(&mut events).await;
 
     let state = client.state();
     assert!(state.caps().contains_key(&crate::cap::NO_IMPLICIT_NAMES));
@@ -8628,7 +8655,7 @@ async fn pre_isupport_account_does_not_match_a_bracket_variant_under_ascii() {
     server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
     client_line(&mut server, b"CAP END\r\n").await;
     server_line(&mut server, b":ergo.test 005 papo-driver CASEMAPPING=ascii :are supported\r\n:ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
-    while !matches!(events.next().await, Some(Event::Connected(_))) {}
+    while !matches!(next_active_event(&mut events).await, Event::Connected(_)) {}
 
     let confirmed = client.state().name_rules().account("{ops}");
     assert_ne!(provisional, confirmed);
@@ -8652,7 +8679,7 @@ async fn received_nick_length_is_unbounded_without_an_advertised_limit() {
     .await;
 
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Message(message)) if message.actor.nick() == "alexander_the_great"
     ));
 
@@ -8670,7 +8697,10 @@ async fn casemapping_change_refolds_the_state_snapshot() {
         b":papo-driver!papo@localhost JOIN #Papo[dev]\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Joined(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Joined(_))
+    ));
     let rfc1459 = client.state();
     assert!(rfc1459.channel("#papo{dev}").is_some());
 
@@ -8680,7 +8710,7 @@ async fn casemapping_change_refolds_the_state_snapshot() {
     )
     .await;
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::CasemappingChanged(changed))
             if changed.old == crate::Casemapping::Rfc1459
                 && changed.new == crate::Casemapping::Ascii
@@ -8708,12 +8738,18 @@ async fn monitor_offline_snapshot_keeps_other_online_users() {
         b":ergo.test 730 papo-driver :alice!~alice@cloak.example,bob!bob@users.example\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::MonitorOnline(_))));
-    assert!(matches!(events.next().await, Some(Event::MonitorOnline(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::MonitorOnline(_))
+    ));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::MonitorOnline(_))
+    ));
 
     server_line(&mut server, b":ergo.test 731 papo-driver :alice\r\n").await;
     assert!(
-        matches!(events.next().await, Some(Event::MonitorOffline(offline)) if offline.subject == "alice")
+        matches!(next_event(&mut events).await, Some(Event::MonitorOffline(offline)) if offline.subject == "alice")
     );
     let online: Vec<_> = client
         .state()
@@ -8737,7 +8773,10 @@ async fn disconnect_clears_monitor_presence_snapshot() {
         b":ergo.test 730 papo-driver :alice!~alice@cloak.example\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::MonitorOnline(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::MonitorOnline(_))
+    ));
     assert_eq!(client.state().monitor_online().count(), 1);
 
     within(server.shutdown()).await.unwrap();
