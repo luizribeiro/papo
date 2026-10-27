@@ -64,7 +64,7 @@ async fn connect_line_lengths(s: Scenario) -> papo_testing::Result<()> {
     }
 
     let longest = longest.ok_or_else(|| io::Error::other("server sent no lines"))?;
-    s.record_evidence(&format!("longest S: {}", format_measurement(&longest)));
+    s.record_evidence(&format_evidence(&longest));
     if let Some(oversized) = oversized {
         return Err(io::Error::other(format!("server sent oversized line: {oversized}")).into());
     }
@@ -78,7 +78,11 @@ fn open_connection(s: &Scenario) -> io::Result<BufReader<TcpStream>> {
     let mut stream = TcpStream::connect(s.server.plaintext_addr())?;
     stream.set_read_timeout(Some(Duration::from_secs(10)))?;
     stream.set_write_timeout(Some(Duration::from_secs(10)))?;
-    let nick = papo_test_server::unique("line-length");
+    let unique = papo_test_server::unique("line-length-evidence-probe-padding");
+    let nick = format!("l{}", &unique[unique.len() - 29..]);
+    if nick.len() != 30 {
+        return Err(io::Error::other("line-length probe nick is not 30 bytes"));
+    }
     write!(stream, "CAP LS 302\r\n")?;
     if let Some(bouncer) = s.server.bouncer() {
         write!(stream, "PASS {}\r\n", bouncer.password())?;
@@ -170,11 +174,18 @@ fn format_measurement(measured: &Measurement) -> String {
     )
 }
 
+fn format_evidence(measured: &Measurement) -> String {
+    format!(
+        "longest S command: {}; within 8191-byte tag section and 512-byte line limits",
+        measured.command
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use std::io::{BufReader, Cursor};
 
-    use super::{command_parts, is_cap_ls, measure, read_bounded_line};
+    use super::{command_parts, format_evidence, is_cap_ls, measure, read_bounded_line};
 
     fn padded_line(prefix: &str, length: usize) -> String {
         format!("{prefix}{}\r\n", "x".repeat(length - 2 - prefix.len()))
@@ -192,6 +203,10 @@ mod tests {
         assert_eq!(measured.line, 512);
         assert_eq!(measured.command, "CAP");
         assert!(measured.fits_wire_limits());
+        assert_eq!(
+            format_evidence(&measured),
+            "longest S command: CAP; within 8191-byte tag section and 512-byte line limits"
+        );
     }
 
     #[test]
