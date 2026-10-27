@@ -2779,8 +2779,6 @@ pub struct ReceivedLine {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct ReplyToken {
     origin: papo_proto::Origin,
-    epoch: u64,
-    sequence: u64,
     identity: Option<ReplyIdentity>,
 }
 
@@ -5311,8 +5309,6 @@ mod tests {
             channel_context: None,
             reply_token: ReplyToken {
                 origin: papo_proto::Origin::NONE,
-                epoch: 0,
-                sequence: 0,
                 identity: None,
             },
         }

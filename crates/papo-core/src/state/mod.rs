@@ -38,15 +38,7 @@ const WHOX_FIELDS: &str = "%tcuhnfar,152";
 const WHOX_TOKEN: &str = "152";
 const MAX_LAST_SEEN_TARGETS: usize = 1_000;
 const MAX_METADATA_TARGETS: usize = 10_000;
-const MAX_RECENT_DEPARTURES: usize = 256;
 pub(crate) const MAX_METADATA_KEYS_PER_TARGET: usize = 10_000;
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct Departure {
-    sequence: u64,
-    old: String,
-    new: Option<String>,
-}
 /// The known channel and user state for a session.
 #[derive(Debug, Eq, PartialEq)]
 pub struct State {
@@ -64,7 +56,6 @@ pub struct State {
     last_seen_order: VecDeque<String>,
     reply_epoch: u64,
     departure_sequence: u64,
-    recent_departures: VecDeque<Departure>,
     max_channels: usize,
     max_members_per_channel: usize,
     channel_limit_warned: bool,
@@ -99,7 +90,6 @@ impl Clone for State {
             last_seen_order: self.last_seen_order.clone(),
             reply_epoch: self.reply_epoch,
             departure_sequence: self.departure_sequence,
-            recent_departures: self.recent_departures.clone(),
             max_channels: self.max_channels,
             max_members_per_channel: self.max_members_per_channel,
             channel_limit_warned: self.channel_limit_warned,
@@ -425,7 +415,6 @@ impl State {
             last_seen_order: VecDeque::new(),
             reply_epoch: 0,
             departure_sequence: 0,
-            recent_departures: VecDeque::new(),
             max_channels: config.max_channels,
             max_members_per_channel: config.max_members_per_channel,
             channel_limit_warned: false,
@@ -478,8 +467,6 @@ impl State {
     pub fn __reply_token(&self) -> crate::ReplyToken {
         crate::ReplyToken {
             origin: self.casemapping.origin(),
-            epoch: self.reply_epoch,
-            sequence: self.departure_sequence,
             identity: None,
         }
     }
@@ -490,8 +477,6 @@ impl State {
     pub fn __reply_token_for(&self, target: &str) -> crate::ReplyToken {
         crate::ReplyToken {
             origin: self.casemapping.origin(),
-            epoch: self.reply_epoch,
-            sequence: self.departure_sequence,
             identity: self.user(target).map(|user| crate::ReplyIdentity {
                 epoch: user.reply_epoch,
                 sequence: user.departure_sequence,
@@ -511,18 +496,6 @@ impl State {
         )
     }
 
-    pub(super) fn record_departure(&mut self, old: &str, new: Option<&str>) {
-        self.departure_sequence = self.departure_sequence.wrapping_add(1);
-        if self.recent_departures.len() == MAX_RECENT_DEPARTURES {
-            self.recent_departures.pop_front();
-        }
-        self.recent_departures.push_back(Departure {
-            sequence: self.departure_sequence,
-            old: old.to_owned(),
-            new: new.map(str::to_owned),
-        });
-    }
-
     #[doc(hidden)]
     #[must_use]
     pub fn __recipient_changed(&self, target: &str, token: crate::ReplyToken) -> bool {
@@ -534,35 +507,7 @@ impl State {
                 expected.epoch != user.reply_epoch || expected.sequence != user.departure_sequence
             });
         }
-        if token.epoch != self.reply_epoch || self.user(target).is_none() {
-            return false;
-        }
-        if self
-            .recent_departures
-            .front()
-            .is_some_and(|first| token.sequence.wrapping_add(1) < first.sequence)
-        {
-            return false;
-        }
-        let mut sender = target.to_owned();
-        let mut present = true;
-        let mut departed = false;
-        for change in self
-            .recent_departures
-            .iter()
-            .filter(|change| change.sequence > token.sequence)
-        {
-            if present && crate::names_equal(self.casemapping.casemapping(), &change.old, &sender) {
-                departed = true;
-                if let Some(new) = &change.new {
-                    sender.clone_from(new);
-                } else {
-                    present = false;
-                }
-            }
-        }
-        departed
-            && (!present || !crate::names_equal(self.casemapping.casemapping(), &sender, target))
+        false
     }
 
     pub(crate) fn sync_monitored(&mut self, monitor: &Monitor, isupport: &Isupport) {
@@ -783,7 +728,6 @@ impl State {
                     .map(|user| user.channels.iter().cloned().collect())
                     .unwrap_or_default()
             };
-            self.record_departure(nick, Some(new_nick));
             if !crate::names_equal(mapping, nick, new_nick) {
                 self.prepare_identity_arrival(new_nick);
             }
