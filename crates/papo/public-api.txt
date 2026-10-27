@@ -2661,15 +2661,15 @@ pub fn papo::State::away(&self) -> &papo::Away
 pub const fn papo::State::caps(&self) -> &papo::Capabilities
 pub fn papo::State::casemapping(&self) -> papo::Casemapping
 pub fn papo::State::channel(&self, impl papo::AsChannel) -> core::option::Option<&papo::Channel>
-pub fn papo::State::channels(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Channel>
+pub fn papo::State::channels(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &papo::Channel>
 pub fn papo::State::features(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo::Feature> + '_
 pub fn papo::State::host(&self) -> core::option::Option<&str>
 pub const fn papo::State::is_connected(&self) -> bool
 pub fn papo::State::isupport(&self) -> &papo::Isupport
 pub fn papo::State::metadata(&self, impl papo::AsConversation) -> core::option::Option<&std::collections::hash::map::HashMap<papo::MetadataKey, papo::MetadataValue>>
-pub fn papo::State::metadata_subscriptions(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::MetadataKey>
+pub fn papo::State::metadata_subscriptions(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &papo::MetadataKey>
 pub fn papo::State::monitor_online(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::User>
-pub fn papo::State::monitored(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Nick>
+pub fn papo::State::monitored(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &papo::Nick>
 pub const fn papo::State::name_rules(&self) -> papo::NameRules<'_>
 pub fn papo::State::nick(&self) -> &papo::Nick
 pub fn papo::State::read_marker(&self, impl papo::AsConversation) -> core::option::Option<papo::ReadMarker>

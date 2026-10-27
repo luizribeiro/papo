@@ -218,7 +218,7 @@ impl State {
     }
 
     /// Iterates over joined channels in unspecified order.
-    pub fn channels(&self) -> impl Iterator<Item = &Channel> {
+    pub fn channels(&self) -> impl ExactSizeIterator<Item = &Channel> {
         self.core.channels()
     }
 
@@ -271,7 +271,7 @@ impl State {
     }
 
     /// Returns metadata keys confirmed in the server-side subscription list.
-    pub fn metadata_subscriptions(&self) -> impl Iterator<Item = &crate::MetadataKey> {
+    pub fn metadata_subscriptions(&self) -> impl ExactSizeIterator<Item = &crate::MetadataKey> {
         self.core.metadata_subscriptions()
     }
 
@@ -294,7 +294,7 @@ impl State {
     ///
     /// The iterator includes nicknames that the server rejected because its
     /// monitor list was full.
-    pub fn monitored(&self) -> impl Iterator<Item = &Nick> {
+    pub fn monitored(&self) -> impl ExactSizeIterator<Item = &Nick> {
         self.core.monitored()
     }
 

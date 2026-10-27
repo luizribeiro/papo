@@ -1184,7 +1184,7 @@ impl State {
     }
 
     /// Iterates over joined channels in unspecified order.
-    pub fn channels(&self) -> impl Iterator<Item = &Channel> {
+    pub fn channels(&self) -> impl ExactSizeIterator<Item = &Channel> {
         self.channels.values().map(Arc::as_ref)
     }
 
@@ -1237,7 +1237,7 @@ impl State {
     }
 
     /// Returns metadata keys confirmed in the server-side subscription list.
-    pub fn metadata_subscriptions(&self) -> impl Iterator<Item = &MetadataKey> {
+    pub fn metadata_subscriptions(&self) -> impl ExactSizeIterator<Item = &MetadataKey> {
         self.metadata_subscriptions.iter()
     }
 
@@ -1270,7 +1270,7 @@ impl State {
     ///
     /// The iterator includes nicknames that the server rejected because its
     /// monitor list was full.
-    pub fn monitored(&self) -> impl Iterator<Item = &Nick> {
+    pub fn monitored(&self) -> impl ExactSizeIterator<Item = &Nick> {
         self.monitored.iter()
     }
 
@@ -1494,7 +1494,7 @@ impl Channel {
     }
 
     /// Iterates over channel members in unspecified order.
-    pub fn members(&self) -> impl Iterator<Item = &Member> {
+    pub fn members(&self) -> impl ExactSizeIterator<Item = &Member> {
         self.members.values()
     }
 
@@ -1619,7 +1619,7 @@ impl User {
     }
 
     /// Iterates over shared channel names in unspecified order.
-    pub fn channels(&self) -> impl Iterator<Item = &ChannelName> {
+    pub fn channels(&self) -> impl ExactSizeIterator<Item = &ChannelName> {
         self.channels.iter()
     }
 }

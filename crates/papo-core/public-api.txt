@@ -1429,7 +1429,7 @@ pub const fn papo_core::Channel::is_synced(&self) -> bool
 pub const fn papo_core::Channel::key(&self) -> core::option::Option<&papo::Secret>
 pub fn papo_core::Channel::list(&self, papo_core::ListMode) -> core::option::Option<&[papo_core::ModeListEntry]>
 pub fn papo_core::Channel::member(&self, impl papo::AsNick) -> core::option::Option<&papo_core::Member>
-pub fn papo_core::Channel::members(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::Member>
+pub fn papo_core::Channel::members(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &papo_core::Member>
 pub fn papo_core::Channel::mode(&self, char) -> core::option::Option<papo_core::ModeValue<'_>>
 pub fn papo_core::Channel::modes(&self) -> impl core::iter::traits::iterator::Iterator<Item = (char, papo_core::ModeValue<'_>)>
 pub fn papo_core::Channel::name(&self) -> &papo::ChannelName
@@ -2060,15 +2060,15 @@ pub fn papo_core::State::account(&self) -> &papo_core::Account
 pub fn papo_core::State::away(&self) -> &papo_core::Away
 pub const fn papo_core::State::casemapping(&self) -> papo::Casemapping
 pub fn papo_core::State::channel(&self, impl papo::AsChannel) -> core::option::Option<&papo_core::Channel>
-pub fn papo_core::State::channels(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::Channel>
+pub fn papo_core::State::channels(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &papo_core::Channel>
 pub fn papo_core::State::conversation(&self, impl core::convert::AsRef<str>) -> core::result::Result<papo::Conversation, papo::InvalidIdentifier>
 pub fn papo_core::State::host(&self) -> core::option::Option<&str>
 pub fn papo_core::State::last_seen(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::LastSeen>
 pub fn papo_core::State::metadata(&self, impl core::convert::AsRef<str>) -> core::option::Option<&std::collections::hash::map::HashMap<papo::MetadataKey, papo_core::MetadataValue>>
-pub fn papo_core::State::metadata_subscriptions(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::MetadataKey>
+pub fn papo_core::State::metadata_subscriptions(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &papo::MetadataKey>
 pub fn papo_core::State::metadata_target_count(&self) -> usize
 pub fn papo_core::State::monitor_online(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::User>
-pub fn papo_core::State::monitored(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Nick>
+pub fn papo_core::State::monitored(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &papo::Nick>
 pub fn papo_core::State::nick(&self) -> &papo::Nick
 pub fn papo_core::State::parse_target(&self, impl core::convert::AsRef<str>) -> core::result::Result<(core::option::Option<papo::isupport::Prefix>, papo::Conversation), papo::InvalidIdentifier>
 pub fn papo_core::State::read_marker(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::ReadMarker>
@@ -2200,7 +2200,7 @@ pub struct papo_core::User
 impl papo_core::User
 pub const fn papo_core::User::account(&self) -> &papo_core::Account
 pub const fn papo_core::User::away(&self) -> &papo_core::Away
-pub fn papo_core::User::channels(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::ChannelName>
+pub fn papo_core::User::channels(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &papo::ChannelName>
 pub fn papo_core::User::host(&self) -> core::option::Option<&str>
 pub const fn papo_core::User::is_bot(&self) -> core::option::Option<bool>
 pub fn papo_core::User::nick(&self) -> &papo::Nick

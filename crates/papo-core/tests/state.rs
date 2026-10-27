@@ -500,6 +500,11 @@ fn read_models_expose_typed_identifiers() {
             };
             let account: &AccountName = account;
 
+            assert_eq!(session.state().channels().len(), 1);
+            assert_eq!(channel.members().len(), 2);
+            assert_eq!(user.channels().len(), 1);
+            assert_eq!(session.state().monitored().len(), 0);
+            assert_eq!(session.state().metadata_subscriptions().len(), 0);
             assert_eq!(own_nick, "emily");
             assert_eq!(channel_name, "#papo");
             assert_eq!(member_nick, "dan");
