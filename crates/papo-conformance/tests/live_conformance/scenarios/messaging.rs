@@ -99,6 +99,29 @@ async fn echo_message(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// peer display text removes terminal controls while retaining raw IRC text
+#[scenario(
+    requires(caps = ["labeled-response"]),
+    covers = ["security.adv-22.display-text-controls"]
+)]
+async fn display_text_controls(s: Scenario) -> papo_testing::Result<()> {
+    let (alice, mut bob, channel) = fixture_pair(&s).await?;
+    let raw_text = "\x1b[2Jhello";
+    let line = papo_proto::LineRef::parse(&format!("PRIVMSG {channel} :{raw_text}"))?.to_owned();
+
+    alice.send_raw(line).await?;
+    let message = bob
+        .wait_for(|event| {
+            event
+                .as_message()
+                .filter(|message| message.raw_text == raw_text)
+        })
+        .await?;
+    assert_eq!(message.text, "hello");
+    assert_eq!(message.raw_text, raw_text);
+    Ok(())
+}
+
 /// a channel NOTICE carries server time and matching sender metadata
 #[scenario(
     requires(caps = ["echo-message", "labeled-response", "message-tags", "server-time"]),
