@@ -3,8 +3,8 @@ use std::time::{Duration, SystemTime};
 use papo::{Authorship, Away, Error, Event, Refusal};
 use papo_conformance_macros::scenario;
 
-use super::support::conversation_name;
-use crate::{Peer, Scenario};
+use super::support::{conversation_name, wait_for_channel};
+use crate::Scenario;
 
 fn has_account_sessions() -> bool {
     matches!(
@@ -17,23 +17,6 @@ fn chat_text<'event>(event: &'event Event, text: &str) -> Option<&'event papo::M
     event
         .as_message()
         .filter(|message| message.raw_text == text)
-}
-
-async fn wait_for_channel(peer: &mut Peer, channel: &str) -> papo_testing::Result<()> {
-    if peer
-        .state()
-        .channel(channel)
-        .is_some_and(papo::Channel::is_synced)
-    {
-        return Ok(());
-    }
-    peer.wait_for(|event| {
-        event
-            .as_channel_synced()
-            .filter(|synced| synced.channel.as_ref() == channel)
-    })
-    .await?;
-    Ok(())
 }
 
 /// routes one session's channel send to its sibling exactly once with own authorship

@@ -1,7 +1,7 @@
 use papo::{ModeAction, ModeArg, Typing};
 use papo_conformance_macros::scenario;
 
-use crate::scenarios::support::{join_seen_by, message_text, wait_channel_mode};
+use crate::scenarios::support::{join_seen_by, message_text, wait_channel_mode, wait_for_channel};
 use crate::{Peer, Scenario};
 
 struct StatusmsgPeers {
@@ -23,8 +23,10 @@ async fn statusmsg_peers(s: &Scenario) -> papo_testing::Result<StatusmsgPeers> {
     let carol_nick = carol.nick();
 
     alice.join(&channel).await?;
-    for peer in [&bob, &carol, &dave] {
+    wait_for_channel(&mut alice, &channel).await?;
+    for peer in [&mut bob, &mut carol, &mut dave] {
         join_seen_by(peer, &mut alice, &channel).await?;
+        wait_for_channel(peer, &channel).await?;
     }
 
     assert!(
@@ -59,16 +61,23 @@ async fn statusmsg_peers(s: &Scenario) -> papo_testing::Result<StatusmsgPeers> {
             );
         }
     }
-    for peer in [&alice, &bob, &carol, &dave] {
+    for (name, peer) in [
+        ("alice", &alice),
+        ("bob", &bob),
+        ("carol", &carol),
+        ("dave", &dave),
+    ] {
         let state = peer.state();
         let members = state.channel(&channel).expect("channel is in state");
         assert_eq!(
             members.member(bob_nick.as_ref()).unwrap().prefixes(),
-            &[papo::Prefix::__new('o', '@')]
+            &[papo::Prefix::__new('o', '@')],
+            "{name} has Bob's operator rank"
         );
         assert_eq!(
             members.member(carol_nick.as_ref()).unwrap().prefixes(),
-            &[papo::Prefix::__new('v', '+')]
+            &[papo::Prefix::__new('v', '+')],
+            "{name} has Carol's voice rank"
         );
     }
 

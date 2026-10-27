@@ -123,3 +123,20 @@ pub(super) async fn join_seen_by(
     assert_eq!(joined.authorship, papo::Authorship::Other);
     Ok(())
 }
+
+pub(super) async fn wait_for_channel(peer: &mut Peer, channel: &str) -> papo_testing::Result<()> {
+    if peer
+        .state()
+        .channel(channel)
+        .is_some_and(papo::Channel::is_synced)
+    {
+        return Ok(());
+    }
+    peer.wait_for(|event| {
+        event
+            .as_channel_synced()
+            .filter(|synced| synced.channel.as_ref() == channel)
+    })
+    .await?;
+    Ok(())
+}
