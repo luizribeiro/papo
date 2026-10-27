@@ -108,7 +108,7 @@ impl Driver {
         registration: Option<super::ConnectSender>,
         defaults: super::PostConnect,
         reconnect: Reconnect,
-        sts_store: Box<dyn papo_core::sts::StsStore + Send>,
+        sts_store: Box<dyn papo_core::sts::StsStore>,
         connector: super::Connector,
     ) -> (super::Client, super::Events, Self) {
         Self::with_connector_and_entropy(
@@ -132,7 +132,7 @@ impl Driver {
         registration: Option<super::ConnectSender>,
         defaults: super::PostConnect,
         reconnect: Reconnect,
-        sts_store: Box<dyn papo_core::sts::StsStore + Send>,
+        sts_store: Box<dyn papo_core::sts::StsStore>,
         connector: super::Connector,
         entropy: super::BackoffEntropy,
     ) -> (super::Client, super::Events, Self) {
@@ -144,7 +144,7 @@ impl Driver {
             defaults,
             reconnect,
             Duration::from_secs(30),
-            sts_store,
+            Arc::from(sts_store),
             connector,
             entropy,
             None,
@@ -193,12 +193,12 @@ impl papo_core::sts::StsStore for SharedStsStore {
         papo_core::sts::StsStore::get(&*self.0.lock().unwrap(), host)
     }
 
-    fn put(&mut self, policy: papo_core::sts::StsPolicy) {
-        papo_core::sts::StsStore::put(&mut *self.0.lock().unwrap(), policy);
+    fn put(&self, policy: papo_core::sts::StsPolicy) {
+        papo_core::sts::StsStore::put(&*self.0.lock().unwrap(), policy);
     }
 
-    fn remove(&mut self, host: &str) {
-        papo_core::sts::StsStore::remove(&mut *self.0.lock().unwrap(), host);
+    fn remove(&self, host: &str) {
+        papo_core::sts::StsStore::remove(&*self.0.lock().unwrap(), host);
     }
 }
 

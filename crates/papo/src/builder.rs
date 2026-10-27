@@ -1,5 +1,6 @@
 use std::{
     fmt,
+    sync::Arc,
     sync::atomic::{AtomicU64, Ordering},
     time::Duration,
 };
@@ -27,6 +28,7 @@ pub(crate) struct NetworkBuilderSettings {
     tls: TlsConfig,
     connect_timeout: Duration,
     reconnect: Reconnect,
+    sts_store: Arc<dyn StsStore>,
     credentials_configured: bool,
     allow_insecure_auth: bool,
     reusable_transport: bool,
@@ -53,7 +55,7 @@ pub struct Builder {
     pub(crate) tls: TlsConfig,
     connect_timeout: Duration,
     reconnect: Reconnect,
-    sts_store: Box<dyn StsStore + Send>,
+    sts_store: Arc<dyn StsStore>,
     #[cfg(not(browser))]
     stream: Option<Box<dyn crate::io_compat::FutureStream>>,
     bot: bool,
@@ -83,7 +85,7 @@ impl Builder {
             tls: TlsConfig::default(),
             connect_timeout: Duration::from_secs(30),
             reconnect: Reconnect::default(),
-            sts_store: Box::new(MemoryStsStore::new()),
+            sts_store: Arc::new(MemoryStsStore::new()),
             #[cfg(not(browser))]
             stream: None,
             bot: false,
@@ -118,6 +120,7 @@ impl Builder {
         builder.tls = settings.tls.clone();
         builder.connect_timeout = settings.connect_timeout;
         builder.reconnect = settings.reconnect;
+        builder.sts_store = Arc::clone(&settings.sts_store);
         builder.credentials_configured = settings.credentials_configured;
         builder.allow_insecure_auth = settings.allow_insecure_auth;
         if !settings.reusable_transport {
@@ -133,6 +136,7 @@ impl Builder {
             tls: self.tls.clone(),
             connect_timeout: self.connect_timeout,
             reconnect: self.reconnect,
+            sts_store: Arc::clone(&self.sts_store),
             credentials_configured: self.credentials_configured,
             allow_insecure_auth: self.allow_insecure_auth,
             reusable_transport,
@@ -444,8 +448,8 @@ impl Builder {
 
     /// Sets the store used for IRC Strict Transport Security policies.
     #[cfg(not(browser))]
-    pub fn sts_store(mut self, store: impl StsStore + Send + 'static) -> Self {
-        self.sts_store = Box::new(store);
+    pub fn sts_store(mut self, store: impl StsStore + 'static) -> Self {
+        self.sts_store = Arc::new(store);
         self
     }
 

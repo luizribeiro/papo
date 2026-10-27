@@ -2,6 +2,7 @@
 
 use std::{
     collections::HashMap,
+    sync::{Arc, Mutex},
     time::{Duration, SystemTime},
 };
 
@@ -210,7 +211,10 @@ impl StsPolicy {
 /// platform-appropriate storage. The repository's
 /// [file-backed example](https://github.com/luizribeiro/papo/tree/main/examples/sts-store)
 /// shows one way for an app to own that persistence.
-pub trait StsStore {
+///
+/// Methods take shared references so one store can be wrapped in [`Arc`] and used by multiple
+/// clients. Implementations synchronize mutable storage internally.
+pub trait StsStore: Send + Sync {
     /// Returns the stored policy for `host`, if one exists.
     ///
     /// Callers provide an ASCII-lowercase hostname without a trailing root dot.
@@ -220,18 +224,32 @@ pub trait StsStore {
     ///
     /// Callers normalize [`StsPolicy::host`] to ASCII lowercase without a
     /// trailing root dot.
-    fn put(&mut self, policy: StsPolicy);
+    fn put(&self, policy: StsPolicy);
 
     /// Removes a host's policy, if one exists.
     ///
     /// Callers provide an ASCII-lowercase hostname without a trailing root dot.
-    fn remove(&mut self, host: &str);
+    fn remove(&self, host: &str);
+}
+
+impl<T: StsStore + ?Sized> StsStore for Arc<T> {
+    fn get(&self, host: &str) -> Option<StsPolicy> {
+        T::get(self, host)
+    }
+
+    fn put(&self, policy: StsPolicy) {
+        T::put(self, policy);
+    }
+
+    fn remove(&self, host: &str) {
+        T::remove(self, host);
+    }
 }
 
 /// An in-memory STS policy store.
 #[derive(Clone, Debug, Default)]
 pub struct MemoryStsStore {
-    policies: HashMap<String, StsPolicy>,
+    policies: Arc<Mutex<HashMap<String, StsPolicy>>>,
 }
 
 impl MemoryStsStore {
@@ -244,16 +262,23 @@ impl MemoryStsStore {
 
 impl StsStore for MemoryStsStore {
     fn get(&self, host: &str) -> Option<StsPolicy> {
-        self.policies.get(&normalize_host(host)).cloned()
+        self.policies
+            .lock()
+            .unwrap()
+            .get(&normalize_host(host))
+            .cloned()
     }
 
-    fn put(&mut self, mut policy: StsPolicy) {
+    fn put(&self, mut policy: StsPolicy) {
         policy.host = normalize_host(&policy.host);
-        self.policies.insert(policy.host.clone(), policy);
+        self.policies
+            .lock()
+            .unwrap()
+            .insert(policy.host.clone(), policy);
     }
 
-    fn remove(&mut self, host: &str) {
-        self.policies.remove(&normalize_host(host));
+    fn remove(&self, host: &str) {
+        self.policies.lock().unwrap().remove(&normalize_host(host));
     }
 }
 
@@ -377,7 +402,7 @@ mod tests {
 
     #[test]
     fn stores_replaces_and_removes_policies() {
-        let mut store = MemoryStsStore::new();
+        let store = MemoryStsStore::new();
         let policy = StsPolicy {
             host: "irc.example.net".to_owned(),
             port: 6697,
@@ -404,7 +429,7 @@ mod tests {
 
     #[test]
     fn normalizes_hostnames_at_the_store_boundary() {
-        let mut store = MemoryStsStore::new();
+        let store = MemoryStsStore::new();
         store.put(StsPolicy {
             host: "irc.Example.com".to_owned(),
             port: 6697,

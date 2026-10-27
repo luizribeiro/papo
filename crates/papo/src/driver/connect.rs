@@ -87,7 +87,7 @@ pub(super) async fn run_plan(
     mut defaults: PostConnect,
     reconnect: Reconnect,
     connect_timeout: Duration,
-    mut sts_store: Box<dyn StsStore + Send>,
+    mut sts_store: Arc<dyn StsStore>,
     connector: Connector,
     mut entropy: BackoffEntropy,
     network_builder: Option<Arc<RwLock<crate::builder::NetworkBuilderSettings>>>,
@@ -103,7 +103,7 @@ pub(super) async fn run_plan(
     let mut last_disconnect = None;
     loop {
         attempts = attempts.saturating_add(1);
-        let plan = plan_with_stored_sts(&base_plan, sts_store.as_mut());
+        let plan = plan_with_stored_sts(&base_plan, sts_store.as_ref());
         if let Some(settings) = &network_builder {
             settings
                 .write()
@@ -175,7 +175,7 @@ pub(super) async fn run_plan(
             .sts_store
             .take()
             .expect("planned connections retain their STS store");
-        reschedule_stored_policy(sts_store.as_mut(), &plan.address.host);
+        reschedule_stored_policy(sts_store.as_ref(), &plan.address.host);
         let (mut end, upgrade_port) = match triage_connection_end(
             end,
             &plan,
@@ -285,7 +285,7 @@ pub(super) async fn run_planned_connection(
     registered: &mut bool,
     attempt: usize,
     plan: &ConnectionPlan,
-    sts_store: Box<dyn StsStore + Send>,
+    sts_store: Arc<dyn StsStore>,
     pending_events: VecDeque<Event>,
 ) -> ConnectionEnd {
     // WebSocket security is selected by the URL and cannot be upgraded by IRC STS.
@@ -518,7 +518,7 @@ fn finish_slow_consumer(
 }
 
 pub(super) fn apply_sts_action(
-    store: &mut dyn StsStore,
+    store: &dyn StsStore,
     port: u16,
     websocket: bool,
     action: &StsAction,
@@ -551,7 +551,7 @@ fn clamped_sts_expiry(now: std::time::SystemTime, duration: Duration) -> std::ti
     now
 }
 
-pub(super) fn reschedule_stored_policy(store: &mut dyn StsStore, host: &str) {
+pub(super) fn reschedule_stored_policy(store: &dyn StsStore, host: &str) {
     if let Some(policy) = get_sts_policy(store, host) {
         put_sts_policy(
             store,
@@ -560,10 +560,7 @@ pub(super) fn reschedule_stored_policy(store: &mut dyn StsStore, host: &str) {
     }
 }
 
-pub(super) fn plan_with_stored_sts(
-    base: &ConnectionPlan,
-    store: &mut dyn StsStore,
-) -> ConnectionPlan {
+pub(super) fn plan_with_stored_sts(base: &ConnectionPlan, store: &dyn StsStore) -> ConnectionPlan {
     let Some(policy) = get_sts_policy(store, &base.address.host) else {
         return base.clone();
     };
@@ -583,12 +580,12 @@ fn get_sts_policy(store: &dyn StsStore, host: &str) -> Option<StsPolicy> {
     store.get(&normalize_sts_host(host))
 }
 
-fn put_sts_policy(store: &mut dyn StsStore, mut policy: StsPolicy) {
+fn put_sts_policy(store: &dyn StsStore, mut policy: StsPolicy) {
     policy.host = normalize_sts_host(&policy.host);
     store.put(policy);
 }
 
-fn remove_sts_policy(store: &mut dyn StsStore, host: &str) {
+fn remove_sts_policy(store: &dyn StsStore, host: &str) {
     store.remove(&normalize_sts_host(host));
 }
 

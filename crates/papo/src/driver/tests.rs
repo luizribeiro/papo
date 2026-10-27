@@ -2648,7 +2648,7 @@ async fn stored_sts_policy_upgrades_the_connection_plan() {
         super::PostConnect::default(),
         Reconnect::exponential(),
         Duration::from_secs(30),
-        Box::new(store),
+        Arc::new(store),
         connector,
         Box::new(|| 0),
         Some(Arc::clone(&network_builder)),
@@ -2668,19 +2668,21 @@ async fn stored_sts_policy_upgrades_the_connection_plan() {
 #[test]
 fn sts_store_boundary_normalizes_hosts_for_lookup_and_reschedule() {
     #[derive(Default)]
-    struct CaseSensitiveStore(std::collections::HashMap<String, papo_core::sts::StsPolicy>);
+    struct CaseSensitiveStore(
+        std::sync::Mutex<std::collections::HashMap<String, papo_core::sts::StsPolicy>>,
+    );
 
     impl papo_core::sts::StsStore for CaseSensitiveStore {
         fn get(&self, host: &str) -> Option<papo_core::sts::StsPolicy> {
-            self.0.get(host).cloned()
+            self.0.lock().unwrap().get(host).cloned()
         }
 
-        fn put(&mut self, policy: papo_core::sts::StsPolicy) {
-            self.0.insert(policy.host.clone(), policy);
+        fn put(&self, policy: papo_core::sts::StsPolicy) {
+            self.0.lock().unwrap().insert(policy.host.clone(), policy);
         }
 
-        fn remove(&mut self, host: &str) {
-            self.0.remove(host);
+        fn remove(&self, host: &str) {
+            self.0.lock().unwrap().remove(host);
         }
     }
 

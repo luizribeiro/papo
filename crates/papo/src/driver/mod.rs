@@ -526,7 +526,7 @@ impl Driver {
         defaults: PostConnect,
         reconnect: Reconnect,
         connect_timeout: Duration,
-        sts_store: Box<dyn StsStore + Send>,
+        sts_store: Arc<dyn StsStore>,
         connector: Option<Connector>,
         network_builder: Arc<RwLock<crate::builder::NetworkBuilderSettings>>,
     ) -> (Client, Events, Self) {
@@ -563,7 +563,7 @@ impl Driver {
         defaults: PostConnect,
         reconnect: Reconnect,
         connect_timeout: Duration,
-        sts_store: Box<dyn StsStore + Send>,
+        sts_store: Arc<dyn StsStore>,
         connector: Connector,
         entropy: BackoffEntropy,
         network_builder: Option<Arc<RwLock<crate::builder::NetworkBuilderSettings>>>,
@@ -677,7 +677,7 @@ struct ConnectionEnd {
     #[allow(dead_code)]
     registered_at: Option<Instant>,
     sts: StsActions,
-    sts_store: Option<Box<dyn StsStore + Send>>,
+    sts_store: Option<Arc<dyn StsStore>>,
     pending_events: VecDeque<Event>,
     reconnect_now: bool,
 }
@@ -728,7 +728,7 @@ async fn run_connection<S>(
     registered: &mut bool,
     attempt: usize,
     connection: Option<Connection>,
-    mut sts_store: Option<Box<dyn StsStore + Send>>,
+    mut sts_store: Option<Arc<dyn StsStore>>,
     sts_port: u16,
     sts_websocket: bool,
     mut pending_events: VecDeque<Event>,
@@ -1185,7 +1185,7 @@ async fn drain<S>(
     attempt: usize,
     registered_at: &mut Option<Instant>,
     sts: &mut StsActions,
-    sts_store: &mut Option<Box<dyn StsStore + Send>>,
+    sts_store: &mut Option<Arc<dyn StsStore>>,
     sts_port: u16,
     sts_websocket: bool,
     quitting: bool,
@@ -1410,7 +1410,7 @@ where
                 if !cfg!(browser)
                     && let Some(store) = sts_store
                 {
-                    apply_sts_action(store.as_mut(), sts_port, sts_websocket, &action);
+                    apply_sts_action(store.as_ref(), sts_port, sts_websocket, &action);
                 }
             }
             event::CoreEvent::Close {
