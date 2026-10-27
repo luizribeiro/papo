@@ -197,6 +197,10 @@ impl Transmit {
         (self.line, self.token)
     }
 }
+
+fn secure_credentials_allowed(config: &Config, connection: &Connection) -> bool {
+    connection.security == ConnectionSecurity::Secure || config.allow_insecure_auth
+}
 const CTCP_REPLY_INTERVAL: Duration = Duration::from_secs(2);
 
 pub use cap::Cap;
@@ -2948,6 +2952,7 @@ struct Outbox {
     events: VecDeque<Event>,
     connect_phases: VecDeque<ConnectPhase>,
     close_requested: bool,
+    secure_credentials_allowed: bool,
 }
 
 #[derive(Debug)]
@@ -2998,6 +3003,9 @@ impl Outbox {
             }
             return;
         }
+        if !self.credentials_allowed(&line, token, request) {
+            return;
+        }
         let line = QueuedLine {
             line,
             token,
@@ -3011,13 +3019,17 @@ impl Outbox {
     }
 
     fn transmit_ordered(&mut self, line: WireLine, request: Option<RequestId>) {
-        if !self.close_requested {
-            self.transmits.push_back(Transmission::Line(QueuedLine {
-                line,
-                token: None,
-                request,
-            }));
+        if self.close_requested {
+            return;
         }
+        if !self.credentials_allowed(&line, None, request) {
+            return;
+        }
+        self.transmits.push_back(Transmission::Line(QueuedLine {
+            line,
+            token: None,
+            request,
+        }));
     }
 
     fn transmit_tracked_batch(
@@ -3026,7 +3038,10 @@ impl Outbox {
         token: Option<TransmitToken>,
         request: Option<RequestId>,
     ) {
-        if !self.close_requested && !lines.is_empty() {
+        let credentials_allowed = lines
+            .iter()
+            .all(|line| self.credentials_allowed(line, token, request));
+        if credentials_allowed && !self.close_requested && !lines.is_empty() {
             self.transmits.push_back(Transmission::Batch {
                 lines: lines.into(),
                 started: false,
@@ -3046,6 +3061,25 @@ impl Outbox {
                 format!("invalid outbound message: {error}"),
             ),
         }
+    }
+
+    fn credentials_allowed(
+        &mut self,
+        line: &WireLine,
+        token: Option<TransmitToken>,
+        request: Option<RequestId>,
+    ) -> bool {
+        if !line.__has_secret_parameter() || self.secure_credentials_allowed {
+            return true;
+        }
+        if request.is_some() || token.is_some() {
+            return true;
+        }
+        self.close_and_discard(
+            CloseKind::Other,
+            "credentials require an explicit opt-in on a plaintext connection".to_owned(),
+        );
+        false
     }
 
     fn transmit_immediate<const N: usize>(&mut self, command: &str, params: [&str; N]) {
@@ -3083,9 +3117,10 @@ impl Outbox {
         self.close(kind, reason);
     }
 
-    fn reset_connection(&mut self) {
+    fn reset_connection(&mut self, secure_credentials_allowed: bool) {
         self.abort_transmits();
         self.close_requested = false;
+        self.secure_credentials_allowed = secure_credentials_allowed;
     }
 
     fn abort_transmits(&mut self) {
@@ -3199,7 +3234,8 @@ impl Session {
     pub fn handle_connected_with(&mut self, now: Instant, connection: Connection) {
         self.connection = connection;
         self.framer.reset();
-        self.outbox.reset_connection();
+        self.outbox
+            .reset_connection(secure_credentials_allowed(&self.config, &self.connection));
         if self.connection.security == ConnectionSecurity::Plaintext
             && !self.config.allow_insecure_auth
             && (self.config.webirc.is_some()
@@ -3407,7 +3443,7 @@ impl Session {
     /// Marks the transport as disconnected and drops per-connection state.
     pub fn handle_disconnected(&mut self, _now: Instant) {
         self.framer.close();
-        self.outbox.reset_connection();
+        self.outbox.reset_connection(false);
         self.batches.reset();
         let mut labelled = BTreeMap::new();
         for (_, (id, started, _, _, _)) in std::mem::take(&mut self.requests) {
@@ -4331,14 +4367,20 @@ impl Session {
         let before_typing = self.state.__typing_table().clone();
         let was_connected = self.welcome_state.is_connected();
         let before_features = was_connected.then(|| self.supported_features());
-        let registration_handled = self.welcome_state.handle_message(
-            now,
+        let registration_handled = WelcomeState::handle_security_decision(
             message,
             &self.config,
-            self.caps.enabled(),
-            self.isupport.value(),
+            &self.connection,
             &mut self.outbox,
-        ) == Handled::Yes;
+        ) == Handled::Yes
+            || self.welcome_state.handle_message(
+                now,
+                message,
+                &self.config,
+                self.caps.enabled(),
+                self.isupport.value(),
+                &mut self.outbox,
+            ) == Handled::Yes;
         let caps_handled = self.caps.handle_message(
             now,
             message,

@@ -384,6 +384,13 @@ pub struct WireLine {
 }
 
 impl WireLine {
+    /// Reports whether an encoded parameter originated from [`Secret`].
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __has_secret_parameter(&self) -> bool {
+        !self.secret_spans.is_empty()
+    }
+
     fn into_public_string(mut self) -> Option<String> {
         if !self.secret_spans.is_empty() {
             return None;

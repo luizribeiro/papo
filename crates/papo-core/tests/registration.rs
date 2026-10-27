@@ -80,6 +80,32 @@ fn plaintext_server_password_accepts_an_sts_upgrade() {
 }
 
 #[test]
+fn plaintext_server_password_waits_through_pre_cap_lines() {
+    Transcript::rate_limited(
+        Config::default()
+            .host("irc.example.net")
+            .rate_limit(papo_core::RateLimit::unlimited())
+            .password("correct horse battery staple"),
+    )
+    .connect_default()
+    .server(":ergo.test NOTICE * :*** Looking up your hostname...")
+    .event(|event| matches!(event, Event::Line(line) if line.as_ref().command_is("NOTICE")))
+    .no_client()
+    .server("CAP * LS :sts=port=6697,duration=86400")
+    .event(|event| matches!(event, Event::StsUpgrade { port: 6697, .. }))
+    .event(|event| {
+        matches!(
+            event,
+            Event::Close {
+                kind: CloseKind::StsUpgrade,
+                ..
+            }
+        )
+    })
+    .no_client();
+}
+
+#[test]
 fn validates_all_configured_registration_fields_before_sending() {
     for config in [
         Config::default().nick("papo\rOPER root password"),

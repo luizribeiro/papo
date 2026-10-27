@@ -4,7 +4,9 @@ use papo_proto::{
     Advertised, BuildError, Isupport, Line, LineRef, StandardReply, StandardReplyKind,
 };
 
-use crate::{Capabilities, CloseKind, Config, Event, Handled, Outbox, Welcome, webirc_line};
+use crate::{
+    Capabilities, CloseKind, Config, Connection, Event, Handled, Outbox, Welcome, cap, webirc_line,
+};
 
 const WELCOME_BURST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 const MAX_MOTD_LINES: usize = 1_000;
@@ -83,9 +85,6 @@ impl WelcomeState {
         isupport: &Isupport,
         outbox: &mut Outbox,
     ) -> Handled {
-        if !message.command_is("CAP") {
-            self.send_password(config, outbox);
-        }
         if self.webirc_pending
             && message.command_is("ERROR")
             && message.param(0) == Some(ERGO_WEBIRC_REJECTION)
@@ -176,6 +175,28 @@ impl WelcomeState {
         } else {
             Handled::No
         }
+    }
+
+    pub(super) fn handle_security_decision(
+        message: &LineRef<'_>,
+        config: &Config,
+        connection: &Connection,
+        outbox: &mut Outbox,
+    ) -> Handled {
+        if config.password.is_none()
+            || crate::secure_credentials_allowed(config, connection)
+            || !cap_is_unavailable(message)
+        {
+            return Handled::No;
+        }
+        outbox.close(
+            CloseKind::CapabilityUnavailable,
+            format!(
+                "required IRC capability {} was unavailable",
+                cap::STS.as_str()
+            ),
+        );
+        Handled::Yes
     }
 
     pub(super) fn handle_cap_decision(
@@ -290,6 +311,16 @@ impl WelcomeState {
             isupport: isupport.clone(),
         }));
     }
+}
+
+fn cap_is_unavailable(message: &LineRef<'_>) -> bool {
+    message.command_is("410")
+        || message.command_is("451")
+        || message.command_is("001")
+        || (message.command_is("421")
+            && message
+                .param(1)
+                .is_some_and(|command| command.eq_ignore_ascii_case("CAP")))
 }
 
 fn registration_error(config: &Config) -> Option<BuildError> {
