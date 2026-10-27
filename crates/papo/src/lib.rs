@@ -30,7 +30,6 @@
 //! Complete applications in the repository include:
 //!
 //! - [Ping bot](https://github.com/luizribeiro/papo/tree/main/examples/ping-bot)
-//! - [Echo bot](https://github.com/luizribeiro/papo/tree/main/examples/echo-bot)
 //! - [Reaction bot](https://github.com/luizribeiro/papo/tree/main/examples/react-bot)
 //! - [Admin bot](https://github.com/luizribeiro/papo/tree/main/examples/admin-bot)
 //! - [Lurker](https://github.com/luizribeiro/papo/tree/main/examples/lurker)
