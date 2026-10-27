@@ -314,6 +314,13 @@ impl Param {
     fn is_secret(&self) -> bool {
         matches!(self.0, ParamValue::Secret(_))
     }
+
+    /// Reports whether this parameter originated from [`Secret`].
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __is_secret(&self) -> bool {
+        self.is_secret()
+    }
 }
 
 impl std::ops::Deref for Param {

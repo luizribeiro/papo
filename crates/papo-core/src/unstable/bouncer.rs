@@ -316,6 +316,9 @@ impl Session {
         now: Instant,
         attributes: Param,
     ) -> Result<RequestId, RequestError> {
+        if attributes.__is_secret() {
+            self.require_secure_credentials()?;
+        }
         self.request_for_feature(
             now,
             Line::new("BOUNCER").param("ADDNETWORK").param(attributes),
@@ -334,6 +337,9 @@ impl Session {
         id: &NetworkId,
         attributes: Param,
     ) -> Result<RequestId, RequestError> {
+        if attributes.__is_secret() {
+            self.require_secure_credentials()?;
+        }
         self.request_for_feature(
             now,
             Line::new("BOUNCER")

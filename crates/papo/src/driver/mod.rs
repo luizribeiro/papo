@@ -1405,6 +1405,18 @@ where
                     result.fail(Error::connection_lost());
                 }
             }
+            event::CoreEvent::RequestCredentialsRefused(id) => {
+                join_keys.remove(&id);
+                session.__cancel_request(id);
+                if let Some(result) = requests.remove(&id) {
+                    result.fail(Error::InvalidInput(InvalidInput::InsecureAuthentication));
+                }
+            }
+            event::CoreEvent::TransmitCredentialsRefused(token) => {
+                if let Some(result) = transmits.remove(&token) {
+                    result.fail(Error::InvalidInput(InvalidInput::InsecureAuthentication));
+                }
+            }
             event::CoreEvent::StsUpgrade(port) => sts.upgrade = Some(port),
             event::CoreEvent::StsPolicy(action) => {
                 if !cfg!(browser)

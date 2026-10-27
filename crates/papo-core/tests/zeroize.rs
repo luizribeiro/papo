@@ -69,7 +69,11 @@ fn wipes_queued_and_polled_secret_wire_lines() {
     const SASL: &str = "AGFsaWNlAHNhc2wtd2lwZS1tYXJrZXItNjkzOA==";
 
     inspect(QUEUED);
-    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    let mut session = Session::new(
+        Config::default()
+            .allow_insecure_auth(true)
+            .rate_limit(RateLimit::unlimited()),
+    );
     session
         .send(Instant::now(), Line::new("PASS").param(Secret::new(QUEUED)))
         .unwrap();
@@ -77,7 +81,11 @@ fn wipes_queued_and_polled_secret_wire_lines() {
     assert!(!LEAKED.load(Ordering::SeqCst));
 
     inspect(POLLED);
-    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    let mut session = Session::new(
+        Config::default()
+            .allow_insecure_auth(true)
+            .rate_limit(RateLimit::unlimited()),
+    );
     session
         .send(Instant::now(), Line::new("PASS").param(Secret::new(POLLED)))
         .unwrap();
@@ -129,6 +137,7 @@ fn wipes_webpush_auth_and_combined_key_buffers() {
         Config::default()
             .enable(papo_core::Feature::WebPush)
             .wanted_caps(["draft/webpush", "labeled-response"])
+            .allow_insecure_auth(true)
             .rate_limit(RateLimit::unlimited()),
     );
     session.handle_connected(now);
@@ -168,6 +177,7 @@ fn wipes_bouncer_password_attribute_buffers() {
         Config::default()
             .enable(papo_core::Feature::Bouncer)
             .wanted_caps(["soju.im/bouncer-networks", "labeled-response"])
+            .allow_insecure_auth(true)
             .rate_limit(RateLimit::unlimited()),
     );
     session.handle_connected(now);

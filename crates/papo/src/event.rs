@@ -1580,6 +1580,8 @@ pub(crate) enum CoreEvent {
         transmitted: bool,
     },
     TransmitAborted(papo_core::TransmitToken),
+    RequestCredentialsRefused(RequestId),
+    TransmitCredentialsRefused(papo_core::TransmitToken),
     StsUpgrade(u16),
     StsPolicy(StsAction),
     History {
@@ -1771,6 +1773,12 @@ pub(crate) fn from_core(
         }
         papo_core::Event::TransmitAborted { token, .. } => {
             return CoreEvent::TransmitAborted(token);
+        }
+        papo_core::Event::RequestCredentialsRefused { id, .. } => {
+            return CoreEvent::RequestCredentialsRefused(id);
+        }
+        papo_core::Event::TransmitCredentialsRefused { token, .. } => {
+            return CoreEvent::TransmitCredentialsRefused(token);
         }
         papo_core::Event::RequestUnsupported {
             id, unsupported, ..

@@ -35,7 +35,7 @@ fn request(session: &mut Session, now: Instant, message: Line) -> RequestId {
 #[test]
 fn debug_output_redacts_rate_limited_oper_and_join_credentials() {
     let now = Instant::now();
-    let mut session = Session::new(Config::default());
+    let mut session = Session::new(Config::default().allow_insecure_auth(true));
     session
         .oper(now, "admin", &Secret::new("operator-password-3751"))
         .unwrap();
@@ -48,9 +48,27 @@ fn debug_output_redacts_rate_limited_oper_and_join_credentials() {
 }
 
 #[test]
+fn oper_refuses_credentials_on_plaintext() {
+    let mut session = Session::new(Config::default());
+    assert_eq!(
+        session.oper(
+            Instant::now(),
+            "admin",
+            &Secret::new("operator-password-3751")
+        ),
+        Err(RequestError::InsecureAuthentication)
+    );
+    assert!(session.poll_transmit().is_none());
+}
+
+#[test]
 fn join_marks_only_the_optional_key_as_secret() {
     let now = Instant::now();
-    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    let mut session = Session::new(
+        Config::default()
+            .allow_insecure_auth(true)
+            .rate_limit(RateLimit::unlimited()),
+    );
     session
         .join(now, "#secret", Some(&Secret::new("channel-key-6824")))
         .unwrap();
@@ -76,6 +94,7 @@ fn oper_matches_ergo_success_refusal_and_standard_failure() {
         let mut session = Session::new(
             Config::default()
                 .nick("papo")
+                .allow_insecure_auth(true)
                 .rate_limit(RateLimit::unlimited()),
         );
         let id = session

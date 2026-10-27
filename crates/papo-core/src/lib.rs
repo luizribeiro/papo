@@ -2237,6 +2237,20 @@ pub enum Event {
         /// Identifier assigned when the line was queued.
         token: TransmitToken,
     },
+    /// A request carrying marked credentials was refused before transmission.
+    #[doc(hidden)]
+    #[non_exhaustive]
+    RequestCredentialsRefused {
+        /// Identifier assigned to the request.
+        id: RequestId,
+    },
+    /// A line carrying marked credentials was refused before transmission.
+    #[doc(hidden)]
+    #[non_exhaustive]
+    TransmitCredentialsRefused {
+        /// Identifier assigned when the line was queued.
+        token: TransmitToken,
+    },
     /// A pending request's required feature became unavailable.
     #[non_exhaustive]
     RequestUnsupported {
@@ -3072,13 +3086,16 @@ impl Outbox {
         if !line.__has_secret_parameter() || self.secure_credentials_allowed {
             return true;
         }
-        if request.is_some() || token.is_some() {
-            return true;
+        if let Some(id) = request {
+            self.event(Event::RequestCredentialsRefused { id });
+        } else if let Some(token) = token {
+            self.event(Event::TransmitCredentialsRefused { token });
+        } else {
+            self.close_and_discard(
+                CloseKind::Other,
+                "credentials require an explicit opt-in on a plaintext connection".to_owned(),
+            );
         }
-        self.close_and_discard(
-            CloseKind::Other,
-            "credentials require an explicit opt-in on a plaintext connection".to_owned(),
-        );
         false
     }
 
@@ -3181,6 +3198,7 @@ impl Session {
             host: config.host.clone(),
             security: config.connection_security,
         };
+        let secure_credentials_allowed = secure_credentials_allowed(&config, &connection);
         let welcome_state = WelcomeState::new(&config);
         let isupport = IsupportState::new(config.decoding);
         let sasl = SaslSession::new(&config, entropy);
@@ -3217,7 +3235,10 @@ impl Session {
             state,
             state_generation: 0,
             typing_generation: 0,
-            outbox: Outbox::default(),
+            outbox: Outbox {
+                secure_credentials_allowed,
+                ..Outbox::default()
+            },
         }
     }
 
@@ -3885,6 +3906,7 @@ impl Session {
         name: &str,
         password: &Secret,
     ) -> Result<RequestId, RequestError> {
+        self.require_secure_credentials()?;
         self.request_with_matcher(
             now,
             Line::new("OPER").param(name).param(password),
@@ -4147,6 +4169,15 @@ impl Session {
         RequestId(self.next_request_id)
     }
 
+    /// Removes a request that the transport refused before writing it.
+    #[doc(hidden)]
+    pub fn __cancel_request(&mut self, id: RequestId) {
+        self.requests
+            .retain(|_, (pending, _, _, _, _)| *pending != id);
+        self.unlabelled_requests.retain(|pending| pending.id != id);
+        self.away_messages.remove(&id);
+    }
+
     fn reserve_request_id(&mut self) -> RequestId {
         let id = RequestId(self.next_request_id);
         self.next_request_id = self.next_request_id.wrapping_add(1);
@@ -4183,11 +4214,7 @@ impl Session {
         email: Option<&str>,
         password: impl Into<Secret>,
     ) -> Result<(), RequestError> {
-        if self.connection.security == ConnectionSecurity::Plaintext
-            && !self.config.allow_insecure_auth
-        {
-            return Err(RequestError::InsecureAuthentication);
-        }
+        self.require_secure_credentials()?;
         let registered = self.welcome_state.is_connected();
         let value = if registered {
             self.caps
@@ -4266,6 +4293,7 @@ impl Session {
         account: &str,
         code: impl Into<Secret>,
     ) -> Result<(), RequestError> {
+        self.require_secure_credentials()?;
         let code = code.into();
         self.require_feature(Feature::AccountCreation)?;
         if !self.welcome_state.is_connected()
@@ -4286,6 +4314,14 @@ impl Session {
         )?;
         self.account_registration.request_started();
         Ok(())
+    }
+
+    fn require_secure_credentials(&self) -> Result<(), RequestError> {
+        if secure_credentials_allowed(&self.config, &self.connection) {
+            Ok(())
+        } else {
+            Err(RequestError::InsecureAuthentication)
+        }
     }
 
     /// Returns the most recently measured keepalive round-trip time.
