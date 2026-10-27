@@ -375,6 +375,10 @@
             runtimeInputs = [ pkgs.cargo-nextest ];
             text = ''
               cargo nextest run --workspace --locked
+              cargo nextest run -p papo-core --lib --locked
+              cargo nextest run -p papo --locked
+              cargo nextest run -p papo --no-default-features --features tls-aws-lc --locked
+              cargo nextest run -p papo --features websocket --locked
               cargo nextest run --workspace --all-features --locked
             '';
             stages = [ "pre-push" ];
@@ -405,6 +409,10 @@
             runtimeInputs = [ pkgs.wasmtime ];
             text = ''
               cargo test --workspace --locked --target wasm32-wasip2
+              cargo test -p papo-core --lib --locked --target wasm32-wasip2
+              cargo test -p papo --locked --target wasm32-wasip2
+              cargo test -p papo --no-default-features --features tls-aws-lc --locked --target wasm32-wasip2
+              cargo test -p papo --features websocket --locked --target wasm32-wasip2
               cargo test -p papo-proto --all-features --locked --target wasm32-wasip2
               cargo test -p papo-bot --locked --target wasm32-wasip2
             '';
