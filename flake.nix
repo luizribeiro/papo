@@ -120,7 +120,7 @@
             craneArgs
             // {
               inherit cargoArtifacts;
-              cargoTestExtraArgs = "-p papo-conformance";
+              cargoTestExtraArgs = "-p papo-conformance -- --test-threads=1";
               nativeBuildInputs = [
                 pkgs.openssl
                 soju
@@ -575,7 +575,7 @@
             craneArgs
             // {
               inherit cargoArtifacts;
-              cargoTestExtraArgs = "-p papo-conformance";
+              cargoTestExtraArgs = "-p papo-conformance -- --test-threads=1";
               nativeBuildInputs = [
                 pkgs.openssl
                 pkgs.atheme
@@ -593,7 +593,7 @@
             craneArgs
             // {
               inherit cargoArtifacts;
-              cargoTestExtraArgs = "-p papo-conformance";
+              cargoTestExtraArgs = "-p papo-conformance -- --test-threads=1";
               nativeBuildInputs = [
                 pkgs.openssl
                 pkgs.atheme
@@ -612,7 +612,7 @@
             craneArgs
             // {
               inherit cargoArtifacts;
-              cargoTestExtraArgs = "-p papo-conformance";
+              cargoTestExtraArgs = "-p papo-conformance -- --test-threads=1";
               nativeBuildInputs = [
                 pkgs.openssl
                 pkgs.atheme
