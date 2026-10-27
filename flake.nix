@@ -383,6 +383,13 @@
             text = "scripts/check-feature-parity";
             stages = [ "pre-push" ];
           };
+          flake-check = {
+            enable = true;
+            entry = "${pkgs.lib.getExe pkgs.nix} flake check -L";
+            always_run = true;
+            pass_filenames = false;
+            stages = [ "pre-push" ];
+          };
           browser-tests = cargoHook {
             name = "browser-tests-hook";
             runtimeInputs = browserTools;
