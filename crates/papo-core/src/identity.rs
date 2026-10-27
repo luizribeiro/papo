@@ -25,8 +25,14 @@ impl Session {
                 }
                 if !crate::names_equal(self.names(), nick, new) {
                     self.state.prepare_identity_arrival(new);
-                    self.monitor
-                        .identity_renamed(nick, new, username, host, self.isupport.value());
+                    self.monitor.identity_renamed(
+                        nick,
+                        new,
+                        username,
+                        host,
+                        self.isupport.value(),
+                        &mut self.outbox,
+                    );
                 }
                 self.carry_typing_for_nick(message);
             }

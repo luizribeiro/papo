@@ -4284,6 +4284,19 @@ impl Session {
         recipient
     }
 
+    /// Releases one guarded direct recipient monitor reference.
+    #[doc(hidden)]
+    pub fn __direct_release(&mut self, recipient: &RecipientGuard) {
+        self.monitor.release_direct(
+            recipient,
+            self.isupport.value(),
+            self.welcome_state.is_connected(),
+            &mut self.outbox,
+        );
+        self.sync_monitored_state();
+        self.state_generation = self.state_generation.wrapping_add(1);
+    }
+
     /// Returns the next CRLF-terminated wire line to transmit.
     pub fn poll_transmit(&mut self) -> Option<WireLine> {
         self.poll_transmit_tracked()

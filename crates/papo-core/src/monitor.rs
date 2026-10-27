@@ -3,7 +3,8 @@ use std::collections::{HashMap, HashSet};
 use papo_proto::{Advertised, Casemapping, Isupport, LimitValue, LineRef, MAX_LINE_LEN, Nick};
 
 use crate::{
-    Authorship, Event, Feature, Handled, Names, Outbox, ReplyToken, Unsupported, UnsupportedReason,
+    Authorship, Event, Feature, Handled, Names, Outbox, RecipientGuard, ReplyToken, Unsupported,
+    UnsupportedReason,
 };
 
 const MAX_DESIRED: usize = 10_000;
@@ -23,6 +24,7 @@ pub(super) struct Monitor {
 struct DirectWatch {
     nick: String,
     count: usize,
+    added: bool,
     identity: ReplyToken,
 }
 
@@ -102,7 +104,26 @@ impl Monitor {
         user: Option<&str>,
         host: Option<&str>,
         isupport: &Isupport,
+        outbox: &mut Outbox,
     ) {
+        self.update_casemapping(isupport.casemapping());
+        let old_key = self.casemapping.nick(old);
+        if let Some(mut watch) = self.direct.remove(&old_key) {
+            if watch.added
+                && let Some(index) = self
+                    .desired
+                    .iter()
+                    .position(|known| crate::names_equal(isupport.casemapping(), known, old))
+            {
+                new.clone_into(&mut self.desired[index]);
+                if isupport.monitor().is_some() {
+                    transmit_chunks("-", &[old.to_owned()], outbox);
+                    transmit_chunks("+", &[new.to_owned()], outbox);
+                }
+            }
+            new.clone_into(&mut watch.nick);
+            self.direct.insert(self.casemapping.nick(new), watch);
+        }
         self.identity_departed(old, isupport);
         let key = self.casemapping.nick(new);
         if self.desires(new, isupport) {
@@ -139,11 +160,44 @@ impl Monitor {
             DirectWatch {
                 nick: nick.to_owned(),
                 count: 1,
+                added,
                 identity,
             },
         );
         if added {
             self.add([nick.to_owned()], isupport, registered, outbox);
+        }
+    }
+
+    pub(super) fn release_direct(
+        &mut self,
+        recipient: &RecipientGuard,
+        isupport: &Isupport,
+        registered: bool,
+        outbox: &mut Outbox,
+    ) {
+        self.update_casemapping(isupport.casemapping());
+        let nick = recipient.__nick();
+        let mut key = self.casemapping.nick(nick);
+        if !self.direct.contains_key(&key)
+            && let Some(found) = self.direct.iter().find_map(|(key, watch)| {
+                (watch.identity == recipient.__token()).then(|| key.clone())
+            })
+        {
+            key = found;
+        }
+        let Some(watch) = self.direct.get_mut(&key) else {
+            return;
+        };
+        watch.count = watch.count.saturating_sub(1);
+        if watch.count != 0 {
+            return;
+        }
+        let Some(watch) = self.direct.remove(&key) else {
+            return;
+        };
+        if watch.added {
+            self.remove([watch.nick], isupport, registered, outbox);
         }
     }
 
