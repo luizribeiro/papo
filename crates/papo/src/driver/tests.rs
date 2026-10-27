@@ -91,6 +91,13 @@ async fn next_active_event(events: &mut crate::Events) -> Event {
     }
 }
 
+async fn assert_connected(events: &mut crate::Events) {
+    assert!(matches!(
+        next_active_event(events).await,
+        Event::Connected(_)
+    ));
+}
+
 async fn assert_action_refusal<T: std::fmt::Debug + Send + 'static>(
     server: &mut DuplexStream,
     action: crate::RequestFuture<T>,
@@ -323,10 +330,7 @@ async fn sasl_connection_reports_each_protocol_phase() {
         b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n",
     )
     .await;
-    assert!(matches!(
-        next_active_event(&mut events).await,
-        Event::Connected(_)
-    ));
+    assert_connected(&mut events).await;
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
@@ -340,7 +344,7 @@ async fn message_fields_use_captured_session_facts() {
     server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
     client_line(&mut server, b"CAP END\r\n").await;
     server_line(&mut server, b":ergo.test 005 papo-driver CHANTYPES=# CASEMAPPING=rfc1459 :are supported\r\n:ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::Connected(_))));
+    assert_connected(&mut events).await;
 
     server_line(&mut server, b"@time=2026-02-03T04:05:06.789Z;msgid=RfcBTzyxY120004;account=emily;bot;+draft/reply=RfcBTzyxY120003 :emily!~e@localhost PRIVMSG #papo :hello \x02from Ergo\x02\r\n").await;
     let message = next_message(&mut events).await;
@@ -467,10 +471,7 @@ async fn live_bot_facts_require_message_tags_and_bot_mode() {
             b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n",
         )
         .await;
-        assert!(matches!(
-            next_active_event(&mut events).await,
-            Event::Connected(_)
-        ));
+        assert_connected(&mut events).await;
 
         server_line(
             &mut server,
@@ -500,10 +501,7 @@ async fn multiline_messages_keep_addressing_across_a_nick_change() {
     server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
     client_line(&mut server, b"CAP END\r\n").await;
     server_line(&mut server, b":ergo.test 005 papo-driver NICKLEN=32 :are supported by this server\r\n:ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n").await;
-    assert!(matches!(
-        next_active_event(&mut events).await,
-        Event::Connected(_)
-    ));
+    assert_connected(&mut events).await;
 
     server_line(
         &mut server,
@@ -872,10 +870,7 @@ async fn registration_is_forwarded() {
         next_event(&mut events).await,
         Some(Event::Motd(motd)) if motd.lines == ["- Welcome to ErgoTest"]
     ));
-    assert!(matches!(
-        next_active_event(&mut events).await,
-        Event::Connected(_)
-    ));
+    assert_connected(&mut events).await;
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
     assert!(!client.state().is_connected());
@@ -1210,7 +1205,7 @@ async fn configuration_failures_are_terminal() {
         let driver = tokio::spawn(driver);
 
         assert!(matches!(
-            events.next().await,
+            next_event(&mut events).await,
             Some(Event::Disconnected(disconnected)) if !disconnected.is_reconnecting()
         ));
         assert!(matches!(
@@ -1252,7 +1247,7 @@ async fn registration_waiter_fails_after_one_connection_attempt() {
         Err(Error::Connect(_))
     ));
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(disconnected)) if !disconnected.is_reconnecting()
     ));
     assert!(within(driver).await.unwrap().is_ok());
@@ -1295,7 +1290,7 @@ async fn registration_connection_loss_is_a_connect_error() {
         Err(Error::Connect(error)) if error.kind() == crate::ConnectErrorKind::Server
     ));
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: None,
@@ -1309,6 +1304,7 @@ async fn registration_connection_loss_is_a_connect_error() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
+#[allow(clippy::too_many_lines)]
 async fn eof_reconnects_and_emits_reconnected() {
     let (first_stream, mut first_server) = tokio::io::duplex(4096);
     let (second_stream, mut second_server) = tokio::io::duplex(4096);
@@ -1355,15 +1351,24 @@ async fn eof_reconnects_and_emits_reconnected() {
     within(join).await.unwrap().unwrap();
     client_line(&mut first_server, b"MODE #papo\r\n").await;
     client_line(&mut first_server, b"WHO #papo\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::Joined(_))));
-    assert!(matches!(events.next().await, Some(Event::ChannelSynced(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Joined(_))
+    ));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::ChannelSynced(_))
+    ));
     server_line(&mut first_server, b"@time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120000 :emily!~e@localhost PRIVMSG #papo :before disconnect\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::Message(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Message(_))
+    ));
     confirm_away(&mut first_server, &client, &mut events, "reviewing patches").await;
     assert!(client.state().is_connected());
     within(first_server.shutdown()).await.unwrap();
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(disconnected)) if disconnected.is_reconnecting()
     ));
     assert!(!client.state().is_connected());
@@ -1378,20 +1383,23 @@ async fn eof_reconnects_and_emits_reconnected() {
         b":ergo.test 475 papo-driver #papo :Cannot join channel (+k)\r\n",
     )
     .await;
-    let failed = events.next().await.unwrap();
+    let failed = next_event(&mut events).await.unwrap();
     let failed = failed.as_auto_join_failed().unwrap();
     assert_eq!(failed.channel, "#papo");
     assert_eq!(failed.channel.origin(), client.origin());
     assert_eq!(failed.error.refusal(), crate::Refusal::BadChannelKey);
     within(second_server.shutdown()).await.unwrap();
-    assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Disconnected(_))
+    ));
 
     tokio::time::advance(Duration::from_secs(3)).await;
     welcome_burst(&mut third_server).await;
     server_line(&mut third_server, b":ergo.test CAP * LS :\r\n").await;
     client_line(&mut third_server, b"CAP END\r\n").await;
     server_line(&mut third_server, b":ergo.test 001 papo-driver :Welcome back\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::Connected(_))));
+    assert_connected(&mut events).await;
     client_line(&mut third_server, b"AWAY :reviewing patches\r\n").await;
     assert!(
         tokio::time::timeout(Duration::from_millis(1), third_server.read_u8())
@@ -1811,7 +1819,7 @@ async fn explicit_reconnect_redials_without_backoff() {
     let reconnect_requested_at = tokio::time::Instant::now();
     within(client.reconnect()).await.unwrap();
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(crate::Disconnected {
             reconnect_in: Some(Duration::ZERO),
             ..
@@ -1833,7 +1841,7 @@ async fn explicit_reconnect_redials_without_backoff() {
     )
     .await;
     assert!(
-        matches!(events.next().await, Some(Event::Connected(connected)) if connected.reconnected)
+        matches!(next_active_event(&mut events).await, Event::Connected(connected) if connected.reconnected)
     );
 
     let quit = tokio::spawn(async move { client.quit("").await });
@@ -1890,9 +1898,15 @@ async fn reconnect_history_pages_stop_at_the_target_limit() {
     )
     .await;
     server_line(&mut first_server, b"@time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120000 :emily!~e@localhost PRIVMSG #papo :before disconnect\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::Message(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Message(_))
+    ));
     within(first_server.shutdown()).await.unwrap();
-    assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Disconnected(_))
+    ));
     tokio::time::advance(Duration::from_secs(2)).await;
 
     welcome_burst(&mut second_server).await;
@@ -1914,7 +1928,7 @@ async fn reconnect_history_pages_stop_at_the_target_limit() {
     client_line(&mut second_server, b"CAP END\r\n").await;
     server_line(&mut second_server, b":ergo.test 005 papo-driver CHATHISTORY=100 MSGREFTYPES=msgid,timestamp :supported\r\n:ergo.test 001 papo-driver :Welcome back\r\n").await;
     assert!(
-        matches!(events.next().await, Some(Event::Connected(connected)) if connected.reconnected)
+        matches!(next_active_event(&mut events).await, Event::Connected(connected) if connected.reconnected)
     );
     client_line(
         &mut second_server,
@@ -1957,7 +1971,7 @@ async fn reconnect_history_pages_stop_at_the_target_limit() {
     .await;
     server_line(&mut second_server, b"@time=2026-10-15T12:01:30.000Z;msgid=RfcBTzyxY12LIVE :alice!~a@localhost PRIVMSG #papo :live overlap\r\n").await;
     assert!(
-        matches!(events.next().await, Some(Event::Message(message)) if message.text == "live overlap")
+        matches!(next_event(&mut events).await, Some(Event::Message(message)) if message.text == "live overlap")
     );
     let mut second_page = String::from(
         "@label=6 :ergo.test BATCH +reply2 labeled-response\r\n@batch=reply2 :ergo.test BATCH +history2 chathistory #papo\r\n@batch=history2;time=2026-10-15T12:01:30.000Z;msgid=RfcBTzyxY12LIVE :alice!~a@localhost PRIVMSG #papo :live overlap\r\n",
@@ -1974,7 +1988,7 @@ async fn reconnect_history_pages_stop_at_the_target_limit() {
         .push_str("@batch=reply2 :ergo.test BATCH -history2\r\n:ergo.test BATCH -reply2\r\n");
     server_line(&mut second_server, second_page.as_bytes()).await;
 
-    let Some(Event::History(history)) = events.next().await else {
+    let Some(Event::History(history)) = next_event(&mut events).await else {
         panic!("expected aggregate history event")
     };
     assert_eq!(history.reason, crate::HistoryReason::Catchup);
@@ -2049,9 +2063,15 @@ async fn reconnect_history_advances_past_the_previous_catchup() {
     complete_connect_history(&mut first_server, &mut events).await;
     client_line(&mut first_server, b"@label=0 JOIN #papo\r\n").await;
     server_line(&mut first_server, b"@time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120000 :emily!~e@localhost PRIVMSG #papo :before disconnect\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::Message(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Message(_))
+    ));
     within(first_server.shutdown()).await.unwrap();
-    assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Disconnected(_))
+    ));
     tokio::time::advance(Duration::from_secs(2)).await;
 
     complete_connect_history(&mut second_server, &mut events).await;
@@ -2068,7 +2088,7 @@ async fn reconnect_history_advances_past_the_previous_catchup() {
     )
     .await;
     server_line(&mut second_server, b"@label=3 :ergo.test BATCH +reply1 labeled-response\r\n@batch=reply1 :ergo.test BATCH +history1 chathistory #papo\r\n@batch=history1;time=2026-10-15T12:01:00.000Z;msgid=RfcBTzyxY120001 :emily!~e@localhost PRIVMSG #papo :missed once\r\n@batch=reply1 :ergo.test BATCH -history1\r\n:ergo.test BATCH -reply1\r\n").await;
-    let Some(Event::History(history)) = events.next().await else {
+    let Some(Event::History(history)) = next_event(&mut events).await else {
         panic!("expected first catch-up")
     };
     assert_eq!(
@@ -2079,7 +2099,10 @@ async fn reconnect_history_advances_past_the_previous_catchup() {
         ["missed once"]
     );
     within(second_server.shutdown()).await.unwrap();
-    assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Disconnected(_))
+    ));
     tokio::time::advance(Duration::from_secs(2)).await;
 
     complete_connect_history(&mut third_server, &mut events).await;
@@ -2090,7 +2113,7 @@ async fn reconnect_history_advances_past_the_previous_catchup() {
     )
     .await;
     server_line(&mut third_server, b"@label=5 :ergo.test BATCH +reply2 labeled-response\r\n@batch=reply2;draft/chathistory-end :ergo.test BATCH +history2 chathistory #papo\r\n@batch=reply2 :ergo.test BATCH -history2\r\n:ergo.test BATCH -reply2\r\n").await;
-    let Some(Event::History(history)) = events.next().await else {
+    let Some(Event::History(history)) = next_event(&mut events).await else {
         panic!("expected empty second catch-up")
     };
     assert!(history.items.is_empty());
