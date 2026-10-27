@@ -168,7 +168,7 @@ mod tests {
             SystemTime::UNIX_EPOCH + Duration::from_secs(7200),
             Duration::from_secs(3600),
         );
-        let mut store = RecordingStsStore::default();
+        let store = RecordingStsStore::default();
         store.put(policy.clone());
         assert_eq!(store.get("irc.example.net"), Some(policy.clone()));
         assert_eq!(store.get("chat.example.net"), None);
