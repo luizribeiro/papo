@@ -62,6 +62,8 @@ pub enum Warning {
         /// A human-readable explanation suitable for diagnostics.
         reason: String,
     },
+    /// The server uses RFC 8265 name matching, but this build lacks the `precis` feature.
+    Utf8CasemappingUnsupported,
     /// Server input exceeded a configured state-retention bound.
     #[non_exhaustive]
     StateLimitReached {
@@ -96,6 +98,9 @@ impl fmt::Display for Warning {
                 )
             }
             Self::AuthenticationFailed { reason } => formatter.write_str(reason),
+            Self::Utf8CasemappingUnsupported => formatter.write_str(
+                "server advertises UTF8MAPPING=rfc8265, but this build lacks PRECIS support",
+            ),
             Self::StateLimitReached { kind } => {
                 write!(formatter, "state limit reached: {kind:?}")
             }
@@ -130,6 +135,7 @@ mod tests {
             Warning::AuthenticationFailed {
                 reason: "SASL mechanism unavailable".to_owned(),
             },
+            Warning::Utf8CasemappingUnsupported,
             Warning::StateLimitReached {
                 kind: StateLimit::Members,
             },

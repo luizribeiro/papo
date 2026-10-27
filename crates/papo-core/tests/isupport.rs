@@ -2,7 +2,7 @@
 
 mod support;
 
-use papo_core::{Config, Event, StateLimit};
+use papo_core::{Config, Event, Session, StateLimit};
 use papo_proto::Advertised;
 use support::Transcript;
 
@@ -30,6 +30,28 @@ fn removing_utf8only_restores_the_configured_decoding_policy() {
         .server(":soju.example 005 papo -UTF8ONLY :are supported by this server")
         .server_bytes(b":soju.example NOTICE papo :caf\xe9")
         .event(|event| matches!(event, Event::Line(_)));
+}
+
+#[test]
+fn warns_once_per_connection_when_rfc8265_cannot_be_applied() {
+    let now = std::time::Instant::now();
+    let mut session = Session::new(Config::default());
+    for _ in 0..2 {
+        session.handle_connected(now);
+        while session.poll_event().is_some() {}
+        for line in [
+            ":ergo.test 005 papo CASEMAPPING=ascii UTF8MAPPING=rfc8265 :are supported",
+            ":ergo.test 005 papo UTF8MAPPING=rfc8265 :are supported",
+        ] {
+            session.handle_line(now, line.as_bytes());
+        }
+        let warnings = std::iter::from_fn(|| session.poll_event())
+            .filter(|event| matches!(event, Event::Utf8CasemappingUnsupported))
+            .count();
+        let supports_rfc8265 = session.isupport().casemapping().as_str() == "rfc7613";
+        assert_eq!(warnings, usize::from(!supports_rfc8265));
+        session.handle_disconnected(now);
+    }
 }
 
 #[test]

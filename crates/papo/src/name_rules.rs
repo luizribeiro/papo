@@ -23,7 +23,9 @@ pub enum NameCheck {
 /// Name values are useful as keys in sets and maps because they retain both the server's
 /// casemapping and the client that produced them. Builders do not validate and never fail:
 /// server-specific rules arrive only after connecting. Use [`Self::check_nick`] and
-/// [`Self::check_channel`] for configuration or user input.
+/// [`Self::check_channel`] for configuration or user input. When a build without the `precis`
+/// feature meets `UTF8MAPPING=rfc8265`, these rules fall back to `CASEMAPPING` (or RFC 1459) and
+/// emit [`crate::event::Warning::Utf8CasemappingUnsupported`] once for that connection.
 ///
 /// ```
 /// # fn example(state: &papo::State) {

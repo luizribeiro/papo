@@ -1945,6 +1945,9 @@ pub(crate) fn from_core_with_receipt(
         papo_core::Event::CasemappingChanged { old, new, .. } => {
             Event::CasemappingChanged(CasemappingChanged { old, new })
         }
+        papo_core::Event::Utf8CasemappingUnsupported => {
+            Event::Warning(Warning::Utf8CasemappingUnsupported)
+        }
         papo_core::Event::StsUpgrade { port, .. } => return CoreEvent::StsUpgrade(port),
         papo_core::Event::StsPolicy(action) => return CoreEvent::StsPolicy(action),
         papo_core::Event::Joined {

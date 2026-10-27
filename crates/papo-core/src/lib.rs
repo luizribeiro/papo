@@ -2377,6 +2377,8 @@ pub enum Event {
         /// Rules advertised by the current connection.
         new: Casemapping,
     },
+    /// The server advertised RFC 8265 name matching, but this build cannot apply it.
+    Utf8CasemappingUnsupported,
     /// A plaintext connection must be replaced with TLS on `port`.
     #[non_exhaustive]
     StsUpgrade {
@@ -2882,6 +2884,12 @@ pub enum StateLimit {
 
 type PendingRequests = BTreeMap<String, (RequestId, Option<Instant>, bool, Option<Feature>, bool)>;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Utf8CasemappingWarning {
+    Pending,
+    Emitted,
+}
+
 /// Sans-I/O state for one IRC client session.
 pub struct Session {
     account_registration: AccountRegistration,
@@ -2893,6 +2901,7 @@ pub struct Session {
     caps: Caps,
     casemapping_baseline: Casemapping,
     casemapping_change_emitted: bool,
+    utf8_casemapping_warning: Utf8CasemappingWarning,
     ctcp_rate_limit: RateLimiter,
     ctcp_sources: VecDeque<(String, Instant)>,
     framer: Framer,
@@ -2931,6 +2940,7 @@ impl std::fmt::Debug for Session {
                 "casemapping_change_emitted",
                 &self.casemapping_change_emitted,
             )
+            .field("utf8_casemapping_warning", &self.utf8_casemapping_warning)
             .field("ctcp_rate_limit", &self.ctcp_rate_limit)
             .field("ctcp_sources", &self.ctcp_sources)
             .field("framer", &self.framer)
@@ -3221,6 +3231,7 @@ impl Session {
             caps: Caps::default(),
             casemapping_baseline: remembered_casemapping,
             casemapping_change_emitted: false,
+            utf8_casemapping_warning: Utf8CasemappingWarning::Pending,
             ctcp_rate_limit,
             ctcp_sources: VecDeque::new(),
             framer: Framer::default(),
@@ -3290,6 +3301,7 @@ impl Session {
         self.caps.handle_connected(now);
         self.casemapping_baseline = self.remembered_casemapping;
         self.casemapping_change_emitted = false;
+        self.utf8_casemapping_warning = Utf8CasemappingWarning::Pending;
         self.isupport.handle_connected();
         self.sasl.handle_connected();
         self.nick_regain.reset();
@@ -5015,6 +5027,16 @@ impl Session {
 
     fn remember_casemapping(&mut self) {
         self.state.update_isupport(self.isupport.value());
+        if self.utf8_casemapping_warning == Utf8CasemappingWarning::Pending
+            && matches!(
+                self.isupport.value().get("UTF8MAPPING"),
+                papo_proto::Advertised::Value("rfc8265")
+            )
+            && self.isupport.value().casemapping().as_str() != "rfc7613"
+        {
+            self.outbox.event(Event::Utf8CasemappingUnsupported);
+            self.utf8_casemapping_warning = Utf8CasemappingWarning::Emitted;
+        }
         let new = self.isupport.value().casemapping();
         if !self.casemapping_change_emitted && new != self.casemapping_baseline {
             self.outbox.event(Event::CasemappingChanged {

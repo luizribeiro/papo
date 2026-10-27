@@ -675,6 +675,7 @@ pub papo_core::Event::TopicChanged::envelope: papo_core::LineEnvelope
 pub papo_core::Event::TopicChanged::topic: core::option::Option<alloc::string::String>
 pub papo_core::Event::TypingChanged(papo_core::TypingChanged)
 pub papo_core::Event::Unsupported(papo_core::Unsupported)
+pub papo_core::Event::Utf8CasemappingUnsupported
 #[non_exhaustive] pub papo_core::Event::VerificationRequired
 pub papo_core::Event::VerificationRequired::account: papo::AccountName
 pub papo_core::Event::VerificationRequired::message: alloc::string::String
