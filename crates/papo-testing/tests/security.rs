@@ -612,6 +612,65 @@ async fn nickname_handoffs_block_notices_and_ctcp_replies() {
     );
 }
 
+async fn line_reference(
+    events: &mut Events,
+    wire: &mut Wire,
+    name: &str,
+    private: bool,
+    line: &str,
+) -> papo::MessageRef {
+    wire.server(line).await;
+    let reference = match next_active_event(events).await {
+        papo::Event::Message(event) => event.return_address(),
+        papo::Event::TagMsg(event) => event.return_address(),
+        papo::Event::Reacted(event) => event.return_address(),
+        papo::Event::Redacted(event) => event.return_address(),
+        papo::Event::TypingChanged(event) => event.return_address(),
+        event => panic!("unexpected {name} event: {event:?}"),
+    };
+    assert_eq!(
+        reference.as_ref(),
+        if private { "alice" } else { "#review" }
+    );
+    reference
+}
+
+async fn assert_line_recipient_guard(
+    client: &papo::Client,
+    wire: &mut Wire,
+    name: &str,
+    private: bool,
+    reference: papo::MessageRef,
+) {
+    if !private {
+        client
+            .notice(reference, "channel guard check")
+            .await
+            .unwrap();
+        assert_eq!(
+            wire.next_sent().await,
+            "NOTICE #review :channel guard check"
+        );
+        return;
+    }
+    let with_id = papo::MessageRef::from((reference.clone(), "ErgoGuardTarget"));
+    for result in [
+        client
+            .reply(reference.clone(), "payroll attached")
+            .await
+            .map(|_| ()),
+        client.react(with_id.clone(), "✅").await,
+        client.redact(with_id, "superseded").await,
+        client.typing(reference.clone(), papo::Typing::Active).await,
+        client.notice(reference, "classified").await.map(|_| ()),
+    ] {
+        assert!(
+            matches!(result, Err(papo::Error::TargetGone)),
+            "{name} did not retain its recipient guard: {result:?}"
+        );
+    }
+}
+
 #[tokio::test]
 async fn every_private_line_reference_refuses_a_nickname_handoff() {
     let (client, mut events, mut wire) = wire(
@@ -641,39 +700,61 @@ async fn every_private_line_reference_refuses_a_nickname_handoff() {
 
     let sent = client.privmsg("alice", "review requested").await.unwrap();
     assert_eq!(wire.next_sent().await, "PRIVMSG alice :review requested");
-    let mut references = vec![("sent message", sent.return_address())];
-    for (name, line) in [
+    let mut references = vec![("sent message", true, sent.return_address())];
+    for (name, private, line) in [
         (
             "message",
+            true,
             "@msgid=Ergo8ZZ1 :alice!~a@cloak.example PRIVMSG papo-wire :release status",
         ),
         (
+            "channel message",
+            false,
+            "@msgid=Ergo8ZZ5 :alice!~a@cloak.example PRIVMSG #review :release status",
+        ),
+        (
             "tag message",
+            true,
             "@msgid=Ergo8ZZ2;+example/status=ready :alice!~a@cloak.example TAGMSG papo-wire",
         ),
         (
+            "channel tag message",
+            false,
+            "@msgid=Ergo8ZZ6;+example/status=ready :alice!~a@cloak.example TAGMSG #review",
+        ),
+        (
             "reaction",
+            true,
             "@msgid=Ergo8ZZ3;+draft/react=✅;+draft/reply=Ergo8ZZ1 :alice!~a@cloak.example TAGMSG papo-wire",
         ),
         (
+            "channel reaction",
+            false,
+            "@msgid=Ergo8ZZ7;+draft/react=✅;+draft/reply=Ergo8ZZ5 :alice!~a@cloak.example TAGMSG #review",
+        ),
+        (
             "redaction",
+            true,
             "@msgid=Ergo8ZZ4 :alice!~a@cloak.example REDACT papo-wire Ergo8ZZ1 :superseded",
         ),
         (
+            "channel redaction",
+            false,
+            "@msgid=Ergo8ZZ8 :alice!~a@cloak.example REDACT #review Ergo8ZZ5 :superseded",
+        ),
+        (
             "typing notification",
+            true,
             "@+typing=active :alice!~a@cloak.example TAGMSG papo-wire",
         ),
+        (
+            "channel typing notification",
+            false,
+            "@+typing=active :alice!~a@cloak.example TAGMSG #review",
+        ),
     ] {
-        wire.server(line).await;
-        let reference = match next_active_event(&mut events).await {
-            papo::Event::Message(event) => event.return_address(),
-            papo::Event::TagMsg(event) => event.return_address(),
-            papo::Event::Reacted(event) => event.return_address(),
-            papo::Event::Redacted(event) => event.return_address(),
-            papo::Event::TypingChanged(event) => event.return_address(),
-            event => panic!("unexpected {name} event: {event:?}"),
-        };
-        references.push((name, reference));
+        let reference = line_reference(&mut events, &mut wire, name, private, line).await;
+        references.push((name, private, reference));
     }
     wire.server(":alice!~a@cloak.example QUIT :Client Quit")
         .await;
@@ -684,14 +765,8 @@ async fn every_private_line_reference_refuses_a_nickname_handoff() {
         papo::Event::NickChanged(_)
     ) {}
 
-    for (name, reference) in references {
-        assert!(
-            matches!(
-                client.reply(reference, "payroll attached").await,
-                Err(papo::Error::TargetGone)
-            ),
-            "{name} did not retain its recipient guard"
-        );
+    for (name, private, reference) in references {
+        assert_line_recipient_guard(&client, &mut wire, name, private, reference).await;
     }
     assert!(
         tokio::time::timeout(Duration::from_millis(10), wire.next_sent())
