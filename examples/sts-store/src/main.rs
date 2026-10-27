@@ -10,7 +10,7 @@ use papo::{Client, sts::StsPolicy, sts::StsStore};
 fn main() -> Result<(), Box<dyn Error>> {
     let url = env::args().nth(1).ok_or("usage: sts-store URL PATH")?;
     let path = env::args_os().nth(2).ok_or("usage: sts-store URL PATH")?;
-    let mut store = FileStore::open(&path)?;
+    let store = FileStore::open(&path)?;
     store.put(StsPolicy::new(
         "irc.example.net",
         6697,

@@ -22,11 +22,11 @@ impl StsStore for RecordingStsStore {
             .cloned()
     }
 
-    fn put(&mut self, policy: StsPolicy) {
+    fn put(&self, policy: StsPolicy) {
         *self.0.lock().unwrap() = Some(policy);
     }
 
-    fn remove(&mut self, host: &str) {
+    fn remove(&self, host: &str) {
         let mut policy = self.0.lock().unwrap();
         if policy.as_ref().is_some_and(|policy| policy.host == host) {
             *policy = None;

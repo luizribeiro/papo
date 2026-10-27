@@ -1894,7 +1894,7 @@ pub fn papo::Builder::request_caps<I, S>(self, I) -> Self where I: core::iter::t
 pub fn papo::Builder::request_timeout(self, core::time::Duration) -> Self
 pub fn papo::Builder::sasl(self, papo::Sasl) -> Self
 pub fn papo::Builder::stream(self, impl futures_io::if_std::AsyncRead + futures_io::if_std::AsyncWrite + core::marker::Send + core::marker::Unpin + 'static) -> Self
-pub fn papo::Builder::sts_store(self, impl papo::sts::StsStore + core::marker::Send + 'static) -> Self
+pub fn papo::Builder::sts_store(self, impl papo::sts::StsStore + 'static) -> Self
 pub fn papo::Builder::tls_ca_pem(self, impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self
 pub fn papo::Builder::tls_client_cert(self, impl core::convert::Into<alloc::vec::Vec<u8>>, impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self
 pub fn papo::Builder::tls_extra_ca_pem(self, impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self

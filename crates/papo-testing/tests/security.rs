@@ -552,11 +552,11 @@ impl papo::sts::StsStore for CaseSensitiveStsStore {
         self.0.lock().unwrap().get(host).cloned()
     }
 
-    fn put(&mut self, policy: papo::sts::StsPolicy) {
+    fn put(&self, policy: papo::sts::StsPolicy) {
         self.0.lock().unwrap().insert(policy.host.clone(), policy);
     }
 
-    fn remove(&mut self, host: &str) {
+    fn remove(&self, host: &str) {
         self.0.lock().unwrap().remove(host);
     }
 }

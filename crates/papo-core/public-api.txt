@@ -204,8 +204,8 @@ impl core::fmt::Debug for papo::sts::MemoryStsStore
 pub fn papo::sts::MemoryStsStore::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl papo::sts::StsStore for papo::sts::MemoryStsStore
 pub fn papo::sts::MemoryStsStore::get(&self, &str) -> core::option::Option<papo::sts::StsPolicy>
-pub fn papo::sts::MemoryStsStore::put(&mut self, papo::sts::StsPolicy)
-pub fn papo::sts::MemoryStsStore::remove(&mut self, &str)
+pub fn papo::sts::MemoryStsStore::put(&self, papo::sts::StsPolicy)
+pub fn papo::sts::MemoryStsStore::remove(&self, &str)
 impl core::marker::Freeze for papo::sts::MemoryStsStore
 impl core::marker::Send for papo::sts::MemoryStsStore
 impl core::marker::Sync for papo::sts::MemoryStsStore
@@ -262,14 +262,18 @@ impl core::marker::Unpin for papo::sts::StsPolicy
 impl core::marker::UnsafeUnpin for papo::sts::StsPolicy
 impl core::panic::unwind_safe::RefUnwindSafe for papo::sts::StsPolicy
 impl core::panic::unwind_safe::UnwindSafe for papo::sts::StsPolicy
-pub trait papo::sts::StsStore
+pub trait papo::sts::StsStore: core::marker::Send + core::marker::Sync
 pub fn papo::sts::StsStore::get(&self, &str) -> core::option::Option<papo::sts::StsPolicy>
-pub fn papo::sts::StsStore::put(&mut self, papo::sts::StsPolicy)
-pub fn papo::sts::StsStore::remove(&mut self, &str)
+pub fn papo::sts::StsStore::put(&self, papo::sts::StsPolicy)
+pub fn papo::sts::StsStore::remove(&self, &str)
 impl papo::sts::StsStore for papo::sts::MemoryStsStore
 pub fn papo::sts::MemoryStsStore::get(&self, &str) -> core::option::Option<papo::sts::StsPolicy>
-pub fn papo::sts::MemoryStsStore::put(&mut self, papo::sts::StsPolicy)
-pub fn papo::sts::MemoryStsStore::remove(&mut self, &str)
+pub fn papo::sts::MemoryStsStore::put(&self, papo::sts::StsPolicy)
+pub fn papo::sts::MemoryStsStore::remove(&self, &str)
+impl<T: papo::sts::StsStore + ?core::marker::Sized> papo::sts::StsStore for alloc::rcs::arc::Arc<T>
+pub fn alloc::rcs::arc::Arc<T>::get(&self, &str) -> core::option::Option<papo::sts::StsPolicy>
+pub fn alloc::rcs::arc::Arc<T>::put(&self, papo::sts::StsPolicy)
+pub fn alloc::rcs::arc::Arc<T>::remove(&self, &str)
 pub fn papo::sts::decide(papo::sts::StsDirective, papo::sts::ConnectionSecurity, &str) -> papo::sts::StsAction
 pub fn papo::sts::reschedule_on_disconnect(papo::sts::StsPolicy, std::time::SystemTime) -> papo::sts::StsPolicy
 #[non_exhaustive] pub enum papo_core::Account

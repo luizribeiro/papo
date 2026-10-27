@@ -300,7 +300,10 @@ pub fn reschedule_on_disconnect(stored: StsPolicy, disconnected_at: SystemTime) 
 
 #[cfg(test)]
 mod tests {
-    use std::time::{Duration, UNIX_EPOCH};
+    use std::{
+        sync::Arc,
+        time::{Duration, UNIX_EPOCH},
+    };
 
     use super::{
         ConnectionSecurity, MemoryStsStore, StsAction, StsDirective, StsParseError, StsPolicy,
@@ -425,6 +428,22 @@ mod tests {
         assert_eq!(store.get("irc.example.net"), Some(replacement));
         store.remove("irc.example.net");
         assert_eq!(store.get("irc.example.net"), None);
+    }
+
+    #[test]
+    fn arc_stores_share_policy_updates() {
+        let store = Arc::new(MemoryStsStore::new());
+        let shared = Arc::clone(&store);
+        let policy = StsPolicy::new(
+            "irc.example.net",
+            6697,
+            UNIX_EPOCH + Duration::from_secs(2_000_000),
+            Duration::from_secs(60),
+        );
+
+        <Arc<MemoryStsStore> as StsStore>::put(&store, policy.clone());
+
+        assert_eq!(shared.get("irc.example.net"), Some(policy));
     }
 
     #[test]

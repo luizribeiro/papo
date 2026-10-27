@@ -1,8 +1,14 @@
-use std::{collections::HashMap, fmt::Write as _, fs, io, path::PathBuf, time::UNIX_EPOCH};
+use std::{
+    collections::HashMap, fmt::Write as _, fs, io, path::PathBuf, sync::Mutex, time::UNIX_EPOCH,
+};
 
 use papo::sts::{StsPolicy, StsStore};
 
 pub(crate) struct FileStore {
+    inner: Mutex<FileStoreInner>,
+}
+
+struct FileStoreInner {
     path: PathBuf,
     policies: HashMap<String, StsPolicy>,
 }
@@ -16,12 +22,14 @@ impl FileStore {
                 .ok_or(error)
         })?;
         let policies = text.lines().map(parse_policy).collect::<io::Result<_>>()?;
-        Ok(Self { path, policies })
+        Ok(Self {
+            inner: Mutex::new(FileStoreInner { path, policies }),
+        })
     }
 
-    fn save(&self) {
+    fn save(inner: &FileStoreInner) {
         let mut text = String::new();
-        for policy in self.policies.values() {
+        for policy in inner.policies.values() {
             let expiry = policy.expires_at.duration_since(UNIX_EPOCH).unwrap();
             let (host, port, expiry, duration, transport) = (
                 &policy.host,
@@ -32,23 +40,25 @@ impl FileStore {
             );
             writeln!(text, "{host}\t{port}\t{expiry}\t{duration}\t{transport}").unwrap();
         }
-        fs::write(&self.path, text).expect("persist STS policies");
+        fs::write(&inner.path, text).expect("persist STS policies");
     }
 }
 
 impl StsStore for FileStore {
     fn get(&self, host: &str) -> Option<StsPolicy> {
-        self.policies.get(host).cloned()
+        self.inner.lock().unwrap().policies.get(host).cloned()
     }
 
-    fn put(&mut self, policy: StsPolicy) {
-        self.policies.insert(policy.host.clone(), policy);
-        self.save();
+    fn put(&self, policy: StsPolicy) {
+        let mut inner = self.inner.lock().unwrap();
+        inner.policies.insert(policy.host.clone(), policy);
+        Self::save(&inner);
     }
 
-    fn remove(&mut self, host: &str) {
-        self.policies.remove(host);
-        self.save();
+    fn remove(&self, host: &str) {
+        let mut inner = self.inner.lock().unwrap();
+        inner.policies.remove(host);
+        Self::save(&inner);
     }
 }
 
