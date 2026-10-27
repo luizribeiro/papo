@@ -21,6 +21,9 @@
 "security::nickname_handoffs_block_notices_and_ctcp_replies" = [
   "security.x-answer.notice-nick-handoff",
 ]
+"security::every_private_line_reference_refuses_a_nickname_handoff" = [
+  "security.adv-7.private-line-recipient-guards",
+]
 "security::ctcp_replies_refuse_nick_handoffs" = [
   "security.addr-10.ctcp-nick-handoff",
 ]

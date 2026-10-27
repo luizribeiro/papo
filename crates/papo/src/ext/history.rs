@@ -47,6 +47,7 @@ pub(crate) fn history_item(
                 history_conversation,
                 account_tag_enabled,
                 received_at,
+                Some(state.reply_token()),
             )
         }),
         papo_core::HistoryItem::Redacted(item) => {
@@ -61,6 +62,7 @@ pub(crate) fn history_item(
                     history_conversation,
                     account_tag_enabled,
                     received_at,
+                    Some(state.reply_token()),
                 )
             })
         }
@@ -159,6 +161,7 @@ fn reaction(
     history_conversation: Option<&crate::Conversation>,
     account_tag_enabled: bool,
     received_at: SystemTime,
+    reply_token: Option<papo_core::ReplyToken>,
 ) -> Option<Event> {
     let reaction = Reaction::parse(message)?;
     let (status, conversation) =
@@ -184,21 +187,29 @@ fn reaction(
         received_at,
     );
     let return_address = crate::event_impl::return_address(message, &conversation);
+    let actor = crate::event_impl::source::user_from_line(
+        message,
+        mapping,
+        origin,
+        account_tag_enabled,
+        false,
+    )?;
+    let receipt = crate::message_ref::Receipt::new(
+        crate::Source::User(actor.clone()),
+        authorship,
+        &conversation,
+        reply_token,
+        return_address,
+    );
     Some(Event::Reacted(Reacted {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        actor: crate::event_impl::source::user_from_line(
-            message,
-            mapping,
-            origin,
-            account_tag_enabled,
-            false,
-        )?,
+        actor,
         authorship,
         conversation,
         status,
-        return_address,
+        receipt,
         reacts_to: reply_to.into(),
         reaction,
         action: if removed {
@@ -220,6 +231,7 @@ fn redaction(
     history_conversation: Option<&crate::Conversation>,
     account_tag_enabled: bool,
     received_at: SystemTime,
+    reply_token: Option<papo_core::ReplyToken>,
 ) -> Option<Event> {
     let (status, conversation) =
         papo_core::classify_conversation(message, own_nick, isupport).ok()?;
@@ -239,26 +251,34 @@ fn redaction(
         received_at,
     );
     let return_address = crate::event_impl::return_address(message, &conversation);
+    let actor = match message.source()? {
+        papo_proto::Source::User { .. } => {
+            crate::Source::User(crate::event_impl::source::user_from_line(
+                message,
+                mapping,
+                origin,
+                account_tag_enabled,
+                false,
+            )?)
+        }
+        papo_proto::Source::Server(server) => crate::Source::Server(server.into()),
+    };
+    let receipt = crate::message_ref::Receipt::new(
+        actor.clone(),
+        authorship,
+        &conversation,
+        reply_token,
+        return_address,
+    );
     Some(Event::Redacted(Redacted {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        actor: match message.source()? {
-            papo_proto::Source::User { .. } => {
-                crate::Source::User(crate::event_impl::source::user_from_line(
-                    message,
-                    mapping,
-                    origin,
-                    account_tag_enabled,
-                    false,
-                )?)
-            }
-            papo_proto::Source::Server(server) => crate::Source::Server(server.into()),
-        },
+        actor,
         authorship,
         conversation,
         status,
-        return_address,
+        receipt,
         redacts: message.param(1)?.into(),
         reason: message
             .param(2)
@@ -1396,6 +1416,7 @@ mod tests {
             None,
             true,
             UNIX_EPOCH,
+            None,
         ) else {
             panic!("reaction should be typed");
         };

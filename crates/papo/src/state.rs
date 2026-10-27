@@ -43,6 +43,10 @@ pub struct State {
 }
 
 impl State {
+    pub(crate) fn reply_token(&self) -> papo_core::ReplyToken {
+        self.core.__reply_token()
+    }
+
     /// Returns builders and checks that use this snapshot's name rules and client identity.
     #[must_use]
     pub const fn name_rules(&self) -> crate::NameRules<'_> {

@@ -109,8 +109,7 @@ pub struct CtcpQuery {
     pub received_at: SystemTime,
     /// All message tags in wire order.
     pub tags: Tags,
-    pub(crate) reply_token: Option<papo_core::ReplyToken>,
-    pub(crate) return_address: String,
+    pub(crate) receipt: crate::message_ref::Receipt,
 }
 
 /// An incoming Client-to-Client Protocol reply carried by `NOTICE`.
@@ -141,8 +140,7 @@ pub struct CtcpReply {
     pub received_at: SystemTime,
     /// All message tags in wire order.
     pub tags: Tags,
-    pub(crate) reply_token: Option<papo_core::ReplyToken>,
-    pub(crate) return_address: String,
+    pub(crate) receipt: crate::message_ref::Receipt,
 }
 
 macro_rules! ctcp_return_address {
@@ -263,8 +261,7 @@ pub struct Message {
     pub relayed_by: Option<Nick>,
     /// All message tags in wire order.
     pub tags: Tags,
-    pub(crate) reply_token: Option<papo_core::ReplyToken>,
-    pub(crate) return_address: String,
+    pub(crate) receipt: crate::message_ref::Receipt,
 }
 
 /// An incoming `NOTICE` from another user.
@@ -307,8 +304,7 @@ pub struct Notice {
     pub relayed_by: Option<Nick>,
     /// All message tags in wire order.
     pub tags: Tags,
-    pub(crate) reply_token: Option<papo_core::ReplyToken>,
-    pub(crate) return_address: String,
+    pub(crate) receipt: crate::message_ref::Receipt,
 }
 
 /// A notice or broadcast sent by a server or to a server-wide audience.
@@ -339,7 +335,7 @@ pub struct ServerNotice {
     pub received_at: SystemTime,
     /// All message tags in wire order.
     pub tags: Tags,
-    pub(crate) return_address: String,
+    pub(crate) receipt: crate::message_ref::Receipt,
 }
 
 /// A parsed IRC line without a more specific typed event.
@@ -369,7 +365,7 @@ struct MessageMetadata {
     authorship: Authorship,
     conversation: Conversation,
     status: Option<Prefix>,
-    return_address: String,
+    receipt: crate::message_ref::Receipt,
     msgid: Option<MessageId>,
     server_time: Option<SystemTime>,
     received_at: SystemTime,
@@ -377,7 +373,6 @@ struct MessageMetadata {
     #[cfg(feature = "unstable")]
     relayed_by: Option<Nick>,
     tags: Tags,
-    reply_token: Option<papo_core::ReplyToken>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -426,8 +421,7 @@ fn ctcp_from_line(
             server_time: metadata.server_time,
             received_at: metadata.received_at,
             tags: metadata.tags,
-            reply_token: metadata.reply_token,
-            return_address: metadata.return_address,
+            receipt: metadata.receipt,
         }))
     } else {
         Ok(Event::CtcpQuery(CtcpQuery {
@@ -441,8 +435,7 @@ fn ctcp_from_line(
             server_time: metadata.server_time,
             received_at: metadata.received_at,
             tags: metadata.tags,
-            reply_token: metadata.reply_token,
-            return_address: metadata.return_address,
+            receipt: metadata.receipt,
         }))
     }
 }
@@ -581,6 +574,7 @@ pub(crate) fn incoming_from_core(
             account_tag_enabled,
             prove_not_bot,
             received_at,
+            Some(reply_token),
         )
         .map_or_else(
             |line| unparsed_from_line(line, received_at),
@@ -718,8 +712,7 @@ impl Message {
             #[cfg(feature = "unstable")]
             relayed_by: metadata.relayed_by,
             tags: metadata.tags,
-            reply_token: metadata.reply_token,
-            return_address: metadata.return_address,
+            receipt: metadata.receipt,
         })
     }
 
@@ -822,8 +815,7 @@ impl Notice {
             #[cfg(feature = "unstable")]
             relayed_by: metadata.relayed_by,
             tags: metadata.tags,
-            reply_token: metadata.reply_token,
-            return_address: metadata.return_address,
+            receipt: metadata.receipt,
         })
     }
 
@@ -853,6 +845,7 @@ impl ServerNotice {
         account_tag_enabled: bool,
         prove_not_bot: bool,
         received_at: SystemTime,
+        reply_token: Option<papo_core::ReplyToken>,
     ) -> Result<Self, ProtoLine> {
         let message = raw.as_ref();
         let kind = if message.command_is("WALLOPS") {
@@ -903,6 +896,24 @@ impl ServerNotice {
             }
         };
         let envelope = line_envelope(&message, isupport.casemapping(), origin, received_at);
+        let return_address = message.param(0).unwrap_or("*").to_owned();
+        let receipt = match &to {
+            Audience::Channel(channel) => crate::message_ref::Receipt::new(
+                actor.clone(),
+                authorship,
+                &Conversation::Channel(channel.clone()),
+                reply_token,
+                return_address,
+            ),
+            Audience::Broadcast(_) | Audience::Me => {
+                crate::message_ref::Receipt::without_recipient(
+                    actor.clone(),
+                    reply_token,
+                    return_address,
+                    origin,
+                )
+            }
+        };
         Ok(Self {
             actor,
             authorship,
@@ -915,7 +926,7 @@ impl ServerNotice {
             server_time: envelope.server_time,
             received_at: envelope.received_at,
             tags: Tags::from_message(&message),
-            return_address: message.param(0).unwrap_or("*").to_owned(),
+            receipt,
         })
     }
 
@@ -951,6 +962,7 @@ fn message_event_from_line(
             account_tag_enabled,
             prove_not_bot,
             received_at,
+            reply_token,
         )
         .map_or_else(
             |line| unparsed_from_line(line, received_at),
@@ -1049,7 +1061,7 @@ pub(crate) fn historical_message_event(
         snapshot.caps().contains_key(&crate::cap::ACCOUNT_TAG),
         false,
         received_at,
-        None,
+        Some(snapshot.reply_token()),
     )
 }
 
@@ -1119,12 +1131,19 @@ fn message_metadata(
     let relayed_by = tag_owned(message, &[crate::cap::RELAYMSG.as_str()])
         .map(|nick| origin.__nick(isupport.casemapping(), nick));
     let return_address = return_address(message, &conversation);
+    let receipt = crate::message_ref::Receipt::new(
+        actor.clone(),
+        authorship,
+        &conversation,
+        reply_token,
+        return_address,
+    );
     Some(MessageMetadata {
         actor,
         authorship,
         conversation,
         status,
-        return_address,
+        receipt,
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
@@ -1132,7 +1151,6 @@ fn message_metadata(
         #[cfg(feature = "unstable")]
         relayed_by,
         tags,
-        reply_token,
     })
 }
 
@@ -1601,7 +1619,7 @@ pub(crate) enum CoreEvent {
 }
 
 // Keeping the exhaustive forwarding table together makes omissions visible when core grows.
-#[allow(clippy::too_many_lines)]
+#[allow(dead_code, clippy::too_many_lines)]
 pub(crate) fn from_core(
     event: papo_core::Event,
     casemapping: Casemapping,
@@ -1609,6 +1627,27 @@ pub(crate) fn from_core(
     account_tag_enabled: bool,
     prove_not_bot: bool,
     received_at: SystemTime,
+) -> CoreEvent {
+    from_core_with_receipt(
+        event,
+        casemapping,
+        origin,
+        account_tag_enabled,
+        prove_not_bot,
+        received_at,
+        None,
+    )
+}
+
+#[allow(clippy::too_many_arguments, clippy::too_many_lines)]
+pub(crate) fn from_core_with_receipt(
+    event: papo_core::Event,
+    casemapping: Casemapping,
+    origin: crate::Origin,
+    account_tag_enabled: bool,
+    prove_not_bot: bool,
+    received_at: SystemTime,
+    reply_token: Option<papo_core::ReplyToken>,
 ) -> CoreEvent {
     let map_envelope = |envelope| {
         core_envelope(
@@ -1631,24 +1670,32 @@ pub(crate) fn from_core(
         papo_core::Event::MultilineMessage(message) => return CoreEvent::Line(message.message),
         papo_core::Event::TypingChanged(change) => {
             let return_address = change.return_address();
+            let Some(actor) = source::user_from_prefix(
+                &change.actor,
+                casemapping,
+                origin,
+                Account::Unknown,
+                None,
+                None,
+            ) else {
+                return CoreEvent::Unknown;
+            };
+            let authorship = Authorship::from_core(change.authorship);
+            let receipt = crate::message_ref::Receipt::new(
+                Source::User(actor.clone()),
+                authorship,
+                &change.conversation,
+                reply_token,
+                return_address,
+            );
             Event::TypingChanged(TypingChanged {
                 server_time: change.server_time,
                 received_at,
-                actor: match source::user_from_prefix(
-                    &change.actor,
-                    casemapping,
-                    origin,
-                    Account::Unknown,
-                    None,
-                    None,
-                ) {
-                    Some(actor) => actor,
-                    None => return CoreEvent::Unknown,
-                },
-                authorship: Authorship::from_core(change.authorship),
+                actor,
+                authorship,
                 conversation: change.conversation,
                 status: change.status,
-                return_address,
+                receipt,
                 state: change.state,
                 reason: change.reason,
             })
@@ -1673,15 +1720,23 @@ pub(crate) fn from_core(
             ) else {
                 return CoreEvent::Unknown;
             };
+            let authorship = Authorship::from_core(message.authorship);
+            let receipt = crate::message_ref::Receipt::new(
+                Source::User(actor.clone()),
+                authorship,
+                &message.conversation,
+                reply_token,
+                return_address,
+            );
             let tag = TagMsg {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 actor,
-                authorship: Authorship::from_core(message.authorship),
+                authorship,
                 conversation: message.conversation,
                 status: message.status,
-                return_address,
+                receipt,
                 tags,
             };
             let reply_to = tag
@@ -1706,7 +1761,7 @@ pub(crate) fn from_core(
                     authorship: tag.authorship,
                     conversation: tag.conversation,
                     status: tag.status,
-                    return_address: tag.return_address,
+                    receipt: tag.receipt,
                     reacts_to: msgid.into(),
                     reaction: reaction.to_owned(),
                     action: if removed {
@@ -1728,7 +1783,7 @@ pub(crate) fn from_core(
                     authorship: tag.authorship,
                     conversation: tag.conversation,
                     status: tag.status,
-                    return_address: tag.return_address,
+                    receipt: tag.receipt,
                     state,
                     reason: TypingReason::Notified,
                 })
@@ -1739,26 +1794,35 @@ pub(crate) fn from_core(
         papo_core::Event::Redacted(redacted) => {
             let return_address = redacted.__return_address().to_owned();
             let envelope = map_envelope(&redacted.envelope);
+            let actor = source::user_from_prefix(
+                &redacted.actor,
+                casemapping,
+                origin,
+                envelope.account,
+                None,
+                None,
+            )
+            .map_or_else(
+                || source::from_prefix(redacted.actor, casemapping, origin),
+                Source::User,
+            );
+            let authorship = Authorship::from_core(redacted.authorship);
+            let receipt = crate::message_ref::Receipt::new(
+                actor.clone(),
+                authorship,
+                &redacted.conversation,
+                reply_token,
+                return_address,
+            );
             Event::Redacted(Redacted {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
-                actor: source::user_from_prefix(
-                    &redacted.actor,
-                    casemapping,
-                    origin,
-                    envelope.account,
-                    None,
-                    None,
-                )
-                .map_or_else(
-                    || source::from_prefix(redacted.actor, casemapping, origin),
-                    Source::User,
-                ),
-                authorship: Authorship::from_core(redacted.authorship),
+                actor,
+                authorship,
                 conversation: redacted.conversation,
                 status: redacted.status,
-                return_address,
+                receipt,
                 redacts: redacted.msgid.into(),
                 reason: redacted.reason.filter(|reason| !reason.is_empty()),
             })

@@ -108,7 +108,7 @@ pub struct Reacted {
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
     pub status: Option<Prefix>,
-    pub(crate) return_address: String,
+    pub(crate) receipt: crate::message_ref::Receipt,
     /// The message being reacted to.
     pub reacts_to: MessageId,
     /// The reaction text, usually an emoji.
@@ -141,7 +141,7 @@ pub struct Redacted {
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
     pub status: Option<Prefix>,
-    pub(crate) return_address: String,
+    pub(crate) receipt: crate::message_ref::Receipt,
     /// The message removed from history.
     pub redacts: MessageId,
     /// The optional human-readable reason.
@@ -173,7 +173,7 @@ pub struct TypingChanged {
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
     pub status: Option<Prefix>,
-    pub(crate) return_address: String,
+    pub(crate) receipt: crate::message_ref::Receipt,
     /// The new typing state.
     pub state: Typing,
     /// Why the state changed.
@@ -202,7 +202,7 @@ pub struct TagMsg {
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
     pub status: Option<Prefix>,
-    pub(crate) return_address: String,
+    pub(crate) receipt: crate::message_ref::Receipt,
     /// Tags in wire order with last-wins lookup.
     pub tags: Tags,
 }
@@ -213,7 +213,7 @@ impl Reacted {
     /// See [`Conversation`] for status-prefixed line guidance.
     #[must_use]
     pub fn return_address(&self) -> crate::MessageRef {
-        crate::message_ref::from_reacted(self)
+        crate::MessageRef::from(self)
     }
 }
 
@@ -223,7 +223,7 @@ impl Redacted {
     /// See [`Conversation`] for status-prefixed line guidance.
     #[must_use]
     pub fn return_address(&self) -> crate::MessageRef {
-        crate::message_ref::from_redacted(self)
+        crate::MessageRef::from(self)
     }
 }
 
@@ -235,7 +235,7 @@ impl TypingChanged {
     /// [`Conversation`] for status-prefixed line guidance.
     #[must_use]
     pub fn return_address(&self) -> crate::MessageRef {
-        crate::message_ref::from_typing(self)
+        crate::MessageRef::from(self)
     }
 }
 

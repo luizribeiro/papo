@@ -268,19 +268,28 @@ mod tests {
             items: Vec::new(),
             seen: std::collections::HashSet::new(),
         };
+        let actor = crate::__testing::user_source(
+            mapping.nick("emily"),
+            Some("~e".into()),
+            Some("cloak.example".into()),
+        );
+        let conversation = crate::Conversation::Channel(mapping.channel("#papo"));
+        let receipt = crate::message_ref::Receipt::new(
+            crate::Source::User(actor.clone()),
+            crate::Authorship::Other,
+            &conversation,
+            None,
+            "#papo".into(),
+        );
         let live = crate::event::Reacted {
             msgid: Some("RfcBTzyxY120010".into()),
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
-            actor: crate::__testing::user_source(
-                mapping.nick("emily"),
-                Some("~e".into()),
-                Some("cloak.example".into()),
-            ),
+            actor,
             authorship: crate::Authorship::Other,
-            conversation: crate::Conversation::Channel(mapping.channel("#papo")),
+            conversation,
             status: None,
-            return_address: "#papo".into(),
+            receipt,
             reacts_to: "RfcBTzyxY120008".into(),
             reaction: "👍".into(),
             action: crate::event::ReactionAction::Added,

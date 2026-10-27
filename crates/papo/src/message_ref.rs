@@ -2,13 +2,9 @@ use std::fmt;
 
 use crate::{
     Account, Authorship, ChannelName, Conversation, Message, MessageId, Nick, Sent, Source,
-    event::{
-        Audience, Broadcast, CtcpQuery, CtcpReply, Notice, Reacted, Redacted, ServerNotice, TagMsg,
-        TypingChanged,
-    },
+    event::{CtcpQuery, CtcpReply, Notice, Reacted, Redacted, ServerNotice, TagMsg, TypingChanged},
 };
 
-#[allow(dead_code)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct Receipt {
     identity: Box<ReceiptIdentity>,
@@ -24,7 +20,6 @@ struct ReceiptIdentity {
     recipient: Option<Nick>,
 }
 
-#[allow(dead_code)]
 impl Receipt {
     pub(crate) fn new(
         actor: Source,
@@ -109,9 +104,27 @@ impl Receipt {
             receipt: self.identity.token,
         })
     }
+
+    pub(crate) fn update_actor(&mut self, actor: Source, conversation: &Conversation) {
+        self.identity.actor = actor;
+        self.identity.actor_account = self
+            .identity
+            .actor
+            .user()
+            .map_or(Account::Unknown, |user| user.account().clone());
+        self.identity.recipient = match conversation {
+            Conversation::Private(nick) => Some(nick.clone()),
+            _ => None,
+        };
+        self.address = conversation.to_string();
+        self.origin = conversation_origin(conversation);
+    }
+
+    pub(crate) fn update_account(&mut self, account: Account) {
+        self.identity.actor_account = account;
+    }
 }
 
-#[allow(dead_code)]
 pub(crate) trait ReplyReference {
     fn receipt(&self) -> &Receipt;
     fn msgids(&self) -> Vec<MessageId>;
@@ -221,69 +234,84 @@ impl crate::Target for MessageRef {
     }
 }
 
-fn recipient(
-    conversation: &Conversation,
-    account: &Account,
-    receipt: Option<papo_core::ReplyToken>,
-) -> Option<RecipientGuard> {
-    let Conversation::Private(nick) = conversation else {
-        return None;
-    };
-    Some(RecipientGuard {
-        nick: nick.clone(),
-        account: account.clone(),
-        receipt,
-    })
-}
-
 pub(crate) fn actor_recipient(query: &CtcpQuery) -> RecipientGuard {
-    RecipientGuard {
-        nick: query.actor.nick().clone(),
-        account: query.actor.account().clone(),
-        receipt: query.reply_token,
-    }
+    query
+        .receipt
+        .actor_recipient()
+        .expect("a CTCP query has a user actor")
 }
 
 pub(crate) fn message_actor_recipient(message: &Message) -> RecipientGuard {
-    RecipientGuard {
-        nick: message.actor.nick().clone(),
-        account: message.actor.account().clone(),
-        receipt: message.reply_token,
+    message
+        .receipt
+        .recipient()
+        .or_else(|| message.receipt.actor_recipient())
+        .expect("a message has a user actor")
+}
+
+macro_rules! reply_reference {
+    ($($ty:ty),+ $(,)?) => {
+        $(
+            impl ReplyReference for $ty {
+                fn receipt(&self) -> &Receipt {
+                    &self.receipt
+                }
+
+                fn msgids(&self) -> Vec<MessageId> {
+                    self.msgid.iter().cloned().collect()
+                }
+            }
+
+            /// Preserves the received line's return address and identifier.
+            impl From<&$ty> for MessageRef {
+                fn from(line: &$ty) -> Self {
+                    line.receipt()
+                        .reference(line.msgids(), line.channel_context())
+                }
+            }
+        )+
+    };
+}
+
+reply_reference!(CtcpQuery, TagMsg, Reacted, Redacted);
+
+impl ReplyReference for TypingChanged {
+    fn receipt(&self) -> &Receipt {
+        &self.receipt
+    }
+
+    fn msgids(&self) -> Vec<MessageId> {
+        Vec::new()
     }
 }
 
-fn from_received(
-    address: &str,
-    conversation: &Conversation,
-    msgid: Option<&MessageId>,
-    account: &Account,
-    receipt: Option<papo_core::ReplyToken>,
-    channel_context: Option<ChannelName>,
-) -> MessageRef {
-    let address = match conversation {
-        Conversation::Private(nick) => nick.to_string(),
-        _ => address.to_owned(),
-    };
-    MessageRef::new(
-        address,
-        msgid.into_iter().cloned().collect(),
-        conversation_origin(conversation),
-        channel_context,
-        recipient(conversation, account, receipt),
-    )
+/// Preserves the typing notification's return address.
+impl From<&TypingChanged> for MessageRef {
+    fn from(line: &TypingChanged) -> Self {
+        line.receipt().reference(line.msgids(), None)
+    }
+}
+
+impl ReplyReference for Message {
+    fn receipt(&self) -> &Receipt {
+        &self.receipt
+    }
+
+    fn msgids(&self) -> Vec<MessageId> {
+        self.msgid.iter().cloned().collect()
+    }
+
+    fn channel_context(&self) -> Option<ChannelName> {
+        self.channel_context.clone()
+    }
 }
 
 /// Preserves the received message's return address and identifier.
 impl From<&Message> for MessageRef {
     fn from(message: &Message) -> Self {
-        from_received(
-            &message.return_address,
-            &message.conversation,
-            message.msgid.as_ref(),
-            message.actor.account(),
-            message.reply_token,
-            message.channel_context.clone(),
-        )
+        message
+            .receipt()
+            .reference(message.msgids(), message.channel_context())
     }
 }
 
@@ -300,107 +328,21 @@ impl From<&Sent> for MessageRef {
     }
 }
 
-/// Preserves the CTCP query's return address and identifier.
-impl From<&CtcpQuery> for MessageRef {
-    fn from(query: &CtcpQuery) -> Self {
-        from_received(
-            &query.return_address,
-            &query.conversation,
-            query.msgid.as_ref(),
-            query.actor.account(),
-            query.reply_token,
-            None,
-        )
-    }
-}
-
-/// Preserves the tag-only message's return address and identifier.
-impl From<&TagMsg> for MessageRef {
-    fn from(message: &TagMsg) -> Self {
-        from_received(
-            &message.return_address,
-            &message.conversation,
-            message.tags.get("msgid").map(MessageId::from).as_ref(),
-            &Account::Unknown,
-            None,
-            None,
-        )
-    }
-}
-
 pub(crate) fn from_notice(notice: &Notice) -> MessageRef {
-    from_received(
-        &notice.return_address,
-        &notice.conversation,
-        notice.msgid.as_ref(),
-        notice.actor.account(),
-        notice.reply_token,
+    notice.receipt.reference(
+        notice.msgid.iter().cloned().collect(),
         notice.channel_context.clone(),
     )
 }
 
 pub(crate) fn from_ctcp_reply(reply: &CtcpReply) -> MessageRef {
-    from_received(
-        &reply.return_address,
-        &reply.conversation,
-        reply.msgid.as_ref(),
-        reply.actor.account(),
-        reply.reply_token,
-        None,
-    )
-}
-
-pub(crate) fn from_reacted(line: &Reacted) -> MessageRef {
-    from_received(
-        &line.return_address,
-        &line.conversation,
-        line.msgid.as_ref(),
-        line.actor.account(),
-        None,
-        None,
-    )
-}
-
-pub(crate) fn from_redacted(line: &Redacted) -> MessageRef {
-    from_received(
-        &line.return_address,
-        &line.conversation,
-        line.msgid.as_ref(),
-        line.actor
-            .user()
-            .map_or(&Account::Unknown, crate::UserSource::account),
-        None,
-        None,
-    )
-}
-
-pub(crate) fn from_typing(line: &TypingChanged) -> MessageRef {
-    from_received(
-        &line.return_address,
-        &line.conversation,
-        None,
-        &Account::Unknown,
-        None,
-        None,
-    )
+    reply
+        .receipt
+        .reference(reply.msgid.iter().cloned().collect(), None)
 }
 
 pub(crate) fn from_server_notice(notice: &ServerNotice) -> MessageRef {
-    let origin = match &notice.to {
-        Audience::Channel(channel) => channel.origin(),
-        Audience::Broadcast(Broadcast::Mask(mask)) => mask.origin(),
-        Audience::Broadcast(Broadcast::Everyone) | Audience::Me => notice
-            .actor
-            .user()
-            .map_or(crate::Origin::NONE, |user| user.nick().origin()),
-    };
-    MessageRef::new(
-        notice.return_address.clone(),
-        Vec::new(),
-        origin,
-        None,
-        None,
-    )
+    notice.receipt.reference(Vec::new(), None)
 }
 
 macro_rules! borrowed_address_pairs {
@@ -506,7 +448,7 @@ mod tests {
         let mut operators =
             crate::__testing::message(Some(actor.clone()), "#ops", "restart completed", false);
         operators.status = Some(crate::Prefix::__new('o', '@'));
-        operators.return_address = "@#ops".into();
+        operators.receipt.address = "@#ops".into();
         let private = crate::__testing::message(Some(actor), "papo", "deployment details", true);
 
         for (kind, message, expected) in [
@@ -546,7 +488,13 @@ mod tests {
         );
         received.conversation = Conversation::Channel(origin.__channel(mapping, "#ops"));
         received.status = Some(crate::Prefix::__new('o', '@'));
-        received.return_address = "@#ops".into();
+        received.receipt = Receipt::new(
+            crate::Source::User(received.actor.clone()),
+            received.authorship,
+            &received.conversation,
+            None,
+            "@#ops".into(),
+        );
         received.msgid = Some("RfcBTzyxY120004".into());
         let reference = received.return_address();
         assert_eq!(reference, "@#ops");
@@ -581,6 +529,13 @@ mod tests {
             false,
         );
         message.conversation = Conversation::Private(mapping.nick("emily"));
+        message.receipt = Receipt::new(
+            crate::Source::User(message.actor.clone()),
+            message.authorship,
+            &message.conversation,
+            None,
+            "emily".into(),
+        );
         message.msgid = Some("RfcBTzyxY120004".into());
         let original = message.return_address();
         let replaced = MessageRef::from((&original, "RfcBTzyxY120007"));

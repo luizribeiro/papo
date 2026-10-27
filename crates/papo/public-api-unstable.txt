@@ -879,6 +879,8 @@ pub fn papo::event::Reacted::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Reacted
 impl core::cmp::PartialEq for papo::event::Reacted
 pub fn papo::event::Reacted::eq(&self, &Self) -> bool
+impl core::convert::From<&papo::event::Reacted> for papo::MessageRef
+pub fn papo::MessageRef::from(&papo::event::Reacted) -> Self
 impl core::fmt::Debug for papo::event::Reacted
 pub fn papo::event::Reacted::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::event::Reacted
@@ -947,6 +949,8 @@ pub fn papo::event::Redacted::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Redacted
 impl core::cmp::PartialEq for papo::event::Redacted
 pub fn papo::event::Redacted::eq(&self, &Self) -> bool
+impl core::convert::From<&papo::event::Redacted> for papo::MessageRef
+pub fn papo::MessageRef::from(&papo::event::Redacted) -> Self
 impl core::fmt::Debug for papo::event::Redacted
 pub fn papo::event::Redacted::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::event::Redacted
@@ -1098,6 +1102,8 @@ pub fn papo::event::TypingChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::TypingChanged
 impl core::cmp::PartialEq for papo::event::TypingChanged
 pub fn papo::event::TypingChanged::eq(&self, &Self) -> bool
+impl core::convert::From<&papo::event::TypingChanged> for papo::MessageRef
+pub fn papo::MessageRef::from(&papo::event::TypingChanged) -> Self
 impl core::fmt::Debug for papo::event::TypingChanged
 pub fn papo::event::TypingChanged::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::event::TypingChanged
@@ -2480,8 +2486,14 @@ impl core::convert::From<&papo::Sent> for papo::MessageRef
 pub fn papo::MessageRef::from(&papo::Sent) -> Self
 impl core::convert::From<&papo::event::CtcpQuery> for papo::MessageRef
 pub fn papo::MessageRef::from(&papo::event::CtcpQuery) -> Self
+impl core::convert::From<&papo::event::Reacted> for papo::MessageRef
+pub fn papo::MessageRef::from(&papo::event::Reacted) -> Self
+impl core::convert::From<&papo::event::Redacted> for papo::MessageRef
+pub fn papo::MessageRef::from(&papo::event::Redacted) -> Self
 impl core::convert::From<&papo::event::TagMsg> for papo::MessageRef
 pub fn papo::MessageRef::from(&papo::event::TagMsg) -> Self
+impl core::convert::From<&papo::event::TypingChanged> for papo::MessageRef
+pub fn papo::MessageRef::from(&papo::event::TypingChanged) -> Self
 impl core::fmt::Debug for papo::MessageRef
 pub fn papo::MessageRef::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo::MessageRef

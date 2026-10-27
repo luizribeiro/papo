@@ -934,6 +934,13 @@ mod tests {
         );
         private.conversation =
             crate::Conversation::Private(first.state().name_rules().nick("emily"));
+        private.receipt = crate::message_ref::Receipt::new(
+            crate::Source::User(private.actor.clone()),
+            private.authorship,
+            &private.conversation,
+            None,
+            "emily".into(),
+        );
         assert_eq!(private.origin(), first.origin());
         assert!(matches!(
             second.reply(&private, "ship it").await,
@@ -942,15 +949,23 @@ mod tests {
             ))
         ));
 
+        let conversation = crate::Conversation::Private(first.state().name_rules().nick("emily"));
+        let receipt = crate::message_ref::Receipt::new(
+            crate::Source::User(actor.clone()),
+            crate::Authorship::Other,
+            &conversation,
+            None,
+            "emily".into(),
+        );
         let tag = crate::event::TagMsg {
             msgid: None,
             server_time: None,
             received_at: std::time::SystemTime::UNIX_EPOCH,
             actor: actor.clone(),
             authorship: crate::Authorship::Other,
-            conversation: crate::Conversation::Private(first.state().name_rules().nick("emily")),
+            conversation,
             status: None,
-            return_address: "emily".into(),
+            receipt,
             tags: crate::Tags::default(),
         };
         assert!(matches!(

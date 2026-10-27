@@ -119,10 +119,17 @@ pub fn message(
         crate::Conversation::Channel(crate::Casemapping::default().channel(&target))
     };
     let return_address = conversation.to_string();
+    let actor = actor
+        .unwrap_or_else(|| user_source(crate::Casemapping::default().nick("unknown"), None, None));
+    let receipt = crate::message_ref::Receipt::new(
+        crate::Source::User(actor.clone()),
+        Authorship::Other,
+        &conversation,
+        None,
+        return_address,
+    );
     Message {
-        actor: actor.unwrap_or_else(|| {
-            user_source(crate::Casemapping::default().nick("unknown"), None, None)
-        }),
+        actor,
         authorship: Authorship::Other,
         conversation,
         status: None,
@@ -137,14 +144,26 @@ pub fn message(
         #[cfg(feature = "unstable")]
         relayed_by: None,
         tags: Tags::default(),
-        reply_token: None,
-        return_address,
+        receipt,
     }
 }
 
 /// Sets the account fact on a test message actor.
 pub fn set_message_account(message: &mut Message, account: crate::Account) {
-    message.actor.set_account(account);
+    message.actor.set_account(account.clone());
+    message.receipt.update_account(account);
+}
+
+/// Sets the actor and matching private conversation on a test message.
+pub fn set_message_actor(message: &mut Message, actor: crate::UserSource) {
+    if matches!(message.conversation, crate::Conversation::Private(_)) {
+        message.conversation = crate::Conversation::Private(actor.nick().clone());
+    }
+    message.actor = actor;
+    message.receipt.update_actor(
+        crate::Source::User(message.actor.clone()),
+        &message.conversation,
+    );
 }
 
 /// Constructs a connected event payload.

@@ -1072,13 +1072,14 @@ where
     let disconnected = disconnected_event(&error, None);
     session.handle_disconnected(now());
     while let Some(core_event) = session.poll_event() {
-        let core_event = event::from_core(
+        let core_event = event::from_core_with_receipt(
             core_event,
             session.isupport().casemapping(),
             session.state().nick().origin(),
             session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
             can_prove_non_bot(session),
             crate::rt::now_wall(),
+            Some(session.state().__reply_token()),
         );
         if let event::CoreEvent::RequestAborted { id, transmitted } = core_event {
             join_keys.remove(&id);
@@ -1219,13 +1220,14 @@ where
     while (pending_events.is_empty() || read_ahead || after_timeout)
         && let Some(core_event) = session.poll_event()
     {
-        match event::from_core(
+        match event::from_core_with_receipt(
             core_event,
             session.isupport().casemapping(),
             session.state().nick().origin(),
             session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
             can_prove_non_bot(session),
             crate::rt::now_wall(),
+            Some(session.state().__reply_token()),
         ) {
             event::CoreEvent::Forward(event) => {
                 if let Event::Reacted(reaction) = &event {
