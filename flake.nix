@@ -585,8 +585,10 @@
                   target/browser-size/wasm32-unknown-unknown/release/papo_core_browser_tests.wasm \
                   -o papo-core-probe.wasm
                 size=$(stat --format=%s papo-core-probe.wasm)
-                budget=867086
-                echo "optimized papo-core browser probe: $size bytes (budget: $budget bytes)"
+                # Luiz, 2026-10-27: 1 MiB after the type audit and security fixes;
+                # the earlier budget was the 2026-10-16 baseline plus 10%.
+                budget=1048576
+                echo "optimized papo-core browser probe: $size bytes (budget: $budget bytes; set by Luiz on 2026-10-27 after the type audit and security fixes)"
                 if (( size > budget )); then
                   echo "papo-core browser probe exceeds its size budget" >&2
                   exit 1
@@ -599,8 +601,10 @@
                   target/browser-driver-size/wasm32-unknown-unknown/release/papo_core_browser_tests.wasm \
                   -o papo-driver-probe.wasm
                 size=$(stat --format=%s papo-driver-probe.wasm)
-                budget=1330000
-                echo "optimized papo browser driver: $size bytes (recorded 1208550 on 2026-10-18; budget: $budget bytes)"
+                # Luiz, 2026-10-27: 1,600,000 bytes after the type audit and security fixes;
+                # the earlier budget was the 2026-10-18 measurement plus about 10%.
+                budget=1600000
+                echo "optimized papo browser driver: $size bytes (budget: $budget bytes; set by Luiz on 2026-10-27 after the type audit and security fixes)"
                 if (( size > budget )); then
                   echo "papo browser driver exceeds its size budget" >&2
                   exit 1
