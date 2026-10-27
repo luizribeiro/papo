@@ -582,6 +582,9 @@
                 unrealircd
               ];
               PAPO_TEST_SERVER = "unrealircd";
+              ERGO_BIN = pkgs.lib.getExe ergochat;
+              ERGO_CONFIG = ergoConfig;
+              ERGO_LANGUAGES = "${ergochat.src}/languages";
               ATHEME_BIN = pkgs.lib.getExe' pkgs.atheme "atheme-services";
               ATHEME_MODULES = "${pkgs.atheme}/modules";
               UNREALIRCD_BIN = pkgs.lib.getExe' unrealircd "unrealircd";
@@ -600,6 +603,9 @@
                 pkgs.inspircd
               ];
               PAPO_TEST_SERVER = "inspircd";
+              ERGO_BIN = pkgs.lib.getExe ergochat;
+              ERGO_CONFIG = ergoConfig;
+              ERGO_LANGUAGES = "${ergochat.src}/languages";
               ATHEME_BIN = pkgs.lib.getExe' pkgs.atheme "atheme-services";
               ATHEME_MODULES = "${pkgs.atheme}/modules";
               INSPIRCD_BIN = pkgs.lib.getExe' pkgs.inspircd "inspircd";
@@ -619,6 +625,9 @@
                 solanum
               ];
               PAPO_TEST_SERVER = "solanum";
+              ERGO_BIN = pkgs.lib.getExe ergochat;
+              ERGO_CONFIG = ergoConfig;
+              ERGO_LANGUAGES = "${ergochat.src}/languages";
               ATHEME_BIN = pkgs.lib.getExe' pkgs.atheme "atheme-services";
               ATHEME_MODULES = "${pkgs.atheme}/modules";
               SOLANUM_BIN = pkgs.lib.getExe solanum;
