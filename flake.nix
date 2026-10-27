@@ -585,10 +585,9 @@
                   target/browser-size/wasm32-unknown-unknown/release/papo_core_browser_tests.wasm \
                   -o papo-core-probe.wasm
                 size=$(stat --format=%s papo-core-probe.wasm)
-                # Luiz, 2026-10-27: 1 MiB after the type audit and security fixes;
-                # the earlier budget was the 2026-10-16 baseline plus 10%.
-                budget=1048576
-                echo "optimized papo-core browser probe: $size bytes (budget: $budget bytes; set by Luiz on 2026-10-27 after the type audit and security fixes)"
+                # Five percent headroom over the 996,188-byte measurement from 2026-10-27.
+                budget=1045998
+                echo "optimized papo-core browser probe: $size bytes (recorded 996188 on 2026-10-27; budget: $budget bytes)"
                 if (( size > budget )); then
                   echo "papo-core browser probe exceeds its size budget" >&2
                   exit 1
