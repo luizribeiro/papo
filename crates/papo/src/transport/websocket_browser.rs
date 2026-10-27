@@ -202,7 +202,10 @@ mod tests {
         let mut stream = WebSocket::connect(env!("PAPO_BROWSER_WS")).await.unwrap();
         let socket = stream.socket.clone();
         socket.close_with_code(1000).unwrap();
-        crate::rt::sleep_until(crate::rt::now_mono() + std::time::Duration::from_millis(100)).await;
+        let deadline =
+            papo_core::deadline(crate::rt::now_mono(), std::time::Duration::from_millis(100))
+                .unwrap();
+        crate::rt::sleep_until(deadline).await;
         assert!(socket.onmessage().is_none());
         assert!(socket.onerror().is_none());
         assert!(socket.onclose().is_none());

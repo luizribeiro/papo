@@ -3607,7 +3607,7 @@ mod tests {
             b"@+typing=active :emily!~emily@cloak.example TAGMSG #papo",
         );
         while session.poll_event().is_some() {}
-        session.handle_timeout(now + Duration::from_secs(6));
+        session.handle_timeout(papo_core::deadline(now, Duration::from_secs(6)).unwrap());
         let CoreEvent::Forward(event) = from_core_with_mapping(
             session.poll_event().expect("typing timeout event"),
             Casemapping::default(),

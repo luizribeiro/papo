@@ -645,7 +645,7 @@ async fn connect_while_disconnected(
         }),
         None,
     );
-    let timeout = crate::rt::sleep_until(now() + timeout);
+    let timeout = super::wait_until(papo_core::deadline(now(), timeout));
     tokio::pin!(timeout);
     loop {
         tokio::select! {
@@ -699,8 +699,8 @@ async fn wait_before_retry(
     defaults: &mut PostConnect,
     disconnected: crate::Disconnected,
 ) -> bool {
-    let deadline = now() + disconnected.reconnect_in.unwrap_or_default();
-    let sleep = crate::rt::sleep_until(deadline);
+    let deadline = papo_core::deadline(now(), disconnected.reconnect_in.unwrap_or_default());
+    let sleep = super::wait_until(deadline);
     tokio::pin!(sleep);
     loop {
         tokio::select! {
@@ -718,7 +718,9 @@ async fn wait_before_retry(
                     command => {
                         let current = crate::Disconnected::new(
                             disconnected.cause.clone(),
-                            Some(deadline.saturating_duration_since(now())),
+                            Some(deadline.map_or(Duration::MAX, |deadline| {
+                                deadline.saturating_duration_since(now())
+                            })),
                         );
                         if !handle_disconnected_command(command, &current, defaults) {
                             return false;

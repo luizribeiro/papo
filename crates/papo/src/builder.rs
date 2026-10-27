@@ -368,19 +368,23 @@ impl Builder {
     }
 
     /// Sets the idle interval before sending a keepalive probe.
+    ///
+    /// [`Duration::MAX`] disables keepalive probes.
     pub fn ping_interval(mut self, interval: Duration) -> Self {
         self.config.ping_interval = interval;
         self
     }
 
     /// Sets the maximum time allowed without an incoming line.
+    ///
+    /// [`Duration::MAX`] disables the silence deadline.
     pub fn ping_timeout(mut self, timeout: Duration) -> Self {
         self.config.ping_timeout = timeout;
         self
     }
 
     /// Sets how long an action waits for its server response after all of its
-    /// lines have been sent.
+    /// lines have been sent. [`Duration::MAX`] disables this deadline.
     ///
     /// A timeout means no reply arrived in time, not that the server did
     /// nothing. Retrying an action such as `KICK` or `MODE +b` can repeat its
@@ -431,14 +435,15 @@ impl Builder {
     /// When both this queue and its equally sized overflow fill, the connection
     /// ends with [`DisconnectCause::SlowConsumer`](crate::DisconnectCause::SlowConsumer)
     /// and follows the reconnect policy. Move slow work out of the event loop
-    /// before raising this bound.
+    /// before raising this bound. Values above the runtime's supported bound
+    /// are clamped to that bound.
     ///
     pub fn event_capacity(mut self, capacity: usize) -> Self {
         if capacity == 0 {
             self.invalid_input
                 .get_or_insert(InvalidInput::ZeroEventCapacity);
         }
-        self.event_capacity = capacity;
+        self.event_capacity = capacity.min(tokio::sync::Semaphore::MAX_PERMITS);
         self
     }
 
@@ -451,7 +456,8 @@ impl Builder {
     /// Sets the deadline for opening each TCP, TLS, or WebSocket connection.
     ///
     /// The default is 30 seconds. The deadline applies to every attempt,
-    /// including the first attempt made by [`Builder::connect`].
+    /// including the first attempt made by [`Builder::connect`]. [`Duration::MAX`]
+    /// disables this deadline.
     pub const fn connect_timeout(mut self, timeout: Duration) -> Self {
         self.connect_timeout = timeout;
         self
@@ -1405,6 +1411,12 @@ mod tests {
         assert_eq!(builder.config.ping_timeout, Duration::from_secs(93));
         assert_eq!(builder.config.request_timeout, Duration::from_secs(17));
         assert_eq!(builder.event_capacity, 17);
+    }
+
+    #[test]
+    fn clamps_event_capacity_to_the_runtime_limit() {
+        let builder = Builder::new("ircs://irc.example.net").event_capacity(usize::MAX);
+        assert_eq!(builder.event_capacity, tokio::sync::Semaphore::MAX_PERMITS);
     }
 
     #[test]

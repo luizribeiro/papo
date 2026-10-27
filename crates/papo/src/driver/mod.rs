@@ -312,7 +312,7 @@ impl PendingTransmit {
 }
 
 struct Quit {
-    deadline: Instant,
+    deadline: Option<Instant>,
     results: Vec<oneshot::Sender<Result<(), Error>>>,
 }
 
@@ -773,7 +773,7 @@ where
         drop_closed_waiters(&mut requests, &mut sync_waiters, registration);
         let write_deadline = [
             session.poll_timeout(),
-            quit.as_ref().map(|quit: &Quit| quit.deadline),
+            quit.as_ref().and_then(|quit: &Quit| quit.deadline),
         ]
         .into_iter()
         .flatten()
@@ -833,7 +833,7 @@ where
         );
         let deadline = [
             session.poll_timeout(),
-            quit.as_ref().map(|quit: &Quit| quit.deadline),
+            quit.as_ref().and_then(|quit: &Quit| quit.deadline),
         ]
         .into_iter()
         .flatten()
@@ -1011,7 +1011,7 @@ where
                     let key = session.isupport().casemapping().fold(&target).into_owned();
                     let send = state != Typing::Active
                         || active_typing.get(&key).is_none_or(|last: &Instant| {
-                            last.checked_add(Duration::from_secs(3))
+                            papo_core::deadline(*last, Duration::from_secs(3))
                                 .is_none_or(|deadline| current >= deadline)
                         });
                     if send && state == Typing::Active {
@@ -1073,7 +1073,11 @@ where
             },
             () = wait_until(deadline) => {
                 let current = now();
-                if quit.as_ref().is_some_and(|quit| current >= quit.deadline) {
+                if quit
+                    .as_ref()
+                    .and_then(|quit| quit.deadline)
+                    .is_some_and(|deadline| current >= deadline)
+                {
                     break (
                         "QUIT was not acknowledged within 10 seconds".to_owned(),
                         Error::Timeout,
@@ -1121,7 +1125,11 @@ where
     }
     connected.store(false, Ordering::Relaxed);
     publish_state(events, session, false);
-    close_stream_before(&mut stream, quit.as_ref().map(|quit: &Quit| quit.deadline)).await;
+    close_stream_before(
+        &mut stream,
+        quit.as_ref().and_then(|quit: &Quit| quit.deadline),
+    )
+    .await;
     ConnectionEnd {
         reason,
         error,
@@ -1152,7 +1160,7 @@ fn request_quit(
     match session.send(current, message) {
         Ok(()) => {
             *quit = Some(Quit {
-                deadline: current + QUIT_TIMEOUT,
+                deadline: papo_core::deadline(current, QUIT_TIMEOUT),
                 results: result.into_iter().collect(),
             });
         }

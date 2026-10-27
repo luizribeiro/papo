@@ -20,7 +20,7 @@ pub(super) fn below(amount: u32, ceiling: u32) -> bool {
 }
 
 pub(super) fn retry_at(now: web_time::Instant) -> web_time::Instant {
-    now + std::time::Duration::from_millis(10)
+    papo_core::deadline(now, std::time::Duration::from_millis(10)).unwrap_or(now)
 }
 
 #[cfg(test)]
