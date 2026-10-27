@@ -65,6 +65,10 @@
 //! spawning the driver deadlocks because the action is waiting for that driver. [`Events::next`]
 //! is cancel-safe, so it may be used as a `tokio::select!` branch.
 //!
+//! The connection remains alive while either a [`Client`] or its [`Events`] stream is alive.
+//! Dropping the last handle sends `QUIT`; call [`Client::quit`] first when the server should
+//! receive a reason or when shutdown completion matters.
+//!
 //! A dropped [`RequestFuture`] was sent if and only if it reached the driver. Dropping the driver
 //! ends the event stream without a final [`Event::Disconnected`]. For an orderly process exit,
 //! send [`Client::quit`] and keep reading events until the server closes the connection. The

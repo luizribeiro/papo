@@ -658,6 +658,8 @@ impl Builder {
     /// because the server holds the connection open until verification.
     /// The first connection attempt fails fast; the configured reconnect policy applies only
     /// after the first successful connection.
+    /// The connection remains alive while either returned handle exists. Dropping both sends a
+    /// bare `QUIT`; use [`crate::Client::quit`] for an explicit shutdown reason and outcome.
     ///
     /// # Panics
     ///

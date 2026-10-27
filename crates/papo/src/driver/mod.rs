@@ -414,6 +414,7 @@ impl From<&str> for Autojoin {
 /// policy. Move slow work out of the event loop or raise
 /// [`Builder::event_capacity`](crate::Builder::event_capacity) to avoid this.
 pub struct Events {
+    _commands: mpsc::Sender<Command>,
     receiver: mpsc::Receiver<Event>,
     disconnected: Option<oneshot::Receiver<VecDeque<Event>>>,
     pending: VecDeque<Event>,
@@ -619,9 +620,11 @@ pub(crate) fn channels(capacity: usize, session: &Session) -> Channels {
         commands: client.commands.downgrade(),
         test_hooks: test_hooks.clone(),
     };
+    let event_commands = client.commands.clone();
     Channels {
         client,
         events: Events {
+            _commands: event_commands,
             receiver: event_receiver,
             disconnected: Some(disconnect_receiver),
             pending: VecDeque::new(),

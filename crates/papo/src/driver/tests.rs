@@ -7637,11 +7637,17 @@ async fn quit_deadline_bounds_final_flush_for_a_peer_that_never_drains() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn dropping_every_client_sends_quit() {
-    let (mut server, client, _events, driver) = scripted(config());
+async fn dropping_clients_keeps_running_until_events_is_dropped() {
+    let (mut server, client, events, driver) = scripted(config());
     let driver = tokio::spawn(driver);
     welcome_burst(&mut server).await;
     drop(client);
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), server.read_u8())
+            .await
+            .is_err()
+    );
+    drop(events);
     let mut line = [0; 6];
     within(server.read_exact(&mut line)).await.unwrap();
     assert_eq!(&line, b"QUIT\r\n");
