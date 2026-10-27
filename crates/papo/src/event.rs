@@ -4844,6 +4844,14 @@ mod tests {
     }
 
     #[test]
+    fn maps_utf8_casemapping_warning() {
+        assert!(matches!(
+            forwarded(papo_core::Event::Utf8CasemappingUnsupported),
+            Event::Warning(Warning::Utf8CasemappingUnsupported)
+        ));
+    }
+
+    #[test]
     fn maps_history() {
         let message = Line::privmsg("#papo", "earlier");
         let conversation = Conversation::Channel(Casemapping::Rfc1459.channel("#papo"));
