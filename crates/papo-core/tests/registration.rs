@@ -128,6 +128,24 @@ fn plaintext_server_password_closes_when_cap_is_unavailable() {
 }
 
 #[test]
+fn cap_unavailable_requires_both_the_unknown_command_numeric_and_cap_parameter() {
+    for available in [
+        ":legacy.example 421 papo WHOIS :Unknown command",
+        ":legacy.example 400 papo CAP :Command processing failed",
+    ] {
+        Transcript::rate_limited(
+            Config::default()
+                .rate_limit(papo_core::RateLimit::unlimited())
+                .password("correct horse battery staple"),
+        )
+        .connect_default()
+        .server(available)
+        .event(|event| matches!(event, Event::Line(_)))
+        .no_client();
+    }
+}
+
+#[test]
 fn validates_all_configured_registration_fields_before_sending() {
     for config in [
         Config::default().nick("papo\rOPER root password"),
