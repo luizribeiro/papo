@@ -35,27 +35,12 @@ pub(super) fn remember_live_event<'a>(
 }
 
 fn event_applies_to_channel(event: &Event, target: &str) -> bool {
-    let conversation_matches = |conversation: &crate::Conversation| matches!(conversation, crate::Conversation::Channel(channel) if channel == target);
+    if matches!(event.conversation(), Some(crate::Conversation::Channel(channel)) if channel == target)
+    {
+        return true;
+    }
     match event {
-        Event::Message(line) => conversation_matches(&line.conversation),
-        Event::Notice(line) => conversation_matches(&line.conversation),
-        Event::CtcpQuery(line) => conversation_matches(&line.conversation),
-        Event::CtcpReply(line) => conversation_matches(&line.conversation),
-        Event::TagMsg(line) => conversation_matches(&line.conversation),
-        Event::Reacted(line) => conversation_matches(&line.conversation),
-        Event::Redacted(line) => conversation_matches(&line.conversation),
-        Event::ServerNotice(line) => {
-            matches!(&line.to, crate::event::Audience::Channel(channel) if channel == target)
-        }
-        Event::Joined(line) => line.channel == target,
-        Event::Parted(line) => line.channel == target,
-        Event::Kicked(line) => line.channel == target,
-        Event::Invited(line) => line.channel == target,
-        Event::ChannelRenamed(line) => line.old == target || line.new == target,
-        Event::ModeChanged(line) => {
-            matches!(&line.subject, crate::Subject::Channel(channel) if channel == target)
-        }
-        Event::TopicChanged(line) => line.channel == target,
+        Event::ChannelRenamed(line) => line.old == target,
         Event::Quit(line) => line.channels.iter().any(|channel| channel == target),
         Event::NickChanged(line) => line.channels.iter().any(|channel| channel == target),
         Event::Other(line) => line
