@@ -51,6 +51,10 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
         ConversationClass::Event,
     ),
     (
+        "pub fn papo::Event::conversation(&self) -> core::option::Option<papo::Conversation>",
+        ConversationClass::Event,
+    ),
+    (
         "pub papo::HistoryPage::conversation: papo::Conversation",
         ConversationClass::History,
     ),

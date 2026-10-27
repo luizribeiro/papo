@@ -1497,6 +1497,73 @@ variant_accessors! { Event;
 }
 
 impl Event {
+    /// Returns the conversation buffer to which this event belongs.
+    ///
+    /// Channel-addressed server notices belong to that channel. A channel rename belongs to its
+    /// new name. Events spanning several channels, such as quits and nickname changes, return
+    /// `None`; use their `channels` fields to file them in each affected buffer. See
+    /// [`Conversation`] for status-prefixed line guidance.
+    #[must_use]
+    pub fn conversation(&self) -> Option<Conversation> {
+        match self {
+            Self::Message(event) => Some(event.conversation.clone()),
+            Self::Notice(event) => Some(event.conversation.clone()),
+            Self::ServerNotice(event) => match &event.to {
+                Audience::Channel(channel) => Some(Conversation::Channel(channel.clone())),
+                Audience::Me | Audience::Broadcast(_) => None,
+            },
+            Self::CtcpQuery(event) => Some(event.conversation.clone()),
+            Self::CtcpReply(event) => Some(event.conversation.clone()),
+            Self::TagMsg(event) => Some(event.conversation.clone()),
+            Self::Reacted(event) => Some(event.conversation.clone()),
+            Self::TypingChanged(event) => Some(event.conversation.clone()),
+            Self::Redacted(event) => Some(event.conversation.clone()),
+            Self::MetadataChanged(event) => match &event.subject {
+                crate::Subject::Channel(channel) => Some(Conversation::Channel(channel.clone())),
+                crate::Subject::User(_) => None,
+            },
+            Self::History(event) => Some(event.conversation.clone()),
+            Self::ReadMarkerChanged(event) => Some(event.conversation.clone()),
+            Self::AutoJoinFailed(event) => Some(Conversation::Channel(event.channel.clone())),
+            Self::Joined(event) => Some(Conversation::Channel(event.channel.clone())),
+            Self::ChannelSynced(event) => Some(Conversation::Channel(event.channel.clone())),
+            Self::MembersRefreshed(event) => Some(Conversation::Channel(event.channel.clone())),
+            Self::Parted(event) => Some(Conversation::Channel(event.channel.clone())),
+            Self::Kicked(event) => Some(Conversation::Channel(event.channel.clone())),
+            Self::Invited(event) => Some(Conversation::Channel(event.channel.clone())),
+            Self::ChannelRenamed(event) => Some(Conversation::Channel(event.new.clone())),
+            Self::ModeChanged(event) => match &event.subject {
+                crate::Subject::Channel(channel) => Some(Conversation::Channel(channel.clone())),
+                crate::Subject::User(_) => None,
+            },
+            Self::TopicChanged(event) => Some(Conversation::Channel(event.channel.clone())),
+            Self::Connecting(_)
+            | Self::Connected(_)
+            | Self::Lagged(_)
+            | Self::Motd(_)
+            | Self::BroadcastCtcp(_)
+            | Self::BroadcastTagMsg(_)
+            | Self::Other(_)
+            | Self::StandardReply(_)
+            | Self::AccountCreation(_)
+            | Self::Warning(_)
+            | Self::CapsChanged(_)
+            | Self::FeaturesChanged(_)
+            | Self::CasemappingChanged(_)
+            | Self::Quit(_)
+            | Self::NickChanged(_)
+            | Self::AccountChanged(_)
+            | Self::AwayChanged(_)
+            | Self::HostChanged(_)
+            | Self::RealnameChanged(_)
+            | Self::MonitorOnline(_)
+            | Self::MonitorOffline(_)
+            | Self::Disconnected(_) => None,
+            #[cfg(feature = "unstable")]
+            Self::PersistenceChanged(_) | Self::BouncerNetworkChanged(_) => None,
+        }
+    }
+
     /// Returns the server-assigned identifier carried by this event, when supplied.
     #[must_use]
     pub fn msgid(&self) -> Option<&MessageId> {
@@ -3519,6 +3586,67 @@ mod tests {
         let untagged = convert(":emily!~emily@cloak.example PRIVMSG #papo :hello from Ergo");
         assert_eq!(untagged.msgid(), None);
         assert_eq!(untagged.server_time(), None);
+    }
+
+    #[test]
+    fn event_conversation_routes_each_address_shape() {
+        let convert = |line: &str| {
+            let mut session = Session::new(Config::default().nick("papo"));
+            session.handle_line(Instant::now(), line.as_bytes());
+            let core = session.poll_event().expect("expected event from live line");
+            match from_core_with_mapping(
+                core,
+                session.isupport().casemapping(),
+                crate::Origin::NONE,
+                false,
+                false,
+                UNIX_EPOCH,
+            ) {
+                CoreEvent::Forward(event) => event,
+                CoreEvent::Line(line) => super::incoming_from_core(
+                    line,
+                    crate::Origin::NONE,
+                    session.isupport(),
+                    false,
+                    false,
+                    UNIX_EPOCH,
+                ),
+                _ => panic!("live line did not produce an event"),
+            }
+        };
+        let cases = [
+            (
+                ":emily!~emily@cloak.example PRIVMSG #papo :release ready",
+                Some("#papo"),
+            ),
+            (":emily!~emily@cloak.example JOIN #papo", Some("#papo")),
+            (
+                ":irc.example NOTICE #papo :Channel will be renamed at 18:00",
+                Some("#papo"),
+            ),
+            (
+                ":alice!~alice@cloak.example RENAME #papo #papo-dev :Project renamed",
+                Some("#papo-dev"),
+            ),
+            (
+                ":ChanServ!service@services.example MODE #papo +o emily",
+                Some("#papo"),
+            ),
+            (":irc.example MODE papo +i", None),
+            (":emily!~emily@cloak.example NICK emily_away", None),
+            (":emily!~emily@cloak.example QUIT :Client Quit", None),
+        ];
+
+        for (line, expected) in cases {
+            let conversation = convert(line).conversation();
+            match (conversation.as_ref(), expected) {
+                (Some(conversation), Some(expected)) => {
+                    assert_eq!(conversation, expected, "{line}");
+                }
+                (None, None) => {}
+                _ => panic!("unexpected conversation {conversation:?} for {line}"),
+            }
+        }
     }
 
     #[test]
