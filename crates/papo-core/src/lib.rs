@@ -4771,14 +4771,18 @@ impl Session {
             return;
         };
         let after_features = self.supported_features();
-        let added: Vec<_> = after_features
-            .difference(&before_features)
-            .copied()
-            .collect();
-        let removed: Vec<_> = before_features
-            .difference(&after_features)
-            .copied()
-            .collect();
+        let mut added = Vec::new();
+        let mut removed = Vec::new();
+        for &feature in Feature::ALL {
+            match (
+                before_features.contains(&feature),
+                after_features.contains(&feature),
+            ) {
+                (false, true) => added.push(feature),
+                (true, false) => removed.push(feature),
+                _ => {}
+            }
+        }
         if !added.is_empty() || !removed.is_empty() {
             self.outbox.event(Event::FeaturesChanged {
                 added,
