@@ -569,6 +569,15 @@ impl Client {
     /// own sends from the returned [`Sent`]. Without both capabilities, it resolves after the last
     /// line is written and has no server-assigned metadata.
     ///
+    /// A conversation is deliberately not a send target because it does not retain a received
+    /// line's status-prefixed audience:
+    ///
+    /// ```compile_fail
+    /// # fn answer(client: &papo::Client, message: &papo::Message) {
+    /// let _ = client.privmsg(&message.conversation, "acknowledged");
+    /// # }
+    /// ```
+    ///
     /// # Errors
     ///
     /// Returns [`Error::InvalidInput`] for empty text or an unencodable message,

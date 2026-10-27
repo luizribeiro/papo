@@ -96,6 +96,7 @@ ids = [
   "security.x-origin.monitor-add", "security.x-origin.monitor-remove",
   "security.x-origin.verify-account", "security.x-origin.state-lookups",
   "security.addr-3.foreign-return-address", "security.addr-3.ops-only-return-address",
+  "security.adv-6.exact-message-audience",
   "security.addr-10.ctcp-nick-handoff", "security.x-answer.foreign-notice",
   "security.x-answer.notice-nick-handoff",
   "security.bouncer.required-capability", "security.bouncer.binding-confirmation",

@@ -6367,18 +6367,18 @@ async fn message_reply_obeys_tags_and_clienttagdeny() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn conversation_targets_write_channel_and_private_names() {
+async fn typed_names_write_channel_and_private_destinations() {
     let (mut server, client, _events, driver) = scripted(config());
     let task = tokio::spawn(driver);
     welcome_burst(&mut server).await;
 
-    let channel = crate::Conversation::Channel(client.state().name_rules().channel("#release"));
+    let channel = client.state().name_rules().channel("#release");
     within(client.privmsg(channel, "release approved"))
         .await
         .unwrap();
     client_line(&mut server, b"PRIVMSG #release :release approved\r\n").await;
 
-    let private = crate::Conversation::Private(client.state().name_rules().nick("alice"));
+    let private = client.state().name_rules().nick("alice");
     within(client.privmsg(private, "deployment details"))
         .await
         .unwrap();

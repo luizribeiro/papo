@@ -182,16 +182,6 @@ impl AsMask for crate::Mask {
 
 impl sealed::Sealed for crate::Conversation {}
 
-impl Target for crate::Conversation {
-    fn __parts(&self) -> sealed::Parts<'_> {
-        match self {
-            Self::Channel(channel) => Target::__parts(channel),
-            Self::Private(nick) => Target::__parts(nick),
-            _ => text_parts("*"),
-        }
-    }
-}
-
 impl AsConversation for crate::Conversation {
     fn __parts(&self) -> sealed::Parts<'_> {
         match self {

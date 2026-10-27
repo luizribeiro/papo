@@ -78,10 +78,6 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
         "impl papo::AsConversation for papo::Conversation",
         ConversationClass::State,
     ),
-    (
-        "impl papo::Target for papo::Conversation",
-        ConversationClass::Outgoing,
-    ),
 ];
 const BOT_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[];
 

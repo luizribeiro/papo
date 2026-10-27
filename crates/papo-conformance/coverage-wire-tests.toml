@@ -27,6 +27,9 @@
 "security::ops_only_return_addresses_survive_notice_and_typing_sends" = [
   "security.addr-3.ops-only-return-address",
 ]
+"security::ops_only_messages_can_only_answer_their_exact_audience" = [
+  "security.adv-6.exact-message-audience",
+]
 "security::selected_bouncer_network_requires_its_capability" = [
   "security.bouncer.required-capability",
 ]

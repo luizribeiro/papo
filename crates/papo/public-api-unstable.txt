@@ -3077,7 +3077,6 @@ impl papo::Target for alloc::boxed::Box<str>
 impl papo::Target for alloc::rcs::arc::Arc<str>
 impl papo::Target for alloc::string::String
 impl papo::Target for papo::MessageRef
-impl papo::Target for papo::Conversation
 impl papo::Target for papo::ChannelName
 impl papo::Target for papo::Nick
 impl papo::Target for str

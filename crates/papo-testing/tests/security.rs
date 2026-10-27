@@ -240,9 +240,10 @@ async fn cross_client_values_never_reach_either_wire() {
     assert_eq!(message.origin(), second.origin());
 
     assert!(is_foreign(&first.reply(&message, "acknowledged").await));
-    assert!(is_foreign(
-        &first.privmsg(&message.conversation, "acknowledged").await
-    ));
+    let papo::Conversation::Channel(channel) = &message.conversation else {
+        panic!("history item belongs to a channel")
+    };
+    assert!(is_foreign(&first.privmsg(channel, "acknowledged").await));
     assert!(is_foreign(
         &first
             .history("#papo")
@@ -542,6 +543,30 @@ async fn ops_only_return_addresses_survive_notice_and_typing_sends() {
         .await
         .unwrap();
     assert_eq!(wire.next_sent().await, "@+typing=active TAGMSG @#ops");
+}
+
+#[tokio::test]
+async fn ops_only_messages_can_only_answer_their_exact_audience() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test", "papo-wire")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&["message-tags"]).await;
+    connected(&mut events).await;
+    wire.server(":offline.test 005 papo-wire STATUSMSG=@+ :are supported")
+        .await;
+    wire.server("@msgid=Rfc1 :alice!~a@cloak.example PRIVMSG @#ops :release status")
+        .await;
+    let papo::Event::Message(message) = next_active_event(&mut events).await else {
+        panic!("expected an operators-only message")
+    };
+
+    client
+        .privmsg(message.return_address(), "acknowledged")
+        .await
+        .unwrap();
+    assert_eq!(wire.next_sent().await, "PRIVMSG @#ops acknowledged");
 }
 
 #[derive(Clone, Default)]
