@@ -2624,9 +2624,9 @@ async fn stored_sts_policy_upgrades_the_connection_plan() {
         let stream = stream.lock().unwrap().take().unwrap();
         Box::pin(async move { Ok(stream) })
     });
-    let mut store = papo_core::sts::MemoryStsStore::new();
+    let store = papo_core::sts::MemoryStsStore::new();
     papo_core::sts::StsStore::put(
-        &mut store,
+        &store,
         papo_core::sts::StsPolicy::new(
             "irc.example.net",
             7443,
@@ -2688,9 +2688,9 @@ fn sts_store_boundary_normalizes_hosts_for_lookup_and_reschedule() {
 
     let duration = Duration::from_secs(3600);
     let original_expiry = SystemTime::now() + duration;
-    let mut store = CaseSensitiveStore::default();
+    let store = CaseSensitiveStore::default();
     papo_core::sts::StsStore::put(
-        &mut store,
+        &store,
         papo_core::sts::StsPolicy::new("irc.example.net", 7443, original_expiry, duration),
     );
     let base = ConnectionPlan {
@@ -2698,11 +2698,11 @@ fn sts_store_boundary_normalizes_hosts_for_lookup_and_reschedule() {
         tls: TlsConfig::default(),
     };
 
-    let plan = super::connect::plan_with_stored_sts(&base, &mut store);
+    let plan = super::connect::plan_with_stored_sts(&base, &store);
     assert!(plan.address.is_secure());
     assert_eq!(plan.address.port, 7443);
 
-    super::connect::reschedule_stored_policy(&mut store, "IRC.Example.net");
+    super::connect::reschedule_stored_policy(&store, "IRC.Example.net");
     let refreshed = papo_core::sts::StsStore::get(&store, "irc.example.net").unwrap();
     assert!(refreshed.expires_at > original_expiry);
 }
@@ -2722,9 +2722,9 @@ async fn transport_failure_under_stored_sts_retries() {
             })
         }
     });
-    let mut store = papo_core::sts::MemoryStsStore::new();
+    let store = papo_core::sts::MemoryStsStore::new();
     papo_core::sts::StsStore::put(
-        &mut store,
+        &store,
         papo_core::sts::StsPolicy::new(
             "irc.example.net",
             6697,
@@ -4099,7 +4099,7 @@ async fn secure_sts_persists_the_duration_and_connection_port() {
         Box::pin(async move { Ok(stream) })
     });
     let store = SharedStsStore::default();
-    let mut inspection = store.clone();
+    let inspection = store.clone();
     let (_client, _events, driver) = Driver::with_connector(
         Ok(ConnectionPlan {
             address: "ircs://irc.example.net:7443".parse().unwrap(),
@@ -4133,7 +4133,7 @@ async fn secure_sts_persists_the_duration_and_connection_port() {
     assert_eq!(policy.duration, Duration::from_secs(3600));
     assert!(policy.expires_at > std::time::SystemTime::now());
     policy.expires_at = SystemTime::UNIX_EPOCH;
-    papo_core::sts::StsStore::put(&mut inspection, policy);
+    papo_core::sts::StsStore::put(&inspection, policy);
     client_line(&mut server, b"CAP END\r\n").await;
     let disconnect_started = SystemTime::now();
     within(server.shutdown()).await.unwrap();
@@ -4159,11 +4159,11 @@ async fn secure_sts_persists_the_duration_and_connection_port() {
 
 #[test]
 fn enormous_sts_duration_is_stored_with_a_far_future_expiry() {
-    let mut store = papo_core::sts::MemoryStsStore::new();
+    let store = papo_core::sts::MemoryStsStore::new();
     let directive = papo_core::sts::StsDirective::parse(&format!("duration={}", u64::MAX))
         .expect("u64::MAX is a valid STS duration");
     let action = papo_core::sts::decide(directive, ConnectionSecurity::Secure, "irc.example.net");
-    super::connect::apply_sts_action(&mut store, 6697, false, &action);
+    super::connect::apply_sts_action(&store, 6697, false, &action);
 
     let policy = papo_core::sts::StsStore::get(&store, "irc.example.net")
         .expect("an overflowing STS duration must still be stored");
@@ -4183,9 +4183,9 @@ async fn secure_zero_duration_sts_removes_the_stored_policy() {
         let stream = stream.lock().unwrap().take().unwrap();
         Box::pin(async move { Ok(stream) })
     });
-    let mut store = SharedStsStore::default();
+    let store = SharedStsStore::default();
     papo_core::sts::StsStore::put(
-        &mut store,
+        &store,
         papo_core::sts::StsPolicy::new(
             "irc.example.net",
             6697,

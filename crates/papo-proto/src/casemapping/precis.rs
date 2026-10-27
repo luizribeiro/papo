@@ -20,6 +20,7 @@ mod tests {
     #[test]
     fn folds_unicode_nicks_with_ergo_precis_rules() {
         assert_eq!("rfc7613".parse(), Ok(Casemapping::Precis));
+        assert_eq!(Casemapping::Precis.to_string(), "rfc7613");
         assert_eq!(Casemapping::Precis.fold("Ünïcode"), "ünïcode");
         assert_eq!(Casemapping::Precis.fold("İstanbul"), "i\u{307}stanbul");
         assert_eq!(Casemapping::Precis.nick("ÜNÏCODE"), "ünïcode");

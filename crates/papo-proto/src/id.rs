@@ -834,10 +834,11 @@ mod tests {
         for<'a> &'a str: PartialEq<T>,
         String: PartialEq<T>,
     {
-        assert!(name == &text.to_owned());
+        let owned = text.to_owned();
+        assert!(name == &owned);
         assert!(<str as PartialEq<T>>::eq(text, name));
         assert!(<&str as PartialEq<T>>::eq(&text, name));
-        assert!(text.to_owned() == *name);
+        assert!(owned == *name);
     }
 
     fn assert_bidirectional_exact<T>(identifier: &T, text: &str)

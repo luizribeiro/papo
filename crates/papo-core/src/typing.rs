@@ -151,6 +151,7 @@ impl TypingTable {
     }
 
     #[doc(hidden)]
+    #[must_use]
     pub fn get(&self, conversation: Option<Conversation>) -> Typers<'_> {
         Typers {
             entries: self.entries.iter(),

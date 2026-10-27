@@ -904,9 +904,9 @@ async fn scram_rejects_excessive_iterations_promptly() {
 
 #[tokio::test]
 async fn stored_sts_matches_a_normalized_hostname() {
-    let mut store = CaseSensitiveStsStore::default();
+    let store = CaseSensitiveStsStore::default();
     papo::sts::StsStore::put(
-        &mut store,
+        &store,
         papo::sts::StsPolicy::new(
             "irc.example.net",
             7443,
@@ -959,9 +959,9 @@ async fn stored_sts_ports_stay_with_their_transport() {
     let duration = Duration::from_secs(3600);
     let expiry = SystemTime::now() + duration;
 
-    let mut websocket_store = CaseSensitiveStsStore::default();
+    let websocket_store = CaseSensitiveStsStore::default();
     papo::sts::StsStore::put(
-        &mut websocket_store,
+        &websocket_store,
         papo::sts::StsPolicy::new("offline.test", 443, expiry, duration).websocket(true),
     );
     let (_client, _events, mut irc_wire) = wire(
@@ -971,9 +971,9 @@ async fn stored_sts_ports_stay_with_their_transport() {
     );
     assert_eq!(irc_wire.endpoint().await, "ircs://offline.test");
 
-    let mut tcp_store = CaseSensitiveStsStore::default();
+    let tcp_store = CaseSensitiveStsStore::default();
     papo::sts::StsStore::put(
-        &mut tcp_store,
+        &tcp_store,
         papo::sts::StsPolicy::new("offline.test", 6697, expiry, duration),
     );
     let (_client, _events, mut websocket_wire) = wire(

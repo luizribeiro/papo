@@ -185,6 +185,7 @@ impl<'a> MetadataView<'a> {
     }
 
     /// Iterates over entries in metadata-key order.
+    #[must_use]
     pub fn iter(
         &self,
     ) -> impl ExactSizeIterator<Item = (&'a MetadataKey, &'a MetadataValue)> + use<'a> {
@@ -1205,6 +1206,7 @@ impl State {
     }
 
     /// Iterates over joined channels in unspecified order.
+    #[must_use]
     pub fn channels(&self) -> impl ExactSizeIterator<Item = &Channel> {
         self.channels.values().map(Arc::as_ref)
     }
@@ -1257,6 +1259,7 @@ impl State {
     }
 
     /// Returns metadata keys confirmed in the server-side subscription list.
+    #[must_use]
     pub fn metadata_subscriptions(&self) -> impl ExactSizeIterator<Item = &MetadataKey> {
         self.metadata_subscriptions.iter()
     }
@@ -1290,11 +1293,13 @@ impl State {
     ///
     /// The iterator includes nicknames that the server rejected because its
     /// monitor list was full.
+    #[must_use]
     pub fn monitored(&self) -> impl ExactSizeIterator<Item = &Nick> {
         self.monitored.iter()
     }
 
     /// Iterates over users currently typing in `conversation`, in start order.
+    #[must_use]
     pub fn typing(&self, conversation: &Conversation) -> Typers<'_> {
         self.typing.get(Some(conversation.clone()))
     }
@@ -1514,6 +1519,7 @@ impl Channel {
     }
 
     /// Iterates over channel members in unspecified order.
+    #[must_use]
     pub fn members(&self) -> impl ExactSizeIterator<Item = &Member> {
         self.members.values()
     }
@@ -1639,6 +1645,7 @@ impl User {
     }
 
     /// Iterates over shared channel names in unspecified order.
+    #[must_use]
     pub fn channels(&self) -> impl ExactSizeIterator<Item = &ChannelName> {
         self.channels.iter()
     }

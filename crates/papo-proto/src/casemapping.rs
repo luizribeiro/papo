@@ -163,11 +163,6 @@ mod tests {
             assert_eq!(mapping.as_str().parse(), Ok(mapping));
             assert_eq!(mapping.to_string(), mapping.as_str());
         }
-        #[cfg(feature = "precis")]
-        {
-            assert_eq!("rfc7613".parse(), Ok(Casemapping::Precis));
-            assert_eq!(Casemapping::Precis.to_string(), "rfc7613");
-        }
     }
 
     #[test]

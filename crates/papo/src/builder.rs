@@ -1545,7 +1545,8 @@ mod tests {
             builder.tls_server_name("not a server name")
         }
 
-        let cases: [(fn(Builder) -> Builder, &str); 4] = [
+        type TlsCase = (fn(Builder) -> Builder, &'static str);
+        let cases: [TlsCase; 4] = [
             (bad_ca, "invalid certificate PEM"),
             (bad_certificate, "certificate PEM contains no certificates"),
             (bad_private_key, "invalid client private key PEM"),

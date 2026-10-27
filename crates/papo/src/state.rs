@@ -218,6 +218,7 @@ impl State {
     }
 
     /// Iterates over joined channels in unspecified order.
+    #[must_use]
     pub fn channels(&self) -> impl ExactSizeIterator<Item = &Channel> {
         self.core.channels()
     }
@@ -268,6 +269,7 @@ impl State {
     }
 
     /// Returns metadata keys confirmed in the server-side subscription list.
+    #[must_use]
     pub fn metadata_subscriptions(&self) -> impl ExactSizeIterator<Item = &crate::MetadataKey> {
         self.core.metadata_subscriptions()
     }
@@ -291,6 +293,7 @@ impl State {
     ///
     /// The iterator includes nicknames that the server rejected because its
     /// monitor list was full.
+    #[must_use]
     pub fn monitored(&self) -> impl ExactSizeIterator<Item = &Nick> {
         self.core.monitored()
     }
@@ -298,6 +301,7 @@ impl State {
     /// Iterates over users currently typing in `conversation`, in start order.
     ///
     /// A typed conversation produced by another [`crate::Client`] produces an empty iterator.
+    #[must_use]
     pub fn typing(&self, conversation: impl crate::AsConversation) -> crate::Typers<'_> {
         self.typing.get(self.resolve_conversation(conversation))
     }
