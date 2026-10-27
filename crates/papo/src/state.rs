@@ -43,8 +43,14 @@ pub struct State {
 }
 
 impl State {
-    pub(crate) fn reply_token(&self) -> papo_core::ReplyToken {
-        self.core.__reply_token()
+    pub(crate) fn reply_token(
+        &self,
+        conversation: &crate::Conversation,
+    ) -> Option<papo_core::ReplyToken> {
+        match conversation {
+            crate::Conversation::Private(nick) => Some(self.core.__reply_token_for(nick)),
+            _ => None,
+        }
     }
 
     pub(crate) fn sent_receipt(
@@ -60,7 +66,7 @@ impl State {
             actor,
             crate::Authorship::Own,
             conversation,
-            Some(self.reply_token()),
+            self.reply_token(conversation),
             address,
         )
     }

@@ -44,6 +44,13 @@ impl Session {
             (status, target.into_conversation())
         });
         let channel_context = self.verified_channel_context(&line.as_ref(), conversation.as_ref());
+        let reply_token = conversation.as_ref().map_or_else(
+            || self.state.__reply_token(),
+            |conversation| match conversation {
+                crate::Conversation::Private(nick) => self.state.__reply_token_for(nick),
+                crate::Conversation::Channel(_) => self.state.__reply_token(),
+            },
+        );
         ReceivedLine {
             line,
             batch_type,
@@ -51,7 +58,7 @@ impl Session {
             conversation,
             status,
             channel_context,
-            reply_token: self.state.__reply_token(),
+            reply_token,
         }
     }
 

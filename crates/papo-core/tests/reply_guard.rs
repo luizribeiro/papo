@@ -151,7 +151,7 @@ fn ignores_a_departure_at_the_receipt_position() {
 }
 
 #[test]
-fn bounded_departure_history_fails_open_after_evidence_is_evicted() {
+fn detects_a_takeover_after_departure_history_overflows() {
     let mut session = joined_session();
     let receipt = private_message(&mut session);
     server(
@@ -171,18 +171,20 @@ fn bounded_departure_history_fails_open_after_evidence_is_evicted() {
         &mut session,
         ":overflow!~overflow@users.example QUIT :Connection closed",
     );
-    assert!(!session.state().__recipient_changed("alice", receipt));
+    assert!(session.state().__recipient_changed("alice", receipt));
 }
 
 #[test]
-fn a_connection_boundary_discards_old_departure_evidence() {
+fn a_connection_boundary_invalidates_old_recipient_identity() {
     let mut session = joined_session();
     let receipt = private_message(&mut session);
+    session.handle_disconnected(Instant::now());
     session.handle_connected(Instant::now());
+    server(&mut session, ":papo!~papo@localhost JOIN #review");
     server(
         &mut session,
         ":alice!~new-alice@users.example JOIN #review * :New Alice",
     );
 
-    assert!(!session.state().__recipient_changed("alice", receipt));
+    assert!(session.state().__recipient_changed("alice", receipt));
 }

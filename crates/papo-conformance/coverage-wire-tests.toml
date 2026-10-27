@@ -24,6 +24,9 @@
 "security::every_private_line_reference_refuses_a_nickname_handoff" = [
   "security.adv-7.private-line-recipient-guards",
 ]
+"security::private_recipient_guard_survives_many_unrelated_departures" = [
+  "security.adv-12.recipient-identity",
+]
 "security::monitored_metadata_is_not_inherited_after_a_nickname_handoff" = [
   "security.adv-8.metadata-nick-handoff",
 ]

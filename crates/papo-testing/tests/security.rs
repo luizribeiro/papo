@@ -530,6 +530,64 @@ async fn every_private_line_reference_refuses_a_nickname_handoff() {
 }
 
 #[tokio::test]
+async fn private_recipient_guard_survives_many_unrelated_departures() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test", "papo-wire")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&[]).await;
+    connected(&mut events).await;
+    for line in [
+        ":papo-wire!p@localhost JOIN #review",
+        ":alice!~a@cloak.example JOIN #review",
+        ":mallory!~m@users.example JOIN #review",
+    ] {
+        wire.server(line).await;
+        assert!(matches!(
+            next_active_event(&mut events).await,
+            papo::Event::Joined(_)
+        ));
+    }
+    wire.server("@msgid=Ergo8ZZ1 :alice!~a@cloak.example PRIVMSG papo-wire :release approval")
+        .await;
+    let papo::Event::Message(message) = next_active_event(&mut events).await else {
+        panic!("expected private message");
+    };
+    wire.server(":alice!~a@cloak.example QUIT :Client Quit")
+        .await;
+    assert!(matches!(
+        next_active_event(&mut events).await,
+        papo::Event::Quit(_)
+    ));
+    wire.server(":mallory!~m@users.example NICK alice").await;
+    assert!(matches!(
+        next_active_event(&mut events).await,
+        papo::Event::NickChanged(_)
+    ));
+    for index in 0..256 {
+        wire.server(format!(
+            ":loadtest{index}!~load@users.example QUIT :Connection closed"
+        ))
+        .await;
+        assert!(matches!(
+            next_active_event(&mut events).await,
+            papo::Event::Quit(_)
+        ));
+    }
+
+    assert!(matches!(
+        client.reply(&message, "payroll attached").await,
+        Err(papo::Error::TargetGone)
+    ));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), wire.next_sent())
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
 async fn monitored_metadata_is_not_inherited_after_a_nickname_handoff() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo-wire")

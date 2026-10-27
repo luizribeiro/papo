@@ -1050,6 +1050,7 @@ pub(crate) fn historical_message_event(
         snapshot.nick(),
         snapshot.casemapping(),
     );
+    let reply_token = snapshot.reply_token(&conversation);
     message_event_from_line(
         raw,
         None,
@@ -1061,7 +1062,7 @@ pub(crate) fn historical_message_event(
         snapshot.caps().contains_key(&crate::cap::ACCOUNT_TAG),
         false,
         received_at,
-        Some(snapshot.reply_token()),
+        reply_token,
     )
 }
 
@@ -1647,7 +1648,7 @@ pub(crate) fn from_core_with_receipt(
     account_tag_enabled: bool,
     prove_not_bot: bool,
     received_at: SystemTime,
-    reply_token: Option<papo_core::ReplyToken>,
+    reply_state: Option<&papo_core::State>,
 ) -> CoreEvent {
     let map_envelope = |envelope| {
         core_envelope(
@@ -1670,6 +1671,10 @@ pub(crate) fn from_core_with_receipt(
         papo_core::Event::MultilineMessage(message) => return CoreEvent::Line(message.message),
         papo_core::Event::TypingChanged(change) => {
             let return_address = change.return_address();
+            let reply_token = reply_state.and_then(|state| match &change.conversation {
+                Conversation::Private(nick) => Some(state.__reply_token_for(nick)),
+                _ => None,
+            });
             let Some(actor) = source::user_from_prefix(
                 &change.actor,
                 casemapping,
@@ -1702,6 +1707,10 @@ pub(crate) fn from_core_with_receipt(
         }
         papo_core::Event::TagMessage(message) => {
             let return_address = message.__return_address().to_owned();
+            let reply_token = reply_state.and_then(|state| match &message.conversation {
+                Conversation::Private(nick) => Some(state.__reply_token_for(nick)),
+                _ => None,
+            });
             let envelope = map_envelope(&message.envelope);
             let tags = Tags::from_pairs(message.tags);
             let Some(actor) = source::user_from_prefix(
@@ -1793,6 +1802,10 @@ pub(crate) fn from_core_with_receipt(
         }
         papo_core::Event::Redacted(redacted) => {
             let return_address = redacted.__return_address().to_owned();
+            let reply_token = reply_state.and_then(|state| match &redacted.conversation {
+                Conversation::Private(nick) => Some(state.__reply_token_for(nick)),
+                _ => None,
+            });
             let envelope = map_envelope(&redacted.envelope);
             let actor = source::user_from_prefix(
                 &redacted.actor,

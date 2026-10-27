@@ -47,7 +47,7 @@ pub(crate) fn history_item(
                 history_conversation,
                 account_tag_enabled,
                 received_at,
-                Some(state.reply_token()),
+                Some(&state),
             )
         }),
         papo_core::HistoryItem::Redacted(item) => {
@@ -62,7 +62,7 @@ pub(crate) fn history_item(
                     history_conversation,
                     account_tag_enabled,
                     received_at,
-                    Some(state.reply_token()),
+                    Some(&state),
                 )
             })
         }
@@ -161,7 +161,7 @@ fn reaction(
     history_conversation: Option<&crate::Conversation>,
     account_tag_enabled: bool,
     received_at: SystemTime,
-    reply_token: Option<papo_core::ReplyToken>,
+    state: Option<&crate::State>,
 ) -> Option<Event> {
     let reaction = Reaction::parse(message)?;
     let (status, conversation) =
@@ -198,7 +198,7 @@ fn reaction(
         crate::Source::User(actor.clone()),
         authorship,
         &conversation,
-        reply_token,
+        state.and_then(|state| state.reply_token(&conversation)),
         return_address,
     );
     Some(Event::Reacted(Reacted {
@@ -231,7 +231,7 @@ fn redaction(
     history_conversation: Option<&crate::Conversation>,
     account_tag_enabled: bool,
     received_at: SystemTime,
-    reply_token: Option<papo_core::ReplyToken>,
+    state: Option<&crate::State>,
 ) -> Option<Event> {
     let (status, conversation) =
         papo_core::classify_conversation(message, own_nick, isupport).ok()?;
@@ -267,7 +267,7 @@ fn redaction(
         actor.clone(),
         authorship,
         &conversation,
-        reply_token,
+        state.and_then(|state| state.reply_token(&conversation)),
         return_address,
     );
     Some(Event::Redacted(Redacted {

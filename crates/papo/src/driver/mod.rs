@@ -1080,7 +1080,7 @@ where
             session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
             can_prove_non_bot(session),
             crate::rt::now_wall(),
-            Some(session.state().__reply_token()),
+            Some(session.state()),
         );
         if let event::CoreEvent::RequestAborted { id, transmitted } = core_event {
             join_keys.remove(&id);
@@ -1228,7 +1228,7 @@ where
             session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
             can_prove_non_bot(session),
             crate::rt::now_wall(),
-            Some(session.state().__reply_token()),
+            Some(session.state()),
         ) {
             event::CoreEvent::Forward(event) => {
                 if let Event::Reacted(reaction) = &event {
