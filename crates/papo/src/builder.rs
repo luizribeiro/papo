@@ -1208,7 +1208,7 @@ mod tests {
         assert_eq!(network.config.nick, "alice");
         assert_eq!(
             network.config.password.as_ref().unwrap().expose(),
-            Some("correct horse battery staple")
+            "correct horse battery staple"
         );
         assert_eq!(network.config.rate_limit, RateLimit::unlimited());
         assert!(

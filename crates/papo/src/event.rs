@@ -4382,7 +4382,7 @@ mod tests {
                     assert_eq!(value.origin(), origin);
                 }
                 ("mask", Some(ModeArg::Mask(value))) => assert_eq!(value.origin(), origin),
-                ("key", Some(ModeArg::Key(value))) => assert_eq!(value.expose(), Some("alice")),
+                ("key", Some(ModeArg::Key(value))) => assert_eq!(value.expose(), "alice"),
                 ("value", Some(ModeArg::Value(value))) => assert_eq!(value, "alice"),
                 _ => panic!("unexpected typed mode argument"),
             }

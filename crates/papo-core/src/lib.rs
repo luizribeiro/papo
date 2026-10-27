@@ -810,9 +810,7 @@ impl Config {
             .param("*")
             .param(&self.realname)
             .encode()?;
-        if let Some(password) = &self.password
-            && password.expose().is_some()
-        {
+        if let Some(password) = &self.password {
             Line::new("PASS").param(password).encode()?;
         }
         for nick in &self.alt_nicks {
@@ -821,9 +819,7 @@ impl Config {
         if let Some(AwayOnConnect::Message(message)) = &self.away_on_connect {
             Line::new("AWAY").param(message).encode()?;
         }
-        if let Some(webirc) = &self.webirc
-            && webirc.password.expose().is_some()
-        {
+        if let Some(webirc) = &self.webirc {
             webirc_line(webirc)?;
         }
         Ok(())

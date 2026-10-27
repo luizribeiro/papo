@@ -243,9 +243,7 @@ pub fn __bouncer_attributes(
     realname: Option<&str>,
     password: Option<&Secret>,
 ) -> Result<Param, RequestError> {
-    let password = password
-        .map(|secret| secret.expose().ok_or(RequestError::InvalidSecret))
-        .transpose()?;
+    let password = password.map(Secret::expose);
     let mut attributes = Zeroizing::new(String::new());
     if let Some(value) = host {
         push_attribute(&mut attributes, "host", value);

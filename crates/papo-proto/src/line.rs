@@ -307,12 +307,8 @@ impl Param {
     fn as_str(&self) -> &str {
         match &self.0 {
             ParamValue::Text(value) => value,
-            ParamValue::Secret(value) => value.expose().unwrap_or(""),
+            ParamValue::Secret(value) => value.expose(),
         }
-    }
-
-    fn is_binary_secret(&self) -> bool {
-        matches!(&self.0, ParamValue::Secret(value) if value.expose().is_none())
     }
 
     fn is_secret(&self) -> bool {
@@ -692,8 +688,7 @@ impl Line {
             }
         }
         for (index, param) in self.params.iter().enumerate() {
-            if param.is_binary_secret()
-                || param.contains(['\r', '\n', '\0'])
+            if param.contains(['\r', '\n', '\0'])
                 || (index + 1 != self.params.len() && needs_trailing_prefix(param))
             {
                 return Err(BuildError::InvalidParam(index));

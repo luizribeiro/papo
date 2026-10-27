@@ -42,7 +42,7 @@ unsafe impl GlobalAlloc for InspectingAllocator {
 static ALLOCATOR: InspectingAllocator = InspectingAllocator;
 
 fn watch(secret: &Secret) {
-    watch_bytes(secret.expose_bytes());
+    watch_bytes(secret.expose().as_bytes());
 }
 
 fn watch_bytes(bytes: &[u8]) {
@@ -71,7 +71,6 @@ fn assert_wiped(secret: Secret) {
 #[test]
 fn wipes_owned_secret_buffers_on_their_last_drop() {
     assert_wiped(Secret::new("text-secret-marker-8193"));
-    assert_wiped(Secret::from_bytes(b"byte-secret-marker-2754".to_vec()));
     assert_wiped(Secret::from(String::from("string-secret-marker-6248")));
     assert_wiped(Secret::from(Box::<str>::from("box-secret-marker-4637")));
     assert_wiped(Secret::from(std::borrow::Cow::Owned(String::from(
@@ -83,7 +82,7 @@ fn wipes_owned_secret_buffers_on_their_last_drop() {
     watch(&first);
     drop(first);
     assert!(!WIPED.load(Ordering::SeqCst));
-    assert_eq!(last.expose(), Some("shared-secret-marker-3072"));
+    assert_eq!(last.expose(), "shared-secret-marker-3072");
     drop(last);
     assert!(WIPED.load(Ordering::SeqCst));
 

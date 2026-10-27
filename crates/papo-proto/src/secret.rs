@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use zeroize::Zeroize;
 
-/// A sensitive text or byte value whose debug representation is always redacted.
+/// A sensitive text value whose debug representation is always redacted.
 ///
 /// Clones share one papo-owned heap buffer, which is wiped when its last handle is dropped. This is
 /// best-effort memory hygiene, not protection from every copy. Caller-owned inputs and values
@@ -16,13 +16,12 @@ pub struct Secret(Arc<SecretBuf>);
 
 #[derive(Eq, PartialEq)]
 struct SecretBuf {
-    bytes: Vec<u8>,
-    text: bool,
+    text: String,
 }
 
 impl Drop for SecretBuf {
     fn drop(&mut self) {
-        self.bytes.zeroize();
+        self.text.zeroize();
     }
 }
 
@@ -33,29 +32,10 @@ impl Secret {
         Self::from(value.into())
     }
 
-    /// Wraps sensitive bytes without requiring them to contain UTF-8.
+    /// Borrows the sensitive value.
     #[must_use]
-    pub fn from_bytes(value: impl Into<Vec<u8>>) -> Self {
-        Self(Arc::new(SecretBuf {
-            bytes: value.into(),
-            text: false,
-        }))
-    }
-
-    /// Borrows the sensitive value as text, or returns `None` for a byte secret.
-    #[must_use]
-    pub fn expose(&self) -> Option<&str> {
-        if self.0.text {
-            std::str::from_utf8(&self.0.bytes).ok()
-        } else {
-            None
-        }
-    }
-
-    /// Borrows the sensitive value as bytes.
-    #[must_use]
-    pub fn expose_bytes(&self) -> &[u8] {
-        &self.0.bytes
+    pub fn expose(&self) -> &str {
+        &self.0.text
     }
 }
 
@@ -67,10 +47,7 @@ impl From<&str> for Secret {
 
 impl From<String> for Secret {
     fn from(value: String) -> Self {
-        Self(Arc::new(SecretBuf {
-            bytes: value.into_bytes(),
-            text: true,
-        }))
+        Self(Arc::new(SecretBuf { text: value }))
     }
 }
 
@@ -95,12 +72,6 @@ impl From<std::borrow::Cow<'_, str>> for Secret {
     }
 }
 
-impl From<Vec<u8>> for Secret {
-    fn from(value: Vec<u8>) -> Self {
-        Self::from_bytes(value)
-    }
-}
-
 impl std::fmt::Debug for Secret {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter.write_str("[REDACTED]")
@@ -116,15 +87,7 @@ mod tests {
     #[test]
     fn debug_redacts_the_value() {
         let secret = Secret::new("unique-registration-password");
-        assert_eq!(secret.expose(), Some("unique-registration-password"));
-        assert_eq!(format!("{secret:?}"), "[REDACTED]");
-    }
-
-    #[test]
-    fn byte_secrets_preserve_non_utf8_and_redact_debug() {
-        let secret = Secret::from_bytes([0, 159, 146, 150]);
-        assert_eq!(secret.expose(), None);
-        assert_eq!(secret.expose_bytes(), [0, 159, 146, 150]);
+        assert_eq!(secret.expose(), "unique-registration-password");
         assert_eq!(format!("{secret:?}"), "[REDACTED]");
     }
 
@@ -142,14 +105,7 @@ mod tests {
             (Secret::from(borrowed_cow), "oauth-token"),
             (Secret::from(owned_cow), "refresh-token"),
         ] {
-            assert_eq!(secret.expose(), Some(expected));
+            assert_eq!(secret.expose(), expected);
         }
-    }
-
-    #[test]
-    fn vector_conversion_preserves_non_utf8_bytes() {
-        let secret = Secret::from(vec![0, 159, 146, 150]);
-        assert_eq!(secret.expose(), None);
-        assert_eq!(secret.expose_bytes(), [0, 159, 146, 150]);
     }
 }

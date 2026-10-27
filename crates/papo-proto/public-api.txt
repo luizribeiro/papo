@@ -1493,9 +1493,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::Reaction
 impl core::panic::unwind_safe::UnwindSafe for papo_proto::Reaction
 pub struct papo_proto::Secret(_)
 impl papo_proto::Secret
-pub fn papo_proto::Secret::expose(&self) -> core::option::Option<&str>
-pub fn papo_proto::Secret::expose_bytes(&self) -> &[u8]
-pub fn papo_proto::Secret::from_bytes(impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self
+pub fn papo_proto::Secret::expose(&self) -> &str
 pub fn papo_proto::Secret::new(impl core::convert::Into<alloc::string::String>) -> Self
 impl core::clone::Clone for papo_proto::Secret
 pub fn papo_proto::Secret::clone(&self) -> Self
@@ -1514,8 +1512,6 @@ impl core::convert::From<alloc::boxed::Box<str>> for papo_proto::Secret
 pub fn papo_proto::Secret::from(alloc::boxed::Box<str>) -> Self
 impl core::convert::From<alloc::string::String> for papo_proto::Secret
 pub fn papo_proto::Secret::from(alloc::string::String) -> Self
-impl core::convert::From<alloc::vec::Vec<u8>> for papo_proto::Secret
-pub fn papo_proto::Secret::from(alloc::vec::Vec<u8>) -> Self
 impl core::convert::From<papo_proto::Secret> for papo_proto::Param
 pub fn papo_proto::Param::from(papo_proto::Secret) -> Self
 impl core::fmt::Debug for papo_proto::Secret

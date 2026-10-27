@@ -66,7 +66,7 @@ impl ScramClient {
             .password
             .take()
             .ok_or(ScramError::UnexpectedServerFirst)?;
-        let password = password.expose().ok_or(ScramError::MalformedMessage)?;
+        let password = password.expose();
         let (proof, signature) = derive_keys(password, &salt, iterations, &auth_message);
         self.server_signature = Some(signature);
         let mut response = Zeroizing::new(String::with_capacity(final_without_proof.len() + 47));

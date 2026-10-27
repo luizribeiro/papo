@@ -16,8 +16,7 @@ impl Session {
     ///
     /// Returns [`RequestError::Unsupported`] unless either webpush capability was negotiated,
     /// [`RequestError::InvalidWebPushEndpoint`] for a non-HTTPS endpoint, or
-    /// [`RequestError::InvalidWebPushKey`] when either key is not URL-safe base64, or
-    /// [`RequestError::InvalidSecret`] when `auth` contains bytes rather than text.
+    /// [`RequestError::InvalidWebPushKey`] when either key is not URL-safe base64.
     pub fn webpush_register(
         &mut self,
         now: Instant,
@@ -25,7 +24,7 @@ impl Session {
         p256dh: &str,
         auth: &Secret,
     ) -> Result<RequestId, RequestError> {
-        let auth = auth.expose().ok_or(RequestError::InvalidSecret)?;
+        let auth = auth.expose();
         self.require_feature(Feature::WebPush)?;
         validate_endpoint(endpoint)?;
         if !valid_base64(p256dh) || !valid_base64(auth) {

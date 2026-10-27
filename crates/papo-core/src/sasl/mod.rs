@@ -444,40 +444,31 @@ impl SaslSession {
                 authzid,
             } => {
                 let authcid = with_device(username, self.device.as_deref());
-                password.expose().map(|password| {
-                    let authorization_identity = authzid.as_deref().unwrap_or("");
-                    let mut response = Zeroizing::new(Vec::with_capacity(
-                        authorization_identity.len() + authcid.len() + password.len() + 2,
-                    ));
-                    response.extend_from_slice(authorization_identity.as_bytes());
-                    response.push(0);
-                    response.extend_from_slice(authcid.as_bytes());
-                    response.push(0);
-                    response.extend_from_slice(password.as_bytes());
-                    response
-                })
+                let password = password.expose();
+                let authorization_identity = authzid.as_deref().unwrap_or("");
+                let mut response = Zeroizing::new(Vec::with_capacity(
+                    authorization_identity.len() + authcid.len() + password.len() + 2,
+                ));
+                response.extend_from_slice(authorization_identity.as_bytes());
+                response.push(0);
+                response.extend_from_slice(authcid.as_bytes());
+                response.push(0);
+                response.extend_from_slice(password.as_bytes());
+                response
             }
-            Mechanism::OAuthBearer { token } => token.expose().map(|token| {
+            Mechanism::OAuthBearer { token } => {
+                let token = token.expose();
                 let mut response = Zeroizing::new(Vec::with_capacity(token.len() + 18));
                 response.extend_from_slice(b"n,,\x01auth=Bearer ");
                 response.extend_from_slice(token.as_bytes());
                 response.extend_from_slice(b"\x01\x01");
                 response
-            }),
-            Mechanism::External { authzid } => Some(Zeroizing::new(
-                authzid.as_deref().unwrap_or("").as_bytes().to_vec(),
-            )),
+            }
+            Mechanism::External { authzid } => {
+                Zeroizing::new(authzid.as_deref().unwrap_or("").as_bytes().to_vec())
+            }
             // SCRAM challenges return through `handle_scram_challenge` above.
             Mechanism::ScramSha256 { .. } => unreachable!(),
-        };
-        let Some(response) = response else {
-            self.abort(
-                now,
-                "the configured SASL secret is not text",
-                AbortOutcome::Retry,
-                outbox,
-            );
-            return Handled::Yes;
         };
         transmit_response(&response, outbox);
         self.awaiting_challenge = false;
