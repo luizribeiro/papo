@@ -91,7 +91,7 @@ impl State {
             let old_nick = self.nick.clone();
             self.rename_user(&old_nick, nick);
             self.nick = self.casemapping.nick(nick);
-            let key = self.casemapping.channel(join.channel);
+            let key = NameKey::new(join.channel, self.casemapping);
             if !self.channels.contains_key(&key) && self.channels.len() >= self.max_channels {
                 self.warn_limit(StateLimit::Channels, outbox);
                 return Handled::Yes;
@@ -126,7 +126,7 @@ impl State {
         }
         let name = message.param(1);
         let Some(channel) =
-            name.and_then(|name| self.channels.get_mut(&self.casemapping.channel(name)))
+            name.and_then(|name| self.channels.get_mut(self.casemapping.fold(name).as_ref()))
         else {
             return false;
         };
@@ -141,7 +141,7 @@ impl State {
             outbox.transmit("MODE", [channel]);
             let members = self
                 .channels
-                .get(&self.casemapping.channel(channel))
+                .get(self.casemapping.fold(channel).as_ref())
                 .map_or(0, |channel| channel.members.len());
             let refresh = match self.who_on_join {
                 super::WhoOnJoin::Always => true,
@@ -168,17 +168,20 @@ impl State {
         outbox: &mut Outbox,
     ) {
         let mapping = self.casemapping;
-        let channel_key = mapping.channel(channel_name);
+        let channel_key = mapping.fold(channel_name);
         let nick_key = mapping.fold(nick);
-        let full = self.channels.get(&channel_key).is_some_and(|channel| {
-            !channel.members.contains_key(nick_key.as_ref())
-                && channel.members.len() >= self.max_members_per_channel
-        });
+        let full = self
+            .channels
+            .get(channel_key.as_ref())
+            .is_some_and(|channel| {
+                !channel.members.contains_key(nick_key.as_ref())
+                    && channel.members.len() >= self.max_members_per_channel
+            });
         if full {
             self.warn_limit(StateLimit::Members, outbox);
             return;
         }
-        if let Some(channel) = self.channels.get_mut(&channel_key) {
+        if let Some(channel) = self.channels.get_mut(channel_key.as_ref()) {
             let prefixes = channel
                 .prefix_order
                 .iter()
@@ -219,9 +222,10 @@ impl State {
 
     pub(super) fn remove_channel(&mut self, name: &str) {
         let key = self.casemapping.channel(name);
+        let folded = self.casemapping.fold(name);
         self.remove_metadata(name);
         self.who_sweeps.remove(&key);
-        let Some(channel) = self.channels.remove(&key) else {
+        let Some(channel) = self.channels.remove(folded.as_ref()) else {
             return;
         };
         for member in channel.members.values() {
@@ -250,10 +254,10 @@ impl State {
 
     pub(super) fn remove_member(&mut self, channel: &str, nick: &str) {
         let channel_name = self.casemapping.channel(channel);
-        let channel_key = self.casemapping.channel(channel);
+        let channel_key = self.casemapping.fold(channel);
         let nick_name = self.casemapping.nick(nick);
         let nick_key = self.casemapping.fold(nick);
-        if let Some(joined) = self.channels.get_mut(&channel_key) {
+        if let Some(joined) = self.channels.get_mut(channel_key.as_ref()) {
             joined.members.remove(nick_key.as_ref());
         }
         if let Some(user) = self.users.get_mut(nick_key.as_ref()) {
@@ -278,7 +282,10 @@ impl State {
             return;
         };
         for channel in user.channels {
-            if let Some(joined) = self.channels.get_mut(&channel) {
+            if let Some(joined) = self
+                .channels
+                .get_mut(self.casemapping.fold(&channel).as_ref())
+            {
                 joined.members.remove(folded.as_ref());
             }
         }
@@ -292,7 +299,9 @@ impl State {
         };
         user.nick = self.casemapping.nick(new_nick);
         for channel_key in &user.channels {
-            if let Some(channel) = self.channels.get_mut(channel_key)
+            if let Some(channel) = self
+                .channels
+                .get_mut(self.casemapping.fold(channel_key).as_ref())
                 && let Some(mut member) = channel.members.remove(old_key.as_ref())
             {
                 member.nick = self.casemapping.nick(new_nick);

@@ -433,7 +433,10 @@ impl State {
 
     pub(crate) fn track_who(&mut self, channel: &str) {
         let key = self.casemapping.channel(channel);
-        if self.channels.contains_key(&key) {
+        if self
+            .channels
+            .contains_key(self.casemapping.fold(channel).as_ref())
+        {
             *self.who_sweeps.entry(key).or_default() += 1;
         }
     }

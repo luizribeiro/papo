@@ -54,7 +54,7 @@ pub struct State {
     user_modes: HashSet<char>,
     casemapping: Names,
     isupport: Isupport,
-    channels: BTreeMap<ChannelName, Channel>,
+    channels: BTreeMap<NameKey<String>, Channel>,
     users: BTreeMap<NameKey<String>, User>,
     monitored: Vec<Nick>,
     who_sweeps: BTreeMap<ChannelName, usize>,
@@ -543,7 +543,9 @@ impl State {
         mode: ListMode,
         entries: Vec<ModeListEntry>,
     ) {
-        if let Some(channel) = self.channels.get_mut(&self.casemapping.channel(channel))
+        if let Some(channel) = self
+            .channels
+            .get_mut(self.casemapping.fold(channel).as_ref())
             && channel.lists.get(&mode) != Some(&entries)
         {
             channel.lists.insert(mode, entries);
@@ -554,7 +556,7 @@ impl State {
     pub(crate) fn invalidate_mode_list(&mut self, channel: &str, mode: ListMode) {
         if self
             .channels
-            .get_mut(&self.casemapping.channel(channel))
+            .get_mut(self.casemapping.fold(channel).as_ref())
             .is_some_and(|channel| channel.lists.remove(&mode).is_some())
         {
             self.mark_changed();
@@ -743,7 +745,10 @@ impl State {
             return Handled::Yes;
         }
         if let Some((_, channel, entries)) = parse_353(message) {
-            let Some(state) = self.channels.get_mut(&self.casemapping.channel(channel)) else {
+            let Some(state) = self
+                .channels
+                .get_mut(self.casemapping.fold(channel).as_ref())
+            else {
                 return Handled::No;
             };
             state.names_reply_seen = true;
@@ -821,7 +826,9 @@ impl State {
             return false;
         };
         if let Some(modestring) = message.param(1)
-            && let Some(channel) = self.channels.get_mut(&self.casemapping.channel(target))
+            && let Some(channel) = self
+                .channels
+                .get_mut(self.casemapping.fold(target).as_ref())
         {
             channel.apply_modes(modestring, message.params().skip(2), isupport, false);
             channel.apply_list_modes(message, modestring, isupport);
@@ -882,7 +889,7 @@ impl State {
         }
         let Some(channel) = message
             .param(1)
-            .and_then(|name| self.channels.get_mut(&self.casemapping.channel(name)))
+            .and_then(|name| self.channels.get_mut(self.casemapping.fold(name).as_ref()))
         else {
             return false;
         };
@@ -936,7 +943,7 @@ impl State {
             Command::Numeric(Numeric::RPL_TOPICWHOTIME) => {
                 let Some(channel) = message
                     .param(1)
-                    .and_then(|name| self.channels.get_mut(&self.casemapping.channel(name)))
+                    .and_then(|name| self.channels.get_mut(self.casemapping.fold(name).as_ref()))
                 else {
                     return false;
                 };
@@ -960,8 +967,8 @@ impl State {
                 authorship: self.source_authorship(message),
             });
         }
-        let Some(channel) =
-            channel_name.and_then(|name| self.channels.get_mut(&self.casemapping.channel(name)))
+        let Some(channel) = channel_name
+            .and_then(|name| self.channels.get_mut(self.casemapping.fold(name).as_ref()))
         else {
             return false;
         };
@@ -1009,7 +1016,7 @@ impl State {
                         (NameKey::new(member.nick.as_ref(), mapping), member)
                     })
                     .collect();
-                (channel.name.clone(), channel)
+                (NameKey::new(channel.name.as_ref(), mapping), channel)
             })
             .collect();
         self.users = std::mem::take(&mut self.users)
@@ -1176,7 +1183,8 @@ impl State {
         if name.origin() != Origin::NONE && name.origin() != self.casemapping.origin() {
             return None;
         }
-        self.channels.get(&self.casemapping.channel(name.text()))
+        self.channels
+            .get(name.__folded(self.casemapping()).as_ref())
     }
 
     /// Iterates over joined channels in unspecified order.

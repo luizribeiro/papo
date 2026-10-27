@@ -20,9 +20,10 @@ impl State {
             .map(str::to_owned);
         let old_key = self.casemapping.channel(old);
         let new_key = self.casemapping.channel(new);
-        if let Some(mut channel) = self.channels.remove(&old_key) {
+        if let Some(mut channel) = self.channels.remove(self.casemapping.fold(old).as_ref()) {
             channel.name = self.casemapping.channel(new);
-            self.channels.insert(new_key.clone(), channel);
+            self.channels
+                .insert(NameKey::new(new, self.casemapping), channel);
         }
         for user in self.users.values_mut() {
             if user.channels.remove(&old_key) {
