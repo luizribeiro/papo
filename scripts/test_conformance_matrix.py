@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 import pathlib
 import runpy
+import subprocess
 import unittest
+from unittest import mock
 
 
 PATH = pathlib.Path(__file__).with_name("conformance-matrix")
@@ -9,6 +11,16 @@ MODULE = runpy.run_path(PATH)
 
 
 class MatrixTests(unittest.TestCase):
+    def test_runs_profiles_in_release_mode_and_propagates_failure(self):
+        failure = subprocess.CalledProcessError(1, ["cargo", "test"])
+        with mock.patch.object(MODULE["subprocess"], "run", side_effect=failure) as run:
+            with self.assertRaises(subprocess.CalledProcessError):
+                MODULE["run_profile"]("ergo-default")
+
+        command = run.call_args.args[0]
+        self.assertIn("--release", command)
+        self.assertTrue(run.call_args.kwargs["check"])
+
     def test_renders_every_outcome_and_known_failure_reason(self):
         MODULE["render"].__globals__["PROFILES"] = ("ergo-default", "soju-ergo")
         MODULE["render"].__globals__["PROFILE_LABELS"] = {

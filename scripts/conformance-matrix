@@ -49,6 +49,7 @@ def run_profile(profile):
         "--test",
         "live_conformance",
         "--locked",
+        "--release",
         "--",
         "--nocapture",
         "--test-threads=1",
@@ -58,7 +59,7 @@ def run_profile(profile):
         command,
         cwd=ROOT,
         env=environment,
-        check=False,
+        check=True,
         stdout=subprocess.PIPE,
         text=True,
     )
