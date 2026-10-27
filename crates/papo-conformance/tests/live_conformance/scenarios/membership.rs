@@ -897,8 +897,8 @@ async fn kickban(s: Scenario) -> papo_testing::Result<()> {
         .kickban(
             &channel,
             bob_nick.as_ref(),
-            "repeated flooding",
             ban.as_str(),
+            "repeated flooding",
         )
         .await?;
     first.kick?;
@@ -910,8 +910,8 @@ async fn kickban(s: Scenario) -> papo_testing::Result<()> {
         .kickban(
             &channel,
             bob_nick.as_ref(),
-            "ban already present",
             ban.as_str(),
+            "ban already present",
         )
         .await?;
     duplicate.kick?;

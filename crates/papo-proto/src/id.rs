@@ -239,18 +239,6 @@ macro_rules! name_identifier {
 
         original_text!($name, original);
 
-        impl From<$name> for String {
-            fn from(value: $name) -> Self {
-                value.into_string()
-            }
-        }
-
-        impl From<&$name> for String {
-            fn from(value: &$name) -> Self {
-                value.to_string()
-            }
-        }
-
         impl PartialEq for $name {
             fn eq(&self, other: &Self) -> bool {
                 self.origin == other.origin && self.folded == other.folded
@@ -294,6 +282,26 @@ macro_rules! name_identifier {
 name_identifier!(Nick, "An IRC nickname.");
 name_identifier!(ChannelName, "An IRC channel name.");
 name_identifier!(AccountName, "An IRC account name.");
+
+macro_rules! name_string_conversions {
+    ($($name:ty),+ $(,)?) => {
+        $(
+            impl From<$name> for String {
+                fn from(value: $name) -> Self {
+                    value.into_string()
+                }
+            }
+
+            impl From<&$name> for String {
+                fn from(value: &$name) -> Self {
+                    value.to_string()
+                }
+            }
+        )+
+    };
+}
+
+name_string_conversions!(Nick, ChannelName, AccountName);
 identifier!(Address, "An IRC wire address chosen by the caller.");
 name_identifier!(
     Mask,

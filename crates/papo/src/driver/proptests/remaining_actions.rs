@@ -21,7 +21,7 @@ async fn arbitrary_action_builder_input_is_rejected_or_emits_valid_lines() {
                 action(
                     client
                         .list()
-                        .channels([crate::Casemapping::default().mask(first)]),
+                        .channels([crate::Casemapping::default().mask(first).into_string()]),
                 )
             }
         })

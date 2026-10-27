@@ -287,11 +287,11 @@ async fn elist_filters(s: Scenario) -> papo_testing::Result<()> {
     let listed = alice
         .list()
         .channels([
-            mapping.mask(&channel),
-            mapping.mask(">1"),
-            mapping.mask("<3"),
-            mapping.mask("C<10"),
-            mapping.mask("T<10"),
+            mapping.mask(&channel).into_string(),
+            mapping.mask(">1").into_string(),
+            mapping.mask("<3").into_string(),
+            mapping.mask("C<10").into_string(),
+            mapping.mask("T<10").into_string(),
         ])
         .await?;
     let entry = listed

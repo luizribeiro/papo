@@ -1138,6 +1138,12 @@ impl Client {
     /// confirmation produces [`Error::TargetGone`] in [`crate::KickbanOutcome::kick`].
     /// An empty `reason` means no reason.
     ///
+    /// ```compile_fail
+    /// # fn mask_is_not_a_reason(client: &papo::Client, reason: &papo::Mask) {
+    /// let _ = client.kickban("#papo", "mallory", "*!*@gateway.example", reason);
+    /// # }
+    /// ```
+    ///
     /// # Errors
     ///
     /// Returns [`Error::Unconfirmed`] without sending `KICK` when the ban cannot be proved. A ban
@@ -1146,14 +1152,14 @@ impl Client {
         &self,
         channel: impl crate::AsChannel,
         nick: impl crate::AsNick,
-        reason: impl Into<String>,
         ban: impl Into<crate::BanTarget>,
+        reason: impl Into<String>,
     ) -> crate::RequestFuture<crate::KickbanOutcome> {
         let client = self.clone();
         let channel = crate::AsChannel::__parts(&channel).into_owned();
         let nick = crate::AsNick::__parts(&nick).into_owned();
-        let reason = reason.into();
         let ban = ban.into();
+        let reason = reason.into();
         crate::RequestFuture::new(async move {
             let channel =
                 client.resolve(crate::target::Role::Channel("kickban: channel"), channel)?;

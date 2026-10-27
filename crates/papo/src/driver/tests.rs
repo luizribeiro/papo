@@ -4546,11 +4546,11 @@ async fn every_name_taking_method_returns_invalid_name() {
             Method::KickChannel => client.kick(bad, "alice", "spam").await,
             Method::KickNick => client.kick("#staff", bad, "spam").await,
             Method::KickbanChannel => client
-                .kickban(bad, "alice", "spam", "*!*@host")
+                .kickban(bad, "alice", "*!*@host", "spam")
                 .await
                 .map(drop),
             Method::KickbanNick => client
-                .kickban("#staff", bad, "spam", "*!*@host")
+                .kickban("#staff", bad, "*!*@host", "spam")
                 .await
                 .map(drop),
             Method::InviteNick => client.invite(bad, "#staff").await,
@@ -5066,7 +5066,7 @@ async fn kick_reasons_obey_advertised_byte_limits() {
         ));
         assert!(matches!(
             client
-                .kickban("#papo", "spambot", format!("{exact}é"), "spambot")
+                .kickban("#papo", "spambot", "spambot", format!("{exact}é"))
                 .await,
             Err(Error::InvalidInput(crate::InvalidInput::KickReasonTooLong {
                 maximum: advertised,
@@ -5103,7 +5103,7 @@ async fn kickban_confirms_the_ban_before_returning_the_kick_result() {
         let client = client.clone();
         async move {
             client
-                .kickban("#papo", "alice", "repeated flooding", "alice")
+                .kickban("#papo", "alice", "alice", "repeated flooding")
                 .await
         }
     });
@@ -5127,7 +5127,7 @@ async fn kickban_confirms_the_ban_before_returning_the_kick_result() {
 
     let refused = tokio::spawn({
         let client = client.clone();
-        async move { client.kickban("#papo", "carol", "abuse", "carol!*@*").await }
+        async move { client.kickban("#papo", "carol", "carol!*@*", "abuse").await }
     });
     client_line(&mut server, b"@label=2 MODE #papo +b carol!*@*\r\n").await;
     server_line(
@@ -5143,7 +5143,7 @@ async fn kickban_confirms_the_ban_before_returning_the_kick_result() {
 
     let duplicate = tokio::spawn({
         let client = client.clone();
-        async move { client.kickban("#papo", "bob", "abuse", "bob!*@*").await }
+        async move { client.kickban("#papo", "bob", "bob!*@*", "abuse").await }
     });
     client_line(&mut server, b"@label=3 MODE #papo +b bob!*@*\r\n").await;
     server_line(
@@ -5184,7 +5184,7 @@ async fn kickban_uses_a_list_fallback_and_skips_an_already_tracked_ban() {
 
     let fetched = tokio::spawn({
         let client = client.clone();
-        async move { client.kickban("#papo", "alice", "flooding", "alice").await }
+        async move { client.kickban("#papo", "alice", "alice", "flooding").await }
     });
     client_line(&mut server, b"@label=0 MODE #papo +b alice\r\n").await;
     server_line(&mut server, b"@label=0 ACK\r\n").await;
@@ -5221,7 +5221,7 @@ async fn kickban_uses_a_list_fallback_and_skips_an_already_tracked_ban() {
 
     let tracked = tokio::spawn({
         let client = client.clone();
-        async move { client.kickban("#papo", "bob", "flooding", "bob").await }
+        async move { client.kickban("#papo", "bob", "bob", "flooding").await }
     });
     client_line(&mut server, b"@label=4 KICK #papo bob flooding\r\n").await;
     server_line(
@@ -5252,7 +5252,7 @@ async fn kickban_stops_when_the_ban_is_unconfirmed_or_the_target_leaves() {
 
     let unconfirmed = tokio::spawn({
         let client = client.clone();
-        async move { client.kickban("#papo", "alice", "flooding", "alice").await }
+        async move { client.kickban("#papo", "alice", "alice", "flooding").await }
     });
     client_line(&mut server, b"@label=0 MODE #papo +b alice\r\n").await;
     server_line(&mut server, b"@label=0 ACK\r\n").await;
@@ -5290,7 +5290,7 @@ async fn kickban_stops_when_the_ban_is_unconfirmed_or_the_target_leaves() {
 
     let departed = tokio::spawn({
         let client = client.clone();
-        async move { client.kickban("#papo", "carol", "flooding", "carol").await }
+        async move { client.kickban("#papo", "carol", "carol", "flooding").await }
     });
     client_line(&mut server, b"@label=2 MODE #papo +b carol\r\n").await;
     server_line(
@@ -5339,7 +5339,7 @@ async fn kickban_does_not_refetch_a_known_list_after_an_unconfirmed_ban() {
 
     let kickban = tokio::spawn({
         let client = client.clone();
-        async move { client.kickban("#papo", "alice", "flooding", "alice").await }
+        async move { client.kickban("#papo", "alice", "alice", "flooding").await }
     });
     client_line(&mut server, b"@label=1 MODE #papo +b alice\r\n").await;
     server_line(&mut server, b"@label=1 ACK\r\n").await;

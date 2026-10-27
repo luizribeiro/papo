@@ -981,12 +981,8 @@ impl core::cmp::PartialOrd for papo_proto::Mask
 pub fn papo_proto::Mask::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
 impl core::convert::AsRef<str> for papo_proto::Mask
 pub fn papo_proto::Mask::as_ref(&self) -> &str
-impl core::convert::From<&papo_proto::Mask> for alloc::string::String
-pub fn alloc::string::String::from(&papo_proto::Mask) -> Self
 impl core::convert::From<&papo_proto::Mask> for papo_proto::Mask
 pub fn papo_proto::Mask::from(&Self) -> Self
-impl core::convert::From<papo_proto::Mask> for alloc::string::String
-pub fn alloc::string::String::from(papo_proto::Mask) -> Self
 impl core::fmt::Debug for papo_proto::Mask
 pub fn papo_proto::Mask::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo_proto::Mask
