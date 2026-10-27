@@ -264,7 +264,7 @@ impl StsStore for MemoryStsStore {
     fn get(&self, host: &str) -> Option<StsPolicy> {
         self.policies
             .lock()
-            .unwrap()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .get(&normalize_host(host))
             .cloned()
     }
@@ -273,12 +273,15 @@ impl StsStore for MemoryStsStore {
         policy.host = normalize_host(&policy.host);
         self.policies
             .lock()
-            .unwrap()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
             .insert(policy.host.clone(), policy);
     }
 
     fn remove(&self, host: &str) {
-        self.policies.lock().unwrap().remove(&normalize_host(host));
+        self.policies
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .remove(&normalize_host(host));
     }
 }
 

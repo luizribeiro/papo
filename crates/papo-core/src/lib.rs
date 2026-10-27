@@ -48,26 +48,63 @@
 //! <!-- caps:end -->
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(
+    not(test),
+    deny(clippy::expect_used, clippy::indexing_slicing, clippy::unwrap_used)
+)]
 
 mod account_registration;
+#[allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    reason = "batch keys and positions are resolved from the same validated open-batch graph"
+)]
 mod batch;
 #[cfg(feature = "unstable")]
 #[path = "unstable/bouncer.rs"]
+#[allow(
+    clippy::expect_used,
+    reason = "formatting into an owned String is infallible"
+)]
 mod bouncer;
 mod bounded;
+#[allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    reason = "compile-time capability tables use indexes bounded by their generated constants"
+)]
 pub mod cap;
 mod caps;
 mod channel_rename;
 mod conversation;
+#[allow(
+    clippy::expect_used,
+    reason = "request resolution queues the response consumed immediately afterward"
+)]
 mod echo;
 mod features;
+#[allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    reason = "framing cursors and line boundaries come from prior scans of the same buffers"
+)]
 mod framing;
 mod history;
 mod identity;
 mod isupport;
 mod keepalive;
+#[allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::unwrap_used,
+    reason = "request indexes and deferred lines are selected immediately before use"
+)]
 mod labels;
 mod metadata;
+#[allow(
+    clippy::indexing_slicing,
+    reason = "monitor slice bounds are clamped to the desired nickname count"
+)]
 mod monitor;
 mod name;
 mod nick_regain;
@@ -81,12 +118,29 @@ mod refusal;
 #[path = "unstable/relaymsg.rs"]
 mod relaymsg;
 mod replies;
+#[allow(
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    reason = "SASL indexes fixed-size cryptographic outputs and infallible ASCII encodings"
+)]
 mod sasl;
 #[doc(hidden)]
 pub mod server_url;
+#[allow(
+    clippy::expect_used,
+    reason = "owned source lines are constructed only after a source was parsed"
+)]
 mod source;
+#[allow(
+    clippy::expect_used,
+    reason = "state transitions preserve the own-user and parsed-user-source invariants"
+)]
 mod state;
 pub mod sts;
+#[allow(
+    clippy::indexing_slicing,
+    reason = "typing positions are obtained from the same deque immediately before mutation"
+)]
 mod typing;
 #[cfg(feature = "unstable")]
 #[path = "unstable/webpush.rs"]
@@ -414,8 +468,10 @@ impl Default for CtcpReplies {
         Self {
             version: Some(format!("papo {}", env!("CARGO_PKG_VERSION"))),
             ping: true,
-            rate: RateLimit::new(2, Duration::from_secs(2))
-                .expect("the default CTCP reply rate is valid"),
+            rate: match RateLimit::new(2, Duration::from_secs(2)) {
+                Ok(rate) => rate,
+                Err(_) => unreachable!("the default CTCP reply rate is valid"),
+            },
         }
     }
 }
@@ -3608,6 +3664,10 @@ impl Session {
         self.send_composed_text(now, TextKind::Privmsg, target, text, tags, true)
     }
 
+    #[allow(
+        clippy::too_many_lines,
+        reason = "text validation and atomic multiline framing share one pre-queue transaction"
+    )]
     fn send_composed_text(
         &mut self,
         now: Instant,
@@ -3652,12 +3712,20 @@ impl Session {
             while start < segments.len() {
                 let mut end = start;
                 let mut bytes = 0;
-                while end < segments.len() && end - start < limits.max_lines {
-                    let separator = usize::from(end > start && !segments[end - 1].concat);
-                    if bytes + separator + segments[end].text.len() > limits.max_bytes {
+                while end - start < limits.max_lines {
+                    let Some(segment) = segments.get(end) else {
+                        break;
+                    };
+                    let separator = usize::from(
+                        end > start
+                            && segments
+                                .get(end - 1)
+                                .is_some_and(|previous| !previous.concat),
+                    );
+                    if bytes + separator + segment.text.len() > limits.max_bytes {
                         break;
                     }
-                    bytes += separator + segments[end].text.len();
+                    bytes += separator + segment.text.len();
                     end += 1;
                 }
                 let id = format!("b{}-{batch_count}", encode_label(self.next_request_id));
@@ -3673,11 +3741,18 @@ impl Session {
                     labels.push(label);
                 }
                 lines.push(open.encode()?);
-                for (offset, segment) in segments[start..end].iter().enumerate() {
+                let Some(batch_segments) = segments.get(start..end) else {
+                    return Err(RequestError::Build(BuildError::LineTooLong));
+                };
+                for (offset, segment) in batch_segments.iter().enumerate() {
                     let mut inner = Line::new(kind.command())
                         .with_params([target, segment.text])
                         .with_tag(cap::BATCH.as_str(), &id);
-                    if offset > 0 && segments[offset + start - 1].concat {
+                    if offset > 0
+                        && batch_segments
+                            .get(offset - 1)
+                            .is_some_and(|previous| previous.concat)
+                    {
                         inner = inner.with_tag("draft/multiline-concat", "");
                     }
                     lines.push(inner.encode()?);
@@ -4667,9 +4742,9 @@ impl Session {
                 removed: removed.clone(),
             });
             for feature in removed {
-                let reason = self
-                    .supports(feature)
-                    .expect_err("a removed feature is unavailable");
+                let Err(reason) = self.supports(feature) else {
+                    continue;
+                };
                 self.fail_requests_for_feature(feature, reason);
             }
         }
@@ -4683,10 +4758,9 @@ impl Session {
             .map(|(label, _)| label.clone())
             .collect();
         for label in labels {
-            let (id, _, _, _, _) = self
-                .requests
-                .remove(&label)
-                .expect("the pending label was just selected");
+            let Some((id, _, _, _, _)) = self.requests.remove(&label) else {
+                continue;
+            };
             self.unlabelled_requests.retain(|pending| pending.id != id);
             self.outbox.event(Event::RequestUnsupported {
                 id,
