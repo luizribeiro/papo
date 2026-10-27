@@ -1409,7 +1409,6 @@ pub papo::DisconnectCause::Protocol::message: alloc::string::String
 pub papo::DisconnectCause::Requested::quit_unacknowledged: bool
 #[non_exhaustive] pub papo::DisconnectCause::Server
 pub papo::DisconnectCause::Server::message: alloc::string::String
-pub papo::DisconnectCause::SlowConsumer
 impl core::clone::Clone for papo::DisconnectCause
 pub fn papo::DisconnectCause::clone(&self) -> Self
 impl core::cmp::Eq for papo::DisconnectCause

@@ -387,12 +387,6 @@ pub enum DisconnectCause {
         /// A bounded diagnostic suitable for display.
         message: String,
     },
-    /// The event consumer remained full past its bounded overflow.
-    ///
-    /// The disconnect follows the configured reconnect policy. Move slow work
-    /// out of the event loop or raise [`Builder::event_capacity`](crate::Builder::event_capacity)
-    /// to avoid it.
-    SlowConsumer,
     /// The client deliberately ended the connection.
     #[non_exhaustive]
     Requested {
@@ -433,7 +427,6 @@ impl fmt::Display for DisconnectCause {
                 "protocol failure: {}",
                 papo_proto::display_text(message)
             ),
-            Self::SlowConsumer => formatter.write_str("the event consumer was too slow"),
             Self::Requested { .. } => formatter.write_str("the client disconnected"),
         }
     }
@@ -1148,7 +1141,6 @@ mod tests {
             DisconnectCause::Protocol {
                 message: "overlong line".into(),
             },
-            DisconnectCause::SlowConsumer,
             DisconnectCause::Requested {
                 quit_unacknowledged: false,
             },
