@@ -362,10 +362,13 @@ async fn tls_certificate_rejected(s: Scenario) -> papo_testing::Result<()> {
     let error = error
         .downcast_ref::<papo::Error>()
         .expect("connection failure retains papo::Error");
-    assert!(matches!(
-        error,
-        papo::Error::Connect(error) if error.kind() == ConnectErrorKind::CertificateRejected
-    ), "unexpected TLS failure: {error:?}");
+    assert!(
+        matches!(
+            error,
+            papo::Error::Connect(error) if error.kind() == ConnectErrorKind::CertificateRejected
+        ),
+        "unexpected TLS failure: {error:?}"
+    );
     Ok(())
 }
 
