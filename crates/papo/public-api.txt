@@ -1418,6 +1418,12 @@ impl core::convert::From<papo::ConnectError> for papo::Error
 pub fn papo::Error::from(papo::ConnectError) -> Self
 impl core::convert::From<papo::InvalidInput> for papo::Error
 pub fn papo::Error::from(papo::InvalidInput) -> Self
+impl core::convert::From<papo::ServerError> for papo::Error
+pub fn papo::Error::from(papo::ServerError) -> Self
+impl core::convert::From<papo::StateLimit> for papo::Error
+pub fn papo::Error::from(papo::StateLimit) -> Self
+impl core::convert::From<papo::Unsupported> for papo::Error
+pub fn papo::Error::from(papo::Unsupported) -> Self
 impl core::error::Error for papo::Error
 pub fn papo::Error::source(&self) -> core::option::Option<&(dyn core::error::Error + 'static)>
 impl core::fmt::Debug for papo::Error
@@ -2609,6 +2615,8 @@ pub fn papo::ServerError::clone(&self) -> Self
 impl core::cmp::Eq for papo::ServerError
 impl core::cmp::PartialEq for papo::ServerError
 pub fn papo::ServerError::eq(&self, &Self) -> bool
+impl core::convert::From<papo::ServerError> for papo::Error
+pub fn papo::Error::from(papo::ServerError) -> Self
 impl core::error::Error for papo::ServerError
 impl core::fmt::Debug for papo::ServerError
 pub fn papo::ServerError::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result

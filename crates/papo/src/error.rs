@@ -562,6 +562,24 @@ pub enum Error {
     Server(ServerError),
 }
 
+impl From<ServerError> for Error {
+    fn from(error: ServerError) -> Self {
+        Self::Server(error)
+    }
+}
+
+impl From<Unsupported> for Error {
+    fn from(error: Unsupported) -> Self {
+        Self::Unsupported(error)
+    }
+}
+
+impl From<crate::StateLimit> for Error {
+    fn from(error: crate::StateLimit) -> Self {
+        Self::StateLimit(error)
+    }
+}
+
 impl Error {
     pub(crate) fn unexpected_reply(command: impl Into<String>) -> Self {
         Self::UnexpectedReply {
@@ -695,7 +713,7 @@ mod tests {
     use super::{
         ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, Refusal, ServerError,
     };
-    use crate::InvalidInput;
+    use crate::{Feature, InvalidInput, StateLimit, Unsupported, UnsupportedReason};
 
     #[test]
     fn terminal_payloads_preserve_bounded_diagnostics() {
@@ -719,6 +737,26 @@ mod tests {
             Error::TargetGone.to_string(),
             "the target user is no longer present"
         );
+    }
+
+    #[test]
+    fn public_error_payloads_convert_to_their_matching_variants() {
+        let server = ServerError::from_numeric(404, ["papo-driver", "#rust", "Cannot send"]);
+        assert!(matches!(
+            Error::from(server),
+            Error::Server(error) if error.refusal() == Refusal::CannotSendToChannel
+        ));
+
+        let unsupported =
+            Unsupported::new(Feature::MessageTags, UnsupportedReason::DisabledByClient);
+        assert!(matches!(
+            Error::from(unsupported),
+            Error::Unsupported(error) if error == unsupported
+        ));
+        assert!(matches!(
+            Error::from(StateLimit::MetadataKeys),
+            Error::StateLimit(StateLimit::MetadataKeys)
+        ));
     }
 
     #[test]
