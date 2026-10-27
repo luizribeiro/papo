@@ -618,13 +618,6 @@ impl Message {
         crate::message_ref::conversation_origin(&self.conversation)
     }
 
-    /// Reports whether current state proves that a private response would reach another user.
-    #[doc(hidden)]
-    #[must_use]
-    pub fn __recipient_changed(&self, state: &crate::State) -> bool {
-        state.recipient_changed(&crate::message_ref::message_actor_recipient(self))
-    }
-
     #[allow(dead_code)]
     pub(crate) fn new(
         raw: ProtoLine,

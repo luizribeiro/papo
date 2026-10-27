@@ -94,18 +94,6 @@ impl State {
         papo_core::RecipientGuard::__new(&self.core, nick.clone(), account)
     }
 
-    pub(crate) fn recipient_changed(&self, recipient: &crate::message_ref::RecipientGuard) -> bool {
-        let Some(current) = self.core.user(&recipient.nick) else {
-            return false;
-        };
-        match (&recipient.account, current.account()) {
-            (Account::LoggedIn(expected), Account::LoggedIn(actual)) => expected != actual,
-            _ => recipient
-                .receipt
-                .is_some_and(|receipt| self.core.__recipient_changed(&recipient.nick, receipt)),
-        }
-    }
-
     pub(crate) fn parse_target_inner(
         &self,
         target: impl AsRef<str>,

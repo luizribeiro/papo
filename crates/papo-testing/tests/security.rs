@@ -660,8 +660,10 @@ async fn assert_line_recipient_guard(
             .await
             .map(|_| ()),
         client.react(with_id.clone(), "✅").await,
+        client.unreact(with_id.clone(), "✅").await,
         client.redact(with_id, "superseded").await,
         client.typing(reference.clone(), papo::Typing::Active).await,
+        client.action(reference.clone(), "waves").await.map(|_| ()),
         client.notice(reference, "classified").await.map(|_| ()),
     ] {
         assert!(
@@ -672,6 +674,7 @@ async fn assert_line_recipient_guard(
 }
 
 #[tokio::test]
+#[allow(clippy::too_many_lines)]
 async fn every_private_line_reference_refuses_a_nickname_handoff() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo-wire")
@@ -698,7 +701,8 @@ async fn every_private_line_reference_refuses_a_nickname_handoff() {
         ));
     }
 
-    let sent = client.privmsg("alice", "review requested").await.unwrap();
+    let direct = client.direct("alice").await.unwrap();
+    let sent = client.privmsg(&direct, "review requested").await.unwrap();
     assert_eq!(wire.next_sent().await, "PRIVMSG alice :review requested");
     let mut references = vec![("sent message", true, sent.return_address())];
     for (name, private, line) in [
@@ -764,6 +768,15 @@ async fn every_private_line_reference_refuses_a_nickname_handoff() {
         next_active_event(&mut events).await,
         papo::Event::NickChanged(_)
     ) {}
+
+    for result in [
+        client.privmsg(&direct, "classified").await.map(|_| ()),
+        client.notice(&direct, "classified").await.map(|_| ()),
+        client.action(&direct, "waves").await.map(|_| ()),
+        client.typing(&direct, papo::Typing::Active).await,
+    ] {
+        assert!(matches!(result, Err(papo::Error::TargetGone)));
+    }
 
     for (name, private, reference) in references {
         assert_line_recipient_guard(&client, &mut wire, name, private, reference).await;

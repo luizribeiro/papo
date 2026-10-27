@@ -413,7 +413,19 @@ impl Client {
         let text = parts.text.into_owned();
         let state = self.state();
         let result = match role {
-            crate::target::Role::Send(_) => state.parse_target_inner(&text).map(drop),
+            crate::target::Role::Send(_) => {
+                state.parse_target_inner(&text).and_then(|(_, target)| {
+                    if matches!(target, crate::Conversation::Channel(_))
+                        || parts.recipient.is_some()
+                    {
+                        Ok(())
+                    } else {
+                        Err(crate::InvalidIdentifier::InvalidPrefix(
+                            text.chars().next().unwrap_or('\0'),
+                        ))
+                    }
+                })
+            }
             crate::target::Role::Channel(_) => state
                 .name_rules()
                 .channel(&text)
@@ -446,10 +458,11 @@ impl Client {
         result.map_err(|reason| {
             InvalidInput::invalid_argument(role.argument(), text.clone(), reason)
         })?;
-        if parts
-            .recipient
-            .as_ref()
-            .is_some_and(|recipient| state.recipient_changed(recipient))
+        if let Some(recipient) = parts.recipient.as_ref()
+            && matches!(
+                state.resolve_recipient(&recipient.to_core()),
+                papo_core::RecipientStatus::Gone
+            )
         {
             return Err(Error::TargetGone);
         }
@@ -528,7 +541,7 @@ impl Client {
         })
     }
 
-    /// Queues one IRC protocol line for transmission.
+    /// Queues one IRC protocol line for transmission without typed target guards.
     ///
     /// The future resolves only after the entire line has been written.
     /// Sending is subject to the client's normal outbound rate limit.
@@ -536,6 +549,7 @@ impl Client {
     /// a `/quote`-style input. Parsed parameters are ordinary text: an application that puts a
     /// credential in a parsed raw line chooses readable diagnostics and no secret-buffer wiping.
     /// Prefer a typed client method or pass [`crate::Secret`] to [`Line::param`] for credentials.
+    /// This is the explicit escape hatch for deliberately unguarded direct-message targets.
     ///
     /// # Errors
     ///
@@ -674,7 +688,7 @@ impl Client {
         receiver.await.map_err(|_| Error::connection_lost())?
     }
 
-    /// Sends a private message to a channel or directly to a user.
+    /// Sends a message to a channel or guarded [`crate::DirectRef`].
     ///
     /// With `echo-message` and `labeled-response`, the future resolves with the server's copy,
     /// which is not also emitted as an event. Applications that log every message must log their
@@ -690,9 +704,19 @@ impl Client {
     /// # }
     /// ```
     ///
+    /// A typed nickname is not a message target; capture a [`crate::DirectRef`] first:
+    ///
+    /// ```compile_fail
+    /// # fn unguarded(client: &papo::Client, nick: &papo::Nick) {
+    /// let _ = client.privmsg(nick, "unguarded");
+    /// # }
+    /// ```
+    ///
     /// # Errors
     ///
-    /// Returns [`Error::InvalidInput`] for empty text or an unencodable message,
+    /// Returns [`Error::InvalidInput`] for empty text, a nickname passed as text, or an
+    /// unencodable message, and [`Error::TargetGone`] when a guarded recipient has left or its
+    /// nickname has changed hands.
     /// [`Error::TooManyPendingRequests`] when 256 labelled requests are pending, [`Error::Timeout`] while
     /// awaiting a response, or [`Error::Disconnected`] when the driver stops. A refusal returns
     /// [`Error::Server`] with [`crate::Refusal::CannotSendToChannel`],
@@ -713,7 +737,7 @@ impl Client {
         }
     }
 
-    /// Sends a notice to a user or channel.
+    /// Sends a notice to a channel, guarded direct recipient, or return address.
     ///
     /// Confirmation and event behavior is the same as [`Client::privmsg`].
     ///
@@ -740,7 +764,7 @@ impl Client {
         }
     }
 
-    /// Sends a CTCP ACTION to a user or channel.
+    /// Sends a CTCP ACTION to a channel, guarded direct recipient, or return address.
     ///
     /// Confirmation and event behavior is the same as [`Client::privmsg`].
     ///
@@ -772,10 +796,9 @@ impl Client {
     /// # }
     /// ```
     ///
-    /// For a private received line, papo returns [`Error::TargetGone`] when current state proves
-    /// that another user holds the sender's nickname. It does not follow the sender to a new
-    /// nickname. When state cannot identify the current holder, including a sender who shares no
-    /// channel and has no account information, the reply is sent.
+    /// A private return address follows a tracked sender's nickname changes. If the sender is not
+    /// tracked, papo verifies its captured account with `WHO`; a mismatch or identity that cannot
+    /// be verified is refused rather than sent to a bare nickname.
     ///
     /// # Errors
     ///

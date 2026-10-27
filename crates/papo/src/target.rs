@@ -58,10 +58,11 @@ impl Role {
 
 /// A destination accepted by message-sending operations.
 ///
-/// Plain text is interpreted for the receiving client. Typed names, conversations, and message
-/// references retain the client that produced them and are refused by another client. Status
-/// prefixes such as `@#ops` are preserved. Server-wide targets such as `*` and `$opers` are not
-/// accepted; use [`crate::Client::send_raw`] for operator commands that require them.
+/// Plain text is accepted only when it names a channel. Direct user lines require a
+/// [`crate::DirectRef`]. Typed channel names and message references retain the client that
+/// produced them and are refused by another client. Status prefixes such as `@#ops` are
+/// preserved. [`crate::Client::send_raw`] is the explicit escape hatch for unguarded targets and
+/// server-wide targets such as `*` and `$opers`.
 pub trait Target: sealed::Sealed {
     /// Returns the destination and its safety metadata.
     #[doc(hidden)]
@@ -133,12 +134,6 @@ fn name_parts(text: &str, origin: crate::Origin) -> sealed::Parts<'_> {
 }
 
 impl sealed::Sealed for crate::Nick {}
-
-impl Target for crate::Nick {
-    fn __parts(&self) -> sealed::Parts<'_> {
-        name_parts(self.as_ref(), self.origin())
-    }
-}
 
 impl AsConversation for crate::Nick {
     fn __parts(&self) -> sealed::Parts<'_> {
@@ -226,7 +221,6 @@ mod tests {
         assert_eq!(AsNick::__parts(&nick).text(), "emily");
         assert_eq!(AsMask::__parts(&mask).text, "*!*@gateway.example");
         assert_eq!(AsMask::__parts(&mask).origin, origin);
-        assert_eq!(Target::__parts(&nick).origin, origin);
         assert_eq!(Target::__parts(&"@#ops").text, "@#ops");
     }
 }

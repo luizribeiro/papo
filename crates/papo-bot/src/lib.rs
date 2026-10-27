@@ -354,9 +354,6 @@ impl Command {
         text: impl Into<String>,
     ) -> Result<ReplyStatus, papo::Error> {
         let target = self.message.actor.nick();
-        if self.message.__recipient_changed(&self.client.state()) {
-            return Err(papo::Error::TargetGone);
-        }
         if !self.replies.check(Conversation::Private(target.clone())) {
             return Ok(ReplyStatus::Dropped);
         }
