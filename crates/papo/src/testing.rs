@@ -11,6 +11,46 @@ use crate::{
     event::{AwayChanged, Connected, Joined},
 };
 
+/// Exercises a complete core session and the public event mapping with arbitrary server bytes.
+#[doc(hidden)]
+pub fn exercise_session_mapping(input: &[u8]) {
+    let now = web_time::Instant::now();
+    let mut session = Session::new(Config::default());
+    session.handle_connected(now);
+    for line in [
+        b"CAP * LS :extended-monitor".as_slice(),
+        b"CAP * ACK :extended-monitor".as_slice(),
+        b":irc.example 001 papo :Welcome".as_slice(),
+        b":irc.example 005 papo MONITOR=100 :are supported".as_slice(),
+    ] {
+        session.handle_line(now, line);
+    }
+    while session.poll_transmit().is_some() {}
+    while session.poll_event().is_some() {}
+
+    session.handle_bytes(now, input);
+    while let Some(event) = session.poll_event() {
+        let mapped = crate::event_impl::from_core(
+            event,
+            session.isupport().casemapping(),
+            crate::Origin::NONE,
+            session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
+            false,
+            SystemTime::UNIX_EPOCH,
+        );
+        if let crate::event_impl::CoreEvent::Line(line) = mapped {
+            _ = crate::event_impl::incoming_from_core(
+                line,
+                crate::Origin::NONE,
+                session.isupport(),
+                false,
+                false,
+                SystemTime::UNIX_EPOCH,
+            );
+        }
+    }
+}
+
 /// Constructs an origin-free nickname for test fixtures.
 #[must_use]
 pub fn nickname(casemapping: Casemapping, text: impl Into<String>) -> Nick {

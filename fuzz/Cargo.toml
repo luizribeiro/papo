@@ -11,6 +11,7 @@ cargo-fuzz = true
 libfuzzer-sys = "0.4"
 papo-core = { path = "../crates/papo-core" }
 papo-proto = { path = "../crates/papo-proto" }
+papo = { path = "../crates/papo", default-features = false }
 web-time = "1"
 
 [[bin]]
@@ -37,6 +38,13 @@ bench = false
 [[bin]]
 name = "server_url"
 path = "fuzz_targets/server_url.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "session_events"
+path = "fuzz_targets/session_events.rs"
 test = false
 doc = false
 bench = false
