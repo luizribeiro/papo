@@ -2348,6 +2348,7 @@ mod tests {
         StandardReply as CoreStandardReply, StateLimit,
     };
     use papo_proto::{Casemapping, Isupport, Line, LineRef, Typing};
+    use tokio::io::AsyncWriteExt as _;
 
     #[test]
     fn event_size_remains_bounded() {
@@ -2363,6 +2364,45 @@ mod tests {
             false,
             UNIX_EPOCH,
         )
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn credential_refusals_produce_typed_request_and_transmit_errors() {
+        use crate::driver::test_support::{complete_connect_labelled, config, scripted, within};
+
+        let settings = config()
+            .allow_insecure_auth(false)
+            .wanted_caps(["labeled-response"]);
+        let (mut server, client, mut events, driver) = scripted(settings);
+        let driver = tokio::spawn(driver);
+        complete_connect_labelled(&mut server, &mut events).await;
+
+        let request_error = within(
+            client.request_raw(
+                Line::new("OPER")
+                    .param("admin")
+                    .param(crate::Secret::new("request-password-3751")),
+            ),
+        )
+        .await
+        .unwrap_err();
+        assert!(matches!(
+            request_error,
+            crate::Error::InvalidInput(crate::InvalidInput::InsecureAuthentication)
+        ));
+
+        let transmit_error = within(
+            client.send_raw(Line::new("PASS").param(crate::Secret::new("transmit-password-6824"))),
+        )
+        .await
+        .unwrap_err();
+        assert!(matches!(
+            transmit_error,
+            crate::Error::InvalidInput(crate::InvalidInput::InsecureAuthentication)
+        ));
+
+        within(server.shutdown()).await.unwrap();
+        assert!(within(driver).await.unwrap().is_err());
     }
 
     fn assert_event_times(
