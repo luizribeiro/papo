@@ -266,6 +266,7 @@ impl State {
         let Some(user) = self.users.remove(folded.as_ref()) else {
             return;
         };
+        self.remember_departed(&user);
         for channel in user.channels {
             if let Some(joined) = self.channel_mut(&channel) {
                 joined.members.remove(folded.as_ref());

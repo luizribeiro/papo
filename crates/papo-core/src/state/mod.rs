@@ -39,6 +39,7 @@ use crate::{BouncerNetwork, NetworkId, PersistenceSetting, PersistenceStatus};
 const WHOX_FIELDS: &str = "%tcuhnfar,152";
 const WHOX_TOKEN: &str = "152";
 const MAX_LAST_SEEN_TARGETS: usize = 1_000;
+const MAX_DEPARTED_IDENTITIES: usize = 1_000;
 const MAX_READ_MARKERS: usize = 1_000;
 const MAX_METADATA_TARGETS: usize = 10_000;
 pub(crate) const MAX_METADATA_KEYS_PER_TARGET: usize = 10_000;
@@ -60,6 +61,7 @@ pub struct State {
     last_seen_order: VecDeque<String>,
     reply_epoch: u64,
     departure_sequence: u64,
+    departed_identities: VecDeque<crate::ReplyIdentity>,
     max_channels: usize,
     max_members_per_channel: usize,
     channel_limit_warned: bool,
@@ -95,6 +97,7 @@ impl Clone for State {
             last_seen_order: self.last_seen_order.clone(),
             reply_epoch: self.reply_epoch,
             departure_sequence: self.departure_sequence,
+            departed_identities: self.departed_identities.clone(),
             max_channels: self.max_channels,
             max_members_per_channel: self.max_members_per_channel,
             channel_limit_warned: self.channel_limit_warned,
@@ -421,6 +424,7 @@ impl State {
             last_seen_order: VecDeque::new(),
             reply_epoch: 0,
             departure_sequence: 0,
+            departed_identities: VecDeque::new(),
             max_channels: config.max_channels,
             max_members_per_channel: config.max_members_per_channel,
             channel_limit_warned: false,
@@ -487,6 +491,48 @@ impl State {
         }
     }
 
+    /// Resolves the current nickname for a captured private-recipient identity.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __resolve_recipient(&self, guard: &crate::RecipientGuard) -> crate::RecipientStatus {
+        if guard.token.origin != self.casemapping.origin() {
+            return crate::RecipientStatus::Gone;
+        }
+        let tracked = guard.token.identity.and_then(|expected| {
+            self.users.values().find(|user| {
+                expected.epoch == user.reply_epoch
+                    && expected.sequence == user.departure_sequence
+                    && match &guard.account {
+                        Account::LoggedIn(account) => {
+                            matches!(&user.account, Account::LoggedIn(actual) if actual == account)
+                        }
+                        Account::Unknown | Account::LoggedOut => true,
+                    }
+            })
+        });
+        let matching = tracked.or_else(|| match &guard.account {
+            Account::LoggedIn(expected) => self.users.values().find(
+                |user| matches!(&user.account, Account::LoggedIn(actual) if actual == expected),
+            ),
+            Account::Unknown | Account::LoggedOut => None,
+        });
+        if let Some(user) = matching {
+            return crate::RecipientStatus::Current(user.nick.clone());
+        }
+        if guard
+            .token
+            .identity
+            .is_some_and(|identity| self.departed_identities.contains(&identity))
+        {
+            return crate::RecipientStatus::Gone;
+        }
+        if self.user(&guard.nick).is_some() {
+            crate::RecipientStatus::Gone
+        } else {
+            crate::RecipientStatus::Unknown
+        }
+    }
+
     fn new_user(&mut self, nick: &str, username: Option<&str>, host: Option<&str>) -> User {
         self.departure_sequence = self.departure_sequence.wrapping_add(1);
         User::new(
@@ -497,6 +543,16 @@ impl State {
             self.reply_epoch,
             self.departure_sequence,
         )
+    }
+
+    pub(super) fn remember_departed(&mut self, user: &User) {
+        self.departed_identities.push_back(crate::ReplyIdentity {
+            epoch: user.reply_epoch,
+            sequence: user.departure_sequence,
+        });
+        if self.departed_identities.len() > MAX_DEPARTED_IDENTITIES {
+            self.departed_identities.pop_front();
+        }
     }
 
     #[doc(hidden)]
