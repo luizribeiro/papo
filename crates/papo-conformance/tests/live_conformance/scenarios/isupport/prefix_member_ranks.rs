@@ -44,7 +44,15 @@ async fn prefix_member_ranks(s: Scenario) -> papo_testing::Result<()> {
 
     // Reverse rank order so the final state can't be mistaken for insertion order.
     for prefix in allowed.iter().rev() {
-        grant_rank(&alice, &mut bob, &channel, &alice_nick, &bob_nick, *prefix).await?;
+        grant_rank(
+            &mut alice,
+            &mut bob,
+            &channel,
+            &alice_nick,
+            &bob_nick,
+            *prefix,
+        )
+        .await?;
     }
     for peer in [&alice, &bob] {
         assert_eq!(
@@ -110,7 +118,7 @@ fn member_prefixes(state: &State, channel: &str, nick: &str) -> Vec<char> {
 }
 
 async fn grant_rank(
-    alice: &Peer,
+    alice: &mut Peer,
     bob: &mut Peer,
     channel: &str,
     alice_nick: &Nick,
@@ -125,6 +133,7 @@ async fn grant_rank(
             .add_with(prefix.mode(), bob_nick.to_string())
             .await?;
     }
+    wait_channel_mode(alice, channel, prefix.mode()).await?;
     let changed = wait_channel_mode(bob, channel, prefix.mode()).await?;
     assert_eq!(
         crate::source_nick(&changed.actor),
