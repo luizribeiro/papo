@@ -57,32 +57,17 @@ fn tracks_every_toggle_and_reset() {
 fn parses_palette_colors_without_eating_text() {
     let parsed = spans("\x03123 \x039x \x034,12colors \x03,comma");
 
-    assert_eq!(
-        parsed[0],
-        Span {
-            text: "3 ",
-            style: Style {
-                fg: Some(Color::Palette(12)),
-                ..Style::default()
-            }
-        }
-    );
+    assert_eq!(parsed[0].text, "3 ");
+    let mut palette_12 = Style::default();
+    palette_12.fg = Some(Color::Palette(12));
+    assert_eq!(parsed[0].style, palette_12);
     assert_eq!(parsed[1].style.fg, Some(Color::Palette(9)));
-    assert_eq!(
-        parsed[2].style,
-        Style {
-            fg: Some(Color::Palette(4)),
-            bg: Some(Color::Palette(12)),
-            ..Style::default()
-        }
-    );
-    assert_eq!(
-        parsed[3],
-        Span {
-            text: ",comma",
-            style: Style::default()
-        }
-    );
+    let mut palette_4_on_12 = Style::default();
+    palette_4_on_12.fg = Some(Color::Palette(4));
+    palette_4_on_12.bg = Some(Color::Palette(12));
+    assert_eq!(parsed[2].style, palette_4_on_12);
+    assert_eq!(parsed[3].text, ",comma");
+    assert_eq!(parsed[3].style, Style::default());
 }
 
 #[test]
@@ -90,21 +75,12 @@ fn hex_colors_require_exactly_six_digits() {
     let parsed = spans("\x04ff0080pink \x0400ff00,112233both \x04abcdeZ");
 
     assert_eq!(parsed[0].style.fg, Some(Color::Hex(0x00ff_0080)));
-    assert_eq!(
-        parsed[1].style,
-        Style {
-            fg: Some(Color::Hex(0x0000_ff00)),
-            bg: Some(Color::Hex(0x0011_2233)),
-            ..Style::default()
-        }
-    );
-    assert_eq!(
-        parsed[2],
-        Span {
-            text: "abcdeZ",
-            style: Style::default()
-        }
-    );
+    let mut green_on_blue = Style::default();
+    green_on_blue.fg = Some(Color::Hex(0x0000_ff00));
+    green_on_blue.bg = Some(Color::Hex(0x0011_2233));
+    assert_eq!(parsed[1].style, green_on_blue);
+    assert_eq!(parsed[2].text, "abcdeZ");
+    assert_eq!(parsed[2].style, Style::default());
 }
 
 #[test]

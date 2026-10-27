@@ -22,6 +22,7 @@ pub enum Color {
 /// The formatting active for a span of text.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[allow(clippy::struct_excessive_bools)]
+#[non_exhaustive]
 pub struct Style {
     /// Whether bold text is active.
     pub bold: bool,
@@ -43,6 +44,7 @@ pub struct Style {
 
 /// A non-empty piece of text and the formatting active for it.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct Span<'a> {
     /// The text without formatting control codes.
     pub text: &'a str,

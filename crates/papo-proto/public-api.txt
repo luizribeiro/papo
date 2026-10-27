@@ -1641,7 +1641,7 @@ impl<'a> core::marker::Unpin for papo_proto::Setname<'a>
 impl<'a> core::marker::UnsafeUnpin for papo_proto::Setname<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Setname<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Setname<'a>
-pub struct papo_proto::Span<'a>
+#[non_exhaustive] pub struct papo_proto::Span<'a>
 pub papo_proto::Span::style: papo_proto::Style
 pub papo_proto::Span::text: &'a str
 impl<'a> core::clone::Clone for papo_proto::Span<'a>
@@ -1683,7 +1683,7 @@ impl<'a> core::marker::Unpin for papo_proto::StandardReply<'a>
 impl<'a> core::marker::UnsafeUnpin for papo_proto::StandardReply<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::StandardReply<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::StandardReply<'a>
-pub struct papo_proto::Style
+#[non_exhaustive] pub struct papo_proto::Style
 pub papo_proto::Style::bg: core::option::Option<papo_proto::Color>
 pub papo_proto::Style::bold: bool
 pub papo_proto::Style::fg: core::option::Option<papo_proto::Color>
