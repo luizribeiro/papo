@@ -41,7 +41,6 @@ pub(crate) enum Role {
     Account(&'static str),
     Conversation(&'static str),
     Any(&'static str),
-    Opaque(&'static str),
 }
 
 impl Role {
@@ -52,8 +51,7 @@ impl Role {
             | Self::Nick(argument)
             | Self::Account(argument)
             | Self::Conversation(argument)
-            | Self::Any(argument)
-            | Self::Opaque(argument) => argument,
+            | Self::Any(argument) => argument,
         }
     }
 }

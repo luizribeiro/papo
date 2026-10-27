@@ -363,7 +363,7 @@ pub(crate) async fn complete_connect_caps(
     )
     .await;
     client_line(server, b"CAP END\r\n").await;
-    server_line(server, b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
+    server_line(server, b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 005 papo-driver NICKLEN=32 :are supported by this server\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
     assert!(matches!(events.next().await, Some(Event::Connected(_))));
 }
 

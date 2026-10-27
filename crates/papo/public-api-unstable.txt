@@ -2058,7 +2058,7 @@ pub fn papo::Client::mark_read(&self, impl papo::AsConversation, std::time::Syst
 pub fn papo::Client::recent_conversations(&self, std::time::SystemTime, std::time::SystemTime) -> papo::RequestFuture<alloc::vec::Vec<papo::RecentConversation>>
 impl papo::Client
 pub fn papo::Client::list_modes(&self, impl papo::AsChannel, papo::ListMode) -> papo::RequestFuture<alloc::vec::Vec<papo::ModeListEntry>>
-pub fn papo::Client::mode(&self, impl papo::Target) -> papo::SetModes
+pub fn papo::Client::mode(&self, impl papo::AsConversation) -> papo::SetModes
 impl papo::Client
 pub fn papo::Client::metadata(&self) -> papo::Metadata
 impl papo::Client
@@ -2481,15 +2481,15 @@ impl core::panic::unwind_safe::UnwindSafe for papo::MessageRef
 pub struct papo::Metadata
 impl papo::Metadata
 pub fn papo::Metadata::clear(&self) -> papo::RequestFuture<()>
-pub fn papo::Metadata::clear_on(&self, impl papo::Target) -> papo::RequestFuture<()>
-pub fn papo::Metadata::get<I, S>(&self, impl papo::Target, I) -> papo::RequestFuture<std::collections::hash::map::HashMap<papo::MetadataKey, core::option::Option<papo::MetadataValue>>> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
-pub fn papo::Metadata::list(&self, impl papo::Target) -> papo::RequestFuture<std::collections::hash::map::HashMap<papo::MetadataKey, papo::MetadataValue>>
+pub fn papo::Metadata::clear_on(&self, impl papo::AsConversation) -> papo::RequestFuture<()>
+pub fn papo::Metadata::get<I, S>(&self, impl papo::AsConversation, I) -> papo::RequestFuture<std::collections::hash::map::HashMap<papo::MetadataKey, core::option::Option<papo::MetadataValue>>> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
+pub fn papo::Metadata::list(&self, impl papo::AsConversation) -> papo::RequestFuture<std::collections::hash::map::HashMap<papo::MetadataKey, papo::MetadataValue>>
 pub fn papo::Metadata::remove(&self, impl core::convert::Into<papo::MetadataKey>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::remove_on(&self, impl papo::Target, impl core::convert::Into<papo::MetadataKey>) -> papo::RequestFuture<()>
+pub fn papo::Metadata::remove_on(&self, impl papo::AsConversation, impl core::convert::Into<papo::MetadataKey>) -> papo::RequestFuture<()>
 pub fn papo::Metadata::set(&self, impl core::convert::Into<papo::MetadataKey>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::set_on(&self, impl papo::Target, impl core::convert::Into<papo::MetadataKey>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Metadata::set_on(&self, impl papo::AsConversation, impl core::convert::Into<papo::MetadataKey>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Metadata::subscribe<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
-pub fn papo::Metadata::sync(&self, impl papo::Target) -> papo::RequestFuture<()>
+pub fn papo::Metadata::sync(&self, impl papo::AsConversation) -> papo::RequestFuture<()>
 pub fn papo::Metadata::unsubscribe<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
 impl core::fmt::Debug for papo::Metadata
 pub fn papo::Metadata::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
@@ -2765,12 +2765,12 @@ pub fn papo::SetModes::add(self, char) -> Self
 pub fn papo::SetModes::add_with(self, char, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::SetModes::ban(self, impl core::convert::Into<papo::BanTarget>) -> Self
 pub fn papo::SetModes::ban_exception(self, impl core::convert::Into<papo::BanTarget>) -> Self
-pub fn papo::SetModes::dehalfop(self, impl papo::Target) -> Self
-pub fn papo::SetModes::deop(self, impl papo::Target) -> Self
-pub fn papo::SetModes::devoice(self, impl papo::Target) -> Self
-pub fn papo::SetModes::halfop(self, impl papo::Target) -> Self
+pub fn papo::SetModes::dehalfop(self, impl papo::AsNick) -> Self
+pub fn papo::SetModes::deop(self, impl papo::AsNick) -> Self
+pub fn papo::SetModes::devoice(self, impl papo::AsNick) -> Self
+pub fn papo::SetModes::halfop(self, impl papo::AsNick) -> Self
 pub fn papo::SetModes::invite_exception(self, impl core::convert::Into<papo::BanTarget>) -> Self
-pub fn papo::SetModes::op(self, impl papo::Target) -> Self
+pub fn papo::SetModes::op(self, impl papo::AsNick) -> Self
 pub fn papo::SetModes::quiet(self, impl core::convert::Into<papo::BanTarget>) -> Self
 pub fn papo::SetModes::remove(self, char) -> Self
 pub fn papo::SetModes::remove_ban_exception(self, impl core::convert::Into<papo::BanTarget>) -> Self
@@ -2778,7 +2778,7 @@ pub fn papo::SetModes::remove_invite_exception(self, impl core::convert::Into<pa
 pub fn papo::SetModes::remove_with(self, char, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::SetModes::unban(self, impl core::convert::Into<papo::BanTarget>) -> Self
 pub fn papo::SetModes::unquiet(self, impl core::convert::Into<papo::BanTarget>) -> Self
-pub fn papo::SetModes::voice(self, impl papo::Target) -> Self
+pub fn papo::SetModes::voice(self, impl papo::AsNick) -> Self
 impl core::fmt::Debug for papo::SetModes
 pub fn papo::SetModes::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::future::into_future::IntoFuture for papo::SetModes
@@ -2807,7 +2807,7 @@ pub fn papo::State::filehost(&self) -> core::option::Option<&str>
 pub fn papo::State::host(&self) -> core::option::Option<&str>
 pub const fn papo::State::is_connected(&self) -> bool
 pub fn papo::State::isupport(&self) -> &papo::Isupport
-pub fn papo::State::metadata(&self, impl papo::Target) -> core::option::Option<&std::collections::hash::map::HashMap<papo::MetadataKey, papo::MetadataValue>>
+pub fn papo::State::metadata(&self, impl papo::AsConversation) -> core::option::Option<&std::collections::hash::map::HashMap<papo::MetadataKey, papo::MetadataValue>>
 pub fn papo::State::metadata_subscriptions(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::MetadataKey>
 pub fn papo::State::monitor_online(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::User>
 pub fn papo::State::monitored(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::Nick>

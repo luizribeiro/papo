@@ -344,7 +344,6 @@ impl Client {
                 })
             }
             crate::target::Role::Any(_) => self.state().name_rules().mask(&text).check(),
-            crate::target::Role::Opaque(_) => Ok(()),
         };
         result.map_err(|reason| {
             InvalidInput::invalid_argument(role.argument(), text.clone(), reason)

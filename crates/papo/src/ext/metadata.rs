@@ -28,12 +28,12 @@ impl Client {
 impl Metadata {
     fn target(
         &self,
-        target: impl crate::Target,
+        target: impl crate::AsConversation,
         argument: &'static str,
     ) -> (String, Option<crate::InvalidInput>) {
         let result = self.client.resolve(
-            crate::target::Role::Opaque(argument),
-            crate::Target::__parts(&target),
+            crate::target::Role::Conversation(argument),
+            crate::AsConversation::__parts(&target),
         );
         match result {
             Ok(target) => (target, None),
@@ -73,7 +73,7 @@ impl Metadata {
     /// [`Error`] variants.
     pub fn get<I, S>(
         &self,
-        target: impl crate::Target,
+        target: impl crate::AsConversation,
         keys: I,
     ) -> crate::RequestFuture<HashMap<crate::MetadataKey, Option<MetadataValue>>>
     where
@@ -136,7 +136,7 @@ impl Metadata {
     /// [`Error`] variants.
     pub fn list(
         &self,
-        target: impl crate::Target,
+        target: impl crate::AsConversation,
     ) -> crate::RequestFuture<HashMap<crate::MetadataKey, MetadataValue>> {
         let metadata = Self {
             client: self.client.clone(),
@@ -199,7 +199,7 @@ impl Metadata {
     /// [`Error`] variants.
     pub fn set_on(
         &self,
-        target: impl crate::Target,
+        target: impl crate::AsConversation,
         key: impl Into<crate::MetadataKey>,
         value: impl Into<String>,
     ) -> crate::RequestFuture<()> {
@@ -225,7 +225,7 @@ impl Metadata {
     /// Removes one metadata key from a user or channel.
     pub fn remove_on(
         &self,
-        target: impl crate::Target,
+        target: impl crate::AsConversation,
         key: impl Into<crate::MetadataKey>,
     ) -> crate::RequestFuture<()> {
         let metadata = Self {
@@ -257,7 +257,7 @@ impl Metadata {
     }
 
     /// Clears all metadata on a user or channel.
-    pub fn clear_on(&self, target: impl crate::Target) -> crate::RequestFuture<()> {
+    pub fn clear_on(&self, target: impl crate::AsConversation) -> crate::RequestFuture<()> {
         let metadata = Self {
             client: self.client.clone(),
         };
@@ -325,7 +325,7 @@ impl Metadata {
     /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. Request limits, timeouts, and disconnects retain their matching
     /// [`Error`] variants.
-    pub fn sync(&self, target: impl crate::Target) -> crate::RequestFuture<()> {
+    pub fn sync(&self, target: impl crate::AsConversation) -> crate::RequestFuture<()> {
         let metadata = Self {
             client: self.client.clone(),
         };
@@ -344,7 +344,7 @@ mod tests {
     use crate::driver::test_support::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn metadata_rejects_a_foreign_target() {
+    async fn metadata_enforces_argument_roles() {
         let (first, _, _) = crate::Client::builder("ircs://irc.example.net", "papo-client").build();
         let (second, _, _) =
             crate::Client::builder("ircs://irc.example.net", "papo-client").build();
@@ -354,6 +354,15 @@ mod tests {
             second.metadata().clear_on(channel).await,
             Err(crate::Error::InvalidInput(
                 crate::InvalidInput::ForeignReference
+            ))
+        ));
+        assert!(matches!(
+            second.metadata().clear_on("@#papo").await,
+            Err(crate::Error::InvalidInput(
+                crate::InvalidInput::InvalidName {
+                    argument: "metadata.clear_on: target",
+                    ..
+                }
             ))
         ));
     }

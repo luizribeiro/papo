@@ -264,14 +264,10 @@ impl State {
     #[must_use]
     pub fn metadata(
         &self,
-        target: impl crate::Target,
+        target: impl crate::AsConversation,
     ) -> Option<&HashMap<crate::MetadataKey, crate::MetadataValue>> {
-        let target = crate::Target::__parts(&target);
-        let origin = self.nick().origin();
-        if target.origin != crate::Origin::NONE && target.origin != origin {
-            return None;
-        }
-        self.core.metadata(target.text)
+        let target = self.resolve_conversation(target)?;
+        self.core.metadata(target.to_string())
     }
 
     /// Returns metadata keys confirmed in the server-side subscription list.
@@ -453,6 +449,7 @@ mod name_tests {
         );
         let foreign = crate::Origin::__new(91).__nick(state.casemapping(), "alice");
         assert!(state.metadata(foreign).is_none());
+        assert!(state.metadata("@#papo").is_none());
     }
 
     #[test]

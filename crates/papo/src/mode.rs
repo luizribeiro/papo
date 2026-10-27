@@ -243,39 +243,45 @@ impl SetModes {
     }
 
     /// Grants channel-operator privileges to `nick`.
-    pub fn op(self, nick: impl crate::Target) -> Self {
+    ///
+    /// ```compile_fail
+    /// # fn channel_is_not_a_nick(client: &papo::Client, channel: &papo::ChannelName) {
+    /// let _ = client.mode("#papo").op(channel);
+    /// # }
+    /// ```
+    pub fn op(self, nick: impl crate::AsNick) -> Self {
         self.prefix(true, 'o', nick)
     }
 
     /// Removes channel-operator privileges from `nick`.
-    pub fn deop(self, nick: impl crate::Target) -> Self {
+    pub fn deop(self, nick: impl crate::AsNick) -> Self {
         self.prefix(false, 'o', nick)
     }
 
     /// Grants half-operator privileges to `nick`.
-    pub fn halfop(self, nick: impl crate::Target) -> Self {
+    pub fn halfop(self, nick: impl crate::AsNick) -> Self {
         self.optional_prefix(true, crate::Feature::Halfop, nick)
     }
 
     /// Removes half-operator privileges from `nick`.
-    pub fn dehalfop(self, nick: impl crate::Target) -> Self {
+    pub fn dehalfop(self, nick: impl crate::AsNick) -> Self {
         self.optional_prefix(false, crate::Feature::Halfop, nick)
     }
 
     /// Grants voice privileges to `nick`.
-    pub fn voice(self, nick: impl crate::Target) -> Self {
+    pub fn voice(self, nick: impl crate::AsNick) -> Self {
         self.prefix(true, 'v', nick)
     }
 
     /// Removes voice privileges from `nick`.
-    pub fn devoice(self, nick: impl crate::Target) -> Self {
+    pub fn devoice(self, nick: impl crate::AsNick) -> Self {
         self.prefix(false, 'v', nick)
     }
 
-    fn prefix(mut self, set: bool, mode: char, nick: impl crate::Target) -> Self {
+    fn prefix(mut self, set: bool, mode: char, nick: impl crate::AsNick) -> Self {
         let nick = match self.client.resolve(
             crate::target::Role::Nick("mode: nick"),
-            crate::Target::__parts(&nick),
+            crate::AsNick::__parts(&nick),
         ) {
             Ok(nick) => nick,
             Err(crate::Error::InvalidInput(error)) => {
@@ -292,11 +298,11 @@ impl SetModes {
         mut self,
         set: bool,
         feature: crate::Feature,
-        nick: impl crate::Target,
+        nick: impl crate::AsNick,
     ) -> Self {
         let nick = match self.client.resolve(
             crate::target::Role::Nick("mode: nick"),
-            crate::Target::__parts(&nick),
+            crate::AsNick::__parts(&nick),
         ) {
             Ok(nick) => nick,
             Err(crate::Error::InvalidInput(error)) => {
@@ -396,10 +402,10 @@ impl IntoFuture for SetModes {
 
 impl Client {
     /// Starts a validated mode-change request for a user or channel.
-    pub fn mode(&self, target: impl crate::Target) -> SetModes {
+    pub fn mode(&self, target: impl crate::AsConversation) -> SetModes {
         let (target, invalid_input) = match self.resolve(
-            crate::target::Role::Send("mode: target"),
-            crate::Target::__parts(&target),
+            crate::target::Role::Conversation("mode: target"),
+            crate::AsConversation::__parts(&target),
         ) {
             Ok(target) => (target, None),
             Err(crate::Error::InvalidInput(error)) => (String::new(), Some(error)),
@@ -772,7 +778,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn mode_changes_reject_foreign_targets() {
+    async fn mode_changes_enforce_argument_roles() {
         let (first, _, _) = crate::Client::builder("ircs://irc.example.net", "papo-client").build();
         let (second, _, _) =
             crate::Client::builder("ircs://irc.example.net", "papo-client").build();
@@ -783,6 +789,15 @@ mod tests {
             second.mode(channel).op(nick).await,
             Err(crate::Error::InvalidInput(
                 crate::InvalidInput::ForeignReference
+            ))
+        ));
+        assert!(matches!(
+            second.mode("@#papo").add('m').await,
+            Err(crate::Error::InvalidInput(
+                crate::InvalidInput::InvalidName {
+                    argument: "mode: target",
+                    ..
+                }
             ))
         ));
     }
