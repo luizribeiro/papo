@@ -75,7 +75,7 @@ fn request_futures_are_send() {
             .privmsg("#papo", "hello from the trait test")
             .into_future(),
     );
-    assert_send_static(client.notice("emily", "maintenance soon").into_future());
+    assert_send_static(client.notice("#helpers", "maintenance soon").into_future());
     assert_send_static(client.action("#papo", "waves").into_future());
     assert_send_static(client.typing("#papo", Typing::Active));
     assert_send_static(client.redact(("#papo", MessageId::from("RfcBTzyxY120004")), ""));

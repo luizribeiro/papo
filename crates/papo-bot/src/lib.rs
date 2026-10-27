@@ -360,7 +360,8 @@ impl Command {
         if !self.replies.check(Conversation::Private(target.clone())) {
             return Ok(ReplyStatus::Dropped);
         }
-        let mut request = self.client.notice(target, text);
+        let target = self.client.direct_to(&self.message).await?;
+        let mut request = self.client.notice(&target, text);
         if let Some(id) = &self.message.msgid {
             request = request.reply_to(id.clone());
         }

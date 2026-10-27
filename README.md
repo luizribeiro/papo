@@ -50,14 +50,29 @@ Pass a received message or `Sent` value to reply, react, unreact, or redact. Tha
 status-prefixed return address such as `@#ops`; the `Conversation` value identifies only the
 `#ops` buffer and must not be reconstructed into a send target. For a private received line,
 these methods return `Error::TargetGone` when current state proves that another user took the
-sender's nickname. They still send when papo cannot identify the current holder, such as a direct
-message from someone who shares no channel and supplied no account information.
+sender's nickname. If the sender is not tracked, papo verifies its captured account with `WHO` or
+refuses the send; private replies never fall back to an unguarded nickname.
 
-Typed names, conversations, message references, and history cursors retain the `Client` that
-produced them. The sealed `Target` trait lets send methods accept either plain text or these typed
-values; a typed value from another client returns `InvalidInput::ForeignReference`. Consequently,
-same-named channels on two clients compare unequal, while either still compares equal to the same
-plain string. Converting a typed value to a string explicitly discards this protection.
+Start a new direct-message conversation with a guarded handle. It follows nickname changes and
+keeps an unshared user on `MONITOR` until the last clone is dropped:
+
+```rust,no_run
+# async fn send(client: &papo::Client) -> Result<(), papo::Error> {
+let alice = client.direct("alice").await?;
+client.privmsg(&alice, "release approved").await?;
+# Ok(())
+# }
+```
+
+Passing a nickname or nickname text to a message method is refused. `Client::send_raw` is the
+explicit escape hatch for applications that deliberately need an unguarded protocol line.
+
+Typed names, direct handles, message references, and history cursors retain the `Client` that
+produced them. The sealed `Target` trait accepts channel text, typed channels, guarded direct
+handles, and return addresses; a typed value from another client returns
+`InvalidInput::ForeignReference`. Consequently, same-named channels on two clients compare
+unequal, while either still compares equal to the same plain string. Converting a typed value to a
+string explicitly discards this protection.
 
 papo answers private, live CTCP `PING` and `VERSION` queries by default; the VERSION text is
 `papo <version>`. Use `CtcpReplies::default().ping(false)`, `.version("my-app 2.3")`, or

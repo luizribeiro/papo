@@ -584,10 +584,10 @@ async fn private_reply_refuses_a_nick_taken_after_receipt() {
         ));
     }
     let message = next_message(&mut events).await;
-    assert!(!message.__recipient_changed(&client.state()));
     within(client.reply(&message, "approved")).await.unwrap();
     client_line(&mut server, b"PRIVMSG alice approved\r\n").await;
-    let sent = within(client.privmsg("alice", "review queued"))
+    let direct = within(client.direct_to(&message)).await.unwrap();
+    let sent = within(client.privmsg(&direct, "review queued"))
         .await
         .unwrap();
     client_line(&mut server, b"PRIVMSG alice :review queued\r\n").await;
@@ -605,7 +605,6 @@ async fn private_reply_refuses_a_nick_taken_after_receipt() {
         next_event(&mut events).await,
         Some(Event::NickChanged(_))
     ));
-    assert!(message.__recipient_changed(&client.state()));
     assert!(matches!(
         within(client.reply(&message, "payroll attached")).await,
         Err(Error::TargetGone)
@@ -793,7 +792,7 @@ async fn own_private_message_uses_the_peers_known_account_guard() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn private_reply_sends_when_the_recipient_is_unknown() {
+async fn private_reply_refuses_when_the_recipient_cannot_be_proved() {
     let (mut server, client, mut events, driver) = scripted(config());
     let task = tokio::spawn(driver);
     complete_connect(&mut server, &mut events).await;
@@ -6764,8 +6763,8 @@ async fn message_reply_obeys_tags_and_clienttagdeny() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn typed_names_write_channel_and_private_destinations() {
-    let (mut server, client, _events, driver) = scripted(config());
+async fn typed_channel_and_guarded_direct_destinations_reach_the_wire() {
+    let (mut server, client, mut events, driver) = scripted(config());
     let task = tokio::spawn(driver);
     welcome_burst(&mut server).await;
 
@@ -6775,7 +6774,18 @@ async fn typed_names_write_channel_and_private_destinations() {
         .unwrap();
     client_line(&mut server, b"PRIVMSG #release :release approved\r\n").await;
 
-    let private = client.state().name_rules().nick("alice");
+    server_line(
+        &mut server,
+        b":papo-driver!p@localhost JOIN #release\r\n:alice!a@localhost JOIN #release\r\n",
+    )
+    .await;
+    let mut joined = 0;
+    while joined != 2 {
+        if matches!(next_event(&mut events).await, Some(Event::Joined(_))) {
+            joined += 1;
+        }
+    }
+    let private = within(client.direct("alice")).await.unwrap();
     within(client.privmsg(private, "deployment details"))
         .await
         .unwrap();
@@ -7474,7 +7484,7 @@ async fn typing_throttles_active_per_target_and_sends_terminal_states() {
         tokio::task::yield_now().await;
     }
     assert!(matches!(
-        within(client.typing("emily", Typing::Done)).await,
+        within(client.typing("#emily", Typing::Done)).await,
         Err(Error::Unsupported(crate::Unsupported {
             feature: crate::Feature::Typing,
             reason: crate::UnsupportedReason::TagDenied,
@@ -7789,6 +7799,11 @@ async fn resolved_send_suppression_is_own_scoped_and_one_shot() {
     )
     .await;
     while !matches!(next_active_event(&mut events).await, Event::Connected(_)) {}
+    server_line(&mut server, b":papo-driver!papo@localhost JOIN #papo\r\n").await;
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Joined(_))
+    ));
 
     let sender = client.clone();
     let sent = tokio::spawn(async move { sender.privmsg("#papo", "from this device").await });
@@ -7897,8 +7912,9 @@ async fn resolved_send_suppression_is_own_scoped_and_one_shot() {
         "second notice delivery"
     );
 
+    let own = within(client.direct("papo-driver")).await.unwrap();
     let sender = client.clone();
-    let sent = tokio::spawn(async move { sender.privmsg("papo-driver", "remember this").await });
+    let sent = tokio::spawn(async move { sender.privmsg(own, "remember this").await });
     client_line(
         &mut server,
         b"@label=2 PRIVMSG papo-driver :remember this\r\n",
