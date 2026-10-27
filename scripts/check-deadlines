@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=${1:-.}
+cd "$root"
+
+if rg -n \
+  '(now\(\)|\bnow\b|\bcurrent\b|\bdeadline\b|\bstarted\b|\bopened\b|\breplied\b)\s*\+\s*(Duration|std::time::Duration|[A-Z][A-Z0-9_]*|self\.)' \
+  crates/papo-core/src crates/papo/src \
+  --glob '*.rs' \
+  --glob '!**/tests.rs' \
+  --glob '!**/test_support.rs' \
+  --glob '!**/proptests/**' \
+  | rg -v 'UNIX_EPOCH|SystemTime::now'; then
+  echo 'raw monotonic deadline arithmetic is forbidden; use papo_core::deadline' >&2
+  exit 1
+fi

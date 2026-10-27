@@ -237,6 +237,18 @@
           yamllint.enable = true;
         };
         cargoHooks = {
+          deadline-arithmetic =
+            (cargoHook {
+              name = "deadline-arithmetic-hook";
+              runtimeInputs = [ pkgs.ripgrep ];
+              text = ''
+                ${pkgs.bash}/bin/bash scripts/check-deadlines
+                ${pkgs.bash}/bin/bash scripts/test_check_deadlines.sh
+              '';
+            })
+            // {
+              files = "(^|/)(.*\\.rs|scripts/(check-deadlines|test_check_deadlines\\.sh))$";
+            };
           cfg-ratchet =
             (cargoHook {
               name = "cfg-ratchet-hook";
