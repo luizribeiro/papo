@@ -11,9 +11,9 @@ use crate::{
     event::{AwayChanged, Connected, Joined},
 };
 
-/// Exercises a complete core session and the public event mapping with arbitrary server bytes.
+/// Exercises a complete core session and observes public events mapped from arbitrary server bytes.
 #[doc(hidden)]
-pub fn exercise_session_mapping(input: &[u8]) {
+pub fn exercise_session_mapping(input: &[u8], mut observe: impl FnMut(crate::Event)) {
     let now = web_time::Instant::now();
     let mut session = Session::new(Config::default());
     session.handle_connected(now);
@@ -38,15 +38,19 @@ pub fn exercise_session_mapping(input: &[u8]) {
             false,
             SystemTime::UNIX_EPOCH,
         );
-        if let crate::event_impl::CoreEvent::Line(line) = mapped {
-            _ = crate::event_impl::incoming_from_core(
-                line,
-                crate::Origin::NONE,
-                session.isupport(),
-                false,
-                false,
-                SystemTime::UNIX_EPOCH,
-            );
+        match mapped {
+            crate::event_impl::CoreEvent::Forward(event) => observe(event),
+            crate::event_impl::CoreEvent::Line(line) => {
+                observe(crate::event_impl::incoming_from_core(
+                    line,
+                    crate::Origin::NONE,
+                    session.isupport(),
+                    false,
+                    false,
+                    SystemTime::UNIX_EPOCH,
+                ));
+            }
+            _ => {}
         }
     }
 }
@@ -259,8 +263,25 @@ pub fn state(nick: impl Into<String>, connected: bool) -> State {
 #[cfg(all(test, not(browser)))]
 mod tests {
     use super::{
-        connected, joined, message, set_message_account, set_message_actor, state, user_source,
+        connected, exercise_session_mapping, joined, message, set_message_account,
+        set_message_actor, state, user_source,
     };
+
+    #[test]
+    fn session_mapping_seed_produces_a_private_message() {
+        let mut mapped = None;
+        exercise_session_mapping(
+            b":alice!~alice@users.example PRIVMSG papo :release ready\r\n",
+            |event| mapped = Some(event),
+        );
+
+        let Some(crate::Event::Message(message)) = mapped else {
+            panic!("expected the seed line to map to a message")
+        };
+        assert_eq!(message.actor.nick(), "alice");
+        assert_eq!(message.text, "release ready");
+        assert_eq!(message.return_address(), "alice");
+    }
 
     #[tokio::test]
     async fn wire_client_connects_through_memory() {
