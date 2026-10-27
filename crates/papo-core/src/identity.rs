@@ -18,6 +18,11 @@ impl Session {
                 else {
                     return;
                 };
+                if !crate::names_equal(self.names(), nick, self.welcome_state.nick())
+                    && crate::names_equal(self.names(), new, self.welcome_state.nick())
+                {
+                    return;
+                }
                 if !crate::names_equal(self.names(), nick, new) {
                     self.state.prepare_identity_arrival(new);
                     self.monitor

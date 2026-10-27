@@ -224,16 +224,19 @@ impl State {
         if !crate::names_equal(self.casemapping, nick, &self.nick) {
             return Some(Handled::No);
         }
-        let own = self
+        let fallback_username = self.nick.to_string();
+        let Some(own) = self
             .users
             .get_mut(self.casemapping.fold(&self.nick).as_ref())
-            .expect("own user is always present");
+        else {
+            return Some(Handled::No);
+        };
         own.host = Some(host.to_owned());
         outbox.event(Event::HostChanged {
             server_time: crate::LineEnvelope::from_line(message).server_time(),
             actor: self.nick.to_string(),
             nick: self.nick.clone(),
-            username: own.username.clone().expect("own username is always known"),
+            username: own.username.clone().unwrap_or(fallback_username),
             host: host.to_owned(),
             authorship: Authorship::Own,
         });

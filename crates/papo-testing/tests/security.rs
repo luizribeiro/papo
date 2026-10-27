@@ -90,6 +90,36 @@ async fn bare_dotted_monitor_entry_reports_online_without_panicking() {
     assert_eq!(online.subject.host(), None);
 }
 
+#[tokio::test]
+async fn foreign_rename_into_own_nick_keeps_own_identity() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://hostile.offline.test", "papo")
+            .rate_limit(papo::RateLimit::unlimited()),
+    );
+    wire.register(&[]).await;
+    connected(&mut events).await;
+    for line in [
+        ":papo!papo@localhost JOIN #papo",
+        ":offline.test 353 papo = #papo :papo alice",
+        ":offline.test 366 papo #papo :End of /NAMES list.",
+        ":alice NICK papo",
+        ":offline.test 396 papo cloak.example :is now your displayed host",
+    ] {
+        wire.server(line).await;
+    }
+
+    let mut host_change = None;
+    for _ in 0..5 {
+        if let papo::Event::HostChanged(changed) = next_active_event(&mut events).await {
+            host_change = Some(changed);
+            break;
+        }
+    }
+    let changed = host_change.expect("expected own host change");
+    assert_eq!(changed.new_username, "papo");
+    assert_eq!(client.state().username(), "papo");
+}
+
 async fn client_pair(caps: &[&str]) -> (ClientPair, ClientPair) {
     let make = |endpoint, nick| {
         wire(

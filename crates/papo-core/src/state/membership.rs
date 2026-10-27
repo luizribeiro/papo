@@ -302,6 +302,11 @@ impl State {
 
     pub(super) fn rename_user(&mut self, old_nick: &str, new_nick: &str) {
         let mapping = self.casemapping;
+        if !crate::names_equal(mapping, old_nick, &self.nick)
+            && crate::names_equal(mapping, new_nick, &self.nick)
+        {
+            return;
+        }
         let old_key = mapping.fold(old_nick);
         let new_key = mapping.nick(new_nick);
         let Some(mut user) = self.users.remove(old_key.as_ref()) else {

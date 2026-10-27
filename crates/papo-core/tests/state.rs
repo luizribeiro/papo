@@ -82,6 +82,32 @@ fn own_user_exists_without_membership_and_survives_part_and_nick() {
 }
 
 #[test]
+fn a_foreign_rename_into_the_own_nick_keeps_the_own_row() {
+    Transcript::new(Config::default().nick("papo").username("papo"))
+        .server(":papo!papo@localhost JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "papo"))
+        .server(":ergo.test 353 papo = #papo :papo alice")
+        .server(":ergo.test 366 papo #papo :End of /NAMES list.")
+        .event_until(|event| matches!(event, Event::ChannelSynced { .. }))
+        .inspect(|session| {
+            assert_eq!(session.state().user("papo").unwrap().username(), Some("papo"));
+        })
+        .server(":alice NICK papo")
+        .event(|event| matches!(event, Event::NickChanged { authorship: Authorship::Other, .. }))
+        .inspect(|session| {
+            assert_eq!(session.state().nick(), "papo");
+            assert_eq!(session.state().username(), "papo");
+        })
+        .server(":ergo.test 396 papo cloak.example :is now your displayed host")
+        .event(|event| matches!(event, Event::HostChanged { username, authorship: Authorship::Own, .. } if username == "papo"))
+        .inspect(|session| {
+            assert_eq!(session.state().username(), "papo");
+            assert_eq!(session.state().host(), Some("cloak.example"));
+        })
+        .ignore_rest();
+}
+
+#[test]
 fn own_quit_clears_shared_users_and_preserves_identity() {
     Transcript::new(
         Config::default()

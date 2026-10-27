@@ -104,6 +104,7 @@ ids = [
   "security.adv-12.recipient-identity",
   "security.adv-16.infallible-line-formatting",
   "security.adv-17.monitor-user-source",
+  "security.adv-18.own-nick-collision",
   "security.bouncer.required-capability", "security.bouncer.binding-confirmation",
   "security.bouncer.deleted-network-fatal",
   "security.bouncer.single-notification",

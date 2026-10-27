@@ -710,13 +710,10 @@ impl State {
             else {
                 return Handled::No;
             };
-            let authorship = if self.source_authorship(message) == Authorship::Own
-                || self.nick_authorship(new_nick) == Authorship::Own
-            {
-                Authorship::Own
-            } else {
-                Authorship::Other
-            };
+            let own_rename = crate::names_equal(mapping, nick, &self.nick);
+            let collides_with_own =
+                !own_rename && crate::names_equal(mapping, new_nick, &self.nick);
+            let authorship = self.source_authorship(message);
             let channels = if authorship == Authorship::Own {
                 self.channels
                     .values()
@@ -728,16 +725,15 @@ impl State {
                     .map(|user| user.channels.iter().cloned().collect())
                     .unwrap_or_default()
             };
-            if crate::names_equal(mapping, nick, &self.nick)
-                || self.user(nick).is_some()
-                || self.is_monitored(nick)
-            {
-                self.rename_metadata(nick, new_nick);
-            } else {
-                self.remove_metadata(nick);
+            if !collides_with_own {
+                if own_rename || self.user(nick).is_some() || self.is_monitored(nick) {
+                    self.rename_metadata(nick, new_nick);
+                } else {
+                    self.remove_metadata(nick);
+                }
             }
             self.rename_user(nick, new_nick);
-            if crate::names_equal(mapping, nick, &self.nick) {
+            if own_rename {
                 self.nick = mapping.nick(new_nick);
             }
             outbox.event(Event::NickChanged {
@@ -1699,8 +1695,41 @@ fn canonical_list_mask(mask: &Mask) -> Mask {
 mod metadata_tests {
     use papo_proto::{Isupport, LineRef};
 
-    use super::{Arc, Channel, NameKey, State};
-    use crate::{Config, Event, ListMode, Outbox, StateLimit};
+    use super::{Arc, Channel, MetadataContext, NameKey, State};
+    use crate::{Authorship, Capabilities, Config, Event, ListMode, Outbox, StateLimit};
+
+    #[test]
+    fn visible_host_uses_the_nick_when_the_own_username_is_missing() {
+        let mut state = State::new(&Config::default().nick("papo"));
+        let key = state.casemapping.fold("papo");
+        state.users.get_mut(key.as_ref()).unwrap().username = None;
+        let mut outbox = Outbox::default();
+        let line = LineRef::parse(":ergo.test 396 papo cloak.example :is now your displayed host")
+            .unwrap();
+
+        state.handle_message(
+            &line,
+            "papo",
+            &Isupport::default(),
+            &Capabilities::default(),
+            false,
+            MetadataContext {
+                max_keys: 100,
+                subscription_batch: false,
+            },
+            None,
+            &mut outbox,
+        );
+
+        assert!(matches!(
+            outbox.events.pop_front(),
+            Some(Event::HostChanged {
+                username,
+                authorship: Authorship::Own,
+                ..
+            }) if username == "papo"
+        ));
+    }
 
     #[test]
     fn distinguishes_unknown_and_fetched_empty_mode_lists() {

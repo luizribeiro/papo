@@ -257,7 +257,7 @@ fn live_mode_and_nick_authorship_distinguish_own_identity() {
                 Event::NickChanged {
                     old,
                     new,
-                    authorship: Authorship::Own,
+                    authorship: Authorship::Other,
                     ..
                 } if old == "papo-old" && new == "papo"
             )

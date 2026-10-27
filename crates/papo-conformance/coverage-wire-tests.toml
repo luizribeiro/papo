@@ -79,6 +79,9 @@
 "security::bare_dotted_monitor_entry_reports_online_without_panicking" = [
   "security.adv-17.monitor-user-source",
 ]
+"security::foreign_rename_into_own_nick_keeps_own_identity" = [
+  "security.adv-18.own-nick-collision",
+]
 "security::scram_rejects_excessive_iterations_promptly" = [
   "security.s6.scram-iteration-cap",
 ]
