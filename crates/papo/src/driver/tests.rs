@@ -2213,7 +2213,7 @@ async fn actions_fail_while_disconnected_and_are_not_sent_after_reconnect() {
     );
     let driver = tokio::spawn(driver);
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(disconnected)) if disconnected.is_reconnecting()
     ));
 
@@ -2246,20 +2246,26 @@ async fn actions_fail_while_disconnected_and_are_not_sent_after_reconnect() {
         b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Connected(_))));
+    assert_connected(&mut events).await;
     server_line(
         &mut server,
         b":papo-driver!papo@localhost JOIN #papo * :Papo Client\r\n",
     )
     .await;
     client_line(&mut server, b"PART #papo\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::Joined(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Joined(_))
+    ));
     server_line(
         &mut server,
         b":papo-driver!papo@localhost PART #papo :Leaving\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Parted(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Parted(_))
+    ));
     let quit = tokio::spawn(async move { client.quit("").await });
     client_line(&mut server, b"QUIT\r\n").await;
     within(server.shutdown()).await.unwrap();
@@ -2298,7 +2304,7 @@ async fn restored_offline_part_is_not_rejoined_after_an_interrupted_part() {
     );
     let driver = tokio::spawn(driver);
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(disconnected)) if disconnected.is_reconnecting()
     ));
     assert!(matches!(
@@ -2318,17 +2324,23 @@ async fn restored_offline_part_is_not_rejoined_after_an_interrupted_part() {
     )
     .await;
     client_line(&mut first_server, b"PART #papo\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::Joined(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Joined(_))
+    ));
     server_line(
         &mut first_server,
         b":papo-driver!papo@localhost JOIN #rust * :Papo Client\r\n",
     )
     .await;
     client_line(&mut first_server, b"PART #rust\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::Joined(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Joined(_))
+    ));
     within(first_server.shutdown()).await.unwrap();
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(disconnected)) if disconnected.is_reconnecting()
     ));
 
@@ -2342,6 +2354,7 @@ async fn restored_offline_part_is_not_rejoined_after_an_interrupted_part() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
+#[allow(clippy::too_many_lines)]
 async fn channel_renames_change_the_rejoin_target_and_survive_a_part() {
     let (first_stream, mut first_server) = tokio::io::duplex(4096);
     let (second_stream, mut second_server) = tokio::io::duplex(4096);
@@ -2384,13 +2397,19 @@ async fn channel_renames_change_the_rejoin_target_and_survive_a_part() {
         b":papo-driver!papo@localhost JOIN #staff * :Papo Client\r\n:oper!o@staff RENAME #staff #staff-archive :Archived\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Joined(_))));
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
+        Some(Event::Joined(_))
+    ));
+    assert!(matches!(
+        next_event(&mut events).await,
         Some(Event::ChannelRenamed(_))
     ));
     within(first_server.shutdown()).await.unwrap();
-    assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Disconnected(_))
+    ));
 
     tokio::time::advance(Duration::from_secs(2)).await;
     complete_connect_caps(&mut second_server, &mut events, cap, cap).await;
@@ -2404,8 +2423,14 @@ async fn channel_renames_change_the_rejoin_target_and_survive_a_part() {
         b":papo-driver!papo@localhost JOIN #staff-archive * :Papo Client\r\n:ergo.test 366 papo-driver #staff-archive :End of /NAMES list\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Joined(_))));
-    assert!(matches!(events.next().await, Some(Event::ChannelSynced(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Joined(_))
+    ));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::ChannelSynced(_))
+    ));
     client_line(&mut second_server, b"MODE #staff-archive\r\n").await;
     client_line(&mut second_server, b"WHO #staff-archive\r\n").await;
     let leaving = tokio::spawn({
@@ -2419,9 +2444,15 @@ async fn channel_renames_change_the_rejoin_target_and_survive_a_part() {
     )
     .await;
     within(leaving).await.unwrap().unwrap();
-    assert!(matches!(events.next().await, Some(Event::Parted(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Parted(_))
+    ));
     within(second_server.shutdown()).await.unwrap();
-    assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Disconnected(_))
+    ));
 
     tokio::time::advance(Duration::from_secs(2)).await;
     complete_connect_caps(&mut third_server, &mut events, cap, cap).await;
@@ -2462,19 +2493,19 @@ async fn quit_while_disconnected_stops_without_another_attempt() {
     );
     let driver = tokio::spawn(driver);
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(disconnected)) if disconnected.is_reconnecting()
     ));
     within(client.reconnect()).await.unwrap();
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(disconnected)) if disconnected.is_reconnecting()
     ));
     assert_eq!(calls.load(Ordering::Relaxed), 2);
     within(client.quit("cancel reconnect")).await.unwrap();
     assert!(within(driver).await.unwrap().is_ok());
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Requested {
                 quit_unacknowledged: false,
@@ -2482,7 +2513,7 @@ async fn quit_while_disconnected_stops_without_another_attempt() {
             reconnect_in: None,
         }))
     ));
-    assert!(events.next().await.is_none());
+    assert!(next_event(&mut events).await.is_none());
     tokio::time::advance(Duration::from_secs(10)).await;
     assert_eq!(calls.load(Ordering::Relaxed), 2);
 }
@@ -2636,7 +2667,7 @@ async fn failed_connects_report_a_doubling_backoff_until_the_cap() {
     .enumerate()
     {
         assert!(matches!(
-            events.next().await,
+            next_event(&mut events).await,
             Some(Event::Disconnected(crate::Disconnected {
                 reconnect_in: Some(actual),
                 ..
@@ -2647,7 +2678,7 @@ async fn failed_connects_report_a_doubling_backoff_until_the_cap() {
         tokio::time::advance(Duration::from_nanos(1)).await;
     }
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(disconnected)) if !disconnected.is_reconnecting()
     ));
     assert!(matches!(
@@ -2692,8 +2723,14 @@ async fn stable_registration_resets_the_backoff() {
         Box::new(|| 0),
     );
     let driver = tokio::spawn(driver);
-    assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
-    assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Disconnected(_))
+    ));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Disconnected(_))
+    ));
 
     welcome_burst(&mut stable_server).await;
     server_line(&mut stable_server, b":ergo.test CAP * LS :\r\n").await;
@@ -2703,11 +2740,14 @@ async fn stable_registration_resets_the_backoff() {
         b":ergo.test 001 papo-driver :Welcome back\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Connected(_))));
+    assert_connected(&mut events).await;
     tokio::time::advance(Duration::from_secs(60)).await;
     let disconnected_at = tokio::time::Instant::now();
     within(stable_server.shutdown()).await.unwrap();
-    assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Disconnected(_))
+    ));
 
     welcome_burst(&mut next_server).await;
     let delay = {
@@ -2860,7 +2900,7 @@ async fn transport_failure_under_stored_sts_retries() {
     let driver = tokio::spawn(driver);
 
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: Some(reconnect_in),
