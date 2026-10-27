@@ -27,7 +27,7 @@ static NEXT_PING: AtomicU64 = AtomicU64::new(0);
 ///
 /// ```no_run
 /// # async fn send() -> Result<(), papo::Error> {
-/// let (client, _events) = papo::Client::builder("ircs://irc.example.net", "papo-client")
+/// let (client, _) = papo::Client::builder("ircs://irc.example.net", "papo-client")
 ///     .connect()
 ///     .await?;
 /// client.privmsg("#papo", "hello from the docs").await?;

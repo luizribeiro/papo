@@ -8030,19 +8030,13 @@ async fn pending_read_marker_request_enables_read_ahead() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn no_pending_work_disables_read_ahead() {
+async fn socket_reads_continue_without_pending_work() {
     let (mut server, _client, mut events, driver) = scripted_with_capacity(config(), 2);
     let driver = tokio::spawn(driver);
     complete_connect(&mut server, &mut events).await;
     saturate_events(&mut server, &events).await;
 
     server_line(&mut server, b"PING :read-ahead-blocked\r\n").await;
-    assert!(
-        tokio::time::timeout(Duration::from_millis(1), server.read_u8())
-            .await
-            .is_err()
-    );
-    assert!(matches!(events.next().await, Some(Event::ServerNotice(_))));
     client_line(&mut server, b"PONG read-ahead-blocked\r\n").await;
 
     within(server.shutdown()).await.unwrap();

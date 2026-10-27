@@ -862,13 +862,6 @@ where
             }
         }
         drain_after_timeout = false;
-        let read_ahead = should_read_ahead(
-            &requests,
-            &sync_waiters,
-            &catchups,
-            registration,
-            quit.is_some(),
-        );
         let deadline = [
             session.poll_timeout(),
             quit.as_ref().and_then(|quit: &Quit| quit.deadline),
@@ -877,7 +870,7 @@ where
         .flatten()
         .min();
         tokio::select! {
-            read = stream.read(&mut buffer), if pending_events.is_empty() || read_ahead => match read {
+            read = stream.read(&mut buffer) => match read {
                 Ok(0) => {
                     break (
                         "server closed the connection".to_owned(),
