@@ -418,6 +418,7 @@ async fn multidevice_reconnect_catchup(s: Scenario) -> papo_testing::Result<()> 
         .items
         .iter()
         .filter_map(Event::as_message)
+        .filter(|message| message.authorship == Authorship::Own)
         .filter(|message| texts.contains(&message.text.as_str()))
         .count();
     if std::env::var("PAPO_TEST_PROFILE").as_deref() == Ok("soju-ergo") {
