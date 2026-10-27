@@ -2195,6 +2195,7 @@ pub fn papo::Isupport::safelist(&self) -> bool
 pub fn papo::Isupport::saferate(&self) -> bool
 pub fn papo::Isupport::statusmsg(&self) -> core::option::Option<&str>
 pub fn papo::Isupport::targmax(&self) -> alloc::vec::Vec<papo::isupport::Limit<'_>>
+pub fn papo::Isupport::targmax_for(&self, &str) -> core::option::Option<papo::isupport::LimitValue>
 pub fn papo::Isupport::tokens(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = (&str, papo::isupport::Advertised<'_>)>
 pub fn papo::Isupport::topiclen(&self) -> core::option::Option<usize>
 pub fn papo::Isupport::utf8only(&self) -> bool

@@ -76,6 +76,14 @@ impl Isupport {
         self.inner.targmax()
     }
 
+    /// Returns the target limit for `command`.
+    ///
+    /// Command names compare case-insensitively.
+    #[must_use]
+    pub fn targmax_for(&self, command: &str) -> Option<LimitValue> {
+        self.inner.targmax_for(command)
+    }
+
     /// Returns the legacy shared target limit.
     #[must_use]
     pub fn maxtargets(&self) -> Option<LimitValue> {
@@ -271,6 +279,10 @@ mod tests {
         assert!(support.targmax().iter().any(|limit| {
             limit.name == "MONITOR" && limit.limit == Some(super::LimitValue::Limited(100))
         }));
+        assert_eq!(
+            support.targmax_for("monitor"),
+            Some(super::LimitValue::Limited(100))
+        );
         assert_eq!(support.maxtargets(), Some(super::LimitValue::Limited(4)));
         assert_eq!(support.modes(), Some(4));
         assert_eq!(

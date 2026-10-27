@@ -358,6 +358,9 @@ fn distinguishes_unlimited_absent_and_numeric_target_limits() {
             .limit,
         Some(LimitValue::Limited(4))
     );
+    assert_eq!(support.targmax_for("privmsg"), Some(LimitValue::Limited(4)));
+    assert_eq!(support.targmax_for("kick"), Some(LimitValue::Unlimited));
+    assert_eq!(support.targmax_for("AWAY"), None);
 }
 
 #[test]

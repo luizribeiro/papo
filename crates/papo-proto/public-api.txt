@@ -816,6 +816,7 @@ pub fn papo_proto::Isupport::safelist(&self) -> bool
 pub fn papo_proto::Isupport::saferate(&self) -> bool
 pub fn papo_proto::Isupport::statusmsg(&self) -> core::option::Option<&str>
 pub fn papo_proto::Isupport::targmax(&self) -> alloc::vec::Vec<papo_proto::Limit<'_>>
+pub fn papo_proto::Isupport::targmax_for(&self, &str) -> core::option::Option<papo_proto::LimitValue>
 pub fn papo_proto::Isupport::tokens(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = (&str, papo_proto::Advertised<'_>)>
 pub fn papo_proto::Isupport::topiclen(&self) -> core::option::Option<usize>
 pub fn papo_proto::Isupport::utf8only(&self) -> bool

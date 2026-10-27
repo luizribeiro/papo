@@ -343,6 +343,17 @@ impl Isupport {
             .unwrap_or_else(default_targmax)
     }
 
+    /// Returns the target limit for `command`.
+    ///
+    /// Command names compare case-insensitively.
+    #[must_use]
+    pub fn targmax_for(&self, command: &str) -> Option<LimitValue> {
+        self.targmax()
+            .into_iter()
+            .find(|limit| limit.name.eq_ignore_ascii_case(command))?
+            .limit
+    }
+
     /// Returns the legacy shared target limit.
     #[must_use]
     pub fn maxtargets(&self) -> Option<LimitValue> {
