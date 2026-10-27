@@ -524,9 +524,21 @@ impl Client {
     }
 
     async fn send_message(&self, message: Line) -> Result<(), Error> {
+        self.send_message_guarded(message, None).await
+    }
+
+    async fn send_message_guarded(
+        &self,
+        message: Line,
+        recipient: Option<papo_core::RecipientGuard>,
+    ) -> Result<(), Error> {
         let (result, receiver) = oneshot::channel();
         self.commands
-            .send(Command::Send { message, result })
+            .send(Command::Send {
+                message,
+                recipient,
+                result,
+            })
             .await
             .map_err(|_| Error::connection_lost())?;
         receiver.await.map_err(|_| Error::connection_lost())?
@@ -537,11 +549,21 @@ impl Client {
         message: Line,
         matcher: Option<ResponseMatcher>,
     ) -> Result<Response, Error> {
+        self.correlated_guarded(message, matcher, None).await
+    }
+
+    async fn correlated_guarded(
+        &self,
+        message: Line,
+        matcher: Option<ResponseMatcher>,
+        recipient: Option<papo_core::RecipientGuard>,
+    ) -> Result<Response, Error> {
         let (result, receiver) = oneshot::channel();
         self.commands
             .send(Command::Request {
                 message,
                 matcher,
+                recipient,
                 result,
             })
             .await

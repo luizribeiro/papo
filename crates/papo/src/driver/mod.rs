@@ -121,11 +121,13 @@ pub(crate) enum Command {
     },
     Send {
         message: Line,
+        recipient: Option<papo_core::RecipientGuard>,
         result: oneshot::Sender<Result<(), Error>>,
     },
     Request {
         message: Line,
         matcher: Option<ResponseMatcher>,
+        recipient: Option<papo_core::RecipientGuard>,
         result: oneshot::Sender<Result<Response, Error>>,
     },
     Join {
@@ -933,10 +935,10 @@ where
                 Some(Command::Composite { task }) => {
                     _ = crate::rt::spawn(task);
                 }
-                Some(Command::Send { message, result }) => {
+                Some(Command::Send { message, recipient, result }) => {
                     let typing_target = text_target(&message)
                         .map(|target| session.isupport().casemapping().fold(target).into_owned());
-                    match session.send_tracked(now(), message) {
+                    match session.send_guarded_tracked(now(), message, recipient) {
                         Ok(token) => {
                             if let Some(target) = typing_target {
                                 active_typing.remove(&target);
@@ -946,10 +948,13 @@ where
                         Err(error) => { _ = result.send(Err(Error::build(error))); }
                     }
                 }
-                Some(Command::Request { message, matcher, result }) => {
+                Some(Command::Request { message, matcher, recipient, result }) => {
                     let typing_target = text_target(&message)
                         .map(|target| session.isupport().casemapping().fold(target).into_owned());
                     let requested = match matcher {
+                        None if recipient.is_some() => {
+                            session.request_guarded_silent(now(), message, recipient)
+                        }
                         Some(matcher) => session.request_with_matcher(now(), message, matcher),
                         None if session.caps().contains_key(&crate::cap::LABELED_RESPONSE) => {
                             session.request_silent(now(), message)
@@ -1517,6 +1522,18 @@ where
             event::CoreEvent::TransmitAborted(token) => {
                 if let Some(result) = transmits.remove(&token) {
                     result.fail(Error::connection_lost());
+                }
+            }
+            event::CoreEvent::RequestRecipientGone(id) => {
+                join_keys.remove(&id);
+                session.__cancel_request(id);
+                if let Some(result) = requests.remove(&id) {
+                    result.fail(Error::TargetGone);
+                }
+            }
+            event::CoreEvent::TransmitRecipientGone(token) => {
+                if let Some(result) = transmits.remove(&token) {
+                    result.fail(Error::TargetGone);
                 }
             }
             event::CoreEvent::RequestCredentialsRefused(id) => {
