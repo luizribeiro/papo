@@ -49,14 +49,14 @@ pub struct State {
     user_modes: HashSet<char>,
     casemapping: Names,
     isupport: Isupport,
-    channels: BTreeMap<NameKey<String>, Arc<Channel>>,
-    users: BTreeMap<NameKey<String>, User>,
+    channels: HashMap<NameKey<String>, Arc<Channel>>,
+    users: HashMap<NameKey<String>, User>,
     monitored: Vec<Nick>,
-    who_sweeps: BTreeMap<ChannelName, usize>,
+    who_sweeps: HashMap<ChannelName, usize>,
     who_on_join: WhoOnJoin,
-    read_markers: BTreeMap<NameKey<String>, ReadMarker>,
+    read_markers: HashMap<NameKey<String>, ReadMarker>,
     read_marker_order: BoundedCollection<NameKey<String>>,
-    last_seen: BTreeMap<NameKey<String>, LastSeen>,
+    last_seen: HashMap<NameKey<String>, LastSeen>,
     last_seen_order: VecDeque<String>,
     reply_epoch: u64,
     departure_sequence: u64,
@@ -67,8 +67,8 @@ pub struct State {
     #[cfg(feature = "unstable")]
     persistence: Option<PersistenceStatus>,
     #[cfg(feature = "unstable")]
-    bouncer_networks: BTreeMap<NetworkId, BouncerNetwork>,
-    metadata: BTreeMap<NameKey<String>, BTreeMap<MetadataKey, MetadataValue>>,
+    bouncer_networks: HashMap<NetworkId, BouncerNetwork>,
+    metadata: HashMap<NameKey<String>, BTreeMap<MetadataKey, MetadataValue>>,
     metadata_subscriptions: Vec<MetadataKey>,
     limits_warned: HashSet<StateLimit>,
     pub(crate) typing: Arc<TypingTable>,
@@ -132,7 +132,7 @@ pub(crate) fn clone_count() -> usize {
 pub struct Channel {
     name: ChannelName,
     casemapping: Names,
-    members: BTreeMap<NameKey<String>, Member>,
+    members: HashMap<NameKey<String>, Member>,
     modes: HashMap<char, Option<String>>,
     key: Option<Secret>,
     lists: HashMap<ListMode, Vec<ModeListEntry>>,
@@ -403,21 +403,21 @@ impl State {
         own.account = Account::LoggedOut;
         own.away = Away::Present;
         own.realname = Some(config.realname.clone());
-        let mut users = BTreeMap::new();
+        let mut users = HashMap::new();
         users.insert(NameKey::new(nick.as_ref(), names), own);
         Self {
             nick,
             user_modes: HashSet::new(),
             casemapping: names,
             isupport: Isupport::default(),
-            channels: BTreeMap::new(),
+            channels: HashMap::new(),
             users,
             monitored: Vec::new(),
-            who_sweeps: BTreeMap::new(),
+            who_sweeps: HashMap::new(),
             who_on_join: config.who_on_join,
-            read_markers: BTreeMap::new(),
+            read_markers: HashMap::new(),
             read_marker_order: BoundedCollection::new(MAX_READ_MARKERS),
-            last_seen: BTreeMap::new(),
+            last_seen: HashMap::new(),
             last_seen_order: VecDeque::new(),
             reply_epoch: 0,
             departure_sequence: 0,
@@ -428,8 +428,8 @@ impl State {
             #[cfg(feature = "unstable")]
             persistence: None,
             #[cfg(feature = "unstable")]
-            bouncer_networks: BTreeMap::new(),
-            metadata: BTreeMap::new(),
+            bouncer_networks: HashMap::new(),
+            metadata: HashMap::new(),
             metadata_subscriptions: Vec::new(),
             limits_warned: HashSet::new(),
             typing: TypingTable::new(),
@@ -720,7 +720,7 @@ impl State {
             let collides_with_own =
                 !own_rename && crate::names_equal(mapping, new_nick, &self.nick);
             let authorship = self.source_authorship(message);
-            let channels = if authorship == Authorship::Own {
+            let mut channels: Vec<_> = if authorship == Authorship::Own {
                 self.channels
                     .values()
                     .map(|channel| channel.name.clone())
@@ -731,6 +731,7 @@ impl State {
                     .map(|user| user.channels.iter().cloned().collect())
                     .unwrap_or_default()
             };
+            channels.sort();
             if !collides_with_own {
                 if own_rename || self.user(nick).is_some() || self.is_monitored(nick) {
                     self.rename_metadata(nick, new_nick);
@@ -1031,7 +1032,7 @@ impl State {
                 (NameKey::new(name, mapping), channel)
             })
             .collect();
-        let mut users = BTreeMap::new();
+        let mut users = HashMap::new();
         for mut user in std::mem::take(&mut self.users).into_values() {
             let incoming_is_own = user.nick.as_ref() == old_own_nick.as_ref();
             user.nick = self
@@ -1054,13 +1055,13 @@ impl State {
                 })
                 .collect();
             match users.entry(NameKey::new(user.nick.as_ref(), mapping)) {
-                std::collections::btree_map::Entry::Vacant(entry) => {
+                std::collections::hash_map::Entry::Vacant(entry) => {
                     entry.insert(user);
                 }
-                std::collections::btree_map::Entry::Occupied(mut entry) if incoming_is_own => {
+                std::collections::hash_map::Entry::Occupied(mut entry) if incoming_is_own => {
                     entry.insert(user);
                 }
-                std::collections::btree_map::Entry::Occupied(_) => {}
+                std::collections::hash_map::Entry::Occupied(_) => {}
             }
         }
         self.users = users;
@@ -1341,7 +1342,7 @@ impl Channel {
         Self {
             name: casemapping.channel(name),
             casemapping,
-            members: BTreeMap::new(),
+            members: HashMap::new(),
             modes: HashMap::new(),
             key: None,
             lists: HashMap::new(),
