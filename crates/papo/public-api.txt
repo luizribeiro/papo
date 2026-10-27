@@ -3096,8 +3096,12 @@ pub fn papo::Casemapping::fold(self, &str) -> alloc::borrow::Cow<'_, str>
 impl core::clone::Clone for papo::Casemapping
 pub fn papo::Casemapping::clone(&self) -> Self
 impl core::cmp::Eq for papo::Casemapping
+impl core::cmp::Ord for papo::Casemapping
+pub fn papo::Casemapping::cmp(&self, &Self) -> core::cmp::Ordering
 impl core::cmp::PartialEq for papo::Casemapping
 pub fn papo::Casemapping::eq(&self, &Self) -> bool
+impl core::cmp::PartialOrd for papo::Casemapping
+pub fn papo::Casemapping::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
 impl core::default::Default for papo::Casemapping
 pub fn papo::Casemapping::default() -> Self
 impl core::fmt::Debug for papo::Casemapping
@@ -4086,6 +4090,7 @@ pub papo::StateLimit::ListEntries
 pub papo::StateLimit::Members
 pub papo::StateLimit::MetadataKeys
 pub papo::StateLimit::MetadataTargets
+pub papo::StateLimit::ReadMarkers
 impl core::clone::Clone for papo::StateLimit
 pub fn papo::StateLimit::clone(&self) -> Self
 impl core::cmp::Eq for papo::StateLimit
