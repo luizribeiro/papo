@@ -424,7 +424,9 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
     let bob = s.connect("bob").await?;
     let channel = s.channel_name();
     let alice_nick = alice.nick();
-    let mapping = bob.state().casemapping();
+    let state = bob.state();
+    let mapping = state.casemapping();
+    let expected_bot = state.isupport().bot_mode().map(|_| false);
     let channel_name = mapping.channel(&channel);
     alice.join(&channel).await?;
     bob.join(&channel).await?;
@@ -446,10 +448,7 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(alice_who.realname, "papo test peer");
     assert_eq!(alice_who.away, Away::__away_value(None));
     assert!(alice_who.oper.is_none());
-    assert_eq!(
-        alice_who.is_bot,
-        bob.state().isupport().bot_mode().map(|_| false)
-    );
+    assert_eq!(alice_who.is_bot, expected_bot);
     assert_eq!(
         alice_who
             .prefixes
