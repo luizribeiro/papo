@@ -188,7 +188,7 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub use action::RequestFuture;
 pub use address::{Endpoint, EndpointKind, IntoEndpoint, InvalidInput};
-pub use builder::Builder;
+pub use builder::{Builder, StreamSecurity};
 pub use client::{Client, Fallback, JoinChannel, SendMessage, Sent};
 pub use driver::{Driver, Events};
 pub use error::{

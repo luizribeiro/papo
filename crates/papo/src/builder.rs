@@ -20,6 +20,17 @@ use crate::{
 
 static NEXT_ORIGIN: AtomicU64 = AtomicU64::new(1);
 
+/// Declares whether a caller-provided stream encrypts its bytes.
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+#[non_exhaustive]
+pub enum StreamSecurity {
+    /// The stream carries plaintext IRC traffic.
+    #[default]
+    Plaintext,
+    /// The stream is protected by encryption established by the caller.
+    Encrypted,
+}
+
 #[derive(Clone)]
 #[allow(dead_code)]
 pub(crate) struct NetworkBuilderSettings {
@@ -57,7 +68,7 @@ pub struct Builder {
     reconnect: Reconnect,
     sts_store: Arc<dyn StsStore>,
     #[cfg(not(browser))]
-    stream: Option<Box<dyn crate::io_compat::FutureStream>>,
+    stream: Option<(Box<dyn crate::io_compat::FutureStream>, StreamSecurity)>,
     bot: bool,
     autojoin: Vec<Autojoin>,
     history_on_reconnect: bool,
@@ -453,18 +464,6 @@ impl Builder {
         self
     }
 
-    /// Uses an already-connected asynchronous byte stream.
-    ///
-    /// Custom streams are driven once and do not reconnect or apply STS policies.
-    #[cfg(not(browser))]
-    pub fn stream(
-        mut self,
-        stream: impl futures_io::AsyncRead + futures_io::AsyncWrite + Send + Unpin + 'static,
-    ) -> Self {
-        self.stream = Some(Box::new(stream));
-        self
-    }
-
     /// Trusts only the certificates in a PEM document.
     ///
     /// This and [`Self::tls_extra_ca_pem`] replace the previously configured roots; the last call
@@ -676,13 +675,14 @@ impl Builder {
     fn build_stream_with_connect(
         mut self,
         stream: Box<dyn crate::io_compat::FutureStream>,
+        security: StreamSecurity,
         registration: Option<crate::driver::ConnectSender>,
     ) -> (crate::Client, crate::Events, crate::Driver) {
         let network_builder =
             std::sync::Arc::new(std::sync::RwLock::new(self.network_settings(false)));
         self.config.origin = allocate_origin();
         if let Ok(address) = &self.address {
-            if !address.is_secure()
+            if security == StreamSecurity::Plaintext
                 && (self.credentials_configured || self.config.password.is_some())
                 && !self.allow_insecure_auth
             {
@@ -690,6 +690,10 @@ impl Builder {
                     .get_or_insert(InvalidInput::InsecureAuthentication);
             }
             apply_address(&mut self.config, address);
+            self.config.connection_security = match security {
+                StreamSecurity::Plaintext => ConnectionSecurity::Plaintext,
+                StreamSecurity::Encrypted => ConnectionSecurity::Secure,
+            };
         }
         let input_error = self
             .address
@@ -737,8 +741,8 @@ impl Builder {
         connector: Option<crate::driver::Connector>,
     ) -> (crate::Client, crate::Events, crate::Driver) {
         #[cfg(not(browser))]
-        if let Some(stream) = self.stream.take() {
-            return self.build_stream_with_connect(stream, registration);
+        if let Some((stream, security)) = self.stream.take() {
+            return self.build_stream_with_connect(stream, security, registration);
         }
         let network_builder =
             std::sync::Arc::new(std::sync::RwLock::new(self.network_settings(true)));
@@ -790,6 +794,34 @@ impl Builder {
     }
 }
 
+#[cfg(not(browser))]
+impl Builder {
+    /// Uses an already-connected asynchronous byte stream.
+    ///
+    /// The stream is treated as plaintext. Custom streams are driven once and do not reconnect or
+    /// apply STS policies. Use [`Self::stream_with_security`] when the caller established an
+    /// encrypted stream.
+    pub fn stream(
+        self,
+        stream: impl futures_io::AsyncRead + futures_io::AsyncWrite + Send + Unpin + 'static,
+    ) -> Self {
+        self.stream_with_security(stream, StreamSecurity::Plaintext)
+    }
+
+    /// Uses an already-connected asynchronous byte stream with explicit transport security.
+    ///
+    /// [`StreamSecurity::Encrypted`] is a declaration by the caller that encryption has already
+    /// been established. Papo does not inspect or add encryption to a custom stream.
+    pub fn stream_with_security(
+        mut self,
+        stream: impl futures_io::AsyncRead + futures_io::AsyncWrite + Send + Unpin + 'static,
+        security: StreamSecurity,
+    ) -> Self {
+        self.stream = Some((Box::new(stream), security));
+        self
+    }
+}
+
 fn apply_address(config: &mut Config, address: &ServerAddress) {
     config.host.clone_from(&address.host);
     config.connection_security = if address.is_secure() {
@@ -824,7 +856,7 @@ mod tests {
     };
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-    use super::{Builder, apply_address, connect_input_error};
+    use super::{Builder, StreamSecurity, apply_address, connect_input_error};
     use crate::{
         ConnectErrorKind, Error, InvalidInput, NewAccount,
         address::Protocol,
@@ -1815,6 +1847,45 @@ mod tests {
             std::error::Error::source(&error).map(ToString::to_string),
             Some("broken pipe".into())
         );
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn custom_stream_is_plaintext_despite_a_secure_url() {
+        let (stream, mut server) = tokio::io::duplex(4096);
+        let (_client, _events, driver) = Builder::new("ircs://custom.example")
+            .stream(crate::driver::test_support::TokioIo(stream))
+            .sasl(Sasl::plain("alice", "stream-password-8732"))
+            .build();
+
+        assert!(matches!(
+            within(driver).await,
+            Err(Error::InvalidInput(InvalidInput::InsecureAuthentication))
+        ));
+        let mut output = Vec::new();
+        within(server.read_to_end(&mut output)).await.unwrap();
+        assert!(output.is_empty());
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn encrypted_custom_stream_accepts_credentials() {
+        let (stream, mut server) = tokio::io::duplex(4096);
+        let (_client, _events, driver) = Builder::new("irc://custom.example")
+            .stream_with_security(
+                crate::driver::test_support::TokioIo(stream),
+                StreamSecurity::Encrypted,
+            )
+            .sasl(Sasl::plain("alice", "stream-password-8732"))
+            .build();
+        let driver = tokio::spawn(driver);
+
+        client_line(&mut server, b"CAP LS 302\r\n").await;
+        client_line(&mut server, b"NICK papo\r\n").await;
+        client_line(&mut server, b"USER papo 0 * papo\r\n").await;
+        server_line(&mut server, b":custom.example CAP * LS :sasl=PLAIN\r\n").await;
+        client_line(&mut server, b"CAP REQ :sasl\r\n").await;
+        server_line(&mut server, b":custom.example CAP * ACK :sasl\r\n").await;
+        client_line(&mut server, b"AUTHENTICATE PLAIN\r\n").await;
+        abort_task(driver).await;
     }
 
     #[tokio::test(flavor = "current_thread")]

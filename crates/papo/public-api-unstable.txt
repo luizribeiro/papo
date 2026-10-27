@@ -1855,6 +1855,29 @@ impl core::marker::Unpin for papo::Source
 impl core::marker::UnsafeUnpin for papo::Source
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Source
 impl core::panic::unwind_safe::UnwindSafe for papo::Source
+#[non_exhaustive] pub enum papo::StreamSecurity
+pub papo::StreamSecurity::Encrypted
+pub papo::StreamSecurity::Plaintext
+impl core::clone::Clone for papo::StreamSecurity
+pub fn papo::StreamSecurity::clone(&self) -> Self
+impl core::cmp::Eq for papo::StreamSecurity
+impl core::cmp::PartialEq for papo::StreamSecurity
+pub fn papo::StreamSecurity::eq(&self, &Self) -> bool
+impl core::default::Default for papo::StreamSecurity
+pub fn papo::StreamSecurity::default() -> Self
+impl core::fmt::Debug for papo::StreamSecurity
+pub fn papo::StreamSecurity::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::StreamSecurity
+pub fn papo::StreamSecurity::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for papo::StreamSecurity
+impl core::marker::StructuralPartialEq for papo::StreamSecurity
+impl core::marker::Freeze for papo::StreamSecurity
+impl core::marker::Send for papo::StreamSecurity
+impl core::marker::Sync for papo::StreamSecurity
+impl core::marker::Unpin for papo::StreamSecurity
+impl core::marker::UnsafeUnpin for papo::StreamSecurity
+impl core::panic::unwind_safe::RefUnwindSafe for papo::StreamSecurity
+impl core::panic::unwind_safe::UnwindSafe for papo::StreamSecurity
 #[non_exhaustive] pub enum papo::Subject
 pub papo::Subject::Channel(papo::ChannelName)
 pub papo::Subject::User(papo::Nick)
@@ -1982,7 +2005,6 @@ pub const fn papo::Builder::regain_nick(self, bool) -> Self
 pub fn papo::Builder::request_caps<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub fn papo::Builder::request_timeout(self, core::time::Duration) -> Self
 pub fn papo::Builder::sasl(self, papo::Sasl) -> Self
-pub fn papo::Builder::stream(self, impl futures_io::if_std::AsyncRead + futures_io::if_std::AsyncWrite + core::marker::Send + core::marker::Unpin + 'static) -> Self
 pub fn papo::Builder::sts_store(self, impl papo::sts::StsStore + 'static) -> Self
 pub fn papo::Builder::tls_ca_pem(self, impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self
 pub fn papo::Builder::tls_client_cert(self, impl core::convert::Into<alloc::vec::Vec<u8>>, impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self
@@ -1991,6 +2013,9 @@ pub fn papo::Builder::tls_server_name(self, impl core::convert::Into<alloc::stri
 pub fn papo::Builder::username(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Builder::webirc(self, papo::WebIrc) -> Self
 pub fn papo::Builder::who_on_join(self, papo::WhoOnJoin) -> Self
+impl papo::Builder
+pub fn papo::Builder::stream(self, impl futures_io::if_std::AsyncRead + futures_io::if_std::AsyncWrite + core::marker::Send + core::marker::Unpin + 'static) -> Self
+pub fn papo::Builder::stream_with_security(self, impl futures_io::if_std::AsyncRead + futures_io::if_std::AsyncWrite + core::marker::Send + core::marker::Unpin + 'static, papo::StreamSecurity) -> Self
 impl core::fmt::Debug for papo::Builder
 pub fn papo::Builder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Freeze for papo::Builder
