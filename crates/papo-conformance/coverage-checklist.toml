@@ -80,6 +80,7 @@ ids = [
   "security.adv-1.live-pass-before-sts",
   "security.sts.password-required",
   "security.t3.plaintext-credentials-opt-in",
+  "security.adv-2.post-connect-credentials",
   "security.s4.account-registration-once",
   "security.s6.scram-iteration-cap",
   "security.secrets.no-wire-line-in-debug",

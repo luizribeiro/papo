@@ -789,6 +789,47 @@ async fn plaintext_credentials_require_explicit_opt_in() {
 }
 
 #[tokio::test]
+async fn plaintext_credential_requests_never_reach_the_wire() {
+    let (client, _events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test", "papo-wire")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&["draft/account-registration", "labeled-response"])
+        .await;
+
+    for result in [
+        client.oper("admin", PASSWORD).await,
+        client
+            .verify_account(
+                client.state().name_rules().account("alice"),
+                "39gvcdg4myvnmdcfhvd6exsv4n",
+            )
+            .await
+            .map(|_| ()),
+        client
+            .send_raw(
+                papo::Line::new("OPER")
+                    .param("admin")
+                    .param(papo::Secret::new(PASSWORD)),
+            )
+            .await,
+    ] {
+        assert!(matches!(
+            result,
+            Err(papo::Error::InvalidInput(
+                papo::InvalidInput::InsecureAuthentication
+            ))
+        ));
+    }
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), wire.next_sent())
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
 async fn malformed_tls_configuration_fails_before_opening_the_wire() {
     let malformed = b"-----BEGIN CERTIFICATE-----\nnot-base64!\n-----END CERTIFICATE-----\n";
     for scheme in ["irc", "ircs", "ws", "wss"] {

@@ -55,6 +55,9 @@
 "security::plaintext_credentials_require_explicit_opt_in" = [
   "security.t3.plaintext-credentials-opt-in",
 ]
+"security::plaintext_credential_requests_never_reach_the_wire" = [
+  "security.adv-2.post-connect-credentials",
+]
 "security::scram_rejects_excessive_iterations_promptly" = [
   "security.s6.scram-iteration-cap",
 ]

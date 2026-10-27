@@ -240,6 +240,36 @@ fn redacts_a_queued_bouncer_network_password() {
 }
 
 #[test]
+fn bouncer_passwords_are_refused_on_plaintext() {
+    let password = papo_core::Secret::new("unique-bouncer-password-9241");
+    let attributes = papo_core::__bouncer_attributes(
+        Some("irc.example.org"),
+        None,
+        Some(6667),
+        Some(false),
+        None,
+        None,
+        None,
+        Some(&password),
+    )
+    .unwrap();
+    let mut session = papo_core::Session::new(Config::default());
+    assert_eq!(
+        session.bouncer_add(std::time::Instant::now(), attributes.clone()),
+        Err(papo_core::RequestError::InsecureAuthentication)
+    );
+    assert_eq!(
+        session.bouncer_change(
+            std::time::Instant::now(),
+            &NetworkId::from("43"),
+            attributes
+        ),
+        Err(papo_core::RequestError::InsecureAuthentication)
+    );
+    assert!(session.poll_transmit().is_none());
+}
+
+#[test]
 fn merges_bounded_notification_batches_and_deletes_networks() {
     registered()
         .server("BATCH +notify soju.im/bouncer-networks")

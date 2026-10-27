@@ -2,7 +2,7 @@
 
 mod support;
 
-use papo_core::{Config, Event, Feature, Refusal, ResponseMatcher};
+use papo_core::{Config, Event, Feature, Refusal, ResponseMatcher, Session};
 use papo_proto::Line;
 use support::{Transcript, assert_session_debug_redacts, queue_debug_marker, unsupported_error};
 
@@ -334,6 +334,20 @@ fn enforces_account_registration_capability_values_locally() {
             );
         })
         .no_client();
+}
+
+#[test]
+fn verification_refuses_credentials_on_plaintext() {
+    let mut session = Session::new(Config::default());
+    assert_eq!(
+        session.verify(
+            std::time::Instant::now(),
+            "alice",
+            "39gvcdg4myvnmdcfhvd6exsv4n"
+        ),
+        Err(papo_core::RequestError::InsecureAuthentication)
+    );
+    assert!(session.poll_transmit().is_none());
 }
 
 #[test]
