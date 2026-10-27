@@ -77,6 +77,7 @@ def render(results, evidence=None):
     evidence = evidence or {}
     scenarios = sorted(set().union(*(statuses.keys() for statuses in results.values())))
     footnotes = []
+    footnote_numbers = {}
     evidence_footnotes = []
 
     def cell(profile, scenario):
@@ -91,8 +92,15 @@ def render(results, evidence=None):
             return "—"
         if status == "expected-failure":
             entry = KNOWN_FAILURES[(profile, scenario)]
-            footnotes.append((profile, scenario, entry["kind"], entry["reason"]))
-            return f"⚠ [^{len(footnotes)}]"
+            key = (profile, entry["kind"], entry["reason"])
+            number = footnote_numbers.get(key)
+            if number is None:
+                number = len(footnotes) + 1
+                footnote_numbers[key] = number
+                footnotes.append((profile, [scenario], entry["kind"], entry["reason"]))
+            else:
+                footnotes[number - 1][1].append(scenario)
+            return f"⚠ [^{number}]"
         return "✗"
 
     lines = [
@@ -113,10 +121,11 @@ def render(results, evidence=None):
             "✓ pass · — not advertised or unavailable setup · ⚠ known failure · ✗ fail",
         ]
     )
-    for number, (profile, scenario, kind, reason) in enumerate(footnotes, 1):
+    for number, (profile, scenarios, kind, reason) in enumerate(footnotes, 1):
+        scenario_list = ", ".join(f"`{scenario}`" for scenario in scenarios)
         lines.append(
             f"[^{number}]: ⚠ {KIND_LABELS[kind]}: "
-            f"`{profile}` / `{scenario}` — {reason}"
+            f"`{profile}` / {scenario_list} — {reason}"
         )
     for label, profile, scenario, value in evidence_footnotes:
         lines.append(f"[^{label}]: `{profile}` / `{scenario}` — {value}")
