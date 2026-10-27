@@ -151,13 +151,24 @@ pub(crate) struct RecipientGuard {
     pub(crate) receipt: Option<papo_core::ReplyToken>,
 }
 
+impl RecipientGuard {
+    pub(crate) fn from_core(guard: &papo_core::RecipientGuard) -> Self {
+        Self {
+            nick: guard.__nick().clone(),
+            account: guard.__account().clone(),
+            receipt: Some(guard.__token()),
+        }
+    }
+}
+
 /// An IRC return address with optional server message identifiers.
 ///
 /// A reference preserves the address exactly as it arrived, including a status prefix such as
 /// `@#ops`, together with the originating client and any evidence needed to detect a nickname
 /// changing hands. Construct one from a received [`Message`], a sent [`Sent`], or an explicit
-/// `(address, message_id)` pair. A [`Conversation`] alone is not a return address; see
-/// [`Conversation`] for status-prefixed audience guidance.
+/// `(channel, message_id)` pair. A private explicit pair requires a [`crate::DirectRef`]. A
+/// [`Conversation`] alone is not a return address; see [`Conversation`] for status-prefixed
+/// audience guidance.
 ///
 /// Some lines, including typing notifications, have no server message identifier. Their references
 /// remain valid send destinations, but [`crate::Client::react`], [`crate::Client::unreact`], and

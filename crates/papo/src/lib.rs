@@ -168,6 +168,7 @@ mod action;
 mod address;
 mod builder;
 mod client;
+mod direct;
 mod driver;
 mod entropy;
 mod error;
@@ -213,6 +214,7 @@ pub use action::RequestFuture;
 pub use address::{Endpoint, EndpointKind, IntoEndpoint, InvalidInput};
 pub use builder::{Builder, StreamSecurity};
 pub use client::{Client, Fallback, JoinChannel, SendMessage, Sent};
+pub use direct::DirectRef;
 pub use driver::{Driver, Events};
 pub use error::{
     ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, ServerError,
