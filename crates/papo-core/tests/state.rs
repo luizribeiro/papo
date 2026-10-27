@@ -152,25 +152,44 @@ fn a_foreign_rename_after_casemapping_changes_keeps_own_metadata_clear() {
 
 #[test]
 fn casemapping_collisions_keep_the_own_user_row() {
-    Transcript::new(
-        Config::default()
-            .nick("papo{")
-            .username("papo")
-            .casemapping(Casemapping::Ascii),
-    )
-    .server(":ergo.test 005 papo{ CASEMAPPING=ascii :are supported")
-    .server(":papo{!papo@localhost JOIN #papo")
-    .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "papo{"))
-    .server(":papo[!mallory@hostile.example JOIN #papo")
-    .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "papo["))
-    .server(":ergo.test 005 papo{ CASEMAPPING=rfc1459 :are supported")
-    .event(|event| matches!(event, Event::CasemappingChanged { .. }))
-    .inspect(|session| {
-        let own = session.state().user("papo[").unwrap();
-        assert_eq!(own.nick(), "papo{");
-        assert_eq!(own.username(), Some("papo"));
-    })
-    .ignore_rest();
+    for index in 0..32 {
+        let (own_bracket, other_bracket) = if index % 2 == 0 {
+            ('{', '[')
+        } else {
+            ('[', '{')
+        };
+        let own_nick = format!("papo{own_bracket}{index}");
+        let other_nick = format!("papo{other_bracket}{index}");
+
+        Transcript::new(
+            Config::default()
+                .nick(own_nick.clone())
+                .username("papo")
+                .casemapping(Casemapping::Ascii),
+        )
+        .server(&format!(
+            ":ergo.test 005 {own_nick} CASEMAPPING=ascii :are supported"
+        ))
+        .server(&format!(
+            ":{own_nick}!papo@localhost JOIN #papo {own_nick} :Papo Client"
+        ))
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == own_nick.as_str()))
+        .server(&format!(
+            ":{other_nick}!mallory@hostile.example JOIN #papo {other_nick} :Mallory Example"
+        ))
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == other_nick.as_str()))
+        .server(&format!(
+            ":ergo.test 005 {own_nick} CASEMAPPING=rfc1459 :are supported"
+        ))
+        .event(|event| matches!(event, Event::CasemappingChanged { .. }))
+        .inspect(|session| {
+            let own = session.state().user(&other_nick).unwrap();
+            assert_eq!(session.state().nick(), own_nick.as_str());
+            assert_eq!(own.nick(), own_nick.as_str());
+            assert_eq!(own.username(), Some("papo"));
+        })
+        .ignore_rest();
+    }
 }
 
 #[test]
