@@ -1206,6 +1206,8 @@ async fn topic(s: Scenario) -> papo_testing::Result<()> {
     );
     assert!(synchronized.topic_set_at().is_some());
 
+    // InspIRCd requires linked-network topic timestamps to advance before another change.
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     alice
         .clear_topic(alice.state().name_rules().channel(&channel))
         .await?;

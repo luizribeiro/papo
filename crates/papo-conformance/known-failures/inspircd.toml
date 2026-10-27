@@ -19,13 +19,6 @@ spec = "https://ircv3.net/specs/extensions/setname"
 evidence = "C: SETNAME : | S: no FAIL SETNAME INVALID_REALNAME"
 server_version = "4.12.1"
 
-[topic]
-reason = "InspIRCd applies topic-change flood protection and returns 437 to the immediate update"
-kind = "fixture-limit"
-spec = "https://modern.ircdocs.horse/#topic-message"
-evidence = "C: TOPIC #review :Reviewing IRC topic synchronization | S: 437 #review"
-server_version = "4.12.1"
-
 [whois_host_certificate]
 reason = "InspIRCd returns nonstandard host numeric 338 rather than WHOIS host or certificate numeric 378 or 276"
 kind = "spec-ambiguity"
