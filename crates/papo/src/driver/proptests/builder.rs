@@ -104,7 +104,7 @@ async fn arbitrary_builder_setter_input_is_rejected_or_registers_validly() {
         probe!(builder, _a, _b, _c => builder.sts_store(papo_core::sts::MemoryStsStore::new()));
         probe!(builder, a, _b, _c => builder.tls_ca_pem(a.into_bytes()));
         probe!(builder, a, _b, _c => builder.tls_extra_ca_pem(a.into_bytes()));
-        probe!(builder, a, b, _c => builder.tls_client_cert(a.into_bytes(), b));
+        probe!(builder, a, b, _c => builder.tls_client_cert(a.into_bytes(), b.into_bytes()));
         probe!(builder, a, _b, _c => builder.tls_server_name(a));
         probe!(builder, a, _b, _c => builder.bot(a.len() % 2 == 0));
         probe!(builder, a, b, _c => builder.autojoin([a, b]));

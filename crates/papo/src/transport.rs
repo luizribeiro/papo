@@ -16,6 +16,7 @@ use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::net::TcpStream;
 #[cfg(tls)]
 use tokio_rustls::client::TlsStream;
+use zeroize::Zeroize;
 
 #[cfg(all(feature = "websocket", sockets))]
 mod websocket;
@@ -56,19 +57,43 @@ pub enum TlsRoots {
 #[derive(Clone, Debug)]
 pub struct ClientCertificate {
     certificate_chain: Vec<u8>,
-    private_key: papo_core::Secret,
+    private_key: PrivateKey,
+}
+
+#[derive(Clone)]
+struct PrivateKey(std::sync::Arc<PrivateKeyBytes>);
+
+struct PrivateKeyBytes(Vec<u8>);
+
+impl Drop for PrivateKeyBytes {
+    fn drop(&mut self) {
+        self.0.zeroize();
+    }
+}
+
+impl std::fmt::Debug for PrivateKey {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("[REDACTED]")
+    }
+}
+
+impl PrivateKey {
+    fn new(value: impl Into<Vec<u8>>) -> Self {
+        Self(std::sync::Arc::new(PrivateKeyBytes(value.into())))
+    }
+
+    fn expose(&self) -> &[u8] {
+        &self.0.0
+    }
 }
 
 impl ClientCertificate {
     /// Creates client credentials from PEM-encoded certificate and key data.
     #[must_use]
-    pub fn new(
-        certificate_chain: impl Into<Vec<u8>>,
-        private_key: impl Into<papo_core::Secret>,
-    ) -> Self {
+    pub fn new(certificate_chain: impl Into<Vec<u8>>, private_key: impl Into<Vec<u8>>) -> Self {
         Self {
             certificate_chain: certificate_chain.into(),
-            private_key: private_key.into(),
+            private_key: PrivateKey::new(private_key),
         }
     }
 }
@@ -454,7 +479,7 @@ fn build_tls_client_config(
     };
     let mut config = if let Some(identity) = &settings.client_certificate {
         let chain = certificates(&identity.certificate_chain)?;
-        let key = PrivateKeyDer::from_pem_slice(identity.private_key.expose_bytes())
+        let key = PrivateKeyDer::from_pem_slice(identity.private_key.expose())
             .map_err(|_| invalid_pem("client private key"))?;
         builder
             .with_client_auth_cert(chain, key)
@@ -563,7 +588,7 @@ mod tests {
         let config = TlsConfig {
             client_certificate: Some(ClientCertificate::new(
                 b"public certificate".to_vec(),
-                "private key material",
+                b"private key material".to_vec(),
             )),
             ..TlsConfig::default()
         };
@@ -617,7 +642,8 @@ mod tests {
         let config = TlsConfig {
             client_certificate: Some(ClientCertificate::new(
                 CLIENT_CERTIFICATE,
-                format!("-----BEGIN PRIVATE KEY-----\n{marker}\n-----END PRIVATE KEY-----"),
+                format!("-----BEGIN PRIVATE KEY-----\n{marker}\n-----END PRIVATE KEY-----")
+                    .into_bytes(),
             )),
             ..TlsConfig::default()
         };
@@ -643,6 +669,10 @@ mod tests {
         };
         prepare_tls_config("localhost", &mut config).unwrap();
         let cloned = config.clone();
+        assert!(std::sync::Arc::ptr_eq(
+            &config.client_certificate.as_ref().unwrap().private_key.0,
+            &cloned.client_certificate.as_ref().unwrap().private_key.0
+        ));
         assert!(std::sync::Arc::ptr_eq(
             config.prepared.as_ref().unwrap(),
             cloned.prepared.as_ref().unwrap()

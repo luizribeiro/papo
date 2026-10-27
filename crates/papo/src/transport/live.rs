@@ -173,10 +173,7 @@ async fn tls_presents_a_client_certificate_seen_by_ergo() {
 async fn tls_presents_a_client_certificate_seen_by_ergo_body() {
     let server = from_env();
     let mut config = tls_config(&server);
-    config.client_certificate = Some(ClientCertificate::new(
-        CLIENT_CERTIFICATE,
-        std::str::from_utf8(CLIENT_KEY).unwrap(),
-    ));
+    config.client_certificate = Some(ClientCertificate::new(CLIENT_CERTIFICATE, CLIENT_KEY));
     let mut stream = connect(
         "localhost",
         server.tls_addr().port(),

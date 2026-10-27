@@ -523,7 +523,7 @@ impl Builder {
     pub fn tls_client_cert(
         mut self,
         certificate: impl Into<Vec<u8>>,
-        key: impl Into<papo_core::Secret>,
+        key: impl Into<Vec<u8>>,
     ) -> Self {
         self.tls.client_certificate = Some(ClientCertificate::new(certificate, key));
         self
@@ -1345,7 +1345,7 @@ mod tests {
             })
             .sasl(Sasl::plain("alice", "unique-sasl-password-8527"))
             .create_account(NewAccount::new("unique-account-password-7416"))
-            .tls_client_cert(Vec::new(), "unique-tls-key-6305")
+            .tls_client_cert(Vec::new(), b"unique-tls-key-6305".to_vec())
             .autojoin_with_key("#staff", "unique-channel-key-5294");
         let output = format!("{builder:?}");
         assert_eq!(output, "Builder { .. }");
@@ -1451,7 +1451,7 @@ mod tests {
 
         assert!(
             Builder::new("ircs://irc.example.net")
-                .tls_client_cert(Vec::new(), byte_secret())
+                .tls_client_cert(Vec::new(), vec![0xff])
                 .invalid_input
                 .is_none()
         );
@@ -1525,7 +1525,7 @@ mod tests {
         let builder = Builder::new("ircs://irc.example.net")
             .tls_ca_pem(b"replaced CA".to_vec())
             .tls_extra_ca_pem(b"test CA".to_vec())
-            .tls_client_cert(b"certificate".to_vec(), "private key")
+            .tls_client_cert(b"certificate".to_vec(), b"private key".to_vec())
             .tls_server_name("chat.example.net");
         assert!(matches!(builder.tls.roots, TlsRoots::PlatformAndCa(pem) if pem == b"test CA"));
         assert!(builder.tls.client_certificate.is_some());
