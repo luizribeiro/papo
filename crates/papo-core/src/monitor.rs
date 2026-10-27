@@ -426,7 +426,7 @@ impl Monitor {
         }
         self.casemapping = Names::new(mapping, self.casemapping.origin());
         let names = self.casemapping;
-        let mut refolded = BTreeMap::new();
+        let mut refolded = HashMap::new();
         for presence in std::mem::take(&mut self.presence).into_values() {
             refolded.insert(names.nick(presence.nick()), presence);
         }
