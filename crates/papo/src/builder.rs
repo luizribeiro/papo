@@ -838,6 +838,21 @@ mod tests {
         crate::WebIrc::new(gateway, password, "192.0.2.42".parse().unwrap())
     }
 
+    async fn assert_cap_request(builder: Builder, advertised: &str, expected: &str) {
+        let (mut server, _client, _events, driver) = scripted(builder.config);
+        let driver = tokio::spawn(driver);
+        client_line(&mut server, b"CAP LS 302\r\n").await;
+        client_line(&mut server, b"NICK papo\r\n").await;
+        client_line(&mut server, b"USER papo 0 * papo\r\n").await;
+        server_line(
+            &mut server,
+            format!(":ergo.test CAP * LS :{advertised}\r\n").as_bytes(),
+        )
+        .await;
+        client_line(&mut server, format!("CAP REQ :{expected}\r\n").as_bytes()).await;
+        abort_task(driver).await;
+    }
+
     #[test]
     fn clients_distinguish_same_named_channels() {
         let (first, _, _) = Builder::new("ircs://irc.example.net").build();
@@ -1135,6 +1150,16 @@ mod tests {
         );
     }
 
+    #[tokio::test(flavor = "current_thread")]
+    async fn unknown_capability_is_requested_when_ergo_advertises_it() {
+        assert_cap_request(
+            Builder::new("ircs://irc.example.net").request_caps(["vendor.example/network-state"]),
+            "account-tag vendor.example/network-state",
+            "account-tag vendor.example/network-state",
+        )
+        .await;
+    }
+
     #[cfg(not(feature = "unstable"))]
     #[test]
     fn unstable_capabilities_record_the_cargo_feature_error() {
@@ -1149,7 +1174,42 @@ mod tests {
 
     #[cfg(feature = "unstable")]
     #[tokio::test(flavor = "current_thread")]
+    #[allow(clippy::too_many_lines)]
     async fn enables_unstable_features_and_bouncer_selection_before_connecting() {
+        let known = Builder::new("ircs://irc.example.net").request_caps(["draft/persistence"]);
+        assert_eq!(
+            known.invalid_input,
+            Some(InvalidInput::KnownCapability {
+                capability: "draft/persistence".to_owned(),
+                feature: "Persistence",
+            })
+        );
+
+        let advertised = "soju.im/bouncer-networks soju.im/bouncer-networks-notify";
+        assert_cap_request(
+            Builder::new("ircs://irc.example.net")
+                .bouncer_network(crate::NetworkId::from("libera")),
+            advertised,
+            "soju.im/bouncer-networks",
+        )
+        .await;
+        assert_cap_request(
+            Builder::new("ircs://irc.example.net")
+                .bouncer_network(crate::NetworkId::from("libera"))
+                .enable(crate::Feature::Bouncer),
+            advertised,
+            "soju.im/bouncer-networks soju.im/bouncer-networks-notify",
+        )
+        .await;
+        assert_cap_request(
+            Builder::new("ircs://irc.example.net")
+                .enable(crate::Feature::Bouncer)
+                .bouncer_network(crate::NetworkId::from("libera")),
+            advertised,
+            "soju.im/bouncer-networks soju.im/bouncer-networks-notify",
+        )
+        .await;
+
         let notify = "soju.im/bouncer-networks-notify";
         let management = Builder::new("ircs://irc.example.net").enable(crate::Feature::Bouncer);
         assert!(
