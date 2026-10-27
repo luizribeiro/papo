@@ -5288,9 +5288,38 @@ mod tests {
     use papo_proto::{Casemapping, Line, LineRef};
 
     use super::{
-        CloseKind, Config, Event, ListMode, NameKey, Outbox, RequestId, ResponseMatcher, Session,
-        State, UnlabelledRequest,
+        Authorship, CloseKind, Config, Event, ListMode, MultilineMessage, NameKey, Outbox,
+        ReceivedLine, ReplyToken, RequestId, ResponseMatcher, Session, State, UnlabelledRequest,
     };
+
+    fn unmarked_received_mode() -> ReceivedLine {
+        ReceivedLine {
+            line: Line::new("MODE")
+                .with_params(["#staff", "+k", "staff-key-8732"])
+                .with_source("operator!~o@services.example"),
+            batch_type: None,
+            authorship: Authorship::Other,
+            conversation: None,
+            status: None,
+            channel_context: None,
+            reply_token: ReplyToken {
+                origin: papo_proto::Origin::NONE,
+                epoch: 0,
+                sequence: 0,
+            },
+        }
+    }
+
+    fn session_with_channel_modes() -> Session {
+        let now = std::time::Instant::now();
+        let mut session = Session::new(Config::default().nick("papo"));
+        session.handle_line(
+            now,
+            b":ergo.test 005 papo CHANMODES=beI,k,l,imnst :are supported",
+        );
+        while session.poll_event().is_some() {}
+        session
+    }
 
     #[test]
     fn name_keys_compare_folded_irc_names() {
@@ -5328,6 +5357,42 @@ mod tests {
         assert_eq!(additional.nick, "alice");
         assert_eq!(config.metadata_subscriptions, ["example.org/color"]);
         assert!(config.registration_on_connect.is_some());
+    }
+
+    #[test]
+    fn polling_a_received_mode_line_redacts_its_channel_key() {
+        let mut session = session_with_channel_modes();
+        session.outbox.event(Event::Line(unmarked_received_mode()));
+
+        let Some(Event::Line(received)) = session.poll_event() else {
+            panic!("expected line event")
+        };
+        let line = received.into_line();
+        assert_eq!(
+            format!("{line:?}"),
+            ":operator!~o@services.example MODE #staff +k <redacted>"
+        );
+        assert!(line.encode().unwrap().__has_secret_parameter());
+    }
+
+    #[test]
+    fn polling_a_multiline_event_redacts_its_channel_key() {
+        let mut session = session_with_channel_modes();
+        let mut message = unmarked_received_mode();
+        message.batch_type = Some("draft/multiline".to_owned());
+        session
+            .outbox
+            .event(Event::MultilineMessage(MultilineMessage { message }));
+
+        let Some(Event::MultilineMessage(multiline)) = session.poll_event() else {
+            panic!("expected multiline event")
+        };
+        let line = multiline.message.into_line();
+        assert_eq!(
+            format!("{line:?}"),
+            ":operator!~o@services.example MODE #staff +k <redacted>"
+        );
+        assert!(line.encode().unwrap().__has_secret_parameter());
     }
 
     #[test]
