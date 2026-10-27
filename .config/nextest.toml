@@ -6,6 +6,8 @@ filter = 'binary(/^live_/) | (binary(=papo) & test(/^transport::(live|websocket:
 test-group = 'local-server'
 
 [profile.mutants]
+# cargo-mutants tests a copy without .git, where the tracked-examples check cannot run.
+default-filter = 'not test(=crate_doc_examples_are_tracked)'
 
 # cargo-mutants selects this profile with NEXTEST_PROFILE=mutants.
 [[profile.mutants.overrides]]
