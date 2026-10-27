@@ -14,8 +14,8 @@ use tokio::sync::mpsc;
 
 use super::{
     BackoffEntropy, BoxConnection, Command, ConnectFuture, ConnectWait, ConnectionEnd,
-    ConnectionPlan, Connector, EventSink, PostConnect, SLOW_CONSUMER_REASON, STABLE_CONNECTION,
-    StsActions, enqueue_event, finish, now, run_connection,
+    ConnectionPlan, Connector, EventSink, PostConnect, STABLE_CONNECTION, StsActions,
+    enqueue_event, finish, now, run_connection,
 };
 #[cfg(sockets)]
 use crate::address::Protocol;
@@ -113,16 +113,14 @@ pub(super) async fn run_plan(
         sts_required |= !base_plan.address.is_secure() && plan.address.is_secure();
         let phase = crate::ConnectPhase::from_core(papo_core::ConnectPhase::Transport)
             .expect("transport is a public connection phase");
-        if !enqueue_event(
+        enqueue_event(
             &events,
             &mut pending_events,
             Event::Connecting(crate::event::Connecting {
                 attempt: attempts,
                 phase,
             }),
-        ) {
-            return finish_slow_consumer(events, &mut registration, pending_events);
-        }
+        );
         let (progress, progress_events) = mpsc::unbounded_channel();
         let stream = match connect_or_wait(
             connector(plan.clone(), progress),
@@ -146,9 +144,6 @@ pub(super) async fn run_plan(
             ConnectionAttempt::Stop => {
                 finish_requested(events, pending_events);
                 return Ok(());
-            }
-            ConnectionAttempt::SlowConsumer => {
-                return finish_slow_consumer(events, &mut registration, pending_events);
             }
             ConnectionAttempt::Failed(error) => {
                 return finish_connection_failure(events, &mut registration, error);
@@ -176,7 +171,7 @@ pub(super) async fn run_plan(
             .take()
             .expect("planned connections retain their STS store");
         reschedule_stored_policy(sts_store.as_ref(), &plan.address.host);
-        let (mut end, upgrade_port) = match triage_connection_end(
+        let (end, upgrade_port) = match triage_connection_end(
             end,
             &plan,
             registration.0.is_some(),
@@ -207,14 +202,8 @@ pub(super) async fn run_plan(
             retry_delay(reconnect, attempts, refused, entropy.as_mut())
         };
         let disconnected = super::disconnected_event(&end.error, Some(reconnect_in));
-        if matches!(disconnected.cause, crate::DisconnectCause::SlowConsumer) {
-            end.pending_events.clear();
-        }
         last_disconnect = Some(disconnected.cause.clone());
-        pending_events = match enqueue_retry_event(&events, end, disconnected.clone()) {
-            Ok(pending) => pending,
-            Err(end) => return finish(events, *end, false),
-        };
+        pending_events = enqueue_retry_event(&events, end, disconnected.clone());
         if upgrade_port.is_some() || reconnect_now {
             continue;
         }
@@ -239,17 +228,13 @@ fn enqueue_retry_event(
     events: &EventSink,
     mut end: ConnectionEnd,
     disconnected: crate::Disconnected,
-) -> Result<VecDeque<Event>, Box<ConnectionEnd>> {
-    if enqueue_event(
+) -> VecDeque<Event> {
+    enqueue_event(
         events,
         &mut end.pending_events,
         Event::Disconnected(disconnected),
-    ) {
-        return Ok(end.pending_events);
-    }
-    SLOW_CONSUMER_REASON.clone_into(&mut end.reason);
-    end.error = Error::disconnected_slow_consumer();
-    Err(Box::new(end))
+    );
+    end.pending_events
 }
 
 fn initial_connection_plan(
@@ -362,7 +347,6 @@ enum ConnectionAttempt {
     Retry,
     Stop,
     Failed(Error),
-    SlowConsumer,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -396,7 +380,6 @@ async fn connect_or_wait(
     {
         DisconnectedWait::Complete(result) => result,
         DisconnectedWait::Stop => return ConnectionAttempt::Stop,
-        DisconnectedWait::SlowConsumer => return ConnectionAttempt::SlowConsumer,
     };
     let error = match result {
         Ok(stream) => return ConnectionAttempt::Connected(stream),
@@ -422,13 +405,11 @@ async fn connect_or_wait(
     let reconnect_in = retry_delay(reconnect, attempts, false, entropy);
     let disconnected = super::disconnected_event(&error, Some(reconnect_in));
     *last_disconnect = Some(disconnected.cause.clone());
-    if !enqueue_event(
+    enqueue_event(
         events,
         pending_events,
         Event::Disconnected(disconnected.clone()),
-    ) {
-        return ConnectionAttempt::SlowConsumer;
-    }
+    );
     if wait_before_retry(commands, defaults, disconnected).await {
         ConnectionAttempt::Retry
     } else {
@@ -471,30 +452,6 @@ fn finish_connection_failure(
             sts: StsActions::default(),
             sts_store: None,
             pending_events: VecDeque::new(),
-            reconnect_now: false,
-        },
-        false,
-    )
-}
-
-fn finish_slow_consumer(
-    events: EventSink,
-    registration: &mut ConnectWait,
-    pending_events: VecDeque<Event>,
-) -> Result<(), Error> {
-    registration.failed(Error::disconnected_slow_consumer());
-    finish(
-        events,
-        ConnectionEnd {
-            reason: SLOW_CONSUMER_REASON.to_owned(),
-            error: Error::disconnected_slow_consumer(),
-            close_kind: None,
-            quit: None,
-            quit_timed_out: false,
-            registered_at: None,
-            sts: StsActions::default(),
-            sts_store: None,
-            pending_events,
             reconnect_now: false,
         },
         false,
@@ -608,7 +565,6 @@ pub(super) fn is_fatal_failure(error: &Error, close_kind: Option<papo_core::Clos
 enum DisconnectedWait {
     Complete(Result<BoxConnection, Error>),
     Stop,
-    SlowConsumer,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -638,22 +594,18 @@ async fn connect_while_disconnected(
                 let Some(phase) = crate::ConnectPhase::from_core(phase) else {
                     continue;
                 };
-                if !enqueue_event(events, pending_events, Event::Connecting(
+                enqueue_event(events, pending_events, Event::Connecting(
                     crate::event::Connecting { attempt, phase },
-                )) {
-                    return DisconnectedWait::SlowConsumer;
-                }
+                ));
             }
             result = &mut connection => {
                 while let Ok(phase) = progress.try_recv() {
                     let Some(phase) = crate::ConnectPhase::from_core(phase) else {
                         continue;
                     };
-                    if !enqueue_event(events, pending_events, Event::Connecting(
+                    enqueue_event(events, pending_events, Event::Connecting(
                         crate::event::Connecting { attempt, phase },
-                    )) {
-                        return DisconnectedWait::SlowConsumer;
-                    }
+                    ));
                 }
                 return DisconnectedWait::Complete(result);
             }

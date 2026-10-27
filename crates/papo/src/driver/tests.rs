@@ -2733,6 +2733,47 @@ async fn failed_connect_events_use_the_preconnect_allowance() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn reconnect_storm_drops_oldest_events_and_keeps_retrying() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let connector: super::Connector = Arc::new({
+        let calls = Arc::clone(&calls);
+        move |_, _| {
+            calls.fetch_add(1, Ordering::Relaxed);
+            Box::pin(async { Err(transport_failure("scripted connection failure")) })
+        }
+    });
+    let (client, mut events, driver) = Driver::with_connector_and_entropy(
+        Ok(ConnectionPlan {
+            address: "irc://irc.example.net".parse().unwrap(),
+            tls: TlsConfig::default(),
+        }),
+        Session::new(config()),
+        1,
+        None,
+        super::PostConnect::default(),
+        Reconnect::exponential()
+            .initial_delay(Duration::from_millis(1))
+            .max_delay(Duration::from_millis(1)),
+        Box::new(papo_core::sts::MemoryStsStore::new()),
+        connector,
+        Box::new(|| 0),
+    );
+    let driver = tokio::spawn(driver);
+
+    while calls.load(Ordering::Relaxed) < 17 {
+        tokio::time::advance(Duration::from_millis(1)).await;
+        tokio::task::yield_now().await;
+    }
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Lagged(crate::event::Lagged { dropped: 1 }))
+    ));
+
+    within(client.quit("")).await.unwrap();
+    assert!(within(driver).await.unwrap().is_ok());
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn failed_connects_report_a_doubling_backoff_until_the_cap() {
     let attempts = Arc::new(AtomicUsize::new(0));
     let connector: super::Connector = Arc::new({
@@ -7969,11 +8010,11 @@ fn held_events_drop_the_oldest_with_a_closed_receiver() {
     channels.events.receiver.inner.lock().unwrap().close();
     let mut pending = VecDeque::new();
     for text in ["first deployment", "second deployment"] {
-        assert!(super::hold_event(
+        super::hold_event(
             &channels.event_sink,
             &mut pending,
             Event::Message(crate::__testing::message(None, "#papo", text, false)),
-        ));
+        );
     }
     assert_eq!(pending.len(), 1);
     assert_eq!(

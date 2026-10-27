@@ -633,10 +633,6 @@ impl Error {
         }
     }
 
-    pub(crate) const fn disconnected_slow_consumer() -> Self {
-        Self::Disconnected(Disconnected::new(DisconnectCause::SlowConsumer, None))
-    }
-
     pub(crate) const fn disconnected_requested() -> Self {
         Self::Disconnected(Disconnected::new(
             DisconnectCause::Requested {

@@ -56,8 +56,6 @@ pub(crate) const DEFAULT_CHANNEL_CAPACITY: usize = 1024;
 const QUIT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 const STABLE_CONNECTION: Duration = Duration::from_secs(60);
 const MAX_REJOIN_CHANNELS: usize = 10_000;
-#[allow(dead_code)]
-pub(super) const SLOW_CONSUMER_REASON: &str = "SlowConsumer";
 
 type BoxConnection = Box<dyn Io>;
 type ConnectFuture = BoxFuture<Result<BoxConnection, Error>>;
@@ -1781,28 +1779,27 @@ fn rejoin_retained_start(channel_count: usize) -> usize {
     channel_count.saturating_sub(MAX_REJOIN_CHANNELS)
 }
 
-fn enqueue_event(events: &EventSink, pending: &mut VecDeque<Event>, event: Event) -> bool {
+fn enqueue_event(events: &EventSink, pending: &mut VecDeque<Event>, event: Event) {
     if !pending.is_empty() {
-        return hold_event(events, pending, event);
+        hold_event(events, pending, event);
+        return;
     }
-    send_event(events, event)
+    send_event(events, event);
 }
 
-fn hold_event(events: &EventSink, pending: &mut VecDeque<Event>, event: Event) -> bool {
+fn hold_event(events: &EventSink, pending: &mut VecDeque<Event>, event: Event) {
     if pending.len() == events.receiver.capacity {
         pending.pop_front();
         events.dropped.fetch_add(1, Ordering::Relaxed);
     }
     pending.push_back(event);
-    true
 }
 
-fn send_event(events: &EventSink, event: Event) -> bool {
+fn send_event(events: &EventSink, event: Event) {
     if events.receiver.discard_oldest_if_full() {
         events.dropped.fetch_add(1, Ordering::Relaxed);
     }
     _ = events.regular.try_send(event);
-    true
 }
 
 fn resolve_sync_waiters(
