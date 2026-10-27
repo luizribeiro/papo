@@ -1,8 +1,9 @@
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, DuplexStream},
     sync::mpsc::UnboundedReceiver,
-    task::JoinHandle,
 };
+
+use crate::driver_task::DriverTask;
 
 const MAX_LINE_LEN: usize = 8191 + 512;
 
@@ -11,7 +12,7 @@ pub struct Wire {
     stream: Option<DuplexStream>,
     endpoint: Option<String>,
     connections: UnboundedReceiver<(DuplexStream, String)>,
-    driver: JoinHandle<Result<(), papo::Error>>,
+    driver: DriverTask,
 }
 
 impl std::fmt::Debug for Wire {
@@ -27,7 +28,7 @@ impl std::fmt::Debug for Wire {
 #[must_use]
 pub fn wire(builder: papo::Builder) -> (papo::Client, papo::Events, Wire) {
     let (client, events, driver, connections) = papo::__testing::wire_client(builder);
-    let driver = tokio::spawn(driver);
+    let driver = DriverTask::spawn(driver);
     (
         client,
         events,

@@ -723,6 +723,7 @@ dependencies = [
  "papo",
  "papo-core",
  "tokio",
+ "wasm-bindgen-futures",
 ]
 
 [[package]]

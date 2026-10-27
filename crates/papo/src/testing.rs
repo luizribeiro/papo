@@ -1,4 +1,4 @@
-//! Internal construction hooks for the unpublished `papo-testing` crate.
+//! Internal construction hooks for the version-matched `papo-testing` crate.
 
 use std::{sync::Arc, time::SystemTime};
 

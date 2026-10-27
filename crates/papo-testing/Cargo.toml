@@ -5,14 +5,26 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 version.workspace = true
-publish = false
+publish = true
+description = "Offline wire fixtures and value builders for testing papo applications"
+readme = "README.md"
+keywords = ["irc", "ircv3", "testing", "tokio"]
+categories = ["development-tools::testing", "network-programming"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-papo = { path = "../papo", version = "=0.1.0", default-features = false, features = ["tls-ring", "unstable"] }
-tokio = { version = "1.53.3", features = ["io-util", "macros", "rt", "test-util", "time"] }
+papo = { path = "../papo", version = "=0.1.0", default-features = false }
+tokio = { version = "1.53.3", features = ["io-util", "macros", "rt", "sync", "test-util", "time"] }
+
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+wasm-bindgen-futures = "0.4.79"
 
 [dev-dependencies]
 base64 = { version = "0.22.1", default-features = false, features = ["alloc"] }
+papo = { path = "../papo", version = "=0.1.0", default-features = false, features = ["tls-ring", "unstable"] }
 papo-core = { path = "../papo-core", version = "=0.1.0" }
 
 [lints]
