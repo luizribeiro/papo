@@ -2695,7 +2695,8 @@ impl papo::Tags
 pub fn papo::Tags::contains(&self, &str) -> bool
 pub fn papo::Tags::get(&self, &str) -> core::option::Option<&str>
 pub const fn papo::Tags::is_empty(&self) -> bool
-pub fn papo::Tags::iter(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = (&str, &str)>
+pub fn papo::Tags::iter(&self) -> papo::TagsIter<'_>
+pub const fn papo::Tags::len(&self) -> usize
 impl core::clone::Clone for papo::Tags
 pub fn papo::Tags::clone(&self) -> Self
 impl core::cmp::Eq for papo::Tags
@@ -2705,6 +2706,10 @@ impl core::default::Default for papo::Tags
 pub fn papo::Tags::default() -> Self
 impl core::fmt::Debug for papo::Tags
 pub fn papo::Tags::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::iter::traits::collect::IntoIterator for &'a papo::Tags
+pub type &'a papo::Tags::IntoIter = papo::TagsIter<'a>
+pub type &'a papo::Tags::Item = (&'a str, &'a str)
+pub fn &'a papo::Tags::into_iter(self) -> Self::IntoIter
 impl core::marker::Freeze for papo::Tags
 impl core::marker::Send for papo::Tags
 impl core::marker::Sync for papo::Tags
@@ -2712,6 +2717,23 @@ impl core::marker::Unpin for papo::Tags
 impl core::marker::UnsafeUnpin for papo::Tags
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Tags
 impl core::panic::unwind_safe::UnwindSafe for papo::Tags
+pub struct papo::TagsIter<'a>(_)
+impl core::iter::traits::exact_size::ExactSizeIterator for papo::TagsIter<'_>
+impl<'a> core::clone::Clone for papo::TagsIter<'a>
+pub fn papo::TagsIter<'a>::clone(&self) -> Self
+impl<'a> core::fmt::Debug for papo::TagsIter<'a>
+pub fn papo::TagsIter<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::iter::traits::iterator::Iterator for papo::TagsIter<'a>
+pub type papo::TagsIter<'a>::Item = (&'a str, &'a str)
+pub fn papo::TagsIter<'a>::next(&mut self) -> core::option::Option<Self::Item>
+pub fn papo::TagsIter<'a>::size_hint(&self) -> (usize, core::option::Option<usize>)
+impl<'a> core::marker::Freeze for papo::TagsIter<'a>
+impl<'a> core::marker::Send for papo::TagsIter<'a>
+impl<'a> core::marker::Sync for papo::TagsIter<'a>
+impl<'a> core::marker::Unpin for papo::TagsIter<'a>
+impl<'a> core::marker::UnsafeUnpin for papo::TagsIter<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo::TagsIter<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo::TagsIter<'a>
 #[non_exhaustive] pub struct papo::UserSource
 impl papo::UserSource
 pub const fn papo::UserSource::account(&self) -> &papo::Account

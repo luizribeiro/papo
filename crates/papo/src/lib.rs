@@ -194,7 +194,9 @@ pub use driver::{Driver, Events};
 pub use error::{
     ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, ServerError,
 };
-pub use event_impl::{Authorship, Event, Message, MessageKind, Oper, Source, Tags, UserSource};
+pub use event_impl::{
+    Authorship, Event, Message, MessageKind, Oper, Source, Tags, TagsIter, UserSource,
+};
 pub use ext::accounts::{AccountCreation, NewAccount};
 pub use ext::history::{
     History, HistoryPage, HistoryReason, HistoryReference, HistoryRequest, RecentConversation,

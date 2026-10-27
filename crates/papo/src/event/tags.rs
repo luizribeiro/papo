@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, slice};
 
 use papo_proto::LineRef;
 
@@ -8,6 +8,26 @@ use papo_proto::LineRef;
 /// equality compares those effective values without considering wire order.
 #[derive(Clone, Default)]
 pub struct Tags(Vec<(String, Option<String>)>);
+
+/// An iterator over IRC message tags in wire order.
+#[derive(Clone, Debug)]
+pub struct TagsIter<'a>(slice::Iter<'a, (String, Option<String>)>);
+
+impl<'a> Iterator for TagsIter<'a> {
+    type Item = (&'a str, &'a str);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0
+            .next()
+            .map(|(key, value)| (key.as_str(), value.as_deref().unwrap_or("")))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
+    }
+}
+
+impl ExactSizeIterator for TagsIter<'_> {}
 
 impl Tags {
     /// Returns the last value for the case-sensitive `key`.
@@ -33,10 +53,14 @@ impl Tags {
     /// A tag without a value has an empty value, matching [`Self::get`]. Duplicate keys remain
     /// visible.
     #[must_use]
-    pub fn iter(&self) -> impl ExactSizeIterator<Item = (&str, &str)> {
-        self.0
-            .iter()
-            .map(|(key, value)| (key.as_str(), value.as_deref().unwrap_or("")))
+    pub fn iter(&self) -> TagsIter<'_> {
+        TagsIter(self.0.iter())
+    }
+
+    /// Returns the number of tags, including duplicate keys.
+    #[must_use]
+    pub const fn len(&self) -> usize {
+        self.0.len()
     }
 
     /// Reports whether no tags were supplied.
@@ -79,6 +103,15 @@ impl PartialEq for Tags {
 
 impl Eq for Tags {}
 
+impl<'a> IntoIterator for &'a Tags {
+    type Item = (&'a str, &'a str);
+    type IntoIter = TagsIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
 #[cfg(all(test, not(browser)))]
 mod tests {
     use papo_proto::LineRef;
@@ -104,10 +137,13 @@ mod tests {
         assert!(!tags.contains("missing"));
         assert!(!tags.is_empty());
         assert!(Tags::default().is_empty());
+        assert_eq!(tags.len(), 5);
+        assert_eq!(Tags::default().len(), 0);
         assert!(format!("{tags:?}").contains("account"));
         assert_eq!(tags.iter().count(), 5);
         assert_eq!(tags.iter().nth(1), Some(("draft/label", "old")));
         assert_eq!(tags.iter().nth(2), Some(("bot", "")));
+        assert_eq!((&tags).into_iter().next(), Some(("account", "alice")));
     }
 
     #[test]

@@ -41,7 +41,7 @@ pub use papo_core::{BatchAbandonReason, TypingReason};
 pub use server::BouncerNetworkChanged;
 pub use server::{AutoJoinFailed, MetadataChanged, Warning};
 pub use source::{Source, UserSource};
-pub use tags::Tags;
+pub use tags::{Tags, TagsIter};
 pub use user::{
     AccountChanged, AwayChanged, HostChanged, MonitorOffline, MonitorOnline, NickChanged, Quit,
     RealnameChanged, SplitServers,
