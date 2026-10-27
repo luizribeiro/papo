@@ -320,6 +320,7 @@ mod name_argument {
 #[doc(hidden)]
 pub struct NameParts<'a> {
     text: Cow<'a, str>,
+    folded: Option<(&'a str, Casemapping)>,
     origin: Origin,
 }
 
@@ -330,6 +331,7 @@ impl NameParts<'_> {
     pub fn into_owned(self) -> NameParts<'static> {
         NameParts {
             text: Cow::Owned(self.text.into_owned()),
+            folded: None,
             origin: self.origin,
         }
     }
@@ -346,6 +348,16 @@ impl NameParts<'_> {
     #[must_use]
     pub const fn origin(&self) -> Origin {
         self.origin
+    }
+
+    /// Returns text folded under `casemapping`.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __folded(&self, casemapping: Casemapping) -> Cow<'_, str> {
+        match self.folded {
+            Some((folded, stored)) if stored == casemapping => Cow::Borrowed(folded),
+            _ => casemapping.fold(&self.text),
+        }
     }
 }
 
@@ -369,7 +381,11 @@ macro_rules! typed_name_argument {
         $(
             impl name_argument::Sealed for $ty {
                 fn parts(&self) -> NameParts<'_> {
-                    NameParts { text: Cow::Borrowed(self.as_ref()), origin: self.origin() }
+                    NameParts {
+                        text: Cow::Borrowed(self.as_ref()),
+                        folded: Some((&self.folded, self.casemapping)),
+                        origin: self.origin(),
+                    }
                 }
             }
         )+
@@ -399,7 +415,11 @@ macro_rules! text_name_argument {
         $(
             impl name_argument::Sealed for $ty {
                 fn parts(&self) -> NameParts<'_> {
-                    NameParts { text: Cow::Borrowed(self.as_ref()), origin: Origin::NONE }
+                    NameParts {
+                        text: Cow::Borrowed(self.as_ref()),
+                        folded: None,
+                        origin: Origin::NONE,
+                    }
                 }
             }
         )+
@@ -729,6 +749,21 @@ mod tests {
         let owned_channel_parts = channel_parts.into_owned();
         assert_eq!(owned_channel_parts.text(), "#papo");
         assert_eq!(owned_channel_parts.origin(), origin);
+    }
+
+    #[test]
+    fn typed_name_parts_reuse_matching_folded_text() {
+        let nick = Casemapping::Rfc1459.nick("EMILY[");
+        let parts = AsNick::__parts(&nick);
+
+        assert!(matches!(
+            parts.__folded(Casemapping::Rfc1459),
+            std::borrow::Cow::Borrowed("emily{")
+        ));
+        assert!(matches!(
+            parts.__folded(Casemapping::Ascii),
+            std::borrow::Cow::Owned(ref folded) if folded == "emily["
+        ));
     }
 
     #[test]
