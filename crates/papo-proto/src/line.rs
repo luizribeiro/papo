@@ -812,7 +812,47 @@ impl FromStr for Line {
 
 impl fmt::Display for Line {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.encode().map_err(|_| fmt::Error)?.fmt(formatter)
+        if !self.tags.is_empty() {
+            formatter.write_str("@")?;
+            for (index, (key, value)) in self.tags.iter().enumerate() {
+                if index != 0 {
+                    formatter.write_str(";")?;
+                }
+                formatter.write_str(key)?;
+                if let Some(value) = value {
+                    formatter.write_str("=")?;
+                    formatter.write_str(&escape_tag_value(value))?;
+                }
+            }
+            formatter.write_str(" ")?;
+        }
+        if let Some(source) = &self.source {
+            write!(formatter, ":{source} ")?;
+        }
+        formatter.write_str(&self.command)?;
+
+        let cap_req = self.command.eq_ignore_ascii_case("CAP")
+            && self
+                .params
+                .first()
+                .is_some_and(|param| param.as_str().eq_ignore_ascii_case("REQ"));
+        let mut params = self.params.iter().peekable();
+        while let Some(param) = params.next() {
+            formatter.write_str(" ")?;
+            if params.peek().is_none() && (needs_trailing_prefix(param.as_str()) || cap_req) {
+                formatter.write_str(":")?;
+            }
+            if param.is_secret() {
+                if self.command.eq_ignore_ascii_case("AUTHENTICATE") {
+                    write!(formatter, "<redacted, {} bytes>", param.len())?;
+                } else {
+                    formatter.write_str("<redacted>")?;
+                }
+            } else {
+                formatter.write_str(param.as_str())?;
+            }
+        }
+        Ok(())
     }
 }
 

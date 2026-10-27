@@ -46,6 +46,24 @@ async fn connected(events: &mut Events) {
     while !matches!(next_active_event(events).await, papo::Event::Connected(_)) {}
 }
 
+#[tokio::test]
+async fn server_sized_tags_are_safe_to_format_through_events() {
+    let (_client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://hostile.offline.test", "papo")
+            .rate_limit(papo::RateLimit::unlimited()),
+    );
+    wire.register(&["message-tags"]).await;
+    connected(&mut events).await;
+    wire.server(format!(
+        "@+example.org/blob={} :ergo.test 999 papo :hello from hostile server",
+        "a".repeat(4500)
+    ))
+    .await;
+
+    let event = next_active_event(&mut events).await;
+    assert!(format!("{event:?}").contains("999 papo :hello"));
+}
+
 async fn client_pair(caps: &[&str]) -> (ClientPair, ClientPair) {
     let make = |endpoint, nick| {
         wire(

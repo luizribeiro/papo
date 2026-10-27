@@ -1050,6 +1050,19 @@ fn enforces_client_tag_data_length_at_the_byte_boundary() {
 }
 
 #[test]
+fn received_lines_with_server_sized_tags_are_always_formattable() {
+    let wire = format!(
+        "@+example.org/blob={} :ergo.test 999 papo :hello from hostile server",
+        "a".repeat(4500)
+    );
+    let line = wire.parse::<Line>().unwrap();
+
+    let debug = format!("{line:?}");
+    assert!(debug.contains("999 papo :hello"));
+    assert_eq!(debug, wire);
+}
+
+#[test]
 fn enforces_serialized_body_length_at_the_byte_boundary() {
     let body_prefix = ":soju.example PRIVMSG #papo :deployment ";
     assert_eq!(body_prefix.len(), 40);

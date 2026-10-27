@@ -102,6 +102,7 @@ ids = [
   "security.adv-7.private-line-recipient-guards",
   "security.adv-8.metadata-nick-handoff",
   "security.adv-12.recipient-identity",
+  "security.adv-16.infallible-line-formatting",
   "security.bouncer.required-capability", "security.bouncer.binding-confirmation",
   "security.bouncer.deleted-network-fatal",
   "security.bouncer.single-notification",
