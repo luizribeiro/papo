@@ -131,8 +131,7 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 - `nickname_collision_race` (`4.12.1`) — InspIRCd serializes simultaneous local nickname claims and returns 433 rather than 436 ([spec](https://modern.ircdocs.horse/#nick-message)). Evidence: `C: NICK race-review from two clients | S: 433 race-review`
 - `whois_host_certificate` (`4.12.1`) — InspIRCd returns nonstandard host numeric 338 rather than WHOIS host or certificate numeric 378 or 276 ([spec](https://modern.ircdocs.horse/#whois-message)). Evidence: `C: WHOIS review | S: 338 review ...; 318 review`
 
-### Fixture limits
-- `topic` (`4.12.1`) — InspIRCd applies topic-change flood protection and returns 437 to the immediate update ([spec](https://modern.ircdocs.horse/#topic-message)). Evidence: `C: TOPIC #review :Reviewing IRC topic synchronization | S: 437 #review`
+### Fixture limits (none recorded)
 
 ### Observations
 - **Chat history end** (`4.12.1`) — The fixture does not advertise chat history, so no end signal is available. Evidence: `S: CAP LS omits chathistory and draft/chathistory`
