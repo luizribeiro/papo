@@ -87,14 +87,22 @@ fn multiline_classification_survives_a_nick_change_before_polling() {
 fn multiline_over_advertised_max_bytes_is_released() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().max_batch_lines(2));
-    session.handle_line(now, b"CAP * LS :batch draft/multiline=max-bytes=10");
+    session.handle_line(now, b"CAP * LS :batch draft/multiline=max-bytes=512");
     session.handle_line(now, b"CAP * ACK :batch draft/multiline");
     session.handle_line(now, b"BATCH +m draft/multiline #papo");
-    session.handle_line(now, b"@batch=m :alice PRIVMSG #papo :12345");
-    session.handle_line(now, b"@batch=m :alice PRIVMSG #papo :67890");
+    let first = "a".repeat(256);
+    let second = "b".repeat(256);
+    session.handle_line(
+        now,
+        format!("@batch=m :alice PRIVMSG #papo :{first}").as_bytes(),
+    );
+    session.handle_line(
+        now,
+        format!("@batch=m :alice PRIVMSG #papo :{second}").as_bytes(),
+    );
 
-    assert_eq!(line(&mut session).as_ref().param(1), Some("12345"));
-    assert_eq!(line(&mut session).as_ref().param(1), Some("67890"));
+    assert_eq!(line(&mut session).as_ref().param(1), Some(first.as_str()));
+    assert_eq!(line(&mut session).as_ref().param(1), Some(second.as_str()));
     assert!(matches!(
         session.poll_event(),
         Some(Event::BatchAbandoned { reference, batch_type, reason, .. })
@@ -117,12 +125,33 @@ fn multiline_session(now: Instant, max_bytes: usize, max_lines: usize) -> Sessio
 #[test]
 fn multiline_accepts_exact_byte_boundaries() {
     let now = Instant::now();
-    for (max_bytes, lines, expected) in [
-        (5, vec![("12345", false)], "12345"),
-        (10, vec![("12345", false), ("67890", true)], "1234567890"),
-        (10, vec![("1234", false), ("56789", false)], "1234\n56789"),
-    ] {
-        let mut session = multiline_session(now, max_bytes, 10);
+    for (case, (lines, expected)) in [
+        (
+            vec![
+                ("a".repeat(170), false),
+                ("b".repeat(170), false),
+                ("c".repeat(170), false),
+            ],
+            format!(
+                "{}\n{}\n{}",
+                "a".repeat(170),
+                "b".repeat(170),
+                "c".repeat(170)
+            ),
+        ),
+        (
+            vec![("a".repeat(256), false), ("b".repeat(256), true)],
+            format!("{}{}", "a".repeat(256), "b".repeat(256)),
+        ),
+        (
+            vec![("a".repeat(255), false), ("b".repeat(256), false)],
+            format!("{}\n{}", "a".repeat(255), "b".repeat(256)),
+        ),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let mut session = multiline_session(now, 512, 10);
         session.handle_line(now, b"BATCH +m draft/multiline #papo");
         for (text, concat) in lines {
             let tag = if concat {
@@ -136,18 +165,22 @@ fn multiline_accepts_exact_byte_boundaries() {
             );
         }
         session.handle_line(now, b"BATCH -m");
-        assert!(matches!(
-            session.poll_event(),
-            Some(Event::MultilineMessage(multiline))
-                if multiline.message.as_ref().param(1) == Some(expected)
-        ));
+        let event = session.poll_event();
+        assert!(
+            matches!(
+                event,
+                Some(Event::MultilineMessage(ref multiline))
+                    if multiline.message.as_ref().param(1) == Some(expected.as_str())
+            ),
+            "boundary case {case}: {event:?}"
+        );
     }
 }
 
 #[test]
 fn multiline_accepts_the_line_limit_and_abandons_one_over() {
     let now = Instant::now();
-    let mut exact = multiline_session(now, 100, 2);
+    let mut exact = multiline_session(now, 512, 2);
     exact.handle_line(now, b"BATCH +m draft/multiline #papo");
     exact.handle_line(now, b"@batch=m :alice PRIVMSG #papo :one");
     exact.handle_line(now, b"@batch=m :alice PRIVMSG #papo :two");
@@ -158,7 +191,7 @@ fn multiline_accepts_the_line_limit_and_abandons_one_over() {
             if multiline.message.as_ref().param(1) == Some("one\ntwo")
     ));
 
-    let mut over = multiline_session(now, 100, 2);
+    let mut over = multiline_session(now, 512, 2);
     over.handle_line(now, b"BATCH +m draft/multiline #papo");
     for text in ["one", "two", "three"] {
         over.handle_line(
@@ -190,7 +223,7 @@ fn malformed_multiline_member_shapes_are_not_aggregated() {
         ],
         vec!["@batch=m :alice PRIVMSG #papo"],
     ] {
-        let mut session = multiline_session(now, 100, 10);
+        let mut session = multiline_session(now, 512, 10);
         session.handle_line(now, b"BATCH +m draft/multiline #papo");
         for line in lines {
             session.handle_line(now, line.as_bytes());
