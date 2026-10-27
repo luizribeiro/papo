@@ -5614,8 +5614,11 @@ async fn mode_helpers_await_every_command_and_return_refusals() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn channel_key_mode_results_are_typed_and_redacted() {
-    let (mut server, client, mut events, driver) =
-        scripted(config().wanted_caps(["labeled-response"]));
+    let (mut server, client, mut events, driver) = scripted(
+        config()
+            .allow_insecure_auth(true)
+            .wanted_caps(["labeled-response"]),
+    );
     let driver = tokio::spawn(driver);
     complete_connect_labelled(&mut server, &mut events).await;
     server_line(
@@ -5633,10 +5636,9 @@ async fn channel_key_mode_results_are_typed_and_redacted() {
     })
     .await;
 
-    let modes = tokio::spawn({
-        let client = client.clone();
-        async move { client.mode("#staff").add_with('k', "hunter2").await }
-    });
+    let request = client.mode("#staff").add_with('k', "hunter2");
+    assert!(!format!("{request:?}").contains("hunter2"));
+    let modes = tokio::spawn(async move { request.await });
     client_line(&mut server, b"@label=0 MODE #staff +k hunter2\r\n").await;
     server_line(
         &mut server,

@@ -1,7 +1,9 @@
 use std::future::IntoFuture;
 
 use papo_core::{Refusal, Response, ResponseMatcher};
-use papo_proto::{Casemapping, Command, Isupport, Line, Mask, ModeChanges, ModeKind, Nick, Source};
+use papo_proto::{
+    Casemapping, Command, Isupport, Line, Mask, ModeChanges, ModeKind, Nick, Param, Source,
+};
 
 use crate::{Client, Error, InvalidInput, ModeAction, ModeArg, ModeChange, RequestFuture};
 
@@ -354,7 +356,7 @@ impl IntoFuture for SetModes {
                 .collect::<Result<Vec<_>, _>>()?;
             let messages = encode(state.isupport().inner(), &self.target, &changes)?;
             for message in &messages {
-                message.to_line().map_err(Error::build)?;
+                message.encode().map_err(Error::build)?;
             }
             let maximum = state.isupport().modes().unwrap_or(changes.len()).max(1);
             let requested = changes
@@ -493,9 +495,12 @@ impl Change {
             }
             mode => mode,
         };
-        let arg = match self.arg {
-            Some(Argument::Ban(target)) => Some(Argument::Mask(target.resolve(state)?)),
-            other => other,
+        let arg = match (mode, self.arg) {
+            (Selector::Letter('k'), Some(Argument::Raw(value))) => {
+                Some(Argument::Secret(papo_core::Secret::new(value)))
+            }
+            (_, Some(Argument::Ban(target))) => Some(Argument::Mask(target.resolve(state)?)),
+            (_, other) => other,
         };
         Ok(Self { mode, arg, ..self })
     }
@@ -532,6 +537,7 @@ enum Selector {
 
 enum Argument {
     Raw(String),
+    Secret(papo_core::Secret),
     Nick(Nick),
     Mask(Mask),
     Ban(BanTarget),
@@ -541,6 +547,7 @@ impl Argument {
     fn text(&self) -> &str {
         match self {
             Self::Raw(value) => value,
+            Self::Secret(value) => value.expose(),
             Self::Nick(value) => value,
             Self::Mask(value) => value,
             Self::Ban(_) => unreachable!("ban targets are resolved before encoding"),
@@ -549,7 +556,7 @@ impl Argument {
 
     fn check(&self, isupport: &Isupport) -> Result<(), Error> {
         match self {
-            Self::Raw(_) => Ok(()),
+            Self::Raw(_) | Self::Secret(_) => Ok(()),
             Self::Nick(value) => value
                 .check(isupport)
                 .map_err(|reason| InvalidInput::invalid_name(value.to_string(), reason).into()),
@@ -557,6 +564,13 @@ impl Argument {
                 .check()
                 .map_err(|reason| InvalidInput::invalid_name(value.to_string(), reason).into()),
             Self::Ban(_) => unreachable!("ban targets are resolved before validation"),
+        }
+    }
+
+    fn param(&self) -> Param {
+        match self {
+            Self::Secret(value) => Param::from(value),
+            _ => Param::from(self.text()),
         }
     }
 }
@@ -580,21 +594,16 @@ pub(crate) fn encode(
         .map(|(changes, letters)| {
             let mut mode_string = String::new();
             let mut sign = None;
-            let mut params = vec![target.to_string()];
+            let mut params = vec![Param::from(target)];
             for (change, mode) in changes.iter().zip(letters) {
                 if sign != Some(change.set) {
                     mode_string.push(if change.set { '+' } else { '-' });
                     sign = Some(change.set);
                 }
                 mode_string.push(*mode);
-                params.extend(
-                    change
-                        .arg
-                        .as_ref()
-                        .map(|argument| argument.text().to_owned()),
-                );
+                params.extend(change.arg.as_ref().map(Argument::param));
             }
-            params.insert(1, mode_string);
+            params.insert(1, Param::from(mode_string));
             Ok(Line::new("MODE").with_params(params))
         })
         .collect()
@@ -927,6 +936,24 @@ mod tests {
             .map(|message| message.to_line().unwrap().trim_end().to_owned())
             .collect();
         assert_eq!(lines, ["MODE #papo +ov alice carol", "MODE #papo -m"]);
+    }
+
+    #[test]
+    fn channel_key_mode_arguments_retain_secret_provenance() {
+        let support = isupport();
+        let state = state(":ergo.test 005 papo CHANMODES=beI,k,l,imnst :are supported");
+        let change = Change {
+            set: true,
+            mode: Selector::Letter('k'),
+            arg: Some(Argument::Raw("mode-key-6294".into())),
+        }
+        .resolve(&state)
+        .unwrap();
+        let line = encode(&support, "#staff", &[change]).unwrap().remove(0);
+        let wire = line.encode().unwrap();
+
+        assert!(wire.__has_secret_parameter());
+        assert!(!format!("{wire:?}").contains("mode-key-6294"));
     }
 
     #[test]
