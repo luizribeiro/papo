@@ -1872,7 +1872,10 @@ pub(crate) fn from_core_with_receipt(
                 status: redacted.status,
                 receipt,
                 redacts: redacted.msgid.into(),
-                reason: redacted.reason.filter(|reason| !reason.is_empty()),
+                reason: redacted
+                    .reason
+                    .filter(|reason| !reason.is_empty())
+                    .map(|reason| papo_proto::display_text(&reason).into_owned()),
             })
         }
         papo_core::Event::Response(response) => return CoreEvent::Response(response),
@@ -1969,7 +1972,9 @@ pub(crate) fn from_core_with_receipt(
         papo_core::Event::Malformed { line, .. } => Event::Warning(Warning::Malformed { line }),
         papo_core::Event::Close { kind, reason, .. } => return CoreEvent::Close { kind, reason },
         papo_core::Event::AuthenticationFailed { reason, .. } => {
-            Event::Warning(Warning::AuthenticationFailed { reason })
+            Event::Warning(Warning::AuthenticationFailed {
+                reason: papo_proto::display_text(&reason).into_owned(),
+            })
         }
         papo_core::Event::CapsChanged { added, removed, .. } => {
             Event::CapsChanged(CapsChanged { added, removed })
@@ -2043,7 +2048,7 @@ pub(crate) fn from_core_with_receipt(
                 received_at: envelope.received_at,
                 actor,
                 channel,
-                reason,
+                reason: reason.map(|reason| papo_proto::display_text(&reason).into_owned()),
                 authorship: Authorship::from_core(authorship),
             })
         }
@@ -2071,7 +2076,7 @@ pub(crate) fn from_core_with_receipt(
                 actor,
                 authorship: Authorship::from_core(authorship),
                 subject_authorship: Authorship::from_core(subject_authorship),
-                reason,
+                reason: reason.map(|reason| papo_proto::display_text(&reason).into_owned()),
             })
         }
         papo_core::Event::Invited {
@@ -2121,7 +2126,7 @@ pub(crate) fn from_core_with_receipt(
                     Some(actor) => actor,
                     None => return CoreEvent::Unknown,
                 },
-                reason,
+                reason: reason.map(|reason| papo_proto::display_text(&reason).into_owned()),
                 channels,
                 authorship: Authorship::from_core(authorship),
                 netsplit: netsplit.map(SplitServers::from_core),
@@ -2175,7 +2180,7 @@ pub(crate) fn from_core_with_receipt(
                 new,
                 actor: source::from_prefix(actor, casemapping, origin),
                 authorship: Authorship::from_core(authorship),
-                reason,
+                reason: reason.map(|reason| papo_proto::display_text(&reason).into_owned()),
             })
         }
         papo_core::Event::AccountChanged {
@@ -2320,7 +2325,7 @@ pub(crate) fn from_core_with_receipt(
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 channel,
-                topic,
+                topic: topic.map(|topic| papo_proto::display_text(&topic).into_owned()),
                 actor,
                 authorship: Authorship::from_core(authorship),
             })
@@ -3052,6 +3057,131 @@ mod tests {
         let action = chat("PRIVMSG", "\x01ACTION writes the specification\x01");
         assert_eq!(action.raw_text, "writes the specification");
         assert_eq!(action.text, "writes the specification");
+    }
+
+    #[test]
+    #[allow(
+        clippy::too_many_lines,
+        reason = "one regression enumerates every exposed display-text field"
+    )]
+    fn sanitizes_every_server_and_peer_display_text_field() {
+        let payload = "\x1b[2Jvisible";
+        let parse = |command| {
+            parse_event(
+                LineRef::parse(&format!(
+                    ":alice!~alice@cloak.example {command} #papo :{payload}"
+                ))
+                .unwrap()
+                .to_owned(),
+                &Isupport::default(),
+                "papo",
+                UNIX_EPOCH,
+            )
+        };
+        let Event::Message(message) = parse("PRIVMSG") else {
+            panic!("expected message")
+        };
+        let Event::Notice(notice) = parse("NOTICE") else {
+            panic!("expected notice")
+        };
+        let server = parse_event(
+            LineRef::parse(&format!(":ergo.test NOTICE papo :{payload}"))
+                .unwrap()
+                .to_owned(),
+            &Isupport::default(),
+            "papo",
+            UNIX_EPOCH,
+        );
+        assert_eq!(message.text, "visible");
+        assert_eq!(message.raw_text, payload);
+        assert_eq!(notice.text, "visible");
+        assert_eq!(notice.raw_text, payload);
+        let Event::ServerNotice(server) = server else {
+            panic!("expected server notice")
+        };
+        assert_eq!(server.text, "visible");
+        assert_eq!(server.raw_text, payload);
+
+        let Event::Parted(parted) = forwarded(papo_core::Event::__parted(
+            papo_core::LineEnvelope::default(),
+            Casemapping::default().channel("#papo"),
+            "alice!~alice@cloak.example".into(),
+            Casemapping::default().nick("alice"),
+            Some(payload.into()),
+            papo_core::Authorship::Other,
+        )) else {
+            panic!("expected part")
+        };
+        let Event::Kicked(kicked) = forwarded(papo_core::Event::__kicked(
+            papo_core::LineEnvelope::default(),
+            Casemapping::default().channel("#papo"),
+            Casemapping::default().nick("alice"),
+            papo_core::Source::from_proto(
+                papo_proto::Source::Server("ergo.test"),
+                Casemapping::default(),
+            ),
+            papo_core::Authorship::Other,
+            papo_core::Authorship::Other,
+            Some(payload.into()),
+        )) else {
+            panic!("expected kick")
+        };
+        let Event::Quit(quit) = forwarded(papo_core::Event::__quit(
+            papo_core::LineEnvelope::default(),
+            "alice!~alice@cloak.example".into(),
+            Casemapping::default().nick("alice"),
+            Some(payload.into()),
+            vec![Casemapping::default().channel("#papo")],
+            papo_core::Authorship::Other,
+            None,
+        )) else {
+            panic!("expected quit")
+        };
+        let Event::ChannelRenamed(renamed) = forwarded(papo_core::Event::__channel_renamed(
+            Casemapping::default().channel("#papo"),
+            Casemapping::default().channel("#papo-chat"),
+            "ergo.test".into(),
+            papo_core::Authorship::Other,
+            Some(payload.into()),
+        )) else {
+            panic!("expected channel rename")
+        };
+        let Event::TopicChanged(topic) = forwarded(papo_core::Event::__topic_changed(
+            papo_core::LineEnvelope::default(),
+            Casemapping::default().channel("#papo"),
+            Some(payload.into()),
+            papo_core::Source::from_proto(
+                papo_proto::Source::Server("ergo.test"),
+                Casemapping::default(),
+            ),
+            papo_core::Authorship::Other,
+        )) else {
+            panic!("expected topic")
+        };
+        let redacted = papo_core::Redacted {
+            envelope: papo_core::LineEnvelope::default(),
+            actor: "alice!~alice@cloak.example".into(),
+            authorship: papo_core::Authorship::Other,
+            conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#papo")),
+            status: None,
+            return_address: "#papo".into(),
+            msgid: "RKi9Cw".into(),
+            reason: Some(payload.into()),
+        };
+        let Event::Redacted(redacted) = forwarded(papo_core::Event::Redacted(redacted)) else {
+            panic!("expected redaction")
+        };
+
+        for value in [
+            parted.reason,
+            kicked.reason,
+            quit.reason,
+            renamed.reason,
+            topic.topic,
+            redacted.reason,
+        ] {
+            assert_eq!(value.as_deref(), Some("visible"));
+        }
     }
 
     #[test]

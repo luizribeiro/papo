@@ -151,7 +151,7 @@ impl FusedIterator for Formatted<'_> {}
 /// The input is borrowed when it contains no recognized formatting control byte.
 #[must_use]
 pub fn strip_formatting(text: &str) -> Cow<'_, str> {
-    strip_irc_formatting(text)
+    display_text(text)
 }
 
 fn strip_irc_formatting(text: &str) -> Cow<'_, str> {
