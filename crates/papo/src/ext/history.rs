@@ -5,7 +5,7 @@ use papo_proto::{ModeChanges, Reaction};
 use tokio::sync::oneshot;
 
 use crate::{
-    Client, Error, Event, Line, Message as ChatMessage,
+    Client, Error, Event, Line, Message,
     driver::Command,
     event::{Kicked, ModeChanged, NickChanged, Parted, Quit, Reacted, Redacted, TopicChanged},
 };
@@ -616,7 +616,7 @@ impl HistoryPage {
     ///
     /// A user interface should render [`HistoryPage::items`] so notices and activity are not
     /// dropped. This iterator remains in server delivery order.
-    pub fn chat_messages(&self) -> impl Iterator<Item = &ChatMessage> {
+    pub fn chat_messages(&self) -> impl Iterator<Item = &Message> {
         self.items.iter().filter_map(|item| match item {
             Event::Message(message) => Some(message),
             _ => None,

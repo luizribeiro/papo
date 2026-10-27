@@ -252,6 +252,23 @@ fn public_api_uses_only_papo_paths() {
 }
 
 #[test]
+fn public_api_uses_canonical_message_name() {
+    for (name, snapshot) in [
+        ("papo", STABLE),
+        ("papo unstable", UNSTABLE),
+        ("papo-bot", BOT),
+        ("papo-core", CORE),
+        ("papo-core unstable", CORE_UNSTABLE),
+        ("papo-proto", PROTO),
+    ] {
+        assert!(
+            !snapshot.contains("ChatMessage"),
+            "{name} exposes the internal ChatMessage name"
+        );
+    }
+}
+
+#[test]
 fn internal_path_check_finds_core_and_proto_paths() {
     let snapshot = "pub use papo::Nick\npub fn papo::core(papo_core::State)\n\
                     pub fn papo::proto(papo_proto::Line)\n";
