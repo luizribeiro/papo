@@ -850,10 +850,24 @@ impl Notice {
 impl ServerNotice {
     /// Returns the address that reaches the recipients of the notice.
     ///
+    /// Channel notices preserve their exact status-prefixed audience. Broadcasts, `WALLOPS`, and
+    /// notices addressed only to this client have no return address.
+    ///
+    /// A returned notice address cannot be used as a message reference:
+    ///
+    /// ```compile_fail
+    /// # fn answer(client: &papo::Client, notice: &papo::event::ServerNotice) {
+    /// if let Some(address) = notice.return_address() {
+    ///     let _ = client.reply(address, "automatic response");
+    /// }
+    /// # }
+    /// ```
+    ///
     /// See [`Conversation`] for status-prefixed line guidance.
     #[must_use]
-    pub fn return_address(&self) -> crate::MessageRef {
-        crate::message_ref::from_server_notice(self)
+    pub fn return_address(&self) -> Option<crate::NoticeRef> {
+        matches!(self.to, Audience::Channel(_))
+            .then(|| crate::message_ref::from_server_notice(self))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -918,20 +932,19 @@ impl ServerNotice {
             }
         };
         let envelope = line_envelope(&message, isupport.casemapping(), origin, received_at);
-        let return_address = message.param(0).unwrap_or("*").to_owned();
         let receipt = match &to {
             Audience::Channel(channel) => crate::message_ref::Receipt::new(
                 actor.clone(),
                 authorship,
                 &Conversation::Channel(channel.clone()),
                 reply_token,
-                return_address,
+                message.param(0).unwrap_or(channel).to_owned(),
             ),
             Audience::Broadcast(_) | Audience::Me => {
                 crate::message_ref::Receipt::without_recipient(
                     actor.clone(),
                     reply_token,
-                    return_address,
+                    "*".to_owned(),
                     origin,
                 )
             }
@@ -2758,11 +2771,14 @@ mod tests {
             "papo",
             UNIX_EPOCH,
         );
-        assert!(matches!(server, Event::ServerNotice(notice)
-            if notice.kind == ServerNoticeKind::Notice
-                && notice.to == Audience::Me
-                && notice.authorship == Authorship::Other
-                && notice.status.is_none()));
+        let Event::ServerNotice(server) = server else {
+            panic!("expected server notice")
+        };
+        assert_eq!(server.kind, ServerNoticeKind::Notice);
+        assert_eq!(server.to, Audience::Me);
+        assert_eq!(server.authorship, Authorship::Other);
+        assert!(server.status.is_none());
+        assert!(server.return_address().is_none());
 
         let wallops = message_event_from_line(
             Line::new("WALLOPS")
@@ -2779,9 +2795,12 @@ mod tests {
             UNIX_EPOCH,
             None,
         );
-        assert!(matches!(wallops, Event::ServerNotice(notice)
-            if notice.kind == ServerNoticeKind::Wallops
-                && notice.to == Audience::Broadcast(Broadcast::Everyone)));
+        let Event::ServerNotice(wallops) = wallops else {
+            panic!("expected WALLOPS server notice")
+        };
+        assert_eq!(wallops.kind, ServerNoticeKind::Wallops);
+        assert_eq!(wallops.to, Audience::Broadcast(Broadcast::Everyone));
+        assert!(wallops.return_address().is_none());
 
         let broadcast = message_event_from_line(
             Line::notice("$*.example.org", "Network maintenance begins soon")
@@ -2798,11 +2817,34 @@ mod tests {
             UNIX_EPOCH,
             None,
         );
-        assert!(matches!(broadcast, Event::ServerNotice(notice)
-            if matches!(notice.to, Audience::Broadcast(Broadcast::Mask(_)))
-                && notice.authorship == Authorship::Other
-                && matches!(notice.actor.user().map(UserSource::account),
-                    Some(Account::LoggedIn(account)) if account == "network-admin")));
+        let Event::ServerNotice(broadcast) = broadcast else {
+            panic!("expected broadcast server notice")
+        };
+        assert!(matches!(
+            broadcast.to,
+            Audience::Broadcast(Broadcast::Mask(_))
+        ));
+        assert_eq!(broadcast.authorship, Authorship::Other);
+        assert!(matches!(broadcast.actor.user().map(UserSource::account),
+            Some(Account::LoggedIn(account)) if account == "network-admin"));
+        assert!(broadcast.return_address().is_none());
+    }
+
+    #[test]
+    fn channel_server_notice_preserves_its_status_audience() {
+        let mut isupport = Isupport::default();
+        isupport.apply_tokens(["CHANTYPES=#", "STATUSMSG=@+"]);
+        let event = parse_event(
+            Line::notice("@#ops", "Network maintenance begins soon").with_source("irc.example"),
+            &isupport,
+            "papo",
+            UNIX_EPOCH,
+        );
+        let Event::ServerNotice(notice) = event else {
+            panic!("expected channel server notice")
+        };
+        assert!(matches!(notice.to, Audience::Channel(_)));
+        assert_eq!(notice.return_address().as_ref().unwrap(), "@#ops");
     }
 
     #[test]

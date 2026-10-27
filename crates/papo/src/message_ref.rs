@@ -390,8 +390,8 @@ pub(crate) fn from_ctcp_reply(reply: &CtcpReply) -> NoticeRef {
     reply.receipt.notice_reference()
 }
 
-pub(crate) fn from_server_notice(notice: &ServerNotice) -> MessageRef {
-    notice.receipt.reference(Vec::new(), None)
+pub(crate) fn from_server_notice(notice: &ServerNotice) -> NoticeRef {
+    notice.receipt.notice_reference()
 }
 
 macro_rules! borrowed_address_pairs {
