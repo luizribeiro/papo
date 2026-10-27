@@ -169,6 +169,8 @@ pub struct User {
     is_bot: Option<bool>,
     monitored: bool,
     channels: BTreeSet<ChannelName>,
+    reply_epoch: u64,
+    departure_sequence: u64,
 }
 
 /// A read-only view of cached metadata values.
@@ -402,7 +404,7 @@ impl State {
     fn with_casemapping(config: &Config, casemapping: Casemapping) -> Self {
         let names = Names::new(casemapping, config.origin);
         let nick = config.origin.__nick(casemapping, &config.nick);
-        let mut own = User::new(&config.nick, Some(&config.username), None, names);
+        let mut own = User::new(&config.nick, Some(&config.username), None, names, 0, 0);
         own.account = Account::LoggedOut;
         own.away = Away::Present;
         own.realname = Some(config.realname.clone());
@@ -454,6 +456,9 @@ impl State {
         let reply_epoch = self.reply_epoch.wrapping_add(1);
         *self = Self::with_casemapping(config, casemapping);
         self.reply_epoch = reply_epoch;
+        for user in self.users.values_mut() {
+            user.reply_epoch = reply_epoch;
+        }
         self.isupport.clone_from(isupport);
         self.last_seen = last_seen
             .into_values()
@@ -470,12 +475,40 @@ impl State {
     /// Returns the receipt position used to guard a response built outside the core.
     #[doc(hidden)]
     #[must_use]
-    pub const fn __reply_token(&self) -> crate::ReplyToken {
+    pub fn __reply_token(&self) -> crate::ReplyToken {
         crate::ReplyToken {
             origin: self.casemapping.origin(),
             epoch: self.reply_epoch,
             sequence: self.departure_sequence,
+            identity: None,
         }
+    }
+
+    /// Returns the receipt identity for the current holder of `target`.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __reply_token_for(&self, target: &str) -> crate::ReplyToken {
+        crate::ReplyToken {
+            origin: self.casemapping.origin(),
+            epoch: self.reply_epoch,
+            sequence: self.departure_sequence,
+            identity: self.user(target).map(|user| crate::ReplyIdentity {
+                epoch: user.reply_epoch,
+                sequence: user.departure_sequence,
+            }),
+        }
+    }
+
+    fn new_user(&mut self, nick: &str, username: Option<&str>, host: Option<&str>) -> User {
+        self.departure_sequence = self.departure_sequence.wrapping_add(1);
+        User::new(
+            nick,
+            username,
+            host,
+            self.casemapping,
+            self.reply_epoch,
+            self.departure_sequence,
+        )
     }
 
     pub(super) fn record_departure(&mut self, old: &str, new: Option<&str>) {
@@ -495,6 +528,11 @@ impl State {
     pub fn __recipient_changed(&self, target: &str, token: crate::ReplyToken) -> bool {
         if token.origin != self.casemapping.origin() {
             return true;
+        }
+        if let Some(expected) = token.identity {
+            return self.user(target).is_some_and(|user| {
+                expected.epoch != user.reply_epoch || expected.sequence != user.departure_sequence
+            });
         }
         if token.epoch != self.reply_epoch || self.user(target).is_none() {
             return false;
@@ -541,11 +579,14 @@ impl State {
             user.monitored = false;
         }
         for (nick, username, host) in monitor.online() {
-            let user = self
-                .users
-                .entry(NameKey::new(nick, self.casemapping))
-                .or_insert_with(|| User::new(nick, username, host, self.casemapping));
-            user.monitored = true;
+            let key = NameKey::new(nick, self.casemapping);
+            if !self.users.contains_key(&key) {
+                let user = self.new_user(nick, username, host);
+                self.users.insert(key.clone(), user);
+            }
+            if let Some(user) = self.users.get_mut(&key) {
+                user.monitored = true;
+            }
         }
         let own = self.nick.clone();
         self.users
@@ -603,11 +644,12 @@ impl State {
         if let Some((username, host)) = monitor.online_nick(nick, isupport) {
             if !self.users.contains_key(&key) {
                 self.prepare_identity_arrival(nick);
+                let user = self.new_user(nick, username, host);
+                self.users.insert(key.clone(), user);
             }
-            self.users
-                .entry(key)
-                .or_insert_with(|| User::new(nick, username, host, self.casemapping))
-                .monitored = true;
+            if let Some(user) = self.users.get_mut(&key) {
+                user.monitored = true;
+            }
         } else if let Some(user) = self.users.get_mut(&key) {
             user.monitored = false;
             if user.channels.is_empty() && user.nick != self.nick {
@@ -1586,7 +1628,14 @@ impl Member {
 }
 
 impl User {
-    fn new(nick: &str, user: Option<&str>, host: Option<&str>, casemapping: Names) -> Self {
+    fn new(
+        nick: &str,
+        user: Option<&str>,
+        host: Option<&str>,
+        casemapping: Names,
+        reply_epoch: u64,
+        departure_sequence: u64,
+    ) -> Self {
         Self {
             nick: casemapping.nick(nick),
             username: user.map(str::to_owned),
@@ -1597,6 +1646,8 @@ impl User {
             is_bot: None,
             monitored: false,
             channels: BTreeSet::new(),
+            reply_epoch,
+            departure_sequence,
         }
     }
 

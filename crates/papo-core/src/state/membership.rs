@@ -1,6 +1,6 @@
 use super::{
     Account, Channel, Command, Event, Handled, Isupport, Join, LineRef, Member, NameKey, Numeric,
-    Outbox, ProtoSource, State, StateLimit, User,
+    Outbox, ProtoSource, State, StateLimit,
 };
 
 impl State {
@@ -203,10 +203,14 @@ impl State {
                     prefixes,
                 },
             );
-            let shared = self
-                .users
-                .entry(NameKey::new(nick, mapping))
-                .or_insert_with(|| User::new(nick, user, host, mapping));
+            let user_key = NameKey::new(nick, mapping);
+            if !self.users.contains_key(&user_key) {
+                let user = self.new_user(nick, user, host);
+                self.users.insert(user_key.clone(), user);
+            }
+            let Some(shared) = self.users.get_mut(&user_key) else {
+                return;
+            };
             shared.update_userhost(user, host);
             shared.channels.insert(mapping.channel(channel_name));
         }

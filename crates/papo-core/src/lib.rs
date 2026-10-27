@@ -2781,6 +2781,13 @@ pub struct ReplyToken {
     origin: papo_proto::Origin,
     epoch: u64,
     sequence: u64,
+    identity: Option<ReplyIdentity>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+struct ReplyIdentity {
+    epoch: u64,
+    sequence: u64,
 }
 
 impl ReceivedLine {
@@ -5306,6 +5313,7 @@ mod tests {
                 origin: papo_proto::Origin::NONE,
                 epoch: 0,
                 sequence: 0,
+                identity: None,
             },
         }
     }
