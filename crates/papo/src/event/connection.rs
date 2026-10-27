@@ -53,6 +53,14 @@ pub struct Connected {
     pub reconnected: bool,
 }
 
+/// A warning that older events were discarded because the event buffer was full.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct Lagged {
+    /// Number of events discarded since the previous lag warning.
+    pub dropped: u64,
+}
+
 /// A complete message of the day sent while connecting.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]

@@ -306,7 +306,7 @@ pub mod event {
         AccountChanged, Audience, AutoJoinFailed, AwayChanged, BatchAbandonReason, Broadcast,
         BroadcastCtcp, BroadcastTagMsg, CapsChanged, CasemappingChanged, ChannelRenamed,
         ChannelSynced, Connected, CtcpQuery, CtcpReply, FeaturesChanged, HostChanged, Invited,
-        Joined, Kicked, MembersRefreshed, MetadataChanged, ModeChanged, MonitorOffline,
+        Joined, Kicked, Lagged, MembersRefreshed, MetadataChanged, ModeChanged, MonitorOffline,
         MonitorOnline, Motd, NickChanged, Notice, Parted, Quit, Reacted, ReactionAction,
         ReadMarkerChanged, RealnameChanged, Redacted, ServerNotice, ServerNoticeKind, SplitServers,
         StandardReply, StandardReplyKind, TagMsg, TopicChanged, TypingChanged, TypingReason,

@@ -39,7 +39,8 @@ pub use channel::{
     TopicChanged,
 };
 pub use connection::{
-    CapsChanged, CasemappingChanged, ConnectPhase, Connected, Connecting, FeaturesChanged, Motd,
+    CapsChanged, CasemappingChanged, ConnectPhase, Connected, Connecting, FeaturesChanged, Lagged,
+    Motd,
 };
 pub use conversation::{
     Broadcast, BroadcastCtcp, BroadcastTagMsg, Reacted, ReactionAction, ReadMarkerChanged,
@@ -1348,6 +1349,8 @@ pub enum Event {
     Connecting(Connecting),
     /// The IRC connection is ready for use.
     Connected(Connected),
+    /// Older events were discarded because the event buffer was full.
+    Lagged(Lagged),
     /// A complete message of the day received while connecting.
     Motd(Motd),
     /// An incoming `PRIVMSG` or `ACTION` from any user.
@@ -1456,6 +1459,7 @@ variant_accessors! { Event;
     (BroadcastTagMsg, as_broadcast_tag_msg, BroadcastTagMsg),
     (History, as_history, crate::HistoryPage),
     (Connected, as_connected, Connected),
+    (Lagged, as_lagged, Lagged),
     (Connecting, as_connecting, Connecting),
     (Motd, as_motd, Motd),
     (Disconnected, as_disconnected, Disconnected),

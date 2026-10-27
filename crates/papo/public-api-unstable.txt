@@ -642,6 +642,24 @@ impl core::marker::Unpin for papo::event::Kicked
 impl core::marker::UnsafeUnpin for papo::event::Kicked
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Kicked
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Kicked
+#[non_exhaustive] pub struct papo::event::Lagged
+pub papo::event::Lagged::dropped: u64
+impl core::clone::Clone for papo::event::Lagged
+pub fn papo::event::Lagged::clone(&self) -> Self
+impl core::cmp::Eq for papo::event::Lagged
+impl core::cmp::PartialEq for papo::event::Lagged
+pub fn papo::event::Lagged::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::event::Lagged
+pub fn papo::event::Lagged::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo::event::Lagged
+impl core::marker::StructuralPartialEq for papo::event::Lagged
+impl core::marker::Freeze for papo::event::Lagged
+impl core::marker::Send for papo::event::Lagged
+impl core::marker::Sync for papo::event::Lagged
+impl core::marker::Unpin for papo::event::Lagged
+impl core::marker::UnsafeUnpin for papo::event::Lagged
+impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Lagged
+impl core::panic::unwind_safe::UnwindSafe for papo::event::Lagged
 #[non_exhaustive] pub struct papo::event::MembersRefreshed
 pub papo::event::MembersRefreshed::channel: papo::ChannelName
 impl core::clone::Clone for papo::event::MembersRefreshed
@@ -1496,6 +1514,7 @@ pub papo::Event::HostChanged(papo::event::HostChanged)
 pub papo::Event::Invited(papo::event::Invited)
 pub papo::Event::Joined(papo::event::Joined)
 pub papo::Event::Kicked(papo::event::Kicked)
+pub papo::Event::Lagged(papo::event::Lagged)
 pub papo::Event::MembersRefreshed(papo::event::MembersRefreshed)
 pub papo::Event::Message(papo::Message)
 pub papo::Event::MetadataChanged(papo::event::MetadataChanged)
@@ -1564,6 +1583,8 @@ impl papo::Event
 pub const fn papo::Event::as_joined(&self) -> core::option::Option<&papo::event::Joined>
 impl papo::Event
 pub const fn papo::Event::as_kicked(&self) -> core::option::Option<&papo::event::Kicked>
+impl papo::Event
+pub const fn papo::Event::as_lagged(&self) -> core::option::Option<&papo::event::Lagged>
 impl papo::Event
 pub const fn papo::Event::as_members_refreshed(&self) -> core::option::Option<&papo::event::MembersRefreshed>
 impl papo::Event
