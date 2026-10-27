@@ -1,2 +1,6 @@
-# A stable build already returns `None`, so this replacement is equivalent.
-exclude_re = ['replace Config::selected_bouncer_network -> Option<&str> with None$']
+exclude_re = [
+  # A stable build already returns `None`, so this replacement is equivalent.
+  'replace Config::selected_bouncer_network -> Option<&str> with None$',
+  # Typing changes have no message identifier, so both empty-vector forms are equivalent.
+  'replace <impl ReplyReference for TypingChanged>::msgids -> Vec<MessageId> with vec!\[\]$',
+]

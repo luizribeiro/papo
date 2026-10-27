@@ -509,6 +509,31 @@ mod tests {
     }
 
     #[test]
+    fn notice_reference_text_matches_exactly() {
+        let mapping = crate::Casemapping::default();
+        let actor = crate::__testing::user_source(
+            mapping.nick("alice"),
+            Some("~alice".into()),
+            Some("cloak.example".into()),
+        );
+        let receipt = Receipt::new(
+            crate::Source::User(actor),
+            Authorship::Other,
+            &Conversation::Channel(mapping.channel("#ops")),
+            None,
+            "@#ops".into(),
+        );
+        let reference = receipt.notice_reference();
+
+        assert_eq!(reference.to_string(), "@#ops");
+        assert_eq!(AsRef::<str>::as_ref(&reference), "@#ops");
+        assert!(<NoticeRef as PartialEq<str>>::eq(&reference, "@#ops"));
+        assert!(!<NoticeRef as PartialEq<str>>::eq(&reference, "#ops"));
+        assert!(<NoticeRef as PartialEq<&str>>::eq(&reference, &"@#ops"));
+        assert!(!<NoticeRef as PartialEq<&str>>::eq(&reference, &"#ops"));
+    }
+
+    #[test]
     fn references_preserve_addresses_origins_and_ids() {
         let mapping = crate::Casemapping::default();
         let origin = crate::Origin::__new(73);
