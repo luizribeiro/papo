@@ -85,6 +85,9 @@
 "security::oversized_unlabelled_list_returns_a_state_limit_error" = [
   "security.adv-19.unlabelled-response-bound",
 ]
+"security::read_marker_state_is_bounded_and_warns_once" = [
+  "security.adv-20.read-marker-bound",
+]
 "security::scram_rejects_excessive_iterations_promptly" = [
   "security.s6.scram-iteration-cap",
 ]

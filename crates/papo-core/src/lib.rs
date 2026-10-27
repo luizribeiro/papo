@@ -2868,6 +2868,8 @@ pub enum StateLimit {
     Members,
     /// Entries retained for one channel list mode.
     ListEntries,
+    /// Read markers retained for conversations.
+    ReadMarkers,
     /// Targets retained in the metadata cache.
     MetadataTargets,
     /// Metadata keys retained for one user or channel.
@@ -5363,6 +5365,9 @@ mod tests {
     #[test]
     fn response_paths_use_the_bounded_collection() {
         assert!(!include_str!("labels.rs").contains("request.lines.push("));
+        let read_markers = include_str!("state/read_marker.rs");
+        assert!(read_markers.contains("read_marker_order.push_evict_oldest"));
+        assert_eq!(read_markers.matches("read_markers.insert(").count(), 1);
     }
 
     #[test]

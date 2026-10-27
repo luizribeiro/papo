@@ -1,6 +1,6 @@
 use super::{
     Command, Event, LastSeen, LineRef, MAX_LAST_SEEN_TARGETS, NameKey, Outbox, ProtoSource,
-    ReadMarker, State, time,
+    ReadMarker, State, StateLimit, time,
 };
 
 impl State {
@@ -58,6 +58,14 @@ impl State {
                 conversation,
                 read_until: time,
             };
+            if !self.read_markers.contains_key(&key)
+                && let Some(evicted) = self.read_marker_order.push_evict_oldest(key.clone())
+            {
+                self.read_markers.remove(&evicted);
+                if self.read_marker_order.take_overflow_warning() {
+                    self.warn_limit(StateLimit::ReadMarkers, outbox);
+                }
+            }
             self.read_markers.insert(key, marker.clone());
             outbox.event(Event::ReadMarkerChanged(marker));
         }

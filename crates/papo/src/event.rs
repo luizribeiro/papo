@@ -4588,6 +4588,7 @@ mod tests {
             (StateLimit::Channels, crate::StateLimit::Channels),
             (StateLimit::Members, crate::StateLimit::Members),
             (StateLimit::ListEntries, crate::StateLimit::ListEntries),
+            (StateLimit::ReadMarkers, crate::StateLimit::ReadMarkers),
             (
                 StateLimit::MetadataTargets,
                 crate::StateLimit::MetadataTargets,

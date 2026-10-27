@@ -1228,6 +1228,7 @@ pub papo_core::StateLimit::ListEntries
 pub papo_core::StateLimit::Members
 pub papo_core::StateLimit::MetadataKeys
 pub papo_core::StateLimit::MetadataTargets
+pub papo_core::StateLimit::ReadMarkers
 impl core::clone::Clone for papo_core::StateLimit
 pub fn papo_core::StateLimit::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::StateLimit

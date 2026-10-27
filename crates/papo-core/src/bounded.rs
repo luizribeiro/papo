@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct BoundedCollection<T> {
     entries: Vec<T>,
     limit: usize,
@@ -25,10 +25,6 @@ impl<T> BoundedCollection<T> {
         Ok(())
     }
 
-    #[allow(
-        dead_code,
-        reason = "read-marker eviction uses this in the next bounded state path"
-    )]
     pub(crate) fn push_evict_oldest(&mut self, value: T) -> Option<T> {
         let evicted = (self.entries.len() >= self.limit).then(|| {
             self.overflowed = true;

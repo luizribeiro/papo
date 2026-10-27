@@ -27,16 +27,19 @@ use crate::{
     Authorship, Capabilities, Config, Conversation, Event, Handled, LastSeen, ListMode,
     MetadataValue, ModeArg, ModeChange, ModeListEntry, ModeValue, NameKey, Names, Outbox,
     ReadMarker, Secret, Source, StateLimit, Subject, WhoOnJoin,
+    bounded::BoundedCollection,
+    cap,
     conversation::{LineTarget, classify_target_with_names},
     monitor::Monitor,
     typing::{Typers, TypingTable},
 };
 #[cfg(feature = "unstable")]
-use crate::{BouncerNetwork, NetworkId, PersistenceSetting, PersistenceStatus, cap};
+use crate::{BouncerNetwork, NetworkId, PersistenceSetting, PersistenceStatus};
 
 const WHOX_FIELDS: &str = "%tcuhnfar,152";
 const WHOX_TOKEN: &str = "152";
 const MAX_LAST_SEEN_TARGETS: usize = 1_000;
+const MAX_READ_MARKERS: usize = 1_000;
 const MAX_METADATA_TARGETS: usize = 10_000;
 pub(crate) const MAX_METADATA_KEYS_PER_TARGET: usize = 10_000;
 /// The known channel and user state for a session.
@@ -52,6 +55,7 @@ pub struct State {
     who_sweeps: BTreeMap<ChannelName, usize>,
     who_on_join: WhoOnJoin,
     read_markers: BTreeMap<NameKey<String>, ReadMarker>,
+    read_marker_order: BoundedCollection<NameKey<String>>,
     last_seen: BTreeMap<NameKey<String>, LastSeen>,
     last_seen_order: VecDeque<String>,
     reply_epoch: u64,
@@ -86,6 +90,7 @@ impl Clone for State {
             who_sweeps: self.who_sweeps.clone(),
             who_on_join: self.who_on_join,
             read_markers: self.read_markers.clone(),
+            read_marker_order: self.read_marker_order.clone(),
             last_seen: self.last_seen.clone(),
             last_seen_order: self.last_seen_order.clone(),
             reply_epoch: self.reply_epoch,
@@ -411,6 +416,7 @@ impl State {
             who_sweeps: BTreeMap::new(),
             who_on_join: config.who_on_join,
             read_markers: BTreeMap::new(),
+            read_marker_order: BoundedCollection::new(MAX_READ_MARKERS),
             last_seen: BTreeMap::new(),
             last_seen_order: VecDeque::new(),
             reply_epoch: 0,
@@ -615,7 +621,6 @@ impl State {
         own_away_message: Option<&str>,
         outbox: &mut Outbox,
     ) -> Handled {
-        _ = enabled_caps;
         let mapping = self.prepare_message(message, own_nick, isupport, outbox);
         if self.handle_metadata(
             message,
@@ -636,7 +641,8 @@ impl State {
             return Handled::Yes;
         }
         self.remember_last_seen(message, own_nick);
-        if self.handle_read_marker(message, outbox) {
+        if enabled_caps.contains_key(&cap::READ_MARKER) && self.handle_read_marker(message, outbox)
+        {
             return Handled::Yes;
         }
         if let Some(join) = Join::parse(message) {
@@ -1090,6 +1096,11 @@ impl State {
                 (NameKey::new(name, mapping), marker)
             })
             .collect();
+        self.read_marker_order = BoundedCollection::new(MAX_READ_MARKERS);
+        for key in self.read_markers.keys().cloned() {
+            let evicted = self.read_marker_order.push_evict_oldest(key);
+            debug_assert!(evicted.is_none());
+        }
         self.last_seen = std::mem::take(&mut self.last_seen)
             .into_values()
             .map(|seen| (NameKey::new(&seen.target, mapping), seen))

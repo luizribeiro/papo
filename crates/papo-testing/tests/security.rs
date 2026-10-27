@@ -412,6 +412,39 @@ async fn foreign_account_verification_never_reaches_either_wire() {
     assert_no_wire(&mut first_wire, &mut second_wire).await;
 }
 
+#[tokio::test]
+async fn read_marker_state_is_bounded_and_warns_once() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://hostile.offline.test", "papo")
+            .rate_limit(papo::RateLimit::unlimited()),
+    );
+    wire.register(&["draft/read-marker"]).await;
+    connected(&mut events).await;
+    let mut warnings = 0;
+
+    for index in 0..1_001 {
+        wire.server(format!(
+            ":hostile.offline.test MARKREAD user{index:04} timestamp=2026-10-26T12:00:00.000Z"
+        ))
+        .await;
+        loop {
+            match next_active_event(&mut events).await {
+                papo::Event::ReadMarkerChanged(_) => break,
+                papo::Event::Warning(papo::event::Warning::StateLimitReached {
+                    kind: papo::StateLimit::ReadMarkers,
+                    ..
+                }) => warnings += 1,
+                _ => {}
+            }
+        }
+    }
+
+    assert_eq!(warnings, 1);
+    assert!(client.state().read_marker("user0000").is_none());
+    assert!(client.state().read_marker("user0001").is_some());
+    assert!(client.state().read_marker("user1000").is_some());
+}
+
 async fn assert_no_wire(first: &mut Wire, second: &mut Wire) {
     for wire in [first, second] {
         assert!(

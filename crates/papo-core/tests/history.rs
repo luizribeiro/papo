@@ -6,7 +6,7 @@ use std::time::{Duration, Instant, UNIX_EPOCH};
 
 use papo_core::{
     Config, Conversation, Event, Feature, HistoryItem, HistoryQuery, MsgRef, RateLimit, Refusal,
-    RequestError, Session, UnsupportedReason,
+    RequestError, Session, StateLimit, UnsupportedReason,
 };
 use support::{Transcript, unsupported_because, unsupported_error};
 
@@ -587,6 +587,63 @@ fn tracks_read_markers_monotonically_through_join_bursts() {
     assert!(
         matches!(session.poll_event(), Some(Event::ChannelSynced { channel, .. }) if channel == "#joined")
     );
+}
+
+#[test]
+fn ignores_unsolicited_read_markers_without_the_capability() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+
+    session.handle_line(
+        now,
+        b":ergo.test MARKREAD Alice timestamp=2025-10-15T11:55:44.000Z",
+    );
+
+    assert!(session.state().read_marker("Alice").is_none());
+    assert!(matches!(session.poll_event(), Some(Event::Line(_))));
+}
+
+#[test]
+fn read_markers_evict_the_oldest_entry_and_warn_once() {
+    let (mut session, now) = read_marker_session();
+    let mut warnings = 0;
+
+    for index in 0..20_000 {
+        session.handle_line(
+            now,
+            format!(":ergo.test MARKREAD user{index:05} timestamp=2025-10-15T11:55:44.000Z")
+                .as_bytes(),
+        );
+        while let Some(event) = session.poll_event() {
+            if matches!(
+                event,
+                Event::StateLimitReached {
+                    limit: StateLimit::ReadMarkers,
+                    ..
+                }
+            ) {
+                warnings += 1;
+            }
+        }
+    }
+
+    assert_eq!(warnings, 1);
+    for index in 0..19_000 {
+        assert!(
+            session
+                .state()
+                .read_marker(format!("user{index:05}"))
+                .is_none()
+        );
+    }
+    for index in 19_000..20_000 {
+        assert!(
+            session
+                .state()
+                .read_marker(format!("user{index:05}"))
+                .is_some()
+        );
+    }
 }
 
 #[test]

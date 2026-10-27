@@ -222,6 +222,7 @@ impl State {
             StateLimit::Channels => !std::mem::replace(&mut self.channel_limit_warned, true),
             StateLimit::Members => !std::mem::replace(&mut self.member_limit_warned, true),
             StateLimit::ListEntries
+            | StateLimit::ReadMarkers
             | StateLimit::MetadataTargets
             | StateLimit::MetadataKeys
             | StateLimit::IsupportTokens => self.limits_warned.insert(limit),
