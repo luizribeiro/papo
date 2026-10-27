@@ -224,6 +224,20 @@ fn rejects_every_forbidden_server_url_form_with_an_exact_error() {
 }
 
 #[test]
+fn userinfo_with_slashes_never_reaches_url_errors() {
+    for input in [
+        "ircs://alice:hun/ter2@irc.example.net",
+        "wss://alice:hun/ter2@host/ws",
+    ] {
+        let error = input.parse::<ServerUrl>().unwrap_err();
+        assert_eq!(error, InvalidUrl::Userinfo);
+        let display = error.to_string();
+        assert!(!display.contains("hun"), "{display}");
+        assert!(!display.contains("ter2"), "{display}");
+    }
+}
+
+#[test]
 fn missing_scheme_error_suggests_a_secure_url() {
     let error = "irc.oftc.net".parse::<ServerUrl>().unwrap_err();
     assert_eq!(

@@ -221,6 +221,9 @@ impl FromStr for ServerUrl {
         if remainder.contains('?') {
             return Err(InvalidUrl::Query);
         }
+        if remainder.contains('@') {
+            return Err(InvalidUrl::Userinfo);
+        }
         let (authority, path) = match remainder.split_once('/') {
             Some((authority, path)) => (authority, Some(format!("/{path}"))),
             None => (remainder, None),
@@ -229,9 +232,6 @@ impl FromStr for ServerUrl {
             && !scheme.permits_path()
         {
             return Err(InvalidUrl::UnexpectedPath(path.clone()));
-        }
-        if authority.contains('@') {
-            return Err(InvalidUrl::Userinfo);
         }
         if authority.is_empty() {
             return Err(InvalidUrl::EmptyHost);
