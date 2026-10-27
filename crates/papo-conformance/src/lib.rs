@@ -237,13 +237,14 @@ async fn probe(
     )
     .unwrap();
     let wanted_caps = wanted_caps.into_iter().map(str::to_owned).collect();
+    let sasl = Sasl::plain(&nick, "papo conformance probe password").optional();
     let mut connection = connect_client(
         server,
         endpoint,
         &nick,
         "papo conformance probe",
         Some(wanted_caps),
-        None,
+        Some(sasl),
     )?;
     let welcome = wait_connected(&connection.client, &mut connection.events).await?;
     connection
@@ -332,9 +333,7 @@ fn connect_client(
         .map_err(|error| error.to_string())?;
     match (bouncer, sasl) {
         (Some(login), _) => {
-            builder = builder
-                .username(login.username())
-                .password(login.password());
+            builder = builder.sasl(Sasl::plain(login.username(), login.password()));
         }
         (None, Some(sasl)) => builder = builder.sasl(sasl),
         (None, None) => {}
