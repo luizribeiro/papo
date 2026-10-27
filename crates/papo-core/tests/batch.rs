@@ -992,7 +992,7 @@ fn history_page_events_leave_channel_state_untouched() {
         "@batch=history :bob!~b@remote.example JOIN #papo bob :Bob Example",
         "@batch=history :alice!~a@remote.example PART #papo :Earlier part",
         "@batch=history :operator!~o@services.example KICK #papo papo :Earlier kick",
-        "@batch=history :operator!~o@services.example MODE #papo -m",
+        "@batch=history :operator!~o@services.example MODE #papo +k history-key-4286",
         "@batch=history :operator!~o@services.example TOPIC #papo :Earlier topic",
         "@batch=history :alice!~a@remote.example NICK alice-away",
     ] {
@@ -1015,6 +1015,16 @@ fn history_page_events_leave_channel_state_untouched() {
             HistoryItem::NickChanged(_),
         ]
     ));
+    assert!(!format!("{items:?}").contains("history-key-4286"));
+    assert!(
+        items[3]
+            .as_mode_changed()
+            .unwrap()
+            .line
+            .encode()
+            .unwrap()
+            .__has_secret_parameter()
+    );
     let channel = session.state().channel("#papo").unwrap();
     assert_eq!(channel.topic(), Some("Current topic"));
     assert!(channel.member("bob").is_none());

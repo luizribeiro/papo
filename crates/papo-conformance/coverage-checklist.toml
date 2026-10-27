@@ -81,6 +81,7 @@ ids = [
   "security.sts.password-required",
   "security.t3.plaintext-credentials-opt-in",
   "security.adv-2.post-connect-credentials",
+  "security.adv-4.channel-key-responses",
   "security.s4.account-registration-once",
   "security.s6.scram-iteration-cap",
   "security.secrets.no-wire-line-in-debug",

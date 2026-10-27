@@ -4062,7 +4062,33 @@ impl Session {
 
     /// Returns the next session event.
     pub fn poll_event(&mut self) -> Option<Event> {
-        self.outbox.events.pop_front()
+        let mut event = self.outbox.events.pop_front()?;
+        self.mark_event_channel_keys(&mut event);
+        Some(event)
+    }
+
+    fn mark_event_channel_keys(&self, event: &mut Event) {
+        let mark_history = |session: &Self, items: &mut [HistoryItem]| {
+            for item in items {
+                session.mark_channel_key(&mut item.line_mut().line);
+            }
+        };
+        match event {
+            Event::Line(received) => self.mark_channel_key(&mut received.line),
+            Event::MultilineMessage(multiline) => {
+                self.mark_channel_key(&mut multiline.message.line);
+            }
+            Event::Response(response) => {
+                for line in &mut response.lines {
+                    self.mark_channel_key(line);
+                }
+                if let Some(history) = &mut response.history {
+                    mark_history(self, &mut history.items);
+                }
+            }
+            Event::History { items, .. } => mark_history(self, items),
+            _ => {}
+        }
     }
 
     /// Returns the next connection phase reported by protocol processing.

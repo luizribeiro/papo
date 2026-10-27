@@ -830,6 +830,28 @@ async fn plaintext_credential_requests_never_reach_the_wire() {
 }
 
 #[tokio::test]
+async fn raw_mode_response_redacts_the_channel_key() {
+    let (client, _events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test", "papo-wire")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&["labeled-response"]).await;
+
+    let request = tokio::spawn(async move {
+        client
+            .request_raw(papo::Line::new("MODE").param("#staff"))
+            .await
+    });
+    assert_eq!(wire.next_sent().await, "@label=0 MODE #staff");
+    wire.server("@label=0 :offline.test 324 papo-wire #staff +k hunter2")
+        .await;
+
+    let lines = request.await.unwrap().unwrap();
+    assert!(!format!("{lines:?}").contains("hunter2"));
+}
+
+#[tokio::test]
 async fn malformed_tls_configuration_fails_before_opening_the_wire() {
     let malformed = b"-----BEGIN CERTIFICATE-----\nnot-base64!\n-----END CERTIFICATE-----\n";
     for scheme in ["irc", "ircs", "ws", "wss"] {

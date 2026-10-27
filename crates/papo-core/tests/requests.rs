@@ -48,6 +48,40 @@ fn debug_output_redacts_rate_limited_oper_and_join_credentials() {
 }
 
 #[test]
+fn response_debug_redacts_a_server_returned_channel_key() {
+    let now = Instant::now();
+    let mut session = Session::new(
+        Config::default()
+            .nick("papo")
+            .rate_limit(RateLimit::unlimited()),
+    );
+    session.handle_line(
+        now,
+        b":ergo.test 005 papo CHANMODES=beI,k,l,imnst :are supported",
+    );
+    while session.poll_event().is_some() {}
+    session
+        .request_with_matcher(
+            now,
+            Line::new("MODE").param("#staff"),
+            ResponseMatcher::Mode("#staff".into()),
+        )
+        .unwrap();
+    while session.poll_transmit().is_some() {}
+    session.handle_line(now, b":papo!~papo@localhost MODE #staff +k staff-key-8732");
+    session.handle_line(now, b":ergo.test PONG ergo.test :papo-mode-0");
+
+    let response = std::iter::from_fn(|| session.poll_event())
+        .find_map(|event| match event {
+            Event::Response(response) => Some(response),
+            _ => None,
+        })
+        .unwrap();
+    assert!(!format!("{response:?}").contains("staff-key-8732"));
+    assert!(response.lines[0].encode().unwrap().__has_secret_parameter());
+}
+
+#[test]
 fn oper_refuses_credentials_on_plaintext() {
     let mut session = Session::new(Config::default());
     assert_eq!(

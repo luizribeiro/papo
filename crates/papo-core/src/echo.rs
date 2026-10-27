@@ -55,7 +55,7 @@ impl Session {
         }
     }
 
-    fn mark_channel_key(&self, line: &mut Line) {
+    pub(super) fn mark_channel_key(&self, line: &mut Line) {
         let key_params = {
             let message = line.as_ref();
             let (modestring, args_start) = match message.command() {
