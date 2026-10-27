@@ -309,6 +309,13 @@ impl TypingTable {
         _ = Self::stop_where(table, |_, typer| typer == nick);
     }
 
+    pub(crate) fn forget_channel(table: &mut Arc<Self>, channel: &ChannelName) {
+        _ = Self::stop_where(
+            table,
+            |conversation, _| matches!(conversation, Conversation::Channel(candidate) if candidate == channel),
+        );
+    }
+
     pub(crate) fn rename_channel(table: &mut Arc<Self>, old: &ChannelName, new: &ChannelName) {
         let table = Arc::make_mut(table);
         for (conversation, typer) in &mut table.entries {

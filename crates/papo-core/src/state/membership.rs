@@ -1,6 +1,6 @@
 use super::{
     Account, Channel, Command, Event, Handled, Isupport, Join, LineRef, Member, NameKey, Numeric,
-    Outbox, ProtoSource, State, StateLimit,
+    Outbox, ProtoSource, State, StateLimit, rename::ChannelLifecycle,
 };
 
 impl State {
@@ -102,15 +102,15 @@ impl State {
                 self.warn_limit(StateLimit::Channels, outbox);
                 return Handled::Yes;
             }
-            self.channels.insert(
+            self.channel_lifecycle(ChannelLifecycle::Joined {
                 key,
-                std::sync::Arc::new(Channel::new(
+                channel: std::sync::Arc::new(Channel::new(
                     join.channel,
                     self.casemapping,
                     isupport,
                     false,
                 )),
-            );
+            });
         }
         self.add_member(join.channel, nick, username, host, &[], outbox);
         if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref())
@@ -235,35 +235,7 @@ impl State {
     }
 
     pub(super) fn remove_channel(&mut self, name: &str) {
-        let key = self.casemapping.channel(name);
-        let folded = self.casemapping.fold(name);
-        self.remove_metadata(name);
-        self.who_sweeps.remove(&key);
-        let Some(channel) = self.channels.remove(folded.as_ref()) else {
-            return;
-        };
-        for member in channel.members.values() {
-            if let Some(user) = self
-                .users
-                .get_mut(self.casemapping.fold(&member.nick).as_ref())
-            {
-                user.channels.remove(&key);
-            }
-        }
-        let orphaned: Vec<_> = self
-            .users
-            .values()
-            .filter(|user| {
-                user.nick != self.nick && user.channels.is_empty() && !self.is_monitored(&user.nick)
-            })
-            .map(|user| user.nick.clone())
-            .collect();
-        for nick in orphaned {
-            self.remove_metadata(&nick);
-        }
-        let own = self.nick.clone();
-        self.users
-            .retain(|_, user| user.nick == own || user.monitored || !user.channels.is_empty());
+        self.channel_lifecycle(ChannelLifecycle::Left(name));
     }
 
     pub(super) fn remove_member(&mut self, channel: &str, nick: &str) {

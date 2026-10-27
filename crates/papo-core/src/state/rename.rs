@@ -1,4 +1,18 @@
-use super::{Command, Event, LineRef, NameKey, Outbox, State};
+use std::sync::Arc;
+
+use super::{Channel, Command, Event, LineRef, NameKey, Outbox, State};
+
+pub(super) enum ChannelLifecycle<'a> {
+    Joined {
+        key: NameKey<String>,
+        channel: Arc<Channel>,
+    },
+    Left(&'a str),
+    Renamed {
+        old: &'a str,
+        new: &'a str,
+    },
+}
 
 impl State {
     pub(super) fn handle_channel_rename(
@@ -18,7 +32,7 @@ impl State {
             .param(2)
             .filter(|reason| !reason.is_empty())
             .map(str::to_owned);
-        self.rename_channel_state(old, new);
+        self.channel_lifecycle(ChannelLifecycle::Renamed { old, new });
         outbox.event(Event::ChannelRenamed {
             envelope: crate::LineEnvelope::from_line(message),
             old: self.casemapping.channel(old),
@@ -30,6 +44,49 @@ impl State {
         true
     }
 
+    pub(super) fn channel_lifecycle(&mut self, lifecycle: ChannelLifecycle<'_>) {
+        match lifecycle {
+            ChannelLifecycle::Joined { key, channel } => {
+                self.channels.insert(key, channel);
+            }
+            ChannelLifecycle::Left(name) => self.forget_channel(name),
+            ChannelLifecycle::Renamed { old, new } => self.rename_channel_state(old, new),
+        }
+    }
+
+    fn forget_channel(&mut self, name: &str) {
+        let key = self.casemapping.channel(name);
+        let folded = self.casemapping.fold(name);
+        self.remove_metadata(name);
+        self.who_sweeps.remove(&key);
+        crate::typing::TypingTable::forget_channel(&mut self.typing, &key);
+        let Some(channel) = self.channels.remove(folded.as_ref()) else {
+            return;
+        };
+        for member in channel.members.values() {
+            if let Some(user) = self
+                .users
+                .get_mut(self.casemapping.fold(&member.nick).as_ref())
+            {
+                user.channels.remove(&key);
+            }
+        }
+        let orphaned: Vec<_> = self
+            .users
+            .values()
+            .filter(|user| {
+                user.nick != self.nick && user.channels.is_empty() && !self.is_monitored(&user.nick)
+            })
+            .map(|user| user.nick.clone())
+            .collect();
+        for nick in orphaned {
+            self.remove_metadata(&nick);
+        }
+        let own = self.nick.clone();
+        self.users
+            .retain(|_, user| user.nick == own || user.monitored || !user.channels.is_empty());
+    }
+
     fn rename_channel_state(&mut self, old: &str, new: &str) {
         let old_channel = self.casemapping.channel(old);
         let new_channel = self.casemapping.channel(new);
@@ -37,7 +94,7 @@ impl State {
         let new_key = NameKey::new(new, self.casemapping);
 
         if let Some(mut channel) = self.channels.remove(&old_key) {
-            std::sync::Arc::make_mut(&mut channel).name = new_channel.clone();
+            Arc::make_mut(&mut channel).name = new_channel.clone();
             self.channels.insert(new_key.clone(), channel);
         }
         for user in self.users.values_mut() {
