@@ -1010,7 +1010,7 @@ impl Client {
         let (status, conversation) = state
             .parse_target_inner(target)
             .map_err(|reason| InvalidInput::invalid_name(target, reason))?;
-        let receipt = state.sent_receipt(&conversation, target.to_owned());
+        let receipt = state.sent_receipt(&conversation, target.to_owned(), recipient.as_ref());
         if !state.is_connected() {
             let text = if action {
                 Ctcp::action(text).ok_or(InvalidInput::InvalidCtcp)?

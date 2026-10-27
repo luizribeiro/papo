@@ -57,6 +57,7 @@ impl State {
         &self,
         conversation: &crate::Conversation,
         address: String,
+        recipient: Option<&papo_core::RecipientGuard>,
     ) -> crate::message_ref::Receipt {
         let actor = crate::Source::User(crate::UserSource::identity(
             self.nick().clone(),
@@ -69,6 +70,7 @@ impl State {
             self.reply_token(conversation),
             address,
         )
+        .with_recipient(recipient)
     }
 
     /// Returns builders and checks that use this snapshot's name rules and client identity.

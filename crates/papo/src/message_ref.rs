@@ -18,6 +18,7 @@ struct ReceiptIdentity {
     actor_account: Account,
     token: Option<papo_core::ReplyToken>,
     recipient: Option<Nick>,
+    recipient_guard: Option<RecipientGuard>,
 }
 
 impl Receipt {
@@ -46,6 +47,7 @@ impl Receipt {
                 actor_account,
                 token,
                 recipient,
+                recipient_guard: None,
             }),
             address,
             origin,
@@ -67,6 +69,7 @@ impl Receipt {
                 actor_account,
                 token,
                 recipient: None,
+                recipient_guard: None,
             }),
             address,
             origin,
@@ -96,11 +99,19 @@ impl Receipt {
     }
 
     fn recipient_guard(&self) -> Option<RecipientGuard> {
+        if let Some(recipient) = &self.identity.recipient_guard {
+            return Some(recipient.clone());
+        }
         self.identity.recipient.as_ref().map(|nick| RecipientGuard {
             nick: nick.clone(),
             account: self.identity.actor_account.clone(),
             receipt: self.identity.token,
         })
+    }
+
+    pub(crate) fn with_recipient(mut self, recipient: Option<&papo_core::RecipientGuard>) -> Self {
+        self.identity.recipient_guard = recipient.map(RecipientGuard::from_core);
+        self
     }
 
     pub(crate) fn recipient(&self) -> Option<RecipientGuard> {
