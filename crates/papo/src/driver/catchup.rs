@@ -354,6 +354,152 @@ mod tests {
         }
     }
 
+    fn mapped_event(input: &str, variant: &str) -> crate::Event {
+        let mut found = None;
+        crate::__testing::exercise_session_mapping(input.as_bytes(), |event| {
+            let name = match &event {
+                crate::Event::Message(_) => "Message",
+                crate::Event::Notice(_) => "Notice",
+                crate::Event::CtcpQuery(_) => "CtcpQuery",
+                crate::Event::CtcpReply(_) => "CtcpReply",
+                crate::Event::TagMsg(_) => "TagMsg",
+                crate::Event::Reacted(_) => "Reacted",
+                crate::Event::Redacted(_) => "Redacted",
+                crate::Event::ServerNotice(_) => "ServerNotice",
+                crate::Event::Joined(_) => "Joined",
+                crate::Event::Parted(_) => "Parted",
+                crate::Event::Kicked(_) => "Kicked",
+                crate::Event::Invited(_) => "Invited",
+                crate::Event::ChannelRenamed(_) => "ChannelRenamed",
+                crate::Event::ModeChanged(_) => "ModeChanged",
+                crate::Event::TopicChanged(_) => "TopicChanged",
+                crate::Event::Quit(_) => "Quit",
+                crate::Event::NickChanged(_) => "NickChanged",
+                crate::Event::Other(_) => "Other",
+                _ => return,
+            };
+            if name == variant {
+                found = Some(event);
+            }
+        });
+        found.unwrap_or_else(|| panic!("{variant} event from {input:?}"))
+    }
+
+    fn assert_conversation_events_are_scoped() {
+        let conversation_cases = [
+            (
+                "Message",
+                "PRIVMSG #papo :release deployed",
+                "PRIVMSG #rust :release deployed",
+                "PRIVMSG papo :release deployed",
+            ),
+            (
+                "Notice",
+                "NOTICE #papo :maintenance starts soon",
+                "NOTICE #rust :maintenance starts soon",
+                "NOTICE papo :maintenance starts soon",
+            ),
+            (
+                "CtcpQuery",
+                "PRIVMSG #papo :\u{1}VERSION\u{1}",
+                "PRIVMSG #rust :\u{1}VERSION\u{1}",
+                "PRIVMSG papo :\u{1}VERSION\u{1}",
+            ),
+            (
+                "CtcpReply",
+                "NOTICE #papo :\u{1}VERSION papo 0.1\u{1}",
+                "NOTICE #rust :\u{1}VERSION papo 0.1\u{1}",
+                "NOTICE papo :\u{1}VERSION papo 0.1\u{1}",
+            ),
+            (
+                "TagMsg",
+                "+example.org/status=reviewing TAGMSG #papo",
+                "+example.org/status=reviewing TAGMSG #rust",
+                "+example.org/status=reviewing TAGMSG papo",
+            ),
+            (
+                "Reacted",
+                "+draft/react=👍;+draft/reply=RfcBTzyxY120001 TAGMSG #papo",
+                "+draft/react=👍;+draft/reply=RfcBTzyxY120001 TAGMSG #rust",
+                "+draft/react=👍;+draft/reply=RfcBTzyxY120001 TAGMSG papo",
+            ),
+            (
+                "Redacted",
+                "REDACT #papo RfcBTzyxY120001 :superseded",
+                "REDACT #rust RfcBTzyxY120001 :superseded",
+                "REDACT papo RfcBTzyxY120001 :superseded",
+            ),
+        ];
+        for (variant, same, other, private) in conversation_cases {
+            for (line, expected) in [(same, true), (other, false), (private, false)] {
+                let input = if let Some((tags, command)) =
+                    line.strip_prefix('+').and_then(|line| line.split_once(' '))
+                {
+                    format!("@msgid=RfcBTzyxY120010;+{tags} :emily!~e@cloak.example {command}\r\n")
+                } else {
+                    format!("@msgid=RfcBTzyxY120010 :emily!~e@cloak.example {line}\r\n")
+                };
+                let event = mapped_event(&input, variant);
+                assert_eq!(
+                    super::event_applies_to_channel(&event, "#papo"),
+                    expected,
+                    "{variant}: {line}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn every_event_kind_is_scoped_to_its_catchup_channel() {
+        assert_conversation_events_are_scoped();
+        let channel_cases = [
+            ("ServerNotice", ":ergo.test NOTICE #papo :Maintenance"),
+            ("Joined", ":emily!e@cloak JOIN #papo * :Emily"),
+            ("Parted", ":emily!~e@cloak.example PART #papo :Leaving"),
+            ("Kicked", ":ChanServ KICK #papo emily :Requested"),
+            ("Invited", ":emily!~e@cloak.example INVITE papo #papo"),
+            (
+                "ChannelRenamed",
+                ":emily!e@cloak RENAME #papo #papo-dev :Renamed",
+            ),
+            (
+                "ChannelRenamed",
+                ":emily!e@cloak RENAME #legacy #papo :Renamed",
+            ),
+            ("ModeChanged", ":operator!~o@staff.example MODE #papo +m"),
+            ("TopicChanged", ":emily!e@cloak TOPIC #papo :Releases"),
+            (
+                "Quit",
+                ":papo!~p@client.example JOIN #papo * :Papo User\r\n:emily!~e@cloak.example JOIN #papo * :Emily Example\r\n@msgid=RfcBTzyxY120010 :emily!~e@cloak.example QUIT :Client exited",
+            ),
+            (
+                "NickChanged",
+                ":papo!~p@client.example JOIN #papo * :Papo User\r\n:emily!~e@cloak.example JOIN #papo * :Emily Example\r\n@msgid=RfcBTzyxY120010 :emily!~e@cloak.example NICK emily_",
+            ),
+            ("Other", ":ergo.test VENDOR @#papo :network-specific state"),
+        ];
+        for (variant, line) in channel_cases {
+            let input = if line.contains("@msgid=") {
+                format!("{line}\r\n")
+            } else {
+                format!("@msgid=RfcBTzyxY120010 {line}\r\n")
+            };
+            let event = mapped_event(&input, variant);
+            assert!(
+                super::event_applies_to_channel(&event, "#papo"),
+                "{variant}: {line}"
+            );
+            assert!(
+                !super::event_applies_to_channel(&event, "#rust"),
+                "{variant}: {line}"
+            );
+            assert!(
+                !super::event_applies_to_channel(&event, "emily"),
+                "{variant}: {line}"
+            );
+        }
+    }
+
     #[test]
     fn activity_without_a_msgid_advances_the_timestamp_cursor() {
         let time = papo_proto::time::parse("2026-10-15T12:01:00.000Z").unwrap();
