@@ -38,7 +38,7 @@ pub(super) async fn open_connection(
                     plan.address.is_secure().then_some(&plan.tls),
                 )
                 .await
-                .map_err(|error| Error::Connect(error.into()));
+                .map_err(Error::transport);
             }
             #[cfg(not(feature = "websocket"))]
             {
@@ -56,7 +56,7 @@ pub(super) async fn open_connection(
         };
         transport::connect(&plan.address.host, plan.address.port, &security)
             .await
-            .map_err(|error| Error::Connect(error.into()))
+            .map_err(Error::transport)
     }
     #[cfg(browser)]
     {
@@ -68,7 +68,7 @@ pub(super) async fn open_connection(
         }
         transport::connect_websocket(&url, None)
             .await
-            .map_err(|error| Error::Connect(error.into()))
+            .map_err(Error::transport)
     }
     #[cfg(all(not(browser), not(sockets)))]
     {

@@ -124,7 +124,9 @@ impl ConnectError {
             crate::transport::ConnectError::Tls(_) => ConnectErrorKind::HandshakeFailed,
             #[cfg(tls)]
             crate::transport::ConnectError::InvalidServerName(_)
-            | crate::transport::ConnectError::InvalidTlsConfiguration(_) => ConnectErrorKind::Other,
+            | crate::transport::ConnectError::InvalidTlsConfiguration(_) => {
+                ConnectErrorKind::HandshakeFailed
+            }
             #[cfg(all(feature = "websocket", sockets))]
             crate::transport::ConnectError::WebSocket(_) => ConnectErrorKind::HandshakeFailed,
             #[cfg(browser)]
@@ -581,6 +583,18 @@ impl From<crate::StateLimit> for Error {
 }
 
 impl Error {
+    pub(crate) fn transport(error: crate::transport::ConnectError) -> Self {
+        #[cfg(tls)]
+        if matches!(
+            &error,
+            crate::transport::ConnectError::InvalidServerName(_)
+                | crate::transport::ConnectError::InvalidTlsConfiguration(_)
+        ) {
+            return Self::InvalidInput(InvalidInput::TlsConfig(error.to_string()));
+        }
+        Self::Connect(error.into())
+    }
+
     pub(crate) fn unexpected_reply(command: impl Into<String>) -> Self {
         Self::UnexpectedReply {
             command: command.into(),
@@ -821,6 +835,24 @@ mod tests {
             "connection attempt expired",
         )));
         assert_eq!(timed_out.kind(), ConnectErrorKind::TimedOut);
+    }
+
+    #[cfg(tls)]
+    #[test]
+    fn late_tls_configuration_errors_do_not_become_other() {
+        let classified =
+            ConnectError::from(crate::transport::ConnectError::InvalidTlsConfiguration(
+                "invalid certificate PEM".into(),
+            ));
+        assert_eq!(classified.kind(), ConnectErrorKind::HandshakeFailed);
+
+        assert!(matches!(
+            Error::transport(crate::transport::ConnectError::InvalidServerName(
+                "not a server name".into()
+            )),
+            Error::InvalidInput(InvalidInput::TlsConfig(message))
+                if message.contains("invalid TLS server name")
+        ));
     }
 
     #[test]

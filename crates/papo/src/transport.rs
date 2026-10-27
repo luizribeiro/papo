@@ -127,6 +127,15 @@ impl Default for TlsConfig {
     }
 }
 
+impl TlsConfig {
+    #[cfg(tls)]
+    pub(crate) fn has_custom_settings(&self) -> bool {
+        !matches!(self.roots, TlsRoots::Platform)
+            || self.client_certificate.is_some()
+            || self.server_name.is_some()
+    }
+}
+
 /// A connected IRC byte stream.
 #[derive(Debug)]
 pub struct Stream {

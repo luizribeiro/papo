@@ -754,7 +754,7 @@ impl Builder {
                 return Err(InvalidInput::InsecureAuthentication);
             }
             #[cfg(tls)]
-            if address.is_secure() {
+            if address.is_secure() || self.tls.has_custom_settings() {
                 crate::transport::prepare_tls_config(&address.host, &mut self.tls)
                     .map_err(InvalidInput::TlsConfig)?;
             }
@@ -1526,17 +1526,48 @@ mod tests {
 
     #[cfg(tls)]
     #[tokio::test(flavor = "current_thread")]
-    async fn build_rejects_invalid_tls_input_before_connecting() {
-        let (_client, _events, driver) =
-            crate::Client::builder(crate::Endpoint::tls("localhost", 9).unwrap(), "papo-client")
-                .tls_ca_pem(Vec::new())
-                .reconnect(crate::Reconnect::never())
-                .build();
-        assert!(matches!(
-            within(driver).await,
-            Err(Error::InvalidInput(InvalidInput::TlsConfig(message)))
-                if message.contains("no certificates")
-        ));
+    async fn build_validates_every_tls_setting_for_every_scheme() {
+        const CERTIFICATE: &[u8] = include_bytes!("../tests/data/client.pem");
+        const PRIVATE_KEY: &[u8] = include_bytes!("../tests/data/client.key");
+
+        fn bad_ca(builder: Builder) -> Builder {
+            builder.tls_ca_pem(
+                b"-----BEGIN CERTIFICATE-----\nnot-base64!\n-----END CERTIFICATE-----\n",
+            )
+        }
+        fn bad_certificate(builder: Builder) -> Builder {
+            builder.tls_client_cert(b"not a certificate", PRIVATE_KEY)
+        }
+        fn bad_private_key(builder: Builder) -> Builder {
+            builder.tls_client_cert(CERTIFICATE, b"not a private key")
+        }
+        fn bad_server_name(builder: Builder) -> Builder {
+            builder.tls_server_name("not a server name")
+        }
+
+        let cases: [(fn(Builder) -> Builder, &str); 4] = [
+            (bad_ca, "invalid certificate PEM"),
+            (bad_certificate, "certificate PEM contains no certificates"),
+            (bad_private_key, "invalid client private key PEM"),
+            (bad_server_name, "invalid TLS server name"),
+        ];
+        for scheme in ["irc", "ircs", "ws", "wss"] {
+            for (configure, expected) in cases {
+                let endpoint = format!("{scheme}://irc.example.net");
+                let (_client, _events, driver) =
+                    configure(Builder::from_endpoint(endpoint.as_str(), "papo-client"))
+                        .reconnect(crate::Reconnect::never())
+                        .build();
+                assert!(
+                    matches!(
+                        within(driver).await,
+                        Err(Error::InvalidInput(InvalidInput::TlsConfig(message)))
+                            if message.contains(expected)
+                    ),
+                    "accepted {scheme} configuration with {expected}"
+                );
+            }
+        }
     }
 
     #[tokio::test(flavor = "current_thread")]

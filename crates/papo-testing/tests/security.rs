@@ -783,6 +783,23 @@ async fn plaintext_credentials_require_explicit_opt_in() {
 }
 
 #[tokio::test]
+async fn malformed_tls_configuration_fails_before_opening_the_wire() {
+    let malformed = b"-----BEGIN CERTIFICATE-----\nnot-base64!\n-----END CERTIFICATE-----\n";
+    for scheme in ["irc", "ircs", "ws", "wss"] {
+        let endpoint = format!("{scheme}://offline.test");
+        assert!(matches!(
+            papo::Client::builder(endpoint.as_str(), "papo-wire")
+                .tls_ca_pem(malformed)
+                .reconnect(Reconnect::never())
+                .connect()
+                .await,
+            Err(papo::Error::InvalidInput(papo::InvalidInput::TlsConfig(message)))
+                if message.contains("invalid certificate PEM")
+        ));
+    }
+}
+
+#[tokio::test]
 async fn plain_text_rejects_ctcp_delimiters() {
     let (client, _events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo-wire")
