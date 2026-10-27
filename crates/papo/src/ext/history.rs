@@ -561,6 +561,20 @@ pub enum HistoryReason {
 /// Items remain in server delivery order. `IRCv3` recommends oldest-to-newest delivery but
 /// permits other orders, so papo does not sort the page.
 ///
+/// Select the chronologically oldest chat message explicitly:
+///
+/// ```
+/// # fn oldest(page: &papo::HistoryPage) {
+/// let oldest = page.chat_messages().min_by_key(|message| {
+///     message.server_time.unwrap_or(message.received_at)
+/// });
+/// # let _ = oldest;
+/// # }
+/// ```
+///
+/// When `server_time` is missing, `received_at` provides a local fallback; the message's true
+/// historical position is unknown.
+///
 /// Page bounds can be reused as paging cursors:
 ///
 /// ```no_run
