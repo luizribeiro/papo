@@ -218,7 +218,7 @@ impl PendingRequest {
         }
     }
 
-    fn respond(self, response: Response) -> Option<Self> {
+    fn respond(self, response: Response, resolved_sent: &mut VecDeque<String>) -> Option<Self> {
         match self {
             Self::Response(result) => {
                 _ = result.send(Ok(response));
@@ -250,6 +250,7 @@ impl PendingRequest {
                         result,
                     });
                 }
+                remember_resolved_sent(resolved_sent, &confirmations);
                 _ = result.send(Ok(Sent::from_confirmations(
                     &confirmations,
                     conversation,
@@ -763,6 +764,7 @@ where
     let mut active_typing = BTreeMap::new();
     let mut sync_waiters = Vec::new();
     let mut catchups = BTreeMap::new();
+    let mut resolved_sent = VecDeque::new();
     let mut registered_at = None;
     let mut sts = StsActions::default();
     let mut reconnect_now = false;
@@ -789,6 +791,7 @@ where
             &mut join_keys,
             &mut sync_waiters,
             &mut catchups,
+            &mut resolved_sent,
             registration,
             defaults,
             registered,
@@ -1224,6 +1227,7 @@ async fn drain<S>(
     join_keys: &mut BTreeMap<RequestId, (crate::ChannelName, Option<crate::Secret>)>,
     sync_waiters: &mut Vec<(String, oneshot::Sender<Result<(), Error>>)>,
     catchups: &mut BTreeMap<RequestId, Catchup>,
+    resolved_sent: &mut VecDeque<String>,
     registration: &mut ConnectWait,
     defaults: &mut PostConnect,
     registered: &mut bool,
@@ -1275,6 +1279,9 @@ where
         ) {
             event::CoreEvent::Forward(event) => {
                 catchup::remember_live_event(catchups.values_mut(), &event);
+                if is_resolved_sent_duplicate(resolved_sent, &event) {
+                    continue;
+                }
                 if let Event::ChannelSynced(synced) = &event {
                     resolve_sync_waiters(session, sync_waiters, &synced.channel);
                 }
@@ -1328,6 +1335,9 @@ where
                     crate::rt::now_wall(),
                 );
                 catchup::remember_live_event(catchups.values_mut(), &event);
+                if is_resolved_sent_duplicate(resolved_sent, &event) {
+                    continue;
+                }
                 if !enqueue_event(events, pending_events, event) {
                     return Ok(Some((
                         papo_core::CloseKind::Other,
@@ -1416,7 +1426,7 @@ where
                                 )));
                             }
                         }
-                    } else if let Some(result) = result.respond(response) {
+                    } else if let Some(result) = result.respond(response, resolved_sent) {
                         requests.insert(id, result);
                     }
                 }
@@ -1492,6 +1502,34 @@ where
     }
     drain_transmit(stream, session, pending_write, transmits, deadline).await?;
     Ok(None)
+}
+
+const RESOLVED_SENT_CAPACITY: usize = 1_024;
+
+fn remember_resolved_sent(resolved: &mut VecDeque<String>, confirmations: &[papo_core::SentInfo]) {
+    for confirmation in confirmations {
+        if resolved.len() == RESOLVED_SENT_CAPACITY {
+            resolved.pop_front();
+        }
+        resolved.push_back(confirmation.msgid.clone());
+    }
+}
+
+fn is_resolved_sent_duplicate(resolved: &mut VecDeque<String>, event: &Event) -> bool {
+    let (authorship, msgid) = match event {
+        Event::Message(message) => (message.authorship, message.msgid.as_deref()),
+        Event::Notice(notice) => (notice.authorship, notice.msgid.as_deref()),
+        _ => return false,
+    };
+    if authorship != crate::Authorship::Own {
+        return false;
+    }
+    let Some(position) = msgid.and_then(|msgid| resolved.iter().position(|seen| seen == msgid))
+    else {
+        return false;
+    };
+    resolved.remove(position);
+    true
 }
 
 fn should_read_ahead(

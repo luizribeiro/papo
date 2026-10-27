@@ -1654,6 +1654,7 @@ async fn write_timeout_resumes_before_the_next_line() {
     let mut join_keys = std::collections::BTreeMap::new();
     let mut sync_waiters = Vec::new();
     let mut catchups = std::collections::BTreeMap::new();
+    let mut resolved_sent = VecDeque::new();
     let mut registration = super::ConnectWait::default();
     let mut defaults = super::PostConnect {
         bot: false,
@@ -1683,6 +1684,7 @@ async fn write_timeout_resumes_before_the_next_line() {
         &mut join_keys,
         &mut sync_waiters,
         &mut catchups,
+        &mut resolved_sent,
         &mut registration,
         &mut defaults,
         &mut registered,
@@ -1713,6 +1715,7 @@ async fn write_timeout_resumes_before_the_next_line() {
         &mut join_keys,
         &mut sync_waiters,
         &mut catchups,
+        &mut resolved_sent,
         &mut registration,
         &mut defaults,
         &mut registered,
@@ -7401,7 +7404,7 @@ async fn redacting_a_multiline_send_stops_at_the_first_refusal() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn labelled_echo_is_consumed_before_an_own_live_line() {
+async fn labelled_echo_and_note_to_self_duplicate_are_consumed() {
     let caps = ["echo-message", "labeled-response"];
     let (mut server, client, mut events, driver) = scripted(config().wanted_caps(caps));
     let task = tokio::spawn(driver);
@@ -7443,6 +7446,35 @@ async fn labelled_echo_is_consumed_before_an_own_live_line() {
     let event = events.next().await.unwrap();
     let other = event.as_message().unwrap();
     assert_eq!(other.authorship, crate::Authorship::Own);
+
+    let sender = client.clone();
+    let sent = tokio::spawn(async move { sender.privmsg("papo-driver", "remember this").await });
+    client_line(
+        &mut server,
+        b"@label=1 PRIVMSG papo-driver :remember this\r\n",
+    )
+    .await;
+    server_line(
+        &mut server,
+        b"@label=1;msgid=RfcBTzyxY120006 :papo-driver!papo@localhost PRIVMSG papo-driver :remember this\r\n",
+    )
+    .await;
+    assert_eq!(
+        within(sent).await.unwrap().unwrap().msgids,
+        [crate::MessageId::from("RfcBTzyxY120006")]
+    );
+    server_line(
+        &mut server,
+        b"@msgid=RfcBTzyxY120006 :papo-driver!papo@localhost PRIVMSG papo-driver :remember this\r\n",
+    )
+    .await;
+    server_line(
+        &mut server,
+        b"@msgid=RfcBTzyxY120007 :emily!e@localhost PRIVMSG papo-driver :next message\r\n",
+    )
+    .await;
+    let event = events.next().await.unwrap();
+    assert_eq!(event.as_message().unwrap().text, "next message");
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));

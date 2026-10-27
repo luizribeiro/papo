@@ -3675,10 +3675,10 @@ mod tests {
         let live = classify(Line::privmsg("#papo", "now").with_source("emily!e@localhost"));
         assert!(!live.is_own());
 
-        let route = |authorship| {
+        let route = |line, authorship| {
             let isupport = Isupport::default();
             message_event_from_line(
-                Line::privmsg("#papo", "from another device").with_source("papo{bot}!p@localhost"),
+                line,
                 None,
                 authorship,
                 Conversation::Channel(isupport.casemapping().channel("#papo")),
@@ -3691,9 +3691,21 @@ mod tests {
                 None,
             )
         };
-        assert!(matches!(route(Authorship::Own), Event::Message(message)
+        assert!(matches!(route(
+                Line::privmsg("#papo", "from another device").with_source("papo{bot}!p@localhost"),
+                Authorship::Own), Event::Message(message)
             if message.authorship == Authorship::Own));
-        assert!(matches!(route(Authorship::Other), Event::Message(_)));
+        assert!(matches!(
+            route(
+                Line::privmsg("#papo", "from emily").with_source("emily!e@localhost"),
+                Authorship::Other
+            ),
+            Event::Message(_)
+        ));
+        assert!(matches!(route(
+                Line::notice("#papo", "from another device").with_source("papo{bot}!p@localhost"),
+                Authorship::Own), Event::Notice(notice)
+            if notice.authorship == Authorship::Own));
     }
     fn forwarded(event: papo_core::Event) -> Event {
         let CoreEvent::Forward(event) = from_core_with_mapping(
@@ -4029,6 +4041,18 @@ mod tests {
         assert!(
             matches!(forwarded(papo_core::Event::TagMessage(tag)), Event::TypingChanged(typing) if typing.state == Typing::Active)
         );
+
+        let tag = papo_core::TagMessage {
+            envelope: papo_core::LineEnvelope::default(),
+            actor: "papo!~p@cloak".into(),
+            authorship: papo_core::Authorship::Own,
+            conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#ops")),
+            status: None,
+            return_address: "#ops".into(),
+            tags: vec![("+typing".into(), Some("active".into()))],
+        };
+        assert!(matches!(forwarded(papo_core::Event::TagMessage(tag)),
+            Event::TypingChanged(typing) if typing.authorship == Authorship::Own));
     }
 
     #[test]

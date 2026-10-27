@@ -201,21 +201,18 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(received.server_time, sent.server_time);
 
     let sent = alice.privmsg(alice.nick(), "note to self").await?;
-    let received = alice
-        .wait_for(|event| {
+    assert_eq!(
+        conversation_name(&sent.conversation),
+        Some(alice.nick().as_ref())
+    );
+    assert!(sent.msgid().is_some());
+    alice
+        .expect_none(|event| {
             event
                 .as_message()
                 .filter(|message| message.raw_text == "note to self")
         })
         .await?;
-    assert_eq!(received.authorship, papo::Authorship::Own);
-    assert_eq!(
-        conversation_name(&received.conversation),
-        Some(alice.nick().as_ref())
-    );
-    assert_eq!(received.raw_text, "note to self");
-    assert_eq!(received.msgid.as_ref(), sent.msgid());
-    assert!(is_private(&received));
     assert_eq!(alice.state().nick(), &alice.nick());
     assert_eq!(bob.state().nick(), &bob.nick());
 
