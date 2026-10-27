@@ -57,7 +57,7 @@ async fn stale_dm_history_target(s: Scenario) -> papo_testing::Result<()> {
     let new_nick = format!("r{old_nick}");
     let text = "can you send the incident report?";
 
-    writer.privmsg(&old_nick, text).await?;
+    writer.privmsg(old_nick.as_ref(), text).await?;
     reader.set_nick(&new_nick).await?;
     let page = reader
         .history(writer.nick().as_ref())

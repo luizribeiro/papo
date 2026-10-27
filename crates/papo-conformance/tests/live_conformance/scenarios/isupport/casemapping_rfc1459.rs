@@ -94,7 +94,7 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| {
             event
                 .as_joined()
-                .filter(|joined| joined.actor.nick() == &bob_nick)
+                .filter(|joined| joined.actor.nick().as_ref() == bob_nick.as_ref())
         })
         .await?;
     assert_eq!(observed_join.channel.as_ref(), chan);

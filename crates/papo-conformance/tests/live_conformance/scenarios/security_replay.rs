@@ -184,9 +184,15 @@ async fn wildcard_who_stays_separate_from_channel_who(s: Scenario) -> papo_testi
     let (wildcard, channel_rows) = tokio::join!(bob.who("*"), bob.who(&channel));
     let wildcard = wildcard?;
     let channel_rows = channel_rows?;
-    assert!(wildcard.iter().any(|entry| entry.nick == alice_nick));
     assert!(
-        channel_rows.iter().any(|entry| entry.nick == alice_nick),
+        wildcard
+            .iter()
+            .any(|entry| entry.nick == alice_nick.as_ref())
+    );
+    assert!(
+        channel_rows
+            .iter()
+            .any(|entry| entry.nick == alice_nick.as_ref()),
         "wildcard WHO rows: {wildcard:?}; channel WHO rows: {channel_rows:?}"
     );
     Ok(())

@@ -100,14 +100,16 @@ async fn targmax_privmsg(s: Scenario) -> papo_testing::Result<()> {
                 line.numeric() == Some(407)
                     && line
                         .get(1)
-                        .is_some_and(|nick| mapping.nick(nick) == frank_nick)
+                        .is_some_and(|nick| mapping.nick(nick) == frank_nick.as_ref())
             })
         })
         .await?;
     assert_eq!(refusal.numeric(), Some(407));
     assert_eq!(
-        mapping.nick(refusal.get(1).expect("407 includes the refused nickname")),
-        frank_nick
+        mapping
+            .nick(refusal.get(1).expect("407 includes the refused nickname"))
+            .as_ref(),
+        frank_nick.as_ref()
     );
     frank
         .expect_none(|event| message_text(event, over_limit_text))

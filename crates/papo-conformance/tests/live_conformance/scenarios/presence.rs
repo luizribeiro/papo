@@ -446,7 +446,10 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(alice_who.realname, "papo test peer");
     assert_eq!(alice_who.away, Away::__away_value(None));
     assert!(alice_who.oper.is_none());
-    assert_eq!(alice_who.is_bot, Some(false));
+    assert_eq!(
+        alice_who.is_bot,
+        bob.state().isupport().bot_mode().map(|_| false)
+    );
     assert_eq!(
         alice_who
             .prefixes
@@ -687,15 +690,17 @@ async fn whois_host_certificate(s: Scenario) -> papo_testing::Result<()> {
         })?;
 
     assert_eq!(
-        mapping.nick(detail.get(1).expect("WHOIS detail includes the nickname")),
-        alice_nick
+        mapping
+            .nick(detail.get(1).expect("WHOIS detail includes the nickname"))
+            .as_ref(),
+        alice_nick.as_ref()
     );
     assert!(detail.get(2).is_some_and(|value| !value.is_empty()));
     assert!(lines.iter().any(|line| {
         line.numeric() == Some(318)
             && line
                 .get(1)
-                .is_some_and(|nick| mapping.nick(nick) == alice_nick)
+                .is_some_and(|nick| mapping.nick(nick) == alice_nick.as_ref())
     }));
     Ok(())
 }
