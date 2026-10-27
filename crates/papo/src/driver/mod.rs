@@ -60,6 +60,7 @@ pub(super) const SLOW_CONSUMER_REASON: &str = "SlowConsumer";
 
 type BoxConnection = Box<dyn Io>;
 type ConnectFuture = BoxFuture<Result<BoxConnection, Error>>;
+type CompositeFuture = Pin<Box<dyn Future<Output = ()> + Send>>;
 pub(crate) type Connector = Arc<
     dyn Fn(ConnectionPlan, mpsc::UnboundedSender<papo_core::ConnectPhase>) -> ConnectFuture
         + Send
@@ -117,7 +118,7 @@ impl CoreRequest {
 
 pub(crate) enum Command {
     Composite {
-        task: crate::rt::BoxFuture<()>,
+        task: CompositeFuture,
     },
     Send {
         message: Line,
