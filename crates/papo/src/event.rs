@@ -150,8 +150,14 @@ macro_rules! ctcp_return_address {
                 /// Returns the address that reaches the recipients of the CTCP line.
                 ///
                 /// See [`Conversation`] for status-prefixed line guidance.
+                ///
+                /// ```compile_fail
+                /// # fn answer(client: &papo::Client, reply: &papo::event::CtcpReply) {
+                /// let _ = client.reply(reply.return_address(), "automatic response");
+                /// # }
+                /// ```
                 #[must_use]
-                pub fn return_address(&self) -> crate::MessageRef {
+                pub fn return_address(&self) -> crate::NoticeRef {
                     crate::message_ref::from_ctcp_reply(self)
                 }
             }
@@ -746,8 +752,24 @@ impl Notice {
     /// Returns the address that reaches the recipients of the notice.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
+    ///
+    /// A notice address is not a message reference and cannot be passed to [`Client::reply`]:
+    ///
+    /// ```compile_fail
+    /// # fn answer(client: &papo::Client, notice: &papo::event::Notice) {
+    /// let _ = client.reply(notice.return_address(), "automatic response");
+    /// # }
+    /// ```
+    ///
+    /// It also cannot be used as a reaction reference:
+    ///
+    /// ```compile_fail
+    /// # fn react(client: &papo::Client, notice: &papo::event::Notice) {
+    /// let _ = client.react(notice.return_address(), "✅");
+    /// # }
+    /// ```
     #[must_use]
-    pub fn return_address(&self) -> crate::MessageRef {
+    pub fn return_address(&self) -> crate::NoticeRef {
         crate::message_ref::from_notice(self)
     }
 
@@ -2729,7 +2751,6 @@ mod tests {
         assert_eq!(notice.return_address(), "@#ops");
         let reference = notice.return_address();
         assert_eq!(reference, "@#ops");
-        assert_eq!(reference.msgid(), Some(&MessageId::from("RfcBTzyxY120007")));
 
         let server = parse_event(
             Line::notice("papo", "Network maintenance begins soon").with_source("irc.example"),

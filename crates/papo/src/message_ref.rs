@@ -78,18 +78,29 @@ impl Receipt {
         msgids: Vec<MessageId>,
         channel_context: Option<ChannelName>,
     ) -> MessageRef {
-        let recipient = self.identity.recipient.as_ref().map(|nick| RecipientGuard {
-            nick: nick.clone(),
-            account: self.identity.actor_account.clone(),
-            receipt: self.identity.token,
-        });
         MessageRef::new(
             self.address.clone(),
             msgids,
             self.origin,
             channel_context,
-            recipient,
+            self.recipient_guard(),
         )
+    }
+
+    fn notice_reference(&self) -> NoticeRef {
+        NoticeRef {
+            address: self.address.clone(),
+            origin: self.origin,
+            recipient: self.recipient_guard(),
+        }
+    }
+
+    fn recipient_guard(&self) -> Option<RecipientGuard> {
+        self.identity.recipient.as_ref().map(|nick| RecipientGuard {
+            nick: nick.clone(),
+            account: self.identity.actor_account.clone(),
+            receipt: self.identity.token,
+        })
     }
 
     pub(crate) fn recipient(&self) -> Option<RecipientGuard> {
@@ -371,17 +382,12 @@ impl From<&Sent> for MessageRef {
     }
 }
 
-pub(crate) fn from_notice(notice: &Notice) -> MessageRef {
-    notice.receipt.reference(
-        notice.msgid.iter().cloned().collect(),
-        notice.channel_context.clone(),
-    )
+pub(crate) fn from_notice(notice: &Notice) -> NoticeRef {
+    notice.receipt.notice_reference()
 }
 
-pub(crate) fn from_ctcp_reply(reply: &CtcpReply) -> MessageRef {
-    reply
-        .receipt
-        .reference(reply.msgid.iter().cloned().collect(), None)
+pub(crate) fn from_ctcp_reply(reply: &CtcpReply) -> NoticeRef {
+    reply.receipt.notice_reference()
 }
 
 pub(crate) fn from_server_notice(notice: &ServerNotice) -> MessageRef {

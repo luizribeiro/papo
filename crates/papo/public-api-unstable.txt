@@ -515,7 +515,7 @@ pub papo::event::CtcpReply::tags: papo::Tags
 impl papo::event::CtcpReply
 pub fn papo::event::CtcpReply::origin(&self) -> papo::Origin
 impl papo::event::CtcpReply
-pub fn papo::event::CtcpReply::return_address(&self) -> papo::MessageRef
+pub fn papo::event::CtcpReply::return_address(&self) -> papo::NoticeRef
 impl core::clone::Clone for papo::event::CtcpReply
 pub fn papo::event::CtcpReply::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::CtcpReply
@@ -796,7 +796,7 @@ pub papo::event::Notice::tags: papo::Tags
 pub papo::event::Notice::text: alloc::string::String
 impl papo::event::Notice
 pub fn papo::event::Notice::origin(&self) -> papo::Origin
-pub fn papo::event::Notice::return_address(&self) -> papo::MessageRef
+pub fn papo::event::Notice::return_address(&self) -> papo::NoticeRef
 pub fn papo::event::Notice::spans(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo::Span<'_>>
 impl core::clone::Clone for papo::event::Notice
 pub fn papo::event::Notice::clone(&self) -> Self
