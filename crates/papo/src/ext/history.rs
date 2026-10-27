@@ -1843,6 +1843,17 @@ mod tests {
         )
         .await;
         server_line(&mut server, b":ergo.test 005 papo-driver CHATHISTORY=100 MSGREFTYPES=msgid,timestamp :supported\r\n").await;
+        server_line(
+            &mut server,
+            b":papo-driver!p@localhost JOIN #review\r\n:alice!~a@host JOIN #review\r\n",
+        )
+        .await;
+        for _ in 0..2 {
+            assert!(matches!(
+                next_event(&mut events).await,
+                Some(Event::Joined(_))
+            ));
+        }
 
         let request = tokio::spawn({
             let client = client.clone();

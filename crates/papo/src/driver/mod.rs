@@ -197,6 +197,7 @@ pub(crate) enum Command {
     Typing {
         target: String,
         state: Typing,
+        recipient: Option<papo_core::RecipientGuard>,
         result: oneshot::Sender<Result<(), Error>>,
     },
     WaitChannelSync {
@@ -1118,7 +1119,7 @@ where
                         }
                     }
                 }
-                Some(Command::Typing { target, state, result }) => {
+                Some(Command::Typing { target, state, recipient, result }) => {
                     let current = now();
                     let key = session.isupport().casemapping().fold(&target).into_owned();
                     let send = state != Typing::Active
@@ -1132,9 +1133,10 @@ where
                             Typing::Paused => "paused",
                             Typing::Done => "done",
                         };
-                        match session.send_tracked(
+                        match session.send_guarded_tracked(
                             current,
                             Line::tagmsg(target).with_tag("+typing", value),
+                            recipient,
                         ) {
                             Ok(token) => {
                                 if state == Typing::Active {

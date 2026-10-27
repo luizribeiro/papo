@@ -867,10 +867,12 @@ impl Client {
                 }
                 .into());
             }
-            let target = client.resolve(
-                crate::target::Role::Send("reaction: message"),
-                crate::Target::__parts(&message),
-            )?;
+            let target = client
+                .resolve_send(
+                    "reaction: message",
+                    crate::Target::__parts(&message).into_owned(),
+                )
+                .await?;
             let state = client.state();
             Self::require_feature(&state, Feature::Reactions)?;
             message_id
@@ -886,19 +888,21 @@ impl Client {
                     UnsupportedReason::TagDenied,
                 )));
             }
-            let message = Line::tagmsg(target)
+            let line = Line::tagmsg(target.text)
                 .with_tag(reply_tag, message_id.as_ref())
                 .with_tag(reaction_tag, emoji);
             if state.supports(Feature::LabeledResponse) {
-                let response = client.correlated(message, None).await?;
+                let response = client
+                    .correlated_guarded(line, None, target.recipient)
+                    .await?;
                 crate::requests::empty(&response)
             } else {
-                client.send_message(message).await
+                client.send_message_guarded(line, target.recipient).await
             }
         })
     }
 
-    /// Sends a typing state to an address.
+    /// Sends a typing state to a channel, guarded direct recipient, or return address.
     ///
     /// While composing, send [`Typing::Active`] every three seconds so recipients can refresh
     /// their local expiry deadline. Repeated active states within three seconds are silently
@@ -914,15 +918,16 @@ impl Client {
         let client = self.clone();
         let target = crate::Target::__parts(&target).into_owned();
         crate::RequestFuture::new(async move {
-            let target = client.resolve(crate::target::Role::Send("typing: target"), target)?;
+            let target = client.resolve_send("typing: target", target).await?;
             let snapshot = client.state();
             Self::require_feature(&snapshot, Feature::Typing)?;
             let (result, receiver) = oneshot::channel();
             client
                 .commands
                 .send(Command::Typing {
-                    target,
+                    target: target.text,
                     state,
+                    recipient: target.recipient,
                     result,
                 })
                 .await
