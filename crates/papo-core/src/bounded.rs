@@ -50,6 +50,15 @@ impl<T> BoundedCollection<T> {
         self.entries.iter()
     }
 
+    pub(crate) fn replace(&mut self, old: &T, new: T)
+    where
+        T: PartialEq,
+    {
+        if let Some(entry) = self.entries.iter_mut().find(|entry| *entry == old) {
+            *entry = new;
+        }
+    }
+
     pub(crate) fn into_vec(self) -> Vec<T> {
         self.entries
     }

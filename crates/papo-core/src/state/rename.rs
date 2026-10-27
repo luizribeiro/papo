@@ -18,26 +18,7 @@ impl State {
             .param(2)
             .filter(|reason| !reason.is_empty())
             .map(str::to_owned);
-        let old_key = self.casemapping.channel(old);
-        let new_key = self.casemapping.channel(new);
-        if let Some(mut channel) = self.channels.remove(self.casemapping.fold(old).as_ref()) {
-            std::sync::Arc::make_mut(&mut channel).name = self.casemapping.channel(new);
-            self.channels
-                .insert(NameKey::new(new, self.casemapping), channel);
-        }
-        for user in self.users.values_mut() {
-            if user.channels.remove(&old_key) {
-                user.channels.insert(new_key.clone());
-            }
-        }
-        if let Some(count) = self.who_sweeps.remove(&old_key) {
-            self.who_sweeps.insert(new_key.clone(), count);
-        }
-        let old_target = self.casemapping.fold(old);
-        if let Some(values) = self.metadata.remove(old_target.as_ref()) {
-            self.metadata
-                .insert(NameKey::new(new, self.casemapping), values);
-        }
+        self.rename_channel_state(old, new);
         outbox.event(Event::ChannelRenamed {
             envelope: crate::LineEnvelope::from_line(message),
             old: self.casemapping.channel(old),
@@ -47,5 +28,41 @@ impl State {
             reason,
         });
         true
+    }
+
+    fn rename_channel_state(&mut self, old: &str, new: &str) {
+        let old_channel = self.casemapping.channel(old);
+        let new_channel = self.casemapping.channel(new);
+        let old_key = NameKey::new(old, self.casemapping);
+        let new_key = NameKey::new(new, self.casemapping);
+
+        if let Some(mut channel) = self.channels.remove(&old_key) {
+            std::sync::Arc::make_mut(&mut channel).name = new_channel.clone();
+            self.channels.insert(new_key.clone(), channel);
+        }
+        for user in self.users.values_mut() {
+            if user.channels.remove(&old_channel) {
+                user.channels.insert(new_channel.clone());
+            }
+        }
+        crate::typing::TypingTable::rename_channel(&mut self.typing, &old_channel, &new_channel);
+        if let Some(mut marker) = self.read_markers.remove(&old_key) {
+            marker.conversation = crate::Conversation::Channel(new_channel.clone());
+            self.read_markers.insert(new_key.clone(), marker);
+        }
+        self.read_marker_order.replace(&old_key, new_key.clone());
+        if let Some(mut seen) = self.last_seen.remove(&old_key) {
+            seen.target = new_channel.to_string();
+            self.last_seen.insert(new_key.clone(), seen);
+        }
+        for target in &mut self.last_seen_order {
+            if crate::names_equal(self.casemapping, target, old) {
+                *target = new_channel.to_string();
+            }
+        }
+        self.rename_metadata(old, new);
+        if let Some(count) = self.who_sweeps.remove(&old_channel) {
+            self.who_sweeps.insert(new_channel, count);
+        }
     }
 }

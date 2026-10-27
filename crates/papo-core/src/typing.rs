@@ -1,6 +1,6 @@
 use std::{collections::VecDeque, sync::Arc, time::Duration};
 
-use papo_proto::{Command, LineRef, Nick, Prefix, Source, Typing};
+use papo_proto::{ChannelName, Command, LineRef, Nick, Prefix, Source, Typing};
 use web_time::Instant;
 
 use crate::{
@@ -309,6 +309,20 @@ impl TypingTable {
         _ = Self::stop_where(table, |_, typer| typer == nick);
     }
 
+    pub(crate) fn rename_channel(table: &mut Arc<Self>, old: &ChannelName, new: &ChannelName) {
+        let table = Arc::make_mut(table);
+        for (conversation, typer) in &mut table.entries {
+            rename_conversation(conversation, old, new);
+            rename_conversation(&mut typer.conversation, old, new);
+            rename_address(&mut typer.return_address, old, new);
+        }
+        for deadline in &mut table.deadlines {
+            rename_conversation(&mut deadline.conversation, old, new);
+            rename_address(&mut deadline.return_address, old, new);
+        }
+        table.deduplicate();
+    }
+
     fn rename(table: &mut Arc<Self>, old: &Nick, new: &Nick) {
         let table = Arc::make_mut(table);
         for (_, typer) in &mut table.entries {
@@ -360,6 +374,19 @@ impl TypingTable {
             }
         });
     }
+}
+
+fn rename_conversation(conversation: &mut Conversation, old: &ChannelName, new: &ChannelName) {
+    if matches!(conversation, Conversation::Channel(channel) if channel == old) {
+        *conversation = Conversation::Channel(new.clone());
+    }
+}
+
+fn rename_address(address: &mut String, old: &ChannelName, new: &ChannelName) {
+    let Some(prefix) = address.strip_suffix(old.as_ref()) else {
+        return;
+    };
+    *address = format!("{prefix}{new}");
 }
 
 impl PartialEq for TypingTable {
