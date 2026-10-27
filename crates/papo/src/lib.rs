@@ -78,8 +78,10 @@
 //! APIs gated by the `unstable` feature are outside the crate's semantic-versioning guarantees.
 //! Applications can opt in while libraries should leave the feature disabled.
 //! Browser builds (`wasm32-unknown-unknown`) connect only through `ws://` and `wss://`
-//! `ws://` and `wss://` [`Endpoint`] values. The browser owns TLS policy, and IRC STS does not apply to
-//! WebSocket connections, so TCP endpoint constructors, TLS setters, and STS stores are absent.
+//! [`Endpoint`] values. TCP endpoint constructors remain available for portable configuration,
+//! but connecting through one returns an unavailable-transport error. The browser owns TLS policy,
+//! and IRC STS does not apply to WebSocket connections, so custom TLS setters and STS stores are
+//! absent from browser builds.
 //!
 //! # Frozen re-exports
 //!
