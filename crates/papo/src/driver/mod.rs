@@ -221,6 +221,10 @@ impl PendingRequest {
         }
     }
 
+    fn is_text(&self) -> bool {
+        matches!(self, Self::Text { .. })
+    }
+
     fn respond(self, response: Response, resolved_sent: &mut VecDeque<String>) -> Option<Self> {
         match self {
             Self::Response(result) => {
@@ -1309,6 +1313,12 @@ where
         }
     }
     drop_closed_waiters(requests, sync_waiters, registration);
+    if !reconcile_pending_events(events, pending_events, requests, resolved_sent) {
+        return Ok(Some((
+            papo_core::CloseKind::Other,
+            SLOW_CONSUMER_REASON.to_owned(),
+        )));
+    }
     let read_ahead = should_read_ahead(requests, sync_waiters, catchups, registration, quitting);
     while (pending_events.is_empty() || read_ahead || after_timeout)
         && let Some(core_event) = session.poll_event()
@@ -1325,6 +1335,15 @@ where
             event::CoreEvent::Forward(event) => {
                 catchup::remember_live_event(catchups.values_mut(), &event);
                 if is_resolved_sent_duplicate(resolved_sent, &event) {
+                    continue;
+                }
+                if should_hold_sent_candidate(requests, &event) {
+                    if !hold_event(events, pending_events, event) {
+                        return Ok(Some((
+                            papo_core::CloseKind::Other,
+                            SLOW_CONSUMER_REASON.to_owned(),
+                        )));
+                    }
                     continue;
                 }
                 if let Event::ChannelSynced(synced) = &event {
@@ -1384,6 +1403,15 @@ where
                 );
                 catchup::remember_live_event(catchups.values_mut(), &event);
                 if is_resolved_sent_duplicate(resolved_sent, &event) {
+                    continue;
+                }
+                if should_hold_sent_candidate(requests, &event) {
+                    if !hold_event(events, pending_events, event) {
+                        return Ok(Some((
+                            papo_core::CloseKind::Other,
+                            SLOW_CONSUMER_REASON.to_owned(),
+                        )));
+                    }
                     continue;
                 }
                 if !enqueue_event(events, pending_events, event) {
@@ -1547,6 +1575,12 @@ where
             }
             event::CoreEvent::Unknown => {}
         }
+        if !reconcile_pending_events(events, pending_events, requests, resolved_sent) {
+            return Ok(Some((
+                papo_core::CloseKind::Other,
+                SLOW_CONSUMER_REASON.to_owned(),
+            )));
+        }
     }
     drain_transmit(stream, session, pending_write, transmits, deadline).await?;
     Ok(None)
@@ -1564,19 +1598,53 @@ fn remember_resolved_sent(resolved: &mut VecDeque<String>, confirmations: &[papo
 }
 
 fn is_resolved_sent_duplicate(resolved: &mut VecDeque<String>, event: &Event) -> bool {
-    let (authorship, msgid) = match event {
-        Event::Message(message) => (message.authorship, message.msgid.as_deref()),
-        Event::Notice(notice) => (notice.authorship, notice.msgid.as_deref()),
-        _ => return false,
-    };
-    if authorship != crate::Authorship::Own {
-        return false;
-    }
-    let Some(position) = msgid.and_then(|msgid| resolved.iter().position(|seen| seen == msgid))
+    let Some(position) =
+        own_line_msgid(event).and_then(|msgid| resolved.iter().position(|seen| seen == msgid))
     else {
         return false;
     };
     resolved.remove(position);
+    true
+}
+
+fn should_hold_sent_candidate(
+    requests: &BTreeMap<RequestId, PendingRequest>,
+    event: &Event,
+) -> bool {
+    requests.values().any(PendingRequest::is_text) && own_line_msgid(event).is_some()
+}
+
+fn own_line_msgid(event: &Event) -> Option<&str> {
+    match event {
+        Event::Message(message) if message.authorship == crate::Authorship::Own => {
+            message.msgid.as_deref()
+        }
+        Event::Notice(notice) if notice.authorship == crate::Authorship::Own => {
+            notice.msgid.as_deref()
+        }
+        _ => None,
+    }
+}
+
+fn reconcile_pending_events(
+    events: &EventSink,
+    pending: &mut VecDeque<Event>,
+    requests: &BTreeMap<RequestId, PendingRequest>,
+    resolved_sent: &mut VecDeque<String>,
+) -> bool {
+    let hold = requests.values().any(PendingRequest::is_text);
+    let mut retained = VecDeque::new();
+    while let Some(event) = pending.pop_front() {
+        if is_resolved_sent_duplicate(resolved_sent, &event) {
+            continue;
+        }
+        if hold {
+            retained.push_back(event);
+        } else if !send_event(events, event) {
+            return false;
+        }
+    }
+    *pending = retained;
     true
 }
 
@@ -1786,7 +1854,26 @@ fn rejoin_retained_start(channel_count: usize) -> usize {
     channel_count.saturating_sub(MAX_REJOIN_CHANNELS)
 }
 
-fn enqueue_event(events: &EventSink, _pending: &mut VecDeque<Event>, event: Event) -> bool {
+fn enqueue_event(events: &EventSink, pending: &mut VecDeque<Event>, event: Event) -> bool {
+    if !pending.is_empty() {
+        return hold_event(events, pending, event);
+    }
+    send_event(events, event)
+}
+
+fn hold_event(events: &EventSink, pending: &mut VecDeque<Event>, event: Event) -> bool {
+    if events.regular.is_closed() {
+        return false;
+    }
+    if pending.len() == events.receiver.capacity {
+        pending.pop_front();
+        events.dropped.fetch_add(1, Ordering::Relaxed);
+    }
+    pending.push_back(event);
+    true
+}
+
+fn send_event(events: &EventSink, event: Event) -> bool {
     if events.receiver.discard_oldest_if_full() {
         events.dropped.fetch_add(1, Ordering::Relaxed);
     }

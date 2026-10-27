@@ -7661,12 +7661,18 @@ async fn labelled_echo_and_note_to_self_duplicate_are_consumed() {
     let event = next_event(&mut events).await.unwrap();
     let other = event.as_message().unwrap();
     assert_eq!(other.authorship, crate::Authorship::Own);
+    assert_eq!(other.text, "from another device");
 
     let sender = client.clone();
     let sent = tokio::spawn(async move { sender.privmsg("papo-driver", "remember this").await });
     client_line(
         &mut server,
         b"@label=1 PRIVMSG papo-driver :remember this\r\n",
+    )
+    .await;
+    server_line(
+        &mut server,
+        b"@msgid=RfcBTzyxY120006 :papo-driver!papo@localhost PRIVMSG papo-driver :remember this\r\n",
     )
     .await;
     server_line(
@@ -7678,11 +7684,6 @@ async fn labelled_echo_and_note_to_self_duplicate_are_consumed() {
         within(sent).await.unwrap().unwrap().msgids,
         [crate::MessageId::from("RfcBTzyxY120006")]
     );
-    server_line(
-        &mut server,
-        b"@msgid=RfcBTzyxY120006 :papo-driver!papo@localhost PRIVMSG papo-driver :remember this\r\n",
-    )
-    .await;
     server_line(
         &mut server,
         b"@msgid=RfcBTzyxY120007 :emily!e@localhost PRIVMSG papo-driver :next message\r\n",
