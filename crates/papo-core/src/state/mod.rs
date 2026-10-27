@@ -54,7 +54,7 @@ pub struct State {
     user_modes: HashSet<char>,
     casemapping: Names,
     isupport: Isupport,
-    channels: BTreeMap<NameKey<String>, Channel>,
+    channels: BTreeMap<NameKey<String>, Arc<Channel>>,
     users: BTreeMap<NameKey<String>, User>,
     monitored: Vec<Nick>,
     who_sweeps: BTreeMap<ChannelName, usize>,
@@ -298,6 +298,12 @@ fn metadata_update<'a>(
 }
 
 impl State {
+    pub(super) fn channel_mut(&mut self, name: &str) -> Option<&mut Channel> {
+        self.channels
+            .get_mut(self.casemapping.fold(name).as_ref())
+            .map(Arc::make_mut)
+    }
+
     fn own_user(&self) -> &User {
         let nick = self.casemapping.fold(&self.nick);
         self.users
@@ -526,6 +532,7 @@ impl State {
         self.isupport.clone_from(isupport);
         let prefix_order: Arc<[Prefix]> = isupport.prefix().into();
         for channel in self.channels.values_mut() {
+            let channel = Arc::make_mut(channel);
             channel.prefix_order = Arc::clone(&prefix_order);
         }
     }
@@ -543,9 +550,7 @@ impl State {
         mode: ListMode,
         entries: Vec<ModeListEntry>,
     ) {
-        if let Some(channel) = self
-            .channels
-            .get_mut(self.casemapping.fold(channel).as_ref())
+        if let Some(channel) = self.channel_mut(channel)
             && channel.lists.get(&mode) != Some(&entries)
         {
             channel.lists.insert(mode, entries);
@@ -555,8 +560,7 @@ impl State {
 
     pub(crate) fn invalidate_mode_list(&mut self, channel: &str, mode: ListMode) {
         if self
-            .channels
-            .get_mut(self.casemapping.fold(channel).as_ref())
+            .channel_mut(channel)
             .is_some_and(|channel| channel.lists.remove(&mode).is_some())
         {
             self.mark_changed();
@@ -745,10 +749,7 @@ impl State {
             return Handled::Yes;
         }
         if let Some((_, channel, entries)) = parse_353(message) {
-            let Some(state) = self
-                .channels
-                .get_mut(self.casemapping.fold(channel).as_ref())
-            else {
+            let Some(state) = self.channel_mut(channel) else {
                 return Handled::No;
             };
             state.names_reply_seen = true;
@@ -826,9 +827,7 @@ impl State {
             return false;
         };
         if let Some(modestring) = message.param(1)
-            && let Some(channel) = self
-                .channels
-                .get_mut(self.casemapping.fold(target).as_ref())
+            && let Some(channel) = self.channel_mut(target)
         {
             channel.apply_modes(modestring, message.params().skip(2), isupport, false);
             channel.apply_list_modes(message, modestring, isupport);
@@ -887,10 +886,7 @@ impl State {
         ) {
             return false;
         }
-        let Some(channel) = message
-            .param(1)
-            .and_then(|name| self.channels.get_mut(self.casemapping.fold(name).as_ref()))
-        else {
+        let Some(channel) = message.param(1).and_then(|name| self.channel_mut(name)) else {
             return false;
         };
         if message.command() == Command::Numeric(Numeric::RPL_CHANNELMODEIS) {
@@ -937,19 +933,17 @@ impl State {
     }
 
     fn handle_topic(&mut self, message: &LineRef<'_>, outbox: &mut Outbox) -> bool {
+        let mapping = self.casemapping;
         let (channel_name, topic, live) = match message.command() {
             Command::Numeric(Numeric::RPL_TOPIC) => (message.param(1), message.param(2), false),
             Command::Topic => (message.param(0), message.param(1), true),
             Command::Numeric(Numeric::RPL_TOPICWHOTIME) => {
-                let Some(channel) = message
-                    .param(1)
-                    .and_then(|name| self.channels.get_mut(self.casemapping.fold(name).as_ref()))
-                else {
+                let Some(channel) = message.param(1).and_then(|name| self.channel_mut(name)) else {
                     return false;
                 };
                 channel.topic_set_by = message
                     .param(2)
-                    .map(|setter| Source::from_prefix_with_names(setter, self.casemapping));
+                    .map(|setter| Source::from_prefix_with_names(setter, mapping));
                 channel.topic_set_at = message.param(3).and_then(parse_unix_seconds);
                 return true;
             }
@@ -967,16 +961,14 @@ impl State {
                 authorship: self.source_authorship(message),
             });
         }
-        let Some(channel) = channel_name
-            .and_then(|name| self.channels.get_mut(self.casemapping.fold(name).as_ref()))
-        else {
+        let Some(channel) = channel_name.and_then(|name| self.channel_mut(name)) else {
             return false;
         };
         channel.topic = topic.filter(|topic| !topic.is_empty()).map(str::to_owned);
         channel.topic_set_by = if live {
             message
                 .source()
-                .map(|source| Source::from_proto_with_names(source, self.casemapping))
+                .map(|source| Source::from_proto_with_names(source, mapping))
         } else {
             None
         };
@@ -1000,23 +992,26 @@ impl State {
         self.channels = std::mem::take(&mut self.channels)
             .into_values()
             .map(|mut channel| {
-                channel.casemapping = Names::new(mapping, channel.casemapping.origin());
-                channel.name = self
-                    .casemapping
-                    .origin()
-                    .__channel(mapping, channel.name.as_ref());
-                channel.members = channel
-                    .members
-                    .into_values()
-                    .map(|mut member| {
-                        member.nick = self
-                            .casemapping
-                            .origin()
-                            .__nick(mapping, member.nick.as_ref());
-                        (NameKey::new(member.nick.as_ref(), mapping), member)
-                    })
-                    .collect();
-                (NameKey::new(channel.name.as_ref(), mapping), channel)
+                let name = {
+                    let channel = Arc::make_mut(&mut channel);
+                    channel.casemapping = Names::new(mapping, channel.casemapping.origin());
+                    channel.name = self
+                        .casemapping
+                        .origin()
+                        .__channel(mapping, channel.name.as_ref());
+                    channel.members = std::mem::take(&mut channel.members)
+                        .into_values()
+                        .map(|mut member| {
+                            member.nick = self
+                                .casemapping
+                                .origin()
+                                .__nick(mapping, member.nick.as_ref());
+                            (NameKey::new(member.nick.as_ref(), mapping), member)
+                        })
+                        .collect();
+                    channel.name.to_string()
+                };
+                (NameKey::new(name, mapping), channel)
             })
             .collect();
         self.users = std::mem::take(&mut self.users)
@@ -1185,11 +1180,12 @@ impl State {
         }
         self.channels
             .get(name.__folded(self.casemapping()).as_ref())
+            .map(Arc::as_ref)
     }
 
     /// Iterates over joined channels in unspecified order.
     pub fn channels(&self) -> impl Iterator<Item = &Channel> {
-        self.channels.values()
+        self.channels.values().map(Arc::as_ref)
     }
 
     /// Reports whether two masks identify the same server list entry.
@@ -1675,24 +1671,24 @@ fn canonical_list_mask(mask: &Mask) -> Mask {
 mod metadata_tests {
     use papo_proto::{Isupport, LineRef};
 
-    use super::{Channel, NameKey, State};
+    use super::{Arc, Channel, NameKey, State};
     use crate::{Config, Event, ListMode, Outbox, StateLimit};
 
     #[test]
     fn distinguishes_unknown_and_fetched_empty_mode_lists() {
         let mut state = State::new(&Config::default());
         let channel = Channel::new("#Papo[dev]", state.casemapping, &Isupport::default(), true);
-        state
-            .channels
-            .insert(NameKey::new("#Papo[dev]", state.casemapping), channel);
+        state.channels.insert(
+            NameKey::new("#Papo[dev]", state.casemapping),
+            Arc::new(channel),
+        );
 
         assert_eq!(
             state.channel("#papo{dev}").unwrap().list(ListMode::Ban),
             None
         );
         state
-            .channels
-            .get_mut(state.casemapping.fold("#papo{dev}").as_ref())
+            .channel_mut("#papo{dev}")
             .unwrap()
             .lists
             .insert(ListMode::Ban, Vec::new());
@@ -1701,8 +1697,7 @@ mod metadata_tests {
             Some([].as_slice())
         );
         state
-            .channels
-            .get_mut(state.casemapping.fold("#Papo[dev]").as_ref())
+            .channel_mut("#Papo[dev]")
             .unwrap()
             .lists
             .remove(&ListMode::Ban);
@@ -1711,13 +1706,12 @@ mod metadata_tests {
             None
         );
         state
-            .channels
-            .get_mut(state.casemapping.fold("#papo{dev}").as_ref())
+            .channel_mut("#papo{dev}")
             .unwrap()
             .lists
             .insert(ListMode::Ban, Vec::new());
         for channel in state.channels.values_mut() {
-            channel.lists.clear();
+            Arc::make_mut(channel).lists.clear();
         }
         assert_eq!(
             state.channel("#Papo[dev]").unwrap().list(ListMode::Ban),

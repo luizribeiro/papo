@@ -98,7 +98,12 @@ impl State {
             }
             self.channels.insert(
                 key,
-                Channel::new(join.channel, self.casemapping, isupport, false),
+                std::sync::Arc::new(Channel::new(
+                    join.channel,
+                    self.casemapping,
+                    isupport,
+                    false,
+                )),
             );
         }
         self.add_member(join.channel, nick, username, host, &[], outbox);
@@ -125,9 +130,7 @@ impl State {
             return false;
         }
         let name = message.param(1);
-        let Some(channel) =
-            name.and_then(|name| self.channels.get_mut(self.casemapping.fold(name).as_ref()))
-        else {
+        let Some(channel) = name.and_then(|name| self.channel_mut(name)) else {
             return false;
         };
         if channel.synced {
@@ -181,7 +184,7 @@ impl State {
             self.warn_limit(StateLimit::Members, outbox);
             return;
         }
-        if let Some(channel) = self.channels.get_mut(channel_key.as_ref()) {
+        if let Some(channel) = self.channel_mut(channel_name) {
             let prefixes = channel
                 .prefix_order
                 .iter()
@@ -254,10 +257,9 @@ impl State {
 
     pub(super) fn remove_member(&mut self, channel: &str, nick: &str) {
         let channel_name = self.casemapping.channel(channel);
-        let channel_key = self.casemapping.fold(channel);
         let nick_name = self.casemapping.nick(nick);
         let nick_key = self.casemapping.fold(nick);
-        if let Some(joined) = self.channels.get_mut(channel_key.as_ref()) {
+        if let Some(joined) = self.channel_mut(channel) {
             joined.members.remove(nick_key.as_ref());
         }
         if let Some(user) = self.users.get_mut(nick_key.as_ref()) {
@@ -282,36 +284,32 @@ impl State {
             return;
         };
         for channel in user.channels {
-            if let Some(joined) = self
-                .channels
-                .get_mut(self.casemapping.fold(&channel).as_ref())
-            {
+            if let Some(joined) = self.channel_mut(&channel) {
                 joined.members.remove(folded.as_ref());
             }
         }
     }
 
     pub(super) fn rename_user(&mut self, old_nick: &str, new_nick: &str) {
-        let old_key = self.casemapping.fold(old_nick);
-        let new_key = self.casemapping.nick(new_nick);
+        let mapping = self.casemapping;
+        let old_key = mapping.fold(old_nick);
+        let new_key = mapping.nick(new_nick);
         let Some(mut user) = self.users.remove(old_key.as_ref()) else {
             return;
         };
-        user.nick = self.casemapping.nick(new_nick);
+        user.nick = mapping.nick(new_nick);
         for channel_key in &user.channels {
-            if let Some(channel) = self
-                .channels
-                .get_mut(self.casemapping.fold(channel_key).as_ref())
+            if let Some(channel) = self.channel_mut(channel_key)
                 && let Some(mut member) = channel.members.remove(old_key.as_ref())
             {
-                member.nick = self.casemapping.nick(new_nick);
+                member.nick = mapping.nick(new_nick);
                 channel
                     .members
-                    .insert(NameKey::new(new_nick, self.casemapping), member);
+                    .insert(NameKey::new(new_nick, mapping), member);
             }
         }
         self.users
-            .insert(NameKey::new(new_key.as_ref(), self.casemapping), user);
+            .insert(NameKey::new(new_key.as_ref(), mapping), user);
     }
 
     pub(super) fn is_monitored(&self, nick: &str) -> bool {
