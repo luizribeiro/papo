@@ -373,56 +373,71 @@ impl IntoFuture for SetModes {
                 .iter()
                 .map(|change| change.typed(&state))
                 .collect::<Result<Vec<_>, _>>()?;
-            let mut result = ModesApplied {
-                applied: Vec::new(),
-                refused: Vec::new(),
-                unconfirmed: Vec::new(),
-            };
-            let mut first_refusal = None;
-            for (index, (message, chunk)) in messages
-                .into_iter()
-                .zip(requested.chunks(maximum))
-                .enumerate()
-            {
-                let response = match self
-                    .client
-                    .correlated(message, Some(ResponseMatcher::Mode(self.target.clone())))
-                    .await
-                {
-                    Ok(response) => response,
-                    Err(error) if result.applied.is_empty() => return Err(error),
-                    Err(error) => {
-                        result.unconfirmed.extend(
-                            requested
-                                .chunks(maximum)
-                                .skip(index)
-                                .flatten()
-                                .cloned()
-                                .map(|change| (change, error.clone())),
-                        );
-                        return Ok(result);
+            let commands = self.client.commands.clone();
+            let (result_sender, result_receiver) = tokio::sync::oneshot::channel();
+            let task = Box::pin(async move {
+                let outcome = async {
+                    let mut result = ModesApplied {
+                        applied: Vec::new(),
+                        refused: Vec::new(),
+                        unconfirmed: Vec::new(),
+                    };
+                    let mut first_refusal = None;
+                    for (index, (message, chunk)) in messages
+                        .into_iter()
+                        .zip(requested.chunks(maximum))
+                        .enumerate()
+                    {
+                        let response = match self
+                            .client
+                            .correlated(message, Some(ResponseMatcher::Mode(self.target.clone())))
+                            .await
+                        {
+                            Ok(response) => response,
+                            Err(error) if result.applied.is_empty() => return Err(error),
+                            Err(error) => {
+                                result.unconfirmed.extend(
+                                    requested
+                                        .chunks(maximum)
+                                        .skip(index)
+                                        .flatten()
+                                        .cloned()
+                                        .map(|change| (change, error.clone())),
+                                );
+                                return Ok(result);
+                            }
+                        };
+                        let applied = confirmed(&response, &state, &self.target, chunk);
+                        if let Some(error) = response.error() {
+                            let refusal = error.refusal();
+                            result.refused.extend(
+                                chunk
+                                    .iter()
+                                    .filter(|change| !applied.contains(change))
+                                    .cloned()
+                                    .map(|change| (change, refusal)),
+                            );
+                            first_refusal.get_or_insert(error);
+                        }
+                        result.applied.extend(applied);
                     }
-                };
-                let applied = confirmed(&response, &state, &self.target, chunk);
-                if let Some(error) = response.error() {
-                    let refusal = error.refusal();
-                    result.refused.extend(
-                        chunk
-                            .iter()
-                            .filter(|change| !applied.contains(change))
-                            .cloned()
-                            .map(|change| (change, refusal)),
-                    );
-                    first_refusal.get_or_insert(error);
+                    if result.applied.is_empty()
+                        && let Some(error) = first_refusal
+                    {
+                        return Err(Error::server(error));
+                    }
+                    Ok(result)
                 }
-                result.applied.extend(applied);
-            }
-            if result.applied.is_empty()
-                && let Some(error) = first_refusal
-            {
-                return Err(Error::server(error));
-            }
-            Ok(result)
+                .await;
+                _ = result_sender.send(outcome);
+            });
+            commands
+                .send(crate::driver::Command::Composite { task })
+                .await
+                .map_err(|_| Error::connection_lost())?;
+            result_receiver
+                .await
+                .map_err(|_| Error::connection_lost())?
         })
     }
 }

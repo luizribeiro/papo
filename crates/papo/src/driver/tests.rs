@@ -5957,6 +5957,30 @@ async fn mode_changes_validate_every_chunk_before_sending() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn dropped_mode_future_still_sends_later_chunks() {
+    let (mut server, client, mut events, driver) =
+        scripted(config().wanted_caps(["labeled-response"]));
+    let driver = tokio::spawn(driver);
+    complete_connect_labelled(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":ergo.test 005 papo-driver CHANMODES=beI,k,l,imnst MODES=1 :are supported\r\n",
+    )
+    .await;
+
+    let modes = tokio::spawn(async move { client.mode("#papo").add('m').add('n').await });
+    client_line(&mut server, b"@label=0 MODE #papo +m\r\n").await;
+    abort_task(modes).await;
+    server_line(
+        &mut server,
+        b"@label=0 :papo-driver!~papo@localhost MODE #papo +m\r\n",
+    )
+    .await;
+    client_line(&mut server, b"@label=1 MODE #papo +n\r\n").await;
+    driver.abort();
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn mode_changes_return_confirmed_facts_after_a_later_disconnect() {
     let (mut server, client, mut events, driver) =
         scripted(config().wanted_caps(["labeled-response"]));
