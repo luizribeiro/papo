@@ -87,6 +87,7 @@ async fn multidevice_away_shared_state(s: Scenario) -> papo_testing::Result<()> 
     wait_for_channel(&mut phone, &channel).await?;
     let mut observer = s.connect("bob").await?;
     observer.join(&channel).await?;
+    wait_for_channel(&mut observer, &channel).await?;
     let nick = desktop.nick();
     phone
         .wait_for(|event| {
