@@ -256,9 +256,10 @@ impl SetModes {
 
     /// Grants channel-operator privileges to `nick`.
     ///
-    /// ```compile_fail
-    /// # fn channel_is_not_a_nick(client: &papo::Client, channel: &papo::ChannelName) {
-    /// let _ = client.mode("#papo").op(channel);
+    /// ```no_run
+    /// # async fn grant_operator(client: &papo::Client) -> Result<(), papo::Error> {
+    /// client.mode("#papo").op("alice").await?;
+    /// # Ok(())
     /// # }
     /// ```
     pub fn op(self, nick: impl crate::AsNick) -> Self {
