@@ -1506,7 +1506,6 @@ pub papo::Event::Motd(papo::event::Motd)
 pub papo::Event::NickChanged(papo::event::NickChanged)
 pub papo::Event::Notice(papo::event::Notice)
 pub papo::Event::Other(papo::event::Unparsed)
-pub papo::Event::OwnMessage(papo::Message)
 pub papo::Event::Parted(papo::event::Parted)
 pub papo::Event::PersistenceChanged(papo::PersistenceStatus)
 pub papo::Event::Quit(papo::event::Quit)
@@ -1585,8 +1584,6 @@ impl papo::Event
 pub const fn papo::Event::as_notice(&self) -> core::option::Option<&papo::event::Notice>
 impl papo::Event
 pub const fn papo::Event::as_other(&self) -> core::option::Option<&papo::event::Unparsed>
-impl papo::Event
-pub const fn papo::Event::as_own_message(&self) -> core::option::Option<&papo::Message>
 impl papo::Event
 pub const fn papo::Event::as_parted(&self) -> core::option::Option<&papo::event::Parted>
 impl papo::Event

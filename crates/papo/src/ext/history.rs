@@ -618,7 +618,7 @@ impl HistoryPage {
     /// dropped. This iterator remains in server delivery order.
     pub fn chat_messages(&self) -> impl Iterator<Item = &ChatMessage> {
         self.items.iter().filter_map(|item| match item {
-            Event::Message(message) | Event::OwnMessage(message) => Some(message),
+            Event::Message(message) => Some(message),
             _ => None,
         })
     }
@@ -1272,7 +1272,7 @@ mod tests {
             .map(|item| history_item(item, Some(&conversation), &client, UNIX_EPOCH))
             .collect();
 
-        assert!(matches!(&items[0], PageEvent::OwnMessage(message)
+        assert!(matches!(&items[0], PageEvent::Message(message)
             if message.authorship == crate::Authorship::Own && message.is_own()));
         assert!(matches!(&items[1], PageEvent::Message(message)
             if message.authorship == crate::Authorship::Other && !message.is_own()));
@@ -1287,7 +1287,7 @@ mod tests {
                 && quit.authorship == crate::Authorship::Other
                 && matches!(quit.actor.account(), crate::Account::LoggedIn(account) if account == "emily")));
         let first_time = papo_proto::time::parse("2026-10-19T14:31:08.123Z").unwrap();
-        assert!(matches!(&items[0], PageEvent::OwnMessage(message)
+        assert!(matches!(&items[0], PageEvent::Message(message)
             if message.msgid.as_deref() == Some("RfcBTzyxY120004")
                 && message.server_time == Some(first_time)
                 && matches!(message.actor.account(), crate::Account::LoggedIn(account) if account == "papo")));

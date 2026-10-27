@@ -234,9 +234,8 @@ impl Authorship {
 
 /// An incoming `PRIVMSG` or CTCP `ACTION` in a channel or private conversation.
 ///
-/// This type cannot represent notices or server broadcasts. [`Event::Message`] carries messages
-/// from other users, while [`Event::OwnMessage`] carries messages authored by this account on
-/// another connection.
+/// This type cannot represent notices or server broadcasts. Inspect [`Self::authorship`] to
+/// distinguish messages authored by this account from messages authored by other users.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Message {
@@ -1046,7 +1045,6 @@ fn message_event_from_line(
         )
         .map_or_else(|line| unparsed_from_line(line, received_at), Event::Notice);
     }
-    let own = authorship == Authorship::Own;
     Message::new_with_context(
         raw,
         batch_type,
@@ -1060,16 +1058,7 @@ fn message_event_from_line(
         received_at,
         reply_token,
     )
-    .map_or_else(
-        |line| unparsed_from_line(line, received_at),
-        |message| {
-            if own {
-                Event::OwnMessage(message)
-            } else {
-                Event::Message(message)
-            }
-        },
-    )
+    .map_or_else(|line| unparsed_from_line(line, received_at), Event::Message)
 }
 
 pub(crate) fn historical_message_event(
@@ -1361,13 +1350,8 @@ pub enum Event {
     Connected(Connected),
     /// A complete message of the day received while connecting.
     Motd(Motd),
-    /// An incoming `PRIVMSG` or `ACTION` from another user.
+    /// An incoming `PRIVMSG` or `ACTION` from any user.
     Message(Message),
-    /// A message authored by this account from another connection.
-    ///
-    /// Correlated echoes of this connection's sends resolve through [`crate::Sent`] and are not
-    /// duplicated here. Log those sends from the send future's result.
-    OwnMessage(Message),
     /// An incoming `NOTICE` from a user.
     Notice(Notice),
     /// A server notice, broadcast, `*` message, or `WALLOPS`.
@@ -1464,7 +1448,6 @@ pub enum Event {
 
 variant_accessors! { Event;
     (Message, as_message, Message),
-    (OwnMessage, as_own_message, Message),
     (Notice, as_notice, Notice),
     (ServerNotice, as_server_notice, ServerNotice),
     (CtcpQuery, as_ctcp_query, CtcpQuery),
@@ -1514,7 +1497,7 @@ impl Event {
     #[must_use]
     pub fn msgid(&self) -> Option<&MessageId> {
         match self {
-            Self::Message(event) | Self::OwnMessage(event) => event.msgid.as_ref(),
+            Self::Message(event) => event.msgid.as_ref(),
             Self::Notice(event) => event.msgid.as_ref(),
             Self::ServerNotice(event) => event.msgid.as_ref(),
             Self::CtcpQuery(event) => event.msgid.as_ref(),
@@ -1542,7 +1525,7 @@ impl Event {
     #[must_use]
     pub fn server_time(&self) -> Option<SystemTime> {
         match self {
-            Self::Message(event) | Self::OwnMessage(event) => event.server_time,
+            Self::Message(event) => event.server_time,
             Self::Notice(event) => event.server_time,
             Self::ServerNotice(event) => event.server_time,
             Self::CtcpQuery(event) => event.server_time,
@@ -1574,7 +1557,7 @@ impl Event {
     #[must_use]
     pub fn received_at(&self) -> Option<SystemTime> {
         match self {
-            Self::Message(event) | Self::OwnMessage(event) => Some(event.received_at),
+            Self::Message(event) => Some(event.received_at),
             Self::Notice(event) => Some(event.received_at),
             Self::ServerNotice(event) => Some(event.received_at),
             Self::CtcpQuery(event) => Some(event.received_at),
@@ -2547,7 +2530,7 @@ mod tests {
             "@msgid=RfcBTzyxY120113;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example PRIVMSG #papo :hello from Ergo",
         ),
         (
-            "OwnMessage",
+            "Message",
             "RfcBTzyxY120114",
             "@msgid=RfcBTzyxY120114;time=2026-02-03T04:05:06.789Z :papo!~papo@cloak.example PRIVMSG #papo :hello from another device",
         ),
@@ -3464,7 +3447,6 @@ mod tests {
             let event = convert(line);
             let actual_variant = match &event {
                 Event::Message(_) => "Message",
-                Event::OwnMessage(_) => "OwnMessage",
                 Event::Notice(_) => "Notice",
                 Event::ServerNotice(_) => "ServerNotice",
                 Event::CtcpQuery(_) => "CtcpQuery",
@@ -3709,7 +3691,8 @@ mod tests {
                 None,
             )
         };
-        assert!(matches!(route(Authorship::Own), Event::OwnMessage(_)));
+        assert!(matches!(route(Authorship::Own), Event::Message(message)
+            if message.authorship == Authorship::Own));
         assert!(matches!(route(Authorship::Other), Event::Message(_)));
     }
     fn forwarded(event: papo_core::Event) -> Event {
@@ -4265,7 +4248,7 @@ mod tests {
         let mut session = Session::new(Config::default().nick("Papo[bot]"));
         session.handle_line(now, b":papo{bot}!~p@host PRIVMSG #papo :sent");
         let event = mapped_message_event(session.poll_event().expect("expected echo"));
-        let echo = event.as_own_message().expect("expected own message");
+        let echo = event.as_message().expect("expected own message");
         assert!(echo.is_own());
     }
 

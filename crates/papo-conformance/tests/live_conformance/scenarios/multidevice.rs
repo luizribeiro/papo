@@ -16,7 +16,6 @@ fn has_account_sessions() -> bool {
 fn chat_text<'event>(event: &'event Event, text: &str) -> Option<&'event papo::Message> {
     event
         .as_message()
-        .or_else(|| event.as_own_message())
         .filter(|message| message.raw_text == text)
 }
 
@@ -37,7 +36,7 @@ async fn wait_for_channel(peer: &mut Peer, channel: &str) -> papo_testing::Resul
     Ok(())
 }
 
-/// routes one session's channel send to its sibling exactly once as an own message
+/// routes one session's channel send to its sibling exactly once with own authorship
 #[scenario(
     requires(caps = ["echo-message"]),
     covers = ["multidevice.message-fanout"]
@@ -55,11 +54,7 @@ async fn multidevice_message_fanout(s: Scenario) -> papo_testing::Result<()> {
     let text = "release update from the desktop session";
     desktop.privmsg(&channel, text).await?;
     let received = phone
-        .wait_for(|event| {
-            event
-                .as_own_message()
-                .filter(|message| message.text == text)
-        })
+        .wait_for(|event| event.as_message().filter(|message| message.text == text))
         .await?;
     assert_eq!(received.authorship, papo::Authorship::Own);
     assert_eq!(
@@ -68,18 +63,10 @@ async fn multidevice_message_fanout(s: Scenario) -> papo_testing::Result<()> {
     );
     assert_eq!(received.return_address(), channel.as_str());
     phone
-        .expect_none(|event| {
-            event
-                .as_own_message()
-                .filter(|message| message.text == text)
-        })
+        .expect_none(|event| event.as_message().filter(|message| message.text == text))
         .await?;
     desktop
-        .expect_none(|event| {
-            event
-                .as_own_message()
-                .filter(|message| message.text == text)
-        })
+        .expect_none(|event| event.as_message().filter(|message| message.text == text))
         .await?;
     Ok(())
 }
@@ -217,7 +204,7 @@ async fn multidevice_ops_message_operations(s: Scenario) -> papo_testing::Result
     let original = phone
         .wait_for(|event| {
             event
-                .as_own_message()
+                .as_message()
                 .filter(|message| message.text == "operators reviewing the deployment")
         })
         .await?;
@@ -239,7 +226,7 @@ async fn multidevice_ops_message_operations(s: Scenario) -> papo_testing::Result
     let reply = phone
         .wait_for(|event| {
             event
-                .as_own_message()
+                .as_message()
                 .filter(|message| message.text == "operators approve the deployment")
         })
         .await?;
@@ -279,7 +266,7 @@ async fn multidevice_ops_message_operations(s: Scenario) -> papo_testing::Result
     phone
         .wait_for(|event| {
             event
-                .as_own_message()
+                .as_message()
                 .filter(|message| message.text == "deployment note to remove")
         })
         .await?;
@@ -430,7 +417,7 @@ async fn multidevice_reconnect_catchup(s: Scenario) -> papo_testing::Result<()> 
     let own = page
         .items
         .iter()
-        .filter_map(Event::as_own_message)
+        .filter_map(Event::as_message)
         .filter(|message| texts.contains(&message.text.as_str()))
         .count();
     if std::env::var("PAPO_TEST_PROFILE").as_deref() == Ok("soju-ergo") {
@@ -441,7 +428,7 @@ async fn multidevice_reconnect_catchup(s: Scenario) -> papo_testing::Result<()> 
     let replayed = page
         .items
         .iter()
-        .filter_map(|event| event.as_own_message().or_else(|| event.as_message()))
+        .filter_map(Event::as_message)
         .filter(|message| texts.contains(&message.text.as_str()))
         .map(|message| message.text.as_str())
         .collect::<Vec<_>>();

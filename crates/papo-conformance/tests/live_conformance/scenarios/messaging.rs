@@ -204,7 +204,7 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     let received = alice
         .wait_for(|event| {
             event
-                .as_own_message()
+                .as_message()
                 .filter(|message| message.raw_text == "note to self")
         })
         .await?;
@@ -307,19 +307,11 @@ async fn multiclient(s: Scenario) -> papo_testing::Result<()> {
     let text = "message from the desktop session";
     desktop.privmsg(&channel, text).await?;
     let other = phone
-        .wait_for(|event| {
-            event
-                .as_own_message()
-                .filter(|message| message.text == text)
-        })
+        .wait_for(|event| event.as_message().filter(|message| message.text == text))
         .await?;
     assert_eq!(other.authorship, papo::Authorship::Own);
     desktop
-        .expect_none(|event| {
-            event
-                .as_own_message()
-                .filter(|message| message.text == text)
-        })
+        .expect_none(|event| event.as_message().filter(|message| message.text == text))
         .await?;
     Ok(())
 }
@@ -344,11 +336,7 @@ async fn own_message_without_echo(s: Scenario) -> papo_testing::Result<()> {
     let text = "message from another logged-in session";
     desktop.privmsg(&channel, text).await?;
     let message = phone
-        .wait_for(|event| {
-            event
-                .as_own_message()
-                .filter(|message| message.text == text)
-        })
+        .wait_for(|event| event.as_message().filter(|message| message.text == text))
         .await?;
     assert_eq!(message.authorship, papo::Authorship::Own);
     assert_eq!(
@@ -356,11 +344,7 @@ async fn own_message_without_echo(s: Scenario) -> papo_testing::Result<()> {
         Some(channel.as_str())
     );
     phone
-        .expect_none(|event| {
-            event
-                .as_own_message()
-                .filter(|message| message.text == text)
-        })
+        .expect_none(|event| event.as_message().filter(|message| message.text == text))
         .await?;
     Ok(())
 }

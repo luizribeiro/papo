@@ -37,7 +37,7 @@ pub(super) fn remember_live_event<'a>(
 fn event_applies_to_channel(event: &Event, target: &str) -> bool {
     let conversation_matches = |conversation: &crate::Conversation| matches!(conversation, crate::Conversation::Channel(channel) if channel == target);
     match event {
-        Event::Message(line) | Event::OwnMessage(line) => conversation_matches(&line.conversation),
+        Event::Message(line) => conversation_matches(&line.conversation),
         Event::Notice(line) => conversation_matches(&line.conversation),
         Event::CtcpQuery(line) => conversation_matches(&line.conversation),
         Event::CtcpReply(line) => conversation_matches(&line.conversation),
