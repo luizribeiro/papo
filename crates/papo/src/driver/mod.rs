@@ -36,7 +36,7 @@ use papo_core::{
     Connection, HistoryQuery, RequestError, RequestId, Response, ResponseMatcher, Session,
     TextKind, TransmitToken, sts::StsStore,
 };
-use papo_proto::{Command as ProtoCommand, Line, Numeric, Typing};
+use papo_proto::{Command as ProtoCommand, LimitValue, Line, Numeric, Typing};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     sync::{mpsc, oneshot},
@@ -165,6 +165,19 @@ pub(crate) enum Command {
     },
     MonitorClear {
         result: oneshot::Sender<Result<(), Error>>,
+    },
+    DirectAcquire {
+        nick: String,
+        account: Option<crate::Account>,
+        result: oneshot::Sender<Result<papo_core::RecipientGuard, Error>>,
+    },
+    DirectRefresh {
+        nick: String,
+        account: crate::Account,
+        result: oneshot::Sender<Result<papo_core::RecipientGuard, Error>>,
+    },
+    DirectRelease {
+        recipient: papo_core::RecipientGuard,
     },
     SendText {
         kind: TextKind,
@@ -1028,6 +1041,36 @@ where
                 Some(Command::MonitorClear { result }) => {
                     session.monitor_clear();
                     _ = result.send(Ok(()));
+                }
+                Some(Command::DirectAcquire { nick, account, result }) => {
+                    let already_monitored = session
+                        .state()
+                        .monitored()
+                        .any(|known| known == nick.as_str());
+                    if !already_monitored
+                        && let Some(LimitValue::Limited(limit)) = session.isupport().monitor()
+                        && session.state().monitored().len() >= limit
+                    {
+                        _ = result.send(Err(Error::MonitorFull { limit }));
+                        continue;
+                    }
+                    let recipient = session.__direct_acquire(
+                        &nick,
+                        None,
+                        None,
+                        account.unwrap_or(crate::Account::Unknown),
+                    );
+                    publish_state(events, session, true);
+                    _ = result.send(Ok(recipient));
+                }
+                Some(Command::DirectRefresh { nick, account, result }) => {
+                    let recipient = session.__direct_refresh(&nick, account);
+                    publish_state(events, session, true);
+                    _ = result.send(Ok(recipient));
+                }
+                Some(Command::DirectRelease { recipient }) => {
+                    session.__direct_release(&recipient);
+                    publish_state(events, session, true);
                 }
                 Some(Command::SendText { kind, target, conversation, status, receipt, text, tags, mut fallbacks, action, result }) => {
                     let tags: Vec<_> = tags.iter().map(|(key, value)| (key.as_str(), value.as_str())).collect();

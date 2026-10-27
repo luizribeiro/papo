@@ -740,6 +740,11 @@ fn handle_disconnected_command(
             _ = result.send(Ok(()));
             true
         }
+        Some(Command::DirectAcquire { result, .. } | Command::DirectRefresh { result, .. }) => {
+            _ = result.send(Err(Error::disconnected(disconnected.clone())));
+            true
+        }
+        Some(Command::DirectRelease { .. }) => true,
         Some(Command::Quit { result, .. }) => {
             _ = result.send(Ok(()));
             false

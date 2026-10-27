@@ -169,6 +169,7 @@ mod address;
 mod builder;
 mod client;
 mod direct;
+mod direct_runtime;
 mod driver;
 mod entropy;
 mod error;
