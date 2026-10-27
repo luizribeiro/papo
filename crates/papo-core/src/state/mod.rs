@@ -1007,31 +1007,29 @@ impl State {
             .casemapping
             .origin()
             .__nick(mapping, self.nick.as_ref());
-        self.channels = std::mem::take(&mut self.channels)
-            .into_values()
-            .map(|mut channel| {
-                let name = {
-                    let channel = Arc::make_mut(&mut channel);
-                    channel.casemapping = Names::new(mapping, channel.casemapping.origin());
-                    channel.name = self
+        let mut channels = HashMap::new();
+        for mut channel in std::mem::take(&mut self.channels).into_values() {
+            let name = {
+                let channel = Arc::make_mut(&mut channel);
+                channel.casemapping = Names::new(mapping, channel.casemapping.origin());
+                channel.name = self
+                    .casemapping
+                    .origin()
+                    .__channel(mapping, channel.name.as_ref());
+                let mut members = HashMap::new();
+                for mut member in std::mem::take(&mut channel.members).into_values() {
+                    member.nick = self
                         .casemapping
                         .origin()
-                        .__channel(mapping, channel.name.as_ref());
-                    channel.members = std::mem::take(&mut channel.members)
-                        .into_values()
-                        .map(|mut member| {
-                            member.nick = self
-                                .casemapping
-                                .origin()
-                                .__nick(mapping, member.nick.as_ref());
-                            (NameKey::new(member.nick.as_ref(), mapping), member)
-                        })
-                        .collect();
-                    channel.name.to_string()
-                };
-                (NameKey::new(name, mapping), channel)
-            })
-            .collect();
+                        .__nick(mapping, member.nick.as_ref());
+                    members.insert(NameKey::new(member.nick.as_ref(), mapping), member);
+                }
+                channel.members = members;
+                channel.name.to_string()
+            };
+            channels.insert(NameKey::new(name, mapping), channel);
+        }
+        self.channels = channels;
         let mut users = HashMap::new();
         for mut user in std::mem::take(&mut self.users).into_values() {
             let incoming_is_own = user.nick.as_ref() == old_own_nick.as_ref();
@@ -1045,15 +1043,15 @@ impl State {
                     .origin()
                     .__account(mapping, account.as_ref());
             }
-            user.channels = user
-                .channels
-                .into_iter()
-                .map(|channel| {
+            let mut channels = BTreeSet::new();
+            for channel in std::mem::take(&mut user.channels) {
+                channels.insert(
                     self.casemapping
                         .origin()
-                        .__channel(mapping, channel.as_ref())
-                })
-                .collect();
+                        .__channel(mapping, channel.as_ref()),
+                );
+            }
+            user.channels = channels;
             match users.entry(NameKey::new(user.nick.as_ref(), mapping)) {
                 std::collections::hash_map::Entry::Vacant(entry) => {
                     entry.insert(user);
@@ -1065,51 +1063,51 @@ impl State {
             }
         }
         self.users = users;
-        self.who_sweeps = std::mem::take(&mut self.who_sweeps)
-            .into_iter()
-            .map(|(channel, count)| {
-                (
-                    self.casemapping
+        let mut who_sweeps = HashMap::new();
+        for (channel, count) in std::mem::take(&mut self.who_sweeps) {
+            who_sweeps.insert(
+                self.casemapping
+                    .origin()
+                    .__channel(mapping, channel.as_ref()),
+                count,
+            );
+        }
+        self.who_sweeps = who_sweeps;
+        let mut read_markers = HashMap::new();
+        for mut marker in std::mem::take(&mut self.read_markers).into_values() {
+            match &mut marker.conversation {
+                Conversation::Channel(channel) => {
+                    *channel = self
+                        .casemapping
                         .origin()
-                        .__channel(mapping, channel.as_ref()),
-                    count,
-                )
-            })
-            .collect();
-        self.read_markers = std::mem::take(&mut self.read_markers)
-            .into_values()
-            .map(|mut marker| {
-                match &mut marker.conversation {
-                    Conversation::Channel(channel) => {
-                        *channel = self
-                            .casemapping
-                            .origin()
-                            .__channel(mapping, channel.as_ref());
-                    }
-                    Conversation::Private(nick) => {
-                        *nick = self.casemapping.origin().__nick(mapping, nick.as_ref());
-                    }
+                        .__channel(mapping, channel.as_ref());
                 }
-                let name = match &marker.conversation {
-                    Conversation::Channel(channel) => channel.as_ref(),
-                    Conversation::Private(nick) => nick.as_ref(),
-                };
-                (NameKey::new(name, mapping), marker)
-            })
-            .collect();
+                Conversation::Private(nick) => {
+                    *nick = self.casemapping.origin().__nick(mapping, nick.as_ref());
+                }
+            }
+            let name = match &marker.conversation {
+                Conversation::Channel(channel) => channel.as_ref(),
+                Conversation::Private(nick) => nick.as_ref(),
+            };
+            read_markers.insert(NameKey::new(name, mapping), marker);
+        }
+        self.read_markers = read_markers;
         self.read_marker_order = BoundedCollection::new(MAX_READ_MARKERS);
         for key in self.read_markers.keys().cloned() {
             let evicted = self.read_marker_order.push_evict_oldest(key);
             debug_assert!(evicted.is_none());
         }
-        self.last_seen = std::mem::take(&mut self.last_seen)
-            .into_values()
-            .map(|seen| (NameKey::new(&seen.target, mapping), seen))
-            .collect();
-        self.metadata = std::mem::take(&mut self.metadata)
-            .into_iter()
-            .map(|(target, values)| (NameKey::new(target.original(), mapping), values))
-            .collect();
+        let mut last_seen = HashMap::new();
+        for seen in std::mem::take(&mut self.last_seen).into_values() {
+            last_seen.insert(NameKey::new(&seen.target, mapping), seen);
+        }
+        self.last_seen = last_seen;
+        let mut metadata = HashMap::new();
+        for (target, values) in std::mem::take(&mut self.metadata) {
+            metadata.insert(NameKey::new(target.original(), mapping), values);
+        }
+        self.metadata = metadata;
         self.casemapping = Names::new(mapping, self.casemapping.origin());
     }
 
