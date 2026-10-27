@@ -218,15 +218,7 @@ pub(super) async fn run_plan(
         if upgrade_port.is_some() || reconnect_now {
             continue;
         }
-        if !wait_before_retry(
-            &mut commands,
-            &events.regular,
-            &mut pending_events,
-            &mut defaults,
-            disconnected,
-        )
-        .await
-        {
+        if !wait_before_retry(&mut commands, &mut defaults, disconnected).await {
             finish_requested(events, pending_events);
             return Ok(());
         }
@@ -437,15 +429,7 @@ async fn connect_or_wait(
     ) {
         return ConnectionAttempt::SlowConsumer;
     }
-    if wait_before_retry(
-        commands,
-        &events.regular,
-        pending_events,
-        defaults,
-        disconnected,
-    )
-    .await
-    {
+    if wait_before_retry(commands, defaults, disconnected).await {
         ConnectionAttempt::Retry
     } else {
         ConnectionAttempt::Stop
@@ -679,10 +663,6 @@ async fn connect_while_disconnected(
                     "connection attempt timed out",
                 ))));
             }
-            permit = events.regular.reserve(), if !pending_events.is_empty() => match permit {
-                Ok(permit) => permit.send(pending_events.pop_front().expect("pending event is present")),
-                Err(_) => pending_events.clear(),
-            },
             command = commands.recv() => {
                 if !handle_disconnected_command(command, &disconnected, defaults) {
                     return DisconnectedWait::Stop;
@@ -694,8 +674,6 @@ async fn connect_while_disconnected(
 
 async fn wait_before_retry(
     commands: &mut mpsc::Receiver<Command>,
-    events: &mpsc::Sender<Event>,
-    pending_events: &mut VecDeque<Event>,
     defaults: &mut PostConnect,
     disconnected: crate::Disconnected,
 ) -> bool {
@@ -705,10 +683,6 @@ async fn wait_before_retry(
     loop {
         tokio::select! {
             () = &mut sleep => return true,
-            permit = events.reserve(), if !pending_events.is_empty() => match permit {
-                Ok(permit) => permit.send(pending_events.pop_front().expect("pending event is present")),
-                Err(_) => pending_events.clear(),
-            },
             command = commands.recv() => {
                 match command {
                     Some(Command::Reconnect { result }) => {

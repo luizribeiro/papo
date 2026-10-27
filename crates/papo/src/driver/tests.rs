@@ -281,10 +281,6 @@ async fn sasl_connection_reports_each_protocol_phase() {
         .wanted_caps(["sasl"])
         .sasl(Sasl::plain("alice", "correct horse battery staple"));
     let (mut server, _client, mut events, driver) = scripted(settings);
-    events
-        .test_hooks
-        .include_connecting
-        .store(true, Ordering::Relaxed);
     let task = tokio::spawn(driver);
 
     assert!(matches!(
@@ -334,6 +330,47 @@ async fn sasl_connection_reports_each_protocol_phase() {
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn event_capacity_one_preserves_preconnect_events() {
+    let (mut server, _client, mut events, driver) = scripted_with_capacity(config(), 1);
+    let driver = tokio::spawn(driver);
+    welcome_burst(&mut server).await;
+    server_line(
+        &mut server,
+        b":ergo.test NOTICE * :*** Looking up your hostname...\r\n\
+          :ergo.test NOTICE * :*** Found your hostname\r\n\
+          :ergo.test CAP * LS :\r\n",
+    )
+    .await;
+    client_line(&mut server, b"CAP END\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n",
+    )
+    .await;
+
+    let mut notices = Vec::new();
+    loop {
+        match next_event(&mut events).await {
+            Some(Event::ServerNotice(notice)) => notices.push(notice.text),
+            Some(Event::Connecting(_) | Event::Other(_)) => {}
+            Some(Event::Connected(_)) => break,
+            event => panic!("unexpected pre-connect event: {event:?}"),
+        }
+    }
+    assert_eq!(
+        notices,
+        ["*** Looking up your hostname...", "*** Found your hostname"]
+    );
+
+    drop(events);
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -1113,10 +1150,6 @@ async fn assert_failed_connection_progress(address: &str, attempts: usize) {
         connector,
         Box::new(|| 0),
     );
-    events
-        .test_hooks
-        .include_connecting
-        .store(true, Ordering::Relaxed);
     let driver = tokio::spawn(driver);
     let secure = address.starts_with("ircs:");
 
@@ -2587,9 +2620,9 @@ fn failing_driver_with_one_event_slot() -> (super::Client, super::Events, Driver
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn stalled_consumer_does_not_block_quit_after_connect_failure() {
-    let (client, events, driver, calls) = failing_driver_with_one_event_slot();
+    let (client, _events, driver, calls) = failing_driver_with_one_event_slot();
     let driver = tokio::spawn(driver);
-    while events.receiver.len() != 1 {
+    while calls.load(Ordering::Relaxed) != 1 {
         tokio::task::yield_now().await;
     }
     tokio::time::advance(Duration::from_secs(1)).await;
@@ -2602,10 +2635,10 @@ async fn stalled_consumer_does_not_block_quit_after_connect_failure() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
-async fn failed_connect_events_obey_the_overflow_bound() {
-    let (_client, mut events, driver, calls) = failing_driver_with_one_event_slot();
+async fn failed_connect_events_use_the_preconnect_allowance() {
+    let (client, mut events, driver, calls) = failing_driver_with_one_event_slot();
     let driver = tokio::spawn(driver);
-    while events.receiver.len() != 1 {
+    while events.receiver.len() < 1 {
         tokio::task::yield_now().await;
     }
     tokio::time::advance(Duration::from_secs(1)).await;
@@ -2614,19 +2647,17 @@ async fn failed_connect_events_obey_the_overflow_bound() {
     }
     tokio::time::advance(Duration::from_secs(2)).await;
 
-    assert!(matches!(
-        within(driver).await.unwrap(),
-        Err(disconnected!())
-    ));
-    assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
-    assert!(matches!(events.next().await, Some(Event::Disconnected(_))));
-    assert!(matches!(
-        events.next().await,
-        Some(Event::Disconnected(crate::Disconnected {
-            cause: crate::DisconnectCause::SlowConsumer,
-            reconnect_in: None,
-        }))
-    ));
+    for _ in 0..3 {
+        loop {
+            match next_event(&mut events).await {
+                Some(Event::Connecting(_)) => {}
+                Some(Event::Disconnected(_)) => break,
+                event => panic!("unexpected pre-connect event: {event:?}"),
+            }
+        }
+    }
+    within(client.quit("")).await.unwrap();
+    assert!(within(driver).await.unwrap().is_ok());
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
@@ -4418,10 +4449,10 @@ async fn secure_sts_is_stored_before_a_saturated_event_queue_drains() {
         b":ergo.test NOTICE papo-driver :maintenance soon\r\n",
     )
     .await;
-    while events.receiver.len() != 1 {
-        tokio::task::yield_now().await;
-    }
-
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::ServerNotice(_))
+    ));
     server_line(&mut server, b":ergo.test CAP * LS :sts=duration=3600\r\n").await;
     tokio::time::timeout(Duration::from_secs(1), async {
         while papo_core::sts::StsStore::get(&inspection, "irc.example.net").is_none() {
@@ -4430,8 +4461,6 @@ async fn secure_sts_is_stored_before_a_saturated_event_queue_drains() {
     })
     .await
     .unwrap();
-    assert_eq!(events.receiver.len(), 1);
-    assert!(matches!(events.next().await, Some(Event::ServerNotice(_))));
     client_line(&mut server, b"CAP END\r\n").await;
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
@@ -7785,15 +7814,10 @@ async fn dropping_clients_keeps_running_until_events_is_dropped() {
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn full_event_channel_still_serves_quit_and_its_timer() {
-    let (mut server, client, events, driver) = scripted_with_capacity(config(), 1);
+    let (mut server, client, mut events, driver) = scripted_with_capacity(config(), 1);
     let driver = tokio::spawn(driver);
-    welcome_burst(&mut server).await;
-    within(server.write_all(b":ergo.test NOTICE papo-driver :maintenance soon\r\n:ergo.test NOTICE papo-driver :still queued\r\n"))
-        .await
-        .unwrap();
-    while events.receiver.len() != 1 {
-        tokio::task::yield_now().await;
-    }
+    complete_connect(&mut server, &mut events).await;
+    server_line(&mut server, b":ergo.test NOTICE papo-driver :maintenance soon\r\n:ergo.test NOTICE papo-driver :still queued\r\n").await;
 
     let quit = tokio::spawn(async move { client.quit("").await });
     let mut line = [0; 6];
@@ -7808,17 +7832,14 @@ async fn full_event_channel_still_serves_quit_and_its_timer() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn quit_reads_server_close_while_events_are_backed_up() {
-    let (mut server, client, events, driver) = scripted_with_capacity(config(), 1);
+    let (mut server, client, mut events, driver) = scripted_with_capacity(config(), 1);
     let driver = tokio::spawn(driver);
-    welcome_burst(&mut server).await;
+    complete_connect(&mut server, &mut events).await;
     server_line(
         &mut server,
         b":ergo.test NOTICE papo-driver :maintenance soon\r\n:ergo.test NOTICE papo-driver :still queued\r\n",
     )
     .await;
-    while events.receiver.len() != 1 {
-        tokio::task::yield_now().await;
-    }
 
     let quit = tokio::spawn(async move { client.quit("").await });
     client_line(&mut server, b"QUIT\r\n").await;
@@ -7848,9 +7869,18 @@ async fn only_pending_request_enables_read_ahead() {
     )
     .await;
     assert_eq!(within(whois).await.unwrap().unwrap().nick, "alice");
-    assert!(matches!(events.next().await, Some(Event::ServerNotice(_))));
-    assert!(matches!(events.next().await, Some(Event::ServerNotice(_))));
-    assert!(matches!(events.next().await, Some(Event::ServerNotice(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Lagged(crate::event::Lagged { dropped: 1 }))
+    ));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::ServerNotice(_))
+    ));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::ServerNotice(_))
+    ));
 
     abort_task(driver).await;
 }
@@ -7865,8 +7895,14 @@ async fn quit_publishes_member_removal_while_reading_ahead() {
         b":papo-driver!papo@localhost JOIN #papo * :papo driver test\r\n:alice!~alice@staff.example JOIN #papo * :Alice Example\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Joined(_))));
-    assert!(matches!(events.next().await, Some(Event::Joined(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Joined(_))
+    ));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Joined(_))
+    ));
     assert!(
         client
             .state()
@@ -7983,7 +8019,10 @@ async fn only_channel_sync_waiter_enables_read_ahead() {
         b":papo-driver!papo@localhost JOIN #papo * :papo driver test\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Joined(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Joined(_))
+    ));
     saturate_events(&mut server, &events).await;
 
     let (result, waiter) = tokio::sync::oneshot::channel();
@@ -8047,7 +8086,7 @@ async fn socket_reads_continue_without_pending_work() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn disconnect_preserves_events_waiting_for_channel_capacity() {
+async fn disconnect_follows_the_retained_event_after_lag() {
     let (mut server, client, mut events, driver) = scripted_with_capacity(config(), 1);
     let driver = tokio::spawn(driver);
     complete_connect(&mut server, &mut events).await;
@@ -8070,16 +8109,10 @@ async fn disconnect_preserves_events_waiting_for_channel_capacity() {
         within(driver).await.unwrap(),
         Err(disconnected!())
     ));
-    assert_eq!(
-        events
-            .next()
-            .await
-            .unwrap()
-            .as_server_notice()
-            .unwrap()
-            .text,
-        "maintenance soon"
-    );
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Lagged(crate::event::Lagged { dropped: 1 }))
+    ));
     assert_eq!(
         events
             .next()
@@ -8091,7 +8124,7 @@ async fn disconnect_preserves_events_waiting_for_channel_capacity() {
         "maintenance extended"
     );
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Server { message },
             reconnect_in: None,

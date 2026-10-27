@@ -24,7 +24,7 @@ use std::{
     pin::Pin,
     sync::{
         Arc, Mutex, RwLock,
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
     },
     task,
     time::{Duration, SystemTime},
@@ -317,8 +317,12 @@ struct Quit {
     results: Vec<oneshot::Sender<Result<(), Error>>>,
 }
 
+const PRECONNECT_EVENT_CAPACITY: usize = 32;
+
 struct EventReceiver {
     inner: Mutex<mpsc::Receiver<Event>>,
+    capacity: usize,
+    connecting: AtomicBool,
 }
 
 impl EventReceiver {
@@ -339,27 +343,35 @@ impl EventReceiver {
 
     #[allow(dead_code)]
     fn max_capacity(&self) -> usize {
-        self.inner
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .max_capacity()
+        self.capacity
     }
-}
 
-#[derive(Clone, Default)]
-struct TestHooks {
-    #[cfg(test)]
-    include_connecting: Arc<AtomicBool>,
+    fn discard_oldest_if_full(&self) -> bool {
+        let mut receiver = self
+            .inner
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let capacity = if self.connecting.load(Ordering::Relaxed) {
+            receiver.max_capacity()
+        } else {
+            self.capacity
+        };
+        receiver.len() >= capacity && receiver.try_recv().is_ok()
+    }
+
+    fn finish_connecting(&self) {
+        self.connecting.store(false, Ordering::Relaxed);
+    }
 }
 
 struct EventSink {
     regular: mpsc::Sender<Event>,
+    receiver: Arc<EventReceiver>,
+    dropped: Arc<AtomicU64>,
     disconnected: oneshot::Sender<VecDeque<Event>>,
     connected: Arc<AtomicBool>,
     state: Arc<RwLock<Arc<State>>>,
     commands: mpsc::WeakSender<Command>,
-    #[allow(dead_code)]
-    test_hooks: TestHooks,
 }
 
 impl EventSink {
@@ -436,19 +448,16 @@ impl From<&str> for Autojoin {
 
 /// The events produced by a running IRC client.
 ///
-/// Delivery is bounded. If events are not consumed, socket reads stall while
-/// client commands and session timers continue to be served. If the bounded
-/// overflow also fills, the connection ends with
-/// [`DisconnectCause::SlowConsumer`](crate::DisconnectCause::SlowConsumer) and follows the configured reconnect
-/// policy. Move slow work out of the event loop or raise
-/// [`Builder::event_capacity`](crate::Builder::event_capacity) to avoid this.
+/// Delivery is bounded without blocking socket reads. When the buffer is full, the oldest events
+/// are discarded and one [`Event::Lagged`] reports how many were lost. Move slow work out of the
+/// event loop or raise [`Builder::event_capacity`](crate::Builder::event_capacity) when every
+/// event matters.
 pub struct Events {
     _commands: mpsc::Sender<Command>,
     receiver: Arc<EventReceiver>,
+    dropped: Arc<AtomicU64>,
     disconnected: Option<oneshot::Receiver<VecDeque<Event>>>,
     pending: VecDeque<Event>,
-    #[allow(dead_code)]
-    test_hooks: TestHooks,
 }
 
 impl std::fmt::Debug for Events {
@@ -478,6 +487,10 @@ impl Stream for Events {
     ) -> task::Poll<Option<Self::Item>> {
         if let Some(event) = self.pending.pop_front() {
             return task::Poll::Ready(Some(event));
+        }
+        let dropped = self.dropped.swap(0, Ordering::Relaxed);
+        if dropped != 0 {
+            return task::Poll::Ready(Some(Event::Lagged(crate::event::Lagged { dropped })));
         }
         match self.receiver.poll_recv(context) {
             task::Poll::Ready(Some(event)) => return task::Poll::Ready(Some(event)),
@@ -630,13 +643,18 @@ impl Driver {
 
 pub(crate) fn channels(capacity: usize, session: &Session) -> Channels {
     let (command_sender, command_receiver) = mpsc::channel(DEFAULT_CHANNEL_CAPACITY);
-    let (event_sender, event_receiver) = mpsc::channel(capacity);
+    let queue_capacity = capacity
+        .saturating_add(PRECONNECT_EVENT_CAPACITY)
+        .min(tokio::sync::Semaphore::MAX_PERMITS);
+    let (event_sender, event_receiver) = mpsc::channel(queue_capacity);
     let event_receiver = Arc::new(EventReceiver {
         inner: Mutex::new(event_receiver),
+        capacity,
+        connecting: AtomicBool::new(true),
     });
+    let dropped = Arc::new(AtomicU64::new(0));
     let (disconnect_sender, disconnect_receiver) = oneshot::channel();
     let connected = Arc::new(AtomicBool::new(false));
-    let test_hooks = TestHooks::default();
     let state = Arc::new(RwLock::new(Arc::new(State::from_session(session, false))));
     let client = Client {
         commands: command_sender,
@@ -646,11 +664,12 @@ pub(crate) fn channels(capacity: usize, session: &Session) -> Channels {
     };
     let events = EventSink {
         regular: event_sender,
+        receiver: Arc::clone(&event_receiver),
+        dropped: Arc::clone(&dropped),
         disconnected: disconnect_sender,
         connected: Arc::clone(&connected),
         state,
         commands: client.commands.downgrade(),
-        test_hooks: test_hooks.clone(),
     };
     let event_commands = client.commands.clone();
     Channels {
@@ -658,9 +677,9 @@ pub(crate) fn channels(capacity: usize, session: &Session) -> Channels {
         events: Events {
             _commands: event_commands,
             receiver: event_receiver,
+            dropped,
             disconnected: Some(disconnect_receiver),
             pending: VecDeque::new(),
-            test_hooks,
         },
         commands: command_receiver,
         event_sink: events,
@@ -893,14 +912,6 @@ where
                         false,
                     );
                 }
-            },
-            permit = events.regular.clone().reserve_owned(), if !pending_events.is_empty() => match permit {
-                Ok(permit) => {
-                    if let Some(event) = pending_events.pop_front() {
-                        _ = permit.send(event);
-                    }
-                }
-                Err(_) => pending_events.clear(),
             },
             command = commands.recv(), if commands_open => match command {
                 Some(Command::Send { message, result }) => {
@@ -1316,22 +1327,23 @@ where
                 if !part_restored_channel(session, defaults, &event)? {
                     update_rejoin_channels(session, defaults, &event);
                 }
-                if matches!(
+                let completes_registration = matches!(
                     event,
                     Event::AccountCreation(crate::AccountCreation::VerificationRequired { .. })
-                ) {
-                    registration.succeeded();
-                }
+                );
                 if !enqueue_event(events, pending_events, event) {
                     return Ok(Some((
                         papo_core::CloseKind::Other,
                         SLOW_CONSUMER_REASON.to_owned(),
                     )));
                 }
+                if completes_registration {
+                    events.receiver.finish_connecting();
+                    registration.succeeded();
+                }
             }
             event::CoreEvent::Connected(welcome) => {
                 after_connect(session, &welcome, defaults, requests)?;
-                registration.succeeded();
                 *registered_at = Some(now());
                 let reconnected = *registered;
                 if reconnected {
@@ -1351,6 +1363,8 @@ where
                         SLOW_CONSUMER_REASON.to_owned(),
                     )));
                 }
+                events.receiver.finish_connecting();
+                registration.succeeded();
             }
             event::CoreEvent::Line(message) => {
                 drop_bad_rejoin_key(session, defaults, &message.as_ref());
@@ -1766,26 +1780,14 @@ fn rejoin_retained_start(channel_count: usize) -> usize {
     channel_count.saturating_sub(MAX_REJOIN_CHANNELS)
 }
 
-fn enqueue_event(events: &EventSink, pending: &mut VecDeque<Event>, event: Event) -> bool {
-    #[cfg(test)]
-    if !events.test_hooks.include_connecting.load(Ordering::Relaxed)
-        && matches!(event, Event::Connecting(_))
-    {
-        return true;
+fn enqueue_event(events: &EventSink, _pending: &mut VecDeque<Event>, event: Event) -> bool {
+    if events.receiver.discard_oldest_if_full() {
+        events.dropped.fetch_add(1, Ordering::Relaxed);
     }
-    let event = if pending.is_empty() {
-        match events.regular.try_send(event) {
-            Ok(()) | Err(mpsc::error::TrySendError::Closed(_)) => return true,
-            Err(mpsc::error::TrySendError::Full(event)) => event,
-        }
-    } else {
-        event
-    };
-    if pending.len() >= events.regular.max_capacity() {
-        return false;
-    }
-    pending.push_back(event);
-    true
+    !matches!(
+        events.regular.try_send(event),
+        Err(mpsc::error::TrySendError::Closed(_))
+    )
 }
 
 fn resolve_sync_waiters(
