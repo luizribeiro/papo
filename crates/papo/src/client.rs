@@ -57,7 +57,7 @@ pub struct Sent {
     ///
     /// See [`crate::Conversation`] for status-prefixed line guidance.
     pub status: Option<crate::Prefix>,
-    pub(crate) return_address: String,
+    pub(crate) receipt: crate::message_ref::Receipt,
     /// Server-assigned identifiers for every confirmed IRC message line, in send order.
     pub msgids: Vec<crate::MessageId>,
     /// Server time from a labelled echo.
@@ -276,13 +276,13 @@ impl Sent {
     pub(crate) fn without_echo(
         conversation: crate::Conversation,
         status: Option<crate::Prefix>,
-        return_address: String,
+        receipt: crate::message_ref::Receipt,
         fallbacks: Vec<Fallback>,
     ) -> Self {
         Self {
             conversation,
             status,
-            return_address,
+            receipt,
             msgids: Vec::new(),
             server_time: None,
             fallbacks,
@@ -293,7 +293,7 @@ impl Sent {
         confirmations: &[papo_core::SentInfo],
         conversation: crate::Conversation,
         status: Option<crate::Prefix>,
-        return_address: String,
+        receipt: crate::message_ref::Receipt,
         fallbacks: Vec<Fallback>,
     ) -> Self {
         let msgids = confirmations
@@ -303,7 +303,7 @@ impl Sent {
         Self {
             conversation,
             status,
-            return_address,
+            receipt,
             msgids,
             server_time: confirmations
                 .iter()
@@ -881,11 +881,12 @@ impl Client {
         fallbacks: Vec<Fallback>,
         action: bool,
     ) -> Result<Sent, Error> {
-        let (status, conversation) = self
-            .state()
+        let state = self.state();
+        let (status, conversation) = state
             .parse_target_inner(target)
             .map_err(|reason| InvalidInput::invalid_name(target, reason))?;
-        if !self.state().is_connected() {
+        let receipt = state.sent_receipt(&conversation, target.to_owned());
+        if !state.is_connected() {
             let text = if action {
                 Ctcp::action(text).ok_or(InvalidInput::InvalidCtcp)?
             } else {
@@ -899,12 +900,7 @@ impl Client {
                 message = message.with_tag(key, value);
             }
             self.send_message(message).await?;
-            return Ok(Sent::without_echo(
-                conversation,
-                status,
-                target.to_owned(),
-                fallbacks,
-            ));
+            return Ok(Sent::without_echo(conversation, status, receipt, fallbacks));
         }
         let (result, receiver) = oneshot::channel();
         self.commands
@@ -913,6 +909,7 @@ impl Client {
                 target: target.to_owned(),
                 conversation,
                 status,
+                receipt,
                 text: text.to_owned(),
                 tags,
                 fallbacks,

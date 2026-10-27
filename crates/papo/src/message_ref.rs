@@ -318,13 +318,7 @@ impl From<&Message> for MessageRef {
 /// Preserves the sent message's return address and every line identifier.
 impl From<&Sent> for MessageRef {
     fn from(message: &Sent) -> Self {
-        Self::new(
-            message.return_address.clone(),
-            message.msgids.clone(),
-            conversation_origin(&message.conversation),
-            None,
-            None,
-        )
+        message.receipt.reference(message.msgids.clone(), None)
     }
 }
 
@@ -504,7 +498,17 @@ mod tests {
         let sent = Sent {
             conversation: Conversation::Channel(origin.__channel(mapping, "#ops")),
             status: Some(crate::Prefix::__new('o', '@')),
-            return_address: "@#ops".into(),
+            receipt: Receipt::new(
+                crate::Source::User(crate::__testing::user_source(
+                    origin.__nick(mapping, "papo"),
+                    None,
+                    None,
+                )),
+                Authorship::Own,
+                &Conversation::Channel(origin.__channel(mapping, "#ops")),
+                None,
+                "@#ops".into(),
+            ),
             msgids: vec!["RfcBTzyxY120005".into(), "RfcBTzyxY120006".into()],
             server_time: Some(SystemTime::UNIX_EPOCH),
             fallbacks: Vec::new(),

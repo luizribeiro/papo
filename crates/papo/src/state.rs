@@ -47,6 +47,24 @@ impl State {
         self.core.__reply_token()
     }
 
+    pub(crate) fn sent_receipt(
+        &self,
+        conversation: &crate::Conversation,
+        address: String,
+    ) -> crate::message_ref::Receipt {
+        let actor = crate::Source::User(crate::UserSource::identity(
+            self.nick().clone(),
+            self.account().clone(),
+        ));
+        crate::message_ref::Receipt::new(
+            actor,
+            crate::Authorship::Own,
+            conversation,
+            Some(self.reply_token()),
+            address,
+        )
+    }
+
     /// Returns builders and checks that use this snapshot's name rules and client identity.
     #[must_use]
     pub const fn name_rules(&self) -> crate::NameRules<'_> {

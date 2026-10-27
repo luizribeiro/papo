@@ -159,6 +159,7 @@ pub(crate) enum Command {
         target: String,
         conversation: crate::Conversation,
         status: Option<crate::Prefix>,
+        receipt: crate::message_ref::Receipt,
         text: String,
         tags: Vec<(String, String)>,
         fallbacks: Vec<crate::Fallback>,
@@ -191,7 +192,7 @@ enum PendingRequest {
     Text {
         conversation: crate::Conversation,
         status: Option<crate::Prefix>,
-        return_address: String,
+        receipt: crate::message_ref::Receipt,
         fallbacks: Vec<crate::Fallback>,
         remaining: usize,
         confirmations: Vec<papo_core::SentInfo>,
@@ -218,7 +219,7 @@ impl PendingRequest {
             Self::Text {
                 conversation,
                 status,
-                return_address,
+                receipt,
                 fallbacks,
                 remaining,
                 mut confirmations,
@@ -233,7 +234,7 @@ impl PendingRequest {
                     return Some(Self::Text {
                         conversation,
                         status,
-                        return_address,
+                        receipt,
                         fallbacks,
                         remaining: remaining - 1,
                         confirmations,
@@ -244,7 +245,7 @@ impl PendingRequest {
                     &confirmations,
                     conversation,
                     status,
-                    return_address,
+                    receipt,
                     fallbacks,
                 )));
                 None
@@ -266,7 +267,7 @@ enum PendingTransmit {
     Text {
         conversation: crate::Conversation,
         status: Option<crate::Prefix>,
-        return_address: String,
+        receipt: crate::message_ref::Receipt,
         fallbacks: Vec<crate::Fallback>,
         result: oneshot::Sender<Result<Sent, Error>>,
     },
@@ -279,14 +280,14 @@ impl PendingTransmit {
             Self::Text {
                 conversation,
                 status,
-                return_address,
+                receipt,
                 fallbacks,
                 result,
             } => {
                 _ = result.send(Ok(Sent::without_echo(
                     conversation,
                     status,
-                    return_address,
+                    receipt,
                     fallbacks,
                 )));
             }
@@ -952,7 +953,7 @@ where
                     session.monitor_clear();
                     _ = result.send(Ok(()));
                 }
-                Some(Command::SendText { kind, target, conversation, status, text, tags, mut fallbacks, action, result }) => {
+                Some(Command::SendText { kind, target, conversation, status, receipt, text, tags, mut fallbacks, action, result }) => {
                     let tags: Vec<_> = tags.iter().map(|(key, value)| (key.as_str(), value.as_str())).collect();
                     let sent = if action {
                         session.send_action_detailed(now(), &target, &text, &tags)
@@ -968,7 +969,7 @@ where
                                 requests.insert(id, PendingRequest::Text {
                                     conversation,
                                     status,
-                                    return_address: target.clone(),
+                                    receipt,
                                     fallbacks,
                                     remaining: sent.confirmations,
                                     confirmations: Vec::new(),
@@ -978,7 +979,7 @@ where
                                 transmits.insert(token, PendingTransmit::Text {
                                     conversation,
                                     status,
-                                    return_address: target.clone(),
+                                    receipt,
                                     fallbacks,
                                     result,
                                 });

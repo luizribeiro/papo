@@ -7280,10 +7280,11 @@ async fn redacting_a_multiline_send_stops_at_the_first_refusal() {
     .await;
     client_line(&mut server, b"CAP END\r\n").await;
 
+    let conversation = crate::Conversation::Channel(client.state().name_rules().channel("#papo"));
     let sent = crate::Sent {
-        conversation: crate::Conversation::Channel(client.state().name_rules().channel("#papo")),
+        receipt: client.state().sent_receipt(&conversation, "#papo".into()),
+        conversation,
         status: None,
-        return_address: "#papo".into(),
         msgids: ["RfcBTzyxY120004", "RfcBTzyxY120005", "RfcBTzyxY120006"]
             .map(crate::MessageId::from)
             .into(),

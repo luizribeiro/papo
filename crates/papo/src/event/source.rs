@@ -15,6 +15,17 @@ pub struct UserSource {
 }
 
 impl UserSource {
+    pub(crate) fn identity(nick: Nick, account: Account) -> Self {
+        Self {
+            nick,
+            username: None,
+            host: None,
+            account,
+            is_bot: None,
+            oper: None,
+        }
+    }
+
     pub(crate) fn set_account(&mut self, account: Account) {
         self.account = account;
     }

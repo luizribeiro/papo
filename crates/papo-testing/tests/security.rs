@@ -473,7 +473,9 @@ async fn every_private_line_reference_refuses_a_nickname_handoff() {
         ));
     }
 
-    let mut references = Vec::new();
+    let sent = client.privmsg("alice", "review requested").await.unwrap();
+    assert_eq!(wire.next_sent().await, "PRIVMSG alice :review requested");
+    let mut references = vec![("sent message", sent.return_address())];
     for (name, line) in [
         (
             "message",
