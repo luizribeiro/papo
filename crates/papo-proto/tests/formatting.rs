@@ -154,6 +154,18 @@ fn display_text_removes_terminal_and_irc_control_sequences() {
 }
 
 #[test]
+fn stripped_multiline_text_retains_reconstructed_separators() {
+    assert_eq!(
+        strip_formatting("first deployment line\nsecond \x02deployment\x02 line"),
+        "first deployment line\nsecond deployment line"
+    );
+    assert_eq!(
+        display_text("first deployment line\nsecond deployment line"),
+        "first deployment linesecond deployment line"
+    );
+}
+
+#[test]
 fn built_text_round_trips_through_the_span_parser() {
     let mut builder = FormatBuilder::new();
     builder

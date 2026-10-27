@@ -146,12 +146,13 @@ impl<'a> Iterator for Formatted<'a> {
 
 impl FusedIterator for Formatted<'_> {}
 
-/// Removes IRC formatting codes from `text`.
+/// Removes IRC formatting codes and unsafe terminal controls from `text`.
 ///
-/// The input is borrowed when it contains no recognized formatting control byte.
+/// Newlines reconstructed between `IRCv3` multiline segments are retained. The input is
+/// borrowed when it needs no sanitization.
 #[must_use]
 pub fn strip_formatting(text: &str) -> Cow<'_, str> {
-    display_text(text)
+    sanitize_text(text, true)
 }
 
 fn strip_irc_formatting(text: &str) -> Cow<'_, str> {
@@ -167,9 +168,13 @@ fn strip_irc_formatting(text: &str) -> Cow<'_, str> {
 /// control strings are removed. The input is borrowed when it needs no sanitization.
 #[must_use]
 pub fn display_text(text: &str) -> Cow<'_, str> {
+    sanitize_text(text, false)
+}
+
+fn sanitize_text(text: &str, retain_newlines: bool) -> Cow<'_, str> {
     let formatted = strip_irc_formatting(text);
     let formatted_is_borrowed = matches!(formatted, Cow::Borrowed(_));
-    let sanitized = strip_terminal_controls(&formatted);
+    let sanitized = strip_terminal_controls(&formatted, retain_newlines);
     if formatted_is_borrowed && matches!(sanitized, Cow::Borrowed(_)) {
         Cow::Borrowed(text)
     } else {
@@ -177,7 +182,7 @@ pub fn display_text(text: &str) -> Cow<'_, str> {
     }
 }
 
-fn strip_terminal_controls(text: &str) -> Cow<'_, str> {
+fn strip_terminal_controls(text: &str, retain_newlines: bool) -> Cow<'_, str> {
     #[derive(Clone, Copy)]
     enum Escape {
         Ground,
@@ -193,6 +198,10 @@ fn strip_terminal_controls(text: &str) -> Cow<'_, str> {
     for character in text.chars() {
         state = match (state, character) {
             (Escape::Ground, '\t') => {
+                clean.push(character);
+                Escape::Ground
+            }
+            (Escape::Ground, '\n') if retain_newlines => {
                 clean.push(character);
                 Escape::Ground
             }
