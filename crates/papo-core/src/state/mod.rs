@@ -995,6 +995,7 @@ impl State {
             &mut self.typing,
             Names::new(mapping, self.casemapping.origin()),
         );
+        let old_own_nick = self.nick.clone();
         self.nick = self
             .casemapping
             .origin()
@@ -1024,31 +1025,39 @@ impl State {
                 (NameKey::new(name, mapping), channel)
             })
             .collect();
-        self.users = std::mem::take(&mut self.users)
-            .into_values()
-            .map(|mut user| {
-                user.nick = self
+        let mut users = BTreeMap::new();
+        for mut user in std::mem::take(&mut self.users).into_values() {
+            let incoming_is_own = user.nick.as_ref() == old_own_nick.as_ref();
+            user.nick = self
+                .casemapping
+                .origin()
+                .__nick(mapping, user.nick.as_ref());
+            if let Account::LoggedIn(account) = &mut user.account {
+                *account = self
                     .casemapping
                     .origin()
-                    .__nick(mapping, user.nick.as_ref());
-                if let Account::LoggedIn(account) = &mut user.account {
-                    *account = self
-                        .casemapping
+                    .__account(mapping, account.as_ref());
+            }
+            user.channels = user
+                .channels
+                .into_iter()
+                .map(|channel| {
+                    self.casemapping
                         .origin()
-                        .__account(mapping, account.as_ref());
+                        .__channel(mapping, channel.as_ref())
+                })
+                .collect();
+            match users.entry(NameKey::new(user.nick.as_ref(), mapping)) {
+                std::collections::btree_map::Entry::Vacant(entry) => {
+                    entry.insert(user);
                 }
-                user.channels = user
-                    .channels
-                    .into_iter()
-                    .map(|channel| {
-                        self.casemapping
-                            .origin()
-                            .__channel(mapping, channel.as_ref())
-                    })
-                    .collect();
-                (NameKey::new(user.nick.as_ref(), mapping), user)
-            })
-            .collect();
+                std::collections::btree_map::Entry::Occupied(mut entry) if incoming_is_own => {
+                    entry.insert(user);
+                }
+                std::collections::btree_map::Entry::Occupied(_) => {}
+            }
+        }
+        self.users = users;
         self.who_sweeps = std::mem::take(&mut self.who_sweeps)
             .into_iter()
             .map(|(channel, count)| {

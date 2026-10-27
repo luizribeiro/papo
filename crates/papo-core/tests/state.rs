@@ -104,7 +104,30 @@ fn a_foreign_rename_into_the_own_nick_keeps_the_own_row() {
             assert_eq!(session.state().username(), "papo");
             assert_eq!(session.state().host(), Some("cloak.example"));
         })
-        .ignore_rest();
+    .ignore_rest();
+}
+
+#[test]
+fn casemapping_collisions_keep_the_own_user_row() {
+    Transcript::new(
+        Config::default()
+            .nick("papo[")
+            .username("papo")
+            .casemapping(Casemapping::Ascii),
+    )
+    .server(":ergo.test 005 papo[ CASEMAPPING=ascii :are supported")
+    .server(":papo[!papo@localhost JOIN #papo")
+    .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "papo["))
+    .server(":papo{!mallory@hostile.example JOIN #papo")
+    .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "papo{"))
+    .server(":ergo.test 005 papo[ CASEMAPPING=rfc1459 :are supported")
+    .event(|event| matches!(event, Event::CasemappingChanged { .. }))
+    .inspect(|session| {
+        let own = session.state().user("papo{").unwrap();
+        assert_eq!(own.nick(), "papo[");
+        assert_eq!(own.username(), Some("papo"));
+    })
+    .ignore_rest();
 }
 
 #[test]
