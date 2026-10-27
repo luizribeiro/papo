@@ -2,7 +2,7 @@
 
 use std::borrow::Cow;
 
-use papo_proto::{Color, FormatBuilder, Formatted, Span, Style, strip_formatting};
+use papo_proto::{Color, FormatBuilder, Formatted, Span, Style, display_text, strip_formatting};
 
 fn spans(text: &str) -> Vec<Span<'_>> {
     Formatted::new(text).collect()
@@ -133,6 +133,24 @@ fn strip_borrows_only_unformatted_text() {
         strip_formatting("hello \x02from Ergo"),
         Cow::Owned(_)
     ));
+}
+
+#[test]
+fn display_text_removes_terminal_and_irc_control_sequences() {
+    for (input, expected) in [
+        ("\x1b[2Jhello", "hello"),
+        ("before\x1b]52;c;Y2xpcGJvYXJk\x07after", "beforeafter"),
+        ("\u{009b}31mred\u{009b}0m", "red"),
+        ("safe\x1bPunterminated device payload", "safe"),
+        ("\x02bold\x02 and \x0304,12color\x03", "bold and color"),
+        (
+            "one\rforged\nline\u{007f}\u{0085}two\ttab",
+            "oneforgedlinetwo\ttab",
+        ),
+    ] {
+        assert_eq!(display_text(input), expected);
+    }
+    assert!(matches!(display_text("hello from Ergo"), Cow::Borrowed(_)));
 }
 
 #[test]

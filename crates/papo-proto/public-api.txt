@@ -1858,6 +1858,7 @@ impl papo_proto::AsNick for papo_proto::Nick
 impl papo_proto::AsNick for str
 impl<T: papo_proto::AsNick + ?core::marker::Sized> papo_proto::AsNick for &T
 pub fn papo_proto::canonical(&str) -> &str
+pub fn papo_proto::display_text(&str) -> alloc::borrow::Cow<'_, str>
 pub fn papo_proto::escape_tag_value(&str) -> alloc::borrow::Cow<'_, str>
 pub fn papo_proto::parse_353<'a>(&papo_proto::LineRef<'a>) -> core::option::Option<(&'a str, &'a str, impl core::iter::traits::iterator::Iterator<Item = &'a str>)>
 pub fn papo_proto::split_text(&str, usize) -> alloc::vec::Vec<papo_proto::Segment<'_>>

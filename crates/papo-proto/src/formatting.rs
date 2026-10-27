@@ -151,10 +151,88 @@ impl FusedIterator for Formatted<'_> {}
 /// The input is borrowed when it contains no recognized formatting control byte.
 #[must_use]
 pub fn strip_formatting(text: &str) -> Cow<'_, str> {
+    strip_irc_formatting(text)
+}
+
+fn strip_irc_formatting(text: &str) -> Cow<'_, str> {
     if !text.bytes().any(is_control) {
         return Cow::Borrowed(text);
     }
     Cow::Owned(Formatted::new(text).map(|span| span.text).collect())
+}
+
+/// Removes terminal control characters and escape sequences from human-readable text.
+///
+/// Tabs are retained. Other C0 controls, DEL, C1 controls, CSI sequences, and OSC-like
+/// control strings are removed. The input is borrowed when it needs no sanitization.
+#[must_use]
+pub fn display_text(text: &str) -> Cow<'_, str> {
+    let formatted = strip_irc_formatting(text);
+    let formatted_is_borrowed = matches!(formatted, Cow::Borrowed(_));
+    let sanitized = strip_terminal_controls(&formatted);
+    if formatted_is_borrowed && matches!(sanitized, Cow::Borrowed(_)) {
+        Cow::Borrowed(text)
+    } else {
+        Cow::Owned(sanitized.into_owned())
+    }
+}
+
+fn strip_terminal_controls(text: &str) -> Cow<'_, str> {
+    #[derive(Clone, Copy)]
+    enum Escape {
+        Ground,
+        Esc,
+        Csi,
+        String,
+        StringEsc,
+    }
+
+    let mut clean = String::with_capacity(text.len());
+    let mut state = Escape::Ground;
+    let mut changed = false;
+    for character in text.chars() {
+        state = match (state, character) {
+            (Escape::Ground, '\t') => {
+                clean.push(character);
+                Escape::Ground
+            }
+            (Escape::Ground, '\u{1b}') => {
+                changed = true;
+                Escape::Esc
+            }
+            (Escape::Ground, '\u{009b}') => {
+                changed = true;
+                Escape::Csi
+            }
+            (Escape::Ground, '\u{0090}' | '\u{0098}' | '\u{009d}' | '\u{009e}' | '\u{009f}') => {
+                changed = true;
+                Escape::String
+            }
+            (Escape::Ground, character) if character.is_control() => {
+                changed = true;
+                Escape::Ground
+            }
+            (Escape::Ground, character) => {
+                clean.push(character);
+                Escape::Ground
+            }
+            (Escape::Esc, '[') => Escape::Csi,
+            (Escape::Esc, 'P' | 'X' | ']' | '^' | '_') => Escape::String,
+            (Escape::Esc, '\u{1b}' | ' '..='/') | (Escape::Csi, '\u{1b}') => Escape::Esc,
+            (Escape::Esc, _)
+            | (Escape::Csi, '@'..='~')
+            | (Escape::String, '\u{7}' | '\u{009c}')
+            | (Escape::StringEsc, '\\') => Escape::Ground,
+            (Escape::Csi, _) => Escape::Csi,
+            (Escape::String | Escape::StringEsc, '\u{1b}') => Escape::StringEsc,
+            (Escape::String | Escape::StringEsc, _) => Escape::String,
+        };
+    }
+    if changed {
+        Cow::Owned(clean)
+    } else {
+        Cow::Borrowed(text)
+    }
 }
 
 /// A builder for IRC-formatted text.

@@ -28,7 +28,9 @@ pub use casemapping::{Casemapping, UnknownCasemapping};
 pub use client_tags::{Reaction, Typing};
 pub use command::Command;
 pub use ctcp::Ctcp;
-pub use formatting::{Color, FormatBuilder, Formatted, Span, Style, strip_formatting};
+pub use formatting::{
+    Color, FormatBuilder, Formatted, Span, Style, display_text, strip_formatting,
+};
 pub use id::{
     AccountName, Address, AsAccount, AsChannel, AsNick, ChannelName, InvalidIdentifier, Mask,
     MaskSource, MessageId, MetadataKey, NameParts, Nick, Origin,
