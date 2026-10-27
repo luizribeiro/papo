@@ -8132,6 +8132,79 @@ async fn disconnect_follows_the_retained_event_after_lag() {
     ));
 }
 
+#[tokio::test(flavor = "current_thread")]
+async fn undrained_events_still_answer_server_ping() {
+    let (mut server, _client, mut events, driver) = scripted_with_capacity(config(), 4);
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    for index in 1..=12 {
+        server_line(
+            &mut server,
+            format!(
+                "@msgid=RfcBTzyxY12{index:04} :emily!e@localhost PRIVMSG #papo :deployment update {index}\r\n"
+            )
+            .as_bytes(),
+        )
+        .await;
+    }
+    server_line(&mut server, b"PING :ergo.test\r\n").await;
+    client_line(&mut server, b"PONG ergo.test\r\n").await;
+
+    drop(events);
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn overflow_drops_oldest_and_reports_one_lagged_count() {
+    let (mut server, _client, mut events, driver) = scripted_with_capacity(config(), 4);
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":emily!e@localhost PRIVMSG #papo :deployment update one\r\n\
+          :emily!e@localhost PRIVMSG #papo :deployment update two\r\n\
+          :emily!e@localhost PRIVMSG #papo :deployment update three\r\n\
+          :emily!e@localhost PRIVMSG #papo :deployment update four\r\n\
+          :emily!e@localhost PRIVMSG #papo :deployment update five\r\n\
+          :emily!e@localhost PRIVMSG #papo :deployment update six\r\n\
+          PING :ergo.test\r\n",
+    )
+    .await;
+    client_line(&mut server, b"PONG ergo.test\r\n").await;
+
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Lagged(crate::event::Lagged { dropped: 2 }))
+    ));
+    for expected in [
+        "deployment update three",
+        "deployment update four",
+        "deployment update five",
+        "deployment update six",
+    ] {
+        assert_eq!(
+            next_event(&mut events)
+                .await
+                .unwrap()
+                .as_message()
+                .unwrap()
+                .text,
+            expected
+        );
+    }
+
+    drop(events);
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn session_deadline_sends_keepalive_ping() {
     let config = config()
