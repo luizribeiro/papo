@@ -966,10 +966,12 @@ impl Client {
             if message.msgids().is_empty() {
                 return Err(InvalidInput::UnusableMessageReference.into());
             }
-            let target = client.resolve(
-                crate::target::Role::Send("redact: message"),
-                crate::Target::__parts(&message),
-            )?;
+            let target = client
+                .resolve_send(
+                    "redact: message",
+                    crate::Target::__parts(&message).into_owned(),
+                )
+                .await?;
             let state = client.state();
             Self::require_feature(&state, Feature::Redaction)?;
             drop(state);
@@ -981,12 +983,16 @@ impl Client {
                         message_id.check().map_err(|error| {
                             InvalidInput::invalid_name(message_id.to_string(), error)
                         })?;
-                        let mut params = vec![target.clone(), message_id.to_string()];
+                        let mut params = vec![target.text.clone(), message_id.to_string()];
                         if !reason.is_empty() {
                             params.push(reason.clone());
                         }
                         let response = client
-                            .correlated(Line::new("REDACT").with_params(params), None)
+                            .correlated_guarded(
+                                Line::new("REDACT").with_params(params),
+                                None,
+                                target.recipient.clone(),
+                            )
                             .await?;
                         crate::requests::empty(&response)?;
                     }
