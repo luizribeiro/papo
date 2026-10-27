@@ -396,7 +396,7 @@ mod tests {
         )
         .await;
         assert!(matches!(
-            events.next().await,
+            next_event(&mut events).await,
             Some(crate::Event::MetadataChanged(changed)) if changed.key == "status"
         ));
 

@@ -473,7 +473,7 @@ mod tests {
         assert_eq!(networks.len(), 1);
         assert_eq!(networks[0].name.as_deref(), Some("Libera Chat"));
         assert!(matches!(
-            events.next().await,
+            next_event(&mut events).await,
             Some(Event::BouncerNetworkChanged(_))
         ));
         abort_task(driver).await;

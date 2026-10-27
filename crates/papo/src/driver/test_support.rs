@@ -285,6 +285,15 @@ pub(crate) async fn server_line(server: &mut DuplexStream, line: &[u8]) {
     within(crate::__testing::server_line(server, line)).await;
 }
 
+pub(crate) async fn next_event(events: &mut super::Events) -> Option<Event> {
+    loop {
+        match events.next().await {
+            Some(Event::Connecting(_)) => {}
+            event => return event,
+        }
+    }
+}
+
 pub(crate) async fn saturate_events(server: &mut DuplexStream, events: &super::Events) {
     assert_eq!(events.receiver.max_capacity(), 2);
     server_line(
@@ -318,10 +327,10 @@ pub(crate) async fn complete_connect(
     server_line(server, b":ergo.test 001 papo-driver :Welcome to the Ergo test network\r\n:ergo.test 002 papo-driver :Your host is ergo.test, running version ergo-2.16.0\r\n:ergo.test 003 papo-driver :This server was created Wed Oct 15 2025\r\n:ergo.test 004 papo-driver ergo.test ergo-2.16.0 BioZ beI,k,l,imnst\r\n:ergo.test 005 papo-driver NETWORK=ErgoTest UTF8ONLY :are supported by this server\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
     for numeric in 2..=4 {
         assert!(
-            matches!(events.next().await, Some(Event::Other(line)) if line.numeric() == Some(numeric))
+            matches!(next_event(events).await, Some(Event::Other(line)) if line.numeric() == Some(numeric))
         );
     }
-    match events.next().await {
+    match next_event(events).await {
         Some(Event::Connected(connected)) => connected,
         other => panic!("expected connected event, got {other:?}"),
     }
@@ -341,7 +350,10 @@ pub(crate) async fn complete_connect_labelled(
         b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Connected(_))));
+    assert!(matches!(
+        next_event(events).await,
+        Some(Event::Connected(_))
+    ));
 }
 
 pub(crate) async fn complete_connect_caps(
@@ -364,7 +376,10 @@ pub(crate) async fn complete_connect_caps(
     .await;
     client_line(server, b"CAP END\r\n").await;
     server_line(server, b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 005 papo-driver NICKLEN=32 :are supported by this server\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::Connected(_))));
+    assert!(matches!(
+        next_event(events).await,
+        Some(Event::Connected(_))
+    ));
 }
 
 pub(crate) async fn complete_connect_history(
@@ -389,7 +404,10 @@ pub(crate) async fn complete_connect_history(
     .await;
     client_line(server, b"CAP END\r\n").await;
     server_line(server, b":ergo.test 005 papo-driver CHATHISTORY=100 MSGREFTYPES=msgid,timestamp :supported\r\n:ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::Connected(_))));
+    assert!(matches!(
+        next_event(events).await,
+        Some(Event::Connected(_))
+    ));
 }
 
 pub(crate) async fn complete_connect_read_marker(
@@ -410,7 +428,10 @@ pub(crate) async fn complete_connect_read_marker(
     .await;
     client_line(server, b"CAP END\r\n").await;
     server_line(server, b":ergo.test 005 papo-driver CHANTYPES=# STATUSMSG=@+ :supported\r\n:ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::Connected(_))));
+    assert!(matches!(
+        next_event(events).await,
+        Some(Event::Connected(_))
+    ));
 }
 
 pub(crate) async fn history_response(server: &mut DuplexStream, label: usize) {
@@ -529,7 +550,10 @@ pub(crate) async fn complete_connect_extended_monitor(
         b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 005 papo-driver MONITOR=100 :are supported\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Connected(_))));
+    assert!(matches!(
+        next_event(events).await,
+        Some(Event::Connected(_))
+    ));
     add_monitors(server, client, &["alice", "bob"]).await;
 }
 
@@ -602,7 +626,10 @@ pub(crate) async fn assert_connect_output(
         b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Connected(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Connected(_))
+    ));
     client_line(&mut server, expected).await;
     assert!(
         tokio::time::timeout(Duration::from_millis(1), server.read_u8())
@@ -657,7 +684,10 @@ pub(crate) async fn assert_reply_wire(
         b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Connected(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Connected(_))
+    ));
     if let Some(channel) = shared_context {
         let joins = format!(
             ":papo-driver!papo@localhost JOIN {channel}\r\n:emily!e@localhost JOIN {channel}\r\n"
@@ -697,7 +727,10 @@ pub(crate) async fn assert_reaction_wire(isupport: &str, remove: bool, expected:
         b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Connected(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Connected(_))
+    ));
     server_line(
         &mut server,
         b":ergo.test 005 papo-driver STATUSMSG=@+ :are supported by this server\r\n",

@@ -869,7 +869,7 @@ mod tests {
         ConnectErrorKind, Error, InvalidInput, NewAccount,
         address::Protocol,
         driver::test_support::{
-            abort_task, client_line, scripted, server_line, welcome_burst, within,
+            abort_task, client_line, next_event, scripted, server_line, welcome_burst, within,
         },
         transport::TlsRoots,
     };
@@ -1106,14 +1106,14 @@ mod tests {
         client_line(&mut server, b"CAP END\r\n").await;
         server_line(&mut server, b":ergo.test 001 papo-driver_ :Welcome to ErgoTest\r\n:ergo.test 005 papo-driver_ MONITOR=100 :are supported\r\n:ergo.test 422 papo-driver_ :MOTD File is missing\r\n").await;
         assert!(matches!(
-            events.next().await,
+            next_event(&mut events).await,
             Some(crate::Event::Connected(_))
         ));
         client_line(&mut server, b"MONITOR + papo-driver\r\n").await;
         server_line(&mut server, b":ergo.test 731 papo-driver_ :papo-driver\r\n").await;
         client_line(&mut server, b"NICK papo-driver\r\n").await;
         assert!(matches!(
-            events.next().await,
+            next_event(&mut events).await,
             Some(crate::Event::MonitorOffline(_))
         ));
         abort_task(driver).await;
@@ -1642,7 +1642,7 @@ mod tests {
     async fn build_defers_address_errors_until_the_driver_is_polled() {
         let (_client, mut events, driver) = Builder::new("irc://").build();
         assert!(matches!(within(driver).await, Err(Error::InvalidInput(_))));
-        assert!(events.next().await.is_none());
+        assert!(next_event(&mut events).await.is_none());
     }
 
     #[cfg(tls)]
@@ -1951,7 +1951,7 @@ mod tests {
         assert!(client.state().is_connected());
         assert_eq!(client.state().nick(), "papo-custom");
         assert!(matches!(
-            events.next().await,
+            next_event(&mut events).await,
             Some(crate::Event::Connected(_))
         ));
         assert!(matches!(client.reconnect().await, Err(disconnected!())));
@@ -1965,7 +1965,7 @@ mod tests {
         within(server.shutdown()).await.unwrap();
         assert!(within(quitting).await.unwrap().is_ok());
         assert!(matches!(
-            events.next().await,
+            next_event(&mut events).await,
             Some(crate::Event::Disconnected(disconnected)) if !disconnected.is_reconnecting()
         ));
         assert!(!client.state().is_connected());
@@ -1979,7 +1979,7 @@ mod tests {
             .stream(crate::driver::test_support::TokioIo(stream))
             .build();
         assert!(matches!(within(driver).await, Err(Error::InvalidInput(_))));
-        assert!(events.next().await.is_none());
+        assert!(next_event(&mut events).await.is_none());
     }
 
     #[cfg(not(feature = "websocket"))]

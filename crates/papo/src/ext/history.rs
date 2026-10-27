@@ -1688,7 +1688,10 @@ mod tests {
         .await;
         client_line(&mut server, b"CAP END\r\n").await;
         server_line(&mut server, b":ergo.test 005 papo-driver CHANTYPES=! NICKLEN=9 CHATHISTORY=100 MSGREFTYPES=msgid,timestamp :supported\r\n:ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
-        assert!(matches!(events.next().await, Some(Event::Connected(_))));
+        assert!(matches!(
+            next_event(&mut events).await,
+            Some(Event::Connected(_))
+        ));
 
         let result = within(async { request.await }).await;
         assert!(
@@ -1735,7 +1738,10 @@ mod tests {
         .await;
         client_line(&mut server, b"CAP END\r\n").await;
         server_line(&mut server, b":ergo.test 005 papo-driver CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(qaohv)~&@%+ CHATHISTORY=100 MSGREFTYPES=msgid,timestamp STATUSMSG=@+ :supported\r\n:ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
-        assert!(matches!(events.next().await, Some(Event::Connected(_))));
+        assert!(matches!(
+            next_event(&mut events).await,
+            Some(Event::Connected(_))
+        ));
         assert!(matches!(
             client.history("#papo invalid").latest().await,
             Err(Error::InvalidInput(crate::InvalidInput::InvalidName { name, .. }))
@@ -1791,7 +1797,7 @@ mod tests {
         assert!(matches!(&page.items[5], Event::Other(line) if line.command() == "TAGMSG"));
         let message = page.chat_messages().next().unwrap();
         assert_eq!(message.text, "earlier");
-        let Some(Event::History(history)) = events.next().await else {
+        let Some(Event::History(history)) = next_event(&mut events).await else {
             panic!("expected replay batch event")
         };
         assert_eq!(history.reason, HistoryReason::Replay);
@@ -2038,7 +2044,7 @@ mod tests {
             Some(UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000))
         );
         assert!(
-            matches!(events.next().await, Some(Event::ReadMarkerChanged(marker)) if matches!(&marker.conversation, crate::Conversation::Channel(channel) if channel == "#papo"))
+            matches!(next_event(&mut events).await, Some(Event::ReadMarkerChanged(marker)) if matches!(&marker.conversation, crate::Conversation::Channel(channel) if channel == "#papo"))
         );
         abort_task(task).await;
     }
