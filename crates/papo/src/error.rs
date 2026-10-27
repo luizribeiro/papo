@@ -477,18 +477,14 @@ impl fmt::Display for Disconnected {
 
 impl std::error::Error for Disconnected {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match &self.cause {
-            DisconnectCause::Connect(error) => Some(error),
-            DisconnectCause::ConnectionLost { .. } => Some(&self.cause),
-            _ => None,
-        }
+        std::error::Error::source(&self.cause)
     }
 }
 
 impl std::error::Error for DisconnectCause {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::Connect(error) => Some(error),
+            Self::Connect(error) => std::error::Error::source(error),
             _ => None,
         }
     }
@@ -966,11 +962,19 @@ mod tests {
     }
 
     #[test]
-    fn disconnect_source_chains_preserve_transport_diagnostics() {
+    fn disconnect_chains_never_repeat_the_parent_message() {
         fn sources(error: &(dyn std::error::Error + 'static)) -> Vec<String> {
             std::iter::successors(error.source(), |source| source.source())
                 .map(ToString::to_string)
                 .collect()
+        }
+
+        fn assert_no_repetition(error: &(dyn std::error::Error + 'static)) {
+            let mut parent = error;
+            while let Some(source) = parent.source() {
+                assert_ne!(parent.to_string(), source.to_string());
+                parent = source;
+            }
         }
 
         for error in [
@@ -983,10 +987,8 @@ mod tests {
             let diagnostic = error.to_string();
             let disconnected =
                 Disconnected::new(DisconnectCause::connection_lost(diagnostic.clone()), None);
-            assert_eq!(
-                sources(&disconnected),
-                [format!("the connection was lost: {diagnostic}")]
-            );
+            assert_no_repetition(&disconnected);
+            assert_eq!(sources(&disconnected), Vec::<String>::new());
         }
 
         let cause = DisconnectCause::Connect(ConnectError::new(
@@ -998,11 +1000,16 @@ mod tests {
         ));
         assert_eq!(
             sources(&cause),
-            [
-                "the server refused the connection",
-                "irc.example.net:6697 refused the connection",
-            ]
+            ["irc.example.net:6697 refused the connection"]
         );
+        assert_no_repetition(&cause);
+
+        let disconnected = Disconnected::new(cause, None);
+        assert_eq!(
+            sources(&disconnected),
+            ["irc.example.net:6697 refused the connection"]
+        );
+        assert_no_repetition(&disconnected);
     }
 
     #[test]

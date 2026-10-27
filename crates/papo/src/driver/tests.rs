@@ -3072,10 +3072,7 @@ async fn read_error_is_connection_loss() {
         disconnected.to_string(),
         "the connection was lost: original read failure"
     );
-    assert_eq!(
-        std::error::Error::source(&disconnected).map(ToString::to_string),
-        Some("the connection was lost: original read failure".into())
-    );
+    assert!(std::error::Error::source(&disconnected).is_none());
     assert_eq!(disconnected.reconnect_in, None);
     assert!(matches!(
         within(driver).await.unwrap(),
@@ -3840,10 +3837,8 @@ async fn required_sasl_failure_does_not_reconnect() {
             reconnect_in: None,
         } if error.kind() == crate::ConnectErrorKind::Sasl
     ));
-    assert!(matches!(
-        std::error::Error::source(&disconnected),
-        Some(source) if source.to_string().contains("SASL")
-    ));
+    assert!(disconnected.to_string().contains("SASL"));
+    assert!(std::error::Error::source(&disconnected).is_none());
     assert!(matches!(
         within(driver).await.unwrap(),
         Err(Error::Connect(error)) if error.kind() == crate::ConnectErrorKind::Sasl
