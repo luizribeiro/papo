@@ -761,6 +761,7 @@
             pkgs.wasmtime
             pkgs.wasm-tools
             pkgs.binaryen
+            pkgs.twiggy
             pkgs.cargo-nextest
             pkgs.cargo-deny
             pkgs.cargo-public-api
