@@ -670,4 +670,32 @@ mod tests {
             .collect();
         assert_eq!(nicks, ["Alice", "carol"]);
     }
+
+    #[test]
+    fn forgetting_a_channel_preserves_other_channel_typers() {
+        let mapping = Casemapping::Rfc1459;
+        let papo = Conversation::Channel(mapping.channel("#papo"));
+        let rust = Conversation::Channel(mapping.channel("#rust"));
+        let mut table = TypingTable::new();
+        for (conversation, nick, address) in [
+            (papo.clone(), "alice", "#papo"),
+            (rust.clone(), "bob", "#rust"),
+        ] {
+            Arc::make_mut(&mut table).entries.push_back((
+                conversation.clone(),
+                Typer {
+                    nick: mapping.nick(nick),
+                    conversation,
+                    state: Typing::Active,
+                    status: None,
+                    return_address: address.into(),
+                },
+            ));
+        }
+
+        TypingTable::forget_channel(&mut table, &mapping.channel("#papo"));
+
+        assert_eq!(table.get(Some(papo)).count(), 0);
+        assert_eq!(table.get(Some(rust)).next().unwrap().nick(), "bob");
+    }
 }

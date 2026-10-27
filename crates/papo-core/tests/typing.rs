@@ -446,6 +446,27 @@ fn own_departures_and_disconnect_clear_typing_silently() {
 }
 
 #[test]
+fn leaving_a_joined_channel_forgets_all_of_its_typers() {
+    Transcript::new(Config::default().nick("papo"))
+        .server(":papo!~p@localhost JOIN #papo * :Papo User")
+        .event(|event| matches!(event, Event::Joined { .. }))
+        .server("@+typing=active :alice!~a@cloak.example TAGMSG #papo")
+        .event(|event| matches!(event, Event::TypingChanged(_)))
+        .server(":papo!~p@localhost PART #papo :Leaving")
+        .event(|event| matches!(event, Event::Parted { .. }))
+        .inspect(|session| {
+            assert_eq!(
+                session
+                    .state()
+                    .typing(&conversation(session, "#papo"))
+                    .count(),
+                0
+            );
+        })
+        .no_event();
+}
+
+#[test]
 fn nick_changes_carry_typing_and_its_deadline() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());

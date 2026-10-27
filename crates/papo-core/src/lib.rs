@@ -5469,6 +5469,19 @@ mod tests {
     }
 
     #[test]
+    fn bounded_replacement_preserves_entries_and_capacity() {
+        let mut entries = crate::bounded::BoundedCollection::new(2);
+        assert_eq!(entries.push_reject("#papo"), Ok(()));
+        assert_eq!(entries.push_reject("#rust"), Ok(()));
+
+        entries.replace(&"#papo", "#papo-dev");
+
+        assert_eq!(entries.as_slice(), ["#papo-dev", "#rust"]);
+        assert_eq!(entries.push_reject("#ircv3"), Err("#ircv3"));
+        assert_eq!(entries.as_slice(), ["#papo-dev", "#rust"]);
+    }
+
+    #[test]
     fn additional_connections_drop_one_connection_actions() {
         let mut config = Config::default()
             .nick("alice")
