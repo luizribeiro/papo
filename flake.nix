@@ -115,11 +115,12 @@
         };
         cargoArtifacts = craneLib.buildDepsOnly craneArgs;
         profileConformance =
-          profile:
+          profile: after:
           craneLib.cargoTest (
             craneArgs
             // {
               inherit cargoArtifacts;
+              SERVER_TEST_AFTER = after;
               cargoTestExtraArgs = "-p papo-conformance -- --test-threads=1";
               nativeBuildInputs = [
                 pkgs.openssl
@@ -458,7 +459,7 @@
         };
       in
       {
-        checks = {
+        checks = rec {
           no-merge-commits = pkgs.runCommand "test-no-merge-commits" { nativeBuildInputs = [ pkgs.git ]; } ''
             ${pkgs.bash}/bin/bash ${./scripts/test_no_merge_commits.sh} ${./scripts/check-no-merge-commits}
             touch $out
@@ -519,6 +520,8 @@
           browser-tests = craneLib.mkCargoDerivation (
             browserCraneArgs
             // {
+              # Live fixtures bind deterministic addresses, so their derivations must not overlap.
+              SERVER_TEST_AFTER = nextest;
               nativeBuildInputs = browserTools ++ [ pkgs.openssl ];
               PAPO_TEST_SERVER_BIN = pkgs.lib.getExe' papoTestServer "papo-test-server";
               ERGO_BIN = pkgs.lib.getExe ergochat;
@@ -575,6 +578,7 @@
             craneArgs
             // {
               inherit cargoArtifacts;
+              SERVER_TEST_AFTER = browser-tests;
               cargoTestExtraArgs = "-p papo-conformance -- --test-threads=1";
               nativeBuildInputs = [
                 pkgs.openssl
@@ -596,6 +600,7 @@
             craneArgs
             // {
               inherit cargoArtifacts;
+              SERVER_TEST_AFTER = conformance-unrealircd;
               cargoTestExtraArgs = "-p papo-conformance -- --test-threads=1";
               nativeBuildInputs = [
                 pkgs.openssl
@@ -618,6 +623,7 @@
             craneArgs
             // {
               inherit cargoArtifacts;
+              SERVER_TEST_AFTER = conformance-inspircd;
               cargoTestExtraArgs = "-p papo-conformance -- --test-threads=1";
               nativeBuildInputs = [
                 pkgs.openssl
@@ -636,9 +642,9 @@
               CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER = nixTestRunner;
             }
           );
-          profile-ergo-default = profileConformance "ergo-default";
-          profile-ergo-persistent = profileConformance "ergo-persistent";
-          profile-soju-ergo = profileConformance "soju-ergo";
+          profile-ergo-default = profileConformance "ergo-default" conformance-solanum;
+          profile-ergo-persistent = profileConformance "ergo-persistent" profile-ergo-default;
+          profile-soju-ergo = profileConformance "soju-ergo" profile-ergo-persistent;
           conformance-coverage = craneLib.mkCargoDerivation (
             craneArgs
             // {
@@ -656,6 +662,7 @@
             craneArgs
             // {
               inherit cargoArtifacts;
+              SERVER_TEST_AFTER = profile-soju-ergo;
               pname = "papo-conformance-matrix";
               nativeBuildInputs = [
                 pkgs.openssl
