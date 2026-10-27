@@ -1,7 +1,9 @@
 use std::{
     hash::{Hash, Hasher},
-    sync::Arc,
+    sync::{Arc, RwLock},
 };
+
+use tokio::sync::mpsc;
 
 use crate::{Account, Nick};
 
@@ -18,15 +20,57 @@ pub struct DirectRef(Arc<DirectInner>);
 
 struct DirectInner {
     recipient: papo_core::RecipientGuard,
+    state: Arc<RwLock<Arc<crate::State>>>,
+    _lease: Option<MonitorLease>,
+}
+
+pub(crate) struct MonitorLease {
+    recipient: papo_core::RecipientGuard,
+    commands: mpsc::Sender<crate::driver::Command>,
+}
+
+impl Drop for MonitorLease {
+    fn drop(&mut self) {
+        _ = self
+            .commands
+            .try_send(crate::driver::Command::DirectRelease {
+                recipient: self.recipient.clone(),
+            });
+    }
 }
 
 impl DirectRef {
+    pub(crate) fn new(
+        client: &crate::Client,
+        recipient: papo_core::RecipientGuard,
+        monitored: bool,
+    ) -> Self {
+        Self(Arc::new(DirectInner {
+            _lease: monitored.then(|| MonitorLease {
+                recipient: recipient.clone(),
+                commands: client.commands.clone(),
+            }),
+            recipient,
+            state: Arc::clone(&client.state),
+        }))
+    }
+
     pub(crate) fn recipient(&self) -> &papo_core::RecipientGuard {
         &self.0.recipient
     }
 
     fn current_nick(&self) -> Nick {
-        self.0.recipient.__nick().clone()
+        let state = self
+            .0
+            .state
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        match state.resolve_recipient(&self.0.recipient) {
+            papo_core::RecipientStatus::Current(nick) => nick,
+            papo_core::RecipientStatus::Gone | papo_core::RecipientStatus::Unknown => {
+                self.0.recipient.__nick().clone()
+            }
+        }
     }
 }
 
@@ -75,5 +119,60 @@ impl crate::Target for DirectRef {
                 &self.0.recipient,
             )),
         }
+    }
+}
+
+impl crate::Client {
+    /// Captures the identity currently using `nick` for guarded direct messages.
+    ///
+    /// A user who shares no channel is added to `MONITOR`; one `WHO nick %na` establishes the
+    /// identity before this future resolves. The monitor entry is removed when the last handle
+    /// owning it is dropped.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::Error::MonitorFull`] when the server's advertised `MONITOR` limit is already
+    /// occupied. It also returns an unsupported, server, invalid-input, timeout, or disconnected
+    /// error if the identity cannot be established without failing open.
+    pub fn direct(&self, nick: impl crate::AsNick) -> crate::RequestFuture<DirectRef> {
+        let client = self.clone();
+        let nick = crate::AsNick::__parts(&nick).into_owned();
+        crate::RequestFuture::new(async move {
+            let nick = client.resolve(crate::target::Role::Nick("direct: nick"), nick)?;
+            let snapshot = client.state();
+            if let Some(user) = snapshot.user(&nick)
+                && (user.nick() == snapshot.nick() || user.channels().len() != 0)
+            {
+                let recipient = snapshot.capture_recipient(user.nick(), user.account().clone());
+                return Ok(DirectRef::new(&client, recipient, false));
+            }
+            crate::direct_runtime::require_monitor_slot(&snapshot, &nick)?;
+            drop(snapshot);
+            let recipient =
+                crate::direct_runtime::command(&client, nick.clone(), None, true).await?;
+            let response = client
+                .correlated(
+                    crate::Line::new("WHO").with_params([nick.clone(), "%na".to_owned()]),
+                    Some(papo_core::ResponseMatcher::Who(nick.clone())),
+                )
+                .await;
+            let response = match response {
+                Ok(response) => response,
+                Err(error) => {
+                    crate::direct_runtime::release(&client, recipient).await;
+                    return Err(error);
+                }
+            };
+            let account = match crate::direct_runtime::who_account(&client, &nick, &response) {
+                Ok(account) => account,
+                Err(error) => {
+                    crate::direct_runtime::release(&client, recipient).await;
+                    return Err(error);
+                }
+            };
+            let recipient =
+                crate::direct_runtime::command(&client, nick, Some(account), false).await?;
+            Ok(DirectRef::new(&client, recipient, true))
+        })
     }
 }

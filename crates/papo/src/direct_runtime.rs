@@ -1,6 +1,5 @@
 use crate::{Account, Error};
 
-#[expect(dead_code, reason = "used by guarded direct construction")]
 pub(crate) async fn command(
     client: &crate::Client,
     nick: String,
@@ -29,7 +28,6 @@ pub(crate) async fn command(
     receiver.await.map_err(|_| Error::connection_lost())?
 }
 
-#[expect(dead_code, reason = "used by guarded direct construction")]
 pub(crate) async fn release(client: &crate::Client, recipient: papo_core::RecipientGuard) {
     _ = client
         .commands
@@ -37,7 +35,6 @@ pub(crate) async fn release(client: &crate::Client, recipient: papo_core::Recipi
         .await;
 }
 
-#[expect(dead_code, reason = "used by guarded direct construction")]
 pub(crate) fn require_monitor_slot(state: &crate::State, nick: &str) -> Result<(), Error> {
     crate::Client::require_feature(state, crate::Feature::Monitor)?;
     if state.monitored().any(|known| known == nick) {
@@ -51,7 +48,6 @@ pub(crate) fn require_monitor_slot(state: &crate::State, nick: &str) -> Result<(
     Ok(())
 }
 
-#[expect(dead_code, reason = "used by guarded direct construction")]
 pub(crate) fn who_account(
     client: &crate::Client,
     nick: &str,

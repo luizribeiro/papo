@@ -77,7 +77,6 @@ impl State {
         crate::NameRules { state: self }
     }
 
-    #[expect(dead_code, reason = "used by guarded direct construction")]
     pub(crate) fn resolve_recipient(
         &self,
         recipient: &papo_core::RecipientGuard,
@@ -85,7 +84,6 @@ impl State {
         self.core.__resolve_recipient(recipient)
     }
 
-    #[expect(dead_code, reason = "used by guarded direct construction")]
     pub(crate) fn capture_recipient(
         &self,
         nick: &Nick,

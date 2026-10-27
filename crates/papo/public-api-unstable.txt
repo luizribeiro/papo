@@ -2103,6 +2103,8 @@ impl papo::Client
 pub fn papo::Client::create_account(&self, papo::NewAccount) -> papo::RequestFuture<papo::AccountCreation>
 pub fn papo::Client::verify_account(&self, impl papo::AsAccount, impl core::convert::Into<papo::Secret>) -> papo::RequestFuture<papo::AccountCreation>
 impl papo::Client
+pub fn papo::Client::direct(&self, impl papo::AsNick) -> papo::RequestFuture<papo::DirectRef>
+impl papo::Client
 pub fn papo::Client::fetch_read_marker(&self, impl papo::AsConversation) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>
 pub fn papo::Client::history(&self, impl papo::AsConversation) -> papo::History
 pub fn papo::Client::mark_read(&self, impl papo::AsConversation, std::time::SystemTime) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>
