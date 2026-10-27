@@ -2879,6 +2879,85 @@ pub struct ReplyToken {
     identity: Option<ReplyIdentity>,
 }
 
+impl ReplyToken {
+    /// Builds an identity proof that requires external verification before use.
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __unknown(origin: papo_proto::Origin) -> Self {
+        Self {
+            origin,
+            identity: None,
+        }
+    }
+}
+
+/// Captured proof of a private recipient's identity.
+#[doc(hidden)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecipientGuard {
+    nick: Nick,
+    account: Account,
+    token: ReplyToken,
+}
+
+impl RecipientGuard {
+    /// Captures the current identity at `nick`.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __new(state: &State, nick: Nick, account: Account) -> Self {
+        let token = state.__reply_token_for(&nick);
+        Self {
+            nick,
+            account,
+            token,
+        }
+    }
+
+    /// Builds a guard from identity proof captured with a received line.
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __from_parts(nick: Nick, account: Account, token: ReplyToken) -> Self {
+        Self {
+            nick,
+            account,
+            token,
+        }
+    }
+
+    /// Returns the nickname at capture time.
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __nick(&self) -> &Nick {
+        &self.nick
+    }
+
+    /// Returns the captured account state.
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __account(&self) -> &Account {
+        &self.account
+    }
+
+    /// Returns the tracked-user identity proof.
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __token(&self) -> ReplyToken {
+        self.token
+    }
+}
+
+/// Result of resolving a captured private recipient.
+#[doc(hidden)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum RecipientStatus {
+    /// The identity is present under this nickname.
+    Current(Nick),
+    /// Another identity holds the captured nickname or proof is stale.
+    Gone,
+    /// Current state cannot prove the recipient's identity.
+    Unknown,
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct ReplyIdentity {
     epoch: u64,
