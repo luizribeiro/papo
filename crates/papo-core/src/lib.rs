@@ -2332,6 +2332,20 @@ pub enum Event {
         /// Identifier assigned when the line was queued.
         token: TransmitToken,
     },
+    /// A guarded request was discarded because its private recipient changed.
+    #[doc(hidden)]
+    #[non_exhaustive]
+    RequestRecipientGone {
+        /// Identifier assigned to the request.
+        id: RequestId,
+    },
+    /// A guarded line was discarded because its private recipient changed.
+    #[doc(hidden)]
+    #[non_exhaustive]
+    TransmitRecipientGone {
+        /// Identifier assigned when the line was queued.
+        token: TransmitToken,
+    },
     /// A request carrying marked credentials was refused before transmission.
     #[doc(hidden)]
     #[non_exhaustive]
@@ -3176,6 +3190,7 @@ struct QueuedLine {
     line: WireLine,
     token: Option<TransmitToken>,
     request: Option<RequestId>,
+    recipient: Option<RecipientGuard>,
 }
 
 impl Transmission {
@@ -3202,6 +3217,16 @@ impl Outbox {
         token: Option<TransmitToken>,
         request: Option<RequestId>,
     ) {
+        self.transmit_guarded(line, token, request, None);
+    }
+
+    fn transmit_guarded(
+        &mut self,
+        line: WireLine,
+        token: Option<TransmitToken>,
+        request: Option<RequestId>,
+        recipient: Option<RecipientGuard>,
+    ) {
         if self.close_requested {
             if let Some(token) = token {
                 self.event(Event::TransmitAborted { token });
@@ -3215,6 +3240,7 @@ impl Outbox {
             line,
             token,
             request,
+            recipient,
         };
         if bypasses_rate_limit(&line.line) {
             self.immediate.push_back(line);
@@ -3234,6 +3260,7 @@ impl Outbox {
             line,
             token: None,
             request,
+            recipient: None,
         }));
     }
 
@@ -3299,6 +3326,7 @@ impl Outbox {
                 line,
                 token: None,
                 request: None,
+                recipient: None,
             }),
             Err(error) => self.close(
                 CloseKind::Other,
@@ -3715,12 +3743,24 @@ impl Session {
         now: Instant,
         message: Line,
     ) -> Result<TransmitToken, BuildError> {
+        self.send_guarded_tracked(now, message, None)
+    }
+
+    /// Queues a line whose private recipient must still match at transmission time.
+    #[doc(hidden)]
+    pub fn send_guarded_tracked(
+        &mut self,
+        now: Instant,
+        message: Line,
+        recipient: Option<RecipientGuard>,
+    ) -> Result<TransmitToken, BuildError> {
         self.rate_limit.advance(now);
         let line = message.encode()?;
         drop(message);
         let token = TransmitToken(self.next_transmit_token);
         self.next_transmit_token = self.next_transmit_token.wrapping_add(1);
-        self.outbox.transmit_tagged(line, Some(token));
+        self.outbox
+            .transmit_guarded(line, Some(token), None, recipient);
         Ok(token)
     }
 
@@ -4211,12 +4251,12 @@ impl Session {
             self.outbox.transmits.front(),
             Some(Transmission::Batch { started: true, .. })
         );
-        if !batch_open && let Some(line) = self.outbox.immediate.pop_front() {
-            self.mark_request_started(line.request);
-            return Some(Transmit {
-                line: line.line,
-                token: line.token,
-            });
+        if !batch_open {
+            while let Some(line) = self.outbox.immediate.pop_front() {
+                if let Some(transmit) = self.prepare_queued_line(line) {
+                    return Some(transmit);
+                }
+            }
         }
         if self.outbox.transmits.is_empty()
             || !self.rate_limit.take(self.isupport.value().saferate())
@@ -4224,13 +4264,7 @@ impl Session {
             return None;
         }
         match self.outbox.transmits.pop_front()? {
-            Transmission::Line(line) => {
-                self.mark_request_started(line.request);
-                Some(Transmit {
-                    line: line.line,
-                    token: line.token,
-                })
-            }
+            Transmission::Line(line) => self.prepare_queued_line(line),
             Transmission::Batch {
                 mut lines,
                 token,
@@ -4255,6 +4289,32 @@ impl Session {
                     token: last.then_some(token).flatten(),
                 })
             }
+        }
+    }
+
+    fn prepare_queued_line(&mut self, mut queued: QueuedLine) -> Option<Transmit> {
+        if let Some(recipient) = &queued.recipient {
+            let RecipientStatus::Current(nick) = self.state.__resolve_recipient(recipient) else {
+                self.recipient_gone(queued.token, queued.request);
+                return None;
+            };
+            if nick != *recipient.__nick() && !replace_wire_target(&mut queued.line, &nick) {
+                self.recipient_gone(queued.token, queued.request);
+                return None;
+            }
+        }
+        self.mark_request_started(queued.request);
+        Some(Transmit {
+            line: queued.line,
+            token: queued.token,
+        })
+    }
+
+    fn recipient_gone(&mut self, token: Option<TransmitToken>, request: Option<RequestId>) {
+        if let Some(id) = request {
+            self.outbox.event(Event::RequestRecipientGone { id });
+        } else if let Some(token) = token {
+            self.outbox.event(Event::TransmitRecipientGone { token });
         }
     }
 
@@ -5423,6 +5483,32 @@ impl Session {
             self.keepalive.handle_disconnected();
         }
     }
+}
+
+fn replace_wire_target(line: &mut WireLine, nick: &Nick) -> bool {
+    let Ok(text) = std::str::from_utf8(line.as_ref()) else {
+        return false;
+    };
+    let Ok(parsed) = papo_proto::LineRef::parse(text) else {
+        return false;
+    };
+    let target = if parsed.command_is("BATCH") {
+        if parsed.param(0).is_some_and(|id| id.starts_with('-')) {
+            return true;
+        }
+        2
+    } else {
+        0
+    };
+    let mut owned = parsed.to_owned();
+    if !owned.__replace_param(target, nick.to_string()) {
+        return false;
+    }
+    let Ok(rewritten) = owned.encode() else {
+        return false;
+    };
+    *line = rewritten;
+    true
 }
 
 fn bypasses_rate_limit(line: &[u8]) -> bool {
