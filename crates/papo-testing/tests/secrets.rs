@@ -94,7 +94,7 @@ fn queued_secrets_are_redacted_without_hiding_ordinary_lines() {
 #[test]
 fn secret_and_wire_buffers_are_wiped_on_drop() {
     let secret = Secret::from("checklist-secret-wipe-marker-6184".to_owned());
-    watch(secret.expose_bytes().as_ptr(), secret.expose_bytes().len());
+    watch(secret.expose().as_ptr(), secret.expose().len());
     drop(secret);
     assert!(WIPED.load(Ordering::SeqCst));
 

@@ -1544,9 +1544,7 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
         .find(|change| change.mode == 'k')
         .unwrap();
     assert_eq!(key_change.action, ModeAction::Add);
-    assert!(
-        matches!(key_change.arg.clone(), Some(ModeArg::Key(value)) if value.expose() == Some(key))
-    );
+    assert!(matches!(key_change.arg.clone(), Some(ModeArg::Key(value)) if value.expose() == key));
     let secret_change = modes
         .changes
         .iter()
@@ -1558,10 +1556,7 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
         let state = peer.state();
         let channel_state = state.channel(&channel).unwrap();
         assert_eq!(channel_state.mode('k'), Some(ModeValue::Set));
-        assert_eq!(
-            channel_state.key().and_then(papo::Secret::expose),
-            Some(key)
-        );
+        assert_eq!(channel_state.key().map(papo::Secret::expose), Some(key));
         assert_eq!(channel_state.mode('s'), Some(ModeValue::Set));
     }
 

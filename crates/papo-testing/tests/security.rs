@@ -1105,7 +1105,7 @@ async fn channel_keys_are_redacted_across_state_and_events() {
     let state = client.state();
     let channel = state.channel("#staff").unwrap();
     assert_eq!(
-        channel.key().and_then(papo::Secret::expose),
+        channel.key().map(papo::Secret::expose),
         Some("snapshot-key-2026")
     );
     assert!(!format!("{state:?}").contains("snapshot-key-2026"));
@@ -1115,7 +1115,7 @@ async fn channel_keys_are_redacted_across_state_and_events() {
     let mode = next_active_event(&mut events).await;
     assert!(!format!("{mode:?}").contains("hunter2"));
     assert!(matches!(mode, papo::Event::ModeChanged(change)
-        if matches!(&change.changes[0].arg, Some(papo::ModeArg::Key(key)) if key.expose() == Some("hunter2"))));
+        if matches!(&change.changes[0].arg, Some(papo::ModeArg::Key(key)) if key.expose() == "hunter2")));
 
     wire.server(":offline.test 324 papo-wire #unjoined +k raw-key-2026")
         .await;

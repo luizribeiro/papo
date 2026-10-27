@@ -1164,7 +1164,7 @@ fn tracks_the_channel_join_burst_and_live_mode_changes() {
             let channel = session.state().channel("#papo").unwrap();
             assert_eq!(channel.mode('k'), Some(ModeValue::Set));
             assert_eq!(channel.mode('k').unwrap().value(), None);
-            assert_eq!(channel.key().and_then(Secret::expose), Some("swordfish"));
+            assert_eq!(channel.key().map(Secret::expose), Some("swordfish"));
             assert!(!format!("{:?}", session.state()).contains("swordfish"));
             assert_eq!(channel.mode('l'), Some(ModeValue::Value("10")));
             assert_eq!(channel.mode('n'), Some(ModeValue::Set));
@@ -1611,7 +1611,7 @@ fn another_capability_waits_for_end_of_names_before_syncing() {
             assert!(channel.is_synced());
             assert_eq!(channel.mode('n'), Some(ModeValue::Set));
             assert_eq!(channel.mode('k'), Some(ModeValue::Set));
-            assert_eq!(channel.key().and_then(Secret::expose), Some("secret"));
+            assert_eq!(channel.key().map(Secret::expose), Some("secret"));
             assert_eq!(channel.created_at(), Some(UNIX_EPOCH + Duration::from_secs(1_760_529_342)));
         })
         .no_event();

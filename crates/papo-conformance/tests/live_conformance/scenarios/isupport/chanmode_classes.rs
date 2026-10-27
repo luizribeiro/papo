@@ -50,7 +50,7 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
     assert!(matches!(ban.arg.clone(), Some(ModeArg::Mask(mask)) if mask == MASK));
     let key = find_change(&changed, 'k');
     assert_eq!(key.action, ModeAction::Add);
-    assert!(matches!(key.arg.clone(), Some(ModeArg::Key(value)) if value.expose() == Some(KEY)));
+    assert!(matches!(key.arg.clone(), Some(ModeArg::Key(value)) if value.expose() == KEY));
     let limit = find_change(&changed, 'l');
     assert_eq!(limit.action, ModeAction::Add);
     assert!(matches!(limit.arg.clone(), Some(ModeArg::Value(value)) if value == LIMIT));
@@ -62,10 +62,7 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
         let state = peer.state();
         let channel_state = state.channel(&channel).unwrap();
         assert_eq!(channel_state.mode('k'), Some(ModeValue::Set));
-        assert_eq!(
-            channel_state.key().and_then(papo::Secret::expose),
-            Some(KEY)
-        );
+        assert_eq!(channel_state.key().map(papo::Secret::expose), Some(KEY));
         assert_eq!(channel_state.mode('l'), Some(ModeValue::Value(LIMIT)));
         assert_eq!(channel_state.mode('n'), None);
         assert_eq!(channel_state.mode('b'), None);
@@ -87,9 +84,7 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(key.action, ModeAction::Remove);
     // The echoed key varies by server: Ergo, soju, and Solanum send "*" rather than
     // the real key, so only its presence is checked here, never its value.
-    assert!(
-        matches!(key.arg.clone(), Some(ModeArg::Key(value)) if value.expose().is_some_and(|value| !value.is_empty()))
-    );
+    assert!(matches!(key.arg.clone(), Some(ModeArg::Key(value)) if !value.expose().is_empty()));
     let limit = find_change(&removed, 'l');
     assert_eq!(limit.action, ModeAction::Remove);
     assert_eq!(limit.arg, None);
