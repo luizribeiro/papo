@@ -67,6 +67,49 @@ fn request(session: &mut Session, now: Instant, message: Line) -> RequestId {
     session.request(now, message).unwrap()
 }
 
+fn timed_out_requests(session: &mut Session) -> Vec<RequestId> {
+    std::iter::from_fn(|| session.poll_event())
+        .filter_map(|event| match event {
+            Event::RequestTimedOut { id, .. } => Some(id),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn cancelling_a_request_removes_only_its_labelled_or_unlabelled_entry() {
+    let now = Instant::now();
+    let timeout = std::time::Duration::from_secs(30);
+
+    let mut labelled = labelled_session(now);
+    let labelled_alice = request(&mut labelled, now, Line::new("WHOIS").param("alice"));
+    let labelled_bob = request(&mut labelled, now, Line::new("WHOIS").param("bob"));
+    while labelled.poll_transmit().is_some() {}
+    labelled.__cancel_request(labelled_alice);
+    labelled.handle_timeout(now + timeout);
+    assert_eq!(timed_out_requests(&mut labelled), [labelled_bob]);
+
+    let mut unlabelled = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    let unlabelled_alice = unlabelled
+        .request_with_matcher(
+            now,
+            Line::new("WHOIS").param("alice"),
+            ResponseMatcher::Whois("alice".into()),
+        )
+        .unwrap();
+    let unlabelled_bob = unlabelled
+        .request_with_matcher(
+            now,
+            Line::new("WHOIS").param("bob"),
+            ResponseMatcher::Whois("bob".into()),
+        )
+        .unwrap();
+    while unlabelled.poll_transmit().is_some() {}
+    unlabelled.__cancel_request(unlabelled_alice);
+    unlabelled.handle_timeout(now + timeout);
+    assert_eq!(timed_out_requests(&mut unlabelled), [unlabelled_bob]);
+}
+
 #[test]
 fn debug_output_redacts_rate_limited_oper_and_join_credentials() {
     let now = Instant::now();
