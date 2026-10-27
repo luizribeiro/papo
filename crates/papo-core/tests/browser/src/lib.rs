@@ -6,16 +6,14 @@ use wasm_bindgen::prelude::wasm_bindgen;
 use web_time::Instant;
 
 /// Parses a representative message and advances a session through welcome.
-///
-/// # Panics
-///
-/// Panics if the embedded representative IRC line is invalid.
 #[must_use]
 #[wasm_bindgen]
 pub fn core_probe() -> usize {
-    let message =
+    let Ok(message) =
         LineRef::parse("@time=2026-10-16T12:34:56.789Z :emily!~em@localhost PRIVMSG #papo :hello")
-            .expect("the probe line is valid IRC");
+    else {
+        return 0;
+    };
     let now = Instant::now();
     let mut session = Session::new(Config::default().nick("papo-browser"));
     session.handle_connected(now);
