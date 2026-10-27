@@ -737,13 +737,19 @@ async fn server_password_waits_for_sts() {
     let (_client, _events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo-wire")
             .password(PASSWORD)
-            .allow_insecure_auth(true)
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never()),
     );
     assert_eq!(wire.next_sent().await, "CAP LS 302");
     assert_eq!(wire.next_sent().await, "NICK papo-wire");
     assert_eq!(wire.next_sent().await, "USER papo-wire 0 * papo-wire");
+    wire.server(":ergo.test NOTICE * :*** Looking up your hostname...")
+        .await;
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), wire.next_sent())
+            .await
+            .is_err()
+    );
     wire.server(":offline.test CAP * LS :sts=port=6697,duration=86400")
         .await;
     assert_eq!(wire.next_sent_or_closed().await, None);

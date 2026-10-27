@@ -76,6 +76,8 @@ ids = [
   "security.st-4.channel-key-redaction",
   "security.rejoin.channel-rename", "security.ctcp.no-reply-to-playback",
   "security.s3.pass-after-sts-decision",
+  "security.adv-1.pass-before-sts",
+  "security.adv-1.live-pass-before-sts",
   "security.sts.password-required",
   "security.t3.plaintext-credentials-opt-in",
   "security.s4.account-registration-once",

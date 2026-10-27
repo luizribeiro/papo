@@ -106,6 +106,28 @@ fn plaintext_server_password_waits_through_pre_cap_lines() {
 }
 
 #[test]
+fn plaintext_server_password_closes_when_cap_is_unavailable() {
+    for unsupported in [
+        ":legacy.example 421 papo CAP :Unknown command",
+        ":legacy.example 451 papo :You have not registered",
+        ":legacy.example 001 papo :Welcome without CAP",
+    ] {
+        Transcript::rate_limited(
+            Config::default()
+                .rate_limit(papo_core::RateLimit::unlimited())
+                .password("correct horse battery staple"),
+        )
+        .connect_default()
+        .server(unsupported)
+        .event(|event| {
+            matches!(event, Event::Close { kind: CloseKind::CapabilityUnavailable, reason, .. }
+                    if reason.contains("sts"))
+        })
+        .no_client();
+    }
+}
+
+#[test]
 fn validates_all_configured_registration_fields_before_sending() {
     for config in [
         Config::default().nick("papo\rOPER root password"),

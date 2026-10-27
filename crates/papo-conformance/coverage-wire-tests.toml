@@ -47,6 +47,7 @@
 ]
 "security::server_password_waits_for_sts" = [
   "security.s3.pass-after-sts-decision",
+  "security.adv-1.pass-before-sts",
 ]
 "security::server_password_requires_sts_on_plaintext" = [
   "security.sts.password-required",
