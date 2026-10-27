@@ -4,6 +4,11 @@ use super::{
 };
 
 impl State {
+    pub(super) fn prepare_identity_arrival(&mut self, nick: &str) {
+        self.remove_user(nick);
+        self.remove_metadata(nick);
+    }
+
     pub(super) fn handle_quit(&mut self, message: &LineRef<'_>, outbox: &mut Outbox) -> Handled {
         let Some(ProtoSource::User { nick, .. }) = message.source() else {
             return Handled::No;

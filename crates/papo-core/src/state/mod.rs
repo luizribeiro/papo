@@ -601,6 +601,9 @@ impl State {
         self.update_casemapping(isupport.casemapping());
         let key = NameKey::new(nick, self.casemapping);
         if let Some((username, host)) = monitor.online_nick(nick, isupport) {
+            if !self.users.contains_key(&key) {
+                self.prepare_identity_arrival(nick);
+            }
             self.users
                 .entry(key)
                 .or_insert_with(|| User::new(nick, username, host, self.casemapping))
@@ -739,6 +742,9 @@ impl State {
                     .unwrap_or_default()
             };
             self.record_departure(nick, Some(new_nick));
+            if !crate::names_equal(mapping, nick, new_nick) {
+                self.prepare_identity_arrival(new_nick);
+            }
             if crate::names_equal(mapping, nick, &self.nick)
                 || self.user(nick).is_some()
                 || self.is_monitored(nick)

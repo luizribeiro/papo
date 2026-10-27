@@ -530,6 +530,52 @@ async fn every_private_line_reference_refuses_a_nickname_handoff() {
 }
 
 #[tokio::test]
+async fn monitored_metadata_is_not_inherited_after_a_nickname_handoff() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test", "papo-wire")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&["draft/metadata-2"]).await;
+    connected(&mut events).await;
+    wire.server(":offline.test 005 papo-wire MONITOR=100 :are supported")
+        .await;
+    while !matches!(
+        next_active_event(&mut events).await,
+        papo::Event::FeaturesChanged { .. }
+    ) {}
+    client.monitor().add(["bob"]).await.unwrap();
+    assert_eq!(wire.next_sent().await, "MONITOR + bob");
+    for line in [
+        ":papo-wire!p@localhost JOIN #review",
+        ":bob!~bob@users/bob JOIN #review",
+        ":mallory!~mallory@users/mallory JOIN #review",
+    ] {
+        wire.server(line).await;
+        assert!(matches!(
+            next_active_event(&mut events).await,
+            papo::Event::Joined(_)
+        ));
+    }
+    wire.server(":offline.test 761 papo-wire bob display-name * :Bob Builder")
+        .await;
+    while !matches!(
+        next_active_event(&mut events).await,
+        papo::Event::MetadataChanged { .. }
+    ) {}
+    wire.server(":bob!~bob@users/bob QUIT :Client exited").await;
+    while !matches!(next_active_event(&mut events).await, papo::Event::Quit(_)) {}
+    wire.server(":mallory!~mallory@users/mallory NICK :bob")
+        .await;
+    while !matches!(
+        next_active_event(&mut events).await,
+        papo::Event::NickChanged(_)
+    ) {}
+
+    assert!(client.state().metadata("bob").is_none());
+}
+
+#[tokio::test]
 async fn ctcp_replies_refuse_nick_handoffs() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo-wire")

@@ -24,6 +24,9 @@
 "security::every_private_line_reference_refuses_a_nickname_handoff" = [
   "security.adv-7.private-line-recipient-guards",
 ]
+"security::monitored_metadata_is_not_inherited_after_a_nickname_handoff" = [
+  "security.adv-8.metadata-nick-handoff",
+]
 "security::ctcp_replies_refuse_nick_handoffs" = [
   "security.addr-10.ctcp-nick-handoff",
 ]

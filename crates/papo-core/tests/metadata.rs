@@ -83,6 +83,37 @@ fn quit_metadata_is_not_inherited_by_a_new_nick_holder() {
 }
 
 #[test]
+fn monitored_quit_metadata_is_not_inherited_by_a_new_nick_holder() {
+    registered("max-subs=100,max-keys=100")
+        .server(":ergo.test 005 alice MONITOR=100 :are supported")
+        .update(|session| session.monitor_add(["bob"]))
+        .client("MONITOR + bob")
+        .server(":alice!~alice@users/alice JOIN #papo")
+        .server(":bob!~bob@users/bob JOIN #papo")
+        .server(":mallory!~mallory@users/mallory JOIN #papo")
+        .server(":ergo.test 761 alice bob display-name * :Bob Builder")
+        .server(":bob!~bob@users/bob QUIT :Client exited")
+        .server(":mallory!~mallory@users/mallory NICK :bob")
+        .inspect(|session| assert!(session.state().metadata("bob").is_none()))
+        .ignore_rest();
+}
+
+#[test]
+fn monitored_user_returning_online_drops_offline_metadata() {
+    registered("max-subs=100,max-keys=100")
+        .server(":ergo.test 005 alice MONITOR=100 :are supported")
+        .update(|session| session.monitor_add(["bob"]))
+        .client("MONITOR + bob")
+        .server(":ergo.test 730 alice :bob!~bob@users/bob")
+        .server(":ergo.test 761 alice bob display-name * :Bob Builder")
+        .server(":ergo.test 731 alice :bob")
+        .inspect(|session| assert!(session.state().metadata("bob").is_some()))
+        .server(":ergo.test 730 alice :bob!~other@users/other")
+        .inspect(|session| assert!(session.state().metadata("bob").is_none()))
+        .ignore_rest();
+}
+
+#[test]
 fn metadata_lifetime_tracks_channels_monitor_and_snapshot_identity() {
     registered("max-subs=100,max-keys=100")
         .server(":alice!~alice@users/alice JOIN #papo")
