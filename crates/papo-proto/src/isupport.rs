@@ -285,7 +285,7 @@ impl Isupport {
             return Casemapping::Precis;
         }
         self.value("CASEMAPPING")
-            .and_then(Casemapping::parse)
+            .and_then(|value| value.parse().ok())
             .unwrap_or_default()
     }
 

@@ -52,6 +52,7 @@ pub use papo::Style
 pub use papo::Typer
 pub use papo::Typers
 pub use papo::Typing
+pub use papo::UnknownCasemapping
 pub use papo::Unsupported
 pub use papo::UnsupportedReason
 pub use papo::User

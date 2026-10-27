@@ -58,7 +58,6 @@ pub papo_proto::Casemapping::Rfc1459Strict
 impl papo_proto::Casemapping
 pub const fn papo_proto::Casemapping::as_str(self) -> &'static str
 pub fn papo_proto::Casemapping::fold(self, &str) -> alloc::borrow::Cow<'_, str>
-pub fn papo_proto::Casemapping::parse(&str) -> core::option::Option<Self>
 impl core::clone::Clone for papo_proto::Casemapping
 pub fn papo_proto::Casemapping::clone(&self) -> Self
 impl core::cmp::Eq for papo_proto::Casemapping
@@ -68,10 +67,15 @@ impl core::default::Default for papo_proto::Casemapping
 pub fn papo_proto::Casemapping::default() -> Self
 impl core::fmt::Debug for papo_proto::Casemapping
 pub fn papo_proto::Casemapping::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo_proto::Casemapping
+pub fn papo_proto::Casemapping::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::hash::Hash for papo_proto::Casemapping
 pub fn papo_proto::Casemapping::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo_proto::Casemapping
 impl core::marker::StructuralPartialEq for papo_proto::Casemapping
+impl core::str::traits::FromStr for papo_proto::Casemapping
+pub type papo_proto::Casemapping::Err = papo_proto::UnknownCasemapping
+pub fn papo_proto::Casemapping::from_str(&str) -> core::result::Result<Self, Self::Err>
 impl core::marker::Freeze for papo_proto::Casemapping
 impl core::marker::Send for papo_proto::Casemapping
 impl core::marker::Sync for papo_proto::Casemapping
@@ -1718,6 +1722,28 @@ impl<'a> core::marker::Unpin for papo_proto::Tags<'a>
 impl<'a> core::marker::UnsafeUnpin for papo_proto::Tags<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Tags<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Tags<'a>
+pub struct papo_proto::UnknownCasemapping
+impl core::clone::Clone for papo_proto::UnknownCasemapping
+pub fn papo_proto::UnknownCasemapping::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::UnknownCasemapping
+impl core::cmp::PartialEq for papo_proto::UnknownCasemapping
+pub fn papo_proto::UnknownCasemapping::eq(&self, &Self) -> bool
+impl core::error::Error for papo_proto::UnknownCasemapping
+impl core::fmt::Debug for papo_proto::UnknownCasemapping
+pub fn papo_proto::UnknownCasemapping::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo_proto::UnknownCasemapping
+pub fn papo_proto::UnknownCasemapping::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_proto::UnknownCasemapping
+pub fn papo_proto::UnknownCasemapping::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for papo_proto::UnknownCasemapping
+impl core::marker::StructuralPartialEq for papo_proto::UnknownCasemapping
+impl core::marker::Freeze for papo_proto::UnknownCasemapping
+impl core::marker::Send for papo_proto::UnknownCasemapping
+impl core::marker::Sync for papo_proto::UnknownCasemapping
+impl core::marker::Unpin for papo_proto::UnknownCasemapping
+impl core::marker::UnsafeUnpin for papo_proto::UnknownCasemapping
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::UnknownCasemapping
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::UnknownCasemapping
 pub struct papo_proto::WhoxFlags
 pub papo_proto::WhoxFlags::bot: bool
 pub papo_proto::WhoxFlags::oper: bool

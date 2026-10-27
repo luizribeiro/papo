@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, fmt, str::FromStr};
 
 #[cfg(feature = "precis")]
 mod precis;
@@ -29,6 +29,18 @@ pub enum Casemapping {
     #[cfg(feature = "precis")]
     Precis,
 }
+
+/// An error returned for an unknown IRC casemapping name.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct UnknownCasemapping;
+
+impl fmt::Display for UnknownCasemapping {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("unknown IRC casemapping")
+    }
+}
+
+impl std::error::Error for UnknownCasemapping {}
 
 impl Casemapping {
     /// Returns the canonical token spelling for these comparison rules.
@@ -75,19 +87,6 @@ impl Casemapping {
         Origin::NONE.__mask(self, text)
     }
 
-    /// Parses a `CASEMAPPING` token value.
-    #[must_use]
-    pub fn parse(value: &str) -> Option<Self> {
-        match value {
-            "ascii" => Some(Self::Ascii),
-            "rfc1459" => Some(Self::Rfc1459),
-            "rfc1459-strict" => Some(Self::Rfc1459Strict),
-            #[cfg(feature = "precis")]
-            "rfc7613" => Some(Self::Precis),
-            _ => None,
-        }
-    }
-
     /// Returns the canonical spelling used to compare an IRC name.
     ///
     /// Use this when a persistent key must follow saved server comparison rules without carrying
@@ -125,11 +124,32 @@ impl Casemapping {
     }
 }
 
+impl FromStr for Casemapping {
+    type Err = UnknownCasemapping;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "ascii" => Ok(Self::Ascii),
+            "rfc1459" => Ok(Self::Rfc1459),
+            "rfc1459-strict" => Ok(Self::Rfc1459Strict),
+            #[cfg(feature = "precis")]
+            "rfc7613" => Ok(Self::Precis),
+            _ => Err(UnknownCasemapping),
+        }
+    }
+}
+
+impl fmt::Display for Casemapping {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::borrow::Cow;
 
-    use super::Casemapping;
+    use super::{Casemapping, UnknownCasemapping};
 
     #[test]
     fn canonical_spellings_round_trip_every_variant() {
@@ -139,8 +159,14 @@ mod tests {
             Casemapping::Rfc1459Strict,
         ];
 
-        for mapping in mappings.into_iter().chain(Casemapping::parse("rfc7613")) {
-            assert_eq!(Casemapping::parse(mapping.as_str()), Some(mapping));
+        for mapping in mappings {
+            assert_eq!(mapping.as_str().parse(), Ok(mapping));
+            assert_eq!(mapping.to_string(), mapping.as_str());
+        }
+        #[cfg(feature = "precis")]
+        {
+            assert_eq!("rfc7613".parse(), Ok(Casemapping::Precis));
+            assert_eq!(Casemapping::Precis.to_string(), "rfc7613");
         }
     }
 
@@ -159,14 +185,12 @@ mod tests {
 
     #[test]
     fn parses_only_specified_token_values_and_defaults_to_rfc1459() {
-        assert_eq!(Casemapping::parse("ascii"), Some(Casemapping::Ascii));
-        assert_eq!(Casemapping::parse("rfc1459"), Some(Casemapping::Rfc1459));
-        assert_eq!(
-            Casemapping::parse("rfc1459-strict"),
-            Some(Casemapping::Rfc1459Strict)
-        );
-        assert_eq!(Casemapping::parse("RFC1459"), None);
-        assert_eq!(Casemapping::parse("unknown"), None);
+        assert_eq!("ascii".parse(), Ok(Casemapping::Ascii));
+        assert_eq!("rfc1459".parse(), Ok(Casemapping::Rfc1459));
+        assert_eq!("rfc1459-strict".parse(), Ok(Casemapping::Rfc1459Strict));
+        assert_eq!("RFC1459".parse::<Casemapping>(), Err(UnknownCasemapping));
+        assert_eq!("unknown".parse::<Casemapping>(), Err(UnknownCasemapping));
+        assert_eq!(UnknownCasemapping.to_string(), "unknown IRC casemapping");
         assert_eq!(Casemapping::default(), Casemapping::Rfc1459);
     }
 
