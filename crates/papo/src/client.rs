@@ -1205,59 +1205,75 @@ impl Client {
                 .channel(&channel)
                 .is_some_and(|joined| joined.member(&nick).is_some());
             drop(state);
-
-            if !already_set {
-                let response = client
-                    .correlated(
-                        Line::new("MODE").with_params([channel.as_ref(), "+b", ban.as_ref()]),
-                        Some(ResponseMatcher::Mode(channel.to_string())),
-                    )
-                    .await?;
-                let already_set_reply = response
-                    .error()
-                    .is_some_and(|error| error.refusal() == crate::Refusal::ListModeAlreadySet);
-                if let Some(error) = response.error()
-                    && !already_set_reply
-                {
-                    return Err(Error::server(error));
-                }
-                let state = client.state();
-                let confirmed = already_set_reply
-                    || crate::mode::confirmed_ban(&response.lines, &state, &channel, &ban)
-                    || crate::mode::tracked_ban(&state, &channel, &ban);
-                let needs_fetch = !confirmed
-                    && state
-                        .channel(&channel)
-                        .is_none_or(|joined| joined.list(crate::ListMode::Ban).is_none());
-                drop(state);
-                if !confirmed {
-                    if !needs_fetch {
-                        return Err(Error::Unconfirmed);
+            let commands = client.commands.clone();
+            let (result, receiver) = oneshot::channel();
+            let task = Box::pin(async move {
+                let outcome = async {
+                    if !already_set {
+                        let response = client
+                            .correlated(
+                                Line::new("MODE").with_params([
+                                    channel.as_ref(),
+                                    "+b",
+                                    ban.as_ref(),
+                                ]),
+                                Some(ResponseMatcher::Mode(channel.to_string())),
+                            )
+                            .await?;
+                        let already_set_reply = response.error().is_some_and(|error| {
+                            error.refusal() == crate::Refusal::ListModeAlreadySet
+                        });
+                        if let Some(error) = response.error()
+                            && !already_set_reply
+                        {
+                            return Err(Error::server(error));
+                        }
+                        let state = client.state();
+                        let confirmed = already_set_reply
+                            || crate::mode::confirmed_ban(&response.lines, &state, &channel, &ban)
+                            || crate::mode::tracked_ban(&state, &channel, &ban);
+                        let needs_fetch = !confirmed
+                            && state
+                                .channel(&channel)
+                                .is_none_or(|joined| joined.list(crate::ListMode::Ban).is_none());
+                        drop(state);
+                        if !confirmed {
+                            if !needs_fetch {
+                                return Err(Error::Unconfirmed);
+                            }
+                            let entries = client.list_modes(&channel, crate::ListMode::Ban).await?;
+                            let state = client.state();
+                            if !entries
+                                .iter()
+                                .any(|entry| state.same_list_entry(&entry.mask, &ban))
+                            {
+                                return Err(Error::Unconfirmed);
+                            }
+                        }
+                        if target_was_present
+                            && client
+                                .state()
+                                .channel(&channel)
+                                .is_none_or(|joined| joined.member(&nick).is_none())
+                        {
+                            return Ok(crate::KickbanOutcome {
+                                kick: Err(Error::TargetGone),
+                            });
+                        }
                     }
-                    let entries = client.list_modes(&channel, crate::ListMode::Ban).await?;
-                    let state = client.state();
-                    if !entries
-                        .iter()
-                        .any(|entry| state.same_list_entry(&entry.mask, &ban))
-                    {
-                        return Err(Error::Unconfirmed);
-                    }
-                }
-                if target_was_present
-                    && client
-                        .state()
-                        .channel(&channel)
-                        .is_none_or(|joined| joined.member(&nick).is_none())
-                {
-                    return Ok(crate::KickbanOutcome {
-                        kick: Err(Error::TargetGone),
-                    });
-                }
-            }
 
-            Ok(crate::KickbanOutcome {
-                kick: client.kick(&channel, &nick, &reason).await,
-            })
+                    Ok(crate::KickbanOutcome {
+                        kick: client.kick(&channel, &nick, &reason).await,
+                    })
+                }
+                .await;
+                _ = result.send(outcome);
+            });
+            commands
+                .send(Command::Composite { task })
+                .await
+                .map_err(|_| Error::connection_lost())?;
+            receiver.await.map_err(|_| Error::connection_lost())?
         })
     }
 

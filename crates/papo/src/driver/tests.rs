@@ -5529,6 +5529,34 @@ async fn kickban_stops_when_the_ban_is_unconfirmed_or_the_target_leaves() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn dropped_kickban_future_still_sends_the_kick_after_confirmation() {
+    let (mut server, client, mut events, driver) =
+        scripted(config().wanted_caps(["labeled-response"]));
+    let driver = tokio::spawn(driver);
+    complete_connect_labelled(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":ergo.test 005 papo-driver CHANMODES=beI,k,l,imnst :are supported\r\n",
+    )
+    .await;
+
+    let kickban = tokio::spawn(async move {
+        client
+            .kickban("#papo", "alice", "alice!*@*", "flooding")
+            .await
+    });
+    client_line(&mut server, b"@label=0 MODE #papo +b alice!*@*\r\n").await;
+    abort_task(kickban).await;
+    server_line(
+        &mut server,
+        b"@label=0 :papo-driver!papo@localhost MODE #papo +b alice!*@*\r\n",
+    )
+    .await;
+    client_line(&mut server, b"@label=1 KICK #papo alice flooding\r\n").await;
+    driver.abort();
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn kickban_does_not_refetch_a_known_list_after_an_unconfirmed_ban() {
     let (mut server, client, mut events, driver) =
         scripted(config().wanted_caps(["labeled-response"]));
