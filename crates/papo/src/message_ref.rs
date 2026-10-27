@@ -152,6 +152,15 @@ pub(crate) struct RecipientGuard {
 }
 
 impl RecipientGuard {
+    pub(crate) fn to_core(&self) -> papo_core::RecipientGuard {
+        papo_core::RecipientGuard::__from_parts(
+            self.nick.clone(),
+            self.account.clone(),
+            self.receipt
+                .unwrap_or_else(|| papo_core::ReplyToken::__unknown(self.nick.origin())),
+        )
+    }
+
     pub(crate) fn from_core(guard: &papo_core::RecipientGuard) -> Self {
         Self {
             nick: guard.__nick().clone(),
