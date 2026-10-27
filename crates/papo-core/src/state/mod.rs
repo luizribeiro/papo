@@ -1675,7 +1675,7 @@ fn canonical_list_mask(mask: &Mask) -> Mask {
 mod metadata_tests {
     use papo_proto::{Isupport, LineRef};
 
-    use super::{Channel, State};
+    use super::{Channel, NameKey, State};
     use crate::{Config, Event, ListMode, Outbox, StateLimit};
 
     #[test]
@@ -1684,7 +1684,7 @@ mod metadata_tests {
         let channel = Channel::new("#Papo[dev]", state.casemapping, &Isupport::default(), true);
         state
             .channels
-            .insert(state.casemapping.channel("#Papo[dev]"), channel);
+            .insert(NameKey::new("#Papo[dev]", state.casemapping), channel);
 
         assert_eq!(
             state.channel("#papo{dev}").unwrap().list(ListMode::Ban),
@@ -1692,7 +1692,7 @@ mod metadata_tests {
         );
         state
             .channels
-            .get_mut(&state.casemapping.channel("#papo{dev}"))
+            .get_mut(state.casemapping.fold("#papo{dev}").as_ref())
             .unwrap()
             .lists
             .insert(ListMode::Ban, Vec::new());
@@ -1702,7 +1702,7 @@ mod metadata_tests {
         );
         state
             .channels
-            .get_mut(&state.casemapping.channel("#Papo[dev]"))
+            .get_mut(state.casemapping.fold("#Papo[dev]").as_ref())
             .unwrap()
             .lists
             .remove(&ListMode::Ban);
@@ -1712,7 +1712,7 @@ mod metadata_tests {
         );
         state
             .channels
-            .get_mut(&state.casemapping.channel("#papo{dev}"))
+            .get_mut(state.casemapping.fold("#papo{dev}").as_ref())
             .unwrap()
             .lists
             .insert(ListMode::Ban, Vec::new());
