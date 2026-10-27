@@ -321,14 +321,6 @@ macro_rules! reply_reference {
                     self.msgid.iter().cloned().collect()
                 }
             }
-
-            /// Preserves the received line's return address and identifier.
-            impl From<&$ty> for MessageRef {
-                fn from(line: &$ty) -> Self {
-                    line.receipt()
-                        .reference(line.msgids(), line.channel_context())
-                }
-            }
         )+
     };
 }
@@ -342,13 +334,6 @@ impl ReplyReference for TypingChanged {
 
     fn msgids(&self) -> Vec<MessageId> {
         Vec::new()
-    }
-}
-
-/// Preserves the typing notification's return address.
-impl From<&TypingChanged> for MessageRef {
-    fn from(line: &TypingChanged) -> Self {
-        line.receipt().reference(line.msgids(), None)
     }
 }
 
@@ -366,19 +351,21 @@ impl ReplyReference for Message {
     }
 }
 
-/// Preserves the received message's return address and identifier.
-impl From<&Message> for MessageRef {
-    fn from(message: &Message) -> Self {
-        message
-            .receipt()
-            .reference(message.msgids(), message.channel_context())
+impl ReplyReference for Sent {
+    fn receipt(&self) -> &Receipt {
+        &self.receipt
+    }
+
+    fn msgids(&self) -> Vec<MessageId> {
+        self.msgids.clone()
     }
 }
 
-/// Preserves the sent message's return address and every line identifier.
-impl From<&Sent> for MessageRef {
-    fn from(message: &Sent) -> Self {
-        message.receipt.reference(message.msgids.clone(), None)
+/// Preserves a received or sent message's return address and identifiers.
+impl<T: ReplyReference + ?Sized> From<&T> for MessageRef {
+    fn from(line: &T) -> Self {
+        line.receipt()
+            .reference(line.msgids(), line.channel_context())
     }
 }
 

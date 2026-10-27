@@ -466,8 +466,6 @@ pub fn papo::event::CtcpQuery::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::CtcpQuery
 impl core::cmp::PartialEq for papo::event::CtcpQuery
 pub fn papo::event::CtcpQuery::eq(&self, &Self) -> bool
-impl core::convert::From<&papo::event::CtcpQuery> for papo::MessageRef
-pub fn papo::MessageRef::from(&papo::event::CtcpQuery) -> Self
 impl core::fmt::Debug for papo::event::CtcpQuery
 pub fn papo::event::CtcpQuery::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::event::CtcpQuery
@@ -856,8 +854,6 @@ pub fn papo::event::Reacted::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Reacted
 impl core::cmp::PartialEq for papo::event::Reacted
 pub fn papo::event::Reacted::eq(&self, &Self) -> bool
-impl core::convert::From<&papo::event::Reacted> for papo::MessageRef
-pub fn papo::MessageRef::from(&papo::event::Reacted) -> Self
 impl core::fmt::Debug for papo::event::Reacted
 pub fn papo::event::Reacted::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::event::Reacted
@@ -926,8 +922,6 @@ pub fn papo::event::Redacted::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Redacted
 impl core::cmp::PartialEq for papo::event::Redacted
 pub fn papo::event::Redacted::eq(&self, &Self) -> bool
-impl core::convert::From<&papo::event::Redacted> for papo::MessageRef
-pub fn papo::MessageRef::from(&papo::event::Redacted) -> Self
 impl core::fmt::Debug for papo::event::Redacted
 pub fn papo::event::Redacted::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::event::Redacted
@@ -1026,8 +1020,6 @@ pub fn papo::event::TagMsg::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::TagMsg
 impl core::cmp::PartialEq for papo::event::TagMsg
 pub fn papo::event::TagMsg::eq(&self, &Self) -> bool
-impl core::convert::From<&papo::event::TagMsg> for papo::MessageRef
-pub fn papo::MessageRef::from(&papo::event::TagMsg) -> Self
 impl core::fmt::Debug for papo::event::TagMsg
 pub fn papo::event::TagMsg::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::event::TagMsg
@@ -1079,8 +1071,6 @@ pub fn papo::event::TypingChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::TypingChanged
 impl core::cmp::PartialEq for papo::event::TypingChanged
 pub fn papo::event::TypingChanged::eq(&self, &Self) -> bool
-impl core::convert::From<&papo::event::TypingChanged> for papo::MessageRef
-pub fn papo::MessageRef::from(&papo::event::TypingChanged) -> Self
 impl core::fmt::Debug for papo::event::TypingChanged
 pub fn papo::event::TypingChanged::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::event::TypingChanged
@@ -2345,8 +2335,6 @@ pub fn papo::Message::clone(&self) -> Self
 impl core::cmp::Eq for papo::Message
 impl core::cmp::PartialEq for papo::Message
 pub fn papo::Message::eq(&self, &Self) -> bool
-impl core::convert::From<&papo::Message> for papo::MessageRef
-pub fn papo::MessageRef::from(&papo::Message) -> Self
 impl core::fmt::Debug for papo::Message
 pub fn papo::Message::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::Message
@@ -2372,20 +2360,6 @@ impl core::cmp::PartialEq<str> for papo::MessageRef
 pub fn papo::MessageRef::eq(&self, &str) -> bool
 impl core::convert::AsRef<str> for papo::MessageRef
 pub fn papo::MessageRef::as_ref(&self) -> &str
-impl core::convert::From<&papo::Message> for papo::MessageRef
-pub fn papo::MessageRef::from(&papo::Message) -> Self
-impl core::convert::From<&papo::Sent> for papo::MessageRef
-pub fn papo::MessageRef::from(&papo::Sent) -> Self
-impl core::convert::From<&papo::event::CtcpQuery> for papo::MessageRef
-pub fn papo::MessageRef::from(&papo::event::CtcpQuery) -> Self
-impl core::convert::From<&papo::event::Reacted> for papo::MessageRef
-pub fn papo::MessageRef::from(&papo::event::Reacted) -> Self
-impl core::convert::From<&papo::event::Redacted> for papo::MessageRef
-pub fn papo::MessageRef::from(&papo::event::Redacted) -> Self
-impl core::convert::From<&papo::event::TagMsg> for papo::MessageRef
-pub fn papo::MessageRef::from(&papo::event::TagMsg) -> Self
-impl core::convert::From<&papo::event::TypingChanged> for papo::MessageRef
-pub fn papo::MessageRef::from(&papo::event::TypingChanged) -> Self
 impl core::fmt::Debug for papo::MessageRef
 pub fn papo::MessageRef::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo::MessageRef
@@ -2410,6 +2384,8 @@ impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(papo::Channel
 pub fn papo::MessageRef::from((papo::ChannelName, I)) -> Self
 impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(papo::Nick, I)> for papo::MessageRef
 pub fn papo::MessageRef::from((papo::Nick, I)) -> Self
+impl<T: ReplyReference + ?core::marker::Sized> core::convert::From<&T> for papo::MessageRef
+pub fn papo::MessageRef::from(&T) -> Self
 impl core::marker::Freeze for papo::MessageRef
 impl core::marker::Send for papo::MessageRef
 impl core::marker::Sync for papo::MessageRef
@@ -2651,8 +2627,6 @@ pub fn papo::Sent::clone(&self) -> Self
 impl core::cmp::Eq for papo::Sent
 impl core::cmp::PartialEq for papo::Sent
 pub fn papo::Sent::eq(&self, &Self) -> bool
-impl core::convert::From<&papo::Sent> for papo::MessageRef
-pub fn papo::MessageRef::from(&papo::Sent) -> Self
 impl core::fmt::Debug for papo::Sent
 pub fn papo::Sent::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::Sent
