@@ -147,6 +147,24 @@ nix develop -c sh -c '
 Use `irc://127.0.0.1:6667` for native end-to-end tests and `ws://127.0.0.1:8097` for
 browser tests. Give each parallel test a unique account, nickname, and channel.
 
+## Building for the browser
+
+For a size-oriented `wasm32-unknown-unknown` release build, add this profile to the application's
+`Cargo.toml`:
+
+```toml
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "z"
+panic = "abort"
+```
+
+On papo's core browser probe, these settings reduced the output after `wasm-opt -Oz` from 996,188
+to 701,675 bytes, a 29.6% reduction. Run `wasm-opt -Oz input.wasm -o output.wasm` on the linked
+module before deployment. Papo uses the browser's WebSocket implementation on this target, so
+browser builds connect only to `ws://` and `wss://` URLs.
+
 ## Capability implementation map
 
 <!-- caps:start -->
