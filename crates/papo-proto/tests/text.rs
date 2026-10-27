@@ -3,10 +3,33 @@
 use papo_proto::split_text;
 
 fn parts(text: &str, budget: usize) -> Vec<(&str, bool)> {
-    split_text(text, budget)
+    let (segments, leftover) = split_text(text, budget);
+    assert!(leftover.is_empty());
+    segments
         .into_iter()
         .map(|segment| (segment.text, segment.concat))
         .collect()
+}
+
+#[test]
+fn reports_a_suffix_when_no_utf8_character_fits() {
+    let (segments, leftover) = split_text("hi 🎉 there", 3);
+    assert_eq!(
+        segments,
+        [papo_proto::Segment {
+            text: "hi ",
+            concat: false
+        }]
+    );
+    assert_eq!(leftover, "🎉 there");
+    assert_eq!(
+        segments
+            .iter()
+            .map(|segment| segment.text)
+            .chain([leftover])
+            .collect::<String>(),
+        "hi 🎉 there"
+    );
 }
 
 #[test]

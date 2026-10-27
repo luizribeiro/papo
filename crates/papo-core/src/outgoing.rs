@@ -2,6 +2,7 @@ use crate::{Capabilities, State, cap};
 use papo_proto::{BuildError, Ctcp};
 
 const UNKNOWN_HOST_LEN: usize = 63;
+const MIN_MULTILINE_MAX_BYTES: usize = 512;
 
 /// Kind of an outgoing text message.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -54,7 +55,7 @@ pub(super) fn multiline_limits(caps: &Capabilities) -> Option<MultilineLimits> {
         max_bytes: number("max-bytes")?,
         max_lines: number("max-lines").unwrap_or(usize::MAX),
     };
-    (limits.max_bytes > 0 && limits.max_lines > 0).then_some(limits)
+    (limits.max_bytes >= MIN_MULTILINE_MAX_BYTES && limits.max_lines > 0).then_some(limits)
 }
 
 pub(super) fn compose_text(
@@ -73,7 +74,11 @@ pub(super) fn compose_text(
             .map(Some)
             .ok_or(BuildError::InvalidParam(1));
     }
-    papo_proto::split_text(text, budget.saturating_sub(10))
+    let (segments, leftover) = papo_proto::split_text(text, budget.saturating_sub(10));
+    if !leftover.is_empty() {
+        return Err(BuildError::LineTooLong);
+    }
+    segments
         .into_iter()
         .map(|segment| Ctcp::action(segment.text).ok_or(BuildError::InvalidParam(1)))
         .collect::<Result<Vec<_>, _>>()

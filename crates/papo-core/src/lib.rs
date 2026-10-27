@@ -3563,7 +3563,7 @@ impl Session {
     /// Context tags (`+reply`, `+draft/reply`, `+channel-context`, and its draft alias) apply
     /// only to the first fallback line. Other supplied tags are copied to every line.
     /// Each client batch is one atomic queue entry, so no other line is transmitted inside it.
-    /// A missing, non-numeric, or zero `max-bytes` value disables multiline; a missing
+    /// A missing, non-numeric, or sub-512 `max-bytes` value disables multiline; a missing
     /// `max-lines` value permits any number of lines, while a zero value disables multiline.
     /// A `FAIL BATCH MULTILINE_*` is surfaced as an error or reply without automatic retry.
     ///
@@ -3630,7 +3630,10 @@ impl Session {
         });
         let composed = outgoing::compose_text(text, budget, multiline.is_some(), action)?;
         let text = composed.as_deref().unwrap_or(text);
-        let segments = papo_proto::split_text(text, budget);
+        let (segments, leftover) = papo_proto::split_text(text, budget);
+        if !leftover.is_empty() {
+            return Err(RequestError::Build(BuildError::LineTooLong));
+        }
         if segments.is_empty() {
             return Err(RequestError::EmptyText);
         }

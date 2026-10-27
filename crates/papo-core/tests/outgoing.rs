@@ -368,32 +368,29 @@ fn sends_a_fitting_single_line_without_a_multiline_batch() {
 #[test]
 fn max_bytes_counts_text_and_joining_newlines() {
     let now = Instant::now();
-    let mut exact = multiline_session(now, "max-bytes=40,max-lines=3", false);
+    let mut exact = multiline_session(now, "max-bytes=512,max-lines=3", false);
+    let first = "a".repeat(255);
+    let second = "b".repeat(256);
     exact
         .send_text(
             now,
             TextKind::Notice,
             "#papo",
-            "1234567890123456789\nabcdefghijklmnopqrst",
+            &format!("{first}\n{second}"),
             &[],
         )
         .unwrap();
-    assert_eq!(
-        drain(&mut exact),
-        [
-            "BATCH +b0-0 draft/multiline #papo\r\n",
-            "@batch=b0-0 NOTICE #papo 1234567890123456789\r\n",
-            "@batch=b0-0 NOTICE #papo abcdefghijklmnopqrst\r\n",
-            "BATCH -b0-0\r\n",
-        ]
-    );
+    let lines = drain(&mut exact);
+    assert_eq!(lines.len(), 4);
+    assert!(lines[1].ends_with(&format!("{first}\r\n")));
+    assert!(lines[2].ends_with(&format!("{second}\r\n")));
 
-    let mut over = multiline_session(now, "max-bytes=40,max-lines=3", false);
+    let mut over = multiline_session(now, "max-bytes=512,max-lines=3", false);
     over.send_text(
         now,
         TextKind::Notice,
         "#papo",
-        "1234567890123456789\nabcdefghijklmnopqrstu",
+        &format!("{first}\n{}", "b".repeat(257)),
         &[],
     )
     .unwrap();
@@ -432,7 +429,7 @@ fn concat_omits_the_joining_newline_from_max_bytes() {
 #[test]
 fn max_lines_accepts_three_lines_and_splits_the_fourth() {
     let now = Instant::now();
-    let mut exact = multiline_session(now, "max-bytes=40,max-lines=3", false);
+    let mut exact = multiline_session(now, "max-bytes=512,max-lines=3", false);
     exact
         .send_text(now, TextKind::Notice, "#papo", "one\ntwo\nthree", &[])
         .unwrap();
@@ -440,7 +437,7 @@ fn max_lines_accepts_three_lines_and_splits_the_fourth() {
     assert_eq!(lines.len(), 5);
     assert_eq!(lines[4], "BATCH -b0-0\r\n");
 
-    let mut over = multiline_session(now, "max-bytes=40,max-lines=3", false);
+    let mut over = multiline_session(now, "max-bytes=512,max-lines=3", false);
     let tags = [("+reply", "RKi9Cw"), ("+example.com/device", "web")];
     over.send_text(
         now,
@@ -462,7 +459,7 @@ fn max_lines_accepts_three_lines_and_splits_the_fourth() {
 #[test]
 fn max_bytes_without_max_lines_accepts_all_lines() {
     let now = Instant::now();
-    let mut session = multiline_session(now, "max-bytes=40", false);
+    let mut session = multiline_session(now, "max-bytes=512", false);
     session
         .send_text(now, TextKind::Notice, "#papo", "one\ntwo\nthree\nfour", &[])
         .unwrap();
@@ -479,7 +476,9 @@ fn invalid_multiline_limits_fall_back_to_plain_lines() {
         "max-bytes=0,max-lines=3",
         "max-bytes=many,max-lines=3",
         "max-lines=3",
-        "max-bytes=40,max-lines=0",
+        "max-bytes=511,max-lines=3",
+        "max-bytes=3,max-lines=3",
+        "max-bytes=512,max-lines=0",
     ] {
         let mut session = multiline_session(now, value, false);
         session
@@ -518,6 +517,35 @@ fn invalid_multiline_limits_fall_back_to_plain_lines() {
             "@label=0-1 PRIVMSG #papo :welcome back\r\n",
         ]
     );
+}
+
+#[test]
+fn ignores_multiline_byte_limits_below_the_wire_minimum() {
+    let now = Instant::now();
+    let mut session = multiline_session(now, "max-bytes=3,max-lines=100", false);
+
+    session
+        .send_text(now, TextKind::Privmsg, "#papo", "hi 🎉 there", &[])
+        .unwrap();
+
+    assert_eq!(drain(&mut session), ["PRIVMSG #papo :hi 🎉 there\r\n"]);
+}
+
+#[test]
+fn text_that_cannot_fit_one_character_returns_an_error_without_transmitting() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
+    session.handle_line(
+        now,
+        b":hostile.test 005 papo NICKLEN=600 :are supported by this server",
+    );
+    let target = "a".repeat(500);
+
+    assert_eq!(
+        session.send_text(now, TextKind::Privmsg, &target, "🎉", &[]),
+        Err(RequestError::Build(papo_proto::BuildError::LineTooLong))
+    );
+    assert!(session.poll_transmit().is_none());
 }
 
 #[test]
@@ -613,7 +641,7 @@ fn every_batch_wire_line_consumes_one_rate_limit_token() {
     let now = Instant::now();
     let mut session = multiline_session_with_rate_limit(
         now,
-        "max-bytes=40,max-lines=3",
+        "max-bytes=512,max-lines=3",
         false,
         RateLimit::new(4, Duration::from_millis(500)).unwrap(),
     );

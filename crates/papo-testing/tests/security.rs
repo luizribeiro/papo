@@ -1677,7 +1677,7 @@ async fn oversized_multiline_fragments_are_live_messages() {
     wire.register(&[
         "message-tags",
         "batch",
-        "draft/multiline=max-bytes=10,max-lines=5",
+        "draft/multiline=max-bytes=512,max-lines=5",
     ])
     .await;
     while !matches!(
@@ -1687,14 +1687,20 @@ async fn oversized_multiline_fragments_are_live_messages() {
 
     wire.server(":offline.test BATCH +multiline draft/multiline #papo")
         .await;
-    wire.server("@batch=multiline :alice!~a@cloak.example PRIVMSG #papo :123456")
-        .await;
-    wire.server("@batch=multiline :alice!~a@cloak.example PRIVMSG #papo :789012")
-        .await;
+    let first = "a".repeat(256);
+    let second = "b".repeat(256);
+    wire.server(format!(
+        "@batch=multiline :alice!~a@cloak.example PRIVMSG #papo :{first}"
+    ))
+    .await;
+    wire.server(format!(
+        "@batch=multiline :alice!~a@cloak.example PRIVMSG #papo :{second}"
+    ))
+    .await;
 
-    for expected in ["123456", "789012"] {
+    for expected in [&first, &second] {
         assert!(matches!(events.next().await,
-            Some(papo::Event::Message(message)) if message.text == expected));
+            Some(papo::Event::Message(message)) if message.text == *expected));
     }
     assert!(matches!(
         events.next().await,

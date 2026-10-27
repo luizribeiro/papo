@@ -11,12 +11,13 @@ pub struct Segment<'a> {
 ///
 /// Spaces are retained at the end of the preceding segment when possible. Words
 /// longer than the budget are divided at UTF-8 boundaries and marked for
-/// concatenation. Embedded newlines always form boundaries and are discarded.
+/// concatenation. Embedded newlines always form boundaries and are discarded. The
+/// second tuple element is the unsplit suffix when no UTF-8 character fits the budget.
 #[must_use]
-pub fn split_text(text: &str, budget: usize) -> Vec<Segment<'_>> {
+pub fn split_text(text: &str, budget: usize) -> (Vec<Segment<'_>>, &str) {
     let mut segments = Vec::new();
     if budget == 0 {
-        return segments;
+        return (segments, text);
     }
     for line in text.split('\n') {
         let mut remaining = line;
@@ -31,7 +32,8 @@ pub fn split_text(text: &str, budget: usize) -> Vec<Segment<'_>> {
 
             let boundary = floor_char_boundary(remaining, budget);
             if boundary == 0 {
-                break;
+                let offset = remaining.as_ptr() as usize - text.as_ptr() as usize;
+                return (segments, &text[offset..]);
             }
             let split = remaining[..boundary]
                 .rfind(' ')
@@ -43,7 +45,7 @@ pub fn split_text(text: &str, budget: usize) -> Vec<Segment<'_>> {
             remaining = &remaining[split..];
         }
     }
-    segments
+    (segments, &text[text.len()..])
 }
 
 fn floor_char_boundary(text: &str, mut index: usize) -> usize {
