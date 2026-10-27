@@ -580,14 +580,14 @@
                 cargo build \
                   --manifest-path crates/papo-core/tests/browser/Cargo.toml \
                   --target wasm32-unknown-unknown --target-dir target/browser-size \
-                  --release --locked
+                  --profile browser-size --locked
                 wasm-opt -Oz \
-                  target/browser-size/wasm32-unknown-unknown/release/papo_core_browser_tests.wasm \
+                  target/browser-size/wasm32-unknown-unknown/browser-size/papo_core_browser_tests.wasm \
                   -o papo-core-probe.wasm
                 size=$(stat --format=%s papo-core-probe.wasm)
-                # Five percent headroom over the 996,188-byte measurement from 2026-10-27.
-                budget=1045998
-                echo "optimized papo-core browser probe: $size bytes (recorded 996188 on 2026-10-27; budget: $budget bytes)"
+                # Five percent headroom over this flake probe's 701,675-byte measurement from 2026-10-27.
+                budget=736759
+                echo "optimized papo-core browser probe: $size bytes (recorded 701675 on 2026-10-27; budget: $budget bytes)"
                 if (( size > budget )); then
                   echo "papo-core browser probe exceeds its size budget" >&2
                   exit 1
@@ -595,15 +595,14 @@
                 cargo build \
                   --manifest-path crates/papo-core/tests/browser/Cargo.toml \
                   --target wasm32-unknown-unknown --target-dir target/browser-driver-size \
-                  --release --features driver --locked
+                  --profile browser-size --features driver --locked
                 wasm-opt -Oz \
-                  target/browser-driver-size/wasm32-unknown-unknown/release/papo_core_browser_tests.wasm \
+                  target/browser-driver-size/wasm32-unknown-unknown/browser-size/papo_core_browser_tests.wasm \
                   -o papo-driver-probe.wasm
                 size=$(stat --format=%s papo-driver-probe.wasm)
-                # Luiz, 2026-10-27: 1,600,000 bytes after the type audit and security fixes;
-                # the earlier budget was the 2026-10-18 measurement plus about 10%.
-                budget=1600000
-                echo "optimized papo browser driver: $size bytes (budget: $budget bytes; set by Luiz on 2026-10-27 after the type audit and security fixes)"
+                # Five percent headroom over this flake probe's 1,046,153-byte measurement from 2026-10-27.
+                budget=1098461
+                echo "optimized papo browser driver: $size bytes (recorded 1046153 on 2026-10-27; budget: $budget bytes)"
                 if (( size > budget )); then
                   echo "papo browser driver exceeds its size budget" >&2
                   exit 1
