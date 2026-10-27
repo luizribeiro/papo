@@ -1274,9 +1274,7 @@ where
             Some(session.state()),
         ) {
             event::CoreEvent::Forward(event) => {
-                if let Event::Reacted(reaction) = &event {
-                    catchup::remember_live_reaction(catchups.values_mut(), reaction);
-                }
+                catchup::remember_live_event(catchups.values_mut(), &event);
                 if let Event::ChannelSynced(synced) = &event {
                     resolve_sync_waiters(session, sync_waiters, &synced.channel);
                 }
@@ -1329,6 +1327,7 @@ where
                     can_prove_non_bot(session),
                     crate::rt::now_wall(),
                 );
+                catchup::remember_live_event(catchups.values_mut(), &event);
                 if !enqueue_event(events, pending_events, event) {
                     return Ok(Some((
                         papo_core::CloseKind::Other,

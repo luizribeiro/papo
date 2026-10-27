@@ -20,21 +20,49 @@ pub(super) struct CatchupCursor {
     time: SystemTime,
 }
 
-pub(super) fn remember_live_reaction<'a>(
+pub(super) fn remember_live_event<'a>(
     catchups: impl IntoIterator<Item = &'a mut Catchup>,
-    reaction: &crate::event::Reacted,
+    event: &Event,
 ) {
-    let Some(msgid) = &reaction.msgid else {
+    let Some(msgid) = event.msgid() else {
         return;
     };
     for catchup in catchups {
-        let matches = match &reaction.conversation {
-            crate::Conversation::Channel(channel) => channel == catchup.target.as_str(),
-            _ => false,
-        };
-        if matches {
+        if event_applies_to_channel(event, &catchup.target) {
             catchup.seen.insert(msgid.to_string());
         }
+    }
+}
+
+fn event_applies_to_channel(event: &Event, target: &str) -> bool {
+    let conversation_matches = |conversation: &crate::Conversation| matches!(conversation, crate::Conversation::Channel(channel) if channel == target);
+    match event {
+        Event::Message(line) | Event::OwnMessage(line) => conversation_matches(&line.conversation),
+        Event::Notice(line) => conversation_matches(&line.conversation),
+        Event::CtcpQuery(line) => conversation_matches(&line.conversation),
+        Event::CtcpReply(line) => conversation_matches(&line.conversation),
+        Event::TagMsg(line) => conversation_matches(&line.conversation),
+        Event::Reacted(line) => conversation_matches(&line.conversation),
+        Event::Redacted(line) => conversation_matches(&line.conversation),
+        Event::ServerNotice(line) => {
+            matches!(&line.to, crate::event::Audience::Channel(channel) if channel == target)
+        }
+        Event::Joined(line) => line.channel == target,
+        Event::Parted(line) => line.channel == target,
+        Event::Kicked(line) => line.channel == target,
+        Event::Invited(line) => line.channel == target,
+        Event::ChannelRenamed(line) => line.old == target || line.new == target,
+        Event::ModeChanged(line) => {
+            matches!(&line.subject, crate::Subject::Channel(channel) if channel == target)
+        }
+        Event::TopicChanged(line) => line.channel == target,
+        Event::Quit(line) => line.channels.iter().any(|channel| channel == target),
+        Event::NickChanged(line) => line.channels.iter().any(|channel| channel == target),
+        Event::Other(line) => line
+            .as_ref()
+            .param(0)
+            .is_some_and(|address| address.ends_with(target)),
+        _ => false,
     }
 }
 
@@ -294,7 +322,7 @@ mod tests {
             reaction: "👍".into(),
             action: crate::event::ReactionAction::Added,
         };
-        super::remember_live_reaction(std::iter::once(&mut catchup), &live);
+        super::remember_live_event(std::iter::once(&mut catchup), &crate::Event::Reacted(live));
         super::extend_catchup(
             &mut catchup,
             [

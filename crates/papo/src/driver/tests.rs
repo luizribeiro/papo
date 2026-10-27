@@ -1916,8 +1916,12 @@ async fn reconnect_history_pages_stop_at_the_target_limit() {
         b"@label=6 CHATHISTORY AFTER #papo msgid=RfcBTzyxY120950 50\r\n",
     )
     .await;
+    server_line(&mut second_server, b"@time=2026-10-15T12:01:30.000Z;msgid=RfcBTzyxY12LIVE :alice!~a@localhost PRIVMSG #papo :live overlap\r\n").await;
+    assert!(
+        matches!(events.next().await, Some(Event::Message(message)) if message.text == "live overlap")
+    );
     let mut second_page = String::from(
-        "@label=6 :ergo.test BATCH +reply2 labeled-response\r\n@batch=reply2 :ergo.test BATCH +history2 chathistory #papo\r\n",
+        "@label=6 :ergo.test BATCH +reply2 labeled-response\r\n@batch=reply2 :ergo.test BATCH +history2 chathistory #papo\r\n@batch=history2;time=2026-10-15T12:01:30.000Z;msgid=RfcBTzyxY12LIVE :alice!~a@localhost PRIVMSG #papo :live overlap\r\n",
     );
     for index in 950..=1_000 {
         use std::fmt::Write as _;
@@ -1939,6 +1943,11 @@ async fn reconnect_history_pages_stop_at_the_target_limit() {
         matches!(&history.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
     );
     assert_eq!(history.chat_messages().count(), 1_000);
+    assert!(
+        history
+            .chat_messages()
+            .all(|message| message.text != "live overlap")
+    );
     assert_eq!(
         history
             .chat_messages()
