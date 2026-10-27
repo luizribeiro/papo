@@ -69,7 +69,8 @@
 //! Dropping the last handle sends `QUIT`; call [`Client::quit`] first when the server should
 //! receive a reason or when shutdown completion matters.
 //!
-//! A dropped [`RequestFuture`] was sent if and only if it reached the driver. Dropping the driver
+//! Dropping a [`RequestFuture`] does not cancel work that has reached the driver. In particular,
+//! multi-step actions continue through their remaining protocol commands. Dropping the driver
 //! ends the event stream without a final [`Event::Disconnected`]. For an orderly process exit,
 //! send [`Client::quit`] and keep reading events until the server closes the connection. The
 //! [graceful-shutdown example](https://github.com/luizribeiro/papo/tree/main/examples/graceful-shutdown)

@@ -116,6 +116,9 @@ impl CoreRequest {
 }
 
 pub(crate) enum Command {
+    Composite {
+        task: crate::rt::BoxFuture<()>,
+    },
     Send {
         message: Line,
         result: oneshot::Sender<Result<(), Error>>,
@@ -914,6 +917,9 @@ where
                 }
             },
             command = commands.recv(), if commands_open => match command {
+                Some(Command::Composite { task }) => {
+                    _ = crate::rt::spawn(task);
+                }
                 Some(Command::Send { message, result }) => {
                     let typing_target = text_target(&message)
                         .map(|target| session.isupport().casemapping().fold(target).into_owned());

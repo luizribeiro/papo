@@ -738,6 +738,10 @@ fn handle_disconnected_command(
     defaults: &mut PostConnect,
 ) -> bool {
     match command {
+        Some(Command::Composite { task }) => {
+            _ = crate::rt::spawn(task);
+            true
+        }
         Some(
             Command::Request { result, .. }
             | Command::Join { result, .. }

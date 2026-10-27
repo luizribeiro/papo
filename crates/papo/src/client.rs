@@ -855,20 +855,34 @@ impl Client {
             )?;
             let state = client.state();
             Self::require_feature(&state, Feature::Redaction)?;
-            for message_id in message.msgids() {
-                message_id
-                    .check()
-                    .map_err(|error| InvalidInput::invalid_name(message_id.to_string(), error))?;
-                let mut params = vec![target.clone(), message_id.to_string()];
-                if !reason.is_empty() {
-                    params.push(reason.clone());
+            drop(state);
+            let commands = client.commands.clone();
+            let (result, receiver) = oneshot::channel();
+            let task = Box::pin(async move {
+                let outcome = async {
+                    for message_id in message.msgids() {
+                        message_id.check().map_err(|error| {
+                            InvalidInput::invalid_name(message_id.to_string(), error)
+                        })?;
+                        let mut params = vec![target.clone(), message_id.to_string()];
+                        if !reason.is_empty() {
+                            params.push(reason.clone());
+                        }
+                        let response = client
+                            .correlated(Line::new("REDACT").with_params(params), None)
+                            .await?;
+                        crate::requests::empty(&response)?;
+                    }
+                    Ok(())
                 }
-                let response = client
-                    .correlated(Line::new("REDACT").with_params(params), None)
-                    .await?;
-                crate::requests::empty(&response)?;
-            }
-            Ok(())
+                .await;
+                _ = result.send(outcome);
+            });
+            commands
+                .send(Command::Composite { task })
+                .await
+                .map_err(|_| Error::connection_lost())?;
+            receiver.await.map_err(|_| Error::connection_lost())?
         })
     }
 
