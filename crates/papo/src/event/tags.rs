@@ -147,6 +147,25 @@ mod tests {
     }
 
     #[test]
+    fn iterator_reports_its_exact_remaining_length() {
+        let tags = tags(
+            "@time=2026-10-19T14:31:08.123Z;msgid=RfcBTzyxY120004;account=emily :emily!~emily@localhost PRIVMSG #papo :deploy finished",
+        );
+        let mut iter = tags.iter();
+
+        assert_eq!(iter.size_hint(), (3, Some(3)));
+        assert_eq!(iter.len(), 3);
+        assert_eq!(iter.next(), Some(("time", "2026-10-19T14:31:08.123Z")));
+        assert_eq!(iter.size_hint(), (2, Some(2)));
+        assert_eq!(iter.len(), 2);
+
+        let empty_tags = Tags::default();
+        let empty = empty_tags.iter();
+        assert_eq!(empty.size_hint(), (0, Some(0)));
+        assert_eq!(empty.len(), 0);
+    }
+
+    #[test]
     fn equality_uses_effective_values_without_wire_order() {
         let left = tags("@account=old;bot;account=alice :ergo.test TAGMSG #papo");
         let reordered = tags("@account=alice;bot :ergo.test TAGMSG #papo");
