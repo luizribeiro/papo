@@ -79,12 +79,15 @@ fn test_account(value: &str) -> crate::AccountName {
 }
 
 async fn next_active_event(events: &mut crate::Events) -> Event {
-    match events.next().await {
-        Some(Event::Disconnected(disconnected)) => {
-            panic!("disconnected while waiting for an event: {disconnected}")
+    loop {
+        match next_event(events).await {
+            Some(Event::Connecting(_)) => {}
+            Some(Event::Disconnected(disconnected)) => {
+                panic!("disconnected while waiting for an event: {disconnected}")
+            }
+            Some(event) => return event,
+            None => panic!("driver stopped while waiting for an event"),
         }
-        Some(event) => event,
-        None => panic!("driver stopped while waiting for an event"),
     }
 }
 
@@ -320,7 +323,10 @@ async fn sasl_connection_reports_each_protocol_phase() {
         b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Connected(_))));
+    assert!(matches!(
+        next_active_event(&mut events).await,
+        Event::Connected(_)
+    ));
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
@@ -364,7 +370,7 @@ async fn message_fields_use_captured_session_facts() {
     );
 
     server_line(&mut server, b":emily!~e@localhost NOTICE papo-driver :maintenance soon\r\n:emily!~e@localhost PRIVMSG #papo :\x01ACTION deploys \x02bold\x02 and \x1ditalic\x1d then \x02\x1dboth\x0f in \x0304red and \x04FF0000hex\x01\r\n:dan!~d@cloak PRIVMSG #papo :\x01ACTION tests a split message\r\n:emily!~e@localhost PRIVMSG papo-driver :\x01VERSION\x01\r\n:dan!~d@cloak PRIVMSG papo-driver :\x01PING 1731513600\x01\r\n:soju.example NOTICE papo-driver :\x01VERSION soju 0.8.2\x01\r\n").await;
-    let notice = events.next().await.unwrap();
+    let notice = next_event(&mut events).await.unwrap();
     let notice = notice.as_notice().unwrap();
     assert_eq!(notice.kind, crate::MessageKind::Text);
     assert!(matches!(
@@ -395,30 +401,30 @@ async fn message_fields_use_captured_session_facts() {
     assert_eq!(action.kind, MessageKind::Action);
     assert_eq!(action.text, "tests a split message");
     assert_eq!(action.raw_text, "tests a split message");
-    let version = events.next().await.unwrap();
+    let version = next_event(&mut events).await.unwrap();
     let version = version.as_ctcp_query().unwrap();
     assert_eq!(version.command, "VERSION");
     assert_eq!(version.params, None);
-    let ping = events.next().await.unwrap();
+    let ping = next_event(&mut events).await.unwrap();
     let ping = ping.as_ctcp_query().unwrap();
     assert_eq!(ping.command, "PING");
     assert_eq!(ping.params.as_deref(), Some("1731513600"));
-    let reply = events.next().await.unwrap();
+    let reply = next_event(&mut events).await.unwrap();
     let reply = reply.as_server_notice().unwrap();
     assert_eq!(reply.kind, crate::event::ServerNoticeKind::Notice);
     assert_eq!(reply.raw_text, "\x01VERSION soju 0.8.2\x01");
 
     server_line(&mut server, b":PAPO-DRIVER!p@localhost PRIVMSG #papo :sent\r\nBATCH +history42 chathistory #papo\r\n@batch=history42 :dan!d@localhost PRIVMSG #papo :earlier\r\n").await;
-    let own = events.next().await.unwrap();
+    let own = next_event(&mut events).await.unwrap();
     assert_eq!(own.as_message().unwrap().text, "sent");
-    let Some(Event::History(page)) = events.next().await else {
+    let Some(Event::History(page)) = next_event(&mut events).await else {
         panic!("expected partial history page")
     };
     assert_eq!(page.reason, crate::HistoryReason::Replay);
     assert!(!page.end);
     assert_eq!(page.chat_messages().next().unwrap().text, "earlier");
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Warning(Warning::BatchAbandoned { .. }))
     ));
 
@@ -461,7 +467,10 @@ async fn live_bot_facts_require_message_tags_and_bot_mode() {
             b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n",
         )
         .await;
-        assert!(matches!(events.next().await, Some(Event::Connected(_))));
+        assert!(matches!(
+            next_active_event(&mut events).await,
+            Event::Connected(_)
+        ));
 
         server_line(
             &mut server,
@@ -491,7 +500,10 @@ async fn multiline_messages_keep_addressing_across_a_nick_change() {
     server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
     client_line(&mut server, b"CAP END\r\n").await;
     server_line(&mut server, b":ergo.test 005 papo-driver NICKLEN=32 :are supported by this server\r\n:ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::Connected(_))));
+    assert!(matches!(
+        next_active_event(&mut events).await,
+        Event::Connected(_)
+    ));
 
     server_line(
         &mut server,
@@ -510,7 +522,7 @@ async fn multiline_messages_keep_addressing_across_a_nick_change() {
         .unwrap();
     client_line(&mut server, b"PRIVMSG bob :sent securely\r\n").await;
 
-    let own = events.next().await.unwrap();
+    let own = next_event(&mut events).await.unwrap();
     let own = own.as_message().unwrap();
     assert_eq!(own.authorship, crate::Authorship::Own);
 
@@ -529,7 +541,10 @@ async fn private_reply_refuses_a_nick_taken_after_receipt() {
     )
     .await;
     for _ in 0..3 {
-        assert!(matches!(events.next().await, Some(Event::Joined(_))));
+        assert!(matches!(
+            next_event(&mut events).await,
+            Some(Event::Joined(_))
+        ));
     }
     let message = next_message(&mut events).await;
     assert!(!message.__recipient_changed(&client.state()));
@@ -541,8 +556,14 @@ async fn private_reply_refuses_a_nick_taken_after_receipt() {
         b":alice!~alice@cloak.example QUIT :Client Quit\r\n:mallory!~mallory@users.example NICK alice\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Quit(_))));
-    assert!(matches!(events.next().await, Some(Event::NickChanged(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Quit(_))
+    ));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::NickChanged(_))
+    ));
     assert!(message.__recipient_changed(&client.state()));
     assert!(matches!(
         within(client.reply(&message, "payroll attached")).await,
@@ -583,8 +604,14 @@ async fn private_reply_refuses_a_different_known_account() {
         b":papo-driver!p@localhost JOIN #review * :Papo Driver\r\n:alice!~alice@cloak.example JOIN #review alice :Alice Example\r\n@account=alice :alice!~alice@cloak.example PRIVMSG papo-driver :release approval\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Joined(_))));
-    assert!(matches!(events.next().await, Some(Event::Joined(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Joined(_))
+    ));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Joined(_))
+    ));
     let message = next_message(&mut events).await;
     server_line(
         &mut server,
@@ -592,7 +619,7 @@ async fn private_reply_refuses_a_different_known_account() {
     )
     .await;
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::AccountChanged(_))
     ));
 
@@ -632,8 +659,14 @@ async fn own_private_message_uses_the_peers_known_account_guard() {
         b":papo-driver!p@localhost JOIN #review papo :Papo Driver\r\n:alice!~alice@cloak.example JOIN #review alice :Alice Example\r\n@account=papo;msgid=Ergo8ZZ9 :papo-driver!p@localhost PRIVMSG alice :typo here\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Joined(_))));
-    assert!(matches!(events.next().await, Some(Event::Joined(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Joined(_))
+    ));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Joined(_))
+    ));
     let message = events
         .next()
         .await
@@ -680,7 +713,7 @@ async fn broadcasts_are_not_replyable_message_events() {
         b"@msgid=Solanum120004 :oper!o@staff PRIVMSG $*.example.org :!status\r\n",
     )
     .await;
-    let event = events.next().await.unwrap();
+    let event = next_event(&mut events).await.unwrap();
     let notice = event.as_server_notice().unwrap();
     assert_eq!(notice.kind, crate::event::ServerNoticeKind::Privmsg);
     assert!(
@@ -731,7 +764,7 @@ async fn manual_ctcp_replies_match_automatic_framing_and_target_the_actor() {
         b":emily!~e@localhost PRIVMSG papo-driver :\x01VERSION\x01\r\n",
     )
     .await;
-    let query = events.next().await.unwrap();
+    let query = next_event(&mut events).await.unwrap();
     let query = query.as_ctcp_query().unwrap();
     within(client.ctcp_reply(query, "ferrobot 2.3"))
         .await
@@ -743,7 +776,7 @@ async fn manual_ctcp_replies_match_automatic_framing_and_target_the_actor() {
         b":dan!~d@cloak PRIVMSG #papo :\x01PING\x01\r\n",
     )
     .await;
-    let channel_query = events.next().await.unwrap();
+    let channel_query = next_event(&mut events).await.unwrap();
     let channel_query = channel_query.as_ctcp_query().unwrap();
     within(client.ctcp_reply(channel_query, "")).await.unwrap();
     client_line(&mut server, b"NOTICE dan \x01PING\x01\r\n").await;
@@ -777,7 +810,7 @@ async fn manual_ctcp_replies_reject_delimiters() {
     )
     .await;
     while !matches!(next_active_event(&mut events).await, Event::Connected(_)) {}
-    let query = events.next().await.unwrap();
+    let query = next_event(&mut events).await.unwrap();
     let query = query.as_ctcp_query().unwrap();
     for invalid in [
         "embedded\x01delimiter",
@@ -806,7 +839,7 @@ async fn wallops_is_a_server_notice() {
         b":ergo.test WALLOPS :Network maintenance begins soon\r\n",
     )
     .await;
-    let event = events.next().await.unwrap();
+    let event = next_event(&mut events).await.unwrap();
     let notice = event.as_server_notice().unwrap();
     assert_eq!(notice.kind, crate::event::ServerNoticeKind::Wallops);
     assert_eq!(
@@ -836,10 +869,13 @@ async fn registration_is_forwarded() {
         .await
         .unwrap();
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Motd(motd)) if motd.lines == ["- Welcome to ErgoTest"]
     ));
-    assert!(matches!(events.next().await, Some(Event::Connected(_))));
+    assert!(matches!(
+        next_active_event(&mut events).await,
+        Event::Connected(_)
+    ));
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
     assert!(!client.state().is_connected());
@@ -856,20 +892,20 @@ async fn unknown_numeric_and_vendor_command_are_other_lines() {
         b"@time=2026-10-20T12:00:00.000Z :ergo.test 777 papo-driver :Network-specific reply\r\n:irc.example ENCAP * REALHOST bob client.example\r\n:ergo.test PERSISTENCE STATUS DEFAULT ON\r\n",
     )
     .await;
-    let numeric = events.next().await.unwrap();
+    let numeric = next_event(&mut events).await.unwrap();
     assert!(matches!(numeric, Event::Other(ref line) if line.numeric() == Some(777)));
     assert_eq!(
         numeric.as_other().unwrap().tag("time"),
         Some("2026-10-20T12:00:00.000Z")
     );
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Other(line))
             if line.command() == "ENCAP"
                 && line.params() == ["*", "REALHOST", "bob", "client.example"]
     ));
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Other(line)) if line.command() == "PERSISTENCE"
     ));
 
@@ -1020,7 +1056,7 @@ async fn connection_failures_retry_up_to_the_configured_limit() {
     );
     let driver = tokio::spawn(driver);
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: Some(reconnect_in),
@@ -1046,7 +1082,7 @@ async fn connection_failures_retry_up_to_the_configured_limit() {
     ));
     tokio::time::advance(Duration::from_millis(500)).await;
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: None,
