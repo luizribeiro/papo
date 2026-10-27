@@ -135,6 +135,15 @@ impl TestServer {
         crate::FaultProxy::start(self.plaintext)
     }
 
+    /// Creates a forwarding endpoint that presents Ergo's hostname notice before CAP LS.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if its loopback listener cannot be created.
+    pub fn hostname_notice_proxy(&self) -> io::Result<crate::FaultProxy> {
+        crate::FaultProxy::start_with_hostname_notice(self.plaintext)
+    }
+
     /// Changes an account password while preserving the running server.
     ///
     /// # Errors
