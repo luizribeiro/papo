@@ -114,6 +114,37 @@ fn monitored_user_returning_online_drops_offline_metadata() {
 }
 
 #[test]
+fn nickname_handoff_replaces_every_per_user_state_map() {
+    registered("max-subs=100,max-keys=100")
+        .server(":ergo.test 005 alice MONITOR=100 :are supported")
+        .update(|session| session.monitor_add(["bob"]))
+        .client("MONITOR + bob")
+        .server(":ergo.test 730 alice :bob!~bob@users/bob")
+        .server(":alice!~alice@users/alice JOIN #papo")
+        .server(":bob!~bob@users/bob JOIN #papo")
+        .server(":mallory!~mallory@users/mallory JOIN #papo")
+        .server(":ergo.test 761 alice bob display-name * :Bob Builder")
+        .server("@+typing=active :bob!~bob@users/bob TAGMSG alice")
+        .server(":bob!~bob@users/bob QUIT :Client exited")
+        .server(":mallory!~mallory@users/mallory NICK :bob")
+        .server(":ergo.test 005 alice NETWORK=Ergo :are supported")
+        .inspect(|session| {
+            let state = session.state();
+            let bob = state.user("bob").expect("new nickname holder");
+            assert_eq!(bob.username(), Some("~mallory"));
+            assert_eq!(bob.host(), Some("users/mallory"));
+            assert!(state.metadata("bob").is_none());
+            let conversation = papo_core::Conversation::Private(state.casemapping().nick("bob"));
+            assert_eq!(state.typing(&conversation).count(), 0);
+            let monitored = state.monitor_online().collect::<Vec<_>>();
+            assert_eq!(monitored.len(), 1);
+            assert_eq!(monitored[0].nick(), "bob");
+            assert_eq!(monitored[0].host(), Some("users/mallory"));
+        })
+        .ignore_rest();
+}
+
+#[test]
 fn metadata_lifetime_tracks_channels_monitor_and_snapshot_identity() {
     registered("max-subs=100,max-keys=100")
         .server(":alice!~alice@users/alice JOIN #papo")

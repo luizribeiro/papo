@@ -299,6 +299,10 @@ impl TypingTable {
         removed
     }
 
+    pub(crate) fn forget_sender(table: &mut Arc<Self>, nick: &Nick) {
+        _ = Self::stop_where(table, |_, typer| typer == nick);
+    }
+
     fn rename(table: &mut Arc<Self>, old: &Nick, new: &Nick) {
         let table = Arc::make_mut(table);
         for (_, typer) in &mut table.entries {

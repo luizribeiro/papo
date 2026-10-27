@@ -70,6 +70,41 @@ impl Monitor {
         self.presence.clear();
     }
 
+    pub(super) fn identity_departed(&mut self, nick: &str, isupport: &Isupport) {
+        self.update_casemapping(isupport.casemapping());
+        let key = self.casemapping.nick(nick);
+        if self.desires(nick, isupport) {
+            self.presence
+                .insert(key, Presence::Offline(nick.to_owned()));
+        } else {
+            self.presence.remove(&key);
+        }
+    }
+
+    pub(super) fn identity_renamed(
+        &mut self,
+        old: &str,
+        new: &str,
+        user: Option<&str>,
+        host: Option<&str>,
+        isupport: &Isupport,
+    ) {
+        self.identity_departed(old, isupport);
+        let key = self.casemapping.nick(new);
+        if self.desires(new, isupport) {
+            self.presence.insert(
+                key,
+                Presence::Online {
+                    nick: new.to_owned(),
+                    user: user.map(str::to_owned),
+                    host: host.map(str::to_owned),
+                },
+            );
+        } else {
+            self.presence.remove(&key);
+        }
+    }
+
     pub(super) fn restore(&mut self, isupport: &Isupport, outbox: &mut Outbox) {
         self.presence.clear();
         if matches!(isupport.get("MONITOR"), Advertised::Value("0")) {

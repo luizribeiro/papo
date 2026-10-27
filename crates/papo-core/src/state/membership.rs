@@ -4,9 +4,11 @@ use super::{
 };
 
 impl State {
-    pub(super) fn prepare_identity_arrival(&mut self, nick: &str) {
+    pub(crate) fn prepare_identity_arrival(&mut self, nick: &str) {
         self.remove_user(nick);
         self.remove_metadata(nick);
+        let nick = self.casemapping.nick(nick);
+        crate::typing::TypingTable::forget_sender(&mut self.typing, &nick);
     }
 
     pub(super) fn handle_quit(&mut self, message: &LineRef<'_>, outbox: &mut Outbox) -> Handled {

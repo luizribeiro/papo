@@ -728,9 +728,6 @@ impl State {
                     .map(|user| user.channels.iter().cloned().collect())
                     .unwrap_or_default()
             };
-            if !crate::names_equal(mapping, nick, new_nick) {
-                self.prepare_identity_arrival(new_nick);
-            }
             if crate::names_equal(mapping, nick, &self.nick)
                 || self.user(nick).is_some()
                 || self.is_monitored(nick)
