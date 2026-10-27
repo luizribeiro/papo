@@ -334,15 +334,21 @@
                 if [[ "$package" == papo ]]; then
                   cargo public-api \
                     --rustdoc-json "$target/doc/$crate.json" \
-                    --color=never -s | PAPO_PUBLIC_API_FACADE=1 bash nix/normalize-public-api.sh > "$actual"
+                    --color=never -s \
+                    | PAPO_PUBLIC_API_FACADE=1 bash nix/normalize-public-api.sh \
+                    | awk -f nix/expand-public-api.awk \
+                      "$core_hidden_api" "$core_api" crates/papo-proto/public-api.txt - \
+                    > "$actual"
                 else
                   cargo public-api \
                     --rustdoc-json "$target/doc/$crate.json" \
                     --color=never -s | bash nix/normalize-public-api.sh > "$actual"
                 fi
-                if [[ "$package" =~ ^papo(-bot)?$ ]] && grep -Eq 'papo_(core|proto)::' "$actual"; then
+                if [[ "$package" =~ ^papo(-bot)?$ ]] \
+                  && sed '/^# re-exported type surfaces$/,$d' "$actual" | grep -Eq 'papo_(core|proto)::'; then
                   echo "$package public API contains a foreign papo-core or papo-proto path" >&2
-                  grep -En 'papo_(core|proto)::' "$actual" >&2
+                  sed '/^# re-exported type surfaces$/,$d' "$actual" \
+                    | grep -En 'papo_(core|proto)::' >&2
                   return 1
                 fi
                 if [[ "$package" == papo-bot ]] && grep -Eq 'papo::(client|event_impl|error)::' "$actual"; then
@@ -354,12 +360,37 @@
                 diff -u "$expected" "$actual"
                 rm -f "$actual"
               }
+              generate_surface() {
+                package=$1
+                crate=$2
+                features=$3
+                output=$4
+                target=$5
+                CARGO_INCREMENTAL=0 \
+                  RUSTC=${nightlyToolchain}/bin/rustc \
+                  RUSTDOC=${nightlyToolchain}/bin/rustdoc \
+                  ${nightlyToolchain}/bin/cargo rustdoc \
+                    -p "$package" --no-default-features --features "$features" --lib --target-dir "$target" \
+                    -- -Z unstable-options --output-format json --document-hidden-items
+                cargo public-api \
+                  --rustdoc-json "$target/doc/$crate.json" \
+                  --color=never -s | bash nix/normalize-public-api.sh > "$output"
+              }
               stable=websocket,tls-aws-lc,tls-ring
               check_api papo-proto papo_proto "" crates/papo-proto/public-api.txt target/public-api/papo-proto
               check_api papo-core papo_core "" crates/papo-core/public-api.txt target/public-api/papo-core-stable
               check_api papo-core papo_core unstable crates/papo-core/public-api-unstable.txt target/public-api/papo-core-unstable
+              core_stable_api=$(mktemp)
+              core_unstable_api=$(mktemp)
+              generate_surface papo-core papo_core "" "$core_stable_api" target/public-api/papo-core-stable
+              generate_surface papo-core papo_core unstable "$core_unstable_api" target/public-api/papo-core-unstable
+              core_hidden_api=$core_stable_api
+              core_api=crates/papo-core/public-api.txt
               check_api papo papo "$stable" crates/papo/public-api.txt target/public-api/papo-stable
+              core_hidden_api=$core_unstable_api
+              core_api=crates/papo-core/public-api-unstable.txt
               check_api papo papo "$stable,unstable" crates/papo/public-api-unstable.txt target/public-api/papo-unstable
+              rm -f "$core_stable_api" "$core_unstable_api"
               check_api papo-bot papo_bot "" crates/papo-bot/public-api.txt target/public-api/papo-bot
             '';
           };

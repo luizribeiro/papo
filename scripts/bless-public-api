@@ -37,7 +37,11 @@ generate() {
   if [[ "$package" == papo ]]; then
     cargo public-api \
       --rustdoc-json "$target/doc/$crate.json" \
-      --color=never -s | PAPO_PUBLIC_API_FACADE=1 bash nix/normalize-public-api.sh > "$actual"
+      --color=never -s \
+      | PAPO_PUBLIC_API_FACADE=1 bash nix/normalize-public-api.sh \
+      | awk -f nix/expand-public-api.awk \
+        "$core_hidden_api" "$core_api" crates/papo-proto/public-api.txt - \
+      > "$actual"
   else
     cargo public-api \
       --rustdoc-json "$target/doc/$crate.json" \
@@ -46,10 +50,33 @@ generate() {
   mv "$actual" "$snapshot"
 }
 
+generate_surface() {
+  local package=$1
+  local crate=$2
+  local features=$3
+  local output=$4
+  local target=$5
+  CARGO_INCREMENTAL=0 \
+    RUSTC="$nightly_bin/rustc" \
+    RUSTDOC="$nightly_bin/rustdoc" \
+    "$nightly_cargo" rustdoc \
+      -p "$package" --no-default-features --features "$features" --lib --target-dir "$target" \
+      -- -Z unstable-options --output-format json --document-hidden-items
+  cargo public-api \
+    --rustdoc-json "$target/doc/$crate.json" \
+    --color=never -s | bash nix/normalize-public-api.sh > "$output"
+}
+
 stable=websocket,tls-aws-lc,tls-ring
 generate papo-proto papo_proto '' crates/papo-proto/public-api.txt "$work/papo-proto"
 generate papo-core papo_core '' crates/papo-core/public-api.txt "$work/papo-core-stable"
 generate papo-core papo_core unstable crates/papo-core/public-api-unstable.txt "$work/papo-core-unstable"
+generate_surface papo-core papo_core '' "$work/papo-core-stable-surface" "$work/papo-core-stable"
+generate_surface papo-core papo_core unstable "$work/papo-core-unstable-surface" "$work/papo-core-unstable"
+core_hidden_api="$work/papo-core-stable-surface"
+core_api=crates/papo-core/public-api.txt
 generate papo papo "$stable" crates/papo/public-api.txt "$work/papo-stable"
+core_hidden_api="$work/papo-core-unstable-surface"
+core_api=crates/papo-core/public-api-unstable.txt
 generate papo papo "$stable,unstable" crates/papo/public-api-unstable.txt "$work/papo-unstable"
 generate papo-bot papo_bot '' crates/papo-bot/public-api.txt "$work/papo-bot"

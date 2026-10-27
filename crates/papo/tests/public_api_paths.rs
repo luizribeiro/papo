@@ -8,6 +8,7 @@ const BOT: &str = include_str!("../../papo-bot/public-api.txt");
 const CORE: &str = include_str!("../../papo-core/public-api.txt");
 const CORE_UNSTABLE: &str = include_str!("../../papo-core/public-api-unstable.txt");
 const PROTO: &str = include_str!("../../papo-proto/public-api.txt");
+const REEXPORTED_SURFACES: &str = "# re-exported type surfaces";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ConversationClass {
@@ -113,7 +114,7 @@ fn public_type_path(line: &str) -> Option<&str> {
 
 fn duplicate_type_paths(snapshot: &str) -> Vec<Vec<&str>> {
     let mut paths = BTreeMap::<_, BTreeSet<_>>::new();
-    for path in snapshot.lines().filter_map(public_type_path) {
+    for path in facade_items(snapshot).lines().filter_map(public_type_path) {
         let name = path.rsplit("::").next().expect("a public path has a name");
         paths.entry(name).or_default().insert(path);
     }
@@ -141,7 +142,7 @@ fn unsealed_struct_variants(snapshot: &str) -> Vec<&str> {
 }
 
 fn wire_address_exposures(snapshot: &str) -> Vec<&str> {
-    snapshot
+    facade_items(snapshot)
         .lines()
         .filter(|line| {
             line.split(|character: char| {
@@ -153,17 +154,23 @@ fn wire_address_exposures(snapshot: &str) -> Vec<&str> {
 }
 
 fn internal_crate_paths(snapshot: &str) -> Vec<&str> {
-    snapshot
+    facade_items(snapshot)
         .lines()
         .filter(|line| line.contains("papo_core::") || line.contains("papo_proto::"))
         .collect()
 }
 
 fn conversation_items(snapshot: &str) -> Vec<&str> {
-    snapshot
+    facade_items(snapshot)
         .lines()
         .filter(|line| *line != "pub use papo::Conversation" && line.contains("papo::Conversation"))
         .collect()
+}
+
+fn facade_items(snapshot: &str) -> &str {
+    snapshot
+        .split_once(REEXPORTED_SURFACES)
+        .map_or(snapshot, |(facade, _surfaces)| facade)
 }
 
 #[test]
@@ -268,6 +275,38 @@ fn public_api_uses_canonical_message_name() {
         assert!(
             !snapshot.contains("ChatMessage"),
             "{name} exposes the internal ChatMessage name"
+        );
+    }
+}
+
+fn missing_reexported_surfaces(snapshot: &str) -> Vec<&str> {
+    let (facade, surfaces) = snapshot
+        .split_once(REEXPORTED_SURFACES)
+        .expect("the facade snapshot has re-exported surfaces");
+    let definitions: BTreeSet<_> = surfaces.lines().filter_map(public_type_path).collect();
+    facade
+        .lines()
+        .filter_map(|line| line.strip_prefix("pub use "))
+        .filter(|path| {
+            path.rsplit("::")
+                .next()
+                .is_some_and(|name| name.starts_with(char::is_uppercase))
+        })
+        .filter(|path| !definitions.contains(path))
+        .collect()
+}
+
+#[test]
+fn reexported_type_surfaces_are_snapshotted() {
+    for (name, snapshot) in [("papo", STABLE), ("papo unstable", UNSTABLE)] {
+        assert_eq!(
+            missing_reexported_surfaces(snapshot),
+            Vec::<&str>::new(),
+            "{name} omits a re-exported type's surface"
+        );
+        assert!(
+            snapshot.contains("pub papo::ModeChange::mode: char"),
+            "{name} omits ModeChange's re-exported fields"
         );
     }
 }
