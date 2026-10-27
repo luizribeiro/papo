@@ -1143,6 +1143,7 @@ fn webirc_line(webirc: &WebIrc) -> Result<WireLine, BuildError> {
 
 /// One operation from an IRC mode string.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct ModeChange {
     /// The mode letter.
     pub mode: char,
@@ -1150,6 +1151,14 @@ pub struct ModeChange {
     pub action: ModeAction,
     /// The mode argument classified using the server's advertised rules.
     pub arg: Option<ModeArg>,
+}
+
+impl ModeChange {
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __new(mode: char, action: ModeAction, arg: Option<ModeArg>) -> Self {
+        Self { mode, action, arg }
+    }
 }
 
 /// A channel mode whose entries are reported as a list.

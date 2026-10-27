@@ -89,6 +89,23 @@
 //! contract. The published `papo-core` and `papo-proto` dependencies are internal implementation
 //! crates with no API stability guarantees and are not intended for direct use.
 //!
+//! Re-exported output values cannot be constructed or exhaustively destructured outside `papo`:
+//!
+//! ```compile_fail
+//! let change = papo::ModeChange {
+//!     mode: 'o',
+//!     action: papo::ModeAction::Add,
+//!     arg: None,
+//! };
+//! ```
+//!
+//! ```compile_fail
+//! # fn inspect(change: papo::ModeChange) {
+//! let papo::ModeChange { mode, action, arg } = change;
+//! # let _ = (mode, action, arg);
+//! # }
+//! ```
+//!
 //! # Public type paths
 //!
 //! Handles and types useful outside an [`Event`] are at the crate root. Types used only as event

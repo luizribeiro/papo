@@ -1843,7 +1843,7 @@ impl<'a> core::marker::Unpin for papo_core::MetadataView<'a>
 impl<'a> core::marker::UnsafeUnpin for papo_core::MetadataView<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_core::MetadataView<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo_core::MetadataView<'a>
-pub struct papo_core::ModeChange
+#[non_exhaustive] pub struct papo_core::ModeChange
 pub papo_core::ModeChange::action: papo_proto::modes::ModeAction
 pub papo_core::ModeChange::arg: core::option::Option<papo_core::ModeArg>
 pub papo_core::ModeChange::mode: char

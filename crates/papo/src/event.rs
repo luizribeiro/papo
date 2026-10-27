@@ -2438,7 +2438,7 @@ pub(crate) fn typed_mode_change(
         (_, papo_proto::ModeKind::List) => ModeArg::Mask(origin.__mask(casemapping, arg)),
         _ => ModeArg::Value(arg.to_owned()),
     });
-    ModeChange { mode, action, arg }
+    ModeChange::__new(mode, action, arg)
 }
 
 #[cfg(all(test, not(browser)))]
@@ -4678,14 +4678,14 @@ mod tests {
 
     #[test]
     fn maps_mode_changed() {
-        let mode_changes = vec![papo_core::ModeChange {
-            mode: 'o',
-            action: papo_core::ModeAction::Add,
-            arg: Some(papo_core::ModeArg::__member(
+        let mode_changes = vec![papo_core::ModeChange::__new(
+            'o',
+            papo_core::ModeAction::Add,
+            Some(papo_core::ModeArg::__member(
                 Casemapping::default().nick("emily"),
                 crate::Prefix::__new('o', '@'),
             )),
-        }];
+        )];
         assert!(matches!(
             forwarded(papo_core::Event::__mode_changed(papo_core::LineEnvelope::default(), papo_core::Subject::Channel(Casemapping::default().channel("#papo")), papo_core::Source::from_proto(papo_proto::Source::__user("alice", Some("~alice"), Some("staff.example")), Casemapping::default()), papo_core::Authorship::Other, papo_core::Authorship::Other, Some(Casemapping::default().nick("emily")), mode_changes.clone())),
             Event::ModeChanged(mode)
@@ -4780,22 +4780,22 @@ mod tests {
     #[test]
     fn mode_about_covers_nick_arguments_user_subjects_and_history() {
         let mapping = Casemapping::default();
-        let own = ModeChange {
-            mode: 'o',
-            action: ModeAction::Add,
-            arg: Some(ModeArg::__member(
+        let own = ModeChange::__new(
+            'o',
+            ModeAction::Add,
+            Some(ModeArg::__member(
                 mapping.nick("emily"),
                 crate::Prefix::__new('o', '@'),
             )),
-        };
-        let other = ModeChange {
-            mode: 'v',
-            action: ModeAction::Add,
-            arg: Some(ModeArg::__member(
+        );
+        let other = ModeChange::__new(
+            'v',
+            ModeAction::Add,
+            Some(ModeArg::__member(
                 mapping.nick("alice"),
                 crate::Prefix::__new('v', '+'),
             )),
-        };
+        );
         let channel = mode_event(Subject::Channel(mapping.channel("#papo")), Some("emily"));
         assert_eq!(channel.about(&own), Authorship::Own);
         assert_eq!(channel.about(&other), Authorship::Other);
@@ -4804,11 +4804,7 @@ mod tests {
             Authorship::Unknown
         );
 
-        let user_mode = ModeChange {
-            mode: 'i',
-            action: ModeAction::Add,
-            arg: None,
-        };
+        let user_mode = ModeChange::__new('i', ModeAction::Add, None);
         assert_eq!(
             mode_event(Subject::User(mapping.nick("emily")), Some("emily")).about(&user_mode),
             Authorship::Own
