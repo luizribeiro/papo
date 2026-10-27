@@ -996,7 +996,7 @@ pub fn escape_tag_value(value: &str) -> Cow<'_, str> {
 mod tests {
     use proptest::prelude::*;
 
-    use super::{escape_tag_value, unescape_tag};
+    use super::{Line, Secret, escape_tag_value, unescape_tag};
 
     proptest! {
         #[test]
@@ -1012,5 +1012,43 @@ mod tests {
             escape_tag_value("semi; space \\ cr\r lf\n"),
             r"semi\:\sspace\s\\\scr\r\slf\n"
         );
+    }
+
+    #[test]
+    fn reports_secret_provenance_for_parameters_and_wire_lines() {
+        let cases = [
+            (
+                Line::new("NOTICE").param("alice").param("maintenance soon"),
+                vec![false, false],
+                false,
+            ),
+            (
+                Line::new("PASS").param(Secret::new("server-password-3751")),
+                vec![true],
+                true,
+            ),
+            (
+                Line::new("OPER")
+                    .param("admin")
+                    .param(Secret::new("operator-password-6824"))
+                    .param("audit"),
+                vec![false, true, false],
+                true,
+            ),
+        ];
+
+        for (line, expected_params, expected_wire) in cases {
+            assert_eq!(
+                line.params()
+                    .iter()
+                    .map(super::Param::__is_secret)
+                    .collect::<Vec<_>>(),
+                expected_params
+            );
+            assert_eq!(
+                line.encode().unwrap().__has_secret_parameter(),
+                expected_wire
+            );
+        }
     }
 }
