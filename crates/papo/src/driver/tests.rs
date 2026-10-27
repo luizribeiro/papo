@@ -5768,6 +5768,7 @@ async fn mode_helpers_await_every_command_and_return_refusals() {
     .await;
     let result = within(modes).await.unwrap().unwrap();
     assert_eq!(result.applied.len(), 3);
+    assert!(result.is_complete());
     assert!(
         matches!(result.applied[0].arg, Some(crate::ModeArg::Member { ref nick, .. }) if nick == "alice")
     );
@@ -5955,6 +5956,11 @@ async fn mode_changes_return_confirmed_facts_after_a_later_disconnect() {
     let result = within(modes).await.unwrap().unwrap();
     assert!(matches!(result.applied.as_slice(), [change] if change.mode == 'm'));
     assert!(result.refused.is_empty());
+    assert!(matches!(
+        result.unconfirmed.as_slice(),
+        [(change, Error::Interrupted(_))] if change.mode == 'n'
+    ));
+    assert!(!result.is_complete());
     assert!(matches!(
         within(driver).await.unwrap(),
         Err(disconnected!())

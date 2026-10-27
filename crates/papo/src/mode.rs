@@ -143,13 +143,23 @@ impl std::fmt::Debug for SetModes {
 }
 
 /// Mode changes whose outcomes the server confirmed.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct ModesApplied {
     /// Changes confirmed by a matching server echo.
     pub applied: Vec<ModeChange>,
     /// Changes the server explicitly refused.
     pub refused: Vec<(ModeChange, Refusal)>,
+    /// Changes whose outcome could not be confirmed.
+    pub unconfirmed: Vec<(ModeChange, Error)>,
+}
+
+impl ModesApplied {
+    /// Returns whether every requested change was either applied or explicitly refused.
+    #[must_use]
+    pub fn is_complete(&self) -> bool {
+        self.unconfirmed.is_empty()
+    }
 }
 
 /// Result of setting a ban before attempting to remove its target.
@@ -366,9 +376,14 @@ impl IntoFuture for SetModes {
             let mut result = ModesApplied {
                 applied: Vec::new(),
                 refused: Vec::new(),
+                unconfirmed: Vec::new(),
             };
             let mut first_refusal = None;
-            for (message, requested) in messages.into_iter().zip(requested.chunks(maximum)) {
+            for (index, (message, chunk)) in messages
+                .into_iter()
+                .zip(requested.chunks(maximum))
+                .enumerate()
+            {
                 let response = match self
                     .client
                     .correlated(message, Some(ResponseMatcher::Mode(self.target.clone())))
@@ -376,13 +391,23 @@ impl IntoFuture for SetModes {
                 {
                     Ok(response) => response,
                     Err(error) if result.applied.is_empty() => return Err(error),
-                    Err(_) => return Ok(result),
+                    Err(error) => {
+                        result.unconfirmed.extend(
+                            requested
+                                .chunks(maximum)
+                                .skip(index)
+                                .flatten()
+                                .cloned()
+                                .map(|change| (change, error.clone())),
+                        );
+                        return Ok(result);
+                    }
                 };
-                let applied = confirmed(&response, &state, &self.target, requested);
+                let applied = confirmed(&response, &state, &self.target, chunk);
                 if let Some(error) = response.error() {
                     let refusal = error.refusal();
                     result.refused.extend(
-                        requested
+                        chunk
                             .iter()
                             .filter(|change| !applied.contains(change))
                             .cloned()
