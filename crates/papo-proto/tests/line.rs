@@ -1060,6 +1060,14 @@ fn received_lines_with_server_sized_tags_are_always_formattable() {
     let debug = format!("{line:?}");
     assert!(debug.contains("999 papo :hello"));
     assert_eq!(debug, wire);
+    assert_eq!(line.to_string(), wire);
+}
+
+#[test]
+fn received_cap_ls_trailing_parameter_is_canonicalized() {
+    let line: Line = ":ergo.test CAP papo LS :multi-prefix".parse().unwrap();
+
+    assert_eq!(line.to_string(), ":ergo.test CAP papo LS multi-prefix");
 }
 
 #[test]
