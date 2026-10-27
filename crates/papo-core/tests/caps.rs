@@ -6,7 +6,8 @@ use std::time::Duration;
 
 use papo_core::sts::{ConnectionSecurity, StsAction};
 use papo_core::{
-    CloseKind, Config, Connection, DEFAULT_WANTED_CAPS, Event, Feature, Session, cap::Cap,
+    CloseKind, Config, Connection, DEFAULT_WANTED_CAPS, Event, Feature, Session, UnsupportedReason,
+    cap::Cap,
 };
 use support::Transcript;
 
@@ -256,7 +257,7 @@ fn disabled_features_are_never_requested() {
 }
 
 #[test]
-fn the_last_feature_toggle_controls_negotiation() {
+fn the_last_feature_toggle_controls_negotiation_in_both_directions() {
     Transcript::new(
         Config::default()
             .disable(Feature::History)
@@ -267,6 +268,102 @@ fn the_last_feature_toggle_controls_negotiation() {
     .client("CAP REQ :draft/chathistory")
     .server("CAP * ACK :draft/chathistory")
     .client("CAP END");
+
+    Transcript::new(
+        Config::default()
+            .enable(Feature::History)
+            .disable(Feature::History),
+    )
+    .connect_default()
+    .server("CAP * LS :draft/chathistory batch")
+    .client("CAP REQ :batch")
+    .server("CAP * ACK :batch")
+    .client("CAP END")
+    .inspect(|session| {
+        assert_eq!(
+            session.supports(Feature::History),
+            Err(UnsupportedReason::DisabledByClient)
+        );
+    });
+}
+
+#[test]
+fn feature_toggles_add_each_capability_only_once() {
+    let enabled = Config::default()
+        .wanted_caps(["batch"])
+        .enable(Feature::History)
+        .enable(Feature::History);
+    assert_eq!(
+        enabled
+            .wanted_caps
+            .iter()
+            .filter(|name| name.as_str() == "draft/chathistory")
+            .count(),
+        1
+    );
+
+    let disabled = enabled.disable(Feature::History).disable(Feature::History);
+    assert_eq!(
+        disabled
+            .disabled_caps
+            .iter()
+            .filter(|name| name.as_str() == "draft/chathistory")
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn disabled_feature_stays_disabled_when_its_capability_is_enabled() {
+    let mut config = Config::default().disable(Feature::History);
+    config.disabled_caps.clear();
+
+    Transcript::new(config)
+        .connect_default()
+        .server("CAP * LS :draft/chathistory")
+        .client("CAP REQ :draft/chathistory")
+        .server("CAP * ACK :draft/chathistory")
+        .client("CAP END")
+        .inspect(|session| {
+            assert_eq!(
+                session.supports(Feature::History),
+                Err(UnsupportedReason::DisabledByClient)
+            );
+        });
+}
+
+#[cfg(feature = "unstable")]
+#[test]
+fn unstable_feature_toggles_change_only_the_owned_capability() {
+    let disabled = Config::default()
+        .enable(Feature::Persistence)
+        .disable(Feature::Persistence)
+        .disable(Feature::Persistence);
+    assert_eq!(disabled.disabled_caps, ["draft/persistence"]);
+    Transcript::new(disabled)
+        .connect_default()
+        .server("CAP * LS :soju.im/bouncer-networks draft/persistence draft/relaymsg")
+        .client("CAP END");
+
+    let enabled = Config::default()
+        .disable(Feature::Persistence)
+        .enable(Feature::Persistence)
+        .enable(Feature::Persistence);
+    assert!(enabled.disabled_caps.is_empty());
+    assert_eq!(
+        enabled
+            .wanted_caps
+            .iter()
+            .filter(|name| name.as_str() == "draft/persistence")
+            .count(),
+        1
+    );
+    Transcript::new(enabled)
+        .connect_default()
+        .server("CAP * LS :soju.im/bouncer-networks draft/persistence draft/relaymsg")
+        .client("CAP REQ :draft/persistence")
+        .server("CAP * ACK :draft/persistence")
+        .client("CAP END");
 }
 
 #[test]

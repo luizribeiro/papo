@@ -20,6 +20,34 @@ fn enable_extensions(config: Config) -> Config {
         .enable(Feature::Relay)
 }
 
+#[test]
+fn bouncer_bound_connections_keep_reusable_feature_settings() {
+    let mut config = Config::default()
+        .enable(Feature::Bouncer)
+        .enable(Feature::Persistence);
+    config.bouncer_network = Some(papo_core::NetworkId::from("libera"));
+
+    let additional = config.__additional_connection();
+
+    assert_eq!(additional.bouncer_network.as_deref(), Some("libera"));
+    for capability in [
+        "soju.im/bouncer-networks",
+        "draft/persistence",
+        "server-time",
+    ] {
+        assert!(
+            additional.wanted_caps.iter().any(|name| name == capability),
+            "{capability}"
+        );
+    }
+    assert!(
+        !additional
+            .wanted_caps
+            .iter()
+            .any(|name| name == "soju.im/bouncer-networks-notify")
+    );
+}
+
 fn session(caps: &str) -> Session {
     session_with(
         enable_extensions(Config::default()).wanted_caps(caps.split_whitespace()),
