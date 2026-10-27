@@ -133,7 +133,7 @@ pub use refusal::Refusal;
 use sasl::SaslSession;
 pub use sasl::{Entropy, Sasl};
 use state::MetadataContext;
-pub use state::{Account, Away, Channel, Member, State, User};
+pub use state::{Account, Away, Channel, Member, MetadataView, State, User};
 use sts::ConnectionSecurity;
 #[doc(hidden)]
 pub use typing::TypingTable;

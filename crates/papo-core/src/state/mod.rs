@@ -73,7 +73,7 @@ pub struct State {
     persistence: Option<PersistenceStatus>,
     #[cfg(feature = "unstable")]
     bouncer_networks: BTreeMap<NetworkId, BouncerNetwork>,
-    metadata: BTreeMap<NameKey<String>, HashMap<MetadataKey, MetadataValue>>,
+    metadata: BTreeMap<NameKey<String>, BTreeMap<MetadataKey, MetadataValue>>,
     metadata_subscriptions: Vec<MetadataKey>,
     limits_warned: HashSet<StateLimit>,
     pub(crate) typing: Arc<TypingTable>,
@@ -169,6 +169,27 @@ pub struct User {
     is_bot: Option<bool>,
     monitored: bool,
     channels: BTreeSet<ChannelName>,
+}
+
+/// A read-only view of cached metadata values.
+#[derive(Clone, Copy, Debug)]
+pub struct MetadataView<'a> {
+    values: &'a BTreeMap<MetadataKey, MetadataValue>,
+}
+
+impl<'a> MetadataView<'a> {
+    /// Returns the value stored for `key`.
+    #[must_use]
+    pub fn get(&self, key: &str) -> Option<&'a MetadataValue> {
+        self.values.get(key)
+    }
+
+    /// Iterates over entries in metadata-key order.
+    pub fn iter(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (&'a MetadataKey, &'a MetadataValue)> + use<'a> {
+        self.values.iter()
+    }
 }
 
 /// A user's known account state.
@@ -1222,12 +1243,11 @@ impl State {
     /// User metadata fetched without a shared channel or `MONITOR` relationship is a snapshot.
     /// It is discarded when a visible `NICK` or `QUIT` invalidates that identity.
     #[must_use]
-    pub fn metadata(
-        &self,
-        target: impl AsRef<str>,
-    ) -> Option<&HashMap<MetadataKey, MetadataValue>> {
+    pub fn metadata(&self, target: impl AsRef<str>) -> Option<MetadataView<'_>> {
         let target = self.casemapping.fold(target.as_ref());
-        self.metadata.get(target.as_ref())
+        self.metadata
+            .get(target.as_ref())
+            .map(|values| MetadataView { values })
     }
 
     /// Returns the number of users and channels retained in the metadata cache.

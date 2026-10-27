@@ -31,11 +31,17 @@ fn registered(value: &str) -> Transcript {
 
 fn assert_cached_visibility(session: &papo_core::Session) {
     let metadata = session.state().metadata("alice").unwrap();
-    assert_eq!(metadata["avatar"].value, "https://cdn.example.net/a.png");
-    assert_eq!(metadata["avatar"].visibility, Visibility::Public);
-    assert_eq!(metadata["pronouns"].value, "they/them");
     assert_eq!(
-        metadata["pronouns"].visibility,
+        metadata.get("avatar").unwrap().value,
+        "https://cdn.example.net/a.png"
+    );
+    assert_eq!(
+        metadata.get("avatar").unwrap().visibility,
+        Visibility::Public
+    );
+    assert_eq!(metadata.get("pronouns").unwrap().value, "they/them");
+    assert_eq!(
+        metadata.get("pronouns").unwrap().visibility,
         Visibility::Restricted("channel".to_owned())
     );
 }
@@ -50,7 +56,13 @@ fn user_metadata_follows_a_shared_nick_change() {
         .inspect(|session| {
             assert!(session.state().metadata("bob").is_none());
             assert_eq!(
-                session.state().metadata("bob-away").unwrap()["display-name"].value,
+                session
+                    .state()
+                    .metadata("bob-away")
+                    .unwrap()
+                    .get("display-name")
+                    .unwrap()
+                    .value,
                 "Bob Admin"
             );
         })
@@ -141,11 +153,23 @@ fn leaving_a_channel_preserves_own_and_monitored_user_metadata() {
         .event(|event| matches!(event, Event::Parted { nick, .. } if nick == "alice"))
         .inspect(|session| {
             assert_eq!(
-                session.state().metadata("alice").unwrap()["display-name"].value,
+                session
+                    .state()
+                    .metadata("alice")
+                    .unwrap()
+                    .get("display-name")
+                    .unwrap()
+                    .value,
                 "Alice Admin"
             );
             assert_eq!(
-                session.state().metadata("bob").unwrap()["display-name"].value,
+                session
+                    .state()
+                    .metadata("bob")
+                    .unwrap()
+                    .get("display-name")
+                    .unwrap()
+                    .value,
                 "Bob Builder"
             );
         })
@@ -232,7 +256,7 @@ fn requests_published_metadata_name_and_reads_known_limits() {
     .server(":ergo.test 766 alice ALICE avatar :key is not set")
     .event(|event| matches!(event, Event::MetadataChanged { key, value: None, .. }
         if key == "avatar"))
-    .inspect(|session| assert!(!session.state().metadata("alice").unwrap().contains_key("avatar")))
+    .inspect(|session| assert!(session.state().metadata("alice").unwrap().get("avatar").is_none()))
     .update(|session| {
         session.metadata(std::time::Instant::now(), MetadataCommand::__clear("alice".into())).unwrap();
     })
@@ -372,9 +396,16 @@ fn advertised_max_keys_does_not_limit_received_metadata() {
         })
         .inspect(|session| {
             let metadata = session.state().metadata("#PAPO").unwrap();
-            assert_eq!(metadata.len(), 2);
-            assert_eq!(metadata["soju.im/pinned"].value, "1");
-            assert_eq!(metadata["soju.im/muted"].value, "1");
+            assert_eq!(metadata.iter().len(), 2);
+            assert_eq!(
+                metadata
+                    .iter()
+                    .map(|(key, _)| key.as_ref())
+                    .collect::<Vec<_>>(),
+                ["soju.im/muted", "soju.im/pinned"]
+            );
+            assert_eq!(metadata.get("soju.im/pinned").unwrap().value, "1");
+            assert_eq!(metadata.get("soju.im/muted").unwrap().value, "1");
         });
 }
 
@@ -387,7 +418,13 @@ fn metadata_target_spelling_survives_casemapping_changes() {
         .event(|event| matches!(event, Event::CasemappingChanged { .. }))
         .inspect(|session| {
             assert_eq!(
-                session.state().metadata("#Papo[dev]").unwrap()["soju.im/pinned"].value,
+                session
+                    .state()
+                    .metadata("#Papo[dev]")
+                    .unwrap()
+                    .get("soju.im/pinned")
+                    .unwrap()
+                    .value,
                 "1"
             );
             assert!(session.state().metadata("#papo{dev}").is_none());
@@ -404,7 +441,10 @@ fn bounds_received_metadata_with_its_own_storage_limit() {
             );
         }
 
-        assert_eq!(session.state().metadata("#papo").unwrap().len(), 10_000);
+        assert_eq!(
+            session.state().metadata("#papo").unwrap().iter().len(),
+            10_000
+        );
         assert!(
             std::iter::from_fn(|| session.poll_event()).any(|event| matches!(
                 event,
@@ -435,8 +475,8 @@ fn applies_a_join_metadata_batch_only_when_it_closes() {
             if subject_name(subject) == "bob")
         })
         .inspect(|session| {
-            assert_eq!(session.state().metadata("#PAPO").unwrap().len(), 1);
-            assert_eq!(session.state().metadata("BOB").unwrap().len(), 1);
+            assert_eq!(session.state().metadata("#PAPO").unwrap().iter().len(), 1);
+            assert_eq!(session.state().metadata("BOB").unwrap().iter().len(), 1);
         });
 }
 

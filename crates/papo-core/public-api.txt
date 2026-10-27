@@ -1718,6 +1718,22 @@ impl core::marker::Unpin for papo_core::MetadataValue
 impl core::marker::UnsafeUnpin for papo_core::MetadataValue
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::MetadataValue
 impl core::panic::unwind_safe::UnwindSafe for papo_core::MetadataValue
+pub struct papo_core::MetadataView<'a>
+impl<'a> papo_core::MetadataView<'a>
+pub fn papo_core::MetadataView<'a>::get(&self, &str) -> core::option::Option<&'a papo_core::MetadataValue>
+pub fn papo_core::MetadataView<'a>::iter(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = (&'a papo::MetadataKey, &'a papo_core::MetadataValue)> + use<'a>
+impl<'a> core::clone::Clone for papo_core::MetadataView<'a>
+pub fn papo_core::MetadataView<'a>::clone(&self) -> Self
+impl<'a> core::fmt::Debug for papo_core::MetadataView<'a>
+pub fn papo_core::MetadataView<'a>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl<'a> core::marker::Copy for papo_core::MetadataView<'a>
+impl<'a> core::marker::Freeze for papo_core::MetadataView<'a>
+impl<'a> core::marker::Send for papo_core::MetadataView<'a>
+impl<'a> core::marker::Sync for papo_core::MetadataView<'a>
+impl<'a> core::marker::Unpin for papo_core::MetadataView<'a>
+impl<'a> core::marker::UnsafeUnpin for papo_core::MetadataView<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_core::MetadataView<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo_core::MetadataView<'a>
 pub struct papo_core::ModeChange
 pub papo_core::ModeChange::action: papo_proto::modes::ModeAction
 pub papo_core::ModeChange::arg: core::option::Option<papo_core::ModeArg>
@@ -2064,7 +2080,7 @@ pub fn papo_core::State::channels(&self) -> impl core::iter::traits::exact_size:
 pub fn papo_core::State::conversation(&self, impl core::convert::AsRef<str>) -> core::result::Result<papo::Conversation, papo::InvalidIdentifier>
 pub fn papo_core::State::host(&self) -> core::option::Option<&str>
 pub fn papo_core::State::last_seen(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::LastSeen>
-pub fn papo_core::State::metadata(&self, impl core::convert::AsRef<str>) -> core::option::Option<&std::collections::hash::map::HashMap<papo::MetadataKey, papo_core::MetadataValue>>
+pub fn papo_core::State::metadata(&self, impl core::convert::AsRef<str>) -> core::option::Option<papo_core::MetadataView<'_>>
 pub fn papo_core::State::metadata_subscriptions(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &papo::MetadataKey>
 pub fn papo_core::State::metadata_target_count(&self) -> usize
 pub fn papo_core::State::monitor_online(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo_core::User>

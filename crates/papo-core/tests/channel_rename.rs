@@ -117,10 +117,8 @@ fn rekeys_channel_members_and_metadata() {
                     .collect::<Vec<_>>(),
                 ["#rust-lang"]
             );
-            assert_eq!(
-                session.state().metadata("#rust-lang").unwrap()["status"].value,
-                "shipping"
-            );
+            let metadata = session.state().metadata("#rust-lang").unwrap();
+            assert_eq!(metadata.get("status").unwrap().value, "shipping");
             assert!(session.state().metadata("#rust").is_none());
         });
 }
