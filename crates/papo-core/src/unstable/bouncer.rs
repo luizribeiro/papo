@@ -312,8 +312,7 @@ impl Session {
     ///
     /// # Errors
     ///
-    /// Returns [`RequestError::InvalidSecret`] when the configured password contains bytes
-    /// rather than text. Other failures are documented by [`Session::request`].
+    /// Failures are documented by [`Session::request`].
     pub fn bouncer_add(
         &mut self,
         now: Instant,
@@ -330,8 +329,7 @@ impl Session {
     ///
     /// # Errors
     ///
-    /// Returns [`RequestError::InvalidSecret`] when the configured password contains bytes
-    /// rather than text. Other failures are documented by [`Session::request`].
+    /// Failures are documented by [`Session::request`].
     pub fn bouncer_change(
         &mut self,
         now: Instant,
@@ -402,24 +400,6 @@ mod tests {
             r"host=irc.example.org;name=Example\sNetwork;port=6697;tls=1;nickname=alice;username=alice;realname=Alice\:\sExample;pass=unique-bouncer-password-9241"
         );
         assert!(!format!("{attributes:?}").contains("unique-bouncer-password-9241"));
-    }
-
-    #[test]
-    fn bouncer_attributes_reject_a_byte_password() {
-        let password = crate::Secret::from_bytes([0xff]);
-        assert!(matches!(
-            super::__bouncer_attributes(
-                Some("irc.example.org"),
-                None,
-                Some(6667),
-                Some(false),
-                None,
-                None,
-                None,
-                Some(&password),
-            ),
-            Err(crate::RequestError::InvalidSecret)
-        ));
     }
 
     #[test]
