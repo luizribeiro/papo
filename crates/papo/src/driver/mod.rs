@@ -1728,12 +1728,6 @@ fn after_connect(
         for channel in &defaults.channels {
             let mut line = Line::new("JOIN").param(channel.channel.as_str());
             if let Some(key) = &channel.key {
-                if key.expose().is_none() {
-                    return Err(io::Error::new(
-                        io::ErrorKind::InvalidInput,
-                        "channel key is not text",
-                    ));
-                }
                 line = line.param(key);
             }
             let channel_name = session

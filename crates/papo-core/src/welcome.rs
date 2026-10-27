@@ -61,13 +61,6 @@ impl WelcomeState {
         self.webirc_pending = config.webirc.is_some();
         self.password_sent = false;
         if let Some(webirc) = &config.webirc {
-            if webirc.password.expose().is_none() {
-                outbox.close(
-                    CloseKind::Other,
-                    "WEBIRC password contains bytes rather than text".to_owned(),
-                );
-                return;
-            }
             let Ok(line) = webirc_line(webirc) else {
                 outbox.close(CloseKind::Other, "invalid WEBIRC configuration".to_owned());
                 return;
@@ -76,17 +69,6 @@ impl WelcomeState {
         }
         if let Ok(line) = Line::new("CAP").param("LS").param("302").encode() {
             outbox.transmit_raw(line);
-        }
-        if config
-            .password
-            .as_ref()
-            .is_some_and(|password| password.expose().is_none())
-        {
-            outbox.close(
-                CloseKind::Other,
-                "server password contains bytes rather than text".to_owned(),
-            );
-            return;
         }
         outbox.transmit("NICK", [&config.nick]);
         outbox.transmit("USER", [&config.username, "0", "*", &config.realname]);
@@ -221,13 +203,6 @@ impl WelcomeState {
         let Some(password) = &config.password else {
             return;
         };
-        if password.expose().is_none() {
-            outbox.close(
-                CloseKind::Other,
-                "server password contains bytes rather than text".to_owned(),
-            );
-            return;
-        }
         match Line::new("PASS").param(password).encode() {
             Ok(line) => outbox.transmit_raw(line),
             Err(error) => outbox.close(CloseKind::Other, format!("invalid PASS message: {error}")),

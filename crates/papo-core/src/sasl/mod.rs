@@ -42,19 +42,6 @@ pub(crate) enum Mechanism {
 }
 
 impl Sasl {
-    /// Reports whether a configured credential contains bytes rather than text.
-    #[doc(hidden)]
-    #[must_use]
-    pub fn has_binary_secret(&self) -> bool {
-        self.mechanisms.iter().any(|mechanism| match mechanism {
-            Mechanism::Plain { password, .. } | Mechanism::ScramSha256 { password, .. } => {
-                password.expose().is_none()
-            }
-            Mechanism::OAuthBearer { token } => token.expose().is_none(),
-            Mechanism::External { .. } => false,
-        })
-    }
-
     /// Uses the SASL PLAIN mechanism.
     #[must_use]
     pub fn plain(username: impl Into<String>, password: impl Into<Secret>) -> Self {
@@ -626,11 +613,6 @@ impl SaslSession {
                 continue;
             }
             if let Mechanism::ScramSha256 { username, password } = &mechanism {
-                if password.expose().is_none() {
-                    self.failures
-                        .push("SCRAM-SHA-256: configured secret is not text".to_owned());
-                    continue;
-                }
                 let mut nonce = [0; 18];
                 let Some(entropy) = self.entropy.as_mut() else {
                     continue;

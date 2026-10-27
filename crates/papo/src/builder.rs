@@ -186,17 +186,12 @@ impl Builder {
     /// On a plaintext endpoint, the server must offer a valid `sts` upgrade before the password
     /// is sent. [`Self::allow_insecure_auth`] explicitly permits sending it without that upgrade.
     pub fn password(mut self, password: impl Into<papo_core::Secret>) -> Self {
-        let password = password.into();
-        self.reject_binary_secret(&password);
-        self.config.password = Some(password);
+        self.config.password = Some(password.into());
         self
     }
 
     /// Sets the identity asserted through a trusted `WEBIRC` gateway.
     pub fn webirc(mut self, webirc: crate::WebIrc) -> Self {
-        if webirc.password.expose().is_none() {
-            self.invalid_input.get_or_insert(InvalidInput::BinarySecret);
-        }
         self.config = self.config.webirc(webirc.into_core());
         self.credentials_configured = true;
         self
@@ -207,9 +202,6 @@ impl Builder {
     /// The connection fails with [`ConnectErrorKind::SaslUnavailable`](crate::ConnectErrorKind::SaslUnavailable)
     /// when the server offers no usable SASL capability or mechanism.
     pub fn sasl(mut self, sasl: Sasl) -> Self {
-        if sasl.has_binary_secret() {
-            self.invalid_input.get_or_insert(InvalidInput::BinarySecret);
-        }
         self.config.sasl = Some(sasl);
         self.credentials_configured = true;
         self
@@ -267,7 +259,6 @@ impl Builder {
     /// # _ = papo::Client::builder("ircs://irc.example.net", "papo-client").create_account(account);
     /// ```
     pub fn create_account(mut self, account: NewAccount) -> Self {
-        self.reject_binary_secret(&account.password);
         if !self
             .config
             .wanted_caps
@@ -597,9 +588,7 @@ impl Builder {
         channel: impl Into<String>,
         key: impl Into<papo_core::Secret>,
     ) -> Self {
-        let key = key.into();
-        self.reject_binary_secret(&key);
-        self.push_autojoin(Autojoin::new(channel, Some(key)));
+        self.push_autojoin(Autojoin::new(channel, Some(key.into())));
         self
     }
 
@@ -610,12 +599,6 @@ impl Builder {
     pub fn who_on_join(mut self, policy: WhoOnJoin) -> Self {
         self.config.who_on_join = policy;
         self
-    }
-
-    fn reject_binary_secret(&mut self, secret: &papo_core::Secret) {
-        if secret.expose().is_none() {
-            self.invalid_input.get_or_insert(InvalidInput::BinarySecret);
-        }
     }
 
     fn push_autojoin(&mut self, entry: Autojoin) {
@@ -1420,41 +1403,6 @@ mod tests {
             let (_client, _events, driver) = builder.build();
             assert!(matches!(within(driver).await, Err(Error::InvalidInput(_))));
         }
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn defers_binary_text_secrets_until_build() {
-        let byte_secret = || Secret::from_bytes([0xff]);
-        let cases = [
-            Builder::new("ircs://irc.example.net").password(byte_secret()),
-            Builder::new("ircs://irc.example.net").webirc(crate::WebIrc {
-                password: byte_secret(),
-                gateway: "papo-gateway".into(),
-                client_ip: "192.0.2.42".parse().unwrap(),
-                client_hostname: None,
-                options: Vec::new(),
-            }),
-            Builder::new("ircs://irc.example.net").sasl(Sasl::plain("alice", byte_secret())),
-            Builder::new("ircs://irc.example.net").create_account(
-                NewAccount::new(byte_secret())
-                    .account(crate::Casemapping::default().account("alice")),
-            ),
-            Builder::new("ircs://irc.example.net").autojoin_with_key("#staff", byte_secret()),
-        ];
-        for builder in cases {
-            let (_client, _events, driver) = builder.build();
-            assert!(matches!(
-                within(driver).await,
-                Err(Error::InvalidInput(InvalidInput::BinarySecret))
-            ));
-        }
-
-        assert!(
-            Builder::new("ircs://irc.example.net")
-                .tls_client_cert(Vec::new(), vec![0xff])
-                .invalid_input
-                .is_none()
-        );
     }
 
     #[tokio::test(flavor = "current_thread")]

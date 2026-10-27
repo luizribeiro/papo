@@ -3850,17 +3850,13 @@ impl Session {
     ///
     /// # Errors
     ///
-    /// Returns [`RequestError::InvalidSecret`] for a byte secret. Other failures are the same as
-    /// [`Session::request_with_matcher`].
+    /// Failures are the same as [`Session::request_with_matcher`].
     pub fn oper(
         &mut self,
         now: Instant,
         name: &str,
         password: &Secret,
     ) -> Result<RequestId, RequestError> {
-        if password.expose().is_none() {
-            return Err(RequestError::InvalidSecret);
-        }
         self.request_with_matcher(
             now,
             Line::new("OPER").param(name).param(password),
@@ -3872,17 +3868,13 @@ impl Session {
     ///
     /// # Errors
     ///
-    /// Returns [`RequestError::InvalidSecret`] for a byte key. Other failures are the same as
-    /// [`Session::request_with_matcher`].
+    /// Failures are the same as [`Session::request_with_matcher`].
     pub fn join(
         &mut self,
         now: Instant,
         channel: &str,
         key: Option<&Secret>,
     ) -> Result<RequestId, RequestError> {
-        if key.is_some_and(|key| key.expose().is_none()) {
-            return Err(RequestError::InvalidSecret);
-        }
         let mut line = Line::new("JOIN").param(channel);
         if let Some(key) = key {
             line = line.param(key);
@@ -4155,8 +4147,7 @@ impl Session {
     /// # Errors
     ///
     /// Returns [`RequestError::Unsupported`] before connection registration or when the
-    /// capability was not negotiated, or [`RequestError::InvalidSecret`] when `password`
-    /// contains bytes rather than text. Other failures are the same as [`Session::request`].
+    /// capability was not negotiated. Other failures are the same as [`Session::request`].
     pub fn create_account(
         &mut self,
         now: Instant,
@@ -4221,9 +4212,6 @@ impl Session {
         password: &Secret,
         request: Option<RequestId>,
     ) -> Result<(), RequestError> {
-        if password.expose().is_none() {
-            return Err(RequestError::InvalidSecret);
-        }
         let message = Line::new("REGISTER")
             .param(account.unwrap_or("*"))
             .param(email.unwrap_or("*"))
@@ -4242,9 +4230,8 @@ impl Session {
     ///
     /// # Errors
     ///
-    /// Returns [`RequestError::Unsupported`] when the capability was not negotiated, or
-    /// [`RequestError::InvalidSecret`] when `code` contains bytes rather than text. Other failures
-    /// are the same as [`Session::request`].
+    /// Returns [`RequestError::Unsupported`] when the capability was not negotiated. Other
+    /// failures are the same as [`Session::request`].
     pub fn verify(
         &mut self,
         now: Instant,
@@ -4252,9 +4239,6 @@ impl Session {
         code: impl Into<Secret>,
     ) -> Result<(), RequestError> {
         let code = code.into();
-        if code.expose().is_none() {
-            return Err(RequestError::InvalidSecret);
-        }
         self.require_feature(Feature::AccountCreation)?;
         if !self.welcome_state.is_connected()
             && !RegistrationPolicy::parse(
