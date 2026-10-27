@@ -872,6 +872,17 @@ async fn manual_ctcp_replies_match_automatic_framing_and_target_the_actor() {
     )
     .await;
     while !matches!(next_active_event(&mut events).await, Event::Connected(_)) {}
+    server_line(
+        &mut server,
+        b":papo-driver!p@localhost JOIN #papo\r\n:emily!~e@localhost JOIN #papo\r\n:dan!~d@cloak JOIN #papo\r\n",
+    )
+    .await;
+    for _ in 0..3 {
+        assert!(matches!(
+            next_active_event(&mut events).await,
+            Event::Joined(_)
+        ));
+    }
 
     server_line(
         &mut server,
@@ -920,10 +931,26 @@ async fn manual_ctcp_replies_reject_delimiters() {
     client_line(&mut server, b"CAP END\r\n").await;
     server_line(
         &mut server,
-        b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n:emily!~e@localhost PRIVMSG papo-driver :\x01VERSION\x01\r\n",
+        b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n",
     )
     .await;
     while !matches!(next_active_event(&mut events).await, Event::Connected(_)) {}
+    server_line(
+        &mut server,
+        b":papo-driver!p@localhost JOIN #papo\r\n:emily!~e@localhost JOIN #papo\r\n",
+    )
+    .await;
+    for _ in 0..2 {
+        assert!(matches!(
+            next_active_event(&mut events).await,
+            Event::Joined(_)
+        ));
+    }
+    server_line(
+        &mut server,
+        b":emily!~e@localhost PRIVMSG papo-driver :\x01VERSION\x01\r\n",
+    )
+    .await;
     let query = next_event(&mut events).await.unwrap();
     let query = query.as_ctcp_query().unwrap();
     for invalid in [

@@ -562,8 +562,8 @@ impl Client {
     /// # Errors
     ///
     /// Returns [`Error::InvalidInput`] when the command or text contains a CTCP or IRC line
-    /// delimiter. It returns
-    /// [`Error::Disconnected`] if the driver stops before writing the reply.
+    /// delimiter. It returns [`Error::TargetGone`] when the query sender can no longer be
+    /// verified, or [`Error::Disconnected`] if the driver stops before writing the reply.
     pub fn ctcp_reply(
         &self,
         query: &crate::event::CtcpQuery,
@@ -575,13 +575,16 @@ impl Client {
             recipient: Some(crate::message_ref::actor_recipient(query)),
         };
         let text = text.into();
-        let reply = Ctcp::build(&query.command, (!text.is_empty()).then_some(text.as_str()))
-            .map(|body| Line::notice(query.actor.nick().as_ref(), body));
+        let command = query.command.clone();
+        let body = Ctcp::build(&command, (!text.is_empty()).then_some(text.as_str()));
         let client = self.clone();
         crate::RequestFuture::new(async move {
-            client.resolve(crate::target::Role::Send("ctcp_reply: query"), target)?;
-            let reply = reply.ok_or(InvalidInput::InvalidCtcp)?;
-            client.send_message(reply).await
+            let body = body.ok_or(InvalidInput::InvalidCtcp)?;
+            let target = client
+                .resolve_send("ctcp_reply: query", target.into_owned())
+                .await?;
+            let reply = Line::notice(&target.text, body);
+            client.send_message_guarded(reply, target.recipient).await
         })
     }
 
