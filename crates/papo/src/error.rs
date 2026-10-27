@@ -523,6 +523,13 @@ pub enum Error {
     /// The intended user left, changed nickname, or no longer holds a private reply nickname.
     #[error("the target user is no longer present")]
     TargetGone,
+    /// The server's MONITOR list has no room for another guarded direct recipient.
+    #[error("the server's MONITOR list is full at {limit} entries")]
+    #[non_exhaustive]
+    MonitorFull {
+        /// Server-advertised maximum number of monitored nicknames.
+        limit: usize,
+    },
     /// The server's reply did not have the shape required by its command.
     #[error("the server sent an unexpected reply to {command}")]
     #[non_exhaustive]
@@ -717,6 +724,10 @@ mod tests {
         assert_eq!(
             Error::TargetGone.to_string(),
             "the target user is no longer present"
+        );
+        assert_eq!(
+            Error::MonitorFull { limit: 100 }.to_string(),
+            "the server's MONITOR list is full at 100 entries"
         );
     }
 

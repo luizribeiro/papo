@@ -1456,6 +1456,8 @@ pub papo::Error::Connect(papo::ConnectError)
 pub papo::Error::Disconnected(papo::Disconnected)
 pub papo::Error::Interrupted(papo::Disconnected)
 pub papo::Error::InvalidInput(papo::InvalidInput)
+#[non_exhaustive] pub papo::Error::MonitorFull
+pub papo::Error::MonitorFull::limit: usize
 pub papo::Error::Server(papo::ServerError)
 pub papo::Error::StateLimit(papo::StateLimit)
 pub papo::Error::TargetGone
