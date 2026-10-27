@@ -27,6 +27,7 @@ pub use papo::Member
 pub use papo::MessageId
 pub use papo::MetadataKey
 pub use papo::MetadataValue
+pub use papo::MetadataView
 pub use papo::ModeAction
 pub use papo::ModeArg
 pub use papo::ModeChange
@@ -2809,7 +2810,7 @@ pub fn papo::State::filehost(&self) -> core::option::Option<&str>
 pub fn papo::State::host(&self) -> core::option::Option<&str>
 pub const fn papo::State::is_connected(&self) -> bool
 pub fn papo::State::isupport(&self) -> &papo::Isupport
-pub fn papo::State::metadata(&self, impl papo::AsConversation) -> core::option::Option<&std::collections::hash::map::HashMap<papo::MetadataKey, papo::MetadataValue>>
+pub fn papo::State::metadata(&self, impl papo::AsConversation) -> core::option::Option<papo::MetadataView<'_>>
 pub fn papo::State::metadata_subscriptions(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &papo::MetadataKey>
 pub fn papo::State::monitor_online(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::User>
 pub fn papo::State::monitored(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &papo::Nick>

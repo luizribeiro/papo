@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use papo_core::{Account, Away, Capabilities, Channel, Feature, Session, UnsupportedReason, User};
@@ -262,10 +262,7 @@ impl State {
     /// It is discarded when a visible `NICK` or `QUIT` invalidates that identity.
     /// A typed name produced by another [`crate::Client`] returns `None`.
     #[must_use]
-    pub fn metadata(
-        &self,
-        target: impl crate::AsConversation,
-    ) -> Option<&HashMap<crate::MetadataKey, crate::MetadataValue>> {
+    pub fn metadata(&self, target: impl crate::AsConversation) -> Option<crate::MetadataView<'_>> {
         let target = self.resolve_conversation(target)?;
         self.core.metadata(target.to_string())
     }

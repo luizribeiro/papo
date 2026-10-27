@@ -193,7 +193,12 @@ impl Metadata {
                 .client
                 .state()
                 .metadata(&target)
-                .cloned()
+                .map(|values| {
+                    values
+                        .iter()
+                        .map(|(key, value)| (key.clone(), value.clone()))
+                        .collect()
+                })
                 .unwrap_or_default())
         })
     }
@@ -418,7 +423,13 @@ mod tests {
         assert_eq!(metadata.len(), 2);
         assert!(!metadata.contains_key("status"));
         assert_eq!(
-            client.state().metadata("ALICE").unwrap()["avatar"].visibility,
+            client
+                .state()
+                .metadata("ALICE")
+                .unwrap()
+                .get("avatar")
+                .unwrap()
+                .visibility,
             crate::Visibility::Public
         );
 
