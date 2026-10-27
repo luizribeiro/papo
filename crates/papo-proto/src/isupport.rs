@@ -74,6 +74,7 @@ pub enum Rank {
 
 /// The four standard channel-mode parameter groups.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct ChanModes<'a> {
     /// List modes that always take a parameter.
     pub list: &'a str,
@@ -87,6 +88,7 @@ pub struct ChanModes<'a> {
 
 /// A named server limit.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct Limit<'a> {
     /// The command, channel prefixes, or mode letters governed by the limit.
     ///
@@ -107,6 +109,7 @@ pub enum LimitValue {
 
 /// The prefix and type letters used for extended bans.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct ExtbanSyntax<'a> {
     /// The optional character introducing an extended ban.
     pub prefix: Option<char>,

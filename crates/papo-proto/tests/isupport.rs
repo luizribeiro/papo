@@ -1,8 +1,7 @@
 //! Raw ISUPPORT token accumulation behavior.
 
 use papo_proto::{
-    Advertised, Casemapping, ChanModes, ExtbanSyntax, Isupport, Limit, LimitValue, LineRef,
-    Numeric, Prefix, Rank,
+    Advertised, Casemapping, Isupport, Limit, LimitValue, LineRef, Numeric, Prefix, Rank,
 };
 
 #[test]
@@ -229,15 +228,11 @@ fn parses_ergo_channel_shape_and_ranked_prefixes() {
             prefix('v', '+'),
         ]
     );
-    assert_eq!(
-        support.chanmodes(),
-        Some(ChanModes {
-            list: "Ibe",
-            always: "k",
-            when_set: "fl",
-            never: "CEMRUimnstu",
-        })
-    );
+    let chanmodes = support.chanmodes().expect("CHANMODES is advertised");
+    assert_eq!(chanmodes.list, "Ibe");
+    assert_eq!(chanmodes.always, "k");
+    assert_eq!(chanmodes.when_set, "fl");
+    assert_eq!(chanmodes.never, "CEMRUimnstu");
     assert_eq!(support.statusmsg(), Some("~&@%+"));
 }
 
@@ -307,27 +302,27 @@ fn parses_ergo_limits_and_lengths() {
     ]);
 
     assert_eq!(support.awaylen(), Some(390));
-    assert_eq!(support.chanlimit(), vec![limit("#", Some(100))]);
+    assert_limits(&support.chanlimit(), &[("#", Some(100))]);
     assert_eq!(support.channellen(), Some(64));
     assert_eq!(support.kicklen(), Some(390));
-    assert_eq!(support.maxlist(), vec![limit("beI", Some(100))]);
+    assert_limits(&support.maxlist(), &[("beI", Some(100))]);
     assert_eq!(support.maxtargets(), Some(LimitValue::Limited(4)));
     assert_eq!(support.modes(), None);
     assert_eq!(support.namelen(), Some(150));
     assert_eq!(support.nicklen(), Some(32));
-    assert_eq!(
-        support.targmax(),
-        vec![
-            limit("NAMES", Some(1)),
-            limit("LIST", Some(1)),
-            limit("KICK", None),
-            limit("WHOIS", Some(1)),
-            limit("USERHOST", Some(10)),
-            limit("PRIVMSG", Some(4)),
-            limit("TAGMSG", Some(4)),
-            limit("NOTICE", Some(4)),
-            limit("MONITOR", Some(100)),
-        ]
+    assert_limits(
+        &support.targmax(),
+        &[
+            ("NAMES", Some(1)),
+            ("LIST", Some(1)),
+            ("KICK", None),
+            ("WHOIS", Some(1)),
+            ("USERHOST", Some(10)),
+            ("PRIVMSG", Some(4)),
+            ("TAGMSG", Some(4)),
+            ("NOTICE", Some(4)),
+            ("MONITOR", Some(100)),
+        ],
     );
     assert!(support.targmax()[5].name.eq_ignore_ascii_case("privmsg"));
     assert_eq!(support.topiclen(), Some(390));
@@ -367,10 +362,7 @@ fn distinguishes_unlimited_absent_and_numeric_target_limits() {
 fn limits_apply_defaults_and_reject_malformed_values() {
     let mut support = Isupport::default();
     assert_eq!(support.modes(), Some(3));
-    assert_eq!(
-        support.targmax(),
-        vec![limit("JOIN", None), limit("PART", None)]
-    );
+    assert_limits(&support.targmax(), &[("JOIN", None), ("PART", None)]);
 
     support.apply_tokens([
         "TARGMAX=PRIVMSG:not-a-number",
@@ -380,10 +372,7 @@ fn limits_apply_defaults_and_reject_malformed_values() {
         "MAXLIST=beI:",
         "NICKLEN=0",
     ]);
-    assert_eq!(
-        support.targmax(),
-        vec![limit("JOIN", None), limit("PART", None)]
-    );
+    assert_limits(&support.targmax(), &[("JOIN", None), ("PART", None)]);
     assert_eq!(support.maxtargets(), None);
     assert_eq!(support.modes(), Some(3));
     assert!(support.chanlimit().is_empty());
@@ -414,13 +403,9 @@ fn parses_ergo_list_ban_history_and_flag_tokens() {
     assert_eq!(support.chathistory(), Some(LimitValue::Limited(1000)));
     assert_eq!(support.elist(), Some("U"));
     assert_eq!(support.excepts(), Some('e'));
-    assert_eq!(
-        support.extban(),
-        Some(ExtbanSyntax {
-            prefix: None,
-            types: "m",
-        })
-    );
+    let extban = support.extban().expect("EXTBAN is advertised");
+    assert_eq!(extban.prefix, None);
+    assert_eq!(extban.types, "m");
     assert_eq!(support.invex(), Some('I'));
     assert_eq!(support.msgreftypes(), vec!["msgid", "timestamp"]);
     assert_eq!(support.monitor(), Some(LimitValue::Limited(100)));
@@ -455,10 +440,10 @@ fn parses_solanum_libera_advertisements() {
     ]);
 
     assert_eq!(support.casemapping(), Casemapping::Rfc1459);
-    assert_eq!(support.chanlimit(), vec![limit("#", Some(250))]);
+    assert_limits(&support.chanlimit(), &[("#", Some(250))]);
     assert_eq!(support.chanmodes().unwrap().never, "CFLMPQScgimnprstuz");
     assert_eq!(support.extban().unwrap().prefix, Some('$'));
-    assert_eq!(support.maxlist(), vec![limit("bqeI", Some(100))]);
+    assert_limits(&support.maxlist(), &[("bqeI", Some(100))]);
     assert_eq!(support.modes(), Some(4));
     assert_eq!(support.network(), Some("Libera.Chat"));
     assert_eq!(support.nicklen(), Some(16));
@@ -497,9 +482,13 @@ fn prefix(mode: char, symbol: char) -> Prefix {
     Prefix::__new(mode, symbol)
 }
 
-fn limit(name: &str, limit: Option<usize>) -> Limit<'_> {
-    Limit {
-        name,
-        limit: Some(limit.map_or(LimitValue::Unlimited, LimitValue::Limited)),
+fn assert_limits(actual: &[Limit<'_>], expected: &[(&str, Option<usize>)]) {
+    assert_eq!(actual.len(), expected.len());
+    for (actual, (name, limit)) in actual.iter().zip(expected) {
+        assert_eq!(actual.name, *name);
+        assert_eq!(
+            actual.limit,
+            Some(limit.map_or(LimitValue::Unlimited, LimitValue::Limited))
+        );
     }
 }

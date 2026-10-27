@@ -285,20 +285,14 @@ mod tests {
         );
         assert_eq!(support.maxtargets(), Some(super::LimitValue::Limited(4)));
         assert_eq!(support.modes(), Some(4));
-        assert_eq!(
-            support.chanlimit(),
-            [super::Limit {
-                name: "#",
-                limit: Some(super::LimitValue::Limited(100))
-            }]
-        );
-        assert_eq!(
-            support.maxlist(),
-            [super::Limit {
-                name: "beI",
-                limit: Some(super::LimitValue::Limited(100))
-            }]
-        );
+        let chanlimit = support.chanlimit();
+        assert_eq!(chanlimit.len(), 1);
+        assert_eq!(chanlimit[0].name, "#");
+        assert_eq!(chanlimit[0].limit, Some(super::LimitValue::Limited(100)));
+        let maxlist = support.maxlist();
+        assert_eq!(maxlist.len(), 1);
+        assert_eq!(maxlist[0].name, "beI");
+        assert_eq!(maxlist[0].limit, Some(super::LimitValue::Limited(100)));
         assert_eq!(support.channellen(), Some(64));
         assert_eq!(support.topiclen(), Some(390));
         assert_eq!(support.kicklen(), Some(390));
@@ -358,13 +352,9 @@ mod tests {
         assert_eq!(support.bot_mode(), Some('B'));
         assert_eq!(support.excepts(), Some('e'));
         assert_eq!(support.invex(), Some('I'));
-        assert_eq!(
-            support.extban(),
-            Some(super::ExtbanSyntax {
-                prefix: None,
-                types: "m"
-            })
-        );
+        let extban = support.extban().expect("EXTBAN is advertised");
+        assert_eq!(extban.prefix, None);
+        assert_eq!(extban.types, "m");
         assert!(support.accountextban().is_empty());
         assert_eq!(support.elist(), Some("U"));
 

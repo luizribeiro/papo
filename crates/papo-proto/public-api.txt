@@ -592,7 +592,7 @@ impl<'a> core::marker::Unpin for papo_proto::Away<'a>
 impl<'a> core::marker::UnsafeUnpin for papo_proto::Away<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Away<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Away<'a>
-pub struct papo_proto::ChanModes<'a>
+#[non_exhaustive] pub struct papo_proto::ChanModes<'a>
 pub papo_proto::ChanModes::always: &'a str
 pub papo_proto::ChanModes::list: &'a str
 pub papo_proto::ChanModes::never: &'a str
@@ -733,7 +733,7 @@ impl<'a> core::marker::Unpin for papo_proto::Ctcp<'a>
 impl<'a> core::marker::UnsafeUnpin for papo_proto::Ctcp<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Ctcp<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Ctcp<'a>
-pub struct papo_proto::ExtbanSyntax<'a>
+#[non_exhaustive] pub struct papo_proto::ExtbanSyntax<'a>
 pub papo_proto::ExtbanSyntax::prefix: core::option::Option<char>
 pub papo_proto::ExtbanSyntax::types: &'a str
 impl<'a> core::clone::Clone for papo_proto::ExtbanSyntax<'a>
@@ -885,7 +885,7 @@ impl<'a> core::marker::Unpin for papo_proto::Join<'a>
 impl<'a> core::marker::UnsafeUnpin for papo_proto::Join<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Join<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Join<'a>
-pub struct papo_proto::Limit<'a>
+#[non_exhaustive] pub struct papo_proto::Limit<'a>
 pub papo_proto::Limit::limit: core::option::Option<papo_proto::LimitValue>
 pub papo_proto::Limit::name: &'a str
 impl<'a> core::clone::Clone for papo_proto::Limit<'a>
