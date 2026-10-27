@@ -365,7 +365,7 @@ async fn tls_certificate_rejected(s: Scenario) -> papo_testing::Result<()> {
     assert!(matches!(
         error,
         papo::Error::Connect(error) if error.kind() == ConnectErrorKind::CertificateRejected
-    ));
+    ), "unexpected TLS failure: {error:?}");
     Ok(())
 }
 

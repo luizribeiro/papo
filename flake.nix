@@ -27,6 +27,7 @@
       let
         overlays = [ (import rust-overlay) ];
         pkgs = import nixpkgs { inherit system overlays; };
+        caBundle = "${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt";
         stableToolchain = pkgs.rust-bin.stable."1.98.1".minimal.override {
           extensions = [
             "clippy"
@@ -110,6 +111,7 @@
           strictDeps = true;
           pname = "papo-workspace";
           version = "0.0.0";
+          SSL_CERT_FILE = caBundle;
         };
         cargoArtifacts = craneLib.buildDepsOnly craneArgs;
         profileConformance =
@@ -733,6 +735,7 @@
           CC_wasm32_wasip2 = "${wasiSdk}/bin/wasm32-wasip2-clang";
           CC_wasm32_wasip3 = "${wasiSdk}/bin/wasm32-wasip3-clang";
           WASI_SDK_PATH = wasiSdk;
+          SSL_CERT_FILE = caBundle;
           CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER = nixTestRunner;
           CARGO_TARGET_WASM32_WASIP1_RUNNER = nixTestRunner;
           CARGO_TARGET_WASM32_WASIP2_RUNNER = nixTestRunner;
