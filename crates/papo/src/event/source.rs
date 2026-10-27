@@ -30,6 +30,22 @@ impl UserSource {
         self.account = account;
     }
 
+    pub(crate) fn from_monitor(
+        nick: &Nick,
+        username: Option<String>,
+        host: Option<String>,
+        origin: crate::Origin,
+    ) -> Self {
+        Self {
+            nick: origin.__nick(nick.casemapping(), nick.as_ref()),
+            username: username.filter(|_| host.is_some()),
+            host,
+            account: Account::Unknown,
+            is_bot: None,
+            oper: None,
+        }
+    }
+
     /// Returns the user's nickname.
     #[must_use]
     pub const fn nick(&self) -> &Nick {

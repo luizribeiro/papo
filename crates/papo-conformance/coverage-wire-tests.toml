@@ -76,6 +76,9 @@
 "security::server_sized_tags_are_safe_to_format_through_events" = [
   "security.adv-16.infallible-line-formatting",
 ]
+"security::bare_dotted_monitor_entry_reports_online_without_panicking" = [
+  "security.adv-17.monitor-user-source",
+]
 "security::scram_rejects_excessive_iterations_promptly" = [
   "security.s6.scram-iteration-cap",
 ]

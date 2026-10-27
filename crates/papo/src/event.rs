@@ -2334,18 +2334,7 @@ pub(crate) fn from_core_with_receipt(
             host,
             ..
         } => Event::MonitorOnline(MonitorOnline {
-            subject: source::user_from_prefix(
-                &match (username, host) {
-                    (Some(username), Some(host)) => format!("{nick}!{username}@{host}"),
-                    _ => nick.to_string(),
-                },
-                casemapping,
-                origin,
-                Account::Unknown,
-                None,
-                None,
-            )
-            .expect("monitor subject is a user"),
+            subject: UserSource::from_monitor(&nick, username, host, origin),
         }),
         papo_core::Event::MonitorOffline { nick, .. } => {
             Event::MonitorOffline(MonitorOffline { subject: nick })

@@ -103,6 +103,7 @@ ids = [
   "security.adv-8.metadata-nick-handoff",
   "security.adv-12.recipient-identity",
   "security.adv-16.infallible-line-formatting",
+  "security.adv-17.monitor-user-source",
   "security.bouncer.required-capability", "security.bouncer.binding-confirmation",
   "security.bouncer.deleted-network-fatal",
   "security.bouncer.single-notification",

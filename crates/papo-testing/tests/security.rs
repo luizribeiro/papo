@@ -64,6 +64,32 @@ async fn server_sized_tags_are_safe_to_format_through_events() {
     assert!(format!("{event:?}").contains("999 papo :hello"));
 }
 
+#[tokio::test]
+async fn bare_dotted_monitor_entry_reports_online_without_panicking() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://hostile.offline.test", "papo")
+            .rate_limit(papo::RateLimit::unlimited()),
+    );
+    wire.register(&[]).await;
+    connected(&mut events).await;
+    wire.server(":offline.test 005 papo MONITOR=100 :are supported")
+        .await;
+    while !matches!(
+        next_active_event(&mut events).await,
+        papo::Event::FeaturesChanged { .. }
+    ) {}
+    client.monitor().add(["bot.v2"]).await.unwrap();
+    assert_eq!(wire.next_sent().await, "MONITOR + bot.v2");
+
+    wire.server(":offline.test 730 papo :bot.v2").await;
+    let papo::Event::MonitorOnline(online) = next_active_event(&mut events).await else {
+        panic!("expected monitor-online event")
+    };
+    assert_eq!(online.subject.nick(), "bot.v2");
+    assert_eq!(online.subject.username(), None);
+    assert_eq!(online.subject.host(), None);
+}
+
 async fn client_pair(caps: &[&str]) -> (ClientPair, ClientPair) {
     let make = |endpoint, nick| {
         wire(
