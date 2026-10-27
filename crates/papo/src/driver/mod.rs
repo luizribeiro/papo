@@ -873,12 +873,21 @@ where
             },
             command = commands.recv(), if commands_open => match command {
                 Some(Command::Send { message, result }) => {
+                    let typing_target = text_target(&message)
+                        .map(|target| session.isupport().casemapping().fold(target).into_owned());
                     match session.send_tracked(now(), message) {
-                        Ok(token) => { transmits.insert(token, PendingTransmit::Empty(result)); }
+                        Ok(token) => {
+                            if let Some(target) = typing_target {
+                                active_typing.remove(&target);
+                            }
+                            transmits.insert(token, PendingTransmit::Empty(result));
+                        }
                         Err(error) => { _ = result.send(Err(Error::build(error))); }
                     }
                 }
                 Some(Command::Request { message, matcher, result }) => {
+                    let typing_target = text_target(&message)
+                        .map(|target| session.isupport().casemapping().fold(target).into_owned());
                     let requested = match matcher {
                         Some(matcher) => session.request_with_matcher(now(), message, matcher),
                         None if session.caps().contains_key(&crate::cap::LABELED_RESPONSE) => {
@@ -898,6 +907,9 @@ where
                     };
                     match requested {
                         Ok(id) => {
+                            if let Some(target) = typing_target {
+                                active_typing.remove(&target);
+                            }
                             requests.insert(id, PendingRequest::Response(result));
                         }
                         Err(error) => {
@@ -978,6 +990,9 @@ where
                     };
                     match sent {
                         Ok(sent) => {
+                            active_typing.remove(
+                                session.isupport().casemapping().fold(&target).as_ref(),
+                            );
                             if sent.split {
                                 fallbacks.push(crate::Fallback::SplitIntoLines);
                             }
@@ -1014,9 +1029,6 @@ where
                             papo_core::deadline(*last, Duration::from_secs(3))
                                 .is_none_or(|deadline| current >= deadline)
                         });
-                    if send && state == Typing::Active {
-                        active_typing.insert(key, current);
-                    }
                     if send {
                         let value = match state {
                             Typing::Active => "active",
@@ -1027,7 +1039,14 @@ where
                             current,
                             Line::tagmsg(target).with_tag("+typing", value),
                         ) {
-                            Ok(token) => { transmits.insert(token, PendingTransmit::Empty(result)); }
+                            Ok(token) => {
+                                if state == Typing::Active {
+                                    active_typing.insert(key, current);
+                                } else {
+                                    active_typing.remove(&key);
+                                }
+                                transmits.insert(token, PendingTransmit::Empty(result));
+                            }
                             Err(error) => { _ = result.send(Err(Error::build(error))); }
                         }
                     } else {
@@ -1488,6 +1507,13 @@ fn should_read_ahead(
         || !catchups.is_empty()
         || registration.0.is_some()
         || quitting
+}
+
+fn text_target(line: &Line) -> Option<&str> {
+    let line = line.as_ref();
+    matches!(line.command(), ProtoCommand::Privmsg | ProtoCommand::Notice)
+        .then(|| line.param(0))
+        .flatten()
 }
 
 fn can_prove_non_bot(session: &Session) -> bool {

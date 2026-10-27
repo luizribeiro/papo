@@ -7066,17 +7066,45 @@ async fn typing_throttles_active_per_target_and_sends_terminal_states() {
     within(client.typing("#papo", Typing::Paused))
         .await
         .unwrap();
-    within(client.typing("#papo", Typing::Done)).await.unwrap();
-    client_line(
-        &mut server,
-        b"@+typing=paused TAGMSG #papo\r\n@+typing=done TAGMSG #papo\r\n",
-    )
-    .await;
-    tokio::time::advance(Duration::from_secs(1)).await;
     within(client.typing("#papo", Typing::Active))
         .await
         .unwrap();
-    client_line(&mut server, b"@+typing=active TAGMSG #papo\r\n").await;
+    client_line(
+        &mut server,
+        b"@+typing=paused TAGMSG #papo\r\n@+typing=active TAGMSG #papo\r\n",
+    )
+    .await;
+    within(client.typing("#papo", Typing::Done)).await.unwrap();
+    within(client.typing("#papo", Typing::Active))
+        .await
+        .unwrap();
+    client_line(
+        &mut server,
+        b"@+typing=done TAGMSG #papo\r\n@+typing=active TAGMSG #papo\r\n",
+    )
+    .await;
+    within(client.privmsg("#papo", "release is ready"))
+        .await
+        .unwrap();
+    within(client.typing("#papo", Typing::Active))
+        .await
+        .unwrap();
+    client_line(
+        &mut server,
+        b"PRIVMSG #papo :release is ready\r\n@+typing=active TAGMSG #papo\r\n",
+    )
+    .await;
+    within(client.notice("#papo", "release paused"))
+        .await
+        .unwrap();
+    within(client.typing("#papo", Typing::Active))
+        .await
+        .unwrap();
+    client_line(
+        &mut server,
+        b"NOTICE #papo :release paused\r\n@+typing=active TAGMSG #papo\r\n",
+    )
+    .await;
 
     server_line(
         &mut server,
