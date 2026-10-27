@@ -21,6 +21,10 @@ struct DirectInner {
 }
 
 impl DirectRef {
+    pub(crate) fn recipient(&self) -> &papo_core::RecipientGuard {
+        &self.0.recipient
+    }
+
     fn current_nick(&self) -> Nick {
         self.0.recipient.__nick().clone()
     }

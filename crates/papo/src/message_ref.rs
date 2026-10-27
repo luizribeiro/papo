@@ -438,7 +438,25 @@ macro_rules! typed_address_pairs {
     };
 }
 
-typed_address_pairs!(ChannelName, &ChannelName, Nick, &Nick);
+typed_address_pairs!(ChannelName, &ChannelName);
+
+impl<I: Into<MessageId>> From<(crate::DirectRef, I)> for MessageRef {
+    fn from((direct, msgid): (crate::DirectRef, I)) -> Self {
+        Self::from((&direct, msgid))
+    }
+}
+
+impl<I: Into<MessageId>> From<(&crate::DirectRef, I)> for MessageRef {
+    fn from((direct, msgid): (&crate::DirectRef, I)) -> Self {
+        Self::new(
+            direct.to_string(),
+            vec![msgid.into()],
+            direct.recipient().__nick().origin(),
+            None,
+            Some(RecipientGuard::from_core(direct.recipient())),
+        )
+    }
+}
 
 impl<I: Into<MessageId>> From<(MessageRef, I)> for MessageRef {
     fn from((mut reference, msgid): (MessageRef, I)) -> Self {
