@@ -147,6 +147,20 @@ pub struct Isupport {
 const MAX_TOKENS: usize = 1_024;
 const MAX_VALUE_LEN: usize = 4_096;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[doc(hidden)]
+pub enum NameLimit {
+    Nick,
+    Channel,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[doc(hidden)]
+pub enum KnownLimit {
+    Known(usize),
+    Unknown,
+}
+
 macro_rules! length_accessors {
     ($(#[$meta:meta] $name:ident => $key:literal,)+) => {$(
         #[$meta]
@@ -168,6 +182,18 @@ macro_rules! flag_accessors {
 }
 
 impl Isupport {
+    #[doc(hidden)]
+    #[must_use]
+    pub fn name_limit(&self, limit: NameLimit) -> KnownLimit {
+        let key = match limit {
+            NameLimit::Nick => "NICKLEN",
+            NameLimit::Channel => "CHANNELLEN",
+        };
+        self.value(key)
+            .and_then(positive)
+            .map_or(KnownLimit::Unknown, KnownLimit::Known)
+    }
+
     /// Applies the tokens in an `RPL_ISUPPORT` line.
     ///
     /// Other commands, including `RPL_REMOTEISUPPORT` (`105`), are ignored.

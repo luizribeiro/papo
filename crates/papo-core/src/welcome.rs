@@ -160,7 +160,10 @@ impl WelcomeState {
                 self.next_alt_nick += 1;
                 outbox.transmit("NICK", [&self.nick]);
             } else {
-                let nick = append_underscore(&self.nick, isupport.nicklen().unwrap_or(30));
+                let nick = match isupport.name_limit(papo_proto::NameLimit::Nick) {
+                    papo_proto::KnownLimit::Known(limit) => append_underscore(&self.nick, limit),
+                    papo_proto::KnownLimit::Unknown => format!("{}_", self.nick),
+                };
                 if nick == self.nick {
                     outbox.close(
                         CloseKind::NickCandidatesExhausted,

@@ -8438,6 +8438,26 @@ async fn pre_isupport_account_does_not_match_a_bracket_variant_under_ascii() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn received_nick_length_is_unbounded_without_an_advertised_limit() {
+    let (mut server, _client, mut events, driver) = scripted(config());
+    let task = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":alexander_the_great!~alexander@cloak.example PRIVMSG papo-driver :The deployment is ready\r\n",
+    )
+    .await;
+
+    assert!(matches!(
+        events.next().await,
+        Some(Event::Message(message)) if message.actor.nick() == "alexander_the_great"
+    ));
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn casemapping_change_refolds_the_state_snapshot() {
     let (mut server, client, mut events, driver) = scripted(config());
     let driver = tokio::spawn(driver);

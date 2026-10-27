@@ -304,6 +304,17 @@ fn generated_nicks_honor_an_early_nicklen_advertisement() {
 }
 
 #[test]
+fn generated_nicks_do_not_guess_an_unadvertised_length() {
+    Transcript::new(Config::default().nick("long-client-nickname"))
+        .connect()
+        .client("CAP LS 302")
+        .client("NICK long-client-nickname")
+        .client("USER papo 0 * papo")
+        .server(":ergo.test 433 * nick :Nickname is already in use")
+        .client("NICK long-client-nickname_");
+}
+
+#[test]
 fn requests_and_applies_extended_isupport_before_welcome() {
     Transcript::new(
         Config::default()

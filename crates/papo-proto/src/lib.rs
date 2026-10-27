@@ -34,7 +34,8 @@ pub use id::{
     MaskSource, MessageId, MetadataKey, NameParts, Nick, Origin,
 };
 pub use isupport::{
-    Advertised, ChanModes, ClientTagDeny, ExtbanSyntax, Isupport, Limit, LimitValue, Prefix, Rank,
+    Advertised, ChanModes, ClientTagDeny, ExtbanSyntax, Isupport, KnownLimit, Limit, LimitValue,
+    NameLimit, Prefix, Rank,
 };
 pub use line::{
     BuildError, Line, LineRef, MAX_CLIENT_TAG_DATA_LEN, MAX_LINE_LEN, MAX_TAG_SECTION_LEN, Param,

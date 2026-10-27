@@ -498,8 +498,8 @@ impl Nick {
     ///
     /// # Errors
     ///
-    /// Returns an error when the nickname has an invalid character or prefix,
-    /// or exceeds `NICKLEN` (nine characters when it is not advertised).
+    /// Returns an error when the nickname has an invalid character or prefix, or exceeds an
+    /// advertised `NICKLEN`.
     #[doc(hidden)]
     pub fn check(&self, isupport: &Isupport) -> Result<(), InvalidIdentifier> {
         check_parameter(self)?;
@@ -516,7 +516,10 @@ impl Nick {
         if let Some(character) = self.chars().find(|character| ",*?!@".contains(*character)) {
             return Err(InvalidIdentifier::InvalidCharacter(character));
         }
-        check_length(self, isupport.nicklen().unwrap_or(9))
+        match isupport.name_limit(crate::isupport::NameLimit::Nick) {
+            crate::isupport::KnownLimit::Known(maximum) => check_length(self, maximum),
+            crate::isupport::KnownLimit::Unknown => Ok(()),
+        }
     }
 }
 
@@ -539,7 +542,10 @@ impl ChannelName {
         {
             return Err(InvalidIdentifier::InvalidCharacter(character));
         }
-        check_length(self, isupport.channellen().unwrap_or(50))
+        match isupport.name_limit(crate::isupport::NameLimit::Channel) {
+            crate::isupport::KnownLimit::Known(maximum) => check_length(self, maximum),
+            crate::isupport::KnownLimit::Unknown => Ok(()),
+        }
     }
 }
 
@@ -1166,24 +1172,10 @@ mod tests {
     }
 
     #[test]
-    fn validates_literal_default_name_limits() {
+    fn skips_name_lengths_when_the_server_does_not_advertise_them() {
         let support = Isupport::default();
         assert_eq!(
-            support.casemapping().nick("abcdefghi").check(&support),
-            Ok(())
-        );
-        assert_eq!(
             support.casemapping().nick("abcdefghij").check(&support),
-            Err(InvalidIdentifier::TooLong {
-                length: 10,
-                maximum: 9,
-            })
-        );
-        assert_eq!(
-            support
-                .casemapping()
-                .channel(format!("#{}", "p".repeat(49)))
-                .check(&support),
             Ok(())
         );
         assert_eq!(
@@ -1191,10 +1183,7 @@ mod tests {
                 .casemapping()
                 .channel(format!("#{}", "p".repeat(50)))
                 .check(&support),
-            Err(InvalidIdentifier::TooLong {
-                length: 51,
-                maximum: 50,
-            })
+            Ok(())
         );
     }
 

@@ -578,6 +578,7 @@ mod name_tests {
         ] {
             assert_eq!(names.check_channel(text), NameCheck::Invalid(reason));
         }
+        assert!(names.conversation("alexander_the_great").is_ok());
     }
 
     #[test]
