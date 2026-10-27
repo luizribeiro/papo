@@ -3265,15 +3265,6 @@ impl Outbox {
         }));
     }
 
-    fn transmit_tracked_batch(
-        &mut self,
-        lines: Vec<WireLine>,
-        token: Option<TransmitToken>,
-        request: Option<RequestId>,
-    ) {
-        self.transmit_guarded_batch(lines, token, request, None);
-    }
-
     fn transmit_guarded_batch(
         &mut self,
         lines: Vec<WireLine>,
@@ -3822,7 +3813,21 @@ impl Session {
         text: &str,
         tags: &[(&str, &str)],
     ) -> Result<SendTextResult, RequestError> {
-        self.send_composed_text(now, kind, target, text, tags, false)
+        self.send_composed_text(now, kind, target, text, tags, false, None)
+    }
+
+    /// Queues text whose private recipient must still match at transmission time.
+    #[doc(hidden)]
+    pub fn send_guarded_text_detailed(
+        &mut self,
+        now: Instant,
+        kind: TextKind,
+        target: &str,
+        text: &str,
+        tags: &[(&str, &str)],
+        recipient: Option<RecipientGuard>,
+    ) -> Result<SendTextResult, RequestError> {
+        self.send_composed_text(now, kind, target, text, tags, false, recipient)
     }
 
     /// Queues CTCP ACTION text and reports whether line splitting was applied.
@@ -3834,10 +3839,24 @@ impl Session {
         text: &str,
         tags: &[(&str, &str)],
     ) -> Result<SendTextResult, RequestError> {
-        self.send_composed_text(now, TextKind::Privmsg, target, text, tags, true)
+        self.send_composed_text(now, TextKind::Privmsg, target, text, tags, true, None)
+    }
+
+    /// Queues an action whose private recipient must still match at transmission time.
+    #[doc(hidden)]
+    pub fn send_guarded_action_detailed(
+        &mut self,
+        now: Instant,
+        target: &str,
+        text: &str,
+        tags: &[(&str, &str)],
+        recipient: Option<RecipientGuard>,
+    ) -> Result<SendTextResult, RequestError> {
+        self.send_composed_text(now, TextKind::Privmsg, target, text, tags, true, recipient)
     }
 
     #[allow(
+        clippy::too_many_arguments,
         clippy::too_many_lines,
         reason = "text validation and atomic multiline framing share one pre-queue transaction"
     )]
@@ -3849,6 +3868,7 @@ impl Session {
         text: &str,
         tags: &[(&str, &str)],
         action: bool,
+        recipient: Option<RecipientGuard>,
     ) -> Result<SendTextResult, RequestError> {
         self.validate_target(target)?;
         self.rate_limit.advance(now);
@@ -3956,8 +3976,13 @@ impl Session {
         for label in labels.iter().cloned() {
             self.requests.insert(label, (id, None, true, None, false));
         }
-        let transmit =
-            self.queue_text_lines(lines, batch_count > 0, !labelled, labelled.then_some(id));
+        let transmit = self.queue_text_lines(
+            lines,
+            batch_count > 0,
+            !labelled,
+            labelled.then_some(id),
+            recipient,
+        );
         Ok(SendTextResult {
             request: labelled.then_some(id),
             transmit,
@@ -3972,6 +3997,7 @@ impl Session {
         batched: bool,
         tracked: bool,
         request: Option<RequestId>,
+        recipient: Option<RecipientGuard>,
     ) -> Option<TransmitToken> {
         let token = tracked.then(|| {
             let token = TransmitToken(self.next_transmit_token);
@@ -3979,14 +4005,16 @@ impl Session {
             token
         });
         if batched {
-            self.outbox.transmit_tracked_batch(lines, token, request);
+            self.outbox
+                .transmit_guarded_batch(lines, token, request, recipient);
         } else {
             let last = lines.len() - 1;
             for (index, line) in lines.into_iter().enumerate() {
-                self.outbox.transmit_tracked(
+                self.outbox.transmit_guarded(
                     line,
                     (index == last).then_some(token).flatten(),
                     request,
+                    recipient.clone(),
                 );
             }
         }
@@ -4024,6 +4052,28 @@ impl Session {
         message: Line,
     ) -> Result<RequestId, RequestError> {
         self.request_with_event_policy(now, message, false)
+    }
+
+    /// Queues a silent request guarded by a private recipient identity.
+    #[doc(hidden)]
+    pub fn request_guarded_silent(
+        &mut self,
+        now: Instant,
+        message: Line,
+        recipient: Option<RecipientGuard>,
+    ) -> Result<RequestId, RequestError> {
+        self.require_feature(Feature::LabeledResponse)?;
+        let feature = requested_message_feature(&message.as_ref());
+        if let Some(feature) = feature {
+            self.require_feature(feature)?;
+        }
+        self.queue_guarded_request(
+            now,
+            message,
+            Some(feature.unwrap_or(Feature::LabeledResponse)),
+            false,
+            recipient,
+        )
     }
 
     fn request_with_event_policy(
@@ -5984,11 +6034,11 @@ mod tests {
     #[test]
     fn batch_queue_rejects_empty_and_closed_transmissions() {
         let mut outbox = Outbox::default();
-        outbox.transmit_tracked_batch(Vec::new(), None, None);
+        outbox.transmit_guarded_batch(Vec::new(), None, None, None);
         assert!(outbox.transmits.is_empty());
 
         outbox.close_requested = true;
-        outbox.transmit_tracked_batch(
+        outbox.transmit_guarded_batch(
             vec![
                 Line::new("BATCH")
                     .param("+papo")
@@ -5997,6 +6047,7 @@ mod tests {
                     .encode()
                     .unwrap(),
             ],
+            None,
             None,
             None,
         );

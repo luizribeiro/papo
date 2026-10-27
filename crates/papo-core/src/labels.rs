@@ -299,7 +299,7 @@ impl Session {
         emit_events: bool,
     ) -> Result<RequestId, RequestError> {
         let id = RequestId(self.next_request_id);
-        self.queue_request_with_id(now, message, feature, emit_events, id)?;
+        self.queue_request_with_id(now, message, feature, emit_events, id, None)?;
         self.next_request_id = self.next_request_id.wrapping_add(1);
         Ok(id)
     }
@@ -311,7 +311,21 @@ impl Session {
         feature: Feature,
         id: RequestId,
     ) -> Result<(), RequestError> {
-        self.queue_request_with_id(now, message, Some(feature), true, id)
+        self.queue_request_with_id(now, message, Some(feature), true, id, None)
+    }
+
+    pub(super) fn queue_guarded_request(
+        &mut self,
+        now: Instant,
+        message: Line,
+        feature: Option<Feature>,
+        emit_events: bool,
+        recipient: Option<crate::RecipientGuard>,
+    ) -> Result<RequestId, RequestError> {
+        let id = RequestId(self.next_request_id);
+        self.queue_request_with_id(now, message, feature, emit_events, id, recipient)?;
+        self.next_request_id = self.next_request_id.wrapping_add(1);
+        Ok(id)
     }
 
     fn queue_request_with_id(
@@ -321,6 +335,7 @@ impl Session {
         feature: Option<Feature>,
         emit_events: bool,
         id: RequestId,
+        recipient: Option<crate::RecipientGuard>,
     ) -> Result<(), RequestError> {
         self.rate_limit.advance(now);
         let sent = self.caps.enabled().contains_key(&cap::ECHO_MESSAGE)
@@ -343,7 +358,8 @@ impl Session {
         } else {
             self.outbox.event(Event::RequestUntracked { id });
         }
-        self.outbox.transmit_tracked(line, None, Some(id));
+        self.outbox
+            .transmit_guarded(line, None, Some(id), recipient);
         Ok(())
     }
 }
