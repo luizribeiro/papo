@@ -28,7 +28,7 @@ pub enum ReadMarker {
 ///     state.channel("#papo").map(|channel| channel.members().count())
 /// }
 /// ```
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct State {
     core: Arc<papo_core::State>,
     typing: Arc<papo_core::TypingTable>,

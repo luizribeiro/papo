@@ -2822,8 +2822,6 @@ pub fn papo::State::typing(&self, impl papo::AsConversation) -> impl core::iter:
 pub fn papo::State::user(&self, impl papo::AsNick) -> core::option::Option<&papo::User>
 pub fn papo::State::user_modes(&self) -> impl core::iter::traits::iterator::Iterator<Item = char> + '_
 pub fn papo::State::username(&self) -> &str
-impl core::clone::Clone for papo::State
-pub fn papo::State::clone(&self) -> Self
 impl core::fmt::Debug for papo::State
 pub fn papo::State::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Freeze for papo::State

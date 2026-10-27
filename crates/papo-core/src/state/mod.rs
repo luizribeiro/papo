@@ -1720,6 +1720,30 @@ mod metadata_tests {
     }
 
     #[test]
+    fn cloned_state_copies_only_the_changed_channel() {
+        let mut state = State::new(&Config::default());
+        for name in ["#papo", "#rust"] {
+            let channel = Channel::new(name, state.casemapping, &Isupport::default(), true);
+            state
+                .channels
+                .insert(NameKey::new(name, state.casemapping), Arc::new(channel));
+        }
+        let snapshot = state.clone();
+
+        state.channel_mut("#papo").unwrap().topic = Some("release planning".into());
+
+        assert!(!Arc::ptr_eq(
+            &state.channels["#papo"],
+            &snapshot.channels["#papo"]
+        ));
+        assert!(Arc::ptr_eq(
+            &state.channels["#rust"],
+            &snapshot.channels["#rust"]
+        ));
+        assert_eq!(snapshot.channel("#papo").unwrap().topic(), None);
+    }
+
+    #[test]
     fn retains_at_most_ten_thousand_metadata_targets() {
         let mut state = State::new(&Config::default());
         let mut outbox = Outbox::default();
