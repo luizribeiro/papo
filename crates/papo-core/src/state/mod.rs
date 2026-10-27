@@ -1719,6 +1719,22 @@ mod metadata_tests {
     use crate::{Authorship, Capabilities, Config, Event, ListMode, Outbox, StateLimit};
 
     #[test]
+    fn overflow_warning_fires_once_while_input_continues() {
+        let mut entries = crate::bounded::BoundedCollection::new(1_000);
+        let mut warnings = Vec::new();
+
+        for index in 0..20_000 {
+            entries.push_evict_oldest(format!("user{index:05}"));
+            if entries.take_overflow_warning() {
+                warnings.push(index);
+            }
+        }
+
+        assert_eq!(warnings, [1_000]);
+        assert_eq!(entries.as_slice().len(), 1_000);
+    }
+
+    #[test]
     fn visible_host_uses_the_nick_when_the_own_username_is_missing() {
         let mut state = State::new(&Config::default().nick("papo"));
         let key = state.casemapping.fold("papo");
