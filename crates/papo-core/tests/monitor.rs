@@ -647,6 +647,74 @@ fn monitor_offline_retains_a_shared_user() {
 }
 
 #[test]
+fn monitored_quit_and_nickname_arrival_reconcile_identity_state() {
+    registered()
+        .update(|session| session.monitor_add(["alice", "carol"]))
+        .client("MONITOR + alice,carol")
+        .server(":papo!papo@localhost JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "papo"))
+        .server(":bob!~bob@users/bob JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "bob"))
+        .server(":mallory!~mallory@users/mallory JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "mallory"))
+        .server(":carol!~carol@users/carol JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "carol"))
+        .server(":ergo.test 730 papo :alice!~alice@users/alice,carol!~carol@users/carol")
+        .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "alice"))
+        .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "carol"))
+        .server("@+typing=active :alice!~alice@users/alice TAGMSG papo")
+        .event(|event| matches!(event, Event::TypingChanged(_)))
+        .server(":alice!~alice@users/alice QUIT :Client exited")
+        .event(|event| matches!(event, Event::TypingChanged(_)))
+        .event(|event| matches!(event, Event::Quit { nick, .. } if nick == "alice"))
+        .server(":ergo.test 005 papo NETWORK=Ergo :are supported")
+        .inspect(|session| {
+            let state = session.state();
+            let conversation = papo_core::Conversation::Private(state.casemapping().nick("alice"));
+            assert_eq!(state.monitor_online().count(), 1);
+            assert_eq!(state.typing(&conversation).count(), 0);
+            assert!(state.user("bob").is_some());
+            assert!(state.user("mallory").is_some());
+            assert_eq!(state.user("carol").unwrap().channels().count(), 1);
+        })
+        .server("@+typing=active :alice!~alice@users/alice TAGMSG papo")
+        .event(|event| matches!(event, Event::TypingChanged(_)))
+        .server(":mallory!~mallory@users/mallory NICK :alice")
+        .event(|event| matches!(event, Event::NickChanged { new, .. } if new == "alice"))
+        .server(":ergo.test 005 papo NETWORK=Ergo :are supported")
+        .inspect(|session| {
+            let state = session.state();
+            let conversation = papo_core::Conversation::Private(state.casemapping().nick("alice"));
+            assert_eq!(state.typing(&conversation).count(), 0);
+            let online = state.monitor_online().collect::<Vec<_>>();
+            assert_eq!(online.len(), 2);
+            assert!(
+                online
+                    .iter()
+                    .any(|user| user.nick() == "alice" && user.host() == Some("users/mallory"))
+            );
+            assert!(online.iter().any(|user| user.nick() == "carol"));
+            assert!(state.user("bob").is_some());
+            assert_eq!(state.user("carol").unwrap().channels().count(), 1);
+        })
+        .no_event();
+}
+
+#[test]
+fn monitored_nick_change_marks_the_old_nickname_offline() {
+    registered()
+        .update(|session| session.monitor_add(["alice"]))
+        .client("MONITOR + alice")
+        .server(":ergo.test 730 papo :alice!~alice@users/alice")
+        .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "alice"))
+        .server(":alice!~alice@users/alice NICK :alicia")
+        .event(|event| matches!(event, Event::NickChanged { new, .. } if new == "alicia"))
+        .server(":ergo.test 005 papo NETWORK=Ergo :are supported")
+        .inspect(|session| assert_eq!(session.state().monitor_online().count(), 0))
+        .no_event();
+}
+
+#[test]
 fn reports_unsupported_monitor_only_once() {
     Transcript::new(Config::default())
         .update(|session| session.monitor_add(["alice"]))

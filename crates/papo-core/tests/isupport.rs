@@ -55,6 +55,31 @@ fn warns_once_per_connection_when_rfc8265_cannot_be_applied() {
 }
 
 #[test]
+fn remembers_pending_utf8_warning_across_isupport_lines() {
+    let now = std::time::Instant::now();
+    let mut session = Session::new(Config::default());
+    session.handle_connected(now);
+    while session.poll_event().is_some() {}
+    session.handle_line(now, b":ergo.test 005 papo CASEMAPPING=ascii :are supported");
+    while session.poll_event().is_some() {}
+    session.handle_line(
+        now,
+        b":ergo.test 005 papo UTF8MAPPING=rfc8265 :are supported",
+    );
+    let warnings = std::iter::from_fn(|| session.poll_event())
+        .filter(|event| matches!(event, Event::Utf8CasemappingUnsupported))
+        .count();
+    let supports_rfc8265 = session.isupport().casemapping().as_str() == "rfc7613";
+    assert_eq!(warnings, usize::from(!supports_rfc8265));
+
+    session.handle_line(now, b":ergo.test 005 papo NETWORK=Ergo :are supported");
+    assert!(
+        !std::iter::from_fn(|| session.poll_event())
+            .any(|event| matches!(event, Event::Utf8CasemappingUnsupported))
+    );
+}
+
+#[test]
 fn warns_once_when_isupport_storage_reaches_its_bound() {
     Transcript::new(Config::default())
         .connect_default()
