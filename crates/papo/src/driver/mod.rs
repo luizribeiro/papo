@@ -191,6 +191,7 @@ pub(crate) enum Command {
         tags: Vec<(String, String)>,
         fallbacks: Vec<crate::Fallback>,
         action: bool,
+        recipient: Option<papo_core::RecipientGuard>,
         result: oneshot::Sender<Result<Sent, Error>>,
     },
     Typing {
@@ -1077,12 +1078,12 @@ where
                     session.__direct_release(&recipient);
                     publish_state(events, session, true);
                 }
-                Some(Command::SendText { kind, target, conversation, status, receipt, text, tags, mut fallbacks, action, result }) => {
+                Some(Command::SendText { kind, target, conversation, status, receipt, text, tags, mut fallbacks, action, recipient, result }) => {
                     let tags: Vec<_> = tags.iter().map(|(key, value)| (key.as_str(), value.as_str())).collect();
                     let sent = if action {
-                        session.send_action_detailed(now(), &target, &text, &tags)
+                        session.send_guarded_action_detailed(now(), &target, &text, &tags, recipient)
                     } else {
-                        session.send_text_detailed(now(), kind, &target, &text, &tags)
+                        session.send_guarded_text_detailed(now(), kind, &target, &text, &tags, recipient)
                     };
                     match sent {
                         Ok(sent) => {

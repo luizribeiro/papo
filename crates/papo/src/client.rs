@@ -99,6 +99,12 @@ pub struct SendMessage {
     invalid_input: Option<InvalidInput>,
 }
 
+struct ResolvedSend {
+    text: String,
+    recipient: Option<papo_core::RecipientGuard>,
+    _lease: Option<crate::direct::MonitorLease>,
+}
+
 impl std::fmt::Debug for SendMessage {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         crate::opaque_debug("SendMessage", formatter)
@@ -186,9 +192,7 @@ impl IntoFuture for SendMessage {
             if let Some(error) = self.invalid_input {
                 return Err(error.into());
             }
-            let target = self
-                .client
-                .resolve(crate::target::Role::Send("target"), self.target)?;
+            let target = self.client.resolve_send("target", self.target).await?;
             let channel_context = self
                 .channel_context
                 .map(|channel| {
@@ -246,7 +250,15 @@ impl IntoFuture for SendMessage {
                 fallbacks.extend(channel_context.map(|_| Fallback::ContextTagDropped));
             }
             self.client
-                .send_text(self.kind, &target, &self.text, tags, fallbacks, self.action)
+                .send_text(
+                    self.kind,
+                    &target.text,
+                    &self.text,
+                    tags,
+                    fallbacks,
+                    self.action,
+                    target.recipient,
+                )
                 .await
         })
     }
@@ -314,6 +326,81 @@ impl Sent {
 }
 
 impl Client {
+    async fn resolve_send(
+        &self,
+        argument: &'static str,
+        parts: crate::target::sealed::Parts<'static>,
+    ) -> Result<ResolvedSend, Error> {
+        let mut recipient = parts
+            .recipient
+            .as_ref()
+            .map(crate::message_ref::RecipientGuard::to_core);
+        let mut lease = None;
+        let mut text = self.resolve(crate::target::Role::Send(argument), parts)?;
+        if let Some(guard) = &recipient {
+            match self.state().resolve_recipient(guard) {
+                papo_core::RecipientStatus::Current(nick) => text = nick.to_string(),
+                papo_core::RecipientStatus::Gone => return Err(Error::TargetGone),
+                papo_core::RecipientStatus::Unknown => {
+                    let expected = guard.__account().clone();
+                    crate::direct_runtime::require_monitor_slot(&self.state(), &text)?;
+                    let acquired = crate::direct_runtime::command(
+                        self,
+                        text.clone(),
+                        Some(expected.clone()),
+                        true,
+                    )
+                    .await?;
+                    let response = match self
+                        .correlated(
+                            Line::new("WHO").with_params([text.clone(), "%na".to_owned()]),
+                            Some(ResponseMatcher::Who(text.clone())),
+                        )
+                        .await
+                    {
+                        Ok(response) => response,
+                        Err(error) => {
+                            crate::direct_runtime::release(self, acquired).await;
+                            return Err(error);
+                        }
+                    };
+                    let actual = match crate::direct_runtime::who_account(self, &text, &response) {
+                        Ok(account) => account,
+                        Err(error) => {
+                            crate::direct_runtime::release(self, acquired).await;
+                            return Err(error);
+                        }
+                    };
+                    if !matches!(
+                        (&expected, &actual),
+                        (crate::Account::LoggedIn(left), crate::Account::LoggedIn(right))
+                            if left == right
+                    ) {
+                        crate::direct_runtime::release(self, acquired).await;
+                        return Err(Error::TargetGone);
+                    }
+                    match crate::direct_runtime::command(self, text.clone(), Some(actual), false)
+                        .await
+                    {
+                        Ok(refreshed) => {
+                            lease = Some(crate::direct::lease(self, acquired));
+                            recipient = Some(refreshed);
+                        }
+                        Err(error) => {
+                            crate::direct_runtime::release(self, acquired).await;
+                            return Err(error);
+                        }
+                    }
+                }
+            }
+        }
+        Ok(ResolvedSend {
+            text,
+            recipient,
+            _lease: lease,
+        })
+    }
+
     pub(crate) fn resolve<'a>(
         &self,
         role: crate::target::Role,
@@ -908,6 +995,7 @@ impl Client {
         })
     }
 
+    #[expect(clippy::too_many_arguments)]
     pub(crate) async fn send_text(
         &self,
         kind: TextKind,
@@ -916,6 +1004,7 @@ impl Client {
         tags: Vec<(String, String)>,
         fallbacks: Vec<Fallback>,
         action: bool,
+        recipient: Option<papo_core::RecipientGuard>,
     ) -> Result<Sent, Error> {
         let state = self.state();
         let (status, conversation) = state
@@ -935,7 +1024,7 @@ impl Client {
             for (key, value) in tags {
                 message = message.with_tag(key, value);
             }
-            self.send_message(message).await?;
+            self.send_message_guarded(message, recipient).await?;
             return Ok(Sent::without_echo(conversation, status, receipt, fallbacks));
         }
         let (result, receiver) = oneshot::channel();
@@ -950,6 +1039,7 @@ impl Client {
                 tags,
                 fallbacks,
                 action,
+                recipient,
                 result,
             })
             .await

@@ -734,6 +734,7 @@ mod tests {
             ":ergo.test CAP papo{bot} ACK :account-tag\r\n",
             ":ergo.test 001 papo{bot} :Welcome to the Ergo test network\r\n",
             ":ergo.test 005 papo{bot} CASEMAPPING=rfc1459 CHANTYPES=# :are supported\r\n",
+            ":papo{bot}!papo@localhost JOIN #papo\r\n:alice!~alice@cloak.example JOIN #papo\r\n",
             "@account=alice :alice!~alice@cloak.example PRIVMSG papo{bot} :!lookup handbook\r\n",
         );
         let stream = TranscriptStream::new(transcript);

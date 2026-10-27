@@ -292,11 +292,13 @@ mod tests {
                 continue;
             };
             if message.text == "!ping" {
-                client.reply(message, "pong").await.unwrap();
+                assert!(matches!(
+                    client.reply(message, "pong").await,
+                    Err(papo::Error::Unsupported(_))
+                ));
                 break;
             }
         }
-        assert_eq!(wire.next_sent().await, "PRIVMSG alice pong");
     }
 
     #[tokio::test(start_paused = true)]

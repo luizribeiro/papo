@@ -542,9 +542,11 @@ async fn multiline_messages_keep_addressing_across_a_nick_change() {
 
     server_line(
         &mut server,
-        b":bob!~b@localhost BATCH +theirs draft/multiline papo-driver\r\n@batch=theirs :bob!~b@localhost PRIVMSG papo-driver :can you send\r\n@batch=theirs :bob!~b@localhost PRIVMSG papo-driver :the invoice?\r\n:bob!~b@localhost BATCH -theirs\r\n:papo-driver!papo@localhost BATCH +ours draft/multiline bob\r\n@batch=ours :papo-driver!papo@localhost PRIVMSG bob :it is on\r\n@batch=ours :papo-driver!papo@localhost PRIVMSG bob :the way\r\n:papo-driver!papo@localhost BATCH -ours\r\n:papo-driver!papo@localhost NICK papo-away\r\n",
+        b":papo-driver!p@localhost JOIN #review\r\n:bob!~b@localhost JOIN #review\r\n:bob!~b@localhost BATCH +theirs draft/multiline papo-driver\r\n@batch=theirs :bob!~b@localhost PRIVMSG papo-driver :can you send\r\n@batch=theirs :bob!~b@localhost PRIVMSG papo-driver :the invoice?\r\n:bob!~b@localhost BATCH -theirs\r\n:papo-driver!papo@localhost BATCH +ours draft/multiline bob\r\n@batch=ours :papo-driver!papo@localhost PRIVMSG bob :it is on\r\n@batch=ours :papo-driver!papo@localhost PRIVMSG bob :the way\r\n:papo-driver!papo@localhost BATCH -ours\r\n:papo-driver!papo@localhost NICK papo-away\r\n",
     )
     .await;
+
+    let _ = (next_event(&mut events).await, next_event(&mut events).await);
 
     let private = next_message(&mut events).await;
     assert!(matches!(
@@ -802,8 +804,13 @@ async fn private_reply_sends_when_the_recipient_is_unknown() {
     .await;
     let message = next_message(&mut events).await;
 
-    within(client.reply(&message, "approved")).await.unwrap();
-    client_line(&mut server, b"PRIVMSG alice approved\r\n").await;
+    assert!(matches!(
+        within(client.reply(&message, "approved")).await,
+        Err(Error::Unsupported(crate::Unsupported {
+            feature: crate::Feature::Monitor,
+            ..
+        }))
+    ));
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
@@ -6770,8 +6777,8 @@ async fn chat_text_uses_plain_splitting_and_rejects_empty_input() {
         "a".repeat(187)
     );
     client_line(&mut server, lines.as_bytes()).await;
-    client.notice("helper", "maintenance soon").await.unwrap();
-    client_line(&mut server, b"NOTICE helper :maintenance soon\r\n").await;
+    client.notice("#helpers", "maintenance soon").await.unwrap();
+    client_line(&mut server, b"NOTICE #helpers :maintenance soon\r\n").await;
     server_line(
         &mut server,
         b":ergo.test 005 papo-driver CHANTYPES=# STATUSMSG=@+ :are supported\r\n",
@@ -6787,7 +6794,7 @@ async fn chat_text_uses_plain_splitting_and_rejects_empty_input() {
     );
     assert_eq!(sent.status.map(crate::Prefix::symbol), Some('@'));
     let sent = client
-        .privmsg("helper", "reviewed")
+        .privmsg("#helpers", "reviewed")
         .reply_to(crate::MessageId::from("RfcBTzyxY120004"))
         .channel_context("#papo")
         .await
@@ -6799,7 +6806,7 @@ async fn chat_text_uses_plain_splitting_and_rejects_empty_input() {
             crate::Fallback::ContextTagDropped,
         ]
     );
-    client_line(&mut server, b"PRIVMSG helper reviewed\r\n").await;
+    client_line(&mut server, b"PRIVMSG #helpers reviewed\r\n").await;
     assert!(matches!(
         within(client.privmsg("#papo", "\n")).await,
         Err(Error::InvalidInput(crate::InvalidInput::EmptyText))
@@ -6853,14 +6860,16 @@ async fn message_builder_sends_reply_context_and_custom_tags() {
     .await;
     server_line(
         &mut server,
-        b":ergo.test 005 papo-driver CLIENTTAGDENY=*,-draft/reply,-channel-context,-example.org/trace :are supported\r\n",
+        b":ergo.test 005 papo-driver CLIENTTAGDENY=*,-draft/reply,-channel-context,-example.org/trace :are supported\r\n:papo-driver!p@localhost JOIN #papo\r\n:helper!h@localhost JOIN #papo\r\n",
     )
     .await;
+    let _ = (next_event(&mut events).await, next_event(&mut events).await);
+    let helper = within(client.direct("helper")).await.unwrap();
 
     let sender = client.clone();
     let sent = tokio::spawn(async move {
         sender
-            .privmsg("helper", "fixed in 69876ec")
+            .privmsg(helper, "fixed in 69876ec")
             .reply_to("abc123")
             .channel_context(crate::Casemapping::default().channel("#papo"))
             .tag("+example.org/trace", "98")

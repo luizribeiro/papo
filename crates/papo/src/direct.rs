@@ -122,6 +122,13 @@ impl crate::Target for DirectRef {
     }
 }
 
+pub(crate) fn lease(client: &crate::Client, recipient: papo_core::RecipientGuard) -> MonitorLease {
+    MonitorLease {
+        recipient,
+        commands: client.commands.clone(),
+    }
+}
+
 impl crate::Client {
     /// Captures the identity currently using `nick` for guarded direct messages.
     ///
