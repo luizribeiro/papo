@@ -40,6 +40,10 @@ impl Configuration {
             .push(("ERGO__SERVER__STS__DURATION", "1h".into()));
     }
 
+    pub(crate) fn enable_hostname_lookup(&mut self) {
+        self.set_override("ERGO__SERVER__LOOKUP_HOSTNAMES", "true");
+    }
+
     pub(crate) fn disable_persistent_unregistered_channels(&mut self) {
         self.set_override("ERGO__HISTORY__PERSISTENT__UNREGISTERED_CHANNELS", "false");
     }
@@ -202,6 +206,19 @@ mod tests {
                 ("ERGO__SERVER__STS__PORT", "7668".into()),
                 ("ERGO__SERVER__STS__DURATION", "1h".into()),
             ]
+        );
+    }
+
+    #[test]
+    fn enables_hostname_lookup_for_registration_order_tests() {
+        let directory = TemporaryDirectory::create().unwrap();
+        let mut config = configuration(&directory);
+        config.enable_hostname_lookup();
+
+        assert!(
+            config
+                .overrides
+                .contains(&("ERGO__SERVER__LOOKUP_HOSTNAMES", "true".to_owned()))
         );
     }
 

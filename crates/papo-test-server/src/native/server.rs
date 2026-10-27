@@ -63,6 +63,20 @@ impl TestServer {
         })
     }
 
+    /// Starts Ergo with STS and hostname lookup enabled for registration-order tests.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if setup fails or Ergo does not become ready in time.
+    pub fn start_with_sts_and_hostname_lookup() -> io::Result<Self> {
+        Self::start_with(|directory| {
+            let mut configuration = Configuration::persistent(directory)?;
+            configuration.enable_sts();
+            configuration.enable_hostname_lookup();
+            Ok(configuration)
+        })
+    }
+
     /// Starts Ergo with ephemeral history for unregistered channels.
     ///
     /// # Errors
