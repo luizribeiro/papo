@@ -120,6 +120,29 @@ async fn foreign_rename_into_own_nick_keeps_own_identity() {
     assert_eq!(client.state().username(), "papo");
 }
 
+#[tokio::test]
+async fn oversized_unlabelled_list_returns_a_state_limit_error() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://hostile.offline.test", "papo")
+            .rate_limit(papo::RateLimit::unlimited()),
+    );
+    wire.register(&[]).await;
+    connected(&mut events).await;
+    let request = tokio::spawn(async move { client.list().await });
+    assert_eq!(wire.next_sent().await, "LIST");
+    for index in 0..10_001 {
+        wire.server(format!(
+            ":offline.test 322 papo #channel-{index} 3 :[+nt] chat"
+        ))
+        .await;
+    }
+
+    assert!(matches!(
+        request.await.unwrap(),
+        Err(papo::Error::StateLimit(papo::StateLimit::ListEntries))
+    ));
+}
+
 async fn client_pair(caps: &[&str]) -> (ClientPair, ClientPair) {
     let make = |endpoint, nick| {
         wire(

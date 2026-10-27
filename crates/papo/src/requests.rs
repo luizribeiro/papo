@@ -355,6 +355,9 @@ pub(crate) fn list(
     isupport: &Isupport,
     origin: crate::Origin,
 ) -> Result<Vec<ListEntry>, Error> {
+    if let Some(limit) = response.state_limit {
+        return Err(limit.into());
+    }
     if let Some(error) = response.error() {
         return Err(Error::server(error));
     }
@@ -379,7 +382,6 @@ fn list_entries(
                 topic: message.param(3)?.to_owned(),
             })
         })
-        .take(10_000)
         .collect()
 }
 
@@ -486,8 +488,8 @@ mod tests {
     }
 
     #[test]
-    fn list_retains_at_most_the_literal_entry_limit() {
-        let lines = (0..10_001).map(|index| {
+    fn list_retains_every_bounded_core_entry() {
+        let lines = (0..10_000).map(|index| {
             Line::new("322").with_params(["papo", &format!("#papo-{index}"), "42", "Ergonomic IRC"])
         });
         let entries = list_entries(lines, &Isupport::default(), crate::Origin::NONE);

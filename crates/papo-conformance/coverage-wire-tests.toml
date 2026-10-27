@@ -82,6 +82,9 @@
 "security::foreign_rename_into_own_nick_keeps_own_identity" = [
   "security.adv-18.own-nick-collision",
 ]
+"security::oversized_unlabelled_list_returns_a_state_limit_error" = [
+  "security.adv-19.unlabelled-response-bound",
+]
 "security::scram_rejects_excessive_iterations_promptly" = [
   "security.s6.scram-iteration-cap",
 ]
