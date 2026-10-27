@@ -458,8 +458,13 @@ async fn every_private_line_reference_refuses_a_nickname_handoff() {
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never()),
     );
-    wire.register(&["message-tags", "draft/react", "typing"])
-        .await;
+    wire.register(&[
+        "message-tags",
+        "draft/message-redaction",
+        "draft/react",
+        "typing",
+    ])
+    .await;
     connected(&mut events).await;
     for line in [
         ":papo-wire!p@localhost JOIN #review",
@@ -490,6 +495,10 @@ async fn every_private_line_reference_refuses_a_nickname_handoff() {
             "@msgid=Ergo8ZZ3;+draft/react=✅;+draft/reply=Ergo8ZZ1 :alice!~a@cloak.example TAGMSG papo-wire",
         ),
         (
+            "redaction",
+            "@msgid=Ergo8ZZ4 :alice!~a@cloak.example REDACT papo-wire Ergo8ZZ1 :superseded",
+        ),
+        (
             "typing notification",
             "@+typing=active :alice!~a@cloak.example TAGMSG papo-wire",
         ),
@@ -499,6 +508,7 @@ async fn every_private_line_reference_refuses_a_nickname_handoff() {
             papo::Event::Message(event) => event.return_address(),
             papo::Event::TagMsg(event) => event.return_address(),
             papo::Event::Reacted(event) => event.return_address(),
+            papo::Event::Redacted(event) => event.return_address(),
             papo::Event::TypingChanged(event) => event.return_address(),
             event => panic!("unexpected {name} event: {event:?}"),
         };
