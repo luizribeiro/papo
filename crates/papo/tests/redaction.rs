@@ -1,6 +1,6 @@
 //! Public credential formatting invariants.
 
-use papo::{Client, NewAccount, Sasl, Secret, WebIrc};
+use papo::{Client, NewAccount, Sasl, WebIrc};
 
 fn assert_redacted(value: &impl std::fmt::Debug, secret: &str) {
     let output = format!("{value:?}");
@@ -18,13 +18,13 @@ fn public_credentials_are_redacted_from_debug_output() {
 
     let webirc_password = "unique-webirc-password-5832";
     assert_redacted(
-        &WebIrc {
-            password: Secret::from(webirc_password),
-            gateway: "papo-gateway".into(),
-            client_ip: "192.0.2.42".parse().unwrap(),
-            client_hostname: Some("client.example.org".into()),
-            options: vec![("secure".into(), None)],
-        },
+        &WebIrc::new(
+            "papo-gateway",
+            webirc_password,
+            "192.0.2.42".parse().unwrap(),
+        )
+        .hostname("client.example.org")
+        .flag("secure"),
         webirc_password,
     );
 }

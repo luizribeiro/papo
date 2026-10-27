@@ -2880,12 +2880,11 @@ impl core::marker::Unpin for papo::UserSource
 impl core::marker::UnsafeUnpin for papo::UserSource
 impl core::panic::unwind_safe::RefUnwindSafe for papo::UserSource
 impl core::panic::unwind_safe::UnwindSafe for papo::UserSource
-pub struct papo::WebIrc
-pub papo::WebIrc::client_hostname: core::option::Option<alloc::string::String>
-pub papo::WebIrc::client_ip: core::net::ip_addr::IpAddr
-pub papo::WebIrc::gateway: alloc::string::String
-pub papo::WebIrc::options: alloc::vec::Vec<(alloc::string::String, core::option::Option<alloc::string::String>)>
-pub papo::WebIrc::password: papo::Secret
+#[non_exhaustive] pub struct papo::WebIrc
+impl papo::WebIrc
+pub fn papo::WebIrc::flag(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::WebIrc::hostname(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::WebIrc::new(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo::Secret>, core::net::ip_addr::IpAddr) -> Self
 impl core::clone::Clone for papo::WebIrc
 pub fn papo::WebIrc::clone(&self) -> Self
 impl core::cmp::Eq for papo::WebIrc

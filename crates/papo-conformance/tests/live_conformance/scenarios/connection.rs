@@ -321,13 +321,17 @@ async fn webirc(s: Scenario) -> papo_testing::Result<()> {
     }
     let hostname = "client.papo.test";
     let mut alice = s
-        .connect_with(s.configure("alice")?.webirc(WebIrc {
-            password: papo_test_server::WEBIRC_PASSWORD.into(),
-            gateway: "papo-gateway".into(),
-            client_ip: "192.0.2.42".parse()?,
-            client_hostname: Some(hostname.into()),
-            options: vec![("tls".into(), None)],
-        }))
+        .connect_with(
+            s.configure("alice")?.webirc(
+                WebIrc::new(
+                    "papo-gateway",
+                    papo_test_server::WEBIRC_PASSWORD,
+                    "192.0.2.42".parse()?,
+                )
+                .hostname(hostname)
+                .flag("tls"),
+            ),
+        )
         .await?;
     let bob = s.connect("bob").await?;
     let whois = alice.whois(alice.state().nick().clone()).await?;
