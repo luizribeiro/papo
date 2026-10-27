@@ -23,9 +23,8 @@ async fn private_reply_after_nick_takeover(s: Scenario) -> papo_testing::Result<
     alice.join(&channel).await?;
     mallory.join(&channel).await?;
 
-    alice
-        .privmsg(bot.nick().as_ref(), "control request")
-        .await?;
+    let bot_direct = alice.direct(bot.nick().as_ref()).await?;
+    alice.privmsg(&bot_direct, "control request").await?;
     let control = bot
         .wait_for(|event| message_text(event, "control request"))
         .await?;
@@ -34,9 +33,7 @@ async fn private_reply_after_nick_takeover(s: Scenario) -> papo_testing::Result<
         .wait_for(|event| message_text(event, "control reply"))
         .await?;
 
-    alice
-        .privmsg(bot.nick().as_ref(), "release credentials")
-        .await?;
+    alice.privmsg(&bot_direct, "release credentials").await?;
     let delayed = bot
         .wait_for(|event| message_text(event, "release credentials"))
         .await?;

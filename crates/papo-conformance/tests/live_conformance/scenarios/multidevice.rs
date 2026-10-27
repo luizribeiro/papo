@@ -482,7 +482,8 @@ async fn multidevice_dm_fanout_thread(s: Scenario) -> papo_testing::Result<()> {
     let mut sender = s.connect("bob").await?;
     let text = "can every device review the release?";
 
-    let sent = sender.privmsg(desktop.nick().as_ref(), text).await?;
+    let desktop_direct = sender.direct(desktop.nick().as_ref()).await?;
+    let sent = sender.privmsg(&desktop_direct, text).await?;
     let on_desktop = desktop.wait_for(|event| chat_text(event, text)).await?;
     let on_phone = phone.wait_for(|event| chat_text(event, text)).await?;
     let on_tablet = tablet.wait_for(|event| chat_text(event, text)).await?;

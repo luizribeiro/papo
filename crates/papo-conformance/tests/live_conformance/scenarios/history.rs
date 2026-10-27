@@ -262,8 +262,9 @@ async fn soju_server_notice_history(s: Scenario) -> papo_testing::Result<()> {
     }
     let mut alice = s.connect("alice").await?;
     let text = papo_test_server::unique("history-notice");
+    let bouncer = alice.direct("BouncerServ").await?;
     alice
-        .privmsg("BouncerServ", format!("server notice {text}"))
+        .privmsg(&bouncer, format!("server notice {text}"))
         .await?;
     let notice = alice
         .wait_for(|event| {

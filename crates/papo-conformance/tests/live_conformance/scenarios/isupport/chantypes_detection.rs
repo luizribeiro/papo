@@ -82,7 +82,8 @@ async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
     }
 
     let direct = "a direct message";
-    bob.privmsg(alice_nick.as_ref(), direct).await?;
+    let alice_direct = bob.direct(alice_nick.as_ref()).await?;
+    bob.privmsg(&alice_direct, direct).await?;
     let private = alice
         .wait_for(|event| event.as_message().filter(|message| message.text == direct))
         .await?;

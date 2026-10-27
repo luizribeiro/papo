@@ -49,8 +49,9 @@ async fn assert_unverified_context(
     context: &str,
     text: &'static str,
 ) -> papo_testing::Result<()> {
+    let direct = sender.direct(recipient.nick().as_ref()).await?;
     sender
-        .privmsg(recipient.nick().as_ref(), text)
+        .privmsg(&direct, text)
         .channel_context(context)
         .await?;
     let message = recipient
@@ -172,7 +173,8 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
 
-    let sent = alice.privmsg(bob.nick().as_ref(), "private hello").await?;
+    let bob_direct = alice.direct(bob.nick().as_ref()).await?;
+    let sent = alice.privmsg(&bob_direct, "private hello").await?;
     let received = bob
         .wait_for(|event| message_text(event, "private hello"))
         .await?;
@@ -187,7 +189,8 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(received.msgid.as_ref(), sent.msgid());
     assert_eq!(received.server_time, sent.server_time);
 
-    let sent = bob.notice(alice.nick().as_ref(), "private notice").await?;
+    let alice_direct = bob.direct(alice.nick().as_ref()).await?;
+    let sent = bob.notice(&alice_direct, "private notice").await?;
     let received = alice
         .wait_for(|event| notice_text(event, "private notice"))
         .await?;
@@ -200,7 +203,8 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(received.msgid.as_ref(), sent.msgid());
     assert_eq!(received.server_time, sent.server_time);
 
-    let sent = alice.privmsg(alice.nick(), "note to self").await?;
+    let own = alice.direct(alice.nick()).await?;
+    let sent = alice.privmsg(own, "note to self").await?;
     assert_eq!(
         conversation_name(&sent.conversation),
         Some(alice.nick().as_ref())
@@ -221,7 +225,7 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     bob.join(&channel).await?;
     let channel = alice.state().name_rules().channel(channel);
     let sent = alice
-        .privmsg(bob.nick().as_ref(), "private thread reply")
+        .privmsg(&bob_direct, "private thread reply")
         .channel_context(&channel)
         .await?;
     assert!(!sent.fallbacks.contains(&Fallback::ContextTagDropped));
@@ -254,15 +258,13 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     .await?;
 
     let unavailable = papo_test_server::unique("missing-target");
-    let Error::Server(refusal) = alice
-        .privmsg(&unavailable, "this cannot be delivered")
+    let Error::TargetGone = alice
+        .direct(&unavailable)
         .await
         .expect_err("a nonexistent target must be refused")
     else {
-        panic!("a nonexistent target did not return a server refusal")
+        panic!("a nonexistent target did not return TargetGone")
     };
-    assert_eq!(refusal.refusal(), Refusal::NoSuchNick);
-    assert_eq!(refusal.code(), "401");
     alice
         .expect_none(|event| message_text(event, "note to self"))
         .await?;
@@ -731,8 +733,9 @@ async fn message_tags(s: Scenario) -> papo_testing::Result<()> {
     let mut bob = s.connect("bob").await?;
     let alice_nick = alice.nick();
     let bob_nick = bob.nick();
+    let bob_direct = alice.direct(bob_nick.as_ref()).await?;
 
-    alice.typing(bob_nick.as_ref(), Typing::Active).await?;
+    alice.typing(&bob_direct, Typing::Active).await?;
     let typing = bob.wait_for(Event::as_typing_changed).await?;
 
     assert_eq!(crate::source_nick(&typing.actor), Some(alice_nick.as_ref()));
@@ -743,14 +746,14 @@ async fn message_tags(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(typing.status, None);
     assert_eq!(typing.state, Typing::Active);
 
-    alice.typing(bob_nick.as_ref(), Typing::Active).await?;
+    alice.typing(&bob_direct, Typing::Active).await?;
     bob.expect_none(Event::as_typing_changed).await?;
-    alice.typing(bob_nick.as_ref(), Typing::Paused).await?;
+    alice.typing(&bob_direct, Typing::Paused).await?;
     assert_eq!(
         bob.wait_for(Event::as_typing_changed).await?.state,
         Typing::Paused
     );
-    alice.typing(bob_nick.as_ref(), Typing::Done).await?;
+    alice.typing(&bob_direct, Typing::Done).await?;
     assert_eq!(
         bob.wait_for(Event::as_typing_changed).await?.state,
         Typing::Done

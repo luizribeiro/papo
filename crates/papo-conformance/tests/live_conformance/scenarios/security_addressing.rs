@@ -21,7 +21,8 @@ async fn multiline_dm_after_nick_change(s: Scenario) -> papo_testing::Result<()>
     let new_nick = format!("r{old_nick}");
     let text = "deployment is ready\nplease approve the release";
 
-    alice.privmsg(old_nick.as_ref(), text).await?;
+    let bob_direct = alice.direct(old_nick.as_ref()).await?;
+    alice.privmsg(&bob_direct, text).await?;
     bob.set_nick(&new_nick).await?;
     let message = bob.wait_for(|event| message_text(event, text)).await?;
     assert_eq!(
@@ -57,7 +58,8 @@ async fn stale_dm_history_target(s: Scenario) -> papo_testing::Result<()> {
     let new_nick = format!("r{old_nick}");
     let text = "can you send the incident report?";
 
-    writer.privmsg(old_nick.as_ref(), text).await?;
+    let reader_direct = writer.direct(old_nick.as_ref()).await?;
+    writer.privmsg(&reader_direct, text).await?;
     reader.set_nick(&new_nick).await?;
     let page = reader
         .history(writer.nick().as_ref())
