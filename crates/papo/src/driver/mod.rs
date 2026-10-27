@@ -1,4 +1,13 @@
+#![cfg_attr(
+    not(test),
+    deny(clippy::expect_used, clippy::indexing_slicing, clippy::unwrap_used)
+)]
+
 mod catchup;
+#[allow(
+    clippy::expect_used,
+    reason = "connection phases, STS stores, and queued events are validated immediately before use"
+)]
 mod connect;
 #[cfg(feature = "unstable")]
 pub(crate) mod unstable;
@@ -839,7 +848,11 @@ where
                         false,
                     );
                 }
-                Ok(count) => session.handle_bytes(now(), &buffer[..count]),
+                Ok(count) => {
+                    if let Some(bytes) = buffer.get(..count) {
+                        session.handle_bytes(now(), bytes);
+                    }
+                }
                 Err(error) => {
                     let reason = error.to_string();
                     break (
@@ -852,7 +865,9 @@ where
             },
             permit = events.regular.clone().reserve_owned(), if !pending_events.is_empty() => match permit {
                 Ok(permit) => {
-                    _ = permit.send(pending_events.pop_front().expect("pending event is present"));
+                    if let Some(event) = pending_events.pop_front() {
+                        _ = permit.send(event);
+                    }
                 }
                 Err(_) => pending_events.clear(),
             },
@@ -870,9 +885,10 @@ where
                             session.request_silent(now(), message)
                         }
                         None => {
-                            let reason = session
-                                .supports(crate::Feature::LabeledResponse)
-                                .expect_err("labeled-response is unavailable");
+                            let Err(reason) = session.supports(crate::Feature::LabeledResponse)
+                            else {
+                                continue;
+                            };
                             _ = result.send(Err(Error::Unsupported(crate::Unsupported::new(
                                 crate::Feature::LabeledResponse,
                                 reason,
@@ -1498,7 +1514,9 @@ where
         if !write_before(stream, write, deadline).await? {
             return Ok(false);
         }
-        let written = pending.take().expect("completed write remains pending");
+        let Some(written) = pending.take() else {
+            return Ok(true);
+        };
         if let Some(token) = written.token
             && let Some(result) = transmits.remove(&token)
         {
@@ -1516,8 +1534,11 @@ where
     S: AsyncWrite + Unpin,
 {
     while pending.offset < pending.buffer.len() {
+        let Some(remaining) = pending.buffer.get(pending.offset..) else {
+            return Err(io::ErrorKind::InvalidData.into());
+        };
         let written = tokio::select! {
-            result = stream.write(&pending.buffer[pending.offset..]) => result?,
+            result = stream.write(remaining) => result?,
             () = wait_until(deadline) => return Ok(false),
         };
         if written == 0 {

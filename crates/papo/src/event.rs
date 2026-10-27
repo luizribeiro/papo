@@ -1,3 +1,8 @@
+#![cfg_attr(
+    not(test),
+    deny(clippy::expect_used, clippy::indexing_slicing, clippy::unwrap_used)
+)]
+
 use papo_core::{Account, Conversation, RequestId, Response, Welcome, sts::StsAction};
 use std::time::SystemTime;
 
@@ -19,6 +24,10 @@ mod conversation;
 #[path = "event/server.rs"]
 mod server;
 #[path = "event/source.rs"]
+#[allow(
+    clippy::expect_used,
+    reason = "owned source lines are constructed only after a source was parsed"
+)]
 pub(crate) mod source;
 #[path = "event/tags.rs"]
 mod tags;
@@ -917,16 +926,18 @@ impl ServerNotice {
             return Err(raw);
         };
         let actor = match source {
-            papo_proto::Source::User { .. } => Source::User(
-                source::user_from_line(
+            papo_proto::Source::User { .. } => {
+                let Some(user) = source::user_from_line(
                     &message,
                     isupport.casemapping(),
                     origin,
                     account_tag_enabled,
                     prove_not_bot,
-                )
-                .expect("the parsed source is a user"),
-            ),
+                ) else {
+                    return Err(raw);
+                };
+                Source::User(user)
+            }
             papo_proto::Source::Server(_) => {
                 source::from_proto_with_origin(source, isupport.casemapping(), origin)
             }
