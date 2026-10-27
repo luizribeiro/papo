@@ -474,6 +474,14 @@ impl core::cmp::PartialEq for papo_proto::AccountName
 pub fn papo_proto::AccountName::eq(&self, &Self) -> bool
 impl core::cmp::PartialEq<&str> for papo_proto::AccountName
 pub fn papo_proto::AccountName::eq(&self, &&str) -> bool
+impl core::cmp::PartialEq<alloc::string::String> for papo_proto::AccountName
+pub fn papo_proto::AccountName::eq(&self, &alloc::string::String) -> bool
+impl core::cmp::PartialEq<papo_proto::AccountName> for &str
+pub fn &str::eq(&self, &papo_proto::AccountName) -> bool
+impl core::cmp::PartialEq<papo_proto::AccountName> for alloc::string::String
+pub fn alloc::string::String::eq(&self, &papo_proto::AccountName) -> bool
+impl core::cmp::PartialEq<papo_proto::AccountName> for str
+pub fn str::eq(&self, &papo_proto::AccountName) -> bool
 impl core::cmp::PartialEq<str> for papo_proto::AccountName
 pub fn papo_proto::AccountName::eq(&self, &str) -> bool
 impl core::cmp::PartialOrd for papo_proto::AccountName
@@ -612,6 +620,14 @@ impl core::cmp::PartialEq for papo_proto::ChannelName
 pub fn papo_proto::ChannelName::eq(&self, &Self) -> bool
 impl core::cmp::PartialEq<&str> for papo_proto::ChannelName
 pub fn papo_proto::ChannelName::eq(&self, &&str) -> bool
+impl core::cmp::PartialEq<alloc::string::String> for papo_proto::ChannelName
+pub fn papo_proto::ChannelName::eq(&self, &alloc::string::String) -> bool
+impl core::cmp::PartialEq<papo_proto::ChannelName> for &str
+pub fn &str::eq(&self, &papo_proto::ChannelName) -> bool
+impl core::cmp::PartialEq<papo_proto::ChannelName> for alloc::string::String
+pub fn alloc::string::String::eq(&self, &papo_proto::ChannelName) -> bool
+impl core::cmp::PartialEq<papo_proto::ChannelName> for str
+pub fn str::eq(&self, &papo_proto::ChannelName) -> bool
 impl core::cmp::PartialEq<str> for papo_proto::ChannelName
 pub fn papo_proto::ChannelName::eq(&self, &str) -> bool
 impl core::cmp::PartialOrd for papo_proto::ChannelName
@@ -1016,6 +1032,14 @@ impl core::cmp::PartialEq for papo_proto::MessageId
 pub fn papo_proto::MessageId::eq(&self, &Self) -> bool
 impl core::cmp::PartialEq<&str> for papo_proto::MessageId
 pub fn papo_proto::MessageId::eq(&self, &&str) -> bool
+impl core::cmp::PartialEq<alloc::string::String> for papo_proto::MessageId
+pub fn papo_proto::MessageId::eq(&self, &alloc::string::String) -> bool
+impl core::cmp::PartialEq<papo_proto::MessageId> for &str
+pub fn &str::eq(&self, &papo_proto::MessageId) -> bool
+impl core::cmp::PartialEq<papo_proto::MessageId> for alloc::string::String
+pub fn alloc::string::String::eq(&self, &papo_proto::MessageId) -> bool
+impl core::cmp::PartialEq<papo_proto::MessageId> for str
+pub fn str::eq(&self, &papo_proto::MessageId) -> bool
 impl core::cmp::PartialEq<str> for papo_proto::MessageId
 pub fn papo_proto::MessageId::eq(&self, &str) -> bool
 impl core::cmp::PartialOrd for papo_proto::MessageId
@@ -1162,6 +1186,14 @@ impl core::cmp::PartialEq for papo_proto::Nick
 pub fn papo_proto::Nick::eq(&self, &Self) -> bool
 impl core::cmp::PartialEq<&str> for papo_proto::Nick
 pub fn papo_proto::Nick::eq(&self, &&str) -> bool
+impl core::cmp::PartialEq<alloc::string::String> for papo_proto::Nick
+pub fn papo_proto::Nick::eq(&self, &alloc::string::String) -> bool
+impl core::cmp::PartialEq<papo_proto::Nick> for &str
+pub fn &str::eq(&self, &papo_proto::Nick) -> bool
+impl core::cmp::PartialEq<papo_proto::Nick> for alloc::string::String
+pub fn alloc::string::String::eq(&self, &papo_proto::Nick) -> bool
+impl core::cmp::PartialEq<papo_proto::Nick> for str
+pub fn str::eq(&self, &papo_proto::Nick) -> bool
 impl core::cmp::PartialEq<str> for papo_proto::Nick
 pub fn papo_proto::Nick::eq(&self, &str) -> bool
 impl core::cmp::PartialOrd for papo_proto::Nick

@@ -80,7 +80,7 @@ pub(super) async fn wait_synced(events: &mut Events, channels: &[String]) {
     while !pending.is_empty() {
         match events.next().await {
             Some(Event::ChannelSynced(papo::event::ChannelSynced { channel, .. })) => {
-                if let Some(index) = pending.iter().position(|item| item == channel.as_ref()) {
+                if let Some(index) = pending.iter().position(|item| item == &channel) {
                     pending.swap_remove(index);
                 }
             }

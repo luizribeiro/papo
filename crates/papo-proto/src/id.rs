@@ -283,6 +283,38 @@ name_identifier!(Nick, "An IRC nickname.");
 name_identifier!(ChannelName, "An IRC channel name.");
 name_identifier!(AccountName, "An IRC account name.");
 
+macro_rules! text_comparisons {
+    ($($name:ty),+ $(,)?) => {
+        $(
+            impl PartialEq<String> for $name {
+                fn eq(&self, other: &String) -> bool {
+                    self == other.as_str()
+                }
+            }
+
+            impl PartialEq<$name> for str {
+                fn eq(&self, other: &$name) -> bool {
+                    other == self
+                }
+            }
+
+            impl PartialEq<$name> for &str {
+                fn eq(&self, other: &$name) -> bool {
+                    other == *self
+                }
+            }
+
+            impl PartialEq<$name> for String {
+                fn eq(&self, other: &$name) -> bool {
+                    other == self
+                }
+            }
+        )+
+    };
+}
+
+text_comparisons!(Nick, ChannelName, AccountName);
+
 macro_rules! name_string_conversions {
     ($($name:ty),+ $(,)?) => {
         $(
@@ -453,6 +485,7 @@ identifier!(
     MessageId,
     "An opaque, network-unique IRC message identifier."
 );
+text_comparisons!(MessageId);
 
 impl Nick {
     /// Validates this nickname against protocol characters and server limits.
@@ -778,6 +811,43 @@ mod tests {
         assert_eq!(other_client, "#PAPO");
         assert_ne!(first.origin(), Origin::NONE);
         assert_eq!(Casemapping::Rfc1459.channel("#papo").origin(), Origin::NONE);
+    }
+
+    #[test]
+    fn names_and_message_ids_compare_with_text_in_both_directions() {
+        let nick = Casemapping::Rfc1459.nick("Emily[");
+        let channel = Casemapping::Rfc1459.channel("#Papo[");
+        let account = Casemapping::Rfc1459.account("Emily[");
+        let message_id = MessageId::from("8VX4P6dUQ44L");
+
+        assert_bidirectional_name(&nick, "emily{");
+        assert_bidirectional_name(&channel, "#papo{");
+        assert_bidirectional_name(&account, "emily{");
+        assert_bidirectional_exact(&message_id, "8VX4P6dUQ44L");
+        assert_ne!(message_id, "8vx4p6duq44l");
+    }
+
+    fn assert_bidirectional_name<T>(name: &T, text: &str)
+    where
+        T: PartialEq<String>,
+        str: PartialEq<T>,
+        for<'a> &'a str: PartialEq<T>,
+        String: PartialEq<T>,
+    {
+        assert!(name == &text.to_owned());
+        assert!(<str as PartialEq<T>>::eq(text, name));
+        assert!(<&str as PartialEq<T>>::eq(&text, name));
+        assert!(text.to_owned() == *name);
+    }
+
+    fn assert_bidirectional_exact<T>(identifier: &T, text: &str)
+    where
+        T: PartialEq<String>,
+        str: PartialEq<T>,
+        for<'a> &'a str: PartialEq<T>,
+        String: PartialEq<T>,
+    {
+        assert_bidirectional_name(identifier, text);
     }
 
     struct TestSource {

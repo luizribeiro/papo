@@ -36,7 +36,7 @@ async fn registers_then_logs_in_with_sasl() {
             AccountCreation::Created {
                 account: registered,
                 ..
-            } if registered.as_ref() == account
+            } if registered == account
         ));
         registrar.quit("account created").await.unwrap();
 
