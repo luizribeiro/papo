@@ -585,6 +585,10 @@ async fn private_reply_refuses_a_nick_taken_after_receipt() {
     assert!(!message.__recipient_changed(&client.state()));
     within(client.reply(&message, "approved")).await.unwrap();
     client_line(&mut server, b"PRIVMSG alice approved\r\n").await;
+    let sent = within(client.privmsg("alice", "review queued"))
+        .await
+        .unwrap();
+    client_line(&mut server, b"PRIVMSG alice :review queued\r\n").await;
 
     server_line(
         &mut server,
@@ -612,6 +616,74 @@ async fn private_reply_refuses_a_nick_taken_after_receipt() {
         within(client.redact(&message, "superseded")).await,
         Err(Error::TargetGone)
     ));
+    assert!(matches!(
+        within(client.reply(&sent, "payroll attached")).await,
+        Err(Error::TargetGone)
+    ));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), server.read_u8())
+            .await
+            .is_err()
+    );
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn every_private_core_line_refuses_a_nick_taken_after_receipt() {
+    let caps = [
+        "message-tags",
+        "draft/message-redaction",
+        "draft/react",
+        "typing",
+    ];
+    let (mut server, client, mut events, driver) = scripted(config().wanted_caps(caps));
+    let task = tokio::spawn(driver);
+    complete_connect_caps(&mut server, &mut events, &caps.join(" "), &caps.join(" ")).await;
+    server_line(
+        &mut server,
+        b":papo-driver!p@localhost JOIN #review\r\n:alice!~a@cloak.example JOIN #review\r\n:mallory!~m@users.example JOIN #review\r\n",
+    )
+    .await;
+    for _ in 0..3 {
+        assert!(matches!(
+            next_event(&mut events).await,
+            Some(Event::Joined(_))
+        ));
+    }
+
+    let mut references = Vec::new();
+    for line in [
+        "@msgid=Ergo8ZZ2;+example/status=ready :alice!~a@cloak.example TAGMSG papo-driver",
+        "@msgid=Ergo8ZZ3;+draft/react=✅;+draft/reply=Ergo8ZZ1 :alice!~a@cloak.example TAGMSG papo-driver",
+        "@msgid=Ergo8ZZ4 :alice!~a@cloak.example REDACT papo-driver Ergo8ZZ1 :superseded",
+        "@+typing=active :alice!~a@cloak.example TAGMSG papo-driver",
+    ] {
+        server_line(&mut server, format!("{line}\r\n").as_bytes()).await;
+        let reference = match next_event(&mut events).await.unwrap() {
+            Event::TagMsg(event) => event.return_address(),
+            Event::Reacted(event) => event.return_address(),
+            Event::Redacted(event) => event.return_address(),
+            Event::TypingChanged(event) => event.return_address(),
+            event => panic!("unexpected line event: {event:?}"),
+        };
+        references.push(reference);
+    }
+
+    server_line(
+        &mut server,
+        b":alice!~a@cloak.example QUIT :Client Quit\r\n:mallory!~m@users.example NICK alice\r\n",
+    )
+    .await;
+    while !matches!(next_event(&mut events).await, Some(Event::NickChanged(_))) {}
+
+    for reference in references {
+        assert!(matches!(
+            within(client.reply(reference, "payroll attached")).await,
+            Err(Error::TargetGone)
+        ));
+    }
     assert!(
         tokio::time::timeout(Duration::from_millis(10), server.read_u8())
             .await
