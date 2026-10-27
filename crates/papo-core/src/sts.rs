@@ -431,7 +431,7 @@ mod tests {
     }
 
     #[test]
-    fn arc_stores_share_policy_updates() {
+    fn arc_stores_share_policy_updates_and_removals() {
         let store = Arc::new(MemoryStsStore::new());
         let shared = Arc::clone(&store);
         let policy = StsPolicy::new(
@@ -443,7 +443,10 @@ mod tests {
 
         <Arc<MemoryStsStore> as StsStore>::put(&store, policy.clone());
 
-        assert_eq!(shared.get("irc.example.net"), Some(policy));
+        assert_eq!(shared.get("irc.example.net"), Some(policy.clone()));
+        <Arc<MemoryStsStore> as StsStore>::remove(&shared, "irc.example.net");
+        assert_eq!(store.get("irc.example.net"), None);
+        assert_eq!(shared.get("irc.example.net"), None);
     }
 
     #[test]
