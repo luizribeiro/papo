@@ -2,7 +2,9 @@ use std::collections::{HashMap, HashSet};
 
 use papo_proto::{Advertised, Casemapping, Isupport, LimitValue, LineRef, MAX_LINE_LEN, Nick};
 
-use crate::{Authorship, Event, Feature, Handled, Names, Outbox, Unsupported, UnsupportedReason};
+use crate::{
+    Authorship, Event, Feature, Handled, Names, Outbox, ReplyToken, Unsupported, UnsupportedReason,
+};
 
 const MAX_DESIRED: usize = 10_000;
 const MONITOR_PAYLOAD_LEN: usize = MAX_LINE_LEN - "MONITOR + \r\n".len();
@@ -11,9 +13,17 @@ type NickKey = Nick;
 #[derive(Debug, Default)]
 pub(super) struct Monitor {
     desired: Vec<String>,
+    direct: HashMap<NickKey, DirectWatch>,
     presence: HashMap<NickKey, Presence>,
     casemapping: Names,
     unsupported_warned: bool,
+}
+
+#[derive(Debug)]
+struct DirectWatch {
+    nick: String,
+    count: usize,
+    identity: ReplyToken,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -42,6 +52,10 @@ impl Monitor {
 
     pub(super) fn desired(&self) -> impl Iterator<Item = &str> {
         self.desired.iter().map(String::as_str)
+    }
+
+    pub(super) fn direct(&self) -> impl Iterator<Item = &str> {
+        self.direct.values().map(|watch| watch.nick.as_str())
     }
 
     pub(super) fn online(&self) -> impl Iterator<Item = (&str, Option<&str>, Option<&str>)> {
@@ -102,6 +116,42 @@ impl Monitor {
             );
         } else {
             self.presence.remove(&key);
+        }
+    }
+
+    pub(super) fn acquire_direct(
+        &mut self,
+        nick: &str,
+        identity: ReplyToken,
+        isupport: &Isupport,
+        registered: bool,
+        outbox: &mut Outbox,
+    ) {
+        self.update_casemapping(isupport.casemapping());
+        let key = self.casemapping.nick(nick);
+        if let Some(watch) = self.direct.get_mut(&key) {
+            watch.count = watch.count.saturating_add(1);
+            return;
+        }
+        let added = !self.desires(nick, isupport);
+        self.direct.insert(
+            key,
+            DirectWatch {
+                nick: nick.to_owned(),
+                count: 1,
+                identity,
+            },
+        );
+        if added {
+            self.add([nick.to_owned()], isupport, registered, outbox);
+        }
+    }
+
+    pub(super) fn refresh_direct_identity(&mut self, nick: &str, identity: ReplyToken) {
+        if let Some(watch) = self.direct.get_mut(&self.casemapping.nick(nick))
+            && watch.identity != identity
+        {
+            watch.identity = identity;
         }
     }
 

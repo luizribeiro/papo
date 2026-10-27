@@ -4238,6 +4238,52 @@ impl Session {
         }
     }
 
+    /// Acquires a reference-counted monitor entry for a guarded direct recipient.
+    #[doc(hidden)]
+    pub fn __direct_acquire(
+        &mut self,
+        nick: &str,
+        username: Option<&str>,
+        host: Option<&str>,
+        account: Account,
+    ) -> RecipientGuard {
+        self.state
+            .track_direct(nick, username, host, account.clone());
+        let recipient = RecipientGuard::__new(
+            &self.state,
+            self.state.casemapping().nick(nick),
+            account.clone(),
+        );
+        self.monitor.acquire_direct(
+            nick,
+            recipient.__token(),
+            self.isupport.value(),
+            self.welcome_state.is_connected(),
+            &mut self.outbox,
+        );
+        self.sync_monitored_state();
+        self.state
+            .track_direct(nick, username, host, account.clone());
+        self.state_generation = self.state_generation.wrapping_add(1);
+        let recipient =
+            RecipientGuard::__new(&self.state, self.state.casemapping().nick(nick), account);
+        self.monitor
+            .refresh_direct_identity(nick, recipient.__token());
+        recipient
+    }
+
+    /// Refreshes identity facts for an already acquired direct recipient.
+    #[doc(hidden)]
+    pub fn __direct_refresh(&mut self, nick: &str, account: Account) -> RecipientGuard {
+        self.state.track_direct(nick, None, None, account.clone());
+        self.state_generation = self.state_generation.wrapping_add(1);
+        let recipient =
+            RecipientGuard::__new(&self.state, self.state.casemapping().nick(nick), account);
+        self.monitor
+            .refresh_direct_identity(nick, recipient.__token());
+        recipient
+    }
+
     /// Returns the next CRLF-terminated wire line to transmit.
     pub fn poll_transmit(&mut self) -> Option<WireLine> {
         self.poll_transmit_tracked()

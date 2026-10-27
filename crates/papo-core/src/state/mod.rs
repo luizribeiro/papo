@@ -555,6 +555,27 @@ impl State {
         }
     }
 
+    pub(crate) fn track_direct(
+        &mut self,
+        nick: &str,
+        username: Option<&str>,
+        host: Option<&str>,
+        account: Account,
+    ) -> crate::ReplyToken {
+        let key = NameKey::new(nick, self.casemapping);
+        if !self.users.contains_key(&key) {
+            let user = self.new_user(nick, username, host);
+            self.users.insert(key.clone(), user);
+        }
+        if let Some(user) = self.users.get_mut(&key) {
+            user.update_userhost(username, host);
+            user.account = account;
+            user.monitored = true;
+        }
+        self.mark_changed();
+        self.__reply_token_for(nick)
+    }
+
     #[doc(hidden)]
     #[must_use]
     pub fn __recipient_changed(&self, target: &str, token: crate::ReplyToken) -> bool {
@@ -589,6 +610,11 @@ impl State {
                 self.users.insert(key.clone(), user);
             }
             if let Some(user) = self.users.get_mut(&key) {
+                user.monitored = true;
+            }
+        }
+        for nick in monitor.direct() {
+            if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) {
                 user.monitored = true;
             }
         }
@@ -656,8 +682,11 @@ impl State {
             }
         } else if let Some(user) = self.users.get_mut(&key) {
             user.monitored = false;
-            if user.channels.is_empty() && user.nick != self.nick {
-                self.users.remove(&key);
+            if user.channels.is_empty()
+                && user.nick != self.nick
+                && let Some(user) = self.users.remove(&key)
+            {
+                self.remember_departed(&user);
             }
         }
     }
