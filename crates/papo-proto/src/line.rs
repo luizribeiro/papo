@@ -534,6 +534,19 @@ impl Line {
         self.params.get(index).map(Param::as_str)
     }
 
+    /// Replaces one text parameter while preserving the rest of the line.
+    #[doc(hidden)]
+    pub fn __replace_param(&mut self, index: usize, value: impl Into<String>) -> bool {
+        let Some(param) = self.params.get_mut(index) else {
+            return false;
+        };
+        if param.is_secret() {
+            return false;
+        }
+        param.0 = ParamValue::Text(value.into());
+        true
+    }
+
     /// Marks a parameter as sensitive while preserving its text value.
     #[doc(hidden)]
     pub fn __mark_secret(&mut self, index: usize) {
@@ -579,17 +592,20 @@ impl Line {
         self.source.as_deref().map(Source::parse)
     }
 
-    /// Creates a `PRIVMSG` for a target.
+    /// Creates a raw `PRIVMSG` for a target.
+    ///
+    /// High-level clients should use their guarded direct-message API for nickname targets. This
+    /// constructor deliberately performs no identity guarding.
     pub fn privmsg(target: impl Into<String>, text: impl Into<String>) -> Self {
         Self::new("PRIVMSG").param(target).param(text)
     }
 
-    /// Creates a `NOTICE` for a target.
+    /// Creates a raw `NOTICE` for a target without identity guarding.
     pub fn notice(target: impl Into<String>, text: impl Into<String>) -> Self {
         Self::new("NOTICE").param(target).param(text)
     }
 
-    /// Creates a `TAGMSG` for a target.
+    /// Creates a raw `TAGMSG` for a target without identity guarding.
     pub fn tagmsg(target: impl Into<String>) -> Self {
         Self::new("TAGMSG").param(target)
     }
@@ -1116,5 +1132,17 @@ mod tests {
                 expected_wire
             );
         }
+    }
+
+    #[test]
+    fn replaces_only_existing_public_parameters() {
+        let mut line = Line::notice("alice", "maintenance soon");
+        assert!(line.__replace_param(0, "alicia"));
+        assert_eq!(line.as_ref().param(0), Some("alicia"));
+        assert!(!line.__replace_param(2, "unused"));
+
+        let mut secret = Line::new("OPER").param(Secret::new("operator-password-6824"));
+        assert!(!secret.__replace_param(0, "visible"));
+        assert_eq!(secret.as_ref().param(0), Some("operator-password-6824"));
     }
 }
