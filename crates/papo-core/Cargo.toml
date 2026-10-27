@@ -32,5 +32,9 @@ zeroize = { version = "1.9.1", default-features = false, features = ["alloc"] }
 papo-test-server = { path = "../papo-test-server", version = "=0.1.0" }
 proptest = { version = "1.9", default-features = false, features = ["std"] }
 
+[[test]]
+name = "credential_markers"
+required-features = ["unstable"]
+
 [lints]
 workspace = true
