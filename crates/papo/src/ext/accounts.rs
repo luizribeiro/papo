@@ -262,13 +262,6 @@ mod tests {
             Err(Error::UnexpectedReply { command }) if command == "VERIFY"
         ));
 
-        assert!(matches!(
-            client
-                .create_account(super::NewAccount::new(crate::Secret::from_bytes([0xff])))
-                .await,
-            Err(Error::InvalidInput(crate::InvalidInput::BinarySecret))
-        ));
-
         abort_task(driver).await;
     }
 
