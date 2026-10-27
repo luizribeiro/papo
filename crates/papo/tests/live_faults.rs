@@ -61,6 +61,7 @@ async fn solanum_kline_after_welcome_stops_reconnecting() {
         let server = SolanumServer::start().unwrap();
         let endpoint = Endpoint::plaintext("localhost", server.endpoints()[0].port()).unwrap();
         let (operator, mut operator_events) = Client::builder(endpoint.clone(), "papo-oper")
+            .allow_insecure_auth(true)
             .connect()
             .await
             .unwrap();
