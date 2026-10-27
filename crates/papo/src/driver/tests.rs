@@ -2913,7 +2913,7 @@ async fn transport_failure_under_stored_sts_retries() {
         Err(Error::Connect(_))
     ));
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(disconnected)) if !disconnected.is_reconnecting()
     ));
     assert_eq!(calls.load(Ordering::Relaxed), 2);
@@ -2926,7 +2926,7 @@ async fn eof_emits_disconnected_and_returns_an_error() {
     welcome_burst(&mut server).await;
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::ConnectionLost { .. },
             reconnect_in: None,
@@ -2942,7 +2942,7 @@ async fn shutdown_error_does_not_replace_eof() {
     welcome_burst(&mut server).await;
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::ConnectionLost { .. },
             reconnect_in: None,
@@ -2962,7 +2962,7 @@ async fn read_error_is_connection_loss() {
     let (mut server, _client, mut events, driver) = scripted_with_failures(true);
     let driver = tokio::spawn(driver);
     welcome_burst(&mut server).await;
-    let Some(Event::Disconnected(disconnected)) = events.next().await else {
+    let Some(Event::Disconnected(disconnected)) = next_event(&mut events).await else {
         panic!("expected connection loss")
     };
     assert_eq!(
@@ -2990,7 +2990,7 @@ async fn overlong_line_becomes_a_terminal_disconnect() {
     welcome_burst(&mut server).await;
     within(server.write_all(&vec![b'x'; 8704])).await.unwrap();
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Protocol { message },
             reconnect_in: None,
@@ -3011,7 +3011,7 @@ async fn malformed_line_preserves_exact_bytes() {
         .await
         .unwrap();
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Warning(Warning::Malformed { line }))
             if line == b":ergo.test NOTICE * :caf\xe9"
     ));
@@ -3034,7 +3034,7 @@ async fn sasl_nak_forwards_authentication_failure() {
     client_line(&mut server, b"CAP REQ :sasl\r\n").await;
     server_line(&mut server, b":ergo.test CAP * NAK :sasl\r\n").await;
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Warning(Warning::AuthenticationFailed { .. }))
     ));
     client_line(&mut server, b"CAP END\r\n").await;
@@ -3265,7 +3265,7 @@ async fn live_ban_after_welcome_does_not_reconnect() {
     .await;
 
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: None,
@@ -3289,7 +3289,7 @@ async fn assert_established_line_retries(
     complete_connect(&mut server, &mut events).await;
     server_line(&mut server, bytes).await;
     let disconnected = loop {
-        let event = events.next().await.unwrap();
+        let event = next_event(&mut events).await.unwrap();
         if let Event::Disconnected(disconnected) = event {
             break disconnected;
         }
@@ -3354,7 +3354,7 @@ async fn server_error_before_welcome_is_a_connection_failure() {
     )
     .await;
 
-    let Some(Event::Disconnected(disconnected)) = events.next().await else {
+    let Some(Event::Disconnected(disconnected)) = next_event(&mut events).await else {
         panic!("expected connection failure")
     };
     assert!(matches!(
@@ -3420,7 +3420,7 @@ async fn assert_pre_welcome_refusal_backoff(line: Option<&'static [u8]>, expecte
             within(server.shutdown()).await.unwrap();
         }
         assert!(matches!(
-            events.next().await,
+            next_event(&mut events).await,
             Some(Event::Disconnected(crate::Disconnected {
                 cause: crate::DisconnectCause::Connect(ref error),
                 reconnect_in: Some(actual),
@@ -3487,7 +3487,7 @@ async fn webirc_rejection_is_a_specific_connection_failure() {
     )
     .await;
 
-    let Some(Event::Disconnected(disconnected)) = events.next().await else {
+    let Some(Event::Disconnected(disconnected)) = next_event(&mut events).await else {
         panic!("expected WEBIRC connection failure")
     };
     assert!(matches!(
@@ -3549,7 +3549,7 @@ async fn nick_candidates_exhaustion_ends_login_immediately() {
     )
     .await;
 
-    let Some(Event::Disconnected(disconnected)) = events.next().await else {
+    let Some(Event::Disconnected(disconnected)) = next_event(&mut events).await else {
         panic!("expected nick exhaustion")
     };
     assert!(matches!(
@@ -3606,7 +3606,7 @@ async fn nick_candidates_exhaustion_retries_at_the_refusal_minimum() {
     .await;
 
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: Some(delay),
@@ -3630,7 +3630,7 @@ async fn unavailable_required_sasl_retries_at_the_refusal_minimum() {
     server_line(&mut server, b":ergo.test CAP * LS :multi-prefix\r\n").await;
 
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: Some(delay),
@@ -3664,7 +3664,7 @@ async fn timed_out_required_sasl_retries_at_the_refusal_minimum() {
     tokio::time::advance(Duration::from_secs(30)).await;
 
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: Some(delay),
@@ -3727,7 +3727,7 @@ async fn required_sasl_failure_does_not_reconnect() {
     )
     .await;
 
-    let Some(Event::Disconnected(disconnected)) = events.next().await else {
+    let Some(Event::Disconnected(disconnected)) = next_event(&mut events).await else {
         panic!("expected login disconnect")
     };
     assert!(matches!(
@@ -3801,13 +3801,13 @@ async fn successful_registration_preserves_earlier_events() {
 
     assert!(within(waiter).await.unwrap().is_ok());
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::ServerNotice(notice))
             if notice.kind == crate::event::ServerNoticeKind::Notice
                 && notice.to
                     == crate::event::Audience::Broadcast(crate::event::Broadcast::Everyone)
     ));
-    assert!(matches!(events.next().await, Some(Event::Connected(_))));
+    assert_connected(&mut events).await;
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
         within(driver).await.unwrap(),
@@ -3859,7 +3859,7 @@ async fn verification_challenge_resolves_registration_before_welcome() {
 
     assert!(within(waiter).await.unwrap().is_ok());
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::AccountCreation(crate::AccountCreation::VerificationRequired { account, message }))
             if account == "alice" && message == "Verification code sent"
     ));
@@ -3899,7 +3899,7 @@ async fn registration_sets_advertised_bot_mode_and_joins_each_channel() {
         b":ergo.test 005 papo-driver BOT=B :are supported by this server\r\n:ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Connected(_))));
+    assert_connected(&mut events).await;
     client_line(
         &mut server,
         b"MODE papo-driver +B\r\nJOIN #PAPO replacement-channel-key\r\nJOIN #papo-bots private-channel-key\r\n",
@@ -3911,7 +3911,7 @@ async fn registration_sets_advertised_bot_mode_and_joins_each_channel() {
     )
     .await;
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::AutoJoinFailed(failed))
             if failed.channel == "#PAPO"
                 && failed.error.refusal() == crate::Refusal::InviteOnlyChannel
@@ -3968,7 +3968,7 @@ async fn registration_queues_three_hundred_autojoin_channels() {
         b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Connected(_))));
+    assert_connected(&mut events).await;
 
     for index in 0..300 {
         let mut wire = Vec::new();
@@ -4055,11 +4055,11 @@ async fn cap_new_and_del_forward_capability_changes() {
     )
     .await;
     assert!(
-        matches!(events.next().await, Some(Event::CapsChanged(changed))
+        matches!(next_event(&mut events).await, Some(Event::CapsChanged(changed))
         if changed.added.get("server-time") == Some(&Some("2027".to_owned())))
     );
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::FeaturesChanged(changed))
             if changed.added.contains(&crate::Feature::ServerTime)
     ));
@@ -4069,11 +4069,11 @@ async fn cap_new_and_del_forward_capability_changes() {
     )
     .await;
     assert!(
-        matches!(events.next().await, Some(Event::CapsChanged(changed))
+        matches!(next_event(&mut events).await, Some(Event::CapsChanged(changed))
         if changed.removed.contains_key("server-time"))
     );
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::FeaturesChanged(changed))
             if changed.removed.contains(&crate::Feature::ServerTime)
     ));
@@ -4092,7 +4092,7 @@ async fn plaintext_sts_forwards_upgrade_and_closes() {
     welcome_burst(&mut server).await;
     server_line(&mut server, b":ergo.test CAP * LS :sts=port=6697\r\n").await;
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Protocol { message },
             reconnect_in: None,
@@ -4142,7 +4142,7 @@ async fn plaintext_sts_reconnects_immediately_with_tls_on_the_advertised_port() 
     welcome_burst(&mut first_server).await;
     server_line(&mut first_server, b":ergo.test CAP * LS :sts=port=6699\r\n").await;
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(crate::Disconnected {
             reconnect_in: Some(Duration::ZERO),
             ..
@@ -4195,7 +4195,7 @@ async fn sts_upgrade_obeys_the_attempt_limit() {
     welcome_burst(&mut server).await;
     server_line(&mut server, b":ergo.test CAP * LS :sts=port=6697\r\n").await;
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(disconnected)) if !disconnected.is_reconnecting()
     ));
     assert!(matches!(
@@ -5119,7 +5119,12 @@ async fn own_join_after_a_nick_change_is_marked_as_self() {
         b":papo-renamed!papo@localhost JOIN #papo-self * :Papo Client\r\n",
     )
     .await;
-    let joined = events.next().await.unwrap().as_joined().unwrap().clone();
+    let joined = next_event(&mut events)
+        .await
+        .unwrap()
+        .as_joined()
+        .unwrap()
+        .clone();
     assert_eq!(joined.actor.nick(), "papo-renamed");
     assert_eq!(joined.channel, "#papo-self");
     assert_eq!(joined.authorship, crate::Authorship::Own);
@@ -6218,8 +6223,14 @@ async fn manual_who_refreshes_joined_member_state_at_numeric_315() {
         b":ergo.test 005 papo-driver WHOX PREFIX=(ov)@+ :are supported\r\n:papo-driver!papo@localhost JOIN #papo * :Papo Client\r\n:ergo.test 353 papo-driver = #papo :@papo-driver +dan\r\n:ergo.test 366 papo-driver #papo :End of /NAMES list\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Joined(_))));
-    assert!(matches!(events.next().await, Some(Event::ChannelSynced(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Joined(_))
+    ));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::ChannelSynced(_))
+    ));
     client_line(&mut server, b"MODE #papo\r\n").await;
 
     let mut who = tokio::spawn({
@@ -6244,7 +6255,7 @@ async fn manual_who_refreshes_joined_member_state_at_numeric_315() {
     .await;
     assert_eq!(within(who).await.unwrap().unwrap()[0].nick, "dan");
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::MembersRefreshed(refreshed)) if refreshed.channel == "#papo"
     ));
     let state = client.state();
@@ -6274,7 +6285,7 @@ async fn capability_loss_fails_a_pending_request_immediately() {
         b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::Connected(_))));
+    while !matches!(next_active_event(&mut events).await, Event::Connected(_)) {}
 
     let request =
         tokio::spawn(async move { client.request_raw(crate::Line::new("VERSION")).await });
@@ -6302,7 +6313,10 @@ async fn action_confirmation_is_enqueued_after_state_changes() {
     )
     .await;
     server_line(&mut server, b":papo-driver!papo@localhost JOIN #papo\r\n").await;
-    assert!(matches!(events.next().await, Some(Event::Joined(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Joined(_))
+    ));
 
     let mode = tokio::spawn({
         let client = client.clone();
@@ -6321,7 +6335,10 @@ async fn action_confirmation_is_enqueued_after_state_changes() {
         client.state().channel("#papo").unwrap().mode('t'),
         Some(crate::ModeValue::Set)
     );
-    assert!(matches!(events.next().await, Some(Event::ModeChanged(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::ModeChanged(_))
+    ));
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
@@ -7254,7 +7271,7 @@ async fn typing_state_appears_refreshes_without_a_snapshot_and_expires() {
         b"@+typing=active :alice!~alice@cloak.example TAGMSG #papo\r\n",
     )
     .await;
-    let conversation = match events.next().await {
+    let conversation = match next_event(&mut events).await {
         Some(Event::TypingChanged(change)) => change.conversation,
         other => panic!("expected typing event, got {other:?}"),
     };
@@ -7271,14 +7288,14 @@ async fn typing_state_appears_refreshes_without_a_snapshot_and_expires() {
     )
     .await;
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::TypingChanged(change)) if change.state == Typing::Active
     ));
     assert!(Arc::ptr_eq(&state, &client.state()));
 
     tokio::time::advance(Duration::from_secs(6)).await;
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::TypingChanged(change)) if change.state == Typing::Done
     ));
     let expired = client.state();
@@ -7303,7 +7320,7 @@ async fn typing_events_report_every_transition_reason() {
     )
     .await;
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::TypingChanged(change)) if change.reason == TypingReason::Notified
     ));
     server_line(
@@ -7312,37 +7329,49 @@ async fn typing_events_report_every_transition_reason() {
     )
     .await;
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::TypingChanged(change)) if change.reason == TypingReason::Messaged
     ));
-    assert!(matches!(events.next().await, Some(Event::Message(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Message(_))
+    ));
 
     server_line(
         &mut server,
         b"@+typing=paused :bob!~bob@users.example TAGMSG #papo\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::TypingChanged(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::TypingChanged(_))
+    ));
     server_line(
         &mut server,
         b":bob!~bob@users.example PART #papo :Leaving\r\n",
     )
     .await;
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::TypingChanged(change)) if change.reason == TypingReason::Departed
     ));
-    assert!(matches!(events.next().await, Some(Event::Parted(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Parted(_))
+    ));
 
     server_line(
         &mut server,
         b"@+typing=active :carol!~carol@users.example TAGMSG #papo\r\n",
     )
     .await;
-    assert!(matches!(events.next().await, Some(Event::TypingChanged(_))));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::TypingChanged(_))
+    ));
     tokio::time::advance(Duration::from_secs(6)).await;
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::TypingChanged(change)) if change.reason == TypingReason::TimedOut
     ));
 
@@ -7542,7 +7571,7 @@ async fn labelled_echo_and_note_to_self_duplicate_are_consumed() {
         b"@msgid=RfcBTzyxY120005 :papo-driver!papo@localhost PRIVMSG #papo :from another device\r\n",
     )
     .await;
-    let event = events.next().await.unwrap();
+    let event = next_event(&mut events).await.unwrap();
     let other = event.as_message().unwrap();
     assert_eq!(other.authorship, crate::Authorship::Own);
 
@@ -7572,7 +7601,7 @@ async fn labelled_echo_and_note_to_self_duplicate_are_consumed() {
         b"@msgid=RfcBTzyxY120007 :emily!e@localhost PRIVMSG papo-driver :next message\r\n",
     )
     .await;
-    let event = events.next().await.unwrap();
+    let event = next_event(&mut events).await.unwrap();
     assert_eq!(event.as_message().unwrap().text, "next message");
 
     within(server.shutdown()).await.unwrap();
@@ -7634,7 +7663,7 @@ async fn quit_resolves_when_the_server_closed_first() {
         Err(Error::InvalidInput(crate::InvalidInput::WireMessage(_)))
     ));
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::ConnectionLost { .. },
             reconnect_in: None,
@@ -7664,7 +7693,7 @@ async fn quit_resolves_after_io_failure_and_reports_its_cause() {
     assert!(within(quit).await.unwrap().is_ok());
     assert!(within(driver).await.unwrap().is_ok());
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Requested {
                 quit_unacknowledged: false,
@@ -7689,7 +7718,7 @@ async fn quit_times_out_after_ten_seconds() {
     assert!(within(quit).await.unwrap().is_ok());
     assert!(within(driver).await.unwrap().is_ok());
     assert!(matches!(
-        events.next().await,
+        next_event(&mut events).await,
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Requested {
                 quit_unacknowledged: true,
