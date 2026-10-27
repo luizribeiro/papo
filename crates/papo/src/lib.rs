@@ -210,7 +210,7 @@ pub use ext::{
     webpush::{PushKeys, WebPush},
 };
 pub use isupport_impl::Isupport;
-pub use message_ref::MessageRef;
+pub use message_ref::{MessageRef, NoticeRef};
 pub use mode::{BanTarget, Extban, KickbanOutcome, ModesApplied, SetModes};
 pub use name_rules::{NameCheck, NameRules};
 #[doc(inline)]

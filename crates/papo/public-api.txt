@@ -2517,6 +2517,31 @@ impl core::marker::Unpin for papo::NewAccount
 impl core::marker::UnsafeUnpin for papo::NewAccount
 impl core::panic::unwind_safe::RefUnwindSafe for papo::NewAccount
 impl core::panic::unwind_safe::UnwindSafe for papo::NewAccount
+pub struct papo::NoticeRef
+impl core::clone::Clone for papo::NoticeRef
+pub fn papo::NoticeRef::clone(&self) -> Self
+impl core::cmp::Eq for papo::NoticeRef
+impl core::cmp::PartialEq for papo::NoticeRef
+pub fn papo::NoticeRef::eq(&self, &Self) -> bool
+impl core::cmp::PartialEq<&str> for papo::NoticeRef
+pub fn papo::NoticeRef::eq(&self, &&str) -> bool
+impl core::cmp::PartialEq<str> for papo::NoticeRef
+pub fn papo::NoticeRef::eq(&self, &str) -> bool
+impl core::convert::AsRef<str> for papo::NoticeRef
+pub fn papo::NoticeRef::as_ref(&self) -> &str
+impl core::fmt::Debug for papo::NoticeRef
+pub fn papo::NoticeRef::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo::NoticeRef
+pub fn papo::NoticeRef::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::NoticeRef
+impl papo::Target for papo::NoticeRef
+impl core::marker::Freeze for papo::NoticeRef
+impl core::marker::Send for papo::NoticeRef
+impl core::marker::Sync for papo::NoticeRef
+impl core::marker::Unpin for papo::NoticeRef
+impl core::marker::UnsafeUnpin for papo::NoticeRef
+impl core::panic::unwind_safe::RefUnwindSafe for papo::NoticeRef
+impl core::panic::unwind_safe::UnwindSafe for papo::NoticeRef
 #[non_exhaustive] pub struct papo::Oper
 pub papo::Oper::name: core::option::Option<alloc::string::String>
 impl core::clone::Clone for papo::Oper
@@ -2933,6 +2958,7 @@ impl papo::Target for alloc::boxed::Box<str>
 impl papo::Target for alloc::rcs::arc::Arc<str>
 impl papo::Target for alloc::string::String
 impl papo::Target for papo::MessageRef
+impl papo::Target for papo::NoticeRef
 impl papo::Target for papo::ChannelName
 impl papo::Target for papo::Nick
 impl papo::Target for str

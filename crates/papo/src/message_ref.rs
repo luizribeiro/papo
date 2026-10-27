@@ -234,6 +234,55 @@ impl crate::Target for MessageRef {
     }
 }
 
+/// A return address for a received notice.
+///
+/// This preserves the exact wire audience, including a status prefix such as `@#ops`, and may be
+/// passed to [`crate::Client::notice`]. It deliberately cannot be converted into a [`MessageRef`],
+/// so it cannot be passed to reply, reaction, or redaction methods. See [`Conversation`] for
+/// status-prefixed audience guidance.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct NoticeRef {
+    address: String,
+    origin: crate::Origin,
+    recipient: Option<RecipientGuard>,
+}
+
+impl fmt::Display for NoticeRef {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.address)
+    }
+}
+
+impl AsRef<str> for NoticeRef {
+    fn as_ref(&self) -> &str {
+        &self.address
+    }
+}
+
+impl PartialEq<str> for NoticeRef {
+    fn eq(&self, other: &str) -> bool {
+        self.address == other
+    }
+}
+
+impl PartialEq<&str> for NoticeRef {
+    fn eq(&self, other: &&str) -> bool {
+        self == *other
+    }
+}
+
+impl crate::target::sealed::Sealed for NoticeRef {}
+
+impl crate::Target for NoticeRef {
+    fn __parts(&self) -> crate::target::sealed::Parts<'_> {
+        crate::target::sealed::Parts {
+            text: std::borrow::Cow::Borrowed(&self.address),
+            origin: self.origin,
+            recipient: self.recipient.clone(),
+        }
+    }
+}
+
 pub(crate) fn actor_recipient(query: &CtcpQuery) -> RecipientGuard {
     query
         .receipt
