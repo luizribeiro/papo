@@ -77,6 +77,7 @@ specs = [
   { name = "Server Name Indication", url = "https://ircv3.net/docs/sni", wire = "SNI", support = "Yes", api = "Builder::tls_server_name", coverage = "core.tls.sni" },
   { name = "WebIRC", url = "https://ircv3.net/specs/extensions/webirc", wire = "WEBIRC", support = "Opt-in", api = "Builder::webirc", coverage = "core.webirc.gateway" },
   { name = "WebSocket", url = "https://ircv3.net/specs/extensions/websocket", wire = "binary.ircv3.net, text.ircv3.net", support = "Opt-in", api = "Client::builder", coverage = "core.websocket." },
+  { name = "FILEHOST", url = "https://github.com/ircv3/ircv3-specifications/pull/562", wire = "draft/FILEHOST, soju.im/FILEHOST", support = "Unstable", api = "State::filehost" },
   { name = "Account required", url = "https://ircv3.net/specs/extensions/account-registration", caps = ["soju.im/account-required"], support = "Yes", api = "ConnectErrorKind::AccountRequired", coverage = "security.bouncer.required-capability" },
 ]
 
@@ -84,8 +85,7 @@ specs = [
 title = "Deprecated or unsupported"
 specs = [
   { name = "STARTTLS", url = "https://ircv3.net/specs/deprecated/tls", wire = "tls", reason = "Deprecated in favor of direct TLS (`ircs://`) or STS." },
-  { name = "FILEHOST", url = "https://github.com/ircv3/ircv3-specifications/pull/562", wire = "draft/FILEHOST", reason = "Limited to unstable advertised-URL discovery ([issue #11](https://github.com/luizribeiro/papo/issues/11))." },
-  { name = "Search", url = "https://github.com/ircv3/ircv3-specifications/pull/496", wire = "SEARCH", reason = "Limited to `soju.im/search` response routing." },
+  { name = "Search", url = "https://github.com/ircv3/ircv3-specifications/pull/496", wire = "SEARCH", reason = "Not exposed; papo only routes `soju.im/search` replies internally." },
   { name = "Message edit and delete", url = "https://github.com/ircv3/ircv3-specifications/pull/425", wire = "draft/message-edit, draft/message-delete", reason = "Deferred for editing, with deletion covered by message redaction." },
   { name = "Authentication tokens", url = "https://github.com/ircv3/ircv3-specifications/pull/602", wire = "draft/authtoken", reason = "Not yet implemented." },
   { name = "EXTJWT", url = "https://github.com/ircv3/ircv3-specifications/pull/547", wire = "draft/extjwt", reason = "Planned for external-service authentication in [issue #11](https://github.com/luizribeiro/papo/issues/11)." },
