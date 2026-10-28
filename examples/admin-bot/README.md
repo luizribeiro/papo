@@ -2,7 +2,8 @@
 
 This bot demonstrates command parsing with `papo` events, commands addressed by mention, and
 account-based permissions. It answers `!ping` and allows the account in `IRC_ADMIN` to use
-`!op <nick>`. `IRC_CHANNEL` defaults to `#papo-admin`.
+`!op <nick>`. Commands start with `!` or with the bot's nickname followed by `:` or `,`.
+`IRC_ADMIN` is required, and `IRC_CHANNEL` defaults to `#papo-admin`.
 
 Pass an `irc://` or `ircs://` server URL as the first argument. The nickname comes from
 `IRC_NICK` and defaults to `papo-admin`. The bot itself does not need an account.

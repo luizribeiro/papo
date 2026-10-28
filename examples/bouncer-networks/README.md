@@ -7,20 +7,20 @@ control connection's endpoint, credentials, TLS settings, and reconnect policy. 
 connection subscribes to network-list changes, so each change is reported once. The example
 awaits `Client::quit` for both connections before exiting.
 
-Pass the bouncer URL and the new upstream's `irc://` or `ircs://` URL with an explicit port as
-arguments. Set `IRC_NICK` to the upstream nickname, `IRC_ACCOUNT` to the soju account, and
-`IRC_PASSWORD` to its password.
+Pass the bouncer URL and the new upstream's `irc://` or `ircs://` URL as arguments. Set `IRC_NICK`
+to the upstream nickname, `IRC_ACCOUNT` to the soju account, and `IRC_PASSWORD` to its password.
 
 ```sh
 IRC_NICK=alice IRC_ACCOUNT=alice IRC_PASSWORD='correct horse battery staple' \
   cargo run -p papo-bouncer-networks -- \
-  ircs://bouncer.example.net ircs://irc.oftc.net:6697
+  ircs://bouncer.example.net ircs://irc.oftc.net
 ```
 
 Sample output:
 
 ```text
-network 1: Libera Chat irc.libera.chat Connected
-changed 2: second irc.oftc.net Connecting
+network 1: Libera Chat irc.libera.chat connected
+changed 2: second irc.oftc.net connecting
+changed 2: second irc.oftc.net connected
 attached 2 #papo
 ```

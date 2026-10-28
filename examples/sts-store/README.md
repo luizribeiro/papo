@@ -1,8 +1,9 @@
 # Persist STS policies
 
 This example implements [`StsStore`](https://docs.rs/papo/latest/papo/sts/trait.StsStore.html)
-with an application-owned text file. A real application can use its existing database or
-platform storage instead.
+with an application-owned text file. It saves a sample policy, reopens the file, and prints the
+policy without connecting. A real application can use its existing database or platform storage
+instead.
 
 ```sh
 cargo run -p papo-sts-store -- ircs://irc.example.net /tmp/papo-sts.txt
