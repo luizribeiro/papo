@@ -1752,6 +1752,7 @@ pub papo::InvalidInput::ManagedCapability(alloc::string::String)
 #[non_exhaustive] pub papo::InvalidInput::MetadataValueTooLong
 pub papo::InvalidInput::MetadataValueTooLong::actual: usize
 pub papo::InvalidInput::MetadataValueTooLong::maximum: usize
+pub papo::InvalidInput::NameRulesUnknown
 pub papo::InvalidInput::RateLimit(papo::InvalidRateLimit)
 #[non_exhaustive] pub papo::InvalidInput::Reaction
 pub papo::InvalidInput::Reaction::actual: usize
@@ -2025,7 +2026,7 @@ pub fn papo::Builder::away_on_connect(self, impl core::convert::Into<alloc::stri
 pub fn papo::Builder::bot(self, bool) -> Self
 pub fn papo::Builder::bouncer_network(self, papo::NetworkId) -> Self
 pub fn papo::Builder::build(self) -> (papo::Client, papo::Events, papo::Driver)
-pub const fn papo::Builder::casemapping(self, papo::Casemapping) -> Self
+pub fn papo::Builder::casemapping(self, papo::Casemapping) -> Self
 pub async fn papo::Builder::connect(self) -> core::result::Result<(papo::Client, papo::Events), papo::Error>
 pub const fn papo::Builder::connect_timeout(self, core::time::Duration) -> Self
 pub fn papo::Builder::create_account(self, papo::NewAccount) -> Self

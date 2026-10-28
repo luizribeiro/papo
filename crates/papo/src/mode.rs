@@ -858,9 +858,12 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn mode_changes_enforce_argument_roles() {
-        let (first, _, _) = crate::Client::builder("ircs://irc.example.net", "papo-client").build();
-        let (second, _, _) =
-            crate::Client::builder("ircs://irc.example.net", "papo-client").build();
+        let (first, _, _) = crate::Client::builder("ircs://irc.example.net", "papo-client")
+            .casemapping(crate::Casemapping::default())
+            .build();
+        let (second, _, _) = crate::Client::builder("ircs://irc.example.net", "papo-client")
+            .casemapping(crate::Casemapping::default())
+            .build();
         let channel = first.state().name_rules().channel("#papo");
         let state = first.state();
         let recipient = state.capture_recipient(state.nick(), state.account().clone());

@@ -955,7 +955,7 @@ mod tests {
     async fn say_keeps_the_command_return_address() {
         let transcript = concat!(
             ":ergo.test CAP * LS :\r\n",
-            ":ergo.test 005 papo{bot} CHANTYPES=# STATUSMSG=@+ :are supported\r\n",
+            ":ergo.test 005 papo{bot} CASEMAPPING=rfc1459 CHANTYPES=# STATUSMSG=@+ :are supported\r\n",
             ":ergo.test 001 papo{bot} :Welcome\r\n",
             ":ergo.test 422 papo{bot} :MOTD missing\r\n",
             ":papo{bot}!papo@localhost JOIN #ops\r\n",

@@ -1188,6 +1188,7 @@ mod tests {
                 name: String::new(),
                 reason: crate::InvalidIdentifier::Empty,
             },
+            InvalidInput::NameRulesUnknown,
             InvalidInput::EmptyText,
             InvalidInput::Reaction {
                 maximum: 4094,

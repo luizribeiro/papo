@@ -37,6 +37,7 @@ pub struct State {
     #[cfg(feature = "unstable")]
     bouncer_network: Option<papo_core::NetworkId>,
     unsupported: BTreeMap<Feature, UnsupportedReason>,
+    name_rules_known: bool,
     connected: bool,
     generation: u64,
     typing_generation: u64,
@@ -96,6 +97,19 @@ impl State {
     #[must_use]
     pub const fn name_rules(&self) -> crate::NameRules<'_> {
         crate::NameRules { state: self }
+    }
+
+    /// Returns builders and checks once the server's name rules are known.
+    ///
+    /// This is `None` until the server advertises `CASEMAPPING` in `005`, unless
+    /// [`crate::Builder::casemapping`] seeded the rules before connecting.
+    #[must_use]
+    pub(crate) const fn known_name_rules(&self) -> Option<crate::NameRules<'_>> {
+        if self.name_rules_known {
+            Some(crate::NameRules { state: self })
+        } else {
+            None
+        }
     }
 
     pub(crate) fn resolve_recipient(
@@ -188,6 +202,7 @@ impl State {
                 _ => None,
             },
             unsupported,
+            name_rules_known: session.__name_rules_known(),
             connected,
             generation: session.state_generation(),
             typing_generation: session.typing_generation(),
@@ -215,6 +230,7 @@ impl State {
     pub(crate) const fn matches(&self, session: &Session, connected: bool) -> bool {
         self.generation == session.state_generation()
             && self.typing_generation == session.typing_generation()
+            && self.name_rules_known == session.__name_rules_known()
             && self.connected == connected
     }
 
@@ -445,6 +461,38 @@ mod name_tests {
         let mut session = Session::new(Config::default());
         session.handle_line(crate::rt::now_mono(), line.as_bytes());
         State::from_session(&session, false)
+    }
+
+    #[test]
+    fn exposes_name_rules_only_after_an_advertisement_or_seed() {
+        let now = crate::rt::now_mono();
+        let mut session = Session::new(Config::default());
+        assert!(
+            State::from_session(&session, false)
+                .known_name_rules()
+                .is_none()
+        );
+
+        session.handle_line(now, b":ergo.test 005 papo NETWORK=Ergo :are supported");
+        assert!(
+            State::from_session(&session, false)
+                .known_name_rules()
+                .is_none()
+        );
+
+        session.handle_line(now, b":ergo.test 005 papo CASEMAPPING=ascii :are supported");
+        assert!(
+            State::from_session(&session, false)
+                .known_name_rules()
+                .is_some()
+        );
+
+        let seeded = Session::new(Config::default().casemapping(Casemapping::Ascii));
+        assert!(
+            State::from_session(&seeded, false)
+                .known_name_rules()
+                .is_some()
+        );
     }
 
     #[test]

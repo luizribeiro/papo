@@ -437,6 +437,9 @@ impl Client {
         }
         let mut text = parts.text.into_owned();
         let state = self.state();
+        let name_rules = state
+            .known_name_rules()
+            .ok_or(InvalidInput::NameRulesUnknown)?;
         if let Some(channel) = parts.channel.as_deref() {
             let current = state.resolve_channel(channel).ok_or(Error::TargetGone)?;
             if current != *channel.__channel() {
@@ -478,15 +481,11 @@ impl Client {
                     }
                 })
             }
-            crate::target::Role::Channel(_) => state
-                .name_rules()
-                .channel(&text)
-                .check(state.isupport().inner()),
-            crate::target::Role::Nick(_) => state
-                .name_rules()
-                .nick(&text)
-                .check(state.isupport().inner()),
-            crate::target::Role::Account(_) => state.name_rules().account(&text).check(),
+            crate::target::Role::Channel(_) => {
+                name_rules.channel(&text).check(state.isupport().inner())
+            }
+            crate::target::Role::Nick(_) => name_rules.nick(&text).check(state.isupport().inner()),
+            crate::target::Role::Account(_) => name_rules.account(&text).check(),
             crate::target::Role::Conversation(_) => {
                 state.parse_target_inner(&text).and_then(|(status, _)| {
                     status.map(crate::Prefix::symbol).map_or(Ok(()), |prefix| {
@@ -503,7 +502,7 @@ impl Client {
                 }) {
                     Err(crate::InvalidIdentifier::InvalidPrefix(prefix))
                 } else {
-                    state.name_rules().mask(&text).check()
+                    name_rules.mask(&text).check()
                 }
             }
         };

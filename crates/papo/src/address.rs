@@ -76,6 +76,9 @@ pub enum InvalidInput {
         #[source]
         reason: crate::InvalidIdentifier,
     },
+    /// The server has not advertised its name comparison rules.
+    #[error("the server has not advertised CASEMAPPING")]
+    NameRulesUnknown,
     /// Outgoing chat text has no nonempty lines.
     #[error("chat text is empty")]
     EmptyText,

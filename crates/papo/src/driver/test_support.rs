@@ -33,7 +33,11 @@ pub(crate) const TEST_DEADLINE: Duration = Duration::from_secs(5);
 
 impl crate::Client {
     pub(crate) fn disconnected_for_test() -> Self {
-        super::channels(1, &Session::new(Config::default())).client
+        super::channels(
+            1,
+            &Session::new(Config::default().casemapping(crate::Casemapping::default())),
+        )
+        .client
     }
 }
 
@@ -645,6 +649,7 @@ pub(crate) async fn assert_connect_output(
 
 pub(crate) fn config() -> Config {
     Config::default()
+        .casemapping(crate::Casemapping::default())
         .allow_insecure_auth(true)
         .nick("papo-driver")
         .realname("papo driver test")

@@ -158,8 +158,8 @@ impl Builder {
     ///
     /// A server advertisement replaces these rules for the active connection. The most recently
     /// advertised rules remain available while disconnected.
-    pub const fn casemapping(mut self, casemapping: crate::Casemapping) -> Self {
-        self.config.casemapping = casemapping;
+    pub fn casemapping(mut self, casemapping: crate::Casemapping) -> Self {
+        self.config = self.config.casemapping(casemapping);
         self
     }
 
