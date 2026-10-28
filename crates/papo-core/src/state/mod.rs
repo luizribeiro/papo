@@ -685,8 +685,8 @@ impl State {
             .retain(|_, user| user.nick == own || user.monitored || !user.channels.is_empty());
     }
 
-    pub(crate) fn update_isupport(&mut self, isupport: &Isupport) {
-        self.update_casemapping(isupport.casemapping());
+    pub(crate) fn update_isupport(&mut self, isupport: &Isupport, casemapping: Casemapping) {
+        self.update_casemapping(casemapping);
         self.isupport.clone_from(isupport);
         let prefix_order: Arc<[Prefix]> = isupport.prefix().into();
         for channel in self.channels.values_mut() {

@@ -464,7 +464,7 @@ fn disconnect_retains_the_last_advertised_rules() {
 }
 
 #[test]
-fn reports_one_rules_change_against_the_remembered_connection() {
+fn reports_each_rules_change_against_the_previous_rules() {
     Transcript::new(
         Config::default()
             .nick("emily")
@@ -487,7 +487,16 @@ fn reports_one_rules_change_against_the_remembered_connection() {
         )
     })
     .server(":irc.example 005 emily CASEMAPPING=rfc1459 :are supported")
-    .no_event()
+    .event(|event| {
+        matches!(
+            event,
+            Event::CasemappingChanged {
+                old: Casemapping::Rfc1459Strict,
+                new: Casemapping::Rfc1459,
+                ..
+            }
+        )
+    })
     .disconnect()
     .inspect(|session| assert_eq!(session.state().casemapping(), Casemapping::Rfc1459))
     .ignore_rest();

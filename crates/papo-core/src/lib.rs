@@ -609,6 +609,7 @@ pub struct Config {
     pub decoding: Decoding,
     /// Name casemapping remembered before a server advertises its rules.
     pub casemapping: Casemapping,
+    casemapping_seeded: bool,
     /// Identity stamped on names produced by this session.
     #[doc(hidden)]
     pub origin: papo_proto::Origin,
@@ -681,6 +682,7 @@ impl Default for Config {
         Self {
             decoding: Decoding::default(),
             casemapping: Casemapping::default(),
+            casemapping_seeded: false,
             origin: papo_proto::Origin::NONE,
             nick: "papo".to_owned(),
             username: "papo".to_owned(),
@@ -849,6 +851,7 @@ impl Config {
     #[must_use]
     pub const fn casemapping(mut self, casemapping: Casemapping) -> Self {
         self.casemapping = casemapping;
+        self.casemapping_seeded = true;
         self
     }
 
@@ -2481,6 +2484,9 @@ pub enum Event {
         removed: Vec<Feature>,
     },
     /// A connection advertised name rules different from the remembered rules.
+    ///
+    /// Applications with maps or sets keyed by names must rebuild them because existing names
+    /// retain the old casemapping.
     #[non_exhaustive]
     CasemappingChanged {
         /// Rules retained from the previous connection or offline seed.
@@ -3139,8 +3145,7 @@ pub struct Session {
     config: Config,
     connection: Connection,
     caps: Caps,
-    casemapping_baseline: Casemapping,
-    casemapping_change_emitted: bool,
+    name_rules_known: bool,
     utf8_casemapping_warning: Utf8CasemappingWarning,
     ctcp_rate_limit: RateLimiter,
     ctcp_sources: VecDeque<(String, Instant)>,
@@ -3175,11 +3180,7 @@ impl std::fmt::Debug for Session {
             .field("config", &self.config)
             .field("connection", &self.connection)
             .field("caps", &self.caps)
-            .field("casemapping_baseline", &self.casemapping_baseline)
-            .field(
-                "casemapping_change_emitted",
-                &self.casemapping_change_emitted,
-            )
+            .field("name_rules_known", &self.name_rules_known)
             .field("utf8_casemapping_warning", &self.utf8_casemapping_warning)
             .field("ctcp_rate_limit", &self.ctcp_rate_limit)
             .field("ctcp_sources", &self.ctcp_sources)
@@ -3465,6 +3466,7 @@ impl Session {
 
     fn from_config(config: Config, entropy: Option<Box<dyn Entropy + Send>>) -> Self {
         let remembered_casemapping = config.casemapping;
+        let name_rules_known = config.casemapping_seeded;
         let origin = config.origin;
         let connection = Connection {
             host: config.host.clone(),
@@ -3486,8 +3488,7 @@ impl Session {
             config,
             connection,
             caps: Caps::default(),
-            casemapping_baseline: remembered_casemapping,
-            casemapping_change_emitted: false,
+            name_rules_known,
             utf8_casemapping_warning: Utf8CasemappingWarning::Pending,
             ctcp_rate_limit,
             ctcp_sources: VecDeque::new(),
@@ -3556,8 +3557,6 @@ impl Session {
         self.away_on_connect_sent = false;
         self.metadata_subscriptions_sent = false;
         self.caps.handle_connected(now);
-        self.casemapping_baseline = self.remembered_casemapping;
-        self.casemapping_change_emitted = false;
         self.utf8_casemapping_warning = Utf8CasemappingWarning::Pending;
         self.isupport.handle_connected();
         self.sasl.handle_connected();
@@ -4720,6 +4719,13 @@ impl Session {
         self.isupport.value()
     }
 
+    /// Reports whether a configured seed or server advertisement established name rules.
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __name_rules_known(&self) -> bool {
+        self.name_rules_known
+    }
+
     /// Returns the session's channel and user state.
     #[must_use]
     pub const fn state(&self) -> &State {
@@ -5569,7 +5575,16 @@ impl Session {
     }
 
     fn remember_casemapping(&mut self) {
-        self.state.update_isupport(self.isupport.value());
+        let advertised = matches!(
+            self.isupport.value().get("CASEMAPPING"),
+            papo_proto::Advertised::Value(value) if value.parse::<Casemapping>().is_ok()
+        );
+        let new = if advertised {
+            self.isupport.value().casemapping()
+        } else {
+            self.remembered_casemapping
+        };
+        self.state.update_isupport(self.isupport.value(), new);
         if self.utf8_casemapping_warning == Utf8CasemappingWarning::Pending
             && matches!(
                 self.isupport.value().get("UTF8MAPPING"),
@@ -5580,14 +5595,13 @@ impl Session {
             self.outbox.event(Event::Utf8CasemappingUnsupported);
             self.utf8_casemapping_warning = Utf8CasemappingWarning::Emitted;
         }
-        let new = self.isupport.value().casemapping();
-        if !self.casemapping_change_emitted && new != self.casemapping_baseline {
+        if new != self.remembered_casemapping {
             self.outbox.event(Event::CasemappingChanged {
-                old: self.casemapping_baseline,
+                old: self.remembered_casemapping,
                 new,
             });
-            self.casemapping_change_emitted = true;
         }
+        self.name_rules_known |= advertised;
         self.remembered_casemapping = new;
     }
 

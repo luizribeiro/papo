@@ -7,6 +7,22 @@ use papo_proto::Advertised;
 use support::Transcript;
 
 #[test]
+fn name_rules_require_an_explicit_casemapping_or_seed() {
+    let now = std::time::Instant::now();
+    let mut session = Session::new(Config::default());
+    assert!(!session.__name_rules_known());
+
+    session.handle_line(now, b":ergo.test 005 papo NETWORK=Ergo :are supported");
+    assert!(!session.__name_rules_known());
+
+    session.handle_line(now, b":ergo.test 005 papo CASEMAPPING=ascii :are supported");
+    assert!(session.__name_rules_known());
+
+    let seeded = Session::new(Config::default().casemapping(papo_proto::Casemapping::Ascii));
+    assert!(seeded.__name_rules_known());
+}
+
+#[test]
 fn applies_multiple_005_lines_and_enforces_utf8only() {
     Transcript::new(Config::default())
         .connect_default()
