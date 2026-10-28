@@ -55,6 +55,17 @@ pub fn exercise_session_mapping(input: &[u8], mut observe: impl FnMut(crate::Eve
     }
 }
 
+/// Exercises session framing while checking batch accounting after every input byte.
+#[doc(hidden)]
+pub fn exercise_session_mapping_invariants(input: &[u8]) {
+    let now = web_time::Instant::now();
+    let mut session = Session::new(Config::default());
+    for byte in input {
+        session.handle_bytes(now, std::slice::from_ref(byte));
+        assert!(papo_core::test_support::batch_accounting_is_sound(&session));
+    }
+}
+
 /// Constructs an origin-free nickname for test fixtures.
 #[must_use]
 pub fn nickname(casemapping: Casemapping, text: impl Into<String>) -> Nick {

@@ -158,6 +158,8 @@ mod source;
 )]
 mod state;
 pub mod sts;
+#[doc(hidden)]
+pub mod test_support;
 #[allow(
     clippy::indexing_slicing,
     reason = "typing positions are obtained from the same deque immediately before mutation"

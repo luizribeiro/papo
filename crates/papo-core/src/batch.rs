@@ -505,6 +505,28 @@ impl Batches {
             .map(|batch| batch.kind.clone());
         DispatchContext { batch_type }
     }
+
+    pub(crate) fn recount(&self) -> usize {
+        self.open
+            .values()
+            .map(|batch| {
+                retained_bytes(&batch.opening.as_ref())
+                    + batch
+                        .messages
+                        .iter()
+                        .map(|line| retained_bytes(&line.as_ref()))
+                        .sum::<usize>()
+                    + batch
+                        .completed
+                        .len()
+                        .saturating_mul(std::mem::size_of::<BatchEvent>())
+            })
+            .sum()
+    }
+
+    pub(crate) fn accounting_is_sound(&self) -> bool {
+        self.buffered_bytes >= self.recount()
+    }
 }
 
 fn is_history(kind: &str) -> bool {
