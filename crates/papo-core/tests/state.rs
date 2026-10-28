@@ -1253,6 +1253,89 @@ fn applies_membership_modes_in_advertised_rank_order() {
 }
 
 #[test]
+fn orders_membership_prefixes_after_each_mode_change() {
+    Transcript::new(Config::default())
+        .server(
+            ":ergo.test 005 papo CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(qaohv)~&@%+ :are supported",
+        )
+        .server(":papo!papo@localhost JOIN #papo")
+        .server(":ergo.test 353 papo = #papo :papo bob carol")
+        .server(":alice!~alice@users.example MODE #papo +v bob")
+        .inspect(|session| {
+            let bob = session
+                .state()
+                .channel("#papo")
+                .unwrap()
+                .member("bob")
+                .unwrap();
+            assert_eq!(prefix_symbols(bob.prefixes()), ['+']);
+        })
+        .server(":alice!~alice@users.example MODE #papo +h bob")
+        .inspect(|session| {
+            let bob = session
+                .state()
+                .channel("#papo")
+                .unwrap()
+                .member("bob")
+                .unwrap();
+            assert_eq!(prefix_symbols(bob.prefixes()), ['%', '+']);
+        })
+        .server(":alice!~alice@users.example MODE #papo +o bob")
+        .inspect(|session| {
+            let bob = session
+                .state()
+                .channel("#papo")
+                .unwrap()
+                .member("bob")
+                .unwrap();
+            assert_eq!(prefix_symbols(bob.prefixes()), ['@', '%', '+']);
+        })
+        .server(":alice!~alice@users.example MODE #papo +a bob")
+        .inspect(|session| {
+            let bob = session
+                .state()
+                .channel("#papo")
+                .unwrap()
+                .member("bob")
+                .unwrap();
+            assert_eq!(prefix_symbols(bob.prefixes()), ['&', '@', '%', '+']);
+        })
+        .server(":alice!~alice@users.example MODE #papo +q bob")
+        .inspect(|session| {
+            let bob = session
+                .state()
+                .channel("#papo")
+                .unwrap()
+                .member("bob")
+                .unwrap();
+            assert_eq!(prefix_symbols(bob.prefixes()), ['~', '&', '@', '%', '+']);
+        })
+        .server(":alice!~alice@users.example MODE #papo -o bob")
+        .inspect(|session| {
+            let bob = session
+                .state()
+                .channel("#papo")
+                .unwrap()
+                .member("bob")
+                .unwrap();
+            assert_eq!(prefix_symbols(bob.prefixes()), ['~', '&', '%', '+']);
+        })
+        .server(":alice!~alice@users.example MODE #papo +o carol")
+        .server(":alice!~alice@users.example MODE #papo +v carol")
+        .server(":alice!~alice@users.example MODE #papo +q carol")
+        .inspect(|session| {
+            let carol = session
+                .state()
+                .channel("#papo")
+                .unwrap()
+                .member("carol")
+                .unwrap();
+            assert_eq!(prefix_symbols(carol.prefixes()), ['~', '@', '+']);
+        })
+        .ignore_rest();
+}
+
+#[test]
 fn ignores_membership_modes_for_unknown_channels_and_members() {
     Transcript::new(Config::default().nick("emily"))
         .server(":ergo.test 005 emily CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(ov)@+ :are supported")
