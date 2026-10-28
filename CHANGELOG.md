@@ -158,3 +158,71 @@ include those facts. Text comparisons still apply the name's fold. The public
 `isupport::Extban` was renamed `ExtbanSyntax`; `Isupport::casemapping()` is optional, and status
 prefixes from ISUPPORT, WHO/WHOIS, members, and event audiences use the shared `Prefix` and `Rank`
 types rather than chars, indexes, or private prefix structs.
+
+#### Events, actors, and message references
+
+Line events now use a consistent envelope and actor model. Match payloads directly; the message,
+notice, server-notice, history, and auto-join-failure variants are no longer boxed or inline-field
+special cases.
+
+Before:
+
+```rust,ignore
+if let Event::OwnMessage(message) | Event::Message(message) = event {
+    println!("{}: {}", message.actor, message.text);
+    let reply_to = message.reply_to.clone();
+}
+if let Event::AutoJoinFailed { channel, error } = event { /* ... */ }
+```
+
+After:
+
+```rust,ignore
+if let Event::Message(message) = event {
+    println!("{}: {}", message.actor.nick(), message.text);
+    let reply_to = message.in_reply_to.as_ref();
+    let own = message.authorship == Authorship::Own;
+}
+if let Event::AutoJoinFailed(failure) = event { /* ... */ }
+```
+
+| Earlier API | 0.1.0 API |
+|---|---|
+| Boxed `Event::{Message, Notice, ServerNotice, History}` payloads | Unboxed payloads; the Box-specific `MessageRef` conversions were removed |
+| Inline-field `Event::AutoJoinFailed { channel, error }` | `Event::AutoJoinFailed(event::AutoJoinFailed)` and `as_auto_join_failed()` |
+| `Event::OwnMessage` plus incoming variants | `Event::OwnMessage` was removed; all own lines use their normal variant with `Authorship::Own` |
+| Own sends could also arrive as message events | A correlated send resolves to `Sent`; applications that log chat insert their own sends from that value |
+| `Source` plus repeated `nick`, `account`, `oper`, and `is_bot` fields | `Source::{User(UserSource), Server(ServerName)}`; user facts live on `UserSource` accessors |
+| `Message::reply_to` / `Notice::reply_to` | `in_reply_to` |
+| `Reacted::message` and `removed: bool` | `reacts_to` and `ReactionAction::{Added, Removed}` |
+| `Redacted::message` | `redacts` |
+| `NoticeKind` duplicated message kinds | Notices use the shared `MessageKind`; `NoticeKind` was removed |
+| `Vec<char>` status prefixes | `Option<Prefix>` preserves the lowest-ranked addressed prefix |
+| `ServerNoticeTarget` | `Audience::{Me, Channel, Broadcast}` plus `Broadcast::{Everyone, Mask}` |
+| Server-wide CTCP and tag messages were folded into unrelated events | `Event::BroadcastCtcp` and `Event::BroadcastTagMsg` carry explicit broadcast audiences |
+| `Event::Other(Line)` | `Event::Other(event::Unparsed)` preserves the line plus msgid and timestamps and dereferences to `Line` |
+| `Event::msgid()` cloned an identifier | It returns `Option<&MessageId>` |
+| `HistoryPage::messages()` silently omitted notices | Use the page iterator for every item or `chat_messages()` when only `Message` values are wanted |
+
+`Message`, `Notice`, `TagMsg`, `ServerNotice`, `Invited`, and `ChannelRenamed` now retain the full
+available line envelope (`msgid`, `server_time`, and `received_at`). Derived account, away, host,
+realname, and typing changes retain the triggering time but intentionally do not duplicate its
+message ID. `Event::{msgid, server_time, received_at}` cover every applicable variant.
+
+User lifecycle payloads were normalized as follows:
+
+| Earlier fields | 0.1.0 fields |
+|---|---|
+| `NickChanged { old, actor, account, ... }` | `actor: UserSource` describes the old identity, `new` is the new nick, and `channels` lists shared channels |
+| `AwayChanged { nick, away, actor }` | `actor: UserSource`, `new: Away`, `authorship`, and timestamps |
+| `AccountChanged { nick, account, actor }` | `actor: UserSource`, `new: Account`, `authorship`, and timestamps |
+| `HostChanged { nick, username, host, actor }` | `actor: UserSource`, `new_username`, `new_host`, `authorship`, and timestamps |
+| `RealnameChanged { nick, realname, actor }` | `actor: UserSource`, `new`, and `authorship` |
+| `MonitorOnline { nick, username, host }` / `MonitorOffline { nick }` | `subject: UserSource` / `subject: Nick` |
+| `ModeChanged::subject_authorship` | `ModeChanged::about(&change)` computes authorship for each member mode change |
+| String netsplit server names | `SplitServers` contains `ServerName` values |
+
+`Whois::account` is now `Account`, and bot flags in `Whois` and `WhoEntry` are `Option<bool>` so
+unknown is not reported as false. WHO and WHOIS membership prefixes are `Prefix`; their channel
+rows provide `rank()`. `MetadataChanged::value` is `Option<MetadataValue>` rather than separate
+text and visibility fields.
