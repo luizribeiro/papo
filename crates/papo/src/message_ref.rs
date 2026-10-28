@@ -216,7 +216,7 @@ pub struct MessageRef {
 }
 
 impl MessageRef {
-    fn new(
+    pub(crate) fn new(
         address: String,
         msgids: Vec<MessageId>,
         origin: crate::Origin,

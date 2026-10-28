@@ -288,6 +288,8 @@ mod state;
 mod target;
 pub mod time;
 mod transport;
+#[allow(dead_code)]
+mod typing;
 mod webirc;
 
 #[doc(hidden)]
