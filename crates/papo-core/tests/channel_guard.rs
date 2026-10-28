@@ -1,6 +1,6 @@
 //! Transcript coverage for receipt-derived channel identity.
 
-use std::time::Instant;
+use std::time::{Duration, Instant, UNIX_EPOCH};
 
 use papo_core::{Config, Event, Session, TargetGuard, TextKind};
 
@@ -140,4 +140,52 @@ fn creation_time_proves_a_channel_across_membership_epochs() {
         )
         .unwrap();
     assert_eq!(session.poll_transmit(), None);
+}
+
+#[test]
+#[allow(clippy::duration_suboptimal_units)]
+fn reconnect_reports_a_recreated_channel_without_refusing_the_rejoin() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("papo"));
+    for channel in ["#release", "#stable"] {
+        server(&mut session, &format!(":papo!p@localhost JOIN {channel}"));
+        server(
+            &mut session,
+            &format!(":ergo.test 329 papo {channel} 1793098800"),
+        );
+    }
+    while session.poll_event().is_some() {}
+
+    session.handle_disconnected(now);
+    session.handle_connected(now);
+    for (channel, created_at) in [("#release", 1_793_099_900), ("#stable", 1_793_098_800)] {
+        server(&mut session, &format!(":papo!p@localhost JOIN {channel}"));
+        server(
+            &mut session,
+            &format!(":ergo.test 329 papo {channel} {created_at}"),
+        );
+    }
+
+    let recreated: Vec<_> = std::iter::from_fn(|| session.poll_event())
+        .filter_map(|event| match event {
+            Event::ChannelRecreated {
+                channel,
+                previous_created_at,
+                created_at,
+                ..
+            } => Some((channel, previous_created_at, created_at)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(recreated.len(), 1);
+    assert_eq!(recreated[0].0, "#release");
+    assert_eq!(
+        recreated[0].1,
+        UNIX_EPOCH + Duration::from_secs(1_793_098_800)
+    );
+    assert_eq!(
+        recreated[0].2,
+        UNIX_EPOCH + Duration::from_secs(1_793_099_900)
+    );
+    assert!(session.state().channel("#release").is_some());
 }

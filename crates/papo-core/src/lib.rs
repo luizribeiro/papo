@@ -2486,6 +2486,16 @@ pub enum Event {
         /// Rules advertised by the current connection.
         new: Casemapping,
     },
+    /// A rejoined channel has a different server creation time.
+    #[non_exhaustive]
+    ChannelRecreated {
+        /// The channel that was rejoined.
+        channel: ChannelName,
+        /// Creation time observed before reconnecting.
+        previous_created_at: std::time::SystemTime,
+        /// Creation time reported after rejoining.
+        created_at: std::time::SystemTime,
+    },
     /// The server advertised RFC 8265 name matching, but this build cannot apply it.
     Utf8CasemappingUnsupported,
     /// A plaintext connection must be replaced with TLS on `port`.

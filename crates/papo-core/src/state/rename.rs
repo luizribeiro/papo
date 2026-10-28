@@ -58,6 +58,7 @@ impl State {
     fn forget_channel(&mut self, name: &str) {
         let key = self.casemapping.channel(name);
         let folded = self.casemapping.fold(name);
+        self.rejoin_creation_times.remove(folded.as_ref());
         self.remove_metadata(name);
         self.who_sweeps.remove(&key);
         crate::typing::TypingTable::forget_channel(&mut self.typing, &key);

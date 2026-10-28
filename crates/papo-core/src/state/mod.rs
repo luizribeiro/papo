@@ -59,6 +59,7 @@ pub struct State {
     read_marker_order: BoundedCollection<NameKey<String>>,
     last_seen: HashMap<NameKey<String>, LastSeen>,
     last_seen_order: VecDeque<String>,
+    rejoin_creation_times: HashMap<NameKey<String>, SystemTime>,
     reply_epoch: u64,
     channel_epoch: u64,
     departure_sequence: u64,
@@ -96,6 +97,7 @@ impl Clone for State {
             read_marker_order: self.read_marker_order.clone(),
             last_seen: self.last_seen.clone(),
             last_seen_order: self.last_seen_order.clone(),
+            rejoin_creation_times: self.rejoin_creation_times.clone(),
             reply_epoch: self.reply_epoch,
             channel_epoch: self.channel_epoch,
             departure_sequence: self.departure_sequence,
@@ -425,6 +427,7 @@ impl State {
             read_marker_order: BoundedCollection::new(MAX_READ_MARKERS),
             last_seen: HashMap::new(),
             last_seen_order: VecDeque::new(),
+            rejoin_creation_times: HashMap::new(),
             reply_epoch: 0,
             channel_epoch: 0,
             departure_sequence: 0,
@@ -456,6 +459,13 @@ impl State {
     pub(crate) fn reset(&mut self, config: &Config, casemapping: Casemapping, isupport: &Isupport) {
         let last_seen = std::mem::take(&mut self.last_seen);
         let last_seen_order = std::mem::take(&mut self.last_seen_order);
+        let mut rejoin_creation_times = std::mem::take(&mut self.rejoin_creation_times);
+        for channel in self.channels.values() {
+            if let Some(created_at) = channel.created_at {
+                rejoin_creation_times
+                    .insert(NameKey::new(channel.name.as_ref(), casemapping), created_at);
+            }
+        }
         let reply_epoch = self.reply_epoch.wrapping_add(1);
         let channel_epoch = self.channel_epoch;
         *self = Self::with_casemapping(config, casemapping);
@@ -472,6 +482,12 @@ impl State {
             );
         }
         self.last_seen_order = last_seen_order;
+        self.rejoin_creation_times = rejoin_creation_times
+            .into_iter()
+            .map(|(channel, created_at)| {
+                (NameKey::new(channel.original(), casemapping), created_at)
+            })
+            .collect();
     }
 
     /// Returns the receipt position used to guard a response built outside the core.
@@ -886,7 +902,7 @@ impl State {
         }
         let mode_reported = self.report_mode_change(message, isupport, outbox);
         if self.handle_channel_mode(message, isupport)
-            || self.handle_channel_metadata(message, isupport)
+            || self.handle_channel_metadata(message, isupport, outbox)
             || self.handle_user_modes(message, isupport)
             || self.handle_topic(message, outbox)
             || mode_reported
@@ -1024,22 +1040,46 @@ impl State {
         true
     }
 
-    fn handle_channel_metadata(&mut self, message: &LineRef<'_>, isupport: &Isupport) -> bool {
+    fn handle_channel_metadata(
+        &mut self,
+        message: &LineRef<'_>,
+        isupport: &Isupport,
+        outbox: &mut Outbox,
+    ) -> bool {
         if !matches!(
             message.command(),
             Command::Numeric(Numeric::RPL_CHANNELMODEIS | Numeric::RPL_CREATIONTIME)
         ) {
             return false;
         }
-        let Some(channel) = message.param(1).and_then(|name| self.channel_mut(name)) else {
+        let Some(name) = message.param(1) else {
             return false;
         };
         if message.command() == Command::Numeric(Numeric::RPL_CHANNELMODEIS) {
+            let Some(channel) = self.channel_mut(name) else {
+                return false;
+            };
             if let Some(modestring) = message.param(2) {
                 channel.apply_modes(modestring, message.params().skip(3), isupport, true);
             }
         } else {
-            channel.created_at = message.param(2).and_then(parse_unix_seconds);
+            let created_at = message.param(2).and_then(parse_unix_seconds);
+            let Some(channel) = self.channel_mut(name) else {
+                return false;
+            };
+            channel.created_at = created_at;
+            let channel_name = channel.name.clone();
+            let key = NameKey::new(channel_name.as_ref(), channel_name.casemapping());
+            if let Some(created_at) = created_at
+                && let Some(previous) = self.rejoin_creation_times.remove(&key)
+                && previous != created_at
+            {
+                outbox.event(Event::ChannelRecreated {
+                    channel: channel_name,
+                    previous_created_at: previous,
+                    created_at,
+                });
+            }
         }
         true
     }
@@ -1236,6 +1276,10 @@ impl State {
             metadata.insert(NameKey::new(target.original(), mapping), values);
         }
         self.metadata = metadata;
+        self.rejoin_creation_times = std::mem::take(&mut self.rejoin_creation_times)
+            .into_iter()
+            .map(|(channel, created_at)| (NameKey::new(channel.original(), mapping), created_at))
+            .collect();
         self.casemapping = Names::new(mapping, self.casemapping.origin());
     }
 
