@@ -112,6 +112,13 @@ impl State {
         }
     }
 
+    /// Returns name rules only after they are known.
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __known_name_rules(&self) -> Option<crate::NameRules<'_>> {
+        self.known_name_rules()
+    }
+
     pub(crate) fn resolve_recipient(
         &self,
         recipient: &papo_core::RecipientGuard,
