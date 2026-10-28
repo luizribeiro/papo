@@ -2,7 +2,10 @@
 
 mod support;
 
-use std::{cell::Cell, time::Instant};
+use std::{
+    cell::{Cell, RefCell},
+    time::Instant,
+};
 
 use papo_core::{Account, Away, Config, Event, Feature, UnsupportedReason};
 use papo_proto::{Casemapping, Line, Nick, Origin};
@@ -53,6 +56,47 @@ fn adds_removes_and_clears_monitored_nicks() {
         .client("MONITOR - bob")
         .update(papo_core::Session::monitor_clear)
         .client("MONITOR C")
+        .no_client();
+}
+
+#[test]
+fn guarded_direct_monitor_follows_rename_and_releases_its_watch() {
+    let recipient = RefCell::new(None);
+    registered()
+        .update(|session| {
+            let account =
+                Account::LoggedIn(session.state().casemapping().account("alice-account"));
+            *recipient.borrow_mut() = Some(session.__direct_acquire(
+                "alice",
+                Some("~alice"),
+                Some("cloak.example"),
+                account,
+            ));
+        })
+        .client("MONITOR + alice")
+        .inspect(|session| {
+            assert_eq!(
+                session
+                    .state()
+                    .monitored()
+                    .map(AsRef::as_ref)
+                    .collect::<Vec<_>>(),
+                ["alice"]
+            );
+            assert!(matches!(
+                session.state().user("alice").map(papo_core::User::account),
+                Some(Account::LoggedIn(account)) if account == "alice-account"
+            ));
+        })
+        .server(":alice!~alice@cloak.example NICK alicia")
+        .client("MONITOR - alice")
+        .client("MONITOR + alicia")
+        .event(|event| matches!(event, Event::NickChanged { old, new, .. } if old == "alice" && new == "alicia"))
+        .update(|session| {
+            session.__direct_release(recipient.borrow().as_ref().expect("recipient was acquired"));
+        })
+        .client("MONITOR - alicia")
+        .inspect(|session| assert_eq!(session.state().monitored().count(), 0))
         .no_client();
 }
 
