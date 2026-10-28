@@ -83,15 +83,15 @@ specs = [
 [[group]]
 title = "Deprecated or unsupported"
 specs = [
-  { name = "STARTTLS", url = "https://ircv3.net/specs/deprecated/tls", wire = "tls", support = "No", api = "—" },
-  { name = "FILEHOST", url = "https://github.com/ircv3/ircv3-specifications/pull/562", wire = "draft/FILEHOST", support = "No", api = "—" },
-  { name = "Search", url = "https://github.com/ircv3/ircv3-specifications/pull/496", wire = "SEARCH", support = "No", api = "—" },
-  { name = "Message edit and delete", url = "https://github.com/ircv3/ircv3-specifications/pull/425", wire = "draft/message-edit, draft/message-delete", support = "No", api = "—" },
-  { name = "Authentication tokens", url = "https://github.com/ircv3/ircv3-specifications/pull/602", wire = "draft/authtoken", support = "No", api = "—" },
-  { name = "EXTJWT", url = "https://github.com/ircv3/ircv3-specifications/pull/547", wire = "draft/extjwt", support = "No", api = "—" },
-  { name = "Custom emoji", url = "https://github.com/ircv3/ircv3-specifications/pull/586", wire = "draft/emoji", support = "No", api = "—" },
-  { name = "Named modes", url = "https://github.com/ircv3/ircv3-specifications/pull/484", wire = "draft/named-modes", support = "No", api = "—" },
-  { name = "Display name tag", url = "https://github.com/ircv3/ircv3-specifications/pull/452", wire = "+draft/display-name", support = "No", api = "—" },
-  { name = "Two-factor authentication", url = "https://github.com/ircv3/ircv3-specifications/pull/610", wire = "draft/2fa", support = "No", api = "—" },
-  { name = "Ergo negotiation trap", url = "https://github.com/ergochat/ergo", caps = ["ergo.chat/nope"], support = "No", api = "—" },
+  { name = "STARTTLS", url = "https://ircv3.net/specs/deprecated/tls", wire = "tls", reason = "Deprecated in favor of direct TLS (`ircs://`) or STS." },
+  { name = "FILEHOST", url = "https://github.com/ircv3/ircv3-specifications/pull/562", wire = "draft/FILEHOST", reason = "Limited to unstable advertised-URL discovery ([issue #11](https://github.com/luizribeiro/papo/issues/11))." },
+  { name = "Search", url = "https://github.com/ircv3/ircv3-specifications/pull/496", wire = "SEARCH", reason = "Limited to `soju.im/search` response routing." },
+  { name = "Message edit and delete", url = "https://github.com/ircv3/ircv3-specifications/pull/425", wire = "draft/message-edit, draft/message-delete", reason = "Deferred for editing, with deletion covered by message redaction." },
+  { name = "Authentication tokens", url = "https://github.com/ircv3/ircv3-specifications/pull/602", wire = "draft/authtoken", reason = "Not yet implemented." },
+  { name = "EXTJWT", url = "https://github.com/ircv3/ircv3-specifications/pull/547", wire = "draft/extjwt", reason = "Planned for external-service authentication in [issue #11](https://github.com/luizribeiro/papo/issues/11)." },
+  { name = "Custom emoji", url = "https://github.com/ircv3/ircv3-specifications/pull/586", wire = "draft/emoji", reason = "Not yet implemented." },
+  { name = "Named modes", url = "https://github.com/ircv3/ircv3-specifications/pull/484", wire = "draft/named-modes", reason = "Deferred in favor of mode discovery through `CHANMODES` and `PREFIX`." },
+  { name = "Display name tag", url = "https://github.com/ircv3/ircv3-specifications/pull/452", wire = "+draft/display-name", reason = "Not yet implemented." },
+  { name = "Two-factor authentication", url = "https://github.com/ircv3/ircv3-specifications/pull/610", wire = "draft/2fa", reason = "Not yet implemented." },
+  { name = "Ergo negotiation trap", url = "https://ergo.chat/nope/", caps = ["ergo.chat/nope"], reason = "Deliberately never requested to avoid registration-time disconnection." },
 ]

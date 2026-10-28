@@ -14,6 +14,7 @@ CAPS = ROOT / "crates/papo-core/src/cap.rs"
 CHECKLIST = ROOT / "crates/papo-conformance/coverage-checklist.toml"
 COVERAGE = ROOT / "docs/conformance-coverage.md"
 OUTPUT = ROOT / "docs/ircv3-support.md"
+UNSUPPORTED_GROUP = "Deprecated or unsupported"
 SUPPORT = dict(Default="Yes", Automatic="Opt-in", Never="No", Superseded="Yes", OptIn="Unstable")
 ENUMS = {"Authorship", "ConnectErrorKind", "Event", "Extban", "Feature"}
 REGISTRY_ENTRY = re.compile(
@@ -39,6 +40,8 @@ def load_catalog(path=DATA):
     valid = set(SUPPORT.values())
     for group in groups:
         for spec in group["specs"]:
+            if group["title"] == UNSUPPORTED_GROUP and not spec.get("reason"):
+                raise ValueError(f"{spec['name']} has no unsupported reason")
             if "support" in spec and spec["support"] not in valid:
                 raise ValueError(f"invalid support value for {spec['name']}")
             if not spec.get("wire") and not spec.get("caps"):
@@ -97,9 +100,23 @@ def render(groups, registry, known_coverage, live_coverage):
         "setting. `Unstable` also needs the `unstable` crate feature.\n",
     ]
     for group in groups:
+        lines.append(f"## {group['title']}\n")
+        if group["title"] == UNSUPPORTED_GROUP:
+            lines.extend(
+                [
+                    "| Specification | Capability, tag, or token | Notes |",
+                    "| --- | --- | --- |",
+                ]
+            )
+            for spec in group["specs"]:
+                wire = spec.get("wire") or ", ".join(spec["caps"])
+                lines.append(
+                    f"| [{spec['name']}]({spec['url']}) | `{wire}` | {spec['reason']} |"
+                )
+            lines.append("")
+            continue
         lines.extend(
             [
-                f"## {group['title']}\n",
                 "| Specification | Capability, tag, or token | Support | papo API | Live conformance |",
                 "| --- | --- | :---: | --- | :---: |",
             ]
