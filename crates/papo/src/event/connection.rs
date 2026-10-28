@@ -91,7 +91,10 @@ pub struct FeaturesChanged {
     pub removed: Vec<Feature>,
 }
 
-/// Server-defined name rules changed between connections.
+/// Server-defined name rules changed.
+///
+/// Applications with maps or sets keyed by names must rebuild them because existing names retain
+/// the old casemapping and deliberately do not compare equal to names built with the new rules.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct CasemappingChanged {

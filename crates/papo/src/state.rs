@@ -93,10 +93,14 @@ impl State {
         receipt
     }
 
-    /// Returns builders and checks that use this snapshot's name rules and client identity.
+    /// Returns builders and checks once the server's name rules are known.
+    ///
+    /// This is `None` until the server advertises `CASEMAPPING` in `005`, unless
+    /// [`crate::Builder::casemapping`] seeded the rules before connecting. Waiting avoids
+    /// creating names under guessed rules that cannot compare equal to names created later.
     #[must_use]
-    pub const fn name_rules(&self) -> crate::NameRules<'_> {
-        crate::NameRules { state: self }
+    pub const fn name_rules(&self) -> Option<crate::NameRules<'_>> {
+        self.known_name_rules()
     }
 
     /// Returns builders and checks once the server's name rules are known.

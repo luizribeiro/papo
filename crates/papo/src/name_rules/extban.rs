@@ -9,7 +9,7 @@ impl NameRules<'_> {
     ///
     /// ```
     /// # fn example(state: &papo::State) {
-    /// let names = state.name_rules();
+    /// let names = state.name_rules().expect("server advertised CASEMAPPING");
     /// let extban = names.parse_extban(&names.mask("$a:alice"));
     /// # _ = extban;
     /// # }

@@ -2927,7 +2927,7 @@ pub fn papo::State::metadata(&self, impl papo::AsConversation) -> core::option::
 pub fn papo::State::metadata_subscriptions(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &papo::MetadataKey>
 pub fn papo::State::monitor_online(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::User>
 pub fn papo::State::monitored(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &papo::Nick>
-pub const fn papo::State::name_rules(&self) -> papo::NameRules<'_>
+pub const fn papo::State::name_rules(&self) -> core::option::Option<papo::NameRules<'_>>
 pub fn papo::State::nick(&self) -> &papo::Nick
 pub fn papo::State::persistence(&self) -> core::option::Option<papo::PersistenceStatus>
 pub fn papo::State::read_marker(&self, impl papo::AsConversation) -> core::option::Option<papo::ReadMarker>

@@ -9,7 +9,8 @@ impl NameRules<'_> {
     ///
     /// ```
     /// # fn example(state: &papo::State) {
-    /// assert!(matches!(state.name_rules().check_nick("guest nick"),
+    /// let names = state.name_rules().expect("server advertised CASEMAPPING");
+    /// assert!(matches!(names.check_nick("guest nick"),
     ///     papo::NameCheck::Invalid(_)));
     /// # }
     /// ```
@@ -34,7 +35,8 @@ impl NameRules<'_> {
     ///
     /// ```
     /// # fn example(state: &papo::State) {
-    /// assert!(matches!(state.name_rules().check_channel("#team chat"),
+    /// let names = state.name_rules().expect("server advertised CASEMAPPING");
+    /// assert!(matches!(names.check_channel("#team chat"),
     ///     papo::NameCheck::Invalid(_)));
     /// # }
     /// ```

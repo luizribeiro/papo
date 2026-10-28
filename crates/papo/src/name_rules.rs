@@ -20,6 +20,14 @@ pub enum NameCheck {
 
 /// Builds and checks names using one [`State`]'s current rules and identity.
 ///
+/// This value exists only after `CASEMAPPING` arrives in `005` or the application seeds the
+/// rules with [`crate::Builder::casemapping`]. [`State::name_rules`] returns `None` before then
+/// because names retain their casemapping and a name built from guessed rules would remain a
+/// distinct map key after the real rules arrive.
+///
+/// If a [`crate::event::CasemappingChanged`] event arrives, applications must rebuild maps and
+/// sets keyed by names. Existing names deliberately retain the rules used to create them.
+///
 /// Name values are useful as keys in sets and maps because they retain both the server's
 /// casemapping and the client that produced them. Builders do not validate and never fail:
 /// server-specific rules arrive only after connecting. Use [`Self::check_nick`] and
@@ -29,7 +37,7 @@ pub enum NameCheck {
 ///
 /// ```
 /// # fn example(state: &papo::State) {
-/// let names = state.name_rules();
+/// let Some(names) = state.name_rules() else { return };
 /// let ignored = std::collections::HashSet::from([names.nick("NoisyBot")]);
 /// # _ = ignored;
 /// # }
@@ -47,7 +55,8 @@ impl NameRules<'_> {
     ///
     /// ```
     /// # fn example(state: &papo::State) {
-    /// let nick = state.name_rules().nick("AliceBot");
+    /// let names = state.name_rules().expect("server advertised CASEMAPPING");
+    /// let nick = names.nick("AliceBot");
     /// assert_eq!(nick, "alicebot");
     /// # }
     /// ```
@@ -67,7 +76,8 @@ impl NameRules<'_> {
     ///
     /// ```
     /// # fn example(state: &papo::State) {
-    /// let channel = state.name_rules().channel("#Papo");
+    /// let names = state.name_rules().expect("server advertised CASEMAPPING");
+    /// let channel = names.channel("#Papo");
     /// assert_eq!(channel, "#papo");
     /// # }
     /// ```
@@ -86,7 +96,8 @@ impl NameRules<'_> {
     ///
     /// ```
     /// # fn example(state: &papo::State) {
-    /// let trusted = state.name_rules().account("Alice");
+    /// let names = state.name_rules().expect("server advertised CASEMAPPING");
+    /// let trusted = names.account("Alice");
     /// assert_eq!(trusted, "alice");
     /// # }
     /// ```
@@ -105,7 +116,8 @@ impl NameRules<'_> {
     ///
     /// ```
     /// # fn example(state: &papo::State) {
-    /// let ignored = state.name_rules().mask("*!*@gateway.example");
+    /// let names = state.name_rules().expect("server advertised CASEMAPPING");
+    /// let ignored = names.mask("*!*@gateway.example");
     /// assert!(state.same_list_entry(&ignored, "*!*@GATEWAY.EXAMPLE"));
     /// # }
     /// ```

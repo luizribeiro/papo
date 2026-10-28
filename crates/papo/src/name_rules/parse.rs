@@ -12,7 +12,8 @@ impl NameRules<'_> {
     ///
     /// ```
     /// # fn example(state: &papo::State) -> Result<(), papo::InvalidInput> {
-    /// let conversation = state.name_rules().conversation("#papo")?;
+    /// let names = state.name_rules().expect("server advertised CASEMAPPING");
+    /// let conversation = names.conversation("#papo")?;
     /// # _ = conversation; Ok(()) }
     /// ```
     pub fn conversation(&self, text: &str) -> Result<Conversation, InvalidInput> {
@@ -32,7 +33,8 @@ impl NameRules<'_> {
     ///
     /// ```
     /// # fn example(state: &papo::State) -> Result<(), papo::InvalidInput> {
-    /// let (status, conversation) = state.name_rules().target("@#ops")?;
+    /// let names = state.name_rules().expect("server advertised CASEMAPPING");
+    /// let (status, conversation) = names.target("@#ops")?;
     /// # _ = (status, conversation); Ok(()) }
     /// ```
     pub fn target(&self, target: &str) -> Result<(Option<Prefix>, Conversation), InvalidInput> {
