@@ -1063,6 +1063,24 @@ mod tests {
     }
 
     #[test]
+    fn encoded_credentials_record_their_exact_secret_spans() {
+        let cases = [
+            (
+                Line::new("PASS").param(Secret::new("server-password-3751")),
+                5..25,
+            ),
+            (
+                Line::new("AUTHENTICATE").param(Secret::new("AGFsaWNlAGh1bnRlcjI=")),
+                13..33,
+            ),
+        ];
+
+        for (line, expected) in cases {
+            assert_eq!(line.encode().unwrap().secret_spans(), &[expected]);
+        }
+    }
+
+    #[test]
     fn reports_secret_provenance_for_parameters_and_wire_lines() {
         let cases = [
             (
