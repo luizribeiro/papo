@@ -18,11 +18,7 @@ pub struct Peer {
 impl Peer {
     fn with_name_rules<T>(&self, build: impl FnOnce(papo::NameRules<'_>) -> T) -> T {
         let state = self.client.state();
-        build(
-            state
-                .__known_name_rules()
-                .expect("connected peer has CASEMAPPING"),
-        )
+        build(state.name_rules().expect("connected peer has CASEMAPPING"))
     }
 
     /// Wraps a connected client and its event stream.

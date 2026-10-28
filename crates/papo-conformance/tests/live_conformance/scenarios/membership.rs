@@ -9,9 +9,7 @@ use super::support::{assert_refusal, join_seen_by, subject_name, wait_channel_mo
 use crate::Scenario;
 
 fn name_rules(state: &papo::State) -> papo::NameRules<'_> {
-    state
-        .__known_name_rules()
-        .expect("server advertised CASEMAPPING")
+    state.name_rules().expect("server advertised CASEMAPPING")
 }
 
 /// delivers every user lost behind a server link as a marked quit

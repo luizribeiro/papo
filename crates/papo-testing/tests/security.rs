@@ -406,7 +406,7 @@ async fn foreign_monitor_add_never_reaches_either_wire() {
             .monitor()
             .add([first
                 .state()
-                .__known_name_rules()
+                .name_rules()
                 .expect("server advertised CASEMAPPING")
                 .nick("alice")])
             .await
@@ -430,7 +430,7 @@ async fn foreign_monitor_remove_never_reaches_either_wire() {
             .monitor()
             .remove([first
                 .state()
-                .__known_name_rules()
+                .name_rules()
                 .expect("server advertised CASEMAPPING")
                 .nick("alice")])
             .await
@@ -448,7 +448,7 @@ async fn foreign_account_verification_never_reaches_either_wire() {
             .verify_account(
                 first
                     .state()
-                    .__known_name_rules()
+                    .name_rules()
                     .expect("server advertised CASEMAPPING")
                     .account("alice"),
                 "392814"
@@ -521,12 +521,12 @@ async fn foreign_names_cannot_read_another_clients_state() {
 
     let foreign_channel = first
         .state()
-        .__known_name_rules()
+        .name_rules()
         .expect("server advertised CASEMAPPING")
         .channel("#papo");
     let foreign_nick = first
         .state()
-        .__known_name_rules()
+        .name_rules()
         .expect("server advertised CASEMAPPING")
         .nick("alice");
     assert!(second.state().channel("#papo").is_some());
@@ -1332,7 +1332,7 @@ async fn plaintext_credential_requests_never_reach_the_wire() {
             .verify_account(
                 client
                     .state()
-                    .__known_name_rules()
+                    .name_rules()
                     .expect("server advertised CASEMAPPING")
                     .account("alice"),
                 "39gvcdg4myvnmdcfhvd6exsv4n",
@@ -1686,7 +1686,7 @@ async fn typing_status_change_preserves_the_latest_audience() {
 
     let conversation = client
         .state()
-        .__known_name_rules()
+        .name_rules()
         .expect("server advertised CASEMAPPING")
         .conversation("#staff")
         .unwrap();

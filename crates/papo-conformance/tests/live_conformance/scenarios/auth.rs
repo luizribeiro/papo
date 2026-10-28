@@ -139,7 +139,7 @@ async fn authenticate(s: Scenario, scram: bool) -> papo_testing::Result<()> {
         &papo::Account::LoggedIn(
             alice
                 .state()
-                .__known_name_rules()
+                .name_rules()
                 .expect("server advertised CASEMAPPING")
                 .account(&account)
         )
@@ -223,7 +223,7 @@ async fn account_creation(s: Scenario) -> papo_testing::Result<()> {
     let nick = alice.state().nick().clone();
     let account = alice
         .state()
-        .__known_name_rules()
+        .name_rules()
         .expect("server advertised CASEMAPPING")
         .account(nick.as_ref());
     let outcome = alice

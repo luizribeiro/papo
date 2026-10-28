@@ -33,7 +33,7 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
         .ban(
             alice
                 .state()
-                .__known_name_rules()
+                .name_rules()
                 .expect("server advertised CASEMAPPING")
                 .mask(MASK),
         )
@@ -79,7 +79,7 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
         .unban(
             alice
                 .state()
-                .__known_name_rules()
+                .name_rules()
                 .expect("server advertised CASEMAPPING")
                 .mask(MASK),
         )

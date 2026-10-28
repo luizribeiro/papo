@@ -158,7 +158,7 @@ async fn terminal_history_page(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     let channel = alice
         .state()
-        .__known_name_rules()
+        .name_rules()
         .expect("server advertised CASEMAPPING")
         .channel(s.channel_name());
     alice.join(&channel).await?;
@@ -295,7 +295,7 @@ async fn soju_server_notice_history(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     let bouncer = alice
         .state()
-        .__known_name_rules()
+        .name_rules()
         .expect("server advertised CASEMAPPING")
         .nick("BouncerServ");
     assert!(targets.iter().all(|entry| {

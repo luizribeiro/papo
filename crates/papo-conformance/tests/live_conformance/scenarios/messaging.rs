@@ -8,9 +8,7 @@ use super::support::{
 use crate::{Peer, Scenario};
 
 fn name_rules(state: &papo::State) -> papo::NameRules<'_> {
-    state
-        .__known_name_rules()
-        .expect("server advertised CASEMAPPING")
+    state.name_rules().expect("server advertised CASEMAPPING")
 }
 
 async fn fixture_pair(context: &Scenario) -> papo_testing::Result<(Peer, Peer, String)> {

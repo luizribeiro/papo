@@ -338,7 +338,7 @@ mod tests {
         let request = tokio::spawn({
             let nick = client
                 .state()
-                .__known_name_rules()
+                .name_rules()
                 .expect("server advertised CASEMAPPING")
                 .nick("alice");
             async move { client.whois(nick).await }

@@ -61,7 +61,7 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(
         square
             .state()
-            .__known_name_rules()
+            .name_rules()
             .expect("server advertised CASEMAPPING")
             .channel(&mixed_channel),
         lowercase_channel.as_str()
@@ -120,7 +120,7 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(
         alice
             .state()
-            .__known_name_rules()
+            .name_rules()
             .expect("server advertised CASEMAPPING")
             .channel(&chan),
         folded.as_str()

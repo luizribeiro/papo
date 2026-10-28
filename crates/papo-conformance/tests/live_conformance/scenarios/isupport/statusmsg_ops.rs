@@ -237,7 +237,7 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
 
     let bare_channel = bob
         .state()
-        .__known_name_rules()
+        .name_rules()
         .expect("server advertised CASEMAPPING")
         .channel(&channel);
     bob.react((&bare_channel, &question_id), "📣").await?;

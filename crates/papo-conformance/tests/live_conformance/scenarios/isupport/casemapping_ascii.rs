@@ -8,9 +8,7 @@ fn ascii_nick(value: &str) -> papo::Nick {
 }
 
 fn name_rules(state: &papo::State) -> papo::NameRules<'_> {
-    state
-        .__known_name_rules()
-        .expect("server advertised CASEMAPPING")
+    state.name_rules().expect("server advertised CASEMAPPING")
 }
 
 fn assert_same_channel(state: &papo::State, left: &str, right: &str) {

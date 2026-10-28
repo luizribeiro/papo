@@ -79,7 +79,7 @@ async fn account_notify(s: Scenario) -> papo_testing::Result<()> {
     bob.join(&channel).await?;
     let account = alice
         .state()
-        .__known_name_rules()
+        .name_rules()
         .expect("server advertised CASEMAPPING")
         .account(alice_nick.as_ref());
 
