@@ -191,7 +191,7 @@ impl crate::Client {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests {
     use std::{
         hash::{DefaultHasher, Hash, Hasher},

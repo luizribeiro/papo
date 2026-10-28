@@ -549,7 +549,7 @@ pub(crate) fn stamp_conversation(
 
 #[cfg(test)]
 mod tests {
-    use std::time::{Instant, SystemTime};
+    use std::time::SystemTime;
 
     use papo_core::{Config, Session};
 
@@ -723,7 +723,7 @@ mod tests {
         let mapping = crate::Casemapping::default();
         let channel = Conversation::Channel(mapping.channel("#ops"));
         let mut session = Session::new(Config::default().nick("papo"));
-        session.handle_line(Instant::now(), b":papo!p@localhost JOIN #ops");
+        session.handle_line(crate::rt::now_mono(), b":papo!p@localhost JOIN #ops");
         let guard = session
             .state()
             .__channel_guard(session.state().channel("#ops").unwrap().name());
