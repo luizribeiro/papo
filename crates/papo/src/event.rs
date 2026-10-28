@@ -2576,7 +2576,7 @@ mod tests {
         Event, Message as ChatMessage, MessageId, MessageKind, MetadataChanged, ModeAction,
         ModeArg, ModeChange, ServerNoticeKind, Source, StandardReplyKind, Tags, UserSource,
         Warning, ctcp_parts, from_core as from_core_with_mapping, historical_message_event,
-        message_event_from_line,
+        message_event_from_line, with_channel_guard,
     };
     use crate::{Subject, Visibility};
     use papo_core::{
@@ -2861,6 +2861,104 @@ mod tests {
             received_at,
             None,
         )
+    }
+
+    fn mapped_live_event(line: &str, now: Instant) -> Event {
+        let mut session = Session::new(Config::default().nick("papo"));
+        session.handle_line(now, line.as_bytes());
+        let core = session.poll_event().expect("line produced an event");
+        match from_core_with_mapping(
+            core,
+            session.isupport().casemapping(),
+            crate::Origin::NONE,
+            false,
+            false,
+            UNIX_EPOCH,
+        ) {
+            CoreEvent::Forward(event) => event,
+            CoreEvent::Line(line) => super::incoming_from_core(
+                line,
+                crate::Origin::NONE,
+                session.isupport(),
+                false,
+                false,
+                UNIX_EPOCH,
+            ),
+            _ => panic!("line did not produce a public event"),
+        }
+    }
+
+    fn has_channel_guard(expected: &str, event: &Event) -> bool {
+        let message =
+            |address: crate::MessageRef| crate::Target::__parts(&address).channel.is_some();
+        let notice = |address: crate::NoticeRef| crate::Target::__parts(&address).channel.is_some();
+        match (expected, event) {
+            ("CtcpQuery", Event::CtcpQuery(event)) => message(event.return_address()),
+            ("CtcpReply", Event::CtcpReply(event)) => notice(event.return_address()),
+            ("Message", Event::Message(event)) => message(event.return_address()),
+            ("Notice", Event::Notice(event)) => notice(event.return_address()),
+            ("ServerNotice", Event::ServerNotice(event)) => {
+                event.return_address().is_some_and(notice)
+            }
+            ("Reacted", Event::Reacted(event)) => message(event.return_address()),
+            ("Redacted", Event::Redacted(event)) => message(event.return_address()),
+            ("TagMsg", Event::TagMsg(event)) => message(event.return_address()),
+            ("TypingChanged", Event::TypingChanged(event)) => message(event.return_address()),
+            (_, event) => panic!("expected {expected}, got {event:?}"),
+        }
+    }
+
+    #[test]
+    fn every_message_event_variant_carries_its_channel_guard() {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().nick("papo"));
+        session.handle_line(now, b":papo!p@localhost JOIN #review");
+        let channel = session.state().channel("#review").unwrap().name();
+        let guard = session.state().__channel_guard(channel);
+        let cases = [
+            (
+                "CtcpQuery",
+                ":alice!~alice@cloak.example PRIVMSG #review :\x01VERSION\x01",
+            ),
+            (
+                "CtcpReply",
+                ":alice!~alice@cloak.example NOTICE #review :\x01VERSION Ergo-2.15.0\x01",
+            ),
+            (
+                "Message",
+                ":alice!~alice@cloak.example PRIVMSG #review :release approved",
+            ),
+            (
+                "Notice",
+                ":alice!~alice@cloak.example NOTICE #review :maintenance begins soon",
+            ),
+            (
+                "ServerNotice",
+                ":ergo.test NOTICE #review :Network maintenance begins soon",
+            ),
+            (
+                "Reacted",
+                "@+draft/react=👍;+draft/reply=RfcBTzyxY120001 :alice!~alice@cloak.example TAGMSG #review",
+            ),
+            (
+                "Redacted",
+                ":alice!~alice@cloak.example REDACT #review RfcBTzyxY120001 :off-topic",
+            ),
+            (
+                "TagMsg",
+                "@+example/status=ready :alice!~alice@cloak.example TAGMSG #review",
+            ),
+            (
+                "TypingChanged",
+                "@+typing=active :alice!~alice@cloak.example TAGMSG #review",
+            ),
+        ];
+
+        for (expected, line) in cases {
+            let event = mapped_live_event(line, now);
+            let event = with_channel_guard(event, Some(guard.clone()));
+            assert!(has_channel_guard(expected, &event), "{expected}");
+        }
     }
 
     #[test]
