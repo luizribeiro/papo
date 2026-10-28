@@ -4,8 +4,15 @@
 
 The first release of papo provides an asynchronous IRC client for applications and bots, broad
 IRCv3 support, deterministic protocol state, and native, WASI, and browser transports. `papo` is
-the supported application API; `papo-core` and `papo-proto` are lockstep implementation crates
-without independent stability guarantees.
+the supported application API; see the [IRCv3 support table](docs/ircv3-support.md) for the full
+protocol surface. `papo-testing` is published and version-locked to `papo`, with no stability
+promise even between patch releases. `papo-core` and `papo-proto` are internal lockstep
+implementation crates without independent stability guarantees.
+
+The default `tls-ring` Cargo feature provides TLS. `tls-aws-lc` selects the alternative AWS-LC
+provider, `websocket` adds native and WASI WebSocket transports, `precis` adds Unicode nickname
+and account comparison, and `unstable` exposes experimental extension APIs without semantic
+versioning guarantees.
 
 ### Migration from the 2026-10-24 API
 
@@ -30,8 +37,8 @@ After:
 
 ```rust,ignore
 let builder = Client::builder("ircs://irc.example.net", "alice")
-    .disable(Feature::ReadMarker)
-    .enable(Feature::Relay)
+    .disable(Feature::ReadMarkers)
+    .enable(Feature::Metadata)
     .request_caps(["vendor.example/network-state"]);
 ```
 
@@ -50,7 +57,7 @@ let builder = Client::builder("ircs://irc.example.net", "alice")
 | Public-field `WebIrc` literal | `WebIrc::new(gateway, password, ip).hostname(...).flag(...)` |
 | `sts_store` required an owned, mutable store | `StsStore` methods take `&self`, the value must be `Send + Sync`, and `Arc<T>` can share one store across clients and application persistence |
 | Bad TLS PEM appeared as a late `ConnectErrorKind::Other` | TLS configuration is validated eagerly as `Error::InvalidInput` |
-| `Duration::MAX` and oversized queue settings could panic | Maximum durations disable the corresponding deadline; event capacity is safely clamped |
+| `Duration::MAX` and oversized queue settings could panic | Maximum durations disable the corresponding deadline; event capacity above the runtime bound is clamped, while zero is `InvalidInput::ZeroEventCapacity` |
 | `ConnectError` hid a login refusal reason and repeated it in `source()` | Sanitized server reasons are part of `Display` and are not duplicated in the source chain |
 | `ServerError::command() -> &str` used `""` for absence | `ServerError::command() -> Option<&str>` |
 
@@ -141,6 +148,7 @@ match rules.check_nick(candidate) {
     NameCheck::Valid => {}
     NameCheck::Invalid(reason) => eprintln!("invalid nickname: {reason}"),
     NameCheck::Unknown => eprintln!("the server did not advertise this limit"),
+    _ => {}
 }
 ```
 
@@ -206,8 +214,8 @@ if let Event::AutoJoinFailed(failure) = event { /* ... */ }
 
 `Message`, `Notice`, `TagMsg`, `ServerNotice`, `Invited`, and `ChannelRenamed` now retain the full
 available line envelope (`msgid`, `server_time`, and `received_at`). Derived account, away, host,
-realname, and typing changes retain the triggering time but intentionally do not duplicate its
-message ID. `Event::{msgid, server_time, received_at}` cover every applicable variant.
+and typing changes retain the triggering time but intentionally do not duplicate its message ID.
+`Event::{msgid, server_time, received_at}` cover every applicable variant.
 
 User lifecycle payloads were normalized as follows:
 
@@ -238,10 +246,11 @@ for id in sent.line_msgids { /* text unavailable */ }
 
 // After
 match &sent.outcome {
-    SentOutcome::Confirmed { lines, server_time } => {
+    SentOutcome::Confirmed { lines, server_time, .. } => {
         for (id, text) in lines { /* store the confirmed line */ }
     }
     SentOutcome::Unconfirmed => { /* no usable message IDs */ }
+    _ => {}
 }
 ```
 
@@ -271,6 +280,10 @@ either operand order. `Error` gains `From<ServerError>`, `From<StateLimit>`, and
 `From<Unsupported>` conversions. Input errors are now specific (`InvalidName`, `WireMessage`,
 `InvalidMode`, `InvalidMetadataKey`, and related variants) rather than the catch-all
 `InvalidMessage(String)`.
+
+`client.direct` can return `Error::MonitorFull` when an unshared private recipient cannot reserve
+a server `MONITOR` slot. `Error::Unconfirmed` reports a state-changing request whose wire outcome
+could not be proven.
 
 All request futures are lazy until first poll. After polling, dropping the future abandons the
 wait but does not cancel driver work. `Error::Timeout` means every line was written and the reply
@@ -319,8 +332,10 @@ Dropping the `Driver` still ends the stream without a final `Event::Disconnected
   display text. Channel keys and other credentials remain redacted in state, events, raw request
   responses, errors, and `Debug` output.
 - Server-driven LIST/WHO/WHOIS/NAMES replies, read markers, monitored identities, event loss
-  accounting, and other retained collections are bounded. Overflow returns a typed `StateLimit`
-  error or warning instead of growing without limit or silently truncating a successful result.
+  accounting, open batches, and other retained collections are bounded. Overflow returns a typed
+  `StateLimit` error or warning instead of growing without limit or silently truncating a
+  successful result. `Warning::BatchAbandoned` reports
+  `BatchAbandonReason::{OpenBatchLimit, LineLimit, ByteLimit, Timeout}`.
 - `Warning::Utf8CasemappingUnsupported` reports a server that selects RFC 8265 when the `precis`
   feature is absent. Name checks use only limits actually advertised by the server.
 - `Warning::ChannelRecreated` reports a rejoined channel whose creation time changed. Typing,
@@ -341,5 +356,6 @@ Dropping the `Driver` still ends the stream without a final `Event::Disconnected
 - Channel mode lookup has one `ModeValue` representation. `User::is_bot` is optional where the
   server has not supplied the fact. Account and away state preserve unknown values instead of
   guessing.
-- The duplicate `Isupport::filehost()` accessor was removed; use `State::filehost()` for the
-  validated upload endpoint. Raw advertised values remain available through `State::isupport()`.
+- The duplicate `Isupport::filehost()` accessor was removed; use `State::filehost()` (requires the
+  `unstable` feature) for the validated upload endpoint. Raw advertised values remain available
+  through `State::isupport()`.
