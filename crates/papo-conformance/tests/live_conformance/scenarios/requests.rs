@@ -2,7 +2,7 @@ use papo::{Event, event::StandardReplyKind};
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
-use crate::scenarios::support::conversation_name;
+use crate::scenarios::support::{confirmed_line, conversation_name};
 
 /// a labelled WHOIS resolves to the requested user
 #[scenario(
@@ -60,8 +60,10 @@ async fn batch(s: Scenario) -> papo_testing::Result<()> {
         .chat_messages()
         .find(|message| message.raw_text == "batch correlation deployment")
         .expect("history contains the sent message");
-    assert_eq!(message.msgid.as_ref(), sent.msgid());
-    assert_eq!(message.server_time, sent.server_time);
+    let (id, text, server_time) = confirmed_line(&sent);
+    assert_eq!(text, "batch correlation deployment");
+    assert_eq!(message.msgid.as_ref(), Some(id));
+    assert_eq!(message.server_time, server_time);
     Ok(())
 }
 

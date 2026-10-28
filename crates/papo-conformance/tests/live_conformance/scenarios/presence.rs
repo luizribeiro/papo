@@ -1,7 +1,7 @@
 use papo::{Account, AccountCreation, Away, Error, Event, NewAccount, Refusal};
 use papo_conformance_macros::scenario;
 
-use super::support::{assert_refusal, subject_name};
+use super::support::{assert_refusal, confirmed_line, subject_name};
 use crate::Scenario;
 
 /// delivers an authenticated sender account
@@ -33,8 +33,10 @@ async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
         crate::scenarios::support::conversation_name(&message.conversation),
         Some(channel.as_str())
     );
-    assert_eq!(message.msgid.as_ref(), sent.msgid());
-    assert_eq!(message.server_time, sent.server_time);
+    let (id, sent_text, server_time) = confirmed_line(&sent);
+    assert_eq!(sent_text, text);
+    assert_eq!(message.msgid.as_ref(), Some(id));
+    assert_eq!(message.server_time, server_time);
     assert!(matches!(
         message.actor.account(),
         Account::LoggedIn(observed) if observed == account.as_ref()
@@ -168,8 +170,10 @@ async fn away_private_message(s: Scenario) -> papo_testing::Result<()> {
         Some(bob_nick.as_ref())
     );
     assert_eq!(message.text, text);
-    assert_eq!(message.msgid.as_ref(), sent.msgid());
-    assert_eq!(message.server_time, sent.server_time);
+    let (id, sent_text, server_time) = confirmed_line(&sent);
+    assert_eq!(sent_text, text);
+    assert_eq!(message.msgid.as_ref(), Some(id));
+    assert_eq!(message.server_time, server_time);
     assert_eq!(
         alice.state().away(),
         &Away::__away_value(Some(away.to_owned()))

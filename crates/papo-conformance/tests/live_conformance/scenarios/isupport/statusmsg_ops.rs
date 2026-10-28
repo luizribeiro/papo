@@ -1,7 +1,9 @@
 use papo::{ModeAction, ModeArg, Typing};
 use papo_conformance_macros::scenario;
 
-use crate::scenarios::support::{join_seen_by, message_text, wait_channel_mode, wait_for_channel};
+use crate::scenarios::support::{
+    confirmed_line, join_seen_by, message_text, wait_channel_mode, wait_for_channel,
+};
 use crate::{Peer, Scenario};
 
 struct StatusmsgPeers {
@@ -123,7 +125,9 @@ async fn statusmsg_ops(s: Scenario) -> papo_testing::Result<()> {
     );
     assert_eq!(received.status.map(papo::Prefix::symbol), Some('@'));
     assert_eq!(received.raw_text, "operators only");
-    assert_eq!(received.msgid.as_ref(), sent.msgid());
+    let (id, text, _) = confirmed_line(&sent);
+    assert_eq!(text, "operators only");
+    assert_eq!(received.msgid.as_ref(), Some(id));
     assert_eq!(
         crate::source_nick(&received.actor),
         Some(alice_nick.as_ref())

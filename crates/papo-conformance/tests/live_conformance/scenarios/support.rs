@@ -5,6 +5,21 @@ use crate::Peer;
 
 pub(super) const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
 
+pub(super) fn confirmed_line(
+    sent: &papo::Sent,
+) -> (&papo::MessageId, &str, Option<std::time::SystemTime>) {
+    let papo::SentOutcome::Confirmed {
+        lines, server_time, ..
+    } = &sent.outcome
+    else {
+        panic!("server should confirm the sent message")
+    };
+    let [(id, text)] = lines.as_slice() else {
+        panic!("message should be sent as one logical line")
+    };
+    (id, text, *server_time)
+}
+
 pub(super) fn logged_in_account(state: &State) -> &AccountName {
     match state.account() {
         Account::LoggedIn(account) => account,

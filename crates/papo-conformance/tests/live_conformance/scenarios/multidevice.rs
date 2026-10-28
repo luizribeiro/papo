@@ -3,7 +3,7 @@ use std::time::{Duration, SystemTime};
 use papo::{Authorship, Away, Error, Event, Refusal};
 use papo_conformance_macros::scenario;
 
-use super::support::{conversation_name, wait_for_channel};
+use super::support::{confirmed_line, conversation_name, wait_for_channel};
 use crate::Scenario;
 
 fn has_account_sessions() -> bool {
@@ -192,7 +192,8 @@ async fn multidevice_ops_message_operations(s: Scenario) -> papo_testing::Result
                 .filter(|message| message.text == "operators reviewing the deployment")
         })
         .await?;
-    let id = sent.msgid().expect("message has an identifier");
+    let (id, sent_text, _) = confirmed_line(&sent);
+    assert_eq!(sent_text, "operators reviewing the deployment");
     assert_eq!(original.msgid.as_ref(), Some(id));
     assert_eq!(original.status.map(papo::Prefix::symbol), Some('@'));
     assert_eq!(original.return_address(), target.as_str());
@@ -254,7 +255,8 @@ async fn multidevice_ops_message_operations(s: Scenario) -> papo_testing::Result
                 .filter(|message| message.text == "deployment note to remove")
         })
         .await?;
-    let id = sent.msgid().expect("message has an identifier");
+    let (id, sent_text, _) = confirmed_line(&sent);
+    assert_eq!(sent_text, "deployment note to remove");
     desktop.redact(&sent, "deployment superseded").await?;
     let removed = phone.wait_for(Event::as_redacted).await?;
     assert_eq!(&removed.redacts, id);
@@ -490,7 +492,8 @@ async fn multidevice_dm_fanout_thread(s: Scenario) -> papo_testing::Result<()> {
     let on_desktop = desktop.wait_for(|event| chat_text(event, text)).await?;
     let on_phone = phone.wait_for(|event| chat_text(event, text)).await?;
     let on_tablet = tablet.wait_for(|event| chat_text(event, text)).await?;
-    let id = sent.msgid().expect("direct message has an identifier");
+    let (id, sent_text, _) = confirmed_line(&sent);
+    assert_eq!(sent_text, text);
     for message in [&on_desktop, &on_phone, &on_tablet] {
         assert_eq!(message.msgid.as_ref(), Some(id));
         assert_eq!(message.authorship, papo::Authorship::Other);
