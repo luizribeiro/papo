@@ -20,7 +20,7 @@ PAPO_TEST_PROFILE=solanum cargo test -p papo-conformance
 Pass a normal libtest filter to run one scenario:
 
 ```console
-cargo test -p papo-conformance -- quit
+cargo test -p papo-conformance -- --exact scenarios::membership::quit
 ```
 
 Regenerate the six-profile support matrix with:
@@ -29,7 +29,8 @@ Regenerate the six-profile support matrix with:
 scripts/conformance-matrix
 ```
 
-Every scenario prints exactly one status record: passed, failed, known failure, unexpected pass,
-or ignored. Stable libtest can't mark a test ignored at runtime, so a scenario whose requirements
-or local setup are missing passes and prints an `ignored` record with the reason; the matrix shows
-it as skipped. An unexpected pass fails the test, so a stale `known-failures` entry gets removed.
+Every scenario prints one status record (shown with `-- --nocapture`) once its server has started:
+passed, failed, known failure, unexpected pass, or ignored. Stable libtest can't mark a test
+ignored at runtime, so a scenario whose requirements or local setup are missing passes and prints
+an `ignored` record with the reason; the matrix shows it as —. An unexpected pass fails the test,
+so a stale `known-failures` entry gets removed.
