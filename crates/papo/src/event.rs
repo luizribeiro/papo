@@ -3067,6 +3067,36 @@ mod tests {
     }
 
     #[test]
+    fn state_and_other_overflow_priorities_are_distinct() {
+        let now = Instant::now();
+        let cases = [
+            (
+                "Joined",
+                ":alice!~alice@cloak.example JOIN #review",
+                super::OverflowPriority::State,
+            ),
+            (
+                "ServerNotice",
+                ":ergo.test NOTICE papo :*** Looking up your hostname...",
+                super::OverflowPriority::Other,
+            ),
+        ];
+
+        for (expected, line, priority) in cases {
+            let event = mapped_live_event(line, now);
+            let variant = match &event {
+                Event::Joined(_) => "Joined",
+                Event::ServerNotice(_) => "ServerNotice",
+                event => panic!("expected {expected}, got {event:?}"),
+            };
+            assert_eq!(variant, expected);
+            let class = event.overflow_class();
+            assert_eq!(class.priority, priority, "{expected}");
+            assert!(class.conversation.is_none(), "{expected}");
+        }
+    }
+
+    #[test]
     fn every_message_conversation_kind_keeps_its_origin() {
         let origin = crate::Origin::__new(73);
         let mapping = Casemapping::default();
