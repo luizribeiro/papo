@@ -1273,7 +1273,8 @@ impl Client {
 
     /// Removes `nick` from `channel`.
     ///
-    /// An empty `reason` means no reason.
+    /// A [`crate::DirectRef`] follows its captured identity; text or [`crate::Nick`] addresses
+    /// whoever currently holds that nickname. An empty `reason` means no reason.
     ///
     /// ```compile_fail
     /// # fn swapped(
@@ -1309,6 +1310,8 @@ impl Client {
 
     /// Sets a channel ban and, only after confirming it, removes `nick` from the channel.
     ///
+    /// A [`crate::DirectRef`] is checked again after ban confirmation. Text or [`crate::Nick`]
+    /// deliberately addresses whoever currently holds that nickname.
     /// The ban remains set when the kick is refused. Leaving or changing nickname during ban
     /// confirmation produces [`Error::TargetGone`] in [`crate::KickbanOutcome::kick`].
     /// An empty `reason` means no reason.
@@ -1422,11 +1425,14 @@ impl Client {
         })
     }
 
-    /// Invites `nick` to `channel`.
+    /// Invites a guarded user identity to `channel`.
+    ///
+    /// Capture a typed nickname with [`Client::direct`], or use [`Client::direct_to`] to retain a
+    /// received message actor's identity.
     ///
     /// ```compile_fail
-    /// # fn swapped(client: &papo::Client, nick: &papo::Nick, channel: &papo::ChannelName) {
-    /// let _ = client.invite(channel, nick);
+    /// # fn unguarded(client: &papo::Client, nick: &papo::Nick, channel: &papo::ChannelName) {
+    /// let _ = client.invite(nick, channel);
     /// # }
     /// ```
     ///

@@ -258,12 +258,11 @@ impl SetModes {
         self.optional_list(false, crate::Feature::Quiet, target)
     }
 
-    /// Grants channel-operator privileges to `nick`.
+    /// Grants channel-operator privileges to a guarded user identity.
     ///
-    /// ```no_run
-    /// # async fn grant_operator(client: &papo::Client) -> Result<(), papo::Error> {
-    /// client.mode("#papo").op("alice").await?;
-    /// # Ok(())
+    /// ```compile_fail
+    /// # fn unguarded(client: &papo::Client, nick: &papo::Nick) {
+    /// let _ = client.mode("#papo").op(nick);
     /// # }
     /// ```
     pub fn op(self, nick: &crate::DirectRef) -> Self {
@@ -271,26 +270,32 @@ impl SetModes {
     }
 
     /// Removes channel-operator privileges from `nick`.
+    ///
+    /// A [`crate::DirectRef`] follows its captured identity; text addresses the current holder.
     pub fn deop(self, nick: impl crate::AsNick) -> Self {
         self.prefix_change(false, 'o', nick)
     }
 
-    /// Grants half-operator privileges to `nick`.
+    /// Grants half-operator privileges to a guarded user identity.
     pub fn halfop(self, nick: &crate::DirectRef) -> Self {
         self.optional_prefix(true, crate::Feature::Halfop, nick)
     }
 
     /// Removes half-operator privileges from `nick`.
+    ///
+    /// A [`crate::DirectRef`] follows its captured identity; text addresses the current holder.
     pub fn dehalfop(self, nick: impl crate::AsNick) -> Self {
         self.optional_prefix(false, crate::Feature::Halfop, nick)
     }
 
-    /// Grants voice privileges to `nick`.
+    /// Grants voice privileges to a guarded user identity.
     pub fn voice(self, nick: &crate::DirectRef) -> Self {
         self.prefix_change(true, 'v', nick)
     }
 
     /// Removes voice privileges from `nick`.
+    ///
+    /// A [`crate::DirectRef`] follows its captured identity; text addresses the current holder.
     pub fn devoice(self, nick: impl crate::AsNick) -> Self {
         self.prefix_change(false, 'v', nick)
     }
