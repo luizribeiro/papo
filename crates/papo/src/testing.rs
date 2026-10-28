@@ -57,13 +57,15 @@ pub fn exercise_session_mapping(input: &[u8], mut observe: impl FnMut(crate::Eve
 
 /// Exercises session framing while checking batch accounting after every input byte.
 #[doc(hidden)]
-pub fn exercise_session_mapping_invariants(input: &[u8]) {
+#[must_use]
+pub fn exercise_session_mapping_invariants(input: &[u8]) -> usize {
     let now = web_time::Instant::now();
     let mut session = Session::new(Config::default());
     for byte in input {
         session.handle_bytes(now, std::slice::from_ref(byte));
         assert!(papo_core::test_support::batch_accounting_is_sound(&session));
     }
+    input.len()
 }
 
 /// Constructs an origin-free nickname for test fixtures.
@@ -274,8 +276,8 @@ pub fn state(nick: impl Into<String>, connected: bool) -> State {
 #[cfg(all(test, not(browser)))]
 mod tests {
     use super::{
-        connected, exercise_session_mapping, joined, message, set_message_account,
-        set_message_actor, state, user_source,
+        connected, exercise_session_mapping, exercise_session_mapping_invariants, joined, message,
+        set_message_account, set_message_actor, state, user_source,
     };
 
     #[test]
@@ -292,6 +294,14 @@ mod tests {
         assert_eq!(message.actor.nick(), "alice");
         assert_eq!(message.text, "release ready");
         assert_eq!(message.return_address(), "alice");
+    }
+
+    #[test]
+    fn session_mapping_invariant_checks_every_input_byte() {
+        let input = b":ergo.test BATCH +outer vendor/sync\r\n\
+                      @batch=outer :ergo.test BATCH +inner metadata\r\n\
+                      @batch=outer :ergo.test BATCH -inner\r\n";
+        assert_eq!(exercise_session_mapping_invariants(input), input.len());
     }
 
     #[tokio::test]

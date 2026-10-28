@@ -782,9 +782,12 @@ fn repeated_completed_children_count_toward_the_parent_limit() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().max_batch_lines(2));
     session.handle_line(now, b":ergo.test BATCH +outer vendor/sync");
-    for _ in 0..3 {
+    for completed in 1..=3 {
         session.handle_line(now, b"@batch=outer :ergo.test BATCH +inner metadata");
         session.handle_line(now, b"@batch=outer :ergo.test BATCH -inner");
+        if completed <= 2 {
+            assert_eq!(session.poll_event(), None);
+        }
     }
 
     assert!(matches!(

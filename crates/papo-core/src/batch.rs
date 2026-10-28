@@ -781,12 +781,12 @@ fn retained_bytes(message: &LineRef<'_>) -> usize {
 }
 
 #[cfg(all(test, not(all(target_os = "wasi", not(target_env = "p1")))))]
-#[path = "batch/state_machine.rs"]
+#[path = "batch/state_machine_tests.rs"]
 mod state_machine_tests;
 
 #[cfg(test)]
 mod tests {
-    use super::{BatchAction, BatchEvent, Batches, retained_bytes};
+    use super::{BatchAction, BatchEvent, Batches, MAX_BUFFERED_BYTES, retained_bytes};
     use crate::{BatchAbandonReason, Config};
     use papo_proto::{Line, LineRef};
     use web_time::Instant;
@@ -945,6 +945,64 @@ mod tests {
             + "review is ready".len();
 
         assert_eq!(retained_bytes(&message), expected);
+    }
+
+    #[test]
+    fn recount_matches_completed_child_storage_and_detects_a_shortfall() {
+        let mut batches = Batches::new(&Config::default());
+        assert_eq!(
+            handle(&mut batches, "BATCH +outer vendor/sync"),
+            (false, None)
+        );
+        assert_eq!(
+            handle(&mut batches, "@batch=outer BATCH +inner metadata"),
+            (false, None)
+        );
+        assert_eq!(
+            handle(&mut batches, "@batch=outer BATCH -inner"),
+            (false, None)
+        );
+
+        let expected = retained_bytes(&batches.open["outer"].opening.as_ref())
+            + std::mem::size_of::<BatchEvent>();
+        assert_eq!(batches.recount(), expected);
+        assert!(batches.accounting_is_sound());
+        batches.buffered_bytes = batches.recount() - 1;
+        assert!(!batches.accounting_is_sound());
+    }
+
+    #[test]
+    fn completed_child_byte_budget_accepts_the_boundary_and_rejects_one_over() {
+        for (total, abandoned) in [(67_108_864, false), (67_108_865, true)] {
+            let mut batches = Batches::new(&Config::default().max_batch_lines(1));
+            assert_eq!(
+                handle(&mut batches, "BATCH +outer vendor/sync"),
+                (false, None)
+            );
+            assert_eq!(
+                handle(&mut batches, "@batch=outer BATCH +inner metadata"),
+                (false, None)
+            );
+            let completed_bytes = std::mem::size_of::<BatchEvent>();
+            let padding = total - batches.buffered_bytes - completed_bytes;
+            batches.buffered_bytes += padding;
+            batches.open.get_mut("outer").unwrap().buffered_bytes += padding;
+
+            let close = LineRef::parse("@batch=outer BATCH -inner").unwrap();
+            let action = batches.handle(Instant::now(), &close, usize::MAX, false, false);
+            assert_eq!(
+                matches!(action, BatchAction::Complete(ref events) if events.iter().any(|event| matches!(
+                    event,
+                    BatchEvent::Abandoned { reason: BatchAbandonReason::ByteLimit, .. }
+                ))),
+                abandoned,
+                "retained total {total}"
+            );
+            if !abandoned {
+                assert!(matches!(action, BatchAction::Consumed));
+                assert_eq!(batches.buffered_bytes, MAX_BUFFERED_BYTES);
+            }
+        }
     }
 
     #[test]
