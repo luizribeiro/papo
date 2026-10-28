@@ -8881,6 +8881,102 @@ async fn overflow_reports_message_gaps_for_each_conversation() {
     ));
 }
 
+#[tokio::test(flavor = "current_thread")]
+async fn overflow_drops_state_events_before_messages() {
+    let (mut server, client, mut events, driver) = scripted_with_capacity(config(), 2);
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":papo-driver!papo@localhost JOIN #papo * :papo driver test\r\n",
+    )
+    .await;
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Joined(_))
+    ));
+    server_line(
+        &mut server,
+        b":emily!e@localhost PRIVMSG #papo :release candidate ready\r\n\
+          :alice!a@localhost JOIN #papo alice :Alice Example\r\n\
+          :emily!e@localhost PRIVMSG #papo :release deployed\r\n",
+    )
+    .await;
+
+    let lagged = next_event(&mut events)
+        .await
+        .unwrap()
+        .as_lagged()
+        .unwrap()
+        .clone();
+    assert_eq!(lagged.dropped, 1);
+    assert!(lagged.gaps.is_empty());
+    assert_eq!(
+        next_message(&mut events).await.text,
+        "release candidate ready"
+    );
+    assert_eq!(next_message(&mut events).await.text, "release deployed");
+    assert!(
+        client
+            .state()
+            .channel("#papo")
+            .unwrap()
+            .member("alice")
+            .is_some()
+    );
+
+    drop(events);
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn overflow_with_only_state_events_reports_no_message_gaps() {
+    let (mut server, client, mut events, driver) = scripted_with_capacity(config(), 2);
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":papo-driver!papo@localhost JOIN #papo * :papo driver test\r\n",
+    )
+    .await;
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Joined(_))
+    ));
+    server_line(
+        &mut server,
+        b":alice!a@localhost JOIN #papo alice :Alice Example\r\n\
+          :bob!b@localhost JOIN #papo bob :Bob Example\r\n\
+          :carol!c@localhost JOIN #papo carol :Carol Example\r\n\
+          :dan!d@localhost JOIN #papo dan :Dan Example\r\n",
+    )
+    .await;
+
+    let lagged = next_event(&mut events)
+        .await
+        .unwrap()
+        .as_lagged()
+        .unwrap()
+        .clone();
+    assert_eq!(lagged.dropped, 2);
+    assert!(lagged.gaps.is_empty());
+    let state = client.state();
+    for nick in ["alice", "bob", "carol", "dan"] {
+        assert!(state.channel("#papo").unwrap().member(nick).is_some());
+    }
+
+    drop(events);
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
 #[test]
 fn multi_thread_stress_accounts_for_every_emitted_message() {
     for iteration in 0_u64..200 {
