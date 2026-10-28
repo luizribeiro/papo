@@ -31,7 +31,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 if command.eq_ignore_ascii_case("op")
                     && matches!(message.actor.account(), Account::LoggedIn(account) if account == admin.as_str()) =>
             {
-                if let Err(refusal) = client.mode(&channel).op(nick).await {
+                let result = match client.direct(*nick).await {
+                    Ok(direct) => client.mode(&channel).op(&direct).await.map(|_| ()),
+                    Err(error) => Err(error),
+                };
+                if let Err(refusal) = result {
                     reply(&client, &message, format!("cannot op {nick}: {refusal}")).await;
                 }
             }
