@@ -464,8 +464,14 @@ mod name_tests {
     use super::State;
     use crate::{Casemapping, Extban, InvalidIdentifier, NameCheck};
 
+    fn name_rules(state: &State) -> crate::NameRules<'_> {
+        state
+            .__known_name_rules()
+            .expect("server advertised CASEMAPPING")
+    }
+
     fn state_with_isupport(line: &str) -> State {
-        let mut session = Session::new(Config::default());
+        let mut session = Session::new(Config::default().casemapping(Casemapping::default()));
         session.handle_line(crate::rt::now_mono(), line.as_bytes());
         State::from_session(&session, false)
     }
@@ -518,7 +524,7 @@ mod name_tests {
     #[test]
     fn typing_transition_reuses_the_core_snapshot() {
         let now = crate::rt::now_mono();
-        let mut session = Session::new(Config::default());
+        let mut session = Session::new(Config::default().casemapping(Casemapping::default()));
         let initial = State::from_session(&session, false);
 
         session.handle_line(
@@ -529,12 +535,12 @@ mod name_tests {
 
         assert!(Arc::ptr_eq(&initial.core, &changed.core));
         assert!(!Arc::ptr_eq(&initial.typing, &changed.typing));
-        let conversation = changed.name_rules().target("#papo").unwrap().1;
+        let conversation = name_rules(&changed).target("#papo").unwrap().1;
         assert_eq!(changed.typing(&conversation).count(), 1);
         assert_eq!(changed.typing("#PAPO").count(), 1);
         assert_eq!(
             changed
-                .typing(changed.name_rules().channel("#papo"))
+                .typing(name_rules(&changed).channel("#papo"))
                 .count(),
             1
         );
@@ -575,10 +581,10 @@ mod name_tests {
         );
         let state = State::from_session(&session, false);
 
-        let nick = state.name_rules().nick("Alice[bot]");
-        let channel = state.name_rules().channel("#Papo[dev]");
-        let account = state.name_rules().account("Alice[bot]");
-        let mask = state.name_rules().mask("*!alice@[gateway]");
+        let nick = name_rules(&state).nick("Alice[bot]");
+        let channel = name_rules(&state).channel("#Papo[dev]");
+        let account = name_rules(&state).account("Alice[bot]");
+        let mask = name_rules(&state).mask("*!alice@[gateway]");
 
         for mapping in [
             nick.casemapping(),
@@ -604,7 +610,7 @@ mod name_tests {
             ":ergo.test 005 papo NICKLEN=32 CHANTYPES=# CHANNELLEN=64 :are supported by this server",
         );
 
-        let names = state.name_rules();
+        let names = name_rules(&state);
         assert_eq!(names.check_nick(&"n".repeat(32)), NameCheck::Valid);
         assert!(matches!(
             names.check_nick(&"n".repeat(33)),
@@ -638,7 +644,7 @@ mod name_tests {
             ":solanum.test 005 papo NICKLEN=30 CHANTYPES=&# CHANNELLEN=50 :are supported by this server",
         );
 
-        let names = state.name_rules();
+        let names = name_rules(&state);
         assert_eq!(names.check_channel("&staff"), NameCheck::Valid);
         assert_eq!(names.check_channel("#papo"), NameCheck::Valid);
         assert!(matches!(
@@ -649,9 +655,9 @@ mod name_tests {
 
     #[test]
     fn checks_only_universal_rules_before_isupport() {
-        let session = Session::new(Config::default());
+        let session = Session::new(Config::default().casemapping(Casemapping::default()));
         let state = State::from_session(&session, false);
-        let names = state.name_rules();
+        let names = name_rules(&state);
 
         for nick in ["long_nickname", "#channel_like"] {
             assert_eq!(names.check_nick(nick), NameCheck::Unknown);
@@ -683,17 +689,17 @@ mod name_tests {
         let mut session = Session::new(Config::default());
         session.handle_line(
             now,
-            b":ergo.test 005 papo NICKLEN=32 CHANTYPES=# :are supported",
+            b":ergo.test 005 papo CASEMAPPING=rfc1459 NICKLEN=32 CHANTYPES=# :are supported",
         );
         session.handle_disconnected(now);
         let state = State::from_session(&session, false);
 
         assert_eq!(
-            state.name_rules().check_nick("long_nickname"),
+            name_rules(&state).check_nick("long_nickname"),
             NameCheck::Valid
         );
         assert!(matches!(
-            state.name_rules().check_channel("&staff"),
+            name_rules(&state).check_channel("&staff"),
             NameCheck::Invalid(InvalidIdentifier::InvalidPrefix('&'))
         ));
     }
@@ -704,21 +710,21 @@ mod name_tests {
             ":ergo.test 005 papo CASEMAPPING=rfc1459 NICKLEN=32 CHANTYPES=# STATUSMSG=@ :are supported by this server",
         );
 
-        let conversation = state.name_rules().conversation("Alice[bot]").unwrap();
+        let conversation = name_rules(&state).conversation("Alice[bot]").unwrap();
         assert_eq!(conversation, "alice{bot}");
         assert_eq!(conversation.to_string(), "Alice[bot]");
         assert!(matches!(
-            state.name_rules().target("@#papo"),
+            name_rules(&state).target("@#papo"),
             Ok((Some(status), conversation))
                 if status.symbol() == '@' && conversation == "#papo"
         ));
         assert!(matches!(
-            state.name_rules().conversation("@#papo"),
+            name_rules(&state).conversation("@#papo"),
             Err(crate::InvalidInput::InvalidName { name, .. }) if name == "@#papo"
         ));
         for target in ["*", "$*.example.org"] {
             assert!(matches!(
-                state.name_rules().conversation(target),
+                name_rules(&state).conversation(target),
                 Err(crate::InvalidInput::InvalidName { name, .. }) if name == target
             ));
         }
@@ -744,7 +750,7 @@ mod name_tests {
             let state = state_with_isupport(line);
             for spelling in spellings {
                 assert!(matches!(
-                    state.name_rules().parse_extban(&state.name_rules().mask(spelling)),
+                    name_rules(&state).parse_extban(&name_rules(&state).mask(spelling)),
                     Some(Extban::Account(account)) if account == "Alice"
                 ));
             }
@@ -758,8 +764,7 @@ mod name_tests {
         );
         for value in ["m:*!*@staff.example", "$a:alice", "account:alice"] {
             assert_eq!(
-                ergo.name_rules()
-                    .parse_extban(&ergo.name_rules().mask(value)),
+                name_rules(&ergo).parse_extban(&name_rules(&ergo).mask(value)),
                 None
             );
         }
@@ -769,9 +774,7 @@ mod name_tests {
         );
         for value in ["account:alice", "~quiet:alice", "~account:bo?"] {
             assert_eq!(
-                unreal
-                    .name_rules()
-                    .parse_extban(&unreal.name_rules().mask(value)),
+                name_rules(&unreal).parse_extban(&name_rules(&unreal).mask(value)),
                 None
             );
         }
@@ -782,10 +785,10 @@ mod name_tests {
         let state = state_with_isupport(
             ":irc.unreal.example 005 papo ACCOUNTEXTBAN=account,a CHANMODES=beI,fkL,lFH,cdimnprstzCDGKMNOPQRSTVZ EXTBAN=~,acfijmnpqrtACFGOST :are supported",
         );
-        assert!(state.same_list_entry(&state.name_rules().mask("Bob"), "bob!*@*"));
-        assert!(state.same_list_entry(&state.name_rules().mask("~a:Alice"), "~account:alice"));
-        assert!(!state.same_list_entry(&state.name_rules().mask("Bob"), "alice!*@*"));
-        assert!(!state.same_list_entry(&state.name_rules().mask("~a:Alice"), "*!*@staff.example"));
+        assert!(state.same_list_entry(&name_rules(&state).mask("Bob"), "bob!*@*"));
+        assert!(state.same_list_entry(&name_rules(&state).mask("~a:Alice"), "~account:alice"));
+        assert!(!state.same_list_entry(&name_rules(&state).mask("Bob"), "alice!*@*"));
+        assert!(!state.same_list_entry(&name_rules(&state).mask("~a:Alice"), "*!*@staff.example"));
     }
 }
 
