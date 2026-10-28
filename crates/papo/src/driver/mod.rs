@@ -121,13 +121,13 @@ pub(crate) enum Command {
     },
     Send {
         message: Line,
-        recipient: Option<papo_core::RecipientGuard>,
+        guard: Option<papo_core::TargetGuard>,
         result: oneshot::Sender<Result<(), Error>>,
     },
     Request {
         message: Line,
         matcher: Option<ResponseMatcher>,
-        recipient: Option<papo_core::RecipientGuard>,
+        guard: Option<papo_core::TargetGuard>,
         result: oneshot::Sender<Result<Response, Error>>,
     },
     Join {
@@ -191,13 +191,13 @@ pub(crate) enum Command {
         tags: Vec<(String, String)>,
         fallbacks: Vec<crate::Fallback>,
         action: bool,
-        recipient: Option<papo_core::RecipientGuard>,
+        guard: Option<papo_core::TargetGuard>,
         result: oneshot::Sender<Result<Sent, Error>>,
     },
     Typing {
         target: String,
         state: Typing,
-        recipient: Option<papo_core::RecipientGuard>,
+        guard: Option<papo_core::TargetGuard>,
         result: oneshot::Sender<Result<(), Error>>,
     },
     WaitChannelSync {
@@ -937,10 +937,10 @@ where
                 Some(Command::Composite { task }) => {
                     _ = crate::rt::spawn(task);
                 }
-                Some(Command::Send { message, recipient, result }) => {
+                Some(Command::Send { message, guard, result }) => {
                     let typing_target = text_target(&message)
                         .map(|target| session.isupport().casemapping().fold(target).into_owned());
-                    match session.send_guarded_tracked(now(), message, recipient) {
+                    match session.send_target_guarded_tracked(now(), message, guard) {
                         Ok(token) => {
                             if let Some(target) = typing_target {
                                 active_typing.remove(&target);
@@ -950,12 +950,12 @@ where
                         Err(error) => { _ = result.send(Err(Error::build(error))); }
                     }
                 }
-                Some(Command::Request { message, matcher, recipient, result }) => {
+                Some(Command::Request { message, matcher, guard, result }) => {
                     let typing_target = text_target(&message)
                         .map(|target| session.isupport().casemapping().fold(target).into_owned());
                     let requested = match matcher {
-                        None if recipient.is_some() => {
-                            session.request_guarded_silent(now(), message, recipient)
+                        None if guard.is_some() => {
+                            session.request_target_guarded_silent(now(), message, guard)
                         }
                         Some(matcher) => session.request_with_matcher(now(), message, matcher),
                         None if session.caps().contains_key(&crate::cap::LABELED_RESPONSE) => {
@@ -1079,12 +1079,12 @@ where
                     session.__direct_release(&recipient);
                     publish_state(events, session, true);
                 }
-                Some(Command::SendText { kind, target, conversation, status, receipt, text, tags, mut fallbacks, action, recipient, result }) => {
+                Some(Command::SendText { kind, target, conversation, status, receipt, text, tags, mut fallbacks, action, guard, result }) => {
                     let tags: Vec<_> = tags.iter().map(|(key, value)| (key.as_str(), value.as_str())).collect();
                     let sent = if action {
-                        session.send_guarded_action_detailed(now(), &target, &text, &tags, recipient)
+                        session.send_target_guarded_action_detailed(now(), &target, &text, &tags, guard)
                     } else {
-                        session.send_guarded_text_detailed(now(), kind, &target, &text, &tags, recipient)
+                        session.send_target_guarded_text_detailed(now(), kind, &target, &text, &tags, guard)
                     };
                     match sent {
                         Ok(sent) => {
@@ -1119,7 +1119,7 @@ where
                         }
                     }
                 }
-                Some(Command::Typing { target, state, recipient, result }) => {
+                Some(Command::Typing { target, state, guard, result }) => {
                     let current = now();
                     let key = session.isupport().casemapping().fold(&target).into_owned();
                     let send = state != Typing::Active
@@ -1133,10 +1133,10 @@ where
                             Typing::Paused => "paused",
                             Typing::Done => "done",
                         };
-                        match session.send_guarded_tracked(
+                        match session.send_target_guarded_tracked(
                             current,
                             Line::tagmsg(target).with_tag("+typing", value),
-                            recipient,
+                            guard,
                         ) {
                             Ok(token) => {
                                 if state == Typing::Active {

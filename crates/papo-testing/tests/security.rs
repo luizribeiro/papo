@@ -960,6 +960,16 @@ async fn ops_only_return_addresses_survive_notice_and_typing_sends() {
     connected(&mut events).await;
     wire.server(":offline.test 005 papo-wire STATUSMSG=@+ :are supported")
         .await;
+    for line in [
+        ":papo-wire!p@localhost JOIN #ops",
+        ":alice!~a@cloak.example JOIN #ops",
+    ] {
+        wire.server(line).await;
+        assert!(matches!(
+            next_active_event(&mut events).await,
+            papo::Event::Joined(_)
+        ));
+    }
     wire.server(":alice!~a@cloak.example NOTICE @#ops :release status")
         .await;
     let papo::Event::Notice(notice) = next_active_event(&mut events).await else {
@@ -994,6 +1004,16 @@ async fn ops_only_messages_can_only_answer_their_exact_audience() {
     connected(&mut events).await;
     wire.server(":offline.test 005 papo-wire STATUSMSG=@+ :are supported")
         .await;
+    for line in [
+        ":papo-wire!p@localhost JOIN #ops",
+        ":alice!~a@cloak.example JOIN #ops",
+    ] {
+        wire.server(line).await;
+        assert!(matches!(
+            next_active_event(&mut events).await,
+            papo::Event::Joined(_)
+        ));
+    }
     wire.server("@msgid=Rfc1 :alice!~a@cloak.example PRIVMSG @#ops :release status")
         .await;
     let papo::Event::Message(message) = next_active_event(&mut events).await else {

@@ -67,20 +67,29 @@ impl State {
         &self,
         conversation: &crate::Conversation,
         address: String,
-        recipient: Option<&papo_core::RecipientGuard>,
+        guard: Option<&papo_core::TargetGuard>,
     ) -> crate::message_ref::Receipt {
         let actor = crate::Source::User(crate::UserSource::identity(
             self.nick().clone(),
             self.account().clone(),
         ));
-        crate::message_ref::Receipt::new(
+        let mut receipt = crate::message_ref::Receipt::new(
             actor,
             crate::Authorship::Own,
             conversation,
             self.reply_token(conversation),
             address,
-        )
-        .with_recipient(recipient)
+        );
+        match guard {
+            Some(papo_core::TargetGuard::Recipient(recipient)) => {
+                receipt = receipt.with_recipient(Some(recipient));
+            }
+            Some(papo_core::TargetGuard::Channel(channel)) => {
+                receipt.set_channel(Some(channel.clone()));
+            }
+            None => {}
+        }
+        receipt
     }
 
     /// Returns builders and checks that use this snapshot's name rules and client identity.
@@ -94,6 +103,13 @@ impl State {
         recipient: &papo_core::RecipientGuard,
     ) -> papo_core::RecipientStatus {
         self.core.__resolve_recipient(recipient)
+    }
+
+    pub(crate) fn resolve_channel(
+        &self,
+        channel: &papo_core::ChannelGuard,
+    ) -> Option<crate::ChannelName> {
+        self.core.__resolve_channel(channel)
     }
 
     pub(crate) fn capture_recipient(

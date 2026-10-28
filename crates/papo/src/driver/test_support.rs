@@ -741,6 +741,14 @@ pub(crate) async fn assert_reaction_wire(isupport: &str, remove: bool, expected:
     }
     server_line(
         &mut server,
+        b":papo-driver!papo@localhost JOIN #ops\r\n:emily!e@localhost JOIN #ops\r\n",
+    )
+    .await;
+    for _ in 0..2 {
+        assert!(matches!(events.next().await, Some(Event::Joined(_))));
+    }
+    server_line(
+        &mut server,
         b"@msgid=RfcBTzyxY120004 :emily!e@localhost PRIVMSG @#ops :ship it\r\n",
     )
     .await;

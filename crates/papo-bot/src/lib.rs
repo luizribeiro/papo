@@ -958,6 +958,8 @@ mod tests {
             ":ergo.test 005 papo{bot} CHANTYPES=# STATUSMSG=@+ :are supported\r\n",
             ":ergo.test 001 papo{bot} :Welcome\r\n",
             ":ergo.test 422 papo{bot} :MOTD missing\r\n",
+            ":papo{bot}!papo@localhost JOIN #ops\r\n",
+            ":emily!~emily@localhost JOIN #ops\r\n",
             ":emily!~emily@localhost PRIVMSG @#ops :!ping\r\n",
         );
         let stream = TranscriptStream::new(transcript);

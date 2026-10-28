@@ -6732,7 +6732,7 @@ async fn message_reply_obeys_tags_and_clienttagdeny() {
     assert_reply_wire(
         true,
         "",
-        None,
+        Some("#papo"),
         tagged,
         b"@+reply=RfcBTzyxY120003 PRIVMSG #papo pong\r\n",
         ReplyKind::Reply,
@@ -6741,7 +6741,7 @@ async fn message_reply_obeys_tags_and_clienttagdeny() {
     assert_reply_wire(
         true,
         "",
-        None,
+        Some("#papo"),
         b":emily!e@localhost PRIVMSG #papo :!ping\r\n",
         b"PRIVMSG #papo pong\r\n",
         ReplyKind::Reply,
@@ -6750,7 +6750,7 @@ async fn message_reply_obeys_tags_and_clienttagdeny() {
     assert_reply_wire(
         false,
         "",
-        None,
+        Some("#papo"),
         tagged,
         b"PRIVMSG #papo pong\r\n",
         ReplyKind::Reply,
@@ -6759,7 +6759,7 @@ async fn message_reply_obeys_tags_and_clienttagdeny() {
     assert_reply_wire(
         true,
         ":ergo.test 005 papo-driver CLIENTTAGDENY=* :are supported\r\n",
-        None,
+        Some("#papo"),
         tagged,
         b"PRIVMSG #papo pong\r\n",
         ReplyKind::Reply,
@@ -6768,7 +6768,7 @@ async fn message_reply_obeys_tags_and_clienttagdeny() {
     assert_reply_wire(
         true,
         ":ergo.test 005 papo-driver CLIENTTAGDENY=*,-reply :are supported\r\n",
-        None,
+        Some("#papo"),
         tagged,
         b"@+reply=RfcBTzyxY120003 PRIVMSG #papo pong\r\n",
         ReplyKind::Reply,
@@ -6777,7 +6777,7 @@ async fn message_reply_obeys_tags_and_clienttagdeny() {
     assert_reply_wire(
         true,
         ":ergo.test 005 papo-driver CLIENTTAGDENY=*,-draft/reply :are supported\r\n",
-        None,
+        Some("#papo"),
         tagged,
         b"@+draft/reply=RfcBTzyxY120003 PRIVMSG #papo pong\r\n",
         ReplyKind::Reply,
@@ -6786,7 +6786,7 @@ async fn message_reply_obeys_tags_and_clienttagdeny() {
     assert_reply_wire(
         true,
         ":ergo.test 005 papo-driver CHANTYPES=# STATUSMSG=@+ :are supported\r\n",
-        None,
+        Some("#ops"),
         b"@msgid=RfcBTzyxY120003 :emily!e@localhost PRIVMSG @#ops :!ping\r\n",
         b"@+reply=RfcBTzyxY120003 PRIVMSG @#ops pong\r\n",
         ReplyKind::Reply,

@@ -101,7 +101,7 @@ pub struct SendMessage {
 
 struct ResolvedSend {
     text: String,
-    recipient: Option<papo_core::RecipientGuard>,
+    guard: Option<papo_core::TargetGuard>,
     _lease: Option<crate::direct::MonitorLease>,
 }
 
@@ -257,7 +257,7 @@ impl IntoFuture for SendMessage {
                     tags,
                     fallbacks,
                     self.action,
-                    target.recipient,
+                    target.guard,
                 )
                 .await
         })
@@ -335,6 +335,7 @@ impl Client {
             .recipient
             .as_ref()
             .map(crate::message_ref::RecipientGuard::to_core);
+        let channel = parts.channel.as_deref().cloned();
         let mut lease = None;
         let mut text = self.resolve(crate::target::Role::Send(argument), parts)?;
         if let Some(guard) = &recipient {
@@ -396,7 +397,9 @@ impl Client {
         }
         Ok(ResolvedSend {
             text,
-            recipient,
+            guard: recipient
+                .map(papo_core::TargetGuard::Recipient)
+                .or_else(|| channel.map(papo_core::TargetGuard::Channel)),
             _lease: lease,
         })
     }
@@ -412,6 +415,15 @@ impl Client {
         }
         let mut text = parts.text.into_owned();
         let state = self.state();
+        if let Some(channel) = parts.channel.as_deref() {
+            let current = state.resolve_channel(channel).ok_or(Error::TargetGone)?;
+            if current != *channel.__channel() {
+                let prefix = text
+                    .strip_suffix(channel.__channel().as_ref())
+                    .ok_or(Error::TargetGone)?;
+                text = format!("{prefix}{current}");
+            }
+        }
         if let Some(recipient) = parts.recipient.as_ref() {
             match state.resolve_recipient(&recipient.to_core()) {
                 papo_core::RecipientStatus::Current(nick) => {
@@ -609,7 +621,7 @@ impl Client {
                 .resolve_send("ctcp_reply: query", target.into_owned())
                 .await?;
             let reply = Line::notice(&target.text, body);
-            client.send_message_guarded(reply, target.recipient).await
+            client.send_message_guarded(reply, target.guard).await
         })
     }
 
@@ -645,13 +657,13 @@ impl Client {
     async fn send_message_guarded(
         &self,
         message: Line,
-        recipient: Option<papo_core::RecipientGuard>,
+        guard: Option<papo_core::TargetGuard>,
     ) -> Result<(), Error> {
         let (result, receiver) = oneshot::channel();
         self.commands
             .send(Command::Send {
                 message,
-                recipient,
+                guard,
                 result,
             })
             .await
@@ -671,14 +683,14 @@ impl Client {
         &self,
         message: Line,
         matcher: Option<ResponseMatcher>,
-        recipient: Option<papo_core::RecipientGuard>,
+        guard: Option<papo_core::TargetGuard>,
     ) -> Result<Response, Error> {
         let (result, receiver) = oneshot::channel();
         self.commands
             .send(Command::Request {
                 message,
                 matcher,
-                recipient,
+                guard,
                 result,
             })
             .await
@@ -926,12 +938,10 @@ impl Client {
                 .with_tag(reply_tag, message_id.as_ref())
                 .with_tag(reaction_tag, emoji);
             if state.supports(Feature::LabeledResponse) {
-                let response = client
-                    .correlated_guarded(line, None, target.recipient)
-                    .await?;
+                let response = client.correlated_guarded(line, None, target.guard).await?;
                 crate::requests::empty(&response)
             } else {
-                client.send_message_guarded(line, target.recipient).await
+                client.send_message_guarded(line, target.guard).await
             }
         })
     }
@@ -961,7 +971,7 @@ impl Client {
                 .send(Command::Typing {
                     target: target.text,
                     state,
-                    recipient: target.recipient,
+                    guard: target.guard,
                     result,
                 })
                 .await
@@ -1025,7 +1035,7 @@ impl Client {
                             .correlated_guarded(
                                 Line::new("REDACT").with_params(params),
                                 None,
-                                target.recipient.clone(),
+                                target.guard.clone(),
                             )
                             .await?;
                         crate::requests::empty(&response)?;
@@ -1052,13 +1062,13 @@ impl Client {
         tags: Vec<(String, String)>,
         fallbacks: Vec<Fallback>,
         action: bool,
-        recipient: Option<papo_core::RecipientGuard>,
+        guard: Option<papo_core::TargetGuard>,
     ) -> Result<Sent, Error> {
         let state = self.state();
         let (status, conversation) = state
             .parse_target_inner(target)
             .map_err(|reason| InvalidInput::invalid_name(target, reason))?;
-        let receipt = state.sent_receipt(&conversation, target.to_owned(), recipient.as_ref());
+        let receipt = state.sent_receipt(&conversation, target.to_owned(), guard.as_ref());
         if !state.is_connected() {
             let text = if action {
                 Ctcp::action(text).ok_or(InvalidInput::InvalidCtcp)?
@@ -1072,7 +1082,7 @@ impl Client {
             for (key, value) in tags {
                 message = message.with_tag(key, value);
             }
-            self.send_message_guarded(message, recipient).await?;
+            self.send_message_guarded(message, guard).await?;
             return Ok(Sent::without_echo(conversation, status, receipt, fallbacks));
         }
         let (result, receiver) = oneshot::channel();
@@ -1087,7 +1097,7 @@ impl Client {
                 tags,
                 fallbacks,
                 action,
-                recipient,
+                guard,
                 result,
             })
             .await

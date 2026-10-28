@@ -52,6 +52,7 @@ impl State {
             ChannelLifecycle::Left(name) => self.forget_channel(name),
             ChannelLifecycle::Renamed { old, new } => self.rename_channel_state(old, new),
         }
+        self.mark_changed();
     }
 
     fn forget_channel(&mut self, name: &str) {
