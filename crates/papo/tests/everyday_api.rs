@@ -43,21 +43,39 @@ fn everyday_api_is_nameable_from_the_facade() {
     );
 
     let builder: papo::Builder = papo::Client::builder("ircs://irc.example.net", "emily")
+        .casemapping(papo::Casemapping::default())
         .autojoin(["#papo"])
         .autojoin_with_key("#papo", "correct horse battery staple");
     let (client, mut events, driver): (papo::Client, papo::Events, papo::Driver) = builder.build();
 
     let state: std::sync::Arc<papo::State> = client.state();
-    let channel = state.name_rules().channel("#papo");
+    let channel = state
+        .__known_name_rules()
+        .expect("server advertised CASEMAPPING")
+        .channel("#papo");
     let _: &papo::Nick = state.nick();
     let _: Option<&papo::Channel> = state.channel(&channel);
     let _: Option<&papo::User> = state.user("emily");
-    let _: papo::ChannelName = state.name_rules().channel("#papo");
-    let _: papo::Nick = state.name_rules().nick("emily");
-    let conversation = state.name_rules().conversation("Emily").unwrap();
+    let _: papo::ChannelName = state
+        .__known_name_rules()
+        .expect("server advertised CASEMAPPING")
+        .channel("#papo");
+    let _: papo::Nick = state
+        .__known_name_rules()
+        .expect("server advertised CASEMAPPING")
+        .nick("emily");
+    let conversation = state
+        .__known_name_rules()
+        .expect("server advertised CASEMAPPING")
+        .conversation("Emily")
+        .unwrap();
     assert_eq!(conversation, "emily");
     assert_eq!(conversation.to_string(), "Emily");
-    let (status, conversation) = state.name_rules().target("#papo").unwrap();
+    let (status, conversation) = state
+        .__known_name_rules()
+        .expect("server advertised CASEMAPPING")
+        .target("#papo")
+        .unwrap();
     assert_eq!(status, None);
     assert_eq!(conversation, "#papo");
 

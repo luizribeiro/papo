@@ -360,7 +360,11 @@ mod tests {
         let (second, _, _) = crate::Client::builder("ircs://irc.example.net", "papo-client")
             .casemapping(crate::Casemapping::default())
             .build();
-        let channel = first.state().name_rules().channel("#papo");
+        let channel = first
+            .state()
+            .__known_name_rules()
+            .expect("server advertised CASEMAPPING")
+            .channel("#papo");
 
         assert!(matches!(
             second.metadata().clear_on(channel).await,

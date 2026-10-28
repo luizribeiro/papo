@@ -894,12 +894,24 @@ mod tests {
 
     #[test]
     fn clients_distinguish_same_named_channels() {
-        let (first, _, _) = Builder::new("ircs://irc.example.net").build();
-        let (second, _, _) = Builder::new("ircs://irc.example.net").build();
+        let (first, _, _) = Builder::new("ircs://irc.example.net")
+            .casemapping(crate::Casemapping::default())
+            .build();
+        let (second, _, _) = Builder::new("ircs://irc.example.net")
+            .casemapping(crate::Casemapping::default())
+            .build();
 
         assert_ne!(first.origin(), second.origin());
-        let first_channel = first.state().name_rules().channel("#papo");
-        let second_channel = second.state().name_rules().channel("#papo");
+        let first_channel = first
+            .state()
+            .__known_name_rules()
+            .expect("server advertised CASEMAPPING")
+            .channel("#papo");
+        let second_channel = second
+            .state()
+            .__known_name_rules()
+            .expect("server advertised CASEMAPPING")
+            .channel("#papo");
         assert_eq!(first_channel, "#papo");
         assert_eq!(second_channel, "#papo");
         assert_ne!(first_channel, second_channel);
@@ -907,10 +919,18 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn sends_reject_values_from_another_client() {
-        let (first, _, _) = Builder::new("ircs://irc.example.net").build();
-        let (second, _, _) = Builder::new("ircs://irc.example.net").build();
+        let (first, _, _) = Builder::new("ircs://irc.example.net")
+            .casemapping(crate::Casemapping::default())
+            .build();
+        let (second, _, _) = Builder::new("ircs://irc.example.net")
+            .casemapping(crate::Casemapping::default())
+            .build();
         let reference = (
-            first.state().name_rules().channel("#papo"),
+            first
+                .state()
+                .__known_name_rules()
+                .expect("server advertised CASEMAPPING")
+                .channel("#papo"),
             "RfcBTzyxY120004",
         );
 
@@ -920,7 +940,11 @@ mod tests {
                 crate::InvalidInput::ForeignReference
             ))
         ));
-        let channel = first.state().name_rules().channel("#papo");
+        let channel = first
+            .state()
+            .__known_name_rules()
+            .expect("server advertised CASEMAPPING")
+            .channel("#papo");
         assert!(matches!(
             second.privmsg(channel, "release ready").await,
             Err(crate::Error::InvalidInput(
@@ -929,7 +953,11 @@ mod tests {
         ));
 
         let actor = crate::__testing::user_source(
-            first.state().name_rules().nick("emily"),
+            first
+                .state()
+                .__known_name_rules()
+                .expect("server advertised CASEMAPPING")
+                .nick("emily"),
             Some("~emily".into()),
             Some("cloak.example".into()),
         );
@@ -939,8 +967,13 @@ mod tests {
             "release ready",
             true,
         );
-        private.conversation =
-            crate::Conversation::Private(first.state().name_rules().nick("emily"));
+        private.conversation = crate::Conversation::Private(
+            first
+                .state()
+                .__known_name_rules()
+                .expect("server advertised CASEMAPPING")
+                .nick("emily"),
+        );
         private.receipt = crate::message_ref::Receipt::new(
             crate::Source::User(private.actor.clone()),
             private.authorship,
@@ -956,7 +989,13 @@ mod tests {
             ))
         ));
 
-        let conversation = crate::Conversation::Private(first.state().name_rules().nick("emily"));
+        let conversation = crate::Conversation::Private(
+            first
+                .state()
+                .__known_name_rules()
+                .expect("server advertised CASEMAPPING")
+                .nick("emily"),
+        );
         let receipt = crate::message_ref::Receipt::new(
             crate::Source::User(actor.clone()),
             crate::Authorship::Other,
