@@ -1,7 +1,7 @@
 use papo_conformance_macros::scenario;
 
 use crate::Scenario;
-use crate::scenarios::support::{conversation_name, message_text};
+use crate::scenarios::support::{conversation_name, join_seen_by, message_text};
 
 /// keeps a multiline direct-message reply bound to its sender across a local nick change
 #[scenario(
@@ -55,11 +55,14 @@ async fn stale_dm_history_target(s: Scenario) -> papo_testing::Result<()> {
     if std::env::var("PAPO_TEST_PROFILE").as_deref() != Ok("soju-ergo") {
         return s.skip("the selected profile does not retain raw direct-message targets");
     }
-    let writer = s.connect_as_account("writer").await?;
+    let mut writer = s.connect_as_account("writer").await?;
     let reader = s.connect_as_account("reader").await?;
     let old_nick = reader.nick();
     let new_nick = format!("r{old_nick}");
     let text = "can you send the incident report?";
+    let channel = s.channel_name();
+    writer.join(&channel).await?;
+    join_seen_by(&reader, &mut writer, &channel).await?;
 
     let reader_direct = writer.direct(old_nick.as_ref()).await?;
     writer.privmsg(&reader_direct, text).await?;

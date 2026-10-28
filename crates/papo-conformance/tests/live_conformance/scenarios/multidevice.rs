@@ -3,7 +3,7 @@ use std::time::{Duration, SystemTime};
 use papo::{Authorship, Away, Error, Event, Refusal};
 use papo_conformance_macros::scenario;
 
-use super::support::{confirmed_line, conversation_name, wait_for_channel};
+use super::support::{confirmed_line, conversation_name, join_seen_by, wait_for_channel};
 use crate::Scenario;
 
 fn has_account_sessions() -> bool {
@@ -477,15 +477,18 @@ async fn multidevice_dm_fanout_thread(s: Scenario) -> papo_testing::Result<()> {
         return s.skip("the selected profile does not support concurrent account sessions");
     }
     let (mut desktop, account) = s.connect_as_account_with_key("alice").await?;
+    let mut sender = s.connect("bob").await?;
+    let text = "can every device review the release?";
+    let channel = s.channel_name();
+    sender.join(&channel).await?;
+    wait_for_channel(&mut sender, &channel).await?;
+    join_seen_by(&desktop, &mut sender, &channel).await?;
     let mut phone = s
         .connect_account_session("alice-phone", account.clone())
         .await?;
     let mut tablet = s.connect_account_session("alice-tablet", account).await?;
-    let mut sender = s.connect("bob").await?;
-    let text = "can every device review the release?";
-    let channel = s.channel_name();
-    desktop.join(&channel).await?;
-    sender.join(&channel).await?;
+    wait_for_channel(&mut phone, &channel).await?;
+    wait_for_channel(&mut tablet, &channel).await?;
 
     let desktop_direct = sender.direct(desktop.nick().as_ref()).await?;
     let sent = sender.privmsg(&desktop_direct, text).await?;
