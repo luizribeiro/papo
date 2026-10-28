@@ -510,8 +510,8 @@ pub enum Error {
     Interrupted(Disconnected),
     /// Every line was sent, but the expected reply did not arrive in time.
     ///
-    /// The server may already have acted. Retrying an action such as `KICK` or
-    /// `MODE +b` can repeat its effect.
+    /// The server may already have acted. See [`crate::RequestFuture`] for the retry-safety table;
+    /// retrying an action such as `KICK` or `MODE +b` can repeat its effect.
     #[error("the IRC operation timed out")]
     Timeout,
     /// Server input exceeded a bounded state collection.
