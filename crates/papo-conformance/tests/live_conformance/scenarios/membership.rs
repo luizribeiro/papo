@@ -581,7 +581,7 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
     alice.join(&channel).await?;
     bob.join(&channel).await?;
 
-    let bob_direct = alice.direct(&bob_nick).await?;
+    let bob_direct = alice.direct(bob_nick.as_ref()).await?;
     alice.mode(&channel).op(&bob_direct).await?;
     let promoted = wait_channel_mode(&mut bob, &channel, 'o').await?;
 
@@ -1617,7 +1617,7 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
         Refusal::CannotSendToChannel,
         "404",
     );
-    let bob_direct = alice.direct(&bob_nick).await?;
+    let bob_direct = alice.direct(bob_nick.as_ref()).await?;
     alice.mode(&channel).voice(&bob_direct).await?;
     wait_channel_mode(&mut bob, &channel, 'v').await?;
     bob.privmsg(&channel, "allowed after voice").await?;

@@ -30,7 +30,7 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
         return s.skip("PREFIX advertises no status mode above channel operator");
     }
 
-    let bob_direct = alice.direct(&bob_nick).await?;
+    let bob_direct = alice.direct(bob_nick.as_ref()).await?;
     for prefix in &above {
         let error = alice
             .mode(&channel)
