@@ -780,7 +780,7 @@ fn retained_bytes(message: &LineRef<'_>) -> usize {
             .sum::<usize>()
 }
 
-#[cfg(all(test, not(all(target_os = "wasi", not(target_env = "p1")))))]
+#[cfg(all(test, not(target_family = "wasm")))]
 #[path = "batch/state_machine_tests.rs"]
 mod state_machine_tests;
 
