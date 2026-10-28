@@ -50,20 +50,17 @@ fn replace(path: &Path, rustdoc: bool, table: &str) {
 }
 
 #[test]
-fn crate_docs_and_readme_match_the_capability_registry() {
+fn crate_docs_match_the_capability_registry() {
     let crate_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let root = crate_dir.parent().unwrap().parent().unwrap();
-    let readme = root.join("README.md");
-    let lib = crate_dir.join("src/lib.rs");
+    let lib = crate_dir
+        .parent()
+        .unwrap()
+        .join("papo")
+        .join("src/lib.rs");
     let expected = papo_core::cap::markdown_table();
     if std::env::var_os("PAPO_BLESS").is_some() {
-        replace(&readme, false, &expected);
         replace(&lib, true, &expected);
     }
-    assert_eq!(
-        section(&std::fs::read_to_string(readme).unwrap(), false),
-        expected.trim()
-    );
     assert_eq!(
         section(&std::fs::read_to_string(lib).unwrap(), true),
         expected.trim()

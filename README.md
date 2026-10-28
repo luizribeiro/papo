@@ -186,53 +186,6 @@ to 701,675 bytes, a 29.6% reduction. Run `wasm-opt -Oz input.wasm -o output.wasm
 module before deployment. Papo uses the browser's WebSocket implementation on this target, so
 browser builds connect only to `ws://` and `wss://` URLs.
 
-## Capability implementation map
-
-<!-- caps:start -->
-| Capability | Aliases | Requested | Features | Code |
-|---|---|---|---|---|
-| `cap-notify` | — | default | capability notifications | `caps` |
-| `message-tags` | — | default | client-only message tags, replies, reactions, typing notifications | `features`, `replies` |
-| `server-time` | — | default | server timestamps | `state::read_marker` |
-| `batch` | — | default | message batches | `batch` |
-| `draft/event-playback` | — | default | event playback | `batch` |
-| `echo-message` | — | default | message echoes | `outgoing`, `echo` |
-| `account-tag` | — | default | account tracking | `state::presence` |
-| `extended-join` | — | default | extended join details | `state::membership` |
-| `multi-prefix` | — | default | complete membership prefixes | `state::membership` |
-| `userhost-in-names` | — | default | user and host fields in names replies | `state::membership` |
-| `chghost` | — | default | host tracking | `state::presence` |
-| `setname` | — | default | real-name changes | `state::presence` |
-| `away-notify` | — | default | away tracking | `state::presence` |
-| `account-notify` | — | default | account tracking | `state::presence` |
-| `extended-monitor` | — | default | extended monitor replies | `monitor` |
-| `invite-notify` | — | default | invite tracking | `replies` |
-| `standard-replies` | — | default | structured replies | `refusal`, `replies` |
-| `labeled-response` | — | default | labeled-response | `outgoing`, `labels` |
-| `draft/multiline` | — | default | multiline messages | `outgoing`, `batch` |
-| `draft/oper-tag` | — | default | operator tags | `replies` |
-| `draft/metadata-3` | draft/metadata-2 | default | metadata | `metadata`, `state::metadata` |
-| `metadata-notify` | — | fallback | — | `metadata`, `state::metadata` |
-| `sasl` | — | automatic | SASL authentication | `sasl` |
-| `sts` | — | never | — | `sts` |
-| `ergo.chat/nope` | — | never | — | `caps` |
-| `soju.im/account-required` | — | never | — | `caps` |
-| `draft/account-registration` | account-registration | default | account creation | `account_registration` |
-| `soju.im/bouncer-networks` | — | opt-in | bouncer networks | `bouncer` |
-| `soju.im/bouncer-networks-notify` | — | opt-in | — | `bouncer` |
-| `draft/chathistory` | chathistory | default | chathistory | `history`, `batch` |
-| `draft/read-marker` | read-marker | default | read-marker | `history`, `state::read_marker` |
-| `draft/persistence` | — | opt-in | persistence | `persistence`, `state::persistence` |
-| `draft/channel-rename` | — | default | channel rename | `channel_rename`, `state::rename` |
-| `draft/relaymsg` | — | opt-in | relaymsg | `relaymsg` |
-| `draft/message-redaction` | — | default | draft/message-redaction | `outgoing`, `replies` |
-| `draft/webpush` | soju.im/webpush | opt-in | webpush | `webpush` |
-| `draft/pre-away` | — | default | registration-time away state | `state` |
-| `no-implicit-names` | draft/no-implicit-names | default | suppression of implicit names replies | `state::membership` |
-| `draft/whoami` | — | default | connection identity discovery | `state` |
-| `draft/extended-isupport` | — | default | extended ISUPPORT discovery | `isupport` |
-<!-- caps:end -->
-
 Use `papo::strip_formatting` when IRC formatting controls should be removed while preserving the
 message text.
 
