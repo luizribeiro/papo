@@ -11,7 +11,7 @@ use papo_testing::wire;
 use support::direct::{connected, next_active_event};
 
 #[tokio::test]
-async fn privilege_grants_refuse_a_nickname_takeover() {
+async fn moderation_subjects_refuse_a_nickname_takeover() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo")
             .rate_limit(papo::RateLimit::unlimited())
@@ -67,6 +67,28 @@ async fn privilege_grants_refuse_a_nickname_takeover() {
             Err(papo::Error::TargetGone)
         ));
     }
+    assert!(matches!(
+        client.kick("#review", &alice, "repeated flooding").await,
+        Err(papo::Error::TargetGone)
+    ));
+    assert!(matches!(
+        client
+            .kickban("#review", &alice, "*!*@cloak.example", "ban evasion")
+            .await,
+        Err(papo::Error::TargetGone)
+    ));
+    assert!(matches!(
+        client.mode("#review").deop(&alice).await,
+        Err(papo::Error::TargetGone)
+    ));
+    assert!(matches!(
+        client.mode("#review").dehalfop(&alice).await,
+        Err(papo::Error::TargetGone)
+    ));
+    assert!(matches!(
+        client.mode("#review").devoice(&alice).await,
+        Err(papo::Error::TargetGone)
+    ));
     assert!(
         tokio::time::timeout(Duration::from_millis(10), wire.next_sent())
             .await

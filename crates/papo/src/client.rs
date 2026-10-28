@@ -1300,25 +1300,10 @@ impl Client {
         let reason = reason.into();
         crate::RequestFuture::new(async move {
             let channel = client.resolve(crate::target::Role::Channel("kick: channel"), channel)?;
-            let nick = client.resolve(crate::target::Role::Nick("kick: nick"), nick)?;
             let state = client.state();
             let channel = state.name_rules().channel(channel);
-            let nick = state.name_rules().nick(nick);
-            validate_kick_reason(&state, &reason)?;
-            let mut params = vec![channel.to_string(), nick.to_string()];
-            if !reason.is_empty() {
-                params.push(reason);
-            }
-            let response = client
-                .correlated(
-                    Line::new("KICK").with_params(params),
-                    Some(ResponseMatcher::__kick(
-                        channel.to_string(),
-                        nick.to_string(),
-                    )),
-                )
-                .await?;
-            crate::requests::empty(&response)
+            drop(state);
+            kick_resolved(&client, channel, nick, reason).await
         })
     }
 
@@ -1353,16 +1338,17 @@ impl Client {
         crate::RequestFuture::new(async move {
             let channel =
                 client.resolve(crate::target::Role::Channel("kickban: channel"), channel)?;
-            let nick = client.resolve(crate::target::Role::Nick("kickban: nick"), nick)?;
+            let resolved_nick =
+                client.resolve(crate::target::Role::Nick("kickban: nick"), nick.clone())?;
             let state = client.state();
             let channel = state.name_rules().channel(channel);
-            let nick = state.name_rules().nick(nick);
+            let resolved_nick = state.name_rules().nick(resolved_nick);
             validate_kick_reason(&state, &reason)?;
             let ban = ban.resolve(&state)?;
             let already_set = crate::mode::tracked_ban(&state, &channel, &ban);
             let target_was_present = state
                 .channel(&channel)
-                .is_some_and(|joined| joined.member(&nick).is_some());
+                .is_some_and(|joined| joined.member(&resolved_nick).is_some());
             drop(state);
             let commands = client.commands.clone();
             let (result, receiver) = oneshot::channel();
@@ -1413,7 +1399,7 @@ impl Client {
                             && client
                                 .state()
                                 .channel(&channel)
-                                .is_none_or(|joined| joined.member(&nick).is_none())
+                                .is_none_or(|joined| joined.member(&resolved_nick).is_none())
                         {
                             return Ok(crate::KickbanOutcome {
                                 kick: Err(Error::TargetGone),
@@ -1422,7 +1408,7 @@ impl Client {
                     }
 
                     Ok(crate::KickbanOutcome {
-                        kick: client.kick(&channel, &nick, &reason).await,
+                        kick: kick_resolved(&client, channel, nick, reason).await,
                     })
                 }
                 .await;
@@ -1715,6 +1701,32 @@ impl Client {
             receiver.await.unwrap_or(Ok(()))
         })
     }
+}
+
+async fn kick_resolved(
+    client: &Client,
+    channel: crate::ChannelName,
+    nick: crate::target::sealed::Parts<'static>,
+    reason: String,
+) -> Result<(), Error> {
+    let nick = client.resolve(crate::target::Role::Nick("kick: nick"), nick)?;
+    let state = client.state();
+    let nick = state.name_rules().nick(nick);
+    validate_kick_reason(&state, &reason)?;
+    let mut params = vec![channel.to_string(), nick.to_string()];
+    if !reason.is_empty() {
+        params.push(reason);
+    }
+    let response = client
+        .correlated(
+            Line::new("KICK").with_params(params),
+            Some(ResponseMatcher::__kick(
+                channel.to_string(),
+                nick.to_string(),
+            )),
+        )
+        .await?;
+    crate::requests::empty(&response)
 }
 
 pub(crate) fn validate_kick_reason(state: &State, reason: &str) -> Result<(), Error> {
