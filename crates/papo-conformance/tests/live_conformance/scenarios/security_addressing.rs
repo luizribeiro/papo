@@ -20,6 +20,9 @@ async fn multiline_dm_after_nick_change(s: Scenario) -> papo_testing::Result<()>
     let old_nick = bob.nick();
     let new_nick = format!("r{old_nick}");
     let text = "deployment is ready\nplease approve the release";
+    let channel = s.channel_name();
+    alice.join(&channel).await?;
+    bob.join(&channel).await?;
 
     let bob_direct = alice.direct(old_nick.as_ref()).await?;
     alice.privmsg(&bob_direct, text).await?;
