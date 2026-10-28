@@ -62,6 +62,16 @@ pub enum Warning {
         /// A human-readable explanation suitable for diagnostics.
         reason: String,
     },
+    /// A rejoined channel has a different server creation time.
+    #[non_exhaustive]
+    ChannelRecreated {
+        /// The channel that was rejoined.
+        channel: crate::ChannelName,
+        /// Creation time observed before reconnecting.
+        previous_created_at: std::time::SystemTime,
+        /// Creation time reported after rejoining.
+        created_at: std::time::SystemTime,
+    },
     /// The server uses RFC 8265 name matching, but this build lacks the `precis` feature.
     Utf8CasemappingUnsupported,
     /// Server input exceeded a configured state-retention bound.
@@ -98,6 +108,9 @@ impl fmt::Display for Warning {
                 )
             }
             Self::AuthenticationFailed { reason } => formatter.write_str(reason),
+            Self::ChannelRecreated { channel, .. } => {
+                write!(formatter, "{channel} was re-created while reconnecting")
+            }
             Self::Utf8CasemappingUnsupported => formatter.write_str(
                 "server advertises UTF8MAPPING=rfc8265, but this build lacks PRECIS support",
             ),
@@ -134,6 +147,11 @@ mod tests {
             },
             Warning::AuthenticationFailed {
                 reason: "SASL mechanism unavailable".to_owned(),
+            },
+            Warning::ChannelRecreated {
+                channel: crate::Casemapping::default().channel("#release"),
+                previous_created_at: std::time::UNIX_EPOCH,
+                created_at: std::time::UNIX_EPOCH + std::time::Duration::from_secs(1),
             },
             Warning::Utf8CasemappingUnsupported,
             Warning::StateLimitReached {

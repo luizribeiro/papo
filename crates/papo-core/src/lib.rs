@@ -2779,6 +2779,7 @@ hidden_event_constructors! {
     __malformed(line: Vec<u8>) => Malformed;
     __features_changed(added: Vec<Feature>, removed: Vec<Feature>) => FeaturesChanged;
     __casemapping_changed(old: Casemapping, new: Casemapping) => CasemappingChanged;
+    __channel_recreated(channel: ChannelName, previous_created_at: std::time::SystemTime, created_at: std::time::SystemTime) => ChannelRecreated;
     __joined(envelope: LineEnvelope, actor: String, account: Account, realname: Option<String>, channel: ChannelName, nick: Nick, authorship: Authorship, netjoin: Option<SplitServers>) => Joined;
     __account_created(account: AccountName, logged_in: bool) => AccountCreated;
     __verification_required(account: AccountName, message: String) => VerificationRequired;

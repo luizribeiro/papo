@@ -2093,6 +2093,16 @@ pub(crate) fn from_core_with_receipt(
         papo_core::Event::CasemappingChanged { old, new, .. } => {
             Event::CasemappingChanged(CasemappingChanged { old, new })
         }
+        papo_core::Event::ChannelRecreated {
+            channel,
+            previous_created_at,
+            created_at,
+            ..
+        } => Event::Warning(Warning::ChannelRecreated {
+            channel,
+            previous_created_at,
+            created_at,
+        }),
         papo_core::Event::Utf8CasemappingUnsupported => {
             Event::Warning(Warning::Utf8CasemappingUnsupported)
         }
@@ -5015,6 +5025,27 @@ mod tests {
         assert!(matches!(
             forwarded(papo_core::Event::Utf8CasemappingUnsupported),
             Event::Warning(Warning::Utf8CasemappingUnsupported)
+        ));
+    }
+
+    #[test]
+    #[allow(clippy::duration_suboptimal_units)]
+    fn maps_recreated_channel_warning() {
+        let previous = UNIX_EPOCH + Duration::from_secs(1_793_098_800);
+        let created = UNIX_EPOCH + Duration::from_secs(1_793_099_900);
+        assert!(matches!(
+            forwarded(papo_core::Event::__channel_recreated(
+                Casemapping::default().channel("#release"),
+                previous,
+                created,
+            )),
+            Event::Warning(Warning::ChannelRecreated {
+                channel,
+                previous_created_at,
+                created_at,
+            }) if channel == "#release"
+                && previous_created_at == previous
+                && created_at == created
         ));
     }
 

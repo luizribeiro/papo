@@ -198,6 +198,10 @@ pub papo::event::Warning::AuthenticationFailed::reason: alloc::string::String
 pub papo::event::Warning::BatchAbandoned::batch_type: alloc::string::String
 pub papo::event::Warning::BatchAbandoned::id: alloc::string::String
 pub papo::event::Warning::BatchAbandoned::reason: papo::BatchAbandonReason
+#[non_exhaustive] pub papo::event::Warning::ChannelRecreated
+pub papo::event::Warning::ChannelRecreated::channel: papo::ChannelName
+pub papo::event::Warning::ChannelRecreated::created_at: std::time::SystemTime
+pub papo::event::Warning::ChannelRecreated::previous_created_at: std::time::SystemTime
 #[non_exhaustive] pub papo::event::Warning::Malformed
 pub papo::event::Warning::Malformed::line: alloc::vec::Vec<u8>
 #[non_exhaustive] pub papo::event::Warning::MonitorListFull
