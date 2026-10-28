@@ -2924,6 +2924,16 @@ pub struct ChannelGuard {
     created_at: Option<std::time::SystemTime>,
 }
 
+/// Identity proof attached to an outbound target.
+#[doc(hidden)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum TargetGuard {
+    /// A private recipient identity.
+    Recipient(RecipientGuard),
+    /// A joined channel identity.
+    Channel(ChannelGuard),
+}
+
 impl ChannelGuard {
     /// Returns the channel name at capture time.
     #[doc(hidden)]
@@ -3210,7 +3220,7 @@ struct QueuedLine {
     line: WireLine,
     token: Option<TransmitToken>,
     request: Option<RequestId>,
-    recipient: Option<RecipientGuard>,
+    guard: Option<TargetGuard>,
 }
 
 impl Transmission {
@@ -3245,7 +3255,7 @@ impl Outbox {
         line: WireLine,
         token: Option<TransmitToken>,
         request: Option<RequestId>,
-        recipient: Option<RecipientGuard>,
+        guard: Option<TargetGuard>,
     ) {
         if self.close_requested {
             if let Some(token) = token {
@@ -3260,7 +3270,7 @@ impl Outbox {
             line,
             token,
             request,
-            recipient,
+            guard,
         };
         if bypasses_rate_limit(&line.line) {
             self.immediate.push_back(line);
@@ -3280,7 +3290,7 @@ impl Outbox {
             line,
             token: None,
             request,
-            recipient: None,
+            guard: None,
         }));
     }
 
@@ -3348,7 +3358,7 @@ impl Outbox {
                 line,
                 token: None,
                 request: None,
-                recipient: None,
+                guard: None,
             }),
             Err(error) => self.close(
                 CloseKind::Other,
@@ -3776,13 +3786,23 @@ impl Session {
         message: Line,
         recipient: Option<RecipientGuard>,
     ) -> Result<TransmitToken, BuildError> {
+        self.send_target_guarded_tracked(now, message, recipient.map(TargetGuard::Recipient))
+    }
+
+    /// Queues a line whose target must still match at transmission time.
+    #[doc(hidden)]
+    pub fn send_target_guarded_tracked(
+        &mut self,
+        now: Instant,
+        message: Line,
+        guard: Option<TargetGuard>,
+    ) -> Result<TransmitToken, BuildError> {
         self.rate_limit.advance(now);
         let line = message.encode()?;
         drop(message);
         let token = TransmitToken(self.next_transmit_token);
         self.next_transmit_token = self.next_transmit_token.wrapping_add(1);
-        self.outbox
-            .transmit_guarded(line, Some(token), None, recipient);
+        self.outbox.transmit_guarded(line, Some(token), None, guard);
         Ok(token)
     }
 
@@ -4033,7 +4053,7 @@ impl Session {
                     line,
                     (index == last).then_some(token).flatten(),
                     request,
-                    recipient.clone(),
+                    recipient.clone().map(TargetGuard::Recipient),
                 );
             }
         }
@@ -4424,7 +4444,9 @@ impl Session {
                         line,
                         token: last.then_some(token).flatten(),
                         request: last.then_some(request).flatten(),
-                        recipient: (!last).then(|| recipient.clone()).flatten(),
+                        guard: (!last)
+                            .then(|| recipient.clone().map(TargetGuard::Recipient))
+                            .flatten(),
                     };
                     let Some(transmit) = self.prepare_queued_line(queued) else {
                         if !last {
@@ -4433,7 +4455,7 @@ impl Session {
                                     line: close,
                                     token: None,
                                     request: None,
-                                    recipient: None,
+                                    guard: None,
                                 });
                             }
                             self.recipient_gone(token, request);
@@ -4456,15 +4478,30 @@ impl Session {
     }
 
     fn prepare_queued_line(&mut self, mut queued: QueuedLine) -> Option<Transmit> {
-        if let Some(recipient) = &queued.recipient {
-            let RecipientStatus::Current(nick) = self.state.__resolve_recipient(recipient) else {
-                self.recipient_gone(queued.token, queued.request);
-                return None;
-            };
-            if nick != *recipient.__nick() && !replace_wire_target(&mut queued.line, &nick) {
-                self.recipient_gone(queued.token, queued.request);
-                return None;
+        let resolved = match &queued.guard {
+            Some(TargetGuard::Recipient(recipient)) => {
+                let RecipientStatus::Current(nick) = self.state.__resolve_recipient(recipient)
+                else {
+                    self.recipient_gone(queued.token, queued.request);
+                    return None;
+                };
+                (nick != *recipient.__nick()).then(|| (None, nick.to_string()))
             }
+            Some(TargetGuard::Channel(channel)) => {
+                let Some(current) = self.state.__resolve_channel(channel) else {
+                    self.recipient_gone(queued.token, queued.request);
+                    return None;
+                };
+                (current != *channel.__channel())
+                    .then(|| (Some(channel.__channel().as_ref()), current.to_string()))
+            }
+            None => None,
+        };
+        if let Some((old, new)) = resolved
+            && !replace_wire_target(&mut queued.line, old, &new)
+        {
+            self.recipient_gone(queued.token, queued.request);
+            return None;
         }
         self.mark_request_started(queued.request);
         Some(Transmit {
@@ -5648,7 +5685,7 @@ impl Session {
     }
 }
 
-fn replace_wire_target(line: &mut WireLine, nick: &Nick) -> bool {
+fn replace_wire_target(line: &mut WireLine, old: Option<&str>, new: &str) -> bool {
     let Ok(text) = std::str::from_utf8(line.as_ref()) else {
         return false;
     };
@@ -5663,8 +5700,20 @@ fn replace_wire_target(line: &mut WireLine, nick: &Nick) -> bool {
     } else {
         0
     };
+    let Some(address) = parsed.param(target) else {
+        return false;
+    };
+    let prefix = match old {
+        Some(old) => {
+            let Some(prefix) = address.strip_suffix(old) else {
+                return false;
+            };
+            prefix
+        }
+        None => "",
+    };
     let mut owned = parsed.to_owned();
-    if !owned.__replace_param(target, nick.to_string()) {
+    if !owned.__replace_param(target, format!("{prefix}{new}")) {
         return false;
     }
     let Ok(rewritten) = owned.encode() else {

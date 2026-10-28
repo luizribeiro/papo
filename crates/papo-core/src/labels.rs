@@ -358,8 +358,12 @@ impl Session {
         } else {
             self.outbox.event(Event::RequestUntracked { id });
         }
-        self.outbox
-            .transmit_guarded(line, None, Some(id), recipient);
+        self.outbox.transmit_guarded(
+            line,
+            None,
+            Some(id),
+            recipient.map(crate::TargetGuard::Recipient),
+        );
         Ok(())
     }
 }

@@ -2,7 +2,8 @@
 
 use std::time::Instant;
 
-use papo_core::{Config, Session};
+use papo_core::{Config, Event, Session, TargetGuard};
+use papo_proto::Line;
 
 fn server(session: &mut Session, line: &str) {
     session.handle_line(Instant::now(), line.as_bytes());
@@ -15,6 +16,13 @@ fn membership_guard_follows_rename_and_expires_on_part() {
     server(&mut session, ":ergo.test 329 papo #review 1793098800");
     let channel = session.state().channel("#review").unwrap().name().clone();
     let guard = session.state().__channel_guard(&channel);
+    session
+        .send_target_guarded_tracked(
+            Instant::now(),
+            Line::notice("@#review", "release approved"),
+            Some(TargetGuard::Channel(guard.clone())),
+        )
+        .unwrap();
 
     server(
         &mut session,
@@ -24,12 +32,28 @@ fn membership_guard_follows_rename_and_expires_on_part() {
         session.state().__resolve_channel(&guard).as_deref(),
         Some("#release")
     );
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"NOTICE @#release :release approved\r\n"
+    );
+
+    let token = session
+        .send_target_guarded_tracked(
+            Instant::now(),
+            Line::privmsg("#release", "deployment started"),
+            Some(TargetGuard::Channel(guard.clone())),
+        )
+        .unwrap();
 
     server(
         &mut session,
         ":papo!p@localhost PART #release :Deployment complete",
     );
     assert_eq!(session.state().__resolve_channel(&guard), None);
+    assert_eq!(session.poll_transmit(), None);
+    assert!(std::iter::from_fn(|| session.poll_event()).any(
+        |event| matches!(event, Event::TransmitRecipientGone { token: gone, .. } if gone == token)
+    ));
 }
 
 #[test]
@@ -51,6 +75,18 @@ fn creation_time_proves_a_channel_across_membership_epochs() {
         Some("#review")
     );
 
+    session
+        .send_target_guarded_tracked(
+            Instant::now(),
+            Line::privmsg("#review", "same channel"),
+            Some(TargetGuard::Channel(guard.clone())),
+        )
+        .unwrap();
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"PRIVMSG #review :same channel\r\n"
+    );
+
     server(
         &mut session,
         ":papo!p@localhost PART #review :Network maintenance",
@@ -58,4 +94,12 @@ fn creation_time_proves_a_channel_across_membership_epochs() {
     server(&mut session, ":papo!p@localhost JOIN #review");
     server(&mut session, ":ergo.test 329 papo #review 1793099900");
     assert_eq!(session.state().__resolve_channel(&guard), None);
+    session
+        .send_target_guarded_tracked(
+            Instant::now(),
+            Line::privmsg("#review", "stale channel"),
+            Some(TargetGuard::Channel(guard)),
+        )
+        .unwrap();
+    assert_eq!(session.poll_transmit(), None);
 }
