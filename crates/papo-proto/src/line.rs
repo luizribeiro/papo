@@ -391,6 +391,14 @@ pub struct WireLine {
 }
 
 impl WireLine {
+    pub(crate) fn secret_spans(&self) -> &[Range<usize>] {
+        &self.secret_spans
+    }
+
+    pub(crate) fn visible_len(&self) -> usize {
+        self.bytes.len().saturating_sub(2)
+    }
+
     /// Reports whether an encoded parameter originated from [`Secret`].
     #[doc(hidden)]
     #[must_use]
@@ -406,7 +414,7 @@ impl WireLine {
     }
 
     fn fmt_redacted(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let visible_len = self.bytes.len().saturating_sub(2);
+        let visible_len = self.visible_len();
         let mut start = 0;
         for span in &self.secret_spans {
             formatter.write_str(&String::from_utf8_lossy(&self.bytes[start..span.start]))?;

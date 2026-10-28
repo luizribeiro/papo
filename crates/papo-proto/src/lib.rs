@@ -28,6 +28,8 @@ mod numeric;
 mod secret;
 mod server_name;
 mod source;
+#[doc(hidden)]
+pub mod test_support;
 mod text;
 pub mod time;
 mod views;
