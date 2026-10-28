@@ -1367,7 +1367,11 @@ pub enum Event {
     Connecting(Connecting),
     /// The IRC connection is ready for use.
     Connected(Connected),
-    /// Older events were discarded because the event buffer was full.
+    /// Events were discarded because the event buffer was full.
+    ///
+    /// State-backed changes are discarded first and remain visible through [`Client::state`].
+    /// Message-like events are discarded last; their conversation gaps can be recovered with
+    /// [`Client::history`] when the server supports history.
     Lagged(Lagged),
     /// A complete message of the day received while connecting.
     Motd(Motd),
@@ -1465,6 +1469,19 @@ pub enum Event {
     MonitorOffline(MonitorOffline),
     /// The connection ended.
     Disconnected(Disconnected),
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub(crate) enum OverflowPriority {
+    State,
+    Other,
+    Message,
+}
+
+pub(crate) struct OverflowClass<'a> {
+    pub(crate) priority: OverflowPriority,
+    #[allow(dead_code)]
+    pub(crate) conversation: Option<&'a Conversation>,
 }
 
 variant_accessors! { Event;
@@ -1579,6 +1596,63 @@ impl Event {
             | Self::Disconnected(_) => None,
             #[cfg(feature = "unstable")]
             Self::PersistenceChanged(_) | Self::BouncerNetworkChanged(_) => None,
+        }
+    }
+
+    #[allow(
+        clippy::match_same_arms,
+        reason = "stable variants stay explicit while the wildcard covers feature-gated variants"
+    )]
+    pub(crate) fn overflow_class(&self) -> OverflowClass<'_> {
+        let (priority, conversation) = match self {
+            Self::Message(event) => (OverflowPriority::Message, Some(&event.conversation)),
+            Self::Notice(event) => (OverflowPriority::Message, Some(&event.conversation)),
+            Self::CtcpQuery(event) => (OverflowPriority::Message, Some(&event.conversation)),
+            Self::CtcpReply(event) => (OverflowPriority::Message, Some(&event.conversation)),
+            Self::TagMsg(event) => (OverflowPriority::Message, Some(&event.conversation)),
+            Self::Reacted(event) => (OverflowPriority::Message, Some(&event.conversation)),
+            Self::Redacted(event) => (OverflowPriority::Message, Some(&event.conversation)),
+            Self::BroadcastCtcp(_) | Self::BroadcastTagMsg(_) => (OverflowPriority::Message, None),
+            Self::CapsChanged(_)
+            | Self::FeaturesChanged(_)
+            | Self::CasemappingChanged(_)
+            | Self::MetadataChanged(_)
+            | Self::ReadMarkerChanged(_)
+            | Self::Joined(_)
+            | Self::ChannelSynced(_)
+            | Self::MembersRefreshed(_)
+            | Self::Parted(_)
+            | Self::Kicked(_)
+            | Self::Quit(_)
+            | Self::NickChanged(_)
+            | Self::ChannelRenamed(_)
+            | Self::AccountChanged(_)
+            | Self::AwayChanged(_)
+            | Self::HostChanged(_)
+            | Self::RealnameChanged(_)
+            | Self::ModeChanged(_)
+            | Self::TopicChanged(_)
+            | Self::MonitorOnline(_)
+            | Self::MonitorOffline(_)
+            | Self::TypingChanged(_) => (OverflowPriority::State, None),
+            Self::Connecting(_)
+            | Self::Connected(_)
+            | Self::Lagged(_)
+            | Self::Motd(_)
+            | Self::ServerNotice(_)
+            | Self::Other(_)
+            | Self::StandardReply(_)
+            | Self::AccountCreation(_)
+            | Self::History(_)
+            | Self::Warning(_)
+            | Self::AutoJoinFailed(_)
+            | Self::Invited(_)
+            | Self::Disconnected(_) => (OverflowPriority::Other, None),
+            _ => (OverflowPriority::Other, None),
+        };
+        OverflowClass {
+            priority,
+            conversation,
         }
     }
 

@@ -8197,6 +8197,40 @@ fn held_events_drop_the_oldest_with_a_closed_receiver() {
     assert_eq!(channels.event_sink.dropped.load(Ordering::Relaxed), 1);
 }
 
+#[test]
+fn event_overflow_discards_state_before_messages() {
+    let session = Session::new(config());
+    let channels = super::channels(2, &session);
+    channels.event_sink.receiver.finish_connecting();
+    channels
+        .event_sink
+        .regular
+        .try_send(Event::Message(crate::__testing::message(
+            None,
+            "#papo",
+            "release candidate ready",
+            false,
+        )))
+        .unwrap();
+    channels
+        .event_sink
+        .regular
+        .try_send(Event::Joined(crate::__testing::joined(
+            test_channel("#papo"),
+            test_nick("alice"),
+            false,
+        )))
+        .unwrap();
+
+    let discarded = channels
+        .event_sink
+        .receiver
+        .discard_for_overflow(&channels.event_sink.regular)
+        .unwrap();
+    assert!(matches!(discarded, Event::Joined(_)));
+    assert_eq!(channels.event_sink.receiver.len(), 1);
+}
+
 #[tokio::test(flavor = "current_thread")]
 async fn private_reply_keeps_channel_context() {
     assert_reply_wire(

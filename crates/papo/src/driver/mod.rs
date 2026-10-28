@@ -374,7 +374,7 @@ impl EventReceiver {
         self.capacity
     }
 
-    fn discard_oldest_if_full(&self) -> bool {
+    fn discard_for_overflow(&self, sender: &mpsc::Sender<Event>) -> Option<Event> {
         let mut receiver = self
             .inner
             .lock()
@@ -384,7 +384,25 @@ impl EventReceiver {
         } else {
             self.capacity
         };
-        receiver.len() >= capacity && receiver.try_recv().is_ok()
+        if receiver.len() < capacity {
+            return None;
+        }
+        let mut queued = VecDeque::with_capacity(receiver.len());
+        while let Ok(event) = receiver.try_recv() {
+            queued.push_back(event);
+        }
+        let position = queued
+            .iter()
+            .enumerate()
+            .min_by_key(|(_, event)| event.overflow_class().priority)
+            .map(|(position, _)| position)?;
+        let discarded = queued.remove(position);
+        for event in queued {
+            if sender.try_send(event).is_err() {
+                return None;
+            }
+        }
+        discarded
     }
 
     fn finish_connecting(&self) {
@@ -1859,15 +1877,25 @@ fn enqueue_event(events: &EventSink, pending: &mut VecDeque<Event>, event: Event
 }
 
 fn hold_event(events: &EventSink, pending: &mut VecDeque<Event>, event: Event) {
-    if pending.len() == events.receiver.capacity {
-        pending.pop_front();
+    if pending.len() == events.receiver.capacity
+        && let Some(position) = pending
+            .iter()
+            .enumerate()
+            .min_by_key(|(_, event)| event.overflow_class().priority)
+            .map(|(position, _)| position)
+    {
+        pending.remove(position);
         events.dropped.fetch_add(1, Ordering::Relaxed);
     }
     pending.push_back(event);
 }
 
 fn send_event(events: &EventSink, event: Event) {
-    if events.receiver.discard_oldest_if_full() {
+    if events
+        .receiver
+        .discard_for_overflow(&events.regular)
+        .is_some()
+    {
         events.dropped.fetch_add(1, Ordering::Relaxed);
     }
     _ = events.regular.try_send(event);
