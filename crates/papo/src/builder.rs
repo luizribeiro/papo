@@ -442,10 +442,13 @@ impl Builder {
     /// Sets the bounded event queue capacity.
     ///
     /// When this queue fills, papo keeps reading the connection and reports discarded events in
-    /// [`Event::Lagged`](crate::Event::Lagged). State-backed changes are discarded before other
-    /// events, and message-like events last. Re-read [`Client::state`](crate::Client::state) for
-    /// state-backed changes and use [`Client::history`](crate::Client::history) for reported
-    /// message gaps. Gap filling is not automatic.
+    /// [`Event::Lagged`](crate::Event::Lagged). Changes already reflected in state—membership,
+    /// modes, topics, presence, metadata, read markers, and typing—are discarded first, followed
+    /// by other non-message events, and then messages, notices, CTCP, tag messages, reactions, and
+    /// redactions. One lag event reports each lag episode. Re-read
+    /// [`Client::state`](crate::Client::state) for state-backed changes and use
+    /// [`Client::history`](crate::Client::history) for reported message gaps. Gap filling is not
+    /// automatic.
     ///
     /// The default is 1,024 events. Size this for the largest burst the event loop may
     /// legitimately pause through, not the average event rate: a client receiving 250 events per
