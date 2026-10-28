@@ -40,21 +40,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## API design
 
-Every part of papo's API was reviewed one decision at a time, with one rule: prefer structural
-fixes. If a mistake is possible, the types rule it out or one place catches it. A pitfall never
-falls to documentation.
+We put a lot of effort into making papo hard to misuse. Not just by someone hostile, but also accidental misuse and footguns. One rule we had is that nothing should fall to documentation if it's a pitfall. We should always prefer structural fixes.
 
-- **Messages reach the person you meant.** `client.direct("alice")` follows nick changes, and if
-  the nick changes hands, the send fails with `TargetGone` instead of reaching the new owner.
-  Replies keep their status prefix, so a line sent to `@#ops` gets its answer in `@#ops`.
-- **Secrets stay secret.** Passwords and tokens are a `Secret`. It's redacted in logs and errors,
-  and by default papo won't send one over a plaintext connection.
-- **Memory stays bounded.** Every buffer the server can fill has a limit. When your app falls
-  behind, papo drops events in a documented order and tells you with `Event::Lagged`.
-- **No guessing.** When papo can't know something, it says so: `NameCheck::Unknown`,
-  `SentOutcome::Unconfirmed`, or an explicit refusal.
-- **Typed roles.** Channels, nicks and masks each have their own type, and a value from one
-  client is rejected by another.
+**Messages go to the right person.** We wanted to make sure we don't have any holes that could cause messages to be sent to the wrong person. On IRC that happens when someone leaves and someone else takes their nick. So you don't send to a bare nick. Either you reply to a message you got, with `client.reply(&message, "pong")`, which threads the reply and answers where the message came from (a line sent to `@#ops` gets its answer in `@#ops`), or you create a direct ref:
+
+```rust
+let alice = client.direct("alice").await?;
+client.privmsg(&alice, "deploy finished").await?;
+```
+
+It follows alice through nick changes, and if someone else takes her nick the send fails with `Error::TargetGone`. We centralized these checks so they are not sprinkled everywhere, which felt brittle, and the target gets checked again right when the line is written. papo refuses instead of sending it to someone else. The escape hatch is `send_raw`, but no one should ever be passing a plain string into it, so it takes a `Line`.
+
+**Types everywhere.** The APIs have types everywhere to prevent mistakes like putting the channel in place of the nick or whatever. Swap a `ChannelName` and a `Nick` in `client.kick(channel, nick, reason)` and it doesn't compile. The only way around it is constructing your own recipient with "#foo", "bar", etc, and then it only gets caught at runtime.
+
+**Multiple connections.** With bouncers you can have channels with the same name in different networks, same nicknames, etc, and it's easy to mix them up accidentally. Typed values remember which client they came from, so passing one to another client gets you a `ForeignReference` error, and #papo on one network isn't equal to #papo on another. If you're on soju, `manager.bouncer().network(&id)` gives you a builder for a client bound to one of its networks.
+
+**No guessing.** Guessing feels bad. Being able to report unknown is a good thing so people don't rely on values that aren't guaranteed. When the server replies to a command, papo matches the reply to the request and hands you a typed result:
+
+```rust
+let whois = client.whois("alice").await?;
+```
+
+So an account is `LoggedIn(name)`, `LoggedOut` or `Unknown`, since logged out and we don't know aren't the same thing. And when you send a message it's only `Confirmed` (with the msgids the server assigned) if the server echoed it back. Otherwise it's `Unconfirmed` and you can't react to it or delete it.
 
 ## Examples
 
