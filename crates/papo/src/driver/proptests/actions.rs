@@ -70,13 +70,6 @@ async fn arbitrary_core_action_input_is_rejected_or_emits_valid_lines() {
             }
         });
         check!({
-            let (first, second) = (first.clone(), second.clone());
-            move |client: &crate::Client| {
-                let mapping = crate::Casemapping::default();
-                client.invite(mapping.nick(second), mapping.channel(first))
-            }
-        });
-        check!({
             let first = first.clone();
             move |client: &crate::Client| client.set_nick(crate::Casemapping::default().nick(first))
         });

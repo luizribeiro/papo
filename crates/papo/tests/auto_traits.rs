@@ -33,6 +33,11 @@ fn assert_message_request_futures(client: &Client, message: &ChatMessage) {
     assert_send_static(client.reply(message, "Acknowledged").into_future());
 }
 
+fn assert_guarded_request_futures(client: &Client, direct: &papo::DirectRef) {
+    assert_send_static(client.invite(direct, "#papo"));
+    assert_send_static(client.mode("#papo").op(direct).into_future());
+}
+
 #[test]
 fn public_handles_events_and_errors_keep_their_auto_traits() {
     assert_send_sync::<Client>();
@@ -84,7 +89,6 @@ fn request_futures_are_send() {
     assert_send_static(client.join("#papo").into_future());
     assert_send_static(client.part(mapping.channel("#papo"), "tests complete"));
     assert_send_static(client.kick("#papo", "spambot", "flooding"));
-    assert_send_static(client.invite(mapping.nick("carol"), mapping.channel("#papo")));
     assert_send_static(client.set_nick("papo-away"));
     assert_send_static(client.set_away("reviewing patches"));
     assert_send_static(client.clear_away());
@@ -104,6 +108,7 @@ fn request_futures_are_send() {
     #[cfg(browser)]
     drop(driver);
     _ = assert_message_request_futures;
+    _ = assert_guarded_request_futures;
 }
 
 fn assert_extension_futures_are_send(client: &Client, mapping: papo::Casemapping) {

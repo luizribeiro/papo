@@ -857,10 +857,12 @@ mod tests {
         let (second, _, _) =
             crate::Client::builder("ircs://irc.example.net", "papo-client").build();
         let channel = first.state().name_rules().channel("#papo");
-        let nick = first.state().name_rules().nick("emily");
+        let state = first.state();
+        let recipient = state.capture_recipient(state.nick(), state.account().clone());
+        let direct = crate::DirectRef::new(&first, recipient, false);
 
         assert!(matches!(
-            second.mode(channel).op(nick).await,
+            second.mode(channel).op(&direct).await,
             Err(crate::Error::InvalidInput(
                 crate::InvalidInput::ForeignReference
             ))

@@ -63,9 +63,7 @@ async fn arbitrary_action_builder_input_is_rejected_or_emits_valid_lines() {
                         .unban(mapping.mask(third.clone()))
                         .quiet(mapping.mask(second.clone()))
                         .unquiet(mapping.mask(third.clone()))
-                        .op(mapping.nick(second.clone()))
                         .deop(mapping.nick(third.clone()))
-                        .voice(mapping.nick(second))
                         .devoice(mapping.nick(third)),
                 )
             }

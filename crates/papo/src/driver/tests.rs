@@ -5910,14 +5910,34 @@ async fn mode_helpers_await_every_command_and_return_refusals() {
         b":ergo.test 005 papo-driver PREFIX=(ov)@+ CHANMODES=beI,k,l,imnst MODES=2 :are supported\r\n",
     )
     .await;
+    for line in [
+        b":papo-driver!papo@localhost JOIN #papo\r\n".as_slice(),
+        b":alice!alice@users.example JOIN #papo\r\n".as_slice(),
+        b":carol!carol@users.example JOIN #papo\r\n".as_slice(),
+    ] {
+        server_line(&mut server, line).await;
+    }
+    within(async {
+        while ["alice", "carol"].into_iter().any(|nick| {
+            client
+                .state()
+                .user(nick)
+                .is_none_or(|user| user.channels().len() == 0)
+        }) {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await;
+    let alice = client.direct("alice").await.unwrap();
+    let carol = client.direct("carol").await.unwrap();
 
     let modes = tokio::spawn({
         let client = client.clone();
         async move {
             client
                 .mode("#papo")
-                .op("alice")
-                .voice("carol")
+                .op(&alice)
+                .voice(&carol)
                 .ban("*!*@spam.example")
                 .await
         }
