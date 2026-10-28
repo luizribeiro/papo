@@ -156,6 +156,8 @@ impl Builder {
 
     /// Seeds the server-defined name comparison rules used before connecting.
     ///
+    /// This makes [`crate::State::name_rules`] available before the first `005` response.
+    ///
     /// A server advertisement replaces these rules for the active connection. The most recently
     /// advertised rules remain available while disconnected.
     pub fn casemapping(mut self, casemapping: crate::Casemapping) -> Self {
@@ -1170,6 +1172,13 @@ mod tests {
         assert!(!state.is_connected());
         assert_eq!(state.casemapping(), crate::Casemapping::Ascii);
         assert_eq!(state.nick().casemapping(), crate::Casemapping::Ascii);
+        assert_eq!(
+            state
+                .name_rules()
+                .expect("builder seeded CASEMAPPING")
+                .channel("#Papo[dev]"),
+            "#papo[dev]"
+        );
         assert_ne!(state.nick(), "papo{bot}");
     }
 
