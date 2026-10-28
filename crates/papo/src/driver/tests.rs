@@ -9032,9 +9032,15 @@ fn multi_thread_stress_accounts_for_every_emitted_message() {
             lines.push_str("PING :ergo.test\r\n");
             server_line(&mut server, lines.as_bytes()).await;
             client_line(&mut server, b"PONG ergo.test\r\n").await;
-            while receiver.len() != 0 || dropped.lock().unwrap().count != 0 {
-                tokio::task::yield_now().await;
-            }
+            within_duration(
+                async {
+                    while receiver.len() != 0 || dropped.lock().unwrap().count != 0 {
+                        tokio::task::yield_now().await;
+                    }
+                },
+                Duration::from_secs(1),
+            )
+            .await;
             server.shutdown().await.unwrap();
         });
         assert!(matches!(
