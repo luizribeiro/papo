@@ -59,7 +59,10 @@
 //!
 //! If both TLS provider features are enabled, ring is used.
 //!
-//! APIs gated by the `unstable` feature are outside the crate's semantic-versioning guarantees.
+//! Ratified `IRCv3` specifications and drafts published on ircv3.net are stable; open proposals and
+//! vendor extensions stay behind `unstable` and outside semver until publication, with both draft
+//! and final capability names accepted so ratification does not change the API; see the
+//! [stability policy](https://github.com/luizribeiro/papo/blob/main/docs/ircv3-support.md#stability).
 //! Applications can opt in while libraries should leave the feature disabled.
 //!
 //! # `IRCv3` support
