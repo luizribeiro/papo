@@ -183,6 +183,8 @@ impl SetModes {
     }
 
     /// Adds a mode with its required argument.
+    ///
+    /// Prefix modes advertised by `PREFIX` require [`Self::prefix`] or a named privilege helper.
     pub fn add_with(self, mode: char, argument: impl Into<String>) -> Self {
         self.change(
             true,
@@ -192,6 +194,8 @@ impl SetModes {
     }
 
     /// Removes a mode with its required argument.
+    ///
+    /// Prefix modes advertised by `PREFIX` require a named privilege-removal helper.
     pub fn remove_with(self, mode: char, argument: impl Into<String>) -> Self {
         self.change(
             false,
@@ -263,12 +267,12 @@ impl SetModes {
     /// # }
     /// ```
     pub fn op(self, nick: impl crate::AsNick) -> Self {
-        self.prefix(true, 'o', nick)
+        self.prefix_change(true, 'o', nick)
     }
 
     /// Removes channel-operator privileges from `nick`.
     pub fn deop(self, nick: impl crate::AsNick) -> Self {
-        self.prefix(false, 'o', nick)
+        self.prefix_change(false, 'o', nick)
     }
 
     /// Grants half-operator privileges to `nick`.
@@ -283,15 +287,23 @@ impl SetModes {
 
     /// Grants voice privileges to `nick`.
     pub fn voice(self, nick: impl crate::AsNick) -> Self {
-        self.prefix(true, 'v', nick)
+        self.prefix_change(true, 'v', nick)
     }
 
     /// Removes voice privileges from `nick`.
     pub fn devoice(self, nick: impl crate::AsNick) -> Self {
-        self.prefix(false, 'v', nick)
+        self.prefix_change(false, 'v', nick)
     }
 
-    fn prefix(self, set: bool, mode: char, nick: impl crate::AsNick) -> Self {
+    /// Grants an advertised membership prefix to a guarded user identity.
+    ///
+    /// This covers server-specific owner and administrator modes such as `q` and `a`; prefer the
+    /// named helpers for operator, half-operator, and voice privileges.
+    pub fn prefix(self, mode: char, nick: &crate::DirectRef) -> Self {
+        self.prefix_change(true, mode, nick)
+    }
+
+    fn prefix_change(self, set: bool, mode: char, nick: impl crate::AsNick) -> Self {
         self.change(
             set,
             Selector::Prefix(mode),
@@ -655,6 +667,14 @@ pub(crate) fn encode(
 
 fn validate(isupport: &Isupport, change: &Change) -> Result<char, Error> {
     let mode = match change.mode {
+        Selector::Letter(mode)
+            if isupport
+                .prefix()
+                .into_iter()
+                .any(|prefix| prefix.mode() == mode) =>
+        {
+            return Err(invalid("prefix modes require a guarded nickname"));
+        }
         Selector::Letter(mode) => mode,
         Selector::Prefix(mode) => isupport
             .prefix()
@@ -818,7 +838,8 @@ mod tests {
     use papo_proto::{Isupport, Line, LineRef};
 
     use super::{
-        Argument, BanTarget, Change, Extban, Selector, Target, confirmed, confirmed_ban, encode,
+        Argument, BanTarget, Change, Error, Extban, InvalidInput, Selector, Target, confirmed,
+        confirmed_ban, encode,
     };
 
     fn isupport() -> Isupport {
@@ -972,6 +993,32 @@ mod tests {
             .map(|message| message.to_line().unwrap().trim_end().to_owned())
             .collect();
         assert_eq!(lines, ["MODE #papo +ov alice carol", "MODE #papo -m"]);
+    }
+
+    #[test]
+    fn raw_arguments_cannot_select_advertised_prefix_modes() {
+        let support = isupport();
+        for set in [true, false] {
+            for mode in ['q', 'a', 'o', 'h', 'v'] {
+                let raw = Change {
+                    set,
+                    mode: Selector::Letter(mode),
+                    arg: Some(Argument::Raw("alice".into())),
+                };
+                assert!(matches!(
+                    encode(&support, "#papo", &[raw]),
+                    Err(Error::InvalidInput(InvalidInput::InvalidMode(message)))
+                        if message == "prefix modes require a guarded nickname"
+                ));
+
+                let guarded = Change {
+                    set,
+                    mode: Selector::Prefix(mode),
+                    arg: Some(Argument::Nick(support.casemapping().nick("alice"))),
+                };
+                assert!(encode(&support, "#papo", &[guarded]).is_ok());
+            }
+        }
     }
 
     #[test]
