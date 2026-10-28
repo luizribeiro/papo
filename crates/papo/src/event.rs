@@ -2987,6 +2987,86 @@ mod tests {
     }
 
     #[test]
+    fn every_message_overflow_variant_keeps_its_priority_and_conversation() {
+        let now = Instant::now();
+        let cases = [
+            (
+                "Message",
+                ":alice!~alice@cloak.example PRIVMSG #review :release approved",
+                Some("#review"),
+            ),
+            (
+                "Notice",
+                ":alice!~alice@cloak.example NOTICE #review :maintenance begins soon",
+                Some("#review"),
+            ),
+            (
+                "CtcpQuery",
+                ":alice!~alice@cloak.example PRIVMSG #review :\x01VERSION\x01",
+                Some("#review"),
+            ),
+            (
+                "CtcpReply",
+                ":alice!~alice@cloak.example NOTICE #review :\x01VERSION Ergo-2.15.0\x01",
+                Some("#review"),
+            ),
+            (
+                "TagMsg",
+                "@+example/status=ready :alice!~alice@cloak.example TAGMSG #review",
+                Some("#review"),
+            ),
+            (
+                "Reacted",
+                "@+draft/react=👍;+draft/reply=RfcBTzyxY120001 :alice!~alice@cloak.example TAGMSG #review",
+                Some("#review"),
+            ),
+            (
+                "Redacted",
+                ":alice!~alice@cloak.example REDACT #review RfcBTzyxY120001 :off-topic",
+                Some("#review"),
+            ),
+            (
+                "BroadcastCtcp",
+                ":oper!staff@staff.example PRIVMSG $*.example.org :\x01VERSION\x01",
+                None,
+            ),
+            (
+                "BroadcastTagMsg",
+                "@+example/status=ready :oper!staff@staff.example TAGMSG *",
+                None,
+            ),
+        ];
+
+        for (expected, line, conversation) in cases {
+            let event = mapped_live_event(line, now);
+            let variant = match &event {
+                Event::Message(_) => "Message",
+                Event::Notice(_) => "Notice",
+                Event::CtcpQuery(_) => "CtcpQuery",
+                Event::CtcpReply(_) => "CtcpReply",
+                Event::TagMsg(_) => "TagMsg",
+                Event::Reacted(_) => "Reacted",
+                Event::Redacted(_) => "Redacted",
+                Event::BroadcastCtcp(_) => "BroadcastCtcp",
+                Event::BroadcastTagMsg(_) => "BroadcastTagMsg",
+                event => panic!("expected {expected}, got {event:?}"),
+            };
+            assert_eq!(variant, expected);
+            let class = event.overflow_class();
+            assert_eq!(
+                class.priority,
+                super::OverflowPriority::Message,
+                "{expected}"
+            );
+            assert_eq!(
+                class.conversation.map(ToString::to_string).as_deref(),
+                conversation,
+                "{expected}"
+            );
+        }
+    }
+
+    #[test]
     fn every_message_conversation_kind_keeps_its_origin() {
         let origin = crate::Origin::__new(73);
         let mapping = Casemapping::default();
