@@ -329,13 +329,18 @@ mod tests {
     async fn request_timeout_uses_the_paused_clock() {
         let (client, _events, mut wire) = wire(
             papo::Client::builder("irc://offline.test", "papo-wire")
+                .casemapping(papo::Casemapping::default())
                 .rate_limit(papo::RateLimit::unlimited())
                 .request_timeout(Duration::from_secs(10))
                 .reconnect(papo::Reconnect::never()),
         );
         wire.register(&[]).await;
         let request = tokio::spawn({
-            let nick = client.state().name_rules().nick("alice");
+            let nick = client
+                .state()
+                .__known_name_rules()
+                .expect("server advertised CASEMAPPING")
+                .nick("alice");
             async move { client.whois(nick).await }
         });
         assert_eq!(wire.next_sent().await, "WHOIS alice");

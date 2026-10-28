@@ -404,7 +404,11 @@ async fn foreign_monitor_add_never_reaches_either_wire() {
     assert!(is_foreign(
         &second
             .monitor()
-            .add([first.state().name_rules().nick("alice")])
+            .add([first
+                .state()
+                .__known_name_rules()
+                .expect("server advertised CASEMAPPING")
+                .nick("alice")])
             .await
     ));
     assert_no_wire(&mut first_wire, &mut second_wire).await;
@@ -424,7 +428,11 @@ async fn foreign_monitor_remove_never_reaches_either_wire() {
     assert!(is_foreign(
         &second
             .monitor()
-            .remove([first.state().name_rules().nick("alice")])
+            .remove([first
+                .state()
+                .__known_name_rules()
+                .expect("server advertised CASEMAPPING")
+                .nick("alice")])
             .await
     ));
     assert_no_wire(&mut first_wire, &mut second_wire).await;
@@ -437,7 +445,14 @@ async fn foreign_account_verification_never_reaches_either_wire() {
 
     assert!(is_foreign(
         &second
-            .verify_account(first.state().name_rules().account("alice"), "392814")
+            .verify_account(
+                first
+                    .state()
+                    .__known_name_rules()
+                    .expect("server advertised CASEMAPPING")
+                    .account("alice"),
+                "392814"
+            )
             .await
     ));
     assert_no_wire(&mut first_wire, &mut second_wire).await;
@@ -504,8 +519,16 @@ async fn foreign_names_cannot_read_another_clients_state() {
         tokio::task::yield_now().await;
     }
 
-    let foreign_channel = first.state().name_rules().channel("#papo");
-    let foreign_nick = first.state().name_rules().nick("alice");
+    let foreign_channel = first
+        .state()
+        .__known_name_rules()
+        .expect("server advertised CASEMAPPING")
+        .channel("#papo");
+    let foreign_nick = first
+        .state()
+        .__known_name_rules()
+        .expect("server advertised CASEMAPPING")
+        .nick("alice");
     assert!(second.state().channel("#papo").is_some());
     assert!(second.state().channel(&foreign_channel).is_none());
     assert!(second.state().user("alice").is_some());
@@ -1307,7 +1330,11 @@ async fn plaintext_credential_requests_never_reach_the_wire() {
         client.oper("admin", PASSWORD).await,
         client
             .verify_account(
-                client.state().name_rules().account("alice"),
+                client
+                    .state()
+                    .__known_name_rules()
+                    .expect("server advertised CASEMAPPING")
+                    .account("alice"),
                 "39gvcdg4myvnmdcfhvd6exsv4n",
             )
             .await
@@ -1657,7 +1684,12 @@ async fn typing_status_change_preserves_the_latest_audience() {
         papo::Event::TypingChanged(_)
     ));
 
-    let conversation = client.state().name_rules().conversation("#staff").unwrap();
+    let conversation = client
+        .state()
+        .__known_name_rules()
+        .expect("server advertised CASEMAPPING")
+        .conversation("#staff")
+        .unwrap();
     let state = client.state();
     let typer = state.typing(&conversation).next().unwrap();
     assert_eq!(typer.return_address(), "@#staff");
