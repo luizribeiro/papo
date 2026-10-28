@@ -8,15 +8,16 @@ specs = [
   { name = "Account registration", url = "https://ircv3.net/specs/extensions/account-registration", caps = ["draft/account-registration"], api = "Client::create_account", coverage = "draft.account-registration." },
   { name = "SASL 3.1", url = "https://ircv3.net/specs/extensions/sasl-3.1", caps = ["sasl"], api = "Builder::sasl", coverage = "ircv3.sasl." },
   { name = "SASL 3.2", url = "https://ircv3.net/specs/extensions/sasl-3.2", caps = ["sasl"], api = "Builder::sasl", coverage = "ircv3.sasl." },
+  { name = "SASL mechanisms", url = "https://ircv3.net/docs/sasl-mechs", wire = "PLAIN, EXTERNAL, SCRAM-SHA-256, OAUTHBEARER", support = "Yes", api = "Sasl", coverage = "ircv3.sasl." },
   { name = "Account notify", url = "https://ircv3.net/specs/extensions/account-notify", caps = ["account-notify"], api = "Event::AccountChanged", coverage = "ircv3.account-notify" },
-  { name = "Account tag", url = "https://ircv3.net/specs/extensions/account-tag", caps = ["account-tag"], api = "Authorship", coverage = "ircv3.account-tag" },
+  { name = "Account tag", url = "https://ircv3.net/specs/extensions/account-tag", caps = ["account-tag"], api = "UserSource::account", coverage = "ircv3.account-tag" },
   { name = "Extended join", url = "https://ircv3.net/specs/extensions/extended-join", caps = ["extended-join"], api = "Event::Joined", coverage = "ircv3.extended-join" },
   { name = "Away notify", url = "https://ircv3.net/specs/extensions/away-notify", caps = ["away-notify"], api = "Event::AwayChanged", coverage = "ircv3.away-notify" },
-  { name = "Batch", url = "https://ircv3.net/specs/extensions/batch", caps = ["batch"], api = "Event::History", coverage = "ircv3.batch." },
+  { name = "Batch", url = "https://ircv3.net/specs/extensions/batch", caps = ["batch"], api = "—", coverage = "ircv3.batch." },
   { name = "Client-initiated batch", url = "https://ircv3.net/specs/extensions/client-batch", wire = "BATCH", support = "Yes", api = "SendMessage", coverage = "draft.multiline." },
   { name = "Channel rename", url = "https://ircv3.net/specs/extensions/channel-rename", caps = ["draft/channel-rename"], api = "Client::rename_channel", coverage = "draft.channel-rename." },
   { name = "Chat history", url = "https://ircv3.net/specs/extensions/chathistory", caps = ["draft/chathistory"], api = "Client::history", coverage = "draft.chathistory." },
-  { name = "Event playback", url = "https://ircv3.net/specs/extensions/chathistory#the-event-playback-capability", caps = ["draft/event-playback"], api = "Event::History", coverage = "draft.event-playback" },
+  { name = "Event playback", url = "https://ircv3.net/specs/extensions/chathistory#implementation", caps = ["draft/event-playback"], api = "Event::History", coverage = "draft.event-playback" },
   { name = "Message redaction", url = "https://ircv3.net/specs/extensions/message-redaction", caps = ["draft/message-redaction"], api = "Client::redact", coverage = "draft.message-redaction." },
   { name = "Read marker", url = "https://ircv3.net/specs/extensions/read-marker", caps = ["draft/read-marker"], api = "Client::mark_read", coverage = "draft.read-marker." },
   { name = "Pre-away", url = "https://ircv3.net/specs/extensions/pre-away", caps = ["draft/pre-away"], api = "Builder::away_on_connect", coverage = "draft.pre-away" },
@@ -28,7 +29,7 @@ specs = [
   { name = "Multi-prefix", url = "https://ircv3.net/specs/extensions/multi-prefix", caps = ["multi-prefix"], api = "Member::prefixes", coverage = "ircv3.multi-prefix" },
   { name = "Userhost in names", url = "https://ircv3.net/specs/extensions/userhost-in-names", caps = ["userhost-in-names"], api = "User::host", coverage = "ircv3.userhost-in-names" },
   { name = "No implicit names", url = "https://ircv3.net/specs/extensions/no-implicit-names", caps = ["no-implicit-names"], api = "Feature::NoImplicitNames", coverage = "ircv3.no-implicit-names" },
-  { name = "Metadata", url = "https://ircv3.net/specs/extensions/metadata", caps = ["draft/metadata-3", "metadata-notify"], wire = "draft/metadata-2", api = "Client::metadata", coverage = "draft.metadata." },
+  { name = "Metadata", url = "https://ircv3.net/specs/extensions/metadata", caps = ["draft/metadata-3", "metadata-notify"], wire = "draft/metadata-3, draft/metadata-2, metadata-notify", api = "Client::metadata", coverage = "draft.metadata." },
   { name = "Extended monitor", url = "https://ircv3.net/specs/extensions/extended-monitor", caps = ["extended-monitor"], api = "State::monitor_online", coverage = "ircv3.extended-monitor" },
   { name = "Multiline", url = "https://ircv3.net/specs/extensions/multiline", caps = ["draft/multiline"], api = "SendMessage", coverage = "draft.multiline." },
   { name = "Server time", url = "https://ircv3.net/specs/extensions/server-time", caps = ["server-time"], api = "Event::server_time", coverage = "ircv3.server-time" },
@@ -38,7 +39,8 @@ specs = [
   { name = "Persistence", url = "https://github.com/ircv3/ircv3-specifications/pull/503", caps = ["draft/persistence"], api = "Client::persistence", coverage = "draft.persistence" },
   { name = "Relay messages", url = "https://github.com/ircv3/ircv3-specifications/pull/417", caps = ["draft/relaymsg"], api = "Client::relay", coverage = "ergo.relaymsg" },
   { name = "Web Push", url = "https://github.com/ircv3/ircv3-specifications/pull/471", caps = ["draft/webpush"], api = "Client::webpush", coverage = "draft.webpush" },
-  { name = "Who am I", url = "https://github.com/ircv3/ircv3-specifications/pull/603", caps = ["draft/whoami"], api = "State::nick", coverage = "ergo.whoami" },
+  { name = "VAPID", url = "https://github.com/ircv3/ircv3-specifications/pull/471", wire = "VAPID", support = "Unstable", api = "Isupport::vapid" },
+  { name = "Who am I", url = "https://github.com/ircv3/ircv3-specifications/pull/603", caps = ["draft/whoami"], api = "State::host", coverage = "ergo.whoami" },
   { name = "Extended ISUPPORT", url = "https://ircv3.net/specs/extensions/extended-isupport", caps = ["draft/extended-isupport"], api = "State::isupport", coverage = "draft.extended-isupport" },
 ]
 
@@ -49,16 +51,18 @@ specs = [
   { name = "Message IDs", url = "https://ircv3.net/specs/extensions/message-ids", wire = "msgid", support = "Yes", api = "Event::msgid", coverage = "ircv3.message-tags.msgid" },
   { name = "Channel context", url = "https://ircv3.net/specs/client-tags/channel-context", wire = "+channel-context", support = "Yes", api = "SendMessage::channel_context", coverage = "tag.channel-context" },
   { name = "Reply", url = "https://ircv3.net/specs/client-tags/reply", wire = "+reply", support = "Yes", api = "SendMessage::reply_to", coverage = "tag.reply" },
-  { name = "React", url = "https://ircv3.net/specs/client-tags/react", wire = "+draft/react", support = "Yes", api = "Client::react", coverage = "tag.react" },
+  { name = "React", url = "https://ircv3.net/specs/client-tags/react", wire = "+draft/react, +draft/unreact", support = "Yes", api = "Client::react", coverage = "tag.react" },
   { name = "Typing", url = "https://ircv3.net/specs/client-tags/typing", wire = "+typing", support = "Yes", api = "Client::typing", coverage = "tag.typing" },
-  { name = "Operator tag", url = "https://ircv3.net/specs/extensions/oper-tag", caps = ["draft/oper-tag"], wire = "draft/oper", api = "Oper", coverage = "draft.oper-tag" },
+  { name = "Operator tag", url = "https://ircv3.net/specs/extensions/oper-tag", caps = ["draft/oper-tag"], wire = "draft/oper-tag, draft/oper", api = "UserSource::oper", coverage = "draft.oper-tag" },
 ]
 
 [[group]]
 title = "Batch types"
 specs = [
-  { name = "Netsplit and netjoin", url = "https://ircv3.net/specs/batches/netsplit", wire = "netsplit, netjoin", support = "Yes", api = "Event", coverage = "core.batch.netsplit-netjoin" },
+  { name = "Netsplit", url = "https://ircv3.net/specs/batches/netsplit", wire = "netsplit", support = "Yes", api = "Event::Quit", coverage = "core.batch.netsplit-netjoin" },
+  { name = "Netjoin", url = "https://ircv3.net/specs/batches/netsplit", wire = "netjoin", support = "Yes", api = "Event::Joined" },
   { name = "Chat history batch", url = "https://ircv3.net/specs/batches/chathistory", wire = "chathistory", support = "Yes", api = "HistoryPage", coverage = "draft.chathistory." },
+  { name = "Chat history targets batch", url = "https://ircv3.net/specs/extensions/chathistory#implementation", wire = "draft/chathistory-targets", support = "Yes", api = "RecentConversation", coverage = "draft.chathistory." },
   { name = "Labeled response batch", url = "https://ircv3.net/specs/extensions/labeled-response", wire = "labeled-response", support = "Yes", api = "RequestFuture", coverage = "ircv3.labeled-response.batch-wrapped" },
   { name = "Multiline batch", url = "https://ircv3.net/specs/extensions/multiline", wire = "draft/multiline", support = "Yes", api = "SendMessage", coverage = "draft.multiline." },
   { name = "ISUPPORT batch", url = "https://ircv3.net/specs/extensions/extended-isupport", wire = "draft/isupport", support = "Yes", api = "Isupport", coverage = "draft.extended-isupport" },
@@ -74,24 +78,26 @@ specs = [
   { name = "Network icon", url = "https://ircv3.net/specs/extensions/network-icon", wire = "draft/ICON", support = "Yes", api = "Isupport::icon_url", coverage = "draft.network-icon" },
   { name = "WHOX", url = "https://ircv3.net/specs/extensions/whox", wire = "WHOX", support = "Yes", api = "Client::who", coverage = "ircv3.whox" },
   { name = "UTF8ONLY", url = "https://ircv3.net/specs/extensions/utf8-only", wire = "UTF8ONLY", support = "Yes", api = "Isupport::utf8only", coverage = "ircv3.utf8only" },
+  { name = "CLIENTTAGDENY", url = "https://ircv3.net/specs/extensions/message-tags#rpl_isupport-tokens", wire = "CLIENTTAGDENY", support = "Yes", api = "Isupport::clienttagdeny" },
+  { name = "MSGREFTYPES", url = "https://ircv3.net/specs/extensions/chathistory#isupport-tokens", wire = "MSGREFTYPES", support = "Yes", api = "Isupport::msgreftypes" },
   { name = "Server Name Indication", url = "https://ircv3.net/docs/sni", wire = "SNI", support = "Yes", api = "Builder::tls_server_name", coverage = "core.tls.sni" },
   { name = "WebIRC", url = "https://ircv3.net/specs/extensions/webirc", wire = "WEBIRC", support = "Opt-in", api = "Builder::webirc", coverage = "core.webirc.gateway" },
   { name = "WebSocket", url = "https://ircv3.net/specs/extensions/websocket", wire = "binary.ircv3.net, text.ircv3.net", support = "Opt-in", api = "Client::builder", coverage = "core.websocket." },
   { name = "FILEHOST", url = "https://github.com/ircv3/ircv3-specifications/pull/562", wire = "draft/FILEHOST, soju.im/FILEHOST", support = "Unstable", api = "State::filehost" },
-  { name = "Account required", url = "https://ircv3.net/specs/extensions/account-registration", caps = ["soju.im/account-required"], support = "Yes", api = "ConnectErrorKind::AccountRequired", coverage = "security.bouncer.required-capability" },
+  { name = "Account required", url = "https://ircv3.net/specs/extensions/account-registration#isupport-token", caps = ["soju.im/account-required"], wire = "draft/ACCOUNTREQUIRED, soju.im/account-required", support = "Yes", api = "Isupport::account_required" },
 ]
 
 [[group]]
 title = "Deprecated or unsupported"
 specs = [
   { name = "STARTTLS", url = "https://ircv3.net/specs/deprecated/tls", wire = "tls", reason = "Deprecated in favor of direct TLS (`ircs://`) or STS." },
-  { name = "Search", url = "https://github.com/ircv3/ircv3-specifications/pull/496", wire = "SEARCH", reason = "Not exposed; papo only routes `soju.im/search` replies internally." },
+  { name = "Search", url = "https://github.com/ircv3/ircv3-specifications/pull/496", wire = "SEARCH", reason = "Not yet implemented." },
   { name = "Message edit and delete", url = "https://github.com/ircv3/ircv3-specifications/pull/425", wire = "draft/message-edit, draft/message-delete", reason = "Deferred for editing, with deletion covered by message redaction." },
   { name = "Authentication tokens", url = "https://github.com/ircv3/ircv3-specifications/pull/602", wire = "draft/authtoken", reason = "Not yet implemented." },
-  { name = "EXTJWT", url = "https://github.com/ircv3/ircv3-specifications/pull/547", wire = "draft/extjwt", reason = "Planned for external-service authentication in [issue #11](https://github.com/luizribeiro/papo/issues/11)." },
+  { name = "EXTJWT", url = "https://github.com/ircv3/ircv3-specifications/pull/547", wire = "draft/extjwt", reason = "Not yet implemented beyond the protocol command name; planned in [issue #11](https://github.com/luizribeiro/papo/issues/11)." },
   { name = "Custom emoji", url = "https://github.com/ircv3/ircv3-specifications/pull/586", wire = "draft/emoji", reason = "Not yet implemented." },
   { name = "Named modes", url = "https://github.com/ircv3/ircv3-specifications/pull/484", wire = "draft/named-modes", reason = "Deferred in favor of mode discovery through `CHANMODES` and `PREFIX`." },
-  { name = "Display name tag", url = "https://github.com/ircv3/ircv3-specifications/pull/452", wire = "+draft/display-name", reason = "Not yet implemented." },
+  { name = "Display name tag", url = "https://github.com/ircv3/ircv3-specifications/pull/452", wire = "+draft/display-name", reason = "Not yet implemented; the `display-name` metadata key is supported." },
   { name = "Two-factor authentication", url = "https://github.com/ircv3/ircv3-specifications/pull/610", wire = "draft/2fa", reason = "Not yet implemented." },
   { name = "Ergo negotiation trap", url = "https://ergo.chat/nope/", caps = ["ergo.chat/nope"], reason = "Deliberately never requested to avoid registration-time disconnection." },
 ]
