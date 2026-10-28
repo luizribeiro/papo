@@ -24,7 +24,7 @@ use std::{
     pin::Pin,
     sync::{
         Arc, Mutex, RwLock,
-        atomic::{AtomicBool, AtomicU64, Ordering},
+        atomic::{AtomicBool, Ordering},
     },
     task,
     time::{Duration, SystemTime},
@@ -413,11 +413,55 @@ impl EventReceiver {
 struct EventSink {
     regular: mpsc::Sender<Event>,
     receiver: Arc<EventReceiver>,
-    dropped: Arc<AtomicU64>,
+    dropped: Arc<Mutex<DroppedEvents>>,
     disconnected: oneshot::Sender<VecDeque<Event>>,
     connected: Arc<AtomicBool>,
     state: Arc<RwLock<Arc<State>>>,
     commands: mpsc::WeakSender<Command>,
+}
+
+const MESSAGE_GAP_CAPACITY: usize = 32;
+
+#[derive(Default)]
+struct DroppedEvents {
+    count: u64,
+    gaps: Vec<crate::event::MessageGap>,
+}
+
+impl DroppedEvents {
+    fn record(&mut self, event: &Event) {
+        self.count = self.count.saturating_add(1);
+        let class = event.overflow_class();
+        let Some(conversation) = class.conversation else {
+            return;
+        };
+        let msgid = event.msgid().cloned();
+        let server_time = event.server_time();
+        if let Some(gap) = self
+            .gaps
+            .iter_mut()
+            .find(|gap| gap.conversation == *conversation)
+        {
+            gap.dropped = gap.dropped.saturating_add(1);
+            if let Some(msgid) = msgid {
+                gap.first_msgid.get_or_insert_with(|| msgid.clone());
+                gap.last_msgid = Some(msgid);
+            }
+            if let Some(server_time) = server_time {
+                gap.first_server_time.get_or_insert(server_time);
+                gap.last_server_time = Some(server_time);
+            }
+        } else if self.gaps.len() < MESSAGE_GAP_CAPACITY {
+            self.gaps.push(crate::event::MessageGap {
+                conversation: conversation.clone(),
+                first_msgid: msgid.clone(),
+                last_msgid: msgid,
+                first_server_time: server_time,
+                last_server_time: server_time,
+                dropped: 1,
+            });
+        }
+    }
 }
 
 impl EventSink {
@@ -501,7 +545,7 @@ impl From<&str> for Autojoin {
 pub struct Events {
     _commands: mpsc::Sender<Command>,
     receiver: Arc<EventReceiver>,
-    dropped: Arc<AtomicU64>,
+    dropped: Arc<Mutex<DroppedEvents>>,
     disconnected: Option<oneshot::Receiver<VecDeque<Event>>>,
     pending: VecDeque<Event>,
 }
@@ -534,11 +578,16 @@ impl Stream for Events {
         if let Some(event) = self.pending.pop_front() {
             return task::Poll::Ready(Some(event));
         }
-        let dropped = self.dropped.swap(0, Ordering::Relaxed);
-        if dropped != 0 {
+        let dropped = std::mem::take(
+            &mut *self
+                .dropped
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        );
+        if dropped.count != 0 {
             return task::Poll::Ready(Some(Event::Lagged(crate::event::Lagged {
-                dropped,
-                gaps: Vec::new(),
+                dropped: dropped.count,
+                gaps: dropped.gaps,
             })));
         }
         match self.receiver.poll_recv(context) {
@@ -701,7 +750,7 @@ pub(crate) fn channels(capacity: usize, session: &Session) -> Channels {
         capacity,
         connecting: AtomicBool::new(true),
     });
-    let dropped = Arc::new(AtomicU64::new(0));
+    let dropped = Arc::new(Mutex::new(DroppedEvents::default()));
     let (disconnect_sender, disconnect_receiver) = oneshot::channel();
     let connected = Arc::new(AtomicBool::new(false));
     let state = Arc::new(RwLock::new(Arc::new(State::from_session(session, false))));
@@ -1883,20 +1932,24 @@ fn hold_event(events: &EventSink, pending: &mut VecDeque<Event>, event: Event) {
             .enumerate()
             .min_by_key(|(_, event)| event.overflow_class().priority)
             .map(|(position, _)| position)
+        && let Some(discarded) = pending.remove(position)
     {
-        pending.remove(position);
-        events.dropped.fetch_add(1, Ordering::Relaxed);
+        events
+            .dropped
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .record(&discarded);
     }
     pending.push_back(event);
 }
 
 fn send_event(events: &EventSink, event: Event) {
-    if events
-        .receiver
-        .discard_for_overflow(&events.regular)
-        .is_some()
-    {
-        events.dropped.fetch_add(1, Ordering::Relaxed);
+    if let Some(discarded) = events.receiver.discard_for_overflow(&events.regular) {
+        events
+            .dropped
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .record(&discarded);
     }
     _ = events.regular.try_send(event);
 }

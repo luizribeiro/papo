@@ -8194,7 +8194,33 @@ fn held_events_drop_the_oldest_with_a_closed_receiver() {
         pending.front().unwrap().as_message().unwrap().text,
         "second deployment"
     );
-    assert_eq!(channels.event_sink.dropped.load(Ordering::Relaxed), 1);
+    let dropped = channels.event_sink.dropped.lock().unwrap();
+    assert_eq!(dropped.count, 1);
+    assert_eq!(dropped.gaps[0].dropped, 1);
+}
+
+#[test]
+fn lagged_message_gap_list_stops_at_32_conversations() {
+    let mut dropped = super::DroppedEvents::default();
+    for index in 0..33 {
+        dropped.record(&Event::Message(crate::__testing::message(
+            None,
+            format!("#deployment-{index}"),
+            format!("deployment update {index}"),
+            false,
+        )));
+    }
+
+    assert_eq!(dropped.count, 33);
+    assert_eq!(dropped.gaps.len(), 32);
+    assert!(matches!(
+        &dropped.gaps[0].conversation,
+        crate::Conversation::Channel(channel) if channel == "#deployment-0"
+    ));
+    assert!(matches!(
+        &dropped.gaps[31].conversation,
+        crate::Conversation::Channel(channel) if channel == "#deployment-31"
+    ));
 }
 
 #[test]
