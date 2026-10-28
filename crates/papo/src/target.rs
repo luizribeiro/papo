@@ -69,6 +69,16 @@ pub trait Target: sealed::Sealed {
     fn __parts(&self) -> sealed::Parts<'_>;
 }
 
+/// A nickname accepted by user-oriented operations.
+///
+/// A [`crate::DirectRef`] retains the recipient identity so operations can refuse a nickname
+/// handoff. Plain text and [`crate::Nick`] identify whoever currently holds that nickname.
+pub trait AsNick: sealed::Sealed {
+    /// Returns the nickname and its safety metadata.
+    #[doc(hidden)]
+    fn __parts(&self) -> sealed::Parts<'_>;
+}
+
 /// A channel or private-conversation argument.
 ///
 /// Text is interpreted using the receiving client's current `ISUPPORT` rules. Status-prefixed
@@ -108,6 +118,12 @@ macro_rules! text_roles {
                 }
             }
 
+            impl AsNick for $ty {
+                fn __parts(&self) -> sealed::Parts<'_> {
+                    text_parts(self.as_ref())
+                }
+            }
+
             impl AsConversation for $ty {
                 fn __parts(&self) -> sealed::Parts<'_> {
                     text_parts(self.as_ref())
@@ -134,6 +150,12 @@ fn name_parts(text: &str, origin: crate::Origin) -> sealed::Parts<'_> {
 }
 
 impl sealed::Sealed for crate::Nick {}
+
+impl AsNick for crate::Nick {
+    fn __parts(&self) -> sealed::Parts<'_> {
+        name_parts(self.as_ref(), self.origin())
+    }
+}
 
 impl AsConversation for crate::Nick {
     fn __parts(&self) -> sealed::Parts<'_> {
@@ -200,6 +222,7 @@ macro_rules! reference_role {
 }
 
 reference_role!(Target);
+reference_role!(AsNick);
 reference_role!(AsConversation);
 reference_role!(AsMask);
 
@@ -218,7 +241,7 @@ mod tests {
 
         assert_eq!(AsChannel::__parts(&channel).text(), "#papo");
         assert_eq!(AsConversation::__parts(&channel).origin, origin);
-        assert_eq!(AsNick::__parts(&nick).text(), "emily");
+        assert_eq!(AsNick::__parts(&nick).text, "emily");
         assert_eq!(AsMask::__parts(&mask).text, "*!*@gateway.example");
         assert_eq!(AsMask::__parts(&mask).origin, origin);
         assert_eq!(Target::__parts(&"@#ops").text, "@#ops");

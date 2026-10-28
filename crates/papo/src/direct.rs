@@ -110,6 +110,12 @@ impl Hash for DirectRef {
 
 impl crate::target::sealed::Sealed for DirectRef {}
 
+impl crate::AsNick for DirectRef {
+    fn __parts(&self) -> crate::target::sealed::Parts<'_> {
+        <Self as crate::Target>::__parts(self)
+    }
+}
+
 impl crate::Target for DirectRef {
     fn __parts(&self) -> crate::target::sealed::Parts<'_> {
         crate::target::sealed::Parts {
@@ -181,5 +187,15 @@ impl crate::Client {
                 crate::direct_runtime::command(&client, nick, Some(account), false).await?;
             Ok(DirectRef::new(&client, recipient, true))
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn direct_references_are_nickname_arguments() {
+        fn assert_as_nick<T: crate::AsNick>() {}
+
+        assert_as_nick::<super::DirectRef>();
     }
 }

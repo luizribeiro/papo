@@ -312,7 +312,11 @@ impl State {
     /// A typed nickname produced by another [`crate::Client`] returns `None`.
     #[must_use]
     pub fn user(&self, nick: impl crate::AsNick) -> Option<&User> {
-        self.core.user(nick)
+        let nick = crate::AsNick::__parts(&nick);
+        if nick.origin != crate::Origin::NONE && nick.origin != self.nick().origin() {
+            return None;
+        }
+        self.core.user(nick.text.as_ref())
     }
 
     /// Iterates over users currently reported online through `MONITOR`.

@@ -410,8 +410,26 @@ impl Client {
         if parts.origin != crate::Origin::NONE && parts.origin != self.origin {
             return Err(InvalidInput::ForeignReference.into());
         }
-        let text = parts.text.into_owned();
+        let mut text = parts.text.into_owned();
         let state = self.state();
+        if let Some(recipient) = parts.recipient.as_ref() {
+            match state.resolve_recipient(&recipient.to_core()) {
+                papo_core::RecipientStatus::Current(nick) => {
+                    if matches!(role, crate::target::Role::Nick(_)) {
+                        text = nick.to_string();
+                    }
+                }
+                papo_core::RecipientStatus::Gone => {
+                    return Err(Error::TargetGone);
+                }
+                papo_core::RecipientStatus::Unknown
+                    if matches!(role, crate::target::Role::Nick(_)) =>
+                {
+                    return Err(Error::TargetGone);
+                }
+                papo_core::RecipientStatus::Unknown => {}
+            }
+        }
         let result = match role {
             crate::target::Role::Send(_) => {
                 state.parse_target_inner(&text).and_then(|(_, target)| {
@@ -458,14 +476,6 @@ impl Client {
         result.map_err(|reason| {
             InvalidInput::invalid_argument(role.argument(), text.clone(), reason)
         })?;
-        if let Some(recipient) = parts.recipient.as_ref()
-            && matches!(
-                state.resolve_recipient(&recipient.to_core()),
-                papo_core::RecipientStatus::Gone
-            )
-        {
-            return Err(Error::TargetGone);
-        }
         Ok(text)
     }
 

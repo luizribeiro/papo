@@ -3,7 +3,6 @@ pub use papo::Account
 pub use papo::AccountName
 pub use papo::AsAccount
 pub use papo::AsChannel
-pub use papo::AsNick
 pub use papo::Away
 pub use papo::BouncerNetwork
 pub use papo::BuildError
@@ -2171,6 +2170,7 @@ impl core::fmt::Display for papo::DirectRef
 pub fn papo::DirectRef::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::hash::Hash for papo::DirectRef
 pub fn papo::DirectRef::hash<H: core::hash::Hasher>(&self, &mut H)
+impl papo::AsNick for papo::DirectRef
 impl papo::Target for papo::DirectRef
 impl core::marker::Freeze for papo::DirectRef
 impl core::marker::Send for papo::DirectRef
@@ -3121,6 +3121,15 @@ impl papo::AsMask for papo::Mask
 impl papo::AsMask for papo::Nick
 impl papo::AsMask for str
 impl<T: papo::AsMask + ?core::marker::Sized> papo::AsMask for &T
+pub trait papo::AsNick: papo::target::sealed::Sealed
+impl papo::AsNick for alloc::borrow::Cow<'_, str>
+impl papo::AsNick for alloc::boxed::Box<str>
+impl papo::AsNick for alloc::rcs::arc::Arc<str>
+impl papo::AsNick for alloc::string::String
+impl papo::AsNick for papo::DirectRef
+impl papo::AsNick for papo::Nick
+impl papo::AsNick for str
+impl<T: papo::AsNick + ?core::marker::Sized> papo::AsNick for &T
 pub trait papo::IntoEndpoint: papo::address::private::Sealed
 impl papo::IntoEndpoint for &alloc::string::String
 impl papo::IntoEndpoint for &str
