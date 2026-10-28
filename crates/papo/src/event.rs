@@ -2962,6 +2962,31 @@ mod tests {
     }
 
     #[test]
+    fn core_channel_receipt_captures_the_membership_guard() {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().nick("papo"));
+        session.handle_line(now, b":papo!p@localhost JOIN #review");
+        while session.poll_event().is_some() {}
+        session.handle_line(
+            now,
+            b"@+example/status=ready :alice!~alice@cloak.example TAGMSG #review",
+        );
+        let event = super::from_core_with_receipt(
+            session.poll_event().unwrap(),
+            session.isupport().casemapping(),
+            crate::Origin::NONE,
+            false,
+            false,
+            UNIX_EPOCH,
+            Some(session.state()),
+        );
+        let CoreEvent::Forward(event) = event else {
+            panic!("expected tag message")
+        };
+        assert!(has_channel_guard("TagMsg", &event));
+    }
+
+    #[test]
     fn every_message_conversation_kind_keeps_its_origin() {
         let origin = crate::Origin::__new(73);
         let mapping = Casemapping::default();

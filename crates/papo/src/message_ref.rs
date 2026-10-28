@@ -549,7 +549,9 @@ pub(crate) fn stamp_conversation(
 
 #[cfg(test)]
 mod tests {
-    use std::time::SystemTime;
+    use std::time::{Instant, SystemTime};
+
+    use papo_core::{Config, Session};
 
     use super::*;
 
@@ -714,5 +716,34 @@ mod tests {
 
         assert_eq!(borrowed_reference, "#operations");
         assert_eq!(owned_reference, "maintenance");
+    }
+
+    #[test]
+    fn actor_updates_clear_channel_guards_only_for_private_conversations() {
+        let mapping = crate::Casemapping::default();
+        let channel = Conversation::Channel(mapping.channel("#ops"));
+        let mut session = Session::new(Config::default().nick("papo"));
+        session.handle_line(Instant::now(), b":papo!p@localhost JOIN #ops");
+        let guard = session
+            .state()
+            .__channel_guard(session.state().channel("#ops").unwrap().name());
+        let actor = crate::Source::User(crate::__testing::user_source(
+            mapping.nick("alice"),
+            Some("~alice".into()),
+            Some("cloak.example".into()),
+        ));
+        let mut receipt = Receipt::new(
+            actor.clone(),
+            Authorship::Other,
+            &channel,
+            None,
+            "@#ops".into(),
+        );
+        receipt.set_channel(Some(guard));
+
+        receipt.update_actor(actor.clone(), &channel);
+        assert!(receipt.channel.is_some());
+        receipt.update_actor(actor, &Conversation::Private(mapping.nick("alice")));
+        assert!(receipt.channel.is_none());
     }
 }
