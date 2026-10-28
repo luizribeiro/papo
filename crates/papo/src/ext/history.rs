@@ -1092,9 +1092,7 @@ mod tests {
     };
 
     fn name_rules(state: &crate::State) -> crate::NameRules<'_> {
-        state
-            .__known_name_rules()
-            .expect("server advertised CASEMAPPING")
+        state.name_rules().expect("server advertised CASEMAPPING")
     }
 
     fn core_item(message: &str) -> HistoryLine {
@@ -1179,14 +1177,14 @@ mod tests {
             crate::Conversation::Channel(
                 first
                     .state()
-                    .__known_name_rules()
+                    .name_rules()
                     .expect("server advertised CASEMAPPING")
                     .channel("#papo"),
             ),
             crate::Conversation::Private(
                 first
                     .state()
-                    .__known_name_rules()
+                    .name_rules()
                     .expect("server advertised CASEMAPPING")
                     .nick("emily"),
             ),
@@ -1211,7 +1209,7 @@ mod tests {
             conversation: crate::Conversation::Channel(
                 first
                     .state()
-                    .__known_name_rules()
+                    .name_rules()
                     .expect("server advertised CASEMAPPING")
                     .channel("#papo"),
             ),
@@ -1223,7 +1221,7 @@ mod tests {
             conversation: crate::Conversation::Private(
                 first
                     .state()
-                    .__known_name_rules()
+                    .name_rules()
                     .expect("server advertised CASEMAPPING")
                     .nick("emily"),
             ),
@@ -1396,7 +1394,7 @@ mod tests {
             (
                 crate::Conversation::Channel(
                     state
-                        .__known_name_rules()
+                        .name_rules()
                         .expect("server advertised CASEMAPPING")
                         .channel("#Papo[dev]"),
                 ),
@@ -1405,7 +1403,7 @@ mod tests {
             (
                 crate::Conversation::Private(
                     state
-                        .__known_name_rules()
+                        .name_rules()
                         .expect("server advertised CASEMAPPING")
                         .nick("Emily_"),
                 ),
@@ -1414,7 +1412,7 @@ mod tests {
         ] {
             assert_eq!(
                 state
-                    .__known_name_rules()
+                    .name_rules()
                     .expect("server advertised CASEMAPPING")
                     .conversation(&conversation.to_string())
                     .unwrap()
@@ -2075,7 +2073,7 @@ mod tests {
         complete_connect_history(&mut server, &mut events).await;
         let channel = client
             .state()
-            .__known_name_rules()
+            .name_rules()
             .expect("server advertised CASEMAPPING")
             .channel("#papo");
         let request = tokio::spawn(async move {
@@ -2128,7 +2126,7 @@ mod tests {
         let channel = crate::Conversation::Channel(
             client
                 .state()
-                .__known_name_rules()
+                .name_rules()
                 .expect("server advertised CASEMAPPING")
                 .channel("#papo"),
         );
@@ -2174,7 +2172,7 @@ mod tests {
         let channel = crate::Conversation::Channel(
             client
                 .state()
-                .__known_name_rules()
+                .name_rules()
                 .expect("server advertised CASEMAPPING")
                 .channel("#papo"),
         );

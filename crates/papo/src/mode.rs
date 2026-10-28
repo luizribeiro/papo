@@ -885,7 +885,7 @@ mod tests {
             .build();
         let channel = first
             .state()
-            .__known_name_rules()
+            .name_rules()
             .expect("server advertised CASEMAPPING")
             .channel("#papo");
         let state = first.state();
@@ -950,7 +950,7 @@ mod tests {
             crate::ModeAction::Add,
             Some(crate::ModeArg::Mask(
                 state
-                    .__known_name_rules()
+                    .name_rules()
                     .expect("server advertised CASEMAPPING")
                     .mask("alice!*@*"),
             )),
@@ -999,11 +999,11 @@ mod tests {
         let state =
             state(":ergo.test 005 papo CHANMODES=beI,k,l,imnst CASEMAPPING=rfc1459 :supported");
         let channel = state
-            .__known_name_rules()
+            .name_rules()
             .expect("server advertised CASEMAPPING")
             .channel("#Papo[");
         let ban = state
-            .__known_name_rules()
+            .name_rules()
             .expect("server advertised CASEMAPPING")
             .mask("Alice");
         let echo =
@@ -1243,7 +1243,7 @@ mod tests {
             mode: Selector::Optional(Feature::Halfop),
             arg: Some(Argument::Nick(
                 supported
-                    .__known_name_rules()
+                    .name_rules()
                     .expect("server advertised CASEMAPPING")
                     .nick("alice"),
             )),
@@ -1261,7 +1261,7 @@ mod tests {
             mode: Selector::Optional(Feature::Halfop),
             arg: Some(Argument::Nick(
                 unsupported
-                    .__known_name_rules()
+                    .name_rules()
                     .expect("server advertised CASEMAPPING")
                     .nick("alice"),
             )),
@@ -1286,7 +1286,7 @@ mod tests {
                 mode: Selector::Optional(feature),
                 arg: Some(Argument::Mask(
                     state
-                        .__known_name_rules()
+                        .name_rules()
                         .expect("server advertised CASEMAPPING")
                         .mask("reviewer!*@trusted.example"),
                 )),
@@ -1309,7 +1309,7 @@ mod tests {
                 mode: Selector::Optional(feature),
                 arg: Some(Argument::Mask(
                     state
-                        .__known_name_rules()
+                        .name_rules()
                         .expect("server advertised CASEMAPPING")
                         .mask("reviewer!*@trusted.example"),
                 )),
@@ -1336,7 +1336,7 @@ mod tests {
                 mode: Selector::Optional(Feature::Quiet),
                 arg: Some(Argument::Mask(
                     solanum
-                        .__known_name_rules()
+                        .name_rules()
                         .expect("server advertised CASEMAPPING")
                         .mask("*!*@gateway.example"),
                 )),
@@ -1353,7 +1353,7 @@ mod tests {
             set: true,
             mode: Selector::Optional(Feature::Quiet),
             arg: Some(Argument::Mask(
-                ergo.__known_name_rules()
+                ergo.name_rules()
                     .expect("server advertised CASEMAPPING")
                     .mask("m:*!*@gateway.example"),
             )),

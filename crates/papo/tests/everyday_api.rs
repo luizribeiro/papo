@@ -50,29 +50,29 @@ fn everyday_api_is_nameable_from_the_facade() {
 
     let state: std::sync::Arc<papo::State> = client.state();
     let channel = state
-        .__known_name_rules()
+        .name_rules()
         .expect("server advertised CASEMAPPING")
         .channel("#papo");
     let _: &papo::Nick = state.nick();
     let _: Option<&papo::Channel> = state.channel(&channel);
     let _: Option<&papo::User> = state.user("emily");
     let _: papo::ChannelName = state
-        .__known_name_rules()
+        .name_rules()
         .expect("server advertised CASEMAPPING")
         .channel("#papo");
     let _: papo::Nick = state
-        .__known_name_rules()
+        .name_rules()
         .expect("server advertised CASEMAPPING")
         .nick("emily");
     let conversation = state
-        .__known_name_rules()
+        .name_rules()
         .expect("server advertised CASEMAPPING")
         .conversation("Emily")
         .unwrap();
     assert_eq!(conversation, "emily");
     assert_eq!(conversation.to_string(), "Emily");
     let (status, conversation) = state
-        .__known_name_rules()
+        .name_rules()
         .expect("server advertised CASEMAPPING")
         .target("#papo")
         .unwrap();

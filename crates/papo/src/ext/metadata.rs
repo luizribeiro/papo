@@ -362,7 +362,7 @@ mod tests {
             .build();
         let channel = first
             .state()
-            .__known_name_rules()
+            .name_rules()
             .expect("server advertised CASEMAPPING")
             .channel("#papo");
 

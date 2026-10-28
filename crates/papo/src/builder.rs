@@ -904,12 +904,12 @@ mod tests {
         assert_ne!(first.origin(), second.origin());
         let first_channel = first
             .state()
-            .__known_name_rules()
+            .name_rules()
             .expect("server advertised CASEMAPPING")
             .channel("#papo");
         let second_channel = second
             .state()
-            .__known_name_rules()
+            .name_rules()
             .expect("server advertised CASEMAPPING")
             .channel("#papo");
         assert_eq!(first_channel, "#papo");
@@ -928,7 +928,7 @@ mod tests {
         let reference = (
             first
                 .state()
-                .__known_name_rules()
+                .name_rules()
                 .expect("server advertised CASEMAPPING")
                 .channel("#papo"),
             "RfcBTzyxY120004",
@@ -942,7 +942,7 @@ mod tests {
         ));
         let channel = first
             .state()
-            .__known_name_rules()
+            .name_rules()
             .expect("server advertised CASEMAPPING")
             .channel("#papo");
         assert!(matches!(
@@ -955,7 +955,7 @@ mod tests {
         let actor = crate::__testing::user_source(
             first
                 .state()
-                .__known_name_rules()
+                .name_rules()
                 .expect("server advertised CASEMAPPING")
                 .nick("emily"),
             Some("~emily".into()),
@@ -970,7 +970,7 @@ mod tests {
         private.conversation = crate::Conversation::Private(
             first
                 .state()
-                .__known_name_rules()
+                .name_rules()
                 .expect("server advertised CASEMAPPING")
                 .nick("emily"),
         );
@@ -992,7 +992,7 @@ mod tests {
         let conversation = crate::Conversation::Private(
             first
                 .state()
-                .__known_name_rules()
+                .name_rules()
                 .expect("server advertised CASEMAPPING")
                 .nick("emily"),
         );
