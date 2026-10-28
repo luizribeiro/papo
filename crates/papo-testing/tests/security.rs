@@ -1786,3 +1786,34 @@ async fn oversized_multiline_fragments_are_live_messages() {
     ));
     wire.server(":offline.test BATCH -multiline").await;
 }
+
+#[tokio::test(start_paused = true)]
+async fn repeated_completed_children_hit_the_parent_batch_limit() {
+    let (_client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://hostile.offline.test", "papo")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&["batch"]).await;
+    connected(&mut events).await;
+    wire.server(":ergo.test BATCH +outer vendor/sync").await;
+
+    for _ in 0..10_001 {
+        wire.server("@batch=outer :ergo.test BATCH +inner metadata")
+            .await;
+        wire.server("@batch=outer :ergo.test BATCH -inner").await;
+    }
+
+    let warning = next_active_event(&mut events).await;
+    assert!(matches!(
+        &warning,
+        papo::Event::Warning(papo::event::Warning::BatchAbandoned {
+            reason: papo::event::BatchAbandonReason::LineLimit,
+            ..
+        })
+    ));
+    assert_eq!(
+        warning.as_warning().unwrap().to_string(),
+        "vendor/sync batch was abandoned: LineLimit"
+    );
+}

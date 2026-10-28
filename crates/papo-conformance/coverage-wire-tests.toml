@@ -142,3 +142,6 @@
 "security::invalid_source_nicks_cannot_close_the_client_with_auto_replies" = [
   "security.h9.invalid-automatic-reply-target",
 ]
+"security::repeated_completed_children_hit_the_parent_batch_limit" = [
+  "security.batch.completed-child-bound",
+]

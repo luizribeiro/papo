@@ -131,6 +131,7 @@ ids = [
   "security.h4.isupport-bound",
   "security.h5.capability-bound",
   "security.h6.batch-byte-bound",
+  "security.batch.completed-child-bound",
   "security.h8.single-channel-sync",
   "security.h11.monitored-presence-only",
   "security.h7.rejoin-pending-bound",
