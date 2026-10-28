@@ -7,9 +7,7 @@ repository.workspace = true
 version.workspace = true
 publish = true
 description = "Internal crate of papo; use papo (no API stability guarantees)"
-readme = "../../README.md"
-keywords = ["irc", "ircv3", "protocol", "parser"]
-categories = ["network-programming", "parser-implementations"]
+readme = "README.md"
 
 [package.metadata.docs.rs]
 all-features = true
