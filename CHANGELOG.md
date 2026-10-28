@@ -226,3 +226,52 @@ User lifecycle payloads were normalized as follows:
 unknown is not reported as false. WHO and WHOIS membership prefixes are `Prefix`; their channel
 rows provide `rank()`. `MetadataChanged::value` is `Option<MetadataValue>` rather than separate
 text and visibility fields.
+
+#### Requests, results, and state views
+
+Sent-message confirmation is explicit and retains every logical line's exact text:
+
+```rust,ignore
+// Before
+if let Some(id) = sent.msgid { /* first line only */ }
+for id in sent.line_msgids { /* text unavailable */ }
+
+// After
+match &sent.outcome {
+    SentOutcome::Confirmed { lines, server_time } => {
+        for (id, text) in lines { /* store the confirmed line */ }
+    }
+    SentOutcome::Unconfirmed => { /* no usable message IDs */ }
+}
+```
+
+`Sent::{msgid, line_msgids, server_time}` were removed. `Sent::status` is `Option<Prefix>`, and
+`return_address()` returns a guarded `MessageRef`. Reacting or redacting an unconfirmed send fails
+because it has no server message ID. Redacting a confirmed split send processes every line in send
+order as one driver-owned composite operation.
+
+| Earlier API | 0.1.0 API |
+|---|---|
+| `client.list(ListFilter::default().channels(...))` | `client.list().channels(...).await`; omit `channels` for all visible channels |
+| `Metadata::get(target, keys)` returned the whole cache | It returns exactly each requested key mapped to `Option<MetadataValue>` |
+| Mixed `AsRef<str>` / `Into<String>` reason parameters and mandatory part text | Stored reasons use `Into<String>` consistently; `""` means no reason |
+| `ModesApplied { applied, refused }` could report a partial batch as complete | `unconfirmed: Vec<(ModeChange, Error)>` and `is_complete()` expose missing confirmations |
+| Dropping mode, kickban, or multiline-redact futures could stop midway | Once accepted by the driver, composite actions continue even if the caller drops its future |
+| `State::read_marker() -> Option<SystemTime>` conflated unknown and explicitly unset | `Option<ReadMarker>` distinguishes unknown, `Unset`, and `ReadUntil(time)` |
+| `State` implemented a partly deep `Clone` | Keep and clone the `Arc<State>` returned by `Client::state`; channel snapshots share unchanged storage |
+| `State::metadata() -> &HashMap` exposed storage and nondeterministic order | `MetadataView` provides `get` and an exact-size iterator in metadata-key order |
+| `State::typing(&Conversation)` tied the iterator to the argument borrow | `typing(impl AsConversation) -> Typers<'_>` owns its resolved lookup key |
+| State collection iterators hid known lengths | Channels, monitored nicks, metadata subscriptions, metadata entries, and tags expose exact sizes where available |
+| `Tags` required `.iter()` and had no length | `&Tags` implements `IntoIterator`; `len()` and `TagsIter` are public |
+| `Isupport::targmax()` required allocating and scanning all entries | `targmax_for(command)` performs a direct lookup |
+
+`Account` and `Away` provide variant accessors. Name types and `MessageId` compare with text in
+either operand order. `Error` gains `From<ServerError>`, `From<StateLimit>`, and
+`From<Unsupported>` conversions. Input errors are now specific (`InvalidName`, `WireMessage`,
+`InvalidMode`, `InvalidMetadataKey`, and related variants) rather than the catch-all
+`InvalidMessage(String)`.
+
+All request futures are lazy until first poll. After polling, dropping the future abandons the
+wait but does not cancel driver work. `Error::Timeout` means every line was written and the reply
+was not observed; only read-only queries are safe to retry automatically. Sends, KICK, MODE,
+redaction, kickban, and every other state-changing request can already have taken effect.
