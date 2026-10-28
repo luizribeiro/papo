@@ -291,41 +291,24 @@ impl SetModes {
         self.prefix(false, 'v', nick)
     }
 
-    fn prefix(mut self, set: bool, mode: char, nick: impl crate::AsNick) -> Self {
-        let nick = match self.client.resolve(
-            crate::target::Role::Nick("mode: nick"),
-            crate::AsNick::__parts(&nick),
-        ) {
-            Ok(nick) => nick,
-            Err(crate::Error::InvalidInput(error)) => {
-                self.invalid_input = self.invalid_input.or(Some(error));
-                String::new()
-            }
-            Err(error) => unreachable!("address resolution returned {error}"),
-        };
-        let nick = self.client.state().name_rules().nick(nick);
-        self.change(set, Selector::Prefix(mode), Some(Argument::Nick(nick)))
+    fn prefix(self, set: bool, mode: char, nick: impl crate::AsNick) -> Self {
+        self.change(
+            set,
+            Selector::Prefix(mode),
+            Some(Argument::PendingNick(
+                crate::AsNick::__parts(&nick).into_owned(),
+            )),
+        )
     }
 
-    fn optional_prefix(
-        mut self,
-        set: bool,
-        feature: crate::Feature,
-        nick: impl crate::AsNick,
-    ) -> Self {
-        let nick = match self.client.resolve(
-            crate::target::Role::Nick("mode: nick"),
-            crate::AsNick::__parts(&nick),
-        ) {
-            Ok(nick) => nick,
-            Err(crate::Error::InvalidInput(error)) => {
-                self.invalid_input = self.invalid_input.or(Some(error));
-                String::new()
-            }
-            Err(error) => unreachable!("address resolution returned {error}"),
-        };
-        let nick = self.client.state().name_rules().nick(nick);
-        self.change(set, Selector::Optional(feature), Some(Argument::Nick(nick)))
+    fn optional_prefix(self, set: bool, feature: crate::Feature, nick: impl crate::AsNick) -> Self {
+        self.change(
+            set,
+            Selector::Optional(feature),
+            Some(Argument::PendingNick(
+                crate::AsNick::__parts(&nick).into_owned(),
+            )),
+        )
     }
 
     fn optional_list(
@@ -363,7 +346,11 @@ impl IntoFuture for SetModes {
             let changes = self
                 .changes
                 .into_iter()
-                .map(|change| change.resolve(&state))
+                .map(|change| {
+                    change
+                        .resolve_nick(&self.client, &state)
+                        .and_then(|change| change.resolve(&state))
+                })
                 .collect::<Result<Vec<_>, _>>()?;
             let messages = encode(state.isupport().inner(), &self.target, &changes)?;
             for message in &messages {
@@ -518,6 +505,17 @@ pub(crate) struct Change {
 }
 
 impl Change {
+    fn resolve_nick(mut self, client: &Client, state: &crate::State) -> Result<Self, Error> {
+        self.arg = match self.arg {
+            Some(Argument::PendingNick(parts)) => {
+                let nick = client.resolve(crate::target::Role::Nick("mode: nick"), parts)?;
+                Some(Argument::Nick(state.name_rules().nick(nick)))
+            }
+            argument => argument,
+        };
+        Ok(self)
+    }
+
     fn resolve(self, state: &crate::State) -> Result<Self, Error> {
         let mode = match self.mode {
             Selector::Optional(feature) => {
@@ -579,6 +577,7 @@ enum Selector {
 enum Argument {
     Raw(String),
     Secret(papo_core::Secret),
+    PendingNick(crate::target::sealed::Parts<'static>),
     Nick(Nick),
     Mask(Mask),
     Ban(BanTarget),
@@ -591,7 +590,9 @@ impl Argument {
             Self::Secret(value) => value.expose(),
             Self::Nick(value) => value,
             Self::Mask(value) => value,
-            Self::Ban(_) => unreachable!("ban targets are resolved before encoding"),
+            Self::PendingNick(_) | Self::Ban(_) => {
+                unreachable!("arguments are resolved before encoding")
+            }
         }
     }
 
@@ -604,7 +605,9 @@ impl Argument {
             Self::Mask(value) => value
                 .check()
                 .map_err(|reason| InvalidInput::invalid_name(value.to_string(), reason).into()),
-            Self::Ban(_) => unreachable!("ban targets are resolved before validation"),
+            Self::PendingNick(_) | Self::Ban(_) => {
+                unreachable!("arguments are resolved before validation")
+            }
         }
     }
 
