@@ -1,10 +1,10 @@
 # papo-testing
 
-Offline wire fixtures and value builders for applications built with `papo`.
+Test helpers for apps built with `papo`: an in-memory server to run your client against, and
+builders for representative `papo` values.
 
-`papo-testing` has no API stability promise, including between patch releases.
-Its version always matches `papo`'s version; pin both crates exactly so their
-types and hidden construction hooks stay in sync:
+`papo-testing` has no API stability promise, not even between patch releases. Its version always
+matches `papo`'s, so pin both crates to the same exact version:
 
 ```toml
 [dev-dependencies]
@@ -12,14 +12,14 @@ papo = "=0.1.0"
 papo-testing = "=0.1.0"
 ```
 
-The supported surface is `wire()` plus builders for representative
-`papo` values. Live-server fixtures belong to papo's conformance suite.
+The supported surface is `wire()` plus the value builders. Live-server fixtures stay in papo's
+own conformance suite.
 
 ## Test a bot without a server
 
-`wire()` runs a real client over an in-memory connection. Tests provide server
-lines and inspect the lines that the client sends, while Tokio's paused clock
-keeps timers deterministic. It works on native Rust, WASI, and browser wasm.
+`wire()` runs a real client over an in-memory connection. Your test plays the server: it sends
+IRC lines and checks what the client sends back. Tokio's paused clock keeps timeouts and
+reconnects deterministic. It works on native, WASI and browser wasm.
 
 ```rust
 use papo_testing::wire;
@@ -46,12 +46,12 @@ async fn ping() {
 }
 ```
 
-## Test against Ergo
+## End-to-end tests against Ergo
 
-For end-to-end tests, start a real Ergo outside the test process and pass its URL to the app. The
-following local-only Ergo overrides add a WebSocket listener, open account registration, and turn
-off connection, registration, and login throttling plus fakelag. Save them as
-`ergo-test-env.sh`; do not use this relaxed configuration for a public server.
+Start a real Ergo outside the test process and pass its URL to your app. These local-only Ergo
+overrides add a WebSocket listener, open account registration, and turn off connection,
+registration, and login throttling plus fakelag. Save them as `ergo-test-env.sh`; do not use this
+relaxed configuration for a public server.
 
 ```sh
 export ERGO__SERVER__LISTENERS='{":6667":{},":8097":{"websocket":true}}'
@@ -81,7 +81,7 @@ docker run --rm --init \
   -p 6667:6667 -p 8097:8097 ghcr.io/ergochat/ergo:stable
 ```
 
-From this repository, the Nix dev shell supplies Ergo and a base config:
+From a papo checkout, the Nix dev shell has Ergo and a base config:
 
 ```sh
 nix develop -c sh -c '
