@@ -26,6 +26,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         if let Err(error) = catch_up(&client, &channel).await {
             eprintln!("could not catch up: {error}");
         }
+        client.quit("catchup complete").await?;
         return Ok(());
     }
     Ok(())

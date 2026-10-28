@@ -48,7 +48,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    let (_attached, mut events) = manager
+    let (attached, mut events) = manager
         .bouncer()
         .network(&id)
         .autojoin([CHANNEL])
@@ -57,6 +57,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     while let Some(event) = events.next().await {
         if let Event::ChannelSynced(synced) = event {
             println!("attached {id} {}", synced.channel);
+            attached.quit("example complete").await?;
+            manager.quit("example complete").await?;
             return Ok(());
         }
     }
