@@ -3211,7 +3211,7 @@ enum Transmission {
         started: bool,
         token: Option<TransmitToken>,
         request: Option<RequestId>,
-        recipient: Option<RecipientGuard>,
+        guard: Option<TargetGuard>,
     },
 }
 
@@ -3299,7 +3299,7 @@ impl Outbox {
         lines: Vec<WireLine>,
         token: Option<TransmitToken>,
         request: Option<RequestId>,
-        recipient: Option<RecipientGuard>,
+        guard: Option<TargetGuard>,
     ) {
         let credentials_allowed = lines
             .iter()
@@ -3310,7 +3310,7 @@ impl Outbox {
                 started: false,
                 token,
                 request,
-                recipient,
+                guard,
             });
         } else if let Some(token) = token {
             self.event(Event::TransmitAborted { token });
@@ -3866,7 +3866,28 @@ impl Session {
         tags: &[(&str, &str)],
         recipient: Option<RecipientGuard>,
     ) -> Result<SendTextResult, RequestError> {
-        self.send_composed_text(now, kind, target, text, tags, false, recipient)
+        self.send_target_guarded_text_detailed(
+            now,
+            kind,
+            target,
+            text,
+            tags,
+            recipient.map(TargetGuard::Recipient),
+        )
+    }
+
+    /// Queues text whose target must still match at transmission time.
+    #[doc(hidden)]
+    pub fn send_target_guarded_text_detailed(
+        &mut self,
+        now: Instant,
+        kind: TextKind,
+        target: &str,
+        text: &str,
+        tags: &[(&str, &str)],
+        guard: Option<TargetGuard>,
+    ) -> Result<SendTextResult, RequestError> {
+        self.send_composed_text(now, kind, target, text, tags, false, guard)
     }
 
     /// Queues CTCP ACTION text and reports whether line splitting was applied.
@@ -3891,7 +3912,26 @@ impl Session {
         tags: &[(&str, &str)],
         recipient: Option<RecipientGuard>,
     ) -> Result<SendTextResult, RequestError> {
-        self.send_composed_text(now, TextKind::Privmsg, target, text, tags, true, recipient)
+        self.send_target_guarded_action_detailed(
+            now,
+            target,
+            text,
+            tags,
+            recipient.map(TargetGuard::Recipient),
+        )
+    }
+
+    /// Queues an action whose target must still match at transmission time.
+    #[doc(hidden)]
+    pub fn send_target_guarded_action_detailed(
+        &mut self,
+        now: Instant,
+        target: &str,
+        text: &str,
+        tags: &[(&str, &str)],
+        guard: Option<TargetGuard>,
+    ) -> Result<SendTextResult, RequestError> {
+        self.send_composed_text(now, TextKind::Privmsg, target, text, tags, true, guard)
     }
 
     #[allow(
@@ -3907,7 +3947,7 @@ impl Session {
         text: &str,
         tags: &[(&str, &str)],
         action: bool,
-        recipient: Option<RecipientGuard>,
+        guard: Option<TargetGuard>,
     ) -> Result<SendTextResult, RequestError> {
         self.validate_target(target)?;
         self.rate_limit.advance(now);
@@ -4020,7 +4060,7 @@ impl Session {
             batch_count > 0,
             !labelled,
             labelled.then_some(id),
-            recipient,
+            guard,
         );
         Ok(SendTextResult {
             request: labelled.then_some(id),
@@ -4036,7 +4076,7 @@ impl Session {
         batched: bool,
         tracked: bool,
         request: Option<RequestId>,
-        recipient: Option<RecipientGuard>,
+        guard: Option<TargetGuard>,
     ) -> Option<TransmitToken> {
         let token = tracked.then(|| {
             let token = TransmitToken(self.next_transmit_token);
@@ -4045,7 +4085,7 @@ impl Session {
         });
         if batched {
             self.outbox
-                .transmit_guarded_batch(lines, token, request, recipient);
+                .transmit_guarded_batch(lines, token, request, guard);
         } else {
             let last = lines.len() - 1;
             for (index, line) in lines.into_iter().enumerate() {
@@ -4053,7 +4093,7 @@ impl Session {
                     line,
                     (index == last).then_some(token).flatten(),
                     request,
-                    recipient.clone().map(TargetGuard::Recipient),
+                    guard.clone(),
                 );
             }
         }
@@ -4101,6 +4141,17 @@ impl Session {
         message: Line,
         recipient: Option<RecipientGuard>,
     ) -> Result<RequestId, RequestError> {
+        self.request_target_guarded_silent(now, message, recipient.map(TargetGuard::Recipient))
+    }
+
+    /// Queues a silent request guarded by its target identity.
+    #[doc(hidden)]
+    pub fn request_target_guarded_silent(
+        &mut self,
+        now: Instant,
+        message: Line,
+        guard: Option<TargetGuard>,
+    ) -> Result<RequestId, RequestError> {
         self.require_feature(Feature::LabeledResponse)?;
         let feature = requested_message_feature(&message.as_ref());
         if let Some(feature) = feature {
@@ -4111,7 +4162,7 @@ impl Session {
             message,
             Some(feature.unwrap_or(Feature::LabeledResponse)),
             false,
-            recipient,
+            guard,
         )
     }
 
@@ -4433,7 +4484,7 @@ impl Session {
                     mut lines,
                     token,
                     request,
-                    recipient,
+                    guard,
                     ..
                 } => {
                     let Some(line) = lines.pop_front() else {
@@ -4444,9 +4495,7 @@ impl Session {
                         line,
                         token: last.then_some(token).flatten(),
                         request: last.then_some(request).flatten(),
-                        guard: (!last)
-                            .then(|| recipient.clone().map(TargetGuard::Recipient))
-                            .flatten(),
+                        guard: (!last).then(|| guard.clone()).flatten(),
                     };
                     let Some(transmit) = self.prepare_queued_line(queued) else {
                         if !last {
@@ -4468,7 +4517,7 @@ impl Session {
                             started: true,
                             token,
                             request,
-                            recipient,
+                            guard,
                         });
                     }
                     return Some(transmit);

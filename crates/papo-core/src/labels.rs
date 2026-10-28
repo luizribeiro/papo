@@ -320,10 +320,10 @@ impl Session {
         message: Line,
         feature: Option<Feature>,
         emit_events: bool,
-        recipient: Option<crate::RecipientGuard>,
+        guard: Option<crate::TargetGuard>,
     ) -> Result<RequestId, RequestError> {
         let id = RequestId(self.next_request_id);
-        self.queue_request_with_id(now, message, feature, emit_events, id, recipient)?;
+        self.queue_request_with_id(now, message, feature, emit_events, id, guard)?;
         self.next_request_id = self.next_request_id.wrapping_add(1);
         Ok(id)
     }
@@ -335,7 +335,7 @@ impl Session {
         feature: Option<Feature>,
         emit_events: bool,
         id: RequestId,
-        recipient: Option<crate::RecipientGuard>,
+        guard: Option<crate::TargetGuard>,
     ) -> Result<(), RequestError> {
         self.rate_limit.advance(now);
         let sent = self.caps.enabled().contains_key(&cap::ECHO_MESSAGE)
@@ -358,12 +358,7 @@ impl Session {
         } else {
             self.outbox.event(Event::RequestUntracked { id });
         }
-        self.outbox.transmit_guarded(
-            line,
-            None,
-            Some(id),
-            recipient.map(crate::TargetGuard::Recipient),
-        );
+        self.outbox.transmit_guarded(line, None, Some(id), guard);
         Ok(())
     }
 }
