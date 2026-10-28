@@ -19,7 +19,8 @@ own conformance suite.
 
 `wire()` runs a real client over an in-memory connection. Your test plays the server: it sends
 IRC lines and checks what the client sends back. Tokio's paused clock keeps timeouts and
-reconnects deterministic. It works on native, WASI and browser wasm.
+reconnects deterministic on native and WASI. In browser wasm the fixture builds, but timers use
+the browser clock.
 
 ```rust
 use papo_testing::wire;
@@ -71,8 +72,9 @@ fn main() {
 
 Start a real Ergo outside the test process and pass its URL to your app. These local-only Ergo
 overrides add a WebSocket listener, open account registration, and turn off connection,
-registration, and login throttling plus fakelag. Save them as `ergo-test-env.sh`; do not use this
-relaxed configuration for a public server.
+registration, and login throttling plus fakelag. The `IP_LIMITS` override turns off connection
+throttling (this replaces Ergo's whole ip-limits block). Save the overrides as `ergo-test-env.sh`;
+do not use this relaxed configuration for a public server.
 
 ```sh
 export ERGO__SERVER__LISTENERS='{":6667":{},":8097":{"websocket":true}}'
