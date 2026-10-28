@@ -6800,7 +6800,11 @@ async fn typed_channel_and_guarded_direct_destinations_reach_the_wire() {
     let task = tokio::spawn(driver);
     welcome_burst(&mut server).await;
 
-    let channel = client.state().name_rules().channel("#release");
+    let channel = client
+        .state()
+        .__known_name_rules()
+        .expect("server advertised CASEMAPPING")
+        .channel("#release");
     within(client.privmsg(channel, "release approved"))
         .await
         .unwrap();
@@ -7831,7 +7835,13 @@ async fn redacting_a_multiline_send_stops_at_the_first_refusal() {
     .await;
     client_line(&mut server, b"CAP END\r\n").await;
 
-    let conversation = crate::Conversation::Channel(client.state().name_rules().channel("#papo"));
+    let conversation = crate::Conversation::Channel(
+        client
+            .state()
+            .__known_name_rules()
+            .expect("server advertised CASEMAPPING")
+            .channel("#papo"),
+    );
     let sent = crate::Sent {
         receipt: client
             .state()
@@ -9137,8 +9147,20 @@ async fn client_exposes_capability_aliases_and_casemapping() {
     assert_eq!(state.isupport().nicklen(), Some(27));
     assert!(state.is_connected());
     assert_eq!(state.nick(), "PAPO-DRIVER");
-    assert_eq!(state.name_rules().channel("#Papo"), "#papo");
-    assert!(state.name_rules().channel("#PAPO[dev]") != "#papo{dev}");
+    assert_eq!(
+        state
+            .__known_name_rules()
+            .expect("server advertised CASEMAPPING")
+            .channel("#Papo"),
+        "#papo"
+    );
+    assert!(
+        state
+            .__known_name_rules()
+            .expect("server advertised CASEMAPPING")
+            .channel("#PAPO[dev]")
+            != "#papo{dev}"
+    );
     assert!(!state.supports(crate::Feature::History));
     assert!(
         !state
@@ -9154,9 +9176,14 @@ async fn client_exposes_capability_aliases_and_casemapping() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn pre_isupport_account_does_not_match_a_bracket_variant_under_ascii() {
-    let (mut server, client, mut events, driver) = scripted(config());
-    let provisional = client.state().name_rules().account("[ops]");
+async fn name_rules_wait_for_isupport_casemapping() {
+    let unseeded = Config::default()
+        .allow_insecure_auth(true)
+        .nick("papo-driver")
+        .realname("papo driver test")
+        .wanted_caps([] as [&str; 0]);
+    let (mut server, client, mut events, driver) = scripted(unseeded);
+    assert!(client.state().__known_name_rules().is_none());
     let driver = tokio::spawn(driver);
     welcome_burst(&mut server).await;
     server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
@@ -9164,8 +9191,12 @@ async fn pre_isupport_account_does_not_match_a_bracket_variant_under_ascii() {
     server_line(&mut server, b":ergo.test 005 papo-driver CASEMAPPING=ascii :are supported\r\n:ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
     while !matches!(next_active_event(&mut events).await, Event::Connected(_)) {}
 
-    let confirmed = client.state().name_rules().account("{ops}");
-    assert_ne!(provisional, confirmed);
+    let confirmed = client
+        .state()
+        .__known_name_rules()
+        .expect("server advertised CASEMAPPING")
+        .account("{ops}");
+    assert_eq!(confirmed.casemapping(), crate::Casemapping::Ascii);
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
