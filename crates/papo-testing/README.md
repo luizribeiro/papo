@@ -24,25 +24,46 @@ reconnects deterministic. It works on native, WASI and browser wasm.
 ```rust
 use papo_testing::wire;
 
-#[tokio::test(start_paused = true)]
-async fn ping() {
-    let (client, mut events, mut wire) = wire(
-        papo::Client::builder("irc://offline.test", "papo-bot")
-            .reconnect(papo::Reconnect::never()),
-    );
-    wire.register(&["message-tags"]).await;
-    wire.server(":alice!~alice@cloak.example PRIVMSG papo-bot :!ping")
-        .await;
-
-    while let Some(event) = events.next().await {
-        let Some(message) = event.as_message() else { continue };
-        if message.text == "!ping" {
-            client.reply(message, "pong").await.unwrap();
-            break;
+fn main() {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_time()
+        .build()
+        .unwrap();
+    runtime.block_on(async {
+        let (client, mut events, mut wire) = wire(
+            papo::Client::builder("irc://offline.test", "papo-bot")
+                .reconnect(papo::Reconnect::never()),
+        );
+        wire.register(&["message-tags"]).await;
+        for line in [
+            ":papo-bot!papo@localhost JOIN #papo",
+            ":offline.test 353 papo-bot = #papo :papo-bot alice",
+            ":offline.test 366 papo-bot #papo :End of /NAMES list",
+        ] {
+            wire.server(line).await;
         }
-    }
+        assert_eq!(wire.next_sent().await, "MODE #papo");
+        assert_eq!(wire.next_sent().await, "WHO #papo");
+        wire.server(":offline.test 324 papo-bot #papo +nt").await;
+        wire.server(
+            ":offline.test 352 papo-bot #papo ~alice cloak.example offline.test alice H :0 Alice Example",
+        )
+        .await;
+        wire.server(":offline.test 315 papo-bot #papo :End of WHO list")
+            .await;
+        wire.server(":alice!~alice@cloak.example PRIVMSG #papo :!ping")
+            .await;
 
-    assert_eq!(wire.next_sent().await, "PRIVMSG alice pong");
+        while let Some(event) = events.next().await {
+            let Some(message) = event.as_message() else { continue };
+            if message.text == "!ping" {
+                client.reply(message, "pong").await.unwrap();
+                break;
+            }
+        }
+
+        assert_eq!(wire.next_sent().await, "PRIVMSG #papo pong");
+    });
 }
 ```
 
