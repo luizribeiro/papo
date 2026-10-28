@@ -13,7 +13,8 @@ apps actually do: replies, reactions, history, read markers, accounts.
 
 papo is young: 0.1 is its first release. IRCv3 specs that are still unmerged proposals (bouncer
 networks, persistence, relaymsg, Web Push, FILEHOST) sit behind the `unstable` feature, which has
-no semver guarantees. The minimum supported Rust version is 1.91.
+no semver guarantees. See the [stability policy](docs/ircv3-support.md#stability). The minimum
+supported Rust version is 1.91.
 
 ## Quick start
 
