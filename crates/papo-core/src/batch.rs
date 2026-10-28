@@ -217,6 +217,7 @@ impl Batches {
             return BatchAction::Dispatch(self.context(message));
         }
         let mut batch = self.open.remove(reference).expect("validated above");
+        let moved_bytes = batch.buffered_bytes;
         self.buffered_bytes = self.buffered_bytes.saturating_sub(batch.buffered_bytes);
         let mut completed = std::mem::take(&mut batch.completed);
         let response_messages = batch.label.as_ref().map(|_| batch.messages.clone());
@@ -244,12 +245,29 @@ impl Batches {
             });
         }
         if let Some(parent) = batch.parent {
-            self.open
+            let retained = moved_bytes.saturating_add(
+                completed
+                    .len()
+                    .saturating_mul(std::mem::size_of::<BatchEvent>()),
+            );
+            let parent_batch = self
+                .open
                 .get_mut(&parent)
-                .expect("validated batch parent remains open")
-                .completed
-                .append(&mut completed);
-            BatchAction::Consumed
+                .expect("validated batch parent remains open");
+            parent_batch.lines = parent_batch.lines.saturating_add(completed.len());
+            parent_batch.buffered_bytes = parent_batch.buffered_bytes.saturating_add(retained);
+            parent_batch.completed.append(&mut completed);
+            self.buffered_bytes = self.buffered_bytes.saturating_add(retained);
+            if parent_batch.lines > self.max_lines || self.buffered_bytes > MAX_BUFFERED_BYTES {
+                let reason = if parent_batch.lines > self.max_lines {
+                    BatchAbandonReason::LineLimit
+                } else {
+                    BatchAbandonReason::ByteLimit
+                };
+                BatchAction::Complete(self.abandon(&parent, reason))
+            } else {
+                BatchAction::Consumed
+            }
         } else {
             BatchAction::Complete(completed)
         }

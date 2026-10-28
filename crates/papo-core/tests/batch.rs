@@ -778,6 +778,26 @@ fn unknown_batch_overflow_delivers_the_overflowing_line_before_abandonment() {
 }
 
 #[test]
+fn repeated_completed_children_count_toward_the_parent_limit() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().max_batch_lines(2));
+    session.handle_line(now, b":ergo.test BATCH +outer vendor/sync");
+    for _ in 0..3 {
+        session.handle_line(now, b"@batch=outer :ergo.test BATCH +inner metadata");
+        session.handle_line(now, b"@batch=outer :ergo.test BATCH -inner");
+    }
+
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::BatchAbandoned { reference, batch_type, reason, .. })
+            if reference == "outer"
+                && batch_type == "vendor/sync"
+                && reason == BatchAbandonReason::LineLimit
+    ));
+    assert_eq!(session.poll_event(), None);
+}
+
+#[test]
 fn late_members_of_every_abandoned_batch_stay_out_of_live_state() {
     let now = Instant::now();
     for trigger in ["line-limit", "timeout", "open-limit"] {
