@@ -287,6 +287,8 @@ mod private {
 /// A value accepted by [`crate::Client::builder`].
 ///
 /// This trait is sealed; it is implemented for [`Endpoint`], `&str`, [`String`], and `&String`.
+/// String URLs must start with `irc://`, `ircs://`, `ws://`, or `wss://`; bare hostnames are
+/// rejected. Use `ircs://` for IRC over TLS.
 pub trait IntoEndpoint: private::Sealed {}
 
 impl IntoEndpoint for Endpoint {}

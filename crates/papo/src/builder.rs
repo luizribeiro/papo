@@ -57,6 +57,11 @@ fn allocate_origin() -> crate::Origin {
 }
 
 /// Configures an IRC client before it is built or connected.
+///
+/// Settings that require a capability, including account creation, metadata subscriptions,
+/// reconnect history, and selecting a bouncer network, fail connection setup when that
+/// capability is unavailable. [`Self::enable`] opts into known optional behavior only when its
+/// capabilities are offered. [`Self::request_caps`] is for vendor capabilities unknown to papo.
 #[must_use]
 #[allow(clippy::struct_excessive_bools)]
 pub struct Builder {
@@ -296,9 +301,11 @@ impl Builder {
 
     /// Allows configured credentials on an unencrypted `irc://` or `ws://` endpoint.
     ///
-    /// Credentials are refused on plaintext endpoints by default. Enable this only when the
-    /// transport is protected by another trusted layer, such as a local test fixture. This also
-    /// permits a server password when the server does not offer an `sts` upgrade.
+    /// SASL, WEBIRC, and account registration require `ircs://` or `wss://` by default.
+    /// Credentials are refused on plaintext endpoints unless the transport is protected by
+    /// another trusted layer, such as a local test fixture. A server password on plaintext TCP
+    /// is sent only after a valid IRC STS upgrade; enabling this also permits the password without
+    /// that upgrade.
     pub fn allow_insecure_auth(mut self, allow: bool) -> Self {
         self.allow_insecure_auth = allow;
         self.config = self.config.allow_insecure_auth(allow);
