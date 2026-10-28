@@ -1,7 +1,8 @@
 # Create account
 
 This example creates an account during connection setup. If the server requires verification,
-it prints the instructions and reads the verification code from standard input.
+it prints the instructions and reads the verification code from standard input. After success it
+awaits `Client::quit` before exiting.
 
 Pass an `irc://` or `ircs://` server URL as the first argument. Set `IRC_NICK` to the new account
 name, `IRC_PASSWORD` to its password, and optionally set `IRC_EMAIL`.
