@@ -88,10 +88,18 @@ fn guarded_direct_monitor_follows_rename_and_releases_its_watch() {
                 Some(Account::LoggedIn(account)) if account == "alice-account"
             ));
         })
+        .server(":alice!~alice@cloak.example QUIT :Connection reset by peer")
+        .event(|event| matches!(event, Event::Quit { nick, .. } if nick == "alice"))
+        .update(|session| {
+            let account =
+                Account::LoggedIn(session.state().casemapping().account("alice-account"));
+            *recipient.borrow_mut() = Some(session.__direct_refresh("alice", account));
+        })
         .server(":alice!~alice@cloak.example NICK alicia")
         .client("MONITOR - alice")
         .client("MONITOR + alicia")
         .event(|event| matches!(event, Event::NickChanged { old, new, .. } if old == "alice" && new == "alicia"))
+        .inspect(|session| assert!(session.state().user("alicia").is_some()))
         .update(|session| {
             session.__direct_release(recipient.borrow().as_ref().expect("recipient was acquired"));
         })
