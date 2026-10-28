@@ -95,6 +95,11 @@ fn guarded_direct_monitor_follows_rename_and_releases_its_watch() {
                 Account::LoggedIn(session.state().casemapping().account("alice-account"));
             *recipient.borrow_mut() = Some(session.__direct_refresh("alice", account));
         })
+        .update(|session| session.monitor_add(["bob"]))
+        .client("MONITOR + bob")
+        .inspect(|session| assert!(session.state().user("alice").is_some()))
+        .update(|session| session.monitor_remove(["bob"]))
+        .client("MONITOR - bob")
         .server(":alice!~alice@cloak.example NICK alicia")
         .client("MONITOR - alice")
         .client("MONITOR + alicia")
