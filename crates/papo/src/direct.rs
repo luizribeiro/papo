@@ -421,6 +421,33 @@ mod tests {
         );
     }
 
+    #[test]
+    fn unknown_guarded_nickname_is_rejected() {
+        let mut session = Session::new(Config::default().nick("papo"));
+        session.handle_line(
+            crate::rt::now_mono(),
+            b":ergo.test 005 papo CASEMAPPING=rfc1459 :are supported",
+        );
+        let nick = session.isupport().casemapping().nick("alice");
+        let recipient = papo_core::RecipientGuard::__from_parts(
+            nick.clone(),
+            Account::LoggedOut,
+            papo_core::ReplyToken::__unknown(nick.origin()),
+        );
+        let (client, _) = crate::driver::test_support::client_with_commands(&session);
+        let parts = crate::target::sealed::Parts {
+            text: std::borrow::Cow::Borrowed("alice"),
+            origin: nick.origin(),
+            recipient: Some(crate::message_ref::RecipientGuard::from_core(&recipient)),
+            channel: None,
+        };
+
+        assert!(matches!(
+            client.resolve(crate::target::Role::Nick("test nick"), parts),
+            Err(crate::Error::TargetGone)
+        ));
+    }
+
     #[tokio::test]
     async fn unknown_recipient_send_requires_the_same_verified_account() {
         let now = crate::rt::now_mono();
