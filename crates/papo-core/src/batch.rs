@@ -948,26 +948,32 @@ mod tests {
     }
 
     #[test]
-    fn recount_matches_completed_child_storage_and_detects_a_shortfall() {
+    fn recount_matches_nested_history_storage_and_detects_a_shortfall() {
         let mut batches = Batches::new(&Config::default());
-        assert_eq!(
-            handle(&mut batches, "BATCH +outer vendor/sync"),
-            (false, None)
-        );
-        assert_eq!(
-            handle(&mut batches, "@batch=outer BATCH +inner metadata"),
-            (false, None)
-        );
-        assert_eq!(
-            handle(&mut batches, "@batch=outer BATCH -inner"),
-            (false, None)
-        );
+        let history = LineRef::parse(":ergo.test BATCH +history chathistory #papo").unwrap();
+        let multiline = LineRef::parse(
+            "@batch=history;msgid=RKi9Cw;time=2026-10-15T12:00:01.000Z \
+             :alice!~alice@users.example BATCH +multiline draft/multiline #papo",
+        )
+        .unwrap();
+        let message = LineRef::parse(
+            "@batch=multiline :alice!~alice@users.example PRIVMSG #papo :review is ready",
+        )
+        .unwrap();
 
-        let expected = retained_bytes(&batches.open["outer"].opening.as_ref())
-            + std::mem::size_of::<BatchEvent>();
+        for line in [&history, &multiline, &message] {
+            assert!(matches!(
+                batches.handle(Instant::now(), line, usize::MAX, false, false),
+                BatchAction::Consumed
+            ));
+        }
+
+        let expected =
+            retained_bytes(&history) + retained_bytes(&multiline) + retained_bytes(&message);
         assert_eq!(batches.recount(), expected);
+        assert_eq!(batches.buffered_bytes, expected + retained_bytes(&message));
         assert!(batches.accounting_is_sound());
-        batches.buffered_bytes = batches.recount() - 1;
+        batches.buffered_bytes = expected - 1;
         assert!(!batches.accounting_is_sound());
     }
 
