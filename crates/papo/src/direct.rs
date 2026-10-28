@@ -193,7 +193,10 @@ impl crate::Client {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
+    use std::{
+        hash::{DefaultHasher, Hash, Hasher},
+        time::Duration,
+    };
 
     use crate::{Account, Casemapping};
     use papo_core::{Config, Event, ResponseMatcher, Session};
@@ -224,6 +227,15 @@ mod tests {
         response
     }
 
+    async fn next_command(
+        commands: &mut tokio::sync::mpsc::Receiver<crate::driver::Command>,
+    ) -> crate::driver::Command {
+        tokio::time::timeout(Duration::from_millis(50), commands.recv())
+            .await
+            .expect("driver did not receive a direct-message command")
+            .expect("driver command channel closed")
+    }
+
     #[test]
     fn direct_references_are_nickname_arguments() {
         fn assert_as_nick<T: crate::AsNick>() {}
@@ -250,6 +262,51 @@ mod tests {
             Ok(crate::driver::Command::DirectRelease { recipient: released })
                 if released == recipient
         ));
+    }
+
+    #[test]
+    fn direct_references_use_account_or_tracked_user_identity() {
+        let mut session = Session::new(Config::default().nick("papo"));
+        let account = Account::LoggedIn(session.isupport().casemapping().account("alice-account"));
+        let desktop = session.__direct_acquire("alice", None, None, account.clone());
+        let phone = session.__direct_acquire("alice-phone", None, None, account);
+        let mallory = session.__direct_acquire(
+            "mallory",
+            None,
+            None,
+            Account::LoggedIn(session.isupport().casemapping().account("mallory-account")),
+        );
+        let bob = session.__direct_acquire("bob", None, None, Account::LoggedOut);
+        let carol = session.__direct_acquire("carol", None, None, Account::LoggedOut);
+        let (client, _) = crate::driver::test_support::client_with_commands(&session);
+        let desktop = super::DirectRef::new(&client, desktop, false);
+        let phone = super::DirectRef::new(&client, phone, false);
+        let mallory = super::DirectRef::new(&client, mallory, false);
+        let bob = super::DirectRef::new(&client, bob, false);
+        let carol = super::DirectRef::new(&client, carol, false);
+
+        assert_eq!(desktop, phone);
+        assert_ne!(desktop, mallory);
+        assert_eq!(bob, bob.clone());
+        assert_ne!(bob, carol);
+        assert_eq!(desktop.to_string(), "alice");
+        let debug = format!("{desktop:?}");
+        assert!(debug.starts_with("DirectRef { nick: Nick"));
+        assert!(debug.contains("\"alice\""));
+
+        let hash = |direct: &super::DirectRef| {
+            let mut hasher = DefaultHasher::new();
+            direct.hash(&mut hasher);
+            hasher.finish()
+        };
+        let expected_hash = {
+            let mut hasher = DefaultHasher::new();
+            0_u8.hash(&mut hasher);
+            hasher.finish()
+        };
+        assert_eq!(hash(&desktop), hash(&phone));
+        assert_eq!(hash(&desktop), expected_hash);
+        assert_eq!(hash(&bob), expected_hash);
     }
 
     #[tokio::test]
@@ -386,14 +443,15 @@ mod tests {
             async move { client.privmsg(direct, "release approved").await }
         });
 
-        let crate::driver::Command::DirectAcquire { result, .. } = commands.recv().await.unwrap()
+        let crate::driver::Command::DirectAcquire { result, .. } =
+            next_command(&mut commands).await
         else {
             panic!("expected MONITOR acquisition")
         };
         result.send(Ok(recipient.clone())).unwrap();
         let crate::driver::Command::Request {
             message, result, ..
-        } = commands.recv().await.unwrap()
+        } = next_command(&mut commands).await
         else {
             panic!("expected WHO request")
         };
@@ -407,14 +465,14 @@ mod tests {
             account: refreshed,
             result,
             ..
-        } = commands.recv().await.unwrap()
+        } = next_command(&mut commands).await
         else {
             panic!("expected verified recipient refresh")
         };
         assert_eq!(refreshed, account);
         result.send(Ok(recipient)).unwrap();
         assert!(matches!(
-            commands.recv().await.unwrap(),
+            next_command(&mut commands).await,
             crate::driver::Command::Send { .. }
         ));
         assert!(resolved.await.unwrap().is_err());
