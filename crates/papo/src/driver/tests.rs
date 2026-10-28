@@ -8990,7 +8990,7 @@ fn multi_thread_stress_accounts_for_every_emitted_message() {
         runtime.block_on(complete_connect(&mut server, &mut events));
         let receiver = Arc::clone(&events.receiver);
         let dropped = Arc::clone(&events.dropped);
-        let consumer = std::thread::spawn(move || {
+        let consumer = std::thread::Builder::new().spawn(move || {
             let runtime = tokio::runtime::Builder::new_current_thread()
                 .enable_time()
                 .build()
@@ -9014,6 +9014,11 @@ fn multi_thread_stress_accounts_for_every_emitted_message() {
             }
             (delivered, reported)
         });
+        let consumer = match consumer {
+            Ok(consumer) => consumer,
+            Err(error) if error.kind() == std::io::ErrorKind::Unsupported => return,
+            Err(error) => panic!("failed to spawn stress-test consumer: {error}"),
+        };
 
         runtime.block_on(async {
             let mut lines = String::new();
