@@ -5763,7 +5763,7 @@ fn replace_wire_target(line: &mut WireLine, old: Option<&str>, new: &str) -> boo
     let prefix = match old {
         Some(old) => {
             let Some(prefix) = address.strip_suffix(old) else {
-                return false;
+                return address.ends_with(new);
             };
             prefix
         }

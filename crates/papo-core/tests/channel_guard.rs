@@ -50,6 +50,20 @@ fn membership_guard_follows_rename_and_expires_on_part() {
         session.poll_transmit().unwrap().as_ref(),
         b"NOTICE @#release :release approved\r\n"
     );
+    session
+        .send_target_guarded_text_detailed(
+            Instant::now(),
+            TextKind::Notice,
+            "@#release",
+            "already resolved",
+            &[],
+            Some(TargetGuard::Channel(guard.clone())),
+        )
+        .unwrap();
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"NOTICE @#release :already resolved\r\n"
+    );
 
     let token = session
         .send_target_guarded_action_detailed(
