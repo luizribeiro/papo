@@ -4514,6 +4514,73 @@ mod tests {
         );
     }
 
+    fn recipient_gone_event(request: bool) -> papo_core::Event {
+        let now = Instant::now();
+        let mut session = Session::new(
+            Config::default()
+                .nick("papo")
+                .wanted_caps(["labeled-response"]),
+        );
+        session.handle_connected(now);
+        session.handle_line(now, b"CAP * LS :labeled-response");
+        session.handle_line(now, b"CAP * ACK :labeled-response");
+        while session.poll_transmit().is_some() {}
+        for line in [
+            ":papo!p@localhost JOIN #review",
+            ":alice!~alice@cloak.example JOIN #review",
+            ":mallory!~mallory@users.example JOIN #review",
+        ] {
+            session.handle_line(now, line.as_bytes());
+        }
+        while session.poll_event().is_some() {}
+        let guard = session.__direct_acquire(
+            "alice",
+            Some("~alice"),
+            Some("cloak.example"),
+            Account::LoggedOut,
+        );
+        if request {
+            session
+                .request_guarded_silent(
+                    now,
+                    Line::new("WHO").with_params(["alice", "%na"]),
+                    Some(guard),
+                )
+                .unwrap();
+        } else {
+            session
+                .send_guarded_tracked(
+                    now,
+                    Line::notice("alice", "classified release details"),
+                    Some(guard),
+                )
+                .unwrap();
+        }
+        session.handle_line(now, b":alice!~alice@cloak.example QUIT :Client Quit");
+        session.handle_line(now, b":mallory!~mallory@users.example NICK alice");
+        while session.poll_event().is_some() {}
+        assert!(session.poll_transmit().is_none());
+        session.poll_event().expect("guard refusal event")
+    }
+
+    #[test]
+    fn maps_every_recipient_gone_variant() {
+        for (expected, event) in [
+            ("RequestRecipientGone", recipient_gone_event(true)),
+            ("TransmitRecipientGone", recipient_gone_event(false)),
+        ] {
+            let mapped = from_core(event);
+            assert!(
+                matches!(
+                    (expected, mapped),
+                    ("RequestRecipientGone", CoreEvent::RequestRecipientGone(_))
+                        | ("TransmitRecipientGone", CoreEvent::TransmitRecipientGone(_))
+                ),
+                "{expected}"
+            );
+        }
+    }
+
     #[test]
     fn maps_standard_reply() {
         for (core, public) in [
