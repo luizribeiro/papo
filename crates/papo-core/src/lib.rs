@@ -4039,22 +4039,17 @@ impl Session {
                 };
                 let mut confirmation_text = String::new();
                 for (offset, segment) in batch_segments.iter().enumerate() {
-                    if offset > 0
-                        && batch_segments
-                            .get(offset - 1)
-                            .is_some_and(|previous| !previous.concat)
-                    {
+                    let previous = offset
+                        .checked_sub(1)
+                        .and_then(|index| batch_segments.get(index));
+                    if previous.is_some_and(|previous| !previous.concat) {
                         confirmation_text.push('\n');
                     }
                     confirmation_text.push_str(segment.text);
                     let mut inner = Line::new(kind.command())
                         .with_params([target, segment.text])
                         .with_tag(cap::BATCH.as_str(), &id);
-                    if offset > 0
-                        && batch_segments
-                            .get(offset - 1)
-                            .is_some_and(|previous| previous.concat)
-                    {
+                    if previous.is_some_and(|previous| previous.concat) {
                         inner = inner.with_tag("draft/multiline-concat", "");
                     }
                     lines.push(inner.encode()?);
