@@ -30,9 +30,6 @@ zeroize = { version = "1.9.1", default-features = false, features = ["alloc"] }
 papo-test-server = { path = "../papo-test-server", version = "=0.1.0" }
 proptest = { version = "1.9", default-features = false, features = ["std"] }
 
-[target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
-proptest-state-machine = "0.9.0"
-
 [[test]]
 name = "credential_markers"
 required-features = ["unstable"]
