@@ -1809,6 +1809,26 @@ impl core::marker::Unpin for papo::ReadMarker
 impl core::marker::UnsafeUnpin for papo::ReadMarker
 impl core::panic::unwind_safe::RefUnwindSafe for papo::ReadMarker
 impl core::panic::unwind_safe::UnwindSafe for papo::ReadMarker
+#[non_exhaustive] pub enum papo::SentOutcome
+#[non_exhaustive] pub papo::SentOutcome::Confirmed
+pub papo::SentOutcome::Confirmed::lines: alloc::vec::Vec<(papo::MessageId, alloc::string::String)>
+pub papo::SentOutcome::Confirmed::server_time: core::option::Option<std::time::SystemTime>
+pub papo::SentOutcome::Unconfirmed
+impl core::clone::Clone for papo::SentOutcome
+pub fn papo::SentOutcome::clone(&self) -> Self
+impl core::cmp::Eq for papo::SentOutcome
+impl core::cmp::PartialEq for papo::SentOutcome
+pub fn papo::SentOutcome::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::SentOutcome
+pub fn papo::SentOutcome::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::SentOutcome
+impl core::marker::Freeze for papo::SentOutcome
+impl core::marker::Send for papo::SentOutcome
+impl core::marker::Sync for papo::SentOutcome
+impl core::marker::Unpin for papo::SentOutcome
+impl core::marker::UnsafeUnpin for papo::SentOutcome
+impl core::panic::unwind_safe::RefUnwindSafe for papo::SentOutcome
+impl core::panic::unwind_safe::UnwindSafe for papo::SentOutcome
 #[non_exhaustive] pub enum papo::Source
 pub papo::Source::Server(papo::ServerName)
 pub papo::Source::User(papo::UserSource)
@@ -2663,6 +2683,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::SendMessage
 pub papo::Sent::conversation: papo::Conversation
 pub papo::Sent::fallbacks: alloc::vec::Vec<papo::Fallback>
 pub papo::Sent::msgids: alloc::vec::Vec<papo::MessageId>
+pub papo::Sent::outcome: papo::SentOutcome
 pub papo::Sent::server_time: core::option::Option<std::time::SystemTime>
 pub papo::Sent::status: core::option::Option<papo::Prefix>
 impl papo::Sent

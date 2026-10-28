@@ -58,12 +58,36 @@ pub struct Sent {
     /// See [`crate::Conversation`] for status-prefixed line guidance.
     pub status: Option<crate::Prefix>,
     pub(crate) receipt: crate::message_ref::Receipt,
+    /// Whether the server confirmed the message, with its assigned metadata when it did.
+    pub outcome: SentOutcome,
     /// Server-assigned identifiers for every confirmed IRC message line, in send order.
     pub msgids: Vec<crate::MessageId>,
     /// Server time from a labelled echo.
     pub server_time: Option<SystemTime>,
     /// Compatibility fallbacks applied while sending.
     pub fallbacks: Vec<Fallback>,
+}
+
+/// The server-confirmation outcome of a sent chat message.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum SentOutcome {
+    /// Every logical message line was echoed with a server-assigned identifier.
+    #[non_exhaustive]
+    Confirmed {
+        /// One identifier and exact sent text for each logical line after papo's splitting.
+        ///
+        /// Segments in one `draft/multiline` batch form one logical line.
+        lines: Vec<(crate::MessageId, String)>,
+        /// Server time from the first labelled echo that supplied one.
+        server_time: Option<SystemTime>,
+    },
+    /// The server did not confirm the message with echoes and identifiers.
+    ///
+    /// This happens when `echo-message` and `labeled-response` are not both available. The send
+    /// resolves after its last wire line is written, so it cannot be used for reactions or
+    /// redaction.
+    Unconfirmed,
 }
 
 /// A compatibility fallback applied to an outgoing chat message.
@@ -285,7 +309,7 @@ impl Sent {
         crate::MessageRef::from(self)
     }
 
-    pub(crate) fn without_echo(
+    pub(crate) fn unconfirmed(
         conversation: crate::Conversation,
         status: Option<crate::Prefix>,
         receipt: crate::message_ref::Receipt,
@@ -295,6 +319,7 @@ impl Sent {
             conversation,
             status,
             receipt,
+            outcome: SentOutcome::Unconfirmed,
             msgids: Vec::new(),
             server_time: None,
             fallbacks,
@@ -303,23 +328,34 @@ impl Sent {
 
     pub(crate) fn from_confirmations(
         confirmations: &[papo_core::SentInfo],
+        texts: Vec<String>,
         conversation: crate::Conversation,
         status: Option<crate::Prefix>,
         receipt: crate::message_ref::Receipt,
         fallbacks: Vec<Fallback>,
     ) -> Self {
+        let server_time = confirmations
+            .iter()
+            .find_map(|sent| sent.server_time.as_deref().and_then(time::parse));
         let msgids = confirmations
             .iter()
             .map(|sent| crate::MessageId::from(sent.msgid.clone()))
             .collect::<Vec<_>>();
+        let outcome = if confirmations.len() == texts.len() {
+            SentOutcome::Confirmed {
+                lines: msgids.iter().cloned().zip(texts).collect(),
+                server_time,
+            }
+        } else {
+            SentOutcome::Unconfirmed
+        };
         Self {
             conversation,
             status,
             receipt,
+            outcome,
             msgids,
-            server_time: confirmations
-                .iter()
-                .find_map(|sent| sent.server_time.as_deref().and_then(time::parse)),
+            server_time,
             fallbacks,
         }
     }
@@ -1083,7 +1119,7 @@ impl Client {
                 message = message.with_tag(key, value);
             }
             self.send_message_guarded(message, guard).await?;
-            return Ok(Sent::without_echo(conversation, status, receipt, fallbacks));
+            return Ok(Sent::unconfirmed(conversation, status, receipt, fallbacks));
         }
         let (result, receiver) = oneshot::channel();
         self.commands

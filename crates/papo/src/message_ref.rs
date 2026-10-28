@@ -653,6 +653,13 @@ mod tests {
                 None,
                 "@#ops".into(),
             ),
+            outcome: crate::SentOutcome::Confirmed {
+                lines: vec![
+                    ("RfcBTzyxY120005".into(), "deploy complete".into()),
+                    ("RfcBTzyxY120006".into(), "deploy verified".into()),
+                ],
+                server_time: Some(SystemTime::UNIX_EPOCH),
+            },
             msgids: vec!["RfcBTzyxY120005".into(), "RfcBTzyxY120006".into()],
             server_time: Some(SystemTime::UNIX_EPOCH),
             fallbacks: Vec::new(),

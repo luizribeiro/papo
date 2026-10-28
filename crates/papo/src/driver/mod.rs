@@ -224,6 +224,7 @@ enum PendingRequest {
         receipt: crate::message_ref::Receipt,
         fallbacks: Vec<crate::Fallback>,
         remaining: usize,
+        texts: Vec<String>,
         confirmations: Vec<papo_core::SentInfo>,
         result: oneshot::Sender<Result<Sent, Error>>,
     },
@@ -255,6 +256,7 @@ impl PendingRequest {
                 receipt,
                 fallbacks,
                 remaining,
+                texts,
                 mut confirmations,
                 result,
             } => {
@@ -270,6 +272,7 @@ impl PendingRequest {
                         receipt,
                         fallbacks,
                         remaining: remaining - 1,
+                        texts,
                         confirmations,
                         result,
                     });
@@ -277,6 +280,7 @@ impl PendingRequest {
                 remember_resolved_sent(resolved_sent, &confirmations);
                 _ = result.send(Ok(Sent::from_confirmations(
                     &confirmations,
+                    texts,
                     conversation,
                     status,
                     receipt,
@@ -318,7 +322,7 @@ impl PendingTransmit {
                 fallbacks,
                 result,
             } => {
-                _ = result.send(Ok(Sent::without_echo(
+                _ = result.send(Ok(Sent::unconfirmed(
                     conversation,
                     status,
                     receipt,
@@ -1101,6 +1105,7 @@ where
                                     receipt,
                                     fallbacks,
                                     remaining: sent.confirmations,
+                                    texts: sent.texts,
                                     confirmations: Vec::new(),
                                     result,
                                 });

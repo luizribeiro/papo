@@ -7127,13 +7127,23 @@ async fn chat_text_returns_metadata_from_every_labelled_echo() {
     )
     .await;
     let sent = within(sent).await.unwrap().unwrap();
+    let crate::SentOutcome::Confirmed { lines, server_time } = &sent.outcome else {
+        panic!("labelled echo should confirm the message")
+    };
+    assert_eq!(
+        lines,
+        &[(
+            crate::MessageId::from("RfcBTzyxY120004"),
+            "hello everyone".into()
+        )]
+    );
     assert_eq!(sent.msgid().map(AsRef::as_ref), Some("RfcBTzyxY120004"));
     assert!(
         matches!(sent.conversation, crate::Conversation::Channel(ref channel) if channel == "#papo")
     );
     assert_eq!(sent.status, None);
     assert_eq!(
-        sent.server_time,
+        *server_time,
         Some(UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000))
     );
 
@@ -7768,6 +7778,16 @@ async fn redacting_a_multiline_send_stops_at_the_first_refusal() {
             .sent_receipt(&conversation, "#papo".into(), None),
         conversation,
         status: None,
+        outcome: crate::SentOutcome::Confirmed {
+            lines: [
+                ("RfcBTzyxY120004", "first deployment line"),
+                ("RfcBTzyxY120005", "second deployment line"),
+                ("RfcBTzyxY120006", "third deployment line"),
+            ]
+            .map(|(id, text)| (crate::MessageId::from(id), text.into()))
+            .into(),
+            server_time: None,
+        },
         msgids: ["RfcBTzyxY120004", "RfcBTzyxY120005", "RfcBTzyxY120006"]
             .map(crate::MessageId::from)
             .into(),
