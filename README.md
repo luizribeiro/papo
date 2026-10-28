@@ -11,8 +11,9 @@ apps actually do: replies, reactions, history, read markers, accounts.
 - **Tested against real servers.** The conformance suite runs live against six setups: Ergo
   (default and persistent), soju in front of Ergo, InspIRCd, Solanum and UnrealIRCd.
 
-papo is young: 0.1 is its first release. Draft and vendor IRCv3 specs sit behind the `unstable`
-feature, which has no semver guarantees. The minimum supported Rust version is 1.91.
+papo is young: 0.1 is its first release. IRCv3 specs that are still unmerged proposals (bouncer
+networks, persistence, relaymsg, Web Push, FILEHOST) sit behind the `unstable` feature, which has
+no semver guarantees. The minimum supported Rust version is 1.91.
 
 ## Quick start
 
@@ -53,7 +54,7 @@ It follows alice through nick changes, and if someone else takes her nick the se
 
 **Types everywhere.** The APIs have types everywhere to prevent mistakes like putting the channel in place of the nick or whatever. Swap a `ChannelName` and a `Nick` in `client.kick(channel, nick, reason)` and it doesn't compile. The only way around it is constructing your own recipient with "#foo", "bar", etc, and then it only gets caught at runtime.
 
-**Multiple connections.** With bouncers you can have channels with the same name in different networks, same nicknames, etc, and it's easy to mix them up accidentally. Typed values remember which client they came from, so passing one to another client gets you a `ForeignReference` error, and #papo on one network isn't equal to #papo on another. If you're on soju, `manager.bouncer().network(&id)` gives you a builder for a client bound to one of its networks.
+**Multiple connections.** With bouncers you can have channels with the same name in different networks, same nicknames, etc, and it's easy to mix them up accidentally. Typed values remember which client they came from, so passing one to another client gets you a `ForeignReference` error, and #papo on one network isn't equal to #papo on another. If you're on soju, with the `unstable` feature, `client.bouncer().network(&id)` gives you a builder for a client bound to one of its networks.
 
 **No guessing.** Guessing feels bad. Being able to report unknown is a good thing so people don't rely on values that aren't guaranteed. When the server replies to a command, papo matches the reply to the request and hands you a typed result:
 
@@ -69,7 +70,7 @@ So an account is `LoggedIn(name)`, `LoggedOut` or `Unknown`, since logged out an
 |---|---|
 | [admin-bot](examples/admin-bot) | Commands addressed by mention, with account-based permissions |
 | [bouncer-networks](examples/bouncer-networks) | Listing and adding soju networks, then binding a second client to one |
-| [browser-worker](examples/browser-worker) | A client in a SharedWorker shared by several tabs |
+| [browser-worker](examples/browser-worker) | Running a client inside a SharedWorker and forwarding its events to the page |
 | [catchup](examples/catchup) | Unread history for a channel, then moving the read marker forward |
 | [create-account](examples/create-account) | Registering an account while connecting, with verification codes |
 | [graceful-shutdown](examples/graceful-shutdown) | Handling SIGINT and SIGTERM and quitting cleanly |
@@ -81,7 +82,7 @@ So an account is `LoggedIn(name)`, `LoggedOut` or `Unknown`, since logged out an
 ## Read more
 
 - [docs.rs/papo](https://docs.rs/papo): the API guide, including platforms and Cargo features
-- [papo-testing](crates/papo-testing): testing your app without a server, and against a local Ergo
+- [papo-testing](crates/papo-testing): testing your app against a scripted in-memory server, plus a guide to end-to-end tests against a local Ergo
 - [CHANGELOG.md](CHANGELOG.md)
 - [docs/](docs): IRCv3 support, conformance results and server notes
 - [CONTRIBUTING.md](CONTRIBUTING.md)
