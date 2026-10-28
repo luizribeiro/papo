@@ -568,6 +568,32 @@ mod name_tests {
     }
 
     #[test]
+    fn user_lookup_accepts_local_names_and_refuses_foreign_names() {
+        let local = crate::Origin::__new(73);
+        let mut config = Config::default().nick("papo");
+        config.origin = local;
+        let mut session = Session::new(config);
+        let now = crate::rt::now_mono();
+        session.handle_line(now, b":papo!p@localhost JOIN #review");
+        session.handle_line(now, b":alice!~alice@cloak.example JOIN #review");
+        let state = State::from_session(&session, true);
+
+        assert_eq!(state.user("ALICE").unwrap().nick(), "alice");
+        assert_eq!(
+            state
+                .user(local.__nick(state.casemapping(), "alice"))
+                .unwrap()
+                .nick(),
+            "alice"
+        );
+        assert!(
+            state
+                .user(crate::Origin::__new(91).__nick(state.casemapping(), "alice"))
+                .is_none()
+        );
+    }
+
+    #[test]
     fn builds_every_name_with_snapshot_rules() {
         let session = Session::new(
             Config::default()
