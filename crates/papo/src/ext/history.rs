@@ -1091,6 +1091,12 @@ mod tests {
         HistoryPage, HistoryReason, HistoryReference, RecentConversation, history_item, reaction,
     };
 
+    fn name_rules(state: &crate::State) -> crate::NameRules<'_> {
+        state
+            .__known_name_rules()
+            .expect("server advertised CASEMAPPING")
+    }
+
     fn core_item(message: &str) -> HistoryLine {
         HistoryLine {
             line: LineRef::parse(message).unwrap().to_owned(),
@@ -1170,8 +1176,20 @@ mod tests {
             .casemapping(Casemapping::default())
             .build();
         for conversation in [
-            crate::Conversation::Channel(first.state().name_rules().channel("#papo")),
-            crate::Conversation::Private(first.state().name_rules().nick("emily")),
+            crate::Conversation::Channel(
+                first
+                    .state()
+                    .__known_name_rules()
+                    .expect("server advertised CASEMAPPING")
+                    .channel("#papo"),
+            ),
+            crate::Conversation::Private(
+                first
+                    .state()
+                    .__known_name_rules()
+                    .expect("server advertised CASEMAPPING")
+                    .nick("emily"),
+            ),
         ] {
             assert!(first.history(conversation.clone()).latest().query.is_ok());
             assert!(matches!(
@@ -1190,13 +1208,25 @@ mod tests {
             .casemapping(Casemapping::default())
             .build();
         let page = HistoryPage {
-            conversation: crate::Conversation::Channel(first.state().name_rules().channel("#papo")),
+            conversation: crate::Conversation::Channel(
+                first
+                    .state()
+                    .__known_name_rules()
+                    .expect("server advertised CASEMAPPING")
+                    .channel("#papo"),
+            ),
             items: Vec::new(),
             reason: HistoryReason::Requested,
             end: false,
         };
         let recent = RecentConversation {
-            conversation: crate::Conversation::Private(first.state().name_rules().nick("emily")),
+            conversation: crate::Conversation::Private(
+                first
+                    .state()
+                    .__known_name_rules()
+                    .expect("server advertised CASEMAPPING")
+                    .nick("emily"),
+            ),
             latest_server_time: UNIX_EPOCH,
         };
 
@@ -1364,17 +1394,28 @@ mod tests {
         let state = client.state();
         for (conversation, expected) in [
             (
-                crate::Conversation::Channel(state.name_rules().channel("#Papo[dev]")),
+                crate::Conversation::Channel(
+                    state
+                        .__known_name_rules()
+                        .expect("server advertised CASEMAPPING")
+                        .channel("#Papo[dev]"),
+                ),
                 "#Papo[dev]",
             ),
             (
-                crate::Conversation::Private(state.name_rules().nick("Emily_")),
+                crate::Conversation::Private(
+                    state
+                        .__known_name_rules()
+                        .expect("server advertised CASEMAPPING")
+                        .nick("Emily_"),
+                ),
                 "Emily_",
             ),
         ] {
             assert_eq!(
                 state
-                    .name_rules()
+                    .__known_name_rules()
+                    .expect("server advertised CASEMAPPING")
                     .conversation(&conversation.to_string())
                     .unwrap()
                     .to_string(),
@@ -1802,7 +1843,7 @@ mod tests {
             Err(Error::InvalidInput(_))
         ));
         let conversation =
-            crate::Conversation::Channel(client.state().name_rules().channel("#papo"));
+            crate::Conversation::Channel(name_rules(&client.state()).channel("#papo"));
         let request = tokio::spawn(async move { client.history(conversation).latest().await });
         client_line(&mut server, b"@label=0 CHATHISTORY LATEST #papo * 100\r\n").await;
         server_line(&mut server, b"@label=0 :ergo.test BATCH +reply labeled-response\r\n@batch=reply;draft/chathistory-end :ergo.test BATCH +history chathistory #papo\r\n@batch=history;time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120004 :emily!~e@localhost PRIVMSG #papo :earlier\r\n@batch=history;+draft/react=eyes;+reply=RfcBTzyxY120004 :emily!~e@localhost TAGMSG #papo\r\n@batch=history :emily!~e@localhost JOIN #papo emily :Emily Smith\r\n@batch=history :ChanServ!service@services MODE #papo +o alice\r\n@batch=history :OperServ!service@services MODE #papo +b *!*@spammer.example\r\n@batch=history :emily!~e@localhost TAGMSG #papo\r\n@batch=reply :ergo.test BATCH -history\r\n:ergo.test BATCH -reply\r\n").await;
@@ -2032,7 +2073,11 @@ mod tests {
         let (mut server, client, mut events, driver) = scripted(config);
         let task = tokio::spawn(driver);
         complete_connect_history(&mut server, &mut events).await;
-        let channel = client.state().name_rules().channel("#papo");
+        let channel = client
+            .state()
+            .__known_name_rules()
+            .expect("server advertised CASEMAPPING")
+            .channel("#papo");
         let request = tokio::spawn(async move {
             client
                 .recent_conversations(
@@ -2080,7 +2125,13 @@ mod tests {
             Err(Error::InvalidInput(_))
         ));
         assert_eq!(client.state().read_marker("#papo"), None);
-        let channel = crate::Conversation::Channel(client.state().name_rules().channel("#papo"));
+        let channel = crate::Conversation::Channel(
+            client
+                .state()
+                .__known_name_rules()
+                .expect("server advertised CASEMAPPING")
+                .channel("#papo"),
+        );
         let request = tokio::spawn(async move { client.mark_read(channel, time).await });
         client_line(
             &mut server,
@@ -2120,7 +2171,13 @@ mod tests {
             client.fetch_read_marker("$opers").await,
             Err(Error::InvalidInput(_))
         ));
-        let channel = crate::Conversation::Channel(client.state().name_rules().channel("#papo"));
+        let channel = crate::Conversation::Channel(
+            client
+                .state()
+                .__known_name_rules()
+                .expect("server advertised CASEMAPPING")
+                .channel("#papo"),
+        );
         let request = tokio::spawn({
             let client = client.clone();
             async move { client.fetch_read_marker(channel).await }
