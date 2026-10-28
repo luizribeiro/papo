@@ -101,6 +101,18 @@ impl Typer {
     pub fn return_address(&self) -> String {
         self.return_address.clone()
     }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __conversation(&self) -> &Conversation {
+        &self.conversation
+    }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __return_address(&self) -> &str {
+        &self.return_address
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -157,6 +169,13 @@ impl TypingTable {
             entries: self.entries.iter(),
             conversation,
         }
+    }
+
+    #[doc(hidden)]
+    pub fn __entries(&self) -> impl Iterator<Item = (&Conversation, &Typer)> {
+        self.entries
+            .iter()
+            .map(|(conversation, typer)| (conversation, typer))
     }
 
     pub(crate) fn same_entries(&self, other: &Self) -> bool {

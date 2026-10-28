@@ -103,6 +103,33 @@ fn status_target_updates_typing_state_and_deadline() {
 }
 
 #[test]
+fn retained_typers_preserve_private_and_status_audiences() {
+    for (line, conversation_name, expected) in [
+        (
+            "@+typing=active :alice!~a@cloak TAGMSG papo",
+            "alice",
+            "alice",
+        ),
+        (
+            "@+typing=active :operator!~o@staff.example TAGMSG @#ops",
+            "#ops",
+            "@#ops",
+        ),
+    ] {
+        Transcript::new(Config::default().nick("papo"))
+            .server(":ergo.test 005 papo STATUSMSG=@+ :are supported")
+            .server(line)
+            .event(|event| matches!(event, Event::TypingChanged(_)))
+            .inspect(|session| {
+                let conversation = conversation(session, conversation_name);
+                let typer = session.state().typing(&conversation).next().unwrap();
+                assert_eq!(typer.return_address(), expected);
+            })
+            .no_event();
+    }
+}
+
+#[test]
 fn status_target_replaces_public_typing_state() {
     Transcript::new(Config::default().nick("papo"))
         .connect()
