@@ -8,6 +8,12 @@ use papo_test_server::DeploymentProfile;
 use super::support::{assert_refusal, join_seen_by, subject_name, wait_channel_mode};
 use crate::Scenario;
 
+fn name_rules(state: &papo::State) -> papo::NameRules<'_> {
+    state
+        .__known_name_rules()
+        .expect("server advertised CASEMAPPING")
+}
+
 /// delivers every user lost behind a server link as a marked quit
 #[scenario(
     requires(caps = ["batch"]),
@@ -1211,7 +1217,7 @@ async fn topic(s: Scenario) -> papo_testing::Result<()> {
     // InspIRCd requires linked-network topic timestamps to advance before another change.
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     alice
-        .clear_topic(alice.state().name_rules().channel(&channel))
+        .clear_topic(name_rules(&alice.state()).channel(&channel))
         .await?;
     for peer in [&mut alice, &mut bob, &mut carol] {
         let changed = peer.wait_for(Event::as_topic_changed).await?;
@@ -1265,10 +1271,8 @@ async fn channel_mode_lists(s: Scenario) -> papo_testing::Result<()> {
     let channel = s.channel_name();
     let mapping = alice.state().casemapping();
     let channel_name = mapping.channel(&channel);
-    let mask = alice
-        .state()
-        .name_rules()
-        .mask("troublesome!*@gateway.example");
+    let state = alice.state();
+    let mask = name_rules(&state).mask("troublesome!*@gateway.example");
     alice.join(&channel).await?;
     alice.mode(&channel).ban(&mask).await?;
 
@@ -1330,10 +1334,8 @@ async fn channel_mode_lists(s: Scenario) -> papo_testing::Result<()> {
 async fn channel_mode_exceptions(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     let channel = s.channel_name();
-    let mask = alice
-        .state()
-        .name_rules()
-        .mask("reviewer!*@trusted.example");
+    let state = alice.state();
+    let mask = name_rules(&state).mask("reviewer!*@trusted.example");
     alice.join(&channel).await?;
     alice
         .mode(&channel)
@@ -1582,7 +1584,7 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
     let mask = format!("{carol_nick}!*@*");
     alice
         .mode(&channel)
-        .ban(alice.state().name_rules().mask(&mask))
+        .ban(name_rules(&alice.state()).mask(&mask))
         .await?;
     wait_channel_mode(&mut bob, &channel, 'b').await?;
     assert_refusal(
@@ -1593,7 +1595,7 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
 
     alice
         .mode(&channel)
-        .unban(alice.state().name_rules().mask(mask))
+        .unban(name_rules(&alice.state()).mask(mask))
         .add('i')
         .await?;
     wait_channel_mode(&mut bob, &channel, 'i').await?;

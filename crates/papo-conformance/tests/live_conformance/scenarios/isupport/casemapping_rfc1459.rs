@@ -59,7 +59,11 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert_eq!(joined.channel.as_ref(), mixed_channel);
     assert_eq!(
-        square.state().name_rules().channel(&mixed_channel),
+        square
+            .state()
+            .__known_name_rules()
+            .expect("server advertised CASEMAPPING")
+            .channel(&mixed_channel),
         lowercase_channel.as_str()
     );
     assert!(square.state().channel(&lowercase_channel).is_some());
@@ -113,7 +117,14 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
         .member(alice_folded_nick.as_str())
         .unwrap();
     assert_eq!(own_member.nick().as_ref(), alice_nick);
-    assert_eq!(alice.state().name_rules().channel(&chan), folded.as_str());
+    assert_eq!(
+        alice
+            .state()
+            .__known_name_rules()
+            .expect("server advertised CASEMAPPING")
+            .channel(&chan),
+        folded.as_str()
+    );
     let text = "folded channel target";
     alice.privmsg(&folded, text).await?;
     let message = bob

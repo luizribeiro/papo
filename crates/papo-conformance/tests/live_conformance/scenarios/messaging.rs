@@ -7,6 +7,12 @@ use super::support::{
 };
 use crate::{Peer, Scenario};
 
+fn name_rules(state: &papo::State) -> papo::NameRules<'_> {
+    state
+        .__known_name_rules()
+        .expect("server advertised CASEMAPPING")
+}
+
 async fn fixture_pair(context: &Scenario) -> papo_testing::Result<(Peer, Peer, String)> {
     fixture_pair_with(context, context.configure("alice")?).await
 }
@@ -230,7 +236,8 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     let channel = s.channel_name();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
-    let channel = alice.state().name_rules().channel(channel);
+    let state = alice.state();
+    let channel = name_rules(&state).channel(channel);
     let sent = alice
         .privmsg(&bob_direct, "private thread reply")
         .channel_context(&channel)
@@ -419,7 +426,8 @@ async fn status_message_or_higher(s: Scenario) -> papo_testing::Result<()> {
     let mut bob = s.connect("bob").await?;
     let mut carol = s.connect("carol").await?;
     let mut dave = s.connect("dave").await?;
-    let channel = alice.state().name_rules().channel(s.channel_name());
+    let state = alice.state();
+    let channel = name_rules(&state).channel(s.channel_name());
     alice.join(&channel).await?;
     bob.join(&channel).await?;
     carol.join(&channel).await?;
@@ -781,7 +789,8 @@ async fn typing_status_target(s: Scenario) -> papo_testing::Result<()> {
     let mut bob = s.connect("bob").await?;
     let mut carol = s.connect("carol").await?;
     let mut dave = s.connect("dave").await?;
-    let channel = alice.state().name_rules().channel(s.channel_name());
+    let state = alice.state();
+    let channel = name_rules(&state).channel(s.channel_name());
     alice.join(&channel).await?;
     bob.join(&channel).await?;
     carol.join(&channel).await?;
@@ -898,7 +907,7 @@ async fn draft_message_redaction(s: Scenario) -> papo_testing::Result<()> {
     let Error::Server(refusal) = alice
         .redact(
             (
-                alice.state().name_rules().channel(&channel),
+                name_rules(&alice.state()).channel(&channel),
                 "missing-message-id",
             ),
             "unknown message",

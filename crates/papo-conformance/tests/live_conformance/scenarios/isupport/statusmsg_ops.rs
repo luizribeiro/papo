@@ -235,7 +235,11 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(leaked.in_reply_to.as_ref(), Some(&question_id));
     }
 
-    let bare_channel = bob.state().name_rules().channel(&channel);
+    let bare_channel = bob
+        .state()
+        .__known_name_rules()
+        .expect("server advertised CASEMAPPING")
+        .channel(&channel);
     bob.react((&bare_channel, &question_id), "📣").await?;
     for peer in [&mut alice, &mut carol, &mut dave] {
         let leaked = peer
