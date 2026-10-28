@@ -1598,10 +1598,6 @@ impl Event {
         }
     }
 
-    #[allow(
-        clippy::match_same_arms,
-        reason = "stable variants stay explicit while the wildcard covers feature-gated variants"
-    )]
     pub(crate) fn overflow_class(&self) -> OverflowClass<'_> {
         let (priority, conversation) = match self {
             Self::Message(event) => (OverflowPriority::Message, Some(&event.conversation)),
@@ -1634,19 +1630,6 @@ impl Event {
             | Self::MonitorOnline(_)
             | Self::MonitorOffline(_)
             | Self::TypingChanged(_) => (OverflowPriority::State, None),
-            Self::Connecting(_)
-            | Self::Connected(_)
-            | Self::Lagged(_)
-            | Self::Motd(_)
-            | Self::ServerNotice(_)
-            | Self::Other(_)
-            | Self::StandardReply(_)
-            | Self::AccountCreation(_)
-            | Self::History(_)
-            | Self::Warning(_)
-            | Self::AutoJoinFailed(_)
-            | Self::Invited(_)
-            | Self::Disconnected(_) => (OverflowPriority::Other, None),
             _ => (OverflowPriority::Other, None),
         };
         OverflowClass {
