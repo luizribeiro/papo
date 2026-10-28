@@ -8825,6 +8825,74 @@ async fn overflow_drops_oldest_and_reports_one_lagged_count() {
     ));
 }
 
+#[test]
+fn multi_thread_stress_accounts_for_every_emitted_message() {
+    for iteration in 0_u64..200 {
+        let capacity = usize::try_from(iteration % 4 + 1).unwrap();
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_time()
+            .build()
+            .unwrap();
+        let (mut server, _client, mut events, driver) = scripted_with_capacity(config(), capacity);
+        let driver = runtime.spawn(driver);
+        runtime.block_on(complete_connect(&mut server, &mut events));
+        let receiver = Arc::clone(&events.receiver);
+        let dropped = Arc::clone(&events.dropped);
+        let consumer = std::thread::spawn(move || {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_time()
+                .build()
+                .unwrap();
+            let mut entropy = iteration.wrapping_add(0x9e37_79b9_7f4a_7c15);
+            let mut delivered = 0_u64;
+            let mut reported = 0_u64;
+            loop {
+                entropy = entropy
+                    .wrapping_mul(6_364_136_223_846_793_005)
+                    .wrapping_add(1_442_695_040_888_963_407);
+                for _ in 0..entropy % 5 {
+                    std::thread::yield_now();
+                }
+                match runtime.block_on(events.next()) {
+                    Some(Event::Message(_)) => delivered += 1,
+                    Some(Event::Lagged(lagged)) => reported += lagged.dropped,
+                    Some(_) => {}
+                    None => break,
+                }
+            }
+            (delivered, reported)
+        });
+
+        runtime.block_on(async {
+            let mut lines = String::new();
+            for index in 0..64 {
+                writeln!(
+                    lines,
+                    "@msgid=RfcBTzyxY12{index:04} :emily!e@localhost PRIVMSG #papo :deployment update {index}\r"
+                )
+                .unwrap();
+            }
+            lines.push_str("PING :ergo.test\r\n");
+            server_line(&mut server, lines.as_bytes()).await;
+            client_line(&mut server, b"PONG ergo.test\r\n").await;
+            while receiver.len() != 0 || dropped.lock().unwrap().count != 0 {
+                tokio::task::yield_now().await;
+            }
+            server.shutdown().await.unwrap();
+        });
+        assert!(matches!(
+            runtime.block_on(driver).unwrap(),
+            Err(disconnected!())
+        ));
+        let (delivered, reported) = consumer.join().unwrap();
+        assert_eq!(
+            delivered + reported,
+            64,
+            "iteration {iteration}, capacity {capacity}"
+        );
+    }
+}
+
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn session_deadline_sends_keepalive_ping() {
     let config = config()

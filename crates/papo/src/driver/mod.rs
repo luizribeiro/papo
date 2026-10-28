@@ -1951,7 +1951,16 @@ fn send_event(events: &EventSink, event: Event) {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .record(&discarded);
     }
-    _ = events.regular.try_send(event);
+    match events.regular.try_send(event) {
+        Ok(()) | Err(mpsc::error::TrySendError::Closed(_)) => {}
+        Err(mpsc::error::TrySendError::Full(event)) => {
+            events
+                .dropped
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .record(&event);
+        }
+    }
 }
 
 fn resolve_sync_waiters(
