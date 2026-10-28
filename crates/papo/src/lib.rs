@@ -62,7 +62,7 @@
 //! APIs gated by the `unstable` feature are outside the crate's semantic-versioning guarantees.
 //! Applications can opt in while libraries should leave the feature disabled.
 //!
-//! # IRCv3 support
+//! # `IRCv3` support
 //!
 //! <!-- caps:start -->
 //! | Capability | Aliases | Requested | Features | Code |

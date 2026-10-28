@@ -52,11 +52,7 @@ fn replace(path: &Path, rustdoc: bool, table: &str) {
 #[test]
 fn crate_docs_match_the_capability_registry() {
     let crate_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let lib = crate_dir
-        .parent()
-        .unwrap()
-        .join("papo")
-        .join("src/lib.rs");
+    let lib = crate_dir.parent().unwrap().join("papo").join("src/lib.rs");
     let expected = papo_core::cap::markdown_table();
     if std::env::var_os("PAPO_BLESS").is_some() {
         replace(&lib, true, &expected);
