@@ -129,6 +129,10 @@
 "security::typing_status_change_preserves_the_latest_audience" = [
   "security.st-13.typing-status-audience",
 ]
+"typing_reply::retained_typers_reply_to_private_and_ops_only_audiences" = [
+  "security.adv-7.private-line-recipient-guards",
+  "security.st-13.typing-status-audience",
+]
 "security::channel_keys_are_redacted_across_state_and_events" = [
   "security.st-4.channel-key-redaction",
 ]
