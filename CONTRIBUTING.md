@@ -10,6 +10,7 @@
 | `papo-core` | Internal: the sans-I/O client engine and tracked state. No I/O. |
 | `papo-bot` | Bot helpers. Unreleased. |
 | `papo-conformance`, `papo-test-server` | The live conformance suite and its test server. |
+| `papo-conformance-macros` | Unpublished procedural macros supporting the conformance suite. |
 
 `papo-proto` and `papo-core` are published only because `papo` depends on them, and they move in
 lockstep with it.
@@ -23,8 +24,9 @@ nix develop -c pre-commit run --all-files
 nix develop -c pre-commit run --all-files --hook-stage pre-push
 ```
 
-The second line runs the slow tier: tests on native, WASI and the browser, docs, fuzzing and the
-conformance matrix.
+The second line runs the slow tier: tests on native, WASI and the browser, doctests and docs, WASI
+build checks, feature parity, fuzzing, and `nix flake check`, which runs the live conformance suite
+on every server setup.
 
 ## Tests
 
