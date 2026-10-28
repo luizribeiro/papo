@@ -61,6 +61,6 @@ pub use numeric::Numeric;
 pub use secret::Secret;
 pub use server_name::ServerName;
 pub use source::Source;
-pub use text::{Segment, split_text};
+pub use text::{Segment, SegmentBoundary, split_text};
 pub use views::{Account, Away, Chghost, Join, Setname, StandardReply, StandardReplyKind};
 pub use whox::{WhoxFlags, WhoxPresence, WhoxReply};

@@ -1,31 +1,58 @@
 /// One byte-bounded portion of outgoing message text.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Segment<'a> {
-    /// Text to send, excluding an embedded newline separator.
+    /// Text to send, excluding a following embedded newline separator.
     pub text: &'a str,
-    /// Whether the following segment continues this segment without a separator.
-    pub concat: bool,
+    /// The boundary between this segment and the next one.
+    pub boundary: SegmentBoundary,
 }
 
-/// Splits message text into nonempty segments of at most `budget` bytes.
+/// What follows one outgoing text segment.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[non_exhaustive]
+pub enum SegmentBoundary {
+    /// The input ends after this segment.
+    End,
+    /// Papo split the input to fit a byte limit.
+    Split,
+    /// The user supplied a newline after this segment.
+    Newline,
+}
+
+/// Splits message text into segments of at most `budget` bytes.
 ///
 /// Spaces are retained at the end of the preceding segment when possible. Words
-/// longer than the budget are divided at UTF-8 boundaries and marked for
-/// concatenation. Embedded newlines always form boundaries and are discarded. The
-/// second tuple element is the unsplit suffix when no UTF-8 character fits the budget.
+/// longer than the budget are divided at UTF-8 boundaries. Empty segments preserve
+/// user-supplied blank lines. The second tuple element is the unsplit suffix when no
+/// UTF-8 character fits the budget.
 #[must_use]
 pub fn split_text(text: &str, budget: usize) -> (Vec<Segment<'_>>, &str) {
     let mut segments = Vec::new();
     if budget == 0 {
         return (segments, text);
     }
-    for line in text.split('\n') {
+    let mut lines = text.split('\n').peekable();
+    while let Some(line) = lines.next() {
+        let line_boundary = if lines.peek().is_some() {
+            SegmentBoundary::Newline
+        } else {
+            SegmentBoundary::End
+        };
+        if line.is_empty() {
+            if !text.is_empty() {
+                segments.push(Segment {
+                    text: line,
+                    boundary: line_boundary,
+                });
+            }
+            continue;
+        }
         let mut remaining = line;
         while !remaining.is_empty() {
             if remaining.len() <= budget {
                 segments.push(Segment {
                     text: remaining,
-                    concat: false,
+                    boundary: line_boundary,
                 });
                 break;
             }
@@ -40,7 +67,7 @@ pub fn split_text(text: &str, budget: usize) -> (Vec<Segment<'_>>, &str) {
                 .map_or(boundary, |space| space + 1);
             segments.push(Segment {
                 text: &remaining[..split],
-                concat: split == boundary && !remaining[..split].ends_with(' '),
+                boundary: SegmentBoundary::Split,
             });
             remaining = &remaining[split..];
         }

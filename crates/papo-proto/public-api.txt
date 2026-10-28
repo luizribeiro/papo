@@ -360,6 +360,28 @@ impl core::marker::Unpin for papo_proto::Rank
 impl core::marker::UnsafeUnpin for papo_proto::Rank
 impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::Rank
 impl core::panic::unwind_safe::UnwindSafe for papo_proto::Rank
+#[non_exhaustive] pub enum papo_proto::SegmentBoundary
+pub papo_proto::SegmentBoundary::End
+pub papo_proto::SegmentBoundary::Newline
+pub papo_proto::SegmentBoundary::Split
+impl core::clone::Clone for papo_proto::SegmentBoundary
+pub fn papo_proto::SegmentBoundary::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::SegmentBoundary
+impl core::cmp::PartialEq for papo_proto::SegmentBoundary
+pub fn papo_proto::SegmentBoundary::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo_proto::SegmentBoundary
+pub fn papo_proto::SegmentBoundary::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_proto::SegmentBoundary
+pub fn papo_proto::SegmentBoundary::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for papo_proto::SegmentBoundary
+impl core::marker::StructuralPartialEq for papo_proto::SegmentBoundary
+impl core::marker::Freeze for papo_proto::SegmentBoundary
+impl core::marker::Send for papo_proto::SegmentBoundary
+impl core::marker::Sync for papo_proto::SegmentBoundary
+impl core::marker::Unpin for papo_proto::SegmentBoundary
+impl core::marker::UnsafeUnpin for papo_proto::SegmentBoundary
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::SegmentBoundary
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::SegmentBoundary
 pub enum papo_proto::Source<'a>
 pub papo_proto::Source::Server(&'a str)
 #[non_exhaustive] pub papo_proto::Source::User
@@ -1562,7 +1584,7 @@ impl core::marker::UnsafeUnpin for papo_proto::Secret
 impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::Secret
 impl core::panic::unwind_safe::UnwindSafe for papo_proto::Secret
 pub struct papo_proto::Segment<'a>
-pub papo_proto::Segment::concat: bool
+pub papo_proto::Segment::boundary: papo_proto::SegmentBoundary
 pub papo_proto::Segment::text: &'a str
 impl<'a> core::clone::Clone for papo_proto::Segment<'a>
 pub fn papo_proto::Segment<'a>::clone(&self) -> Self

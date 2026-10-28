@@ -3996,7 +3996,7 @@ impl Session {
         if !leftover.is_empty() {
             return Err(RequestError::Build(BuildError::LineTooLong));
         }
-        if segments.is_empty() {
+        if segments.is_empty() || segments.iter().all(|segment| segment.text.is_empty()) {
             return Err(RequestError::EmptyText);
         }
         let labelled = self.caps.enabled().contains_key(&cap::LABELED_RESPONSE)
@@ -4021,9 +4021,9 @@ impl Session {
                     };
                     let separator = usize::from(
                         end > start
-                            && segments
-                                .get(end - 1)
-                                .is_some_and(|previous| !previous.concat),
+                            && segments.get(end - 1).is_some_and(|previous| {
+                                previous.boundary == papo_proto::SegmentBoundary::Newline
+                            }),
                     );
                     if bytes + separator + segment.text.len() > limits.max_bytes {
                         break;
@@ -4052,14 +4052,20 @@ impl Session {
                     let previous = offset
                         .checked_sub(1)
                         .and_then(|index| batch_segments.get(index));
-                    if previous.is_some_and(|previous| !previous.concat) {
+                    if previous.is_some_and(|previous| {
+                        previous.boundary == papo_proto::SegmentBoundary::Newline
+                    }) {
                         confirmation_text.push('\n');
                     }
                     confirmation_text.push_str(segment.text);
                     let mut inner = Line::new(kind.command())
                         .with_params([target, segment.text])
                         .with_tag(cap::BATCH.as_str(), &id);
-                    if previous.is_some_and(|previous| previous.concat) {
+                    if !segment.text.is_empty()
+                        && previous.is_some_and(|previous| {
+                            previous.boundary == papo_proto::SegmentBoundary::Split
+                        })
+                    {
                         inner = inner.with_tag("draft/multiline-concat", "");
                     }
                     lines.push(inner.encode()?);
@@ -4070,7 +4076,11 @@ impl Session {
                 batch_count += 1;
             }
         } else {
-            for (index, segment) in segments.iter().enumerate() {
+            for (index, segment) in segments
+                .iter()
+                .filter(|segment| !segment.text.is_empty())
+                .enumerate()
+            {
                 confirmation_texts.push(segment.text.to_owned());
                 let mut message = Line::new(kind.command()).with_params([target, segment.text]);
                 for &(key, value) in tags {
