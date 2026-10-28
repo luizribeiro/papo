@@ -28,6 +28,10 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
         ConversationClass::Event,
     ),
     (
+        "pub papo::event::MessageGap::conversation: papo::Conversation",
+        ConversationClass::Event,
+    ),
+    (
         "pub papo::event::Notice::conversation: papo::Conversation",
         ConversationClass::Event,
     ),

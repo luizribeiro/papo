@@ -40,7 +40,7 @@ pub use channel::{
 };
 pub use connection::{
     CapsChanged, CasemappingChanged, ConnectPhase, Connected, Connecting, FeaturesChanged, Lagged,
-    Motd,
+    MessageGap, Motd,
 };
 pub use conversation::{
     Broadcast, BroadcastCtcp, BroadcastTagMsg, Reacted, ReactionAction, ReadMarkerChanged,

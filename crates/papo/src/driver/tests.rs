@@ -8431,7 +8431,7 @@ async fn only_pending_request_enables_read_ahead() {
     assert_eq!(within(whois).await.unwrap().unwrap().nick, "alice");
     assert!(matches!(
         next_event(&mut events).await,
-        Some(Event::Lagged(crate::event::Lagged { dropped: 1 }))
+        Some(Event::Lagged(crate::event::Lagged { dropped: 1, .. }))
     ));
     assert!(matches!(
         next_event(&mut events).await,
@@ -8671,7 +8671,7 @@ async fn disconnect_follows_the_retained_event_after_lag() {
     ));
     assert!(matches!(
         next_event(&mut events).await,
-        Some(Event::Lagged(crate::event::Lagged { dropped: 1 }))
+        Some(Event::Lagged(crate::event::Lagged { dropped: 1, .. }))
     ));
     assert_eq!(
         events
@@ -8738,7 +8738,7 @@ async fn overflow_drops_oldest_and_reports_one_lagged_count() {
 
     assert!(matches!(
         next_event(&mut events).await,
-        Some(Event::Lagged(crate::event::Lagged { dropped: 2 }))
+        Some(Event::Lagged(crate::event::Lagged { dropped: 2, .. }))
     ));
     for expected in [
         "deployment update three",

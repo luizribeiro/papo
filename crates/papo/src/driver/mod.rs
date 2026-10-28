@@ -518,7 +518,10 @@ impl Stream for Events {
         }
         let dropped = self.dropped.swap(0, Ordering::Relaxed);
         if dropped != 0 {
-            return task::Poll::Ready(Some(Event::Lagged(crate::event::Lagged { dropped })));
+            return task::Poll::Ready(Some(Event::Lagged(crate::event::Lagged {
+                dropped,
+                gaps: Vec::new(),
+            })));
         }
         match self.receiver.poll_recv(context) {
             task::Poll::Ready(Some(event)) => return task::Poll::Ready(Some(event)),
