@@ -23,6 +23,16 @@
 ]
 "security::every_private_line_reference_refuses_a_nickname_handoff" = [
   "security.adv-7.private-line-recipient-guards",
+  "security.dm-direct.send-path-enumeration",
+]
+"direct_identity::direct_ref_follows_rename_and_refuses_a_nickname_takeover" = [
+  "security.dm-direct.guarded-targets",
+]
+"direct_monitor::direct_ref_monitors_an_unshared_user_and_releases_the_entry" = [
+  "security.dm-direct.monitor-lifecycle",
+]
+"direct_queue::queued_direct_line_is_rechecked_after_a_nickname_takeover" = [
+  "security.dm-direct.write-time-recheck",
 ]
 "security::private_recipient_guard_survives_many_unrelated_departures" = [
   "security.adv-12.recipient-identity",
