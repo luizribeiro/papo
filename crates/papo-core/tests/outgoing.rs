@@ -754,6 +754,36 @@ fn text_response_retains_labelled_echo_identity() {
 }
 
 #[test]
+fn detailed_send_reports_each_confirmed_text_after_splitting() {
+    let now = Instant::now();
+    let mut plain = Session::new(
+        Config::default()
+            .wanted_caps(["echo-message", "labeled-response"])
+            .rate_limit(RateLimit::unlimited()),
+    );
+    plain.handle_connected(now);
+    plain.handle_line(now, b"CAP * LS :echo-message labeled-response");
+    plain.handle_line(now, b"CAP * ACK :echo-message labeled-response");
+    while plain.poll_transmit().is_some() {}
+    let sent = plain
+        .send_text_detailed(now, TextKind::Privmsg, "#papo", &"a".repeat(600), &[])
+        .unwrap();
+    assert_eq!(sent.texts, ["a".repeat(420), "a".repeat(180)]);
+
+    let mut multiline = multiline_session(now, "max-bytes=512,max-lines=3", true);
+    let sent = multiline
+        .send_text_detailed(
+            now,
+            TextKind::Privmsg,
+            "#papo",
+            "deployment started\ndeployment finished",
+            &[],
+        )
+        .unwrap();
+    assert_eq!(sent.texts, ["deployment started\ndeployment finished"]);
+}
+
+#[test]
 fn text_without_both_echo_and_labels_resolves_on_write() {
     let now = Instant::now();
     for offered in ["echo-message", "labeled-response"] {

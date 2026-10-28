@@ -234,12 +234,14 @@ const MAX_CTCP_SOURCES: usize = 1024;
 
 /// Details about text queued by [`Session::send_text_detailed`].
 #[doc(hidden)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SendTextResult {
     /// Correlation identifier when labeled responses are enabled.
     pub request: Option<RequestId>,
     /// Write-completion identifier when no server response is expected.
     pub transmit: Option<TransmitToken>,
+    /// Text represented by each expected server confirmation.
+    pub texts: Vec<String>,
     /// Number of server confirmations expected for the request.
     pub confirmations: usize,
     /// Whether the text was divided into multiple message lines.
@@ -3996,6 +3998,7 @@ impl Session {
         let id = RequestId(self.next_request_id);
         let label_prefix = labelled.then(|| encode_label(self.next_request_id));
         let mut labels = Vec::new();
+        let mut confirmation_texts = Vec::new();
         let mut lines = Vec::new();
         let mut batch_count = 0;
         if let Some(limits) = multiline.filter(|_| text.contains('\n') || segments.len() > 1) {
@@ -4035,7 +4038,16 @@ impl Session {
                 let Some(batch_segments) = segments.get(start..end) else {
                     return Err(RequestError::Build(BuildError::LineTooLong));
                 };
+                let mut confirmation_text = String::new();
                 for (offset, segment) in batch_segments.iter().enumerate() {
+                    if offset > 0
+                        && batch_segments
+                            .get(offset - 1)
+                            .is_some_and(|previous| !previous.concat)
+                    {
+                        confirmation_text.push('\n');
+                    }
+                    confirmation_text.push_str(segment.text);
                     let mut inner = Line::new(kind.command())
                         .with_params([target, segment.text])
                         .with_tag(cap::BATCH.as_str(), &id);
@@ -4048,12 +4060,14 @@ impl Session {
                     }
                     lines.push(inner.encode()?);
                 }
+                confirmation_texts.push(confirmation_text);
                 lines.push(Line::new("BATCH").param(format!("-{id}")).encode()?);
                 start = end;
                 batch_count += 1;
             }
         } else {
             for (index, segment) in segments.iter().enumerate() {
+                confirmation_texts.push(segment.text.to_owned());
                 let mut message = Line::new(kind.command()).with_params([target, segment.text]);
                 for &(key, value) in tags {
                     if index == 0 || !outgoing::first_line_only(key) {
@@ -4085,6 +4099,7 @@ impl Session {
             request: labelled.then_some(id),
             transmit,
             confirmations: labels.len(),
+            texts: confirmation_texts,
             split: segments.len() > 1,
         })
     }
