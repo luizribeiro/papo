@@ -347,6 +347,112 @@ fn sends_six_hundred_bytes_as_one_labelled_multiline_batch() {
 }
 
 #[test]
+fn every_automatic_split_concatenates_across_a_multiline_batch() {
+    let now = Instant::now();
+    let mut session = multiline_session(now, "max-bytes=4096,max-lines=100", true);
+    let paragraph_first = concat!(
+        "During Tuesday's deployment, the relay workers drained queued notifications before ",
+        "rotating credentials, then operators verified delivery across every regional edge. ",
+        "The follow-up review compared message identifiers, timestamps, and recipient counts so ",
+        "the team could confirm that no update was duplicated or silently dropped. ",
+        "Every audit sample matched the expected route before the maintenance window finally ",
+        "closed. "
+    );
+    let paragraph_second = concat!(
+        "The overnight operator then published the final report and kept the incident room open ",
+        "until every regional observer acknowledged the restored service."
+    );
+    assert_eq!(paragraph_first.len(), 419);
+    let url = format!(
+        "https://downloads.example.net/releases/{}checksums.txt",
+        "release-candidate-2026-10-28/".repeat(16)
+    );
+    let (url_first, url_second) = url.split_at(420);
+    let multibyte = format!("café{}", "é".repeat(210));
+    let (multibyte_first, multibyte_second) = multibyte.split_at(419);
+    let text = format!("{paragraph_first}{paragraph_second}\n{url}\n{multibyte}");
+
+    let sent = session
+        .send_text_detailed(now, TextKind::Privmsg, "#papo", &text, &[])
+        .unwrap();
+    assert_eq!(sent.texts.len(), 1);
+    assert_eq!(sent.texts[0], text);
+    assert_eq!(
+        drain(&mut session),
+        [
+            "@label=0 BATCH +b0-0 draft/multiline #papo\r\n".into(),
+            format!("@batch=b0-0 PRIVMSG #papo :{paragraph_first}\r\n"),
+            format!("@batch=b0-0;draft/multiline-concat PRIVMSG #papo :{paragraph_second}\r\n"),
+            format!("@batch=b0-0 PRIVMSG #papo {url_first}\r\n"),
+            format!("@batch=b0-0;draft/multiline-concat PRIVMSG #papo {url_second}\r\n"),
+            format!("@batch=b0-0 PRIVMSG #papo {multibyte_first}\r\n"),
+            format!("@batch=b0-0;draft/multiline-concat PRIVMSG #papo {multibyte_second}\r\n"),
+            "BATCH -b0-0\r\n".into(),
+        ]
+    );
+
+    let mut receiver = Session::new(Config::default());
+    receiver.handle_line(
+        now,
+        b":papo!~papo@localhost BATCH +echo draft/multiline #papo",
+    );
+    for (part, concat) in [
+        (paragraph_first, false),
+        (paragraph_second, true),
+        (url_first, false),
+        (url_second, true),
+        (multibyte_first, false),
+        (multibyte_second, true),
+    ] {
+        let tag = if concat {
+            "@batch=echo;draft/multiline-concat"
+        } else {
+            "@batch=echo"
+        };
+        receiver.handle_line(
+            now,
+            format!("{tag} :papo!~papo@localhost PRIVMSG #papo :{part}").as_bytes(),
+        );
+    }
+    receiver.handle_line(now, b":papo!~papo@localhost BATCH -echo");
+    assert!(matches!(
+        receiver.poll_event(),
+        Some(Event::MultilineMessage(message))
+            if message.message.as_ref().param(1) == Some(text.as_str())
+    ));
+}
+
+#[test]
+fn blank_multiline_components_preserve_user_newlines_without_concat() {
+    let now = Instant::now();
+    let mut session = multiline_session(now, "max-bytes=512,max-lines=4", true);
+    let sent = session
+        .send_text_detailed(
+            now,
+            TextKind::Notice,
+            "#papo",
+            "maintenance started\n\nmaintenance finished\n",
+            &[],
+        )
+        .unwrap();
+    assert_eq!(
+        sent.texts,
+        ["maintenance started\n\nmaintenance finished\n"]
+    );
+    assert_eq!(
+        drain(&mut session),
+        [
+            "@label=0 BATCH +b0-0 draft/multiline #papo\r\n",
+            "@batch=b0-0 NOTICE #papo :maintenance started\r\n",
+            "@batch=b0-0 NOTICE #papo :\r\n",
+            "@batch=b0-0 NOTICE #papo :maintenance finished\r\n",
+            "@batch=b0-0 NOTICE #papo :\r\n",
+            "BATCH -b0-0\r\n",
+        ]
+    );
+}
+
+#[test]
 fn sends_a_fitting_single_line_without_a_multiline_batch() {
     let now = Instant::now();
     let mut session = multiline_session(now, "max-bytes=4096,max-lines=100", true);
