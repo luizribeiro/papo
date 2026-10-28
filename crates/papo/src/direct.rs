@@ -143,6 +143,14 @@ impl crate::Client {
     /// identity before this future resolves. The monitor entry is removed when the last handle
     /// owning it is dropped.
     ///
+    /// ```no_run
+    /// # async fn send(client: &papo::Client) -> Result<(), papo::Error> {
+    /// let alice = client.direct("alice").await?;
+    /// client.privmsg(&alice, "release approved").await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
     /// # Errors
     ///
     /// Returns [`crate::Error::MonitorFull`] when the server's advertised `MONITOR` limit is already

@@ -122,6 +122,19 @@
 //! Text retained by `papo` takes `impl Into<String>`, while text inspected only for the duration
 //! of a call is borrowed as `&str` or `impl AsRef<str>`. Retained lists similarly take
 //! `IntoIterator` with items implementing `Into<String>`.
+//!
+//! # Client-bound values
+//!
+//! Typed names, direct handles, message references, and history cursors retain the [`Client`]
+//! that produced them. Passing one to another client returns
+//! [`InvalidInput::ForeignReference`]. Same-named channels from two clients therefore compare
+//! unequal, although each compares equal to the same plain string. Converting a typed name into
+//! a string explicitly discards this protection.
+//!
+//! The sealed [`Target`] trait accepts channel text, typed channels, guarded direct handles, and
+//! return addresses. Nickname text and typed nicknames are refused as message targets; use
+//! [`Client::direct`] to capture a guarded recipient or [`Client::send_raw`] as the explicit
+//! escape hatch for an unguarded protocol line.
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
