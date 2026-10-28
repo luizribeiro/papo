@@ -37,10 +37,12 @@ async fn statusmsg_peers(s: &Scenario) -> papo_testing::Result<StatusmsgPeers> {
             .is_some_and(|tokens| tokens.contains('@'))
     );
 
+    let bob_direct = alice.direct(&bob_nick).await?;
+    let carol_direct = alice.direct(&carol_nick).await?;
     alice
         .mode(&channel)
-        .op(bob_nick.as_ref())
-        .voice(carol_nick.as_ref())
+        .op(&bob_direct)
+        .voice(&carol_direct)
         .await?;
     for peer in [&mut alice, &mut bob, &mut carol, &mut dave] {
         let changed = wait_channel_mode(peer, &channel, 'v').await?;

@@ -179,15 +179,23 @@ impl Peer {
     }
 
     /// Invites `nick` to `channel` using this peer's server rules.
-    pub fn invite(
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the guarded identity cannot be captured or the invitation fails.
+    pub async fn invite(
         &self,
         nick: impl AsRef<str>,
         channel: impl AsRef<str>,
-    ) -> papo::RequestFuture<()> {
-        self.client.invite(
-            self.client.state().name_rules().nick(nick.as_ref()),
-            self.client.state().name_rules().channel(channel.as_ref()),
-        )
+    ) -> std::result::Result<(), papo::Error> {
+        let direct = self.client.direct(nick.as_ref()).await?;
+        self.client
+            .invite(
+                &direct,
+                self.client.state().name_rules().channel(channel.as_ref()),
+            )
+            .await?;
+        Ok(())
     }
 
     /// Changes this peer's nickname using its server rules.
