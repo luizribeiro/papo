@@ -194,13 +194,14 @@ fn reaction(
         account_tag_enabled,
         false,
     )?;
-    let receipt = crate::message_ref::Receipt::new(
+    let mut receipt = crate::message_ref::Receipt::new(
         crate::Source::User(actor.clone()),
         authorship,
         &conversation,
         state.and_then(|state| state.reply_token(&conversation)),
         return_address,
     );
+    receipt.set_channel(state.and_then(|state| state.channel_guard(&conversation)));
     Some(Event::Reacted(Reacted {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
@@ -263,13 +264,14 @@ fn redaction(
         }
         papo_proto::Source::Server(server) => crate::Source::Server(server.into()),
     };
-    let receipt = crate::message_ref::Receipt::new(
+    let mut receipt = crate::message_ref::Receipt::new(
         actor.clone(),
         authorship,
         &conversation,
         state.and_then(|state| state.reply_token(&conversation)),
         return_address,
     );
+    receipt.set_channel(state.and_then(|state| state.channel_guard(&conversation)));
     Some(Event::Redacted(Redacted {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
@@ -1384,7 +1386,7 @@ mod tests {
             UNIX_EPOCH,
         );
         assert!(matches!(
-            reacted,
+            &reacted,
             PageEvent::Reacted(event)
                 if event.actor.nick() == "emily"
                     && matches!(&event.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
@@ -1394,6 +1396,14 @@ mod tests {
                     && matches!(event.actor.account(), crate::Account::LoggedIn(account) if account == "emily")
                     && event.action == crate::event::ReactionAction::Added
         ));
+        let PageEvent::Reacted(event) = reacted else {
+            unreachable!()
+        };
+        assert!(
+            crate::Target::__parts(&event.return_address())
+                .channel
+                .is_some()
+        );
 
         let removal = history_item(
             papo_core::HistoryItem::Redacted(core_item(
@@ -1404,7 +1414,7 @@ mod tests {
             UNIX_EPOCH,
         );
         assert!(matches!(
-            removal,
+            &removal,
             PageEvent::Redacted(event)
                 if matches!(&event.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
                     && event.status.is_none()
@@ -1412,6 +1422,14 @@ mod tests {
                     && matches!(event.actor.user().unwrap().account(), crate::Account::LoggedIn(account) if account == "alice")
                     && event.reason.is_none()
         ));
+        let PageEvent::Redacted(event) = removal else {
+            unreachable!()
+        };
+        assert!(
+            crate::Target::__parts(&event.return_address())
+                .channel
+                .is_some()
+        );
     }
 
     #[test]

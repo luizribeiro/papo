@@ -637,22 +637,9 @@ async fn line_reference(
 
 async fn assert_line_recipient_guard(
     client: &papo::Client,
-    wire: &mut Wire,
     name: &str,
-    private: bool,
     reference: papo::MessageRef,
 ) {
-    if !private {
-        client
-            .notice(reference, "channel guard check")
-            .await
-            .unwrap();
-        assert_eq!(
-            wire.next_sent().await,
-            "NOTICE #review :channel guard check"
-        );
-        return;
-    }
     let with_id = papo::MessageRef::from((reference.clone(), "ErgoGuardTarget"));
     for result in [
         client
@@ -675,7 +662,7 @@ async fn assert_line_recipient_guard(
 
 #[tokio::test]
 #[allow(clippy::too_many_lines)]
-async fn every_private_line_reference_refuses_a_nickname_handoff() {
+async fn every_line_reference_refuses_a_stale_target() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo-wire")
             .rate_limit(papo::RateLimit::unlimited())
@@ -699,6 +686,16 @@ async fn every_private_line_reference_refuses_a_nickname_handoff() {
             next_active_event(&mut events).await,
             papo::Event::Joined(_)
         ));
+    }
+    wire.server(":offline.test 329 papo-wire #review 1793098800")
+        .await;
+    while client
+        .state()
+        .channel("#review")
+        .and_then(papo::Channel::created_at)
+        .is_none()
+    {
+        tokio::task::yield_now().await;
     }
 
     let direct = client.direct("alice").await.unwrap();
@@ -760,6 +757,24 @@ async fn every_private_line_reference_refuses_a_nickname_handoff() {
         let reference = line_reference(&mut events, &mut wire, name, private, line).await;
         references.push((name, private, reference));
     }
+    let index = references
+        .iter()
+        .position(|(name, ..)| *name == "channel message")
+        .unwrap();
+    let channel_reference = references.remove(index).2;
+    wire.server(":alice!~a@cloak.example RENAME #review #release :Review completed")
+        .await;
+    while !matches!(
+        next_active_event(&mut events).await,
+        papo::Event::ChannelRenamed(_)
+    ) {}
+    client
+        .notice(channel_reference.clone(), "channel renamed")
+        .await
+        .unwrap();
+    assert_eq!(wire.next_sent().await, "NOTICE #release :channel renamed");
+    let (private_references, channel_references): (Vec<_>, Vec<_>) =
+        references.into_iter().partition(|(_, private, _)| *private);
     wire.server(":alice!~a@cloak.example QUIT :Client Quit")
         .await;
     while !matches!(next_active_event(&mut events).await, papo::Event::Quit(_)) {}
@@ -778,8 +793,15 @@ async fn every_private_line_reference_refuses_a_nickname_handoff() {
         assert!(matches!(result, Err(papo::Error::TargetGone)));
     }
 
-    for (name, private, reference) in references {
-        assert_line_recipient_guard(&client, &mut wire, name, private, reference).await;
+    for (name, _, reference) in private_references {
+        assert_line_recipient_guard(&client, name, reference).await;
+    }
+    wire.server(":papo-wire!p@localhost PART #release :Deployment complete")
+        .await;
+    while !matches!(next_active_event(&mut events).await, papo::Event::Parted(_)) {}
+    assert_line_recipient_guard(&client, "channel message", channel_reference).await;
+    for (name, _, reference) in channel_references {
+        assert_line_recipient_guard(&client, name, reference).await;
     }
     assert!(
         tokio::time::timeout(Duration::from_millis(10), wire.next_sent())

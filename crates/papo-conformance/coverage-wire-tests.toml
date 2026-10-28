@@ -21,9 +21,10 @@
 "security::nickname_handoffs_block_notices_and_ctcp_replies" = [
   "security.x-answer.notice-nick-handoff",
 ]
-"security::every_private_line_reference_refuses_a_nickname_handoff" = [
+"security::every_line_reference_refuses_a_stale_target" = [
   "security.adv-7.private-line-recipient-guards",
   "security.dm-direct.send-path-enumeration",
+  "security.channel-guard.receipt-targets",
 ]
 "direct_identity::direct_ref_follows_rename_and_refuses_a_nickname_takeover" = [
   "security.dm-direct.guarded-targets",
