@@ -4854,7 +4854,6 @@ async fn every_name_taking_method_returns_invalid_name() {
         KickNick,
         KickbanChannel,
         KickbanNick,
-        InviteNick,
         InviteChannel,
         SetNick,
         Topic,
@@ -4876,7 +4875,6 @@ async fn every_name_taking_method_returns_invalid_name() {
         (Method::KickNick, "kick: nick", "#staff"),
         (Method::KickbanChannel, "kickban: channel", "staff"),
         (Method::KickbanNick, "kickban: nick", "#staff"),
-        (Method::InviteNick, "invite: nick", "#staff"),
         (Method::InviteChannel, "invite: channel", "staff"),
         (Method::SetNick, "set_nick: nick", "#staff"),
         (Method::Topic, "topic: channel", "staff"),
@@ -4886,6 +4884,9 @@ async fn every_name_taking_method_returns_invalid_name() {
         (Method::History, "history: conversation", "@#staff"),
     ];
 
+    let state = client.state();
+    let recipient = state.capture_recipient(state.nick(), state.account().clone());
+    let direct = crate::DirectRef::new(&client, recipient, false);
     for (method, argument, bad) in cases {
         let result = match method {
             Method::Typing => client.typing(bad, crate::Typing::Active).await,
@@ -4904,8 +4905,7 @@ async fn every_name_taking_method_returns_invalid_name() {
                 .kickban("#staff", bad, "*!*@host", "spam")
                 .await
                 .map(drop),
-            Method::InviteNick => client.invite(bad, "#staff").await,
-            Method::InviteChannel => client.invite("alice", bad).await,
+            Method::InviteChannel => client.invite(&direct, bad).await,
             Method::SetNick => client.set_nick(bad).await,
             Method::Topic => client.set_topic(bad, "Release planning").await,
             Method::Monitor => client.monitor().add([bad]).await,
@@ -5319,14 +5319,28 @@ async fn membership_actions_confirm_success_and_refusal() {
         scripted(config().wanted_caps(["labeled-response"]));
     let driver = tokio::spawn(driver);
     complete_connect_labelled(&mut server, &mut events).await;
+    for line in [
+        b":papo-driver!papo@localhost JOIN #papo\r\n".as_slice(),
+        b":carol!carol@users.example JOIN #papo\r\n".as_slice(),
+    ] {
+        server_line(&mut server, line).await;
+    }
+    within(async {
+        while client
+            .state()
+            .user("carol")
+            .is_none_or(|user| user.channels().len() == 0)
+        {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await;
+    let carol = client.direct("carol").await.unwrap();
 
     let invite = tokio::spawn({
         let client = client.clone();
-        async move {
-            client
-                .invite(test_nick("carol"), test_channel("#papo"))
-                .await
-        }
+        let carol = carol.clone();
+        async move { client.invite(&carol, test_channel("#papo")).await }
     });
     client_line(&mut server, b"@label=0 INVITE carol #papo\r\n").await;
     server_line(
@@ -5356,9 +5370,7 @@ async fn membership_actions_confirm_success_and_refusal() {
     ));
 
     assert!(matches!(
-        client
-            .invite(test_nick("bad,nick"), test_channel("not-a-channel"))
-            .await,
+        client.invite(&carol, test_channel("not-a-channel")).await,
         Err(Error::InvalidInput(_))
     ));
     assert!(

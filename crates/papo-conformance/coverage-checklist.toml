@@ -104,6 +104,7 @@ ids = [
   "security.dm-direct.monitor-lifecycle",
   "security.dm-direct.write-time-recheck",
   "security.dm-direct.send-path-enumeration",
+  "security.send-path-23-25.guarded-grants",
   "security.adv-8.metadata-nick-handoff",
   "security.adv-12.recipient-identity",
   "security.adv-16.infallible-line-formatting",

@@ -34,6 +34,9 @@
 "direct_queue::queued_direct_line_is_rechecked_after_a_nickname_takeover" = [
   "security.dm-direct.write-time-recheck",
 ]
+"moderation_identity::privilege_grants_refuse_a_nickname_takeover" = [
+  "security.send-path-23-25.guarded-grants",
+]
 "security::private_recipient_guard_survives_many_unrelated_departures" = [
   "security.adv-12.recipient-identity",
 ]

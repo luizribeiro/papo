@@ -1449,7 +1449,7 @@ impl Client {
     /// Returns a typed server refusal, invalid-input error, timeout, or disconnect.
     pub fn invite(
         &self,
-        nick: impl crate::AsNick,
+        nick: &crate::DirectRef,
         channel: impl crate::AsChannel,
     ) -> crate::RequestFuture<()> {
         let client = self.clone();

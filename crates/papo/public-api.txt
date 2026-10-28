@@ -1968,7 +1968,7 @@ pub fn papo::Client::builder(impl papo::IntoEndpoint, impl core::convert::Into<a
 pub fn papo::Client::clear_away(&self) -> papo::RequestFuture<()>
 pub fn papo::Client::clear_topic(&self, impl papo::AsChannel) -> papo::RequestFuture<()>
 pub fn papo::Client::ctcp_reply(&self, &papo::event::CtcpQuery, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Client::invite(&self, impl papo::AsNick, impl papo::AsChannel) -> papo::RequestFuture<()>
+pub fn papo::Client::invite(&self, &papo::DirectRef, impl papo::AsChannel) -> papo::RequestFuture<()>
 pub fn papo::Client::join(&self, impl papo::AsChannel) -> papo::JoinChannel
 pub fn papo::Client::kick(&self, impl papo::AsChannel, impl papo::AsNick, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::kickban(&self, impl papo::AsChannel, impl papo::AsNick, impl core::convert::Into<papo::BanTarget>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<papo::KickbanOutcome>
@@ -2720,9 +2720,9 @@ pub fn papo::SetModes::ban_exception(self, impl core::convert::Into<papo::BanTar
 pub fn papo::SetModes::dehalfop(self, impl papo::AsNick) -> Self
 pub fn papo::SetModes::deop(self, impl papo::AsNick) -> Self
 pub fn papo::SetModes::devoice(self, impl papo::AsNick) -> Self
-pub fn papo::SetModes::halfop(self, impl papo::AsNick) -> Self
+pub fn papo::SetModes::halfop(self, &papo::DirectRef) -> Self
 pub fn papo::SetModes::invite_exception(self, impl core::convert::Into<papo::BanTarget>) -> Self
-pub fn papo::SetModes::op(self, impl papo::AsNick) -> Self
+pub fn papo::SetModes::op(self, &papo::DirectRef) -> Self
 pub fn papo::SetModes::prefix(self, char, &papo::DirectRef) -> Self
 pub fn papo::SetModes::quiet(self, impl core::convert::Into<papo::BanTarget>) -> Self
 pub fn papo::SetModes::remove(self, char) -> Self
@@ -2731,7 +2731,7 @@ pub fn papo::SetModes::remove_invite_exception(self, impl core::convert::Into<pa
 pub fn papo::SetModes::remove_with(self, char, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::SetModes::unban(self, impl core::convert::Into<papo::BanTarget>) -> Self
 pub fn papo::SetModes::unquiet(self, impl core::convert::Into<papo::BanTarget>) -> Self
-pub fn papo::SetModes::voice(self, impl papo::AsNick) -> Self
+pub fn papo::SetModes::voice(self, &papo::DirectRef) -> Self
 impl core::fmt::Debug for papo::SetModes
 pub fn papo::SetModes::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::future::into_future::IntoFuture for papo::SetModes

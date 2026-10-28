@@ -266,7 +266,7 @@ impl SetModes {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn op(self, nick: impl crate::AsNick) -> Self {
+    pub fn op(self, nick: &crate::DirectRef) -> Self {
         self.prefix_change(true, 'o', nick)
     }
 
@@ -276,7 +276,7 @@ impl SetModes {
     }
 
     /// Grants half-operator privileges to `nick`.
-    pub fn halfop(self, nick: impl crate::AsNick) -> Self {
+    pub fn halfop(self, nick: &crate::DirectRef) -> Self {
         self.optional_prefix(true, crate::Feature::Halfop, nick)
     }
 
@@ -286,7 +286,7 @@ impl SetModes {
     }
 
     /// Grants voice privileges to `nick`.
-    pub fn voice(self, nick: impl crate::AsNick) -> Self {
+    pub fn voice(self, nick: &crate::DirectRef) -> Self {
         self.prefix_change(true, 'v', nick)
     }
 
