@@ -162,7 +162,12 @@ impl IntoFuture for JoinChannel {
             let channel = self
                 .client
                 .resolve(crate::target::Role::Channel("join: channel"), self.channel)?;
-            let channel = self.client.state().name_rules().channel(channel);
+            let channel = self
+                .client
+                .state()
+                .known_name_rules()
+                .ok_or(InvalidInput::NameRulesUnknown)?
+                .channel(channel);
             self.client.join_channel(channel, self.key).await
         })
     }
@@ -1144,7 +1149,11 @@ impl Client {
         let nick = crate::AsNick::__parts(&nick).into_owned();
         crate::RequestFuture::new(async move {
             let nick = client.resolve(crate::target::Role::Nick("whois: nick"), nick)?;
-            let nick = client.state().name_rules().nick(nick);
+            let nick = client
+                .state()
+                .known_name_rules()
+                .ok_or(InvalidInput::NameRulesUnknown)?
+                .nick(nick);
             let response = client
                 .correlated(
                     Line::new("WHOIS").with_params([nick.to_string()]),
@@ -1175,7 +1184,11 @@ impl Client {
         let mask = crate::AsMask::__parts(&mask).into_owned();
         crate::RequestFuture::new(async move {
             let mask = client.resolve(crate::target::Role::Mask("who: mask"), mask)?;
-            let mask = client.state().name_rules().mask(mask);
+            let mask = client
+                .state()
+                .known_name_rules()
+                .ok_or(InvalidInput::NameRulesUnknown)?
+                .mask(mask);
             let state = client.state();
             let extended = state.isupport().whox();
             let message = if extended {
@@ -1287,7 +1300,11 @@ impl Client {
         let reason = reason.into();
         crate::RequestFuture::new(async move {
             let channel = client.resolve(crate::target::Role::Channel("part: channel"), channel)?;
-            let channel = client.state().name_rules().channel(channel);
+            let channel = client
+                .state()
+                .known_name_rules()
+                .ok_or(InvalidInput::NameRulesUnknown)?
+                .channel(channel);
             let (result, receiver) = oneshot::channel();
             client
                 .commands
@@ -1334,7 +1351,10 @@ impl Client {
         crate::RequestFuture::new(async move {
             let channel = client.resolve(crate::target::Role::Channel("kick: channel"), channel)?;
             let state = client.state();
-            let channel = state.name_rules().channel(channel);
+            let channel = state
+                .known_name_rules()
+                .ok_or(InvalidInput::NameRulesUnknown)?
+                .channel(channel);
             drop(state);
             kick_resolved(&client, channel, nick, reason).await
         })
@@ -1376,8 +1396,11 @@ impl Client {
             let resolved_nick =
                 client.resolve(crate::target::Role::Nick("kickban: nick"), nick.clone())?;
             let state = client.state();
-            let channel = state.name_rules().channel(channel);
-            let resolved_nick = state.name_rules().nick(resolved_nick);
+            let names = state
+                .known_name_rules()
+                .ok_or(InvalidInput::NameRulesUnknown)?;
+            let channel = names.channel(channel);
+            let resolved_nick = names.nick(resolved_nick);
             validate_kick_reason(&state, &reason)?;
             let ban = ban.resolve(&state)?;
             let already_set = crate::mode::tracked_ban(&state, &channel, &ban);
@@ -1484,8 +1507,11 @@ impl Client {
             let channel =
                 client.resolve(crate::target::Role::Channel("invite: channel"), channel)?;
             let state = client.state();
-            let channel = state.name_rules().channel(channel);
-            let nick = state.name_rules().nick(nick);
+            let names = state
+                .known_name_rules()
+                .ok_or(InvalidInput::NameRulesUnknown)?;
+            let channel = names.channel(channel);
+            let nick = names.nick(nick);
             let response = client
                 .correlated(
                     Line::new("INVITE").with_params([nick.to_string(), channel.to_string()]),
@@ -1516,7 +1542,11 @@ impl Client {
         let nick = crate::AsNick::__parts(&nick).into_owned();
         crate::RequestFuture::new(async move {
             let nick = client.resolve(crate::target::Role::Nick("set_nick: nick"), nick)?;
-            let nick = client.state().name_rules().nick(nick);
+            let nick = client
+                .state()
+                .known_name_rules()
+                .ok_or(InvalidInput::NameRulesUnknown)?
+                .nick(nick);
             let response = client
                 .correlated(
                     Line::new("NICK").with_params([nick.to_string()]),
@@ -1679,7 +1709,11 @@ impl Client {
         crate::RequestFuture::new(async move {
             let channel =
                 client.resolve(crate::target::Role::Channel("topic: channel"), channel)?;
-            let channel = client.state().name_rules().channel(channel);
+            let channel = client
+                .state()
+                .known_name_rules()
+                .ok_or(InvalidInput::NameRulesUnknown)?
+                .channel(channel);
             if topic.is_empty() && !clear {
                 return Err(InvalidInput::EmptyText.into());
             }
@@ -1749,7 +1783,10 @@ async fn kick_resolved(
 ) -> Result<(), Error> {
     let nick = client.resolve(crate::target::Role::Nick("kick: nick"), nick)?;
     let state = client.state();
-    let nick = state.name_rules().nick(nick);
+    let nick = state
+        .known_name_rules()
+        .ok_or(InvalidInput::NameRulesUnknown)?
+        .nick(nick);
     validate_kick_reason(&state, &reason)?;
     let mut params = vec![channel.to_string(), nick.to_string()];
     if !reason.is_empty() {
