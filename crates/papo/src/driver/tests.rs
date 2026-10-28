@@ -383,13 +383,13 @@ async fn connecting_phase_overflow_reports_one_lag_episode() {
         ..
     } = channels;
     for attempt in 1..=34 {
-        assert!(super::send_event(
+        super::send_event(
             &event_sink,
             Event::Connecting(crate::event::Connecting {
                 attempt,
                 phase: crate::ConnectPhase::Transport,
             }),
-        ));
+        );
     }
 
     let lagged = events.next().await.unwrap().as_lagged().unwrap().clone();
@@ -2832,7 +2832,7 @@ async fn reconnect_storm_drops_oldest_events_and_keeps_retrying() {
     }
     assert!(matches!(
         next_event(&mut events).await,
-        Some(Event::Lagged(crate::event::Lagged { dropped: 1 }))
+        Some(Event::Lagged(crate::event::Lagged { dropped: 1, gaps })) if gaps.is_empty()
     ));
 
     within(client.quit("")).await.unwrap();

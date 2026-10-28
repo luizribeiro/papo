@@ -3262,14 +3262,6 @@ impl papo::AsChannel for alloc::string::String
 impl papo::AsChannel for papo::ChannelName
 impl papo::AsChannel for str
 impl<T: papo::AsChannel + ?core::marker::Sized> papo::AsChannel for &T
-pub trait papo::AsNick: papo::name_argument::Sealed
-impl papo::AsNick for alloc::borrow::Cow<'_, str>
-impl papo::AsNick for alloc::boxed::Box<str>
-impl papo::AsNick for alloc::rcs::arc::Arc<str>
-impl papo::AsNick for alloc::string::String
-impl papo::AsNick for papo::Nick
-impl papo::AsNick for str
-impl<T: papo::AsNick + ?core::marker::Sized> papo::AsNick for &T
 #[non_exhaustive] pub enum papo::Away
 #[non_exhaustive] pub papo::Away::Away
 pub papo::Away::Away::message: core::option::Option<alloc::string::String>
