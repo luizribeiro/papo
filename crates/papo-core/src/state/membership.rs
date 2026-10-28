@@ -102,6 +102,7 @@ impl State {
                 self.warn_limit(StateLimit::Channels, outbox);
                 return Handled::Yes;
             }
+            self.channel_epoch = self.channel_epoch.wrapping_add(1);
             self.channel_lifecycle(ChannelLifecycle::Joined {
                 key,
                 channel: std::sync::Arc::new(Channel::new(
@@ -109,6 +110,7 @@ impl State {
                     self.casemapping,
                     isupport,
                     false,
+                    self.channel_epoch,
                 )),
             });
         }

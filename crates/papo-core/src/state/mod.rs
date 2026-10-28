@@ -60,6 +60,7 @@ pub struct State {
     last_seen: HashMap<NameKey<String>, LastSeen>,
     last_seen_order: VecDeque<String>,
     reply_epoch: u64,
+    channel_epoch: u64,
     departure_sequence: u64,
     departed_identities: VecDeque<crate::ReplyIdentity>,
     max_channels: usize,
@@ -96,6 +97,7 @@ impl Clone for State {
             last_seen: self.last_seen.clone(),
             last_seen_order: self.last_seen_order.clone(),
             reply_epoch: self.reply_epoch,
+            channel_epoch: self.channel_epoch,
             departure_sequence: self.departure_sequence,
             departed_identities: self.departed_identities.clone(),
             max_channels: self.max_channels,
@@ -140,6 +142,7 @@ pub struct Channel {
     key: Option<Secret>,
     lists: HashMap<ListMode, Vec<ModeListEntry>>,
     created_at: Option<SystemTime>,
+    epoch: u64,
     topic: Option<String>,
     topic_set_by: Option<Source>,
     topic_set_at: Option<SystemTime>,
@@ -423,6 +426,7 @@ impl State {
             last_seen: HashMap::new(),
             last_seen_order: VecDeque::new(),
             reply_epoch: 0,
+            channel_epoch: 0,
             departure_sequence: 0,
             departed_identities: VecDeque::new(),
             max_channels: config.max_channels,
@@ -453,8 +457,10 @@ impl State {
         let last_seen = std::mem::take(&mut self.last_seen);
         let last_seen_order = std::mem::take(&mut self.last_seen_order);
         let reply_epoch = self.reply_epoch.wrapping_add(1);
+        let channel_epoch = self.channel_epoch;
         *self = Self::with_casemapping(config, casemapping);
         self.reply_epoch = reply_epoch;
+        self.channel_epoch = channel_epoch;
         for user in self.users.values_mut() {
             user.reply_epoch = reply_epoch;
         }
@@ -530,6 +536,46 @@ impl State {
             crate::RecipientStatus::Gone
         } else {
             crate::RecipientStatus::Unknown
+        }
+    }
+
+    /// Captures the current membership lifecycle for a channel return address.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __channel_guard(&self, channel: &ChannelName) -> crate::ChannelGuard {
+        let joined = self.channel(channel);
+        crate::ChannelGuard {
+            origin: self.casemapping.origin(),
+            channel: channel.clone(),
+            epoch: joined.map(|channel| channel.epoch),
+            created_at: joined.and_then(Channel::created_at),
+        }
+    }
+
+    /// Resolves a captured channel membership to its current name.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __resolve_channel(&self, guard: &crate::ChannelGuard) -> Option<ChannelName> {
+        if guard.origin != self.casemapping.origin() {
+            return None;
+        }
+        if let Some(channel) = self
+            .channels
+            .values()
+            .find(|channel| Some(channel.epoch) == guard.epoch)
+        {
+            if guard
+                .created_at
+                .is_some_and(|created| channel.created_at.is_some_and(|actual| actual != created))
+            {
+                return None;
+            }
+            return Some(channel.name.clone());
+        }
+        let channel = self.channel(&guard.channel)?;
+        match (guard.created_at, channel.created_at) {
+            (Some(expected), Some(actual)) if expected == actual => Some(channel.name.clone()),
+            _ => None,
         }
     }
 
@@ -1418,7 +1464,7 @@ fn typed_mode_change(change: ProtoModeChange<'_>, names: Names) -> ModeChange {
 }
 
 impl Channel {
-    fn new(name: &str, casemapping: Names, isupport: &Isupport, synced: bool) -> Self {
+    fn new(name: &str, casemapping: Names, isupport: &Isupport, synced: bool, epoch: u64) -> Self {
         Self {
             name: casemapping.channel(name),
             casemapping,
@@ -1427,6 +1473,7 @@ impl Channel {
             key: None,
             lists: HashMap::new(),
             created_at: None,
+            epoch,
             topic: None,
             topic_set_by: None,
             topic_set_at: None,
@@ -1870,7 +1917,13 @@ mod metadata_tests {
     #[test]
     fn distinguishes_unknown_and_fetched_empty_mode_lists() {
         let mut state = State::new(&Config::default());
-        let channel = Channel::new("#Papo[dev]", state.casemapping, &Isupport::default(), true);
+        let channel = Channel::new(
+            "#Papo[dev]",
+            state.casemapping,
+            &Isupport::default(),
+            true,
+            1,
+        );
         state.channels.insert(
             NameKey::new("#Papo[dev]", state.casemapping),
             Arc::new(channel),
@@ -1916,7 +1969,7 @@ mod metadata_tests {
     fn cloned_state_copies_only_the_changed_channel() {
         let mut state = State::new(&Config::default());
         for name in ["#papo", "#rust"] {
-            let channel = Channel::new(name, state.casemapping, &Isupport::default(), true);
+            let channel = Channel::new(name, state.casemapping, &Isupport::default(), true, 1);
             state
                 .channels
                 .insert(NameKey::new(name, state.casemapping), Arc::new(channel));

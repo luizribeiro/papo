@@ -2914,6 +2914,25 @@ pub struct RecipientGuard {
     token: ReplyToken,
 }
 
+/// Captured proof of a channel membership lifecycle.
+#[doc(hidden)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ChannelGuard {
+    origin: papo_proto::Origin,
+    channel: ChannelName,
+    epoch: Option<u64>,
+    created_at: Option<std::time::SystemTime>,
+}
+
+impl ChannelGuard {
+    /// Returns the channel name at capture time.
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __channel(&self) -> &ChannelName {
+        &self.channel
+    }
+}
+
 impl RecipientGuard {
     /// Captures the current identity at `nick`.
     #[doc(hidden)]
