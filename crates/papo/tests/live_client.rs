@@ -51,7 +51,11 @@ async fn registers_messages_itself_and_quits() {
             sent.conversation,
             papo::Conversation::Private(ref other) if other == nick.as_str()
         ));
-        assert!(sent.msgid().is_some());
+        assert!(matches!(
+            sent.outcome,
+            papo::SentOutcome::Confirmed { ref lines, .. }
+                if matches!(lines.as_slice(), [(_, text)] if text == "hello from papo's live client")
+        ));
 
         client.quit("live client test complete").await.unwrap();
         loop {

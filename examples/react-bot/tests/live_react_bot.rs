@@ -39,11 +39,18 @@ async fn reacts_to_live_messages() {
         .await;
 
         let sent = user.privmsg(CHANNEL, "ship it").await.unwrap();
+        let papo::SentOutcome::Confirmed { lines, .. } = &sent.outcome else {
+            panic!("Ergo should confirm the message")
+        };
+        let [(msgid, text)] = lines.as_slice() else {
+            panic!("the message should be sent as one line")
+        };
+        assert_eq!(text, "ship it");
         let reaction = wait_for(&mut events, |event| matches!(event, Event::Reacted(_))).await;
         let Event::Reacted(reaction) = reaction else {
             unreachable!();
         };
-        assert_eq!(&reaction.reacts_to, sent.msgid().unwrap());
+        assert_eq!(&reaction.reacts_to, msgid);
         assert_eq!(reaction.reaction, "👍");
 
         user.quit("reaction bot test complete").await.unwrap();

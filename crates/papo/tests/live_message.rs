@@ -174,39 +174,57 @@ async fn multiline_capability_preserves_plain_and_batched_message_ids() {
             .privmsg(&channel, "plain message with multiline enabled")
             .await
             .unwrap();
-        let plain_id = plain.msgid().expect("plain echo supplies msgid").clone();
-        assert!(plain.server_time.is_some());
+        let papo::SentOutcome::Confirmed {
+            lines, server_time, ..
+        } = plain.outcome
+        else {
+            panic!("plain echo should confirm the message")
+        };
+        let [(plain_id, plain_text)] = lines.as_slice() else {
+            panic!("the plain message should have one line")
+        };
+        assert_eq!(plain_text, "plain message with multiline enabled");
+        assert!(server_time.is_some());
         let incoming = wait_message(&mut events_b, |message| {
             message.raw_text == "plain message with multiline enabled"
         })
         .await;
-        assert_eq!(incoming.msgid.as_ref(), Some(&plain_id));
+        assert_eq!(incoming.msgid.as_ref(), Some(plain_id));
 
         let multiline = client_a
             .privmsg(&channel, "first deployment line\nsecond deployment line")
             .await
             .unwrap();
-        let multiline_id = multiline
-            .msgid()
-            .expect("multiline echo supplies msgid")
-            .clone();
-        assert!(multiline.server_time.is_some());
+        let papo::SentOutcome::Confirmed {
+            lines, server_time, ..
+        } = multiline.outcome
+        else {
+            panic!("multiline echo should confirm the message")
+        };
+        let [(multiline_id, multiline_text)] = lines.as_slice() else {
+            panic!("one multiline batch should have one logical line")
+        };
+        assert_eq!(
+            multiline_text,
+            "first deployment line\nsecond deployment line"
+        );
+        assert!(server_time.is_some());
         let incoming = wait_message(&mut events_b, |message| {
             message.raw_text == "first deployment line\nsecond deployment line"
         })
         .await;
-        assert_eq!(incoming.msgid.as_ref(), Some(&multiline_id));
+        assert_eq!(incoming.msgid.as_ref(), Some(multiline_id));
 
         client_b
             .privmsg(&channel, "reply through the multiline id")
-            .reply_to(&multiline_id)
+            .reply_to(multiline_id)
             .await
             .unwrap();
         let reply = wait_message(&mut events_a, |message| {
             message.raw_text == "reply through the multiline id"
         })
         .await;
-        assert_eq!(reply.in_reply_to.as_ref(), Some(&multiline_id));
+        assert_eq!(reply.in_reply_to.as_ref(), Some(multiline_id));
 
         client_b.quit("multiline id test complete").await.unwrap();
         client_a.quit("multiline id test complete").await.unwrap();

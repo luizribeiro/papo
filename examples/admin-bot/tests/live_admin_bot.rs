@@ -29,7 +29,13 @@ async fn parses_mentions_and_authorizes_by_account() {
 
         let ping = format!("{bot_nick}: ping");
         let sent = user.privmsg(&channels[0], &ping).await.unwrap();
-        let msgid = sent.msgid().expect("Ergo supplies msgid");
+        let papo::SentOutcome::Confirmed { lines, .. } = &sent.outcome else {
+            panic!("Ergo should confirm the ping")
+        };
+        let [(msgid, text)] = lines.as_slice() else {
+            panic!("the ping should be sent as one line")
+        };
+        assert_eq!(text, &ping);
         let response = wait_message(&mut user_events, "pong").await;
         assert_eq!(response.in_reply_to.as_ref(), Some(msgid));
 

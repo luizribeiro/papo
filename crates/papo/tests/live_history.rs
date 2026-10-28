@@ -55,12 +55,12 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
                 .map(|message| message.msgid.as_deref())
                 .collect::<Vec<_>>(),
             sent.iter()
-                .map(|message| message.msgid().map(AsRef::as_ref))
+                .map(|message| Some(confirmed_line(message).0.as_ref()))
                 .collect::<Vec<_>>()
         );
         assert!(messages.iter().all(|message| message.msgid.is_some()));
 
-        let third = sent[2].msgid().expect("Ergo supplies a msgid");
+        let (third, _, newest) = confirmed_line(&sent[2]);
         let before = client
             .history(&channel)
             .before(third)
@@ -75,7 +75,7 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
             &texts[..2]
         );
 
-        let newest = sent[2].server_time.expect("Ergo supplies server time");
+        let newest = newest.expect("Ergo supplies server time");
         client.mark_read(&channel, newest).await.unwrap();
         assert_eq!(
             client.fetch_read_marker(&channel).await.unwrap(),
@@ -84,6 +84,19 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
         client.quit("history test complete").await.unwrap();
     })
     .await;
+}
+
+fn confirmed_line(sent: &papo::Sent) -> (&papo::MessageId, &str, Option<std::time::SystemTime>) {
+    let papo::SentOutcome::Confirmed {
+        lines, server_time, ..
+    } = &sent.outcome
+    else {
+        panic!("Ergo should confirm history seed messages")
+    };
+    let [(id, text)] = lines.as_slice() else {
+        panic!("each history seed should be sent as one line")
+    };
+    (id, text, *server_time)
 }
 
 fn chats<'a>(
