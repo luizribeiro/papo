@@ -657,6 +657,7 @@ pub struct Config {
     pub max_open_batches: usize,
     /// Maximum number of server lines retained in one batch.
     pub max_batch_lines: usize,
+    batch_byte_budget: usize,
     /// Maximum time an incomplete batch remains open.
     pub batch_timeout: Duration,
     /// Maximum time a labelled request remains pending.
@@ -709,6 +710,7 @@ impl Default for Config {
             max_members_per_channel: DEFAULT_MAX_MEMBERS_PER_CHANNEL,
             max_open_batches: DEFAULT_MAX_OPEN_BATCHES,
             max_batch_lines: DEFAULT_MAX_BATCH_LINES,
+            batch_byte_budget: batch::DEFAULT_BYTE_BUDGET,
             batch_timeout: DEFAULT_BATCH_TIMEOUT,
             request_timeout: DEFAULT_REQUEST_TIMEOUT,
             ctcp: CtcpReplies::default(),
@@ -784,6 +786,14 @@ impl Config {
         } else {
             self.required_caps.remove(&capability);
         }
+    }
+
+    /// Sets the retained batch byte budget for internal tests.
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __batch_byte_budget(mut self, bytes: usize) -> Self {
+        self.batch_byte_budget = bytes;
+        self
     }
 
     /// Enables an optional feature before connecting.

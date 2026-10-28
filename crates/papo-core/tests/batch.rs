@@ -823,21 +823,28 @@ fn completed_children_respect_the_parent_line_boundary() {
 #[test]
 fn completed_child_uses_the_byte_reason_at_the_parent_line_boundary() {
     let now = Instant::now();
-    let mut session = Session::new(Config::default().max_batch_lines(10_000));
+    let byte_budget = 4 * 1024;
+    let line_limit = 8;
+    let mut session = Session::new(
+        Config::default()
+            .max_batch_lines(line_limit)
+            .__batch_byte_budget(byte_budget),
+    );
     let outer = ":ergo.test BATCH +outer vendor/sync";
     let inner = "@batch=outer :ergo.test BATCH +inner metadata";
     session.handle_line(now, outer.as_bytes());
     session.handle_line(now, inner.as_bytes());
 
-    let remaining = 67_108_864
+    let remaining = byte_budget
         - retained_bytes(&LineRef::parse(outer).unwrap())
         - retained_bytes(&LineRef::parse(inner).unwrap());
     let prefix = "@batch=outer;vendor.example/large=";
     let suffix = " :alice!~alice@users.example PRIVMSG #papo :payload";
     let minimum = format!("{prefix}{suffix}");
     let minimum_retained = retained_bytes(&LineRef::parse(&minimum).unwrap());
-    let smaller_retained = remaining / 9_999;
-    let larger_count = remaining % 9_999;
+    let member_count = line_limit - 1;
+    let smaller_retained = remaining / member_count;
+    let larger_count = remaining % member_count;
     let smaller = format!(
         "{prefix}{}{suffix}",
         "x".repeat(smaller_retained - minimum_retained)
@@ -847,7 +854,7 @@ fn completed_child_uses_the_byte_reason_at_the_parent_line_boundary() {
         "x".repeat(smaller_retained + 1 - minimum_retained)
     );
 
-    for index in 0..9_999 {
+    for index in 0..member_count {
         let member = if index < larger_count {
             &larger
         } else {

@@ -9,7 +9,7 @@ use papo_proto::{Command, Line, LineRef, Reaction, time};
 use crate::{BatchAbandonReason, Config, HistoryItem, HistoryLine, cap};
 
 const MAX_ABANDONED_BATCHES: usize = 256;
-const MAX_BUFFERED_BYTES: usize = 64 * 1024 * 1024;
+pub(crate) const DEFAULT_BYTE_BUDGET: usize = 64 * 1024 * 1024;
 
 #[derive(Debug)]
 pub(crate) struct Batches {
@@ -17,6 +17,7 @@ pub(crate) struct Batches {
     abandoned: VecDeque<(String, String)>,
     max_open: usize,
     max_lines: usize,
+    byte_budget: usize,
     timeout: Duration,
     buffered_bytes: usize,
 }
@@ -113,6 +114,7 @@ impl Batches {
             abandoned: VecDeque::new(),
             max_open: config.max_open_batches,
             max_lines: config.max_batch_lines,
+            byte_budget: config.batch_byte_budget,
             timeout: config.batch_timeout,
             buffered_bytes: 0,
         }
@@ -258,7 +260,7 @@ impl Batches {
             parent_batch.buffered_bytes = parent_batch.buffered_bytes.saturating_add(retained);
             parent_batch.completed.append(&mut completed);
             self.buffered_bytes = self.buffered_bytes.saturating_add(retained);
-            if parent_batch.lines > self.max_lines || self.buffered_bytes > MAX_BUFFERED_BYTES {
+            if parent_batch.lines > self.max_lines || self.buffered_bytes > self.byte_budget {
                 let reason = if parent_batch.lines > self.max_lines {
                     BatchAbandonReason::LineLimit
                 } else {
@@ -323,7 +325,7 @@ impl Batches {
                 self.open[*reference].lines > self.max_lines
                     || (self.open[*reference].kind == cap::MULTILINE.as_str()
                         && self.open[*reference].multiline_bytes > multiline_max_bytes)
-                    || self.buffered_bytes > MAX_BUFFERED_BYTES
+                    || self.buffered_bytes > self.byte_budget
             })
             .cloned()
         {
@@ -786,7 +788,7 @@ mod state_machine_tests;
 
 #[cfg(test)]
 mod tests {
-    use super::{BatchAction, BatchEvent, Batches, MAX_BUFFERED_BYTES, retained_bytes};
+    use super::{BatchAction, BatchEvent, Batches, retained_bytes};
     use crate::{BatchAbandonReason, Config};
     use papo_proto::{Line, LineRef};
     use web_time::Instant;
@@ -893,7 +895,9 @@ mod tests {
     #[test]
     fn correlated_label_batch_hits_the_global_byte_budget() {
         let now = Instant::now();
-        let mut batches = Batches::new(&Config::default());
+        let byte_budget = 4 * 1024;
+        let config = Config::default().__batch_byte_budget(byte_budget);
+        let mut batches = Batches::new(&config);
         let open = LineRef::parse("@label=lost BATCH +reply labeled-response").unwrap();
         assert!(matches!(
             batches.handle(now, &open, usize::MAX, false, true),
@@ -901,7 +905,7 @@ mod tests {
         ));
         let prefix = "@batch=reply;vendor.example/large=";
         let suffix = " :alice!~alice@users.example PRIVMSG #papo :payload";
-        let wire = format!("{prefix}{}{suffix}", "x".repeat(8_191 - prefix.len() - 1));
+        let wire = format!("{prefix}{}{suffix}", "x".repeat(511 - prefix.len() - 1));
         let member = LineRef::parse(&wire).unwrap();
         let mut fed = 0;
 
@@ -921,7 +925,7 @@ mod tests {
             }
         }
 
-        assert!(fed < 64 * 1024 * 1024);
+        assert!(fed < byte_budget);
     }
 
     #[test]
@@ -979,8 +983,12 @@ mod tests {
 
     #[test]
     fn completed_child_byte_budget_accepts_the_boundary_and_rejects_one_over() {
-        for (total, abandoned) in [(67_108_864, false), (67_108_865, true)] {
-            let mut batches = Batches::new(&Config::default().max_batch_lines(1));
+        let byte_budget = 4 * 1024;
+        for (total, abandoned) in [(byte_budget, false), (byte_budget + 1, true)] {
+            let config = Config::default()
+                .max_batch_lines(1)
+                .__batch_byte_budget(byte_budget);
+            let mut batches = Batches::new(&config);
             assert_eq!(
                 handle(&mut batches, "BATCH +outer vendor/sync"),
                 (false, None)
@@ -1006,9 +1014,16 @@ mod tests {
             );
             if !abandoned {
                 assert!(matches!(action, BatchAction::Consumed));
-                assert_eq!(batches.buffered_bytes, MAX_BUFFERED_BYTES);
+                assert_eq!(batches.buffered_bytes, byte_budget);
             }
         }
+    }
+
+    #[test]
+    fn default_batch_byte_budget_is_sixty_four_mibibytes() {
+        let batches = Batches::new(&Config::default());
+
+        assert_eq!(batches.byte_budget, 67_108_864);
     }
 
     #[test]
@@ -1017,8 +1032,10 @@ mod tests {
                     :alice!~alice@users.example PRIVMSG #papo :review is ready";
         let retained = retained_bytes(&LineRef::parse(line).unwrap());
 
-        for (total, abandoned) in [(67_108_863, false), (67_108_864, false), (67_108_865, true)] {
-            let mut batches = Batches::new(&Config::default());
+        let byte_budget = 4 * 1024;
+        for (total, abandoned) in [(byte_budget, false), (byte_budget + 1, true)] {
+            let config = Config::default().__batch_byte_budget(byte_budget);
+            let mut batches = Batches::new(&config);
             assert_eq!(
                 handle(&mut batches, "BATCH +sync vendor/sync"),
                 (false, None)
