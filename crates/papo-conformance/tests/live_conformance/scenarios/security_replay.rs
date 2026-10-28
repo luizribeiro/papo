@@ -204,6 +204,7 @@ async fn early_account_creation_reserves_its_request_id(_s: Scenario) -> papo_te
     let (client, _events, mut wire) = papo_testing::wire(
         papo::Client::builder("irc://offline.test", "papo-wire")
             .allow_insecure_auth(true)
+            .casemapping(papo::Casemapping::default())
             .rate_limit(papo::RateLimit::unlimited()),
     );
     assert_eq!(wire.next_sent().await, "CAP LS 302");
