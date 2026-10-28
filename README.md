@@ -1,8 +1,22 @@
 # papo
 
-`papo` is an ergonomic Rust library for IRC bots and clients on modern servers. It provides
-typed asynchronous APIs, broad IRCv3 support with Ergo as its primary server, deterministic
-sans-I/O protocol handling, and tokio-based operation on native and WASI targets.
+papo is an async Rust library for IRC bots and clients on modern servers. It speaks a broad
+slice of IRCv3, with Ergo as its primary server, and gives you typed APIs for the things IRC
+apps actually do: replies, reactions, history, read markers, accounts.
+
+- **Native, WASI and the browser.** The same client runs natively, on `wasm32-wasip2` and
+  `wasm32-wasip3`, and in browser workers.
+- **Replies go where you meant.** A private reply never silently lands on someone else who took
+  the sender's nick.
+- **Secrets stay out of logs.** Passwords and tokens never show up in log lines or error
+  messages.
+- **Bounded memory.** Every buffer the server can fill has a limit, so a broken or hostile
+  server can't make papo grow without bound.
+- **Tested against real servers.** The conformance suite runs live against six setups: Ergo
+  (default and persistent), soju in front of Ergo, InspIRCd, Solanum and UnrealIRCd.
+
+papo is young: 0.1 is its first release. Draft and vendor IRCv3 specs sit behind the `unstable`
+feature, which has no semver guarantees. The minimum supported Rust version is 1.91.
 
 ## Quick start
 
@@ -28,4 +42,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-See the [API documentation](https://docs.rs/papo).
+## Examples
+
+| Example | What it shows |
+|---|---|
+| [admin-bot](examples/admin-bot) | Commands addressed by mention, with account-based permissions |
+| [bouncer-networks](examples/bouncer-networks) | Listing and adding soju networks, then binding a second client to one |
+| [browser-worker](examples/browser-worker) | A client in a SharedWorker shared by several tabs |
+| [catchup](examples/catchup) | Unread history for a channel, then moving the read marker forward |
+| [create-account](examples/create-account) | Registering an account while connecting, with verification codes |
+| [graceful-shutdown](examples/graceful-shutdown) | Handling SIGINT and SIGTERM and quitting cleanly |
+| [lurker](examples/lurker) | Member lists and join, part, quit and nick events |
+| [ping-bot](examples/ping-bot) | The smallest complete bot |
+| [react-bot](examples/react-bot) | Reacting to every message |
+| [sts-store](examples/sts-store) | Persisting STS policies in your own storage |
+
+## Read more
+
+- [docs.rs/papo](https://docs.rs/papo): the API guide, including platforms and Cargo features
+- [papo-testing](crates/papo-testing): testing your app without a server, and against a local Ergo
+- [CHANGELOG.md](CHANGELOG.md)
+- [docs/](docs): conformance results and server notes
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+
+## License
+
+MIT OR Apache-2.0, at your option.
