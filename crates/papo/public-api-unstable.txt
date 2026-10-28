@@ -48,8 +48,6 @@ pub use papo::ServerName
 pub use papo::Span
 pub use papo::StateLimit
 pub use papo::Style
-pub use papo::Typer
-pub use papo::Typers
 pub use papo::Typing
 pub use papo::UnknownCasemapping
 pub use papo::Unsupported
@@ -3013,6 +3011,38 @@ impl<'a> core::marker::Unpin for papo::TagsIter<'a>
 impl<'a> core::marker::UnsafeUnpin for papo::TagsIter<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo::TagsIter<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo::TagsIter<'a>
+#[non_exhaustive] pub struct papo::Typer
+impl papo::Typer
+pub const fn papo::Typer::is_paused(&self) -> bool
+pub const fn papo::Typer::nick(&self) -> &papo::Nick
+pub fn papo::Typer::return_address(&self) -> papo::MessageRef
+pub const fn papo::Typer::status(&self) -> core::option::Option<papo::Prefix>
+impl core::clone::Clone for papo::Typer
+pub fn papo::Typer::clone(&self) -> Self
+impl core::cmp::Eq for papo::Typer
+impl core::cmp::PartialEq for papo::Typer
+pub fn papo::Typer::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::Typer
+pub fn papo::Typer::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::Typer
+impl core::marker::Freeze for papo::Typer
+impl core::marker::Send for papo::Typer
+impl core::marker::Sync for papo::Typer
+impl core::marker::Unpin for papo::Typer
+impl core::marker::UnsafeUnpin for papo::Typer
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Typer
+impl core::panic::unwind_safe::UnwindSafe for papo::Typer
+pub struct papo::Typers<'a>
+impl<'a> core::iter::traits::iterator::Iterator for papo::Typers<'a>
+pub type papo::Typers<'a>::Item = &'a papo::Typer
+pub fn papo::Typers<'a>::next(&mut self) -> core::option::Option<Self::Item>
+impl<'a> core::marker::Freeze for papo::Typers<'a>
+impl<'a> core::marker::Send for papo::Typers<'a>
+impl<'a> core::marker::Sync for papo::Typers<'a>
+impl<'a> core::marker::Unpin for papo::Typers<'a>
+impl<'a> core::marker::UnsafeUnpin for papo::Typers<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo::Typers<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo::Typers<'a>
 #[non_exhaustive] pub struct papo::UserSource
 impl papo::UserSource
 pub const fn papo::UserSource::account(&self) -> &papo::Account
@@ -4513,36 +4543,6 @@ impl core::marker::Unpin for papo::Style
 impl core::marker::UnsafeUnpin for papo::Style
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Style
 impl core::panic::unwind_safe::UnwindSafe for papo::Style
-#[non_exhaustive] pub struct papo::Typer
-impl papo::Typer
-pub const fn papo::Typer::is_paused(&self) -> bool
-pub const fn papo::Typer::nick(&self) -> &papo::Nick
-pub fn papo::Typer::return_address(&self) -> alloc::string::String
-pub const fn papo::Typer::status(&self) -> core::option::Option<papo::isupport::Prefix>
-impl core::clone::Clone for papo::Typer
-pub fn papo::Typer::clone(&self) -> Self
-impl core::cmp::Eq for papo::Typer
-impl core::cmp::PartialEq for papo::Typer
-pub fn papo::Typer::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::Typer
-pub fn papo::Typer::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::Typer
-impl core::marker::Freeze for papo::Typer
-impl core::marker::Send for papo::Typer
-impl core::marker::Sync for papo::Typer
-impl core::marker::Unpin for papo::Typer
-impl core::marker::UnsafeUnpin for papo::Typer
-impl core::panic::unwind_safe::RefUnwindSafe for papo::Typer
-impl core::panic::unwind_safe::UnwindSafe for papo::Typer
-pub struct papo::Typers<'a>
-impl<'a> core::iter::traits::iterator::Iterator for papo::Typers<'a>
-impl<'a> core::marker::Freeze for papo::Typers<'a>
-impl<'a> core::marker::Send for papo::Typers<'a>
-impl<'a> core::marker::Sync for papo::Typers<'a>
-impl<'a> core::marker::Unpin for papo::Typers<'a>
-impl<'a> core::marker::UnsafeUnpin for papo::Typers<'a>
-impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo::Typers<'a>
-impl<'a> core::panic::unwind_safe::UnwindSafe for papo::Typers<'a>
 pub enum papo::Typing
 pub papo::Typing::Active
 pub papo::Typing::Done

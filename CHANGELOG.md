@@ -261,6 +261,7 @@ order as one driver-owned composite operation.
 | `State` implemented a partly deep `Clone` | Keep and clone the `Arc<State>` returned by `Client::state`; channel snapshots share unchanged storage |
 | `State::metadata() -> &HashMap` exposed storage and nondeterministic order | `MetadataView` provides `get` and an exact-size iterator in metadata-key order |
 | `State::typing(&Conversation)` tied the iterator to the argument borrow | `typing(impl AsConversation) -> Typers<'_>` owns its resolved lookup key |
+| `Typer::return_address() -> String` lost private-recipient guards | It returns a guarded `MessageRef` while preserving status-prefixed audiences |
 | State collection iterators hid known lengths | Channels, monitored nicks, metadata subscriptions, metadata entries, and tags expose exact sizes where available |
 | `Tags` required `.iter()` and had no length | `&Tags` implements `IntoIterator`; `len()` and `TagsIter` are public |
 | `Isupport::targmax()` required allocating and scanning all entries | `targmax_for(command)` performs a direct lookup |

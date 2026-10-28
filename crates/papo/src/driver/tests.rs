@@ -7660,6 +7660,8 @@ async fn typing_state_appears_refreshes_without_a_snapshot_and_expires() {
     assert_eq!(typer.nick(), "alice");
     assert!(!typer.is_paused());
     assert_eq!(typer.status(), None);
+    let address: crate::MessageRef = typer.return_address();
+    assert_eq!(address, "#papo");
 
     tokio::time::advance(Duration::from_secs(3)).await;
     server_line(

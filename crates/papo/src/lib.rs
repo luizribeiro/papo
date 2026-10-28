@@ -288,7 +288,6 @@ mod state;
 mod target;
 pub mod time;
 mod transport;
-#[allow(dead_code)]
 mod typing;
 mod webirc;
 
@@ -345,7 +344,7 @@ pub use papo_core::cap::__is_known as __is_known_cap;
 #[doc(inline)]
 pub use papo_core::{
     Account, Away, Cap, Capabilities, Channel, Conversation, Feature, Member, MetadataView,
-    ModeAction, ModeArg, ModeChange, ModeValue, Rank, Typer, Typers, User,
+    ModeAction, ModeArg, ModeChange, ModeValue, Rank, User,
 };
 #[cfg(feature = "unstable")]
 pub use papo_core::{
@@ -370,6 +369,7 @@ pub use reconnect::Reconnect;
 pub use requests::{ListEntry, ListRequest, WhoEntry, Whois, WhoisChannel};
 pub use state::{ReadMarker, State};
 pub use target::{AsConversation, AsMask, AsNick, Target};
+pub use typing::{Typer, Typers};
 pub use webirc::WebIrc;
 
 /// A user or channel acted on by an IRC event.

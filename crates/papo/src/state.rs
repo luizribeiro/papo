@@ -31,7 +31,7 @@ pub enum ReadMarker {
 #[derive(Debug)]
 pub struct State {
     core: Arc<papo_core::State>,
-    typing: Arc<papo_core::TypingTable>,
+    typing: Arc<crate::typing::TypingTable>,
     pub(crate) caps: Capabilities,
     pub(crate) isupport: Arc<Isupport>,
     #[cfg(feature = "unstable")]
@@ -157,7 +157,10 @@ impl State {
             session,
             connected,
             Arc::new(session.state().clone()),
-            Arc::clone(session.state().__typing_table()),
+            Arc::new(crate::typing::TypingTable::new(
+                session.state().__typing_table(),
+                session.state(),
+            )),
         )
     }
 
@@ -174,7 +177,10 @@ impl State {
         let typing = if previous.typing_generation == session.typing_generation() {
             Arc::clone(&previous.typing)
         } else {
-            Arc::clone(session.state().__typing_table())
+            Arc::new(crate::typing::TypingTable::new(
+                session.state().__typing_table(),
+                session.state(),
+            ))
         };
         Self::from_session_with_core(session, connected, core, typing)
     }
@@ -183,7 +189,7 @@ impl State {
         session: &Session,
         connected: bool,
         core: Arc<papo_core::State>,
-        typing: Arc<papo_core::TypingTable>,
+        typing: Arc<crate::typing::TypingTable>,
     ) -> Self {
         let unsupported = Feature::ALL
             .iter()
