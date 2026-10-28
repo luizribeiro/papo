@@ -59,6 +59,9 @@
 //!
 //! If both TLS provider features are enabled, ring is used.
 //!
+//! APIs gated by the `unstable` feature are outside the crate's semantic-versioning guarantees.
+//! Applications can opt in while libraries should leave the feature disabled.
+//!
 //! # Running and shutting down
 //!
 //! [`Builder::connect`] spawns the [`Driver`] and waits for the first connection. On native
@@ -84,13 +87,35 @@
 //! [graceful-shutdown example](https://github.com/luizribeiro/papo/tree/main/examples/graceful-shutdown)
 //! shows the complete lifecycle.
 //!
-//! APIs gated by the `unstable` feature are outside the crate's semantic-versioning guarantees.
-//! Applications can opt in while libraries should leave the feature disabled.
-//! Browser builds (`wasm32-unknown-unknown`) connect only through `ws://` and `wss://`
-//! [`Endpoint`] values. TCP endpoint constructors remain available for portable configuration,
-//! but connecting through one returns an unavailable-transport error. The browser owns TLS policy,
-//! and IRC STS does not apply to WebSocket connections, so custom TLS setters and STS stores are
-//! absent from browser builds.
+//! # WASI
+//!
+//! `wasm32-wasip2` and `wasm32-wasip3` need `--cfg tokio_unstable`; this repository sets it for
+//! WASI targets in `.cargo/config.toml`. Wasmtime needs `-S inherit-network -S
+//! allow-ip-name-lookup` for outbound networking and name lookup, plus `-S p3` for wasip3.
+//!
+//! # Browser builds
+//!
+//! For a size-oriented `wasm32-unknown-unknown` release build, add this profile to the
+//! application's `Cargo.toml`:
+//!
+//! ```toml
+//! [profile.release]
+//! codegen-units = 1
+//! lto = true
+//! opt-level = "z"
+//! panic = "abort"
+//! ```
+//!
+//! On papo's core browser probe, these settings reduced the output after `wasm-opt -Oz` from
+//! 996,188 to 701,675 bytes, a 29.6% reduction. Run
+//! `wasm-opt -Oz input.wasm -o output.wasm` on the linked module before deployment.
+//!
+//! The high-level client runs in dedicated workers, shared workers, and Node.js using the
+//! browser's WebSocket implementation. Pass a `ws://` or `wss://` URL directly to
+//! [`Client::builder`]. TCP [`Endpoint`] constructors remain available for portable
+//! configuration, but connecting through one returns an unavailable-transport error. The browser
+//! owns TLS policy for `wss://`, and IRC STS does not apply to WebSocket connections, so custom
+//! TLS setters and STS stores are absent from browser builds.
 //!
 //! # Frozen re-exports
 //!
