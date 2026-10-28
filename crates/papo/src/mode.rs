@@ -883,7 +883,11 @@ mod tests {
         let (second, _, _) = crate::Client::builder("ircs://irc.example.net", "papo-client")
             .casemapping(crate::Casemapping::default())
             .build();
-        let channel = first.state().name_rules().channel("#papo");
+        let channel = first
+            .state()
+            .__known_name_rules()
+            .expect("server advertised CASEMAPPING")
+            .channel("#papo");
         let state = first.state();
         let recipient = state.capture_recipient(state.nick(), state.account().clone());
         let direct = crate::DirectRef::new(&first, recipient, false);
@@ -906,7 +910,8 @@ mod tests {
     }
 
     fn state(line: &str) -> crate::State {
-        let mut session = Session::new(Config::default());
+        let mut session =
+            Session::new(Config::default().casemapping(crate::Casemapping::default()));
         session.handle_line(crate::rt::now_mono(), line.as_bytes());
         crate::State::from_session(&session, false)
     }
@@ -943,7 +948,12 @@ mod tests {
         let ban = crate::ModeChange::__new(
             'b',
             crate::ModeAction::Add,
-            Some(crate::ModeArg::Mask(state.name_rules().mask("alice!*@*"))),
+            Some(crate::ModeArg::Mask(
+                state
+                    .__known_name_rules()
+                    .expect("server advertised CASEMAPPING")
+                    .mask("alice!*@*"),
+            )),
         );
         let invisible = crate::ModeChange::__new('i', crate::ModeAction::Add, None);
         let moderated = crate::ModeChange::__new('m', crate::ModeAction::Add, None);
@@ -988,8 +998,14 @@ mod tests {
     fn confirms_only_the_matching_canonical_ban_echo() {
         let state =
             state(":ergo.test 005 papo CHANMODES=beI,k,l,imnst CASEMAPPING=rfc1459 :supported");
-        let channel = state.name_rules().channel("#Papo[");
-        let ban = state.name_rules().mask("Alice");
+        let channel = state
+            .__known_name_rules()
+            .expect("server advertised CASEMAPPING")
+            .channel("#Papo[");
+        let ban = state
+            .__known_name_rules()
+            .expect("server advertised CASEMAPPING")
+            .mask("Alice");
         let echo =
             |modes| papo_proto::Line::new("MODE").with_params(["#papo{", modes, "alice!*@*"]);
         assert!(confirmed_ban(&[echo("+b")], &state, &channel, &ban,));
@@ -1225,7 +1241,12 @@ mod tests {
         let change = Change {
             set: true,
             mode: Selector::Optional(Feature::Halfop),
-            arg: Some(Argument::Nick(supported.name_rules().nick("alice"))),
+            arg: Some(Argument::Nick(
+                supported
+                    .__known_name_rules()
+                    .expect("server advertised CASEMAPPING")
+                    .nick("alice"),
+            )),
         };
         assert!(matches!(
             change.resolve(&supported).unwrap().mode,
@@ -1238,7 +1259,12 @@ mod tests {
         let change = Change {
             set: true,
             mode: Selector::Optional(Feature::Halfop),
-            arg: Some(Argument::Nick(unsupported.name_rules().nick("alice"))),
+            arg: Some(Argument::Nick(
+                unsupported
+                    .__known_name_rules()
+                    .expect("server advertised CASEMAPPING")
+                    .nick("alice"),
+            )),
         };
         assert!(matches!(
             change.resolve(&unsupported),
@@ -1259,7 +1285,10 @@ mod tests {
                 set: true,
                 mode: Selector::Optional(feature),
                 arg: Some(Argument::Mask(
-                    state.name_rules().mask("reviewer!*@trusted.example"),
+                    state
+                        .__known_name_rules()
+                        .expect("server advertised CASEMAPPING")
+                        .mask("reviewer!*@trusted.example"),
                 )),
             };
             assert!(matches!(
@@ -1279,7 +1308,10 @@ mod tests {
                 set: true,
                 mode: Selector::Optional(feature),
                 arg: Some(Argument::Mask(
-                    state.name_rules().mask("reviewer!*@trusted.example"),
+                    state
+                        .__known_name_rules()
+                        .expect("server advertised CASEMAPPING")
+                        .mask("reviewer!*@trusted.example"),
                 )),
             };
             assert!(matches!(
@@ -1303,7 +1335,10 @@ mod tests {
                 set,
                 mode: Selector::Optional(Feature::Quiet),
                 arg: Some(Argument::Mask(
-                    solanum.name_rules().mask("*!*@gateway.example"),
+                    solanum
+                        .__known_name_rules()
+                        .expect("server advertised CASEMAPPING")
+                        .mask("*!*@gateway.example"),
                 )),
             };
             let resolved = change.resolve(&solanum).unwrap();
@@ -1318,7 +1353,9 @@ mod tests {
             set: true,
             mode: Selector::Optional(Feature::Quiet),
             arg: Some(Argument::Mask(
-                ergo.name_rules().mask("m:*!*@gateway.example"),
+                ergo.__known_name_rules()
+                    .expect("server advertised CASEMAPPING")
+                    .mask("m:*!*@gateway.example"),
             )),
         };
         assert!(matches!(
