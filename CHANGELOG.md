@@ -275,3 +275,70 @@ All request futures are lazy until first poll. After polling, dropping the futur
 wait but does not cancel driver work. `Error::Timeout` means every line was written and the reply
 was not observed; only read-only queries are safe to retry automatically. Sends, KICK, MODE,
 redaction, kickban, and every other state-changing request can already have taken effect.
+
+#### Event lag and shutdown
+
+Event delivery no longer stops socket reads or disconnects a send-only client when its consumer is
+slow. The bounded queue discards state-backed events first, then other non-message events, and
+message-like events last. The next item is one `Event::Lagged` for the episode:
+
+```rust,ignore
+match event {
+    Event::Lagged(lag) => {
+        let current = client.state();
+        for gap in lag.gaps {
+            // Query client.history(&gap.conversation) when history is available.
+        }
+    }
+    event => handle(event),
+}
+```
+
+`Lagged::dropped` counts all discarded events. Each bounded `MessageGap` identifies its
+conversation, dropped count, and first/last known msgid and server time. Re-read `Client::state()`
+for membership, modes, topics, presence, metadata, read markers, and typing; papo does not fill
+message gaps automatically. `Builder::event_capacity` defaults to 1,024 events and should cover
+the largest expected burst while the event loop is busy, not merely the average rate.
+
+The connection now stays alive while either a `Client` clone or its `Events` stream exists.
+Dropping all clients does not end an observe-only event loop, and dropping only `Events` does not
+stop a client that still sends. Dropping the final handle asks the driver to send `QUIT`, but
+cannot await delivery or acknowledgement. For intentional shutdown:
+
+```rust,ignore
+client.quit("shutting down").await?;
+while events.next().await.is_some() {}
+```
+
+Dropping the `Driver` still ends the stream without a final `Event::Disconnected`.
+
+#### Other observable corrections
+
+- Incoming text, server reasons, malformed lines, and URL failures use bounded, terminal-safe
+  display text. Channel keys and other credentials remain redacted in state, events, raw request
+  responses, errors, and `Debug` output.
+- Server-driven LIST/WHO/WHOIS/NAMES replies, read markers, monitored identities, event loss
+  accounting, and other retained collections are bounded. Overflow returns a typed `StateLimit`
+  error or warning instead of growing without limit or silently truncating a successful result.
+- `Warning::Utf8CasemappingUnsupported` reports a server that selects RFC 8265 when the `precis`
+  feature is absent. Name checks use only limits actually advertised by the server.
+- `Warning::ChannelRecreated` reports a rejoined channel whose creation time changed. Typing,
+  read markers, and other channel state move on a legitimate rename and are cleared for a new
+  channel identity.
+- A nickname lifecycle now clears metadata and all other per-user facts before a new user can
+  inherit them. Own-user state is one coherent row and resists hostile nickname collisions.
+- Outgoing text that cannot fit even one UTF-8 scalar within the server's advertised multiline
+  limit returns an error rather than silently dropping text.
+- Reconnect catch-up deduplicates every live event by msgid, including messages, and own sends
+  consume their correlated echo before application delivery.
+- `Typing::Done` clears the active-send throttle, so a following active notification is not
+  incorrectly suppressed.
+- `ModeChange` and other externally constructed protocol values are non-exhaustive where future
+  server vocabulary can add cases. `Typer` exposes `nick()`, `is_paused()`, `status()`, and its
+  audience-preserving return address rather than mutable public fields; the impossible retained
+  `Done` state and redundant conversation field are gone.
+- Channel mode lookup has one `ModeValue` representation. `User::is_bot` is optional where the
+  server has not supplied the fact. Account and away state preserve unknown values instead of
+  guessing.
+- The duplicate `Isupport::filehost()` accessor was removed; use `State::filehost()` for the
+  validated upload endpoint. Raw advertised values remain available through `State::isupport()`.
