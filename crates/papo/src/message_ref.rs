@@ -406,7 +406,12 @@ impl ReplyReference for Sent {
     }
 
     fn msgids(&self) -> Vec<MessageId> {
-        self.msgids.clone()
+        match &self.outcome {
+            crate::SentOutcome::Confirmed { lines, .. } => {
+                lines.iter().map(|(id, _)| id.clone()).collect()
+            }
+            crate::SentOutcome::Unconfirmed => Vec::new(),
+        }
     }
 }
 
@@ -668,6 +673,10 @@ mod tests {
         assert_eq!(reference, "@#ops");
         assert_eq!(reference.msgids.len(), 2);
         assert_eq!(reference.origin(), origin);
+
+        let mut unconfirmed = sent;
+        unconfirmed.outcome = crate::SentOutcome::Unconfirmed;
+        assert_eq!(unconfirmed.return_address().msgid(), None);
     }
 
     #[test]

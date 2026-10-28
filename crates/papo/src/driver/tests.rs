@@ -6902,15 +6902,65 @@ async fn chat_text_uses_multiline_when_negotiated() {
     )
     .await;
     client_line(&mut server, b"CAP END\r\n").await;
-    within(client.privmsg("#papo", "a".repeat(600)))
+    let sent = within(client.privmsg("#papo", "a".repeat(600)))
         .await
         .unwrap();
+    assert_eq!(sent.outcome, crate::SentOutcome::Unconfirmed);
     let batch = format!(
         "BATCH +b0-0 draft/multiline #papo\r\n@batch=b0-0 PRIVMSG #papo {}\r\n@batch=b0-0;draft/multiline-concat PRIVMSG #papo {}\r\nBATCH -b0-0\r\n",
         "a".repeat(413),
         "a".repeat(187)
     );
     client_line(&mut server, batch.as_bytes()).await;
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn chat_text_reports_one_confirmed_line_for_a_multiline_batch() {
+    let caps = [
+        "batch",
+        "draft/multiline",
+        "echo-message",
+        "labeled-response",
+    ];
+    let (mut server, client, mut events, driver) = scripted(config().wanted_caps(caps));
+    let task = tokio::spawn(driver);
+    complete_connect_caps(
+        &mut server,
+        &mut events,
+        "batch draft/multiline=max-bytes=4096,max-lines=100 echo-message labeled-response",
+        "batch draft/multiline echo-message labeled-response",
+    )
+    .await;
+
+    let sent = tokio::spawn(async move {
+        client
+            .privmsg("#papo", "deployment started\ndeployment finished")
+            .await
+    });
+    client_line(
+        &mut server,
+        b"@label=0 BATCH +b0-0 draft/multiline #papo\r\n@batch=b0-0 PRIVMSG #papo :deployment started\r\n@batch=b0-0 PRIVMSG #papo :deployment finished\r\nBATCH -b0-0\r\n",
+    )
+    .await;
+    server_line(
+        &mut server,
+        b"@label=0;msgid=RfcBTzyxY120004 :papo-driver!papo@localhost BATCH +echo draft/multiline #papo\r\n@batch=echo :papo-driver!papo@localhost PRIVMSG #papo :deployment started\r\n@batch=echo :papo-driver!papo@localhost PRIVMSG #papo :deployment finished\r\n:papo-driver!papo@localhost BATCH -echo\r\n",
+    )
+    .await;
+    let sent = within(sent).await.unwrap().unwrap();
+    assert_eq!(
+        sent.outcome,
+        crate::SentOutcome::Confirmed {
+            lines: vec![(
+                crate::MessageId::from("RfcBTzyxY120004"),
+                "deployment started\ndeployment finished".into(),
+            )],
+            server_time: None,
+        }
+    );
+
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
@@ -7137,7 +7187,6 @@ async fn chat_text_returns_metadata_from_every_labelled_echo() {
             "hello everyone".into()
         )]
     );
-    assert_eq!(sent.msgid().map(AsRef::as_ref), Some("RfcBTzyxY120004"));
     assert!(
         matches!(sent.conversation, crate::Conversation::Channel(ref channel) if channel == "#papo")
     );
@@ -7167,8 +7216,17 @@ async fn chat_text_returns_metadata_from_every_labelled_echo() {
     )
     .await;
     let split = within(split).await.unwrap().unwrap();
-    assert_eq!(split.msgids, ["RfcBTzyxY120005", "RfcBTzyxY120006"]);
-
+    let crate::SentOutcome::Confirmed { lines, server_time } = &split.outcome else {
+        panic!("every split line should be confirmed")
+    };
+    assert_eq!(server_time, &None);
+    assert_eq!(
+        lines,
+        &[
+            (crate::MessageId::from("RfcBTzyxY120005"), "a".repeat(414)),
+            (crate::MessageId::from("RfcBTzyxY120006"), "a".repeat(186)),
+        ]
+    );
     let sender = client.clone();
     let redacted = tokio::spawn(async move { sender.redact(&split, "superseded").await });
     client_line(
