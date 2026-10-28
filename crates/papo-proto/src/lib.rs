@@ -1,4 +1,13 @@
-//! Internal crate of `papo`; use `papo`. This crate has no API stability guarantees.
+//! <div class="warning">
+//!
+//! Internal implementation crate of [`papo`](https://docs.rs/papo). Do not depend on it directly;
+//! use `papo`.
+//!
+//! It has no API stability guarantees and may change incompatibly in any release, including patch
+//! releases. It is published only because `papo` depends on it. Its version moves in lockstep with
+//! `papo`.
+//!
+//! </div>
 //!
 //! The IRC specifications call each line a message; this crate uses "line" so
 //! "message" can consistently mean a chat message in the wider API.
