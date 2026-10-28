@@ -374,6 +374,39 @@ async fn event_capacity_one_preserves_preconnect_events() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn connecting_phase_overflow_reports_one_lag_episode() {
+    let session = Session::new(config());
+    let channels = super::channels(1, &session);
+    let super::Channels {
+        mut events,
+        event_sink,
+        ..
+    } = channels;
+    for attempt in 1..=34 {
+        assert!(super::send_event(
+            &event_sink,
+            Event::Connecting(crate::event::Connecting {
+                attempt,
+                phase: crate::ConnectPhase::Transport,
+            }),
+        ));
+    }
+
+    let lagged = events.next().await.unwrap().as_lagged().unwrap().clone();
+    assert_eq!(lagged.dropped, 1);
+    assert!(lagged.gaps.is_empty());
+    for attempt in 2..=34 {
+        assert!(matches!(
+            events.next().await,
+            Some(Event::Connecting(crate::event::Connecting {
+                attempt: actual,
+                phase: crate::ConnectPhase::Transport,
+            })) if actual == attempt
+        ));
+    }
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn message_fields_use_captured_session_facts() {
     let (mut server, _client, mut events, driver) = scripted(config().max_batch_lines(0));
     let task = tokio::spawn(driver);
@@ -8779,43 +8812,66 @@ async fn undrained_events_still_answer_server_ping() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn overflow_drops_oldest_and_reports_one_lagged_count() {
-    let (mut server, _client, mut events, driver) = scripted_with_capacity(config(), 4);
+async fn overflow_reports_message_gaps_for_each_conversation() {
+    let (mut server, _client, mut events, driver) = scripted_with_capacity(config(), 2);
     let driver = tokio::spawn(driver);
     complete_connect(&mut server, &mut events).await;
     server_line(
         &mut server,
-        b":emily!e@localhost PRIVMSG #papo :deployment update one\r\n\
-          :emily!e@localhost PRIVMSG #papo :deployment update two\r\n\
-          :emily!e@localhost PRIVMSG #papo :deployment update three\r\n\
-          :emily!e@localhost PRIVMSG #papo :deployment update four\r\n\
-          :emily!e@localhost PRIVMSG #papo :deployment update five\r\n\
-          :emily!e@localhost PRIVMSG #papo :deployment update six\r\n\
+        b"@time=2026-10-27T10:00:01Z;msgid=RfcBTzyxY120001 :emily!e@localhost PRIVMSG #papo :deployment one\r\n\
+          @time=2026-10-27T10:00:02Z;msgid=RfcBTzyxY120002 :alice!a@localhost PRIVMSG #ops :incident one\r\n\
+          @time=2026-10-27T10:00:03Z;msgid=RfcBTzyxY120003 :emily!e@localhost PRIVMSG #papo :deployment two\r\n\
+          @time=2026-10-27T10:00:04Z;msgid=RfcBTzyxY120004 :alice!a@localhost PRIVMSG #ops :incident two\r\n\
+          @time=2026-10-27T10:00:05Z;msgid=RfcBTzyxY120005 :emily!e@localhost PRIVMSG #papo :deployment three\r\n\
+          @time=2026-10-27T10:00:06Z;msgid=RfcBTzyxY120006 :alice!a@localhost PRIVMSG #ops :incident three\r\n\
           PING :ergo.test\r\n",
     )
     .await;
     client_line(&mut server, b"PONG ergo.test\r\n").await;
 
-    assert!(matches!(
-        next_event(&mut events).await,
-        Some(Event::Lagged(crate::event::Lagged { dropped: 2, .. }))
-    ));
-    for expected in [
-        "deployment update three",
-        "deployment update four",
-        "deployment update five",
-        "deployment update six",
+    let lagged = next_event(&mut events)
+        .await
+        .unwrap()
+        .as_lagged()
+        .unwrap()
+        .clone();
+    assert_eq!(lagged.dropped, 4);
+    assert_eq!(lagged.gaps.len(), 2);
+    for (gap, conversation, first, last, first_time, last_time) in [
+        (
+            &lagged.gaps[0],
+            "#papo",
+            "RfcBTzyxY120001",
+            "RfcBTzyxY120003",
+            1_793_095_201,
+            1_793_095_203,
+        ),
+        (
+            &lagged.gaps[1],
+            "#ops",
+            "RfcBTzyxY120002",
+            "RfcBTzyxY120004",
+            1_793_095_202,
+            1_793_095_204,
+        ),
     ] {
+        assert!(
+            matches!(&gap.conversation, crate::Conversation::Channel(channel) if channel == conversation)
+        );
+        assert_eq!(gap.dropped, 2);
+        assert_eq!(gap.first_msgid.as_deref(), Some(first));
+        assert_eq!(gap.last_msgid.as_deref(), Some(last));
         assert_eq!(
-            next_event(&mut events)
-                .await
-                .unwrap()
-                .as_message()
-                .unwrap()
-                .text,
-            expected
+            gap.first_server_time,
+            Some(SystemTime::UNIX_EPOCH + Duration::from_secs(first_time))
+        );
+        assert_eq!(
+            gap.last_server_time,
+            Some(SystemTime::UNIX_EPOCH + Duration::from_secs(last_time))
         );
     }
+    assert_eq!(next_message(&mut events).await.text, "deployment three");
+    assert_eq!(next_message(&mut events).await.text, "incident three");
 
     drop(events);
     within(server.shutdown()).await.unwrap();
