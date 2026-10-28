@@ -126,7 +126,7 @@ async fn reactions_reach_another_client_with_reply_context() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn multiline_delivers_a_thousand_byte_message_whole() {
+async fn multiline_delivers_a_long_space_delimited_message_whole() {
     within(async {
         let server = from_env();
         let address = Endpoint::plaintext(
@@ -138,14 +138,20 @@ async fn multiline_delivers_a_thousand_byte_message_whole() {
         let (client_a, _events_a) =
             client(address.clone(), &unique("papo-multi-a"), &channel).await;
         let (client_b, mut events_b) = client(address, &unique("papo-multi-b"), &channel).await;
-        let text = "é".repeat(500);
+        let text = concat!(
+            "During the overnight deployment, operators watched every regional queue and ",
+            "confirmed that each notification reached its intended recipient before continuing. "
+        )
+        .repeat(5);
+        assert!(text.len() > 512);
 
         let sender = client_a.clone();
         let sent_text = text.clone();
         let sent_channel = channel.clone();
         let sent = tokio::spawn(async move { sender.privmsg(&sent_channel, &sent_text).await });
-        let incoming = wait_message(&mut events_b, |message| message.raw_text == text).await;
-        assert_eq!(incoming.raw_text.len(), 1000);
+        let incoming = wait_message(&mut events_b, |message| message.text == text).await;
+        assert_eq!(incoming.text, text);
+        assert!(!incoming.text.contains('\n'));
         sent.await.unwrap().unwrap();
 
         client_b.quit("multiline test complete").await.unwrap();

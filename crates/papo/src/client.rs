@@ -79,7 +79,8 @@ pub enum SentOutcome {
     Confirmed {
         /// One identifier and exact sent text for each logical line after papo's splitting.
         ///
-        /// Segments in one `draft/multiline` batch form one logical line.
+        /// Segments in one `draft/multiline` batch form one logical line. For long messages, papo
+        /// uses multiline concatenation so length-based splits do not introduce line breaks.
         lines: Vec<(crate::MessageId, String)>,
         /// Server time from the first labelled echo that supplied one.
         server_time: Option<SystemTime>,

@@ -6954,7 +6954,7 @@ async fn chat_text_uses_multiline_when_negotiated() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn chat_text_reports_one_confirmed_line_for_a_multiline_batch() {
+async fn chat_text_preserves_an_automatically_split_multiline_batch() {
     let caps = [
         "batch",
         "draft/multiline",
@@ -6971,29 +6971,26 @@ async fn chat_text_reports_one_confirmed_line_for_a_multiline_batch() {
     )
     .await;
 
-    let sent = tokio::spawn(async move {
-        client
-            .privmsg("#papo", "deployment started\ndeployment finished")
-            .await
-    });
+    let text = "deployment update ".repeat(40);
+    let sent_text = text.clone();
+    let sent = tokio::spawn(async move { client.privmsg("#papo", sent_text).await });
+    let first = format!("{}deployment ", "deployment update ".repeat(22));
+    let second = format!("update {}", "deployment update ".repeat(17));
     client_line(
         &mut server,
-        b"@label=0 BATCH +b0-0 draft/multiline #papo\r\n@batch=b0-0 PRIVMSG #papo :deployment started\r\n@batch=b0-0 PRIVMSG #papo :deployment finished\r\nBATCH -b0-0\r\n",
+        format!("@label=0 BATCH +b0-0 draft/multiline #papo\r\n@batch=b0-0 PRIVMSG #papo :{first}\r\n@batch=b0-0;draft/multiline-concat PRIVMSG #papo :{second}\r\nBATCH -b0-0\r\n").as_bytes(),
     )
     .await;
     server_line(
         &mut server,
-        b"@label=0;msgid=RfcBTzyxY120004 :papo-driver!papo@localhost BATCH +echo draft/multiline #papo\r\n@batch=echo :papo-driver!papo@localhost PRIVMSG #papo :deployment started\r\n@batch=echo :papo-driver!papo@localhost PRIVMSG #papo :deployment finished\r\n:papo-driver!papo@localhost BATCH -echo\r\n",
+        format!("@label=0;msgid=RfcBTzyxY120004 :papo-driver!papo@localhost BATCH +echo draft/multiline #papo\r\n@batch=echo :papo-driver!papo@localhost PRIVMSG #papo :{first}\r\n@batch=echo;draft/multiline-concat :papo-driver!papo@localhost PRIVMSG #papo :{second}\r\n:papo-driver!papo@localhost BATCH -echo\r\n").as_bytes(),
     )
     .await;
     let sent = within(sent).await.unwrap().unwrap();
     assert_eq!(
         sent.outcome,
         crate::SentOutcome::Confirmed {
-            lines: vec![(
-                crate::MessageId::from("RfcBTzyxY120004"),
-                "deployment started\ndeployment finished".into(),
-            )],
+            lines: vec![(crate::MessageId::from("RfcBTzyxY120004"), text,)],
             server_time: None,
         }
     );

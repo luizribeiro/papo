@@ -345,6 +345,8 @@ Dropping the `Driver` still ends the stream without a final `Event::Disconnected
   inherit them. Own-user state is one coherent row and resists hostile nickname collisions.
 - Outgoing text that cannot fit even one UTF-8 scalar within the server's advertised multiline
   limit returns an error rather than silently dropping text.
+- Length-based splits in outgoing `draft/multiline` messages concatenate without introducing
+  line breaks; confirmed text exactly preserves user-authored spaces and newlines.
 - Reconnect catch-up deduplicates every live event by msgid, including messages, and own sends
   consume their correlated echo before application delivery.
 - `Typing::Done` clears the active-send throttle, so a following active notification is not
