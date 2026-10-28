@@ -2682,12 +2682,9 @@ impl core::panic::unwind_safe::UnwindSafe for papo::SendMessage
 #[non_exhaustive] pub struct papo::Sent
 pub papo::Sent::conversation: papo::Conversation
 pub papo::Sent::fallbacks: alloc::vec::Vec<papo::Fallback>
-pub papo::Sent::msgids: alloc::vec::Vec<papo::MessageId>
 pub papo::Sent::outcome: papo::SentOutcome
-pub papo::Sent::server_time: core::option::Option<std::time::SystemTime>
 pub papo::Sent::status: core::option::Option<papo::Prefix>
 impl papo::Sent
-pub fn papo::Sent::msgid(&self) -> core::option::Option<&papo::MessageId>
 pub fn papo::Sent::origin(&self) -> papo::Origin
 pub fn papo::Sent::return_address(&self) -> papo::MessageRef
 impl core::clone::Clone for papo::Sent

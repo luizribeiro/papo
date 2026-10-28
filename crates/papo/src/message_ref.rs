@@ -665,8 +665,6 @@ mod tests {
                 ],
                 server_time: Some(SystemTime::UNIX_EPOCH),
             },
-            msgids: vec!["RfcBTzyxY120005".into(), "RfcBTzyxY120006".into()],
-            server_time: Some(SystemTime::UNIX_EPOCH),
             fallbacks: Vec::new(),
         };
         let reference = sent.return_address();

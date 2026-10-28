@@ -230,8 +230,8 @@ async fn chathistory_targets(s: Scenario) -> papo_testing::Result<()> {
     let channel = s.channel_name();
     alice.join(&channel).await?;
     let sent = alice.privmsg(&channel, "target history checkpoint").await?;
-    let time = sent
-        .server_time
+    let time = confirmed_line(&sent)
+        .2
         .expect("server-time accompanies the labelled echo");
 
     let targets = alice

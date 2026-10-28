@@ -53,6 +53,12 @@ these methods return `Error::TargetGone` when current state proves that another 
 sender's nickname. If the sender is not tracked, papo verifies its captured account with `WHO` or
 refuses the send; private replies never fall back to an unguarded nickname.
 
+Inspect `Sent::outcome` to tell whether the server confirmed an outgoing message. `Confirmed`
+contains every server-assigned message ID paired with the exact logical text after splitting;
+segments in one `draft/multiline` batch form one logical line. `Unconfirmed` means the server did
+not provide both echo and label support, so the send has no IDs and cannot be reacted to or
+redacted.
+
 Start a new direct-message conversation with a guarded handle. It follows nickname changes and
 keeps an unshared user on `MONITOR` until the last clone is dropped:
 

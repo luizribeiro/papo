@@ -60,10 +60,6 @@ pub struct Sent {
     pub(crate) receipt: crate::message_ref::Receipt,
     /// Whether the server confirmed the message, with its assigned metadata when it did.
     pub outcome: SentOutcome,
-    /// Server-assigned identifiers for every confirmed IRC message line, in send order.
-    pub msgids: Vec<crate::MessageId>,
-    /// Server time from a labelled echo.
-    pub server_time: Option<SystemTime>,
     /// Compatibility fallbacks applied while sending.
     pub fallbacks: Vec<Fallback>,
 }
@@ -289,12 +285,6 @@ impl IntoFuture for SendMessage {
 }
 
 impl Sent {
-    /// Returns the first sent line's server-assigned identifier, when present.
-    #[must_use]
-    pub fn msgid(&self) -> Option<&crate::MessageId> {
-        self.msgids.first()
-    }
-
     /// Which `Client` produced this value (not the sender or the server).
     #[must_use]
     pub fn origin(&self) -> crate::Origin {
@@ -320,8 +310,6 @@ impl Sent {
             status,
             receipt,
             outcome: SentOutcome::Unconfirmed,
-            msgids: Vec::new(),
-            server_time: None,
             fallbacks,
         }
     }
@@ -354,8 +342,6 @@ impl Sent {
             status,
             receipt,
             outcome,
-            msgids,
-            server_time,
             fallbacks,
         }
     }

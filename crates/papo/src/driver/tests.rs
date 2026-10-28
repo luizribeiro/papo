@@ -7004,10 +7004,11 @@ async fn message_builder_sends_reply_context_and_custom_tags() {
         b"@label=0;msgid=RfcBTzyxY120005 :papo-driver!papo@localhost PRIVMSG helper :fixed in 69876ec\r\n",
     )
     .await;
-    assert_eq!(
-        within(sent).await.unwrap().unwrap().msgid().unwrap(),
-        "RfcBTzyxY120005"
-    );
+    assert!(matches!(
+        within(sent).await.unwrap().unwrap().outcome,
+        crate::SentOutcome::Confirmed { lines, .. }
+            if matches!(lines.as_slice(), [(id, text)] if id == "RfcBTzyxY120005" && text == "fixed in 69876ec")
+    ));
 
     let action_client = client.clone();
     let action = tokio::spawn(async move { action_client.action("#papo", "waves").await });
@@ -7021,10 +7022,11 @@ async fn message_builder_sends_reply_context_and_custom_tags() {
         b"@label=1;msgid=RfcBTzyxY120006 :papo-driver!papo@localhost PRIVMSG #papo :\x01ACTION waves\x01\r\n",
     )
     .await;
-    assert_eq!(
-        within(action).await.unwrap().unwrap().msgid().unwrap(),
-        "RfcBTzyxY120006"
-    );
+    assert!(matches!(
+        within(action).await.unwrap().unwrap().outcome,
+        crate::SentOutcome::Confirmed { lines, .. }
+            if matches!(lines.as_slice(), [(id, text)] if id == "RfcBTzyxY120006" && text == "\u{1}ACTION waves\u{1}")
+    ));
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
@@ -7846,10 +7848,6 @@ async fn redacting_a_multiline_send_stops_at_the_first_refusal() {
             .into(),
             server_time: None,
         },
-        msgids: ["RfcBTzyxY120004", "RfcBTzyxY120005", "RfcBTzyxY120006"]
-            .map(crate::MessageId::from)
-            .into(),
-        server_time: None,
         fallbacks: Vec::new(),
     };
     let sender = client.clone();
@@ -8040,10 +8038,11 @@ async fn resolved_send_suppression_is_own_scoped_and_one_shot() {
         b"@label=2;msgid=RfcBTzyxY120007 :papo-driver!papo@localhost PRIVMSG papo-driver :remember this\r\n",
     )
     .await;
-    assert_eq!(
-        within(sent).await.unwrap().unwrap().msgids,
-        [crate::MessageId::from("RfcBTzyxY120007")]
-    );
+    assert!(matches!(
+        within(sent).await.unwrap().unwrap().outcome,
+        crate::SentOutcome::Confirmed { lines, .. }
+            if matches!(lines.as_slice(), [(id, text)] if id == "RfcBTzyxY120007" && text == "remember this")
+    ));
     server_line(
         &mut server,
         b"@msgid=RfcBTzyxY120007 :papo-driver!papo@localhost PRIVMSG papo-driver :remember this\r\n",
