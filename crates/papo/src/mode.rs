@@ -92,8 +92,11 @@ impl From<&Extban> for BanTarget {
 
 impl BanTarget {
     pub(crate) fn resolve(self, state: &crate::State) -> Result<Mask, Error> {
+        let names = state
+            .known_name_rules()
+            .ok_or(crate::InvalidInput::NameRulesUnknown)?;
         match self.0 {
-            Target::Text(value) => Ok(state.name_rules().mask(value)),
+            Target::Text(value) => Ok(names.mask(value)),
             Target::Mask(value) => Ok(value),
             Target::Extban(Extban::Account(account)) => {
                 if !state.supports(crate::Feature::AccountExtban) {
@@ -115,8 +118,8 @@ impl BanTarget {
                 let prefix = syntax
                     .prefix
                     .map_or(String::new(), |value| value.to_string());
-                let account = state.name_rules().account(account);
-                Ok(state.name_rules().mask(format!("{prefix}{kind}:{account}")))
+                let account = names.account(account);
+                Ok(names.mask(format!("{prefix}{kind}:{account}")))
             }
         }
     }
@@ -488,7 +491,10 @@ impl Client {
             let channel =
                 client.resolve(crate::target::Role::Channel("list_modes: channel"), channel)?;
             let state = client.state();
-            let name = state.name_rules().channel(&channel);
+            let name = state
+                .known_name_rules()
+                .ok_or(crate::InvalidInput::NameRulesUnknown)?
+                .channel(&channel);
             let letter = match mode {
                 crate::ListMode::Ban => "b",
                 crate::ListMode::Except => "e",
@@ -526,7 +532,12 @@ impl Change {
         self.arg = match self.arg {
             Some(Argument::PendingNick(parts)) => {
                 let nick = client.resolve(crate::target::Role::Nick("mode: nick"), parts)?;
-                Some(Argument::Nick(state.name_rules().nick(nick)))
+                Some(Argument::Nick(
+                    state
+                        .known_name_rules()
+                        .ok_or(crate::InvalidInput::NameRulesUnknown)?
+                        .nick(nick),
+                ))
             }
             argument => argument,
         };
@@ -564,12 +575,13 @@ impl Change {
     fn typed(&self, state: &crate::State) -> Result<ModeChange, Error> {
         let mode = validate(state.isupport().inner(), self)?;
         let kind = mode_kind(state.isupport().inner(), mode);
+        let names = state
+            .known_name_rules()
+            .ok_or(crate::InvalidInput::NameRulesUnknown)?;
         let arg = self.arg.as_ref().map(|argument| match (mode, kind) {
             ('k', _) => ModeArg::Key(crate::Secret::from(argument.text())),
-            (_, ModeKind::Prefix(prefix)) => {
-                ModeArg::__member(state.name_rules().nick(argument.text()), prefix)
-            }
-            (_, ModeKind::List) => ModeArg::Mask(state.name_rules().mask(argument.text())),
+            (_, ModeKind::Prefix(prefix)) => ModeArg::__member(names.nick(argument.text()), prefix),
+            (_, ModeKind::List) => ModeArg::Mask(names.mask(argument.text())),
             _ => ModeArg::Value(argument.text().to_owned()),
         });
         Ok(ModeChange::__new(
@@ -732,11 +744,14 @@ fn confirmed(
     target: &str,
     requested: &[ModeChange],
 ) -> Vec<ModeChange> {
+    let Some(names) = state.known_name_rules() else {
+        return Vec::new();
+    };
     let mut remaining = requested.to_vec();
     let mut applied = Vec::new();
     for line in &response.lines {
         let line = line.as_ref();
-        let own_echo = matches!(line.source(), Some(Source::User { nick, .. }) if state.name_rules().nick(nick) == *state.nick());
+        let own_echo = matches!(line.source(), Some(Source::User { nick, .. }) if names.nick(nick) == *state.nick());
         if !own_echo
             || line.command() != Command::Mode
             || !line
@@ -774,7 +789,9 @@ fn same_target(state: &crate::State, left: &str, right: &str) -> bool {
     if state.isupport().is_channel(left) {
         state.casemapping().channel(left) == right
     } else {
-        state.name_rules().nick(left) == right
+        state
+            .known_name_rules()
+            .is_some_and(|names| names.nick(left) == right)
     }
 }
 
@@ -814,9 +831,11 @@ pub(crate) fn confirmed_ban(
     lines.iter().any(|line| {
         let line = line.as_ref();
         line.command() == Command::Mode
-            && line
-                .param(0)
-                .is_some_and(|target| state.name_rules().channel(target) == *channel)
+            && line.param(0).is_some_and(|target| {
+                state
+                    .known_name_rules()
+                    .is_some_and(|names| names.channel(target) == *channel)
+            })
             && line.param(1).is_some_and(|modes| {
                 ModeChanges::parse(modes, line.params().skip(2), state.isupport().inner()).any(
                     |change| {
@@ -1163,15 +1182,15 @@ mod tests {
     fn resolves_each_server_account_extban_syntax() {
         let cases = [
             (
-                ":solanum.example 005 papo ACCOUNTEXTBAN=a CHANMODES=eIbq,k,flj,CFLPQcgimnprstz EXTBAN=$,a :are supported",
+                ":solanum.example 005 papo ACCOUNTEXTBAN=a CASEMAPPING=rfc1459 CHANMODES=eIbq,k,flj,CFLPQcgimnprstz EXTBAN=$,a :are supported",
                 "$a:Alice",
             ),
             (
-                ":irc.unreal.example 005 papo ACCOUNTEXTBAN=account,a CHANMODES=beI,fkL,lFH,cdimnprstzCDGKMNOPQRSTVZ EXTBAN=~,acfijmnpqrtACFGOST :are supported",
+                ":irc.unreal.example 005 papo ACCOUNTEXTBAN=account,a CASEMAPPING=rfc1459 CHANMODES=beI,fkL,lFH,cdimnprstzCDGKMNOPQRSTVZ EXTBAN=~,acfijmnpqrtACFGOST :are supported",
                 "~account:Alice",
             ),
             (
-                ":irc.inspircd.example 005 papo ACCOUNTEXTBAN=account,R CHANMODES=b,k,l,MRimnprst EXTBAN=,RU :are supported",
+                ":irc.inspircd.example 005 papo ACCOUNTEXTBAN=account,R CASEMAPPING=rfc1459 CHANMODES=b,k,l,MRimnprst EXTBAN=,RU :are supported",
                 "account:Alice",
             ),
         ];
@@ -1183,8 +1202,9 @@ mod tests {
 
     #[test]
     fn rejects_account_extbans_when_the_server_does_not_offer_them() {
-        let ergo =
-            state(":ergo.test 005 papo CHANMODES=Ibe,k,fl,CEMRUimnstu EXTBAN=,m :are supported");
+        let ergo = state(
+            ":ergo.test 005 papo CASEMAPPING=rfc1459 CHANMODES=Ibe,k,fl,CEMRUimnstu EXTBAN=,m :are supported",
+        );
         let error = BanTarget::from(Extban::account("alice").unwrap())
             .resolve(&ergo)
             .unwrap_err();

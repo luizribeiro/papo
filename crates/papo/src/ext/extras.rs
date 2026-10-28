@@ -28,8 +28,11 @@ impl Client {
             let old = client.resolve(crate::target::Role::Channel("rename_channel: old"), old)?;
             let new = client.resolve(crate::target::Role::Channel("rename_channel: new"), new)?;
             let state = client.state();
-            let old = state.name_rules().channel(old);
-            let new = state.name_rules().channel(new);
+            let names = state
+                .known_name_rules()
+                .ok_or(crate::InvalidInput::NameRulesUnknown)?;
+            let old = names.channel(old);
+            let new = names.channel(new);
             let response = client
                 .core_request(CoreRequest::Rename {
                     old: old.into_string(),
@@ -68,8 +71,11 @@ impl Client {
                 client.resolve(crate::target::Role::Channel("relay: channel"), channel)?;
             let nick = client.resolve(crate::target::Role::Nick("relay: nick"), nick)?;
             let state = client.state();
-            let channel = state.name_rules().channel(channel);
-            let nick = state.name_rules().nick(nick);
+            let names = state
+                .known_name_rules()
+                .ok_or(crate::InvalidInput::NameRulesUnknown)?;
+            let channel = names.channel(channel);
+            let nick = names.nick(nick);
             let response = client
                 .core_request(UnstableRequest::Relay {
                     channel: channel.into_string(),

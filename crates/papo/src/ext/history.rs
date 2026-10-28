@@ -326,7 +326,7 @@ fn parted(
             state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
             false,
         )?,
-        channel: state.name_rules().channel(message.param(0)?),
+        channel: state.known_name_rules()?.channel(message.param(0)?),
         authorship,
         reason: message
             .param(1)
@@ -396,10 +396,10 @@ fn kicked(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        channel: state.name_rules().channel(message.param(0)?),
+        channel: state.known_name_rules()?.channel(message.param(0)?),
         authorship,
         subject_authorship,
-        subject: state.name_rules().nick(nick),
+        subject: state.known_name_rules()?.nick(nick),
         actor: crate::event_impl::source::from_proto_with_account(
             message.source()?,
             mapping,
@@ -442,7 +442,7 @@ fn nick_changed(
             false,
         )?,
         authorship,
-        new: state.name_rules().nick(message.param(0)?),
+        new: state.known_name_rules()?.nick(message.param(0)?),
         channels: match history_conversation {
             Some(crate::Conversation::Channel(channel)) => vec![channel.clone()],
             _ => Vec::new(),
@@ -521,9 +521,9 @@ fn mode_changed(
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         subject: if state.isupport().inner().is_channel(message.param(0)?) {
-            crate::Subject::Channel(state.name_rules().channel(message.param(0)?))
+            crate::Subject::Channel(state.known_name_rules()?.channel(message.param(0)?))
         } else {
-            crate::Subject::User(state.name_rules().nick(message.param(0)?))
+            crate::Subject::User(state.known_name_rules()?.nick(message.param(0)?))
         },
         actor: crate::event_impl::source::from_proto_with_account(
             message.source()?,

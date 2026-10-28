@@ -66,7 +66,11 @@ pub(crate) fn who_account(
         None => Err(Error::TargetGone),
         Some("0" | "*") => Ok(Account::LoggedOut),
         Some(account) => Ok(Account::LoggedIn(
-            client.state().name_rules().account(account),
+            client
+                .state()
+                .known_name_rules()
+                .ok_or(crate::InvalidInput::NameRulesUnknown)?
+                .account(account),
         )),
     }
 }
