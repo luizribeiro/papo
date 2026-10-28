@@ -2,7 +2,9 @@ use papo::{Error, Event, Fallback, Feature, MessageKind, Refusal, UnsupportedRea
 use papo_conformance_macros::scenario;
 use papo_proto::Typing;
 
-use super::support::{conversation_is_private, conversation_name, message_text, notice_text};
+use super::support::{
+    confirmed_line, conversation_is_private, conversation_name, message_text, notice_text,
+};
 use crate::{Peer, Scenario};
 
 async fn fixture_pair(context: &Scenario) -> papo_testing::Result<(Peer, Peer, String)> {
@@ -88,8 +90,9 @@ async fn echo_message(s: Scenario) -> papo_testing::Result<()> {
     );
     assert_eq!(message.raw_text, "hello from alice");
     assert_eq!(message.text, "hello from alice");
-    assert_eq!(message.msgid.as_ref(), sent.msgid());
-    assert_eq!(message.server_time, sent.server_time);
+    let (id, _, server_time) = confirmed_line(&sent);
+    assert_eq!(message.msgid.as_ref(), Some(id));
+    assert_eq!(message.server_time, server_time);
     assert!(!is_private(&message));
     assert!(sent.fallbacks.is_empty());
     alice
@@ -144,8 +147,9 @@ async fn server_time(s: Scenario) -> papo_testing::Result<()> {
         Some(channel.as_str())
     );
     assert_eq!(message.raw_text, "maintenance at midnight");
-    assert_eq!(message.msgid.as_ref(), sent.msgid());
-    assert_eq!(message.server_time, sent.server_time);
+    let (id, _, server_time) = confirmed_line(&sent);
+    assert_eq!(message.msgid.as_ref(), Some(id));
+    assert_eq!(message.server_time, server_time);
     assert!(message.tags.contains("time"));
     assert!(sent.fallbacks.is_empty());
     alice
@@ -186,8 +190,9 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(received.return_address(), alice.nick().as_ref());
     assert_eq!(received.raw_text, "private hello");
     assert!(is_private(&received));
-    assert_eq!(received.msgid.as_ref(), sent.msgid());
-    assert_eq!(received.server_time, sent.server_time);
+    let (id, _, server_time) = confirmed_line(&sent);
+    assert_eq!(received.msgid.as_ref(), Some(id));
+    assert_eq!(received.server_time, server_time);
 
     let alice_direct = bob.direct(alice.nick().as_ref()).await?;
     let sent = bob.notice(&alice_direct, "private notice").await?;
@@ -200,8 +205,9 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
         if nick == bob.nick().as_ref())
     );
     assert_eq!(received.raw_text, "private notice");
-    assert_eq!(received.msgid.as_ref(), sent.msgid());
-    assert_eq!(received.server_time, sent.server_time);
+    let (id, _, server_time) = confirmed_line(&sent);
+    assert_eq!(received.msgid.as_ref(), Some(id));
+    assert_eq!(received.server_time, server_time);
 
     let own = alice.direct(alice.nick()).await?;
     let sent = alice.privmsg(own, "note to self").await?;
@@ -209,7 +215,8 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
         conversation_name(&sent.conversation),
         Some(alice.nick().as_ref())
     );
-    assert!(sent.msgid().is_some());
+    let (_, sent_text, _) = confirmed_line(&sent);
+    assert_eq!(sent_text, "note to self");
     alice
         .expect_none(|event| {
             event
@@ -236,7 +243,7 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
         threaded.channel_context.as_deref().map(AsRef::as_ref),
         Some(channel.as_ref())
     );
-    assert_eq!(threaded.msgid.as_ref(), sent.msgid());
+    assert_eq!(threaded.msgid.as_ref(), Some(confirmed_line(&sent).0));
 
     alice.part(&channel, "testing channel context").await?;
     bob.wait_for(|event| {
@@ -383,7 +390,7 @@ async fn status_message(s: Scenario) -> papo_testing::Result<()> {
     );
     assert_eq!(received.status.map(papo::Prefix::symbol), Some('+'));
     assert_eq!(received.raw_text, "voiced members only");
-    assert_eq!(received.msgid.as_ref(), sent.msgid());
+    assert_eq!(received.msgid.as_ref(), Some(confirmed_line(&sent).0));
     assert!(
         bob.state()
             .channel(&channel)
@@ -438,7 +445,7 @@ async fn status_message_or_higher(s: Scenario) -> papo_testing::Result<()> {
         );
         assert_eq!(message.status.map(papo::Prefix::symbol), Some('+'));
         assert_eq!(message.raw_text, "voiced members only");
-        assert_eq!(message.msgid.as_ref(), sent.msgid());
+        assert_eq!(message.msgid.as_ref(), Some(confirmed_line(&sent).0));
     }
     dave.expect_none(|event| message_text(event, "voiced members only"))
         .await?;
@@ -823,8 +830,9 @@ async fn draft_multiline(s: Scenario) -> papo_testing::Result<()> {
     );
     assert_eq!(received.raw_text, text);
     assert_eq!(received.text, text);
-    assert_eq!(received.msgid.as_ref(), sent.msgid());
-    assert_eq!(received.server_time, sent.server_time);
+    let (id, _, server_time) = confirmed_line(&sent);
+    assert_eq!(received.msgid.as_ref(), Some(id));
+    assert_eq!(received.server_time, server_time);
     bob.expect_none(|event| message_text(event, text)).await?;
     Ok(())
 }
@@ -841,7 +849,7 @@ async fn utf8only(s: Scenario) -> papo_testing::Result<()> {
     let received = bob.wait_for(|event| message_text(event, text)).await?;
     assert_eq!(received.raw_text, text);
     assert_eq!(received.text, text);
-    assert_eq!(received.msgid.as_ref(), sent.msgid());
+    assert_eq!(received.msgid.as_ref(), Some(confirmed_line(&sent).0));
     Ok(())
 }
 
@@ -870,7 +878,7 @@ async fn draft_message_redaction(s: Scenario) -> papo_testing::Result<()> {
         .as_ref()
         .expect("message has an identifier")
         .clone();
-    assert_eq!(Some(&id), sent.msgid());
+    assert_eq!(&id, confirmed_line(&sent).0);
 
     alice.redact(&sent, "superseded").await?;
     let redacted = bob.wait_for(Event::as_redacted).await?;
