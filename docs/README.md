@@ -5,6 +5,7 @@ coverage checklist and waivers, known failures, and server observations. Don't e
 rerun the script named at the top of each one.
 
 - [conformance-matrix.md](conformance-matrix.md): which live scenarios pass on each server.
+- [ircv3-support.md](ircv3-support.md): which IRCv3 specifications papo supports and how.
 - [conformance-coverage.md](conformance-coverage.md): which IRC behaviors are covered, and by what
   (a live scenario, a wire test, or a documented waiver).
 - [server-notes.md](server-notes.md): bugs and quirks found in each server, with the wire lines
