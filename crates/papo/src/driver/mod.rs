@@ -543,6 +543,11 @@ impl From<&str> for Autojoin {
 /// message-like events. One [`Event::Lagged`] reports each lag episode. Re-read State after loss;
 /// use the warning's message gaps with [`Client::history`] when history is available. papo does
 /// not fill those gaps automatically.
+///
+/// Dropping `Events` stops event delivery but does not close the connection while a [`Client`]
+/// clone remains. Conversely, dropping every `Client` leaves the connection alive while `Events`
+/// is retained. Dropping the final handle asks the driver to send `QUIT`, but cannot wait for it;
+/// call [`Client::quit`] before dropping handles when orderly shutdown matters.
 pub struct Events {
     _commands: mpsc::Sender<Command>,
     receiver: Arc<EventReceiver>,

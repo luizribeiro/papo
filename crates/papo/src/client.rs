@@ -31,9 +31,15 @@ static NEXT_PING: AtomicU64 = AtomicU64::new(0);
 ///     .connect()
 ///     .await?;
 /// client.privmsg("#papo", "hello from the docs").await?;
+/// client.quit("example complete").await?;
 /// # Ok(())
 /// # }
 /// ```
+///
+/// Dropping one clone has no connection effect. The connection stays alive while any `Client` or
+/// its [`crate::Events`] stream exists. Dropping the final handle asks the driver to send `QUIT`,
+/// but `Drop` cannot await delivery or the server's acknowledgement. Call [`Client::quit`] for an
+/// orderly application shutdown.
 #[derive(Clone)]
 pub struct Client {
     pub(crate) commands: mpsc::Sender<Command>,

@@ -440,10 +440,12 @@ impl Builder {
     /// state-backed changes and use [`Client::history`](crate::Client::history) for reported
     /// message gaps. Gap filling is not automatic.
     ///
-    /// Size this for the largest burst the event loop may legitimately pause through, and move
-    /// slow work out of that loop before raising the bound. Values above the runtime's supported
-    /// bound are clamped to that bound.
-    ///
+    /// The default is 1,024 events. Size this for the largest burst the event loop may
+    /// legitimately pause through, not the average event rate: a client receiving 250 events per
+    /// second whose event loop can pause for two seconds needs at least 500 slots, plus headroom.
+    /// Move slow work out of that loop before raising the bound. A larger value consumes more
+    /// memory during bursts and delays the warning; it does not prevent lag indefinitely. Values
+    /// above the runtime's supported bound are clamped to that bound, and zero is invalid.
     pub fn event_capacity(mut self, capacity: usize) -> Self {
         if capacity == 0 {
             self.invalid_input

@@ -65,8 +65,11 @@
 //! is cancel-safe, so it may be used as a `tokio::select!` branch.
 //!
 //! The connection remains alive while either a [`Client`] or its [`Events`] stream is alive.
-//! Dropping the last handle sends `QUIT`; call [`Client::quit`] first when the server should
-//! receive a reason or when shutdown completion matters.
+//! Dropping only `Events` stops delivery while a `Client` keeps the connection alive; dropping
+//! every `Client` still leaves it alive while `Events` is retained. Dropping the final handle asks
+//! the driver to send `QUIT`, but `Drop` cannot await delivery or acknowledgement. Applications
+//! should call [`Client::quit`] explicitly when they choose to shut down, then keep reading events
+//! until the stream ends.
 //!
 //! Dropping a [`RequestFuture`] does not cancel work that has reached the driver. In particular,
 //! multi-step actions continue through their remaining protocol commands. Dropping the driver
