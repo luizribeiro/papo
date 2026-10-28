@@ -57,6 +57,12 @@ impl Session {
                 }
             },
         );
+        let channel_guard = conversation
+            .as_ref()
+            .and_then(|conversation| match conversation {
+                crate::Conversation::Channel(channel) => Some(self.state.__channel_guard(channel)),
+                crate::Conversation::Private(_) => None,
+            });
         ReceivedLine {
             line,
             batch_type,
@@ -65,6 +71,7 @@ impl Session {
             status,
             channel_context,
             reply_token,
+            channel_guard,
         }
     }
 

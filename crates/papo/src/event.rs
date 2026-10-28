@@ -551,6 +551,7 @@ pub(crate) fn incoming_from_core(
     received_at: SystemTime,
 ) -> Event {
     let reply_token = received.__reply_token();
+    let channel_guard = received.__channel_guard().cloned();
     if received.batch_type().is_some_and(|kind| {
         kind != crate::cap::LABELED_RESPONSE.as_str()
             && kind != crate::cap::MULTILINE.as_str()
@@ -596,19 +597,39 @@ pub(crate) fn incoming_from_core(
             Event::ServerNotice,
         );
     };
-    message_event_from_line(
-        raw,
-        batch_type.as_deref(),
-        authorship,
-        conversation,
-        status,
-        channel_context,
-        isupport,
-        account_tag_enabled,
-        prove_not_bot,
-        received_at,
-        Some(reply_token),
+    with_channel_guard(
+        message_event_from_line(
+            raw,
+            batch_type.as_deref(),
+            authorship,
+            conversation,
+            status,
+            channel_context,
+            isupport,
+            account_tag_enabled,
+            prove_not_bot,
+            received_at,
+            Some(reply_token),
+        ),
+        channel_guard,
     )
+}
+
+fn with_channel_guard(mut event: Event, channel: Option<papo_core::ChannelGuard>) -> Event {
+    let receipt = match &mut event {
+        Event::CtcpQuery(event) => &mut event.receipt,
+        Event::CtcpReply(event) => &mut event.receipt,
+        Event::Message(event) => &mut event.receipt,
+        Event::Notice(event) => &mut event.receipt,
+        Event::ServerNotice(event) => &mut event.receipt,
+        Event::Reacted(event) => &mut event.receipt,
+        Event::Redacted(event) => &mut event.receipt,
+        Event::TagMsg(event) => &mut event.receipt,
+        Event::TypingChanged(event) => &mut event.receipt,
+        _ => return event,
+    };
+    receipt.set_channel(channel);
+    event
 }
 
 impl Message {
@@ -1080,18 +1101,22 @@ pub(crate) fn historical_message_event(
         snapshot.casemapping(),
     );
     let reply_token = snapshot.reply_token(&conversation);
-    message_event_from_line(
-        raw,
-        None,
-        authorship,
-        conversation,
-        status,
-        None,
-        snapshot.isupport().inner(),
-        snapshot.caps().contains_key(&crate::cap::ACCOUNT_TAG),
-        false,
-        received_at,
-        reply_token,
+    let channel_guard = snapshot.channel_guard(&conversation);
+    with_channel_guard(
+        message_event_from_line(
+            raw,
+            None,
+            authorship,
+            conversation,
+            status,
+            None,
+            snapshot.isupport().inner(),
+            snapshot.caps().contains_key(&crate::cap::ACCOUNT_TAG),
+            false,
+            received_at,
+            reply_token,
+        ),
+        channel_guard,
     )
 }
 

@@ -17,8 +17,16 @@ fn membership_guard_follows_rename_and_expires_on_part() {
     );
     server(&mut session, ":papo!p@localhost JOIN #review");
     server(&mut session, ":ergo.test 329 papo #review 1793098800");
-    let channel = session.state().channel("#review").unwrap().name().clone();
-    let guard = session.state().__channel_guard(&channel);
+    server(
+        &mut session,
+        ":alice!~alice@cloak.example PRIVMSG @#review :Release approved",
+    );
+    let guard = std::iter::from_fn(|| session.poll_event())
+        .find_map(|event| match event {
+            Event::Line(line) => line.__channel_guard().cloned(),
+            _ => None,
+        })
+        .unwrap();
     session
         .send_target_guarded_text_detailed(
             Instant::now(),

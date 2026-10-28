@@ -793,6 +793,7 @@ fn resolve_reference(
             text: std::borrow::Cow::Owned(target),
             origin: origin.unwrap_or(crate::Origin::NONE),
             recipient: None,
+            channel: None,
         },
     )
 }

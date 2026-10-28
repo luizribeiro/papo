@@ -53,6 +53,16 @@ impl State {
         }
     }
 
+    pub(crate) fn channel_guard(
+        &self,
+        conversation: &crate::Conversation,
+    ) -> Option<papo_core::ChannelGuard> {
+        match conversation {
+            crate::Conversation::Channel(channel) => Some(self.core.__channel_guard(channel)),
+            _ => None,
+        }
+    }
+
     pub(crate) fn sent_receipt(
         &self,
         conversation: &crate::Conversation,

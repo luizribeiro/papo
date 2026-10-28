@@ -597,6 +597,7 @@ impl Client {
             text: std::borrow::Cow::Owned(query.actor.nick().to_string()),
             origin: crate::message_ref::conversation_origin(&query.conversation),
             recipient: Some(crate::message_ref::actor_recipient(query)),
+            channel: None,
         };
         let text = text.into();
         let command = query.command.clone();

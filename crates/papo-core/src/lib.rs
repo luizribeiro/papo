@@ -2883,6 +2883,7 @@ pub struct ReceivedLine {
     status: Option<Prefix>,
     channel_context: Option<ChannelName>,
     reply_token: ReplyToken,
+    channel_guard: Option<ChannelGuard>,
 }
 
 /// Opaque receipt position used to validate a later private response.
@@ -3055,6 +3056,13 @@ impl ReceivedLine {
     #[must_use]
     pub const fn __reply_token(&self) -> ReplyToken {
         self.reply_token
+    }
+
+    /// Returns the channel membership captured with this line.
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __channel_guard(&self) -> Option<&ChannelGuard> {
+        self.channel_guard.as_ref()
     }
 
     /// Removes the dispatch annotation and returns the parsed IRC line.
@@ -5880,6 +5888,7 @@ mod tests {
                 origin: papo_proto::Origin::NONE,
                 identity: None,
             },
+            channel_guard: None,
         }
     }
 

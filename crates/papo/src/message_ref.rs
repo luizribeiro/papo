@@ -10,6 +10,7 @@ pub(crate) struct Receipt {
     identity: Box<ReceiptIdentity>,
     address: String,
     origin: crate::Origin,
+    channel: Option<Box<papo_core::ChannelGuard>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -51,6 +52,7 @@ impl Receipt {
             }),
             address,
             origin,
+            channel: None,
         }
     }
 
@@ -73,6 +75,7 @@ impl Receipt {
             }),
             address,
             origin,
+            channel: None,
         }
     }
 
@@ -87,6 +90,7 @@ impl Receipt {
             self.origin,
             channel_context,
             self.recipient_guard(),
+            self.channel.clone(),
         )
     }
 
@@ -95,6 +99,7 @@ impl Receipt {
             address: self.address.clone(),
             origin: self.origin,
             recipient: self.recipient_guard(),
+            channel: self.channel.clone(),
         }
     }
 
@@ -112,6 +117,10 @@ impl Receipt {
     pub(crate) fn with_recipient(mut self, recipient: Option<&papo_core::RecipientGuard>) -> Self {
         self.identity.recipient_guard = recipient.map(RecipientGuard::from_core);
         self
+    }
+
+    pub(crate) fn set_channel(&mut self, channel: Option<papo_core::ChannelGuard>) {
+        self.channel = channel.map(Box::new);
     }
 
     pub(crate) fn recipient(&self) -> Option<RecipientGuard> {
@@ -140,6 +149,9 @@ impl Receipt {
         };
         self.address = conversation.to_string();
         self.origin = conversation_origin(conversation);
+        if !matches!(conversation, Conversation::Channel(_)) {
+            self.channel = None;
+        }
     }
 
     pub(crate) fn update_account(&mut self, account: Account) {
@@ -200,6 +212,7 @@ pub struct MessageRef {
     origin: crate::Origin,
     channel_context: Option<ChannelName>,
     recipient: Option<RecipientGuard>,
+    channel: Option<Box<papo_core::ChannelGuard>>,
 }
 
 impl MessageRef {
@@ -209,6 +222,7 @@ impl MessageRef {
         origin: crate::Origin,
         channel_context: Option<ChannelName>,
         recipient: Option<RecipientGuard>,
+        channel: Option<Box<papo_core::ChannelGuard>>,
     ) -> Self {
         Self {
             address,
@@ -216,6 +230,7 @@ impl MessageRef {
             origin,
             channel_context,
             recipient,
+            channel,
         }
     }
 
@@ -272,6 +287,7 @@ impl crate::Target for MessageRef {
             text: std::borrow::Cow::Borrowed(&self.address),
             origin: self.origin,
             recipient: self.recipient.clone(),
+            channel: self.channel.clone(),
         }
     }
 }
@@ -287,6 +303,7 @@ pub struct NoticeRef {
     address: String,
     origin: crate::Origin,
     recipient: Option<RecipientGuard>,
+    channel: Option<Box<papo_core::ChannelGuard>>,
 }
 
 impl fmt::Display for NoticeRef {
@@ -321,6 +338,7 @@ impl crate::Target for NoticeRef {
             text: std::borrow::Cow::Borrowed(&self.address),
             origin: self.origin,
             recipient: self.recipient.clone(),
+            channel: self.channel.clone(),
         }
     }
 }
@@ -424,6 +442,7 @@ macro_rules! borrowed_address_pairs {
                         crate::Origin::NONE,
                         None,
                         None,
+                        None,
                     )
                 }
             }
@@ -436,7 +455,14 @@ borrowed_address_pairs!(&str, &String);
 /// Builds a reference from an explicit address and message identifier.
 impl<I: Into<MessageId>> From<(String, I)> for MessageRef {
     fn from((address, msgid): (String, I)) -> Self {
-        Self::new(address, vec![msgid.into()], crate::Origin::NONE, None, None)
+        Self::new(
+            address,
+            vec![msgid.into()],
+            crate::Origin::NONE,
+            None,
+            None,
+            None,
+        )
     }
 }
 
@@ -449,6 +475,7 @@ macro_rules! typed_address_pairs {
                         address.as_ref().to_owned(),
                         vec![msgid.into()],
                         address.origin(),
+                        None,
                         None,
                         None,
                     )
@@ -474,6 +501,7 @@ impl<I: Into<MessageId>> From<(&crate::DirectRef, I)> for MessageRef {
             direct.recipient().__nick().origin(),
             None,
             Some(RecipientGuard::from_core(direct.recipient())),
+            None,
         )
     }
 }

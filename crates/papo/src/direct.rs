@@ -124,6 +124,7 @@ impl crate::Target for DirectRef {
             recipient: Some(crate::message_ref::RecipientGuard::from_core(
                 &self.0.recipient,
             )),
+            channel: None,
         }
     }
 }

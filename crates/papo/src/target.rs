@@ -10,6 +10,7 @@ pub(crate) mod sealed {
         pub(crate) text: Cow<'a, str>,
         pub(crate) origin: crate::Origin,
         pub(crate) recipient: Option<crate::message_ref::RecipientGuard>,
+        pub(crate) channel: Option<Box<papo_core::ChannelGuard>>,
     }
 
     impl Parts<'_> {
@@ -18,6 +19,7 @@ pub(crate) mod sealed {
                 text: Cow::Owned(self.text.into_owned()),
                 origin: self.origin,
                 recipient: self.recipient,
+                channel: self.channel,
             }
         }
     }
@@ -28,6 +30,7 @@ pub(crate) mod sealed {
                 text: Cow::Owned(parts.text().to_owned()),
                 origin: parts.origin(),
                 recipient: None,
+                channel: None,
             }
         }
     }
@@ -104,6 +107,7 @@ fn text_parts(text: &str) -> sealed::Parts<'_> {
         text: Cow::Borrowed(text),
         origin: crate::Origin::NONE,
         recipient: None,
+        channel: None,
     }
 }
 
@@ -146,6 +150,7 @@ fn name_parts(text: &str, origin: crate::Origin) -> sealed::Parts<'_> {
         text: Cow::Borrowed(text),
         origin,
         recipient: None,
+        channel: None,
     }
 }
 
