@@ -193,7 +193,10 @@ impl crate::Client {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use crate::{Account, Casemapping};
+    use papo_core::{Config, Session};
 
     #[test]
     fn direct_references_are_nickname_arguments() {
@@ -221,5 +224,65 @@ mod tests {
             Ok(crate::driver::Command::DirectRelease { recipient: released })
                 if released == recipient
         ));
+    }
+
+    #[tokio::test]
+    async fn own_direct_reference_does_not_reserve_monitor() {
+        let mut session = Session::new(Config::default().nick("papo"));
+        session.handle_line(
+            crate::rt::now_mono(),
+            b":ergo.test 001 papo :Welcome to ErgoTest",
+        );
+        session.handle_line(
+            crate::rt::now_mono(),
+            b":ergo.test 005 papo CASEMAPPING=rfc1459 :are supported",
+        );
+        let (client, mut commands) = crate::driver::test_support::client_with_commands(&session);
+
+        let direct = client.direct("papo").await.unwrap();
+        assert_eq!(direct.to_string(), "papo");
+        assert!(commands.try_recv().is_err());
+    }
+
+    #[tokio::test]
+    async fn known_unshared_message_peer_reserves_monitor() {
+        let now = crate::rt::now_mono();
+        let mut session = Session::new(Config::default().nick("papo"));
+        session.handle_line(now, b":ergo.test 005 papo MONITOR=100 :are supported");
+        session.monitor_add(["alice"]);
+        session.handle_line(now, b":ergo.test 730 papo :alice!~alice@cloak.example");
+        let (client, mut commands) = crate::driver::test_support::client_with_commands(&session);
+        let actor = crate::__testing::user_source(
+            session.isupport().casemapping().nick("alice"),
+            Some("~alice".into()),
+            Some("cloak.example".into()),
+        );
+        let message = crate::__testing::message(Some(actor), "papo", "release approved", true);
+        let direct = tokio::spawn({
+            let client = client.clone();
+            async move { client.direct_to(&message).await }
+        });
+
+        let command = tokio::time::timeout(Duration::from_millis(50), commands.recv())
+            .await
+            .expect("direct_to did not reserve MONITOR")
+            .unwrap();
+        let crate::driver::Command::DirectAcquire {
+            nick,
+            account,
+            result,
+        } = command
+        else {
+            panic!("unexpected direct_to command")
+        };
+        assert_eq!(nick, "alice");
+        let recipient = session.__direct_acquire(
+            "alice",
+            Some("~alice"),
+            Some("cloak.example"),
+            account.unwrap(),
+        );
+        result.send(Ok(recipient)).unwrap();
+        assert_eq!(direct.await.unwrap().unwrap().to_string(), "alice");
     }
 }

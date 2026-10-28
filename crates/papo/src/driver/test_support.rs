@@ -41,6 +41,13 @@ impl crate::Client {
     }
 }
 
+pub(crate) fn client_with_commands(
+    session: &Session,
+) -> (crate::Client, tokio::sync::mpsc::Receiver<super::Command>) {
+    let channels = super::channels(1, session);
+    (channels.client, channels.commands)
+}
+
 pub(crate) struct TokioIo<T>(pub(crate) T);
 
 impl<T: AsyncRead + Unpin> futures_io::AsyncRead for TokioIo<T> {
