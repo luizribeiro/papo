@@ -56,6 +56,8 @@ pub fn exercise_session_mapping(input: &[u8], mut observe: impl FnMut(crate::Eve
 }
 
 /// Exercises session framing while checking batch accounting after every input byte.
+///
+/// Returns the number of bytes whose resulting state was checked.
 #[doc(hidden)]
 #[must_use]
 pub fn exercise_session_mapping_invariants(input: &[u8]) -> usize {
@@ -298,9 +300,10 @@ mod tests {
 
     #[test]
     fn session_mapping_invariant_checks_every_input_byte() {
-        let input = b":ergo.test BATCH +outer vendor/sync\r\n\
-                      @batch=outer :ergo.test BATCH +inner metadata\r\n\
-                      @batch=outer :ergo.test BATCH -inner\r\n";
+        let input = b":ergo.test BATCH +history chathistory #papo\r\n\
+                      @batch=history :alice!~alice@users.example BATCH +multiline draft/multiline #papo\r\n\
+                      @batch=multiline :alice!~alice@users.example PRIVMSG #papo :review is ready\r\n\
+                      @batch=history :alice!~alice@users.example BATCH -multiline\r\n";
         assert_eq!(exercise_session_mapping_invariants(input), input.len());
     }
 
