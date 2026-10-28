@@ -5,12 +5,31 @@ use std::time::{Duration, Instant};
 use papo_core::{
     Authorship, BatchAbandonReason, Config, Conversation, Event, HistoryItem, RateLimit, Session,
 };
+use papo_proto::{Line, LineRef};
 
 fn line(session: &mut Session) -> papo_core::ReceivedLine {
     let Some(Event::Line(line)) = session.poll_event() else {
         panic!("expected a line event")
     };
     line
+}
+
+fn retained_bytes(message: &LineRef<'_>) -> usize {
+    std::mem::size_of::<Line>()
+        + message
+            .tags()
+            .map(|(key, value)| {
+                std::mem::size_of::<(String, Option<String>)>()
+                    + key.len()
+                    + value.as_deref().map_or(0, str::len)
+            })
+            .sum::<usize>()
+        + message.raw_source().map_or(0, str::len)
+        + message.raw_command().len()
+        + message
+            .params()
+            .map(|param| std::mem::size_of::<String>() + param.len())
+            .sum::<usize>()
 }
 
 #[test]
@@ -778,17 +797,18 @@ fn unknown_batch_overflow_delivers_the_overflowing_line_before_abandonment() {
 }
 
 #[test]
-fn repeated_completed_children_count_toward_the_parent_limit() {
+fn completed_children_respect_the_parent_line_boundary() {
     let now = Instant::now();
-    let mut session = Session::new(Config::default().max_batch_lines(2));
+    let mut session = Session::new(Config::default().max_batch_lines(10_000));
     session.handle_line(now, b":ergo.test BATCH +outer vendor/sync");
-    for completed in 1..=3 {
+    for _ in 0..10_000 {
         session.handle_line(now, b"@batch=outer :ergo.test BATCH +inner metadata");
         session.handle_line(now, b"@batch=outer :ergo.test BATCH -inner");
-        if completed <= 2 {
-            assert_eq!(session.poll_event(), None);
-        }
     }
+    assert_eq!(session.poll_event(), None);
+
+    session.handle_line(now, b"@batch=outer :ergo.test BATCH +inner metadata");
+    session.handle_line(now, b"@batch=outer :ergo.test BATCH -inner");
 
     assert!(matches!(
         session.poll_event(),
@@ -796,6 +816,55 @@ fn repeated_completed_children_count_toward_the_parent_limit() {
             if reference == "outer"
                 && batch_type == "vendor/sync"
                 && reason == BatchAbandonReason::LineLimit
+    ));
+    assert_eq!(session.poll_event(), None);
+}
+
+#[test]
+fn completed_child_uses_the_byte_reason_at_the_parent_line_boundary() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().max_batch_lines(10_000));
+    let outer = ":ergo.test BATCH +outer vendor/sync";
+    let inner = "@batch=outer :ergo.test BATCH +inner metadata";
+    session.handle_line(now, outer.as_bytes());
+    session.handle_line(now, inner.as_bytes());
+
+    let remaining = 67_108_864
+        - retained_bytes(&LineRef::parse(outer).unwrap())
+        - retained_bytes(&LineRef::parse(inner).unwrap());
+    let prefix = "@batch=outer;vendor.example/large=";
+    let suffix = " :alice!~alice@users.example PRIVMSG #papo :payload";
+    let minimum = format!("{prefix}{suffix}");
+    let minimum_retained = retained_bytes(&LineRef::parse(&minimum).unwrap());
+    let smaller_retained = remaining / 9_999;
+    let larger_count = remaining % 9_999;
+    let smaller = format!(
+        "{prefix}{}{suffix}",
+        "x".repeat(smaller_retained - minimum_retained)
+    );
+    let larger = format!(
+        "{prefix}{}{suffix}",
+        "x".repeat(smaller_retained + 1 - minimum_retained)
+    );
+
+    for index in 0..9_999 {
+        let member = if index < larger_count {
+            &larger
+        } else {
+            &smaller
+        };
+        session.handle_line(now, member.as_bytes());
+        assert!(matches!(session.poll_event(), Some(Event::Line(_))));
+        assert_eq!(session.poll_event(), None);
+    }
+
+    session.handle_line(now, b"@batch=outer :ergo.test BATCH -inner");
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::BatchAbandoned { reference, batch_type, reason, .. })
+            if reference == "outer"
+                && batch_type == "vendor/sync"
+                && reason == BatchAbandonReason::ByteLimit
     ));
     assert_eq!(session.poll_event(), None);
 }
