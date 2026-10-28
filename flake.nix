@@ -236,6 +236,12 @@
           check-merge-conflicts.enable = true;
           end-of-file-fixer.enable = true;
           trim-trailing-whitespace.enable = true;
+          ircv3-support = {
+            enable = true;
+            entry = "${pkgs.python3}/bin/python scripts/ircv3-support --check";
+            files = "(^|/)(crates/papo-core/src/cap\\.rs|crates/papo-conformance/coverage-checklist\\.toml|docs/conformance-coverage\\.md|docs/ircv3-support\\.md|scripts/ircv3-support(\\.toml)?)$";
+            pass_filenames = false;
+          };
           shellcheck.enable = true;
           actionlint.enable = true;
           yamllint.enable = true;
