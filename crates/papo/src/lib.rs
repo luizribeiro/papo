@@ -40,6 +40,12 @@
 //! - [Graceful shutdown](https://github.com/luizribeiro/papo/tree/main/examples/graceful-shutdown)
 //! - [Browser SharedWorker](https://github.com/luizribeiro/papo/tree/main/examples/browser-worker)
 //!
+//! # Testing applications
+//!
+//! Use [`papo-testing`](https://docs.rs/papo-testing) for deterministic tests of a real [`Client`]
+//! against an in-memory IRC server. Its crate documentation also covers end-to-end tests against
+//! a local Ergo, including native and browser WebSocket endpoints.
+//!
 //! # Cargo features
 //!
 //! | Feature | What it adds | Targets |
