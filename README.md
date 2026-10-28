@@ -248,6 +248,14 @@ reached the driver, while dropping the driver ends the event stream without a fi
 `Event::Disconnected`. It is safe to wrap `connect()` in a timeout; the builder also has a
 `connect_timeout` setting.
 
+Event delivery is bounded so a slow consumer cannot stop socket reads. When `event_capacity` is
+full, papo first drops events whose result is already in `Client::state()` (membership, modes,
+topics, presence, metadata, read markers, and typing), then other non-message events, and only then
+messages, notices, CTCP, tag messages, reactions, and redactions. One `Event::Lagged` reports each
+lag episode. Re-read `Client::state()` after a lag; for each reported message gap, query
+`Client::history()` when the server supports history. papo does not fill gaps automatically. Size
+`event_capacity` for the largest burst during which the event loop may be busy elsewhere.
+
 The [graceful shutdown example](examples/graceful-shutdown) handles SIGINT and SIGTERM and awaits
 `Client::quit()` before the process exits.
 

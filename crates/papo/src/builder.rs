@@ -434,10 +434,15 @@ impl Builder {
 
     /// Sets the bounded event queue capacity.
     ///
-    /// When the queue fills, the oldest events are discarded and one
-    /// [`Event::Lagged`](crate::Event::Lagged) reports how many were lost. Move slow work out of
-    /// the event loop before raising this bound. Values above the runtime's supported bound are
-    /// clamped to that bound.
+    /// When this queue fills, papo keeps reading the connection and reports discarded events in
+    /// [`Event::Lagged`](crate::Event::Lagged). State-backed changes are discarded before other
+    /// events, and message-like events last. Re-read [`Client::state`](crate::Client::state) for
+    /// state-backed changes and use [`Client::history`](crate::Client::history) for reported
+    /// message gaps. Gap filling is not automatic.
+    ///
+    /// Size this for the largest burst the event loop may legitimately pause through, and move
+    /// slow work out of that loop before raising the bound. Values above the runtime's supported
+    /// bound are clamped to that bound.
     ///
     pub fn event_capacity(mut self, capacity: usize) -> Self {
         if capacity == 0 {

@@ -1480,7 +1480,6 @@ pub(crate) enum OverflowPriority {
 
 pub(crate) struct OverflowClass<'a> {
     pub(crate) priority: OverflowPriority,
-    #[allow(dead_code)]
     pub(crate) conversation: Option<&'a Conversation>,
 }
 
