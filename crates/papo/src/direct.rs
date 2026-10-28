@@ -193,10 +193,33 @@ impl crate::Client {
 
 #[cfg(test)]
 mod tests {
+    use crate::{Account, Casemapping};
+
     #[test]
     fn direct_references_are_nickname_arguments() {
         fn assert_as_nick<T: crate::AsNick>() {}
 
         assert_as_nick::<super::DirectRef>();
+    }
+
+    #[test]
+    fn dropping_a_monitor_lease_releases_its_recipient() {
+        let (commands, mut receiver) = tokio::sync::mpsc::channel(1);
+        let nick = Casemapping::default().nick("alice");
+        let recipient = papo_core::RecipientGuard::__from_parts(
+            nick,
+            Account::LoggedIn(Casemapping::default().account("alice-account")),
+            papo_core::ReplyToken::__unknown(crate::Origin::NONE),
+        );
+        drop(super::MonitorLease {
+            recipient: recipient.clone(),
+            commands,
+        });
+
+        assert!(matches!(
+            receiver.try_recv(),
+            Ok(crate::driver::Command::DirectRelease { recipient: released })
+                if released == recipient
+        ));
     }
 }
