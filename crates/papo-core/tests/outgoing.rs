@@ -9,6 +9,13 @@ fn multiline_session(now: Instant, value: &str, labels: bool) -> Session {
     multiline_session_with_rate_limit(now, value, labels, RateLimit::unlimited())
 }
 
+fn finish_registration(session: &mut Session, now: Instant) {
+    session.handle_line(now, b":irc.example 001 papo :Welcome to the network");
+    session.handle_line(now, b":irc.example 422 papo :MOTD File is missing");
+    while session.poll_transmit().is_some() {}
+    while session.poll_event().is_some() {}
+}
+
 fn multiline_session_with_rate_limit(
     now: Instant,
     value: &str,
@@ -34,10 +41,7 @@ fn multiline_session_with_rate_limit(
         now,
         format!("CAP * ACK :batch draft/multiline echo-message{labels}").as_bytes(),
     );
-    session.handle_line(now, b":irc.example 001 papo :Welcome to the network");
-    session.handle_line(now, b":irc.example 422 papo :MOTD File is missing");
-    while session.poll_transmit().is_some() {}
-    while session.poll_event().is_some() {}
+    finish_registration(&mut session, now);
     session
 }
 
@@ -843,7 +847,7 @@ fn text_response_retains_labelled_echo_identity() {
     session.handle_connected(now);
     session.handle_line(now, b"CAP * LS :echo-message labeled-response");
     session.handle_line(now, b"CAP * ACK :echo-message labeled-response");
-    while session.poll_transmit().is_some() {}
+    finish_registration(&mut session, now);
     let id = session
         .send_text(now, TextKind::Privmsg, "#papo", "hello everyone", &[])
         .unwrap()
@@ -873,7 +877,7 @@ fn detailed_send_reports_each_confirmed_text_after_splitting() {
     plain.handle_connected(now);
     plain.handle_line(now, b"CAP * LS :echo-message labeled-response");
     plain.handle_line(now, b"CAP * ACK :echo-message labeled-response");
-    while plain.poll_transmit().is_some() {}
+    finish_registration(&mut plain, now);
     let sent = plain
         .send_text_detailed(now, TextKind::Privmsg, "#papo", &"a".repeat(600), &[])
         .unwrap();
@@ -904,7 +908,7 @@ fn text_without_both_echo_and_labels_resolves_on_write() {
         session.handle_connected(now);
         session.handle_line(now, format!("CAP * LS :{offered}").as_bytes());
         session.handle_line(now, format!("CAP * ACK :{offered}").as_bytes());
-        while session.poll_transmit().is_some() {}
+        finish_registration(&mut session, now);
 
         let sent = session
             .send_text_detailed(now, TextKind::Notice, "#papo", "maintenance complete", &[])
