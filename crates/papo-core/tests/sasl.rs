@@ -4,7 +4,7 @@ mod support;
 
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use papo_core::{
-    Account, CloseKind, Config, Entropy, Event, Sasl, Session, sts::ConnectionSecurity,
+    Account, CloseKind, Config, Entropy, Event, Sasl, Session, cap, sts::ConnectionSecurity,
 };
 use support::{Transcript, assert_session_debug_redacts, queue_debug_marker};
 
@@ -169,14 +169,14 @@ fn sasl_capability_return_does_not_restart_successful_authentication() {
     .server("CAP papo DEL :sasl")
     .event(|event| {
         matches!(event, Event::CapsChanged { removed, .. }
-                if removed.contains_key("sasl"))
+                if removed.contains_key(&cap::SASL))
     })
     .server("CAP papo NEW :sasl=PLAIN")
     .client("CAP REQ :sasl")
     .server("CAP papo ACK :sasl")
     .event(|event| {
         matches!(event, Event::CapsChanged { added, .. }
-                if added.contains_key("sasl"))
+                if added.contains_key(&cap::SASL))
     })
     .inspect(|session| assert_eq!(session.account(), Some("alice")))
     .no_client();
@@ -439,7 +439,7 @@ fn authenticates_when_sasl_arrives_after_connect() {
     .client("AUTHENTICATE PLAIN")
     .event(|event| {
         matches!(event, Event::CapsChanged { added, .. }
-            if added.contains_key("sasl"))
+            if added.contains_key(&cap::SASL))
     })
     .event(|event| {
         matches!(event, Event::FeaturesChanged { added, .. }
@@ -470,7 +470,7 @@ fn aborts_reauthentication_when_sasl_disappears_and_accepts_907() {
     .client("AUTHENTICATE PLAIN")
     .event(|event| {
         matches!(event, Event::CapsChanged { added, .. }
-            if added.contains_key("sasl"))
+            if added.contains_key(&cap::SASL))
     })
     .event(|event| {
         matches!(event, Event::FeaturesChanged { added, .. }
@@ -479,7 +479,7 @@ fn aborts_reauthentication_when_sasl_disappears_and_accepts_907() {
     .server("CAP * DEL :sasl")
     .event(|event| {
         matches!(event, Event::CapsChanged { removed, .. }
-            if removed.contains_key("sasl"))
+            if removed.contains_key(&cap::SASL))
     })
     .event(|event| {
         matches!(event, Event::AuthenticationFailed { reason, .. }
@@ -496,7 +496,7 @@ fn aborts_reauthentication_when_sasl_disappears_and_accepts_907() {
     .client("AUTHENTICATE PLAIN")
     .event(|event| {
         matches!(event, Event::CapsChanged { added, .. }
-            if added.contains_key("sasl"))
+            if added.contains_key(&cap::SASL))
     })
     .event(|event| {
         matches!(event, Event::FeaturesChanged { added, .. }

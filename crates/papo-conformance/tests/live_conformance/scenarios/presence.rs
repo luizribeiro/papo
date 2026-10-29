@@ -202,7 +202,7 @@ async fn pre_away(s: Scenario) -> papo_testing::Result<()> {
 
     let connected = alice.wait_for(Event::as_connected).await?;
     assert_eq!(connected.nick, alice.nick());
-    assert!(connected.caps.contains_key("draft/pre-away"));
+    assert!(connected.caps.contains_key(&papo::cap::PRE_AWAY));
     assert_eq!(alice.state().away(), &Away::__away_value(None));
 
     let whois = bob.whois(alice.nick().as_ref()).await?;

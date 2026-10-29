@@ -273,7 +273,12 @@ async fn no_implicit_names(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let channel = s.channel_name();
     let alice_nick = alice.nick();
-    assert!(alice.state().caps().contains_key("no-implicit-names"));
+    assert!(
+        alice
+            .state()
+            .caps()
+            .contains_key(&papo::cap::NO_IMPLICIT_NAMES)
+    );
 
     alice.join(&channel).await?;
     let joined = alice.wait_for(Event::as_joined).await?;

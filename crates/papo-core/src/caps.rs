@@ -232,7 +232,7 @@ impl Caps {
             .filter(|wanted| !config.cap_disabled(wanted))
             .filter_map(|wanted| cap::advertised_spelling(wanted, &self.advertised))
             .filter(|name| announced.contains(*name))
-            .filter(|name| !self.enabled.contains_key(*name))
+            .filter(|name| !self.enabled.contains_key(&Cap::from(*name)))
             .filter(|name| seen.insert((*name).to_owned()))
             .map(str::to_owned)
             .collect();
@@ -400,7 +400,10 @@ impl Caps {
     }
 
     pub(super) fn bouncer_enabled(&self) -> bool {
-        cfg!(feature = "unstable") && self.enabled.contains_key(cap::BOUNCER_NETWORKS_NAME)
+        cfg!(feature = "unstable")
+            && self
+                .enabled
+                .contains_key(&Cap::from(cap::BOUNCER_NETWORKS_NAME))
     }
 
     pub(super) const fn advertised(&self) -> &Capabilities {
@@ -569,7 +572,7 @@ mod tests {
         let mut caps = Caps::default();
         caps.insert_advertised("server-time", Some("iso8601".to_owned()), false, true);
         assert_eq!(
-            caps.advertised.get("server-time"),
+            caps.advertised.get(&cap::SERVER_TIME),
             Some(&Some("iso8601".to_owned()))
         );
 
@@ -587,7 +590,10 @@ mod tests {
         caps.insert_advertised("server-time", Some("iso8601".to_owned()), false, false);
         caps.insert_advertised("vendor.example/unannounced", None, false, false);
         assert_eq!(caps.advertised.len(), 1);
-        assert_eq!(caps.advertised["server-time"].as_deref(), Some("iso8601"));
+        assert_eq!(
+            caps.advertised[&cap::SERVER_TIME].as_deref(),
+            Some("iso8601")
+        );
 
         for (count, retained) in [(511, 511), (512, 512), (513, 512)] {
             let mut bounded = Caps::default();
@@ -607,11 +613,15 @@ mod tests {
         }
         caps.insert_advertised("vendor.example/overflow", None, false, true);
         assert_eq!(caps.advertised.len(), 512);
-        assert!(!caps.advertised.contains_key("vendor.example/overflow"));
+        assert!(
+            !caps
+                .advertised
+                .contains_key(&Cap::from("vendor.example/overflow"))
+        );
 
         caps.insert_advertised("sasl", Some("PLAIN".to_owned()), true, true);
         assert_eq!(caps.advertised.len(), 512);
-        assert_eq!(caps.advertised["sasl"].as_deref(), Some("PLAIN"));
+        assert_eq!(caps.advertised[&cap::SASL].as_deref(), Some("PLAIN"));
     }
 
     #[test]
@@ -625,7 +635,7 @@ mod tests {
             let mut caps = Caps::default();
             caps.insert_advertised("vendor.example/value", Some(value), false, true);
             assert_eq!(
-                caps.advertised["vendor.example/value"].as_deref(),
+                caps.advertised[&Cap::from("vendor.example/value")].as_deref(),
                 Some(expected.as_str())
             );
         }

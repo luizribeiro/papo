@@ -339,7 +339,7 @@ async fn own_message_without_echo(s: Scenario) -> papo_testing::Result<()> {
                 .disable(papo::Feature::EchoMessages),
         )
         .await?;
-    assert!(phone.state().caps().get("echo-message").is_none());
+    assert!(phone.state().caps().get(&papo::cap::ECHO_MESSAGE).is_none());
 
     if phone.state().channel(&channel).is_none() {
         phone.join(&channel).await?;

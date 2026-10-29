@@ -7,7 +7,7 @@ use std::time::Duration;
 use papo_core::sts::{ConnectionSecurity, StsAction};
 use papo_core::{
     CloseKind, Config, Connection, DEFAULT_WANTED_CAPS, Event, Feature, Session, UnsupportedReason,
-    cap::Cap,
+    cap::{self, Cap},
 };
 use support::Transcript;
 
@@ -40,14 +40,14 @@ fn collects_values_selects_aliases_and_denies_the_trap() {
         b"CAP * ACK :server-time no-implicit-names",
     );
     assert_eq!(
-        session.caps().get("server-time"),
+        session.caps().get(&cap::SERVER_TIME),
         Some(&Some("latest".to_owned()))
     );
     assert_eq!(
         session.caps().get(&Cap::from("draft/no-implicit-names")),
         Some(&None)
     );
-    assert!(session.caps().contains_key("cap-notify"));
+    assert!(session.caps().contains_key(&cap::CAP_NOTIFY));
 }
 
 #[test]
@@ -120,13 +120,13 @@ fn requests_echo_message_only_with_labeled_response() {
         .server("CAP papo ACK :echo-message labeled-response")
         .event(|event| {
             matches!(event, Event::CapsChanged { added, removed, .. }
-                if added.contains_key("echo-message")
-                    && added.contains_key("labeled-response")
+                if added.contains_key(&cap::ECHO_MESSAGE)
+                    && added.contains_key(&cap::LABELED_RESPONSE)
                     && removed.is_empty())
         })
         .inspect(|session| {
-            assert!(session.caps().contains_key("echo-message"));
-            assert!(session.caps().contains_key("labeled-response"));
+            assert!(session.caps().contains_key(&cap::ECHO_MESSAGE));
+            assert!(session.caps().contains_key(&cap::LABELED_RESPONSE));
         });
 }
 
@@ -474,21 +474,21 @@ fn enables_new_wanted_caps_and_updates_enabled_values() {
         .server("CAP papo NEW :batch server-time=latest")
         .event(|event| {
             matches!(event, Event::CapsChanged { added, removed, .. }
-            if added.get("server-time") == Some(&Some("latest".to_owned()))
+            if added.get(&cap::SERVER_TIME) == Some(&Some("latest".to_owned()))
                 && removed.is_empty())
         })
         .client("CAP REQ :batch")
         .server("CAP papo ACK :batch")
         .event(|event| {
             matches!(event, Event::CapsChanged { added, removed, .. }
-            if added.get("batch") == Some(&None) && removed.is_empty())
+            if added.get(&cap::BATCH) == Some(&None) && removed.is_empty())
         })
         .inspect(|session| {
             assert_eq!(
-                session.caps().get("server-time"),
+                session.caps().get(&cap::SERVER_TIME),
                 Some(&Some("latest".to_owned()))
             );
-            assert!(session.caps().contains_key("batch"));
+            assert!(session.caps().contains_key(&cap::BATCH));
         });
 }
 
@@ -504,19 +504,19 @@ fn drops_deleted_caps_without_requesting_disable_and_can_enable_them_again() {
         .event(|event| {
             matches!(event, Event::CapsChanged { added, removed, .. }
             if added.is_empty()
-                && removed.get("server-time") == Some(&Some("2026".to_owned())))
+                && removed.get(&cap::SERVER_TIME) == Some(&Some("2026".to_owned())))
         })
-        .inspect(|session| assert!(!session.caps().contains_key("server-time")))
+        .inspect(|session| assert!(!session.caps().contains_key(&cap::SERVER_TIME)))
         .no_client()
         .server("CAP papo NEW :server-time=2027")
         .client("CAP REQ :server-time")
         .server("CAP papo ACK :server-time")
         .event(|event| {
             matches!(event, Event::CapsChanged { added, removed, .. }
-            if added.get("server-time") == Some(&Some("2027".to_owned()))
+            if added.get(&cap::SERVER_TIME) == Some(&Some("2027".to_owned()))
                 && removed.is_empty())
         })
-        .inspect(|session| assert!(session.caps().contains_key("server-time")));
+        .inspect(|session| assert!(session.caps().contains_key(&cap::SERVER_TIME)));
 }
 
 #[test]

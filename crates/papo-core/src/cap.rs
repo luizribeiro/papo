@@ -1,7 +1,7 @@
 //! IRC capability names and their implementation homes.
 
 use std::{
-    borrow::{Borrow, Cow},
+    borrow::Cow,
     cmp::Ordering,
     hash::{Hash, Hasher},
 };
@@ -85,12 +85,6 @@ impl PartialEq for Cap {
 }
 
 impl Eq for Cap {}
-
-impl Borrow<str> for Cap {
-    fn borrow(&self) -> &str {
-        self.identity()
-    }
-}
 
 impl PartialOrd for Cap {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {

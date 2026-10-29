@@ -8,7 +8,7 @@ mod support;
 
 use std::{net::TcpStream, time::Instant};
 
-use papo_core::{Config, Event, RateLimit, Session};
+use papo_core::{Config, Event, RateLimit, Session, cap};
 use papo_proto::Casemapping;
 use papo_test_server::{from_env, unique};
 use support::{drive_until, within};
@@ -37,7 +37,7 @@ fn registers_with_live_ergo() {
         panic!("session closed: {reason}");
     }
     assert_eq!(session.nick(), nick);
-    assert!(session.caps().contains_key("message-tags"));
-    assert!(session.caps().contains_key("server-time"));
+    assert!(session.caps().contains_key(&cap::MESSAGE_TAGS));
+    assert!(session.caps().contains_key(&cap::SERVER_TIME));
     assert_eq!(session.isupport().casemapping(), Casemapping::Ascii);
 }

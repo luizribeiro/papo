@@ -17,7 +17,7 @@ use std::{
 };
 
 use papo::{Client, Endpoint, Event, Events, Isupport, isupport::Advertised};
-use papo_core::{Capabilities, Sasl};
+use papo_core::{Cap, Capabilities, Sasl};
 use papo_test_server::ServerInfo;
 use tokio::{runtime::Builder, task::JoinHandle, time::timeout};
 
@@ -263,9 +263,9 @@ async fn probe(
 impl Requirements {
     fn unsupported(&self, caps: &Capabilities, isupport: &impl IsupportView) -> Option<String> {
         for requirement in self.caps {
-            let value = caps.get(requirement.name).or_else(|| {
+            let value = caps.get(&Cap::from(requirement.name)).or_else(|| {
                 (requirement.name == "draft/metadata-2")
-                    .then(|| caps.get("draft/metadata-3"))
+                    .then(|| caps.get(&Cap::from("draft/metadata-3")))
                     .flatten()
             });
             let Some(value) = value else {

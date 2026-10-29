@@ -22,10 +22,11 @@ fn replays_recorded_ergo_registration() {
             Event::Line(_) | Event::CasemappingChanged { .. } => false,
             Event::Connected(welcome) => {
                 assert_eq!(welcome.nick, "papo-fixture");
-                assert!(welcome.caps.contains_key("server-time"));
-                assert!(welcome.caps.contains_key("draft/chathistory"));
+                assert!(welcome.caps.contains_key(&cap::SERVER_TIME));
                 assert!(welcome.caps.contains_key(&cap::CHATHISTORY));
                 assert!(welcome.caps.contains_key(&Cap::from("chathistory")));
+                assert_eq!(welcome.caps.get(&cap::CHATHISTORY), Some(&None));
+                assert_eq!(welcome.caps.get(&Cap::from("chathistory")), Some(&None));
                 assert_eq!(
                     welcome
                         .caps

@@ -4,7 +4,7 @@ mod support;
 
 use std::time::Duration;
 
-use papo_core::{BatchAbandonReason, CloseKind, Config, Event, Session};
+use papo_core::{BatchAbandonReason, CloseKind, Config, Event, Session, cap};
 use papo_proto::{BuildError, Isupport};
 use support::Transcript;
 
@@ -436,7 +436,7 @@ fn completes_after_motd_with_capabilities_and_isupport() {
             Event::Connected(welcome)
                 if welcome.nick == "account"
                     && welcome.nick.casemapping() == papo_proto::Casemapping::Ascii
-                    && welcome.caps.get("server-time") == Some(&Some("iso8601".to_owned()))
+                    && welcome.caps.get(&cap::SERVER_TIME) == Some(&Some("iso8601".to_owned()))
                     && welcome.isupport.network() == Some("Ergo")
                     && welcome.isupport.utf8only()
         )
@@ -556,7 +556,7 @@ fn reconnect_resets_all_registration_state() {
     .event(|event| matches!(event, Event::Connected(_)))
     .inspect(|session| {
         assert!(session.is_connected());
-        assert!(session.caps().contains_key("server-time"));
+        assert!(session.caps().contains_key(&cap::SERVER_TIME));
         assert_eq!(session.isupport().network(), Some("ErgoTest"));
         assert_eq!(session.nick(), "papo-away");
     })

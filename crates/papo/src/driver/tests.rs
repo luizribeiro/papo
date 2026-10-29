@@ -4275,7 +4275,7 @@ async fn cap_new_and_del_forward_capability_changes() {
     .await;
     assert!(
         matches!(next_event(&mut events).await, Some(Event::CapsChanged(changed))
-        if changed.added.get("server-time") == Some(&Some("2027".to_owned())))
+        if changed.added.get(&crate::cap::SERVER_TIME) == Some(&Some("2027".to_owned())))
     );
     assert!(matches!(
         next_event(&mut events).await,
@@ -4289,7 +4289,7 @@ async fn cap_new_and_del_forward_capability_changes() {
     .await;
     assert!(
         matches!(next_event(&mut events).await, Some(Event::CapsChanged(changed))
-        if changed.removed.contains_key("server-time"))
+        if changed.removed.contains_key(&crate::cap::SERVER_TIME))
     );
     assert!(matches!(
         next_event(&mut events).await,
