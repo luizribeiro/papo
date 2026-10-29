@@ -25,28 +25,31 @@ fn reports_capabilities_then_waiting_for_welcome() {
 
 #[test]
 fn reports_authentication_and_ends_a_failed_phase() {
-    Transcript::new(Config::default().sasl(Sasl::plain("alice", "correct horse battery staple")))
-        .connect()
-        .phase(ConnectPhase::Capabilities)
-        .client("CAP LS 302")
-        .client("NICK papo")
-        .client("USER papo 0 * papo")
-        .server(":ergo.test CAP * LS :sasl=PLAIN")
-        .client("CAP REQ :sasl")
-        .server(":ergo.test CAP * ACK :sasl")
-        .phase(ConnectPhase::Authenticating)
-        .client("AUTHENTICATE PLAIN")
-        .server("AUTHENTICATE +")
-        .client("AUTHENTICATE AGFsaWNlAGNvcnJlY3QgaG9yc2UgYmF0dGVyeSBzdGFwbGU=")
-        .server(":ergo.test 904 papo :SASL authentication failed")
-        .event(|event| {
-            matches!(
-                event,
-                Event::Close {
-                    kind: CloseKind::SaslFailed,
-                    ..
-                }
-            )
-        })
-        .no_client();
+    Transcript::new(Config::default().sasl(Sasl::plain(
+        "alice",
+        papo_core::Secret::new("correct horse battery staple"),
+    )))
+    .connect()
+    .phase(ConnectPhase::Capabilities)
+    .client("CAP LS 302")
+    .client("NICK papo")
+    .client("USER papo 0 * papo")
+    .server(":ergo.test CAP * LS :sasl=PLAIN")
+    .client("CAP REQ :sasl")
+    .server(":ergo.test CAP * ACK :sasl")
+    .phase(ConnectPhase::Authenticating)
+    .client("AUTHENTICATE PLAIN")
+    .server("AUTHENTICATE +")
+    .client("AUTHENTICATE AGFsaWNlAGNvcnJlY3QgaG9yc2UgYmF0dGVyeSBzdGFwbGU=")
+    .server(":ergo.test 904 papo :SASL authentication failed")
+    .event(|event| {
+        matches!(
+            event,
+            Event::Close {
+                kind: CloseKind::SaslFailed,
+                ..
+            }
+        )
+    })
+    .no_client();
 }

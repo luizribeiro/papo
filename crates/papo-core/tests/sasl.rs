@@ -705,21 +705,23 @@ fn aborts_at_the_literal_30_second_deadline_then_falls_back() {
 
 #[test]
 fn a_sasl_deadline_is_cleared_on_disconnect() {
-    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
-        .connect_default()
-        .server("CAP * LS :sasl=PLAIN")
-        .client("CAP REQ :sasl")
-        .server("CAP * ACK :sasl")
-        .client("AUTHENTICATE PLAIN")
-        .deadline(Some(std::time::Duration::from_secs(30)))
-        .disconnect()
-        .deadline(None);
+    Transcript::new(
+        Config::default().sasl(Sasl::plain("alice", papo_core::Secret::new("hunter2"))),
+    )
+    .connect_default()
+    .server("CAP * LS :sasl=PLAIN")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE PLAIN")
+    .deadline(Some(std::time::Duration::from_secs(30)))
+    .disconnect()
+    .deadline(None);
 }
 
 #[test]
 fn reconnect_resets_every_sasl_exchange_state() {
     Transcript::with_entropy(
-        secure_sasl(Sasl::any("alice", "hunter2")),
+        secure_sasl(Sasl::any("alice", papo_core::Secret::new("hunter2"))),
         Box::new(FixedEntropy),
     )
     .connect_default()
@@ -744,23 +746,25 @@ fn reconnect_resets_every_sasl_exchange_state() {
     .server("CAP * ACK :sasl")
     .client("AUTHENTICATE SCRAM-SHA-256");
 
-    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
-        .connect_default()
-        .server("CAP * LS :sasl=PLAIN")
-        .client("CAP REQ :sasl")
-        .server("CAP * ACK :sasl")
-        .client("AUTHENTICATE PLAIN")
-        .server(":ergo.test 900 alice alice!~u@host alice :You are now logged in as alice")
-        .server(":ergo.test 903 alice :SASL authentication successful")
-        .client("CAP END")
-        .inspect(|session| assert_eq!(session.account(), Some("alice")))
-        .disconnect()
-        .connect_default()
-        .inspect(|session| assert_eq!(session.account(), None))
-        .server("CAP * LS :sasl=PLAIN")
-        .client("CAP REQ :sasl")
-        .server("CAP * ACK :sasl")
-        .client("AUTHENTICATE PLAIN");
+    Transcript::new(
+        Config::default().sasl(Sasl::plain("alice", papo_core::Secret::new("hunter2"))),
+    )
+    .connect_default()
+    .server("CAP * LS :sasl=PLAIN")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE PLAIN")
+    .server(":ergo.test 900 alice alice!~u@host alice :You are now logged in as alice")
+    .server(":ergo.test 903 alice :SASL authentication successful")
+    .client("CAP END")
+    .inspect(|session| assert_eq!(session.account(), Some("alice")))
+    .disconnect()
+    .connect_default()
+    .inspect(|session| assert_eq!(session.account(), None))
+    .server("CAP * LS :sasl=PLAIN")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE PLAIN");
 }
 
 #[test]
@@ -786,7 +790,7 @@ fn authenticates_with_external_empty_and_explicit_authzids() {
 }
 
 fn scram_start(require_sasl: bool) -> Transcript {
-    let sasl = Sasl::scram_sha256("user", "pencil");
+    let sasl = Sasl::scram_sha256("user", papo_core::Secret::new("pencil"));
     let sasl = if require_sasl { sasl } else { sasl.optional() };
     Transcript::with_entropy(Config::default().sasl(sasl), Box::new(FixedEntropy))
         .connect_default()
@@ -898,7 +902,7 @@ fn rejects_scram_success_while_aborting_a_bad_server_proof() {
 fn ignores_sasl_success_before_capability_ack() {
     for numeric in [903, 907] {
         for require_sasl in [true, false] {
-            let sasl = Sasl::plain("alice", "hunter2");
+            let sasl = Sasl::plain("alice", papo_core::Secret::new("hunter2"));
             let sasl = if require_sasl { sasl } else { sasl.optional() };
             let transcript = Transcript::new(Config::default().sasl(sasl))
                 .connect_default()
@@ -955,7 +959,7 @@ fn rejects_a_tampered_scram_server_signature() {
 #[test]
 fn rejects_an_excessive_scram_iteration_count_before_derivation() {
     Transcript::with_entropy(
-        Config::default().sasl(Sasl::scram_sha256("user", "pencil")),
+        Config::default().sasl(Sasl::scram_sha256("user", papo_core::Secret::new("pencil"))),
         Box::new(FixedEntropy),
     )
     .connect_default()
