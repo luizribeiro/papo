@@ -41,7 +41,7 @@ async fn multidevice_message_fanout(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert_eq!(received.authorship, papo::Authorship::Own);
     assert_eq!(
-        conversation_name(&received.conversation),
+        conversation_name(received.conversation()),
         Some(channel.as_str())
     );
     assert_eq!(received.return_address(), channel.as_str());
@@ -194,8 +194,8 @@ async fn multidevice_ops_message_operations(s: Scenario) -> papo_testing::Result
         .await?;
     let (id, sent_text, _) = confirmed_line(&sent);
     assert_eq!(sent_text, "operators reviewing the deployment");
-    assert_eq!(original.msgid.as_ref(), Some(id));
-    assert_eq!(original.status.map(papo::Prefix::symbol), Some('@'));
+    assert_eq!(original.msgid(), Some(id));
+    assert_eq!(original.status().map(papo::Prefix::symbol), Some('@'));
     assert_eq!(original.return_address(), target.as_str());
     observer
         .expect_none(|event| {
@@ -216,7 +216,7 @@ async fn multidevice_ops_message_operations(s: Scenario) -> papo_testing::Result
         })
         .await?;
     assert_eq!(reply.in_reply_to.as_ref(), Some(id));
-    assert_eq!(reply.status.map(papo::Prefix::symbol), Some('@'));
+    assert_eq!(reply.status().map(papo::Prefix::symbol), Some('@'));
     assert_eq!(reply.return_address(), target.as_str());
     observer
         .expect_none(|event| {
@@ -230,7 +230,7 @@ async fn multidevice_ops_message_operations(s: Scenario) -> papo_testing::Result
     let added = phone.wait_for(Event::as_reacted).await?;
     assert_eq!(&added.reacts_to, id);
     assert_eq!(added.reaction, "🛡️");
-    assert_eq!(added.status.map(papo::Prefix::symbol), Some('@'));
+    assert_eq!(added.status().map(papo::Prefix::symbol), Some('@'));
     assert_eq!(added.return_address(), target.as_str());
     observer.expect_none(Event::as_reacted).await?;
 
@@ -261,7 +261,7 @@ async fn multidevice_ops_message_operations(s: Scenario) -> papo_testing::Result
     let removed = phone.wait_for(Event::as_redacted).await?;
     assert_eq!(&removed.redacts, id);
     assert_eq!(removed.reason.as_deref(), Some("deployment superseded"));
-    assert_eq!(removed.status, None);
+    assert_eq!(removed.status(), None);
     assert_eq!(removed.return_address(), channel.as_str());
     Ok(())
 }
@@ -498,10 +498,10 @@ async fn multidevice_dm_fanout_thread(s: Scenario) -> papo_testing::Result<()> {
     let (id, sent_text, _) = confirmed_line(&sent);
     assert_eq!(sent_text, text);
     for message in [&on_desktop, &on_phone, &on_tablet] {
-        assert_eq!(message.msgid.as_ref(), Some(id));
+        assert_eq!(message.msgid(), Some(id));
         assert_eq!(message.authorship, papo::Authorship::Other);
         assert_eq!(
-            conversation_name(&message.conversation),
+            conversation_name(message.conversation()),
             Some(sender.nick().as_ref())
         );
         assert_eq!(message.return_address(), sender.nick().as_ref());
@@ -517,7 +517,7 @@ async fn multidevice_dm_fanout_thread(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(sibling_reply.authorship, papo::Authorship::Own);
     assert_eq!(sibling_reply.in_reply_to.as_ref(), Some(id));
     assert_eq!(
-        conversation_name(&sibling_reply.conversation),
+        conversation_name(sibling_reply.conversation()),
         Some(sender.nick().as_ref())
     );
     assert_eq!(sibling_reply.return_address(), sender.nick().as_ref());

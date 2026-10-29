@@ -46,7 +46,7 @@ async fn fixture_pair_with(
 }
 
 fn is_private(message: &papo::Message) -> bool {
-    conversation_is_private(&message.conversation)
+    conversation_is_private(message.conversation())
 }
 
 async fn assert_unverified_context(
@@ -63,7 +63,7 @@ async fn assert_unverified_context(
     let message = recipient
         .wait_for(|event| message_text(event, text))
         .await?;
-    assert_eq!(message.channel_context, None);
+    assert_eq!(message.channel_context(), None);
     assert_eq!(message.tags.get("+channel-context"), Some(context));
     Ok(())
 }
@@ -89,13 +89,13 @@ async fn echo_message(s: Scenario) -> papo_testing::Result<()> {
         Some(alice.nick().as_ref())
     );
     assert_eq!(
-        conversation_name(&message.conversation),
+        conversation_name(message.conversation()),
         Some(channel.as_str())
     );
     assert_eq!(message.raw_text, "hello from alice");
     assert_eq!(message.text, "hello from alice");
     let (id, _, server_time) = confirmed_line(&sent);
-    assert_eq!(message.msgid.as_ref(), Some(id));
+    assert_eq!(message.msgid(), Some(id));
     assert_eq!(message.server_time, server_time);
     assert!(!is_private(&message));
     assert!(sent.fallbacks.is_empty());
@@ -188,14 +188,14 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert_eq!(received.kind, MessageKind::Text);
     assert_eq!(
-        conversation_name(&received.conversation),
+        conversation_name(received.conversation()),
         Some(alice.nick().as_ref())
     );
     assert_eq!(received.return_address(), alice.nick().as_ref());
     assert_eq!(received.raw_text, "private hello");
     assert!(is_private(&received));
     let (id, _, server_time) = confirmed_line(&sent);
-    assert_eq!(received.msgid.as_ref(), Some(id));
+    assert_eq!(received.msgid(), Some(id));
     assert_eq!(received.server_time, server_time);
 
     let alice_direct = bob.direct(alice.nick().as_ref()).await?;
@@ -244,11 +244,8 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     let threaded = bob
         .wait_for(|event| message_text(event, "private thread reply"))
         .await?;
-    assert_eq!(
-        threaded.channel_context.as_deref().map(AsRef::as_ref),
-        Some(channel.as_ref())
-    );
-    assert_eq!(threaded.msgid.as_ref(), Some(confirmed_line(&sent).0));
+    assert_eq!(threaded.channel_context(), Some(&channel));
+    assert_eq!(threaded.msgid(), Some(confirmed_line(&sent).0));
 
     alice.part(&channel, "testing channel context").await?;
     bob.wait_for(|event| {
@@ -351,7 +348,7 @@ async fn own_message_without_echo(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert_eq!(message.authorship, papo::Authorship::Own);
     assert_eq!(
-        conversation_name(&message.conversation),
+        conversation_name(message.conversation()),
         Some(channel.as_str())
     );
     phone
@@ -390,12 +387,12 @@ async fn status_message(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| message_text(event, "voiced members only"))
         .await?;
     assert_eq!(
-        conversation_name(&received.conversation),
+        conversation_name(received.conversation()),
         Some(channel.as_str())
     );
-    assert_eq!(received.status.map(papo::Prefix::symbol), Some('+'));
+    assert_eq!(received.status().map(papo::Prefix::symbol), Some('+'));
     assert_eq!(received.raw_text, "voiced members only");
-    assert_eq!(received.msgid.as_ref(), Some(confirmed_line(&sent).0));
+    assert_eq!(received.msgid(), Some(confirmed_line(&sent).0));
     assert!(
         bob.state()
             .channel(&channel)
@@ -446,12 +443,12 @@ async fn status_message_or_higher(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     for message in [&received_by_bob, &received_by_alice] {
         assert_eq!(
-            conversation_name(&message.conversation),
+            conversation_name(message.conversation()),
             Some(channel.as_ref())
         );
-        assert_eq!(message.status.map(papo::Prefix::symbol), Some('+'));
+        assert_eq!(message.status().map(papo::Prefix::symbol), Some('+'));
         assert_eq!(message.raw_text, "voiced members only");
-        assert_eq!(message.msgid.as_ref(), Some(confirmed_line(&sent).0));
+        assert_eq!(message.msgid(), Some(confirmed_line(&sent).0));
     }
     dave.expect_none(|event| message_text(event, "voiced members only"))
         .await?;
@@ -481,7 +478,7 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert_eq!(action.kind, MessageKind::Action);
     assert_eq!(
-        conversation_name(&action.conversation),
+        conversation_name(action.conversation()),
         Some(channel.as_str())
     );
     assert_eq!(action.raw_text, "waves hello");
@@ -577,12 +574,15 @@ async fn ctcp_channel_query(s: Scenario) -> papo_testing::Result<()> {
     let query = bob
         .wait_for(|event| {
             event.as_ctcp_query().filter(|ctcp| {
-                conversation_name(&ctcp.conversation) == Some(channel.as_str())
+                conversation_name(ctcp.conversation()) == Some(channel.as_str())
                     && ctcp.command == "VERSION"
             })
         })
         .await?;
-    assert!(matches!(query.conversation, papo::Conversation::Channel(_)));
+    assert!(matches!(
+        query.conversation(),
+        papo::Conversation::Channel(_)
+    ));
     alice
         .expect_none(|event| {
             event
@@ -594,12 +594,15 @@ async fn ctcp_channel_query(s: Scenario) -> papo_testing::Result<()> {
     let reply = alice
         .wait_for(|event| {
             event.as_ctcp_reply().filter(|ctcp| {
-                conversation_name(&ctcp.conversation) == Some(bob.nick().as_ref())
+                conversation_name(ctcp.conversation()) == Some(bob.nick().as_ref())
                     && ctcp.actor.nick().as_ref() == bob.nick().as_ref()
             })
         })
         .await?;
-    assert!(matches!(reply.conversation, papo::Conversation::Private(_)));
+    assert!(matches!(
+        reply.conversation(),
+        papo::Conversation::Private(_)
+    ));
     Ok(())
 }
 
@@ -661,7 +664,7 @@ async fn no_ctcp_mode(s: Scenario) -> papo_testing::Result<()> {
     alice
         .expect_none(|event| {
             event.as_ctcp_query().filter(|ctcp| {
-                conversation_name(&ctcp.conversation) == Some(channel.as_str())
+                conversation_name(ctcp.conversation()) == Some(channel.as_str())
                     && ctcp.command == "VERSION"
             })
         })
@@ -685,11 +688,7 @@ async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
     let original = bob
         .wait_for(|event| message_text(event, "ship release 2.19"))
         .await?;
-    let original_id = original
-        .msgid
-        .as_ref()
-        .expect("message has an identifier")
-        .clone();
+    let original_id = original.msgid().expect("message has an identifier").clone();
 
     let sent = bob.reply(&original, "acknowledged").await?;
     if sent.fallbacks.contains(&Fallback::ReplyTagDropped) {
@@ -701,7 +700,7 @@ async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(reply.raw_text, "acknowledged");
     assert_eq!(reply.in_reply_to.as_ref(), Some(&original_id));
     assert_eq!(
-        conversation_name(&reply.conversation),
+        conversation_name(reply.conversation()),
         Some(channel.as_str())
     );
 
@@ -717,10 +716,10 @@ async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
     }
     let added = alice.wait_for(Event::as_reacted).await?;
     assert_eq!(
-        conversation_name(&added.conversation),
+        conversation_name(added.conversation()),
         Some(channel.as_str())
     );
-    assert_eq!(added.status, None);
+    assert_eq!(added.status(), None);
     assert_eq!(added.reacts_to, original_id);
     assert_eq!(added.reaction, "👍");
     assert_eq!(added.action, papo::event::ReactionAction::Added);
@@ -729,10 +728,10 @@ async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
     bob.unreact(&original, "👍").await?;
     let removed = alice.wait_for(Event::as_reacted).await?;
     assert_eq!(
-        conversation_name(&removed.conversation),
+        conversation_name(removed.conversation()),
         Some(channel.as_str())
     );
-    assert_eq!(removed.status, None);
+    assert_eq!(removed.status(), None);
     assert_eq!(removed.reacts_to, original_id);
     assert_eq!(removed.reaction, "👍");
     assert_eq!(removed.action, papo::event::ReactionAction::Removed);
@@ -832,13 +831,13 @@ async fn draft_multiline(s: Scenario) -> papo_testing::Result<()> {
     let received = bob.wait_for(|event| message_text(event, text)).await?;
     assert_eq!(received.kind, MessageKind::Text);
     assert_eq!(
-        conversation_name(&received.conversation),
+        conversation_name(received.conversation()),
         Some(channel.as_str())
     );
     assert_eq!(received.raw_text, text);
     assert_eq!(received.text, text);
     let (id, _, server_time) = confirmed_line(&sent);
-    assert_eq!(received.msgid.as_ref(), Some(id));
+    assert_eq!(received.msgid(), Some(id));
     assert_eq!(received.server_time, server_time);
     bob.expect_none(|event| message_text(event, text)).await?;
     Ok(())
@@ -856,7 +855,7 @@ async fn utf8only(s: Scenario) -> papo_testing::Result<()> {
     let received = bob.wait_for(|event| message_text(event, text)).await?;
     assert_eq!(received.raw_text, text);
     assert_eq!(received.text, text);
-    assert_eq!(received.msgid.as_ref(), Some(confirmed_line(&sent).0));
+    assert_eq!(received.msgid(), Some(confirmed_line(&sent).0));
     Ok(())
 }
 
@@ -880,20 +879,16 @@ async fn draft_message_redaction(s: Scenario) -> papo_testing::Result<()> {
     let received = bob
         .wait_for(|event| message_text(event, "message to\nredact"))
         .await?;
-    let id = received
-        .msgid
-        .as_ref()
-        .expect("message has an identifier")
-        .clone();
+    let id = received.msgid().expect("message has an identifier").clone();
     assert_eq!(&id, confirmed_line(&sent).0);
 
     alice.redact(&sent, "superseded").await?;
     let redacted = bob.wait_for(Event::as_redacted).await?;
     assert_eq!(
-        conversation_name(&redacted.conversation),
+        conversation_name(redacted.conversation()),
         Some(channel.as_str())
     );
-    assert_eq!(redacted.status, None);
+    assert_eq!(redacted.status(), None);
     assert_eq!(redacted.redacts, id);
     assert_eq!(redacted.reason.as_deref(), Some("superseded"));
     assert_eq!(

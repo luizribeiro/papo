@@ -29,7 +29,7 @@ async fn multiline_dm_after_nick_change(s: Scenario) -> papo_testing::Result<()>
     bob.set_nick(&new_nick).await?;
     let message = bob.wait_for(|event| message_text(event, text)).await?;
     assert_eq!(
-        conversation_name(&message.conversation),
+        conversation_name(message.conversation()),
         Some(alice.nick().as_ref())
     );
     assert_eq!(message.return_address(), alice.nick().as_ref());
@@ -40,7 +40,7 @@ async fn multiline_dm_after_nick_change(s: Scenario) -> papo_testing::Result<()>
         .await?;
     assert_eq!(crate::source_nick(&reply.actor), Some(new_nick.as_str()));
     assert_eq!(
-        conversation_name(&reply.conversation),
+        conversation_name(reply.conversation()),
         Some(new_nick.as_str())
     );
     Ok(())
@@ -77,7 +77,7 @@ async fn stale_dm_history_target(s: Scenario) -> papo_testing::Result<()> {
         .find(|message| message.text == text)
         .expect("direct-message history contains the stored message");
     assert_eq!(
-        conversation_name(&message.conversation),
+        conversation_name(message.conversation()),
         Some(writer.nick().as_ref())
     );
     assert_eq!(message.return_address(), writer.nick().as_ref());
