@@ -268,7 +268,7 @@ pub fn __bouncer_attributes(
     }
     if let Some(password) = password {
         push_attribute(&mut attributes, "pass", password);
-        Ok(Param::from(Secret::from(attributes.as_str())))
+        Ok(Param::from(Secret::new(attributes.as_str())))
     } else {
         Ok(Param::from(attributes.as_str()))
     }

@@ -634,7 +634,8 @@ mod tests {
     #[test]
     fn wanted_caps_include_only_configured_names_and_sasl() {
         let configured = Config::default().wanted_caps(["draft/chathistory"]);
-        let credentials = Config::default().sasl(crate::Sasl::plain("alice", "hunter2"));
+        let credentials =
+            Config::default().sasl(crate::Sasl::plain("alice", crate::Secret::new("hunter2")));
         for (config, name, expected) in [
             (&configured, "chathistory", true),
             (&configured, "vendor.example/unwanted", false),

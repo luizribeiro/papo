@@ -1510,7 +1510,7 @@ impl State {
 
 fn typed_mode_change(change: ProtoModeChange<'_>, names: Names) -> ModeChange {
     let arg = change.arg.map(|arg| match (change.mode, change.kind) {
-        ('k', _) => ModeArg::Key(Secret::from(arg)),
+        ('k', _) => ModeArg::Key(Secret::new(arg)),
         (_, ModeKind::Prefix(prefix)) => ModeArg::Member {
             nick: names.nick(arg),
             prefix,
@@ -1560,7 +1560,7 @@ impl Channel {
             if change.mode == 'k' {
                 if change.action == papo_proto::ModeAction::Add {
                     if let Some(key) = change.arg {
-                        self.key = Some(Secret::from(key));
+                        self.key = Some(Secret::new(key));
                     }
                 } else {
                     self.key = None;

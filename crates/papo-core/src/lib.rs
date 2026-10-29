@@ -6003,7 +6003,7 @@ mod tests {
             .create_account_on_connect(
                 Some("alice"),
                 None::<String>,
-                super::Secret::from("account password"),
+                super::Secret::new("account password"),
             );
         config.origin = papo_proto::Origin::__new(41);
 

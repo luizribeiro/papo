@@ -37,7 +37,7 @@ impl Session {
         keys.push_str(p256dh);
         keys.push_str(";auth=");
         keys.push_str(auth);
-        let keys = Secret::from(keys.as_str());
+        let keys = Secret::new(keys.as_str());
         self.request_for_feature(
             now,
             Line::new("WEBPUSH")
