@@ -513,14 +513,14 @@ fn required_sasl_distinguishes_unavailable_from_failed_login() {
     for transcript in [
         Transcript::new(
             Config::default()
-                .sasl(Sasl::plain("alice", "hunter2")),
+                .sasl(Sasl::plain("alice", papo_core::Secret::new("hunter2"))),
         )
         .connect_default()
         .server("CAP * LS :")
         .event(|event| matches!(event, Event::Close { kind: CloseKind::SaslUnavailable, reason, .. } if reason.contains("did not advertise"))),
         Transcript::new(
             Config::default()
-                .sasl(Sasl::plain("alice", "hunter2")),
+                .sasl(Sasl::plain("alice", papo_core::Secret::new("hunter2"))),
         )
         .connect_default()
         .server("CAP * LS :sasl=PLAIN")
@@ -531,7 +531,7 @@ fn required_sasl_distinguishes_unavailable_from_failed_login() {
         transcript.no_client();
     }
 
-    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
+    Transcript::new(Config::default().sasl(Sasl::plain("alice", papo_core::Secret::new("hunter2"))))
         .connect_default()
         .server("CAP * LS :sasl=PLAIN")
         .client("CAP REQ :sasl")
@@ -550,7 +550,7 @@ fn required_sasl_timeout_is_unavailable_after_the_abort_deadline() {
     Transcript::new(
         Config::default()
             .welcome_timeout(std::time::Duration::from_secs(90))
-            .sasl(Sasl::plain("alice", "hunter2")),
+            .sasl(Sasl::plain("alice", papo_core::Secret::new("hunter2"))),
     )
     .connect_default()
     .server("CAP * LS :sasl=PLAIN")
@@ -570,17 +570,19 @@ fn required_sasl_timeout_is_unavailable_after_the_abort_deadline() {
 #[test]
 fn terminal_sasl_numerics_do_not_try_another_mechanism() {
     for numeric in ["902", "906"] {
-        Transcript::new(secure_sasl(Sasl::any("alice", "hunter2").optional()))
-            .connect_default()
-            .server("CAP * LS :sasl=PLAIN")
-            .client("CAP REQ :sasl")
-            .server("CAP * ACK :sasl")
-            .client("AUTHENTICATE PLAIN")
-            .server(&format!(
-                ":ergo.test {numeric} alice :SASL authentication cannot continue"
-            ))
-            .event(|event| matches!(event, Event::AuthenticationFailed { .. }))
-            .client("CAP END");
+        Transcript::new(secure_sasl(
+            Sasl::any("alice", papo_core::Secret::new("hunter2")).optional(),
+        ))
+        .connect_default()
+        .server("CAP * LS :sasl=PLAIN")
+        .client("CAP REQ :sasl")
+        .server("CAP * ACK :sasl")
+        .client("AUTHENTICATE PLAIN")
+        .server(&format!(
+            ":ergo.test {numeric} alice :SASL authentication cannot continue"
+        ))
+        .event(|event| matches!(event, Event::AuthenticationFailed { .. }))
+        .client("CAP END");
     }
 }
 
@@ -588,7 +590,7 @@ fn terminal_sasl_numerics_do_not_try_another_mechanism() {
 fn account_required_closes_and_verification_note_surfaces() {
     Transcript::new(
         Config::default()
-            .sasl(Sasl::plain("alice", "hunter2")),
+            .sasl(Sasl::plain("alice", papo_core::Secret::new("hunter2"))),
     )
     .connect_default()
     .server("CAP * LS :sasl=PLAIN standard-replies")
@@ -617,16 +619,18 @@ fn informational_account_required_cap_closes_without_credentials() {
 
 #[test]
 fn informational_account_required_cap_is_not_requested_with_credentials() {
-    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
-        .connect_default()
-        .server("CAP * LS :soju.im/account-required sasl=PLAIN standard-replies")
-        .client("CAP REQ :standard-replies sasl")
-        .no_event();
+    Transcript::new(
+        Config::default().sasl(Sasl::plain("alice", papo_core::Secret::new("hunter2"))),
+    )
+    .connect_default()
+    .server("CAP * LS :soju.im/account-required sasl=PLAIN standard-replies")
+    .client("CAP REQ :standard-replies sasl")
+    .no_event();
 }
 
 #[test]
 fn informational_account_required_cap_accepts_a_server_password() {
-    Transcript::new(Config::default().password("mC8r-Zq4v_N7xLp2"))
+    Transcript::new(Config::default().password(papo_core::Secret::new("mC8r-Zq4v_N7xLp2")))
         .connect()
         .client("CAP LS 302")
         .client("NICK papo")
@@ -643,7 +647,9 @@ fn informational_account_required_cap_accepts_a_server_password() {
 
 #[test]
 fn plaintext_connections_refuse_oauth_credentials() {
-    let config = Config::default().sasl(Sasl::oauth_bearer("oauth-token-7391"));
+    let config = Config::default().sasl(Sasl::oauth_bearer(papo_core::Secret::new(
+        "oauth-token-7391",
+    )));
     Transcript::rate_limited(config)
         .connect()
         .event(|event| matches!(event, Event::Close { reason, .. } if reason.contains("plaintext")))
@@ -656,23 +662,25 @@ fn unrelated_fail_replies_do_not_trigger_account_required_policy() {
         ":ergo.test FAIL AUTHENTICATE ACCOUNT_REQUIRED :Authentication required",
         ":ergo.test FAIL * OTHER_CODE :A different failure",
     ] {
-        Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
-            .connect_default()
-            .server("CAP * LS :sasl=PLAIN standard-replies")
-            .client("CAP REQ :standard-replies sasl")
-            .server("CAP * ACK :standard-replies sasl")
-            .client("AUTHENTICATE PLAIN")
-            .server(reply)
-            .event(|event| matches!(event, Event::StandardReply(_)))
-            .no_client()
-            .deadline(Some(std::time::Duration::from_secs(30)));
+        Transcript::new(
+            Config::default().sasl(Sasl::plain("alice", papo_core::Secret::new("hunter2"))),
+        )
+        .connect_default()
+        .server("CAP * LS :sasl=PLAIN standard-replies")
+        .client("CAP REQ :standard-replies sasl")
+        .server("CAP * ACK :standard-replies sasl")
+        .client("AUTHENTICATE PLAIN")
+        .server(reply)
+        .event(|event| matches!(event, Event::StandardReply(_)))
+        .no_client()
+        .deadline(Some(std::time::Duration::from_secs(30)));
     }
 }
 
 #[test]
 fn aborts_at_the_literal_30_second_deadline_then_falls_back() {
     Transcript::with_entropy(
-        secure_sasl(Sasl::any("alice", "hunter2")),
+        secure_sasl(Sasl::any("alice", papo_core::Secret::new("hunter2"))),
         Box::new(FixedEntropy),
     )
     .connect_default()

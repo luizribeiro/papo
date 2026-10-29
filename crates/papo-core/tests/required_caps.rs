@@ -25,7 +25,7 @@ fn account_creation_requires_account_registration() {
         Config::default().create_account_on_connect(
             Some("alice"),
             Some("alice@example.org"),
-            "correct horse battery staple",
+            papo_core::Secret::new("correct horse battery staple"),
         ),
         "draft/account-registration",
     );
@@ -36,7 +36,7 @@ fn account_creation_requires_before_connect_registration() {
     Transcript::new(Config::default().create_account_on_connect(
         Some("alice"),
         Some("alice@example.org"),
-        "correct horse battery staple",
+        papo_core::Secret::new("correct horse battery staple"),
     ))
     .connect_default()
     .server("CAP * LS :draft/account-registration=email-required")
@@ -55,7 +55,7 @@ fn custom_account_name_requires_its_capability_value() {
     Transcript::new(Config::default().create_account_on_connect(
         Some("alice"),
         Some("alice@example.org"),
-        "correct horse battery staple",
+        papo_core::Secret::new("correct horse battery staple"),
     ))
     .connect_default()
     .server("CAP * LS :draft/account-registration=before-connect")

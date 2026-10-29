@@ -18,7 +18,7 @@ fn config_builders_set_registration_identity_and_timeout() {
         .nick("emily")
         .username("em")
         .realname("Emily Example")
-        .password("correct horse battery staple")
+        .password(papo_core::Secret::new("correct horse battery staple"))
         .welcome_timeout(Duration::from_secs(23))
         .ping_interval(Duration::from_secs(41))
         .ping_timeout(Duration::from_secs(82))
@@ -180,7 +180,7 @@ fn sasl_and_account_registration_handlers_advance_state_generation() {
     let mut sasl = Session::new(
         Config::default()
             .connection_security(ConnectionSecurity::Secure)
-            .sasl(Sasl::plain("alice", "hunter2")),
+            .sasl(Sasl::plain("alice", papo_core::Secret::new("hunter2"))),
     );
     sasl.handle_connected(now);
     while sasl.poll_transmit().is_some() {}
@@ -209,7 +209,7 @@ fn sasl_and_account_registration_handlers_advance_state_generation() {
             now,
             None,
             Some("alice@example.org"),
-            "correct horse battery staple",
+            papo_core::Secret::new("correct horse battery staple"),
         )
         .unwrap();
     registration.handle_line(now, b"CAP * ACK :draft/account-registration");

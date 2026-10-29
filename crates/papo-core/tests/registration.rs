@@ -14,7 +14,7 @@ fn sends_password_after_capability_discovery() {
         .nick("emily")
         .username("em")
         .realname("Emily Example")
-        .password("correct horse battery staple");
+        .password(papo_core::Secret::new("correct horse battery staple"));
     Transcript::new(config)
         .connect()
         .client("CAP LS 302")
@@ -30,7 +30,7 @@ fn sends_password_after_capability_discovery() {
 fn waits_for_the_final_capability_listing_before_sending_password() {
     let config = Config::default()
         .wanted_caps([] as [&str; 0])
-        .password("correct horse battery staple");
+        .password(papo_core::Secret::new("correct horse battery staple"));
     Transcript::new(config)
         .connect_default()
         .server("CAP * LS * :account-notify batch")
@@ -45,7 +45,7 @@ fn plaintext_server_password_requires_sts() {
     Transcript::rate_limited(
         Config::default()
             .rate_limit(papo_core::RateLimit::unlimited())
-            .password("correct horse battery staple"),
+            .password(papo_core::Secret::new("correct horse battery staple")),
     )
     .connect_default()
     .server("CAP * LS :batch")
@@ -62,7 +62,7 @@ fn plaintext_server_password_accepts_an_sts_upgrade() {
         Config::default()
             .host("irc.example.net")
             .rate_limit(papo_core::RateLimit::unlimited())
-            .password("correct horse battery staple"),
+            .password(papo_core::Secret::new("correct horse battery staple")),
     )
     .connect_default()
     .server("CAP * LS :sts=port=6697,duration=86400")
@@ -85,7 +85,7 @@ fn plaintext_server_password_waits_through_pre_cap_lines() {
         Config::default()
             .host("irc.example.net")
             .rate_limit(papo_core::RateLimit::unlimited())
-            .password("correct horse battery staple"),
+            .password(papo_core::Secret::new("correct horse battery staple")),
     )
     .connect_default()
     .server(":ergo.test NOTICE * :*** Looking up your hostname...")
@@ -115,7 +115,7 @@ fn plaintext_server_password_closes_when_cap_is_unavailable() {
         Transcript::rate_limited(
             Config::default()
                 .rate_limit(papo_core::RateLimit::unlimited())
-                .password("correct horse battery staple"),
+                .password(papo_core::Secret::new("correct horse battery staple")),
         )
         .connect_default()
         .server(unsupported)
@@ -136,7 +136,7 @@ fn cap_unavailable_requires_both_the_unknown_command_numeric_and_cap_parameter()
         Transcript::rate_limited(
             Config::default()
                 .rate_limit(papo_core::RateLimit::unlimited())
-                .password("correct horse battery staple"),
+                .password(papo_core::Secret::new("correct horse battery staple")),
         )
         .connect_default()
         .server(available)

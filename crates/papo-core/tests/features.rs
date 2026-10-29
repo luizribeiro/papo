@@ -537,11 +537,16 @@ fn extension_requests_preserve_explicitly_disabled_reasons() {
             Err(expected(Feature::Persistence))
         );
         assert_eq!(
-            session.create_account(now, Some("alice"), None, "account-password"),
+            session.create_account(
+                now,
+                Some("alice"),
+                None,
+                papo_core::Secret::new("account-password"),
+            ),
             Err(expected(Feature::AccountCreation))
         );
         assert_eq!(
-            session.verify(now, "alice", "39gvcdg4myvnmdcfhvd6exsv4n"),
+            session.verify(now, "alice", papo_core::Secret::new("39gvcdg4myvnmdcfhvd6exsv4n")),
             Err(expected(Feature::AccountCreation))
         );
         assert_eq!(
