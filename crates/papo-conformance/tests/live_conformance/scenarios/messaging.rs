@@ -244,7 +244,10 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     let threaded = bob
         .wait_for(|event| message_text(event, "private thread reply"))
         .await?;
-    assert_eq!(threaded.channel_context(), Some(&channel));
+    assert_eq!(
+        threaded.channel_context().map(AsRef::as_ref),
+        Some(channel.as_ref())
+    );
     assert_eq!(threaded.msgid(), Some(confirmed_line(&sent).0));
 
     alice.part(&channel, "testing channel context").await?;
