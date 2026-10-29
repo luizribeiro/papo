@@ -37,6 +37,9 @@ fn registered() -> Transcript {
     .client("CAP REQ :batch labeled-response soju.im/bouncer-networks")
     .server("CAP * ACK :batch labeled-response soju.im/bouncer-networks")
     .client("CAP END")
+    .welcome(":soju.example 001 papo :Welcome to soju")
+    .server(":soju.example 422 papo :MOTD File is missing")
+    .event(|event| matches!(event, Event::Connected(_)))
 }
 
 fn bound_config() -> Config {
