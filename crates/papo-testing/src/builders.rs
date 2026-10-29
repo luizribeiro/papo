@@ -52,7 +52,7 @@ impl MessageBuilder {
     /// Sets the server-assigned message identifier.
     #[must_use]
     pub fn message_id(mut self, id: impl Into<MessageId>) -> Self {
-        self.message.msgid = Some(id.into());
+        papo::__testing::set_message_id(&mut self.message, id.into());
         self
     }
 
@@ -117,7 +117,7 @@ mod tests {
         assert!(
             matches!(message.actor.account(), papo::Account::LoggedIn(account) if account == "alice")
         );
-        assert_eq!(message.msgid.as_deref(), Some("ergo-42"));
+        assert_eq!(message.msgid().map(AsRef::as_ref), Some("ergo-42"));
         assert_eq!(message.tags.iter().count(), 2);
         assert_eq!(message.tags.get("bot"), Some(""));
     }

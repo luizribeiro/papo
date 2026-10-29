@@ -1687,7 +1687,7 @@ fn should_hold_sent_candidate(
 fn own_line_msgid(event: &Event) -> Option<&str> {
     match event {
         Event::Message(message) if message.authorship == crate::Authorship::Own => {
-            message.msgid.as_deref()
+            message.msgid().map(AsRef::as_ref)
         }
         Event::Notice(notice) if notice.authorship == crate::Authorship::Own => {
             notice.msgid.as_deref()

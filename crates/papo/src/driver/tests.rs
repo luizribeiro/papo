@@ -6961,7 +6961,7 @@ async fn chat_text_uses_multiline_when_negotiated() {
     let sent = within(client.privmsg("#papo", "a".repeat(600)))
         .await
         .unwrap();
-    assert_eq!(sent.outcome, crate::SentOutcome::Unconfirmed);
+    assert_eq!(sent.outcome(), &crate::SentOutcome::Unconfirmed);
     let batch = format!(
         "BATCH +b0-0 draft/multiline #papo\r\n@batch=b0-0 PRIVMSG #papo {}\r\n@batch=b0-0;draft/multiline-concat PRIVMSG #papo {}\r\nBATCH -b0-0\r\n",
         "a".repeat(413),
@@ -7007,8 +7007,8 @@ async fn chat_text_preserves_an_automatically_split_multiline_batch() {
     .await;
     let sent = within(sent).await.unwrap().unwrap();
     assert_eq!(
-        sent.outcome,
-        crate::SentOutcome::Confirmed {
+        sent.outcome(),
+        &crate::SentOutcome::Confirmed {
             lines: vec![(crate::MessageId::from("RfcBTzyxY120004"), text,)],
             server_time: None,
         }
@@ -7058,7 +7058,7 @@ async fn message_builder_sends_reply_context_and_custom_tags() {
     )
     .await;
     assert!(matches!(
-        within(sent).await.unwrap().unwrap().outcome,
+        within(sent).await.unwrap().unwrap().outcome(),
         crate::SentOutcome::Confirmed { lines, .. }
             if matches!(lines.as_slice(), [(id, text)] if id == "RfcBTzyxY120005" && text == "fixed in 69876ec")
     ));
@@ -7076,7 +7076,7 @@ async fn message_builder_sends_reply_context_and_custom_tags() {
     )
     .await;
     assert!(matches!(
-        within(action).await.unwrap().unwrap().outcome,
+        within(action).await.unwrap().unwrap().outcome(),
         crate::SentOutcome::Confirmed { lines, .. }
             if matches!(lines.as_slice(), [(id, text)] if id == "RfcBTzyxY120006" && text == "\u{1}ACTION waves\u{1}")
     ));
@@ -7232,7 +7232,7 @@ async fn chat_text_returns_metadata_from_every_labelled_echo() {
     )
     .await;
     let sent = within(sent).await.unwrap().unwrap();
-    let crate::SentOutcome::Confirmed { lines, server_time } = &sent.outcome else {
+    let crate::SentOutcome::Confirmed { lines, server_time } = sent.outcome() else {
         panic!("labelled echo should confirm the message")
     };
     assert_eq!(
@@ -7271,7 +7271,7 @@ async fn chat_text_returns_metadata_from_every_labelled_echo() {
     )
     .await;
     let split = within(split).await.unwrap().unwrap();
-    let crate::SentOutcome::Confirmed { lines, server_time } = &split.outcome else {
+    let crate::SentOutcome::Confirmed { lines, server_time } = split.outcome() else {
         panic!("every split line should be confirmed")
     };
     assert_eq!(server_time, &None);
@@ -8104,7 +8104,7 @@ async fn resolved_send_suppression_is_own_scoped_and_one_shot() {
     )
     .await;
     assert!(matches!(
-        within(sent).await.unwrap().unwrap().outcome,
+        within(sent).await.unwrap().unwrap().outcome(),
         crate::SentOutcome::Confirmed { lines, .. }
             if matches!(lines.as_slice(), [(id, text)] if id == "RfcBTzyxY120007" && text == "remember this")
     ));

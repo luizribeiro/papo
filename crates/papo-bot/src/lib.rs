@@ -308,7 +308,7 @@ impl Command {
     /// Returns [`papo::Error::TargetGone`] when current state proves that another user holds a
     /// private command sender's nickname. Otherwise returns the same errors as [`Client::privmsg`].
     pub async fn say(&self, text: impl Into<String>) -> Result<ReplyStatus, papo::Error> {
-        if !self.replies.check(self.message.conversation.clone()) {
+        if !self.replies.check(self.message.conversation().clone()) {
             return Ok(ReplyStatus::Dropped);
         }
         self.client
@@ -331,7 +331,7 @@ impl Command {
     /// [`papo::Refusal::TryAgain`], or [`papo::Refusal::Other`].
     /// A proven private nickname takeover returns [`papo::Error::TargetGone`].
     pub async fn reply(&self, text: impl Into<String>) -> Result<ReplyStatus, papo::Error> {
-        if !self.replies.check(self.message.conversation.clone()) {
+        if !self.replies.check(self.message.conversation().clone()) {
             return Ok(ReplyStatus::Dropped);
         }
         self.client.reply(&self.message, text).await?;
@@ -359,11 +359,11 @@ impl Command {
         }
         let target = self.client.direct_to(&self.message).await?;
         let mut request = self.client.notice(&target, text);
-        if let Some(id) = &self.message.msgid {
+        if let Some(id) = self.message.msgid() {
             request = request.reply_to(id.clone());
         }
-        let context = match &self.message.conversation {
-            Conversation::Private(_) => self.message.channel_context.as_deref(),
+        let context = match self.message.conversation() {
+            Conversation::Private(_) => self.message.channel_context().map(AsRef::as_ref),
             Conversation::Channel(channel) => Some(channel.as_ref()),
             _ => None,
         };

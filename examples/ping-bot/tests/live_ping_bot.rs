@@ -40,7 +40,7 @@ async fn joins_and_replies_to_channel_pings() {
         .await;
 
         let sent = user.privmsg(CHANNEL, "!ping").await.unwrap();
-        let papo::SentOutcome::Confirmed { lines, .. } = &sent.outcome else {
+        let papo::SentOutcome::Confirmed { lines, .. } = sent.outcome() else {
             panic!("Ergo should confirm the ping")
         };
         let [(msgid, text)] = lines.as_slice() else {

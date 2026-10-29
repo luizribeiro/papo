@@ -55,10 +55,10 @@ async fn prints_three_unread_messages_and_advances_the_marker() {
         let mut newest = None;
         for text in texts {
             let sent = poster.privmsg(&channel, text).await.unwrap();
-            let papo::SentOutcome::Confirmed { server_time, .. } = sent.outcome else {
+            let papo::SentOutcome::Confirmed { server_time, .. } = sent.outcome() else {
                 panic!("Ergo should confirm history seed messages")
             };
-            newest = server_time;
+            newest = *server_time;
         }
 
         let output = Command::new(env!("CARGO_BIN_EXE_catchup"))

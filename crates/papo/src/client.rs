@@ -650,7 +650,7 @@ impl Client {
     ) -> crate::RequestFuture<()> {
         let target = crate::target::sealed::Parts {
             text: std::borrow::Cow::Owned(query.actor.nick().to_string()),
-            origin: crate::message_ref::conversation_origin(&query.conversation),
+            origin: crate::message_ref::conversation_origin(query.conversation()),
             recipient: Some(crate::message_ref::actor_recipient(query)),
             channel: None,
         };

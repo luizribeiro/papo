@@ -213,6 +213,14 @@ pub fn set_message_account(message: &mut Message, account: crate::Account) {
     message.receipt.update_account(account);
 }
 
+/// Sets the message identifier and the matching immutable receipt evidence.
+pub fn set_message_id(message: &mut Message, id: crate::MessageId) {
+    message.msgid = Some(id.clone());
+    message
+        .receipt
+        .set_reference([id], message.channel_context.clone());
+}
+
 /// Sets the actor and matching private conversation on a test message.
 pub fn set_message_actor(message: &mut Message, actor: crate::UserSource) {
     if matches!(message.conversation, crate::Conversation::Private(_)) {

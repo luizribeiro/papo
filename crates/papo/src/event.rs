@@ -2657,7 +2657,8 @@ mod tests {
 
     #[test]
     fn event_size_remains_bounded() {
-        assert!(std::mem::size_of::<Event>() <= 640);
+        let size = std::mem::size_of::<Event>();
+        assert!(size <= 640, "Event is {size} bytes");
     }
 
     fn from_core(event: papo_core::Event) -> CoreEvent {

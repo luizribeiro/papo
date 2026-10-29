@@ -29,7 +29,7 @@ async fn parses_mentions_and_authorizes_by_account() {
 
         let ping = format!("{bot_nick}: ping");
         let sent = user.privmsg(&channels[0], &ping).await.unwrap();
-        let papo::SentOutcome::Confirmed { lines, .. } = &sent.outcome else {
+        let papo::SentOutcome::Confirmed { lines, .. } = sent.outcome() else {
             panic!("Ergo should confirm the ping")
         };
         let [(msgid, text)] = lines.as_slice() else {
@@ -49,7 +49,7 @@ async fn parses_mentions_and_authorizes_by_account() {
         .await;
         assert_eq!(refusal.kind, MessageKind::Text);
         assert!(matches!(
-            refusal.conversation,
+            refusal.conversation(),
             papo::Conversation::Channel(_)
         ));
 

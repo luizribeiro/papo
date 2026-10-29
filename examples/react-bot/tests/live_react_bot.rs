@@ -39,7 +39,7 @@ async fn reacts_to_live_messages() {
         .await;
 
         let sent = user.privmsg(CHANNEL, "ship it").await.unwrap();
-        let papo::SentOutcome::Confirmed { lines, .. } = &sent.outcome else {
+        let papo::SentOutcome::Confirmed { lines, .. } = sent.outcome() else {
             panic!("Ergo should confirm the message")
         };
         let [(msgid, text)] = lines.as_slice() else {
