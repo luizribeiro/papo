@@ -692,19 +692,6 @@ impl State {
         Some(())
     }
 
-    pub(crate) fn refresh_direct(&mut self, nick: &str, account: Account) {
-        let key = NameKey::new(nick, self.casemapping);
-        if !self.users.contains_key(&key) {
-            let user = self.new_user(nick, None, None);
-            self.users.insert(key.clone(), user);
-        }
-        if let Some(user) = self.users.get_mut(&key) {
-            user.account = account;
-            user.monitored = true;
-        }
-        self.mark_changed();
-    }
-
     #[doc(hidden)]
     #[must_use]
     pub fn __recipient_changed(&self, target: &str, token: crate::ReplyToken) -> bool {

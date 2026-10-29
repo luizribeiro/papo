@@ -261,19 +261,18 @@ mod tests {
     #[test]
     fn direct_references_use_account_or_tracked_user_identity() {
         let mut session = Session::new(Config::default().nick("papo"));
+        let prove = |session: &mut Session, nick: &str, account: Account| {
+            let acquired = session.__direct_acquire(nick, None, None, Account::Unknown);
+            session.__direct_prove(&acquired, account).unwrap()
+        };
         let account = Account::LoggedIn(session.isupport().casemapping().account("alice-account"));
-        session.__direct_acquire("alice", None, None, account.clone());
-        let desktop = session.__direct_refresh("alice", account.clone());
-        session.__direct_acquire("alice-phone", None, None, account.clone());
-        let phone = session.__direct_refresh("alice-phone", account);
+        let desktop = prove(&mut session, "alice", account.clone());
+        let phone = prove(&mut session, "alice-phone", account);
         let mallory_account =
             Account::LoggedIn(session.isupport().casemapping().account("mallory-account"));
-        session.__direct_acquire("mallory", None, None, mallory_account.clone());
-        let mallory = session.__direct_refresh("mallory", mallory_account);
-        session.__direct_acquire("bob", None, None, Account::LoggedOut);
-        let bob = session.__direct_refresh("bob", Account::LoggedOut);
-        session.__direct_acquire("carol", None, None, Account::LoggedOut);
-        let carol = session.__direct_refresh("carol", Account::LoggedOut);
+        let mallory = prove(&mut session, "mallory", mallory_account);
+        let bob = prove(&mut session, "bob", Account::LoggedOut);
+        let carol = prove(&mut session, "carol", Account::LoggedOut);
         let (client, _) = crate::driver::test_support::client_with_commands(&session);
         let desktop = super::DirectRef::new(&client, desktop, false);
         let phone = super::DirectRef::new(&client, phone, false);

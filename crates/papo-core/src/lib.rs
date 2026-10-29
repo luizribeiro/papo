@@ -4578,18 +4578,6 @@ impl Session {
         Some(recipient)
     }
 
-    /// Refreshes identity facts for a direct recipient.
-    #[doc(hidden)]
-    pub fn __direct_refresh(&mut self, nick: &str, account: Account) -> RecipientGuard {
-        self.state.refresh_direct(nick, account.clone());
-        self.state_generation = self.state_generation.wrapping_add(1);
-        let recipient =
-            RecipientGuard::__new(&self.state, self.state.casemapping().nick(nick), account);
-        self.monitor
-            .refresh_direct_identity(nick, recipient.__token());
-        recipient
-    }
-
     /// Releases one guarded direct recipient monitor reference.
     #[doc(hidden)]
     pub fn __direct_release(&mut self, recipient: &RecipientGuard) {
