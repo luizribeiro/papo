@@ -290,6 +290,7 @@ mod rt;
 mod state;
 mod target;
 pub mod time;
+mod token;
 mod transport;
 mod typing;
 mod webirc;
@@ -379,6 +380,7 @@ pub use reconnect::Reconnect;
 pub use requests::{ListEntry, ListRequest, WhoEntry, Whois, WhoisChannel};
 pub use state::{Channel, ModeListEntry, ReadMarker, State};
 pub use target::{AsCap, AsConversation, AsMask, AsNick, Target};
+pub use token::Command;
 #[doc(inline)]
 pub use transport::{CertificateChain, PrivateKey};
 pub use typing::{Typer, Typers};

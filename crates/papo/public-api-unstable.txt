@@ -2263,6 +2263,38 @@ impl core::marker::Unpin for papo::Client
 impl core::marker::UnsafeUnpin for papo::Client
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Client
 impl core::panic::unwind_safe::UnwindSafe for papo::Client
+pub struct papo::Command(_)
+impl papo::Command
+pub const fn papo::Command::as_str(&self) -> &str
+impl core::clone::Clone for papo::Command
+pub fn papo::Command::clone(&self) -> Self
+impl core::cmp::Eq for papo::Command
+impl core::cmp::PartialEq for papo::Command
+pub fn papo::Command::eq(&self, &Self) -> bool
+impl core::cmp::PartialEq<&str> for papo::Command
+pub fn papo::Command::eq(&self, &&str) -> bool
+impl core::cmp::PartialEq<str> for papo::Command
+pub fn papo::Command::eq(&self, &str) -> bool
+impl core::convert::AsRef<str> for papo::Command
+pub fn papo::Command::as_ref(&self) -> &str
+impl core::convert::From<&str> for papo::Command
+pub fn papo::Command::from(&str) -> Self
+impl core::convert::From<alloc::string::String> for papo::Command
+pub fn papo::Command::from(alloc::string::String) -> Self
+impl core::fmt::Debug for papo::Command
+pub fn papo::Command::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo::Command
+pub fn papo::Command::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::Command
+pub fn papo::Command::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for papo::Command
+impl core::marker::Freeze for papo::Command
+impl core::marker::Send for papo::Command
+impl core::marker::Sync for papo::Command
+impl core::marker::Unpin for papo::Command
+impl core::marker::UnsafeUnpin for papo::Command
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Command
+impl core::panic::unwind_safe::UnwindSafe for papo::Command
 pub struct papo::ConnectError
 impl papo::ConnectError
 pub fn papo::ConnectError::kind(&self) -> papo::ConnectErrorKind
