@@ -1853,6 +1853,15 @@ pub struct LineEnvelope {
     msgid: Option<String>,
     server_time: Option<std::time::SystemTime>,
     account: Option<String>,
+    account_known: bool,
+    bot: bool,
+    oper: Option<OperTag>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum OperTag {
+    Hidden,
+    Named(String),
 }
 
 impl LineEnvelope {
@@ -1863,6 +1872,14 @@ impl LineEnvelope {
                 .tag("time")
                 .and_then(|value| papo_proto::time::parse(&value)),
             account: line.tag("account").map(std::borrow::Cow::into_owned),
+            account_known: line.tag("account").is_some(),
+            bot: line.tags().any(|(key, _)| key == "bot"),
+            oper: line
+                .tags()
+                .find(|(key, _)| *key == "draft/oper")
+                .map(|(_, value)| {
+                    value.map_or(OperTag::Hidden, |name| OperTag::Named(name.into_owned()))
+                }),
         }
     }
 
@@ -1882,6 +1899,28 @@ impl LineEnvelope {
     #[must_use]
     pub fn account(&self) -> Option<&str> {
         self.account.as_deref()
+    }
+
+    /// Returns whether this line proves the actor's account state.
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __account_known(&self) -> bool {
+        self.account_known
+    }
+
+    /// Returns whether this line carries the bot tag.
+    #[must_use]
+    pub const fn bot(&self) -> bool {
+        self.bot
+    }
+
+    /// Returns the operator name carried by this line, including a hidden name.
+    #[must_use]
+    pub fn oper(&self) -> Option<Option<&str>> {
+        self.oper.as_ref().map(|oper| match oper {
+            OperTag::Hidden => None,
+            OperTag::Named(name) => Some(name.as_str()),
+        })
     }
 }
 
@@ -2044,7 +2083,7 @@ pub struct MultilineMessage {
 /// A received `TAGMSG` and its client-only metadata.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TagMessage {
-    /// Identity, time, and account tags from the line.
+    /// Identity and time facts from the line.
     pub envelope: LineEnvelope,
     /// Actor prefix without its leading colon.
     pub actor: String,

@@ -12,12 +12,14 @@ fn live_activity_retains_the_line_envelope() {
     let expected = papo_proto::time::parse("2026-10-20T18:42:11.123Z").unwrap();
     Transcript::new(Config::default())
         .advance(Duration::from_secs(17))
-        .server("@account=emily;time=2026-10-20T18:42:11.123Z;msgid=RfcBTzyxY120009 :emily!~e@cloak.example JOIN #papo")
+        .server("@account=emily;bot;draft/oper=network-admin;time=2026-10-20T18:42:11.123Z;msgid=RfcBTzyxY120009 :emily!~e@cloak.example JOIN #papo")
         .event(|event| {
             matches!(event, Event::Joined { envelope, .. }
                 if envelope.msgid() == Some("RfcBTzyxY120009")
                     && envelope.server_time() == Some(expected)
-                    && envelope.account() == Some("emily"))
+                    && envelope.account() == Some("emily")
+                    && envelope.bot()
+                    && envelope.oper() == Some(Some("network-admin")))
         });
 }
 

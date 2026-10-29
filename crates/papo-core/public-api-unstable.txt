@@ -1750,7 +1750,9 @@ impl core::panic::unwind_safe::UnwindSafe for papo_core::LastSeen
 pub struct papo_core::LineEnvelope
 impl papo_core::LineEnvelope
 pub fn papo_core::LineEnvelope::account(&self) -> core::option::Option<&str>
+pub const fn papo_core::LineEnvelope::bot(&self) -> bool
 pub fn papo_core::LineEnvelope::msgid(&self) -> core::option::Option<&str>
+pub fn papo_core::LineEnvelope::oper(&self) -> core::option::Option<core::option::Option<&str>>
 pub const fn papo_core::LineEnvelope::server_time(&self) -> core::option::Option<std::time::SystemTime>
 impl core::clone::Clone for papo_core::LineEnvelope
 pub fn papo_core::LineEnvelope::clone(&self) -> Self
