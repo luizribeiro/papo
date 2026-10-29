@@ -1,33 +1,5 @@
 use crate::{Account, Error};
 
-pub(crate) async fn command(
-    client: &crate::Client,
-    nick: String,
-    account: Option<Account>,
-    acquire: bool,
-) -> Result<papo_core::RecipientGuard, Error> {
-    let (result, receiver) = tokio::sync::oneshot::channel();
-    let command = if acquire {
-        crate::driver::Command::DirectAcquire {
-            nick,
-            account,
-            result,
-        }
-    } else {
-        crate::driver::Command::DirectRefresh {
-            nick,
-            account: account.unwrap_or(Account::Unknown),
-            result,
-        }
-    };
-    client
-        .commands
-        .send(command)
-        .await
-        .map_err(|_| Error::connection_lost())?;
-    receiver.await.map_err(|_| Error::connection_lost())?
-}
-
 pub(crate) async fn acquire(
     client: &crate::Client,
     nick: String,
@@ -35,11 +7,7 @@ pub(crate) async fn acquire(
     let (result, receiver) = tokio::sync::oneshot::channel();
     client
         .commands
-        .send(crate::driver::Command::DirectAcquire {
-            nick,
-            account: None,
-            result,
-        })
+        .send(crate::driver::Command::DirectAcquire { nick, result })
         .await
         .map_err(|_| Error::connection_lost())?;
     receiver.await.map_err(|_| Error::connection_lost())?

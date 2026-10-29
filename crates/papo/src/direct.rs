@@ -327,7 +327,10 @@ mod tests {
     async fn known_unshared_message_peer_reserves_monitor() {
         let now = crate::rt::now_mono();
         let mut session = Session::new(Config::default().nick("papo"));
-        session.handle_line(now, b":ergo.test 005 papo MONITOR=100 :are supported");
+        session.handle_line(
+            now,
+            b":ergo.test 005 papo CASEMAPPING=rfc1459 MONITOR=100 :are supported",
+        );
         session.monitor_add(["alice"]);
         session.handle_line(now, b":ergo.test 730 papo :alice!~alice@cloak.example");
         let (client, mut commands) = crate::driver::test_support::client_with_commands(&session);
@@ -336,7 +339,11 @@ mod tests {
             Some("~alice".into()),
             Some("cloak.example".into()),
         );
-        let message = crate::__testing::message(Some(actor), "papo", "release approved", true);
+        let mut message = crate::__testing::message(Some(actor), "papo", "release approved", true);
+        crate::__testing::set_message_account(
+            &mut message,
+            Account::LoggedIn(session.isupport().casemapping().account("alice-account")),
+        );
         let direct = tokio::spawn({
             let client = client.clone();
             async move { client.direct_to(&message).await }
@@ -346,21 +353,39 @@ mod tests {
             .await
             .expect("direct_to did not reserve MONITOR")
             .unwrap();
-        let crate::driver::Command::DirectAcquire {
-            nick,
-            account,
-            result,
-        } = command
-        else {
+        let crate::driver::Command::DirectAcquire { nick, result, .. } = command else {
             panic!("unexpected direct_to command")
         };
         assert_eq!(nick, "alice");
-        let recipient = session.__direct_acquire(
+        let acquired = session.__direct_acquire(
             "alice",
             Some("~alice"),
             Some("cloak.example"),
-            account.unwrap(),
+            Account::Unknown,
         );
+        result.send(Ok(acquired.clone())).unwrap();
+        let crate::driver::Command::Request {
+            message, result, ..
+        } = next_command(&mut commands).await
+        else {
+            panic!("expected WHO proof request")
+        };
+        assert_eq!(message.params(), ["alice", "%na"]);
+        result
+            .send(Ok(response_with(&[
+                ":ergo.test 354 papo alice alice-account",
+            ])))
+            .unwrap();
+        let crate::driver::Command::DirectProve {
+            recipient: proof,
+            account,
+            result,
+        } = next_command(&mut commands).await
+        else {
+            panic!("expected account-tag identity proof")
+        };
+        assert_eq!(proof.__nick(), "alice");
+        let recipient = session.__direct_prove(&acquired, account).unwrap();
         result.send(Ok(recipient)).unwrap();
         assert_eq!(direct.await.unwrap().unwrap().to_string(), "alice");
     }

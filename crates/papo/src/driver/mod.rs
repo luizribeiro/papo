@@ -170,12 +170,6 @@ pub(crate) enum Command {
     },
     DirectAcquire {
         nick: String,
-        account: Option<crate::Account>,
-        result: oneshot::Sender<Result<papo_core::RecipientGuard, Error>>,
-    },
-    DirectRefresh {
-        nick: String,
-        account: crate::Account,
         result: oneshot::Sender<Result<papo_core::RecipientGuard, Error>>,
     },
     DirectProve {
@@ -1134,8 +1128,7 @@ where
                     session.monitor_clear();
                     _ = result.send(Ok(()));
                 }
-                Some(Command::DirectAcquire { nick, account, result }) => {
-                    let _ = account;
+                Some(Command::DirectAcquire { nick, result }) => {
                     let already_monitored = session
                         .state()
                         .monitored()
@@ -1149,11 +1142,6 @@ where
                     }
                     let recipient =
                         session.__direct_acquire(&nick, None, None, crate::Account::Unknown);
-                    publish_state(events, session, true);
-                    _ = result.send(Ok(recipient));
-                }
-                Some(Command::DirectRefresh { nick, account, result }) => {
-                    let recipient = session.__direct_refresh(&nick, account);
                     publish_state(events, session, true);
                     _ = result.send(Ok(recipient));
                 }

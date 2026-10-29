@@ -740,11 +740,7 @@ fn handle_disconnected_command(
             _ = result.send(Ok(()));
             true
         }
-        Some(
-            Command::DirectAcquire { result, .. }
-            | Command::DirectRefresh { result, .. }
-            | Command::DirectProve { result, .. },
-        ) => {
+        Some(Command::DirectAcquire { result, .. } | Command::DirectProve { result, .. }) => {
             _ = result.send(Err(Error::disconnected(disconnected.clone())));
             true
         }

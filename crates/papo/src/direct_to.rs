@@ -70,13 +70,19 @@ impl crate::Client {
             }
             crate::direct_runtime::require_monitor_slot(&snapshot, &nick)?;
             drop(snapshot);
-            let refreshed = crate::direct_runtime::command(
-                &client,
-                nick,
-                Some(recipient.__account().clone()),
-                true,
-            )
-            .await?;
+            let acquired = crate::direct_runtime::acquire(&client, nick.clone()).await?;
+            if !matches!(recipient.__account(), crate::Account::LoggedIn(_)) {
+                return Ok(DirectRef::new(&client, acquired, true));
+            }
+            let (refreshed, actual) = crate::direct_runtime::prove(&client, nick, acquired).await?;
+            if !matches!(
+                (recipient.__account(), &actual),
+                (crate::Account::LoggedIn(expected), crate::Account::LoggedIn(actual))
+                    if expected == actual
+            ) {
+                crate::direct_runtime::release(&client, refreshed).await;
+                return Err(crate::Error::TargetGone);
+            }
             Ok(DirectRef::new(&client, refreshed, true))
         })
     }
