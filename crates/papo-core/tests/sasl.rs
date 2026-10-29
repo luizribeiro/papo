@@ -184,43 +184,47 @@ fn sasl_capability_return_does_not_restart_successful_authentication() {
 
 #[test]
 fn starts_sasl_after_ack_and_holds_cap_end() {
-    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
-        .connect_default()
-        .server("CAP * LS :sasl=SCRAM-SHA-256,PLAIN")
-        .client("CAP REQ :sasl")
-        .server("CAP * ACK :sasl")
-        .client("AUTHENTICATE PLAIN")
-        .no_client()
-        .server(":ergo.test 903 alice :SASL authentication successful")
-        .client("CAP END");
+    Transcript::new(
+        Config::default().sasl(Sasl::plain("alice", papo_core::Secret::new("hunter2"))),
+    )
+    .connect_default()
+    .server("CAP * LS :sasl=SCRAM-SHA-256,PLAIN")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE PLAIN")
+    .no_client()
+    .server(":ergo.test 903 alice :SASL authentication successful")
+    .client("CAP END");
 }
 
 #[test]
 fn inactive_authenticate_messages_are_surfaced_unchanged() {
-    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
-        .connect_default()
-        .server("CAP * LS :sasl=PLAIN")
-        .client("CAP REQ :sasl")
-        .server("AUTHENTICATE +")
-        .event(|event| {
-            matches!(event, Event::Line(message)
+    Transcript::new(
+        Config::default().sasl(Sasl::plain("alice", papo_core::Secret::new("hunter2"))),
+    )
+    .connect_default()
+    .server("CAP * LS :sasl=PLAIN")
+    .client("CAP REQ :sasl")
+    .server("AUTHENTICATE +")
+    .event(|event| {
+        matches!(event, Event::Line(message)
                 if message.as_ref().command_is("AUTHENTICATE"))
-        })
-        .no_client()
-        .server("CAP * ACK :sasl")
-        .client("AUTHENTICATE PLAIN")
-        .server("AUTHENTICATE +")
-        .client("AUTHENTICATE AGFsaWNlAGh1bnRlcjI=")
-        .server(":ergo.test 900 alice alice!~u@host alice :You are now logged in as alice")
-        .server(":ergo.test 903 alice :SASL authentication successful")
-        .client("CAP END")
-        .server("AUTHENTICATE +")
-        .event(|event| {
-            matches!(event, Event::Line(message)
+    })
+    .no_client()
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE PLAIN")
+    .server("AUTHENTICATE +")
+    .client("AUTHENTICATE AGFsaWNlAGh1bnRlcjI=")
+    .server(":ergo.test 900 alice alice!~u@host alice :You are now logged in as alice")
+    .server(":ergo.test 903 alice :SASL authentication successful")
+    .client("CAP END")
+    .server("AUTHENTICATE +")
+    .event(|event| {
+        matches!(event, Event::Line(message)
                 if message.as_ref().command_is("AUTHENTICATE"))
-        })
-        .inspect(|session| assert_eq!(session.account(), Some("alice")))
-        .no_client();
+    })
+    .inspect(|session| assert_eq!(session.account(), Some("alice")))
+    .no_client();
 }
 
 #[test]
