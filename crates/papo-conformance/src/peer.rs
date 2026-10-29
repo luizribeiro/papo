@@ -228,12 +228,11 @@ impl Peer {
         old: impl AsRef<str>,
         new: impl AsRef<str>,
         reason: impl Into<String>,
-    ) -> papo::RequestFuture<()> {
-        self.client.rename_channel(
-            self.with_name_rules(|names| names.channel(old.as_ref())),
-            self.with_name_rules(|names| names.channel(new.as_ref())),
-            reason,
-        )
+    ) -> papo::RenameChannel {
+        self.client
+            .rename_channel(old.as_ref())
+            .to(new.as_ref())
+            .reason(reason)
     }
 
     fn remember(&mut self, event: Event) {

@@ -9,11 +9,10 @@ async fn arbitrary_extension_input_is_rejected_or_emits_valid_lines() {
                 check_action(move |$client| action($request)).await;
             }};
         }
-        probe!(client, a, b, c => client.rename_channel(
-            crate::Casemapping::default().channel(a),
-            crate::Casemapping::default().channel(b),
-            c
-        ));
+        probe!(client, a, b, c => client
+            .rename_channel(crate::Casemapping::default().channel(a))
+            .to(crate::Casemapping::default().channel(b))
+            .reason(c));
         #[cfg(feature = "unstable")]
         probe!(client, a, b, c => client.relay(
             crate::Casemapping::default().channel(a),

@@ -324,6 +324,7 @@ pub use event_impl::{
     Authorship, Event, Message, MessageKind, Oper, Source, Tags, TagsIter, UserSource,
 };
 pub use ext::accounts::{AccountCreation, NewAccount};
+pub use ext::extras::RenameChannel;
 pub use ext::history::{
     History, HistoryPage, HistoryReason, HistoryReference, HistoryRequest, RecentConversation,
 };

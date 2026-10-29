@@ -2193,7 +2193,7 @@ impl papo::Client
 pub fn papo::Client::persistence(&self) -> papo::Persistence
 impl papo::Client
 pub fn papo::Client::relay(&self, impl papo::AsChannel, impl papo::AsNick, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Client::rename_channel(&self, impl papo::AsChannel, impl papo::AsChannel, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::rename_channel(&self, impl papo::AsChannel) -> papo::RenameChannel
 impl papo::Client
 pub fn papo::Client::webpush(&self) -> papo::WebPush
 impl core::clone::Clone for papo::Client
@@ -2879,6 +2879,23 @@ impl core::marker::Unpin for papo::Reconnect
 impl core::marker::UnsafeUnpin for papo::Reconnect
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Reconnect
 impl core::panic::unwind_safe::UnwindSafe for papo::Reconnect
+pub struct papo::RenameChannel
+impl papo::RenameChannel
+pub fn papo::RenameChannel::reason(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::RenameChannel::to(self, impl papo::AsChannel) -> Self
+impl core::fmt::Debug for papo::RenameChannel
+pub fn papo::RenameChannel::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::future::into_future::IntoFuture for papo::RenameChannel
+pub type papo::RenameChannel::IntoFuture = papo::RequestFuture<()>
+pub type papo::RenameChannel::Output = core::result::Result<(), papo::Error>
+pub fn papo::RenameChannel::into_future(self) -> Self::IntoFuture
+impl core::marker::Freeze for papo::RenameChannel
+impl core::marker::Send for papo::RenameChannel
+impl core::marker::Sync for papo::RenameChannel
+impl core::marker::Unpin for papo::RenameChannel
+impl core::marker::UnsafeUnpin for papo::RenameChannel
+impl core::panic::unwind_safe::RefUnwindSafe for papo::RenameChannel
+impl core::panic::unwind_safe::UnwindSafe for papo::RenameChannel
 pub struct papo::RequestFuture<T>
 impl<T> core::fmt::Debug for papo::RequestFuture<T>
 pub fn papo::RequestFuture<T>::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result

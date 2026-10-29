@@ -142,11 +142,9 @@ async fn member_sees_channel_rename_and_relay_attribution() {
             .unwrap();
         wait_synced(&mut member_events, &old_channel).await;
         operator
-            .rename_channel(
-                support::channel(&old_channel),
-                support::channel(&new_channel),
-                "Project renamed",
-            )
+            .rename_channel(support::channel(&old_channel))
+            .to(support::channel(&new_channel))
+            .reason("Project renamed")
             .await
             .unwrap();
         loop {

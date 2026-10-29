@@ -167,11 +167,7 @@ fn assert_extension_futures_are_send(client: &Client, mapping: papo::Casemapping
     );
     assert_send_static(client.monitor().remove([mapping.nick("bob")]));
     assert_send_static(client.monitor().clear());
-    assert_send_static(client.rename_channel(
-        mapping.channel("#rust"),
-        mapping.channel("#rust-lang"),
-        "Project renamed",
-    ));
+    assert_send_static(client.rename_channel("#r").to("#s"));
 }
 
 #[cfg(feature = "unstable")]

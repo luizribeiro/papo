@@ -1,6 +1,51 @@
 #[cfg(feature = "unstable")]
 use crate::driver::unstable::UnstableRequest;
 use crate::{Client, driver::CoreRequest};
+use std::future::IntoFuture;
+
+/// Builds a channel rename request with distinct source and destination roles.
+#[must_use = "requests do nothing unless awaited"]
+pub struct RenameChannel {
+    client: Client,
+    old: crate::target::sealed::Parts<'static>,
+    new: Option<crate::target::sealed::Parts<'static>>,
+    reason: String,
+}
+
+impl std::fmt::Debug for RenameChannel {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        crate::opaque_debug("RenameChannel", formatter)
+    }
+}
+
+impl RenameChannel {
+    /// Sets the destination channel name.
+    pub fn to(mut self, channel: impl crate::AsChannel) -> Self {
+        self.new = Some(crate::AsChannel::__parts(&channel).into_owned().into());
+        self
+    }
+
+    /// Sets the optional human-readable rename reason.
+    pub fn reason(mut self, reason: impl Into<String>) -> Self {
+        self.reason = reason.into();
+        self
+    }
+}
+
+impl IntoFuture for RenameChannel {
+    type Output = Result<(), crate::Error>;
+    type IntoFuture = crate::RequestFuture<()>;
+
+    fn into_future(self) -> Self::IntoFuture {
+        crate::RequestFuture::new(async move {
+            let missing = crate::InvalidInput::InvalidRequest("rename destination missing".into());
+            let new = self.new.ok_or(missing)?;
+            self.client
+                .rename_channel_request(self.old, new, self.reason)
+                .await
+        })
+    }
+}
 
 impl Client {
     /// Requests a channel rename.
@@ -14,16 +59,23 @@ impl Client {
     /// [`crate::UnsupportedReason::DisabledByClient`]. A refusal returns [`crate::Error::Server`] with
     /// [`crate::Refusal::Other`]. It can also return [`crate::Error::InvalidInput`],
     /// [`crate::Error::TooManyPendingRequests`], [`crate::Error::Timeout`], or [`crate::Error::Disconnected`].
-    pub fn rename_channel(
+    pub fn rename_channel(&self, old: impl crate::AsChannel) -> RenameChannel {
+        let old = crate::AsChannel::__parts(&old).into_owned().into();
+        RenameChannel {
+            client: self.clone(),
+            old,
+            new: None,
+            reason: String::new(),
+        }
+    }
+
+    fn rename_channel_request(
         &self,
-        old: impl crate::AsChannel,
-        new: impl crate::AsChannel,
-        reason: impl Into<String>,
+        old: crate::target::sealed::Parts<'static>,
+        new: crate::target::sealed::Parts<'static>,
+        reason: String,
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
-        let old = crate::AsChannel::__parts(&old).into_owned();
-        let new = crate::AsChannel::__parts(&new).into_owned();
-        let reason = reason.into();
         crate::RequestFuture::new(async move {
             let old = client.resolve(crate::target::Role::Channel("rename_channel: old"), old)?;
             let new = client.resolve(crate::target::Role::Channel("rename_channel: new"), new)?;
@@ -115,7 +167,13 @@ mod tests {
             let client = client.clone();
             let old = mapping.channel("#rust");
             let new = mapping.channel("#rust-lang");
-            async move { client.rename_channel(old, new, "Project renamed").await }
+            async move {
+                client
+                    .rename_channel(old)
+                    .to(new)
+                    .reason("Project renamed")
+                    .await
+            }
         });
         client_line(
             &mut server,
@@ -129,7 +187,7 @@ mod tests {
             let client = client.clone();
             let old = mapping.channel("#rust");
             let new = mapping.channel("#rust-lang");
-            async move { client.rename_channel(old, new, "collision").await }
+            async move { client.rename_channel(old).to(new).reason("collision").await }
         });
         client_line(
             &mut server,
