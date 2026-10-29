@@ -24,6 +24,9 @@ but applications built against that revision need the following updates.
 The nickname is now required at the construction boundary. Known capabilities use typed features,
 while `request_caps` is reserved for capability names unknown to papo.
 
+Capability arguments use the sealed `AsCap` role, and capability-related configuration errors
+carry `Cap`.
+
 Before:
 
 ```rust,ignore

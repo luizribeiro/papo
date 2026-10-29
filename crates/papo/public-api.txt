@@ -1978,7 +1978,7 @@ pub fn papo::Builder::rate_limit(self, papo::RateLimit) -> Self
 pub fn papo::Builder::realname(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub const fn papo::Builder::reconnect(self, papo::Reconnect) -> Self
 pub const fn papo::Builder::regain_nick(self, bool) -> Self
-pub fn papo::Builder::request_caps<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo_core::cap::Cap>
+pub fn papo::Builder::request_caps<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: papo::AsCap
 pub fn papo::Builder::request_timeout(self, core::time::Duration) -> Self
 pub fn papo::Builder::sasl(self, papo::Sasl) -> Self
 pub fn papo::Builder::sts_store(self, impl papo::sts::StsStore + 'static) -> Self
@@ -3140,6 +3140,14 @@ impl core::marker::UnsafeUnpin for papo::WhoisChannel
 impl core::panic::unwind_safe::RefUnwindSafe for papo::WhoisChannel
 impl core::panic::unwind_safe::UnwindSafe for papo::WhoisChannel
 pub const papo::VERSION: &str
+pub trait papo::AsCap: papo::target::sealed::Sealed
+impl papo::AsCap for alloc::borrow::Cow<'_, str>
+impl papo::AsCap for alloc::boxed::Box<str>
+impl papo::AsCap for alloc::rcs::arc::Arc<str>
+impl papo::AsCap for alloc::string::String
+impl papo::AsCap for papo_core::cap::Cap
+impl papo::AsCap for str
+impl<T: papo::AsCap + ?core::marker::Sized> papo::AsCap for &T
 pub trait papo::AsConversation: papo::target::sealed::Sealed
 impl papo::AsConversation for alloc::borrow::Cow<'_, str>
 impl papo::AsConversation for alloc::boxed::Box<str>

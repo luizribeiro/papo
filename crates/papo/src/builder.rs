@@ -348,9 +348,9 @@ impl Builder {
     pub fn request_caps<I, S>(mut self, caps: I) -> Self
     where
         I: IntoIterator<Item = S>,
-        S: Into<crate::Cap>,
+        S: crate::AsCap,
     {
-        for capability in caps.into_iter().map(Into::into) {
+        for capability in caps.into_iter().map(|capability| capability.__cap()) {
             if !cfg!(feature = "unstable") && cap::is_unstable(capability.as_str()) {
                 self.invalid_input
                     .get_or_insert(InvalidInput::UnstableCapability(capability));
@@ -1308,11 +1308,12 @@ mod tests {
 
     #[test]
     fn known_capabilities_record_the_typed_configuration_error() {
-        let known = Builder::new("ircs://irc.example.net").request_caps(["chathistory"]);
+        let capability = crate::Cap::from("draft/chathistory");
+        let known = Builder::new("ircs://irc.example.net").request_caps([capability.clone()]);
         assert_eq!(
             known.invalid_input,
             Some(InvalidInput::KnownCapability {
-                capability: "chathistory".to_owned().into(),
+                capability,
                 feature: "History",
             })
         );

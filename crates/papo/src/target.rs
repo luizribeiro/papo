@@ -102,6 +102,15 @@ pub trait AsMask: sealed::Sealed {
     fn __parts(&self) -> sealed::Parts<'_>;
 }
 
+/// An IRC capability name accepted by client configuration.
+///
+/// Plain text and typed [`crate::Cap`] values are accepted.
+pub trait AsCap: sealed::Sealed {
+    /// Returns the owned capability name.
+    #[doc(hidden)]
+    fn __cap(&self) -> crate::Cap;
+}
+
 fn text_parts(text: &str) -> sealed::Parts<'_> {
     sealed::Parts {
         text: Cow::Borrowed(text),
@@ -137,6 +146,13 @@ macro_rules! text_roles {
             impl AsMask for $ty {
                 fn __parts(&self) -> sealed::Parts<'_> {
                     text_parts(self.as_ref())
+                }
+            }
+
+            impl AsCap for $ty {
+                fn __cap(&self) -> crate::Cap {
+                    let text: &str = self.as_ref();
+                    crate::Cap::from(text)
                 }
             }
         )+
@@ -202,6 +218,14 @@ impl AsMask for crate::Mask {
     }
 }
 
+impl sealed::Sealed for crate::Cap {}
+
+impl AsCap for crate::Cap {
+    fn __cap(&self) -> crate::Cap {
+        self.clone()
+    }
+}
+
 impl sealed::Sealed for crate::Conversation {}
 
 impl AsConversation for crate::Conversation {
@@ -231,9 +255,15 @@ reference_role!(AsNick);
 reference_role!(AsConversation);
 reference_role!(AsMask);
 
+impl<T: AsCap + ?Sized> AsCap for &T {
+    fn __cap(&self) -> crate::Cap {
+        <T as AsCap>::__cap(*self)
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{AsConversation, AsMask, Target};
+    use super::{AsCap, AsConversation, AsMask, Target};
     use crate::{AsChannel, AsNick};
 
     #[test]
@@ -250,5 +280,10 @@ mod tests {
         assert_eq!(AsMask::__parts(&mask).text, "*!*@gateway.example");
         assert_eq!(AsMask::__parts(&mask).origin, origin);
         assert_eq!(Target::__parts(&"@#ops").text, "@#ops");
+        assert_eq!(
+            AsCap::__cap(&crate::Cap::from("draft/chathistory")),
+            "draft/chathistory".into()
+        );
+        assert_eq!(AsCap::__cap(&"chathistory"), "chathistory".into());
     }
 }

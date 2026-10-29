@@ -377,7 +377,7 @@ pub use papo_proto::{
 pub use reconnect::Reconnect;
 pub use requests::{ListEntry, ListRequest, WhoEntry, Whois, WhoisChannel};
 pub use state::{Channel, ModeListEntry, ReadMarker, State};
-pub use target::{AsConversation, AsMask, AsNick, Target};
+pub use target::{AsCap, AsConversation, AsMask, AsNick, Target};
 #[doc(inline)]
 pub use transport::{CertificateChain, PrivateKey};
 pub use typing::{Typer, Typers};
