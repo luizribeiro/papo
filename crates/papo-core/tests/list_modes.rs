@@ -297,6 +297,8 @@ fn solanum_label_on_a_row_does_not_replace_the_unlabelled_end_numeric() {
     session.handle_connected(now);
     session.handle_line(now, b"CAP * LS :labeled-response");
     session.handle_line(now, b"CAP * ACK :labeled-response");
+    session.handle_line(now, b":solanum.example 001 papo :Welcome to Solanum");
+    session.handle_line(now, b":solanum.example 422 papo :MOTD File is missing");
     while session.poll_transmit().is_some() {}
     while session.poll_event().is_some() {}
     session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
