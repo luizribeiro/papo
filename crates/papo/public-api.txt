@@ -2490,10 +2490,10 @@ pub fn papo::Metadata::clear(&self) -> papo::RequestFuture<()>
 pub fn papo::Metadata::clear_on(&self, impl papo::AsConversation) -> papo::RequestFuture<()>
 pub fn papo::Metadata::get<I, S>(&self, impl papo::AsConversation, I) -> papo::RequestFuture<std::collections::hash::map::HashMap<papo::MetadataKey, core::option::Option<papo::MetadataValue>>> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
 pub fn papo::Metadata::list(&self, impl papo::AsConversation) -> papo::RequestFuture<std::collections::hash::map::HashMap<papo::MetadataKey, papo::MetadataValue>>
-pub fn papo::Metadata::remove(&self, impl core::convert::Into<papo::MetadataKey>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::remove_on(&self, impl papo::AsConversation, impl core::convert::Into<papo::MetadataKey>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::set(&self, impl core::convert::Into<papo::MetadataKey>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Metadata::set_on(&self, impl papo::AsConversation, impl core::convert::Into<papo::MetadataKey>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Metadata::remove(&self, papo::MetadataKey) -> papo::RequestFuture<()>
+pub fn papo::Metadata::remove_on(&self, impl papo::AsConversation, papo::MetadataKey) -> papo::RequestFuture<()>
+pub fn papo::Metadata::set(&self, papo::MetadataKey, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Metadata::set_on(&self, impl papo::AsConversation, papo::MetadataKey, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Metadata::subscribe<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
 pub fn papo::Metadata::sync(&self, impl papo::AsConversation) -> papo::RequestFuture<()>
 pub fn papo::Metadata::unsubscribe<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>

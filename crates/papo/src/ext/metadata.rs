@@ -63,13 +63,13 @@ impl Metadata {
         &self,
         target: String,
         invalid_input: Option<crate::InvalidInput>,
-        key: impl Into<crate::MetadataKey>,
+        key: crate::MetadataKey,
         value: Option<String>,
     ) -> crate::RequestFuture<()> {
         let metadata = Self {
             client: self.client.clone(),
         };
-        let key = key.into().into_string();
+        let key = key.into_string();
         crate::RequestFuture::new(async move {
             if let Some(error) = invalid_input {
                 return Err(error.into());
@@ -217,14 +217,14 @@ impl Metadata {
     /// [`Error`] variants.
     pub fn set(
         &self,
-        key: impl Into<crate::MetadataKey>,
+        key: crate::MetadataKey,
         value: impl Into<String>,
     ) -> crate::RequestFuture<()> {
         self.set_target("*".into(), None, key, Some(value.into()))
     }
 
     /// Removes one metadata key for the current nickname.
-    pub fn remove(&self, key: impl Into<crate::MetadataKey>) -> crate::RequestFuture<()> {
+    pub fn remove(&self, key: crate::MetadataKey) -> crate::RequestFuture<()> {
         self.set_target("*".into(), None, key, None)
     }
 
@@ -243,7 +243,7 @@ impl Metadata {
     pub fn set_on(
         &self,
         target: impl crate::AsConversation,
-        key: impl Into<crate::MetadataKey>,
+        key: crate::MetadataKey,
         value: impl Into<String>,
     ) -> crate::RequestFuture<()> {
         let (target, invalid_input) = self.target(target, "metadata.set_on: target");
@@ -254,7 +254,7 @@ impl Metadata {
     pub fn remove_on(
         &self,
         target: impl crate::AsConversation,
-        key: impl Into<crate::MetadataKey>,
+        key: crate::MetadataKey,
     ) -> crate::RequestFuture<()> {
         let (target, invalid_input) = self.target(target, "metadata.remove_on: target");
         self.set_target(target, invalid_input, key, None)
@@ -409,7 +409,18 @@ mod tests {
 
         let get = tokio::spawn({
             let client = client.clone();
-            async move { client.metadata().get("alice", ["avatar", "pronouns"]).await }
+            async move {
+                client
+                    .metadata()
+                    .get(
+                        "alice",
+                        [
+                            crate::MetadataKey::new("avatar"),
+                            crate::MetadataKey::new("pronouns"),
+                        ],
+                    )
+                    .await
+            }
         });
         client_line(
             &mut server,
@@ -459,7 +470,12 @@ mod tests {
 
         let set = tokio::spawn({
             let client = client.clone();
-            async move { client.metadata().set("status", "testing").await }
+            async move {
+                client
+                    .metadata()
+                    .set(crate::MetadataKey::new("status"), "testing")
+                    .await
+            }
         });
         client_line(&mut server, b"@label=2 METADATA * SET status testing\r\n").await;
         server_line(
@@ -471,18 +487,29 @@ mod tests {
 
         let remove = tokio::spawn({
             let client = client.clone();
-            async move { client.metadata().remove("status").await }
+            async move {
+                client
+                    .metadata()
+                    .remove(crate::MetadataKey::new("status"))
+                    .await
+            }
         });
         client_line(&mut server, b"@label=3 METADATA * SET status\r\n").await;
         server_line(&mut server, b"@label=3 :ergo.test ACK\r\n").await;
         assert!(within(remove).await.unwrap().is_ok());
 
         assert!(matches!(
-            client.metadata().set("status", "").await,
+            client
+                .metadata()
+                .set(crate::MetadataKey::new("status"), "")
+                .await,
             Err(Error::InvalidInput(crate::InvalidInput::EmptyText))
         ));
         assert!(matches!(
-            client.metadata().set_on("bob", "timezone", "").await,
+            client
+                .metadata()
+                .set_on("bob", crate::MetadataKey::new("timezone"), "")
+                .await,
             Err(Error::InvalidInput(crate::InvalidInput::EmptyText))
         ));
         assert!(
@@ -494,7 +521,11 @@ mod tests {
         let set_on = tokio::spawn(async move {
             client
                 .metadata()
-                .set_on("bob", "timezone", "America/New_York")
+                .set_on(
+                    "bob",
+                    crate::MetadataKey::new("timezone"),
+                    "America/New_York",
+                )
                 .await
         });
         client_line(
@@ -534,7 +565,15 @@ mod tests {
 
         let subscribe = tokio::spawn({
             let client = client.clone();
-            async move { client.metadata().subscribe(["avatar", "pronouns"]).await }
+            async move {
+                client
+                    .metadata()
+                    .subscribe([
+                        crate::MetadataKey::new("avatar"),
+                        crate::MetadataKey::new("pronouns"),
+                    ])
+                    .await
+            }
         });
         client_line(&mut server, b"@label=1 METADATA * SUB avatar pronouns\r\n").await;
         server_line(
@@ -553,7 +592,12 @@ mod tests {
 
         let unsubscribe = tokio::spawn({
             let client = client.clone();
-            async move { client.metadata().unsubscribe(["pronouns"]).await }
+            async move {
+                client
+                    .metadata()
+                    .unsubscribe([crate::MetadataKey::new("pronouns")])
+                    .await
+            }
         });
         client_line(&mut server, b"@label=2 METADATA * UNSUB pronouns\r\n").await;
         server_line(
