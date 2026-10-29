@@ -1775,9 +1775,9 @@ pub papo::InvalidInput::InvalidWebPushKey
 pub papo::InvalidInput::KickReasonTooLong::actual: usize
 pub papo::InvalidInput::KickReasonTooLong::maximum: usize
 #[non_exhaustive] pub papo::InvalidInput::KnownCapability
-pub papo::InvalidInput::KnownCapability::capability: alloc::string::String
+pub papo::InvalidInput::KnownCapability::capability: papo_core::cap::Cap
 pub papo::InvalidInput::KnownCapability::feature: &'static str
-pub papo::InvalidInput::ManagedCapability(alloc::string::String)
+pub papo::InvalidInput::ManagedCapability(papo_core::cap::Cap)
 #[non_exhaustive] pub papo::InvalidInput::MetadataValueTooLong
 pub papo::InvalidInput::MetadataValueTooLong::actual: usize
 pub papo::InvalidInput::MetadataValueTooLong::maximum: usize
@@ -1790,7 +1790,7 @@ pub papo::InvalidInput::TlsConfig(alloc::string::String)
 #[non_exhaustive] pub papo::InvalidInput::TooManyMetadataSubscriptions
 pub papo::InvalidInput::TooManyMetadataSubscriptions::actual: usize
 pub papo::InvalidInput::TooManyMetadataSubscriptions::maximum: usize
-pub papo::InvalidInput::UnstableCapability(alloc::string::String)
+pub papo::InvalidInput::UnstableCapability(papo_core::cap::Cap)
 pub papo::InvalidInput::UnusableMessageReference
 pub papo::InvalidInput::Url(papo::InvalidUrl)
 pub papo::InvalidInput::WireMessage(papo::BuildError)
@@ -2048,8 +2048,8 @@ impl core::panic::unwind_safe::UnwindSafe for papo::Bouncer
 pub struct papo::Builder
 impl papo::Builder
 pub fn papo::Builder::allow_insecure_auth(self, bool) -> Self
-pub fn papo::Builder::alt_nicks<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
-pub fn papo::Builder::autojoin<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
+pub fn papo::Builder::alt_nicks<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: papo::AsNick
+pub fn papo::Builder::autojoin<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: papo::AsChannel
 pub fn papo::Builder::autojoin_with_key(self, impl papo::AsChannel, papo::Secret) -> Self
 pub fn papo::Builder::away_on_connect(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Builder::bot(self, bool) -> Self
@@ -2072,7 +2072,7 @@ pub fn papo::Builder::rate_limit(self, papo::RateLimit) -> Self
 pub fn papo::Builder::realname(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub const fn papo::Builder::reconnect(self, papo::Reconnect) -> Self
 pub const fn papo::Builder::regain_nick(self, bool) -> Self
-pub fn papo::Builder::request_caps<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
+pub fn papo::Builder::request_caps<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo_core::cap::Cap>
 pub fn papo::Builder::request_timeout(self, core::time::Duration) -> Self
 pub fn papo::Builder::sasl(self, papo::Sasl) -> Self
 pub fn papo::Builder::sts_store(self, impl papo::sts::StsStore + 'static) -> Self
@@ -2136,7 +2136,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::ChangeNetwork
 pub struct papo::Client
 impl papo::Client
 pub fn papo::Client::action(&self, impl papo::Target, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
-pub fn papo::Client::builder(impl papo::IntoEndpoint, impl core::convert::Into<alloc::string::String>) -> papo::Builder
+pub fn papo::Client::builder(impl papo::IntoEndpoint, impl papo::AsNick) -> papo::Builder
 pub fn papo::Client::clear_away(&self) -> papo::RequestFuture<()>
 pub fn papo::Client::clear_topic(&self, impl papo::AsChannel) -> papo::RequestFuture<()>
 pub fn papo::Client::ctcp_reply(&self, &papo::event::CtcpQuery, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>

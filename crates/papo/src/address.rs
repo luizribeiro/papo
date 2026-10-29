@@ -17,16 +17,16 @@ pub enum InvalidInput {
     #[non_exhaustive]
     KnownCapability {
         /// The rejected capability name.
-        capability: String,
+        capability: crate::Cap,
         /// The feature variant that controls it.
         feature: &'static str,
     },
     /// A known capability is available only with papo's unstable Cargo feature.
     #[error("capability {0:?} requires papo's `unstable` feature")]
-    UnstableCapability(String),
+    UnstableCapability(crate::Cap),
     /// A known capability is configured through another typed builder method.
     #[error("capability {0:?} is configured through its typed builder method")]
-    ManagedCapability(String),
+    ManagedCapability(crate::Cap),
     /// The event queue capacity is zero.
     #[error("event queue capacity must be positive")]
     ZeroEventCapacity,

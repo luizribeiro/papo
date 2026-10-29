@@ -117,11 +117,11 @@ impl Builder {
 
     pub(crate) fn from_endpoint(
         endpoint: impl crate::IntoEndpoint,
-        nick: impl Into<String>,
+        nick: impl crate::AsNick,
     ) -> Self {
         let mut builder = Self::new("ircs://irc.example.net");
         builder.address = crate::address::convert(endpoint);
-        let nick = nick.into();
+        let nick = crate::AsNick::__parts(&nick).text.into_owned();
         builder.config.nick.clone_from(&nick);
         builder.config.username.clone_from(&nick);
         builder.config.realname = nick;
@@ -197,9 +197,12 @@ impl Builder {
     pub fn alt_nicks<I, S>(mut self, nicks: I) -> Self
     where
         I: IntoIterator<Item = S>,
-        S: Into<String>,
+        S: crate::AsNick,
     {
-        self.config.alt_nicks = nicks.into_iter().map(Into::into).collect();
+        self.config.alt_nicks = nicks
+            .into_iter()
+            .map(|nick| crate::AsNick::__parts(&nick).text.into_owned())
+            .collect();
         self
     }
 
@@ -230,7 +233,7 @@ impl Builder {
     ///
     /// On a plaintext endpoint, the server must offer a valid `sts` upgrade before the password
     /// is sent. [`Self::allow_insecure_auth`] explicitly permits sending it without that upgrade.
-    pub fn password(mut self, password: papo_core::Secret) -> Self {
+    pub fn password(mut self, password: crate::Secret) -> Self {
         self.config.password = Some(password);
         self
     }
@@ -345,15 +348,15 @@ impl Builder {
     pub fn request_caps<I, S>(mut self, caps: I) -> Self
     where
         I: IntoIterator<Item = S>,
-        S: Into<String>,
+        S: Into<crate::Cap>,
     {
         for capability in caps.into_iter().map(Into::into) {
-            if !cfg!(feature = "unstable") && cap::is_unstable(&capability) {
+            if !cfg!(feature = "unstable") && cap::is_unstable(capability.as_str()) {
                 self.invalid_input
                     .get_or_insert(InvalidInput::UnstableCapability(capability));
                 continue;
             }
-            if let Some(feature) = cap::__feature(&capability) {
+            if let Some(feature) = cap::__feature(capability.as_str()) {
                 self.invalid_input
                     .get_or_insert(InvalidInput::KnownCapability {
                         capability,
@@ -361,13 +364,18 @@ impl Builder {
                     });
                 continue;
             }
-            if cap::is_known(&capability) {
+            if cap::is_known(capability.as_str()) {
                 self.invalid_input
                     .get_or_insert(InvalidInput::ManagedCapability(capability));
                 continue;
             }
-            if !self.config.wanted_caps.contains(&capability) {
-                self.config.wanted_caps.push(capability);
+            if !self
+                .config
+                .wanted_caps
+                .iter()
+                .any(|wanted| wanted == capability.as_str())
+            {
+                self.config.wanted_caps.push(capability.into());
             }
         }
         self
@@ -629,10 +637,13 @@ impl Builder {
     pub fn autojoin<I, S>(mut self, channels: I) -> Self
     where
         I: IntoIterator<Item = S>,
-        S: Into<String>,
+        S: crate::AsChannel,
     {
         for channel in channels {
-            self.push_autojoin(Autojoin::new(channel, None));
+            self.push_autojoin(Autojoin::new(
+                crate::AsChannel::__parts(&channel).text().to_owned(),
+                None,
+            ));
         }
         self
     }
@@ -645,11 +656,7 @@ impl Builder {
     /// ```
     /// # _ = papo::Client::builder("ircs://irc.example.net", "papo-client").autojoin_with_key("#staff", papo::Secret::new("secret"));
     /// ```
-    pub fn autojoin_with_key(
-        mut self,
-        channel: impl crate::AsChannel,
-        key: papo_core::Secret,
-    ) -> Self {
+    pub fn autojoin_with_key(mut self, channel: impl crate::AsChannel, key: crate::Secret) -> Self {
         self.push_autojoin(Autojoin::new(
             crate::AsChannel::__parts(&channel).text().to_owned(),
             Some(key),
@@ -1305,7 +1312,7 @@ mod tests {
         assert_eq!(
             known.invalid_input,
             Some(InvalidInput::KnownCapability {
-                capability: "chathistory".to_owned(),
+                capability: "chathistory".to_owned().into(),
                 feature: "History",
             })
         );
@@ -1313,7 +1320,7 @@ mod tests {
         let managed = Builder::new("ircs://irc.example.net").request_caps(["sts"]);
         assert_eq!(
             managed.invalid_input,
-            Some(InvalidInput::ManagedCapability("sts".to_owned()))
+            Some(InvalidInput::ManagedCapability("sts".to_owned().into()))
         );
     }
 
@@ -1334,7 +1341,7 @@ mod tests {
         assert_eq!(
             builder.invalid_input,
             Some(InvalidInput::UnstableCapability(
-                "draft/persistence".to_owned()
+                "draft/persistence".to_owned().into()
             ))
         );
     }
@@ -1347,7 +1354,7 @@ mod tests {
         assert_eq!(
             known.invalid_input,
             Some(InvalidInput::KnownCapability {
-                capability: "draft/persistence".to_owned(),
+                capability: "draft/persistence".to_owned().into(),
                 feature: "Persistence",
             })
         );
@@ -1601,13 +1608,13 @@ mod tests {
             (
                 Builder::new("ircs://irc.example.net").request_caps(["chathistory"]),
                 InvalidInput::KnownCapability {
-                    capability: "chathistory".to_owned(),
+                    capability: "chathistory".to_owned().into(),
                     feature: "History",
                 },
             ),
             (
                 Builder::new("ircs://irc.example.net").request_caps(["sts"]),
-                InvalidInput::ManagedCapability("sts".to_owned()),
+                InvalidInput::ManagedCapability("sts".to_owned().into()),
             ),
         ];
         #[cfg(not(feature = "unstable"))]
@@ -1615,7 +1622,7 @@ mod tests {
             .into_iter()
             .chain([(
                 Builder::new("ircs://irc.example.net").request_caps(["draft/persistence"]),
-                InvalidInput::UnstableCapability("draft/persistence".to_owned()),
+                InvalidInput::UnstableCapability("draft/persistence".to_owned().into()),
             )])
             .collect::<Vec<_>>();
         for (builder, expected) in cases {

@@ -185,6 +185,7 @@ fn internal_crate_paths(snapshot: &str) -> Vec<&str> {
     facade_items(snapshot)
         .lines()
         .filter(|line| line.contains("papo_core::") || line.contains("papo_proto::"))
+        .filter(|line| !line.contains("papo_core::cap::Cap"))
         .collect()
 }
 
@@ -282,6 +283,7 @@ fn address_check_matches_types_not_names() {
 #[test]
 fn public_api_uses_only_papo_paths() {
     for (name, snapshot) in [("papo", STABLE), ("papo unstable", UNSTABLE)] {
+        assert!(snapshot.contains("pub use papo::Cap"), "{name} omits Cap");
         assert_eq!(
             internal_crate_paths(snapshot),
             Vec::<&str>::new(),
