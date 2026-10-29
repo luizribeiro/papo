@@ -1104,9 +1104,10 @@ impl core::panic::unwind_safe::UnwindSafe for papo_proto::MessageId
 pub struct papo_proto::MetadataKey(_)
 impl papo_proto::MetadataKey
 pub fn papo_proto::MetadataKey::check(&self) -> core::result::Result<(), papo_proto::InvalidIdentifier>
-pub fn papo_proto::MetadataKey::new(impl core::convert::Into<alloc::string::String>) -> Self
 impl papo_proto::MetadataKey
 pub fn papo_proto::MetadataKey::into_string(self) -> alloc::string::String
+impl papo_proto::MetadataKey
+pub fn papo_proto::MetadataKey::new(impl core::convert::Into<alloc::string::String>) -> Self
 impl core::borrow::Borrow<str> for papo_proto::MetadataKey
 pub fn papo_proto::MetadataKey::borrow(&self) -> &str
 impl core::clone::Clone for papo_proto::MetadataKey
@@ -1124,14 +1125,8 @@ impl core::cmp::PartialOrd for papo_proto::MetadataKey
 pub fn papo_proto::MetadataKey::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
 impl core::convert::AsRef<str> for papo_proto::MetadataKey
 pub fn papo_proto::MetadataKey::as_ref(&self) -> &str
-impl core::convert::From<&alloc::string::String> for papo_proto::MetadataKey
-pub fn papo_proto::MetadataKey::from(&alloc::string::String) -> Self
 impl core::convert::From<&papo_proto::MetadataKey> for papo_proto::MetadataKey
 pub fn papo_proto::MetadataKey::from(&Self) -> Self
-impl core::convert::From<&str> for papo_proto::MetadataKey
-pub fn papo_proto::MetadataKey::from(&str) -> Self
-impl core::convert::From<alloc::string::String> for papo_proto::MetadataKey
-pub fn papo_proto::MetadataKey::from(alloc::string::String) -> Self
 impl core::fmt::Debug for papo_proto::MetadataKey
 pub fn papo_proto::MetadataKey::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo_proto::MetadataKey

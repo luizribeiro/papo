@@ -194,6 +194,44 @@ macro_rules! identifier {
     };
 }
 
+macro_rules! explicit_identifier {
+    ($name:ident, $description:literal) => {
+        #[doc = $description]
+        ///
+        /// Equality, ordering, and hashing use the exact received bytes.
+        #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+        pub struct $name(String);
+
+        original_text!($name, 0);
+
+        impl $name {
+            /// Builds the identifier from its wire spelling.
+            #[must_use]
+            pub fn new(value: impl Into<String>) -> Self {
+                Self(value.into())
+            }
+        }
+
+        impl Borrow<str> for $name {
+            fn borrow(&self) -> &str {
+                &self.0
+            }
+        }
+
+        impl PartialEq<str> for $name {
+            fn eq(&self, other: &str) -> bool {
+                self.0 == other
+            }
+        }
+
+        impl PartialEq<&str> for $name {
+            fn eq(&self, other: &&str) -> bool {
+                self.0 == *other
+            }
+        }
+    };
+}
+
 macro_rules! name_identifier {
     ($name:ident, $description:literal) => {
         #[doc = $description]
@@ -486,7 +524,7 @@ macro_rules! text_name_role {
 text_name_role!(AsNick);
 text_name_role!(AsChannel);
 text_name_role!(AsAccount);
-identifier!(MetadataKey, "An IRC metadata key.");
+explicit_identifier!(MetadataKey, "An IRC metadata key.");
 identifier!(
     MessageId,
     "An opaque, network-unique IRC message identifier."
@@ -666,12 +704,6 @@ pub trait MaskSource {
 }
 
 impl MetadataKey {
-    /// Builds a metadata key from its wire spelling.
-    #[must_use]
-    pub fn new(value: impl Into<String>) -> Self {
-        Self(value.into())
-    }
-
     /// Validates the metadata key character set.
     ///
     /// # Errors
@@ -908,8 +940,15 @@ mod tests {
     #[test]
     fn every_exact_identifier_has_the_owned_string_contract() {
         assert_contract::<Address>();
-        assert_contract::<MetadataKey>();
         assert_contract::<MessageId>();
+    }
+
+    #[test]
+    fn metadata_keys_require_explicit_construction() {
+        assert_eq!(
+            MetadataKey::new("profile/display-name"),
+            "profile/display-name"
+        );
     }
 
     #[test]
@@ -1053,7 +1092,7 @@ mod tests {
             Casemapping::default().mask("*!*@cloak.example").check(),
             Ok(())
         );
-        assert_eq!(MetadataKey::from("profile/display-name").check(), Ok(()));
+        assert_eq!(MetadataKey::new("profile/display-name").check(), Ok(()));
         assert_eq!(MessageId::from("8VX4P6dUQ44L").check(), Ok(()));
 
         assert_eq!(
@@ -1065,7 +1104,7 @@ mod tests {
             Err(InvalidIdentifier::Empty)
         );
         assert_eq!(
-            MetadataKey::from("Avatar").check(),
+            MetadataKey::new("Avatar").check(),
             Err(InvalidIdentifier::InvalidCharacter('A'))
         );
         assert_eq!(
@@ -1113,10 +1152,10 @@ mod tests {
             Err(InvalidIdentifier::InvalidCharacter('\n'))
         );
 
-        assert_eq!(MetadataKey::from("a0_./-").check(), Ok(()));
-        assert_eq!(MetadataKey::from("").check(), Err(InvalidIdentifier::Empty));
+        assert_eq!(MetadataKey::new("a0_./-").check(), Ok(()));
+        assert_eq!(MetadataKey::new("").check(), Err(InvalidIdentifier::Empty));
         assert_eq!(
-            MetadataKey::from("profile+color").check(),
+            MetadataKey::new("profile+color").check(),
             Err(InvalidIdentifier::InvalidCharacter('+'))
         );
     }
