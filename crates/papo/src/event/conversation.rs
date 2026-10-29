@@ -25,7 +25,7 @@ pub struct BroadcastCtcp {
     /// The server-wide audience addressed by the message.
     pub to: Broadcast,
     /// The command with its original spelling.
-    pub command: String,
+    pub command: crate::Command,
     /// The command parameters, when present.
     pub params: Option<String>,
     /// The server-assigned message identifier, when supplied.
@@ -324,9 +324,9 @@ pub struct StandardReply {
     /// Reply severity.
     pub kind: StandardReplyKind,
     /// Case-normalized command associated with the reply.
-    pub command: String,
+    pub command: crate::Command,
     /// Case-normalized reply code.
-    pub code: String,
+    pub code: crate::ReplyCode,
     /// Additional diagnostic parameters.
     pub context: Vec<String>,
     /// Human-readable reply description.

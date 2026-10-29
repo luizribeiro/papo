@@ -65,7 +65,8 @@ let builder = Client::builder("ircs://irc.example.net", "alice")
 | Bad TLS PEM appeared as a late `ConnectErrorKind::Other` | TLS configuration is validated eagerly as `Error::InvalidInput` |
 | `Duration::MAX` and oversized queue settings could panic | Maximum durations disable the corresponding deadline; event capacity above the runtime bound is clamped, while zero is `InvalidInput::ZeroEventCapacity` |
 | `ConnectError` hid a login refusal reason and repeated it in `source()` | Sanitized server reasons are part of `Display` and are not duplicated in the source chain |
-| `ServerError::command() -> &str` used `""` for absence | `ServerError::command() -> Option<&str>` |
+| `ServerError::command() -> &str` used `""` for absence | `ServerError::command() -> Option<&Command>` |
+| Protocol commands and standard-reply codes used interchangeable strings | `Command` and `ReplyCode` type event and error tokens; `papo::fail` exports typed code values |
 
 Credentials configured with `PASS`, SASL, WEBIRC, OPER, account verification, or bouncer password
 fields are refused on plaintext transports unless STS upgrades the connection. Tests and trusted

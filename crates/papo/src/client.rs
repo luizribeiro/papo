@@ -656,7 +656,10 @@ impl Client {
         };
         let text = text.into();
         let command = query.command.clone();
-        let body = Ctcp::build(&command, (!text.is_empty()).then_some(text.as_str()));
+        let body = Ctcp::build(
+            command.as_str(),
+            (!text.is_empty()).then_some(text.as_str()),
+        );
         let client = self.clone();
         crate::RequestFuture::new(async move {
             let body = body.ok_or(InvalidInput::InvalidCtcp)?;

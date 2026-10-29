@@ -108,7 +108,7 @@ pub struct CtcpQuery {
     /// See [`Conversation`] for status-prefixed line guidance.
     pub(crate) status: Option<Prefix>,
     /// The command with its original spelling.
-    pub command: String,
+    pub command: crate::Command,
     /// The command parameters, when present.
     pub params: Option<String>,
     /// The server-assigned message identifier, when supplied.
@@ -139,7 +139,7 @@ pub struct CtcpReply {
     /// See [`Conversation`] for status-prefixed line guidance.
     pub(crate) status: Option<Prefix>,
     /// The command with its original spelling.
-    pub command: String,
+    pub command: crate::Command,
     /// The command parameters, when present.
     pub params: Option<String>,
     /// The server-assigned message identifier, when supplied.
@@ -483,7 +483,7 @@ fn ctcp_from_line(
     }
 }
 
-fn ctcp_parts(message: &LineRef<'_>) -> Option<(String, Option<String>, bool)> {
+fn ctcp_parts(message: &LineRef<'_>) -> Option<(crate::Command, Option<String>, bool)> {
     let reply = match () {
         () if message.command_is("PRIVMSG") => false,
         () if message.command_is("NOTICE") => true,
@@ -492,7 +492,7 @@ fn ctcp_parts(message: &LineRef<'_>) -> Option<(String, Option<String>, bool)> {
     let ctcp = ProtoCtcp::parse(message.param(1)?)?;
     (!ctcp.command.eq_ignore_ascii_case("ACTION")).then(|| {
         (
-            ctcp.command.to_owned(),
+            ctcp.command.to_owned().into(),
             ctcp.params.map(str::to_owned),
             reply,
         )
@@ -2138,8 +2138,8 @@ pub(crate) fn from_core_with_receipt(
                 papo_proto::StandardReplyKind::Note => StandardReplyKind::Note,
                 _ => return CoreEvent::Unknown,
             },
-            command: reply.command,
-            code: reply.code,
+            command: reply.command.into(),
+            code: reply.code.into(),
             context: reply.context,
             description: reply.description,
         }),
@@ -4782,8 +4782,8 @@ mod tests {
                 panic!("standard reply was not forwarded")
             };
             assert_eq!(mapped.kind, public);
-            assert_eq!(mapped.command, reply.command);
-            assert_eq!(mapped.code, reply.code);
+            assert_eq!(mapped.command.as_str(), reply.command);
+            assert_eq!(mapped.code.as_str(), reply.code);
             assert_eq!(mapped.context, reply.context);
             assert_eq!(mapped.description, reply.description);
         }
