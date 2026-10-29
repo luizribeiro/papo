@@ -168,3 +168,80 @@ async fn concurrent_guarded_sends_refuse_an_impostor_during_account_proof() {
             .is_err()
     );
 }
+
+#[tokio::test(start_paused = true)]
+async fn concurrent_guarded_sends_refuse_a_takeover_across_reconnect() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test", "papo")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(
+                Reconnect::exponential()
+                    .max_delay(Duration::from_secs(1))
+                    .max_attempts(2),
+            ),
+    );
+    let caps = ["account-tag", "labeled-response", "message-tags"];
+    wire.register(&caps).await;
+    connected(&mut events).await;
+    let message = private_message(&mut events, &mut wire).await;
+
+    wire.close().await;
+    let delay = loop {
+        let Some(event) = events.next().await else {
+            panic!("driver stopped before reconnecting")
+        };
+        if let papo::Event::Disconnected(disconnected) = event {
+            break disconnected
+                .reconnect_in
+                .expect("closed wire should reconnect");
+        }
+    };
+    tokio::time::advance(delay).await;
+    wire.register(&caps).await;
+    connected(&mut events).await;
+    enable_monitor(&mut events, &mut wire, 100).await;
+
+    let (first, second, first_label, second_label) =
+        start_concurrent_replies(&client, &message, &mut wire).await;
+    answer_who(&mut wire, &first_label, "mallory-account").await;
+    answer_who(&mut wire, &second_label, "mallory-account").await;
+
+    assert!(matches!(first.await.unwrap(), Err(papo::Error::TargetGone)));
+    assert!(matches!(
+        second.await.unwrap(),
+        Err(papo::Error::TargetGone)
+    ));
+    assert_eq!(wire.next_sent().await, "MONITOR - alice");
+}
+
+#[tokio::test]
+async fn concurrent_guarded_sends_reach_the_proven_recipient() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test", "papo")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&["account-tag", "labeled-response", "message-tags"])
+        .await;
+    connected(&mut events).await;
+    enable_monitor(&mut events, &mut wire, 100).await;
+    let message = private_message(&mut events, &mut wire).await;
+
+    let (first, second, first_label, second_label) =
+        start_concurrent_replies(&client, &message, &mut wire).await;
+    answer_who(&mut wire, &first_label, "alice-account").await;
+    answer_who(&mut wire, &second_label, "alice-account").await;
+
+    let mut sent = [wire.next_sent().await, wire.next_sent().await];
+    sent.sort();
+    assert_eq!(
+        sent,
+        [
+            "@+reply=ErgoGuardRace PRIVMSG alice :first approval",
+            "@+reply=ErgoGuardRace PRIVMSG alice :second approval"
+        ]
+    );
+    assert!(first.await.unwrap().is_ok());
+    assert!(second.await.unwrap().is_ok());
+    assert_eq!(wire.next_sent().await, "MONITOR - alice");
+}
