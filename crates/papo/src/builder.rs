@@ -165,6 +165,29 @@ impl Builder {
     ///
     /// A server advertisement replaces these rules for the active connection. The most recently
     /// advertised rules remain available while disconnected.
+    ///
+    /// ```
+    /// # #[tokio::main(flavor = "current_thread")]
+    /// # async fn main() {
+    /// let builder = papo::Client::builder("irc://offline.test", "papo-doc")
+    ///     .casemapping(papo::Casemapping::Ascii);
+    /// # let (client, mut events, driver, mut connections) =
+    /// #     papo::__testing::wire_client(builder);
+    /// let before = client.state();
+    /// let rules = before.name_rules().expect("casemapping was seeded");
+    /// assert_eq!(rules.check_nick("release_candidate"), papo::NameCheck::Unknown);
+    /// # let driver = tokio::spawn(driver);
+    /// # let (mut server, _) = connections.recv().await.unwrap();
+    /// # papo::__testing::server_line(&mut server, b":offline.test CAP * LS :\r\n").await;
+    /// # papo::__testing::server_line(&mut server, b":offline.test 005 papo-doc CASEMAPPING=ascii NICKLEN=12 :are supported\r\n:offline.test 001 papo-doc :Welcome\r\n:offline.test 422 papo-doc :MOTD is missing\r\n").await;
+    /// # while !matches!(events.next().await, Some(papo::Event::Connected(_))) {}
+    /// let after = client.state();
+    /// let rules = after.name_rules().expect("005 supplied name rules");
+    /// assert!(matches!(rules.check_nick("release_candidate"),
+    ///     papo::NameCheck::Invalid(_)));
+    /// # driver.abort();
+    /// # }
+    /// ```
     pub fn casemapping(mut self, casemapping: crate::Casemapping) -> Self {
         self.config = self.config.casemapping(casemapping);
         self
