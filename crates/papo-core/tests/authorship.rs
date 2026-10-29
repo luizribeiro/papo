@@ -74,7 +74,7 @@ fn queued_event_keeps_authorship_across_a_nick_change() {
 
 #[test]
 fn live_message_from_another_session_of_our_account_is_own() {
-    Transcript::new(Config::default().sasl(Sasl::plain("papo", "correct horse battery staple")))
+    Transcript::new(Config::default().sasl(Sasl::plain("papo", papo_core::Secret::new("correct horse battery staple"))))
         .connect_default()
         .server("CAP * LS :sasl=PLAIN account-tag")
         .client("CAP REQ :account-tag sasl")
@@ -95,69 +95,75 @@ fn live_message_from_another_session_of_our_account_is_own() {
 
 #[test]
 fn sibling_device_away_is_own() {
-    Transcript::new(Config::default().sasl(Sasl::plain("papo", "correct horse battery staple")))
-        .connect_default()
-        .server("CAP * LS :sasl=PLAIN account-tag away-notify")
-        .client("CAP REQ :account-tag away-notify sasl")
-        .server("CAP * ACK :account-tag away-notify sasl")
-        .client("AUTHENTICATE PLAIN")
-        .server("AUTHENTICATE +")
-        .client("AUTHENTICATE AHBhcG8AY29ycmVjdCBob3JzZSBiYXR0ZXJ5IHN0YXBsZQ==")
-        .server(":ergo.test 900 papo papo!~papo@localhost papo :You are now logged in as papo")
-        .server(":ergo.test 903 papo :SASL authentication successful")
-        .client("CAP END")
-        .server(":papo!~papo@localhost JOIN #papo")
-        .server("@account=papo :papo-phone!~papo@localhost JOIN #papo")
-        .server("@account=papo :papo-phone!~papo@localhost AWAY :reviewing the production rollout")
-        .event_until(|event| {
-            matches!(event, Event::AwayChanged {
+    Transcript::new(Config::default().sasl(Sasl::plain(
+        "papo",
+        papo_core::Secret::new("correct horse battery staple"),
+    )))
+    .connect_default()
+    .server("CAP * LS :sasl=PLAIN account-tag away-notify")
+    .client("CAP REQ :account-tag away-notify sasl")
+    .server("CAP * ACK :account-tag away-notify sasl")
+    .client("AUTHENTICATE PLAIN")
+    .server("AUTHENTICATE +")
+    .client("AUTHENTICATE AHBhcG8AY29ycmVjdCBob3JzZSBiYXR0ZXJ5IHN0YXBsZQ==")
+    .server(":ergo.test 900 papo papo!~papo@localhost papo :You are now logged in as papo")
+    .server(":ergo.test 903 papo :SASL authentication successful")
+    .client("CAP END")
+    .server(":papo!~papo@localhost JOIN #papo")
+    .server("@account=papo :papo-phone!~papo@localhost JOIN #papo")
+    .server("@account=papo :papo-phone!~papo@localhost AWAY :reviewing the production rollout")
+    .event_until(|event| {
+        matches!(event, Event::AwayChanged {
                 nick,
                 authorship: Authorship::Own,
                 ..
             } if nick == "papo-phone")
-        });
+    });
 }
 
 #[test]
 fn nick_change_channels_distinguish_sibling_devices_from_other_users() {
-    Transcript::new(Config::default().sasl(Sasl::plain("papo", "correct horse battery staple")))
-        .connect_default()
-        .server("CAP * LS :sasl=PLAIN account-tag")
-        .client("CAP REQ :account-tag sasl")
-        .server("CAP * ACK :account-tag sasl")
-        .client("AUTHENTICATE PLAIN")
-        .server("AUTHENTICATE +")
-        .client("AUTHENTICATE AHBhcG8AY29ycmVjdCBob3JzZSBiYXR0ZXJ5IHN0YXBsZQ==")
-        .server(":ergo.test 900 papo papo!~papo@localhost papo :You are now logged in as papo")
-        .server(":ergo.test 903 papo :SASL authentication successful")
-        .client("CAP END")
-        .server(":papo!~papo@localhost JOIN #papo")
-        .server(":papo!~papo@localhost JOIN #rust")
-        .server("@account=papo :papo-phone!~papo@localhost JOIN #papo")
-        .server(":emily!~emily@localhost JOIN #rust")
-        .server("@account=papo :papo-phone!~papo@localhost NICK papo-mobile")
-        .event_until(|event| {
-            matches!(event, Event::NickChanged {
+    Transcript::new(Config::default().sasl(Sasl::plain(
+        "papo",
+        papo_core::Secret::new("correct horse battery staple"),
+    )))
+    .connect_default()
+    .server("CAP * LS :sasl=PLAIN account-tag")
+    .client("CAP REQ :account-tag sasl")
+    .server("CAP * ACK :account-tag sasl")
+    .client("AUTHENTICATE PLAIN")
+    .server("AUTHENTICATE +")
+    .client("AUTHENTICATE AHBhcG8AY29ycmVjdCBob3JzZSBiYXR0ZXJ5IHN0YXBsZQ==")
+    .server(":ergo.test 900 papo papo!~papo@localhost papo :You are now logged in as papo")
+    .server(":ergo.test 903 papo :SASL authentication successful")
+    .client("CAP END")
+    .server(":papo!~papo@localhost JOIN #papo")
+    .server(":papo!~papo@localhost JOIN #rust")
+    .server("@account=papo :papo-phone!~papo@localhost JOIN #papo")
+    .server(":emily!~emily@localhost JOIN #rust")
+    .server("@account=papo :papo-phone!~papo@localhost NICK papo-mobile")
+    .event_until(|event| {
+        matches!(event, Event::NickChanged {
                 old,
                 channels,
                 authorship: Authorship::Own,
                 ..
             } if old == "papo-phone" && *channels == ["#papo", "#rust"])
-        })
-        .server(":emily!~emily@localhost NICK emily-away")
-        .event(|event| {
-            matches!(event, Event::NickChanged {
+    })
+    .server(":emily!~emily@localhost NICK emily-away")
+    .event(|event| {
+        matches!(event, Event::NickChanged {
                 old,
                 channels,
                 authorship: Authorship::Other,
                 ..
             } if old == "emily" && *channels == ["#rust"])
-        });
+    });
 }
 
 #[test]
 fn history_authorship_requires_an_account_tag() {
-    Transcript::new(Config::default().sasl(Sasl::plain("papo", "correct horse battery staple")))
+    Transcript::new(Config::default().sasl(Sasl::plain("papo", papo_core::Secret::new("correct horse battery staple"))))
         .connect_default()
         .server("CAP * LS :sasl=PLAIN")
         .client("CAP REQ :sasl")
@@ -189,7 +195,7 @@ fn history_authorship_requires_an_account_tag() {
 
 #[test]
 fn history_mode_authorship_distinguishes_actor_and_subject() {
-    Transcript::new(Config::default().sasl(Sasl::plain("papo", "correct horse battery staple")))
+    Transcript::new(Config::default().sasl(Sasl::plain("papo", papo_core::Secret::new("correct horse battery staple"))))
         .connect_default()
         .server("CAP * LS :sasl=PLAIN")
         .client("CAP REQ :sasl")

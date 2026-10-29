@@ -41,10 +41,10 @@ async fn sasl_scram_sha_256(s: Scenario) -> papo_testing::Result<()> {
 )]
 async fn sasl_failure(s: Scenario) -> papo_testing::Result<()> {
     let result = s
-        .connect_with(
-            s.configure("alice")?
-                .sasl(Sasl::plain("missing-account", "incorrect password")),
-        )
+        .connect_with(s.configure("alice")?.sasl(Sasl::plain(
+            "missing-account",
+            papo::Secret::new("incorrect password"),
+        )))
         .await;
     let Err(error) = result else {
         panic!("invalid SASL credentials must reject login")
@@ -108,7 +108,10 @@ async fn sasl_protocol_errors(s: Scenario) -> papo_testing::Result<()> {
     let account = unique("reauth-account");
     create_account(&s.server, &account, PASSWORD)?;
     let bob = s
-        .connect_with(s.configure("bob")?.sasl(Sasl::plain(&account, PASSWORD)))
+        .connect_with(
+            s.configure("bob")?
+                .sasl(Sasl::plain(&account, papo::Secret::new(PASSWORD))),
+        )
         .await?;
     let response = bob
         .request_raw(papo::Line::new("AUTHENTICATE").with_params(["PLAIN"]))
@@ -126,9 +129,9 @@ async fn authenticate(s: Scenario, scram: bool) -> papo_testing::Result<()> {
     let account = unique("alice-account");
     create_account(&s.server, &account, PASSWORD)?;
     let sasl = if scram {
-        Sasl::scram_sha256(&account, PASSWORD)
+        Sasl::scram_sha256(&account, papo::Secret::new(PASSWORD))
     } else {
-        Sasl::plain(&account, PASSWORD)
+        Sasl::plain(&account, papo::Secret::new(PASSWORD))
     };
     let mut alice = s.connect_with(s.configure("alice")?.sasl(sasl)).await?;
     let connected = alice.wait_for(Event::as_connected).await?;
@@ -227,7 +230,7 @@ async fn account_creation(s: Scenario) -> papo_testing::Result<()> {
         .expect("server advertised CASEMAPPING")
         .account(nick.as_ref());
     let outcome = alice
-        .create_account(NewAccount::new(PASSWORD).account(account.clone()))
+        .create_account(NewAccount::new(papo::Secret::new(PASSWORD)).account(account.clone()))
         .await?;
     assert!(matches!(
         &outcome,
@@ -258,7 +261,7 @@ async fn account_registration_once(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s
         .connect_with(
             s.configure("one-time-registration")?
-                .create_account(NewAccount::new(PASSWORD)),
+                .create_account(NewAccount::new(papo::Secret::new(PASSWORD))),
         )
         .await?;
     assert!(matches!(
@@ -293,7 +296,7 @@ async fn account_creation_error(s: Scenario) -> papo_testing::Result<()> {
         .casemapping()
         .account(alice.state().nick().as_ref());
     let registered = alice
-        .create_account(NewAccount::new(PASSWORD).account(account.clone()))
+        .create_account(NewAccount::new(papo::Secret::new(PASSWORD)).account(account.clone()))
         .await?;
     assert!(matches!(registered, AccountCreation::Created { .. }));
     assert_eq!(
@@ -301,7 +304,7 @@ async fn account_creation_error(s: Scenario) -> papo_testing::Result<()> {
         registered
     );
     let error = alice
-        .create_account(NewAccount::new(PASSWORD).account(account))
+        .create_account(NewAccount::new(papo::Secret::new(PASSWORD)).account(account))
         .await
         .expect_err("an existing account cannot be created twice");
     assert!(
@@ -325,7 +328,7 @@ async fn persistence(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s
         .connect_with(
             s.configure("alice")?
-                .sasl(Sasl::plain(account, PASSWORD))
+                .sasl(Sasl::plain(account, papo::Secret::new(PASSWORD)))
                 .enable(papo::Feature::Persistence),
         )
         .await?;
