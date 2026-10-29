@@ -4529,10 +4529,13 @@ impl Session {
         nick: &str,
         username: Option<&str>,
         host: Option<&str>,
-        account: Account,
+        _account: Account,
     ) -> RecipientGuard {
-        self.state
-            .track_direct(nick, username, host, account.clone());
+        self.state.track_direct(nick, username, host);
+        let account = self
+            .state
+            .user(nick)
+            .map_or(Account::Unknown, |user| user.account().clone());
         let recipient = RecipientGuard::__new(
             &self.state,
             self.state.casemapping().nick(nick),
@@ -4546,9 +4549,12 @@ impl Session {
             &mut self.outbox,
         );
         self.sync_monitored_state();
-        self.state
-            .track_direct(nick, username, host, account.clone());
+        self.state.track_direct(nick, username, host);
         self.state_generation = self.state_generation.wrapping_add(1);
+        let account = self
+            .state
+            .user(nick)
+            .map_or(Account::Unknown, |user| user.account().clone());
         let recipient =
             RecipientGuard::__new(&self.state, self.state.casemapping().nick(nick), account);
         self.monitor
@@ -4558,8 +4564,24 @@ impl Session {
 
     /// Refreshes identity facts for an already acquired direct recipient.
     #[doc(hidden)]
+    pub fn __direct_prove(
+        &mut self,
+        recipient: &RecipientGuard,
+        account: Account,
+    ) -> Option<RecipientGuard> {
+        self.state.prove_direct(recipient, account.clone())?;
+        self.state_generation = self.state_generation.wrapping_add(1);
+        let nick = recipient.__nick();
+        let recipient = RecipientGuard::__new(&self.state, nick.clone(), account);
+        self.monitor
+            .refresh_direct_identity(nick, recipient.__token());
+        Some(recipient)
+    }
+
+    /// Refreshes identity facts for a direct recipient.
+    #[doc(hidden)]
     pub fn __direct_refresh(&mut self, nick: &str, account: Account) -> RecipientGuard {
-        self.state.track_direct(nick, None, None, account.clone());
+        self.state.refresh_direct(nick, account.clone());
         self.state_generation = self.state_generation.wrapping_add(1);
         let recipient =
             RecipientGuard::__new(&self.state, self.state.casemapping().nick(nick), account);

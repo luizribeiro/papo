@@ -548,10 +548,15 @@ impl State {
         }) {
             return crate::RecipientStatus::Gone;
         }
-        if self.user(&guard.nick).is_some() {
-            crate::RecipientStatus::Gone
-        } else {
-            crate::RecipientStatus::Unknown
+        match self.user(&guard.nick) {
+            Some(user)
+                if matches!(&guard.account, Account::LoggedIn(_))
+                    && matches!(&user.account, Account::Unknown) =>
+            {
+                crate::RecipientStatus::Unknown
+            }
+            Some(_) => crate::RecipientStatus::Gone,
+            None => crate::RecipientStatus::Unknown,
         }
     }
 
@@ -654,7 +659,6 @@ impl State {
         nick: &str,
         username: Option<&str>,
         host: Option<&str>,
-        account: Account,
     ) -> crate::ReplyToken {
         let key = NameKey::new(nick, self.casemapping);
         if !self.users.contains_key(&key) {
@@ -663,11 +667,42 @@ impl State {
         }
         if let Some(user) = self.users.get_mut(&key) {
             user.update_userhost(username, host);
-            user.account = account;
             user.monitored = true;
         }
         self.mark_changed();
         self.__reply_token_for(nick)
+    }
+
+    pub(crate) fn prove_direct(
+        &mut self,
+        recipient: &crate::RecipientGuard,
+        account: Account,
+    ) -> Option<()> {
+        let nick = recipient.__nick();
+        if self.__reply_token_for(nick) != recipient.__token() {
+            return None;
+        }
+        let user = self.users.get_mut(self.casemapping.fold(nick).as_ref())?;
+        if user.account != *recipient.__account() && user.account != account {
+            return None;
+        }
+        user.account = account;
+        user.monitored = true;
+        self.mark_changed();
+        Some(())
+    }
+
+    pub(crate) fn refresh_direct(&mut self, nick: &str, account: Account) {
+        let key = NameKey::new(nick, self.casemapping);
+        if !self.users.contains_key(&key) {
+            let user = self.new_user(nick, None, None);
+            self.users.insert(key.clone(), user);
+        }
+        if let Some(user) = self.users.get_mut(&key) {
+            user.account = account;
+            user.monitored = true;
+        }
+        self.mark_changed();
     }
 
     #[doc(hidden)]

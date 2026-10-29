@@ -7,7 +7,7 @@ use std::{
     time::Instant,
 };
 
-use papo_core::{Account, Away, Config, Event, Feature, UnsupportedReason};
+use papo_core::{Account, Away, Config, Event, Feature, Session, UnsupportedReason};
 use papo_proto::{Casemapping, Line, Nick, Origin};
 use support::Transcript;
 
@@ -66,12 +66,13 @@ fn guarded_direct_monitor_follows_rename_and_releases_its_watch() {
         .update(|session| {
             let account =
                 Account::LoggedIn(session.state().casemapping().account("alice-account"));
-            *recipient.borrow_mut() = Some(session.__direct_acquire(
+            let acquired = session.__direct_acquire(
                 "alice",
                 Some("~alice"),
                 Some("cloak.example"),
-                account,
-            ));
+                Account::Unknown,
+            );
+            *recipient.borrow_mut() = session.__direct_prove(&acquired, account);
         })
         .client("MONITOR + alice")
         .inspect(|session| {
@@ -93,7 +94,9 @@ fn guarded_direct_monitor_follows_rename_and_releases_its_watch() {
         .update(|session| {
             let account =
                 Account::LoggedIn(session.state().casemapping().account("alice-account"));
-            *recipient.borrow_mut() = Some(session.__direct_refresh("alice", account));
+            let acquired = session.__direct_acquire("alice", None, None, Account::Unknown);
+            *recipient.borrow_mut() = session.__direct_prove(&acquired, account);
+            session.__direct_release(&acquired);
         })
         .update(|session| session.monitor_add(["bob"]))
         .client("MONITOR + bob")
@@ -111,6 +114,33 @@ fn guarded_direct_monitor_follows_rename_and_releases_its_watch() {
         .client("MONITOR - alicia")
         .inspect(|session| assert_eq!(session.state().monitored().count(), 0))
         .no_client();
+}
+
+#[test]
+fn direct_acquisition_waits_for_server_identity_proof() {
+    let now = std::time::Instant::now();
+    let mut session = Session::new(Config::default().nick("papo"));
+    session.handle_line(
+        now,
+        b":offline.test 005 papo CASEMAPPING=rfc1459 MONITOR=100 :are supported",
+    );
+    let claimed = Account::LoggedIn(session.state().casemapping().account("alice-account"));
+    let acquired = session.__direct_acquire("alice", None, None, claimed.clone());
+    assert_eq!(acquired.__account(), &Account::Unknown);
+    session.handle_line(
+        now,
+        b"@account=mallory-account :alice!~mallory@users.example PRIVMSG papo :review update",
+    );
+    assert!(matches!(
+        session.state().user("alice").map(papo_core::User::account),
+        Some(Account::LoggedIn(account)) if account == "mallory-account"
+    ));
+    assert_eq!(session.__direct_prove(&acquired, claimed), None);
+    session.__direct_acquire("alice", None, None, Account::Unknown);
+    assert!(matches!(
+        session.state().user("alice").map(papo_core::User::account),
+        Some(Account::LoggedIn(account)) if account == "mallory-account"
+    ));
 }
 
 #[test]
