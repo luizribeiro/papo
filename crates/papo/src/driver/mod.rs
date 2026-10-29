@@ -178,6 +178,11 @@ pub(crate) enum Command {
         account: crate::Account,
         result: oneshot::Sender<Result<papo_core::RecipientGuard, Error>>,
     },
+    DirectProve {
+        recipient: papo_core::RecipientGuard,
+        account: crate::Account,
+        result: oneshot::Sender<Result<papo_core::RecipientGuard, Error>>,
+    },
     DirectRelease {
         recipient: papo_core::RecipientGuard,
     },
@@ -1130,6 +1135,7 @@ where
                     _ = result.send(Ok(()));
                 }
                 Some(Command::DirectAcquire { nick, account, result }) => {
+                    let _ = account;
                     let already_monitored = session
                         .state()
                         .monitored()
@@ -1141,12 +1147,8 @@ where
                         _ = result.send(Err(Error::MonitorFull { limit }));
                         continue;
                     }
-                    let recipient = session.__direct_acquire(
-                        &nick,
-                        None,
-                        None,
-                        account.unwrap_or(crate::Account::Unknown),
-                    );
+                    let recipient =
+                        session.__direct_acquire(&nick, None, None, crate::Account::Unknown);
                     publish_state(events, session, true);
                     _ = result.send(Ok(recipient));
                 }
@@ -1154,6 +1156,13 @@ where
                     let recipient = session.__direct_refresh(&nick, account);
                     publish_state(events, session, true);
                     _ = result.send(Ok(recipient));
+                }
+                Some(Command::DirectProve { recipient, account, result }) => {
+                    let recipient = session
+                        .__direct_prove(&recipient, account)
+                        .ok_or(Error::TargetGone);
+                    publish_state(events, session, true);
+                    _ = result.send(recipient);
                 }
                 Some(Command::DirectRelease { recipient }) => {
                     session.__direct_release(&recipient);

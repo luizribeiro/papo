@@ -28,6 +28,75 @@ pub(crate) async fn command(
     receiver.await.map_err(|_| Error::connection_lost())?
 }
 
+pub(crate) async fn acquire(
+    client: &crate::Client,
+    nick: String,
+) -> Result<papo_core::RecipientGuard, Error> {
+    let (result, receiver) = tokio::sync::oneshot::channel();
+    client
+        .commands
+        .send(crate::driver::Command::DirectAcquire {
+            nick,
+            account: None,
+            result,
+        })
+        .await
+        .map_err(|_| Error::connection_lost())?;
+    receiver.await.map_err(|_| Error::connection_lost())?
+}
+
+pub(crate) async fn refresh(
+    client: &crate::Client,
+    recipient: papo_core::RecipientGuard,
+    account: Account,
+) -> Result<papo_core::RecipientGuard, Error> {
+    let (result, receiver) = tokio::sync::oneshot::channel();
+    client
+        .commands
+        .send(crate::driver::Command::DirectProve {
+            recipient,
+            account,
+            result,
+        })
+        .await
+        .map_err(|_| Error::connection_lost())?;
+    receiver.await.map_err(|_| Error::connection_lost())?
+}
+
+pub(crate) async fn prove(
+    client: &crate::Client,
+    nick: String,
+    acquired: papo_core::RecipientGuard,
+) -> Result<(papo_core::RecipientGuard, Account), Error> {
+    let response = match client
+        .correlated(
+            crate::Line::new("WHO").with_params([nick.clone(), "%na".to_owned()]),
+            Some(papo_core::ResponseMatcher::Who(nick.clone())),
+        )
+        .await
+    {
+        Ok(response) => response,
+        Err(error) => {
+            release(client, acquired).await;
+            return Err(error);
+        }
+    };
+    let account = match who_account(client, &nick, &response) {
+        Ok(account) => account,
+        Err(error) => {
+            release(client, acquired).await;
+            return Err(error);
+        }
+    };
+    match refresh(client, acquired.clone(), account.clone()).await {
+        Ok(recipient) => Ok((recipient, account)),
+        Err(error) => {
+            release(client, acquired).await;
+            Err(error)
+        }
+    }
+}
+
 pub(crate) async fn release(client: &crate::Client, recipient: papo_core::RecipientGuard) {
     _ = client
         .commands

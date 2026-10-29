@@ -177,30 +177,8 @@ impl crate::Client {
             }
             crate::direct_runtime::require_monitor_slot(&snapshot, &nick)?;
             drop(snapshot);
-            let recipient =
-                crate::direct_runtime::command(&client, nick.clone(), None, true).await?;
-            let response = client
-                .correlated(
-                    crate::Line::new("WHO").with_params([nick.clone(), "%na".to_owned()]),
-                    Some(papo_core::ResponseMatcher::Who(nick.clone())),
-                )
-                .await;
-            let response = match response {
-                Ok(response) => response,
-                Err(error) => {
-                    crate::direct_runtime::release(&client, recipient).await;
-                    return Err(error);
-                }
-            };
-            let account = match crate::direct_runtime::who_account(&client, &nick, &response) {
-                Ok(account) => account,
-                Err(error) => {
-                    crate::direct_runtime::release(&client, recipient).await;
-                    return Err(error);
-                }
-            };
-            let recipient =
-                crate::direct_runtime::command(&client, nick, Some(account), false).await?;
+            let recipient = crate::direct_runtime::acquire(&client, nick.clone()).await?;
+            let (recipient, _) = crate::direct_runtime::prove(&client, nick, recipient).await?;
             Ok(DirectRef::new(&client, recipient, true))
         })
     }
