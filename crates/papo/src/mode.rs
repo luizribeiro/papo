@@ -579,7 +579,7 @@ impl Change {
             .known_name_rules()
             .ok_or(crate::InvalidInput::NameRulesUnknown)?;
         let arg = self.arg.as_ref().map(|argument| match (mode, kind) {
-            ('k', _) => ModeArg::Key(crate::Secret::from(argument.text())),
+            ('k', _) => ModeArg::Key(crate::Secret::new(argument.text())),
             (_, ModeKind::Prefix(prefix)) => ModeArg::__member(names.nick(argument.text()), prefix),
             (_, ModeKind::List) => ModeArg::Mask(names.mask(argument.text())),
             _ => ModeArg::Value(argument.text().to_owned()),

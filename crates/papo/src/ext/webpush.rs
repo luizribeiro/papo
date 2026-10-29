@@ -135,7 +135,10 @@ mod tests {
                     .webpush()
                     .register(
                         "https://push.example.net/message/ErgoTest/alice",
-                        super::PushKeys::new("AQIDBAUGBwgJCgsMDQ4P_w", "-vv8_f7_"),
+                        super::PushKeys::new(
+                            "AQIDBAUGBwgJCgsMDQ4P_w",
+                            crate::Secret::new("-vv8_f7_"),
+                        ),
                     )
                     .await
             }
@@ -173,8 +176,10 @@ mod tests {
 
     #[test]
     fn push_keys_debug_redacts_the_authentication_secret() {
-        let keys =
-            super::PushKeys::new("AQIDBAUGBwgJCgsMDQ4P_w", "unique-webpush-auth-secret-4862");
+        let keys = super::PushKeys::new(
+            "AQIDBAUGBwgJCgsMDQ4P_w",
+            crate::Secret::new("unique-webpush-auth-secret-4862"),
+        );
         let output = format!("{keys:?}");
         assert!(output.contains("AQIDBAUGBwgJCgsMDQ4P_w"));
         assert!(output.contains("[REDACTED]"));

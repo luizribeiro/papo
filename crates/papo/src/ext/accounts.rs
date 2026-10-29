@@ -162,6 +162,10 @@ fn account_registration_result(
 mod tests {
     use crate::driver::test_support::*;
 
+    fn secret(value: &str) -> crate::Secret {
+        crate::Secret::new(value)
+    }
+
     #[tokio::test(flavor = "current_thread")]
     async fn registers_accounts_with_typed_results() {
         let settings = config().wanted_caps(["draft/account-registration", "labeled-response"]);
@@ -195,7 +199,7 @@ mod tests {
             async move {
                 client
                     .create_account(
-                        super::NewAccount::new("correct horse battery staple")
+                        super::NewAccount::new(secret("correct horse battery staple"))
                             .account("alice")
                             .email("alice@example.org"),
                     )
@@ -220,7 +224,7 @@ mod tests {
             let client = client.clone();
             async move {
                 let account = client.state().casemapping().account("alice");
-                client.verify_account(account, "392814").await
+                client.verify_account(account, secret("392814")).await
             }
         });
         client_line(&mut server, b"@label=1 VERIFY alice 392814\r\n").await;
@@ -237,7 +241,7 @@ mod tests {
             let client = client.clone();
             async move {
                 let account = client.state().casemapping().account("alice");
-                client.verify_account(account, "expired-code").await
+                client.verify_account(account, secret("expired-code")).await
             }
         });
         client_line(&mut server, b"@label=2 VERIFY alice expired-code\r\n").await;
@@ -255,7 +259,7 @@ mod tests {
             let client = client.clone();
             async move {
                 let account = client.state().casemapping().account("alice");
-                client.verify_account(account, "392814").await
+                client.verify_account(account, secret("392814")).await
             }
         });
         client_line(&mut server, b"@label=3 VERIFY alice 392814\r\n").await;
@@ -296,7 +300,9 @@ mod tests {
 
         assert!(matches!(
             client
-                .create_account(super::NewAccount::new("correct horse battery staple"))
+                .create_account(super::NewAccount::new(secret(
+                    "correct horse battery staple",
+                )))
                 .await,
             Err(Error::InvalidInput(
                 crate::InvalidInput::InsecureAuthentication

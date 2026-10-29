@@ -503,7 +503,7 @@ mod tests {
                     .nick("alice")
                     .username("alice")
                     .realname("Alice Example")
-                    .password("upstream password")
+                    .password(crate::Secret::new("upstream password"))
                     .await
             }
         });

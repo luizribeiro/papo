@@ -29,13 +29,13 @@ async fn arbitrary_extension_input_is_rejected_or_emits_valid_lines() {
             crate::Casemapping::default().nick(b),
         ]));
         probe!(client, a, b, c => client.create_account(
-            crate::NewAccount::new(c)
+            crate::NewAccount::new(crate::Secret::new(c))
                 .account(crate::Casemapping::default().account(a))
                 .email(b)
         ));
         probe!(client, a, b, _c => client.verify_account(
             crate::Casemapping::default().account(a),
-            b
+            crate::Secret::new(b)
         ));
         probe!(client, a, b, _c => client.metadata().get(a, [b]));
         probe!(client, a, _b, _c => client.metadata().list(a));
@@ -48,7 +48,7 @@ async fn arbitrary_extension_input_is_rejected_or_emits_valid_lines() {
         probe!(client, a, b, _c => client.metadata().unsubscribe([a, b]));
         probe!(client, a, _b, _c => client.metadata().sync(a));
         #[cfg(feature = "unstable")]
-        probe!(client, a, b, c => client.webpush().register(a, crate::PushKeys::new(b, c)));
+        probe!(client, a, b, c => client.webpush().register(a, crate::PushKeys::new(b, crate::Secret::new(c))));
         #[cfg(feature = "unstable")]
         probe!(client, a, _b, _c => client.webpush().unregister(a));
     }

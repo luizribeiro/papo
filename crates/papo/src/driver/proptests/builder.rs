@@ -69,17 +69,17 @@ async fn arbitrary_builder_setter_input_is_rejected_or_registers_validly() {
         ]));
         probe!(builder, a, _b, _c => builder.username(a));
         probe!(builder, a, _b, _c => builder.realname(a));
-        probe!(builder, a, _b, _c => builder.password(a));
+        probe!(builder, a, _b, _c => builder.password(crate::Secret::new(a)));
         probe!(builder, a, b, c => builder.webirc(
-            crate::WebIrc::new(a, c.clone(), "192.0.2.42".parse().unwrap())
+            crate::WebIrc::new(a, crate::Secret::new(c.clone()), "192.0.2.42".parse().unwrap())
                 .hostname(b)
                 .flag(c)
         ));
-        probe!(builder, a, b, c => builder.sasl(crate::Sasl::plain(a, b).device(c)));
+        probe!(builder, a, b, c => builder.sasl(crate::Sasl::plain(a, crate::Secret::new(b)).device(c)));
         #[cfg(feature = "unstable")]
         probe!(builder, a, _b, _c => builder.bouncer_network(crate::NetworkId::from(a)));
         probe!(builder, a, b, c => builder.create_account(
-            crate::NewAccount::new(c)
+            crate::NewAccount::new(crate::Secret::new(c))
                 .account(crate::Casemapping::default().account(a))
                 .email(b)
         ));
@@ -104,7 +104,7 @@ async fn arbitrary_builder_setter_input_is_rejected_or_registers_validly() {
         probe!(builder, a, _b, _c => builder.tls_server_name(a));
         probe!(builder, a, _b, _c => builder.bot(a.len() % 2 == 0));
         probe!(builder, a, b, _c => builder.autojoin([a, b]));
-        probe!(builder, a, b, _c => builder.autojoin_with_key(a, b));
+        probe!(builder, a, b, _c => builder.autojoin_with_key(a, crate::Secret::new(b)));
         probe!(builder, a, _b, _c => builder.history_on_reconnect(a.len() % 2 == 0));
     }
 }
