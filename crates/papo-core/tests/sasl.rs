@@ -24,8 +24,13 @@ fn secure_sasl(sasl: Sasl) -> Config {
 
 #[test]
 fn configures_mechanisms_policy_and_entropy() {
-    let config =
-        Config::default().sasl(Sasl::any("alice", "correct horse battery staple").device("phone"));
+    let config = Config::default().sasl(
+        Sasl::any(
+            "alice",
+            papo_core::Secret::new("correct horse battery staple"),
+        )
+        .device("phone"),
+    );
     assert!(config.sasl.is_some());
 
     let session = Session::with_entropy(config, Box::new(FixedEntropy));
@@ -35,8 +40,11 @@ fn configures_mechanisms_policy_and_entropy() {
 #[test]
 fn debug_output_redacts_server_and_sasl_passwords() {
     let config = Config::default()
-        .password("server-password-7391")
-        .sasl(Sasl::any("alice", "correct horse battery staple"));
+        .password(papo_core::Secret::new("server-password-7391"))
+        .sasl(Sasl::any(
+            "alice",
+            papo_core::Secret::new("correct horse battery staple"),
+        ));
 
     for debug in [format!("{config:?}"), format!("{:?}", Session::new(config))] {
         assert!(!debug.contains("server-password-7391"));
@@ -48,7 +56,11 @@ fn debug_output_redacts_server_and_sasl_passwords() {
 #[test]
 fn debug_output_redacts_queued_pass_and_plain_response() {
     let mut session = Session::new(
-        secure_sasl(Sasl::plain("alice", "plain-password-4821")).password("server-password-7391"),
+        secure_sasl(Sasl::plain(
+            "alice",
+            papo_core::Secret::new("plain-password-4821"),
+        ))
+        .password(papo_core::Secret::new("server-password-7391")),
     );
     session.handle_connected(std::time::Instant::now());
     queue_debug_marker(&mut session);
@@ -61,7 +73,9 @@ fn debug_output_redacts_queued_pass_and_plain_response() {
 
 #[test]
 fn oauth_bearer_sends_an_rfc_7628_response_and_redacts_its_token() {
-    let config = Config::default().sasl(Sasl::oauth_bearer("oauth-token-7391"));
+    let config = Config::default().sasl(Sasl::oauth_bearer(papo_core::Secret::new(
+        "oauth-token-7391",
+    )));
     for debug in [
         format!("{config:?}"),
         format!("{:?}", Session::new(config.clone())),
@@ -84,25 +98,27 @@ fn oauth_bearer_sends_an_rfc_7628_response_and_redacts_its_token() {
 
 #[test]
 fn debug_output_redacts_a_queued_oauth_bearer_response() {
-    Transcript::new(secure_sasl(Sasl::oauth_bearer("oauth-token-7391")))
-        .connect_default()
-        .server("CAP * LS :sasl=OAUTHBEARER")
-        .client("CAP REQ :sasl")
-        .server("CAP * ACK :sasl")
-        .client("AUTHENTICATE OAUTHBEARER")
-        .server("AUTHENTICATE +")
-        .update(queue_debug_marker)
-        .inspect(|session| assert_session_debug_redacts(session, "oauth-token-7391"))
-        .client("AUTHENTICATE biwsAWF1dGg9QmVhcmVyIG9hdXRoLXRva2VuLTczOTEBAQ==")
-        .client("PRIVMSG #papo :ordinary debug marker");
+    Transcript::new(secure_sasl(Sasl::oauth_bearer(papo_core::Secret::new(
+        "oauth-token-7391",
+    ))))
+    .connect_default()
+    .server("CAP * LS :sasl=OAUTHBEARER")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE OAUTHBEARER")
+    .server("AUTHENTICATE +")
+    .update(queue_debug_marker)
+    .inspect(|session| assert_session_debug_redacts(session, "oauth-token-7391"))
+    .client("AUTHENTICATE biwsAWF1dGg9QmVhcmVyIG9hdXRoLXRva2VuLTczOTEBAQ==")
+    .client("PRIVMSG #papo :ordinary debug marker");
 }
 
 #[test]
 fn external_accepts_an_authorization_identity() {
     assert_ne!(Sasl::external(), Sasl::external().authzid("alice"));
     assert_ne!(
-        Sasl::plain("alice", "hunter2"),
-        Sasl::plain("alice", "hunter2").authzid("admin")
+        Sasl::plain("alice", papo_core::Secret::new("hunter2")),
+        Sasl::plain("alice", papo_core::Secret::new("hunter2")).authzid("admin")
     );
 }
 
