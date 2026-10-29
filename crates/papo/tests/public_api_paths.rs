@@ -260,6 +260,8 @@ fn address_check_matches_types_not_names() {
 fn line_ref_reexport_is_nameable() {
     let line = papo::Line::notice("papo", "maintenance in ten minutes");
     let _: papo::LineRef<'_> = line.as_ref();
+    let _: &papo::Param = &line.params()[1];
+    let _: papo::WireLine = line.encode().unwrap();
 }
 
 #[test]

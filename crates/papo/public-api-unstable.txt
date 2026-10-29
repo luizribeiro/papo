@@ -37,6 +37,7 @@ pub use papo::NetworkId
 pub use papo::NetworkState
 pub use papo::Nick
 pub use papo::Origin
+pub use papo::Param
 pub use papo::PersistenceSetting
 pub use papo::PersistenceStatus
 pub use papo::Prefix
@@ -56,6 +57,7 @@ pub use papo::UnsupportedReason
 pub use papo::User
 pub use papo::Visibility
 pub use papo::WhoOnJoin
+pub use papo::WireLine
 pub use papo::strip_formatting
 pub mod papo::event
 pub use papo::event::BatchAbandonReason
@@ -3883,14 +3885,14 @@ pub struct papo::Line
 impl papo::Line
 pub fn papo::Line::as_ref(&self) -> papo::LineRef<'_>
 pub fn papo::Line::command(&self) -> &str
-pub fn papo::Line::encode(&self) -> core::result::Result<papo_proto::WireLine, papo::BuildError>
+pub fn papo::Line::encode(&self) -> core::result::Result<papo::WireLine, papo::BuildError>
 pub fn papo::Line::get(&self, usize) -> core::option::Option<&str>
 pub fn papo::Line::join(impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Line::new(impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Line::notice(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Line::numeric(&self) -> core::option::Option<u16>
-pub fn papo::Line::param(self, impl core::convert::Into<papo_proto::Param>) -> Self
-pub fn papo::Line::params(&self) -> &[papo_proto::Param]
+pub fn papo::Line::param(self, impl core::convert::Into<papo::Param>) -> Self
+pub fn papo::Line::params(&self) -> &[papo::Param]
 pub fn papo::Line::part(impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Line::part_with_reason(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Line::privmsg(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
@@ -3899,7 +3901,7 @@ pub fn papo::Line::tag(&self, &str) -> core::option::Option<&str>
 pub fn papo::Line::tagmsg(impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Line::tags(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = (&str, &str)>
 pub fn papo::Line::to_line(&self) -> core::result::Result<alloc::string::String, papo::BuildError>
-pub fn papo::Line::with_params(self, impl core::iter::traits::collect::IntoIterator<Item = impl core::convert::Into<papo_proto::Param>>) -> Self
+pub fn papo::Line::with_params(self, impl core::iter::traits::collect::IntoIterator<Item = impl core::convert::Into<papo::Param>>) -> Self
 pub fn papo::Line::with_source(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Line::with_tag(self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
 impl core::clone::Clone for papo::Line
@@ -4305,6 +4307,26 @@ impl core::marker::Unpin for papo::Origin
 impl core::marker::UnsafeUnpin for papo::Origin
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Origin
 impl core::panic::unwind_safe::UnwindSafe for papo::Origin
+pub struct papo::Param(_)
+impl core::clone::Clone for papo::Param
+pub fn papo::Param::clone(&self) -> Self
+impl core::cmp::Eq for papo::Param
+impl core::cmp::PartialEq for papo::Param
+pub fn papo::Param::eq(&self, &Self) -> bool
+impl core::cmp::PartialEq<&str> for papo::Param
+pub fn papo::Param::eq(&self, &&str) -> bool
+impl core::cmp::PartialEq<str> for papo::Param
+pub fn papo::Param::eq(&self, &str) -> bool
+impl core::convert::From<&papo::Secret> for papo::Param
+pub fn papo::Param::from(&papo::Secret) -> Self
+impl core::convert::From<papo::Secret> for papo::Param
+pub fn papo::Param::from(papo::Secret) -> Self
+impl core::fmt::Debug for papo::Param
+pub fn papo::Param::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo::Param
+pub fn papo::Param::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::Param
+impl core::ops::deref::Deref for papo::Param
 #[non_exhaustive] pub enum papo::PersistenceSetting
 pub papo::PersistenceSetting::Default
 pub papo::PersistenceSetting::Off
@@ -4854,6 +4876,22 @@ impl core::marker::Unpin for papo::WhoOnJoin
 impl core::marker::UnsafeUnpin for papo::WhoOnJoin
 impl core::panic::unwind_safe::RefUnwindSafe for papo::WhoOnJoin
 impl core::panic::unwind_safe::UnwindSafe for papo::WhoOnJoin
+pub struct papo::WireLine
+impl core::clone::Clone for papo::WireLine
+pub fn papo::WireLine::clone(&self) -> Self
+impl core::cmp::Eq for papo::WireLine
+impl core::cmp::PartialEq for papo::WireLine
+pub fn papo::WireLine::eq(&self, &Self) -> bool
+impl core::cmp::PartialEq<[u8]> for papo::WireLine
+pub fn papo::WireLine::eq(&self, &[u8]) -> bool
+impl core::convert::AsRef<[u8]> for papo::WireLine
+pub fn papo::WireLine::as_ref(&self) -> &[u8]
+impl core::fmt::Debug for papo::WireLine
+pub fn papo::WireLine::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo::WireLine
+pub fn papo::WireLine::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::WireLine
+impl core::ops::deref::Deref for papo::WireLine
 #[non_exhaustive] pub enum papo::event::BatchAbandonReason
 pub papo::event::BatchAbandonReason::ByteLimit
 pub papo::event::BatchAbandonReason::LineLimit
