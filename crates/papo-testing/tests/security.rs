@@ -451,7 +451,7 @@ async fn foreign_account_verification_never_reaches_either_wire() {
                     .name_rules()
                     .expect("server advertised CASEMAPPING")
                     .account("alice"),
-                "392814"
+                papo::Secret::new("392814")
             )
             .await
     ));
@@ -1094,7 +1094,7 @@ async fn start_scram(address: &str) -> (papo::Client, Events, Wire) {
         papo::Client::builder(address, "papo-wire")
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never())
-            .sasl(Sasl::any("alice", PASSWORD))
+            .sasl(Sasl::any("alice", papo::Secret::new(PASSWORD)))
             .allow_insecure_auth(true),
     );
     assert_eq!(wire.next_sent().await, "CAP LS 302");
@@ -1113,7 +1113,7 @@ async fn start_cap_negotiation() -> (papo::Client, Events, Wire) {
         papo::Client::builder("irc://offline.test", "papo-wire")
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never())
-            .sasl(Sasl::any("alice", PASSWORD))
+            .sasl(Sasl::any("alice", papo::Secret::new(PASSWORD)))
             .allow_insecure_auth(true),
     );
     assert_eq!(wire.next_sent().await, "CAP LS 302");
@@ -1264,7 +1264,7 @@ async fn scram_never_falls_back_to_plain_unsafely() {
 async fn server_password_waits_for_sts() {
     let (_client, _events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo-wire")
-            .password(PASSWORD)
+            .password(papo::Secret::new(PASSWORD))
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never()),
     );
@@ -1287,7 +1287,7 @@ async fn server_password_waits_for_sts() {
 async fn server_password_requires_sts_on_plaintext() {
     let (_client, mut events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo-wire")
-            .password(PASSWORD)
+            .password(papo::Secret::new(PASSWORD))
             .rate_limit(papo::RateLimit::unlimited())
             .reconnect(Reconnect::never()),
     );
@@ -1309,7 +1309,7 @@ async fn server_password_requires_sts_on_plaintext() {
 #[tokio::test]
 async fn plaintext_credentials_require_explicit_opt_in() {
     let result = papo::Client::builder("irc://offline.test", "papo-wire")
-        .sasl(Sasl::plain("alice", PASSWORD))
+        .sasl(Sasl::plain("alice", papo::Secret::new(PASSWORD)))
         .reconnect(Reconnect::never())
         .connect()
         .await;
@@ -1327,7 +1327,7 @@ async fn plaintext_credential_requests_never_reach_the_wire() {
         .await;
 
     for result in [
-        client.oper("admin", PASSWORD).await,
+        client.oper("admin", papo::Secret::new(PASSWORD)).await,
         client
             .verify_account(
                 client
@@ -1335,7 +1335,7 @@ async fn plaintext_credential_requests_never_reach_the_wire() {
                     .name_rules()
                     .expect("server advertised CASEMAPPING")
                     .account("alice"),
-                "39gvcdg4myvnmdcfhvd6exsv4n",
+                papo::Secret::new("39gvcdg4myvnmdcfhvd6exsv4n"),
             )
             .await
             .map(|_| ()),
