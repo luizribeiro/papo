@@ -277,9 +277,10 @@ async fn shared_test_deadline_rejects_a_stalled_future() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn sasl_connection_reports_each_protocol_phase() {
-    let settings = config()
-        .wanted_caps(["sasl"])
-        .sasl(Sasl::plain("alice", "correct horse battery staple"));
+    let settings = config().wanted_caps(["sasl"]).sasl(Sasl::plain(
+        "alice",
+        crate::Secret::new("correct horse battery staple"),
+    ));
     let (mut server, _client, mut events, driver) = scripted(settings);
     let task = tokio::spawn(driver);
 
@@ -1513,7 +1514,7 @@ async fn eof_reconnects_and_emits_reconnected() {
         async move {
             client
                 .join(test_channel("#papo"))
-                .key("persistent-channel-key")
+                .key(crate::Secret::new("persistent-channel-key"))
                 .await
         }
     });
@@ -1594,7 +1595,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
         bot: false,
         channels: vec![super::Autojoin::new(
             "#staff",
-            Some("private-channel-key".into()),
+            Some(crate::Secret::new("private-channel-key")),
         )],
         parted_while_disconnected: vec![test_channel("#Papo"), test_channel("#rust")],
         history_on_reconnect: true,
@@ -1725,7 +1726,7 @@ fn remembering_a_rejoin_replaces_only_the_same_channel() {
     let mut defaults = super::PostConnect {
         bot: false,
         channels: vec![
-            super::Autojoin::new("#Papo", Some("old-channel-key".into())),
+            super::Autojoin::new("#Papo", Some(crate::Secret::new("old-channel-key"))),
             super::Autojoin::new("#rust", None),
         ],
         parted_while_disconnected: Vec::new(),
@@ -1736,7 +1737,7 @@ fn remembering_a_rejoin_replaces_only_the_same_channel() {
     super::remember_rejoin(
         &session,
         &mut defaults,
-        super::Autojoin::new("#papo", Some("new-channel-key".into())),
+        super::Autojoin::new("#papo", Some(crate::Secret::new("new-channel-key"))),
     );
 
     assert_eq!(defaults.channels.len(), 2);
@@ -2550,7 +2551,7 @@ async fn channel_renames_change_the_rejoin_target_and_survive_a_part() {
         super::PostConnect {
             channels: vec![super::Autojoin::new(
                 "#staff",
-                Some("private-channel-key".into()),
+                Some(crate::Secret::new("private-channel-key")),
             )],
             ..super::PostConnect::default()
         },
@@ -3233,7 +3234,7 @@ async fn malformed_line_preserves_exact_bytes() {
 async fn sasl_nak_forwards_authentication_failure() {
     let settings = config()
         .wanted_caps(["sasl"])
-        .sasl(Sasl::plain("alice", "correct horse battery staple").optional());
+        .sasl(Sasl::plain("alice", crate::Secret::new("correct horse battery staple")).optional());
     let (mut server, _client, mut events, driver) = scripted(settings);
     let driver = tokio::spawn(driver);
     welcome_burst(&mut server).await;
@@ -3254,9 +3255,10 @@ async fn sasl_nak_forwards_authentication_failure() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn required_sasl_failure_rejects_connect_waiter() {
-    let settings = config()
-        .wanted_caps(["sasl"])
-        .sasl(Sasl::plain("alice", "correct horse battery staple"));
+    let settings = config().wanted_caps(["sasl"]).sasl(Sasl::plain(
+        "alice",
+        crate::Secret::new("correct horse battery staple"),
+    ));
     let (client_stream, mut server) = tokio::io::duplex(4096);
     let (registration, waiter) = tokio::sync::oneshot::channel();
     let (_client, _events, driver) = Driver::with_stream_and_connect(
@@ -3533,7 +3535,7 @@ async fn protocol_failure_after_welcome_retries_normally() {
 #[tokio::test(flavor = "current_thread")]
 async fn server_error_before_welcome_is_a_connection_failure() {
     let settings = config().webirc(papo_core::WebIrc {
-        password: papo_core::Secret::from("gateway-password"),
+        password: papo_core::Secret::new("gateway-password"),
         gateway: "papo-gateway".into(),
         client_ip: "192.0.2.42".parse().unwrap(),
         client_hostname: None,
@@ -3666,7 +3668,7 @@ async fn pre_welcome_server_refusals_retry_slowly_and_keep_their_text() {
 #[tokio::test(flavor = "current_thread")]
 async fn webirc_rejection_is_a_specific_connection_failure() {
     let settings = config().webirc(papo_core::WebIrc {
-        password: papo_core::Secret::from("gateway-password"),
+        password: papo_core::Secret::new("gateway-password"),
         gateway: "papo-gateway".into(),
         client_ip: "192.0.2.42".parse().unwrap(),
         client_hostname: None,
@@ -3827,7 +3829,10 @@ async fn nick_candidates_exhaustion_retries_at_the_refusal_minimum() {
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn unavailable_required_sasl_retries_at_the_refusal_minimum() {
-    let settings = config().sasl(Sasl::plain("alice", "correct horse battery staple"));
+    let settings = config().sasl(Sasl::plain(
+        "alice",
+        crate::Secret::new("correct horse battery staple"),
+    ));
     let (mut server, _client, mut events, driver, calls) = reconnectable_stream(
         settings,
         Reconnect::exponential().refused_delay(Duration::from_secs(47)),
@@ -3855,7 +3860,10 @@ async fn unavailable_required_sasl_retries_at_the_refusal_minimum() {
 async fn timed_out_required_sasl_retries_at_the_refusal_minimum() {
     let settings = config()
         .welcome_timeout(Duration::from_secs(90))
-        .sasl(Sasl::plain("alice", "correct horse battery staple"));
+        .sasl(Sasl::plain(
+            "alice",
+            crate::Secret::new("correct horse battery staple"),
+        ));
     let (mut server, _client, mut events, driver, calls) = reconnectable_stream(
         settings,
         Reconnect::exponential().refused_delay(Duration::from_secs(47)),
@@ -3887,9 +3895,10 @@ async fn timed_out_required_sasl_retries_at_the_refusal_minimum() {
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn required_sasl_failure_does_not_reconnect() {
-    let settings = config()
-        .wanted_caps(["sasl"])
-        .sasl(Sasl::plain("alice", "correct horse battery staple"));
+    let settings = config().wanted_caps(["sasl"]).sasl(Sasl::plain(
+        "alice",
+        crate::Secret::new("correct horse battery staple"),
+    ));
     let (client_stream, mut server) = tokio::io::duplex(4096);
     let stream = Arc::new(Mutex::new(Some(
         Box::new(client_stream) as super::BoxConnection
@@ -4029,7 +4038,7 @@ async fn verification_challenge_resolves_registration_before_welcome() {
         .create_account_on_connect(
             Some("alice"),
             Some("alice@example.org"),
-            "correct horse battery staple",
+            crate::Secret::new("correct horse battery staple"),
         );
     let (_client, mut events, driver) = Driver::with_stream_and_connect(
         client_stream,
@@ -4087,8 +4096,11 @@ async fn registration_sets_advertised_bot_mode_and_joins_each_channel() {
             bot: true,
             channels: vec![
                 "#papo".into(),
-                super::Autojoin::new("#PAPO", Some("replacement-channel-key".into())),
-                super::Autojoin::new("#papo-bots", Some("private-channel-key".into())),
+                super::Autojoin::new("#PAPO", Some(crate::Secret::new("replacement-channel-key"))),
+                super::Autojoin::new(
+                    "#papo-bots",
+                    Some(crate::Secret::new("private-channel-key")),
+                ),
             ],
             parted_while_disconnected: Vec::new(),
             history_on_reconnect: false,
@@ -4947,7 +4959,10 @@ async fn every_name_taking_method_returns_invalid_name() {
                 .get(bad, std::iter::empty::<crate::MetadataKey>())
                 .await
                 .map(drop),
-            Method::VerifyAccount => client.verify_account(bad, "392814").await.map(drop),
+            Method::VerifyAccount => client
+                .verify_account(bad, crate::Secret::new("392814"))
+                .await
+                .map(drop),
             Method::History => client.history(bad).latest().await.map(drop),
         };
         assert!(matches!(
@@ -6647,7 +6662,7 @@ async fn keyed_join_redacts_the_key_and_waits_for_channel_sync() {
     welcome_burst(&mut server).await;
     let join = client
         .join(test_channel("#ergo-ops"))
-        .key("unique-dynamic-channel-key-4862");
+        .key(crate::Secret::new("unique-dynamic-channel-key-4862"));
     let debug = format!("{join:?}");
     assert_eq!(debug, "JoinChannel { .. }");
     assert!(!debug.contains("unique-dynamic-channel-key-4862"));
@@ -6677,7 +6692,11 @@ async fn oper_and_ping_return_server_outcomes() {
 
     let oper = tokio::spawn({
         let client = client.clone();
-        async move { client.oper("papo", "unique-oper-password-4928").await }
+        async move {
+            client
+                .oper("papo", crate::Secret::new("unique-oper-password-4928"))
+                .await
+        }
     });
     client_line(&mut server, b"OPER papo unique-oper-password-4928\r\n").await;
     server_line(&mut server, b":ergo.test 464 * :Password incorrect\r\n").await;
@@ -9165,7 +9184,7 @@ async fn client_reads_owned_state_snapshots() {
 async fn public_state_accessors_report_the_registered_session() {
     let config = config()
         .wanted_caps(["extended-monitor"])
-        .sasl(Sasl::plain("alice", "hunter2"));
+        .sasl(Sasl::plain("alice", crate::Secret::new("hunter2")));
     let (mut server, client, mut events, driver) = scripted(config);
     let driver = tokio::spawn(driver);
     welcome_burst(&mut server).await;

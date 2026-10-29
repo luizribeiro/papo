@@ -14,7 +14,7 @@ async fn arbitrary_bouncer_and_history_input_is_rejected_or_valid() {
                     .nick(&third)
                     .username(second.clone())
                     .realname(third.clone())
-                    .password(first.clone()),
+                    .password(crate::Secret::new(first.clone())),
             )
         })
         .await;
@@ -27,7 +27,7 @@ async fn arbitrary_bouncer_and_history_input_is_rejected_or_valid() {
                     .nick(&third)
                     .username(second.clone())
                     .realname(third.clone())
-                    .password(first.clone()),
+                    .password(crate::Secret::new(first.clone())),
             )
         })
         .await;

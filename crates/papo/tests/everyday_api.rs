@@ -45,7 +45,7 @@ fn everyday_api_is_nameable_from_the_facade() {
     let builder: papo::Builder = papo::Client::builder("ircs://irc.example.net", "emily")
         .casemapping(papo::Casemapping::default())
         .autojoin(["#papo"])
-        .autojoin_with_key("#papo", "correct horse battery staple");
+        .autojoin_with_key("#papo", papo::Secret::new("correct horse battery staple"));
     let (client, mut events, driver): (papo::Client, papo::Events, papo::Driver) = builder.build();
 
     let state: std::sync::Arc<papo::State> = client.state();

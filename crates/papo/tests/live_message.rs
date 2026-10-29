@@ -256,7 +256,7 @@ async fn account_client(
 ) -> (Client, papo::Events) {
     let (client, mut events) = Client::builder(address, support::nick(account))
         .allow_insecure_auth(true)
-        .sasl(Sasl::plain(account, password))
+        .sasl(Sasl::plain(account, papo::Secret::new(password)))
         .autojoin([channel])
         .connect()
         .await

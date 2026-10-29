@@ -52,7 +52,7 @@ fn builder() -> papo::Builder {
 #[tokio::test]
 async fn sasl_requires_sasl() {
     assert_unavailable(
-        builder().sasl(Sasl::plain("alice", PASSWORD)),
+        builder().sasl(Sasl::plain("alice", papo::Secret::new(PASSWORD))),
         ConnectErrorKind::SaslUnavailable,
         "sasl",
     )
@@ -62,7 +62,7 @@ async fn sasl_requires_sasl() {
 #[tokio::test]
 async fn account_creation_requires_account_registration() {
     assert_unavailable(
-        builder().create_account(NewAccount::new(PASSWORD)),
+        builder().create_account(NewAccount::new(papo::Secret::new(PASSWORD))),
         ConnectErrorKind::CapabilityUnavailable,
         "draft/account-registration",
     )

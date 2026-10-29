@@ -2540,7 +2540,7 @@ pub(crate) fn typed_mode_change(
     origin: crate::Origin,
 ) -> ModeChange {
     let arg = arg.map(|arg| match (mode, kind) {
-        ('k', _) => ModeArg::Key(crate::Secret::from(arg)),
+        ('k', _) => ModeArg::Key(crate::Secret::new(arg)),
         (_, papo_proto::ModeKind::Prefix(prefix)) => {
             ModeArg::__member(origin.__nick(casemapping, arg), prefix)
         }

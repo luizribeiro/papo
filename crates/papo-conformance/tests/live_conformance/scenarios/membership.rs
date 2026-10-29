@@ -52,7 +52,10 @@ async fn netsplit_members_are_quits(s: Scenario) -> papo_testing::Result<()> {
         .await?;
 
     alice
-        .oper(papo_test_server::OPER_NAME, papo_test_server::OPER_PASSWORD)
+        .oper(
+            papo_test_server::OPER_NAME,
+            papo::Secret::new(papo_test_server::OPER_PASSWORD),
+        )
         .await?;
     alice
         .send_raw(papo::Line::new("SQUIT").with_params(["services.papo.test", "conformance test"]))
@@ -1534,6 +1537,7 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
     let bob_nick = bob.nick();
     let carol_nick = carol.nick();
     let key = "correct-horse-key";
+    let channel_key = || papo::Secret::new(key);
     alice.join(&channel).await?;
     bob.join(&channel).await?;
 
@@ -1565,14 +1569,18 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
     }
 
     assert_refusal(
-        carol.join(&channel).key("wrong key").await.unwrap_err(),
+        carol
+            .join(&channel)
+            .key(papo::Secret::new("wrong key"))
+            .await
+            .unwrap_err(),
         Refusal::BadChannelKey,
         "475",
     );
     alice.mode(&channel).add_with('l', "2").await?;
     wait_channel_mode(&mut bob, &channel, 'l').await?;
     assert_refusal(
-        carol.join(&channel).key(key).await.unwrap_err(),
+        carol.join(&channel).key(channel_key()).await.unwrap_err(),
         Refusal::ChannelIsFull,
         "471",
     );
@@ -1586,7 +1594,7 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
         .await?;
     wait_channel_mode(&mut bob, &channel, 'b').await?;
     assert_refusal(
-        carol.join(&channel).key(key).await.unwrap_err(),
+        carol.join(&channel).key(channel_key()).await.unwrap_err(),
         Refusal::BannedFromChannel,
         "474",
     );
@@ -1598,7 +1606,7 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
         .await?;
     wait_channel_mode(&mut bob, &channel, 'i').await?;
     assert_refusal(
-        carol.join(&channel).key(key).await.unwrap_err(),
+        carol.join(&channel).key(channel_key()).await.unwrap_err(),
         Refusal::InviteOnlyChannel,
         "473",
     );
@@ -1606,7 +1614,7 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
     let invited = carol.wait_for(Event::as_invited).await?;
     assert_eq!(invited.subject, carol_nick);
     assert_eq!(invited.channel.as_ref(), channel);
-    carol.join(&channel).key(key).await?;
+    carol.join(&channel).key(channel_key()).await?;
 
     alice.mode(&channel).add('m').await?;
     wait_channel_mode(&mut bob, &channel, 'm').await?;
