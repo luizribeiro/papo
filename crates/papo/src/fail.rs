@@ -1,14 +1,5 @@
 //! Standard-reply `FAIL` code constants.
 
-macro_rules! codes {
-    ($($name:ident),+ $(,)?) => {
-        $(
-            #[doc = concat!("The `", stringify!($name), "` failure code.")]
-            pub const $name: &str = stringify!($name);
-        )+
-    };
-}
-
 macro_rules! typed_codes {
     ($($name:ident),+ $(,)?) => {
         $(
@@ -71,7 +62,7 @@ typed_codes!(
 );
 
 #[cfg(feature = "unstable")]
-codes!(
+typed_codes!(
     INVALID_NETID,
     INVALID_ATTRIBUTE,
     READ_ONLY_ATTRIBUTE,
@@ -94,6 +85,9 @@ mod tests {
         let invalid_utf8: crate::ReplyCode = super::INVALID_UTF8;
         assert_eq!(invalid_utf8, "INVALID_UTF8");
         #[cfg(feature = "unstable")]
-        assert_eq!(super::MAX_REGISTRATIONS, "MAX_REGISTRATIONS");
+        {
+            let max_registrations: crate::ReplyCode = super::MAX_REGISTRATIONS;
+            assert_eq!(max_registrations, "MAX_REGISTRATIONS");
+        }
     }
 }
