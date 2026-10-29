@@ -1717,6 +1717,21 @@ async fn channel_keys_are_redacted_across_state_and_events() {
         papo::Event::Joined(_)
     ));
 
+    let marker = "request-key-marker-9274";
+    let request = client.mode("#staff").key(papo::Secret::new(marker));
+    assert!(!format!("{request:?}").contains(marker));
+    assert!(matches!(
+        client.mode("#staff").add_with('k', marker).await,
+        Err(papo::Error::InvalidInput(papo::InvalidInput::InvalidMode(
+            _
+        )))
+    ));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), wire.next_sent())
+            .await
+            .is_err()
+    );
+
     wire.server(":offline.test 324 papo-wire #staff +k snapshot-key-2026")
         .await;
     wire.server(":offline.test 777 papo-wire :snapshot applied")

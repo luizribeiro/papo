@@ -2799,12 +2799,14 @@ pub fn papo::SetModes::deop(self, impl papo::AsNick) -> Self
 pub fn papo::SetModes::devoice(self, impl papo::AsNick) -> Self
 pub fn papo::SetModes::halfop(self, &papo::DirectRef) -> Self
 pub fn papo::SetModes::invite_exception(self, impl core::convert::Into<papo::BanTarget>) -> Self
+pub fn papo::SetModes::key(self, papo::Secret) -> Self
 pub fn papo::SetModes::op(self, &papo::DirectRef) -> Self
 pub fn papo::SetModes::prefix(self, char, &papo::DirectRef) -> Self
 pub fn papo::SetModes::quiet(self, impl core::convert::Into<papo::BanTarget>) -> Self
 pub fn papo::SetModes::remove(self, char) -> Self
 pub fn papo::SetModes::remove_ban_exception(self, impl core::convert::Into<papo::BanTarget>) -> Self
 pub fn papo::SetModes::remove_invite_exception(self, impl core::convert::Into<papo::BanTarget>) -> Self
+pub fn papo::SetModes::remove_key(self, papo::Secret) -> Self
 pub fn papo::SetModes::remove_with(self, char, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::SetModes::unban(self, impl core::convert::Into<papo::BanTarget>) -> Self
 pub fn papo::SetModes::unquiet(self, impl core::convert::Into<papo::BanTarget>) -> Self

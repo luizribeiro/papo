@@ -6071,7 +6071,7 @@ async fn channel_key_mode_results_are_typed_and_redacted() {
     })
     .await;
 
-    let request = client.mode("#staff").add_with('k', "hunter2");
+    let request = client.mode("#staff").key(crate::Secret::new("hunter2"));
     assert!(!format!("{request:?}").contains("hunter2"));
     let modes = tokio::spawn(async move { request.await });
     client_line(&mut server, b"@label=0 MODE #staff +k hunter2\r\n").await;
@@ -6159,7 +6159,7 @@ async fn mode_changes_validate_every_chunk_before_sending() {
         client
             .mode("#papo")
             .add('m')
-            .add_with('k', "bad\r\nOPER")
+            .key(crate::Secret::new("bad\r\nOPER"))
             .await,
         Err(Error::InvalidInput(crate::InvalidInput::InvalidMode(_)))
     ));

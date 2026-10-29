@@ -188,23 +188,27 @@ impl SetModes {
     /// Adds a mode with its required argument.
     ///
     /// Prefix modes advertised by `PREFIX` require [`Self::prefix`] or a named privilege helper.
+    /// Channel key mode `k` requires [`Self::key`].
     pub fn add_with(self, mode: char, argument: impl Into<String>) -> Self {
-        self.change(
-            true,
-            Selector::Letter(mode),
-            Some(Argument::Raw(argument.into())),
-        )
+        self.raw_change(true, mode, argument.into())
     }
 
     /// Removes a mode with its required argument.
     ///
     /// Prefix modes advertised by `PREFIX` require a named privilege-removal helper.
+    /// Channel key mode `k` requires [`Self::remove_key`].
     pub fn remove_with(self, mode: char, argument: impl Into<String>) -> Self {
-        self.change(
-            false,
-            Selector::Letter(mode),
-            Some(Argument::Raw(argument.into())),
-        )
+        self.raw_change(false, mode, argument.into())
+    }
+
+    /// Sets the channel key without exposing it through debug output or errors.
+    pub fn key(self, key: crate::Secret) -> Self {
+        self.change(true, Selector::Letter('k'), Some(Argument::Secret(key)))
+    }
+
+    /// Removes the channel key without exposing it through debug output or errors.
+    pub fn remove_key(self, key: crate::Secret) -> Self {
+        self.change(false, Selector::Letter('k'), Some(Argument::Secret(key)))
     }
 
     /// Adds `target` to the channel ban list.
@@ -342,6 +346,18 @@ impl SetModes {
             Selector::Optional(feature),
             Some(Argument::Ban(target.into())),
         )
+    }
+
+    fn raw_change(mut self, set: bool, mode: char, argument: String) -> Self {
+        if mode == 'k' {
+            self.invalid_input.get_or_insert_with(|| {
+                InvalidInput::InvalidMode(
+                    "channel key mode requires SetModes::key or SetModes::remove_key".into(),
+                )
+            });
+            return self;
+        }
+        self.change(set, Selector::Letter(mode), Some(Argument::Raw(argument)))
     }
 
     fn change(mut self, set: bool, mode: Selector, arg: Option<Argument>) -> Self {
@@ -562,12 +578,9 @@ impl Change {
             }
             mode => mode,
         };
-        let arg = match (mode, self.arg) {
-            (Selector::Letter('k'), Some(Argument::Raw(value))) => {
-                Some(Argument::Secret(papo_core::Secret::new(value)))
-            }
-            (_, Some(Argument::Ban(target))) => Some(Argument::Mask(target.resolve(state)?)),
-            (_, other) => other,
+        let arg = match self.arg {
+            Some(Argument::Ban(target)) => Some(Argument::Mask(target.resolve(state)?)),
+            other => other,
         };
         Ok(Self { mode, arg, ..self })
     }
@@ -909,6 +922,34 @@ mod tests {
         ));
     }
 
+    #[tokio::test(flavor = "current_thread")]
+    async fn channel_keys_require_explicit_redacting_secrets() {
+        let marker = "unique-channel-key-4917";
+        let (client, _, _) = crate::Client::builder("ircs://irc.example.net", "papo-client")
+            .casemapping(crate::Casemapping::default())
+            .build();
+
+        for request in [
+            client.mode("#papo").key(crate::Secret::new(marker)),
+            client.mode("#papo").remove_key(crate::Secret::new(marker)),
+        ] {
+            let debug = format!("{request:?}");
+            assert_eq!(debug, "SetModes { .. }");
+            assert!(!debug.contains(marker));
+        }
+        for request in [
+            client.mode("#papo").add_with('k', marker),
+            client.mode("#papo").remove_with('k', marker),
+        ] {
+            assert!(matches!(
+                request.await,
+                Err(crate::Error::InvalidInput(
+                    crate::InvalidInput::InvalidMode(_)
+                ))
+            ));
+        }
+    }
+
     fn state(line: &str) -> crate::State {
         let mut session =
             Session::new(Config::default().casemapping(crate::Casemapping::default()));
@@ -1073,7 +1114,7 @@ mod tests {
         let change = Change {
             set: true,
             mode: Selector::Letter('k'),
-            arg: Some(Argument::Raw("mode-key-6294".into())),
+            arg: Some(Argument::Secret(crate::Secret::new("mode-key-6294"))),
         }
         .resolve(&state)
         .unwrap();

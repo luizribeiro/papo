@@ -136,6 +136,7 @@
 ]
 "security::channel_keys_are_redacted_across_state_and_events" = [
   "security.st-4.channel-key-redaction",
+  "security.api.explicit-channel-keys",
 ]
 "security::expired_labeled_history_is_not_delivered_twice" = [
   "regression.history.expired-label-deduplicated",
