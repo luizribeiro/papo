@@ -31,7 +31,6 @@ pub use papo::MetadataView
 pub use papo::ModeAction
 pub use papo::ModeArg
 pub use papo::ModeChange
-pub use papo::ModeListEntry
 pub use papo::ModeValue
 pub use papo::NetworkId
 pub use papo::NetworkState
@@ -2677,6 +2676,26 @@ impl core::marker::Unpin for papo::Metadata
 impl core::marker::UnsafeUnpin for papo::Metadata
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Metadata
 impl core::panic::unwind_safe::UnwindSafe for papo::Metadata
+#[non_exhaustive] pub struct papo::ModeListEntry
+pub papo::ModeListEntry::mask: papo::Mask
+pub papo::ModeListEntry::set_at: core::option::Option<std::time::SystemTime>
+impl papo::ModeListEntry
+pub const fn papo::ModeListEntry::actor(&self) -> core::option::Option<&papo::Source>
+impl core::clone::Clone for papo::ModeListEntry
+pub fn papo::ModeListEntry::clone(&self) -> Self
+impl core::cmp::Eq for papo::ModeListEntry
+impl core::cmp::PartialEq for papo::ModeListEntry
+pub fn papo::ModeListEntry::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::ModeListEntry
+pub fn papo::ModeListEntry::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::ModeListEntry
+impl core::marker::Freeze for papo::ModeListEntry
+impl core::marker::Send for papo::ModeListEntry
+impl core::marker::Sync for papo::ModeListEntry
+impl core::marker::Unpin for papo::ModeListEntry
+impl core::marker::UnsafeUnpin for papo::ModeListEntry
+impl core::panic::unwind_safe::RefUnwindSafe for papo::ModeListEntry
+impl core::panic::unwind_safe::UnwindSafe for papo::ModeListEntry
 #[non_exhaustive] pub struct papo::ModesApplied
 pub papo::ModesApplied::applied: alloc::vec::Vec<papo::ModeChange>
 pub papo::ModesApplied::refused: alloc::vec::Vec<(papo::ModeChange, papo::Refusal)>
@@ -4137,26 +4156,6 @@ impl core::marker::Unpin for papo::ModeChange
 impl core::marker::UnsafeUnpin for papo::ModeChange
 impl core::panic::unwind_safe::RefUnwindSafe for papo::ModeChange
 impl core::panic::unwind_safe::UnwindSafe for papo::ModeChange
-#[non_exhaustive] pub struct papo::ModeListEntry
-pub papo::ModeListEntry::mask: papo::Mask
-pub papo::ModeListEntry::set_at: core::option::Option<std::time::SystemTime>
-impl papo::ModeListEntry
-pub const fn papo::ModeListEntry::actor(&self) -> core::option::Option<&papo_core::Source>
-impl core::clone::Clone for papo::ModeListEntry
-pub fn papo::ModeListEntry::clone(&self) -> Self
-impl core::cmp::Eq for papo::ModeListEntry
-impl core::cmp::PartialEq for papo::ModeListEntry
-pub fn papo::ModeListEntry::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::ModeListEntry
-pub fn papo::ModeListEntry::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::ModeListEntry
-impl core::marker::Freeze for papo::ModeListEntry
-impl core::marker::Send for papo::ModeListEntry
-impl core::marker::Sync for papo::ModeListEntry
-impl core::marker::Unpin for papo::ModeListEntry
-impl core::marker::UnsafeUnpin for papo::ModeListEntry
-impl core::panic::unwind_safe::RefUnwindSafe for papo::ModeListEntry
-impl core::panic::unwind_safe::UnwindSafe for papo::ModeListEntry
 pub enum papo::ModeValue<'a>
 pub papo::ModeValue::Set
 pub papo::ModeValue::Value(&'a str)

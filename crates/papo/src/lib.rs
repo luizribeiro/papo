@@ -358,7 +358,7 @@ pub use papo_core::{
 #[doc(inline)]
 pub use papo_core::{CtcpReplies, InvalidRateLimit, RateLimit, Sasl, WhoOnJoin};
 #[doc(inline)]
-pub use papo_core::{ListMode, ModeListEntry, Refusal, StateLimit};
+pub use papo_core::{ListMode, Refusal, StateLimit};
 pub use papo_core::{MetadataValue, Visibility};
 #[doc(inline)]
 pub use papo_core::{Unsupported, UnsupportedReason};
@@ -372,7 +372,7 @@ pub use papo_proto::{
 };
 pub use reconnect::Reconnect;
 pub use requests::{ListEntry, ListRequest, WhoEntry, Whois, WhoisChannel};
-pub use state::{Channel, ReadMarker, State};
+pub use state::{Channel, ModeListEntry, ReadMarker, State};
 pub use target::{AsConversation, AsMask, AsNick, Target};
 #[doc(inline)]
 pub use transport::{CertificateChain, PrivateKey};

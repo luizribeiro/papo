@@ -537,6 +537,7 @@ impl Client {
             }
             response
                 .mode_list
+                .map(|entries| crate::state::mode_list_from_core(&entries, state.nick().origin()))
                 .ok_or_else(|| Error::unexpected_reply("MODE"))
         })
     }

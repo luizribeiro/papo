@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use papo_core::{Account, Away, Capabilities, Feature, Session, UnsupportedReason, User};
@@ -16,6 +16,46 @@ pub enum ReadMarker {
     ReadUntil(std::time::SystemTime),
 }
 
+/// One entry reported for a channel list mode.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct ModeListEntry {
+    /// Mask stored by the server.
+    pub mask: Mask,
+    actor: Option<crate::Source>,
+    /// Time at which the entry was set, when reported and valid.
+    pub set_at: Option<std::time::SystemTime>,
+}
+
+impl ModeListEntry {
+    fn from_core(entry: &papo_core::ModeListEntry, origin: crate::Origin) -> Self {
+        Self {
+            mask: entry.mask.clone(),
+            actor: entry
+                .actor()
+                .cloned()
+                .and_then(|actor| crate::event_impl::source::from_core(actor, origin)),
+            set_at: entry.set_at,
+        }
+    }
+
+    /// Returns the actor that set the entry, when reported.
+    #[must_use]
+    pub const fn actor(&self) -> Option<&crate::Source> {
+        self.actor.as_ref()
+    }
+}
+
+pub(crate) fn mode_list_from_core(
+    entries: &[papo_core::ModeListEntry],
+    origin: crate::Origin,
+) -> Vec<ModeListEntry> {
+    entries
+        .iter()
+        .map(|entry| ModeListEntry::from_core(entry, origin))
+        .collect()
+}
+
 /// State known about a joined channel.
 ///
 /// A channel is a conversation without a status prefix. See [`crate::Conversation`] for the
@@ -24,6 +64,7 @@ pub enum ReadMarker {
 pub struct Channel {
     inner: papo_core::Channel,
     topic_set_by: Option<crate::Source>,
+    lists: HashMap<crate::ListMode, Vec<ModeListEntry>>,
 }
 
 impl Channel {
@@ -32,9 +73,19 @@ impl Channel {
             .topic_set_by()
             .cloned()
             .and_then(|source| crate::event_impl::source::from_core(source, origin));
+        let lists = [
+            crate::ListMode::Ban,
+            crate::ListMode::Except,
+            crate::ListMode::Invex,
+            crate::ListMode::Quiet,
+        ]
+        .into_iter()
+        .filter_map(|mode| Some((mode, mode_list_from_core(inner.list(mode)?, origin))))
+        .collect();
         Self {
             inner,
             topic_set_by,
+            lists,
         }
     }
 
@@ -81,8 +132,8 @@ impl Channel {
 
     /// Returns a fetched list mode, or `None` while its contents are unknown.
     #[must_use]
-    pub fn list(&self, mode: crate::ListMode) -> Option<&[crate::ModeListEntry]> {
-        self.inner.list(mode)
+    pub fn list(&self, mode: crate::ListMode) -> Option<&[ModeListEntry]> {
+        self.lists.get(&mode).map(Vec::as_slice)
     }
 
     /// Returns the channel creation time.
