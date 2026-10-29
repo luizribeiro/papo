@@ -52,13 +52,13 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
         assert_eq!(
             messages
                 .iter()
-                .map(|message| message.msgid.as_deref())
+                .map(|message| message.msgid().map(AsRef::as_ref))
                 .collect::<Vec<_>>(),
             sent.iter()
                 .map(|message| Some(confirmed_line(message).0.as_ref()))
                 .collect::<Vec<_>>()
         );
-        assert!(messages.iter().all(|message| message.msgid.is_some()));
+        assert!(messages.iter().all(|message| message.msgid().is_some()));
 
         let (third, _, newest) = confirmed_line(&sent[2]);
         let before = client
@@ -89,7 +89,7 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
 fn confirmed_line(sent: &papo::Sent) -> (&papo::MessageId, &str, Option<std::time::SystemTime>) {
     let papo::SentOutcome::Confirmed {
         lines, server_time, ..
-    } = &sent.outcome
+    } = sent.outcome()
     else {
         panic!("Ergo should confirm history seed messages")
     };

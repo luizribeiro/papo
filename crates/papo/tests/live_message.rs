@@ -41,10 +41,10 @@ async fn reply_between_two_clients_carries_the_original_msgid() {
         })
         .await;
         assert!(!matches!(
-            incoming.conversation,
+            incoming.conversation(),
             papo::Conversation::Private(_)
         ));
-        let ping_msgid = (*incoming.msgid.as_ref().expect("Ergo supplies msgid")).clone();
+        let ping_msgid = incoming.msgid().expect("Ergo supplies msgid").clone();
         client_b.reply(&incoming, "pong").await.unwrap();
 
         let response = wait_message(&mut events_a, |message| {
@@ -107,16 +107,16 @@ async fn reactions_reach_another_client_with_reply_context() {
         client_a.privmsg(&channel, "excellent news").await.unwrap();
         let incoming =
             wait_message(&mut events_b, |message| message.text == "excellent news").await;
-        let id = incoming.msgid.as_ref().unwrap();
+        let id = incoming.msgid().unwrap();
         client_b.react(&incoming, "🎉").await.unwrap();
         let reaction = wait_reaction(&mut events_a).await;
         assert_eq!(
-            reaction.conversation,
-            incoming.conversation.to_string().as_str()
+            reaction.conversation(),
+            incoming.conversation().to_string().as_str()
         );
-        assert_ne!(reaction.conversation, incoming.conversation);
+        assert_ne!(reaction.conversation(), incoming.conversation());
         assert_eq!(reaction.origin(), client_a.origin());
-        assert_eq!(reaction.status, incoming.status);
+        assert_eq!(reaction.status(), incoming.status());
         assert_eq!(&reaction.reacts_to, id);
 
         client_b.quit("reaction test complete").await.unwrap();
@@ -182,7 +182,7 @@ async fn multiline_capability_preserves_plain_and_batched_message_ids() {
             .unwrap();
         let papo::SentOutcome::Confirmed {
             lines, server_time, ..
-        } = plain.outcome
+        } = plain.outcome()
         else {
             panic!("plain echo should confirm the message")
         };
@@ -195,7 +195,7 @@ async fn multiline_capability_preserves_plain_and_batched_message_ids() {
             message.raw_text == "plain message with multiline enabled"
         })
         .await;
-        assert_eq!(incoming.msgid.as_ref(), Some(plain_id));
+        assert_eq!(incoming.msgid(), Some(plain_id));
 
         let multiline = client_a
             .privmsg(&channel, "first deployment line\nsecond deployment line")
@@ -203,7 +203,7 @@ async fn multiline_capability_preserves_plain_and_batched_message_ids() {
             .unwrap();
         let papo::SentOutcome::Confirmed {
             lines, server_time, ..
-        } = multiline.outcome
+        } = multiline.outcome()
         else {
             panic!("multiline echo should confirm the message")
         };
@@ -219,7 +219,7 @@ async fn multiline_capability_preserves_plain_and_batched_message_ids() {
             message.raw_text == "first deployment line\nsecond deployment line"
         })
         .await;
-        assert_eq!(incoming.msgid.as_ref(), Some(multiline_id));
+        assert_eq!(incoming.msgid(), Some(multiline_id));
 
         client_b
             .privmsg(&channel, "reply through the multiline id")

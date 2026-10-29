@@ -52,8 +52,8 @@ async fn registers_messages_itself_and_quits() {
             papo::Conversation::Private(ref other) if other == nick.as_str()
         ));
         assert!(matches!(
-            sent.outcome,
-            papo::SentOutcome::Confirmed { ref lines, .. }
+            sent.outcome(),
+            papo::SentOutcome::Confirmed { lines, .. }
                 if matches!(lines.as_slice(), [(_, text)] if text == "hello from papo's live client")
         ));
 
