@@ -40,6 +40,10 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
         ConversationClass::Event,
     ),
     (
+        "pub const fn papo::event::Reacted::conversation(&self) -> &papo::Conversation",
+        ConversationClass::Event,
+    ),
+    (
         "pub papo::event::ReadMarkerChanged::conversation: papo::Conversation",
         ConversationClass::Event,
     ),
@@ -48,7 +52,15 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
         ConversationClass::Event,
     ),
     (
+        "pub const fn papo::event::Redacted::conversation(&self) -> &papo::Conversation",
+        ConversationClass::Event,
+    ),
+    (
         "pub papo::event::TagMsg::conversation: papo::Conversation",
+        ConversationClass::Event,
+    ),
+    (
+        "pub const fn papo::event::TagMsg::conversation(&self) -> &papo::Conversation",
         ConversationClass::Event,
     ),
     (
@@ -65,6 +77,10 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
     ),
     (
         "pub papo::Message::conversation: papo::Conversation",
+        ConversationClass::Event,
+    ),
+    (
+        "pub const fn papo::Message::conversation(&self) -> &papo::Conversation",
         ConversationClass::Event,
     ),
     (

@@ -633,6 +633,30 @@ fn with_channel_guard(mut event: Event, channel: Option<papo_core::ChannelGuard>
 }
 
 impl Message {
+    /// Returns the conversation captured from the received line.
+    #[must_use]
+    pub const fn conversation(&self) -> &Conversation {
+        &self.conversation
+    }
+
+    /// Returns the lowest-ranked status prefix on the wire audience.
+    #[must_use]
+    pub const fn status(&self) -> Option<Prefix> {
+        self.status
+    }
+
+    /// Returns the server-assigned message identifier, when supplied.
+    #[must_use]
+    pub const fn msgid(&self) -> Option<&MessageId> {
+        self.msgid.as_ref()
+    }
+
+    /// Returns the channel whose shared membership was verified at receipt.
+    #[must_use]
+    pub const fn channel_context(&self) -> Option<&ChannelName> {
+        self.channel_context.as_ref()
+    }
+
     /// Which `Client` produced this value (not the sender or the server).
     #[must_use]
     pub fn origin(&self) -> crate::Origin {

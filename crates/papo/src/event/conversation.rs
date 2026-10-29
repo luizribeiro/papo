@@ -207,6 +207,34 @@ pub struct TagMsg {
     pub tags: Tags,
 }
 
+macro_rules! reference_accessors {
+    ($($ty:ty),+ $(,)?) => {
+        $(
+            impl $ty {
+                /// Returns the conversation captured from the received line.
+                #[must_use]
+                pub const fn conversation(&self) -> &Conversation {
+                    &self.conversation
+                }
+
+                /// Returns the lowest-ranked status prefix on the wire audience.
+                #[must_use]
+                pub const fn status(&self) -> Option<Prefix> {
+                    self.status
+                }
+
+                /// Returns the server-assigned message identifier, when supplied.
+                #[must_use]
+                pub const fn msgid(&self) -> Option<&MessageId> {
+                    self.msgid.as_ref()
+                }
+            }
+        )+
+    };
+}
+
+reference_accessors!(Reacted, Redacted, TagMsg);
+
 impl Reacted {
     /// Returns the address that reaches the recipients of this line.
     ///
