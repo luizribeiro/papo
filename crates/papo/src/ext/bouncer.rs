@@ -196,12 +196,12 @@ impl IntoFuture for ChangeNetwork {
 /// define how to resolve multiple matches.
 ///
 /// ```no_run
-/// use papo::{Client, Feature, Sasl};
+/// use papo::{Client, Feature, Sasl, Secret};
 ///
 /// # async fn run() -> Result<(), Box<dyn std::error::Error>> {
 /// let password = "correct horse battery staple";
 /// let (control, _control_events) = Client::builder("ircs://bouncer.example.net", "alice")
-///     .sasl(Sasl::plain("alice", password))
+///     .sasl(Sasl::plain("alice", Secret::new(password)))
 ///     .enable(Feature::Bouncer)
 ///     .connect()
 ///     .await?;
@@ -220,14 +220,14 @@ impl IntoFuture for ChangeNetwork {
 /// let (_phone, _phone_events) = control
 ///     .bouncer()
 ///     .network(&network.id)
-///     .sasl(Sasl::plain("alice", password).device("phone"))
+///     .sasl(Sasl::plain("alice", Secret::new(password)).device("phone"))
 ///     .autojoin(["#papo"])
 ///     .connect()
 ///     .await?;
 /// let (_laptop, _laptop_events) = control
 ///     .bouncer()
 ///     .network(&network.id)
-///     .sasl(Sasl::plain("alice", password).device("laptop"))
+///     .sasl(Sasl::plain("alice", Secret::new(password)).device("laptop"))
 ///     .autojoin(["#papo"])
 ///     .connect()
 ///     .await?;
