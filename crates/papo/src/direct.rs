@@ -488,7 +488,8 @@ mod tests {
         else {
             panic!("expected MONITOR acquisition")
         };
-        result.send(Ok(recipient.clone())).unwrap();
+        let acquired = session.__direct_acquire("alice", None, None, account.clone());
+        result.send(Ok(acquired)).unwrap();
         let crate::driver::Command::Request {
             message, result, ..
         } = next_command(&mut commands).await
@@ -501,7 +502,8 @@ mod tests {
                 ":ergo.test 354 papo alice alice-account",
             ])))
             .unwrap();
-        let crate::driver::Command::DirectRefresh {
+        let crate::driver::Command::DirectProve {
+            recipient: proof,
             account: refreshed,
             result,
             ..
@@ -510,6 +512,7 @@ mod tests {
             panic!("expected verified recipient refresh")
         };
         assert_eq!(refreshed, account);
+        assert_eq!(proof.__account(), &Account::Unknown);
         result.send(Ok(recipient)).unwrap();
         assert!(matches!(
             next_command(&mut commands).await,

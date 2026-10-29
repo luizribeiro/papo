@@ -444,53 +444,19 @@ impl Client {
                 papo_core::RecipientStatus::Unknown => {
                     let expected = guard.__account().clone();
                     crate::direct_runtime::require_monitor_slot(&self.state(), &text)?;
-                    let acquired = crate::direct_runtime::command(
-                        self,
-                        text.clone(),
-                        Some(expected.clone()),
-                        true,
-                    )
-                    .await?;
-                    let response = match self
-                        .correlated(
-                            Line::new("WHO").with_params([text.clone(), "%na".to_owned()]),
-                            Some(ResponseMatcher::Who(text.clone())),
-                        )
-                        .await
-                    {
-                        Ok(response) => response,
-                        Err(error) => {
-                            crate::direct_runtime::release(self, acquired).await;
-                            return Err(error);
-                        }
-                    };
-                    let actual = match crate::direct_runtime::who_account(self, &text, &response) {
-                        Ok(account) => account,
-                        Err(error) => {
-                            crate::direct_runtime::release(self, acquired).await;
-                            return Err(error);
-                        }
-                    };
+                    let acquired = crate::direct_runtime::acquire(self, text.clone()).await?;
+                    let (refreshed, actual) =
+                        crate::direct_runtime::prove(self, text.clone(), acquired).await?;
                     if !matches!(
                         (&expected, &actual),
                         (crate::Account::LoggedIn(left), crate::Account::LoggedIn(right))
                             if left == right
                     ) {
-                        crate::direct_runtime::release(self, acquired).await;
+                        crate::direct_runtime::release(self, refreshed).await;
                         return Err(Error::TargetGone);
                     }
-                    match crate::direct_runtime::command(self, text.clone(), Some(actual), false)
-                        .await
-                    {
-                        Ok(refreshed) => {
-                            lease = Some(crate::direct::lease(self, acquired));
-                            recipient = Some(refreshed);
-                        }
-                        Err(error) => {
-                            crate::direct_runtime::release(self, acquired).await;
-                            return Err(error);
-                        }
-                    }
+                    lease = Some(crate::direct::lease(self, refreshed.clone()));
+                    recipient = Some(refreshed);
                 }
             }
         }
