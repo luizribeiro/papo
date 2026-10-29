@@ -83,6 +83,7 @@
 ]
 "security::plaintext_credential_requests_never_reach_the_wire" = [
   "security.adv-2.post-connect-credentials",
+  "security.api.explicit-secrets",
 ]
 "security::raw_mode_response_redacts_the_channel_key" = [
   "security.adv-4.channel-key-responses",

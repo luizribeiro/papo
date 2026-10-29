@@ -1555,18 +1555,8 @@ pub fn papo_proto::Secret::clone(&self) -> Self
 impl core::cmp::Eq for papo_proto::Secret
 impl core::cmp::PartialEq for papo_proto::Secret
 pub fn papo_proto::Secret::eq(&self, &Self) -> bool
-impl core::convert::From<&alloc::string::String> for papo_proto::Secret
-pub fn papo_proto::Secret::from(&alloc::string::String) -> Self
 impl core::convert::From<&papo_proto::Secret> for papo_proto::Param
 pub fn papo_proto::Param::from(&papo_proto::Secret) -> Self
-impl core::convert::From<&str> for papo_proto::Secret
-pub fn papo_proto::Secret::from(&str) -> Self
-impl core::convert::From<alloc::borrow::Cow<'_, str>> for papo_proto::Secret
-pub fn papo_proto::Secret::from(alloc::borrow::Cow<'_, str>) -> Self
-impl core::convert::From<alloc::boxed::Box<str>> for papo_proto::Secret
-pub fn papo_proto::Secret::from(alloc::boxed::Box<str>) -> Self
-impl core::convert::From<alloc::string::String> for papo_proto::Secret
-pub fn papo_proto::Secret::from(alloc::string::String) -> Self
 impl core::convert::From<papo_proto::Secret> for papo_proto::Param
 pub fn papo_proto::Param::from(papo_proto::Secret) -> Self
 impl core::fmt::Debug for papo_proto::Secret

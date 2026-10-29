@@ -43,12 +43,18 @@ pub(crate) enum Mechanism {
 
 impl Sasl {
     /// Uses the SASL PLAIN mechanism.
+    ///
+    /// ```compile_fail
+    /// # use papo_core::{Sasl, Secret};
+    /// let password = Secret::new("correct horse battery staple");
+    /// let _ = Sasl::plain(password, "alice");
+    /// ```
     #[must_use]
-    pub fn plain(username: impl Into<String>, password: impl Into<Secret>) -> Self {
+    pub fn plain(username: impl Into<String>, password: Secret) -> Self {
         Self {
             mechanisms: vec![Mechanism::Plain {
                 username: username.into(),
-                password: password.into(),
+                password,
                 authzid: None,
             }],
             required: true,
@@ -58,11 +64,9 @@ impl Sasl {
 
     /// Uses the RFC 7628 SASL OAUTHBEARER mechanism.
     #[must_use]
-    pub fn oauth_bearer(token: impl Into<Secret>) -> Self {
+    pub fn oauth_bearer(token: Secret) -> Self {
         Self {
-            mechanisms: vec![Mechanism::OAuthBearer {
-                token: token.into(),
-            }],
+            mechanisms: vec![Mechanism::OAuthBearer { token }],
             required: true,
             device: None,
         }
@@ -109,11 +113,11 @@ impl Sasl {
 
     /// Uses the SASL SCRAM-SHA-256 mechanism.
     #[must_use]
-    pub fn scram_sha256(username: impl Into<String>, password: impl Into<Secret>) -> Self {
+    pub fn scram_sha256(username: impl Into<String>, password: Secret) -> Self {
         Self {
             mechanisms: vec![Mechanism::ScramSha256 {
                 username: username.into(),
-                password: password.into(),
+                password,
             }],
             required: true,
             device: None,
@@ -125,9 +129,8 @@ impl Sasl {
     /// PLAIN fallback is allowed only on a secure connection and before the
     /// client answers any SCRAM challenge. Otherwise the SASL attempt fails.
     #[must_use]
-    pub fn any(username: impl Into<String>, password: impl Into<Secret>) -> Self {
+    pub fn any(username: impl Into<String>, password: Secret) -> Self {
         let username = username.into();
-        let password = password.into();
         Self {
             mechanisms: vec![
                 Mechanism::ScramSha256 {
@@ -149,7 +152,7 @@ impl Sasl {
     ///
     /// ```
     /// # use papo_core as papo;
-    /// let sasl = papo::Sasl::any("alice", "secret").optional();
+    /// let sasl = papo::Sasl::any("alice", papo::Secret::new("secret")).optional();
     /// # _ = sasl;
     /// ```
     #[must_use]

@@ -4082,14 +4082,14 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::Refusal
 impl core::panic::unwind_safe::UnwindSafe for papo::Refusal
 pub struct papo::Sasl
 impl papo::Sasl
-pub fn papo::Sasl::any(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo::Secret>) -> Self
+pub fn papo::Sasl::any(impl core::convert::Into<alloc::string::String>, papo::Secret) -> Self
 pub fn papo::Sasl::authzid(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Sasl::device(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Sasl::external() -> Self
-pub fn papo::Sasl::oauth_bearer(impl core::convert::Into<papo::Secret>) -> Self
+pub fn papo::Sasl::oauth_bearer(papo::Secret) -> Self
 pub const fn papo::Sasl::optional(self) -> Self
-pub fn papo::Sasl::plain(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo::Secret>) -> Self
-pub fn papo::Sasl::scram_sha256(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo::Secret>) -> Self
+pub fn papo::Sasl::plain(impl core::convert::Into<alloc::string::String>, papo::Secret) -> Self
+pub fn papo::Sasl::scram_sha256(impl core::convert::Into<alloc::string::String>, papo::Secret) -> Self
 impl core::clone::Clone for papo::Sasl
 pub fn papo::Sasl::clone(&self) -> Self
 impl core::cmp::Eq for papo::Sasl
@@ -4114,16 +4114,6 @@ pub fn papo::Secret::clone(&self) -> Self
 impl core::cmp::Eq for papo::Secret
 impl core::cmp::PartialEq for papo::Secret
 pub fn papo::Secret::eq(&self, &Self) -> bool
-impl core::convert::From<&alloc::string::String> for papo::Secret
-pub fn papo::Secret::from(&alloc::string::String) -> Self
-impl core::convert::From<&str> for papo::Secret
-pub fn papo::Secret::from(&str) -> Self
-impl core::convert::From<alloc::borrow::Cow<'_, str>> for papo::Secret
-pub fn papo::Secret::from(alloc::borrow::Cow<'_, str>) -> Self
-impl core::convert::From<alloc::boxed::Box<str>> for papo::Secret
-pub fn papo::Secret::from(alloc::boxed::Box<str>) -> Self
-impl core::convert::From<alloc::string::String> for papo::Secret
-pub fn papo::Secret::from(alloc::string::String) -> Self
 impl core::fmt::Debug for papo::Secret
 pub fn papo::Secret::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::Secret

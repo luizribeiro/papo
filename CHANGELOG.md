@@ -53,6 +53,7 @@ let builder = Client::builder("ircs://irc.example.net", "alice")
 | Empty `away_on_connect("")` silently meant no away | Empty initial away text is `Error::InvalidInput`; omit the setting to stay present |
 | `Builder::stream(stream)` inferred security from the URL | `stream` is explicitly plaintext; use `stream_with_security(stream, StreamSecurity::Encrypted)` for an encrypted custom transport |
 | TLS certificate private key accepted as `Secret` | `tls_client_cert(certificate_pem, private_key_pem)` keeps byte-oriented key material private |
+| Text converted implicitly into `Secret` | Wrap credentials explicitly with `Secret::new(...)`; identifier/secret swaps now fail to compile |
 | `Secret` accepted bytes and `expose()` returned `Option<&str>` | `Secret` is text-only and `expose()` returns `&str`; arbitrary TLS bytes no longer pass through it |
 | Public-field `WebIrc` literal | `WebIrc::new(gateway, password, ip).hostname(...).flag(...)` |
 | `sts_store` required an owned, mutable store | `StsStore` methods take `&self`, the value must be `Send + Sync`, and `Arc<T>` can share one store across clients and application persistence |
