@@ -2,7 +2,7 @@
 
 use std::{env, error::Error, time::UNIX_EPOCH};
 
-use papo::{Client, Event, Sasl};
+use papo::{Client, Event, Sasl, Secret};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -11,7 +11,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let password = env::var("IRC_PASSWORD")?;
     let channel = env::var("IRC_CHANNEL").unwrap_or_else(|_| "#papo".into());
     let mut builder = Client::builder(url, &nick)
-        .sasl(Sasl::plain(&nick, password))
+        .sasl(Sasl::plain(&nick, Secret::new(password)))
         .autojoin([&channel]);
     if env::var_os("IRC_ALLOW_INSECURE_AUTH").is_some() {
         builder = builder.allow_insecure_auth(true);

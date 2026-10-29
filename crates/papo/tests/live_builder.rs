@@ -21,7 +21,7 @@ async fn connects_with_sasl_and_applies_bot_defaults() {
             Endpoint::tls("localhost", server.tls_addr().port()).unwrap(),
             support::nick(&account),
         )
-        .sasl(Sasl::plain(&account, password))
+        .sasl(Sasl::plain(&account, papo::Secret::new(password)))
         .tls_ca_pem(std::fs::read(server.ca_pem_path()).unwrap())
         .bot(true)
         .autojoin([&channel])

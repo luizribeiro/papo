@@ -219,8 +219,9 @@ async fn early_account_creation_reserves_its_request_id(_s: Scenario) -> papo_te
         "CAP REQ :labeled-response draft/account-registration"
     );
 
-    let mut registration =
-        Box::pin(client.create_account(papo::NewAccount::new("unique-registration-password")));
+    let mut registration = Box::pin(client.create_account(papo::NewAccount::new(
+        papo::Secret::new("unique-registration-password"),
+    )));
     tokio::select! {
         biased;
         result = &mut registration => panic!("early registration finished before CAP ACK: {result:?}"),

@@ -30,7 +30,10 @@ async fn lists_adds_and_attaches_to_bouncer_networks() {
         example.wait_for("attached ").await;
         let stdout = example.finish().await;
         let (manager, _events) = Client::builder(url.clone(), &nick)
-            .sasl(Sasl::plain(bouncer.username(), bouncer.password()))
+            .sasl(Sasl::plain(
+                bouncer.username(),
+                papo::Secret::new(bouncer.password()),
+            ))
             .allow_insecure_auth(true)
             .enable(Feature::Bouncer)
             .connect()

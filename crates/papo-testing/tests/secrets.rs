@@ -54,7 +54,7 @@ fn queued_secrets_are_redacted_without_hiding_ordinary_lines() {
     let now = Instant::now();
     let mut session = Session::new(
         Config::default()
-            .password(PASSWORD)
+            .password(papo::Secret::new(PASSWORD))
             .allow_insecure_auth(true)
             .rate_limit(RateLimit::unlimited()),
     );
@@ -93,7 +93,7 @@ fn queued_secrets_are_redacted_without_hiding_ordinary_lines() {
 
 #[test]
 fn secret_and_wire_buffers_are_wiped_on_drop() {
-    let secret = Secret::from("checklist-secret-wipe-marker-6184".to_owned());
+    let secret = Secret::new("checklist-secret-wipe-marker-6184".to_owned());
     watch(secret.expose().as_ptr(), secret.expose().len());
     drop(secret);
     assert!(WIPED.load(Ordering::SeqCst));

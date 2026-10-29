@@ -24,7 +24,7 @@ async fn stale_credentials_end_reconnect_with_a_connect_cause() {
             support::nick(&account),
         )
         .allow_insecure_auth(true)
-        .sasl(Sasl::plain(&account, first))
+        .sasl(Sasl::plain(&account, papo::Secret::new(first)))
         .reconnect(
             Reconnect::exponential()
                 .max_delay(Duration::from_millis(50))
@@ -79,7 +79,10 @@ async fn solanum_kline_after_welcome_stops_reconnecting() {
             matches!(event, Event::Connected(_))
         })
         .await;
-        operator.oper(OPER_NAME, OPER_PASSWORD).await.unwrap();
+        operator
+            .oper(OPER_NAME, papo::Secret::new(OPER_PASSWORD))
+            .await
+            .unwrap();
 
         operator
             .send_raw(Line::new("KLINE").with_params([

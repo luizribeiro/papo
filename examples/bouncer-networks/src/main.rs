@@ -2,7 +2,7 @@
 
 use std::{env, error::Error};
 
-use papo::{Client, Event, Feature, NetworkState, Sasl};
+use papo::{Client, Event, Feature, NetworkState, Sasl, Secret};
 
 const CHANNEL: &str = "#papo";
 
@@ -21,7 +21,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let builder = || {
         Client::builder(bouncer_url.clone(), &nick)
-            .sasl(Sasl::plain(&account, password.clone()))
+            .sasl(Sasl::plain(&account, Secret::new(password.clone())))
             .allow_insecure_auth(bouncer_url.starts_with("irc://"))
             .enable(Feature::Bouncer)
     };

@@ -68,7 +68,7 @@ pub(super) async fn connect(
     if authenticated {
         builder = builder
             .allow_insecure_auth(true)
-            .sasl(Sasl::plain(nick, PASSWORD));
+            .sasl(Sasl::plain(nick, papo::Secret::new(PASSWORD)));
     }
     let (client, mut events) = builder.connect().await.unwrap();
     wait_synced(&mut events, channels).await;

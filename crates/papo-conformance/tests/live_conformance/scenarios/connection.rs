@@ -325,7 +325,7 @@ async fn webirc(s: Scenario) -> papo_testing::Result<()> {
             s.configure("alice")?.webirc(
                 WebIrc::new(
                     "papo-gateway",
-                    papo_test_server::WEBIRC_PASSWORD,
+                    papo::Secret::new(papo_test_server::WEBIRC_PASSWORD),
                     "192.0.2.42".parse()?,
                 )
                 .hostname(hostname)

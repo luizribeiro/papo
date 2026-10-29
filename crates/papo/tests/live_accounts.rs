@@ -30,7 +30,10 @@ async fn registers_then_logs_in_with_sasl() {
         wait_connected(&mut registrar_events, &account).await;
         assert!(matches!(
             registrar
-                .create_account(NewAccount::new(PASSWORD).account(support::account(&account)))
+                .create_account(
+                    NewAccount::new(papo::Secret::new(PASSWORD))
+                        .account(support::account(&account)),
+                )
                 .await
                 .unwrap(),
             AccountCreation::Created {
@@ -43,7 +46,7 @@ async fn registers_then_logs_in_with_sasl() {
         let (authenticated, mut authenticated_events) =
             Client::builder(address, support::nick(&account))
                 .allow_insecure_auth(true)
-                .sasl(Sasl::plain(&account, PASSWORD))
+                .sasl(Sasl::plain(&account, papo::Secret::new(PASSWORD)))
                 .connect()
                 .await
                 .unwrap();

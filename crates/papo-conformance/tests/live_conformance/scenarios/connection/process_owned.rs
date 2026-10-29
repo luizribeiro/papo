@@ -53,7 +53,7 @@ pub(super) async fn bouncer_networks(s: Scenario) -> papo_testing::Result<()> {
             )
             .username(login.username())
             .realname("papo bouncer control")
-            .password(login.password())
+            .password(papo::Secret::new(login.password()))
             .allow_insecure_auth(true)
             .enable(papo::Feature::Bouncer),
         )
@@ -156,7 +156,7 @@ pub(super) async fn server_password_waits_for_live_sts(_s: Scenario) -> papo_tes
     let proxy = server.hostname_notice_proxy()?;
     let endpoint = format!("irc://localhost:{}", proxy.address().port());
     let result = Client::builder(endpoint, papo_test_server::unique("alice-pass-sts"))
-        .password("server-password-must-stay-encrypted")
+        .password(papo::Secret::new("server-password-must-stay-encrypted"))
         .tls_ca_pem(fs::read(server.ca_pem_path())?)
         .connect()
         .await;

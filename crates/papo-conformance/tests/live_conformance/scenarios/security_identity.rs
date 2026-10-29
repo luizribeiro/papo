@@ -75,8 +75,11 @@ async fn broadcast_is_a_server_notice(s: Scenario) -> papo_testing::Result<()> {
     }
     let oper = s.connect("oper").await?;
     let mut recipient = s.connect("recipient").await?;
-    oper.oper(papo_test_server::OPER_NAME, papo_test_server::OPER_PASSWORD)
-        .await?;
+    oper.oper(
+        papo_test_server::OPER_NAME,
+        papo::Secret::new(papo_test_server::OPER_PASSWORD),
+    )
+    .await?;
 
     oper.send_raw(papo::Line::privmsg(
         "$$*.papo.test",

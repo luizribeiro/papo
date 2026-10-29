@@ -53,7 +53,10 @@ impl Scenario {
             .realname("papo test peer")
             .allow_insecure_auth(true);
         Ok(match bouncer_login {
-            Some(login) => builder.sasl(Sasl::plain(login.username(), login.password())),
+            Some(login) => builder.sasl(Sasl::plain(
+                login.username(),
+                papo::Secret::new(login.password()),
+            )),
             None => builder,
         })
     }
@@ -106,7 +109,10 @@ impl Scenario {
         let builder = if self.server.bouncer().is_some() {
             builder
         } else {
-            builder.sasl(Sasl::plain(account.clone(), ACCOUNT_PASSWORD))
+            builder.sasl(Sasl::plain(
+                account.clone(),
+                papo::Secret::new(ACCOUNT_PASSWORD),
+            ))
         };
         Ok((self.connect_with(builder).await?, account))
     }
@@ -143,9 +149,12 @@ impl Scenario {
         );
         let builder = if let Some(bouncer) = self.server.bouncer() {
             let login = bouncer.network_login(&account)?;
-            builder.sasl(Sasl::plain(login.username(), login.password()))
+            builder.sasl(Sasl::plain(
+                login.username(),
+                papo::Secret::new(login.password()),
+            ))
         } else {
-            builder.sasl(Sasl::plain(account, ACCOUNT_PASSWORD))
+            builder.sasl(Sasl::plain(account, papo::Secret::new(ACCOUNT_PASSWORD)))
         };
         Ok(builder)
     }
@@ -213,7 +222,10 @@ impl Scenario {
         let bouncer_login = self.server.bouncer_login(&name)?;
         let builder = Self::builder_named_at(name, endpoint);
         let builder = match bouncer_login {
-            Some(login) => builder.sasl(Sasl::plain(login.username(), login.password())),
+            Some(login) => builder.sasl(Sasl::plain(
+                login.username(),
+                papo::Secret::new(login.password()),
+            )),
             None => builder,
         };
         Ok(builder)

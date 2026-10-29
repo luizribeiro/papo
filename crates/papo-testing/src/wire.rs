@@ -210,8 +210,10 @@ mod tests {
     #[tokio::test(start_paused = true)]
     async fn debug_identifies_the_fixture_without_exposing_its_state() {
         let secret = "unique-wire-password-7462";
-        let (_client, _events, wire) =
-            wire(papo::Client::builder("irc://offline.test", "papo-wire").password(secret));
+        let (_client, _events, wire) = wire(
+            papo::Client::builder("irc://offline.test", "papo-wire")
+                .password(papo::Secret::new(secret)),
+        );
 
         let debug = format!("{wire:?}");
         assert_eq!(debug, "Wire { .. }");
