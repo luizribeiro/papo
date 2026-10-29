@@ -127,8 +127,8 @@ pub struct BouncerNetwork {
     pub port: Option<u16>,
     /// Whether the upstream connection uses TLS.
     pub tls: Option<bool>,
-    /// Connection nickname.
-    pub nick: Option<String>,
+    /// Connection nickname on the upstream network.
+    nick: Option<String>,
     /// Connection username.
     pub username: Option<String>,
     /// Connection real name.
@@ -174,6 +174,14 @@ impl NetworkUpdate {
 }
 
 impl BouncerNetwork {
+    /// Returns the connection nickname on the upstream network.
+    ///
+    /// This remains text because the upstream network can use different name rules.
+    #[must_use]
+    pub fn nick(&self) -> Option<&str> {
+        self.nick.as_deref()
+    }
+
     pub(crate) fn empty(id: NetworkId) -> Self {
         Self {
             id,

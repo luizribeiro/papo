@@ -3475,13 +3475,14 @@ pub papo::BouncerNetwork::error: core::option::Option<alloc::string::String>
 pub papo::BouncerNetwork::host: core::option::Option<alloc::string::String>
 pub papo::BouncerNetwork::id: papo::NetworkId
 pub papo::BouncerNetwork::name: core::option::Option<alloc::string::String>
-pub papo::BouncerNetwork::nick: core::option::Option<alloc::string::String>
 pub papo::BouncerNetwork::other: alloc::collections::btree::map::BTreeMap<alloc::string::String, alloc::string::String>
 pub papo::BouncerNetwork::port: core::option::Option<u16>
 pub papo::BouncerNetwork::realname: core::option::Option<alloc::string::String>
 pub papo::BouncerNetwork::state: core::option::Option<papo::NetworkState>
 pub papo::BouncerNetwork::tls: core::option::Option<bool>
 pub papo::BouncerNetwork::username: core::option::Option<alloc::string::String>
+impl papo::BouncerNetwork
+pub fn papo::BouncerNetwork::nick(&self) -> core::option::Option<&str>
 impl core::clone::Clone for papo::BouncerNetwork
 pub fn papo::BouncerNetwork::clone(&self) -> Self
 impl core::cmp::Eq for papo::BouncerNetwork

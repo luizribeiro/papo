@@ -318,7 +318,7 @@ fn parses_each_network_attribute_and_rejects_nearby_commands() {
                     && network.host.as_deref() == Some("irc.example.org")
                     && network.port == Some(6697)
                     && network.tls == Some(false)
-                    && network.nick.as_deref() == Some("alice")
+                    && network.nick() == Some("alice")
                     && network.username.as_deref() == Some("alice_")
                     && network.realname.as_deref() == Some("Alice Example")
                     && network.error.as_deref() == Some("Connection refused")
@@ -352,8 +352,7 @@ fn preserves_upstream_nickname_text_when_casemapping_changes() {
                 .bouncer_networks()
                 .next()
                 .unwrap()
-                .nick
-                .as_ref()
+                .nick()
                 .unwrap();
             assert_eq!(nick, "Alice[bot]");
         })
