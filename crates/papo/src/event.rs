@@ -102,17 +102,17 @@ pub struct CtcpQuery {
     /// The IRC conversation to which the CTCP message belongs.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
-    pub conversation: Conversation,
+    pub(crate) conversation: Conversation,
     /// The lowest-ranked `STATUSMSG` prefix on the wire address.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
-    pub status: Option<Prefix>,
+    pub(crate) status: Option<Prefix>,
     /// The command with its original spelling.
     pub command: String,
     /// The command parameters, when present.
     pub params: Option<String>,
     /// The server-assigned message identifier, when supplied.
-    pub msgid: Option<MessageId>,
+    pub(crate) msgid: Option<MessageId>,
     /// Valid server time, when supplied.
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
@@ -133,17 +133,17 @@ pub struct CtcpReply {
     /// The IRC conversation to which the CTCP reply belongs.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
-    pub conversation: Conversation,
+    pub(crate) conversation: Conversation,
     /// The lowest-ranked `STATUSMSG` prefix on the wire address.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
-    pub status: Option<Prefix>,
+    pub(crate) status: Option<Prefix>,
     /// The command with its original spelling.
     pub command: String,
     /// The command parameters, when present.
     pub params: Option<String>,
     /// The server-assigned message identifier, when supplied.
-    pub msgid: Option<MessageId>,
+    pub(crate) msgid: Option<MessageId>,
     /// Valid server time, when supplied.
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
@@ -275,11 +275,11 @@ pub struct Message {
     /// The chat conversation to which the message belongs.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
-    pub conversation: Conversation,
+    pub(crate) conversation: Conversation,
     /// The lowest-ranked `STATUSMSG` prefix on the wire address.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
-    pub status: Option<Prefix>,
+    pub(crate) status: Option<Prefix>,
     /// Display text with IRC formatting removed.
     pub text: String,
     /// Text with IRC formatting retained and the CTCP wrapper removed from an `ACTION`.
@@ -287,7 +287,7 @@ pub struct Message {
     /// The semantic message kind.
     pub kind: MessageKind,
     /// The server-assigned message identifier, when supplied.
-    pub msgid: Option<MessageId>,
+    pub(crate) msgid: Option<MessageId>,
     /// Valid server time, when supplied.
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
@@ -298,7 +298,7 @@ pub struct Message {
     ///
     /// This proves that the actor and client shared the channel at receipt, not that the actor
     /// held any channel rank. Unverified context remains available in [`Self::tags`].
-    pub channel_context: Option<ChannelName>,
+    pub(crate) channel_context: Option<ChannelName>,
     /// Nickname of the client that submitted a relayed message.
     #[cfg(feature = "unstable")]
     pub relayed_by: Option<Nick>,

@@ -65,7 +65,7 @@ pub struct Sent {
     pub status: Option<crate::Prefix>,
     pub(crate) receipt: crate::message_ref::Receipt,
     /// Whether the server confirmed the message, with its assigned metadata when it did.
-    pub outcome: SentOutcome,
+    pub(crate) outcome: SentOutcome,
     /// Compatibility fallbacks applied while sending.
     pub fallbacks: Vec<Fallback>,
 }

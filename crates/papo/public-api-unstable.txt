@@ -477,12 +477,9 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::Connecting
 pub papo::event::CtcpQuery::actor: papo::UserSource
 pub papo::event::CtcpQuery::authorship: papo::Authorship
 pub papo::event::CtcpQuery::command: alloc::string::String
-pub papo::event::CtcpQuery::conversation: papo::Conversation
-pub papo::event::CtcpQuery::msgid: core::option::Option<papo::MessageId>
 pub papo::event::CtcpQuery::params: core::option::Option<alloc::string::String>
 pub papo::event::CtcpQuery::received_at: std::time::SystemTime
 pub papo::event::CtcpQuery::server_time: core::option::Option<std::time::SystemTime>
-pub papo::event::CtcpQuery::status: core::option::Option<papo::Prefix>
 pub papo::event::CtcpQuery::tags: papo::Tags
 impl papo::event::CtcpQuery
 pub const fn papo::event::CtcpQuery::conversation(&self) -> &papo::Conversation
@@ -512,12 +509,9 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::CtcpQuery
 pub papo::event::CtcpReply::actor: papo::UserSource
 pub papo::event::CtcpReply::authorship: papo::Authorship
 pub papo::event::CtcpReply::command: alloc::string::String
-pub papo::event::CtcpReply::conversation: papo::Conversation
-pub papo::event::CtcpReply::msgid: core::option::Option<papo::MessageId>
 pub papo::event::CtcpReply::params: core::option::Option<alloc::string::String>
 pub papo::event::CtcpReply::received_at: std::time::SystemTime
 pub papo::event::CtcpReply::server_time: core::option::Option<std::time::SystemTime>
-pub papo::event::CtcpReply::status: core::option::Option<papo::Prefix>
 pub papo::event::CtcpReply::tags: papo::Tags
 impl papo::event::CtcpReply
 pub const fn papo::event::CtcpReply::conversation(&self) -> &papo::Conversation
@@ -919,13 +913,10 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::Quit
 pub papo::event::Reacted::action: papo::event::ReactionAction
 pub papo::event::Reacted::actor: papo::UserSource
 pub papo::event::Reacted::authorship: papo::Authorship
-pub papo::event::Reacted::conversation: papo::Conversation
-pub papo::event::Reacted::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Reacted::reaction: alloc::string::String
 pub papo::event::Reacted::reacts_to: papo::MessageId
 pub papo::event::Reacted::received_at: std::time::SystemTime
 pub papo::event::Reacted::server_time: core::option::Option<std::time::SystemTime>
-pub papo::event::Reacted::status: core::option::Option<papo::Prefix>
 impl papo::event::Reacted
 pub const fn papo::event::Reacted::conversation(&self) -> &papo::Conversation
 pub const fn papo::event::Reacted::msgid(&self) -> core::option::Option<&papo::MessageId>
@@ -992,13 +983,10 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::RealnameChanged
 #[non_exhaustive] pub struct papo::event::Redacted
 pub papo::event::Redacted::actor: papo::Source
 pub papo::event::Redacted::authorship: papo::Authorship
-pub papo::event::Redacted::conversation: papo::Conversation
-pub papo::event::Redacted::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Redacted::reason: core::option::Option<alloc::string::String>
 pub papo::event::Redacted::received_at: std::time::SystemTime
 pub papo::event::Redacted::redacts: papo::MessageId
 pub papo::event::Redacted::server_time: core::option::Option<std::time::SystemTime>
-pub papo::event::Redacted::status: core::option::Option<papo::Prefix>
 impl papo::event::Redacted
 pub const fn papo::event::Redacted::conversation(&self) -> &papo::Conversation
 pub const fn papo::event::Redacted::msgid(&self) -> core::option::Option<&papo::MessageId>
@@ -1096,11 +1084,8 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::StandardReply
 #[non_exhaustive] pub struct papo::event::TagMsg
 pub papo::event::TagMsg::actor: papo::UserSource
 pub papo::event::TagMsg::authorship: papo::Authorship
-pub papo::event::TagMsg::conversation: papo::Conversation
-pub papo::event::TagMsg::msgid: core::option::Option<papo::MessageId>
 pub papo::event::TagMsg::received_at: std::time::SystemTime
 pub papo::event::TagMsg::server_time: core::option::Option<std::time::SystemTime>
-pub papo::event::TagMsg::status: core::option::Option<papo::Prefix>
 pub papo::event::TagMsg::tags: papo::Tags
 impl papo::event::TagMsg
 pub const fn papo::event::TagMsg::conversation(&self) -> &papo::Conversation
@@ -2562,16 +2547,12 @@ impl core::panic::unwind_safe::UnwindSafe for papo::ListRequest
 #[non_exhaustive] pub struct papo::Message
 pub papo::Message::actor: papo::UserSource
 pub papo::Message::authorship: papo::Authorship
-pub papo::Message::channel_context: core::option::Option<papo::ChannelName>
-pub papo::Message::conversation: papo::Conversation
 pub papo::Message::in_reply_to: core::option::Option<papo::MessageId>
 pub papo::Message::kind: papo::MessageKind
-pub papo::Message::msgid: core::option::Option<papo::MessageId>
 pub papo::Message::raw_text: alloc::string::String
 pub papo::Message::received_at: std::time::SystemTime
 pub papo::Message::relayed_by: core::option::Option<papo::Nick>
 pub papo::Message::server_time: core::option::Option<std::time::SystemTime>
-pub papo::Message::status: core::option::Option<papo::Prefix>
 pub papo::Message::tags: papo::Tags
 pub papo::Message::text: alloc::string::String
 impl papo::Message
@@ -2930,7 +2911,6 @@ impl core::panic::unwind_safe::UnwindSafe for papo::SendMessage
 #[non_exhaustive] pub struct papo::Sent
 pub papo::Sent::conversation: papo::Conversation
 pub papo::Sent::fallbacks: alloc::vec::Vec<papo::Fallback>
-pub papo::Sent::outcome: papo::SentOutcome
 pub papo::Sent::status: core::option::Option<papo::Prefix>
 impl papo::Sent
 pub fn papo::Sent::origin(&self) -> papo::Origin

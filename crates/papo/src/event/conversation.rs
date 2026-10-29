@@ -91,7 +91,7 @@ pub enum ReactionAction {
 #[non_exhaustive]
 pub struct Reacted {
     /// The server-assigned identifier of the reaction line, when supplied.
-    pub msgid: Option<MessageId>,
+    pub(crate) msgid: Option<MessageId>,
     /// Valid server time, when supplied.
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
@@ -103,11 +103,11 @@ pub struct Reacted {
     /// The IRC conversation containing the message.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
-    pub conversation: Conversation,
+    pub(crate) conversation: Conversation,
     /// The lowest-ranked `STATUSMSG` prefix on the wire address.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
-    pub status: Option<Prefix>,
+    pub(crate) status: Option<Prefix>,
     pub(crate) receipt: crate::message_ref::Receipt,
     /// The message being reacted to.
     pub reacts_to: MessageId,
@@ -124,7 +124,7 @@ pub struct Reacted {
 #[non_exhaustive]
 pub struct Redacted {
     /// The server-assigned identifier of the redaction line, when supplied.
-    pub msgid: Option<MessageId>,
+    pub(crate) msgid: Option<MessageId>,
     /// Valid server time, when supplied.
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
@@ -136,11 +136,11 @@ pub struct Redacted {
     /// The IRC conversation containing the message.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
-    pub conversation: Conversation,
+    pub(crate) conversation: Conversation,
     /// The lowest-ranked `STATUSMSG` prefix on the wire address.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
-    pub status: Option<Prefix>,
+    pub(crate) status: Option<Prefix>,
     pub(crate) receipt: crate::message_ref::Receipt,
     /// The message removed from history.
     pub redacts: MessageId,
@@ -185,7 +185,7 @@ pub struct TypingChanged {
 #[non_exhaustive]
 pub struct TagMsg {
     /// The server-assigned identifier of the tag-only line, when supplied.
-    pub msgid: Option<MessageId>,
+    pub(crate) msgid: Option<MessageId>,
     /// Valid server time, when supplied.
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
@@ -197,11 +197,11 @@ pub struct TagMsg {
     /// The IRC conversation addressed by the message.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
-    pub conversation: Conversation,
+    pub(crate) conversation: Conversation,
     /// The lowest-ranked `STATUSMSG` prefix on the wire address.
     ///
     /// See [`Conversation`] for status-prefixed line guidance.
-    pub status: Option<Prefix>,
+    pub(crate) status: Option<Prefix>,
     pub(crate) receipt: crate::message_ref::Receipt,
     /// Tags in wire order with last-wins lookup.
     pub tags: Tags,

@@ -20,15 +20,7 @@ enum ConversationClass {
 
 const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
     (
-        "pub papo::event::CtcpQuery::conversation: papo::Conversation",
-        ConversationClass::Event,
-    ),
-    (
         "pub const fn papo::event::CtcpQuery::conversation(&self) -> &papo::Conversation",
-        ConversationClass::Event,
-    ),
-    (
-        "pub papo::event::CtcpReply::conversation: papo::Conversation",
         ConversationClass::Event,
     ),
     (
@@ -44,10 +36,6 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
         ConversationClass::Event,
     ),
     (
-        "pub papo::event::Reacted::conversation: papo::Conversation",
-        ConversationClass::Event,
-    ),
-    (
         "pub const fn papo::event::Reacted::conversation(&self) -> &papo::Conversation",
         ConversationClass::Event,
     ),
@@ -56,15 +44,7 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
         ConversationClass::Event,
     ),
     (
-        "pub papo::event::Redacted::conversation: papo::Conversation",
-        ConversationClass::Event,
-    ),
-    (
         "pub const fn papo::event::Redacted::conversation(&self) -> &papo::Conversation",
-        ConversationClass::Event,
-    ),
-    (
-        "pub papo::event::TagMsg::conversation: papo::Conversation",
         ConversationClass::Event,
     ),
     (
@@ -82,10 +62,6 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
     (
         "pub papo::HistoryPage::conversation: papo::Conversation",
         ConversationClass::History,
-    ),
-    (
-        "pub papo::Message::conversation: papo::Conversation",
-        ConversationClass::Event,
     ),
     (
         "pub const fn papo::Message::conversation(&self) -> &papo::Conversation",
