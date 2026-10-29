@@ -9255,7 +9255,7 @@ async fn public_state_accessors_report_the_registered_session() {
     assert_eq!(
         state
             .channels()
-            .map(papo_core::Channel::name)
+            .map(crate::Channel::name)
             .collect::<Vec<_>>(),
         ["#Papo"]
     );
@@ -9330,6 +9330,11 @@ async fn every_state_change_replaces_the_snapshot() {
     assert_eq!(
         previous.channel("#papo").unwrap().topic(),
         Some("Release planning")
+    );
+    let actor: &crate::Source = previous.channel("#papo").unwrap().topic_set_by().unwrap();
+    assert_eq!(
+        actor.nick().unwrap(),
+        &previous.name_rules().unwrap().nick("emily")
     );
 
     server_line(

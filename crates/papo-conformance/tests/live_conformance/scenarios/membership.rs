@@ -1209,7 +1209,7 @@ async fn topic(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(
         synchronized
             .topic_set_by()
-            .and_then(papo_core::Source::nick)
+            .and_then(papo::Source::nick)
             .map(AsRef::<str>::as_ref),
         Some(alice_nick.as_ref())
     );

@@ -16,9 +16,12 @@ pub enum ReadMarker {
     ReadUntil(std::time::SystemTime),
 }
 
+/// State known about a joined channel.
+///
+/// A channel is a conversation without a status prefix. See [`crate::Conversation`] for the
+/// distinction between a conversation and an ops-only return address.
 #[derive(Clone, Debug, Eq, PartialEq)]
-#[allow(dead_code)]
-pub(crate) struct Channel {
+pub struct Channel {
     inner: papo_core::Channel,
     topic_set_by: Option<crate::Source>,
 }
@@ -33,6 +36,82 @@ impl Channel {
             inner,
             topic_set_by,
         }
+    }
+
+    /// Returns the channel name as received from the server.
+    #[must_use]
+    pub fn name(&self) -> &crate::ChannelName {
+        self.inner.name()
+    }
+
+    /// Returns the current topic when known.
+    #[must_use]
+    pub fn topic(&self) -> Option<&str> {
+        self.inner.topic()
+    }
+
+    /// Returns who set the current topic when known.
+    #[must_use]
+    pub const fn topic_set_by(&self) -> Option<&crate::Source> {
+        self.topic_set_by.as_ref()
+    }
+
+    /// Returns when the current topic was set.
+    #[must_use]
+    pub const fn topic_set_at(&self) -> Option<std::time::SystemTime> {
+        self.inner.topic_set_at()
+    }
+
+    /// Returns a stored non-list mode and its value, if set.
+    #[must_use]
+    pub fn mode(&self, mode: char) -> Option<crate::ModeValue<'_>> {
+        self.inner.mode(mode)
+    }
+
+    /// Iterates over stored non-list modes in unspecified order.
+    pub fn modes(&self) -> impl Iterator<Item = (char, crate::ModeValue<'_>)> {
+        self.inner.modes()
+    }
+
+    /// Returns the current channel key.
+    #[must_use]
+    pub const fn key(&self) -> Option<&crate::Secret> {
+        self.inner.key()
+    }
+
+    /// Returns a fetched list mode, or `None` while its contents are unknown.
+    #[must_use]
+    pub fn list(&self, mode: crate::ListMode) -> Option<&[crate::ModeListEntry]> {
+        self.inner.list(mode)
+    }
+
+    /// Returns the channel creation time.
+    #[must_use]
+    pub const fn created_at(&self) -> Option<std::time::SystemTime> {
+        self.inner.created_at()
+    }
+
+    /// Returns whether initial member synchronization is complete.
+    #[must_use]
+    pub const fn is_synced(&self) -> bool {
+        self.inner.is_synced()
+    }
+
+    /// Iterates over channel members in unspecified order.
+    #[must_use]
+    pub fn members(&self) -> impl ExactSizeIterator<Item = &crate::Member> {
+        self.inner.members()
+    }
+
+    /// Returns a member using the server's current casemapping.
+    #[must_use]
+    pub fn member(&self, nick: impl crate::AsNick) -> Option<&crate::Member> {
+        let nick = crate::AsNick::__parts(&nick);
+        let origin = self.name().origin();
+        if nick.origin != crate::Origin::NONE && nick.origin != origin {
+            return None;
+        }
+        self.inner.member(nick.text.as_ref())
     }
 }
 
@@ -51,7 +130,6 @@ impl Channel {
 #[derive(Debug)]
 pub struct State {
     core: Arc<papo_core::State>,
-    #[allow(dead_code)]
     channels: Arc<[Channel]>,
     typing: Arc<crate::typing::TypingTable>,
     pub(crate) caps: Capabilities,
@@ -334,14 +412,17 @@ impl State {
     ///
     /// A typed channel produced by another [`crate::Client`] returns `None`.
     #[must_use]
-    pub fn channel(&self, name: impl crate::AsChannel) -> Option<&papo_core::Channel> {
-        self.core.channel(name)
+    pub fn channel(&self, name: impl crate::AsChannel) -> Option<&Channel> {
+        let channel = self.core.channel(name)?;
+        self.channels
+            .iter()
+            .find(|candidate| candidate.name() == channel.name())
     }
 
     /// Iterates over joined channels in unspecified order.
     #[must_use]
-    pub fn channels(&self) -> impl ExactSizeIterator<Item = &papo_core::Channel> {
-        self.core.channels()
+    pub fn channels(&self) -> impl ExactSizeIterator<Item = &Channel> {
+        self.channels.iter()
     }
 
     /// Returns the upstream network bound to this bouncer connection.

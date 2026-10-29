@@ -11,7 +11,6 @@ pub use papo::BuildError
 pub use papo::Cap
 pub use papo::Capabilities
 pub use papo::Casemapping
-pub use papo::Channel
 pub use papo::ChannelName
 pub use papo::Color
 pub use papo::Conversation
@@ -49,7 +48,6 @@ pub use papo::Secret
 pub use papo::ServerName
 pub use papo::Span
 pub use papo::StateLimit
-pub use papo::StateSource
 pub use papo::Style
 pub use papo::Typing
 pub use papo::UnknownCasemapping
@@ -2118,6 +2116,35 @@ impl core::marker::Unpin for papo::ChangeNetwork
 impl core::marker::UnsafeUnpin for papo::ChangeNetwork
 impl core::panic::unwind_safe::RefUnwindSafe for papo::ChangeNetwork
 impl core::panic::unwind_safe::UnwindSafe for papo::ChangeNetwork
+pub struct papo::Channel
+impl papo::Channel
+pub const fn papo::Channel::created_at(&self) -> core::option::Option<std::time::SystemTime>
+pub const fn papo::Channel::is_synced(&self) -> bool
+pub const fn papo::Channel::key(&self) -> core::option::Option<&papo::Secret>
+pub fn papo::Channel::list(&self, papo::ListMode) -> core::option::Option<&[papo::ModeListEntry]>
+pub fn papo::Channel::member(&self, impl papo::AsNick) -> core::option::Option<&papo::Member>
+pub fn papo::Channel::members(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &papo::Member>
+pub fn papo::Channel::mode(&self, char) -> core::option::Option<papo::ModeValue<'_>>
+pub fn papo::Channel::modes(&self) -> impl core::iter::traits::iterator::Iterator<Item = (char, papo::ModeValue<'_>)>
+pub fn papo::Channel::name(&self) -> &papo::ChannelName
+pub fn papo::Channel::topic(&self) -> core::option::Option<&str>
+pub const fn papo::Channel::topic_set_at(&self) -> core::option::Option<std::time::SystemTime>
+pub const fn papo::Channel::topic_set_by(&self) -> core::option::Option<&papo::Source>
+impl core::clone::Clone for papo::Channel
+pub fn papo::Channel::clone(&self) -> Self
+impl core::cmp::Eq for papo::Channel
+impl core::cmp::PartialEq for papo::Channel
+pub fn papo::Channel::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::Channel
+pub fn papo::Channel::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::Channel
+impl core::marker::Freeze for papo::Channel
+impl core::marker::Send for papo::Channel
+impl core::marker::Sync for papo::Channel
+impl core::marker::Unpin for papo::Channel
+impl core::marker::UnsafeUnpin for papo::Channel
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Channel
+impl core::panic::unwind_safe::UnwindSafe for papo::Channel
 pub struct papo::Client
 impl papo::Client
 pub fn papo::Client::action(&self, impl papo::Target, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
@@ -3553,35 +3580,6 @@ pub fn papo::Casemapping::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::Copy for papo::Casemapping
 impl core::marker::StructuralPartialEq for papo::Casemapping
 impl core::str::traits::FromStr for papo::Casemapping
-pub struct papo::Channel
-impl papo::Channel
-pub const fn papo::Channel::created_at(&self) -> core::option::Option<std::time::SystemTime>
-pub const fn papo::Channel::is_synced(&self) -> bool
-pub const fn papo::Channel::key(&self) -> core::option::Option<&papo::Secret>
-pub fn papo::Channel::list(&self, papo::ListMode) -> core::option::Option<&[papo::ModeListEntry]>
-pub fn papo::Channel::member(&self, impl papo::AsNick) -> core::option::Option<&papo::Member>
-pub fn papo::Channel::members(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &papo::Member>
-pub fn papo::Channel::mode(&self, char) -> core::option::Option<papo::ModeValue<'_>>
-pub fn papo::Channel::modes(&self) -> impl core::iter::traits::iterator::Iterator<Item = (char, papo::ModeValue<'_>)>
-pub fn papo::Channel::name(&self) -> &papo::ChannelName
-pub fn papo::Channel::topic(&self) -> core::option::Option<&str>
-pub const fn papo::Channel::topic_set_at(&self) -> core::option::Option<std::time::SystemTime>
-pub const fn papo::Channel::topic_set_by(&self) -> core::option::Option<&papo_core::Source>
-impl core::clone::Clone for papo::Channel
-pub fn papo::Channel::clone(&self) -> Self
-impl core::cmp::Eq for papo::Channel
-impl core::cmp::PartialEq for papo::Channel
-pub fn papo::Channel::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::Channel
-pub fn papo::Channel::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::Channel
-impl core::marker::Freeze for papo::Channel
-impl core::marker::Send for papo::Channel
-impl core::marker::Sync for papo::Channel
-impl core::marker::Unpin for papo::Channel
-impl core::marker::UnsafeUnpin for papo::Channel
-impl core::panic::unwind_safe::RefUnwindSafe for papo::Channel
-impl core::panic::unwind_safe::UnwindSafe for papo::Channel
 pub struct papo::ChannelName
 impl papo::ChannelName
 pub const fn papo::ChannelName::casemapping(&self) -> papo::Casemapping

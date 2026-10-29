@@ -344,14 +344,12 @@ pub use name_rules::{NameCheck, NameRules};
 pub use papo_core::InvalidUrl;
 #[doc(inline)]
 pub use papo_core::Secret;
-#[doc(inline)]
-pub use papo_core::Source as StateSource;
 #[doc(hidden)]
 pub use papo_core::cap::__is_known as __is_known_cap;
 #[doc(inline)]
 pub use papo_core::{
-    Account, Away, Cap, Capabilities, Channel, Conversation, Feature, Member, MetadataView,
-    ModeAction, ModeArg, ModeChange, ModeValue, Rank, User,
+    Account, Away, Cap, Capabilities, Conversation, Feature, Member, MetadataView, ModeAction,
+    ModeArg, ModeChange, ModeValue, Rank, User,
 };
 #[cfg(feature = "unstable")]
 pub use papo_core::{
@@ -374,7 +372,7 @@ pub use papo_proto::{
 };
 pub use reconnect::Reconnect;
 pub use requests::{ListEntry, ListRequest, WhoEntry, Whois, WhoisChannel};
-pub use state::{ReadMarker, State};
+pub use state::{Channel, ReadMarker, State};
 pub use target::{AsConversation, AsMask, AsNick, Target};
 #[doc(inline)]
 pub use transport::{CertificateChain, PrivateKey};

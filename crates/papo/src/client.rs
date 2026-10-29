@@ -1278,7 +1278,7 @@ impl Client {
         if !self
             .state()
             .channel(&channel)
-            .is_some_and(papo_core::Channel::is_synced)
+            .is_some_and(crate::Channel::is_synced)
         {
             let (result, receiver) = oneshot::channel();
             self.commands
