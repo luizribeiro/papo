@@ -2426,6 +2426,8 @@ fn persistence_gates_rejoin_and_history_fetch() {
             b":ergo.test CAP * ACK :draft/persistence draft/chathistory labeled-response\r\n:ergo.test 005 papo-driver CHATHISTORY=100 MSGREFTYPES=msgid,timestamp :are supported by this server\r\n:ergo.test PERSISTENCE STATUS DEFAULT ",
         );
         session.handle_bytes(now, if effective { b"ON\r\n" } else { b"OFF\r\n" });
+        session.handle_line(now, b":ergo.test 001 papo-driver :Welcome to ErgoTest");
+        while session.poll_event().is_some() {}
         assert_eq!(!super::server_restores_channels(&session), expected_request);
         while session.poll_transmit().is_some() {}
 
@@ -3047,7 +3049,7 @@ async fn stable_registration_resets_the_backoff() {
         Some(Event::Disconnected(_))
     ));
 
-    welcome_burst(&mut next_server).await;
+    complete_connect_unobserved(&mut next_server).await;
     let delay = {
         let attempts = attempts.lock().unwrap();
         assert_eq!(attempts.len(), 4);
@@ -3103,7 +3105,7 @@ async fn stored_sts_policy_upgrades_the_connection_plan() {
         Some(Arc::clone(&network_builder)),
     );
     let driver = tokio::spawn(driver);
-    welcome_burst(&mut server).await;
+    complete_connect_unobserved(&mut server).await;
     let resolved = network_builder.read().unwrap().address.clone().unwrap();
     assert!(resolved.is_secure());
     assert_eq!(resolved.port, 7443);
@@ -4782,7 +4784,7 @@ async fn queued_raw_sends_fail_when_the_connection_drops() {
         ),
     );
     let driver = tokio::spawn(driver);
-    welcome_burst(&mut server).await;
+    complete_connect_unobserved(&mut server).await;
     client
         .send_raw(crate::Line::new("WHOIS").with_params(["release-bot"]))
         .await
@@ -4828,7 +4830,7 @@ async fn queued_raw_send_preserves_the_server_disconnect_cause() {
         ),
     );
     let driver = tokio::spawn(driver);
-    welcome_burst(&mut server).await;
+    complete_connect_unobserved(&mut server).await;
     client
         .send_raw(crate::Line::new("WHOIS").with_params(["release-bot"]))
         .await
@@ -4868,7 +4870,7 @@ async fn raw_line_builder_quotes_real_commands() {
         config().rate_limit(papo_core::RateLimit::new(1, Duration::from_millis(500)).unwrap()),
     );
     let task = tokio::spawn(driver);
-    welcome_burst(&mut server).await;
+    complete_connect_unobserved(&mut server).await;
 
     client
         .send_raw(crate::Line::new("KILL").with_params(["alice", "policy violation"]))
@@ -6792,7 +6794,7 @@ async fn action_confirmation_is_enqueued_after_state_changes() {
 async fn keyed_join_redacts_the_key_and_waits_for_channel_sync() {
     let (mut server, client, _events, driver) = scripted(config());
     let driver = tokio::spawn(driver);
-    welcome_burst(&mut server).await;
+    complete_connect_unobserved(&mut server).await;
     let join = client
         .join(test_channel("#ergo-ops"))
         .key(crate::Secret::new("unique-dynamic-channel-key-4862"));
@@ -6983,7 +6985,7 @@ async fn message_reply_obeys_tags_and_clienttagdeny() {
 async fn typed_channel_and_guarded_direct_destinations_reach_the_wire() {
     let (mut server, client, mut events, driver) = scripted(config());
     let task = tokio::spawn(driver);
-    welcome_burst(&mut server).await;
+    complete_connect_unobserved(&mut server).await;
 
     let channel = client
         .state()
@@ -7020,7 +7022,7 @@ async fn typed_channel_and_guarded_direct_destinations_reach_the_wire() {
 async fn chat_text_uses_plain_splitting_and_rejects_empty_input() {
     let (mut server, client, _events, driver) = scripted(config());
     let task = tokio::spawn(driver);
-    welcome_burst(&mut server).await;
+    complete_connect_unobserved(&mut server).await;
     let sent = within(client.privmsg("#papo", "a".repeat(600)))
         .await
         .unwrap();
@@ -7091,6 +7093,7 @@ async fn chat_text_uses_multiline_when_negotiated() {
     )
     .await;
     client_line(&mut server, b"CAP END\r\n").await;
+    finish_registration(&mut server).await;
     let sent = within(client.privmsg("#papo", "a".repeat(600)))
         .await
         .unwrap();
@@ -7335,8 +7338,7 @@ async fn chat_text_returns_metadata_from_every_labelled_echo() {
         "echo-message",
         "labeled-response",
     ];
-    let config = config().wanted_caps(caps);
-    let (mut server, client, _events, driver) = scripted(config);
+    let (mut server, client, _events, driver) = scripted(config().wanted_caps(caps));
     let task = tokio::spawn(driver);
     welcome_burst(&mut server).await;
     server_line(
@@ -7355,7 +7357,7 @@ async fn chat_text_returns_metadata_from_every_labelled_echo() {
     )
     .await;
     client_line(&mut server, b"CAP END\r\n").await;
-
+    finish_registration(&mut server).await;
     let sender = client.clone();
     let sent = tokio::spawn(async move { sender.privmsg("#papo", "hello everyone").await });
     client_line(&mut server, b"@label=0 PRIVMSG #papo :hello everyone\r\n").await;
@@ -7453,6 +7455,7 @@ async fn written_labelled_privmsg_is_interrupted_by_the_server_disconnect() {
     )
     .await;
     client_line(&mut server, b"CAP END\r\n").await;
+    finish_registration(&mut server).await;
 
     let sent = tokio::spawn(async move { client.privmsg("#papo", "deploy complete").await });
     client_line(&mut server, b"@label=0 PRIVMSG #papo :deploy complete\r\n").await;
@@ -7696,6 +7699,7 @@ async fn typing_throttles_active_per_target_and_sends_terminal_states() {
     client_line(&mut server, b"CAP REQ :message-tags\r\n").await;
     server_line(&mut server, b":ergo.test CAP * ACK :message-tags\r\n").await;
     client_line(&mut server, b"CAP END\r\n").await;
+    finish_registration(&mut server).await;
 
     for target in ["*", "$*.example.org"] {
         assert!(matches!(
@@ -7932,6 +7936,7 @@ async fn redaction_requires_its_capability_and_propagates_fail() {
     )
     .await;
     client_line(&mut server, b"CAP END\r\n").await;
+    finish_registration(&mut server).await;
 
     let sender = client.clone();
     let redacted = tokio::spawn(async move {
@@ -8018,6 +8023,7 @@ async fn redacting_a_multiline_send_stops_at_the_first_refusal() {
     )
     .await;
     client_line(&mut server, b"CAP END\r\n").await;
+    finish_registration(&mut server).await;
 
     let conversation = crate::Conversation::Channel(
         client
@@ -8518,7 +8524,7 @@ async fn quit_resolves_after_io_failure_and_reports_its_cause() {
     };
     let (client, mut events, driver) = Driver::with_stream(stream, Session::new(config()));
     let driver = tokio::spawn(driver);
-    welcome_burst(&mut server).await;
+    complete_connect(&mut server, &mut events).await;
     let quit = tokio::spawn(async move { client.quit("").await });
     client_line(&mut server, b"QUIT\r\n").await;
 
@@ -8544,7 +8550,7 @@ async fn quit_resolves_after_io_failure_and_reports_its_cause() {
 async fn quit_times_out_after_ten_seconds() {
     let (mut server, client, mut events, driver) = scripted(config());
     let driver = tokio::spawn(driver);
-    welcome_burst(&mut server).await;
+    complete_connect(&mut server, &mut events).await;
     let quit = tokio::spawn(async move { client.quit("").await });
     let mut line = [0; 6];
     within(server.read_exact(&mut line)).await.unwrap();
@@ -8575,7 +8581,7 @@ async fn quit_deadline_bounds_final_flush_for_a_peer_that_never_drains() {
     };
     let (client, _events, driver) = Driver::with_stream(stream, Session::new(config()));
     let driver = tokio::spawn(driver);
-    welcome_burst(&mut server).await;
+    complete_connect_unobserved(&mut server).await;
     let quit = tokio::spawn(async move { client.quit("bounded shutdown").await });
     while !written
         .lock()
@@ -8605,7 +8611,7 @@ async fn quit_deadline_bounds_final_flush_for_a_peer_that_never_drains() {
 async fn dropping_clients_keeps_running_until_events_is_dropped() {
     let (mut server, client, events, driver) = scripted(config());
     let driver = tokio::spawn(driver);
-    welcome_burst(&mut server).await;
+    complete_connect_unobserved(&mut server).await;
     drop(client);
     assert!(
         tokio::time::timeout(Duration::from_millis(10), server.read_u8())

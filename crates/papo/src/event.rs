@@ -4472,6 +4472,8 @@ mod tests {
         session.handle_line(now, b"CAP * LS :labeled-response");
         session.handle_line(now, b"CAP * ACK :labeled-response");
         while session.poll_transmit().is_some() {}
+        session.handle_line(now, b":ergo.test 001 papo :Welcome to ErgoTest");
+        while session.poll_event().is_some() {}
         session
     }
 
@@ -4704,6 +4706,8 @@ mod tests {
         session.handle_line(now, b"CAP * LS :labeled-response");
         session.handle_line(now, b"CAP * ACK :labeled-response");
         while session.poll_transmit().is_some() {}
+        session.handle_line(now, b":ergo.test 001 papo :Welcome to ErgoTest");
+        while session.poll_event().is_some() {}
         for line in [
             ":papo!p@localhost JOIN #review",
             ":alice!~alice@cloak.example JOIN #review",

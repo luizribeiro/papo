@@ -278,6 +278,22 @@ pub(crate) async fn welcome_burst(server: &mut DuplexStream) {
     assert_eq!(actual, expected);
 }
 
+pub(crate) async fn finish_registration(server: &mut DuplexStream) {
+    server_line(
+        server,
+        b":ergo.test 001 papo-driver :Welcome to ErgoTest\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\nPING :registration-fence\r\n",
+    )
+    .await;
+    client_line(server, b"PONG registration-fence\r\n").await;
+}
+
+pub(crate) async fn complete_connect_unobserved(server: &mut DuplexStream) {
+    welcome_burst(server).await;
+    server_line(server, b":ergo.test CAP * LS :\r\n").await;
+    client_line(server, b"CAP END\r\n").await;
+    finish_registration(server).await;
+}
+
 pub(crate) async fn client_line(server: &mut DuplexStream, expected: &[u8]) {
     within(crate::__testing::client_line(server, expected)).await;
 }

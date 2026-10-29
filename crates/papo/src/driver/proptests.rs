@@ -74,7 +74,7 @@ where
 async fn check_action(make: impl FnOnce(super::Client) -> Action) {
     let (mut server, client, _events, driver) = scripted(config());
     let driver = tokio::spawn(driver);
-    welcome_burst(&mut server).await;
+    complete_connect_unobserved(&mut server).await;
     let mut request = make(client);
     let mut lines = Vec::new();
     let result = tokio::select! {
@@ -116,7 +116,7 @@ enum ChatKind {
 async fn check_chat(kind: ChatKind, text: String, key: String, value: String) {
     let (mut server, client, _events, driver) = scripted(config());
     let driver = tokio::spawn(driver);
-    welcome_burst(&mut server).await;
+    complete_connect_unobserved(&mut server).await;
     let request = match kind {
         ChatKind::Privmsg => client.privmsg("#papo", &text),
         ChatKind::Notice => client.notice("#papo", &text),
