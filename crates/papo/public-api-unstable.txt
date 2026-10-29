@@ -22,6 +22,7 @@ pub use papo::InvalidRateLimit
 pub use papo::InvalidUrl
 pub use papo::Line
 pub use papo::LineRef
+pub use papo::LineSource
 pub use papo::ListMode
 pub use papo::Mask
 pub use papo::Member

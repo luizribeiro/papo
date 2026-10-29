@@ -132,7 +132,7 @@ unguarded escape hatch.
 | Public mutable message-reference fields | `msgid()`, `conversation()`, `status()`, `channel_context()`, and `Sent::outcome()` are read-only accessors backed by receipt evidence |
 | `Extban::Account(String)` | Opaque `Extban::account(impl AsAccount)` is the only account-extban constructor |
 | State source fields exposed `papo_core` details | `Channel::topic_set_by()` and `ModeListEntry::actor()` return the same `Source` type as events |
-| Raw `Line` methods exposed unnameable protocol types | `LineRef`, `Param`, and `WireLine` are available from `papo` |
+| Raw `Line` and `Mask` methods exposed unnameable protocol types | `LineRef`, `Param`, `LineSource`, `WireLine`, and `MaskSource` are available from `papo` |
 | Channel receipts were only text | Receipt-derived sends verify that a parted or recreated channel is still the same membership identity |
 | `HistoryReference: From<String/&str>` guessed that text was a message ID | Construct `HistoryReference` explicitly from a `MessageId` or time |
 

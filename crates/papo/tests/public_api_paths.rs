@@ -157,11 +157,43 @@ fn wire_address_exposures(snapshot: &str) -> Vec<&str> {
         .collect()
 }
 
-fn internal_crate_paths(snapshot: &str) -> Vec<&str> {
-    facade_items(snapshot)
+fn internal_type_paths(snapshot: &str) -> Vec<&str> {
+    snapshot
         .lines()
-        .filter(|line| line.contains("papo_core::") || line.contains("papo_proto::"))
-        .filter(|line| !line.contains("papo_core::cap::Cap"))
+        .flat_map(|line| {
+            line.split(|character: char| {
+                !(character.is_ascii_alphanumeric() || "_:".contains(character))
+            })
+        })
+        .filter(|path| path.starts_with("papo_core::") || path.starts_with("papo_proto::"))
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect()
+}
+
+const INTERNAL_REEXPORTS: &[(&str, &str)] = &[
+    ("papo_core::cap::Cap", "papo::Cap"),
+    ("papo_proto::LineRef", "papo::LineRef"),
+    ("papo_proto::Param", "papo::Param"),
+    ("papo_proto::Source", "papo::LineSource"),
+    ("papo_proto::WireLine", "papo::WireLine"),
+];
+
+fn internal_types_without_reexports(snapshot: &str) -> Vec<&str> {
+    internal_type_paths(snapshot)
+        .into_iter()
+        .filter(|path| {
+            let Some((_, facade)) = INTERNAL_REEXPORTS
+                .iter()
+                .find(|(internal, _facade)| internal == path)
+            else {
+                return true;
+            };
+            !snapshot
+                .lines()
+                .filter_map(|line| line.strip_prefix("pub use "))
+                .any(|export| export == *facade)
+        })
         .collect()
 }
 
@@ -256,22 +288,27 @@ fn address_check_matches_types_not_names() {
     );
 }
 
+fn assert_mask_source<T: papo::MaskSource + ?Sized>() {}
+
 #[test]
-fn line_ref_reexport_is_nameable() {
-    let line = papo::Line::notice("papo", "maintenance in ten minutes");
+fn raw_line_reexports_are_nameable() {
+    let line =
+        papo::Line::notice("papo", "maintenance in ten minutes").with_source("irc.example.net");
     let _: papo::LineRef<'_> = line.as_ref();
     let _: &papo::Param = &line.params()[1];
+    let _: papo::LineSource<'_> = line.source().unwrap();
     let _: papo::WireLine = line.encode().unwrap();
+
+    assert_mask_source::<papo::Source>();
 }
 
 #[test]
-fn public_api_uses_only_papo_paths() {
+fn internal_signature_types_are_reexported() {
     for (name, snapshot) in [("papo", STABLE), ("papo unstable", UNSTABLE)] {
-        assert!(snapshot.contains("pub use papo::Cap"), "{name} omits Cap");
         assert_eq!(
-            internal_crate_paths(snapshot),
+            internal_types_without_reexports(snapshot),
             Vec::<&str>::new(),
-            "{name} exposes an internal crate path"
+            "{name} has an internal signature type without a facade re-export"
         );
     }
 }
@@ -302,7 +339,7 @@ fn missing_reexported_surfaces(snapshot: &str) -> Vec<&str> {
         .lines()
         .filter_map(|line| line.strip_prefix("pub use "))
         .filter(|path| !path.contains(" as "))
-        .filter(|path| *path != "papo::StateSource")
+        .filter(|path| *path != "papo::LineSource")
         .filter(|path| {
             path.rsplit("::")
                 .next()
@@ -332,11 +369,8 @@ fn internal_path_check_finds_core_and_proto_paths() {
     let snapshot = "pub use papo::Nick\npub fn papo::core(papo_core::State)\n\
                     pub fn papo::proto(papo_proto::Line)\n";
     assert_eq!(
-        internal_crate_paths(snapshot),
-        [
-            "pub fn papo::core(papo_core::State)",
-            "pub fn papo::proto(papo_proto::Line)",
-        ]
+        internal_types_without_reexports(snapshot),
+        ["papo_core::State", "papo_proto::Line"]
     );
 }
 

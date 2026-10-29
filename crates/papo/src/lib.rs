@@ -362,8 +362,12 @@ pub use papo_core::{ListMode, Refusal, StateLimit};
 pub use papo_core::{MetadataValue, Visibility};
 #[doc(inline)]
 pub use papo_core::{Unsupported, UnsupportedReason};
+#[doc(hidden)]
+pub use papo_proto::MaskSource;
 #[doc(inline)]
 pub use papo_proto::Prefix;
+#[doc(inline)]
+pub use papo_proto::Source as LineSource;
 #[doc(inline)]
 pub use papo_proto::{
     AccountName, AsAccount, AsChannel, BatchId, BatchType, BuildError, Casemapping, ChannelName,
