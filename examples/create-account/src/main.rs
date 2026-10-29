@@ -2,13 +2,13 @@
 
 use std::{env, error::Error, io};
 
-use papo::{AccountCreation, Client, Event, NewAccount};
+use papo::{AccountCreation, Client, Event, NewAccount, Secret};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
     let url = env::args().nth(1).ok_or("usage: create-account URL")?;
     let nick = env::var("IRC_NICK")?;
-    let mut account = NewAccount::new(env::var("IRC_PASSWORD")?).account(&nick);
+    let mut account = NewAccount::new(Secret::new(env::var("IRC_PASSWORD")?)).account(&nick);
     if let Ok(email) = env::var("IRC_EMAIL") {
         account = account.email(email);
     }
@@ -29,7 +29,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 eprintln!("{message}");
                 let mut code = String::new();
                 io::stdin().read_line(&mut code)?;
-                match client.verify_account(account, code.trim()).await {
+                match client
+                    .verify_account(account, Secret::new(code.trim()))
+                    .await
+                {
                     Ok(AccountCreation::Created { account, .. }) => account,
                     Ok(_) => continue,
                     Err(error) => {

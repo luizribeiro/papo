@@ -29,7 +29,12 @@ fn early_registration_waiting() -> Transcript {
         .client("CAP REQ :draft/account-registration")
         .update(|session| {
             session
-                .create_account(std::time::Instant::now(), None, None, "password")
+                .create_account(
+                    std::time::Instant::now(),
+                    None,
+                    None,
+                    papo_core::Secret::new("password"),
+                )
                 .unwrap();
         })
         .server("CAP * ACK :draft/account-registration")
@@ -44,7 +49,7 @@ fn configured_registration_waits_for_before_connect_capability() {
         .create_account_on_connect(
             Some("alice"),
             Some("alice@example.org"),
-            "unique-registration-password",
+            papo_core::Secret::new("unique-registration-password"),
         );
     assert!(!format!("{config:?}").contains("unique-registration-password"));
     Transcript::new(config)
@@ -75,7 +80,7 @@ fn secure_connections_allow_account_registration_without_plaintext_opt_in() {
                 std::time::Instant::now(),
                 None,
                 None,
-                "correct horse battery staple",
+                papo_core::Secret::new("correct horse battery staple"),
             )
             .unwrap();
     })
@@ -91,7 +96,7 @@ fn configured_registration_survives_a_multiline_capability_listing() {
         .create_account_on_connect(
             Some("alice"),
             None::<String>,
-            "unique-registration-password",
+            papo_core::Secret::new("unique-registration-password"),
         );
     Transcript::new(config)
         .connect_default()
@@ -108,7 +113,11 @@ fn configured_registration_survives_a_multiline_capability_listing() {
 fn configured_registration_is_sent_only_once() {
     let config = Config::default()
         .wanted_caps(["draft/account-registration"])
-        .create_account_on_connect(Some("alice"), None::<String>, "account-password-7391");
+        .create_account_on_connect(
+            Some("alice"),
+            None::<String>,
+            papo_core::Secret::new("account-password-7391"),
+        );
     Transcript::new(config)
         .connect_default()
         .server("CAP * LS :draft/account-registration=before-connect,custom-account-name")
@@ -137,8 +146,7 @@ fn registers_an_account_with_a_labelled_response() {
                     std::time::Instant::now(),
                     Some("alice"),
                     Some("alice@example.org"),
-                    "correct horse battery staple",
-                )
+                    papo_core::Secret::new("correct horse battery staple"),                )
                 .unwrap();
         })
         .client("@label=0 REGISTER alice alice@example.org :correct horse battery staple")
@@ -159,8 +167,7 @@ fn verifies_an_account_after_the_server_requires_it() {
                     std::time::Instant::now(),
                     Some("alice"),
                     Some("alice@example.org"),
-                    "correct horse battery staple",
-                )
+                    papo_core::Secret::new("correct horse battery staple"),                )
                 .unwrap();
         })
         .client("@label=0 REGISTER alice alice@example.org :correct horse battery staple")
@@ -174,7 +181,7 @@ fn verifies_an_account_after_the_server_requires_it() {
         .event(|event| matches!(event, Event::Response(_)))
         .update(|session| {
             session
-                .verify(std::time::Instant::now(), "alice", "39gvcdg4myvnmdcfhvd6exsv4n")
+                .verify(std::time::Instant::now(), "alice", papo_core::Secret::new("39gvcdg4myvnmdcfhvd6exsv4n"))
                 .unwrap();
             queue_debug_marker(session);
         })
@@ -295,7 +302,11 @@ fn types_a_labelled_verification_failure() {
     registered()
         .update(|session| {
             session
-                .verify(std::time::Instant::now(), "alice", "expired-code")
+                .verify(
+                    std::time::Instant::now(),
+                    "alice",
+                    papo_core::Secret::new("expired-code"),
+                )
                 .unwrap();
         })
         .client("@label=0 VERIFY alice expired-code")
@@ -320,7 +331,12 @@ fn enforces_account_registration_capability_values_locally() {
         .event(|event| matches!(event, Event::Connected(_)))
         .update(|session| {
             assert_eq!(
-                session.create_account(std::time::Instant::now(), None, None, "hunter2"),
+                session.create_account(
+                    std::time::Instant::now(),
+                    None,
+                    None,
+                    papo_core::Secret::new("hunter2")
+                ),
                 Err(papo_core::RequestError::EmailRequired)
             );
             assert_eq!(
@@ -328,7 +344,7 @@ fn enforces_account_registration_capability_values_locally() {
                     std::time::Instant::now(),
                     Some("other-account"),
                     Some("alice@example.org"),
-                    "hunter2",
+                    papo_core::Secret::new("hunter2"),
                 ),
                 Err(papo_core::RequestError::CustomAccountNameUnsupported)
             );
@@ -343,7 +359,7 @@ fn verification_refuses_credentials_on_plaintext() {
         session.verify(
             std::time::Instant::now(),
             "alice",
-            "39gvcdg4myvnmdcfhvd6exsv4n"
+            papo_core::Secret::new("39gvcdg4myvnmdcfhvd6exsv4n")
         ),
         Err(papo_core::RequestError::InsecureAuthentication)
     );
@@ -362,7 +378,7 @@ fn registers_before_connect_and_holds_cap_end_until_success() {
                     std::time::Instant::now(),
                     None,
                     Some("alice@example.org"),
-                    "correct horse battery staple",
+                    papo_core::Secret::new("correct horse battery staple"),
                 )
                 .unwrap();
             assert!(!format!("{session:?}").contains("correct horse battery staple"));
@@ -388,7 +404,7 @@ fn rejects_early_registration_without_before_connect() {
                     std::time::Instant::now(),
                     None,
                     Some("alice@example.org"),
-                    "hunter2",
+                    papo_core::Secret::new("hunter2"),
                 ),
                 Err(unsupported_error(Feature::AccountCreation))
             );
@@ -397,7 +413,11 @@ fn rejects_early_registration_without_before_connect() {
         .client("CAP END")
         .update(|session| {
             assert_eq!(
-                session.verify(std::time::Instant::now(), "alice", "pending-code"),
+                session.verify(
+                    std::time::Instant::now(),
+                    "alice",
+                    papo_core::Secret::new("pending-code")
+                ),
                 Err(unsupported_error(Feature::AccountCreation))
             );
         })
@@ -416,8 +436,7 @@ fn early_verification_keeps_cap_negotiation_open() {
                     std::time::Instant::now(),
                     None,
                     Some("alice@example.org"),
-                    "correct horse battery staple",
-                )
+                    papo_core::Secret::new("correct horse battery staple"),                )
                 .unwrap();
         })
         .server("CAP * ACK :draft/account-registration")
@@ -428,7 +447,7 @@ fn early_verification_keeps_cap_negotiation_open() {
         .no_client()
         .update(|session| {
             session
-                .verify(std::time::Instant::now(), "alice", "39gvcdg4myvnmdcfhvd6exsv4n")
+                .verify(std::time::Instant::now(), "alice", papo_core::Secret::new("39gvcdg4myvnmdcfhvd6exsv4n"))
                 .unwrap();
         })
         .client("VERIFY alice 39gvcdg4myvnmdcfhvd6exsv4n")
@@ -446,7 +465,12 @@ fn early_registration_failure_releases_cap_end() {
         .client("CAP REQ :draft/account-registration")
         .update(|session| {
             session
-                .create_account(std::time::Instant::now(), None, None, "password")
+                .create_account(
+                    std::time::Instant::now(),
+                    None,
+                    None,
+                    papo_core::Secret::new("password"),
+                )
                 .unwrap();
         })
         .server("CAP * ACK :draft/account-registration")
@@ -474,7 +498,7 @@ fn disconnect_aborts_registration_and_rejects_its_late_success() {
                 std::time::Instant::now(),
                 None,
                 Some("alice@example.org"),
-                "correct horse battery staple",
+                papo_core::Secret::new("correct horse battery staple"),
             )
             .unwrap();
     })
@@ -532,7 +556,12 @@ fn pending_cap_request_preserves_queued_registration() {
         .client("CAP REQ :draft/account-registration")
         .update(|session| {
             session
-                .create_account(std::time::Instant::now(), None, None, "password")
+                .create_account(
+                    std::time::Instant::now(),
+                    None,
+                    None,
+                    papo_core::Secret::new("password"),
+                )
                 .unwrap();
         })
         .server("PING :ergo.test")
@@ -553,7 +582,12 @@ fn early_registration_reserves_its_id_before_a_later_whois() {
     .update(|session| {
         let registration = session.next_request_id();
         session
-            .create_account(std::time::Instant::now(), None, None, "unique-password")
+            .create_account(
+                std::time::Instant::now(),
+                None,
+                None,
+                papo_core::Secret::new("unique-password"),
+            )
             .unwrap();
         assert_ne!(session.next_request_id(), registration);
         let whois = session
@@ -578,7 +612,12 @@ fn rejected_cap_request_discards_queued_registration() {
         .client("CAP REQ :draft/account-registration")
         .update(|session| {
             session
-                .create_account(std::time::Instant::now(), None, None, "password")
+                .create_account(
+                    std::time::Instant::now(),
+                    None,
+                    None,
+                    papo_core::Secret::new("password"),
+                )
                 .unwrap();
         })
         .server("CAP * NAK :draft/account-registration")
