@@ -537,7 +537,7 @@ fn sts_on_plaintext_closes_for_a_tls_upgrade_without_more_output() {
 fn server_password_waits_for_the_sts_decision() {
     let config = Config::default()
         .host("irc.example.net")
-        .password("correct horse battery staple")
+        .password(papo_core::Secret::new("correct horse battery staple"))
         .wanted_caps(["sts"]);
     Transcript::new(config.clone())
         .connect()

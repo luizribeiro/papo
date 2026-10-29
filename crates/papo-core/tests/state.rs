@@ -1588,7 +1588,7 @@ fn reports_mixed_channel_and_user_mode_changes() {
         .event(|event| {
             assert!(!format!("{event:?}").contains("review-key-2026"));
             matches!(event, Event::ModeChanged { changes, .. } if changes == &vec![
-                ModeChange::__new('k', ModeAction::Add, Some(ModeArg::Key(Secret::from("review-key-2026")))),
+                ModeChange::__new('k', ModeAction::Add, Some(ModeArg::Key(Secret::new("review-key-2026")))),
                 ModeChange::__new('l', ModeAction::Add, Some(ModeArg::Value("50".into()))),
             ])
         })

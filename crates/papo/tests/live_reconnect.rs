@@ -24,7 +24,7 @@ async fn fills_a_dropped_connection_gap_once_across_two_reconnects() {
             support::nick(&nick),
         )
         .allow_insecure_auth(true)
-        .sasl(Sasl::plain(&nick, password))
+        .sasl(Sasl::plain(&nick, papo::Secret::new(password)))
         .disable(Feature::EventPlayback)
         .disable(Feature::Multiline)
         .autojoin([&channel])

@@ -71,9 +71,9 @@ fn assert_wiped(secret: Secret) {
 #[test]
 fn wipes_owned_secret_buffers_on_their_last_drop() {
     assert_wiped(Secret::new("text-secret-marker-8193"));
-    assert_wiped(Secret::from(String::from("string-secret-marker-6248")));
-    assert_wiped(Secret::from(Box::<str>::from("box-secret-marker-4637")));
-    assert_wiped(Secret::from(std::borrow::Cow::Owned(String::from(
+    assert_wiped(Secret::new(String::from("string-secret-marker-6248")));
+    assert_wiped(Secret::new(Box::<str>::from("box-secret-marker-4637")));
+    assert_wiped(Secret::new(std::borrow::Cow::Owned(String::from(
         "cow-secret-marker-9516",
     ))));
 

@@ -561,7 +561,7 @@ impl Line {
         else {
             unreachable!("secret parameters returned above");
         };
-        param.0 = ParamValue::Secret(Secret::from(value));
+        param.0 = ParamValue::Secret(Secret::new(value));
     }
 
     /// Returns the last value for a case-sensitive tag key.

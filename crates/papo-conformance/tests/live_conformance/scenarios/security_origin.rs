@@ -39,7 +39,10 @@ async fn provisioned_control(
                 Endpoint::plaintext(address.ip().to_string(), address.port()).unwrap(),
                 &network_name,
             )
-            .sasl(Sasl::plain(bouncer.username(), bouncer.password()))
+            .sasl(Sasl::plain(
+                bouncer.username(),
+                papo::Secret::new(bouncer.password()),
+            ))
             .allow_insecure_auth(true)
             .enable(Feature::Bouncer),
         )

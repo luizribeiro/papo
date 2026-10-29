@@ -84,7 +84,9 @@ async fn account_notify(s: Scenario) -> papo_testing::Result<()> {
         .account(alice_nick.as_ref());
 
     let outcome = alice
-        .create_account(NewAccount::new("q7Hx-2mZp_9vLcT4wRfB").account(account.clone()))
+        .create_account(
+            NewAccount::new(papo::Secret::new("q7Hx-2mZp_9vLcT4wRfB")).account(account.clone()),
+        )
         .await?;
     assert!(matches!(
         outcome,
@@ -258,7 +260,7 @@ async fn chghost(s: Scenario) -> papo_testing::Result<()> {
     let bob_nick = bob.nick();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
-    alice.oper(oper_name, password).await?;
+    alice.oper(oper_name, papo::Secret::new(password)).await?;
     alice
         .send_raw(
             papo::Line::new("CHGHOST").with_params([bob_nick.as_ref(), "conformance.example"]),
@@ -537,7 +539,7 @@ async fn operator_visibility(s: Scenario) -> papo_testing::Result<()> {
     alice.join(&channel).await?;
     bob.join(&channel).await?;
 
-    alice.oper(oper_name, password).await?;
+    alice.oper(oper_name, papo::Secret::new(password)).await?;
     assert!(alice.state().user_modes().any(|mode_| mode_ == 'o'));
 
     let who = bob.who(alice_nick.as_ref()).await?;
@@ -586,9 +588,9 @@ async fn operator_commands(s: Scenario) -> papo_testing::Result<()> {
     bob.join(&channel).await?;
     charlie.join(&channel).await?;
 
-    alice.oper(&oper_name, password).await?;
+    alice.oper(&oper_name, papo::Secret::new(password)).await?;
     let Error::Server(refusal) = diana
-        .oper(&oper_name, "incorrect-password")
+        .oper(&oper_name, papo::Secret::new("incorrect-password"))
         .await
         .unwrap_err()
     else {
@@ -634,7 +636,7 @@ async fn operator_wallops(s: Scenario) -> papo_testing::Result<()> {
     let (oper_name, password) = oper_credentials(&s)?;
     let alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
-    alice.oper(oper_name, password).await?;
+    alice.oper(oper_name, papo::Secret::new(password)).await?;
     let bob_nick = bob.nick();
     bob.send_raw(papo::Line::new("MODE").with_params([bob_nick.as_ref(), "+w"]))
         .await?;

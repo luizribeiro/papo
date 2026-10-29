@@ -53,7 +53,7 @@ async fn arbitrary_core_action_input_is_rejected_or_emits_valid_lines() {
             move |client: &crate::Client| {
                 client
                     .join(crate::Casemapping::default().channel(first))
-                    .key(third)
+                    .key(crate::Secret::new(third))
             }
         });
         check!({
@@ -83,7 +83,7 @@ async fn arbitrary_core_action_input_is_rejected_or_emits_valid_lines() {
         });
         check!({
             let (first, second) = (first.clone(), second.clone());
-            move |client: &crate::Client| client.oper(first, second)
+            move |client: &crate::Client| client.oper(first, crate::Secret::new(second))
         });
     }
 }
