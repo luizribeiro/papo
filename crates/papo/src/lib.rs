@@ -162,10 +162,10 @@
 //!
 //! The high-level client runs in dedicated workers, shared workers, and Node.js using the
 //! browser's WebSocket implementation. Pass a `ws://` or `wss://` URL directly to
-//! [`Client::builder`]. TCP [`Endpoint`] constructors remain available for portable
-//! configuration, but connecting through one returns an unavailable-transport error. The browser
-//! owns TLS policy for `wss://`, and IRC STS does not apply to WebSocket connections, so custom
-//! TLS setters and STS stores are absent from browser builds.
+//! [`Client::builder`]. TCP endpoint constructors are absent, and passing a TCP endpoint to the
+//! client builder records [`InvalidUrl::UnsupportedScheme`]. The browser owns TLS policy for
+//! `wss://`, and IRC STS does not apply to WebSocket connections, so custom TLS setters and STS
+//! stores are absent from browser builds.
 //!
 //! # Frozen re-exports
 //!
@@ -314,7 +314,9 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub use action::RequestFuture;
 pub use address::{Endpoint, EndpointKind, IntoEndpoint, InvalidInput};
-pub use builder::{Builder, StreamSecurity};
+pub use builder::Builder;
+#[cfg(not(browser))]
+pub use builder::StreamSecurity;
 pub use client::{Client, Fallback, JoinChannel, Kickban, SendMessage, Sent, SentOutcome};
 pub use direct::DirectRef;
 pub use direct_to::DirectSource;
@@ -382,6 +384,7 @@ pub use state::{Channel, ModeListEntry, ReadMarker, State};
 pub use target::{AsCap, AsConversation, AsMask, AsNick, Target};
 pub use token::{Command, ReplyCode};
 #[doc(inline)]
+#[cfg(tls)]
 pub use transport::{CertificateChain, PrivateKey};
 pub use typing::{Typer, Typers};
 pub use webirc::WebIrc;

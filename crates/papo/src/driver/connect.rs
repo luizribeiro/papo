@@ -19,12 +19,16 @@ use super::{
 };
 #[cfg(sockets)]
 use crate::address::Protocol;
-use crate::{Error, Event, InvalidInput, Reconnect, transport};
+#[cfg(any(sockets, browser))]
+use crate::transport;
+use crate::{Error, Event, InvalidInput, Reconnect};
 
+#[cfg(any(sockets, browser))]
+#[allow(unused_variables)]
 pub(super) async fn open_connection(
     plan: ConnectionPlan,
     progress: mpsc::UnboundedSender<papo_core::ConnectPhase>,
-) -> Result<transport::Stream, Error> {
+) -> Result<transport::stream::Stream, Error> {
     #[cfg(sockets)]
     {
         if let Some(url) = plan.address.websocket_url() {
@@ -43,16 +47,21 @@ pub(super) async fn open_connection(
             #[cfg(not(feature = "websocket"))]
             {
                 _ = url;
-                return Err(Error::connect_unavailable("websocket"));
+                unreachable!("connection plans reject WebSocket endpoints without support");
             }
         }
         let security = match plan.address.protocol {
             Protocol::Irc => transport::Security::Plaintext,
+            #[cfg(tls)]
             Protocol::Ircs => {
                 _ = progress.send(papo_core::ConnectPhase::Tls);
                 transport::Security::Tls(plan.tls)
             }
-            Protocol::Ws | Protocol::Wss => return Err(Error::connect_unavailable("websocket")),
+            #[cfg(not(tls))]
+            Protocol::Ircs => unreachable!("connection plans reject TLS without a provider"),
+            Protocol::Ws | Protocol::Wss => {
+                unreachable!("WebSocket endpoints return before TCP transport selection")
+            }
         };
         transport::connect(&plan.address.host, plan.address.port, &security)
             .await
@@ -60,20 +69,16 @@ pub(super) async fn open_connection(
     }
     #[cfg(browser)]
     {
-        let Some(url) = plan.address.websocket_url() else {
-            return Err(Error::connect_unavailable("TCP in browsers"));
-        };
+        let url = plan
+            .address
+            .websocket_url()
+            .expect("browser connection plans use WebSocket endpoints");
         if plan.address.is_secure() {
             _ = progress.send(papo_core::ConnectPhase::Tls);
         }
         transport::connect_websocket(&url, None)
             .await
             .map_err(Error::transport)
-    }
-    #[cfg(all(not(browser), not(sockets)))]
-    {
-        _ = (plan, progress);
-        Err(Error::connect_unavailable("outbound sockets"))
     }
 }
 
@@ -191,7 +196,16 @@ pub(super) async fn run_plan(
             ControlFlow::Continue(retry) => retry,
         };
         if let Some(port) = upgrade_port {
-            base_plan.address.apply_sts_upgrade(port);
+            let mut upgraded = base_plan.address.clone();
+            upgraded.apply_sts_upgrade(port);
+            if !upgraded.is_supported() {
+                let error = Error::Connect(crate::ConnectError::login(
+                    crate::ConnectErrorKind::HandshakeFailed,
+                    "the server requested a TLS upgrade that this build cannot open",
+                ));
+                return finish_connection_failure(events, &mut registration, error);
+            }
+            base_plan.address = upgraded;
             sts_required = true;
         }
         let reconnect_now = end.reconnect_now;
@@ -387,12 +401,7 @@ async fn connect_or_wait(
     let sts_tls_failure = sts_required
         && matches!(
             error,
-            Error::Connect(ref error)
-                if matches!(
-                    error.kind(),
-                    crate::ConnectErrorKind::CertificateRejected
-                        | crate::ConnectErrorKind::HandshakeFailed
-                )
+            Error::Connect(ref error) if error.is_sts_tls_failure()
         );
     if fail_fast
         || sts_tls_failure
@@ -552,10 +561,7 @@ pub(super) fn is_fatal_failure(error: &Error, close_kind: Option<papo_core::Clos
     ) {
         return true;
     }
-    if matches!(
-        error,
-        Error::Connect(error) if error.kind() == crate::ConnectErrorKind::CertificateRejected
-    ) {
+    if matches!(error, Error::Connect(error) if error.is_certificate_rejected()) {
         return true;
     }
     false
@@ -752,7 +758,7 @@ fn handle_disconnected_command(
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, sockets))]
 mod tests {
     use std::io;
 

@@ -1,5 +1,6 @@
 use papo::{
-    Client, Error, Event as ClientEvent, Events, Line, Reconnect, RequestFuture, Sasl, Secret,
+    Client, Endpoint, EndpointKind, Error, Event as ClientEvent, Events, InvalidInput, InvalidUrl,
+    Line, Reconnect, RequestFuture, Sasl, Secret,
 };
 use papo_core::{Config, Event, Session};
 use papo_proto::LineRef;

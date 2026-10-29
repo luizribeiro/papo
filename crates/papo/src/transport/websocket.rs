@@ -20,7 +20,7 @@ use tokio_tungstenite::{
 #[cfg(test)]
 mod live;
 
-use super::{ConnectError, Security, Stream, TlsConfig};
+use super::{ConnectError, Security, TlsConfig, stream::Stream};
 
 const BINARY: &str = "binary.ircv3.net";
 const TEXT: &str = "text.ircv3.net";
@@ -101,10 +101,12 @@ async fn connect_once(
         ))
     })?;
     let port = uri.port_u16().unwrap_or(if secure { 443 } else { 80 });
-    let security = if secure {
-        Security::Tls(tls.cloned().unwrap_or_default())
-    } else {
-        Security::Plaintext
+    let security = match secure {
+        false => Security::Plaintext,
+        #[cfg(tls)]
+        true => Security::Tls(tls.cloned().unwrap_or_default()),
+        #[cfg(not(tls))]
+        true => unreachable!("connection plans reject secure WebSockets without a TLS provider"),
     };
     let transport = super::connect(host, port, &security).await?;
     if offer_subprotocols {
@@ -144,13 +146,11 @@ async fn connect_once(
 }
 
 impl WebSocket {
-    #[cfg(test)]
     pub(super) const fn is_secure(&self) -> bool {
         self.secure
     }
 
-    #[cfg(test)]
-    pub(super) const fn subprotocol(&self) -> Option<&str> {
+    pub(super) const fn subprotocol(&self) -> Option<&'static str> {
         self.subprotocol
     }
 
@@ -303,33 +303,26 @@ mod tests {
     use tokio_tungstenite::tungstenite::protocol::Role;
 
     use super::WebSocket;
-    use crate::{
-        driver::test_support::within,
-        transport::{Stream, StreamInner},
-    };
+    use crate::{driver::test_support::within, transport::stream::Stream};
 
     #[tokio::test(flavor = "current_thread")]
     async fn flush_propagates_a_broken_peer_error() {
-        let peer = Stream {
-            inner: StreamInner::BrokenPeer,
-        };
+        let peer = Stream::broken_peer();
         let websocket = within(tokio_tungstenite::WebSocketStream::from_raw_socket(
             peer,
             Role::Client,
             None,
         ))
         .await;
-        let mut stream = Stream {
-            inner: StreamInner::WebSocket(Box::new(WebSocket {
-                stream: websocket,
-                secure: false,
-                subprotocol: None,
-                read_buffer: Vec::new(),
-                read_offset: 0,
-                write_buffer: Vec::new(),
-                eof: false,
-            })),
-        };
+        let mut stream = Stream::from_websocket(WebSocket {
+            stream: websocket,
+            secure: false,
+            subprotocol: None,
+            read_buffer: Vec::new(),
+            read_offset: 0,
+            write_buffer: Vec::new(),
+            eof: false,
+        });
 
         let error = within(stream.flush()).await.unwrap_err();
         assert_eq!(error.kind(), std::io::ErrorKind::Other);

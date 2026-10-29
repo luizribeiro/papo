@@ -23,7 +23,7 @@ use tokio_tungstenite::{
 use crate::transport::{TlsConfig, TlsRoots};
 use crate::{
     driver::test_support::within,
-    transport::{ConnectError, Stream, connect_websocket},
+    transport::{ConnectError, connect_websocket, stream::Stream},
 };
 
 #[tokio::test(flavor = "current_thread")]

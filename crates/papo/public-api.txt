@@ -1415,7 +1415,6 @@ pub papo::ConnectErrorKind::SaslUnavailable
 pub papo::ConnectErrorKind::Server
 pub papo::ConnectErrorKind::StsUpgradeLoop
 pub papo::ConnectErrorKind::TimedOut
-pub papo::ConnectErrorKind::Unavailable
 pub papo::ConnectErrorKind::Unreachable
 pub papo::ConnectErrorKind::WebIrcRejected
 pub papo::ConnectErrorKind::WelcomeTimedOut
@@ -2017,17 +2016,19 @@ pub const fn papo::Builder::regain_nick(self, bool) -> Self
 pub fn papo::Builder::request_caps<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: papo::AsCap
 pub fn papo::Builder::request_timeout(self, core::time::Duration) -> Self
 pub fn papo::Builder::sasl(self, papo::Sasl) -> Self
-pub fn papo::Builder::sts_store(self, impl papo::sts::StsStore + 'static) -> Self
-pub fn papo::Builder::tls_ca_pem(self, impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self
-pub fn papo::Builder::tls_client_cert(self, papo::CertificateChain, papo::PrivateKey) -> Self
-pub fn papo::Builder::tls_extra_ca_pem(self, impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self
-pub fn papo::Builder::tls_server_name(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Builder::username(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Builder::webirc(self, papo::WebIrc) -> Self
 pub fn papo::Builder::who_on_join(self, papo::WhoOnJoin) -> Self
 impl papo::Builder
 pub fn papo::Builder::stream(self, impl futures_io::if_std::AsyncRead + futures_io::if_std::AsyncWrite + core::marker::Send + core::marker::Unpin + 'static) -> Self
 pub fn papo::Builder::stream_with_security(self, impl futures_io::if_std::AsyncRead + futures_io::if_std::AsyncWrite + core::marker::Send + core::marker::Unpin + 'static, papo::StreamSecurity) -> Self
+impl papo::Builder
+pub fn papo::Builder::sts_store(self, impl papo::sts::StsStore + 'static) -> Self
+impl papo::Builder
+pub fn papo::Builder::tls_ca_pem(self, impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self
+pub fn papo::Builder::tls_client_cert(self, papo::CertificateChain, papo::PrivateKey) -> Self
+pub fn papo::Builder::tls_extra_ca_pem(self, impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self
+pub fn papo::Builder::tls_server_name(self, impl core::convert::Into<alloc::string::String>) -> Self
 impl core::fmt::Debug for papo::Builder
 pub fn papo::Builder::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Freeze for papo::Builder
@@ -2271,8 +2272,10 @@ pub struct papo::Endpoint(_)
 impl papo::Endpoint
 pub fn papo::Endpoint::host(&self) -> &str
 pub fn papo::Endpoint::kind(&self) -> papo::EndpointKind
-pub fn papo::Endpoint::plaintext(impl core::convert::Into<alloc::string::String>, u16) -> core::result::Result<Self, papo::InvalidUrl>
 pub fn papo::Endpoint::port(&self) -> u16
+impl papo::Endpoint
+pub fn papo::Endpoint::plaintext(impl core::convert::Into<alloc::string::String>, u16) -> core::result::Result<Self, papo::InvalidUrl>
+impl papo::Endpoint
 pub fn papo::Endpoint::tls(impl core::convert::Into<alloc::string::String>, u16) -> core::result::Result<Self, papo::InvalidUrl>
 impl core::clone::Clone for papo::Endpoint
 pub fn papo::Endpoint::clone(&self) -> Self

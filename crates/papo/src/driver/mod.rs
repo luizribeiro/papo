@@ -15,7 +15,9 @@ pub(crate) mod unstable;
 use catchup::{Catchup, CatchupCursor, advance_catchup, begin_catchup, server_restores_channels};
 
 use connect::apply_sts_action;
-use connect::{open_connection, run_plan};
+#[cfg(any(sockets, browser))]
+use connect::open_connection;
+use connect::run_plan;
 
 use std::{
     collections::{BTreeMap, VecDeque},
@@ -499,7 +501,7 @@ impl ConnectWait {
 #[derive(Clone)]
 pub(crate) struct ConnectionPlan {
     pub(crate) address: ServerAddress,
-    #[cfg_attr(browser, allow(dead_code))]
+    #[allow(dead_code)]
     pub(crate) tls: TlsConfig,
 }
 
@@ -634,6 +636,7 @@ impl std::fmt::Debug for Driver {
 }
 
 impl Driver {
+    #[cfg(not(browser))]
     pub(crate) fn with_stream_and_connect<S>(
         stream: S,
         session: Session,
@@ -656,6 +659,7 @@ impl Driver {
         (channels.client, channels.events, Self { inner })
     }
 
+    #[cfg(not(browser))]
     pub(crate) fn failed(
         session: &Session,
         capacity: usize,
@@ -687,6 +691,7 @@ impl Driver {
         connector: Option<Connector>,
         network_builder: Arc<RwLock<crate::builder::NetworkBuilderSettings>>,
     ) -> (Client, Events, Self) {
+        #[cfg(any(sockets, browser))]
         let connector = connector.unwrap_or_else(|| {
             Arc::new(|plan, progress| {
                 Box::pin(async move {
@@ -696,6 +701,14 @@ impl Driver {
                 })
             })
         });
+        #[cfg(all(not(sockets), not(browser)))]
+        let Some(connector) = connector else {
+            let error = match plan {
+                Err(error) => error,
+                Ok(_) => unreachable!("socketless network plans are rejected by the builder"),
+            };
+            return Self::failed(&session, capacity, registration, Error::InvalidInput(error));
+        };
         Self::with_connector_and_timeout(
             plan,
             session,
@@ -798,6 +811,7 @@ impl Future for Driver {
 }
 
 #[allow(clippy::too_many_arguments)]
+#[cfg(not(browser))]
 async fn run<S>(
     stream: S,
     mut session: Session,

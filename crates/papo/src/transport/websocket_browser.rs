@@ -64,10 +64,12 @@ impl WebSocket {
         }
     }
 
+    #[cfg(test)]
     pub(super) const fn is_secure(&self) -> bool {
         self.secure
     }
 
+    #[cfg(test)]
     pub(super) const fn subprotocol(&self) -> Option<&'static str> {
         Some(match self.protocol {
             Protocol::Binary => pure::BINARY,
@@ -182,6 +184,24 @@ mod tests {
     use wasm_bindgen_test::wasm_bindgen_test;
 
     use super::WebSocket;
+
+    #[wasm_bindgen_test]
+    async fn client_endpoints_are_limited_to_websockets() {
+        let tcp = "ircs://irc.example.net".parse::<crate::Endpoint>().unwrap();
+        assert_eq!(tcp.kind(), crate::EndpointKind::Tls);
+        let (_client, _events, driver) = crate::Client::builder(tcp, "papo-browser").build();
+        assert!(matches!(
+            driver.await,
+            Err(crate::Error::InvalidInput(crate::InvalidInput::Url(
+                crate::InvalidUrl::UnsupportedScheme(scheme)
+            ))) if scheme == "ircs"
+        ));
+
+        let websocket = "wss://irc.example.net/webirc"
+            .parse::<crate::Endpoint>()
+            .unwrap();
+        assert_eq!(websocket.kind(), crate::EndpointKind::SecureWebSocket);
+    }
 
     #[wasm_bindgen_test]
     async fn dropping_a_stream_releases_every_callback() {

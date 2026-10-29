@@ -1,22 +1,16 @@
 //! Network connections to IRC servers.
 
 #[cfg(sockets)]
+use std::io;
+#[cfg(sockets)]
 use std::net::SocketAddr;
 #[cfg(tls)]
 use std::sync::Arc;
-use std::{
-    io,
-    pin::Pin,
-    task::{Context, Poll},
-};
 
+#[cfg(any(sockets, browser))]
 use thiserror::Error;
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 #[cfg(sockets)]
 use tokio::net::TcpStream;
-#[cfg(tls)]
-use tokio_rustls::client::TlsStream;
-use zeroize::Zeroize;
 
 #[cfg(all(feature = "websocket", sockets))]
 mod websocket;
@@ -33,289 +27,39 @@ mod websocket_browser_pure;
 #[cfg(all(test, not(browser)))]
 mod live;
 
+#[cfg(tls)]
+mod tls;
+#[cfg(tls)]
+pub use tls::{CertificateChain, PrivateKey};
+#[cfg(tls)]
+pub(crate) use tls::{ClientCertificate, TlsConfig, TlsRoots};
+#[cfg(not(tls))]
+#[derive(Clone, Debug, Default)]
+pub(crate) struct TlsConfig;
+
+#[cfg(any(sockets, browser))]
+#[cfg_attr(browser, path = "transport/stream_browser.rs")]
+#[cfg_attr(sockets, path = "transport/stream_sockets.rs")]
+pub(crate) mod stream;
+
 /// The security used for a connection.
+#[cfg(sockets)]
 #[derive(Clone, Debug)]
 pub enum Security {
     /// An unencrypted TCP connection.
     Plaintext,
     /// A TLS connection.
+    #[cfg(tls)]
     Tls(TlsConfig),
 }
 
-/// The roots trusted by a TLS connection.
-#[derive(Clone, Debug)]
-pub enum TlsRoots {
-    /// Roots supplied by the operating system, or `WebPKI` roots on WASI.
-    Platform,
-    /// Only the certificates in the supplied PEM document.
-    Ca(Vec<u8>),
-    /// Platform roots plus the certificates in the supplied PEM document.
-    PlatformAndCa(Vec<u8>),
-}
-
-/// A client certificate chain and its private key, both PEM encoded.
-#[derive(Clone, Debug)]
-pub struct ClientCertificate {
-    certificate_chain: CertificateChain,
-    private_key: PrivateKey,
-}
-
-/// A PEM-encoded TLS client certificate chain.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CertificateChain(Vec<u8>);
-
-impl CertificateChain {
-    /// Wraps PEM-encoded client certificate data.
-    #[must_use]
-    pub fn new(value: impl Into<Vec<u8>>) -> Self {
-        Self(value.into())
-    }
-}
-
-/// A PEM-encoded TLS private key whose debug representation is redacted.
-#[derive(Clone)]
-pub struct PrivateKey(std::sync::Arc<PrivateKeyBytes>);
-
-struct PrivateKeyBytes(Vec<u8>);
-
-impl Drop for PrivateKeyBytes {
-    fn drop(&mut self) {
-        self.0.zeroize();
-    }
-}
-
-impl std::fmt::Debug for PrivateKey {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str("[REDACTED]")
-    }
-}
-
-impl PrivateKey {
-    /// Wraps PEM-encoded private-key data.
-    #[must_use]
-    pub fn new(value: impl Into<Vec<u8>>) -> Self {
-        Self(std::sync::Arc::new(PrivateKeyBytes(value.into())))
-    }
-
-    fn expose(&self) -> &[u8] {
-        &self.0.0
-    }
-}
-
-impl ClientCertificate {
-    /// Creates client credentials from PEM-encoded certificate and key data.
-    #[must_use]
-    pub fn new(certificate_chain: CertificateChain, private_key: PrivateKey) -> Self {
-        Self {
-            certificate_chain,
-            private_key,
-        }
-    }
-}
-
-/// TLS trust, identity, and server-name settings.
-///
-/// TLS 1.2 remains enabled alongside TLS 1.3 because Ergo's default minimum
-/// and many IRC networks still accept 1.2. Rustls offers only secure TLS 1.2
-/// cipher suites.
-#[derive(Clone, Debug)]
-pub struct TlsConfig {
-    /// The roots used to authenticate the server.
-    pub roots: TlsRoots,
-    /// A certificate presented when the server requests client authentication.
-    pub client_certificate: Option<ClientCertificate>,
-    /// A DNS name to authenticate in place of the connection host.
-    pub server_name: Option<String>,
-    #[cfg(tls)]
-    prepared: Option<Arc<rustls::ClientConfig>>,
-}
-
-impl Default for TlsConfig {
-    fn default() -> Self {
-        Self {
-            roots: TlsRoots::Platform,
-            client_certificate: None,
-            server_name: None,
-            #[cfg(tls)]
-            prepared: None,
-        }
-    }
-}
-
-impl TlsConfig {
-    #[cfg(tls)]
-    pub(crate) fn has_custom_settings(&self) -> bool {
-        !matches!(self.roots, TlsRoots::Platform)
-            || self.client_certificate.is_some()
-            || self.server_name.is_some()
-    }
-}
-
-/// A connected IRC byte stream.
-#[derive(Debug)]
-pub struct Stream {
-    inner: StreamInner,
-}
-
-#[derive(Debug)]
-enum StreamInner {
-    #[cfg(sockets)]
-    Tcp(TcpStream),
-    #[cfg(tls)]
-    Tls(Box<TlsStream<TcpStream>>),
-    #[cfg(all(feature = "websocket", sockets))]
-    WebSocket(Box<websocket::WebSocket>),
-    #[cfg(browser)]
-    BrowserWebSocket(Box<websocket_browser::WebSocket>),
-    #[cfg(all(test, feature = "websocket"))]
-    BrokenPeer,
-    #[cfg(not(sockets))]
-    #[allow(dead_code)]
-    Unavailable,
-}
-
-impl Stream {
-    /// Reports whether the stream authenticates and encrypts its traffic.
-    #[must_use]
-    #[cfg(test)]
-    pub const fn is_secure(&self) -> bool {
-        match &self.inner {
-            #[cfg(sockets)]
-            StreamInner::Tcp(_) => false,
-            #[cfg(tls)]
-            StreamInner::Tls(_) => true,
-            #[cfg(all(feature = "websocket", sockets))]
-            StreamInner::WebSocket(stream) => stream.is_secure(),
-            #[cfg(browser)]
-            StreamInner::BrowserWebSocket(stream) => stream.is_secure(),
-            #[cfg(all(test, feature = "websocket"))]
-            StreamInner::BrokenPeer => false,
-            #[cfg(not(sockets))]
-            StreamInner::Unavailable => false,
-        }
-    }
-
-    /// Returns the negotiated WebSocket subprotocol, if this is a WebSocket stream.
-    #[must_use]
-    #[cfg(test)]
-    pub fn websocket_subprotocol(&self) -> Option<&str> {
-        match &self.inner {
-            #[cfg(all(feature = "websocket", sockets))]
-            StreamInner::WebSocket(stream) => stream.subprotocol(),
-            #[cfg(browser)]
-            StreamInner::BrowserWebSocket(stream) => stream.subprotocol(),
-            _ => None,
-        }
-    }
-}
-
-#[cfg_attr(not(sockets), allow(unused_variables))]
-impl AsyncRead for Stream {
-    fn poll_read(
-        mut self: Pin<&mut Self>,
-        context: &mut Context<'_>,
-        buffer: &mut ReadBuf<'_>,
-    ) -> Poll<io::Result<()>> {
-        match &mut self.inner {
-            #[cfg(sockets)]
-            StreamInner::Tcp(stream) => Pin::new(stream).poll_read(context, buffer),
-            #[cfg(tls)]
-            StreamInner::Tls(stream) => Pin::new(stream).poll_read(context, buffer),
-            #[cfg(all(feature = "websocket", sockets))]
-            StreamInner::WebSocket(stream) => Pin::new(stream.as_mut()).poll_read(context, buffer),
-            #[cfg(browser)]
-            StreamInner::BrowserWebSocket(stream) => {
-                Pin::new(stream.as_mut()).poll_read(context, buffer)
-            }
-            #[cfg(all(test, feature = "websocket"))]
-            StreamInner::BrokenPeer => Poll::Ready(Err(broken_peer())),
-            #[cfg(not(sockets))]
-            StreamInner::Unavailable => Poll::Ready(Err(transport_unavailable())),
-        }
-    }
-}
-
-#[cfg_attr(not(sockets), allow(unused_variables))]
-impl AsyncWrite for Stream {
-    fn poll_write(
-        mut self: Pin<&mut Self>,
-        context: &mut Context<'_>,
-        buffer: &[u8],
-    ) -> Poll<Result<usize, io::Error>> {
-        match &mut self.inner {
-            #[cfg(sockets)]
-            StreamInner::Tcp(stream) => Pin::new(stream).poll_write(context, buffer),
-            #[cfg(tls)]
-            StreamInner::Tls(stream) => Pin::new(stream).poll_write(context, buffer),
-            #[cfg(all(feature = "websocket", sockets))]
-            StreamInner::WebSocket(stream) => Pin::new(stream.as_mut()).poll_write(context, buffer),
-            #[cfg(browser)]
-            StreamInner::BrowserWebSocket(stream) => {
-                Pin::new(stream.as_mut()).poll_write(context, buffer)
-            }
-            #[cfg(all(test, feature = "websocket"))]
-            StreamInner::BrokenPeer => Poll::Ready(Err(broken_peer())),
-            #[cfg(not(sockets))]
-            StreamInner::Unavailable => Poll::Ready(Err(transport_unavailable())),
-        }
-    }
-
-    fn poll_flush(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
-        match &mut self.inner {
-            #[cfg(sockets)]
-            StreamInner::Tcp(stream) => Pin::new(stream).poll_flush(context),
-            #[cfg(tls)]
-            StreamInner::Tls(stream) => Pin::new(stream).poll_flush(context),
-            #[cfg(all(feature = "websocket", sockets))]
-            StreamInner::WebSocket(stream) => Pin::new(stream.as_mut()).poll_flush(context),
-            #[cfg(browser)]
-            StreamInner::BrowserWebSocket(stream) => Pin::new(stream.as_mut()).poll_flush(context),
-            #[cfg(all(test, feature = "websocket"))]
-            StreamInner::BrokenPeer => Poll::Ready(Err(broken_peer())),
-            #[cfg(not(sockets))]
-            StreamInner::Unavailable => Poll::Ready(Err(transport_unavailable())),
-        }
-    }
-
-    fn poll_shutdown(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<io::Result<()>> {
-        match &mut self.inner {
-            #[cfg(sockets)]
-            StreamInner::Tcp(stream) => Pin::new(stream).poll_shutdown(context),
-            #[cfg(tls)]
-            StreamInner::Tls(stream) => Pin::new(stream).poll_shutdown(context),
-            #[cfg(all(feature = "websocket", sockets))]
-            StreamInner::WebSocket(stream) => Pin::new(stream.as_mut()).poll_shutdown(context),
-            #[cfg(browser)]
-            StreamInner::BrowserWebSocket(stream) => {
-                Pin::new(stream.as_mut()).poll_shutdown(context)
-            }
-            #[cfg(all(test, feature = "websocket"))]
-            StreamInner::BrokenPeer => Poll::Ready(Err(broken_peer())),
-            #[cfg(not(sockets))]
-            StreamInner::Unavailable => Poll::Ready(Err(transport_unavailable())),
-        }
-    }
-}
-
-#[cfg(any(not(sockets), test))]
-fn transport_unavailable() -> io::Error {
-    io::Error::new(io::ErrorKind::Unsupported, "transport is unavailable")
-}
-
-#[cfg(all(test, feature = "websocket"))]
-fn broken_peer() -> io::Error {
-    io::Error::new(io::ErrorKind::BrokenPipe, "broken WebSocket peer")
-}
-
 /// An error while opening a network connection.
+#[cfg(any(sockets, browser))]
 #[derive(Debug, Error)]
 #[non_exhaustive]
 pub(crate) enum ConnectError {
-    /// This build or target cannot open the requested transport.
-    #[allow(dead_code)]
-    #[error("{0} is unavailable")]
-    Unavailable(&'static str),
     /// Hostname resolution failed.
+    #[cfg(sockets)]
     #[error("failed to resolve {host}:{port}: {source}")]
     Resolve {
         /// The hostname that could not be resolved.
@@ -327,6 +71,7 @@ pub(crate) enum ConnectError {
         source: io::Error,
     },
     /// Every resolved address failed to connect.
+    #[cfg(sockets)]
     #[error("TCP connection failed: {0}")]
     Tcp(#[source] io::Error),
     /// TLS configuration or negotiation failed.
@@ -341,10 +86,6 @@ pub(crate) enum ConnectError {
     #[cfg(tls)]
     #[error("invalid TLS configuration: {0}")]
     InvalidTlsConfiguration(String),
-    /// TLS support was not selected at compile time.
-    #[cfg_attr(tls, allow(dead_code))]
-    #[error("TLS support is disabled; enable tls-ring or tls-aws-lc")]
-    TlsUnavailable,
     /// WebSocket URL parsing or negotiation failed.
     #[cfg(all(feature = "websocket", sockets))]
     #[error("WebSocket failed: {0}")]
@@ -367,10 +108,10 @@ pub(crate) enum ConnectError {
 pub(crate) async fn connect_websocket(
     url: &str,
     tls: Option<&TlsConfig>,
-) -> Result<Stream, ConnectError> {
-    websocket::connect(url, tls).await.map(|stream| Stream {
-        inner: StreamInner::WebSocket(Box::new(stream)),
-    })
+) -> Result<stream::Stream, ConnectError> {
+    websocket::connect(url, tls)
+        .await
+        .map(stream::Stream::from_websocket)
 }
 
 /// Opens a browser WebSocket connection.
@@ -382,33 +123,25 @@ pub(crate) async fn connect_websocket(
 pub async fn connect_websocket(
     url: &str,
     _tls: Option<&TlsConfig>,
-) -> Result<Stream, ConnectError> {
+) -> Result<stream::Stream, ConnectError> {
     websocket_browser::WebSocket::connect(url)
         .await
-        .map(|stream| Stream {
-            inner: StreamInner::BrowserWebSocket(Box::new(stream)),
-        })
+        .map(stream::Stream::from_websocket)
         .map_err(ConnectError::BrowserWebSocket)
 }
 
 /// Resolves a host and connects to each address in order until one succeeds.
 ///
-/// This function is unavailable on `wasm32-wasip1`, which cannot open outbound sockets.
-///
 /// # Errors
 ///
-/// Returns the resolver error, the last TCP error, or an error explaining that
-/// the selected security mode is unavailable.
+/// Returns the resolver error or the last connection error.
 #[cfg(sockets)]
+#[allow(unused_variables)]
 pub(crate) async fn connect(
     host: &str,
     port: u16,
     security: &Security,
-) -> Result<Stream, ConnectError> {
-    #[cfg(not(tls))]
-    if matches!(security, Security::Tls(_)) {
-        return Err(ConnectError::TlsUnavailable);
-    }
+) -> Result<stream::Stream, ConnectError> {
     let addresses = resolve(host, port).await?;
     #[cfg(tls)]
     let tls = match security {
@@ -426,9 +159,7 @@ pub(crate) async fn connect(
                 if let Some((connector, server_name)) = &tls {
                     match connector.connect(server_name.clone(), stream).await {
                         Ok(stream) => {
-                            return Ok(Stream {
-                                inner: StreamInner::Tls(Box::new(stream)),
-                            });
+                            return Ok(stream::Stream::from_tls(stream));
                         }
                         Err(error) => {
                             last_error = rustls_error(&error)
@@ -437,9 +168,7 @@ pub(crate) async fn connect(
                         }
                     }
                 }
-                return Ok(Stream {
-                    inner: StreamInner::Tcp(stream),
-                });
+                return Ok(stream::Stream::from_tcp(stream));
             }
             Err(error) => last_error = ConnectError::Tcp(error),
         }
@@ -596,15 +325,12 @@ async fn connect_address(address: SocketAddr) -> io::Result<TcpStream> {
     Ok(stream)
 }
 
-#[cfg(all(test, not(browser)))]
+#[cfg(all(test, not(browser), tls))]
 mod tests {
     use super::{CertificateChain, ClientCertificate, PrivateKey, TlsConfig};
-    #[cfg(tls)]
     use super::{ConnectError, TlsRoots, prepare_tls_config, tls_connector};
 
-    #[cfg(tls)]
     const CLIENT_CERTIFICATE: &[u8] = include_bytes!("../tests/data/client.pem");
-    #[cfg(tls)]
     const CLIENT_KEY: &[u8] = include_bytes!("../tests/data/client.key");
 
     #[test]
@@ -623,14 +349,6 @@ mod tests {
     }
 
     #[test]
-    fn unavailable_transport_has_a_typed_diagnostic() {
-        let error = super::transport_unavailable();
-        assert_eq!(error.kind(), std::io::ErrorKind::Unsupported);
-        assert_eq!(error.to_string(), "transport is unavailable");
-    }
-
-    #[cfg(tls)]
-    #[test]
     fn empty_ca_document_is_rejected() {
         let config = TlsConfig {
             roots: TlsRoots::Ca(Vec::new()),
@@ -643,7 +361,6 @@ mod tests {
         ));
     }
 
-    #[cfg(tls)]
     #[test]
     fn malformed_ca_document_is_rejected() {
         let config = TlsConfig {
@@ -659,7 +376,6 @@ mod tests {
         ));
     }
 
-    #[cfg(tls)]
     #[test]
     fn malformed_client_key_error_does_not_echo_the_input() {
         let marker = "unique-private-key-error-marker-4912";
@@ -683,7 +399,6 @@ mod tests {
         assert!(!error.to_string().contains(marker));
     }
 
-    #[cfg(tls)]
     #[test]
     fn prepared_client_identity_is_shared_by_plan_clones() {
         let mut config = TlsConfig {

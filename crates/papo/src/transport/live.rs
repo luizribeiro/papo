@@ -12,8 +12,8 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::time::timeout;
 
 #[cfg(tls)]
-use super::{CertificateChain, ClientCertificate, PrivateKey, TlsRoots};
-use super::{ConnectError, Security, Stream, TlsConfig, connect};
+use super::{CertificateChain, ClientCertificate, PrivateKey, TlsConfig, TlsRoots};
+use super::{ConnectError, Security, connect, stream::Stream};
 use crate::driver::test_support::within;
 
 #[cfg(tls)]
@@ -198,24 +198,6 @@ async fn tls_presents_a_client_certificate_seen_by_ergo_body() {
         line.contains(&format!(" 276 {nick} {nick} ")) && line.contains(CLIENT_CERTFP)
     })
     .await;
-}
-
-#[cfg(not(tls))]
-#[tokio::test(flavor = "current_thread")]
-async fn tls_without_a_provider_returns_a_clear_error() {
-    within(tls_without_a_provider_returns_a_clear_error_body()).await;
-}
-
-#[cfg(not(tls))]
-async fn tls_without_a_provider_returns_a_clear_error_body() {
-    let error = connect(
-        "name-does-not-exist.invalid",
-        6697,
-        &Security::Tls(TlsConfig::default()),
-    )
-    .await
-    .unwrap_err();
-    assert!(matches!(error, ConnectError::TlsUnavailable));
 }
 
 #[tokio::test(flavor = "current_thread")]

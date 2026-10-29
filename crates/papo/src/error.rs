@@ -1,27 +1,35 @@
-use std::{fmt, io, sync::Arc, time::Duration};
+use std::{fmt, sync::Arc, time::Duration};
 
 use thiserror::Error;
 
 use crate::{InvalidInput, Refusal, Unsupported};
+
+mod connect_display;
+#[cfg(any(sockets, browser))]
+#[cfg_attr(browser, path = "error/classify_browser.rs")]
+#[cfg_attr(sockets, path = "error/classify_sockets.rs")]
+mod transport_classify;
 
 /// Broad classification of a connection or login failure.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum ConnectErrorKind {
     /// The server name could not be resolved.
+    #[cfg(sockets)]
     HostNotFound,
     /// The remote endpoint refused the connection.
+    #[cfg(sockets)]
     Refused,
     /// The remote endpoint could not be reached.
+    #[cfg(sockets)]
     Unreachable,
     /// Opening the network or TLS connection timed out.
     TimedOut,
     /// The server certificate was rejected.
+    #[cfg(tls)]
     CertificateRejected,
     /// TLS or WebSocket negotiation failed.
     HandshakeFailed,
-    /// This build or target cannot open the requested endpoint.
-    Unavailable,
     /// Required SASL authentication failed.
     Sasl,
     /// The server does not offer a usable SASL mechanism.
@@ -82,9 +90,6 @@ impl ConnectError {
     }
 
     pub(crate) fn is_configuration_failure(&self) -> bool {
-        if self.kind == ConnectErrorKind::Unavailable {
-            return true;
-        }
         #[cfg(tls)]
         return self
             .source
@@ -100,40 +105,21 @@ impl ConnectError {
         false
     }
 
-    fn classify(error: &crate::transport::ConnectError) -> ConnectErrorKind {
-        match error {
-            crate::transport::ConnectError::Unavailable(_)
-            | crate::transport::ConnectError::TlsUnavailable => ConnectErrorKind::Unavailable,
-            crate::transport::ConnectError::Resolve { .. } => ConnectErrorKind::HostNotFound,
-            crate::transport::ConnectError::Tcp(error)
-                if error.kind() == io::ErrorKind::ConnectionRefused =>
-            {
-                ConnectErrorKind::Refused
-            }
-            crate::transport::ConnectError::Tcp(error)
-                if error.kind() == io::ErrorKind::TimedOut =>
-            {
-                ConnectErrorKind::TimedOut
-            }
-            crate::transport::ConnectError::Tcp(_) => ConnectErrorKind::Unreachable,
-            #[cfg(tls)]
-            crate::transport::ConnectError::Tls(rustls::Error::InvalidCertificate(_)) => {
-                ConnectErrorKind::CertificateRejected
-            }
-            #[cfg(tls)]
-            crate::transport::ConnectError::Tls(_) => ConnectErrorKind::HandshakeFailed,
-            #[cfg(tls)]
-            crate::transport::ConnectError::InvalidServerName(_)
-            | crate::transport::ConnectError::InvalidTlsConfiguration(_) => {
-                ConnectErrorKind::HandshakeFailed
-            }
-            #[cfg(all(feature = "websocket", sockets))]
-            crate::transport::ConnectError::WebSocket(_) => ConnectErrorKind::HandshakeFailed,
-            #[cfg(browser)]
-            crate::transport::ConnectError::BrowserWebSocket(_) => {
-                ConnectErrorKind::HandshakeFailed
-            }
+    pub(crate) fn is_sts_tls_failure(&self) -> bool {
+        if self.kind == ConnectErrorKind::HandshakeFailed {
+            return true;
         }
+        #[cfg(tls)]
+        return self.kind == ConnectErrorKind::CertificateRejected;
+        #[cfg(not(tls))]
+        false
+    }
+
+    pub(crate) fn is_certificate_rejected(&self) -> bool {
+        #[cfg(tls)]
+        return self.kind == ConnectErrorKind::CertificateRejected;
+        #[cfg(not(tls))]
+        false
     }
 
     pub(crate) fn login(kind: ConnectErrorKind, message: impl Into<String>) -> Self {
@@ -163,52 +149,11 @@ const fn displays_server_reason(kind: ConnectErrorKind) -> bool {
 #[error("{0}")]
 struct ConnectFailure(String);
 
+#[cfg(any(sockets, browser))]
 impl From<crate::transport::ConnectError> for ConnectError {
     fn from(error: crate::transport::ConnectError) -> Self {
-        let kind = Self::classify(&error);
+        let kind = transport_classify::classify(&error);
         Self::new(kind, error)
-    }
-}
-
-impl fmt::Display for ConnectError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.kind == ConnectErrorKind::CapabilityUnavailable {
-            return self.source.fmt(formatter);
-        }
-        let message = match self.kind {
-            ConnectErrorKind::HostNotFound => "the server host could not be found",
-            ConnectErrorKind::Refused => "the server refused the connection",
-            ConnectErrorKind::Unreachable => "the server could not be reached",
-            ConnectErrorKind::TimedOut => "the connection attempt timed out",
-            ConnectErrorKind::CertificateRejected => "the server certificate was rejected",
-            ConnectErrorKind::HandshakeFailed => "the connection handshake failed",
-            ConnectErrorKind::Unavailable => "the requested connection transport is unavailable",
-            ConnectErrorKind::Sasl => "SASL authentication failed",
-            ConnectErrorKind::SaslUnavailable => "SASL authentication is unavailable",
-            ConnectErrorKind::CapabilityUnavailable => unreachable!(),
-            ConnectErrorKind::AccountRequired => "the server requires an authenticated account",
-            ConnectErrorKind::PasswordIncorrect => "the server rejected the connection password",
-            ConnectErrorKind::Banned => "the server banned this connection",
-            ConnectErrorKind::WebIrcRejected => "the server rejected the WEBIRC gateway",
-            ConnectErrorKind::StsUpgradeLoop => "the server repeatedly requested an STS upgrade",
-            ConnectErrorKind::Server => "the server rejected the connection",
-            ConnectErrorKind::WelcomeTimedOut => "IRC login timed out",
-            ConnectErrorKind::Other => "the connection could not be completed",
-        };
-        formatter.write_str(message)?;
-        if displays_server_reason(self.kind) {
-            let reason = self.source.to_string();
-            if !reason.is_empty() {
-                write!(formatter, ": {reason}")?;
-            }
-        }
-        Ok(())
-    }
-}
-
-impl std::error::Error for ConnectError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        (!displays_server_reason(self.kind)).then_some(self.source.as_ref())
     }
 }
 
@@ -560,6 +505,7 @@ impl From<crate::StateLimit> for Error {
 }
 
 impl Error {
+    #[cfg(any(sockets, browser))]
     pub(crate) fn transport(error: crate::transport::ConnectError) -> Self {
         #[cfg(tls)]
         if matches!(
@@ -639,11 +585,6 @@ impl Error {
             },
             None,
         ))
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn connect_unavailable(transport: &'static str) -> Self {
-        Self::Connect(crate::transport::ConnectError::Unavailable(transport).into())
     }
 
     pub(crate) fn build(error: papo_proto::BuildError) -> Self {
@@ -1119,7 +1060,6 @@ mod tests {
             ConnectErrorKind::TimedOut,
             ConnectErrorKind::CertificateRejected,
             ConnectErrorKind::HandshakeFailed,
-            ConnectErrorKind::Unavailable,
             ConnectErrorKind::Sasl,
             ConnectErrorKind::SaslUnavailable,
             ConnectErrorKind::CapabilityUnavailable,
@@ -1167,6 +1107,7 @@ mod tests {
     fn every_public_invalid_input_variant_can_be_constructed() {
         let variants = [
             InvalidInput::Url(crate::InvalidUrl::Empty),
+            #[cfg(tls)]
             InvalidInput::TlsConfig("invalid PEM".into()),
             InvalidInput::KnownCapability {
                 capability: "chathistory".into(),
@@ -1179,6 +1120,7 @@ mod tests {
             InvalidInput::WireMessage(crate::BuildError::InvalidParam(0)),
             InvalidInput::InvalidCtcp,
             InvalidInput::InvalidClientTagKey("account".into()),
+            #[cfg(not(browser))]
             InvalidInput::CustomStreamNotReusable,
             InvalidInput::InvalidMode("mode has an invalid argument".into()),
             InvalidInput::InvalidMetadataKey {

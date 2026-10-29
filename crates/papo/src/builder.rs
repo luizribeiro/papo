@@ -9,8 +9,6 @@ use papo_core::sts::{ConnectionSecurity, MemoryStsStore, StsStore};
 use papo_core::{AwayOnConnect, Config, CtcpReplies, RateLimit, Sasl, WhoOnJoin, cap};
 use tokio::sync::oneshot;
 
-#[cfg(not(browser))]
-use crate::transport::{ClientCertificate, TlsRoots};
 use crate::{
     Error, InvalidInput, NewAccount, Reconnect,
     address::ServerAddress,
@@ -18,18 +16,19 @@ use crate::{
     transport::TlsConfig,
 };
 
-static NEXT_ORIGIN: AtomicU64 = AtomicU64::new(1);
+#[cfg(not(browser))]
+#[path = "builder/custom_stream.rs"]
+mod custom_stream;
+#[cfg(sockets)]
+#[path = "builder/sockets.rs"]
+mod sockets;
+#[cfg(not(browser))]
+pub use custom_stream::StreamSecurity;
+#[cfg(tls)]
+#[path = "builder/tls.rs"]
+mod tls;
 
-/// Declares whether a caller-provided stream encrypts its bytes.
-#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
-#[non_exhaustive]
-pub enum StreamSecurity {
-    /// The stream carries plaintext IRC traffic.
-    #[default]
-    Plaintext,
-    /// The stream is protected by encryption established by the caller.
-    Encrypted,
-}
+static NEXT_ORIGIN: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Clone)]
 #[allow(dead_code)]
@@ -139,6 +138,7 @@ impl Builder {
         builder.sts_store = Arc::clone(&settings.sts_store);
         builder.credentials_configured = settings.credentials_configured;
         builder.allow_insecure_auth = settings.allow_insecure_auth;
+        #[cfg(not(browser))]
         if !settings.reusable_transport {
             builder.invalid_input = Some(InvalidInput::CustomStreamNotReusable);
         }
@@ -525,94 +525,6 @@ impl Builder {
         self
     }
 
-    /// Sets the store used for IRC Strict Transport Security policies.
-    #[cfg(not(browser))]
-    pub fn sts_store(mut self, store: impl StsStore + 'static) -> Self {
-        self.sts_store = Arc::new(store);
-        self
-    }
-
-    /// Trusts only the certificates in a PEM document.
-    ///
-    /// This and [`Self::tls_extra_ca_pem`] replace the previously configured roots; the last call
-    /// wins.
-    ///
-    /// An IP endpoint can use a private CA while authenticating the DNS name in the certificate:
-    ///
-    /// ```no_run
-    /// # async fn connect() -> Result<(), Box<dyn std::error::Error>> {
-    /// use std::fs;
-    ///
-    /// let ca_pem = fs::read("private-ca.pem")?;
-    /// let (_client, _events) = papo::Client::builder("ircs://127.0.0.1:6697", "papo-client")
-    ///     .tls_ca_pem(ca_pem)
-    ///     .tls_server_name("irc.internal.example")
-    ///     .connect()
-    ///     .await?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    #[cfg(not(browser))]
-    pub fn tls_ca_pem(mut self, pem: impl Into<Vec<u8>>) -> Self {
-        self.tls.roots = TlsRoots::Ca(pem.into());
-        self
-    }
-
-    /// Adds certificates from a PEM document to the platform trust roots.
-    ///
-    /// This and [`Self::tls_ca_pem`] replace the previously configured roots; the last call wins.
-    ///
-    /// ```
-    /// # _ = papo::Client::builder("ircs://irc.example.net", "papo-client").tls_extra_ca_pem(Vec::new());
-    /// ```
-    #[cfg(not(browser))]
-    pub fn tls_extra_ca_pem(mut self, pem: impl Into<Vec<u8>>) -> Self {
-        self.tls.roots = TlsRoots::PlatformAndCa(pem.into());
-        self
-    }
-
-    /// Sets a PEM-encoded TLS client certificate chain and private key.
-    ///
-    /// ```compile_fail
-    /// # use papo::{CertificateChain, Client, PrivateKey};
-    /// let certificate = CertificateChain::new(Vec::new());
-    /// let key = PrivateKey::new(Vec::new());
-    /// let _ = Client::builder("ircs://irc.example.net", "papo-client")
-    ///     .tls_client_cert(key, certificate);
-    /// ```
-    ///
-    /// ```no_run
-    /// # fn configure(cert: &std::path::Path, key: &std::path::Path) -> std::io::Result<papo::Builder> {
-    /// use papo::{CertificateChain, PrivateKey};
-    /// use std::fs;
-    /// let builder = papo::Client::builder("ircs://irc.example.net", "papo-client")
-    ///     .tls_client_cert(
-    ///         CertificateChain::new(fs::read(cert)?),
-    ///         PrivateKey::new(fs::read(key)?),
-    ///     );
-    /// # Ok(builder)
-    /// # }
-    /// ```
-    #[cfg(not(browser))]
-    pub fn tls_client_cert(
-        mut self,
-        certificate: crate::CertificateChain,
-        key: crate::PrivateKey,
-    ) -> Self {
-        self.tls.client_certificate = Some(ClientCertificate::new(certificate, key));
-        self
-    }
-
-    /// Overrides the DNS name authenticated by TLS.
-    ///
-    /// This permits connecting to an IP endpoint while verifying a certificate for a DNS name.
-    /// See the private-CA example on [`Self::tls_ca_pem`].
-    #[cfg(not(browser))]
-    pub fn tls_server_name(mut self, server_name: impl Into<String>) -> Self {
-        self.tls.server_name = Some(server_name.into());
-        self
-    }
-
     /// Sets whether the server-advertised bot user mode is enabled after login.
     ///
     /// The default is `false`. When enabled, this is skipped if the server offers no bot mode.
@@ -838,6 +750,9 @@ impl Builder {
             if let Some(error) = validation_error {
                 return Err(error);
             }
+            if connector.is_none() && !address.is_supported() {
+                return Err(crate::InvalidUrl::UnsupportedScheme(address.scheme().into()).into());
+            }
             if !address.is_secure() && self.credentials_configured && !self.allow_insecure_auth {
                 return Err(InvalidInput::InsecureAuthentication);
             }
@@ -875,34 +790,6 @@ impl Builder {
         );
         client.network_builder = Some(network_builder);
         (client, events, driver)
-    }
-}
-
-#[cfg(not(browser))]
-impl Builder {
-    /// Uses an already-connected asynchronous byte stream.
-    ///
-    /// The stream is treated as plaintext. Custom streams are driven once and do not reconnect or
-    /// apply STS policies. Use [`Self::stream_with_security`] when the caller established an
-    /// encrypted stream.
-    pub fn stream(
-        self,
-        stream: impl futures_io::AsyncRead + futures_io::AsyncWrite + Send + Unpin + 'static,
-    ) -> Self {
-        self.stream_with_security(stream, StreamSecurity::Plaintext)
-    }
-
-    /// Uses an already-connected asynchronous byte stream with explicit transport security.
-    ///
-    /// [`StreamSecurity::Encrypted`] is a declaration by the caller that encryption has already
-    /// been established. Papo does not inspect or add encryption to a custom stream.
-    pub fn stream_with_security(
-        mut self,
-        stream: impl futures_io::AsyncRead + futures_io::AsyncWrite + Send + Unpin + 'static,
-        security: StreamSecurity,
-    ) -> Self {
-        self.stream = Some((Box::new(stream), security));
-        self
     }
 }
 
@@ -947,7 +834,6 @@ mod tests {
         driver::test_support::{
             abort_task, client_line, next_event, scripted, server_line, welcome_burst, within,
         },
-        transport::TlsRoots,
     };
 
     fn webirc(gateway: &str, password: &str) -> crate::WebIrc {
@@ -1103,7 +989,7 @@ mod tests {
         ));
     }
 
-    #[cfg(tls)]
+    #[cfg(all(tls, not(browser)))]
     #[tokio::test(flavor = "current_thread", start_paused = true)]
     async fn connect_timeout_covers_a_silent_tls_peer() {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -1577,6 +1463,7 @@ mod tests {
         assert_eq!(builder.config.ctcp, replies);
     }
 
+    #[cfg(tls)]
     #[test]
     fn debug_is_opaque_with_every_builder_secret() {
         let builder = Builder::new("ircs://irc.example.net")
@@ -1606,6 +1493,29 @@ mod tests {
         ] {
             assert!(!output.contains(secret));
         }
+
+        let builder = Builder::new("ircs://irc.example.net")
+            .tls_ca_pem(b"replaced CA".to_vec())
+            .tls_extra_ca_pem(b"test CA".to_vec())
+            .tls_client_cert(
+                crate::CertificateChain::new(b"certificate".to_vec()),
+                crate::PrivateKey::new(b"private key".to_vec()),
+            )
+            .tls_server_name("chat.example.net");
+        assert!(matches!(
+            builder.tls.roots,
+            crate::transport::TlsRoots::PlatformAndCa(pem) if pem == b"test CA"
+        ));
+        assert!(builder.tls.client_certificate.is_some());
+        assert_eq!(builder.tls.server_name.as_deref(), Some("chat.example.net"));
+
+        let builder = Builder::new("ircs://irc.example.net")
+            .tls_extra_ca_pem(b"replaced extra CA".to_vec())
+            .tls_ca_pem(b"only CA".to_vec());
+        assert!(matches!(
+            builder.tls.roots,
+            crate::transport::TlsRoots::Ca(pem) if pem == b"only CA"
+        ));
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -1730,26 +1640,6 @@ mod tests {
     }
 
     #[test]
-    fn configures_tls_material_and_server_name() {
-        let builder = Builder::new("ircs://irc.example.net")
-            .tls_ca_pem(b"replaced CA".to_vec())
-            .tls_extra_ca_pem(b"test CA".to_vec())
-            .tls_client_cert(
-                crate::CertificateChain::new(b"certificate".to_vec()),
-                crate::PrivateKey::new(b"private key".to_vec()),
-            )
-            .tls_server_name("chat.example.net");
-        assert!(matches!(builder.tls.roots, TlsRoots::PlatformAndCa(pem) if pem == b"test CA"));
-        assert!(builder.tls.client_certificate.is_some());
-        assert_eq!(builder.tls.server_name.as_deref(), Some("chat.example.net"));
-
-        let builder = Builder::new("ircs://irc.example.net")
-            .tls_extra_ca_pem(b"replaced extra CA".to_vec())
-            .tls_ca_pem(b"only CA".to_vec());
-        assert!(matches!(builder.tls.roots, TlsRoots::Ca(pem) if pem == b"only CA"));
-    }
-
-    #[test]
     fn configures_post_registration_defaults() {
         assert_eq!(
             Builder::new("ircs://irc.example.net").config.who_on_join,
@@ -1803,7 +1693,7 @@ mod tests {
         assert!(next_event(&mut events).await.is_none());
     }
 
-    #[cfg(tls)]
+    #[cfg(all(tls, not(browser)))]
     #[tokio::test(flavor = "current_thread")]
     async fn build_validates_every_tls_setting_for_every_scheme() {
         const CERTIFICATE: &[u8] = include_bytes!("../tests/data/client.pem");
@@ -1832,7 +1722,10 @@ mod tests {
 
         type TlsCase = (fn(Builder) -> Builder, &'static str);
         let default = Builder::new("irc://irc.example.net");
-        assert!(matches!(default.tls.roots, TlsRoots::Platform));
+        assert!(matches!(
+            default.tls.roots,
+            crate::transport::TlsRoots::Platform
+        ));
         assert!(!default.tls.has_custom_settings());
 
         let cases: [TlsCase; 4] = [
@@ -1841,7 +1734,12 @@ mod tests {
             (bad_private_key, "invalid client private key PEM"),
             (bad_server_name, "invalid TLS server name"),
         ];
-        for scheme in ["irc", "ircs", "ws", "wss"] {
+        let schemes: &[&str] = if cfg!(feature = "websocket") {
+            &["irc", "ircs", "ws", "wss"]
+        } else {
+            &["irc", "ircs"]
+        };
+        for scheme in schemes {
             for (configure, expected) in cases {
                 let endpoint = format!("{scheme}://irc.example.net");
                 let (_client, _events, driver) =
@@ -2154,13 +2052,15 @@ mod tests {
 
     #[cfg(not(feature = "websocket"))]
     #[tokio::test(flavor = "current_thread")]
-    async fn websocket_without_feature_is_typed_as_unsupported() {
+    async fn websocket_without_feature_is_rejected_before_connecting() {
         let (_client, _events, driver) = Builder::new("ws://irc.example.net/webirc")
             .reconnect(crate::Reconnect::never())
             .build();
         assert!(matches!(
             within(driver).await,
-            Err(Error::Connect(error)) if error.kind() == crate::ConnectErrorKind::Unavailable
+            Err(Error::InvalidInput(InvalidInput::Url(
+                crate::InvalidUrl::UnsupportedScheme(scheme)
+            ))) if scheme == "ws"
         ));
     }
 }

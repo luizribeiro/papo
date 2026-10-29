@@ -2,6 +2,11 @@ use std::{fmt, str::FromStr};
 
 use thiserror::Error;
 
+#[cfg(sockets)]
+mod sockets;
+#[cfg(tls)]
+mod tls;
+
 /// An invalid client configuration value.
 #[derive(Clone, Debug, Eq, Error, Hash, PartialEq)]
 #[non_exhaustive]
@@ -10,6 +15,7 @@ pub enum InvalidInput {
     #[error(transparent)]
     Url(#[from] crate::InvalidUrl),
     /// TLS trust, identity, or server-name input is invalid.
+    #[cfg(tls)]
     #[error("invalid TLS configuration: {0}")]
     TlsConfig(String),
     /// A known capability must be configured through its feature.
@@ -46,6 +52,7 @@ pub enum InvalidInput {
     #[error("client-only message tag {0:?} must start with '+'")]
     InvalidClientTagKey(String),
     /// A custom stream cannot be reused for another bouncer network connection.
+    #[cfg(not(browser))]
     #[error("a custom stream cannot be copied to a bouncer network connection")]
     CustomStreamNotReusable,
     /// A mode change is not valid under the server's advertised mode rules.
@@ -185,36 +192,6 @@ pub enum EndpointKind {
 }
 
 impl Endpoint {
-    /// Creates a TLS-protected TCP endpoint.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when `host` is empty or malformed, or `port` is zero.
-    ///
-    /// ```
-    /// let endpoint = papo::Endpoint::tls("irc.example.net", 6697);
-    /// # _ = endpoint;
-    /// ```
-    ///
-    pub fn tls(host: impl Into<String>, port: u16) -> Result<Self, crate::InvalidUrl> {
-        Self::tcp(host, port, Protocol::Ircs)
-    }
-
-    /// Creates an unencrypted TCP endpoint that remains eligible for STS upgrades.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when `host` is empty or malformed, or `port` is zero.
-    ///
-    /// ```
-    /// let endpoint = papo::Endpoint::plaintext("irc.example.net", 6667);
-    /// # _ = endpoint;
-    /// ```
-    ///
-    pub fn plaintext(host: impl Into<String>, port: u16) -> Result<Self, crate::InvalidUrl> {
-        Self::tcp(host, port, Protocol::Irc)
-    }
-
     /// Returns the endpoint's hostname.
     #[must_use]
     pub fn host(&self) -> &str {
@@ -236,25 +213,6 @@ impl Endpoint {
             Protocol::Ws => EndpointKind::WebSocket,
             Protocol::Wss => EndpointKind::SecureWebSocket,
         }
-    }
-
-    fn tcp(
-        host: impl Into<String>,
-        port: u16,
-        protocol: Protocol,
-    ) -> Result<Self, crate::InvalidUrl> {
-        let host = host.into();
-        let scheme = match protocol {
-            Protocol::Irc => "irc",
-            Protocol::Ircs => "ircs",
-            Protocol::Ws | Protocol::Wss => unreachable!("TCP constructor used for WebSocket"),
-        };
-        let (open, close) = if host.contains(':') {
-            ("[", "]")
-        } else {
-            ("", "")
-        };
-        format!("{scheme}://{open}{host}{close}:{port}").parse()
     }
 
     pub(crate) fn into_address(self) -> ServerAddress {
@@ -371,6 +329,24 @@ impl FromStr for ServerAddress {
 }
 
 impl ServerAddress {
+    pub(crate) const fn scheme(&self) -> &'static str {
+        match self.protocol {
+            Protocol::Irc => "irc",
+            Protocol::Ircs => "ircs",
+            Protocol::Ws => "ws",
+            Protocol::Wss => "wss",
+        }
+    }
+
+    pub(crate) const fn is_supported(&self) -> bool {
+        match self.protocol {
+            Protocol::Irc => cfg!(sockets),
+            Protocol::Ircs => cfg!(tls),
+            Protocol::Ws => cfg!(browser) || cfg!(all(sockets, feature = "websocket")),
+            Protocol::Wss => cfg!(browser) || cfg!(all(sockets, tls, feature = "websocket")),
+        }
+    }
+
     pub(crate) fn set_port(&mut self, port: u16) {
         assert!(port > 0, "server port must be positive");
         self.port = port;
@@ -436,12 +412,7 @@ impl ServerAddress {
 
 impl fmt::Display for ServerAddress {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let scheme = match self.protocol {
-            Protocol::Irc => "irc",
-            Protocol::Ircs => "ircs",
-            Protocol::Ws => "ws",
-            Protocol::Wss => "wss",
-        };
+        let scheme = self.scheme();
         let (open, close) = if self.host.contains(':') {
             ("[", "]")
         } else {
@@ -483,12 +454,6 @@ mod tests {
 
     #[test]
     fn typed_constructors_preserve_transport_details() {
-        let tls = Endpoint::tls("irc.example.net", 7443).unwrap().0;
-        assert_eq!(
-            (tls.protocol, tls.host.as_str(), tls.port),
-            (Protocol::Ircs, "irc.example.net", 7443)
-        );
-
         let plain = Endpoint::plaintext("irc.example.net", 7000).unwrap().0;
         assert_eq!(
             (plain.protocol, plain.host.as_str(), plain.port),
@@ -506,9 +471,19 @@ mod tests {
         assert_eq!(websocket.websocket_path.as_deref(), Some("/webirc"));
     }
 
+    #[cfg(tls)]
+    #[test]
+    fn tls_constructor_preserves_transport_details() {
+        let endpoint = Endpoint::tls("irc.example.net", 7443).unwrap().0;
+        assert_eq!(
+            (endpoint.protocol, endpoint.host.as_str(), endpoint.port),
+            (Protocol::Ircs, "irc.example.net", 7443)
+        );
+    }
+
     #[test]
     fn endpoint_accessors_and_display_preserve_configuration() {
-        let tls = Endpoint::tls("2001:db8::7", 6697).unwrap();
+        let tls = "ircs://[2001:db8::7]:6697".parse::<Endpoint>().unwrap();
         assert_eq!(tls.host(), "2001:db8::7");
         assert_eq!(tls.port(), 6697);
         assert_eq!(tls.kind(), EndpointKind::Tls);
@@ -538,12 +513,10 @@ mod tests {
 
     #[test]
     fn typed_endpoints_reject_invalid_input_at_construction() {
-        for endpoint in [
-            Endpoint::tls("irc.example.net", 0),
+        assert_eq!(
             Endpoint::plaintext("irc.example.net", 0),
-        ] {
-            assert_eq!(endpoint, Err(crate::InvalidUrl::InvalidPort("0".into())));
-        }
+            Err(crate::InvalidUrl::InvalidPort("0".into()))
+        );
         for (host, expected) in [
             ("", crate::InvalidUrl::EmptyHost),
             ("irc example.net", crate::InvalidUrl::Whitespace),
@@ -553,7 +526,7 @@ mod tests {
             ),
             ("irc.example.net\u{7f}", crate::InvalidUrl::ControlCharacter),
         ] {
-            assert_eq!(Endpoint::tls(host, 6697), Err(expected));
+            assert_eq!(Endpoint::plaintext(host, 6667), Err(expected));
         }
     }
 

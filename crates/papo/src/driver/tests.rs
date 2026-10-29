@@ -1415,10 +1415,9 @@ async fn transport_progress_distinguishes_plaintext_tls_and_attempts() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
+#[cfg(tls)]
 async fn configuration_failures_are_terminal() {
-    let mut failures = vec![Error::connect_unavailable("WebSocket")];
-    #[cfg(tls)]
-    failures.extend([
+    let failures = [
         Error::Connect(
             crate::transport::ConnectError::InvalidServerName("bad server name".into()).into(),
         ),
@@ -1428,7 +1427,7 @@ async fn configuration_failures_are_terminal() {
             )
             .into(),
         ),
-    ]);
+    ];
 
     for failure in failures {
         let calls = Arc::new(AtomicUsize::new(0));

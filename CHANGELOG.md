@@ -55,6 +55,8 @@ let builder = Client::builder("ircs://irc.example.net", "alice")
 | `Client::builder(endpoint)` plus optional `Builder::nick` | `Client::builder(endpoint, nick)`; there is no implicit `papo` nickname |
 | `without_caps(names)` and known names in `request_caps` | `disable(Feature)` / `enable(Feature)`; `request_caps` rejects known, managed, and unavailable unstable names |
 | `Endpoint::websocket`, separate URL constructors, and no `FromStr` | Parse every scheme with `"ircs://…".parse::<Endpoint>()`; `plaintext` and `tls` remain host/port conveniences |
+| Browser builds exposed TCP endpoint constructors and failed only when connecting | TCP endpoint constructors are absent in browser builds; passing a TCP endpoint to `Client::builder` records `InvalidUrl::UnsupportedScheme` |
+| Missing TLS or WebSocket support failed during connection as `ConnectErrorKind::Unavailable` | Transport-specific setters and credential types are absent when their target or Cargo feature cannot use them; unsupported URL schemes are `InvalidUrl::UnsupportedScheme` |
 | Many URL-shaped `InvalidInput` variants and an unexported network URL error | `InvalidInput::Url(InvalidUrl)` and `Endpoint::Err = InvalidUrl` |
 | `Builder::device` | `Sasl::plain(...).device(...)` or another SASL mechanism builder |
 | No SASL authorization identity | `Sasl::authzid(...)`; PLAIN transmits it too |
