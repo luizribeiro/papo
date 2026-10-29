@@ -1417,7 +1417,7 @@ mod tests {
                 .connect_timeout(Duration::from_secs(17))
                 .tls_server_name("bouncer.example")
                 .enable(crate::Feature::Relay)
-                .metadata_subscriptions(["example.org/color"])
+                .metadata_subscriptions([crate::MetadataKey::new("example.org/color")])
                 .event_capacity(17)
                 .autojoin(["#papo"])
                 .history_on_reconnect(true)

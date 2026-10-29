@@ -85,7 +85,10 @@ async fn arbitrary_builder_setter_input_is_rejected_or_registers_validly() {
         ));
         probe!(builder, a, b, _c => builder.request_caps([a, b]));
         probe!(builder, _a, _b, _c => builder.disable(crate::Feature::MessageTags));
-        probe!(builder, a, b, _c => builder.metadata_subscriptions([a, b]));
+        probe!(builder, a, b, _c => builder.metadata_subscriptions([
+            crate::MetadataKey::new(a),
+            crate::MetadataKey::new(b),
+        ]));
         probe!(builder, _a, _b, _c => builder.rate_limit(crate::RateLimit::unlimited()));
         probe!(builder, a, _b, _c => builder.ping_interval(Duration::from_secs(a.len() as u64)));
         probe!(builder, a, _b, _c => builder.ping_timeout(Duration::from_secs(a.len() as u64)));

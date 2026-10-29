@@ -118,26 +118,47 @@ fn assert_extension_futures_are_send(client: &Client, mapping: papo::Casemapping
     assert_send_static(client.fetch_read_marker("#papo"));
     assert_send_static(
         client.create_account(
-            NewAccount::new("correct horse battery staple")
+            NewAccount::new(papo::Secret::new("correct horse battery staple"))
                 .account(mapping.account("alice"))
                 .email("alice@example.org"),
         ),
     );
-    assert_send_static(client.verify_account(mapping.account("alice"), "392814"));
-    assert_send_static(client.metadata().get("alice", ["avatar"]));
-    assert_send_static(client.metadata().list("alice"));
-    assert_send_static(client.metadata().set("status", "testing"));
+    assert_send_static(
+        client.verify_account(mapping.account("alice"), papo::Secret::new("392814")),
+    );
     assert_send_static(
         client
             .metadata()
-            .set_on("alice", "timezone", "America/New_York"),
+            .get("alice", [papo::MetadataKey::new("avatar")]),
     );
-    assert_send_static(client.metadata().remove("status"));
-    assert_send_static(client.metadata().remove_on("alice", "timezone"));
+    assert_send_static(client.metadata().list("alice"));
+    assert_send_static(
+        client
+            .metadata()
+            .set(papo::MetadataKey::new("status"), "testing"),
+    );
+    assert_send_static(client.metadata().set_on(
+        "alice",
+        papo::MetadataKey::new("timezone"),
+        "America/New_York",
+    ));
+    assert_send_static(client.metadata().remove(papo::MetadataKey::new("status")));
+    assert_send_static(
+        client
+            .metadata()
+            .remove_on("alice", papo::MetadataKey::new("timezone")),
+    );
     assert_send_static(client.metadata().clear());
     assert_send_static(client.metadata().clear_on("alice"));
-    assert_send_static(client.metadata().subscribe(["avatar", "pronouns"]));
-    assert_send_static(client.metadata().unsubscribe(["pronouns"]));
+    assert_send_static(client.metadata().subscribe([
+        papo::MetadataKey::new("avatar"),
+        papo::MetadataKey::new("pronouns"),
+    ]));
+    assert_send_static(
+        client
+            .metadata()
+            .unsubscribe([papo::MetadataKey::new("pronouns")]),
+    );
     assert_send_static(client.metadata().sync("alice"));
     assert_send_static(
         client

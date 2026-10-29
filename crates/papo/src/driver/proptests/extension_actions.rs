@@ -37,15 +37,21 @@ async fn arbitrary_extension_input_is_rejected_or_emits_valid_lines() {
             crate::Casemapping::default().account(a),
             crate::Secret::new(b)
         ));
-        probe!(client, a, b, _c => client.metadata().get(a, [b]));
+        probe!(client, a, b, _c => client.metadata().get(a, [crate::MetadataKey::new(b)]));
         probe!(client, a, _b, _c => client.metadata().list(a));
-        probe!(client, a, b, _c => client.metadata().set(a, b));
-        probe!(client, a, _b, _c => client.metadata().remove(a));
-        probe!(client, a, b, c => client.metadata().set_on(a, b, c));
-        probe!(client, a, b, _c => client.metadata().remove_on(a, b));
+        probe!(client, a, b, _c => client.metadata().set(crate::MetadataKey::new(a), b));
+        probe!(client, a, _b, _c => client.metadata().remove(crate::MetadataKey::new(a)));
+        probe!(client, a, b, c => client.metadata().set_on(a, crate::MetadataKey::new(b), c));
+        probe!(client, a, b, _c => client.metadata().remove_on(a, crate::MetadataKey::new(b)));
         probe!(client, a, _b, _c => client.metadata().clear_on(a));
-        probe!(client, a, b, _c => client.metadata().subscribe([a, b]));
-        probe!(client, a, b, _c => client.metadata().unsubscribe([a, b]));
+        probe!(client, a, b, _c => client.metadata().subscribe([
+            crate::MetadataKey::new(a),
+            crate::MetadataKey::new(b),
+        ]));
+        probe!(client, a, b, _c => client.metadata().unsubscribe([
+            crate::MetadataKey::new(a),
+            crate::MetadataKey::new(b),
+        ]));
         probe!(client, a, _b, _c => client.metadata().sync(a));
         #[cfg(feature = "unstable")]
         probe!(client, a, b, c => client.webpush().register(a, crate::PushKeys::new(b, crate::Secret::new(c))));

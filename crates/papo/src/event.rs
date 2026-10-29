@@ -2102,7 +2102,7 @@ pub(crate) fn from_core_with_receipt(
                 papo_core::Subject::User(nick) => crate::Subject::User(nick),
                 _ => return CoreEvent::Unknown,
             },
-            key: key.into(),
+            key: crate::MetadataKey::new(key),
             value,
         }),
         papo_core::Event::History {
