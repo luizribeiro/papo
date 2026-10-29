@@ -2086,6 +2086,24 @@ impl core::marker::Unpin for papo::Builder
 impl core::marker::UnsafeUnpin for papo::Builder
 impl !core::panic::unwind_safe::RefUnwindSafe for papo::Builder
 impl !core::panic::unwind_safe::UnwindSafe for papo::Builder
+pub struct papo::CertificateChain(_)
+impl papo::CertificateChain
+pub fn papo::CertificateChain::new(impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self
+impl core::clone::Clone for papo::CertificateChain
+pub fn papo::CertificateChain::clone(&self) -> Self
+impl core::cmp::Eq for papo::CertificateChain
+impl core::cmp::PartialEq for papo::CertificateChain
+pub fn papo::CertificateChain::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::CertificateChain
+pub fn papo::CertificateChain::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::CertificateChain
+impl core::marker::Freeze for papo::CertificateChain
+impl core::marker::Send for papo::CertificateChain
+impl core::marker::Sync for papo::CertificateChain
+impl core::marker::Unpin for papo::CertificateChain
+impl core::marker::UnsafeUnpin for papo::CertificateChain
+impl core::panic::unwind_safe::RefUnwindSafe for papo::CertificateChain
+impl core::panic::unwind_safe::UnwindSafe for papo::CertificateChain
 pub struct papo::ChangeNetwork
 impl papo::ChangeNetwork
 pub fn papo::ChangeNetwork::name(self, impl core::convert::Into<alloc::string::String>) -> Self
@@ -2747,6 +2765,20 @@ impl core::marker::Unpin for papo::Persistence
 impl core::marker::UnsafeUnpin for papo::Persistence
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Persistence
 impl core::panic::unwind_safe::UnwindSafe for papo::Persistence
+pub struct papo::PrivateKey(_)
+impl papo::PrivateKey
+pub fn papo::PrivateKey::new(impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self
+impl core::clone::Clone for papo::PrivateKey
+pub fn papo::PrivateKey::clone(&self) -> Self
+impl core::fmt::Debug for papo::PrivateKey
+pub fn papo::PrivateKey::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for papo::PrivateKey
+impl core::marker::Send for papo::PrivateKey
+impl core::marker::Sync for papo::PrivateKey
+impl core::marker::Unpin for papo::PrivateKey
+impl core::marker::UnsafeUnpin for papo::PrivateKey
+impl core::panic::unwind_safe::RefUnwindSafe for papo::PrivateKey
+impl core::panic::unwind_safe::UnwindSafe for papo::PrivateKey
 #[non_exhaustive] pub struct papo::PushKeys
 impl papo::PushKeys
 pub fn papo::PushKeys::new(impl core::convert::Into<alloc::string::String>, papo::Secret) -> Self

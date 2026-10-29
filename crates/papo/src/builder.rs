@@ -566,7 +566,10 @@ impl Builder {
         certificate: impl Into<Vec<u8>>,
         key: impl Into<Vec<u8>>,
     ) -> Self {
-        self.tls.client_certificate = Some(ClientCertificate::new(certificate, key));
+        self.tls.client_certificate = Some(ClientCertificate::new(
+            crate::CertificateChain::new(certificate),
+            crate::PrivateKey::new(key),
+        ));
         self
     }
 

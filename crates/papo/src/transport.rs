@@ -56,12 +56,25 @@ pub enum TlsRoots {
 /// A client certificate chain and its private key, both PEM encoded.
 #[derive(Clone, Debug)]
 pub struct ClientCertificate {
-    certificate_chain: Vec<u8>,
+    certificate_chain: CertificateChain,
     private_key: PrivateKey,
 }
 
+/// A PEM-encoded TLS client certificate chain.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CertificateChain(Vec<u8>);
+
+impl CertificateChain {
+    /// Wraps PEM-encoded client certificate data.
+    #[must_use]
+    pub fn new(value: impl Into<Vec<u8>>) -> Self {
+        Self(value.into())
+    }
+}
+
+/// A PEM-encoded TLS private key whose debug representation is redacted.
 #[derive(Clone)]
-struct PrivateKey(std::sync::Arc<PrivateKeyBytes>);
+pub struct PrivateKey(std::sync::Arc<PrivateKeyBytes>);
 
 struct PrivateKeyBytes(Vec<u8>);
 
@@ -78,7 +91,9 @@ impl std::fmt::Debug for PrivateKey {
 }
 
 impl PrivateKey {
-    fn new(value: impl Into<Vec<u8>>) -> Self {
+    /// Wraps PEM-encoded private-key data.
+    #[must_use]
+    pub fn new(value: impl Into<Vec<u8>>) -> Self {
         Self(std::sync::Arc::new(PrivateKeyBytes(value.into())))
     }
 
@@ -90,10 +105,10 @@ impl PrivateKey {
 impl ClientCertificate {
     /// Creates client credentials from PEM-encoded certificate and key data.
     #[must_use]
-    pub fn new(certificate_chain: impl Into<Vec<u8>>, private_key: impl Into<Vec<u8>>) -> Self {
+    pub fn new(certificate_chain: CertificateChain, private_key: PrivateKey) -> Self {
         Self {
-            certificate_chain: certificate_chain.into(),
-            private_key: PrivateKey::new(private_key),
+            certificate_chain,
+            private_key,
         }
     }
 }
@@ -487,7 +502,7 @@ fn build_tls_client_config(
         }
     };
     let mut config = if let Some(identity) = &settings.client_certificate {
-        let chain = certificates(&identity.certificate_chain)?;
+        let chain = certificates(&identity.certificate_chain.0)?;
         let key = PrivateKeyDer::from_pem_slice(identity.private_key.expose())
             .map_err(|_| invalid_pem("client private key"))?;
         builder
@@ -583,7 +598,7 @@ async fn connect_address(address: SocketAddr) -> io::Result<TcpStream> {
 
 #[cfg(all(test, not(browser)))]
 mod tests {
-    use super::{ClientCertificate, TlsConfig};
+    use super::{CertificateChain, ClientCertificate, PrivateKey, TlsConfig};
     #[cfg(tls)]
     use super::{ConnectError, TlsRoots, prepare_tls_config, tls_connector};
 
@@ -596,8 +611,8 @@ mod tests {
     fn client_private_key_is_redacted() {
         let config = TlsConfig {
             client_certificate: Some(ClientCertificate::new(
-                b"public certificate".to_vec(),
-                b"private key material".to_vec(),
+                CertificateChain::new(b"public certificate".to_vec()),
+                PrivateKey::new(b"private key material".to_vec()),
             )),
             ..TlsConfig::default()
         };
@@ -650,9 +665,11 @@ mod tests {
         let marker = "unique-private-key-error-marker-4912";
         let config = TlsConfig {
             client_certificate: Some(ClientCertificate::new(
-                CLIENT_CERTIFICATE,
-                format!("-----BEGIN PRIVATE KEY-----\n{marker}\n-----END PRIVATE KEY-----")
-                    .into_bytes(),
+                CertificateChain::new(CLIENT_CERTIFICATE),
+                PrivateKey::new(
+                    format!("-----BEGIN PRIVATE KEY-----\n{marker}\n-----END PRIVATE KEY-----")
+                        .into_bytes(),
+                ),
             )),
             ..TlsConfig::default()
         };
@@ -671,8 +688,8 @@ mod tests {
     fn prepared_client_identity_is_shared_by_plan_clones() {
         let mut config = TlsConfig {
             client_certificate: Some(ClientCertificate::new(
-                CLIENT_CERTIFICATE,
-                CLIENT_KEY.to_vec(),
+                CertificateChain::new(CLIENT_CERTIFICATE),
+                PrivateKey::new(CLIENT_KEY.to_vec()),
             )),
             ..TlsConfig::default()
         };

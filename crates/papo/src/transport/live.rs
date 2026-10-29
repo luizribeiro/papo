@@ -12,7 +12,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::time::timeout;
 
 #[cfg(tls)]
-use super::{ClientCertificate, TlsRoots};
+use super::{CertificateChain, ClientCertificate, PrivateKey, TlsRoots};
 use super::{ConnectError, Security, Stream, TlsConfig, connect};
 use crate::driver::test_support::within;
 
@@ -173,7 +173,10 @@ async fn tls_presents_a_client_certificate_seen_by_ergo() {
 async fn tls_presents_a_client_certificate_seen_by_ergo_body() {
     let server = from_env();
     let mut config = tls_config(&server);
-    config.client_certificate = Some(ClientCertificate::new(CLIENT_CERTIFICATE, CLIENT_KEY));
+    config.client_certificate = Some(ClientCertificate::new(
+        CertificateChain::new(CLIENT_CERTIFICATE),
+        PrivateKey::new(CLIENT_KEY),
+    ));
     let mut stream = connect(
         "localhost",
         server.tls_addr().port(),

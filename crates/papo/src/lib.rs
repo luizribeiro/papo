@@ -372,6 +372,8 @@ pub use reconnect::Reconnect;
 pub use requests::{ListEntry, ListRequest, WhoEntry, Whois, WhoisChannel};
 pub use state::{ReadMarker, State};
 pub use target::{AsConversation, AsMask, AsNick, Target};
+#[doc(inline)]
+pub use transport::{CertificateChain, PrivateKey};
 pub use typing::{Typer, Typers};
 pub use webirc::WebIrc;
 
