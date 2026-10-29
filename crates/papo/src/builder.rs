@@ -230,8 +230,8 @@ impl Builder {
     ///
     /// On a plaintext endpoint, the server must offer a valid `sts` upgrade before the password
     /// is sent. [`Self::allow_insecure_auth`] explicitly permits sending it without that upgrade.
-    pub fn password(mut self, password: impl Into<papo_core::Secret>) -> Self {
-        self.config.password = Some(password.into());
+    pub fn password(mut self, password: papo_core::Secret) -> Self {
+        self.config.password = Some(password);
         self
     }
 
@@ -647,10 +647,13 @@ impl Builder {
     /// ```
     pub fn autojoin_with_key(
         mut self,
-        channel: impl Into<String>,
-        key: impl Into<papo_core::Secret>,
+        channel: impl crate::AsChannel,
+        key: papo_core::Secret,
     ) -> Self {
-        self.push_autojoin(Autojoin::new(channel, Some(key.into())));
+        self.push_autojoin(Autojoin::new(
+            crate::AsChannel::__parts(&channel).text().to_owned(),
+            Some(key),
+        ));
         self
     }
 

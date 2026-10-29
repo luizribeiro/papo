@@ -888,8 +888,8 @@ impl Config {
 
     /// Sets the optional server password sent while connecting.
     #[must_use]
-    pub fn password(mut self, password: impl Into<Secret>) -> Self {
-        self.password = Some(password.into());
+    pub fn password(mut self, password: Secret) -> Self {
+        self.password = Some(password);
         self
     }
 
@@ -931,13 +931,13 @@ impl Config {
         mut self,
         account: Option<impl Into<String>>,
         email: Option<impl Into<String>>,
-        password: impl Into<Secret>,
+        password: Secret,
     ) -> Self {
         self.registration_on_connect = Some(PendingRegistration {
             request: None,
             account: account.map(Into::into),
             email: email.map(Into::into),
-            password: password.into(),
+            password,
         });
         self
     }
@@ -4827,7 +4827,7 @@ impl Session {
         now: Instant,
         account: Option<&str>,
         email: Option<&str>,
-        password: impl Into<Secret>,
+        password: Secret,
     ) -> Result<(), RequestError> {
         self.require_secure_credentials()?;
         let registered = self.welcome_state.is_connected();
@@ -4857,7 +4857,6 @@ impl Session {
         }) {
             return Err(RequestError::CustomAccountNameUnsupported);
         }
-        let password = password.into();
         if !registered {
             if !self.caps.is_pending(cap::ACCOUNT_REGISTRATION.as_str()) {
                 return self.require_feature(Feature::AccountCreation);
@@ -4906,10 +4905,9 @@ impl Session {
         &mut self,
         now: Instant,
         account: &str,
-        code: impl Into<Secret>,
+        code: Secret,
     ) -> Result<(), RequestError> {
         self.require_secure_credentials()?;
-        let code = code.into();
         self.require_feature(Feature::AccountCreation)?;
         if !self.welcome_state.is_connected()
             && !RegistrationPolicy::parse(

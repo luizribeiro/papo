@@ -154,8 +154,8 @@ impl std::fmt::Debug for JoinChannel {
 
 impl JoinChannel {
     /// Supplies the channel key without exposing it through `Debug` output.
-    pub fn key(mut self, key: impl Into<crate::Secret>) -> Self {
-        self.key = Some(key.into());
+    pub fn key(mut self, key: crate::Secret) -> Self {
+        self.key = Some(key);
         self
     }
 }
@@ -1646,11 +1646,10 @@ impl Client {
     pub fn oper(
         &self,
         name: impl Into<String>,
-        password: impl Into<crate::Secret>,
+        password: crate::Secret,
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
         let name = name.into();
-        let password = password.into();
         crate::RequestFuture::new(async move {
             let response = client
                 .core_request(CoreRequest::Oper { name, password })

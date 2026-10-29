@@ -75,7 +75,7 @@ macro_rules! network_setters {
             self
         }
 
-        /// Sets the connection nickname.
+        /// Sets the connection nickname as text under the upstream network's name rules.
         pub fn nick(mut self, nick: impl Into<String>) -> Self {
             if let Ok(config) = &mut self.config {
                 config.nick = Some(nick.into());
@@ -100,9 +100,9 @@ macro_rules! network_setters {
         }
 
         /// Sets the upstream server password.
-        pub fn password(mut self, password: impl Into<crate::Secret>) -> Self {
+        pub fn password(mut self, password: crate::Secret) -> Self {
             if let Ok(config) = &mut self.config {
-                config.password = Some(password.into());
+                config.password = Some(password);
             }
             self
         }

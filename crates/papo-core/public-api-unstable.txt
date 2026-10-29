@@ -1603,7 +1603,7 @@ pub fn papo_core::Config::away_on_connect(self, core::option::Option<papo_core::
 pub const fn papo_core::Config::batch_timeout(self, core::time::Duration) -> Self
 pub const fn papo_core::Config::casemapping(self, papo::Casemapping) -> Self
 pub const fn papo_core::Config::connection_security(self, papo::sts::ConnectionSecurity) -> Self
-pub fn papo_core::Config::create_account_on_connect(self, core::option::Option<impl core::convert::Into<alloc::string::String>>, core::option::Option<impl core::convert::Into<alloc::string::String>>, impl core::convert::Into<papo::Secret>) -> Self
+pub fn papo_core::Config::create_account_on_connect(self, core::option::Option<impl core::convert::Into<alloc::string::String>>, core::option::Option<impl core::convert::Into<alloc::string::String>>, papo::Secret) -> Self
 pub fn papo_core::Config::ctcp(self, papo_core::CtcpReplies) -> Self
 pub const fn papo_core::Config::decoding(self, papo_core::Decoding) -> Self
 pub fn papo_core::Config::disable(self, papo_core::Feature) -> Self
@@ -1615,7 +1615,7 @@ pub const fn papo_core::Config::max_members_per_channel(self, usize) -> Self
 pub const fn papo_core::Config::max_open_batches(self, usize) -> Self
 pub fn papo_core::Config::metadata_subscriptions<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub fn papo_core::Config::nick(self, impl core::convert::Into<alloc::string::String>) -> Self
-pub fn papo_core::Config::password(self, impl core::convert::Into<papo::Secret>) -> Self
+pub fn papo_core::Config::password(self, papo::Secret) -> Self
 pub const fn papo_core::Config::ping_interval(self, core::time::Duration) -> Self
 pub const fn papo_core::Config::ping_timeout(self, core::time::Duration) -> Self
 pub const fn papo_core::Config::rate_limit(self, papo_core::RateLimit) -> Self
@@ -2157,7 +2157,7 @@ pub struct papo_core::Session
 impl papo_core::Session
 pub fn papo_core::Session::account(&self) -> core::option::Option<&str>
 pub fn papo_core::Session::caps(&self) -> &papo::Capabilities
-pub fn papo_core::Session::create_account(&mut self, std::time::Instant, core::option::Option<&str>, core::option::Option<&str>, impl core::convert::Into<papo::Secret>) -> core::result::Result<(), papo_core::RequestError>
+pub fn papo_core::Session::create_account(&mut self, std::time::Instant, core::option::Option<&str>, core::option::Option<&str>, papo::Secret) -> core::result::Result<(), papo_core::RequestError>
 pub fn papo_core::Session::handle_bytes(&mut self, std::time::Instant, &[u8])
 pub fn papo_core::Session::handle_connected(&mut self, std::time::Instant)
 pub fn papo_core::Session::handle_connected_with(&mut self, std::time::Instant, papo_core::Connection)
@@ -2189,7 +2189,7 @@ pub fn papo_core::Session::send_text(&mut self, std::time::Instant, papo_core::T
 pub fn papo_core::Session::server_rejoins_channels(&self) -> bool
 pub const fn papo_core::Session::state(&self) -> &papo_core::State
 pub const fn papo_core::Session::state_generation(&self) -> u64
-pub fn papo_core::Session::verify(&mut self, std::time::Instant, &str, impl core::convert::Into<papo::Secret>) -> core::result::Result<(), papo_core::RequestError>
+pub fn papo_core::Session::verify(&mut self, std::time::Instant, &str, papo::Secret) -> core::result::Result<(), papo_core::RequestError>
 pub fn papo_core::Session::with_entropy(papo_core::Config, alloc::boxed::Box<(dyn papo_core::Entropy + core::marker::Send)>) -> Self
 impl papo_core::Session
 pub fn papo_core::Session::bouncer_add(&mut self, std::time::Instant, papo::Param) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>

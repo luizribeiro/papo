@@ -1983,7 +1983,7 @@ pub struct papo::AddNetwork
 impl papo::AddNetwork
 pub fn papo::AddNetwork::name(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::AddNetwork::nick(self, impl core::convert::Into<alloc::string::String>) -> Self
-pub fn papo::AddNetwork::password(self, impl core::convert::Into<papo::Secret>) -> Self
+pub fn papo::AddNetwork::password(self, papo::Secret) -> Self
 pub fn papo::AddNetwork::realname(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::AddNetwork::username(self, impl core::convert::Into<alloc::string::String>) -> Self
 impl core::fmt::Debug for papo::AddNetwork
@@ -2050,7 +2050,7 @@ impl papo::Builder
 pub fn papo::Builder::allow_insecure_auth(self, bool) -> Self
 pub fn papo::Builder::alt_nicks<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub fn papo::Builder::autojoin<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
-pub fn papo::Builder::autojoin_with_key(self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo::Secret>) -> Self
+pub fn papo::Builder::autojoin_with_key(self, impl papo::AsChannel, papo::Secret) -> Self
 pub fn papo::Builder::away_on_connect(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Builder::bot(self, bool) -> Self
 pub fn papo::Builder::bouncer_network(self, papo::NetworkId) -> Self
@@ -2065,7 +2065,7 @@ pub fn papo::Builder::enable(self, papo::Feature) -> Self
 pub fn papo::Builder::event_capacity(self, usize) -> Self
 pub fn papo::Builder::history_on_reconnect(self, bool) -> Self
 pub fn papo::Builder::metadata_subscriptions<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<papo::MetadataKey>
-pub fn papo::Builder::password(self, impl core::convert::Into<papo::Secret>) -> Self
+pub fn papo::Builder::password(self, papo::Secret) -> Self
 pub fn papo::Builder::ping_interval(self, core::time::Duration) -> Self
 pub fn papo::Builder::ping_timeout(self, core::time::Duration) -> Self
 pub fn papo::Builder::rate_limit(self, papo::RateLimit) -> Self
@@ -2117,7 +2117,7 @@ pub struct papo::ChangeNetwork
 impl papo::ChangeNetwork
 pub fn papo::ChangeNetwork::name(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::ChangeNetwork::nick(self, impl core::convert::Into<alloc::string::String>) -> Self
-pub fn papo::ChangeNetwork::password(self, impl core::convert::Into<papo::Secret>) -> Self
+pub fn papo::ChangeNetwork::password(self, papo::Secret) -> Self
 pub fn papo::ChangeNetwork::realname(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::ChangeNetwork::username(self, impl core::convert::Into<alloc::string::String>) -> Self
 impl core::fmt::Debug for papo::ChangeNetwork
@@ -2147,7 +2147,7 @@ pub fn papo::Client::kickban(&self, impl papo::AsChannel, impl papo::AsNick, imp
 pub fn papo::Client::list(&self) -> papo::ListRequest
 pub fn papo::Client::nick(&self) -> papo::Nick
 pub fn papo::Client::notice(&self, impl papo::Target, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
-pub fn papo::Client::oper(&self, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo::Secret>) -> papo::RequestFuture<()>
+pub fn papo::Client::oper(&self, impl core::convert::Into<alloc::string::String>, papo::Secret) -> papo::RequestFuture<()>
 pub const fn papo::Client::origin(&self) -> papo::Origin
 pub fn papo::Client::part(&self, impl papo::AsChannel, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::ping(&self) -> papo::RequestFuture<core::time::Duration>
@@ -2497,7 +2497,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::Isupport
 impl core::panic::unwind_safe::UnwindSafe for papo::Isupport
 pub struct papo::JoinChannel
 impl papo::JoinChannel
-pub fn papo::JoinChannel::key(self, impl core::convert::Into<papo::Secret>) -> Self
+pub fn papo::JoinChannel::key(self, papo::Secret) -> Self
 impl core::fmt::Debug for papo::JoinChannel
 pub fn papo::JoinChannel::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::future::into_future::IntoFuture for papo::JoinChannel
