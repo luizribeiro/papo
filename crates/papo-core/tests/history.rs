@@ -28,7 +28,10 @@ fn history_session(isupport: &str) -> (Session, Instant) {
         now,
         format!(":ergo.test 005 papo {isupport} :are supported by this server").as_bytes(),
     );
+    session.handle_line(now, b":ergo.test 001 papo :Welcome to Ergo");
+    session.handle_line(now, b":ergo.test 422 papo :MOTD File is missing");
     while session.poll_transmit().is_some() {}
+    while session.poll_event().is_some() {}
     (session, now)
 }
 
@@ -40,7 +43,10 @@ fn read_marker_session() -> (Session, Instant) {
     session.handle_connected(now);
     session.handle_line(now, b"CAP * LS :draft/read-marker labeled-response");
     session.handle_line(now, b"CAP * ACK :draft/read-marker labeled-response");
+    session.handle_line(now, b":ergo.test 001 papo :Welcome to Ergo");
+    session.handle_line(now, b":ergo.test 422 papo :MOTD File is missing");
     while session.poll_transmit().is_some() {}
+    while session.poll_event().is_some() {}
     (session, now)
 }
 
