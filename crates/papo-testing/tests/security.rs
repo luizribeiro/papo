@@ -368,7 +368,7 @@ async fn cross_client_values_never_reach_either_wire() {
     assert_eq!(message.origin(), second.origin());
 
     assert!(is_foreign(&first.reply(&message, "acknowledged").await));
-    let papo::Conversation::Channel(channel) = &message.conversation else {
+    let papo::Conversation::Channel(channel) = message.conversation() else {
         panic!("history item belongs to a channel")
     };
     assert!(is_foreign(&first.privmsg(channel, "acknowledged").await));
@@ -641,9 +641,10 @@ async fn line_reference(
     name: &str,
     private: bool,
     line: &str,
-) -> papo::MessageRef {
+) -> (papo::MessageRef, papo::Event) {
     wire.server(line).await;
-    let reference = match next_active_event(events).await {
+    let event = next_active_event(events).await;
+    let reference = match &event {
         papo::Event::Message(event) => event.return_address(),
         papo::Event::TagMsg(event) => event.return_address(),
         papo::Event::Reacted(event) => event.return_address(),
@@ -655,7 +656,27 @@ async fn line_reference(
         reference.as_ref(),
         if private { "alice" } else { "#review" }
     );
-    reference
+    (reference, event)
+}
+
+async fn assert_direct_source_gone(client: &papo::Client, event: &papo::Event) {
+    let result = match event {
+        papo::Event::Message(event) => client.direct_to(event).await,
+        papo::Event::Notice(event) => client.direct_to(event).await,
+        papo::Event::CtcpQuery(event) => client.direct_to(event).await,
+        papo::Event::CtcpReply(event) => client.direct_to(event).await,
+        papo::Event::Invited(event) => client.direct_to(event).await,
+        papo::Event::MonitorOnline(event) => client.direct_to(event).await,
+        papo::Event::Reacted(event) => client.direct_to(event).await,
+        papo::Event::Redacted(event) => client.direct_to(event).await,
+        papo::Event::TagMsg(event) => client.direct_to(event).await,
+        papo::Event::TypingChanged(event) => client.direct_to(event).await,
+        event => panic!("event has no direct sender: {event:?}"),
+    };
+    assert!(
+        matches!(result, Err(papo::Error::TargetGone)),
+        "direct source did not retain its sender guard: {event:?}: {result:?}"
+    );
 }
 
 async fn assert_line_recipient_guard(
@@ -689,6 +710,7 @@ async fn every_line_reference_refuses_a_stale_target() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo-wire")
             .rate_limit(papo::RateLimit::unlimited())
+            .ctcp_replies(papo::CtcpReplies::off())
             .reconnect(Reconnect::never()),
     );
     wire.register(&[
@@ -725,6 +747,7 @@ async fn every_line_reference_refuses_a_stale_target() {
     let sent = client.privmsg(&direct, "review requested").await.unwrap();
     assert_eq!(wire.next_sent().await, "PRIVMSG alice :review requested");
     let mut references = vec![("sent message", true, sent.return_address())];
+    let mut direct_sources = Vec::new();
     for (name, private, line) in [
         (
             "message",
@@ -777,8 +800,19 @@ async fn every_line_reference_refuses_a_stale_target() {
             "@+typing=active :alice!~a@cloak.example TAGMSG #review",
         ),
     ] {
-        let reference = line_reference(&mut events, &mut wire, name, private, line).await;
+        let (reference, event) = line_reference(&mut events, &mut wire, name, private, line).await;
         references.push((name, private, reference));
+        direct_sources.push(event);
+    }
+    for line in [
+        ":alice!~a@cloak.example NOTICE papo-wire :release notice",
+        ":alice!~a@cloak.example PRIVMSG papo-wire :\u{1}VERSION\u{1}",
+        ":alice!~a@cloak.example NOTICE papo-wire :\u{1}VERSION papo 0.1\u{1}",
+        ":alice!~a@cloak.example INVITE papo-wire #review",
+        ":offline.test 730 papo-wire :alice!~a@cloak.example",
+    ] {
+        wire.server(line).await;
+        direct_sources.push(next_active_event(&mut events).await);
     }
     let index = references
         .iter()
@@ -814,6 +848,9 @@ async fn every_line_reference_refuses_a_stale_target() {
         client.typing(&direct, papo::Typing::Active).await,
     ] {
         assert!(matches!(result, Err(papo::Error::TargetGone)));
+    }
+    for event in &direct_sources {
+        assert_direct_source_gone(&client, event).await;
     }
 
     for (name, _, reference) in private_references {

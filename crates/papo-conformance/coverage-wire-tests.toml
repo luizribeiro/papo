@@ -25,6 +25,8 @@
   "security.adv-7.private-line-recipient-guards",
   "security.dm-direct.send-path-enumeration",
   "security.channel-guard.receipt-targets",
+  "security.api.receipt-backed-direct-source",
+  "security.api.receipt-backed-references",
 ]
 "direct_identity::direct_ref_follows_rename_and_refuses_a_nickname_takeover" = [
   "security.dm-direct.guarded-targets",

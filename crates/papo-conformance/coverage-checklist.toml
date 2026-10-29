@@ -90,6 +90,8 @@ ids = [
   "security.api.typed-tls-identity",
   "security.api.explicit-channel-keys",
   "security.api.validated-account-extbans",
+  "security.api.receipt-backed-direct-source",
+  "security.api.receipt-backed-references",
   "security.t4.sts-normalized-host",
   "security.t5.sts-duration-overflow",
   "security.t6.sts-transport-port",
