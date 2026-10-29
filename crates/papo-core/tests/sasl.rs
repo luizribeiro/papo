@@ -986,7 +986,7 @@ fn rejects_an_excessive_scram_iteration_count_before_derivation() {
 #[test]
 fn a_bad_scram_proof_never_falls_back_to_plain() {
     Transcript::with_entropy(
-        Config::default().sasl(Sasl::any("user", "pencil")),
+        Config::default().sasl(Sasl::any("user", papo_core::Secret::new("pencil"))),
         Box::new(FixedEntropy),
     )
     .connect_default()
@@ -1021,7 +1021,10 @@ fn replays_recorded_ergo_plain_login() {
     Transcript::new(
         Config::default()
             .wanted_caps(Vec::<String>::new())
-            .sasl(Sasl::plain("paposasl", "v3ry-Long_Unique-Password-7391")),
+            .sasl(Sasl::plain(
+                "paposasl",
+                papo_core::Secret::new("v3ry-Long_Unique-Password-7391"),
+            )),
     )
     .connect_default()
     .load("tests/data/ergo-sasl-plain.irc")
@@ -1039,7 +1042,7 @@ fn replays_recorded_ergo_scram_login() {
             .wanted_caps(Vec::<String>::new())
             .sasl(Sasl::scram_sha256(
                 "paposasl",
-                "v3ry-Long_Unique-Password-7391",
+                papo_core::Secret::new("v3ry-Long_Unique-Password-7391"),
             )),
         Box::new(FixedEntropy),
     )
@@ -1063,7 +1066,7 @@ fn rejects_unoffered_and_908_removed_mechanisms() {
         .client("CAP END");
 
     Transcript::with_entropy(
-        Config::default().sasl(Sasl::any("alice", "hunter2").optional()),
+        Config::default().sasl(Sasl::any("alice", papo_core::Secret::new("hunter2")).optional()),
         Box::new(FixedEntropy),
     )
     .connect_default()
@@ -1079,85 +1082,94 @@ fn rejects_unoffered_and_908_removed_mechanisms() {
 
 #[test]
 fn each_authenticate_step_renews_the_deadline() {
-    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
-        .connect_default()
-        .server("CAP * LS :sasl=PLAIN")
-        .client("CAP REQ :sasl")
-        .server("CAP * ACK :sasl")
-        .client("AUTHENTICATE PLAIN")
-        .advance(std::time::Duration::from_secs(29))
-        .server("AUTHENTICATE +")
-        .client("AUTHENTICATE AGFsaWNlAGh1bnRlcjI=")
-        .deadline(Some(std::time::Duration::from_secs(30)))
-        .server(":ergo.test 903 alice :SASL authentication successful")
-        .client("CAP END");
+    Transcript::new(
+        Config::default().sasl(Sasl::plain("alice", papo_core::Secret::new("hunter2"))),
+    )
+    .connect_default()
+    .server("CAP * LS :sasl=PLAIN")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE PLAIN")
+    .advance(std::time::Duration::from_secs(29))
+    .server("AUTHENTICATE +")
+    .client("AUTHENTICATE AGFsaWNlAGh1bnRlcjI=")
+    .deadline(Some(std::time::Duration::from_secs(30)))
+    .server(":ergo.test 903 alice :SASL authentication successful")
+    .client("CAP END");
 }
 
 #[test]
 fn a_partial_server_challenge_renews_the_deadline() {
     let first = "YWFh".repeat(100);
     assert_eq!(first.len(), 400);
-    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
-        .connect_default()
-        .server("CAP * LS :sasl=PLAIN")
-        .client("CAP REQ :sasl")
-        .server("CAP * ACK :sasl")
-        .client("AUTHENTICATE PLAIN")
-        .advance(std::time::Duration::from_secs(17))
-        .server(&format!("AUTHENTICATE {first}"))
-        .deadline(Some(std::time::Duration::from_secs(30)))
-        .advance(std::time::Duration::from_secs(29))
-        .no_client()
-        .server("AUTHENTICATE YQ==")
-        .client("AUTHENTICATE AGFsaWNlAGh1bnRlcjI=")
-        .server(":ergo.test 903 alice :SASL authentication successful")
-        .client("CAP END");
+    Transcript::new(
+        Config::default().sasl(Sasl::plain("alice", papo_core::Secret::new("hunter2"))),
+    )
+    .connect_default()
+    .server("CAP * LS :sasl=PLAIN")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE PLAIN")
+    .advance(std::time::Duration::from_secs(17))
+    .server(&format!("AUTHENTICATE {first}"))
+    .deadline(Some(std::time::Duration::from_secs(30)))
+    .advance(std::time::Duration::from_secs(29))
+    .no_client()
+    .server("AUTHENTICATE YQ==")
+    .client("AUTHENTICATE AGFsaWNlAGh1bnRlcjI=")
+    .server(":ergo.test 903 alice :SASL authentication successful")
+    .client("CAP END");
 }
 
 #[test]
 fn aborts_a_challenge_without_a_payload() {
-    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2").optional()))
-        .connect_default()
-        .server("CAP * LS :sasl=PLAIN")
-        .client("CAP REQ :sasl")
-        .server("CAP * ACK :sasl")
-        .client("AUTHENTICATE PLAIN")
-        .server("AUTHENTICATE")
-        .client("AUTHENTICATE *")
-        .server(":ergo.test 906 alice :SASL authentication aborted")
-        .event(|event| matches!(event, Event::AuthenticationFailed { .. }))
-        .client("CAP END");
+    Transcript::new(
+        Config::default().sasl(Sasl::plain("alice", papo_core::Secret::new("hunter2")).optional()),
+    )
+    .connect_default()
+    .server("CAP * LS :sasl=PLAIN")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE PLAIN")
+    .server("AUTHENTICATE")
+    .client("AUTHENTICATE *")
+    .server(":ergo.test 906 alice :SASL authentication aborted")
+    .event(|event| matches!(event, Event::AuthenticationFailed { .. }))
+    .client("CAP END");
 }
 
 #[test]
 fn fails_when_the_server_does_not_acknowledge_an_abort() {
-    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2").optional()))
-        .connect_default()
-        .server("CAP * LS :sasl=PLAIN")
-        .client("CAP REQ :sasl")
-        .server("CAP * ACK :sasl")
-        .client("AUTHENTICATE PLAIN")
-        .server("AUTHENTICATE")
-        .client("AUTHENTICATE *")
-        .deadline(Some(std::time::Duration::from_secs(30)))
-        .advance(std::time::Duration::from_secs(30))
-        .event(|event| {
-            matches!(event, Event::AuthenticationFailed { reason, .. }
+    Transcript::new(
+        Config::default().sasl(Sasl::plain("alice", papo_core::Secret::new("hunter2")).optional()),
+    )
+    .connect_default()
+    .server("CAP * LS :sasl=PLAIN")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE PLAIN")
+    .server("AUTHENTICATE")
+    .client("AUTHENTICATE *")
+    .deadline(Some(std::time::Duration::from_secs(30)))
+    .advance(std::time::Duration::from_secs(30))
+    .event(|event| {
+        matches!(event, Event::AuthenticationFailed { reason, .. }
                 if reason.contains("did not acknowledge"))
-        })
-        .client("CAP END");
+    })
+    .client("CAP END");
 }
 
 #[test]
 fn aborts_a_server_challenge_over_4096_bytes() {
     let chunk = format!("AUTHENTICATE {}", "YWFh".repeat(100));
-    let mut transcript =
-        Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2").optional()))
-            .connect_default()
-            .server("CAP * LS :sasl=PLAIN")
-            .client("CAP REQ :sasl")
-            .server("CAP * ACK :sasl")
-            .client("AUTHENTICATE PLAIN");
+    let mut transcript = Transcript::new(
+        Config::default().sasl(Sasl::plain("alice", papo_core::Secret::new("hunter2")).optional()),
+    )
+    .connect_default()
+    .server("CAP * LS :sasl=PLAIN")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE PLAIN");
     for _ in 0..10 {
         transcript = transcript.server(&chunk).no_client();
     }
