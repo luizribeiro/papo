@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use papo_core::{Account, Away, Capabilities, Channel, Feature, Session, UnsupportedReason, User};
+use papo_core::{Account, Away, Capabilities, Feature, Session, UnsupportedReason, User};
 use papo_proto::{Casemapping, Mask, Nick};
 
 use crate::Isupport;
@@ -14,6 +14,26 @@ pub enum ReadMarker {
     Unset,
     /// Messages through this server time have been read.
     ReadUntil(std::time::SystemTime),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[allow(dead_code)]
+pub(crate) struct Channel {
+    inner: papo_core::Channel,
+    topic_set_by: Option<crate::Source>,
+}
+
+impl Channel {
+    fn from_core(inner: papo_core::Channel, origin: crate::Origin) -> Self {
+        let topic_set_by = inner
+            .topic_set_by()
+            .cloned()
+            .and_then(|source| crate::event_impl::source::from_core(source, origin));
+        Self {
+            inner,
+            topic_set_by,
+        }
+    }
 }
 
 /// An immutable snapshot of an IRC client's known state.
@@ -31,6 +51,8 @@ pub enum ReadMarker {
 #[derive(Debug)]
 pub struct State {
     core: Arc<papo_core::State>,
+    #[allow(dead_code)]
+    channels: Arc<[Channel]>,
     typing: Arc<crate::typing::TypingTable>,
     pub(crate) caps: Capabilities,
     pub(crate) isupport: Arc<Isupport>,
@@ -198,6 +220,12 @@ impl State {
         core: Arc<papo_core::State>,
         typing: Arc<crate::typing::TypingTable>,
     ) -> Self {
+        let origin = core.nick().origin();
+        let channels = core
+            .channels()
+            .cloned()
+            .map(|channel| Channel::from_core(channel, origin))
+            .collect();
         let unsupported = Feature::ALL
             .iter()
             .copied()
@@ -210,6 +238,7 @@ impl State {
             .collect();
         Self {
             core,
+            channels,
             typing,
             caps: session.caps().clone(),
             isupport: Arc::new(Isupport::from_proto(session.isupport().clone())),
@@ -305,13 +334,13 @@ impl State {
     ///
     /// A typed channel produced by another [`crate::Client`] returns `None`.
     #[must_use]
-    pub fn channel(&self, name: impl crate::AsChannel) -> Option<&Channel> {
+    pub fn channel(&self, name: impl crate::AsChannel) -> Option<&papo_core::Channel> {
         self.core.channel(name)
     }
 
     /// Iterates over joined channels in unspecified order.
     #[must_use]
-    pub fn channels(&self) -> impl ExactSizeIterator<Item = &Channel> {
+    pub fn channels(&self) -> impl ExactSizeIterator<Item = &papo_core::Channel> {
         self.core.channels()
     }
 
@@ -482,6 +511,28 @@ mod name_tests {
         let mut session = Session::new(Config::default().casemapping(Casemapping::default()));
         session.handle_line(crate::rt::now_mono(), line.as_bytes());
         State::from_session(&session, false)
+    }
+
+    #[test]
+    fn converts_channel_sources_with_the_client_origin() {
+        let origin = crate::Origin::__new(73);
+        let mut config = Config::default().casemapping(Casemapping::Rfc1459);
+        config.origin = origin;
+        let mut session = Session::new(config);
+        let now = crate::rt::now_mono();
+        session.handle_line(now, b":papo!p@localhost JOIN #Papo");
+        session.handle_line(
+            now,
+            b":Alice[bot]!~alice@staff.example TOPIC #Papo :Release planning",
+        );
+
+        let state = State::from_session(&session, true);
+        assert_eq!(state.channels[0].inner.topic(), Some("Release planning"));
+        let actor: &crate::Source = state.channels[0].topic_set_by.as_ref().unwrap();
+        assert_eq!(
+            actor.nick(),
+            Some(&origin.__nick(Casemapping::Rfc1459, "Alice[bot]"))
+        );
     }
 
     #[test]
