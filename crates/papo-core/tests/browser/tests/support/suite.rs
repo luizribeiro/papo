@@ -1,4 +1,6 @@
-use papo::{Client, Error, Event as ClientEvent, Events, Line, Reconnect, RequestFuture, Sasl};
+use papo::{
+    Client, Error, Event as ClientEvent, Events, Line, Reconnect, RequestFuture, Sasl, Secret,
+};
 use papo_core::{Config, Event, Session};
 use papo_proto::LineRef;
 use wasm_bindgen_test::wasm_bindgen_test;
@@ -30,7 +32,7 @@ async fn high_level_client_uses_the_browser_websocket() {
     let password = env!("PAPO_BROWSER_PASSWORD");
     let channel = format!("#{}-channel", account);
     let (client, mut events) = Client::builder(env!("PAPO_BROWSER_WS"), account)
-        .sasl(Sasl::plain(account, password))
+        .sasl(Sasl::plain(account, Secret::new(password)))
         .allow_insecure_auth(true)
         .autojoin([&channel])
         .reconnect(Reconnect::exponential().max_delay(std::time::Duration::from_millis(20)))
@@ -65,8 +67,8 @@ async fn high_level_client_uses_the_browser_websocket() {
         .await
         .unwrap();
     assert!(matches!(
-        sent.outcome,
-        papo::SentOutcome::Confirmed { ref lines, .. }
+        sent.outcome(),
+        papo::SentOutcome::Confirmed { lines, .. }
             if matches!(lines.as_slice(), [(_, text)] if text == "hello from the high-level browser driver")
     ));
 
