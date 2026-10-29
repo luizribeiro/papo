@@ -759,7 +759,7 @@ impl Message {
         };
         let text = strip_formatting(displayed).into_owned();
         let raw_text = displayed.to_owned();
-        let Some(metadata) = message_metadata(
+        let Some(mut metadata) = message_metadata(
             &message,
             batch_type,
             authorship,
@@ -776,6 +776,9 @@ impl Message {
         let Source::User(actor) = metadata.actor else {
             return Err(raw);
         };
+        metadata
+            .receipt
+            .set_reference(metadata.msgid.iter().cloned(), channel_context.clone());
         let conversation = metadata.conversation;
         Ok(Self {
             actor,
@@ -878,7 +881,7 @@ impl Notice {
         };
         let text = strip_formatting(displayed).into_owned();
         let raw_text = displayed.to_owned();
-        let Some(metadata) = message_metadata(
+        let Some(mut metadata) = message_metadata(
             &message,
             batch_type,
             authorship,
@@ -895,6 +898,9 @@ impl Notice {
         let Source::User(actor) = metadata.actor else {
             return Err(raw);
         };
+        metadata
+            .receipt
+            .set_reference(metadata.msgid.iter().cloned(), channel_context.clone());
         let conversation = metadata.conversation;
         Ok(Self {
             actor,
@@ -1238,13 +1244,14 @@ fn message_metadata(
     let relayed_by = tag_owned(message, &[crate::cap::RELAYMSG.as_str()])
         .map(|nick| origin.__nick(isupport.casemapping(), nick));
     let return_address = return_address(message, &conversation);
-    let receipt = crate::message_ref::Receipt::new(
+    let mut receipt = crate::message_ref::Receipt::new(
         actor.clone(),
         authorship,
         &conversation,
         reply_token,
         return_address,
     );
+    receipt.set_reference(envelope.msgid.iter().cloned(), None);
     Some(MessageMetadata {
         actor,
         authorship,
@@ -1892,6 +1899,10 @@ pub(crate) fn from_core_with_receipt(
             Conversation::Channel(channel) => Some(state.__channel_guard(channel)),
             _ => None,
         });
+        let actor_token = receipt
+            .actor_recipient()
+            .and_then(|actor| reply_state.map(|state| state.__reply_token_for(&actor.nick)));
+        receipt.set_actor_token(actor_token);
         receipt.set_channel(guard);
         receipt
     };
@@ -1969,7 +1980,7 @@ pub(crate) fn from_core_with_receipt(
                 return CoreEvent::Unknown;
             };
             let authorship = Authorship::from_core(message.authorship);
-            let receipt = guard_receipt(
+            let mut receipt = guard_receipt(
                 crate::message_ref::Receipt::new(
                     Source::User(actor.clone()),
                     authorship,
@@ -1979,6 +1990,7 @@ pub(crate) fn from_core_with_receipt(
                 ),
                 &message.conversation,
             );
+            receipt.set_reference(envelope.msgid.iter().cloned(), None);
             let tag = TagMsg {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
@@ -2027,6 +2039,8 @@ pub(crate) fn from_core_with_receipt(
                 "done" => Some(crate::Typing::Done),
                 _ => None,
             }) {
+                let mut receipt = tag.receipt;
+                receipt.set_reference([], None);
                 Event::TypingChanged(TypingChanged {
                     server_time: tag.server_time,
                     received_at: tag.received_at,
@@ -2034,7 +2048,7 @@ pub(crate) fn from_core_with_receipt(
                     authorship: tag.authorship,
                     conversation: tag.conversation,
                     status: tag.status,
-                    receipt: tag.receipt,
+                    receipt,
                     state,
                     reason: TypingReason::Notified,
                 })
@@ -2062,7 +2076,7 @@ pub(crate) fn from_core_with_receipt(
                 Source::User,
             );
             let authorship = Authorship::from_core(redacted.authorship);
-            let receipt = guard_receipt(
+            let mut receipt = guard_receipt(
                 crate::message_ref::Receipt::new(
                     actor.clone(),
                     authorship,
@@ -2072,6 +2086,7 @@ pub(crate) fn from_core_with_receipt(
                 ),
                 &redacted.conversation,
             );
+            receipt.set_reference(envelope.msgid.iter().cloned(), None);
             Event::Redacted(Redacted {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,

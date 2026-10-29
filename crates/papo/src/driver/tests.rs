@@ -7893,7 +7893,7 @@ async fn redacting_a_multiline_send_stops_at_the_first_refusal() {
             .expect("server advertised CASEMAPPING")
             .channel("#papo"),
     );
-    let sent = crate::Sent {
+    let mut sent = crate::Sent {
         receipt: client
             .state()
             .sent_receipt(&conversation, "#papo".into(), None),
@@ -7911,6 +7911,10 @@ async fn redacting_a_multiline_send_stops_at_the_first_refusal() {
         },
         fallbacks: Vec::new(),
     };
+    sent.receipt.set_reference(
+        ["RfcBTzyxY120004", "RfcBTzyxY120005", "RfcBTzyxY120006"].map(crate::MessageId::from),
+        None,
+    );
     let sender = client.clone();
     let redacted = tokio::spawn(async move { sender.redact(&sent, "superseded").await });
     client_line(

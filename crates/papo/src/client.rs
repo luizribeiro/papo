@@ -337,7 +337,7 @@ impl Sent {
         texts: Vec<String>,
         conversation: crate::Conversation,
         status: Option<crate::Prefix>,
-        receipt: crate::message_ref::Receipt,
+        mut receipt: crate::message_ref::Receipt,
         fallbacks: Vec<Fallback>,
     ) -> Self {
         let server_time = confirmations
@@ -347,7 +347,8 @@ impl Sent {
             .iter()
             .map(|sent| crate::MessageId::from(sent.msgid.clone()))
             .collect::<Vec<_>>();
-        let outcome = if confirmations.len() == texts.len() {
+        let confirmed = confirmations.len() == texts.len();
+        let outcome = if confirmed {
             SentOutcome::Confirmed {
                 lines: msgids.iter().cloned().zip(texts).collect(),
                 server_time,
@@ -355,6 +356,9 @@ impl Sent {
         } else {
             SentOutcome::Unconfirmed
         };
+        if confirmed {
+            receipt.set_reference(msgids, None);
+        }
         Self {
             conversation,
             status,

@@ -10,7 +10,6 @@ pub(crate) struct Receipt {
     identity: Box<ReceiptIdentity>,
     address: String,
     origin: crate::Origin,
-    channel: Option<Box<papo_core::ChannelGuard>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -18,8 +17,12 @@ struct ReceiptIdentity {
     actor: Source,
     actor_account: Account,
     token: Option<papo_core::ReplyToken>,
+    actor_token: Option<papo_core::ReplyToken>,
     recipient: Option<Nick>,
     recipient_guard: Option<RecipientGuard>,
+    channel: Option<Box<papo_core::ChannelGuard>>,
+    msgids: Vec<MessageId>,
+    channel_context: Option<ChannelName>,
 }
 
 impl Receipt {
@@ -47,12 +50,15 @@ impl Receipt {
                 actor,
                 actor_account,
                 token,
+                actor_token: token,
                 recipient,
                 recipient_guard: None,
+                channel: None,
+                msgids: Vec::new(),
+                channel_context: None,
             }),
             address,
             origin,
-            channel: None,
         }
     }
 
@@ -70,27 +76,26 @@ impl Receipt {
                 actor,
                 actor_account,
                 token,
+                actor_token: token,
                 recipient: None,
                 recipient_guard: None,
+                channel: None,
+                msgids: Vec::new(),
+                channel_context: None,
             }),
             address,
             origin,
-            channel: None,
         }
     }
 
-    fn reference(
-        &self,
-        msgids: Vec<MessageId>,
-        channel_context: Option<ChannelName>,
-    ) -> MessageRef {
+    fn reference(&self) -> MessageRef {
         MessageRef::new(
             self.address.clone(),
-            msgids,
+            self.identity.msgids.clone(),
             self.origin,
-            channel_context,
+            self.identity.channel_context.clone(),
             self.recipient_guard(),
-            self.channel.clone(),
+            self.identity.channel.clone(),
         )
     }
 
@@ -99,7 +104,7 @@ impl Receipt {
             address: self.address.clone(),
             origin: self.origin,
             recipient: self.recipient_guard(),
-            channel: self.channel.clone(),
+            channel: self.identity.channel.clone(),
         }
     }
 
@@ -120,12 +125,25 @@ impl Receipt {
     }
 
     pub(crate) fn set_channel(&mut self, channel: Option<papo_core::ChannelGuard>) {
-        self.channel = channel.map(Box::new);
+        self.identity.channel = channel.map(Box::new);
+    }
+
+    pub(crate) fn set_actor_token(&mut self, token: Option<papo_core::ReplyToken>) {
+        self.identity.actor_token = token;
+    }
+
+    pub(crate) fn set_reference(
+        &mut self,
+        msgids: impl IntoIterator<Item = MessageId>,
+        channel_context: Option<ChannelName>,
+    ) {
+        self.identity.msgids = msgids.into_iter().collect();
+        self.identity.channel_context = channel_context;
     }
 
     #[allow(dead_code)]
     pub(crate) fn recipient(&self) -> Option<RecipientGuard> {
-        self.reference(Vec::new(), None).recipient
+        self.reference().recipient
     }
 
     pub(crate) fn actor_recipient(&self) -> Option<RecipientGuard> {
@@ -133,7 +151,7 @@ impl Receipt {
         Some(RecipientGuard {
             nick: actor.nick().clone(),
             account: actor.account().clone(),
-            receipt: self.identity.token,
+            receipt: self.identity.actor_token,
         })
     }
 
@@ -151,7 +169,7 @@ impl Receipt {
         self.address = conversation.to_string();
         self.origin = conversation_origin(conversation);
         if !matches!(conversation, Conversation::Channel(_)) {
-            self.channel = None;
+            self.identity.channel = None;
         }
     }
 
@@ -162,10 +180,6 @@ impl Receipt {
 
 pub(crate) trait ReplyReference {
     fn receipt(&self) -> &Receipt;
-    fn msgids(&self) -> Vec<MessageId>;
-    fn channel_context(&self) -> Option<ChannelName> {
-        None
-    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -358,10 +372,6 @@ macro_rules! reply_reference {
                 fn receipt(&self) -> &Receipt {
                     &self.receipt
                 }
-
-                fn msgids(&self) -> Vec<MessageId> {
-                    self.msgid.iter().cloned().collect()
-                }
             }
         )+
     };
@@ -373,23 +383,11 @@ impl ReplyReference for TypingChanged {
     fn receipt(&self) -> &Receipt {
         &self.receipt
     }
-
-    fn msgids(&self) -> Vec<MessageId> {
-        Vec::new()
-    }
 }
 
 impl ReplyReference for Message {
     fn receipt(&self) -> &Receipt {
         &self.receipt
-    }
-
-    fn msgids(&self) -> Vec<MessageId> {
-        self.msgid.iter().cloned().collect()
-    }
-
-    fn channel_context(&self) -> Option<ChannelName> {
-        self.channel_context.clone()
     }
 }
 
@@ -397,22 +395,12 @@ impl ReplyReference for Sent {
     fn receipt(&self) -> &Receipt {
         &self.receipt
     }
-
-    fn msgids(&self) -> Vec<MessageId> {
-        match &self.outcome {
-            crate::SentOutcome::Confirmed { lines, .. } => {
-                lines.iter().map(|(id, _)| id.clone()).collect()
-            }
-            crate::SentOutcome::Unconfirmed => Vec::new(),
-        }
-    }
 }
 
 /// Preserves a received or sent message's return address and identifiers.
 impl<T: ReplyReference + ?Sized> From<&T> for MessageRef {
     fn from(line: &T) -> Self {
-        line.receipt()
-            .reference(line.msgids(), line.channel_context())
+        line.receipt().reference()
     }
 }
 
@@ -634,12 +622,15 @@ mod tests {
             "@#ops".into(),
         );
         received.msgid = Some("RfcBTzyxY120004".into());
+        received
+            .receipt
+            .set_reference(received.msgid.iter().cloned(), None);
         let reference = received.return_address();
         assert_eq!(reference, "@#ops");
         assert_eq!(reference.msgid(), Some(&MessageId::from("RfcBTzyxY120004")));
         assert_eq!(reference.origin(), origin);
 
-        let sent = Sent {
+        let mut sent = Sent {
             conversation: Conversation::Channel(origin.__channel(mapping, "#ops")),
             status: Some(crate::Prefix::__new('o', '@')),
             receipt: Receipt::new(
@@ -662,14 +653,19 @@ mod tests {
             },
             fallbacks: Vec::new(),
         };
+        sent.receipt.set_reference(
+            ["RfcBTzyxY120005", "RfcBTzyxY120006"].map(MessageId::from),
+            None,
+        );
         let reference = sent.return_address();
         assert_eq!(reference, "@#ops");
         assert_eq!(reference.msgids.len(), 2);
         assert_eq!(reference.origin(), origin);
 
-        let mut unconfirmed = sent;
-        unconfirmed.outcome = crate::SentOutcome::Unconfirmed;
-        assert_eq!(unconfirmed.return_address().msgid(), None);
+        assert!(matches!(
+            sent.outcome(),
+            crate::SentOutcome::Confirmed { .. }
+        ));
     }
 
     #[test]
@@ -735,8 +731,8 @@ mod tests {
         receipt.set_channel(Some(guard));
 
         receipt.update_actor(actor.clone(), &channel);
-        assert!(receipt.channel.is_some());
+        assert!(receipt.identity.channel.is_some());
         receipt.update_actor(actor, &Conversation::Private(mapping.nick("alice")));
-        assert!(receipt.channel.is_none());
+        assert!(receipt.identity.channel.is_none());
     }
 }
