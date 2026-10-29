@@ -315,6 +315,7 @@ pub use address::{Endpoint, EndpointKind, IntoEndpoint, InvalidInput};
 pub use builder::{Builder, StreamSecurity};
 pub use client::{Client, Fallback, JoinChannel, SendMessage, Sent, SentOutcome};
 pub use direct::DirectRef;
+pub use direct_to::DirectSource;
 pub use driver::{Driver, Events};
 pub use error::{
     ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, ServerError,

@@ -471,6 +471,7 @@ pub fn papo::event::CtcpQuery::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo::event::CtcpQuery
 pub fn papo::event::CtcpQuery::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::event::CtcpQuery
+impl papo::DirectSource for papo::event::CtcpQuery
 impl core::marker::Freeze for papo::event::CtcpQuery
 impl core::marker::Send for papo::event::CtcpQuery
 impl core::marker::Sync for papo::event::CtcpQuery
@@ -501,6 +502,7 @@ pub fn papo::event::CtcpReply::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo::event::CtcpReply
 pub fn papo::event::CtcpReply::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::event::CtcpReply
+impl papo::DirectSource for papo::event::CtcpReply
 impl core::marker::Freeze for papo::event::CtcpReply
 impl core::marker::Send for papo::event::CtcpReply
 impl core::marker::Sync for papo::event::CtcpReply
@@ -565,6 +567,7 @@ pub fn papo::event::Invited::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo::event::Invited
 pub fn papo::event::Invited::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::event::Invited
+impl papo::DirectSource for papo::event::Invited
 impl core::marker::Freeze for papo::event::Invited
 impl core::marker::Send for papo::event::Invited
 impl core::marker::Sync for papo::event::Invited
@@ -749,6 +752,7 @@ pub fn papo::event::MonitorOnline::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo::event::MonitorOnline
 pub fn papo::event::MonitorOnline::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::event::MonitorOnline
+impl papo::DirectSource for papo::event::MonitorOnline
 impl core::marker::Freeze for papo::event::MonitorOnline
 impl core::marker::Send for papo::event::MonitorOnline
 impl core::marker::Sync for papo::event::MonitorOnline
@@ -822,6 +826,7 @@ pub fn papo::event::Notice::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo::event::Notice
 pub fn papo::event::Notice::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::event::Notice
+impl papo::DirectSource for papo::event::Notice
 impl core::marker::Freeze for papo::event::Notice
 impl core::marker::Send for papo::event::Notice
 impl core::marker::Sync for papo::event::Notice
@@ -899,6 +904,7 @@ pub fn papo::event::Reacted::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo::event::Reacted
 pub fn papo::event::Reacted::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::event::Reacted
+impl papo::DirectSource for papo::event::Reacted
 impl core::marker::Freeze for papo::event::Reacted
 impl core::marker::Send for papo::event::Reacted
 impl core::marker::Sync for papo::event::Reacted
@@ -967,6 +973,7 @@ pub fn papo::event::Redacted::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo::event::Redacted
 pub fn papo::event::Redacted::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::event::Redacted
+impl papo::DirectSource for papo::event::Redacted
 impl core::marker::Freeze for papo::event::Redacted
 impl core::marker::Send for papo::event::Redacted
 impl core::marker::Sync for papo::event::Redacted
@@ -1065,6 +1072,7 @@ pub fn papo::event::TagMsg::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo::event::TagMsg
 pub fn papo::event::TagMsg::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::event::TagMsg
+impl papo::DirectSource for papo::event::TagMsg
 impl core::marker::Freeze for papo::event::TagMsg
 impl core::marker::Send for papo::event::TagMsg
 impl core::marker::Sync for papo::event::TagMsg
@@ -1116,6 +1124,7 @@ pub fn papo::event::TypingChanged::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo::event::TypingChanged
 pub fn papo::event::TypingChanged::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::event::TypingChanged
+impl papo::DirectSource for papo::event::TypingChanged
 impl core::marker::Freeze for papo::event::TypingChanged
 impl core::marker::Send for papo::event::TypingChanged
 impl core::marker::Sync for papo::event::TypingChanged
@@ -2043,7 +2052,7 @@ pub fn papo::Client::verify_account(&self, impl papo::AsAccount, papo::Secret) -
 impl papo::Client
 pub fn papo::Client::direct(&self, impl papo::AsNick) -> papo::RequestFuture<papo::DirectRef>
 impl papo::Client
-pub fn papo::Client::direct_to(&self, &papo::Message) -> papo::RequestFuture<papo::DirectRef>
+pub fn papo::Client::direct_to(&self, &impl papo::DirectSource) -> papo::RequestFuture<papo::DirectRef>
 impl papo::Client
 pub fn papo::Client::fetch_read_marker(&self, impl papo::AsConversation) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>
 pub fn papo::Client::history(&self, impl papo::AsConversation) -> papo::History
@@ -2447,6 +2456,7 @@ pub fn papo::Message::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo::Message
 pub fn papo::Message::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::Message
+impl papo::DirectSource for papo::Message
 impl core::marker::Freeze for papo::Message
 impl core::marker::Send for papo::Message
 impl core::marker::Sync for papo::Message
@@ -3085,6 +3095,17 @@ impl papo::AsNick for papo::DirectRef
 impl papo::AsNick for papo::Nick
 impl papo::AsNick for str
 impl<T: papo::AsNick + ?core::marker::Sized> papo::AsNick for &T
+pub trait papo::DirectSource: papo::direct_to::sealed::Sealed
+impl papo::DirectSource for papo::Message
+impl papo::DirectSource for papo::event::CtcpQuery
+impl papo::DirectSource for papo::event::CtcpReply
+impl papo::DirectSource for papo::event::Invited
+impl papo::DirectSource for papo::event::MonitorOnline
+impl papo::DirectSource for papo::event::Notice
+impl papo::DirectSource for papo::event::Reacted
+impl papo::DirectSource for papo::event::Redacted
+impl papo::DirectSource for papo::event::TagMsg
+impl papo::DirectSource for papo::event::TypingChanged
 pub trait papo::IntoEndpoint: papo::address::private::Sealed
 impl papo::IntoEndpoint for &alloc::string::String
 impl papo::IntoEndpoint for &str

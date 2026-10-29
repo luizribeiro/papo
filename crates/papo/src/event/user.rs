@@ -125,6 +125,7 @@ pub struct RealnameChanged {
 pub struct MonitorOnline {
     /// The monitored user reported online.
     pub subject: UserSource,
+    pub(crate) receipt: crate::message_ref::Receipt,
 }
 
 /// A monitored nickname went offline.

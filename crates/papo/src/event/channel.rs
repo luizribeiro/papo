@@ -106,6 +106,7 @@ pub struct Invited {
     pub authorship: Authorship,
     /// Whether the invited user is this client's user.
     pub subject_authorship: Authorship,
+    pub(crate) receipt: crate::message_ref::Receipt,
 }
 
 /// A channel topic changed.

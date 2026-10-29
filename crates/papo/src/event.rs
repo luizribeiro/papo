@@ -2263,15 +2263,26 @@ pub(crate) fn from_core_with_receipt(
             ..
         } => {
             let envelope = map_envelope(&envelope);
+            let actor = source::from_prefix(actor, casemapping, origin);
+            let reply_token = actor
+                .user()
+                .and_then(|user| reply_state.map(|state| state.__reply_token_for(user.nick())));
+            let receipt = crate::message_ref::Receipt::without_recipient(
+                actor.clone(),
+                reply_token,
+                actor.to_string(),
+                origin,
+            );
             Event::Invited(Invited {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 channel,
                 subject,
-                actor: source::from_prefix(actor, casemapping, origin),
+                actor,
                 authorship: Authorship::from_core(authorship),
                 subject_authorship: Authorship::from_core(subject_authorship),
+                receipt,
             })
         }
         papo_core::Event::Quit {
@@ -2512,9 +2523,17 @@ pub(crate) fn from_core_with_receipt(
             username,
             host,
             ..
-        } => Event::MonitorOnline(MonitorOnline {
-            subject: UserSource::from_monitor(&nick, username, host, origin),
-        }),
+        } => {
+            let subject = UserSource::from_monitor(&nick, username, host, origin);
+            let reply_token = reply_state.map(|state| state.__reply_token_for(subject.nick()));
+            let receipt = crate::message_ref::Receipt::without_recipient(
+                Source::User(subject.clone()),
+                reply_token,
+                subject.nick().to_string(),
+                origin,
+            );
+            Event::MonitorOnline(MonitorOnline { subject, receipt })
+        }
         papo_core::Event::MonitorOffline { nick, .. } => {
             Event::MonitorOffline(MonitorOffline { subject: nick })
         }
@@ -3828,7 +3847,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::too_many_lines)]
     fn event_metadata_survives_live_line_conversion() {
         let received_at = UNIX_EPOCH + Duration::from_secs(42);
         let server_time = UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000);
@@ -5474,7 +5492,9 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn identifies_self_membership_and_nick_events_with_server_casemapping() {
+        use crate::message_ref::Receipt;
         let mapping = Casemapping::Rfc1459;
         let actor = Source::from_proto(papo_proto::Source::Server("ergo.test"), mapping);
         let Source::User(own_actor) =
@@ -5519,6 +5539,12 @@ mod tests {
                 received_at: UNIX_EPOCH,
                 channel: mapping.channel("#papo"),
                 subject: mapping.nick("Papo[Bot]"),
+                receipt: Receipt::without_recipient(
+                    actor.clone(),
+                    None,
+                    actor.to_string(),
+                    crate::Origin::NONE,
+                ),
                 actor,
                 authorship: Authorship::Other,
                 subject_authorship: Authorship::Own,

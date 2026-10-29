@@ -123,6 +123,7 @@ impl Receipt {
         self.channel = channel.map(Box::new);
     }
 
+    #[allow(dead_code)]
     pub(crate) fn recipient(&self) -> Option<RecipientGuard> {
         self.reference(Vec::new(), None).recipient
     }
@@ -348,14 +349,6 @@ pub(crate) fn actor_recipient(query: &CtcpQuery) -> RecipientGuard {
         .receipt
         .actor_recipient()
         .expect("a CTCP query has a user actor")
-}
-
-pub(crate) fn message_actor_recipient(message: &Message) -> RecipientGuard {
-    message
-        .receipt
-        .recipient()
-        .or_else(|| message.receipt.actor_recipient())
-        .expect("a message has a user actor")
 }
 
 macro_rules! reply_reference {
