@@ -908,12 +908,10 @@ async fn kickban(s: Scenario) -> papo_testing::Result<()> {
     join_seen_by(&bob, &mut alice, &channel).await?;
 
     let first = alice
-        .kickban(
-            &channel,
-            bob_nick.as_ref(),
-            ban.as_str(),
-            "repeated flooding",
-        )
+        .kickban(&channel)
+        .nick(bob_nick.as_ref())
+        .ban(ban.as_str())
+        .reason("repeated flooding")
         .await?;
     first.kick?;
     let kicked = bob.wait_for(Event::as_kicked).await?;
@@ -921,12 +919,10 @@ async fn kickban(s: Scenario) -> papo_testing::Result<()> {
 
     join_seen_by(&bob, &mut alice, &channel).await?;
     let duplicate = alice
-        .kickban(
-            &channel,
-            bob_nick.as_ref(),
-            ban.as_str(),
-            "ban already present",
-        )
+        .kickban(&channel)
+        .nick(bob_nick.as_ref())
+        .ban(ban.as_str())
+        .reason("ban already present")
         .await?;
     duplicate.kick?;
     let kicked = bob.wait_for(Event::as_kicked).await?;

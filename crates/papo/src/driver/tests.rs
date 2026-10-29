@@ -1,5 +1,5 @@
 use super::test_support::*;
-use crate::Client;
+use crate::{Client, Kickban};
 use std::fmt::Write as _;
 
 macro_rules! disconnected {
@@ -79,14 +79,8 @@ fn test_account(value: &str) -> crate::AccountName {
     crate::Casemapping::default().account(value)
 }
 
-fn kickban(
-    client: &Client,
-    channel: &str,
-    nick: &str,
-    ban: &str,
-    reason: &str,
-) -> crate::RequestFuture<crate::KickbanOutcome> {
-    client.kickban(channel, nick, ban, reason)
+fn kickban(client: &Client, channel: &str, nick: &str, ban: &str, reason: &str) -> Kickban {
+    client.kickban(channel).nick(nick).ban(ban).reason(reason)
 }
 
 async fn next_active_event(events: &mut crate::Events) -> Event {

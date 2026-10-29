@@ -146,6 +146,16 @@ pub struct JoinChannel {
     key: Option<crate::Secret>,
 }
 
+/// Builds a kickban request with named nickname and ban roles.
+#[must_use = "requests do nothing unless awaited"]
+pub struct Kickban {
+    client: Client,
+    channel: crate::target::sealed::Parts<'static>,
+    nick: Option<crate::target::sealed::Parts<'static>>,
+    ban: Option<crate::BanTarget>,
+    reason: String,
+}
+
 impl std::fmt::Debug for JoinChannel {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         crate::opaque_debug("JoinChannel", formatter)
@@ -156,6 +166,26 @@ impl JoinChannel {
     /// Supplies the channel key without exposing it through `Debug` output.
     pub fn key(mut self, key: crate::Secret) -> Self {
         self.key = Some(key);
+        self
+    }
+}
+
+impl Kickban {
+    /// Sets the nickname to remove after the ban is confirmed.
+    pub fn nick(mut self, nick: impl crate::AsNick) -> Self {
+        self.nick = Some(crate::AsNick::__parts(&nick).into_owned());
+        self
+    }
+
+    /// Sets the ban target to confirm before removing the nickname.
+    pub fn ban(mut self, target: impl Into<crate::BanTarget>) -> Self {
+        self.ban = Some(target.into());
+        self
+    }
+
+    /// Sets the optional human-readable kick reason.
+    pub fn reason(mut self, reason: impl Into<String>) -> Self {
+        self.reason = reason.into();
         self
     }
 }
@@ -176,6 +206,25 @@ impl IntoFuture for JoinChannel {
                 .ok_or(InvalidInput::NameRulesUnknown)?
                 .channel(channel);
             self.client.join_channel(channel, self.key).await
+        })
+    }
+}
+
+impl IntoFuture for Kickban {
+    type Output = Result<crate::KickbanOutcome, Error>;
+    type IntoFuture = crate::RequestFuture<crate::KickbanOutcome>;
+
+    fn into_future(self) -> Self::IntoFuture {
+        crate::RequestFuture::new(async move {
+            let nick = self
+                .nick
+                .ok_or(InvalidInput::InvalidRequest("kickban nick missing".into()))?;
+            let ban = self
+                .ban
+                .ok_or(InvalidInput::InvalidRequest("kickban ban missing".into()))?;
+            self.client
+                .kickban_request(self.channel, nick, ban, self.reason)
+                .await
         })
     }
 }
@@ -1390,7 +1439,7 @@ impl Client {
     ///
     /// ```compile_fail
     /// # fn mask_is_not_a_reason(client: &papo::Client, reason: &papo::Mask) {
-    /// let _ = client.kickban("#papo", "mallory", "*!*@gateway.example", reason);
+    /// let _ = client.kickban("#papo").nick("mallory").ban("*!*@gateway.example").reason(reason);
     /// # }
     /// ```
     ///
@@ -1398,18 +1447,24 @@ impl Client {
     ///
     /// Returns [`Error::Unconfirmed`] without sending `KICK` when the ban cannot be proved. A ban
     /// refusal and the errors documented by [`Client::kick`] are returned before an outcome.
-    pub fn kickban(
+    pub fn kickban(&self, channel: impl crate::AsChannel) -> Kickban {
+        Kickban {
+            client: self.clone(),
+            channel: crate::AsChannel::__parts(&channel).into_owned().into(),
+            nick: None,
+            ban: None,
+            reason: String::new(),
+        }
+    }
+
+    fn kickban_request(
         &self,
-        channel: impl crate::AsChannel,
-        nick: impl crate::AsNick,
-        ban: impl Into<crate::BanTarget>,
-        reason: impl Into<String>,
+        channel: crate::target::sealed::Parts<'static>,
+        nick: crate::target::sealed::Parts<'static>,
+        ban: crate::BanTarget,
+        reason: String,
     ) -> crate::RequestFuture<crate::KickbanOutcome> {
         let client = self.clone();
-        let channel = crate::AsChannel::__parts(&channel).into_owned();
-        let nick = crate::AsNick::__parts(&nick).into_owned();
-        let ban = ban.into();
-        let reason = reason.into();
         crate::RequestFuture::new(async move {
             let channel =
                 client.resolve(crate::target::Role::Channel("kickban: channel"), channel)?;

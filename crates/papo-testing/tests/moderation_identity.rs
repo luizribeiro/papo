@@ -73,7 +73,10 @@ async fn moderation_subjects_refuse_a_nickname_takeover() {
     ));
     assert!(matches!(
         client
-            .kickban("#review", &alice, "*!*@cloak.example", "ban evasion")
+            .kickban("#review")
+            .nick(&alice)
+            .ban("*!*@cloak.example")
+            .reason("ban evasion")
             .await,
         Err(papo::Error::TargetGone)
     ));

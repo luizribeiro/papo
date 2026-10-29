@@ -315,7 +315,7 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub use action::RequestFuture;
 pub use address::{Endpoint, EndpointKind, IntoEndpoint, InvalidInput};
 pub use builder::{Builder, StreamSecurity};
-pub use client::{Client, Fallback, JoinChannel, SendMessage, Sent, SentOutcome};
+pub use client::{Client, Fallback, JoinChannel, Kickban, SendMessage, Sent, SentOutcome};
 pub use direct::DirectRef;
 pub use direct_to::DirectSource;
 pub use driver::{Driver, Events};
