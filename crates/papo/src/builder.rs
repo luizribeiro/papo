@@ -307,6 +307,19 @@ impl Builder {
     /// # _ = papo::Client::builder("ircs://irc.example.net", "papo-client").create_account(account);
     /// ```
     pub fn create_account(mut self, account: NewAccount) -> Self {
+        let NewAccount {
+            account,
+            email,
+            password,
+        } = account;
+        let account = account.map(|(text, _origin)| text);
+        if let Some(text) = account.as_deref()
+            && let Err(reason) = crate::Casemapping::default().account(text).check()
+        {
+            self.invalid_input.get_or_insert_with(|| {
+                InvalidInput::invalid_argument("create_account: account", text.to_owned(), reason)
+            });
+        }
         if !self
             .config
             .wanted_caps
@@ -318,9 +331,9 @@ impl Builder {
                 .push(cap::ACCOUNT_REGISTRATION.into());
         }
         self.config = self.config.enable(crate::Feature::AccountCreation);
-        self.config =
-            self.config
-                .create_account_on_connect(account.account, account.email, account.password);
+        self.config = self
+            .config
+            .create_account_on_connect(account, email, password);
         self.credentials_configured = true;
         self
     }
@@ -1616,6 +1629,17 @@ mod tests {
             (
                 Builder::new("ircs://irc.example.net").request_caps(["sts"]),
                 InvalidInput::ManagedCapability("sts".to_owned().into()),
+            ),
+            (
+                Builder::new("ircs://irc.example.net").create_account(
+                    NewAccount::new(crate::Secret::new("correct horse battery staple"))
+                        .account("*"),
+                ),
+                InvalidInput::InvalidName {
+                    argument: "create_account: account",
+                    name: "*".to_owned(),
+                    reason: crate::InvalidIdentifier::InvalidCharacter('*'),
+                },
             ),
         ];
         #[cfg(not(feature = "unstable"))]

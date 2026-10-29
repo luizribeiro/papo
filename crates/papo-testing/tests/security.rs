@@ -459,6 +459,27 @@ async fn foreign_account_verification_never_reaches_either_wire() {
 }
 
 #[tokio::test]
+async fn foreign_account_creation_never_reaches_either_wire() {
+    let ((first, _first_events, mut first_wire), (second, _second_events, mut second_wire)) =
+        client_pair(&[]).await;
+
+    assert!(is_foreign(
+        &second
+            .create_account(
+                papo::NewAccount::new(papo::Secret::new(PASSWORD)).account(
+                    first
+                        .state()
+                        .name_rules()
+                        .expect("server advertised CASEMAPPING")
+                        .account("alice"),
+                ),
+            )
+            .await
+    ));
+    assert_no_wire(&mut first_wire, &mut second_wire).await;
+}
+
+#[tokio::test]
 async fn read_marker_state_is_bounded_and_warns_once() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("irc://hostile.offline.test", "papo")

@@ -149,6 +149,8 @@ Channel key mode changes use `SetModes::key(Secret)` and `remove_key(Secret)`; g
 arguments reject `k`. Metadata setters similarly require an explicit `MetadataKey::new(...)`.
 Capability, account, nick, channel, batch ID, and batch-type inputs and outputs now use their
 typed roles. Unstable bouncer nicknames remain foreign-network text behind `nick()`.
+Pre-connect nick and autojoin settings accept typed names without applying a client-origin check;
+named account creation validates account text and origin when it is submitted through a client.
 
 Name construction moved out of `State` and into rules that came from the server:
 

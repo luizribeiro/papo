@@ -11,6 +11,9 @@
 "security::foreign_account_verification_never_reaches_either_wire" = [
   "security.x-origin.verify-account",
 ]
+"security::foreign_account_creation_never_reaches_either_wire" = [
+  "security.x-origin.create-account",
+]
 "security::foreign_names_cannot_read_another_clients_state" = [
   "security.x-origin.state-lookups",
 ]

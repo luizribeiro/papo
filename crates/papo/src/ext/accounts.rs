@@ -5,7 +5,7 @@ use crate::{Client, Error, driver::CoreRequest};
 /// Credentials and optional identity fields for a new IRC account.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NewAccount {
-    pub(crate) account: Option<String>,
+    pub(crate) account: Option<(String, crate::Origin)>,
     pub(crate) email: Option<String>,
     pub(crate) password: papo_core::Secret,
 }
@@ -29,9 +29,14 @@ impl NewAccount {
     }
 
     /// Sets the requested account name.
+    ///
+    /// A direct client request validates the name and its client origin like
+    /// [`Client::verify_account`]. Account creation configured before connecting validates the
+    /// text but cannot check a client origin.
     #[must_use]
     pub fn account(mut self, account: impl crate::AsAccount) -> Self {
-        self.account = Some(crate::AsAccount::__parts(&account).text().to_owned());
+        let account = crate::AsAccount::__parts(&account);
+        self.account = Some((account.text().to_owned(), account.origin()));
         self
     }
 
@@ -77,11 +82,29 @@ impl Client {
     pub fn create_account(&self, account: NewAccount) -> crate::RequestFuture<AccountCreation> {
         let client = self.clone();
         crate::RequestFuture::new(async move {
+            let NewAccount {
+                account,
+                email,
+                password,
+            } = account;
+            let account = account
+                .map(|(text, origin)| {
+                    client.resolve(
+                        crate::target::Role::Account("create_account: account"),
+                        crate::target::sealed::Parts {
+                            text: std::borrow::Cow::Owned(text),
+                            origin,
+                            recipient: None,
+                            channel: None,
+                        },
+                    )
+                })
+                .transpose()?;
             let response = client
                 .core_request(CoreRequest::Register {
-                    account: account.account,
-                    email: account.email,
-                    password: account.password,
+                    account,
+                    email,
+                    password,
                 })
                 .await?;
             account_registration_result(
@@ -269,6 +292,44 @@ mod tests {
         ));
 
         abort_task(driver).await;
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn account_creation_validates_requested_name_and_origin() {
+        let (first, _first_events, _first_driver) =
+            crate::Client::builder("ircs://irc.example.net", "alice")
+                .casemapping(crate::Casemapping::default())
+                .build();
+        let (second, _second_events, _second_driver) =
+            crate::Client::builder("ircs://irc.example.net", "bob")
+                .casemapping(crate::Casemapping::default())
+                .build();
+        let foreign = first
+            .state()
+            .name_rules()
+            .expect("configured casemapping provides name rules")
+            .account("alice");
+
+        assert!(matches!(
+            second
+                .create_account(
+                    super::NewAccount::new(secret("correct horse battery staple")).account(foreign),
+                )
+                .await,
+            Err(Error::InvalidInput(crate::InvalidInput::ForeignReference))
+        ));
+        assert!(matches!(
+            second
+                .create_account(
+                    super::NewAccount::new(secret("correct horse battery staple")).account("*"),
+                )
+                .await,
+            Err(Error::InvalidInput(crate::InvalidInput::InvalidName {
+                argument: "create_account: account",
+                name,
+                reason: crate::InvalidIdentifier::InvalidCharacter('*'),
+            })) if name == "*"
+        ));
     }
 
     #[tokio::test(flavor = "current_thread")]
