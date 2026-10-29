@@ -112,7 +112,8 @@ client.mode("#papo").op(&alice).await?;
 
 `DirectRef` follows nickname changes, holds a `MONITOR` lease for users who share no channel, and
 refuses with `Error::TargetGone` when the identity leaves or the nickname changes hands. Use
-`direct_to(&message)` to capture the sender of a received private message. Clones share the lease.
+`direct_to(&event)` accepts messages, notices, CTCP, tag, reaction, invitation, typing, redaction,
+and monitor-online events and captures their sender from the immutable receipt. Clones share the lease.
 `DirectRef::nick()` returns the current nickname, or the last known nickname after departure.
 Private `MessageRef` values and queued sends carry the same guard. `send_raw` remains the explicit
 unguarded escape hatch.
@@ -127,6 +128,10 @@ unguarded escape hatch.
 | Notices converted to `MessageRef` and could be passed to `reply` or `react` | `NoticeRef` can be sent with `notice`, but cannot be used for message replies or reactions |
 | `invite`, `op`, `halfop`, `voice`, and arbitrary prefix modes accepted an unguarded nick | Privilege grants require `&DirectRef`; `SetModes::prefix(mode, &direct)` handles advertised custom prefix modes |
 | `kickban(channel, nick, reason, ban)` | `kickban(channel, nick, ban, reason)`; `ban` is typed as `BanTarget` |
+| `rename_channel(old, new, reason)` | `rename_channel(old).to(new).reason(reason)` gives the two channel roles distinct positions |
+| Public mutable message-reference fields | `msgid()`, `conversation()`, `status()`, `channel_context()`, and `Sent::outcome()` are read-only accessors backed by receipt evidence |
+| `Extban::Account(String)` | Opaque `Extban::account(impl AsAccount)` is the only account-extban constructor |
+| State source fields exposed mutable `papo_core` details | `ModeListEntry::actor()` is read-only and `StateSource` is nameable from the facade |
 | Channel receipts were only text | Receipt-derived sends verify that a parted or recreated channel is still the same membership identity |
 | `HistoryReference: From<String/&str>` guessed that text was a message ID | Construct `HistoryReference` explicitly from a `MessageId` or time |
 
@@ -134,6 +139,10 @@ Methods that operate on a channel (`join`, `part`, topic, channel rename, list m
 `AsChannel`; nickname queries and changes use `AsNick`; `who` uses `AsMask`; metadata, history,
 read markers, typing lookup, and mode targets use `AsConversation`. Metadata targets no longer use
 the send-only `Target`. `relay` likewise uses role-specific source and destination arguments.
+Channel key mode changes use `SetModes::key(Secret)` and `remove_key(Secret)`; generic mode
+arguments reject `k`. Metadata setters similarly require an explicit `MetadataKey::new(...)`.
+Capability, account, nick, channel, batch ID, and batch-type inputs and outputs now use their
+typed roles. Unstable bouncer nicknames remain foreign-network text behind `nick()`.
 
 Name construction moved out of `State` and into rules that came from the server:
 
