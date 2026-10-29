@@ -203,6 +203,34 @@ macro_rules! conversation_origin {
 
 conversation_origin!(CtcpQuery, CtcpReply);
 
+macro_rules! ctcp_reference_accessors {
+    ($($ty:ty),+ $(,)?) => {
+        $(
+            impl $ty {
+                /// Returns the conversation captured from the received line.
+                #[must_use]
+                pub const fn conversation(&self) -> &Conversation {
+                    &self.conversation
+                }
+
+                /// Returns the lowest-ranked status prefix on the wire audience.
+                #[must_use]
+                pub const fn status(&self) -> Option<Prefix> {
+                    self.status
+                }
+
+                /// Returns the server-assigned message identifier, when supplied.
+                #[must_use]
+                pub const fn msgid(&self) -> Option<&MessageId> {
+                    self.msgid.as_ref()
+                }
+            }
+        )+
+    };
+}
+
+ctcp_reference_accessors!(CtcpQuery, CtcpReply);
+
 /// Whether an event's actor is this client's user.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[non_exhaustive]

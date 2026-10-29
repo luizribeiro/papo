@@ -297,6 +297,12 @@ impl IntoFuture for SendMessage {
 }
 
 impl Sent {
+    /// Returns whether and how the server confirmed the sent message.
+    #[must_use]
+    pub const fn outcome(&self) -> &SentOutcome {
+        &self.outcome
+    }
+
     /// Which `Client` produced this value (not the sender or the server).
     #[must_use]
     pub fn origin(&self) -> crate::Origin {

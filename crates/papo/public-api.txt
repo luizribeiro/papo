@@ -460,6 +460,10 @@ pub papo::event::CtcpQuery::server_time: core::option::Option<std::time::SystemT
 pub papo::event::CtcpQuery::status: core::option::Option<papo::Prefix>
 pub papo::event::CtcpQuery::tags: papo::Tags
 impl papo::event::CtcpQuery
+pub const fn papo::event::CtcpQuery::conversation(&self) -> &papo::Conversation
+pub const fn papo::event::CtcpQuery::msgid(&self) -> core::option::Option<&papo::MessageId>
+pub const fn papo::event::CtcpQuery::status(&self) -> core::option::Option<papo::Prefix>
+impl papo::event::CtcpQuery
 pub fn papo::event::CtcpQuery::origin(&self) -> papo::Origin
 impl papo::event::CtcpQuery
 pub fn papo::event::CtcpQuery::return_address(&self) -> papo::MessageRef
@@ -490,6 +494,10 @@ pub papo::event::CtcpReply::received_at: std::time::SystemTime
 pub papo::event::CtcpReply::server_time: core::option::Option<std::time::SystemTime>
 pub papo::event::CtcpReply::status: core::option::Option<papo::Prefix>
 pub papo::event::CtcpReply::tags: papo::Tags
+impl papo::event::CtcpReply
+pub const fn papo::event::CtcpReply::conversation(&self) -> &papo::Conversation
+pub const fn papo::event::CtcpReply::msgid(&self) -> core::option::Option<&papo::MessageId>
+pub const fn papo::event::CtcpReply::status(&self) -> core::option::Option<papo::Prefix>
 impl papo::event::CtcpReply
 pub fn papo::event::CtcpReply::origin(&self) -> papo::Origin
 impl papo::event::CtcpReply
@@ -2767,6 +2775,7 @@ pub papo::Sent::outcome: papo::SentOutcome
 pub papo::Sent::status: core::option::Option<papo::Prefix>
 impl papo::Sent
 pub fn papo::Sent::origin(&self) -> papo::Origin
+pub const fn papo::Sent::outcome(&self) -> &papo::SentOutcome
 pub fn papo::Sent::return_address(&self) -> papo::MessageRef
 impl core::clone::Clone for papo::Sent
 pub fn papo::Sent::clone(&self) -> Self
