@@ -27,6 +27,8 @@ impl NameRules<'_> {
         {
             return None;
         }
-        Some(crate::Extban::Account(account.to_owned()))
+        Some(crate::Extban(crate::mode::ExtbanKind::Account(
+            account.to_owned(),
+        )))
     }
 }

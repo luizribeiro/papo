@@ -783,10 +783,10 @@ mod name_tests {
         for (line, spellings) in cases {
             let state = state_with_isupport(line);
             for spelling in spellings {
-                assert!(matches!(
+                assert_eq!(
                     name_rules(&state).parse_extban(&name_rules(&state).mask(spelling)),
-                    Some(Extban::Account(account)) if account == "Alice"
-                ));
+                    Some(Extban::account("Alice").unwrap())
+                );
             }
         }
     }

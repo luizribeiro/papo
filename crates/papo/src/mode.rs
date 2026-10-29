@@ -9,9 +9,10 @@ use crate::{Client, Error, InvalidInput, ModeAction, ModeArg, ModeChange, Reques
 
 /// A validated extended-ban value.
 #[derive(Clone, Debug, Eq, PartialEq)]
-#[non_exhaustive]
-pub enum Extban {
-    /// A ban matching an authenticated account name.
+pub struct Extban(pub(crate) ExtbanKind);
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum ExtbanKind {
     Account(String),
 }
 
@@ -22,15 +23,19 @@ impl Extban {
     ///
     /// Returns an error for an empty name, `0`, logout marker `*`, wildcard
     /// characters, or text that cannot be sent as one IRC parameter.
-    pub fn account(name: impl Into<String>) -> Result<Self, InvalidInput> {
-        let name = name.into();
+    ///
+    /// ```compile_fail
+    /// let _ = papo::Extban::Account("*".to_owned());
+    /// ```
+    pub fn account(name: impl crate::AsAccount) -> Result<Self, InvalidInput> {
+        let name = crate::AsAccount::__parts(&name).text().to_owned();
         if name == "0"
             || name.contains(['*', '?'])
             || Casemapping::Ascii.account(&name).check().is_err()
         {
             return Err(InvalidInput::InvalidExtbanAccount(name));
         }
-        Ok(Self::Account(name))
+        Ok(Self(ExtbanKind::Account(name)))
     }
 }
 
@@ -98,7 +103,7 @@ impl BanTarget {
         match self.0 {
             Target::Text(value) => Ok(names.mask(value)),
             Target::Mask(value) => Ok(value),
-            Target::Extban(Extban::Account(account)) => {
+            Target::Extban(Extban(ExtbanKind::Account(account))) => {
                 if !state.supports(crate::Feature::AccountExtban) {
                     return Err(Error::Unsupported(crate::Unsupported::new(
                         crate::Feature::AccountExtban,
@@ -875,8 +880,8 @@ mod tests {
     use papo_proto::{Isupport, Line, LineRef};
 
     use super::{
-        Argument, BanTarget, Change, Error, Extban, InvalidInput, Selector, Target, confirmed,
-        confirmed_ban, encode,
+        Argument, BanTarget, Change, Error, Extban, ExtbanKind, InvalidInput, Selector, Target,
+        confirmed, confirmed_ban, encode,
     };
 
     fn isupport() -> Isupport {
@@ -1171,7 +1176,7 @@ mod tests {
     #[test]
     fn validates_account_extban_names() {
         assert!(
-            matches!(Extban::account("alice"), Ok(Extban::Account(account)) if account == "alice")
+            matches!(Extban::account("alice"), Ok(Extban(ExtbanKind::Account(account))) if account == "alice")
         );
         for invalid in ["", "0", "*", "bo?", "bob smith"] {
             assert_eq!(
@@ -1195,10 +1200,10 @@ mod tests {
         let extban = Extban::account("alice").unwrap();
         assert!(matches!(
             BanTarget::from(&extban),
-            BanTarget(Target::Extban(Extban::Account(account))) if account == "alice"
+            BanTarget(Target::Extban(Extban(ExtbanKind::Account(account)))) if account == "alice"
         ));
         assert!(
-            matches!(BanTarget::from(extban), BanTarget(Target::Extban(Extban::Account(account))) if account == "alice")
+            matches!(BanTarget::from(extban), BanTarget(Target::Extban(Extban(ExtbanKind::Account(account)))) if account == "alice")
         );
 
         let foreign =

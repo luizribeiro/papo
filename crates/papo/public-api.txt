@@ -1630,29 +1630,6 @@ impl core::marker::Unpin for papo::Event
 impl core::marker::UnsafeUnpin for papo::Event
 impl !core::panic::unwind_safe::RefUnwindSafe for papo::Event
 impl !core::panic::unwind_safe::UnwindSafe for papo::Event
-#[non_exhaustive] pub enum papo::Extban
-pub papo::Extban::Account(alloc::string::String)
-impl papo::Extban
-pub fn papo::Extban::account(impl core::convert::Into<alloc::string::String>) -> core::result::Result<Self, papo::InvalidInput>
-impl core::clone::Clone for papo::Extban
-pub fn papo::Extban::clone(&self) -> Self
-impl core::cmp::Eq for papo::Extban
-impl core::cmp::PartialEq for papo::Extban
-pub fn papo::Extban::eq(&self, &Self) -> bool
-impl core::convert::From<&papo::Extban> for papo::BanTarget
-pub fn papo::BanTarget::from(&papo::Extban) -> Self
-impl core::convert::From<papo::Extban> for papo::BanTarget
-pub fn papo::BanTarget::from(papo::Extban) -> Self
-impl core::fmt::Debug for papo::Extban
-pub fn papo::Extban::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::Extban
-impl core::marker::Freeze for papo::Extban
-impl core::marker::Send for papo::Extban
-impl core::marker::Sync for papo::Extban
-impl core::marker::Unpin for papo::Extban
-impl core::marker::UnsafeUnpin for papo::Extban
-impl core::panic::unwind_safe::RefUnwindSafe for papo::Extban
-impl core::panic::unwind_safe::UnwindSafe for papo::Extban
 #[non_exhaustive] pub enum papo::Fallback
 pub papo::Fallback::ContextTagDropped
 pub papo::Fallback::ReplyTagDropped
@@ -2220,6 +2197,28 @@ impl core::marker::Unpin for papo::Events
 impl core::marker::UnsafeUnpin for papo::Events
 impl !core::panic::unwind_safe::RefUnwindSafe for papo::Events
 impl !core::panic::unwind_safe::UnwindSafe for papo::Events
+pub struct papo::Extban(_)
+impl papo::Extban
+pub fn papo::Extban::account(impl papo::AsAccount) -> core::result::Result<Self, papo::InvalidInput>
+impl core::clone::Clone for papo::Extban
+pub fn papo::Extban::clone(&self) -> Self
+impl core::cmp::Eq for papo::Extban
+impl core::cmp::PartialEq for papo::Extban
+pub fn papo::Extban::eq(&self, &Self) -> bool
+impl core::convert::From<&papo::Extban> for papo::BanTarget
+pub fn papo::BanTarget::from(&papo::Extban) -> Self
+impl core::convert::From<papo::Extban> for papo::BanTarget
+pub fn papo::BanTarget::from(papo::Extban) -> Self
+impl core::fmt::Debug for papo::Extban
+pub fn papo::Extban::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::Extban
+impl core::marker::Freeze for papo::Extban
+impl core::marker::Send for papo::Extban
+impl core::marker::Sync for papo::Extban
+impl core::marker::Unpin for papo::Extban
+impl core::marker::UnsafeUnpin for papo::Extban
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Extban
+impl core::panic::unwind_safe::UnwindSafe for papo::Extban
 pub struct papo::History
 impl papo::History
 pub fn papo::History::after(self, impl core::convert::Into<papo::HistoryReference>) -> papo::HistoryRequest
