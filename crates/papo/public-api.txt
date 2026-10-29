@@ -2097,6 +2097,8 @@ impl core::marker::UnsafeUnpin for papo::ConnectError
 impl !core::panic::unwind_safe::RefUnwindSafe for papo::ConnectError
 impl !core::panic::unwind_safe::UnwindSafe for papo::ConnectError
 pub struct papo::DirectRef(_)
+impl papo::DirectRef
+pub fn papo::DirectRef::nick(&self) -> papo::Nick
 impl core::clone::Clone for papo::DirectRef
 pub fn papo::DirectRef::clone(&self) -> Self
 impl core::cmp::Eq for papo::DirectRef

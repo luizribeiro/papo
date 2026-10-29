@@ -112,6 +112,7 @@ client.mode("#papo").op(&alice).await?;
 `DirectRef` follows nickname changes, holds a `MONITOR` lease for users who share no channel, and
 refuses with `Error::TargetGone` when the identity leaves or the nickname changes hands. Use
 `direct_to(&message)` to capture the sender of a received private message. Clones share the lease.
+`DirectRef::nick()` returns the current nickname, or the last known nickname after departure.
 Private `MessageRef` values and queued sends carry the same guard. `send_raw` remains the explicit
 unguarded escape hatch.
 

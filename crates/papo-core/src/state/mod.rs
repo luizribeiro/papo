@@ -63,7 +63,7 @@ pub struct State {
     reply_epoch: u64,
     channel_epoch: u64,
     departure_sequence: u64,
-    departed_identities: VecDeque<crate::ReplyIdentity>,
+    departed_identities: VecDeque<(crate::ReplyIdentity, Nick)>,
     max_channels: usize,
     max_members_per_channel: usize,
     channel_limit_warned: bool,
@@ -541,11 +541,11 @@ impl State {
         if let Some(user) = matching {
             return crate::RecipientStatus::Current(user.nick.clone());
         }
-        if guard
-            .token
-            .identity
-            .is_some_and(|identity| self.departed_identities.contains(&identity))
-        {
+        if guard.token.identity.is_some_and(|identity| {
+            self.departed_identities
+                .iter()
+                .any(|(departed, _)| *departed == identity)
+        }) {
             return crate::RecipientStatus::Gone;
         }
         if self.user(&guard.nick).is_some() {
@@ -553,6 +553,21 @@ impl State {
         } else {
             crate::RecipientStatus::Unknown
         }
+    }
+
+    /// Returns the last nickname for a captured recipient that has departed.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __last_recipient_nick(&self, guard: &crate::RecipientGuard) -> Option<Nick> {
+        (guard.token.origin == self.casemapping.origin())
+            .then_some(guard.token.identity)
+            .flatten()
+            .and_then(|expected| {
+                self.departed_identities
+                    .iter()
+                    .rev()
+                    .find_map(|(identity, nick)| (*identity == expected).then(|| nick.clone()))
+            })
     }
 
     /// Captures the current membership lifecycle for a channel return address.
@@ -608,10 +623,13 @@ impl State {
     }
 
     pub(super) fn remember_departed(&mut self, user: &User) {
-        self.departed_identities.push_back(crate::ReplyIdentity {
-            epoch: user.reply_epoch,
-            sequence: user.departure_sequence,
-        });
+        self.departed_identities.push_back((
+            crate::ReplyIdentity {
+                epoch: user.reply_epoch,
+                sequence: user.departure_sequence,
+            },
+            user.nick.clone(),
+        ));
         if self.departed_identities.len() > MAX_DEPARTED_IDENTITIES {
             self.departed_identities.pop_front();
         }

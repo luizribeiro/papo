@@ -59,7 +59,12 @@ impl DirectRef {
         &self.0.recipient
     }
 
-    fn current_nick(&self) -> Nick {
+    /// Returns the recipient's current nickname.
+    ///
+    /// After the user is gone, this returns their last known nickname. Sends still fail with
+    /// [`crate::Error::TargetGone`].
+    #[must_use]
+    pub fn nick(&self) -> Nick {
         let state = self
             .0
             .state
@@ -67,9 +72,10 @@ impl DirectRef {
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         match state.resolve_recipient(&self.0.recipient) {
             papo_core::RecipientStatus::Current(nick) => nick,
-            papo_core::RecipientStatus::Gone | papo_core::RecipientStatus::Unknown => {
-                self.0.recipient.__nick().clone()
-            }
+            papo_core::RecipientStatus::Gone => state
+                .last_recipient_nick(&self.0.recipient)
+                .unwrap_or_else(|| self.0.recipient.__nick().clone()),
+            papo_core::RecipientStatus::Unknown => self.0.recipient.__nick().clone(),
         }
     }
 }
@@ -78,14 +84,14 @@ impl std::fmt::Debug for DirectRef {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
             .debug_struct("DirectRef")
-            .field("nick", &self.current_nick())
+            .field("nick", &self.nick())
             .finish_non_exhaustive()
     }
 }
 
 impl std::fmt::Display for DirectRef {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.current_nick().fmt(formatter)
+        self.nick().fmt(formatter)
     }
 }
 
@@ -118,9 +124,10 @@ impl crate::AsNick for DirectRef {
 
 impl crate::Target for DirectRef {
     fn __parts(&self) -> crate::target::sealed::Parts<'_> {
+        let nick = self.nick();
         crate::target::sealed::Parts {
-            text: std::borrow::Cow::Owned(self.current_nick().to_string()),
-            origin: self.current_nick().origin(),
+            text: std::borrow::Cow::Owned(nick.to_string()),
+            origin: nick.origin(),
             recipient: Some(crate::message_ref::RecipientGuard::from_core(
                 &self.0.recipient,
             )),
@@ -203,6 +210,7 @@ impl crate::Client {
 mod tests {
     use std::{
         hash::{DefaultHasher, Hash, Hasher},
+        sync::Arc,
         time::Duration,
     };
 
@@ -378,7 +386,7 @@ mod tests {
     }
 
     #[test]
-    fn guarded_names_resolve_after_channel_and_nick_renames() {
+    fn guarded_names_and_direct_nick_follow_renames_and_departures() {
         let now = crate::rt::now_mono();
         let mut session = Session::new(Config::default().nick("papo"));
         for line in [
@@ -396,12 +404,16 @@ mod tests {
             Some("cloak.example"),
             Account::LoggedOut,
         );
+        let (client, _) = crate::driver::test_support::client_with_commands(&session);
+        let direct = super::DirectRef::new(&client, recipient.clone(), false);
+        assert_eq!(direct.nick(), "alice");
         session.handle_line(
             now,
             b":oper!o@staff.example RENAME #review #release :Review completed",
         );
         session.handle_line(now, b":alice!~alice@cloak.example NICK alicia");
-        let (client, _) = crate::driver::test_support::client_with_commands(&session);
+        *client.state.write().unwrap() = Arc::new(crate::State::from_session(&session, true));
+        assert_eq!(direct.nick(), "alicia");
 
         let channel_parts = crate::target::sealed::Parts {
             text: std::borrow::Cow::Borrowed("#review"),
@@ -427,6 +439,19 @@ mod tests {
                 .unwrap(),
             "alicia"
         );
+
+        session.handle_line(now, b":alicia!~alice@cloak.example QUIT :Client exited");
+        *client.state.write().unwrap() = Arc::new(crate::State::from_session(&session, true));
+        assert_eq!(direct.nick(), "alicia");
+        assert_eq!(direct.to_string(), "alicia");
+        assert!(format!("{direct:?}").contains("\"alicia\""));
+        assert!(matches!(
+            client.resolve(
+                crate::target::Role::Nick("test nick"),
+                <super::DirectRef as crate::Target>::__parts(&direct),
+            ),
+            Err(crate::Error::TargetGone)
+        ));
     }
 
     #[test]
