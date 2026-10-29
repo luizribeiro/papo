@@ -20,6 +20,12 @@ fn labelled_session_with(now: Instant, config: Config) -> Session {
     session.handle_line(now, b"CAP * LS :labeled-response");
     session.handle_line(now, b"CAP * ACK :labeled-response");
     while session.poll_transmit().is_some() {}
+    session.handle_line(
+        now,
+        b":ergo.test 001 papo :Welcome to the Ergo test network",
+    );
+    session.handle_line(now, b":ergo.test 422 papo :MOTD File is missing");
+    while session.poll_event().is_some() {}
     session
 }
 
@@ -60,6 +66,12 @@ fn echo_session(now: Instant) -> Session {
     session.handle_line(now, b"CAP * LS :echo-message labeled-response");
     session.handle_line(now, b"CAP * ACK :echo-message labeled-response");
     while session.poll_transmit().is_some() {}
+    session.handle_line(
+        now,
+        b":ergo.test 001 papo :Welcome to the Ergo test network",
+    );
+    session.handle_line(now, b":ergo.test 422 papo :MOTD File is missing");
+    while session.poll_event().is_some() {}
     session
 }
 
