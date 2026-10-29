@@ -2043,7 +2043,7 @@ pub fn papo::Client::who(&self, impl papo::AsMask) -> papo::RequestFuture<alloc:
 pub fn papo::Client::whois(&self, impl papo::AsNick) -> papo::RequestFuture<papo::Whois>
 impl papo::Client
 pub fn papo::Client::create_account(&self, papo::NewAccount) -> papo::RequestFuture<papo::AccountCreation>
-pub fn papo::Client::verify_account(&self, impl papo::AsAccount, impl core::convert::Into<papo::Secret>) -> papo::RequestFuture<papo::AccountCreation>
+pub fn papo::Client::verify_account(&self, impl papo::AsAccount, papo::Secret) -> papo::RequestFuture<papo::AccountCreation>
 impl papo::Client
 pub fn papo::Client::direct(&self, impl papo::AsNick) -> papo::RequestFuture<papo::DirectRef>
 impl papo::Client
@@ -2565,9 +2565,9 @@ impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo::NameRules<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo::NameRules<'a>
 pub struct papo::NewAccount
 impl papo::NewAccount
-pub fn papo::NewAccount::account(self, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::NewAccount::account(self, impl papo::AsAccount) -> Self
 pub fn papo::NewAccount::email(self, impl core::convert::Into<alloc::string::String>) -> Self
-pub fn papo::NewAccount::new(impl core::convert::Into<papo::Secret>) -> Self
+pub fn papo::NewAccount::new(papo::Secret) -> Self
 impl core::clone::Clone for papo::NewAccount
 pub fn papo::NewAccount::clone(&self) -> Self
 impl core::cmp::Eq for papo::NewAccount
@@ -2930,7 +2930,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::UserSource
 impl papo::WebIrc
 pub fn papo::WebIrc::flag(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::WebIrc::hostname(self, impl core::convert::Into<alloc::string::String>) -> Self
-pub fn papo::WebIrc::new(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<papo::Secret>, core::net::ip_addr::IpAddr) -> Self
+pub fn papo::WebIrc::new(impl core::convert::Into<alloc::string::String>, papo::Secret, core::net::ip_addr::IpAddr) -> Self
 impl core::clone::Clone for papo::WebIrc
 pub fn papo::WebIrc::clone(&self) -> Self
 impl core::cmp::Eq for papo::WebIrc

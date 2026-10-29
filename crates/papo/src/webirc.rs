@@ -13,13 +13,16 @@ pub struct WebIrc {
 
 impl WebIrc {
     /// Creates a trusted gateway identity for `client_ip`.
-    pub fn new(
-        gateway: impl Into<String>,
-        password: impl Into<crate::Secret>,
-        client_ip: IpAddr,
-    ) -> Self {
+    ///
+    /// ```compile_fail
+    /// # use papo::{Secret, WebIrc};
+    /// # let ip = "192.0.2.42".parse().unwrap();
+    /// let password = Secret::new("gateway password");
+    /// let _ = WebIrc::new(password, "papo-gateway", ip);
+    /// ```
+    pub fn new(gateway: impl Into<String>, password: crate::Secret, client_ip: IpAddr) -> Self {
         Self {
-            password: password.into(),
+            password,
             gateway: gateway.into(),
             client_ip,
             client_hostname: None,

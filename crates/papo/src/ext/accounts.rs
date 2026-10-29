@@ -14,24 +14,24 @@ impl NewAccount {
     /// Creates an account request with a generated account name and no email address.
     ///
     /// ```
-    /// let account = papo::NewAccount::new("correct horse battery staple")
+    /// let account = papo::NewAccount::new(papo::Secret::new("correct horse battery staple"))
     ///     .account("alice")
     ///     .email("alice@example.org");
     /// # _ = account;
     /// ```
     #[must_use]
-    pub fn new(password: impl Into<papo_core::Secret>) -> Self {
+    pub fn new(password: papo_core::Secret) -> Self {
         Self {
             account: None,
             email: None,
-            password: password.into(),
+            password,
         }
     }
 
     /// Sets the requested account name.
     #[must_use]
-    pub fn account(mut self, account: impl Into<String>) -> Self {
-        self.account = Some(account.into());
+    pub fn account(mut self, account: impl crate::AsAccount) -> Self {
+        self.account = Some(crate::AsAccount::__parts(&account).text().to_owned());
         self
     }
 
@@ -105,11 +105,10 @@ impl Client {
     pub fn verify_account(
         &self,
         account: impl crate::AsAccount,
-        code: impl Into<crate::Secret>,
+        code: crate::Secret,
     ) -> crate::RequestFuture<AccountCreation> {
         let client = self.clone();
         let account = crate::AsAccount::__parts(&account).into_owned();
-        let code = code.into();
         crate::RequestFuture::new(async move {
             let account = client.resolve(
                 crate::target::Role::Account("verify_account: account"),

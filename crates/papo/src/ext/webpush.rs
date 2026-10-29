@@ -32,14 +32,17 @@ impl PushKeys {
     /// subscription after encoding its `p256dh` and `auth` key bytes.
     ///
     /// ```
-    /// let keys = papo::PushKeys::new("AQIDBAUGBwgJCgsMDQ4P_w", "-vv8_f7_");
+    /// let keys = papo::PushKeys::new(
+    ///     "AQIDBAUGBwgJCgsMDQ4P_w",
+    ///     papo::Secret::new("-vv8_f7_"),
+    /// );
     /// # _ = keys;
     /// ```
     #[must_use]
-    pub fn new(p256dh: impl Into<String>, auth: impl Into<papo_core::Secret>) -> Self {
+    pub fn new(p256dh: impl Into<String>, auth: papo_core::Secret) -> Self {
         Self {
             p256dh: p256dh.into(),
-            auth: auth.into(),
+            auth,
         }
     }
 }
