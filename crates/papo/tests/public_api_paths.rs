@@ -340,6 +340,7 @@ fn missing_reexported_surfaces(snapshot: &str) -> Vec<&str> {
         .filter_map(|line| line.strip_prefix("pub use "))
         .filter(|path| !path.contains(" as "))
         .filter(|path| *path != "papo::LineSource")
+        .filter(|path| !path.starts_with("papo::cap::"))
         .filter(|path| {
             path.rsplit("::")
                 .next()
@@ -347,6 +348,13 @@ fn missing_reexported_surfaces(snapshot: &str) -> Vec<&str> {
         })
         .filter(|path| !definitions.contains(path))
         .collect()
+}
+
+#[test]
+fn reexported_surface_check_ignores_capability_constants() {
+    let snapshot = "pub use papo::cap::CHATHISTORY\npub use papo::Nick\n\
+                    # re-exported type surfaces\n";
+    assert_eq!(missing_reexported_surfaces(snapshot), ["papo::Nick"]);
 }
 
 #[test]

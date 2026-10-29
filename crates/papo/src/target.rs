@@ -104,7 +104,8 @@ pub trait AsMask: sealed::Sealed {
 
 /// An IRC capability name accepted by client configuration.
 ///
-/// Plain text and typed [`crate::Cap`] values are accepted.
+/// Plain text and typed [`crate::Cap`] values are accepted. Typed constants are available in
+/// [`crate::cap`].
 pub trait AsCap: sealed::Sealed {
     /// Returns the owned capability name.
     #[doc(hidden)]
@@ -281,7 +282,7 @@ mod tests {
         assert_eq!(AsMask::__parts(&mask).origin, origin);
         assert_eq!(Target::__parts(&"@#ops").text, "@#ops");
         assert_eq!(
-            AsCap::__cap(&crate::Cap::from("draft/chathistory")),
+            AsCap::__cap(&crate::cap::CHATHISTORY),
             "draft/chathistory".into()
         );
         assert_eq!(AsCap::__cap(&"chathistory"), "chathistory".into());

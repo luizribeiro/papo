@@ -26,6 +26,7 @@ while `request_caps` is reserved for capability names unknown to papo.
 
 Capability arguments use the sealed `AsCap` role, and capability-related configuration errors
 carry `Cap`.
+Known capability names are exported as typed constants such as `cap::CHATHISTORY`.
 
 Before:
 

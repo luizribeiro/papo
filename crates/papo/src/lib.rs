@@ -298,7 +298,8 @@ mod webirc;
 #[path = "testing.rs"]
 pub mod __testing;
 
-mod cap;
+/// Capability names understood by papo.
+pub mod cap;
 pub mod tags;
 
 /// Read-only views of server features advertised through `RPL_ISUPPORT`.

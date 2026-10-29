@@ -1308,7 +1308,7 @@ mod tests {
 
     #[test]
     fn known_capabilities_record_the_typed_configuration_error() {
-        let capability = crate::Cap::from("draft/chathistory");
+        let capability = crate::cap::CHATHISTORY;
         let known = Builder::new("ircs://irc.example.net").request_caps([capability.clone()]);
         assert_eq!(
             known.invalid_input,
