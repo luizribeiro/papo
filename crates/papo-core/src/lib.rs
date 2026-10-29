@@ -173,7 +173,7 @@ mod welcome;
 #[cfg(feature = "unstable")]
 include!("unstable/persistence_types.rs");
 
-pub use papo_proto::{BatchId, Prefix, Rank, Secret, WireLine};
+pub use papo_proto::{BatchId, BatchType, Prefix, Rank, Secret, WireLine};
 pub use server_url::InvalidUrl;
 pub use source::Source;
 

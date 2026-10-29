@@ -5,6 +5,7 @@ pub use papo::AsAccount
 pub use papo::AsChannel
 pub use papo::Away
 pub use papo::BatchId
+pub use papo::BatchType
 pub use papo::BuildError
 pub use papo::Cap
 pub use papo::Capabilities
@@ -3276,6 +3277,42 @@ impl core::hash::Hash for papo::BatchId
 pub fn papo::BatchId::hash<__H: core::hash::Hasher>(&self, &mut __H)
 impl core::marker::StructuralPartialEq for papo::BatchId
 impl core::ops::deref::Deref for papo::BatchId
+pub struct papo::BatchType(_)
+impl papo::BatchType
+pub fn papo::BatchType::into_string(self) -> alloc::string::String
+impl core::borrow::Borrow<str> for papo::BatchType
+pub fn papo::BatchType::borrow(&self) -> &str
+impl core::clone::Clone for papo::BatchType
+pub fn papo::BatchType::clone(&self) -> Self
+impl core::cmp::Eq for papo::BatchType
+impl core::cmp::Ord for papo::BatchType
+pub fn papo::BatchType::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for papo::BatchType
+pub fn papo::BatchType::eq(&self, &Self) -> bool
+impl core::cmp::PartialEq<&str> for papo::BatchType
+pub fn papo::BatchType::eq(&self, &&str) -> bool
+impl core::cmp::PartialEq<str> for papo::BatchType
+pub fn papo::BatchType::eq(&self, &str) -> bool
+impl core::cmp::PartialOrd for papo::BatchType
+pub fn papo::BatchType::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::convert::AsRef<str> for papo::BatchType
+pub fn papo::BatchType::as_ref(&self) -> &str
+impl core::convert::From<&alloc::string::String> for papo::BatchType
+pub fn papo::BatchType::from(&alloc::string::String) -> Self
+impl core::convert::From<&papo::BatchType> for papo::BatchType
+pub fn papo::BatchType::from(&Self) -> Self
+impl core::convert::From<&str> for papo::BatchType
+pub fn papo::BatchType::from(&str) -> Self
+impl core::convert::From<alloc::string::String> for papo::BatchType
+pub fn papo::BatchType::from(alloc::string::String) -> Self
+impl core::fmt::Debug for papo::BatchType
+pub fn papo::BatchType::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo::BatchType
+pub fn papo::BatchType::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::BatchType
+pub fn papo::BatchType::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for papo::BatchType
+impl core::ops::deref::Deref for papo::BatchType
 #[non_exhaustive] pub enum papo::BuildError
 pub papo::BuildError::InvalidCommand
 pub papo::BuildError::InvalidParam(usize)

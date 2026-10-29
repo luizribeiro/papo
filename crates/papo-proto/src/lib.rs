@@ -43,8 +43,8 @@ pub use formatting::{
     Color, FormatBuilder, Formatted, Span, Style, display_text, strip_formatting,
 };
 pub use id::{
-    AccountName, Address, AsAccount, AsChannel, AsNick, BatchId, ChannelName, InvalidIdentifier,
-    Mask, MaskSource, MessageId, MetadataKey, NameParts, Nick, Origin,
+    AccountName, Address, AsAccount, AsChannel, AsNick, BatchId, BatchType, ChannelName,
+    InvalidIdentifier, Mask, MaskSource, MessageId, MetadataKey, NameParts, Nick, Origin,
 };
 pub use isupport::{
     Advertised, ChanModes, ClientTagDeny, ExtbanSyntax, Isupport, KnownLimit, Limit, LimitValue,
