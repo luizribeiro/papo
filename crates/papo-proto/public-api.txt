@@ -1196,7 +1196,6 @@ impl papo_proto::MetadataKey
 pub fn papo_proto::MetadataKey::check(&self) -> core::result::Result<(), papo_proto::InvalidIdentifier>
 impl papo_proto::MetadataKey
 pub fn papo_proto::MetadataKey::into_string(self) -> alloc::string::String
-impl papo_proto::MetadataKey
 pub fn papo_proto::MetadataKey::new(impl core::convert::Into<alloc::string::String>) -> Self
 impl core::borrow::Borrow<str> for papo_proto::MetadataKey
 pub fn papo_proto::MetadataKey::borrow(&self) -> &str

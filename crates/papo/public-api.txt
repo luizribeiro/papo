@@ -1255,13 +1255,13 @@ pub use papo::isupport::Limit
 pub use papo::isupport::LimitValue
 pub mod papo::metadata
 pub mod papo::metadata::keys
-pub const papo::metadata::keys::AVATAR: &str
-pub const papo::metadata::keys::BOT: &str
-pub const papo::metadata::keys::COLOR: &str
-pub const papo::metadata::keys::DISPLAY_NAME: &str
-pub const papo::metadata::keys::HOMEPAGE: &str
-pub const papo::metadata::keys::PRONOUNS: &str
-pub const papo::metadata::keys::STATUS: &str
+pub const papo::metadata::keys::AVATAR: papo::MetadataKey
+pub const papo::metadata::keys::BOT: papo::MetadataKey
+pub const papo::metadata::keys::COLOR: papo::MetadataKey
+pub const papo::metadata::keys::DISPLAY_NAME: papo::MetadataKey
+pub const papo::metadata::keys::HOMEPAGE: papo::MetadataKey
+pub const papo::metadata::keys::PRONOUNS: papo::MetadataKey
+pub const papo::metadata::keys::STATUS: papo::MetadataKey
 pub mod papo::numeric
 pub const papo::numeric::ERR_BADCHANMASK: u16
 pub const papo::numeric::ERR_BADCHANNELKEY: u16
@@ -3991,7 +3991,6 @@ impl papo::MetadataKey
 pub fn papo::MetadataKey::check(&self) -> core::result::Result<(), papo::InvalidIdentifier>
 impl papo::MetadataKey
 pub fn papo::MetadataKey::into_string(self) -> alloc::string::String
-impl papo::MetadataKey
 pub fn papo::MetadataKey::new(impl core::convert::Into<alloc::string::String>) -> Self
 impl core::borrow::Borrow<str> for papo::MetadataKey
 pub fn papo::MetadataKey::borrow(&self) -> &str

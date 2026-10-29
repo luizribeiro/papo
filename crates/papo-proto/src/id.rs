@@ -200,15 +200,51 @@ macro_rules! explicit_identifier {
         ///
         /// Equality, ordering, and hashing use the exact received bytes.
         #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-        pub struct $name(String);
-
-        original_text!($name, 0);
+        pub struct $name(Cow<'static, str>);
 
         impl $name {
             /// Builds the identifier from its wire spelling.
             #[must_use]
             pub fn new(value: impl Into<String>) -> Self {
-                Self(value.into())
+                Self(Cow::Owned(value.into()))
+            }
+
+            #[doc(hidden)]
+            #[must_use]
+            pub const fn __from_static(value: &'static str) -> Self {
+                Self(Cow::Borrowed(value))
+            }
+
+            /// Returns the owned identifier text.
+            #[must_use]
+            pub fn into_string(self) -> String {
+                self.0.into_owned()
+            }
+        }
+
+        impl Deref for $name {
+            type Target = str;
+
+            fn deref(&self) -> &Self::Target {
+                &self.0
+            }
+        }
+
+        impl AsRef<str> for $name {
+            fn as_ref(&self) -> &str {
+                &self.0
+            }
+        }
+
+        impl fmt::Display for $name {
+            fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                formatter.write_str(&self.0)
+            }
+        }
+
+        impl From<&Self> for $name {
+            fn from(value: &Self) -> Self {
+                value.clone()
             }
         }
 
