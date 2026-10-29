@@ -8,7 +8,9 @@ use papo_core::{
     Account, Authorship, Away, Config, Conversation, Event, ModeAction, ModeArg, ModeChange,
     ModeValue, Rank, RateLimit, ResponseMatcher, Secret, Source, StateLimit, Subject, WhoOnJoin,
 };
-use papo_proto::{AccountName, Casemapping, ChannelName, InvalidIdentifier, Line, Nick, Origin};
+use papo_proto::{
+    AccountName, Casemapping, ChannelName, InvalidIdentifier, Line, MetadataKey, Nick, Origin,
+};
 use support::Transcript;
 
 fn prefix_symbols(prefixes: &[papo_core::Prefix]) -> Vec<char> {
@@ -141,7 +143,7 @@ fn a_foreign_rename_after_casemapping_changes_keeps_own_metadata_clear() {
                 .state()
                 .metadata("alice")
                 .unwrap()
-                .get("display-name")
+                .get(&MetadataKey::new("display-name"))
                 .unwrap()
                 .value,
             "Mallory"

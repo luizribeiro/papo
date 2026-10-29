@@ -185,7 +185,7 @@ pub struct MetadataView<'a> {
 impl<'a> MetadataView<'a> {
     /// Returns the value stored for `key`.
     #[must_use]
-    pub fn get(&self, key: &str) -> Option<&'a MetadataValue> {
+    pub fn get(&self, key: &MetadataKey) -> Option<&'a MetadataValue> {
         self.values.get(key)
     }
 

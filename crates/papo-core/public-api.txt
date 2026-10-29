@@ -1724,7 +1724,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::MetadataValue
 impl core::panic::unwind_safe::UnwindSafe for papo_core::MetadataValue
 pub struct papo_core::MetadataView<'a>
 impl<'a> papo_core::MetadataView<'a>
-pub fn papo_core::MetadataView<'a>::get(&self, &str) -> core::option::Option<&'a papo_core::MetadataValue>
+pub fn papo_core::MetadataView<'a>::get(&self, &papo::MetadataKey) -> core::option::Option<&'a papo_core::MetadataValue>
 pub fn papo_core::MetadataView<'a>::iter(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = (&'a papo::MetadataKey, &'a papo_core::MetadataValue)> + use<'a>
 impl<'a> core::clone::Clone for papo_core::MetadataView<'a>
 pub fn papo_core::MetadataView<'a>::clone(&self) -> Self

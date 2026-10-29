@@ -137,6 +137,8 @@ unguarded escape hatch.
 | `rename_channel(old, new, reason)` | `rename_channel(old).to(new).reason(reason)` gives the two channel roles distinct positions |
 | Public mutable message-reference fields | `msgid()`, `conversation()`, `status()`, `channel_context()`, and `Sent::outcome()` are read-only accessors backed by receipt evidence |
 | `Extban::Account(String)` | Opaque `Extban::account(impl AsAccount)` is the only account-extban constructor |
+| `metadata::keys` constants were strings | Constants are reusable `MetadataKey` values accepted directly by writes |
+| `MetadataView::get` accepted strings | Cached metadata lookups take `&MetadataKey` |
 | State source fields exposed `papo_core` details | `Channel::topic_set_by()` and `ModeListEntry::actor()` return the same `Source` type as events |
 | Raw `Line` and `Mask` methods exposed unnameable protocol types | `LineRef`, `Param`, `LineSource`, `WireLine`, and `MaskSource` are available from `papo` |
 | Channel receipts were only text | Receipt-derived sends verify that a parted or recreated channel is still the same membership identity |

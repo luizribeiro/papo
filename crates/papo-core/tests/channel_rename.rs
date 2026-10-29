@@ -121,7 +121,13 @@ fn rekeys_channel_members_and_metadata() {
                 ["#rust-lang"]
             );
             let metadata = session.state().metadata("#rust-lang").unwrap();
-            assert_eq!(metadata.get("status").unwrap().value, "shipping");
+            assert_eq!(
+                metadata
+                    .get(&papo_proto::MetadataKey::new("status"))
+                    .unwrap()
+                    .value,
+                "shipping"
+            );
             assert!(session.state().metadata("#rust").is_none());
         });
 }

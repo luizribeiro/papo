@@ -445,7 +445,7 @@ mod tests {
                 .state()
                 .metadata("ALICE")
                 .unwrap()
-                .get("avatar")
+                .get(&crate::metadata::keys::AVATAR)
                 .unwrap()
                 .visibility,
             crate::Visibility::Public
@@ -473,7 +473,7 @@ mod tests {
             async move {
                 client
                     .metadata()
-                    .set(crate::MetadataKey::new("status"), "testing")
+                    .set(crate::metadata::keys::STATUS, "testing")
                     .await
             }
         });

@@ -6,8 +6,13 @@ use papo_core::{
     Config, Event, MetadataCommand, MetadataLimits, MetadataValue, Refusal, RequestError,
     StateLimit, Subject, Visibility,
 };
+use papo_proto::MetadataKey;
 use std::time::Duration;
 use support::Transcript;
+
+fn key(value: &str) -> MetadataKey {
+    MetadataKey::new(value)
+}
 
 fn subject_name(subject: &Subject) -> &str {
     match subject {
@@ -32,16 +37,16 @@ fn registered(value: &str) -> Transcript {
 fn assert_cached_visibility(session: &papo_core::Session) {
     let metadata = session.state().metadata("alice").unwrap();
     assert_eq!(
-        metadata.get("avatar").unwrap().value,
+        metadata.get(&key("avatar")).unwrap().value,
         "https://cdn.example.net/a.png"
     );
     assert_eq!(
-        metadata.get("avatar").unwrap().visibility,
+        metadata.get(&key("avatar")).unwrap().visibility,
         Visibility::Public
     );
-    assert_eq!(metadata.get("pronouns").unwrap().value, "they/them");
+    assert_eq!(metadata.get(&key("pronouns")).unwrap().value, "they/them");
     assert_eq!(
-        metadata.get("pronouns").unwrap().visibility,
+        metadata.get(&key("pronouns")).unwrap().visibility,
         Visibility::Restricted("channel".to_owned())
     );
 }
@@ -60,7 +65,7 @@ fn user_metadata_follows_a_shared_nick_change() {
                     .state()
                     .metadata("bob-away")
                     .unwrap()
-                    .get("display-name")
+                    .get(&key("display-name"))
                     .unwrap()
                     .value,
                 "Bob Admin"
@@ -219,7 +224,7 @@ fn leaving_a_channel_preserves_own_and_monitored_user_metadata() {
                     .state()
                     .metadata("alice")
                     .unwrap()
-                    .get("display-name")
+                    .get(&key("display-name"))
                     .unwrap()
                     .value,
                 "Alice Admin"
@@ -229,7 +234,7 @@ fn leaving_a_channel_preserves_own_and_monitored_user_metadata() {
                     .state()
                     .metadata("bob")
                     .unwrap()
-                    .get("display-name")
+                    .get(&key("display-name"))
                     .unwrap()
                     .value,
                 "Bob Builder"
@@ -318,7 +323,16 @@ fn requests_published_metadata_name_and_reads_known_limits() {
     .server(":ergo.test 766 alice ALICE avatar :key is not set")
     .event(|event| matches!(event, Event::MetadataChanged { key, value: None, .. }
         if key == "avatar"))
-    .inspect(|session| assert!(session.state().metadata("alice").unwrap().get("avatar").is_none()))
+    .inspect(|session| {
+        assert!(
+            session
+                .state()
+                .metadata("alice")
+                .unwrap()
+                .get(&key("avatar"))
+                .is_none()
+        );
+    })
     .update(|session| {
         session.metadata(std::time::Instant::now(), MetadataCommand::__clear("alice".into())).unwrap();
     })
@@ -466,8 +480,8 @@ fn advertised_max_keys_does_not_limit_received_metadata() {
                     .collect::<Vec<_>>(),
                 ["soju.im/muted", "soju.im/pinned"]
             );
-            assert_eq!(metadata.get("soju.im/pinned").unwrap().value, "1");
-            assert_eq!(metadata.get("soju.im/muted").unwrap().value, "1");
+            assert_eq!(metadata.get(&key("soju.im/pinned")).unwrap().value, "1");
+            assert_eq!(metadata.get(&key("soju.im/muted")).unwrap().value, "1");
         });
 }
 
@@ -484,7 +498,7 @@ fn metadata_target_spelling_survives_casemapping_changes() {
                     .state()
                     .metadata("#Papo[dev]")
                     .unwrap()
-                    .get("soju.im/pinned")
+                    .get(&key("soju.im/pinned"))
                     .unwrap()
                     .value,
                 "1"

@@ -36,7 +36,7 @@ async fn draft_metadata_2(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(stored.value, value);
     assert_eq!(stored.visibility, Visibility::Public);
     assert_eq!(
-        alice.state().metadata(&nick).unwrap().get(key.as_ref()),
+        alice.state().metadata(&nick).unwrap().get(&key),
         Some(stored)
     );
 
@@ -55,7 +55,7 @@ async fn draft_metadata_2(s: Scenario) -> papo_testing::Result<()> {
         alice
             .state()
             .metadata(&nick)
-            .is_none_or(|values| values.get(key.as_ref()).is_none())
+            .is_none_or(|values| values.get(&key).is_none())
     );
     alice.expect_none(Event::as_metadata_changed).await?;
     Ok(())
@@ -111,7 +111,7 @@ async fn metadata_subscriptions(s: Scenario) -> papo_testing::Result<()> {
     let cached = bob_state
         .metadata(alice_nick.as_ref())
         .expect("subscriber caches the visible metadata");
-    assert_eq!(cached.get(key.as_ref()).unwrap().value, "available");
+    assert_eq!(cached.get(&key).unwrap().value, "available");
 
     bob.metadata().unsubscribe([key.clone()]).await?;
     assert!(bob.state().metadata_subscriptions().next().is_none());
@@ -236,11 +236,8 @@ async fn channel_metadata(s: Scenario) -> papo_testing::Result<()> {
         let values = state
             .metadata(&channel)
             .expect("channel metadata is synchronized");
-        assert_eq!(values.get(key.as_ref()).unwrap().value, value);
-        assert_eq!(
-            values.get(key.as_ref()).unwrap().visibility,
-            Visibility::Public
-        );
+        assert_eq!(values.get(&key).unwrap().value, value);
+        assert_eq!(values.get(&key).unwrap().visibility, Visibility::Public);
     }
     Ok(())
 }
