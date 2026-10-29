@@ -88,6 +88,9 @@
 "security::raw_mode_response_redacts_the_channel_key" = [
   "security.adv-4.channel-key-responses",
 ]
+"security::invalid_account_extbans_never_reach_the_wire" = [
+  "security.api.validated-account-extbans",
+]
 "security::server_sized_tags_are_safe_to_format_through_events" = [
   "security.adv-16.infallible-line-formatting",
 ]

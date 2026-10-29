@@ -1384,6 +1384,27 @@ async fn raw_mode_response_redacts_the_channel_key() {
 }
 
 #[tokio::test]
+async fn invalid_account_extbans_never_reach_the_wire() {
+    let (_client, _events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test", "papo-wire")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&[]).await;
+    for account in ["", "0", "*", "alice*", "alice?"] {
+        assert!(matches!(
+            papo::Extban::account(account),
+            Err(papo::InvalidInput::InvalidExtbanAccount(_))
+        ));
+    }
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), wire.next_sent())
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
 async fn malformed_tls_configuration_fails_before_opening_the_wire() {
     let malformed = b"-----BEGIN CERTIFICATE-----\nnot-base64!\n-----END CERTIFICATE-----\n";
     for scheme in ["irc", "ircs", "ws", "wss"] {
