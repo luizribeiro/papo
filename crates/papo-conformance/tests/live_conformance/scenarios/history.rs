@@ -58,7 +58,7 @@ async fn draft_chathistory(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(
         messages
             .iter()
-            .map(|message| message.msgid.as_ref())
+            .map(|message| message.msgid())
             .collect::<Vec<_>>(),
         sent.iter()
             .map(|message| Some(confirmed_line(message).0))
@@ -239,7 +239,7 @@ async fn terminal_history_page(s: Scenario) -> papo_testing::Result<()> {
         }
         assert!(!messages.is_empty(), "an empty page must report the end");
         let oldest = messages.first().expect("nonempty page");
-        cursor = Some(match oldest.msgid.as_ref() {
+        cursor = Some(match oldest.msgid() {
             Some(id) => Cursor::Id(id.as_ref().to_owned()),
             None => Cursor::Time(oldest.server_time.expect("history has server time")),
         });

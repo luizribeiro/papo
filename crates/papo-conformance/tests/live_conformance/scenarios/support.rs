@@ -10,7 +10,7 @@ pub(super) fn confirmed_line(
 ) -> (&papo::MessageId, &str, Option<std::time::SystemTime>) {
     let papo::SentOutcome::Confirmed {
         lines, server_time, ..
-    } = &sent.outcome
+    } = sent.outcome()
     else {
         panic!("server should confirm the sent message")
     };
@@ -60,6 +60,16 @@ impl ConversationName for Conversation {
 
     fn is_private(&self) -> bool {
         matches!(self, Self::Private(_))
+    }
+}
+
+impl<T: ConversationName + ?Sized> ConversationName for &T {
+    fn name(&self) -> Option<&str> {
+        (*self).name()
+    }
+
+    fn is_private(&self) -> bool {
+        (*self).is_private()
     }
 }
 

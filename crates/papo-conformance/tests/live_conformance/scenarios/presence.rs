@@ -30,12 +30,12 @@ async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
         Some(alice_nick.as_ref())
     );
     assert_eq!(
-        crate::scenarios::support::conversation_name(&message.conversation),
+        crate::scenarios::support::conversation_name(message.conversation()),
         Some(channel.as_str())
     );
     let (id, sent_text, server_time) = confirmed_line(&sent);
     assert_eq!(sent_text, text);
-    assert_eq!(message.msgid.as_ref(), Some(id));
+    assert_eq!(message.msgid(), Some(id));
     assert_eq!(message.server_time, server_time);
     assert!(matches!(
         message.actor.account(),
@@ -172,13 +172,13 @@ async fn away_private_message(s: Scenario) -> papo_testing::Result<()> {
 
     assert_eq!(crate::source_nick(&message.actor), Some(bob_nick.as_ref()));
     assert_eq!(
-        crate::scenarios::support::conversation_name(&message.conversation),
+        crate::scenarios::support::conversation_name(message.conversation()),
         Some(bob_nick.as_ref())
     );
     assert_eq!(message.text, text);
     let (id, sent_text, server_time) = confirmed_line(&sent);
     assert_eq!(sent_text, text);
-    assert_eq!(message.msgid.as_ref(), Some(id));
+    assert_eq!(message.msgid(), Some(id));
     assert_eq!(message.server_time, server_time);
     assert_eq!(
         alice.state().away(),
@@ -409,7 +409,7 @@ async fn bot_mode(s: Scenario) -> papo_testing::Result<()> {
         Some(alice_nick.as_ref())
     );
     assert_eq!(
-        crate::scenarios::support::conversation_name(&message.conversation),
+        crate::scenarios::support::conversation_name(message.conversation()),
         Some(channel.as_str())
     );
     assert_eq!(message.text, text);

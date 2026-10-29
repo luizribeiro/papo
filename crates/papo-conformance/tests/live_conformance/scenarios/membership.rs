@@ -309,11 +309,11 @@ async fn multiple_joins(s: Scenario) -> papo_testing::Result<()> {
     alice.join(&second).await?;
     alice
         .mode(&first)
-        .add_with('k', "first-channel-key")
+        .key(papo::Secret::new("first-channel-key"))
         .await?;
     alice
         .mode(&second)
-        .add_with('k', "second-channel-key")
+        .key(papo::Secret::new("second-channel-key"))
         .await?;
 
     bob.send_raw(papo::Line::new("JOIN").with_params([&channels, keys]))
@@ -1541,7 +1541,7 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
     alice.join(&channel).await?;
     bob.join(&channel).await?;
 
-    alice.mode(&channel).add_with('k', key).add('s').await?;
+    alice.mode(&channel).key(channel_key()).add('s').await?;
     let modes = wait_channel_mode(&mut bob, &channel, 'k').await?;
     assert_eq!(subject_name(&modes.subject), channel);
     assert_actor_or_server(&modes.actor, alice_nick.as_ref());

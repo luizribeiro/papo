@@ -48,11 +48,11 @@ async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
             .wait_for(|event| event.as_message().filter(|message| message.text == text))
             .await?;
         assert_eq!(
-            crate::scenarios::support::conversation_name(&message.conversation),
+            crate::scenarios::support::conversation_name(message.conversation()),
             Some(name.as_str())
         );
         assert!(!crate::scenarios::support::conversation_is_private(
-            &message.conversation
+            message.conversation()
         ));
         assert_eq!(message.return_address(), name.as_str());
         assert_eq!(crate::source_nick(&message.actor), Some(bob_nick.as_ref()));
@@ -88,10 +88,10 @@ async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| event.as_message().filter(|message| message.text == direct))
         .await?;
     assert!(crate::scenarios::support::conversation_is_private(
-        &private.conversation
+        private.conversation()
     ));
     assert_eq!(
-        crate::scenarios::support::conversation_name(&private.conversation),
+        crate::scenarios::support::conversation_name(private.conversation()),
         Some(bob_nick.as_ref())
     );
     assert_eq!(private.return_address(), bob_nick.as_ref());

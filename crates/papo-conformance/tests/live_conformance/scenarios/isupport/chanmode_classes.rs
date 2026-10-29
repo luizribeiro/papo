@@ -37,7 +37,7 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
                 .expect("server advertised CASEMAPPING")
                 .mask(MASK),
         )
-        .add_with('k', KEY)
+        .key(papo::Secret::new(KEY))
         .add_with('l', LIMIT)
         .remove('n')
         .await?;
@@ -83,7 +83,7 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
                 .expect("server advertised CASEMAPPING")
                 .mask(MASK),
         )
-        .remove_with('k', KEY)
+        .remove_key(papo::Secret::new(KEY))
         .remove('l')
         .await?;
     for peer in [&mut alice, &mut bob] {

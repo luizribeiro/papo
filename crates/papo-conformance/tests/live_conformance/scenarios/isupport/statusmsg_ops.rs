@@ -142,14 +142,14 @@ async fn statusmsg_ops(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| message_text(event, "operators only"))
         .await?;
     assert_eq!(
-        crate::scenarios::support::conversation_name(&received.conversation),
+        crate::scenarios::support::conversation_name(received.conversation()),
         Some(channel.as_str())
     );
-    assert_eq!(received.status.map(papo::Prefix::symbol), Some('@'));
+    assert_eq!(received.status().map(papo::Prefix::symbol), Some('@'));
     assert_eq!(received.raw_text, "operators only");
     let (id, text, _) = confirmed_line(&sent);
     assert_eq!(text, "operators only");
-    assert_eq!(received.msgid.as_ref(), Some(id));
+    assert_eq!(received.msgid(), Some(id));
     assert_eq!(
         crate::source_nick(&received.actor),
         Some(alice_nick.as_ref())
@@ -186,10 +186,10 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| message_text(event, "operators-only question"))
         .await?;
     assert_eq!(
-        crate::scenarios::support::conversation_name(&question.conversation),
+        crate::scenarios::support::conversation_name(question.conversation()),
         Some(channel.as_str())
     );
-    assert_eq!(question.status.map(papo::Prefix::symbol), Some('@'));
+    assert_eq!(question.status().map(papo::Prefix::symbol), Some('@'));
     for peer in [&mut carol, &mut dave] {
         peer.expect_none(|event| message_text(event, "operators-only question"))
             .await?;
@@ -200,10 +200,10 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| message_text(event, "operators-only answer"))
         .await?;
     assert_eq!(
-        crate::scenarios::support::conversation_name(&answer.conversation),
+        crate::scenarios::support::conversation_name(answer.conversation()),
         Some(channel.as_str())
     );
-    assert_eq!(answer.status.map(papo::Prefix::symbol), Some('@'));
+    assert_eq!(answer.status().map(papo::Prefix::symbol), Some('@'));
     for peer in [&mut carol, &mut dave] {
         peer.expect_none(|event| message_text(event, "operators-only answer"))
             .await?;
@@ -215,8 +215,7 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
     }
 
     let question_id = question
-        .msgid
-        .as_ref()
+        .msgid()
         .expect("operators-only message has an identifier")
         .clone();
     bob.react(&question, "🛡️").await?;
@@ -227,7 +226,7 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
                 .filter(|reaction| reaction.reacts_to == question_id && reaction.reaction == "🛡️")
         })
         .await?;
-    assert_eq!(reaction.status.map(papo::Prefix::symbol), Some('@'));
+    assert_eq!(reaction.status().map(papo::Prefix::symbol), Some('@'));
     for peer in [&mut carol, &mut dave] {
         peer.expect_none(|event| {
             event
@@ -253,7 +252,7 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
         let leaked = peer
             .wait_for(|event| message_text(event, "bare-channel threaded answer"))
             .await?;
-        assert_eq!(leaked.status, None);
+        assert_eq!(leaked.status(), None);
         assert_eq!(leaked.in_reply_to.as_ref(), Some(&question_id));
     }
 
@@ -271,7 +270,7 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
                 })
             })
             .await?;
-        assert_eq!(leaked.status, None);
+        assert_eq!(leaked.status(), None);
     }
     Ok(())
 }

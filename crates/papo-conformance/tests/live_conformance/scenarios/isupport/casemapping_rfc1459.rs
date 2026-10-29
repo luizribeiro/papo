@@ -130,12 +130,12 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
     let message = bob
         .wait_for(|event| event.as_message().filter(|message| message.text == text))
         .await?;
-    assert_eq!(name(&message.conversation), Some(&*chan));
+    assert_eq!(name(message.conversation()), Some(&*chan));
     assert_eq!(
         crate::source_nick(&message.actor),
         Some(alice_nick.as_str())
     );
-    assert!(!is_private(&message.conversation));
+    assert!(!is_private(message.conversation()));
 
     bob.expect_none(Event::as_message).await?;
     Ok(())
