@@ -423,31 +423,33 @@ fn already_authenticated_counts_as_success() {
 
 #[test]
 fn authenticates_when_sasl_arrives_after_connect() {
-    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2").optional()))
-        .connect_default()
-        .server("CAP * LS :")
-        .client("CAP END")
-        .event(|event| matches!(event, Event::AuthenticationFailed { .. }))
-        .welcome(":ergo.test 001 papo :Welcome")
-        .server(":ergo.test 376 papo :End of MOTD")
-        .event(|event| matches!(event, Event::Connected(_)))
-        .server("CAP papo NEW :sasl=PLAIN")
-        .client("CAP REQ :sasl")
-        .server("CAP papo ACK :sasl")
-        .client("AUTHENTICATE PLAIN")
-        .event(|event| {
-            matches!(event, Event::CapsChanged { added, .. }
+    Transcript::new(
+        Config::default().sasl(Sasl::plain("alice", papo_core::Secret::new("hunter2")).optional()),
+    )
+    .connect_default()
+    .server("CAP * LS :")
+    .client("CAP END")
+    .event(|event| matches!(event, Event::AuthenticationFailed { .. }))
+    .welcome(":ergo.test 001 papo :Welcome")
+    .server(":ergo.test 376 papo :End of MOTD")
+    .event(|event| matches!(event, Event::Connected(_)))
+    .server("CAP papo NEW :sasl=PLAIN")
+    .client("CAP REQ :sasl")
+    .server("CAP papo ACK :sasl")
+    .client("AUTHENTICATE PLAIN")
+    .event(|event| {
+        matches!(event, Event::CapsChanged { added, .. }
             if added.contains_key("sasl"))
-        })
-        .event(|event| {
-            matches!(event, Event::FeaturesChanged { added, .. }
+    })
+    .event(|event| {
+        matches!(event, Event::FeaturesChanged { added, .. }
                 if added.contains(&papo_core::Feature::Sasl))
-        })
-        .server("AUTHENTICATE +")
-        .client("AUTHENTICATE AGFsaWNlAGh1bnRlcjI=")
-        .server(":ergo.test 900 papo papo!u@host alice :logged in")
-        .server(":ergo.test 903 papo :SASL authentication successful")
-        .inspect(|session| assert_eq!(session.account(), Some("alice")));
+    })
+    .server("AUTHENTICATE +")
+    .client("AUTHENTICATE AGFsaWNlAGh1bnRlcjI=")
+    .server(":ergo.test 900 papo papo!u@host alice :logged in")
+    .server(":ergo.test 903 papo :SASL authentication successful")
+    .inspect(|session| assert_eq!(session.account(), Some("alice")));
 }
 
 #[test]
