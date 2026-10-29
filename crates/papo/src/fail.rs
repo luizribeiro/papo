@@ -9,7 +9,16 @@ macro_rules! codes {
     };
 }
 
-codes!(
+macro_rules! typed_codes {
+    ($($name:ident),+ $(,)?) => {
+        $(
+            #[doc = concat!("The `", stringify!($name), "` failure code.")]
+            pub const $name: crate::ReplyCode = crate::ReplyCode::constant(stringify!($name));
+        )+
+    };
+}
+
+typed_codes!(
     ACCOUNT_EXISTS,
     BAD_ACCOUNT_NAME,
     ACCOUNT_NAME_MUST_BE_NICK,
@@ -32,6 +41,9 @@ codes!(
     TOO_MANY_SUBS,
     SUBCOMMAND_INVALID,
     VALUE_INVALID,
+);
+
+codes!(
     CHANNEL_NAME_IN_USE,
     CANNOT_RENAME,
     ACCOUNT_REQUIRED,
@@ -77,7 +89,8 @@ codes!(
 mod tests {
     #[test]
     fn values_match_wire_codes() {
-        assert_eq!(super::ACCOUNT_EXISTS, "ACCOUNT_EXISTS");
+        let account_exists: crate::ReplyCode = super::ACCOUNT_EXISTS;
+        assert_eq!(account_exists, "ACCOUNT_EXISTS");
         assert_eq!(super::INVALID_UTF8, "INVALID_UTF8");
         #[cfg(feature = "unstable")]
         assert_eq!(super::MAX_REGISTRATIONS, "MAX_REGISTRATIONS");
