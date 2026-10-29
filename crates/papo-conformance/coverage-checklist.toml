@@ -111,6 +111,7 @@ ids = [
   "security.dm-direct.monitor-lifecycle",
   "security.dm-direct.write-time-recheck",
   "security.dm-direct.send-path-enumeration",
+  "security.guard-proof.concurrent-impostor",
   "security.send-path-23-26.guarded-moderation",
   "security.channel-guard.receipt-targets",
   "security.adv-8.metadata-nick-handoff",

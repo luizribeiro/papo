@@ -40,6 +40,9 @@
 "direct_queue::queued_direct_line_is_rechecked_after_a_nickname_takeover" = [
   "security.dm-direct.write-time-recheck",
 ]
+"direct_reply::concurrent_guarded_sends_refuse_an_impostor_during_account_proof" = [
+  "security.guard-proof.concurrent-impostor",
+]
 "moderation_identity::moderation_subjects_refuse_a_nickname_takeover" = [
   "security.send-path-23-26.guarded-moderation",
 ]

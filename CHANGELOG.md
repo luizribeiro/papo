@@ -122,7 +122,8 @@ refuses with `Error::TargetGone` when the identity leaves or the nickname change
 and monitor-online events and captures their sender from the immutable receipt. Clones share the lease.
 `DirectRef::nick()` returns the current nickname, or the last known nickname after departure.
 Private `MessageRef` values and queued sends carry the same guard. `send_raw` remains the explicit
-unguarded escape hatch.
+unguarded escape hatch. Concurrent guarded sends now wait for server-proven account state and
+cannot route through an expected account while its `WHO` proof is outstanding.
 
 | Earlier API | 0.1.0 API |
 |---|---|
