@@ -1504,7 +1504,7 @@ pub papo::Error::Timeout
 pub papo::Error::TooManyPendingRequests
 pub papo::Error::Unconfirmed
 #[non_exhaustive] pub papo::Error::UnexpectedReply
-pub papo::Error::UnexpectedReply::command: alloc::string::String
+pub papo::Error::UnexpectedReply::command: papo::Command
 pub papo::Error::Unsupported(papo::Unsupported)
 impl core::clone::Clone for papo::Error
 pub fn papo::Error::clone(&self) -> Self
@@ -2943,15 +2943,15 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::Sent
 impl core::panic::unwind_safe::UnwindSafe for papo::Sent
 pub struct papo::ServerError
 impl papo::ServerError
-pub fn papo::ServerError::code(&self) -> &str
-pub fn papo::ServerError::command(&self) -> core::option::Option<&str>
+pub const fn papo::ServerError::code(&self) -> &papo::ReplyCode
+pub const fn papo::ServerError::command(&self) -> core::option::Option<&papo::Command>
 pub fn papo::ServerError::context<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub fn papo::ServerError::description(&self) -> &str
 pub fn papo::ServerError::from_numeric<I, S>(u16, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub const fn papo::ServerError::numeric(&self) -> core::option::Option<u16>
 pub fn papo::ServerError::params(&self) -> &[alloc::string::String]
 pub const fn papo::ServerError::refusal(&self) -> papo::Refusal
-pub fn papo::ServerError::standard(impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>, impl core::convert::Into<alloc::string::String>) -> Self
+pub fn papo::ServerError::standard(impl core::convert::Into<papo::Command>, impl core::convert::Into<papo::ReplyCode>, impl core::convert::Into<alloc::string::String>) -> Self
 impl core::clone::Clone for papo::ServerError
 pub fn papo::ServerError::clone(&self) -> Self
 impl core::cmp::Eq for papo::ServerError

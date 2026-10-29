@@ -600,7 +600,7 @@ async fn operator_commands(s: Scenario) -> papo_testing::Result<()> {
         refusal.refusal(),
         Refusal::PasswordIncorrect | Refusal::NoOperHost
     ));
-    assert!(matches!(refusal.code(), "464" | "491"));
+    assert!(matches!(refusal.code().as_str(), "464" | "491"));
 
     alice
         .send_raw(papo::Line::new("KILL").with_params([charlie_nick.as_ref(), "conformance test"]))

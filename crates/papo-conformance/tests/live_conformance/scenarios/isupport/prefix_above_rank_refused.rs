@@ -94,7 +94,7 @@ fn assert_above_rank_refusal(error: Error) {
     let Error::Server(refusal) = error else {
         panic!("granting an above-rank status mode did not return a server refusal: {error:?}");
     };
-    let expected = match refusal.code() {
+    let expected = match refusal.code().as_str() {
         "482" => Refusal::ChannelOperatorPrivilegesNeeded,
         "499" => Refusal::Other,
         other => {

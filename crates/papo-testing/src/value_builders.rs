@@ -83,8 +83,8 @@ impl ErrorBuilder {
     /// Starts a standard-reply server-refusal error.
     #[must_use]
     pub fn standard(
-        command: impl Into<String>,
-        code: impl Into<String>,
+        command: impl Into<papo::Command>,
+        code: impl Into<papo::ReplyCode>,
         context: Vec<String>,
         description: impl Into<String>,
     ) -> Self {

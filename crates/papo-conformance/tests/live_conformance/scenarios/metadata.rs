@@ -266,8 +266,11 @@ async fn metadata_error(s: Scenario) -> papo_testing::Result<()> {
     let papo::Error::Server(error) = error else {
         panic!("metadata refusal retains a server error: {error:?}")
     };
-    assert_eq!(error.command(), Some("METADATA"));
-    assert!(matches!(error.code(), "KEY_NO_PERMISSION" | "KEY_INVALID"));
+    assert!(error.command().is_some_and(|command| command == "METADATA"));
+    assert!(matches!(
+        error.code().as_str(),
+        "KEY_NO_PERMISSION" | "KEY_INVALID"
+    ));
     assert!(alice.state().metadata(alice.state().nick()).is_none());
     alice.expect_none(Event::as_metadata_changed).await?;
     bob.expect_none(Event::as_metadata_changed).await?;
@@ -294,7 +297,7 @@ async fn channel_rename_error(s: Scenario) -> papo_testing::Result<()> {
     let papo::Error::Server(error) = error else {
         panic!("rename refusal retains a server error: {error:?}")
     };
-    assert_eq!(error.command(), Some("RENAME"));
+    assert!(error.command().is_some_and(|command| command == "RENAME"));
     assert_eq!(error.code(), "CHANNEL_NAME_IN_USE");
     assert!(alice.state().channel(&old).is_some());
     assert!(alice.state().channel(&occupied).is_none());

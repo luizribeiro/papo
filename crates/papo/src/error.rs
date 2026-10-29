@@ -217,8 +217,8 @@ impl std::error::Error for ConnectError {
 pub struct ServerError {
     refusal: Refusal,
     numeric: Option<u16>,
-    command: String,
-    code: String,
+    command: Option<crate::Command>,
+    code: crate::ReplyCode,
     description: String,
     params: Vec<String>,
 }
@@ -238,8 +238,8 @@ impl ServerError {
         Self {
             refusal: Refusal::Other,
             numeric: Some(code),
-            command: String::new(),
-            code: code.to_string(),
+            command: None,
+            code: code.to_string().into(),
             description: params.last().cloned().unwrap_or_default(),
             params,
         }
@@ -248,15 +248,15 @@ impl ServerError {
     /// Creates a standard-reply refusal using the same classifier as received replies.
     #[must_use]
     pub fn standard(
-        command: impl Into<String>,
-        code: impl Into<String>,
+        command: impl Into<crate::Command>,
+        code: impl Into<crate::ReplyCode>,
         description: impl Into<String>,
     ) -> Self {
-        let command = command.into();
-        let code = code.into();
+        let command: crate::Command = command.into();
+        let code: crate::ReplyCode = code.into();
         Self::from_core(papo_core::ServerError::__standard(
-            command,
-            code,
+            command.as_str().to_owned(),
+            code.as_str().to_owned(),
             Vec::new(),
             description.into(),
         ))
@@ -287,13 +287,13 @@ impl ServerError {
 
     /// Returns the command named by a standard reply, or `None` for a numeric.
     #[must_use]
-    pub fn command(&self) -> Option<&str> {
-        self.numeric.is_none().then_some(&self.command)
+    pub const fn command(&self) -> Option<&crate::Command> {
+        self.command.as_ref()
     }
 
     /// Returns the standard-reply code or three-digit numeric.
     #[must_use]
-    pub fn code(&self) -> &str {
+    pub const fn code(&self) -> &crate::ReplyCode {
         &self.code
     }
 
@@ -321,8 +321,8 @@ impl ServerError {
             } => Self {
                 refusal: kind,
                 numeric: None,
-                command,
-                code,
+                command: Some(command.into()),
+                code: code.into(),
                 description,
                 params: context,
             },
@@ -331,16 +331,16 @@ impl ServerError {
             } => Self {
                 refusal: kind,
                 numeric: Some(numeric.code()),
-                command: String::new(),
-                code: format!("{:03}", numeric.code()),
+                command: None,
+                code: format!("{:03}", numeric.code()).into(),
                 description: params.last().cloned().unwrap_or_default(),
                 params,
             },
             other => Self {
                 refusal: Refusal::Other,
                 numeric: None,
-                command: String::new(),
-                code: String::new(),
+                command: None,
+                code: String::new().into(),
                 description: format!("{other:?}"),
                 params: Vec::new(),
             },
@@ -351,10 +351,9 @@ impl ServerError {
 impl fmt::Display for ServerError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let description = papo_proto::display_text(&self.description);
-        if self.command.is_empty() {
-            write!(formatter, "server refusal {}: {description}", self.code)
-        } else {
-            write!(formatter, "{} {}: {description}", self.command, self.code)
+        match &self.command {
+            Some(command) => write!(formatter, "{command} {}: {description}", self.code),
+            None => write!(formatter, "server refusal {}: {description}", self.code),
         }
     }
 }
@@ -535,7 +534,7 @@ pub enum Error {
     #[non_exhaustive]
     UnexpectedReply {
         /// The command whose reply was malformed or incomplete.
-        command: String,
+        command: crate::Command,
     },
     /// The IRC server rejected a request.
     #[error(transparent)]
@@ -573,7 +572,7 @@ impl Error {
         Self::Connect(error.into())
     }
 
-    pub(crate) fn unexpected_reply(command: impl Into<String>) -> Self {
+    pub(crate) fn unexpected_reply(command: impl Into<crate::Command>) -> Self {
         Self::UnexpectedReply {
             command: command.into(),
         }
@@ -764,7 +763,11 @@ mod tests {
 
         let standard = ServerError::standard("CHATHISTORY", "INVALID_PARAMS", "Invalid parameters")
             .context(["LATEST"]);
-        assert_eq!(standard.command(), Some("CHATHISTORY"));
+        assert!(
+            standard
+                .command()
+                .is_some_and(|command| command == "CHATHISTORY")
+        );
         assert_eq!(standard.refusal(), Refusal::InvalidParameters);
         assert_eq!(standard.numeric(), None);
         assert_eq!(standard.code(), "INVALID_PARAMS");

@@ -149,7 +149,7 @@ impl IntoFuture for AddNetwork {
                     .then(|| message.param(1).map(NetworkId::from))
                     .flatten()
                 })
-                .ok_or_else(|| Error::unexpected_reply("BOUNCER ADDNETWORK"))
+                .ok_or_else(|| Error::unexpected_reply("BOUNCER"))
         })
     }
 }
@@ -550,7 +550,7 @@ mod tests {
         server_line(&mut server, b"@label=3 NOTICE ADDNETWORK 45\r\n").await;
         assert!(matches!(
             within(add).await.unwrap(),
-            Err(Error::UnexpectedReply { command }) if command == "BOUNCER ADDNETWORK"
+            Err(Error::UnexpectedReply { command }) if command == "BOUNCER"
         ));
 
         let add = tokio::spawn(async move { client.bouncer().add("irc://irc.libera.chat").await });
@@ -562,7 +562,7 @@ mod tests {
         server_line(&mut server, b"@label=4 BOUNCER ADDNETWORK\r\n").await;
         assert!(matches!(
             within(add).await.unwrap(),
-            Err(Error::UnexpectedReply { command }) if command == "BOUNCER ADDNETWORK"
+            Err(Error::UnexpectedReply { command }) if command == "BOUNCER"
         ));
         abort_task(driver).await;
     }
