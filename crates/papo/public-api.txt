@@ -1988,7 +1988,7 @@ pub fn papo::Builder::request_timeout(self, core::time::Duration) -> Self
 pub fn papo::Builder::sasl(self, papo::Sasl) -> Self
 pub fn papo::Builder::sts_store(self, impl papo::sts::StsStore + 'static) -> Self
 pub fn papo::Builder::tls_ca_pem(self, impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self
-pub fn papo::Builder::tls_client_cert(self, impl core::convert::Into<alloc::vec::Vec<u8>>, impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self
+pub fn papo::Builder::tls_client_cert(self, papo::CertificateChain, papo::PrivateKey) -> Self
 pub fn papo::Builder::tls_extra_ca_pem(self, impl core::convert::Into<alloc::vec::Vec<u8>>) -> Self
 pub fn papo::Builder::tls_server_name(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo::Builder::username(self, impl core::convert::Into<alloc::string::String>) -> Self

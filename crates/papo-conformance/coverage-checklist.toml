@@ -87,6 +87,7 @@ ids = [
   "security.secrets.no-wire-line-in-debug",
   "security.secrets.wiped-on-drop",
   "security.api.explicit-secrets",
+  "security.api.typed-tls-identity",
   "security.t4.sts-normalized-host",
   "security.t5.sts-duration-overflow",
   "security.t6.sts-transport-port",

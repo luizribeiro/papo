@@ -552,24 +552,33 @@ impl Builder {
 
     /// Sets a PEM-encoded TLS client certificate chain and private key.
     ///
+    /// ```compile_fail
+    /// # use papo::{CertificateChain, Client, PrivateKey};
+    /// let certificate = CertificateChain::new(Vec::new());
+    /// let key = PrivateKey::new(Vec::new());
+    /// let _ = Client::builder("ircs://irc.example.net", "papo-client")
+    ///     .tls_client_cert(key, certificate);
+    /// ```
+    ///
     /// ```no_run
     /// # fn configure(cert: &std::path::Path, key: &std::path::Path) -> std::io::Result<papo::Builder> {
+    /// use papo::{CertificateChain, PrivateKey};
     /// use std::fs;
     /// let builder = papo::Client::builder("ircs://irc.example.net", "papo-client")
-    ///     .tls_client_cert(fs::read(cert)?, fs::read(key)?);
+    ///     .tls_client_cert(
+    ///         CertificateChain::new(fs::read(cert)?),
+    ///         PrivateKey::new(fs::read(key)?),
+    ///     );
     /// # Ok(builder)
     /// # }
     /// ```
     #[cfg(not(browser))]
     pub fn tls_client_cert(
         mut self,
-        certificate: impl Into<Vec<u8>>,
-        key: impl Into<Vec<u8>>,
+        certificate: crate::CertificateChain,
+        key: crate::PrivateKey,
     ) -> Self {
-        self.tls.client_certificate = Some(ClientCertificate::new(
-            crate::CertificateChain::new(certificate),
-            crate::PrivateKey::new(key),
-        ));
+        self.tls.client_certificate = Some(ClientCertificate::new(certificate, key));
         self
     }
 
@@ -1556,7 +1565,10 @@ mod tests {
             .create_account(NewAccount::new(crate::Secret::new(
                 "unique-account-password-7416",
             )))
-            .tls_client_cert(Vec::new(), b"unique-tls-key-6305".to_vec())
+            .tls_client_cert(
+                crate::CertificateChain::new(Vec::new()),
+                crate::PrivateKey::new(b"unique-tls-key-6305".to_vec()),
+            )
             .autojoin_with_key("#staff", crate::Secret::new("unique-channel-key-5294"));
         let output = format!("{builder:?}");
         assert_eq!(output, "Builder { .. }");
@@ -1687,7 +1699,10 @@ mod tests {
         let builder = Builder::new("ircs://irc.example.net")
             .tls_ca_pem(b"replaced CA".to_vec())
             .tls_extra_ca_pem(b"test CA".to_vec())
-            .tls_client_cert(b"certificate".to_vec(), b"private key".to_vec())
+            .tls_client_cert(
+                crate::CertificateChain::new(b"certificate".to_vec()),
+                crate::PrivateKey::new(b"private key".to_vec()),
+            )
             .tls_server_name("chat.example.net");
         assert!(matches!(builder.tls.roots, TlsRoots::PlatformAndCa(pem) if pem == b"test CA"));
         assert!(builder.tls.client_certificate.is_some());
@@ -1765,10 +1780,16 @@ mod tests {
             )
         }
         fn bad_certificate(builder: Builder) -> Builder {
-            builder.tls_client_cert(b"not a certificate", PRIVATE_KEY)
+            builder.tls_client_cert(
+                crate::CertificateChain::new(b"not a certificate"),
+                crate::PrivateKey::new(PRIVATE_KEY),
+            )
         }
         fn bad_private_key(builder: Builder) -> Builder {
-            builder.tls_client_cert(CERTIFICATE, b"not a private key")
+            builder.tls_client_cert(
+                crate::CertificateChain::new(CERTIFICATE),
+                crate::PrivateKey::new(b"not a private key"),
+            )
         }
         fn bad_server_name(builder: Builder) -> Builder {
             builder.tls_server_name("not a server name")

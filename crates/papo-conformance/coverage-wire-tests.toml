@@ -157,6 +157,7 @@
 ]
 "security::malformed_tls_configuration_fails_before_opening_the_wire" = [
   "security.own-26.tls-config-validation",
+  "security.api.typed-tls-identity",
 ]
 "security::invalid_source_nicks_cannot_close_the_client_with_auto_replies" = [
   "security.h9.invalid-automatic-reply-target",
