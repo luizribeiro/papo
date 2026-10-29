@@ -93,7 +93,7 @@ fn request_futures_are_send() {
     assert_send_static(client.set_away("reviewing patches"));
     assert_send_static(client.clear_away());
     assert_send_static(client.set_realname("Papo Test Client"));
-    assert_send_static(client.oper("papo", "correct horse battery staple"));
+    assert_send_static(client.oper("papo", papo::Secret::new("correct horse battery staple")));
     assert_send_static(client.ping());
     assert_send_static(client.mode("#papo").add('t').into_future());
     assert_send_static(client.set_topic("#papo", "Ergonomic IRC"));
@@ -169,7 +169,7 @@ fn unstable_request_futures_are_send() {
     assert_send_static(client.bouncer().remove(&network));
     assert_send_static(client.webpush().register(
         "https://push.example.net/message/ErgoTest/alice",
-        PushKeys::new("AQIDBAUGBwgJCgsMDQ4P_w", "-vv8_f7_"),
+        PushKeys::new("AQIDBAUGBwgJCgsMDQ4P_w", papo::Secret::new("-vv8_f7_")),
     ));
     assert_send_static(
         client
