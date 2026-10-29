@@ -367,8 +367,8 @@ pub use papo_proto::Prefix;
 #[doc(inline)]
 pub use papo_proto::{
     AccountName, AsAccount, AsChannel, BatchId, BatchType, BuildError, Casemapping, ChannelName,
-    Color, FormatBuilder, InvalidIdentifier, Line, Mask, MessageId, MetadataKey, Nick, Origin,
-    ServerName, Span, Style, Typing, UnknownCasemapping, strip_formatting,
+    Color, FormatBuilder, InvalidIdentifier, Line, LineRef, Mask, MessageId, MetadataKey, Nick,
+    Origin, ServerName, Span, Style, Typing, UnknownCasemapping, strip_formatting,
 };
 pub use reconnect::Reconnect;
 pub use requests::{ListEntry, ListRequest, WhoEntry, Whois, WhoisChannel};

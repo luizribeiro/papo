@@ -257,6 +257,12 @@ fn address_check_matches_types_not_names() {
 }
 
 #[test]
+fn line_ref_reexport_is_nameable() {
+    let line = papo::Line::notice("papo", "maintenance in ten minutes");
+    let _: papo::LineRef<'_> = line.as_ref();
+}
+
+#[test]
 fn public_api_uses_only_papo_paths() {
     for (name, snapshot) in [("papo", STABLE), ("papo unstable", UNSTABLE)] {
         assert!(snapshot.contains("pub use papo::Cap"), "{name} omits Cap");

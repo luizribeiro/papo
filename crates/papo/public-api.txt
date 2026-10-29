@@ -20,6 +20,7 @@ pub use papo::InvalidIdentifier
 pub use papo::InvalidRateLimit
 pub use papo::InvalidUrl
 pub use papo::Line
+pub use papo::LineRef
 pub use papo::ListMode
 pub use papo::Mask
 pub use papo::Member
@@ -3691,7 +3692,7 @@ pub papo::InvalidUrl::Whitespace
 pub papo::InvalidUrl::ZoneIdentifier(alloc::string::String)
 pub struct papo::Line
 impl papo::Line
-pub fn papo::Line::as_ref(&self) -> papo_proto::LineRef<'_>
+pub fn papo::Line::as_ref(&self) -> papo::LineRef<'_>
 pub fn papo::Line::command(&self) -> &str
 pub fn papo::Line::encode(&self) -> core::result::Result<papo_proto::WireLine, papo::BuildError>
 pub fn papo::Line::get(&self, usize) -> core::option::Option<&str>
@@ -3723,6 +3724,20 @@ impl core::fmt::Display for papo::Line
 pub fn papo::Line::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::Line
 impl core::str::traits::FromStr for papo::Line
+pub struct papo::LineRef<'a>
+impl<'a> core::clone::Clone for papo::LineRef<'a>
+impl<'a> core::cmp::Eq for papo::LineRef<'a>
+impl<'a> core::cmp::PartialEq for papo::LineRef<'a>
+impl<'a> core::fmt::Debug for papo::LineRef<'a>
+impl<'a> core::marker::Copy for papo::LineRef<'a>
+impl<'a> core::marker::StructuralPartialEq for papo::LineRef<'a>
+impl<'a> core::marker::Freeze for papo::LineRef<'a>
+impl<'a> core::marker::Send for papo::LineRef<'a>
+impl<'a> core::marker::Sync for papo::LineRef<'a>
+impl<'a> core::marker::Unpin for papo::LineRef<'a>
+impl<'a> core::marker::UnsafeUnpin for papo::LineRef<'a>
+impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo::LineRef<'a>
+impl<'a> core::panic::unwind_safe::UnwindSafe for papo::LineRef<'a>
 #[non_exhaustive] pub enum papo::ListMode
 pub papo::ListMode::Ban
 pub papo::ListMode::Except
