@@ -231,9 +231,12 @@ fn inactive_authenticate_messages_are_surfaced_unchanged() {
 fn authenticates_with_plain_and_records_the_account() {
     Transcript::new(
         Config::default().sasl(
-            Sasl::plain("alice", "correct horse battery staple")
-                .device("phone")
-                .authzid("admin"),
+            Sasl::plain(
+                "alice",
+                papo_core::Secret::new("correct horse battery staple"),
+            )
+            .device("phone")
+            .authzid("admin"),
         ),
     )
     .connect_default()
@@ -252,28 +255,28 @@ fn authenticates_with_plain_and_records_the_account() {
 
 #[test]
 fn accepts_prefixed_plain_challenge_and_tracks_logout() {
-    Transcript::new(Config::default().sasl(Sasl::plain("emersion", "hunter2")))
-        .connect_default()
-        .server(":solanum.example CAP * LS :sasl")
-        .client("CAP REQ :sasl")
-        .server(":solanum.example CAP * ACK :sasl")
-        .client("AUTHENTICATE PLAIN")
-        .server(":solanum.example AUTHENTICATE +")
-        .client("AUTHENTICATE AGVtZXJzaW9uAGh1bnRlcjI=")
-        .server(":solanum.example 900 emersion emersion!user@host emersion :logged in")
-        .inspect(|session| {
-            assert_eq!(session.account(), Some("emersion"));
-            assert!(
-                matches!(session.state().account(), Account::LoggedIn(name) if name == "emersion")
-            );
-        })
-        .server(":solanum.example 903 emersion :SASL authentication successful")
-        .client("CAP END")
-        .server(":solanum.example 901 emersion emersion!user@host :logged out")
-        .inspect(|session| {
-            assert_eq!(session.account(), None);
-            assert_eq!(session.state().account(), &Account::LoggedOut);
-        });
+    Transcript::new(
+        Config::default().sasl(Sasl::plain("emersion", papo_core::Secret::new("hunter2"))),
+    )
+    .connect_default()
+    .server(":solanum.example CAP * LS :sasl")
+    .client("CAP REQ :sasl")
+    .server(":solanum.example CAP * ACK :sasl")
+    .client("AUTHENTICATE PLAIN")
+    .server(":solanum.example AUTHENTICATE +")
+    .client("AUTHENTICATE AGVtZXJzaW9uAGh1bnRlcjI=")
+    .server(":solanum.example 900 emersion emersion!user@host emersion :logged in")
+    .inspect(|session| {
+        assert_eq!(session.account(), Some("emersion"));
+        assert!(matches!(session.state().account(), Account::LoggedIn(name) if name == "emersion"));
+    })
+    .server(":solanum.example 903 emersion :SASL authentication successful")
+    .client("CAP END")
+    .server(":solanum.example 901 emersion emersion!user@host :logged out")
+    .inspect(|session| {
+        assert_eq!(session.account(), None);
+        assert_eq!(session.state().account(), &Account::LoggedOut);
+    });
 }
 
 #[test]
@@ -283,17 +286,19 @@ fn chunks_plain_responses_at_literal_400_bytes() {
     let encoded = STANDARD.encode(format!("\0emersion\0{password}"));
     assert_eq!(encoded.len(), 400);
 
-    Transcript::new(Config::default().sasl(Sasl::plain("emersion", password)))
-        .connect_default()
-        .server("CAP * LS :sasl=PLAIN")
-        .client("CAP REQ :sasl")
-        .server("CAP * ACK :sasl")
-        .client("AUTHENTICATE PLAIN")
-        .server("AUTHENTICATE +")
-        .client(&format!("AUTHENTICATE {encoded}"))
-        .client("AUTHENTICATE +")
-        .server(":ergo.test 903 emersion :SASL authentication successful")
-        .client("CAP END");
+    Transcript::new(
+        Config::default().sasl(Sasl::plain("emersion", papo_core::Secret::new(password))),
+    )
+    .connect_default()
+    .server("CAP * LS :sasl=PLAIN")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE PLAIN")
+    .server("AUTHENTICATE +")
+    .client(&format!("AUTHENTICATE {encoded}"))
+    .client("AUTHENTICATE +")
+    .server(":ergo.test 903 emersion :SASL authentication successful")
+    .client("CAP END");
 
     let password = "battery staple ".repeat(21);
     let encoded = STANDARD.encode(format!("\0emersion\0{password}"));
@@ -301,23 +306,25 @@ fn chunks_plain_responses_at_literal_400_bytes() {
     let (first, last) = encoded.split_at(400);
     assert_eq!(first.len(), 400);
     assert!(last.len() < 400);
-    Transcript::new(Config::default().sasl(Sasl::plain("emersion", password)))
-        .connect_default()
-        .server("CAP * LS :sasl=PLAIN")
-        .client("CAP REQ :sasl")
-        .server("CAP * ACK :sasl")
-        .client("AUTHENTICATE PLAIN")
-        .server("AUTHENTICATE +")
-        .client(&format!("AUTHENTICATE {first}"))
-        .client(&format!("AUTHENTICATE {last}"))
-        .server(":ergo.test 903 emersion :SASL authentication successful")
-        .client("CAP END");
+    Transcript::new(
+        Config::default().sasl(Sasl::plain("emersion", papo_core::Secret::new(password))),
+    )
+    .connect_default()
+    .server("CAP * LS :sasl=PLAIN")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE PLAIN")
+    .server("AUTHENTICATE +")
+    .client(&format!("AUTHENTICATE {first}"))
+    .client(&format!("AUTHENTICATE {last}"))
+    .server(":ergo.test 903 emersion :SASL authentication successful")
+    .client("CAP END");
 }
 
 #[test]
 fn falls_back_and_honors_the_server_mechanism_list() {
     Transcript::with_entropy(
-        secure_sasl(Sasl::any("alice", "hunter2")),
+        secure_sasl(Sasl::any("alice", papo_core::Secret::new("hunter2"))),
         Box::new(FixedEntropy),
     )
     .connect_default()
@@ -339,7 +346,7 @@ fn any_scram_start(security: ConnectionSecurity) -> Transcript {
     Transcript::with_entropy(
         Config::default()
             .connection_security(security)
-            .sasl(Sasl::any("alice", "hunter2")),
+            .sasl(Sasl::any("alice", papo_core::Secret::new("hunter2"))),
         Box::new(FixedEntropy),
     )
     .connect_default()
