@@ -63,19 +63,23 @@ macro_rules! protocol_token {
 }
 
 protocol_token!(Command, "An IRC or CTCP command token.");
+protocol_token!(ReplyCode, "An IRC standard-reply code or numeric token.");
 
 #[cfg(test)]
 mod tests {
-    use super::Command;
+    use super::{Command, ReplyCode};
 
     #[test]
     fn tokens_preserve_spelling_and_compare_with_text() {
         let command = Command::from("version");
+        let code = ReplyCode::constant("INVALID_PARAMS");
 
         assert_eq!(command.as_str(), "version");
         assert_eq!(command, "version");
         assert_ne!(command, "VERSION");
         assert_eq!(Command::constant("VERSION"), "VERSION");
+        assert_eq!(code, "INVALID_PARAMS");
         assert_eq!(command.to_string(), "version");
+        assert_eq!(code.to_string(), "INVALID_PARAMS");
     }
 }

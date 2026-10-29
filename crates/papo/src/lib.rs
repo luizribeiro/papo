@@ -380,7 +380,7 @@ pub use reconnect::Reconnect;
 pub use requests::{ListEntry, ListRequest, WhoEntry, Whois, WhoisChannel};
 pub use state::{Channel, ModeListEntry, ReadMarker, State};
 pub use target::{AsCap, AsConversation, AsMask, AsNick, Target};
-pub use token::Command;
+pub use token::{Command, ReplyCode};
 #[doc(inline)]
 pub use transport::{CertificateChain, PrivateKey};
 pub use typing::{Typer, Typers};
