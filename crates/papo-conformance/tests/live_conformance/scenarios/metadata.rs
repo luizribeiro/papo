@@ -1,4 +1,4 @@
-use papo::{Event, Visibility};
+use papo::{Event, MetadataKey, Visibility};
 use papo_conformance_macros::scenario;
 
 use crate::{Scenario, scenarios::support::subject_name};
@@ -9,15 +9,15 @@ use crate::{Scenario, scenarios::support::subject_name};
     covers = ["draft.metadata.set-get-self"]
 )]
 async fn draft_metadata_2(s: Scenario) -> papo_testing::Result<()> {
-    let key = "example.org/papo-conformance";
+    let key = MetadataKey::new("example.org/papo-conformance");
     let value = "fixture metadata value";
     let mut alice = s.connect("alice").await?;
     let nick = alice.state().nick().clone();
 
-    alice.metadata().set(key, value).await?;
+    alice.metadata().set(key.clone(), value).await?;
     let changed = alice.wait_for(Event::as_metadata_changed).await?;
     assert_eq!(subject_name(&changed.subject), nick.as_ref());
-    assert_eq!(changed.key.as_ref(), key);
+    assert_eq!(changed.key, key);
     assert_eq!(
         changed.value.as_ref().map(|value| value.value.as_str()),
         Some(value)
@@ -27,20 +27,20 @@ async fn draft_metadata_2(s: Scenario) -> papo_testing::Result<()> {
         Visibility::Public
     );
 
-    let values = alice.metadata().get(nick.clone(), [key]).await?;
+    let values = alice.metadata().get(nick.clone(), [key.clone()]).await?;
     let stored = values
-        .get(key)
+        .get(key.as_ref())
         .expect("the requested metadata key is returned")
         .as_ref()
         .expect("the requested metadata key is set");
     assert_eq!(stored.value, value);
     assert_eq!(stored.visibility, Visibility::Public);
     assert_eq!(
-        alice.state().metadata(&nick).unwrap().get(key),
+        alice.state().metadata(&nick).unwrap().get(key.as_ref()),
         Some(stored)
     );
 
-    alice.metadata().remove(key).await?;
+    alice.metadata().remove(key.clone()).await?;
     let removed = alice
         .wait_for(|event| {
             event
@@ -49,13 +49,13 @@ async fn draft_metadata_2(s: Scenario) -> papo_testing::Result<()> {
         })
         .await?;
     assert_eq!(subject_name(&removed.subject), nick.as_ref());
-    assert_eq!(removed.key.as_ref(), key);
+    assert_eq!(removed.key, key);
     assert_eq!(removed.value, None);
     assert!(
         alice
             .state()
             .metadata(&nick)
-            .is_none_or(|values| values.get(key).is_none())
+            .is_none_or(|values| values.get(key.as_ref()).is_none())
     );
     alice.expect_none(Event::as_metadata_changed).await?;
     Ok(())
@@ -67,32 +67,32 @@ async fn draft_metadata_2(s: Scenario) -> papo_testing::Result<()> {
     covers = ["draft.metadata.sub-notifications"]
 )]
 async fn metadata_subscriptions(s: Scenario) -> papo_testing::Result<()> {
-    let key = "example.org/papo-presence";
+    let key = MetadataKey::new("example.org/papo-presence");
     let channel = s.channel_name();
     let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
     alice.join(channel.clone()).await?;
     bob.join(channel).await?;
-    bob.metadata().subscribe([key]).await?;
+    bob.metadata().subscribe([key.clone()]).await?;
     assert!(
         bob.state()
             .metadata_subscriptions()
-            .any(|subscribed| subscribed.as_ref() == key)
+            .any(|subscribed| subscribed == &key)
     );
 
     let alice_nick = alice.state().nick().clone();
-    alice.metadata().set(key, "available").await?;
+    alice.metadata().set(key.clone(), "available").await?;
     let alice_change = alice
         .wait_for(|event| {
             event
                 .as_metadata_changed()
-                .filter(|changed| changed.key.as_ref() == key)
+                .filter(|changed| changed.key == key)
         })
         .await?;
     let bob_change = bob
         .wait_for(|event| {
             event.as_metadata_changed().filter(|changed| {
-                subject_name(&changed.subject) == alice_nick.as_ref() && changed.key.as_ref() == key
+                subject_name(&changed.subject) == alice_nick.as_ref() && changed.key == key
             })
         })
         .await?;
@@ -111,9 +111,9 @@ async fn metadata_subscriptions(s: Scenario) -> papo_testing::Result<()> {
     let cached = bob_state
         .metadata(alice_nick.as_ref())
         .expect("subscriber caches the visible metadata");
-    assert_eq!(cached.get(key).unwrap().value, "available");
+    assert_eq!(cached.get(key.as_ref()).unwrap().value, "available");
 
-    bob.metadata().unsubscribe([key]).await?;
+    bob.metadata().unsubscribe([key.clone()]).await?;
     assert!(bob.state().metadata_subscriptions().next().is_none());
     alice.metadata().set(key, "busy").await?;
     bob.expect_none(Event::as_metadata_changed).await?;
@@ -134,7 +134,7 @@ async fn metadata_subscriptions(s: Scenario) -> papo_testing::Result<()> {
     covers = ["security.st-1.metadata-nick-handoff"]
 )]
 async fn metadata_does_not_cross_nick_handoffs(s: Scenario) -> papo_testing::Result<()> {
-    let key = "example.org/papo-identity";
+    let key = MetadataKey::new("example.org/papo-identity");
     let channel = s.channel_name();
     let mut observer = s.connect("observer").await?;
     let alice = s.connect("alice").await?;
@@ -142,15 +142,15 @@ async fn metadata_does_not_cross_nick_handoffs(s: Scenario) -> papo_testing::Res
     observer.join(&channel).await?;
     alice.join(&channel).await?;
     mallory.join(&channel).await?;
-    observer.metadata().subscribe([key]).await?;
+    observer.metadata().subscribe([key.clone()]).await?;
 
     let alice_nick = alice.nick();
     let mallory_nick = mallory.nick();
-    alice.metadata().set(key, "Alice Admin").await?;
+    alice.metadata().set(key.clone(), "Alice Admin").await?;
     observer
         .wait_for(|event| {
             event.as_metadata_changed().filter(|changed| {
-                subject_name(&changed.subject) == alice_nick.as_ref() && changed.key.as_ref() == key
+                subject_name(&changed.subject) == alice_nick.as_ref() && changed.key == key
             })
         })
         .await?;
@@ -184,22 +184,25 @@ async fn metadata_does_not_cross_nick_handoffs(s: Scenario) -> papo_testing::Res
     covers = ["draft.metadata.channel-metadata"]
 )]
 async fn channel_metadata(s: Scenario) -> papo_testing::Result<()> {
-    let key = "example.org/papo-topic-category";
+    let key = MetadataKey::new("example.org/papo-topic-category");
     let value = "systems programming";
     let channel = s.channel_name();
     let alice = s.connect("alice").await?;
     let mut bob = s
-        .connect_with(s.configure("bob")?.metadata_subscriptions([key]))
+        .connect_with(s.configure("bob")?.metadata_subscriptions([key.clone()]))
         .await?;
     alice.join(channel.clone()).await?;
     bob.join(channel.clone()).await?;
 
-    alice.metadata().set_on(channel.clone(), key, value).await?;
+    alice
+        .metadata()
+        .set_on(channel.clone(), key.clone(), value)
+        .await?;
     let bob_change = bob
         .wait_for(|event| {
-            event.as_metadata_changed().filter(|changed| {
-                subject_name(&changed.subject) == channel && changed.key.as_ref() == key
-            })
+            event
+                .as_metadata_changed()
+                .filter(|changed| subject_name(&changed.subject) == channel && changed.key == key)
         })
         .await?;
     assert_eq!(
@@ -212,14 +215,17 @@ async fn channel_metadata(s: Scenario) -> papo_testing::Result<()> {
     );
 
     let mut charlie = s
-        .connect_with(s.configure("charlie")?.metadata_subscriptions([key]))
+        .connect_with(
+            s.configure("charlie")?
+                .metadata_subscriptions([key.clone()]),
+        )
         .await?;
     charlie.join(channel.clone()).await?;
     let charlie_change = charlie
         .wait_for(|event| {
-            event.as_metadata_changed().filter(|changed| {
-                subject_name(&changed.subject) == channel && changed.key.as_ref() == key
-            })
+            event
+                .as_metadata_changed()
+                .filter(|changed| subject_name(&changed.subject) == channel && changed.key == key)
         })
         .await?;
     assert_eq!(subject_name(&charlie_change.subject), channel);
@@ -230,8 +236,11 @@ async fn channel_metadata(s: Scenario) -> papo_testing::Result<()> {
         let values = state
             .metadata(&channel)
             .expect("channel metadata is synchronized");
-        assert_eq!(values.get(key).unwrap().value, value);
-        assert_eq!(values.get(key).unwrap().visibility, Visibility::Public);
+        assert_eq!(values.get(key.as_ref()).unwrap().value, value);
+        assert_eq!(
+            values.get(key.as_ref()).unwrap().visibility,
+            Visibility::Public
+        );
     }
     Ok(())
 }
@@ -242,7 +251,7 @@ async fn channel_metadata(s: Scenario) -> papo_testing::Result<()> {
     covers = ["draft.metadata.errors"]
 )]
 async fn metadata_error(s: Scenario) -> papo_testing::Result<()> {
-    let key = "example.org/papo-protected";
+    let key = MetadataKey::new("example.org/papo-protected");
     let channel = s.channel_name();
     let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;

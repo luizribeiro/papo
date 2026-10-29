@@ -72,7 +72,7 @@ async fn account_creation_requires_account_registration() {
 #[tokio::test]
 async fn metadata_subscriptions_require_metadata() {
     assert_unavailable(
-        builder().metadata_subscriptions(["example.org/color"]),
+        builder().metadata_subscriptions([papo::MetadataKey::new("example.org/color")]),
         ConnectErrorKind::CapabilityUnavailable,
         "draft/metadata-3",
     )

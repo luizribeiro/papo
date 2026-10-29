@@ -48,7 +48,8 @@ impl State {
             Command::Numeric(Numeric::RPL_METADATASUBOK) => {
                 for key in message.params().skip(1) {
                     if !self.metadata_subscriptions.iter().any(|item| item == key) {
-                        self.metadata_subscriptions.push(key.into());
+                        self.metadata_subscriptions
+                            .push(papo_proto::MetadataKey::new(key));
                     }
                 }
                 return true;
@@ -64,7 +65,8 @@ impl State {
                 }
                 for key in message.params().skip(1) {
                     if !self.metadata_subscriptions.iter().any(|item| item == key) {
-                        self.metadata_subscriptions.push(key.into());
+                        self.metadata_subscriptions
+                            .push(papo_proto::MetadataKey::new(key));
                     }
                 }
                 return true;
@@ -110,7 +112,7 @@ impl State {
             self.metadata
                 .entry(target_key)
                 .or_default()
-                .insert(key.into(), value.clone());
+                .insert(papo_proto::MetadataKey::new(key), value.clone());
         } else if let Some(values) = self.metadata.get_mut(&target_key) {
             _ = values.remove(key);
             if values.is_empty() {

@@ -71,11 +71,18 @@ async fn subscriber_receives_another_clients_metadata() {
             .await
             .unwrap();
         wait_synced(&mut reader_events, &channel).await;
-        reader.metadata().subscribe(["status"]).await.unwrap();
+        reader
+            .metadata()
+            .subscribe([papo::MetadataKey::new("status")])
+            .await
+            .unwrap();
 
         writer
             .metadata()
-            .set("status", "available for review")
+            .set(
+                papo::MetadataKey::new("status"),
+                "available for review",
+            )
             .await
             .unwrap();
         loop {

@@ -248,7 +248,7 @@ fn validate_keys(keys: &[String]) -> Result<(), RequestError> {
         });
     }
     for key in keys {
-        if let Err(reason) = MetadataKey::from(key.as_str()).check() {
+        if let Err(reason) = MetadataKey::new(key.as_str()).check() {
             return Err(RequestError::InvalidMetadataKey {
                 key: key.clone(),
                 reason,
