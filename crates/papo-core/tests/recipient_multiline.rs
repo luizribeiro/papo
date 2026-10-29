@@ -27,6 +27,11 @@ fn multiline_session(now: Instant) -> Session {
         &mut session,
         "CAP * ACK :batch draft/multiline echo-message",
     );
+    server(
+        &mut session,
+        ":irc.example 001 papo :Welcome to the network",
+    );
+    server(&mut session, ":irc.example 422 papo :MOTD File is missing");
     while session.poll_transmit().is_some() {}
     server(&mut session, ":papo!p@localhost JOIN #review");
     server(&mut session, ":alice!~alice@cloak.example JOIN #review");
