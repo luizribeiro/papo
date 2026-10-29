@@ -390,31 +390,35 @@ fn scram_fallback_requires_secure_transport_before_a_challenge() {
 
 #[test]
 fn reports_every_failed_mechanism_and_continues_when_optional() {
-    Transcript::new(secure_sasl(Sasl::any("alice", "hunter2").optional()))
-        .connect_default()
-        .server("CAP * LS :sasl=SCRAM-SHA-256,PLAIN")
-        .client("CAP REQ :sasl")
-        .server("CAP * ACK :sasl")
-        .client("AUTHENTICATE PLAIN")
-        .server(":ergo.test 905 alice :SASL message too long")
-        .event(|event| {
-            matches!(event, Event::AuthenticationFailed { reason, .. }
+    Transcript::new(secure_sasl(
+        Sasl::any("alice", papo_core::Secret::new("hunter2")).optional(),
+    ))
+    .connect_default()
+    .server("CAP * LS :sasl=SCRAM-SHA-256,PLAIN")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE PLAIN")
+    .server(":ergo.test 905 alice :SASL message too long")
+    .event(|event| {
+        matches!(event, Event::AuthenticationFailed { reason, .. }
                 if reason.contains("SCRAM-SHA-256 skipped because no entropy")
                     && reason.contains("PLAIN"))
-        })
-        .client("CAP END");
+    })
+    .client("CAP END");
 }
 
 #[test]
 fn already_authenticated_counts_as_success() {
-    Transcript::new(Config::default().sasl(Sasl::plain("alice", "hunter2")))
-        .connect_default()
-        .server("CAP * LS :sasl=PLAIN")
-        .client("CAP REQ :sasl")
-        .server("CAP * ACK :sasl")
-        .client("AUTHENTICATE PLAIN")
-        .server(":ergo.test 907 alice :You have already authenticated using SASL")
-        .client("CAP END");
+    Transcript::new(
+        Config::default().sasl(Sasl::plain("alice", papo_core::Secret::new("hunter2"))),
+    )
+    .connect_default()
+    .server("CAP * LS :sasl=PLAIN")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE PLAIN")
+    .server(":ergo.test 907 alice :You have already authenticated using SASL")
+    .client("CAP END");
 }
 
 #[test]
