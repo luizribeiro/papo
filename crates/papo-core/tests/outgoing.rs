@@ -34,7 +34,10 @@ fn multiline_session_with_rate_limit(
         now,
         format!("CAP * ACK :batch draft/multiline echo-message{labels}").as_bytes(),
     );
+    session.handle_line(now, b":irc.example 001 papo :Welcome to the network");
+    session.handle_line(now, b":irc.example 422 papo :MOTD File is missing");
     while session.poll_transmit().is_some() {}
+    while session.poll_event().is_some() {}
     session
 }
 
