@@ -43,7 +43,7 @@ typed_codes!(
     VALUE_INVALID,
 );
 
-codes!(
+typed_codes!(
     CHANNEL_NAME_IN_USE,
     CANNOT_RENAME,
     ACCOUNT_REQUIRED,
@@ -91,7 +91,8 @@ mod tests {
     fn values_match_wire_codes() {
         let account_exists: crate::ReplyCode = super::ACCOUNT_EXISTS;
         assert_eq!(account_exists, "ACCOUNT_EXISTS");
-        assert_eq!(super::INVALID_UTF8, "INVALID_UTF8");
+        let invalid_utf8: crate::ReplyCode = super::INVALID_UTF8;
+        assert_eq!(invalid_utf8, "INVALID_UTF8");
         #[cfg(feature = "unstable")]
         assert_eq!(super::MAX_REGISTRATIONS, "MAX_REGISTRATIONS");
     }
