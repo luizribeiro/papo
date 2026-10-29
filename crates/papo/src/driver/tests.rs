@@ -1101,7 +1101,7 @@ async fn list_modes_returns_entries_and_updates_joined_channel_state() {
     let entries = within(request).await.unwrap().unwrap();
     assert_eq!(entries.len(), 1);
     assert_eq!(entries[0].mask, "*!*@gateway.example");
-    assert_eq!(entries[0].actor.as_ref().unwrap().to_string(), "oper");
+    assert_eq!(entries[0].actor().unwrap().to_string(), "oper");
     assert_eq!(
         client
             .state()

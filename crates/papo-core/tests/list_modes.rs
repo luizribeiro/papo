@@ -64,7 +64,7 @@ fn each_list_mode_waits_for_its_end_numeric() {
         let entries = response.mode_list.unwrap();
         assert_eq!(response.lines.len(), 2);
         assert_eq!(entries[0].mask, mask);
-        assert_eq!(entries[0].actor.as_ref().unwrap().to_string(), "oper");
+        assert_eq!(entries[0].actor().unwrap().to_string(), "oper");
         assert_eq!(
             entries[0].set_at,
             UNIX_EPOCH.checked_add(Duration::from_hours(489_180))
@@ -203,7 +203,7 @@ fn live_mode_changes_update_only_a_completed_list() {
     assert_eq!(entries.len(), 2);
     assert_eq!(entries[1].mask, "carol");
     assert!(matches!(
-        entries[1].actor.as_ref().unwrap(),
+        entries[1].actor().unwrap(),
         papo_core::Source::User {
             nick,
             username: Some(username),

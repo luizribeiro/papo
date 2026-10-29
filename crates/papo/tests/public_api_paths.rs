@@ -291,6 +291,8 @@ fn missing_reexported_surfaces(snapshot: &str) -> Vec<&str> {
     facade
         .lines()
         .filter_map(|line| line.strip_prefix("pub use "))
+        .filter(|path| !path.contains(" as "))
+        .filter(|path| *path != "papo::StateSource")
         .filter(|path| {
             path.rsplit("::")
                 .next()

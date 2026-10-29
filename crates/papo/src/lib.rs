@@ -342,6 +342,8 @@ pub use name_rules::{NameCheck, NameRules};
 pub use papo_core::InvalidUrl;
 #[doc(inline)]
 pub use papo_core::Secret;
+#[doc(inline)]
+pub use papo_core::Source as StateSource;
 #[doc(hidden)]
 pub use papo_core::cap::__is_known as __is_known_cap;
 #[doc(inline)]

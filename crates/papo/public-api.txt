@@ -42,6 +42,7 @@ pub use papo::Secret
 pub use papo::ServerName
 pub use papo::Span
 pub use papo::StateLimit
+pub use papo::StateSource
 pub use papo::Style
 pub use papo::Typing
 pub use papo::UnknownCasemapping
@@ -3833,9 +3834,10 @@ impl core::marker::UnsafeUnpin for papo::ModeChange
 impl core::panic::unwind_safe::RefUnwindSafe for papo::ModeChange
 impl core::panic::unwind_safe::UnwindSafe for papo::ModeChange
 #[non_exhaustive] pub struct papo::ModeListEntry
-pub papo::ModeListEntry::actor: core::option::Option<papo_core::Source>
 pub papo::ModeListEntry::mask: papo::Mask
 pub papo::ModeListEntry::set_at: core::option::Option<std::time::SystemTime>
+impl papo::ModeListEntry
+pub const fn papo::ModeListEntry::actor(&self) -> core::option::Option<&papo_core::Source>
 impl core::clone::Clone for papo::ModeListEntry
 pub fn papo::ModeListEntry::clone(&self) -> Self
 impl core::cmp::Eq for papo::ModeListEntry

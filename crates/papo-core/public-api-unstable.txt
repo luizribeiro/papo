@@ -1867,9 +1867,10 @@ impl core::marker::UnsafeUnpin for papo_core::ModeChange
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::ModeChange
 impl core::panic::unwind_safe::UnwindSafe for papo_core::ModeChange
 #[non_exhaustive] pub struct papo_core::ModeListEntry
-pub papo_core::ModeListEntry::actor: core::option::Option<papo_core::Source>
 pub papo_core::ModeListEntry::mask: papo::Mask
 pub papo_core::ModeListEntry::set_at: core::option::Option<std::time::SystemTime>
+impl papo_core::ModeListEntry
+pub const fn papo_core::ModeListEntry::actor(&self) -> core::option::Option<&papo_core::Source>
 impl core::clone::Clone for papo_core::ModeListEntry
 pub fn papo_core::ModeListEntry::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::ModeListEntry

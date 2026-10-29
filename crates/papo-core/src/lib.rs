@@ -1219,9 +1219,17 @@ pub struct ModeListEntry {
     /// Mask stored by the server.
     pub mask: Mask,
     /// Actor that set the entry, when reported.
-    pub actor: Option<Source>,
+    actor: Option<Source>,
     /// Time at which the entry was set, when reported and valid.
     pub set_at: Option<std::time::SystemTime>,
+}
+
+impl ModeListEntry {
+    /// Returns the actor that set the entry, when reported.
+    #[must_use]
+    pub const fn actor(&self) -> Option<&Source> {
+        self.actor.as_ref()
+    }
 }
 
 /// A mode argument classified using the server's advertised rules.
