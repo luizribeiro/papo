@@ -133,7 +133,7 @@ unguarded escape hatch.
 | `return_address() -> String` | Message-like events return guarded `MessageRef`; notices return `NoticeRef`; server notice addresses are `Option<NoticeRef>` |
 | Notices converted to `MessageRef` and could be passed to `reply` or `react` | `NoticeRef` can be sent with `notice`, but cannot be used for message replies or reactions |
 | `invite`, `op`, `halfop`, `voice`, and arbitrary prefix modes accepted an unguarded nick | Privilege grants require `&DirectRef`; `SetModes::prefix(mode, &direct)` handles advertised custom prefix modes |
-| `kickban(channel, nick, reason, ban)` | `kickban(channel, nick, ban, reason)`; `ban` is typed as `BanTarget` |
+| `kickban(channel, nick, reason, ban)` | `kickban(channel).nick(nick).ban(ban).reason(reason)` names the nickname and ban roles; `ban` is typed as `BanTarget` |
 | `rename_channel(old, new, reason)` | `rename_channel(old).to(new).reason(reason)` gives the two channel roles distinct positions |
 | Public mutable message-reference fields | `msgid()`, `conversation()`, `status()`, `channel_context()`, and `Sent::outcome()` are read-only accessors backed by receipt evidence |
 | `Extban::Account(String)` | Opaque `Extban::account(impl AsAccount)` is the only account-extban constructor |

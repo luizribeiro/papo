@@ -75,6 +75,17 @@ fn request_builders_and_extension_handles_have_opaque_debug_output() {
         format!("{:?}", client.join("#papo").key(Secret::new("secret"))),
         "JoinChannel { .. }"
     );
+    assert_eq!(
+        format!(
+            "{:?}",
+            client
+                .kickban("#papo")
+                .nick("mallory")
+                .ban("*!*@gateway.example")
+                .reason("credential leak")
+        ),
+        "Kickban { .. }"
+    );
     assert_eq!(format!("{:?}", client.list()), "ListRequest { .. }");
     assert_eq!(format!("{:?}", client.mode("#papo")), "SetModes { .. }");
     assert_eq!(

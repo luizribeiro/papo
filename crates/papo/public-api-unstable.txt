@@ -2604,6 +2604,8 @@ impl papo::Kickban
 pub fn papo::Kickban::ban(self, impl core::convert::Into<papo::BanTarget>) -> Self
 pub fn papo::Kickban::nick(self, impl papo::AsNick) -> Self
 pub fn papo::Kickban::reason(self, impl core::convert::Into<alloc::string::String>) -> Self
+impl core::fmt::Debug for papo::Kickban
+pub fn papo::Kickban::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::future::into_future::IntoFuture for papo::Kickban
 pub type papo::Kickban::IntoFuture = papo::RequestFuture<papo::KickbanOutcome>
 pub type papo::Kickban::Output = core::result::Result<papo::KickbanOutcome, papo::Error>

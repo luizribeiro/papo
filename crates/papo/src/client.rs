@@ -162,6 +162,12 @@ impl std::fmt::Debug for JoinChannel {
     }
 }
 
+impl std::fmt::Debug for Kickban {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        crate::opaque_debug("Kickban", formatter)
+    }
+}
+
 impl JoinChannel {
     /// Supplies the channel key without exposing it through `Debug` output.
     pub fn key(mut self, key: crate::Secret) -> Self {

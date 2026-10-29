@@ -5586,6 +5586,21 @@ async fn kickban_confirms_the_ban_before_returning_the_kick_result() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn kickban_requires_a_named_nickname_and_ban() {
+    let client = crate::Client::disconnected_for_test();
+    assert!(matches!(
+        client.kickban("#papo").await,
+        Err(Error::InvalidInput(crate::InvalidInput::InvalidRequest(message)))
+            if message == "kickban nick missing"
+    ));
+    assert!(matches!(
+        client.kickban("#papo").nick("mallory").await,
+        Err(Error::InvalidInput(crate::InvalidInput::InvalidRequest(message)))
+            if message == "kickban ban missing"
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn kickban_uses_a_list_fallback_and_skips_an_already_tracked_ban() {
     let (mut server, client, mut events, driver) =
         scripted(config().wanted_caps(["labeled-response"]));
