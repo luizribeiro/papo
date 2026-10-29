@@ -10,8 +10,8 @@ impl NameRules<'_> {
     /// ```
     /// # fn example(state: &papo::State) {
     /// let names = state.name_rules().expect("server advertised CASEMAPPING");
-    /// let extban = names.parse_extban(&names.mask("$a:alice"));
-    /// # _ = extban;
+    /// let extban = names.parse_extban(&names.mask("$a:alice")).unwrap();
+    /// assert_eq!(extban.as_account(), "alice");
     /// # }
     /// ```
     #[must_use]
@@ -28,7 +28,7 @@ impl NameRules<'_> {
             return None;
         }
         Some(crate::Extban(crate::mode::ExtbanKind::Account(
-            account.to_owned(),
+            self.account(account),
         )))
     }
 }

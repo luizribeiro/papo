@@ -633,7 +633,7 @@ mod name_tests {
     use papo_core::{Config, Session};
 
     use super::State;
-    use crate::{Casemapping, Extban, InvalidIdentifier, NameCheck};
+    use crate::{Casemapping, InvalidIdentifier, NameCheck};
 
     fn name_rules(state: &State) -> crate::NameRules<'_> {
         state.name_rules().expect("server advertised CASEMAPPING")
@@ -966,10 +966,10 @@ mod name_tests {
         for (line, spellings) in cases {
             let state = state_with_isupport(line);
             for spelling in spellings {
-                assert_eq!(
-                    name_rules(&state).parse_extban(&name_rules(&state).mask(spelling)),
-                    Some(Extban::account("Alice").unwrap())
-                );
+                let extban = name_rules(&state)
+                    .parse_extban(&name_rules(&state).mask(spelling))
+                    .unwrap();
+                assert_eq!(extban.as_account(), &name_rules(&state).account("Alice"));
             }
         }
     }

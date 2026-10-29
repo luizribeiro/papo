@@ -2,7 +2,8 @@ use std::future::IntoFuture;
 
 use papo_core::{Refusal, Response, ResponseMatcher};
 use papo_proto::{
-    Casemapping, Command, Isupport, Line, Mask, ModeChanges, ModeKind, Nick, Param, Source,
+    AccountName, Casemapping, Command, Isupport, Line, Mask, ModeChanges, ModeKind, Nick, Param,
+    Source,
 };
 
 use crate::{Client, Error, InvalidInput, ModeAction, ModeArg, ModeChange, RequestFuture};
@@ -13,7 +14,7 @@ pub struct Extban(pub(crate) ExtbanKind);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum ExtbanKind {
-    Account(String),
+    Account(AccountName),
 }
 
 impl Extban {
@@ -28,14 +29,19 @@ impl Extban {
     /// let _ = papo::Extban::Account("*".to_owned());
     /// ```
     pub fn account(name: impl crate::AsAccount) -> Result<Self, InvalidInput> {
-        let name = crate::AsAccount::__parts(&name).text().to_owned();
-        if name == "0"
-            || name.contains(['*', '?'])
-            || Casemapping::Ascii.account(&name).check().is_err()
-        {
-            return Err(InvalidInput::InvalidExtbanAccount(name));
+        let name = Casemapping::Ascii.account(crate::AsAccount::__parts(&name).text());
+        if name.as_ref() == "0" || name.contains(['*', '?']) || name.check().is_err() {
+            return Err(InvalidInput::InvalidExtbanAccount(name.into_string()));
         }
         Ok(Self(ExtbanKind::Account(name)))
+    }
+
+    /// Returns the account selected by this extended ban.
+    #[must_use]
+    pub fn as_account(&self) -> &AccountName {
+        match &self.0 {
+            ExtbanKind::Account(account) => account,
+        }
     }
 }
 
@@ -123,7 +129,7 @@ impl BanTarget {
                 let prefix = syntax
                     .prefix
                     .map_or(String::new(), |value| value.to_string());
-                let account = names.account(account);
+                let account = names.account(account.as_ref());
                 Ok(names.mask(format!("{prefix}{kind}:{account}")))
             }
         }
@@ -1176,9 +1182,8 @@ mod tests {
 
     #[test]
     fn validates_account_extban_names() {
-        assert!(
-            matches!(Extban::account("alice"), Ok(Extban(ExtbanKind::Account(account))) if account == "alice")
-        );
+        let extban = Extban::account("alice").unwrap();
+        assert_eq!(extban.as_account(), "alice");
         for invalid in ["", "0", "*", "bo?", "bob smith"] {
             assert_eq!(
                 Extban::account(invalid),

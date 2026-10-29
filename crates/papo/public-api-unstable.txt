@@ -2427,6 +2427,7 @@ impl !core::panic::unwind_safe::UnwindSafe for papo::Events
 pub struct papo::Extban(_)
 impl papo::Extban
 pub fn papo::Extban::account(impl papo::AsAccount) -> core::result::Result<Self, papo::InvalidInput>
+pub fn papo::Extban::as_account(&self) -> &papo::AccountName
 impl core::clone::Clone for papo::Extban
 pub fn papo::Extban::clone(&self) -> Self
 impl core::cmp::Eq for papo::Extban
