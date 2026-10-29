@@ -1104,6 +1104,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo_proto::MessageId
 pub struct papo_proto::MetadataKey(_)
 impl papo_proto::MetadataKey
 pub fn papo_proto::MetadataKey::check(&self) -> core::result::Result<(), papo_proto::InvalidIdentifier>
+pub fn papo_proto::MetadataKey::new(impl core::convert::Into<alloc::string::String>) -> Self
 impl papo_proto::MetadataKey
 pub fn papo_proto::MetadataKey::into_string(self) -> alloc::string::String
 impl core::borrow::Borrow<str> for papo_proto::MetadataKey

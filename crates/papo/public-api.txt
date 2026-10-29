@@ -3677,6 +3677,7 @@ impl core::ops::deref::Deref for papo::MessageId
 pub struct papo::MetadataKey(_)
 impl papo::MetadataKey
 pub fn papo::MetadataKey::check(&self) -> core::result::Result<(), papo::InvalidIdentifier>
+pub fn papo::MetadataKey::new(impl core::convert::Into<alloc::string::String>) -> Self
 impl papo::MetadataKey
 pub fn papo::MetadataKey::into_string(self) -> alloc::string::String
 impl core::borrow::Borrow<str> for papo::MetadataKey

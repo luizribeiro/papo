@@ -666,6 +666,12 @@ pub trait MaskSource {
 }
 
 impl MetadataKey {
+    /// Builds a metadata key from its wire spelling.
+    #[must_use]
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
+    }
+
     /// Validates the metadata key character set.
     ///
     /// # Errors
