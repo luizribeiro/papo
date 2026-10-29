@@ -99,7 +99,10 @@ fn wipes_queued_and_polled_secret_wire_lines() {
     let now = Instant::now();
     let mut session = Session::new(
         Config::default()
-            .sasl(Sasl::plain("alice", "sasl-wipe-marker-6938"))
+            .sasl(Sasl::plain(
+                "alice",
+                papo_core::Secret::new("sasl-wipe-marker-6938"),
+            ))
             .allow_insecure_auth(true)
             .rate_limit(RateLimit::unlimited()),
     );

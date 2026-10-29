@@ -41,7 +41,7 @@ fn every_credential_command_marks_its_secret_parameter() {
     let now = Instant::now();
     let mut lines = Vec::new();
 
-    let mut pass = secure(Config::default().password("server-password"));
+    let mut pass = secure(Config::default().password(papo_core::Secret::new("server-password")));
     pass.handle_connected(now);
     drain(&mut pass);
     pass.handle_line(now, b":ergo.test CAP papo LS :");
@@ -67,16 +67,21 @@ fn every_credential_command_marks_its_secret_parameter() {
         let cap = "draft/account-registration";
         let mut account = registered(Config::default().wanted_caps([cap]), cap);
         if verify {
-            account.verify(now, "alice", "verification-code").unwrap();
+            account
+                .verify(now, "alice", papo_core::Secret::new("verification-code"))
+                .unwrap();
         } else {
             account
-                .create_account(now, None, None, "account-password")
+                .create_account(now, None, None, papo_core::Secret::new("account-password"))
                 .unwrap();
         }
         lines.push(marked(command, account.poll_transmit().unwrap()));
     }
 
-    let mut sasl = secure(Config::default().sasl(Sasl::plain("alice", "sasl-password")));
+    let mut sasl = secure(Config::default().sasl(Sasl::plain(
+        "alice",
+        papo_core::Secret::new("sasl-password"),
+    )));
     sasl.handle_connected(now);
     drain(&mut sasl);
     sasl.handle_line(now, b":ergo.test CAP papo LS :sasl=PLAIN");

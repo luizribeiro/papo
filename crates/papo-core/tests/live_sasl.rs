@@ -28,8 +28,8 @@ fn authenticates_with_plain_and_scram_against_live_ergo() {
     create_account(&server, &account, password).unwrap();
 
     for sasl in [
-        Sasl::plain(&account, password),
-        Sasl::scram_sha256(&account, password),
+        Sasl::plain(&account, papo_core::Secret::new(password)),
+        Sasl::scram_sha256(&account, papo_core::Secret::new(password)),
     ] {
         let session = authenticate(&server, &account, sasl)
             .unwrap_or_else(|reason| panic!("valid credentials closed: {reason}"));
@@ -40,7 +40,7 @@ fn authenticates_with_plain_and_scram_against_live_ergo() {
     let reason = authenticate(
         &server,
         &account,
-        Sasl::plain(&account, "wrong-password-4917"),
+        Sasl::plain(&account, papo_core::Secret::new("wrong-password-4917")),
     )
     .expect_err("required SASL accepted a wrong password");
     assert!(reason.contains("PLAIN:"));
