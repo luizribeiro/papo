@@ -196,8 +196,8 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::StandardReplyKind
 #[non_exhaustive] pub papo::event::Warning::AuthenticationFailed
 pub papo::event::Warning::AuthenticationFailed::reason: alloc::string::String
 #[non_exhaustive] pub papo::event::Warning::BatchAbandoned
-pub papo::event::Warning::BatchAbandoned::batch_type: alloc::string::String
-pub papo::event::Warning::BatchAbandoned::id: alloc::string::String
+pub papo::event::Warning::BatchAbandoned::batch_type: papo::BatchType
+pub papo::event::Warning::BatchAbandoned::id: papo::BatchId
 pub papo::event::Warning::BatchAbandoned::reason: papo::BatchAbandonReason
 #[non_exhaustive] pub papo::event::Warning::ChannelRecreated
 pub papo::event::Warning::ChannelRecreated::channel: papo::ChannelName
@@ -1054,7 +1054,7 @@ impl core::marker::UnsafeUnpin for papo::event::ServerNotice
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ServerNotice
 impl core::panic::unwind_safe::UnwindSafe for papo::event::ServerNotice
 #[non_exhaustive] pub struct papo::event::SplitServers
-pub papo::event::SplitServers::batch: alloc::string::String
+pub papo::event::SplitServers::batch: papo::BatchId
 pub papo::event::SplitServers::first: papo::ServerName
 pub papo::event::SplitServers::second: papo::ServerName
 impl core::clone::Clone for papo::event::SplitServers

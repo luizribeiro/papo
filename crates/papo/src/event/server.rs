@@ -44,9 +44,9 @@ pub enum Warning {
     #[non_exhaustive]
     BatchAbandoned {
         /// The opaque batch reference.
-        id: String,
+        id: crate::BatchId,
         /// The batch type from its opening line.
-        batch_type: String,
+        batch_type: crate::BatchType,
         /// The bound that was reached.
         reason: BatchAbandonReason,
     },
@@ -138,8 +138,8 @@ mod tests {
     fn warnings_have_human_readable_diagnostics() {
         let warnings = [
             Warning::BatchAbandoned {
-                id: "history42".to_owned(),
-                batch_type: "chathistory".to_owned(),
+                id: crate::BatchId::from("history42"),
+                batch_type: crate::BatchType::from("chathistory"),
                 reason: BatchAbandonReason::Timeout,
             },
             Warning::Malformed {

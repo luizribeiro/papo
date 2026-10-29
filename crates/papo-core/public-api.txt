@@ -519,9 +519,9 @@ pub papo_core::Event::AwayChanged::away: papo_core::Away
 pub papo_core::Event::AwayChanged::nick: papo::Nick
 pub papo_core::Event::AwayChanged::server_time: core::option::Option<std::time::SystemTime>
 #[non_exhaustive] pub papo_core::Event::BatchAbandoned
-pub papo_core::Event::BatchAbandoned::batch_type: alloc::string::String
+pub papo_core::Event::BatchAbandoned::batch_type: papo::BatchType
 pub papo_core::Event::BatchAbandoned::reason: papo_core::BatchAbandonReason
-pub papo_core::Event::BatchAbandoned::reference: alloc::string::String
+pub papo_core::Event::BatchAbandoned::reference: papo::BatchId
 #[non_exhaustive] pub papo_core::Event::CapsChanged
 pub papo_core::Event::CapsChanged::added: papo::Capabilities
 pub papo_core::Event::CapsChanged::removed: papo::Capabilities
@@ -2038,7 +2038,7 @@ impl core::marker::UnsafeUnpin for papo_core::Session
 impl !core::panic::unwind_safe::RefUnwindSafe for papo_core::Session
 impl !core::panic::unwind_safe::UnwindSafe for papo_core::Session
 #[non_exhaustive] pub struct papo_core::SplitServers
-pub papo_core::SplitServers::batch: alloc::string::String
+pub papo_core::SplitServers::batch: papo::BatchId
 pub papo_core::SplitServers::first: alloc::string::String
 pub papo_core::SplitServers::second: alloc::string::String
 impl core::clone::Clone for papo_core::SplitServers

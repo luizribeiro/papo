@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use crate::{Account, Authorship, Away, ChannelName, MessageId, Nick, ServerName};
+use crate::{Account, Authorship, Away, BatchId, ChannelName, MessageId, Nick, ServerName};
 
 use super::UserSource;
 
@@ -157,7 +157,7 @@ pub struct MonitorOffline {
 #[non_exhaustive]
 pub struct SplitServers {
     /// The server's opaque batch reference.
-    pub batch: String,
+    pub batch: BatchId,
     /// The first server name in the batch parameters.
     pub first: ServerName,
     /// The second server name in the batch parameters.

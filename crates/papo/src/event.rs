@@ -5634,7 +5634,7 @@ mod tests {
                 actor: own_actor,
                 authorship: Authorship::Own,
                 netjoin: Some(super::SplitServers {
-                    batch: "join".to_owned(),
+                    batch: crate::BatchId::from("join"),
                     first: "irc.example".into(),
                     second: "irc.remote".into(),
                 }),

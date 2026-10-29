@@ -2297,7 +2297,7 @@ pub enum ConnectPhase {
 #[non_exhaustive]
 pub struct SplitServers {
     /// The server's opaque batch reference.
-    pub batch: String,
+    pub batch: BatchId,
     /// The first server name in the batch parameters.
     pub first: String,
     /// The second server name in the batch parameters.
@@ -2459,9 +2459,9 @@ pub enum Event {
     #[non_exhaustive]
     BatchAbandoned {
         /// The opaque batch reference.
-        reference: String,
+        reference: BatchId,
         /// The batch type from its opening line.
-        batch_type: String,
+        batch_type: BatchType,
         /// The bound that was reached.
         reason: BatchAbandonReason,
     },
@@ -2827,7 +2827,7 @@ hidden_event_constructors! {
     __monitor_offline(nick: Nick) => MonitorOffline;
     __monitor_list_full(limit: usize, nicks: Vec<Nick>) => MonitorListFull;
     __history(conversation: Conversation, items: Vec<HistoryItem>, end: bool) => History;
-    __batch_abandoned(reference: String, batch_type: String, reason: BatchAbandonReason) => BatchAbandoned;
+    __batch_abandoned(reference: BatchId, batch_type: BatchType, reason: BatchAbandonReason) => BatchAbandoned;
 }
 
 impl Event {
@@ -5397,7 +5397,7 @@ impl Session {
                 quits,
             } => {
                 let split = SplitServers {
-                    batch: reference.clone(),
+                    batch: BatchId::from(reference.clone()),
                     first: servers[0].clone(),
                     second: servers[1].clone(),
                 };
@@ -5422,7 +5422,7 @@ impl Session {
                 joins,
             } => {
                 let split = SplitServers {
-                    batch: reference.clone(),
+                    batch: BatchId::from(reference.clone()),
                     first: servers[0].clone(),
                     second: servers[1].clone(),
                 };
@@ -5444,8 +5444,8 @@ impl Session {
                 batch_type,
                 reason,
             } => self.outbox.event(Event::BatchAbandoned {
-                reference,
-                batch_type,
+                reference: BatchId::from(reference),
+                batch_type: BatchType::from(batch_type),
                 reason,
             }),
             BatchEvent::Line { line, batch_type } => {
