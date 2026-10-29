@@ -299,7 +299,7 @@ impl Builder {
     /// with [`ConnectErrorKind::CapabilityUnavailable`](crate::ConnectErrorKind::CapabilityUnavailable).
     ///
     /// ```
-    /// let account = papo::NewAccount::new("correct horse battery staple")
+    /// let account = papo::NewAccount::new(papo::Secret::new("correct horse battery staple"))
     ///     .account("alice");
     /// # _ = papo::Client::builder("ircs://irc.example.net", "papo-client").create_account(account);
     /// ```
@@ -631,7 +631,7 @@ impl Builder {
     /// that compare equal under that mapping are also deduplicated before joining.
     ///
     /// ```
-    /// # _ = papo::Client::builder("ircs://irc.example.net", "papo-client").autojoin_with_key("#staff", "secret");
+    /// # _ = papo::Client::builder("ircs://irc.example.net", "papo-client").autojoin_with_key("#staff", papo::Secret::new("secret"));
     /// ```
     pub fn autojoin_with_key(
         mut self,
@@ -916,7 +916,11 @@ mod tests {
     };
 
     fn webirc(gateway: &str, password: &str) -> crate::WebIrc {
-        crate::WebIrc::new(gateway, password, "192.0.2.42".parse().unwrap())
+        crate::WebIrc::new(
+            gateway,
+            crate::Secret::new(password),
+            "192.0.2.42".parse().unwrap(),
+        )
     }
 
     async fn assert_cap_request(builder: Builder, advertised: &str, expected: &str) {
@@ -1146,8 +1150,14 @@ mod tests {
         .regain_nick(true)
         .username("ping")
         .realname("papo ping bot")
-        .password("network password")
-        .sasl(Sasl::plain("ping-bot", "correct horse battery staple").device("phone"));
+        .password(crate::Secret::new("network password"))
+        .sasl(
+            Sasl::plain(
+                "ping-bot",
+                crate::Secret::new("correct horse battery staple"),
+            )
+            .device("phone"),
+        );
         let config = &builder.config;
         assert_eq!(config.casemapping, crate::Casemapping::Ascii);
         assert_eq!(config.nick, "ping-bot");
@@ -1226,7 +1236,7 @@ mod tests {
     fn account_registration_reenables_its_capability() {
         let added = Builder::new("ircs://irc.example.net")
             .disable(crate::Feature::AccountCreation)
-            .create_account(NewAccount::new("realistic secret"))
+            .create_account(NewAccount::new(crate::Secret::new("realistic secret")))
             .config;
         assert_eq!(
             added
@@ -1401,7 +1411,7 @@ mod tests {
         let reconnect = crate::Reconnect::never();
         let (control, _events, _driver) =
             Builder::from_endpoint("ircs://soju.example:7443", "alice")
-                .password("correct horse battery staple")
+                .password(crate::Secret::new("correct horse battery staple"))
                 .rate_limit(RateLimit::unlimited())
                 .reconnect(reconnect)
                 .connect_timeout(Duration::from_secs(17))
@@ -1534,12 +1544,17 @@ mod tests {
     #[test]
     fn debug_is_opaque_with_every_builder_secret() {
         let builder = Builder::new("ircs://irc.example.net")
-            .password("unique-network-password-9134")
+            .password(crate::Secret::new("unique-network-password-9134"))
             .webirc(webirc("papo-gateway", "unique-webirc-password-3186"))
-            .sasl(Sasl::plain("alice", "unique-sasl-password-8527"))
-            .create_account(NewAccount::new("unique-account-password-7416"))
+            .sasl(Sasl::plain(
+                "alice",
+                crate::Secret::new("unique-sasl-password-8527"),
+            ))
+            .create_account(NewAccount::new(crate::Secret::new(
+                "unique-account-password-7416",
+            )))
             .tls_client_cert(Vec::new(), b"unique-tls-key-6305".to_vec())
-            .autojoin_with_key("#staff", "unique-channel-key-5294");
+            .autojoin_with_key("#staff", crate::Secret::new("unique-channel-key-5294"));
         let output = format!("{builder:?}");
         assert_eq!(output, "Builder { .. }");
         for secret in [
@@ -1599,9 +1614,11 @@ mod tests {
         let webirc = || webirc("papo-gateway", "gateway-password");
         let cases = [
             Builder::new("ws://irc.example.net/webirc").webirc(webirc()),
-            Builder::new("irc://irc.example.net").sasl(Sasl::plain("alice", "sasl-password")),
             Builder::new("irc://irc.example.net")
-                .create_account(NewAccount::new("account-password").account("alice")),
+                .sasl(Sasl::plain("alice", crate::Secret::new("sasl-password"))),
+            Builder::new("irc://irc.example.net").create_account(
+                NewAccount::new(crate::Secret::new("account-password")).account("alice"),
+            ),
         ];
         for builder in cases {
             let (_client, _events, driver) = builder.build();
@@ -1620,7 +1637,8 @@ mod tests {
                 .alt_nicks([crate::Casemapping::default().nick("papo-away\nQUIT")]),
             Builder::new("ircs://irc.example.net").username("papo\0admin"),
             Builder::new("ircs://irc.example.net").realname("Papo\rClient"),
-            Builder::new("ircs://irc.example.net").password("network\npassword"),
+            Builder::new("ircs://irc.example.net")
+                .password(crate::Secret::new("network\npassword")),
             Builder::new("ircs://irc.example.net")
                 .webirc(webirc("papo\rgateway", "gateway-password")),
             Builder::new("ircs://irc.example.net").away_on_connect("gone\nAWAY"),
@@ -1689,7 +1707,7 @@ mod tests {
         let builder = Builder::new("ircs://irc.example.net")
             .bot(true)
             .autojoin(["#papo", "#papo-bots"])
-            .autojoin_with_key(staff, "private channel key")
+            .autojoin_with_key(staff, crate::Secret::new("private channel key"))
             .who_on_join(crate::WhoOnJoin::BelowMembers(25))
             .history_on_reconnect(true);
         assert!(builder.bot);
@@ -1713,7 +1731,7 @@ mod tests {
     fn autojoin_replaces_only_exact_names_before_registration() {
         let builder = Builder::new("ircs://irc.example.net")
             .autojoin(["#papo", "#papo", "#PAPO"])
-            .autojoin_with_key("#papo", "private channel key");
+            .autojoin_with_key("#papo", crate::Secret::new("private channel key"));
         assert_eq!(
             builder
                 .autojoin
@@ -1970,7 +1988,10 @@ mod tests {
         let (stream, mut server) = tokio::io::duplex(4096);
         let (_client, _events, driver) = Builder::new("ircs://custom.example")
             .stream(crate::driver::test_support::TokioIo(stream))
-            .sasl(Sasl::plain("alice", "stream-password-8732"))
+            .sasl(Sasl::plain(
+                "alice",
+                crate::Secret::new("stream-password-8732"),
+            ))
             .build();
 
         assert!(matches!(
@@ -1990,7 +2011,10 @@ mod tests {
                 crate::driver::test_support::TokioIo(stream),
                 StreamSecurity::Encrypted,
             )
-            .sasl(Sasl::plain("alice", "stream-password-8732"))
+            .sasl(Sasl::plain(
+                "alice",
+                crate::Secret::new("stream-password-8732"),
+            ))
             .build();
         let driver = tokio::spawn(driver);
 
