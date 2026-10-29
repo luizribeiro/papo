@@ -4,6 +4,7 @@ pub use papo::AccountName
 pub use papo::AsAccount
 pub use papo::AsChannel
 pub use papo::Away
+pub use papo::BatchId
 pub use papo::BouncerNetwork
 pub use papo::BuildError
 pub use papo::Cap
@@ -3396,6 +3397,42 @@ impl core::marker::Unpin for papo::Away
 impl core::marker::UnsafeUnpin for papo::Away
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Away
 impl core::panic::unwind_safe::UnwindSafe for papo::Away
+pub struct papo::BatchId(_)
+impl papo::BatchId
+pub fn papo::BatchId::into_string(self) -> alloc::string::String
+impl core::borrow::Borrow<str> for papo::BatchId
+pub fn papo::BatchId::borrow(&self) -> &str
+impl core::clone::Clone for papo::BatchId
+pub fn papo::BatchId::clone(&self) -> Self
+impl core::cmp::Eq for papo::BatchId
+impl core::cmp::Ord for papo::BatchId
+pub fn papo::BatchId::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for papo::BatchId
+pub fn papo::BatchId::eq(&self, &Self) -> bool
+impl core::cmp::PartialEq<&str> for papo::BatchId
+pub fn papo::BatchId::eq(&self, &&str) -> bool
+impl core::cmp::PartialEq<str> for papo::BatchId
+pub fn papo::BatchId::eq(&self, &str) -> bool
+impl core::cmp::PartialOrd for papo::BatchId
+pub fn papo::BatchId::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::convert::AsRef<str> for papo::BatchId
+pub fn papo::BatchId::as_ref(&self) -> &str
+impl core::convert::From<&alloc::string::String> for papo::BatchId
+pub fn papo::BatchId::from(&alloc::string::String) -> Self
+impl core::convert::From<&papo::BatchId> for papo::BatchId
+pub fn papo::BatchId::from(&Self) -> Self
+impl core::convert::From<&str> for papo::BatchId
+pub fn papo::BatchId::from(&str) -> Self
+impl core::convert::From<alloc::string::String> for papo::BatchId
+pub fn papo::BatchId::from(alloc::string::String) -> Self
+impl core::fmt::Debug for papo::BatchId
+pub fn papo::BatchId::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo::BatchId
+pub fn papo::BatchId::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::BatchId
+pub fn papo::BatchId::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for papo::BatchId
+impl core::ops::deref::Deref for papo::BatchId
 #[non_exhaustive] pub struct papo::BouncerNetwork
 pub papo::BouncerNetwork::error: core::option::Option<alloc::string::String>
 pub papo::BouncerNetwork::host: core::option::Option<alloc::string::String>

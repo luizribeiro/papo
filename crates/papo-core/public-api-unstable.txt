@@ -1,4 +1,5 @@
 pub mod papo_core
+pub use papo_core::BatchId
 pub use papo_core::InvalidUrl
 pub use papo_core::ModeAction
 pub use papo_core::Prefix

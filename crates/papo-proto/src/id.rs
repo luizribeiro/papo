@@ -525,6 +525,7 @@ text_name_role!(AsNick);
 text_name_role!(AsChannel);
 text_name_role!(AsAccount);
 explicit_identifier!(MetadataKey, "An IRC metadata key.");
+identifier!(BatchId, "An opaque IRC batch reference.");
 identifier!(
     MessageId,
     "An opaque, network-unique IRC message identifier."

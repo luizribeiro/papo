@@ -614,6 +614,51 @@ impl<'a> core::marker::Unpin for papo_proto::Away<'a>
 impl<'a> core::marker::UnsafeUnpin for papo_proto::Away<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Away<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Away<'a>
+pub struct papo_proto::BatchId(_)
+impl papo_proto::BatchId
+pub fn papo_proto::BatchId::into_string(self) -> alloc::string::String
+impl core::borrow::Borrow<str> for papo_proto::BatchId
+pub fn papo_proto::BatchId::borrow(&self) -> &str
+impl core::clone::Clone for papo_proto::BatchId
+pub fn papo_proto::BatchId::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::BatchId
+impl core::cmp::Ord for papo_proto::BatchId
+pub fn papo_proto::BatchId::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for papo_proto::BatchId
+pub fn papo_proto::BatchId::eq(&self, &Self) -> bool
+impl core::cmp::PartialEq<&str> for papo_proto::BatchId
+pub fn papo_proto::BatchId::eq(&self, &&str) -> bool
+impl core::cmp::PartialEq<str> for papo_proto::BatchId
+pub fn papo_proto::BatchId::eq(&self, &str) -> bool
+impl core::cmp::PartialOrd for papo_proto::BatchId
+pub fn papo_proto::BatchId::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::convert::AsRef<str> for papo_proto::BatchId
+pub fn papo_proto::BatchId::as_ref(&self) -> &str
+impl core::convert::From<&alloc::string::String> for papo_proto::BatchId
+pub fn papo_proto::BatchId::from(&alloc::string::String) -> Self
+impl core::convert::From<&papo_proto::BatchId> for papo_proto::BatchId
+pub fn papo_proto::BatchId::from(&Self) -> Self
+impl core::convert::From<&str> for papo_proto::BatchId
+pub fn papo_proto::BatchId::from(&str) -> Self
+impl core::convert::From<alloc::string::String> for papo_proto::BatchId
+pub fn papo_proto::BatchId::from(alloc::string::String) -> Self
+impl core::fmt::Debug for papo_proto::BatchId
+pub fn papo_proto::BatchId::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo_proto::BatchId
+pub fn papo_proto::BatchId::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_proto::BatchId
+pub fn papo_proto::BatchId::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for papo_proto::BatchId
+impl core::ops::deref::Deref for papo_proto::BatchId
+pub type papo_proto::BatchId::Target = str
+pub fn papo_proto::BatchId::deref(&self) -> &Self::Target
+impl core::marker::Freeze for papo_proto::BatchId
+impl core::marker::Send for papo_proto::BatchId
+impl core::marker::Sync for papo_proto::BatchId
+impl core::marker::Unpin for papo_proto::BatchId
+impl core::marker::UnsafeUnpin for papo_proto::BatchId
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::BatchId
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::BatchId
 #[non_exhaustive] pub struct papo_proto::ChanModes<'a>
 pub papo_proto::ChanModes::always: &'a str
 pub papo_proto::ChanModes::list: &'a str
