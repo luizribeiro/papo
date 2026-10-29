@@ -8,14 +8,19 @@ use papo_core::{Config, RateLimit};
 use papo_proto::Line;
 use support::Transcript;
 
+fn registered(config: Config) -> Transcript {
+    Transcript::rate_limited(config)
+        .connect_default()
+        .welcome(":ergo.test 001 papo :Welcome to Ergo")
+}
+
 #[test]
 fn releases_five_lines_then_one_every_500_milliseconds() {
-    let mut transcript = Transcript::rate_limited(
+    let mut transcript = registered(
         Config::default()
             .ping_interval(Duration::from_secs(3_600))
             .ping_timeout(Duration::from_secs(7_200)),
-    )
-    .connect_default();
+    );
     for index in 1..=8 {
         transcript = transcript.send(Line::privmsg("#papo", format!("message {index}")));
     }
@@ -129,14 +134,17 @@ fn a_full_bucket_has_no_refill_deadline() {
 
 #[test]
 fn reconnecting_restores_the_full_burst() {
-    let mut transcript = Transcript::rate_limited(Config::default()).connect_default();
+    let mut transcript = registered(Config::default());
     for index in 1..=5 {
         transcript = transcript.send(Line::privmsg("#papo", format!("before {index}")));
     }
     for index in 1..=5 {
         transcript = transcript.client(&format!("PRIVMSG #papo :before {index}"));
     }
-    transcript = transcript.disconnect().connect_default();
+    transcript = transcript
+        .disconnect()
+        .connect_default()
+        .welcome(":ergo.test 001 papo :Welcome back to Ergo");
     for index in 1..=5 {
         transcript = transcript.send(Line::privmsg("#papo", format!("after {index}")));
     }
@@ -198,7 +206,7 @@ fn queued_len_sums_regular_and_bypass_lines() {
 
 #[test]
 fn protocol_critical_commands_bypass_an_exhausted_bucket() {
-    let mut transcript = Transcript::rate_limited(Config::default());
+    let mut transcript = registered(Config::default());
     for index in 1..=5 {
         transcript = transcript.send(Line::privmsg("#papo", format!("message {index}")));
     }
