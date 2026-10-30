@@ -54,6 +54,70 @@ async fn cap_notify_new(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// removes upstream-dependent capabilities after a bouncer network disconnects
+#[scenario(covers = ["core.cap-notify.del"])]
+async fn cap_notify_del(s: Scenario) -> papo_testing::Result<()> {
+    if papo_test_server::DeploymentProfile::from_env()?
+        != papo_test_server::DeploymentProfile::SojuErgo
+    {
+        return s.skip("the selected profile is not the managed soju bouncer");
+    }
+
+    let bouncer = s
+        .server
+        .bouncer()
+        .expect("the soju profile exposes bouncer metadata");
+    let network = papo_test_server::unique("cap-del");
+    let login = bouncer.provision_network(&network, "papo capability observer", None)?;
+    let address = s.server.plaintext_addr();
+    let control = s
+        .connect_with(
+            papo::Client::builder(
+                Endpoint::plaintext(address.ip().to_string(), address.port()).unwrap(),
+                &network,
+            )
+            .sasl(papo::Sasl::plain(
+                login.account_username(),
+                papo::Secret::new(login.password()),
+            ))
+            .allow_insecure_auth(true)
+            .enable(papo::Feature::Bouncer),
+        )
+        .await?;
+    let id = control
+        .bouncer()
+        .networks()
+        .await?
+        .into_iter()
+        .find(|candidate| candidate.name.as_deref() == Some(network.as_str()))
+        .expect("the provisioned network is listed")
+        .id;
+    let mut bound = s.connect_with(control.bouncer().network(&id)).await?;
+    let before = bound.state().caps().clone();
+    control
+        .send_raw(papo::Line::privmsg(
+            "BouncerServ",
+            format!("network update {network}"),
+        ))
+        .await?;
+    let changed = bound
+        .wait_for(|event| {
+            event
+                .as_caps_changed()
+                .filter(|changed| !changed.removed.is_empty())
+        })
+        .await?;
+    assert!(changed.added.is_empty());
+    assert!(changed.removed.keys().all(|name| before.contains_key(name)));
+    assert!(
+        changed
+            .removed
+            .keys()
+            .all(|name| !bound.state().caps().contains_key(name))
+    );
+    Ok(())
+}
+
 /// negotiates CAP 302 and observes a NAK
 #[scenario(covers = [
     "base.connreg.cap-interleave",
