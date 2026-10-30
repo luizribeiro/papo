@@ -9340,43 +9340,22 @@ async fn channel_accessors_report_the_join_burst() {
 
     server_line(
         &mut server,
-        b":ergo.test 324 papo-driver #review +kln review-key-2026 50\r\n",
+        b":ergo.test 324 papo-driver #review +kln review-key-2026 50\r\nPING :channel-modes\r\n",
     )
     .await;
-    while client
-        .state()
-        .channel("#review")
-        .and_then(crate::Channel::key)
-        .is_none()
-    {
-        tokio::task::yield_now().await;
-    }
+    client_line(&mut server, b"PONG channel-modes\r\n").await;
     server_line(
         &mut server,
-        b":ergo.test 329 papo-driver #review 1793098801\r\n",
+        b":ergo.test 329 papo-driver #review 1793098801\r\nPING :channel-created\r\n",
     )
     .await;
-    while client
-        .state()
-        .channel("#review")
-        .and_then(crate::Channel::created_at)
-        .is_none()
-    {
-        tokio::task::yield_now().await;
-    }
+    client_line(&mut server, b"PONG channel-created\r\n").await;
     server_line(
         &mut server,
-        b":ergo.test 332 papo-driver #review :Release coordination\r\n:ergo.test 333 papo-driver #review alice 1793099900\r\n",
+        b":ergo.test 332 papo-driver #review :Release coordination\r\n:ergo.test 333 papo-driver #review alice 1793099900\r\nPING :channel-topic\r\n",
     )
     .await;
-    while client
-        .state()
-        .channel("#review")
-        .and_then(crate::Channel::topic_set_at)
-        .is_none()
-    {
-        tokio::task::yield_now().await;
-    }
+    client_line(&mut server, b"PONG channel-topic\r\n").await;
 
     let state = client.state();
     let channel = state.channel("#review").unwrap();
