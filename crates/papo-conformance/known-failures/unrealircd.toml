@@ -1,10 +1,3 @@
-[standard_replies]
-reason = "UnrealIRCd advertises standard-replies but does not reject this invalid real name with FAIL"
-kind = "server-bug"
-spec = "https://ircv3.net/specs/extensions/setname"
-evidence = "C: SETNAME : | S: no FAIL SETNAME INVALID_REALNAME"
-server_version = "6.2.7"
-
 [status_message]
 reason = "UnrealIRCd advertises STATUSMSG but does not deliver a message addressed to voiced members"
 kind = "server-bug"
@@ -13,10 +6,10 @@ evidence = "S: 005 STATUSMSG=@+ | C: PRIVMSG +#review :operators only | S: no de
 server_version = "6.2.7"
 
 [client_batch_errors]
-reason = "UnrealIRCd reports MULTILINE_INVALID rather than INVALID_REFTAG when closing an unopened client batch"
+reason = "UnrealIRCd omits the required reference-tag and type parameters from UNKNOWN_TYPE"
 kind = "server-bug"
 spec = "https://ircv3.net/specs/extensions/client-batch"
-evidence = "C: BATCH -missing | S: FAIL BATCH MULTILINE_INVALID"
+evidence = "C: BATCH +papo-unknown papo.example/unknown #papo-missing | S: FAIL BATCH UNKNOWN_TYPE :Unknown batch type"
 server_version = "6.2.7"
 
 [direct_messages]

@@ -4,10 +4,3 @@ kind = "server-bug"
 spec = "https://modern.ircdocs.horse/#join-message"
 evidence = "C: JOIN 0 | S: 403 0"
 server_version = "4.12.1"
-
-[standard_replies]
-reason = "InspIRCd advertises standard-replies but does not reject this invalid real name with FAIL"
-kind = "server-bug"
-spec = "https://ircv3.net/specs/extensions/setname"
-evidence = "C: SETNAME : | S: no FAIL SETNAME INVALID_REALNAME"
-server_version = "4.12.1"

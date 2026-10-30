@@ -7,18 +7,15 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 ## Ergo default
 
 ### Server bugs
-- `client_batch_errors` (`2.19.1`) — Ergo reports generic INVALID_PARAMS for unknown and unopened client batches rather than UNKNOWN_TYPE and INVALID_REFTAG ([spec](https://ircv3.net/specs/extensions/client-batch)). Evidence: `C: BATCH +papo/unknown; BATCH -missing | S: FAIL BATCH INVALID_PARAMS for both requests`
-- `kick_missing_member` (`2.19.1`) — Ergo returns 482 rather than 441 when an operator kicks a user outside the channel ([spec](https://modern.ircdocs.horse/#kick-message)). Evidence: `C: KICK #review absent :not a channel member | S: 482 operator #review`
-- `names_multiple_channels` (`2.19.1`) — Ergo returns NAMES for only the first channel in a comma-separated target list ([spec](https://modern.ircdocs.horse/#names-message)). Evidence: `C: NAMES #first,#second | S: 353/366 for #first only`
+- `client_batch_errors` (`2.19.1`) — Ergo reports generic INVALID_PARAMS for an unknown client-batch type rather than UNKNOWN_TYPE ([spec](https://ircv3.net/specs/extensions/client-batch)). Evidence: `C: BATCH +papo-unknown papo.example/unknown #papo-missing | S: FAIL BATCH INVALID_PARAMS :Corrupt BATCH`
+- `kick_missing_member` (`2.19.1`) — Ergo checks privileges against the absent target and returns 482 to a channel operator instead of the applicable 441 ([spec](https://modern.ircdocs.horse/#kick-message)). Evidence: `C: KICK #review absent :not a channel member | S: 482 operator #review`
+- `standard_replies` (`2.19.1`) — Ergo accepts a SETNAME longer than its configured 150-byte realname limit instead of returning INVALID_REALNAME ([spec](https://ircv3.net/specs/extensions/setname)). Evidence: `C: SETNAME :<151-byte realname> | S: SETNAME echo, with no FAIL SETNAME INVALID_REALNAME`
 - `user_modes` (`2.19.1`) — Ergo reports an unknown user mode with channel-mode numeric 472 rather than 501 ([spec](https://modern.ircdocs.horse/#mode-message)). Evidence: `C: MODE review +? | S: 472 review ?`
 
-### Unimplemented features
-- `whois_server` (`2.19.1`) — Ergo omits server numeric 312 from WHOIS replies ([spec](https://modern.ircdocs.horse/#whois-message)). Evidence: `C: WHOIS review | S: 311 review ...; 318 review, with no 312`
+### Unimplemented features (none recorded)
 
 ### Specification ambiguities
-- `nickname_collision_race` (`2.19.1`) — Ergo serializes simultaneous local nickname claims and returns 433 rather than 436 ([spec](https://modern.ircdocs.horse/#nick-message)). Evidence: `C: NICK race-review from two clients | S: 433 race-review`
 - `targmax_privmsg` (`2.19.1`) — Ergo silently drops the target beyond its advertised TARGMAX PRIVMSG limit instead of returning 407 ([spec](https://modern.ircdocs.horse/#targmax-parameter)). Evidence: `S: 005 TARGMAX=...,PRIVMSG:4,... | C: PRIVMSG bob,carol,dave,erin,frank :over the target limit | S: delivered to bob..erin, nothing to frank, no 407`
-- `whois_host_certificate` (`2.19.1`) — Ergo returns nonstandard host numeric 338 rather than WHOIS host or certificate numeric 378 or 276 ([spec](https://modern.ircdocs.horse/#whois-message)). Evidence: `C: WHOIS review | S: 338 review ...; 318 review`
 
 ### Fixture limits (none recorded)
 
@@ -34,19 +31,16 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 ## Ergo persistent
 
 ### Server bugs
-- `client_batch_errors` (`2.19.1`) — Ergo reports generic INVALID_PARAMS for unknown and unopened client batches rather than UNKNOWN_TYPE and INVALID_REFTAG ([spec](https://ircv3.net/specs/extensions/client-batch)). Evidence: `C: BATCH +papo/unknown; BATCH -missing | S: FAIL BATCH INVALID_PARAMS for both requests`
-- `kick_missing_member` (`2.19.1`) — Ergo returns 482 rather than 441 when an operator kicks a user outside the channel ([spec](https://modern.ircdocs.horse/#kick-message)). Evidence: `C: KICK #review absent :not a channel member | S: 482 operator #review`
-- `names_multiple_channels` (`2.19.1`) — Ergo returns NAMES for only the first channel in a comma-separated target list ([spec](https://modern.ircdocs.horse/#names-message)). Evidence: `C: NAMES #first,#second | S: 353/366 for #first only`
+- `client_batch_errors` (`2.19.1`) — Ergo reports generic INVALID_PARAMS for an unknown client-batch type rather than UNKNOWN_TYPE ([spec](https://ircv3.net/specs/extensions/client-batch)). Evidence: `C: BATCH +papo-unknown papo.example/unknown #papo-missing | S: FAIL BATCH INVALID_PARAMS :Corrupt BATCH`
+- `kick_missing_member` (`2.19.1`) — Ergo checks privileges against the absent target and returns 482 to a channel operator instead of the applicable 441 ([spec](https://modern.ircdocs.horse/#kick-message)). Evidence: `C: KICK #review absent :not a channel member | S: 482 operator #review`
+- `standard_replies` (`2.19.1`) — Ergo accepts a SETNAME longer than its configured 150-byte realname limit instead of returning INVALID_REALNAME ([spec](https://ircv3.net/specs/extensions/setname)). Evidence: `C: SETNAME :<151-byte realname> | S: SETNAME echo, with no FAIL SETNAME INVALID_REALNAME`
 - `user_modes` (`2.19.1`) — Ergo reports an unknown user mode with channel-mode numeric 472 rather than 501 ([spec](https://modern.ircdocs.horse/#mode-message)). Evidence: `C: MODE review +? | S: 472 review ?`
 
-### Unimplemented features
-- `whois_server` (`2.19.1`) — Ergo omits server numeric 312 from WHOIS replies ([spec](https://modern.ircdocs.horse/#whois-message)). Evidence: `C: WHOIS review | S: 311 review ...; 318 review, with no 312`
+### Unimplemented features (none recorded)
 
 ### Specification ambiguities
 - `channel_rename_error` (`2.19.1`) — Ergo rejects renaming persistent-history channels before checking destination collisions ([spec](https://ircv3.net/specs/extensions/channel-rename)). Evidence: `C: RENAME #old #occupied :collision | S: FAIL RENAME CANNOT_RENAME`
-- `nickname_collision_race` (`2.19.1`) — Ergo serializes simultaneous local nickname claims and returns 433 rather than 436 ([spec](https://modern.ircdocs.horse/#nick-message)). Evidence: `C: NICK race-review from two clients | S: 433 race-review`
 - `targmax_privmsg` (`2.19.1`) — Ergo silently drops the target beyond its advertised TARGMAX PRIVMSG limit instead of returning 407 ([spec](https://modern.ircdocs.horse/#targmax-parameter)). Evidence: `S: 005 TARGMAX=...,PRIVMSG:4,... | C: PRIVMSG bob,carol,dave,erin,frank :over the target limit | S: delivered to bob..erin, nothing to frank, no 407`
-- `whois_host_certificate` (`2.19.1`) — Ergo returns nonstandard host numeric 338 rather than WHOIS host or certificate numeric 378 or 276 ([spec](https://modern.ircdocs.horse/#whois-message)). Evidence: `C: WHOIS review | S: 338 review ...; 318 review`
 
 ### Fixture limits
 - `draft_channel_rename` (`2.19.1`) — Ergo rejects renaming channels that have persistent history ([spec](https://ircv3.net/specs/extensions/channel-rename)). Evidence: `C: RENAME #old #new :the project moved | S: FAIL RENAME CANNOT_RENAME :Persistent channels cannot be renamed`
@@ -66,16 +60,13 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 
 ### Server bugs
 - `chathistory_errors` (`soju 0.11.1 / Ergo 2.19.1`) — soju returns an empty page for an unavailable target instead of relaying INVALID_TARGET ([spec](https://ircv3.net/specs/extensions/chathistory)). Evidence: `C: CHATHISTORY LATEST #missing * 50 | S: empty batch, not FAIL CHATHISTORY INVALID_TARGET`
-- `kick_missing_member` (`soju 0.11.1 / Ergo 2.19.1`) — soju relays Ergo's 482 rather than 441 when an operator kicks a user outside the channel ([spec](https://modern.ircdocs.horse/#kick-message)). Evidence: `C: KICK #review absent :not a channel member | S: 482 operator #review`
+- `kick_missing_member` (`soju 0.11.1 / Ergo 2.19.1`) — soju relays its Ergo upstream's 482 after Ergo checks privileges against the absent target instead of returning the applicable 441 ([spec](https://modern.ircdocs.horse/#kick-message)). Evidence: `C: KICK #review absent :not a channel member | S: 482 operator #review`
 - `draft_metadata_2` (`soju 0.11.1 / Ergo 2.19.1`) — soju advertises the upstream metadata limit but applies a smaller local limit ([spec](https://ircv3.net/specs/extensions/metadata)). Evidence: `S: CAP LS draft/metadata-3=max-value-bytes=... | C: METADATA * SET ... | S: FAIL METADATA VALUE_INVALID`
 - `metadata_subscriptions` (`soju 0.11.1 / Ergo 2.19.1`) — soju advertises metadata subscriptions but rejects a valid vendor key as KEY_INVALID ([spec](https://ircv3.net/specs/extensions/metadata)). Evidence: `C: METADATA * SUB example.org/papo-topic-category | S: FAIL METADATA KEY_INVALID`
 - `metadata_does_not_cross_nick_handoffs` (`soju 0.11.1 / Ergo 2.19.1`) — soju advertises metadata subscriptions but rejects a valid vendor key as KEY_INVALID ([spec](https://ircv3.net/specs/extensions/metadata)). Evidence: `C: METADATA * SUB example.org/papo-identity | S: FAIL METADATA KEY_INVALID`
 - `extended_join` (`soju 0.11.1 / Ergo 2.19.1`) — soju omits the upstream real name from relayed extended JOIN messages ([spec](https://ircv3.net/specs/extensions/extended-join)). Evidence: `upstream S: JOIN #review account :Alice Reviewer | downstream S: JOIN #review account :`
-- `names_multiple_channels` (`soju 0.11.1 / Ergo 2.19.1`) — soju does not complete the labelled response for a multi-channel NAMES request ([spec](https://ircv3.net/specs/extensions/labeled-response)). Evidence: `C: @label=... NAMES #first,#second | S: partial labeled response without completion`
 - `multiple_joins` (`soju 0.11.1 / Ergo 2.19.1`) — soju treats JOIN zero as a channel name instead of forwarding the leave-all operation upstream ([spec](https://modern.ircdocs.horse/#join-message)). Evidence: `C: JOIN 0 | S: attempts to join channel 0`
 - `nick_errors` (`soju 0.11.1 / Ergo 2.19.1`) — soju reports an empty nickname with 432 rather than 431 ([spec](https://modern.ircdocs.horse/#nick-message)). Evidence: `C: NICK : | S: 432`
-- `nickname_collision_race` (`soju 0.11.1 / Ergo 2.19.1`) — soju reports a simultaneous nickname claim as generic numeric 400 rather than 436 ([spec](https://modern.ircdocs.horse/#nick-message)). Evidence: `C: NICK race-review from two clients | S: 400 for the rejected claim`
-- `setname` (`soju 0.11.1 / Ergo 2.19.1`) — soju replaces the upstream real name with the nickname in relayed SETNAME state ([spec](https://ircv3.net/specs/extensions/setname)). Evidence: `upstream S: SETNAME :Alice Reviewer | downstream S: SETNAME :alice`
 - `whox` (`soju 0.11.1 / Ergo 2.19.1`) — soju replaces the configured upstream real name with the nickname in WHOX replies ([spec](https://ircv3.net/specs/extensions/whox)). Evidence: `C: WHO #review %tcuhnfar,... | S: 354 ... alice :alice`
 - `targmax_privmsg` (`soju 0.11.1 / Ergo 2.19.1`) — soju delivers PRIVMSG to all five targets despite relaying Ergo's TARGMAX=PRIVMSG:4 ([spec](https://modern.ircdocs.horse/#targmax-parameter)). Evidence: `S: 005 TARGMAX=...,PRIVMSG:4,... | C: PRIVMSG bob,carol,dave,erin,frank :over the target limit | S: delivered to all five, no 407`
 - `user_modes` (`soju 0.11.1 / Ergo 2.19.1`) — soju relays Ergo's 472 rather than 501 for an unknown user mode ([spec](https://modern.ircdocs.horse/#mode-message)). Evidence: `C: MODE review +? | S: 472 review ?`
@@ -92,13 +83,12 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 - `nick_change_and_collision` (`soju 0.11.1 / Ergo 2.19.1`) — soju rejects an upstream nickname collision without preserving the 433 refusal category ([spec](https://modern.ircdocs.horse/#nick-message)). Evidence: `C: NICK occupied | upstream S: 433 occupied; downstream S: generic failure`
 - `pre_away` (`soju 0.11.1 / Ergo 2.19.1`) — soju does not forward the downstream client's registration-time AWAY state to the upstream connection ([spec](https://ircv3.net/specs/extensions/pre-away)). Evidence: `downstream C: AWAY :reviewing during registration | upstream S: user remains available`
 - `who_and_whois` (`soju 0.11.1 / Ergo 2.19.1`) — soju omits a shared-channel upstream user from the downstream WHO result ([spec](https://modern.ircdocs.horse/#who-message)). Evidence: `C: WHO #review | S: 315 #review, with no 352 row for the upstream user`
-- `whois_server` (`soju 0.11.1 / Ergo 2.19.1`) — soju relays no server numeric 312 from its Ergo upstream ([spec](https://modern.ircdocs.horse/#whois-message)). Evidence: `C: WHOIS upstream-user | S: 311 upstream-user ...; 318 upstream-user, with no 312`
 
-### Specification ambiguities
-- `whois_host_certificate` (`soju 0.11.1 / Ergo 2.19.1`) — soju returns neither WHOIS host numeric 378 nor certificate numeric 276 for its downstream client ([spec](https://modern.ircdocs.horse/#whois-message)). Evidence: `C: WHOIS review | S: 311 review ...; 318 review, with no 276 or 378`
+### Specification ambiguities (none recorded)
 
 ### Fixture limits
 - `channel_metadata` (`soju 0.11.1 / Ergo 2.19.1`) — soju advertises a one-byte metadata value limit, preventing this channel metadata value ([spec](https://ircv3.net/specs/extensions/metadata)). Evidence: `S: CAP LS draft/metadata-3=max-value-bytes=1 | C: METADATA #review SET ... :triage`
+- `nickname_collision_race` (`soju 0.11.1 / Ergo 2.19.1`) — the shared soju user cannot store two networks with the same nick, so soju returns 400 before Ergo can return 433 ([spec](https://modern.ircdocs.horse/#nick-message)). Evidence: `C: NICK race-review from two downstream clients sharing one soju user | S: 400 Failed to update nick`
 - `quit` (`soju 0.11.1 / Ergo 2.19.1`) — soju disconnects the downstream client without quitting its persistent upstream connection ([spec](https://modern.ircdocs.horse/#quit-message)). Evidence: `downstream C: QUIT :conformance complete | upstream S: connection remains attached`
 - `sasl_plain` (`soju 0.11.1 / Ergo 2.19.1`) — bouncer authentication replaces the scenario's direct upstream SASL credentials ([spec](https://ircv3.net/specs/extensions/sasl-3.2)). Evidence: `C: PASS bouncer-credentials; AUTHENTICATE PLAIN targets the bouncer session`
 - `server_queries` (`soju 0.11.1 / Ergo 2.19.1`) — soju keeps the upstream session attached after downstream QUIT, leaving no WHOWAS record to relay ([spec](https://modern.ircdocs.horse/#whowas-message)). Evidence: `downstream C: QUIT; WHOWAS alice | upstream connection remains attached; S: no 314 row`
@@ -119,13 +109,10 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 
 ### Server bugs
 - `multiple_joins` (`4.12.1`) — InspIRCd rejects JOIN zero as an invalid channel name instead of leaving every channel ([spec](https://modern.ircdocs.horse/#join-message)). Evidence: `C: JOIN 0 | S: 403 0`
-- `standard_replies` (`4.12.1`) — InspIRCd advertises standard-replies but does not reject this invalid real name with FAIL ([spec](https://ircv3.net/specs/extensions/setname)). Evidence: `C: SETNAME : | S: no FAIL SETNAME INVALID_REALNAME`
 
 ### Unimplemented features (none recorded)
 
-### Specification ambiguities
-- `nickname_collision_race` (`4.12.1`) — InspIRCd serializes simultaneous local nickname claims and returns 433 rather than 436 ([spec](https://modern.ircdocs.horse/#nick-message)). Evidence: `C: NICK race-review from two clients | S: 433 race-review`
-- `whois_host_certificate` (`4.12.1`) — InspIRCd returns nonstandard host numeric 338 rather than WHOIS host or certificate numeric 378 or 276 ([spec](https://modern.ircdocs.horse/#whois-message)). Evidence: `C: WHOIS review | S: 338 review ...; 318 review`
+### Specification ambiguities (none recorded)
 
 ### Fixture limits (none recorded)
 
@@ -145,7 +132,6 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 - `direct_messages` (`0-unstable-2026-09-13`) — Solanum drops the client-only channel-context tag while relaying a private message ([spec](https://ircv3.net/specs/extensions/message-tags)). Evidence: `C: @+channel-context=#review PRIVMSG bob :thread reply | S: PRIVMSG without +channel-context`
 - `elist_filters` (`0-unstable-2026-09-13`) — Solanum does not label the filtered LIST terminator, so the labelled request cannot complete ([spec](https://ircv3.net/specs/extensions/labeled-response)). Evidence: `C: @label=... LIST #review,>1,<3,C<10,T<10 | S: unlabeled 323 terminator`
 - `kick_rules` (`0-unstable-2026-09-13`) — Solanum applies a multi-target KICK only to the first target and uses that target as the default comment ([spec](https://modern.ircdocs.horse/#kick-message)). Evidence: `C: KICK #review first,second | S: KICK #review first :first`
-- `names_multiple_channels` (`0-unstable-2026-09-13`) — Solanum returns NAMES for only the first channel in a comma-separated target list ([spec](https://modern.ircdocs.horse/#names-message)). Evidence: `C: NAMES #first,#second | S: 353/366 for #first only`
 - `part` (`0-unstable-2026-09-13`) — Solanum does not complete the labelled PART request from its echoed channel departure ([spec](https://ircv3.net/specs/extensions/labeled-response)). Evidence: `C: @label=... PART #review :reason | S: unlabeled PART, with no labeled ACK`
 - `topic` (`0-unstable-2026-09-13`) — Solanum does not complete the labelled TOPIC request from its echoed topic change ([spec](https://ircv3.net/specs/extensions/labeled-response)). Evidence: `C: @label=... TOPIC #review :new topic | S: unlabeled TOPIC, with no labeled ACK`
 
@@ -153,8 +139,6 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 
 ### Specification ambiguities
 - `invite_rules` (`0-unstable-2026-09-13`) — Solanum keeps a channel ban effective after the banned user receives an invitation ([spec](https://modern.ircdocs.horse/#invite-message)). Evidence: `C: INVITE banned-user #review; JOIN #review | S: 474 #review`
-- `nickname_collision_race` (`0-unstable-2026-09-13`) — Solanum serializes simultaneous local nickname claims and returns 433 rather than 436 ([spec](https://modern.ircdocs.horse/#nick-message)). Evidence: `C: NICK race-review from two clients | S: 433 race-review`
-- `whois_host_certificate` (`0-unstable-2026-09-13`) — Solanum returns nonstandard host numeric 338 rather than WHOIS host or certificate numeric 378 or 276 ([spec](https://modern.ircdocs.horse/#whois-message)). Evidence: `C: WHOIS review | S: 338 review ...; 318 review`
 
 ### Fixture limits (none recorded)
 
@@ -169,18 +153,15 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 ## UnrealIRCd
 
 ### Server bugs
-- `standard_replies` (`6.2.7`) — UnrealIRCd advertises standard-replies but does not reject this invalid real name with FAIL ([spec](https://ircv3.net/specs/extensions/setname)). Evidence: `C: SETNAME : | S: no FAIL SETNAME INVALID_REALNAME`
 - `status_message` (`6.2.7`) — UnrealIRCd advertises STATUSMSG but does not deliver a message addressed to voiced members ([spec](https://modern.ircdocs.horse/#statusmsg-parameter)). Evidence: `S: 005 STATUSMSG=@+ | C: PRIVMSG +#review :operators only | S: no delivery`
-- `client_batch_errors` (`6.2.7`) — UnrealIRCd reports MULTILINE_INVALID rather than INVALID_REFTAG when closing an unopened client batch ([spec](https://ircv3.net/specs/extensions/client-batch)). Evidence: `C: BATCH -missing | S: FAIL BATCH MULTILINE_INVALID`
+- `client_batch_errors` (`6.2.7`) — UnrealIRCd omits the required reference-tag and type parameters from UNKNOWN_TYPE ([spec](https://ircv3.net/specs/extensions/client-batch)). Evidence: `C: BATCH +papo-unknown papo.example/unknown #papo-missing | S: FAIL BATCH UNKNOWN_TYPE :Unknown batch type`
 - `direct_messages` (`6.2.7`) — UnrealIRCd drops the client-only channel-context tag when its sender is no longer in that channel ([spec](https://ircv3.net/specs/extensions/message-tags)). Evidence: `C: @+channel-context=#review PRIVMSG bob :context after part | S: PRIVMSG without +channel-context`
 
 ### Unimplemented features (none recorded)
 
-### Specification ambiguities
-- `nickname_collision_race` (`6.2.7`) — UnrealIRCd serializes simultaneous local nickname claims and returns 433 rather than 436 ([spec](https://modern.ircdocs.horse/#nick-message)). Evidence: `C: NICK race-review from two clients | S: 433 race-review`
+### Specification ambiguities (none recorded)
 
-### Fixture limits
-- `names_multiple_channels` (`6.2.7`) — UnrealIRCd advertises and enforces a one-target limit for NAMES ([spec](https://modern.ircdocs.horse/#rplisupport-parameter)). Evidence: `S: 005 TARGMAX=NAMES:1 | C: NAMES #first,#second | S: one target only`
+### Fixture limits (none recorded)
 
 ### Observations
 - **Chat history end** (`6.2.7`) — The final nonempty five-message page carries draft/chathistory-end. Evidence: `S: @batch=reply;draft/chathistory-end BATCH +history chathistory #review`

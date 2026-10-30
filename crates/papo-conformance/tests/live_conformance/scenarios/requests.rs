@@ -67,13 +67,21 @@ async fn batch(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
-/// reports unknown client-batch types and invalid closing references
+/// reports invalid client-batch references and unknown types
 #[scenario(
     requires(caps = ["batch", "draft/multiline", "standard-replies"]),
     covers = ["draft.client-batch.errors"]
 )]
 async fn client_batch_errors(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
+
+    alice
+        .send_raw(papo::Line::new("BATCH").with_params(["+papo/invalid", "papo.example/unknown"]))
+        .await?;
+    let invalid = alice.wait_for(Event::as_standard_reply).await?;
+    assert_eq!(invalid.kind, StandardReplyKind::Fail);
+    assert_eq!(invalid.command, "BATCH");
+    assert_eq!(invalid.code, "INVALID_REFTAG");
 
     alice
         .send_raw(papo::Line::new("BATCH").with_params([
@@ -85,30 +93,16 @@ async fn client_batch_errors(s: Scenario) -> papo_testing::Result<()> {
     let unknown = alice.wait_for(Event::as_standard_reply).await?;
     assert_eq!(unknown.kind, StandardReplyKind::Fail);
     assert_eq!(unknown.command, "BATCH");
-    let unknown_code = unknown.code.clone();
+    assert_eq!(unknown.code, "UNKNOWN_TYPE");
+    assert_eq!(unknown.context, ["papo-unknown", "papo.example/unknown"]);
 
     alice
         .send_raw(papo::Line::new("BATCH").with_params(["-papo-not-open"]))
         .await?;
-    let invalid = alice.wait_for(Event::as_standard_reply).await?;
-    assert_eq!(invalid.kind, StandardReplyKind::Fail);
-    assert_eq!(invalid.command, "BATCH");
-    let invalid_code = invalid.code.clone();
+    let unopened = alice.wait_for(Event::as_standard_reply).await?;
+    assert_eq!(unopened.kind, StandardReplyKind::Fail);
+    assert_eq!(unopened.command, "BATCH");
     alice.expect_none(Event::as_disconnected).await?;
-    if unknown_code != "UNKNOWN_TYPE" || invalid_code != "INVALID_REFTAG" {
-        return Err(std::io::Error::other(format!(
-            "client-batch refusals were {unknown_code} and {invalid_code}, expected UNKNOWN_TYPE and INVALID_REFTAG"
-        ))
-        .into());
-    }
-    assert_eq!(
-        unknown.context.first().map(String::as_str),
-        Some("papo-unknown")
-    );
-    assert_eq!(
-        invalid.context.first().map(String::as_str),
-        Some("papo-not-open")
-    );
     Ok(())
 }
 
@@ -119,8 +113,10 @@ async fn client_batch_errors(s: Scenario) -> papo_testing::Result<()> {
 )]
 async fn standard_replies(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
+    let namelen = alice.state().isupport().namelen().unwrap_or(150);
+    let invalid_realname = "r".repeat(namelen + 1);
     alice
-        .send_raw(papo::Line::new("SETNAME").with_params([""]))
+        .send_raw(papo::Line::new("SETNAME").with_params([invalid_realname]))
         .await?;
     let reply = alice.wait_for(Event::as_standard_reply).await?;
     assert_eq!(reply.kind, StandardReplyKind::Fail);

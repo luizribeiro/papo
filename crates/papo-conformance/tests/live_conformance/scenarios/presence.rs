@@ -223,8 +223,20 @@ async fn setname(s: Scenario) -> papo_testing::Result<()> {
     bob.join(&channel).await?;
     let realname = "Papo Conformance Client";
     alice.set_realname(realname).await?;
-    let own = alice.wait_for(Event::as_realname_changed).await?;
-    let observed = bob.wait_for(Event::as_realname_changed).await?;
+    let own = alice
+        .wait_for(|event| {
+            event.as_realname_changed().filter(|changed| {
+                changed.actor.nick() == alice_nick.as_ref() && changed.new == realname
+            })
+        })
+        .await?;
+    let observed = bob
+        .wait_for(|event| {
+            event.as_realname_changed().filter(|changed| {
+                changed.actor.nick() == alice_nick.as_ref() && changed.new == realname
+            })
+        })
+        .await?;
 
     assert_eq!(own.actor.nick(), &alice_nick);
     assert_eq!(own.new, realname);

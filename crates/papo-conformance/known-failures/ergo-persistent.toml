@@ -1,8 +1,8 @@
 [client_batch_errors]
-reason = "Ergo reports generic INVALID_PARAMS for unknown and unopened client batches rather than UNKNOWN_TYPE and INVALID_REFTAG"
+reason = "Ergo reports generic INVALID_PARAMS for an unknown client-batch type rather than UNKNOWN_TYPE"
 kind = "server-bug"
 spec = "https://ircv3.net/specs/extensions/client-batch"
-evidence = "C: BATCH +papo/unknown; BATCH -missing | S: FAIL BATCH INVALID_PARAMS for both requests"
+evidence = "C: BATCH +papo-unknown papo.example/unknown #papo-missing | S: FAIL BATCH INVALID_PARAMS :Corrupt BATCH"
 server_version = "2.19.1"
 
 [draft_channel_rename]
@@ -38,6 +38,13 @@ reason = "Ergo rejects renaming channels that have persistent history before rec
 kind = "fixture-limit"
 spec = "https://ircv3.net/specs/extensions/channel-rename"
 evidence = "C: RENAME #old #new :archive the project | S: FAIL RENAME CANNOT_RENAME :Persistent channels cannot be renamed"
+server_version = "2.19.1"
+
+[standard_replies]
+reason = "Ergo accepts a SETNAME longer than its configured 150-byte realname limit instead of returning INVALID_REALNAME"
+kind = "server-bug"
+spec = "https://ircv3.net/specs/extensions/setname"
+evidence = "C: SETNAME :<151-byte realname> | S: SETNAME echo, with no FAIL SETNAME INVALID_REALNAME"
 server_version = "2.19.1"
 
 [targmax_privmsg]

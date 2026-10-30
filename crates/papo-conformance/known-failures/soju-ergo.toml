@@ -152,13 +152,6 @@ spec = "https://ircv3.net/specs/extensions/sasl-3.2"
 evidence = "C: PASS bouncer-credentials; AUTHENTICATE PLAIN targets the bouncer session"
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
-[setname]
-reason = "soju replaces the upstream real name with the nickname in relayed SETNAME state"
-kind = "server-bug"
-spec = "https://ircv3.net/specs/extensions/setname"
-evidence = "upstream S: SETNAME :Alice Reviewer | downstream S: SETNAME :alice"
-server_version = "soju 0.11.1 / Ergo 2.19.1"
-
 [server_queries]
 reason = "soju keeps the upstream session attached after downstream QUIT, leaving no WHOWAS record to relay"
 kind = "fixture-limit"
