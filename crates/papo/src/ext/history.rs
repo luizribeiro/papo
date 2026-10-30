@@ -91,9 +91,7 @@ pub(crate) fn history_item(
                 message,
                 crate::Authorship::from_core(item.authorship),
                 history_conversation,
-                mapping,
-                origin,
-                account_tag_enabled,
+                client,
                 received_at,
             )
         }),
@@ -313,9 +311,19 @@ fn joined(
     client: &Client,
     received_at: SystemTime,
 ) -> Option<Event> {
-    let mapping = client.state().casemapping();
-    crate::event_impl::joined_from_line(message, authorship, mapping, client.origin(), received_at)
-        .map(Event::Joined)
+    let state = client.state();
+    let mapping = state.casemapping();
+    crate::event_impl::joined_from_line(
+        message,
+        authorship,
+        mapping,
+        client.origin(),
+        state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
+        state.caps().contains_key(&crate::cap::MESSAGE_TAGS)
+            && state.isupport().bot_mode().is_some(),
+        received_at,
+    )
+    .map(Event::Joined)
 }
 
 fn parted(
@@ -333,17 +341,19 @@ fn parted(
         state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
         received_at,
     );
+    let actor = user_from_line(
+        message,
+        &envelope,
+        mapping,
+        client.origin(),
+        state.caps().contains_key(&crate::cap::MESSAGE_TAGS)
+            && state.isupport().bot_mode().is_some(),
+    )?;
     Some(Event::Parted(Parted {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        actor: crate::event_impl::source::user_from_line(
-            message,
-            mapping,
-            client.origin(),
-            state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
-            false,
-        )?,
+        actor,
         channel: state.known_name_rules()?.channel(message.param(0)?),
         authorship,
         reason: message
@@ -357,29 +367,32 @@ fn quit(
     message: &papo_proto::LineRef<'_>,
     authorship: crate::Authorship,
     history_conversation: Option<&crate::Conversation>,
-    mapping: crate::Casemapping,
-    origin: crate::Origin,
-    account_tag_enabled: bool,
+    client: &Client,
     received_at: SystemTime,
 ) -> Option<Event> {
+    let state = client.state();
+    let mapping = state.casemapping();
+    let origin = client.origin();
     let envelope = crate::event_impl::line_envelope_with_account_tag(
         message,
         mapping,
         origin,
-        account_tag_enabled,
+        state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
         received_at,
     );
+    let actor = user_from_line(
+        message,
+        &envelope,
+        mapping,
+        origin,
+        state.caps().contains_key(&crate::cap::MESSAGE_TAGS)
+            && state.isupport().bot_mode().is_some(),
+    )?;
     Some(Event::Quit(Quit {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        actor: crate::event_impl::source::user_from_line(
-            message,
-            mapping,
-            origin,
-            account_tag_enabled,
-            false,
-        )?,
+        actor,
         reason: message
             .param(0)
             .filter(|reason| !reason.is_empty())
@@ -410,6 +423,14 @@ fn kicked(
         state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
         received_at,
     );
+    let actor = actor_from_line(
+        message,
+        &envelope,
+        mapping,
+        client.origin(),
+        state.caps().contains_key(&crate::cap::MESSAGE_TAGS)
+            && state.isupport().bot_mode().is_some(),
+    )?;
     Some(Event::Kicked(Kicked {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
@@ -418,12 +439,7 @@ fn kicked(
         authorship,
         subject_authorship,
         subject: state.known_name_rules()?.nick(nick),
-        actor: crate::event_impl::source::from_proto_with_account(
-            message.source()?,
-            mapping,
-            client.origin(),
-            envelope.account,
-        ),
+        actor,
         reason: message
             .param(2)
             .filter(|reason| !reason.is_empty())
@@ -448,17 +464,19 @@ fn nick_changed(
         state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
         received_at,
     );
+    let actor = user_from_line(
+        message,
+        &envelope,
+        mapping,
+        client.origin(),
+        state.caps().contains_key(&crate::cap::MESSAGE_TAGS)
+            && state.isupport().bot_mode().is_some(),
+    )?;
     Some(Event::NickChanged(NickChanged {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        actor: crate::event_impl::source::user_from_line(
-            message,
-            mapping,
-            client.origin(),
-            state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
-            false,
-        )?,
+        actor,
         authorship,
         new: state.known_name_rules()?.nick(message.param(0)?),
         channels: match history_conversation {
@@ -534,6 +552,14 @@ fn mode_changed(
         )
     })
     .collect();
+    let actor = actor_from_line(
+        message,
+        &envelope,
+        mapping,
+        client.origin(),
+        state.caps().contains_key(&crate::cap::MESSAGE_TAGS)
+            && state.isupport().bot_mode().is_some(),
+    )?;
     Some(Event::ModeChanged(ModeChanged {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
@@ -543,12 +569,7 @@ fn mode_changed(
         } else {
             crate::Subject::User(state.known_name_rules()?.nick(message.param(0)?))
         },
-        actor: crate::event_impl::source::from_proto_with_account(
-            message.source()?,
-            mapping,
-            client.origin(),
-            envelope.account,
-        ),
+        actor,
         authorship,
         changes,
         own_nick: None,

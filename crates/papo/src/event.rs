@@ -1313,6 +1313,15 @@ pub(crate) fn line_envelope(
     line_envelope_with_account_tag(line, casemapping, origin, false, received_at)
 }
 
+impl EventEnvelope {
+    fn with_account(mut self, account: Account) -> Self {
+        if self.account == Account::Unknown {
+            self.account = account;
+        }
+        self
+    }
+}
+
 pub(crate) fn line_envelope_with_account_tag(
     line: &LineRef<'_>,
     casemapping: Casemapping,
@@ -1342,17 +1351,29 @@ pub(crate) fn joined_from_line(
     authorship: Authorship,
     casemapping: Casemapping,
     origin: crate::Origin,
+    account_tag_enabled: bool,
+    prove_not_bot: bool,
     received_at: SystemTime,
 ) -> Option<Joined> {
     let join = papo_proto::Join::parse(line)?;
-    let mut actor = source::user_from_line(line, casemapping, origin, false, false)?;
-    let envelope = line_envelope(line, casemapping, origin, received_at);
     let account = match (join.realname, join.account) {
         (None, _) => Account::Unknown,
         (Some(_), None) => Account::LoggedOut,
         (Some(_), Some(account)) => Account::LoggedIn(origin.__account(casemapping, account)),
     };
-    actor.set_account(account);
+    let envelope =
+        line_envelope_with_account_tag(line, casemapping, origin, account_tag_enabled, received_at)
+            .with_account(account);
+    let Source::User(actor) = source::from_line(
+        source::LinePrefix::Raw(line.raw_source()?),
+        &envelope,
+        casemapping,
+        origin,
+        prove_not_bot,
+    )?
+    else {
+        return None;
+    };
     Some(Joined {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
