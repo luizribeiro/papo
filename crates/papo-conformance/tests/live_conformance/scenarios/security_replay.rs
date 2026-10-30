@@ -233,7 +233,9 @@ async fn early_account_creation_reserves_its_request_id(_s: Scenario) -> papo_te
         result = &mut whois => panic!("WHOIS finished before a server reply: {result:?}"),
         () = std::future::ready(()) => {}
     }
-    assert_eq!(wire.next_sent().await, "WHOIS alice");
+    // Let the driver accept both requests before the capability ACK changes request planning.
+    tokio::task::yield_now().await;
+    tokio::task::yield_now().await;
 
     wire.server(":offline.test CAP * ACK :labeled-response draft/account-registration")
         .await;
@@ -244,15 +246,18 @@ async fn early_account_creation_reserves_its_request_id(_s: Scenario) -> papo_te
     wire.server("@label=0 :offline.test REGISTER SUCCESS alice :Account created")
         .await;
     assert_eq!(wire.next_sent().await, "CAP END");
-    wire.server(":offline.test 311 papo-wire alice ~alice staff.example * :Alice Example")
-        .await;
-    wire.server(":offline.test 318 papo-wire alice :End of /WHOIS list")
-        .await;
 
     assert!(matches!(
         registration.await?,
         papo::AccountCreation::Created { .. }
     ));
+    wire.server(":offline.test 001 papo-wire :Welcome to the offline test network")
+        .await;
+    assert_eq!(wire.next_sent().await, "WHOIS alice");
+    wire.server(":offline.test 311 papo-wire alice ~alice staff.example * :Alice Example")
+        .await;
+    wire.server(":offline.test 318 papo-wire alice :End of /WHOIS list")
+        .await;
     assert_eq!(whois.await?.nick.as_ref(), "alice");
     Ok(())
 }
