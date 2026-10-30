@@ -242,8 +242,9 @@ if let Event::AutoJoinFailed(failure) = event { /* ... */ }
 | `HistoryPage::messages()` silently omitted notices | Use the page iterator for every item or `chat_messages()` when only `Message` values are wanted |
 
 `Message`, `Notice`, `TagMsg`, `ServerNotice`, `Invited`, and `ChannelRenamed` now retain the full
-available line envelope (`msgid`, `server_time`, and `received_at`). Derived account, away, host,
-and typing changes retain the triggering time but intentionally do not duplicate its message ID.
+available line envelope (`msgid`, `server_time`, and `received_at`). `BroadcastTagMsg` exposes its
+message identifier and receipt time too. Derived account, away, host, real-name, and typing changes
+retain the triggering time but intentionally do not duplicate its message ID.
 `Event::{msgid, server_time, received_at}` cover every applicable variant.
 
 User lifecycle payloads were normalized as follows:
@@ -254,15 +255,16 @@ User lifecycle payloads were normalized as follows:
 | `AwayChanged { nick, away, actor }` | `actor: UserSource`, `new: Away`, `authorship`, and timestamps |
 | `AccountChanged { nick, account, actor }` | `actor: UserSource`, `new: Account`, `authorship`, and timestamps |
 | `HostChanged { nick, username, host, actor }` | `actor: UserSource`, `new_username`, `new_host`, `authorship`, and timestamps |
-| `RealnameChanged { nick, realname, actor }` | `actor: UserSource`, `new`, and `authorship` |
+| `RealnameChanged { nick, realname, actor }` | `actor: UserSource`, `new`, `authorship`, and timestamps |
 | `MonitorOnline { nick, username, host }` / `MonitorOffline { nick }` | `subject: UserSource` / `subject: Nick` |
 | `ModeChanged::subject_authorship` | `ModeChanged::about(&change)` computes authorship for each member mode change |
 | String netsplit server names | `SplitServers` contains `ServerName` values |
 
-`Whois::account` is now `Account`, and bot flags in `Whois` and `WhoEntry` are `Option<bool>` so
-unknown is not reported as false. WHO and WHOIS membership prefixes are `Prefix`; their channel
-rows provide `rank()`. `MetadataChanged::value` is `Option<MetadataValue>` rather than separate
-text and visibility fields.
+`Whois::account` is now `Account`; a reply without `330` remains `Unknown` because WHOIS does not
+portably prove logout. Bot flags in `Whois` and `WhoEntry` are `Option<bool>` so unknown is not
+reported as false. WHO and WHOIS membership prefixes are `Prefix`; their channel rows provide
+`rank()`. `MetadataChanged::value` is `Option<MetadataValue>` rather than separate text and
+visibility fields.
 
 #### Requests, results, and state views
 

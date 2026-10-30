@@ -51,6 +51,8 @@ pub struct BroadcastTagMsg {
     /// Tags in wire order with last-wins lookup.
     pub tags: Tags,
     pub(crate) msgid: Option<MessageId>,
+    /// Time at which the line was received.
+    pub received_at: SystemTime,
 }
 
 fn broadcast_origin(to: &Broadcast, actor: &UserSource) -> crate::Origin {
@@ -75,6 +77,14 @@ macro_rules! broadcast_origin {
 }
 
 broadcast_origin!(BroadcastCtcp, BroadcastTagMsg);
+
+impl BroadcastTagMsg {
+    /// Returns the server-assigned message identifier, when supplied.
+    #[must_use]
+    pub const fn msgid(&self) -> Option<&MessageId> {
+        self.msgid.as_ref()
+    }
+}
 
 /// Whether a reaction was added to or removed from a message.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]

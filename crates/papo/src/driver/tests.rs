@@ -6485,6 +6485,7 @@ async fn typed_requests_match_unlabelled_responses() {
     let whois = within(whois).await.unwrap().unwrap();
     assert_eq!(whois.nick, "alice");
     assert_eq!(whois.nick.origin(), client.origin());
+    assert_eq!(whois.account, crate::Account::Unknown);
 
     let who = tokio::spawn({
         let client = client.clone();

@@ -22,6 +22,10 @@ pub struct Whois {
     /// Real name reported by `RPL_WHOISUSER`.
     pub realname: Option<String>,
     /// The user's account state.
+    ///
+    /// [`Account::LoggedIn`] means the server sent `RPL_WHOISACCOUNT` (`330`). A completed
+    /// WHOIS reply without that numeric leaves this [`Account::Unknown`], because WHOIS has no
+    /// portable reply that proves the user is logged out.
     pub account: Account,
     /// Server to which the user is connected.
     pub server: Option<ServerName>,
@@ -175,7 +179,7 @@ pub(crate) fn whois(
         username: None,
         host: None,
         realname: None,
-        account: Account::LoggedOut,
+        account: Account::Unknown,
         server: None,
         channels: Vec::new(),
         away: Away::Present,
@@ -392,7 +396,7 @@ mod tests {
     use papo_core::{Account, Away, Config, Event, ResponseMatcher, Session};
     use papo_proto::{Casemapping, Isupport, Line};
 
-    use super::{empty, list_entries, plain_who, whois_channel};
+    use super::{empty, list_entries, plain_who, whois, whois_channel};
     use crate::Error;
 
     #[test]
@@ -411,6 +415,50 @@ mod tests {
             ['~', '@']
         );
         assert_eq!(channel.rank(), Some(crate::Rank::Owner));
+    }
+
+    #[test]
+    fn whois_only_reports_an_account_fact_proved_by_the_server() {
+        let reply = |lines: &[&str]| {
+            let now = Instant::now();
+            let mut session = Session::new(Config::default().nick("papo"));
+            session
+                .request_with_matcher(
+                    now,
+                    Line::new("WHOIS").with_params(["alice"]),
+                    ResponseMatcher::Whois("alice".into()),
+                )
+                .unwrap();
+            for line in lines {
+                session.handle_line(now, line.as_bytes());
+            }
+            let response = std::iter::from_fn(|| session.poll_event())
+                .find_map(|event| match event {
+                    Event::Response(response) => Some(response),
+                    _ => None,
+                })
+                .unwrap();
+            whois(response, "alice", &Isupport::default(), crate::Origin::NONE)
+                .unwrap()
+                .account
+        };
+
+        assert!(matches!(
+            reply(&[
+                ":ergo.test 311 papo alice ~alice client.example * :Alice Example",
+                ":ergo.test 330 papo alice alice :is logged in as",
+                ":ergo.test 318 papo alice :End of /WHOIS list",
+            ]),
+            Account::LoggedIn(account) if account == "alice"
+        ));
+        assert_eq!(
+            reply(&[
+                ":irc.papo.test 311 papo alice ~alice users.example * :Alice Example",
+                ":irc.papo.test 312 papo alice irc.papo.test :papo test server",
+                ":irc.papo.test 318 papo alice :End of /WHOIS list",
+            ]),
+            Account::Unknown
+        );
     }
 
     #[test]

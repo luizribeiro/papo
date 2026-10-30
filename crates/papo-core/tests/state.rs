@@ -1055,8 +1055,8 @@ fn setname_updates_other_and_own_realnames() {
     Transcript::new(Config::default().nick("emily").realname("Emily Garcia"))
         .server(":emily!em@127.0.0.1 JOIN #papo emily :Emily Garcia")
     .server(":dan!~dan@cloak.example JOIN #papo dan :Daniel Garcia")
-    .server(":dan!~dan@cloak.example SETNAME :Dan Garcia")
-    .event_until(|event| matches!(event, Event::RealnameChanged { actor, nick, realname, .. } if actor == "dan!~dan@cloak.example" && nick == "dan" && realname == "Dan Garcia"))
+    .server("@time=2026-02-03T04:05:06.789Z :dan!~dan@cloak.example SETNAME :Dan Garcia")
+    .event_until(|event| matches!(event, Event::RealnameChanged { server_time, actor, nick, realname, .. } if *server_time == Some(UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000)) && actor == "dan!~dan@cloak.example" && nick == "dan" && realname == "Dan Garcia"))
     .server(":emily!em@127.0.0.1 SETNAME :Emily Smith")
     .event(|event| matches!(event, Event::RealnameChanged { nick, realname, .. } if nick == "emily" && realname == "Emily Smith"))
         .inspect(|session| {

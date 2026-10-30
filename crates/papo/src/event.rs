@@ -537,6 +537,7 @@ fn broadcast_from_line(
             to,
             msgid: tag_owned(&message, &["msgid"]).map(MessageId::from),
             tags,
+            received_at,
         }));
     }
     let Some((command, params, false)) = ctcp_parts(&message) else {
@@ -1751,6 +1752,7 @@ impl Event {
             Self::AccountChanged(event) => event.server_time,
             Self::AwayChanged(event) => event.server_time,
             Self::HostChanged(event) => event.server_time,
+            Self::RealnameChanged(event) => event.server_time,
             Self::TypingChanged(event) => event.server_time,
             Self::Other(event) => event.server_time,
             _ => None,
@@ -1767,6 +1769,7 @@ impl Event {
             Self::CtcpQuery(event) => Some(event.received_at),
             Self::CtcpReply(event) => Some(event.received_at),
             Self::BroadcastCtcp(event) => Some(event.received_at),
+            Self::BroadcastTagMsg(event) => Some(event.received_at),
             Self::TagMsg(event) => Some(event.received_at),
             Self::Reacted(event) => Some(event.received_at),
             Self::Redacted(event) => Some(event.received_at),
@@ -1780,6 +1783,7 @@ impl Event {
             Self::AccountChanged(event) => Some(event.received_at),
             Self::AwayChanged(event) => Some(event.received_at),
             Self::HostChanged(event) => Some(event.received_at),
+            Self::RealnameChanged(event) => Some(event.received_at),
             Self::TypingChanged(event) => Some(event.received_at),
             Self::ModeChanged(event) => Some(event.received_at),
             Self::TopicChanged(event) => Some(event.received_at),
@@ -2511,11 +2515,14 @@ pub(crate) fn from_core_with_receipt(
             authorship: Authorship::from_core(authorship),
         }),
         papo_core::Event::RealnameChanged {
+            server_time,
             actor,
             realname,
             authorship,
             ..
         } => Event::RealnameChanged(RealnameChanged {
+            server_time,
+            received_at,
             actor: match source::user_from_prefix(
                 &actor,
                 casemapping,
@@ -2718,8 +2725,7 @@ mod tests {
         received_at: SystemTime,
     ) {
         assert_eq!(event.server_time(), Some(server_time), "{expected_variant}");
-        let expected = (!matches!(expected_variant, "BroadcastTagMsg")).then_some(received_at);
-        assert_eq!(event.received_at(), expected, "{expected_variant}");
+        assert_eq!(event.received_at(), Some(received_at), "{expected_variant}");
     }
 
     #[test]
@@ -2747,6 +2753,7 @@ mod tests {
                 to,
                 tags: Tags::default(),
                 msgid: None,
+                received_at: UNIX_EPOCH,
             };
             assert_eq!(event.origin(), origin);
         }
@@ -3979,6 +3986,8 @@ mod tests {
                 "BroadcastTagMsg" => {
                     let broadcast = event.as_broadcast_tag_msg().unwrap();
                     assert!(matches!(broadcast.to, Broadcast::Everyone));
+                    assert_eq!(broadcast.msgid().map(AsRef::as_ref), Some(msgid));
+                    assert_eq!(broadcast.received_at, received_at);
                     assert_eq!(broadcast.tags.get("+typing"), Some("active"));
                     assert_eq!(broadcast.tags.get("+draft/react"), Some("👍"));
                 }
@@ -4095,6 +4104,10 @@ mod tests {
                 "@msgid=RfcBTzyxY120203;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example CHGHOST emily users/emily",
             ),
             (
+                "RealnameChanged",
+                "@msgid=RfcBTzyxY120205;time=2026-02-03T04:05:06.789Z :emily!~emily@cloak.example SETNAME :Emily Smith",
+            ),
+            (
                 "TypingChanged",
                 "@msgid=RfcBTzyxY120204;time=2026-02-03T04:05:06.789Z;+typing=active :emily!~emily@cloak.example TAGMSG #papo",
             ),
@@ -4130,6 +4143,7 @@ mod tests {
                         ("AccountChanged", Event::AccountChanged(_))
                             | ("AwayChanged", Event::AwayChanged(_))
                             | ("HostChanged", Event::HostChanged(_))
+                            | ("RealnameChanged", Event::RealnameChanged(_))
                             | ("TypingChanged", Event::TypingChanged(_))
                     )
                 })
@@ -5165,13 +5179,17 @@ mod tests {
     fn maps_realname_changed() {
         assert!(matches!(
             forwarded(papo_core::Event::__realname_changed(
+                Some(UNIX_EPOCH + Duration::from_secs(42)),
                 "emily!~em@users/emily".into(),
                 Casemapping::default().nick("emily"),
                 "Emily Smith".into(),
                 papo_core::Authorship::Other,
             )),
             Event::RealnameChanged(changed)
-                if changed.actor.nick() == "emily" && changed.new == "Emily Smith"
+                if changed.actor.nick() == "emily"
+                    && changed.new == "Emily Smith"
+                    && changed.server_time == Some(UNIX_EPOCH + Duration::from_secs(42))
+                    && changed.received_at == UNIX_EPOCH
         ));
     }
 

@@ -111,6 +111,10 @@ pub struct HostChanged {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct RealnameChanged {
+    /// Valid server time on the line that caused the change, when supplied.
+    pub server_time: Option<SystemTime>,
+    /// Time at which the triggering line was received.
+    pub received_at: SystemTime,
     /// The affected user.
     pub actor: UserSource,
     /// The user's new real name.

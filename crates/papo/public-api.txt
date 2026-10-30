@@ -351,8 +351,11 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::BroadcastCtcp
 #[non_exhaustive] pub struct papo::event::BroadcastTagMsg
 pub papo::event::BroadcastTagMsg::actor: papo::UserSource
 pub papo::event::BroadcastTagMsg::authorship: papo::Authorship
+pub papo::event::BroadcastTagMsg::received_at: std::time::SystemTime
 pub papo::event::BroadcastTagMsg::tags: papo::Tags
 pub papo::event::BroadcastTagMsg::to: papo::event::Broadcast
+impl papo::event::BroadcastTagMsg
+pub const fn papo::event::BroadcastTagMsg::msgid(&self) -> core::option::Option<&papo::MessageId>
 impl papo::event::BroadcastTagMsg
 pub fn papo::event::BroadcastTagMsg::origin(&self) -> papo::Origin
 impl core::clone::Clone for papo::event::BroadcastTagMsg
@@ -978,6 +981,8 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::ReadMarkerChanged
 pub papo::event::RealnameChanged::actor: papo::UserSource
 pub papo::event::RealnameChanged::authorship: papo::Authorship
 pub papo::event::RealnameChanged::new: alloc::string::String
+pub papo::event::RealnameChanged::received_at: std::time::SystemTime
+pub papo::event::RealnameChanged::server_time: core::option::Option<std::time::SystemTime>
 impl core::clone::Clone for papo::event::RealnameChanged
 pub fn papo::event::RealnameChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::RealnameChanged
