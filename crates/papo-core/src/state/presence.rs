@@ -19,7 +19,7 @@ impl State {
                         if user.account != account {
                             user.account = account.clone();
                             outbox.event(Event::AccountChanged {
-                                server_time: crate::LineEnvelope::from_line(message).server_time(),
+                                envelope: crate::LineEnvelope::from_line(message),
                                 actor: actor.clone(),
                                 nick: self.casemapping.nick(nick),
                                 account,
@@ -66,6 +66,7 @@ impl State {
         let Some(ProtoSource::User { nick, .. }) = message.source() else {
             return Some(Handled::No);
         };
+        let envelope = crate::LineEnvelope::from_line(message).with_account(account.account);
         let account = Account::from_notify(account.account, self.casemapping);
         let actor = message.raw_source().unwrap_or(nick).to_owned();
         if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref())
@@ -73,7 +74,7 @@ impl State {
         {
             user.account = account.clone();
             outbox.event(Event::AccountChanged {
-                server_time: crate::LineEnvelope::from_line(message).server_time(),
+                envelope,
                 actor,
                 nick: self.casemapping.nick(nick),
                 account,
@@ -113,7 +114,7 @@ impl State {
                 });
             if user_changed {
                 outbox.event(Event::AwayChanged {
-                    server_time: crate::LineEnvelope::from_line(message).server_time(),
+                    envelope: crate::LineEnvelope::from_line(message),
                     actor: message.raw_source().unwrap_or(nick).to_owned(),
                     nick: self.casemapping.nick(nick),
                     away: next,
@@ -128,7 +129,7 @@ impl State {
                     return Some(Handled::No);
                 };
                 if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) {
-                    let server_time = crate::LineEnvelope::from_line(message).server_time();
+                    let envelope = crate::LineEnvelope::from_line(message);
                     let message = away.to_owned();
                     let next = Away::Away {
                         message: Some(message.clone()),
@@ -136,7 +137,7 @@ impl State {
                     if user.away != next {
                         user.away = next.clone();
                         outbox.event(Event::AwayChanged {
-                            server_time,
+                            envelope,
                             actor: nick.to_owned(),
                             nick: self.casemapping.nick(nick),
                             away: next,
@@ -151,7 +152,7 @@ impl State {
                     .expect("own user is always present")
                     .away = Away::Present;
                 outbox.event(Event::AwayChanged {
-                    server_time: crate::LineEnvelope::from_line(message).server_time(),
+                    envelope: crate::LineEnvelope::from_line(message),
                     actor: self.nick.to_string(),
                     nick: self.nick.clone(),
                     away: Away::Present,
@@ -169,7 +170,7 @@ impl State {
                     .expect("own user is always present")
                     .away = away.clone();
                 outbox.event(Event::AwayChanged {
-                    server_time: crate::LineEnvelope::from_line(message).server_time(),
+                    envelope: crate::LineEnvelope::from_line(message),
                     actor: self.nick.to_string(),
                     nick: self.nick.clone(),
                     away,

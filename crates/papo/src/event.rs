@@ -1932,6 +1932,20 @@ pub(crate) fn from_core_with_receipt(
             received_at,
         )
     };
+    let actor_from_raw = |prefix: &str, envelope: &EventEnvelope| {
+        source::from_line(
+            source::LinePrefix::Raw(prefix),
+            envelope,
+            casemapping,
+            origin,
+            prove_not_bot,
+        )
+    };
+    let user_from_raw =
+        |prefix: &str, envelope: &EventEnvelope| match actor_from_raw(prefix, envelope) {
+            Some(Source::User(user)) => Some(user),
+            Some(Source::Server(_)) | None => None,
+        };
     let guard_receipt = |mut receipt: crate::message_ref::Receipt, conversation: &Conversation| {
         let guard = reply_state.and_then(|state| match conversation {
             Conversation::Channel(channel) => Some(state.__channel_guard(channel)),
@@ -2479,55 +2493,43 @@ pub(crate) fn from_core_with_receipt(
             })
         }
         papo_core::Event::AccountChanged {
-            server_time,
+            envelope,
             actor,
             account,
             authorship,
             ..
-        } => Event::AccountChanged(AccountChanged {
-            server_time,
-            received_at,
-            actor: match source::user_from_prefix(
-                &actor,
-                casemapping,
-                origin,
-                if account_tag_enabled {
-                    account.clone()
-                } else {
-                    Account::Unknown
-                },
-                None,
-                None,
-            ) {
-                Some(actor) => actor,
-                None => return CoreEvent::Unknown,
-            },
-            new: account,
-            authorship: Authorship::from_core(authorship),
-        }),
+        } => {
+            let envelope = map_envelope(&envelope);
+            let Some(actor) = user_from_raw(&actor, &envelope) else {
+                return CoreEvent::Unknown;
+            };
+            Event::AccountChanged(AccountChanged {
+                server_time: envelope.server_time,
+                received_at: envelope.received_at,
+                actor,
+                new: account,
+                authorship: Authorship::from_core(authorship),
+            })
+        }
         papo_core::Event::AwayChanged {
-            server_time,
+            envelope,
             actor,
             away,
             authorship,
             ..
-        } => Event::AwayChanged(AwayChanged {
-            server_time,
-            received_at,
-            actor: match source::user_from_prefix(
-                &actor,
-                casemapping,
-                origin,
-                Account::Unknown,
-                None,
-                None,
-            ) {
-                Some(actor) => actor,
-                None => return CoreEvent::Unknown,
-            },
-            new: away,
-            authorship: Authorship::from_core(authorship),
-        }),
+        } => {
+            let envelope = map_envelope(&envelope);
+            let Some(actor) = user_from_raw(&actor, &envelope) else {
+                return CoreEvent::Unknown;
+            };
+            Event::AwayChanged(AwayChanged {
+                server_time: envelope.server_time,
+                received_at: envelope.received_at,
+                actor,
+                new: away,
+                authorship: Authorship::from_core(authorship),
+            })
+        }
         papo_core::Event::HostChanged {
             server_time,
             actor,
@@ -5159,7 +5161,7 @@ mod tests {
     fn maps_account_changed() {
         assert!(matches!(
             forwarded(papo_core::Event::__account_changed(
-                None,
+                papo_core::LineEnvelope::default(),
                 "emily!~em@users/emily".into(),
                 Casemapping::default().nick("emily"),
                 Account::LoggedIn(Casemapping::default().account("emily")),
@@ -5174,7 +5176,7 @@ mod tests {
     fn maps_away_changed() {
         assert!(matches!(
             forwarded(papo_core::Event::__away_changed(
-                None,
+                papo_core::LineEnvelope::default(),
                 "emily!~em@users/emily".into(),
                 Casemapping::default().nick("emily"),
                 Away::__away_value(Some("Gone to lunch".into())),
@@ -5201,7 +5203,7 @@ mod tests {
         assert_eq!(away.actor.nick(), "dan");
         assert_eq!(away.actor.username(), None);
         assert_eq!(away.actor.host(), None);
-        assert_eq!(away.actor.account(), &Account::Unknown);
+        assert_eq!(away.actor.account(), &Account::LoggedOut);
         assert_eq!(away.actor.is_bot(), None);
         assert_eq!(away.authorship, Authorship::Other);
     }

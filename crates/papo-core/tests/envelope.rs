@@ -34,13 +34,13 @@ fn derived_events_keep_their_causal_time() {
         .event(|event| matches!(event, Event::Joined { .. }))
         .server(&format!("@{tagged} :emily!~e@cloak.example ACCOUNT emily"))
         .event(|event| {
-            matches!(event, Event::AccountChanged { server_time, .. }
-                if *server_time == Some(expected))
+            matches!(event, Event::AccountChanged { envelope, .. }
+                if envelope.server_time() == Some(expected))
         })
         .server(&format!("@{tagged} :emily!~e@cloak.example AWAY :Lunch"))
         .event(|event| {
-            matches!(event, Event::AwayChanged { server_time, .. }
-                if *server_time == Some(expected))
+            matches!(event, Event::AwayChanged { envelope, .. }
+                if envelope.server_time() == Some(expected))
         })
         .server(&format!(
             "@{tagged} :emily!~e@cloak.example CHGHOST emily users/emily"
