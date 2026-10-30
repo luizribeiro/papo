@@ -9307,7 +9307,9 @@ async fn client_reads_owned_state_snapshots() {
 
 #[tokio::test(flavor = "current_thread")]
 async fn channel_accessors_report_the_join_burst() {
-    let (mut server, client, mut events, driver) = scripted(config());
+    let mut settings = config();
+    settings.origin = crate::Origin::__new(u64::MAX);
+    let (mut server, client, mut events, driver) = scripted(settings);
     let driver = tokio::spawn(driver);
     complete_connect(&mut server, &mut events).await;
 
