@@ -73,6 +73,9 @@ let builder = Client::builder("ircs://irc.example.net", "alice")
 | `ServerError::command() -> &str` used `""` for absence | `ServerError::command() -> Option<&Command>` |
 | Protocol commands and standard-reply codes used interchangeable strings | `Command` and `ReplyCode` type event and error tokens; `papo::fail` exports typed code values |
 
+Actor-bearing live events now preserve account, bot, and operator facts from their IRC line,
+matching the same events when replayed from history.
+
 Credentials configured with `PASS`, SASL, WEBIRC, OPER, account verification, or bouncer password
 fields are refused on plaintext transports unless STS upgrades the connection. Tests and trusted
 locally protected transports can opt in with `allow_insecure_auth(true)`. Server-provided display

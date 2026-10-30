@@ -4938,6 +4938,151 @@ mod tests {
         assert_eq!(joined.netjoin, None);
     }
 
+    fn identity_actor(event: &Event) -> Option<(&'static str, &UserSource)> {
+        match event {
+            Event::Joined(event) => Some(("Joined", &event.actor)),
+            Event::Parted(event) => Some(("Parted", &event.actor)),
+            Event::Kicked(event) => Some(("Kicked", event.actor.user()?)),
+            Event::Invited(event) => Some(("Invited", event.actor.user()?)),
+            Event::Quit(event) => Some(("Quit", &event.actor)),
+            Event::NickChanged(event) => Some(("NickChanged", &event.actor)),
+            Event::ChannelRenamed(event) => Some(("ChannelRenamed", event.actor.user()?)),
+            Event::AccountChanged(event) => Some(("AccountChanged", &event.actor)),
+            Event::AwayChanged(event) => Some(("AwayChanged", &event.actor)),
+            Event::HostChanged(event) => Some(("HostChanged", &event.actor)),
+            Event::RealnameChanged(event) => Some(("RealnameChanged", &event.actor)),
+            Event::ModeChanged(event) => Some(("ModeChanged", event.actor.user()?)),
+            Event::TopicChanged(event) => Some(("TopicChanged", event.actor.user()?)),
+            Event::Redacted(event) => Some(("Redacted", event.actor.user()?)),
+            _ => None,
+        }
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines)]
+    fn every_line_actor_keeps_all_identity_tags() {
+        let cases = [
+            (
+                "Joined",
+                false,
+                "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example JOIN #papo alice :Alice Example",
+            ),
+            (
+                "Parted",
+                true,
+                "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example PART #papo :Deploying release",
+            ),
+            (
+                "Kicked",
+                true,
+                "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example KICK #papo papo :Flood control",
+            ),
+            (
+                "Invited",
+                true,
+                "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example INVITE papo #papo-dev",
+            ),
+            (
+                "Quit",
+                true,
+                "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example QUIT :Client exited",
+            ),
+            (
+                "NickChanged",
+                true,
+                "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example NICK alice_",
+            ),
+            (
+                "ChannelRenamed",
+                true,
+                "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example RENAME #papo #papo-dev :Release complete",
+            ),
+            (
+                "AccountChanged",
+                false,
+                "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example ACCOUNT alice",
+            ),
+            (
+                "AwayChanged",
+                true,
+                "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example AWAY :Reviewing release",
+            ),
+            (
+                "HostChanged",
+                true,
+                "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example CHGHOST ~alice users/alice",
+            ),
+            (
+                "RealnameChanged",
+                true,
+                "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example SETNAME :Alice Smith",
+            ),
+            (
+                "ModeChanged",
+                true,
+                "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example MODE #papo +o papo",
+            ),
+            (
+                "TopicChanged",
+                true,
+                "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example TOPIC #papo :Rust 1.90 released",
+            ),
+            (
+                "Redacted",
+                true,
+                "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example REDACT #papo RfcBTzyxY120001 :Off topic",
+            ),
+        ];
+
+        for (expected, member, line) in cases {
+            let now = Instant::now();
+            let mut session = Session::new(Config::default().nick("papo"));
+            session.handle_line(
+                now,
+                b":ergo.test 005 papo BOT=B CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(ov)@+ :are supported",
+            );
+            session.handle_line(now, b":papo!~p@client.example JOIN #papo");
+            if member {
+                session.handle_line(
+                    now,
+                    b"@account=alice :alice!~a@staff.example JOIN #papo alice :Alice Example",
+                );
+            } else if expected == "AccountChanged" {
+                session.handle_line(
+                    now,
+                    b"@account=legacy :alice!~a@staff.example JOIN #papo legacy :Alice Example",
+                );
+            }
+            while session.poll_event().is_some() {}
+
+            session.handle_line(now, line.as_bytes());
+            let mapped = from_core_with_mapping(
+                session
+                    .poll_event()
+                    .unwrap_or_else(|| panic!("{expected} produced no event")),
+                session.isupport().casemapping(),
+                crate::Origin::NONE,
+                true,
+                true,
+                UNIX_EPOCH,
+            );
+            let CoreEvent::Forward(event) = mapped else {
+                panic!("{expected} was not forwarded")
+            };
+            let Some((actual, actor)) = identity_actor(&event) else {
+                panic!("{expected} had no user actor: {event:?}")
+            };
+            assert_eq!(actual, expected);
+            assert!(matches!(actor.account(), Account::LoggedIn(account) if account == "alice"));
+            assert_eq!(actor.is_bot(), Some(true), "{expected}");
+            assert_eq!(
+                actor.oper().and_then(|oper| oper.name.as_deref()),
+                Some("network-admin"),
+                "{expected}"
+            );
+        }
+    }
+
     #[test]
     fn live_activity_uses_receipt_time_without_server_time() {
         let now = Instant::now();
