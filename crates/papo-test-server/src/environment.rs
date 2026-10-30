@@ -33,6 +33,7 @@ pub struct BouncerInfo {
 /// Credentials bound to one bouncer network.
 #[derive(Clone, Eq, PartialEq)]
 pub struct BouncerLogin {
+    account: String,
     username: String,
     password: String,
 }
@@ -67,6 +68,7 @@ impl fmt::Debug for BouncerLogin {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("BouncerLogin")
+            .field("account", &self.account)
             .field("username", &self.username)
             .field("password", &"[REDACTED]")
             .finish()
@@ -117,13 +119,39 @@ impl ServerInfo {
     /// # Errors
     ///
     /// Returns an error if the network name is invalid or soju rejects it.
-    pub fn bouncer_login(&self, nick: &str) -> io::Result<Option<BouncerLogin>> {
+    pub fn bouncer_login(&self, nick: &str, realname: &str) -> io::Result<Option<BouncerLogin>> {
+        self.provision_bouncer(nick, realname, None)
+    }
+
+    /// Creates a managed bouncer network authenticated to an upstream account.
+    ///
+    /// Process-owned bouncer provisioning is unavailable on wasm targets.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the network name is invalid or soju rejects it.
+    pub fn bouncer_account_login(
+        &self,
+        nick: &str,
+        realname: &str,
+        account: &str,
+        password: &str,
+    ) -> io::Result<Option<BouncerLogin>> {
+        self.provision_bouncer(nick, realname, Some((account, password)))
+    }
+
+    fn provision_bouncer(
+        &self,
+        nick: &str,
+        realname: &str,
+        upstream_credentials: Option<(&str, &str)>,
+    ) -> io::Result<Option<BouncerLogin>> {
         if cfg!(target_family = "wasm") {
             return Ok(None);
         }
         self.bouncer
             .as_ref()
-            .map(|bouncer| bouncer.provision_network(nick))
+            .map(|bouncer| bouncer.provision_network(nick, realname, upstream_credentials))
             .transpose()
     }
 }
@@ -159,14 +187,10 @@ impl BouncerInfo {
     ///
     /// Returns an error when `network` cannot be used as a managed network name.
     pub fn network_login(&self, network: &str) -> io::Result<BouncerLogin> {
-        if network.is_empty() || network.contains([' ', '\r', '\n', '/', '\0']) {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                "invalid bouncer network name",
-            ));
-        }
+        let username = self.peer_username(network)?;
         Ok(BouncerLogin {
-            username: format!("{}/{network}", self.username),
+            account: username.clone(),
+            username: format!("{username}/{network}"),
             password: self.password.clone(),
         })
     }
@@ -176,18 +200,51 @@ impl BouncerInfo {
     /// # Errors
     ///
     /// Returns an error if the network name is invalid or soju rejects it.
-    pub fn provision_network(&self, nick: &str) -> io::Result<BouncerLogin> {
+    pub fn provision_network(
+        &self,
+        nick: &str,
+        realname: &str,
+        upstream_credentials: Option<(&str, &str)>,
+    ) -> io::Result<BouncerLogin> {
         let login = self.network_login(nick)?;
+        if realname.contains(['\r', '\n', '\0'])
+            || upstream_credentials.is_some_and(|(account, password)| {
+                account.contains(['\r', '\n', '\0', ':']) || password.contains(['\r', '\n', '\0'])
+            })
+        {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "invalid bouncer network credentials",
+            ));
+        }
+        let username = self.peer_username(nick)?;
+        let sojuctl =
+            env::var("SOJUCTL_BIN").map_err(|_| io::Error::other("SOJUCTL_BIN is unset"))?;
+        let status = Command::new(&sojuctl)
+            .args(["-config"])
+            .arg(&self.config)
+            .args([
+                "user",
+                "create",
+                "-username",
+                &username,
+                "-password",
+                &self.password,
+            ])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()?;
+        if !status.success() {
+            return Err(io::Error::other(format!(
+                "sojuctl could not provision user: {status}"
+            )));
+        }
         let upstream = format!("irc+insecure://{}", self.upstream);
-        let status = Command::new(
-            env::var("SOJUCTL_BIN").map_err(|_| io::Error::other("SOJUCTL_BIN is unset"))?,
-        )
-        .args(["-config"])
-        .arg(&self.config)
-        .args([
+        let mut command = Command::new(sojuctl);
+        command.args(["-config"]).arg(&self.config).args([
             "user",
             "run",
-            &self.username,
+            &username,
             "network",
             "create",
             "-addr",
@@ -196,10 +253,18 @@ impl BouncerInfo {
             nick,
             "-nick",
             nick,
-        ])
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()?;
+            "-realname",
+            realname,
+        ]);
+        let upstream_pass =
+            upstream_credentials.map(|(account, password)| format!("{account}:{password}"));
+        if let Some(upstream_pass) = &upstream_pass {
+            command.args(["-pass", upstream_pass]);
+        }
+        let status = command
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()?;
         if !status.success() {
             return Err(io::Error::other(format!(
                 "sojuctl could not provision network: {status}"
@@ -207,9 +272,25 @@ impl BouncerInfo {
         }
         Ok(login)
     }
+
+    fn peer_username(&self, network: &str) -> io::Result<String> {
+        if network.is_empty() || network.contains([' ', '\r', '\n', '/', '\0']) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "invalid bouncer network name",
+            ));
+        }
+        Ok(format!("{}-{network}", self.username))
+    }
 }
 
 impl BouncerLogin {
+    /// Returns the unqualified bouncer account name.
+    #[must_use]
+    pub fn account_username(&self) -> &str {
+        &self.account
+    }
+
     /// Returns the network-qualified bouncer username.
     #[must_use]
     pub fn username(&self) -> &str {
@@ -379,12 +460,17 @@ mod tests {
         assert_eq!(bouncer.username(), "papo-bouncer");
         assert_eq!(bouncer.upstream_addr().port(), 7667);
         if cfg!(target_family = "wasm") {
-            assert!(server.bouncer_login("reader").unwrap().is_none());
+            assert!(
+                server
+                    .bouncer_login("reader", "papo test peer")
+                    .unwrap()
+                    .is_none()
+            );
         } else {
-            assert!(server.bouncer_login("").is_err());
+            assert!(server.bouncer_login("", "papo test peer").is_err());
         }
         let existing = bouncer.network_login("reader").unwrap();
-        assert_eq!(existing.username(), "papo-bouncer/reader");
+        assert_eq!(existing.username(), "papo-bouncer-reader/reader");
         assert_eq!(existing.password(), "unique-bouncer-password");
         for invalid in [
             "",
@@ -398,10 +484,12 @@ mod tests {
         }
         assert!(!format!("{server:?}").contains("unique-bouncer-password"));
         let login = BouncerLogin {
-            username: "papo-bouncer/reader".into(),
+            account: "papo-bouncer-reader".into(),
+            username: "papo-bouncer-reader/reader".into(),
             password: "another-unique-password".into(),
         };
-        assert_eq!(login.username(), "papo-bouncer/reader");
+        assert_eq!(login.account_username(), "papo-bouncer-reader");
+        assert_eq!(login.username(), "papo-bouncer-reader/reader");
         assert!(!format!("{login:?}").contains("another-unique-password"));
         for missing in 0..5 {
             let mut partial = [

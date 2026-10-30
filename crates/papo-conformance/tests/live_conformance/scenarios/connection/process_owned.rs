@@ -43,7 +43,7 @@ pub(super) async fn bouncer_networks(s: Scenario) -> papo_testing::Result<()> {
         return s.skip("the selected server is not a managed bouncer");
     };
     let network_nick = papo_test_server::unique("alice");
-    let login = bouncer.provision_network(&network_nick)?;
+    let login = bouncer.provision_network(&network_nick, "papo bouncer control", None)?;
     let address = s.server.plaintext_addr();
     let alice = s
         .connect_with(

@@ -510,7 +510,7 @@ async fn too_many_channels(s: Scenario) -> papo_testing::Result<()> {
 )]
 async fn whox(s: Scenario) -> papo_testing::Result<()> {
     let alice = s
-        .connect_with(s.configure("alice")?.realname("Alice Example"))
+        .connect_with(s.configure_realname("alice", "Alice Example")?)
         .await?;
     let nick = alice.nick();
 

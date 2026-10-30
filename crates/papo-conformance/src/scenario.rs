@@ -36,6 +36,21 @@ impl Scenario {
         self.configure_named_at(
             unique_name(label),
             Endpoint::plaintext(address.ip().to_string(), address.port()).unwrap(),
+            "papo test peer",
+        )
+    }
+
+    /// Configures a client with a unique nickname and explicit real name.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a selected bouncer network cannot be provisioned.
+    pub fn configure_realname(&self, label: &str, realname: &str) -> Result<Builder> {
+        let address = self.server.plaintext_addr();
+        self.configure_named_at(
+            unique_name(label),
+            Endpoint::plaintext(address.ip().to_string(), address.port()).unwrap(),
+            realname,
         )
     }
 
@@ -48,7 +63,7 @@ impl Scenario {
         let name = unique_name(label);
         let address = self.server.plaintext_addr();
         let endpoint = Endpoint::plaintext(address.ip().to_string(), address.port()).unwrap();
-        let bouncer_login = self.server.bouncer_login(&name)?;
+        let bouncer_login = self.server.bouncer_login(&name, "papo test peer")?;
         let builder = Client::builder(endpoint, nick.as_ref())
             .realname("papo test peer")
             .allow_insecure_auth(true);
@@ -67,7 +82,7 @@ impl Scenario {
     ///
     /// Returns an error when a selected bouncer network cannot be provisioned.
     pub fn configure_at(&self, label: &str, endpoint: impl IntoEndpoint) -> Result<Builder> {
-        self.configure_named_at(unique_name(label), endpoint)
+        self.configure_named_at(unique_name(label), endpoint, "papo test peer")
     }
 
     /// Configures, connects, and retains a peer named from `label`.
@@ -102,9 +117,11 @@ impl Scenario {
         let account = unique_name(label);
         create_account(&self.server, &account, ACCOUNT_PASSWORD)?;
         let address = self.server.plaintext_addr();
-        let builder = self.configure_named_at(
+        let builder = self.configure_account_named_at(
             account.clone(),
             Endpoint::plaintext(address.ip().to_string(), address.port()).unwrap(),
+            &account,
+            ACCOUNT_PASSWORD,
         )?;
         let builder = if self.server.bouncer().is_some() {
             builder
@@ -218,9 +235,14 @@ impl Scenario {
         first.map_or(Ok(()), Err)
     }
 
-    fn configure_named_at(&self, name: String, endpoint: impl IntoEndpoint) -> Result<Builder> {
-        let bouncer_login = self.server.bouncer_login(&name)?;
-        let builder = Self::builder_named_at(name, endpoint);
+    fn configure_named_at(
+        &self,
+        name: String,
+        endpoint: impl IntoEndpoint,
+        realname: &str,
+    ) -> Result<Builder> {
+        let bouncer_login = self.server.bouncer_login(&name, realname)?;
+        let builder = Self::builder_named_at(name, endpoint).realname(realname);
         let builder = match bouncer_login {
             Some(login) => builder.sasl(Sasl::plain(
                 login.username(),
@@ -229,6 +251,26 @@ impl Scenario {
             None => builder,
         };
         Ok(builder)
+    }
+
+    fn configure_account_named_at(
+        &self,
+        name: String,
+        endpoint: impl IntoEndpoint,
+        account: &str,
+        password: &str,
+    ) -> Result<Builder> {
+        let bouncer_login =
+            self.server
+                .bouncer_account_login(&name, "papo test peer", account, password)?;
+        let builder = Self::builder_named_at(name, endpoint);
+        Ok(match bouncer_login {
+            Some(login) => builder.sasl(Sasl::plain(
+                login.username(),
+                papo::Secret::new(login.password()),
+            )),
+            None => builder,
+        })
     }
 
     fn builder_named_at(name: String, endpoint: impl IntoEndpoint) -> Builder {

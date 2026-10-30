@@ -329,7 +329,7 @@ fn connect_client(
         );
     }
     let bouncer = server
-        .bouncer_login(nick)
+        .bouncer_login(nick, realname)
         .map_err(|error| error.to_string())?;
     match (bouncer, sasl) {
         (Some(login), _) => {

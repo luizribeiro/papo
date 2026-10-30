@@ -31,7 +31,7 @@ async fn provisioned_control(
         .bouncer()
         .expect("the soju profile has bouncer configuration");
     let network_name = papo_test_server::unique(prefix);
-    bouncer.provision_network(&network_name)?;
+    let login = bouncer.provision_network(&network_name, "papo bouncer control", None)?;
     let address = s.server.plaintext_addr();
     let control = s
         .connect_with(
@@ -40,8 +40,8 @@ async fn provisioned_control(
                 &network_name,
             )
             .sasl(Sasl::plain(
-                bouncer.username(),
-                papo::Secret::new(bouncer.password()),
+                login.account_username(),
+                papo::Secret::new(login.password()),
             ))
             .allow_insecure_auth(true)
             .enable(Feature::Bouncer),
