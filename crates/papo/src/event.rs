@@ -520,11 +520,18 @@ fn broadcast_from_line(
         }
         _ => return Err(raw),
     };
-    let Some(actor) = source::user_from_line(
+    let envelope = line_envelope_with_account_tag(
         &message,
         isupport.casemapping(),
         origin,
         account_tag_enabled,
+        received_at,
+    );
+    let Some(Source::User(actor)) = source::from_line(
+        source::LinePrefix::Raw(message.raw_source().ok_or_else(|| raw.clone())?),
+        &envelope,
+        isupport.casemapping(),
+        origin,
         prove_not_bot,
     ) else {
         return Err(raw);
@@ -543,13 +550,6 @@ fn broadcast_from_line(
     let Some((command, params, false)) = ctcp_parts(&message) else {
         return Err(raw);
     };
-    let envelope = line_envelope_with_account_tag(
-        &message,
-        isupport.casemapping(),
-        origin,
-        account_tag_enabled,
-        received_at,
-    );
     Ok(Event::BroadcastCtcp(BroadcastCtcp {
         actor,
         authorship,
@@ -1300,6 +1300,8 @@ pub(crate) struct EventEnvelope {
     pub(crate) server_time: Option<SystemTime>,
     pub(crate) received_at: SystemTime,
     pub(crate) account: Account,
+    pub(crate) bot: bool,
+    pub(crate) oper: Option<Oper>,
 }
 
 pub(crate) fn line_envelope(
@@ -1325,6 +1327,13 @@ pub(crate) fn line_envelope_with_account_tag(
         server_time,
         received_at,
         account: account_from_tag(line, casemapping, origin, account_tag_enabled),
+        bot: line.tags().any(|(key, _)| key == "bot"),
+        oper: line
+            .tags()
+            .find(|(key, _)| *key == "draft/oper")
+            .map(|(_, value)| Oper {
+                name: value.map(std::borrow::Cow::into_owned),
+            }),
     }
 }
 
@@ -1369,7 +1378,7 @@ fn core_envelope(
         received_at,
         account: envelope.account().map_or_else(
             || {
-                if account_tag_enabled {
+                if envelope.__account_known() || account_tag_enabled {
                     Account::LoggedOut
                 } else {
                     Account::Unknown
@@ -1377,6 +1386,10 @@ fn core_envelope(
             },
             |account| Account::LoggedIn(origin.__account(casemapping, account)),
         ),
+        bot: envelope.bot(),
+        oper: envelope.oper().map(|name| Oper {
+            name: name.map(str::to_owned),
+        }),
     }
 }
 
@@ -2308,8 +2321,13 @@ pub(crate) fn from_core_with_receipt(
             ..
         } => {
             let envelope = map_envelope(&envelope);
-            let Some(actor) = source::from_core_with_account(actor, origin, envelope.account)
-            else {
+            let Some(actor) = source::from_line(
+                source::LinePrefix::Core(actor),
+                &envelope,
+                casemapping,
+                origin,
+                prove_not_bot,
+            ) else {
                 return CoreEvent::Unknown;
             };
             Event::Kicked(Kicked {
@@ -2732,17 +2750,25 @@ mod tests {
     fn broadcast_payloads_report_the_client_origin() {
         let origin = crate::Origin::__new(73);
         let mapping = Casemapping::default();
-        let actor = super::source::user_from_line(
-            &Line::new("TAGMSG")
-                .param("*")
-                .with_source("oper!staff@staff.example")
-                .as_ref(),
+        let line = Line::new("TAGMSG")
+            .param("*")
+            .with_source("oper!staff@staff.example");
+        let envelope = super::line_envelope_with_account_tag(
+            &line.as_ref(),
             mapping,
             origin,
             false,
+            UNIX_EPOCH,
+        );
+        let Some(Source::User(actor)) = super::source::from_line(
+            super::source::LinePrefix::Raw("oper!staff@staff.example"),
+            &envelope,
+            mapping,
+            origin,
             false,
-        )
-        .unwrap();
+        ) else {
+            panic!("expected user source")
+        };
         for to in [
             Broadcast::Everyone,
             Broadcast::Mask(origin.__mask(mapping, "$*.example.org")),

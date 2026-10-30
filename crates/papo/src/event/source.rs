@@ -260,6 +260,40 @@ pub(crate) fn user_from_prefix(
     })
 }
 
+pub(crate) enum LinePrefix<'a> {
+    Raw(&'a str),
+    Core(papo_core::Source),
+}
+
+pub(crate) fn from_line(
+    prefix: LinePrefix<'_>,
+    envelope: &super::EventEnvelope,
+    casemapping: Casemapping,
+    origin: crate::Origin,
+    prove_not_bot: bool,
+) -> Option<Source> {
+    let source = match prefix {
+        LinePrefix::Raw(prefix) => {
+            let line = papo_proto::Line::new("TAGMSG")
+                .param("*")
+                .with_source(prefix);
+            from_proto_with_origin(line.as_ref().source()?, casemapping, origin)
+        }
+        LinePrefix::Core(source) => from_core(source, origin)?,
+    };
+    let Source::User(mut user) = source else {
+        return Some(source);
+    };
+    user.account = envelope.account.clone();
+    user.is_bot = if envelope.bot {
+        Some(true)
+    } else {
+        prove_not_bot.then_some(false)
+    };
+    user.oper.clone_from(&envelope.oper);
+    Some(Source::User(user))
+}
+
 pub(crate) fn from_core(source: papo_core::Source, origin: crate::Origin) -> Option<Source> {
     match source {
         papo_core::Source::User {
