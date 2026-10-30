@@ -216,6 +216,31 @@ async fn relayed_line_too_long(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// rejects a raw PRIVMSG with an empty trailing parameter
+#[scenario(covers = ["base.privmsg.empty-text"])]
+async fn empty_privmsg(s: Scenario) -> papo_testing::Result<()> {
+    if !matches!(
+        papo_test_server::DeploymentProfile::from_env()?,
+        papo_test_server::DeploymentProfile::ErgoDefault
+            | papo_test_server::DeploymentProfile::ErgoPersistent
+    ) {
+        return s.skip("the selected server does not report empty PRIVMSG text as numeric 412");
+    }
+
+    let alice = s.connect("alice").await?;
+    let channel = s.channel_name();
+    alice.join(&channel).await?;
+    let replies = alice
+        .request_raw(papo::Line::new("PRIVMSG").with_params([channel, String::new()]))
+        .await?;
+    let refusal = replies
+        .iter()
+        .find(|line| line.numeric() == Some(papo::numeric::ERR_NOTEXTTOSEND))
+        .unwrap_or_else(|| panic!("Ergo omitted numeric 412: {replies:?}"));
+    assert!(refusal.params().iter().any(|param| !param.is_empty()));
+    Ok(())
+}
+
 /// peer display text removes terminal controls while retaining raw IRC text
 #[scenario(
     requires(caps = ["labeled-response"]),
