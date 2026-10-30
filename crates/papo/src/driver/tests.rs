@@ -5166,7 +5166,7 @@ async fn structured_requests_resolve_fail_and_abort() {
         async move { client.whois(test_nick("alice")).await }
     });
     client_line(&mut server, b"@label=0 WHOIS alice\r\n").await;
-    server_line(&mut server, b"@label=0 :ergo.test BATCH +whois-42 labeled-response\r\n@batch=whois-42 :ergo.test 311 papo-driver alice ~alice client.example * :Alice Example\r\n@batch=whois-42 :ergo.test 312 papo-driver alice ergo.test :Ergo Test Network\r\n@batch=whois-42 :ergo.test 317 papo-driver alice 42 1760544000 :seconds idle, signon time\r\n@batch=whois-42 :ergo.test 319 papo-driver alice :@#papo +#rust\r\n@batch=whois-42 :ergo.test 330 papo-driver alice alice :is logged in as\r\n@batch=whois-42 :ergo.test 301 papo-driver alice :away from keyboard\r\n@batch=whois-42 :ergo.test 335 papo-driver alice :is a bot\r\n@batch=whois-42 :ergo.test 671 papo-driver alice :is using a secure connection\r\n@batch=whois-42 :ergo.test 318 papo-driver alice :End of /WHOIS list\r\n:ergo.test BATCH -whois-42\r\n").await;
+    server_line(&mut server, b"@label=0 :irc.solanum.test BATCH +whois-42 labeled-response\r\n@batch=whois-42 :irc.solanum.test 311 papo-driver alice ~alice client.example * :Alice Example\r\n@batch=whois-42 :irc.solanum.test 312 papo-driver alice irc.solanum.test :Solanum Test Network\r\n@batch=whois-42 :irc.solanum.test 317 papo-driver alice 42 1760544000 :seconds idle, signon time\r\n@batch=whois-42 :irc.solanum.test 319 papo-driver alice :@#papo +#rust\r\n@batch=whois-42 :irc.solanum.test 330 papo-driver alice alice :is logged in as\r\n@batch=whois-42 :irc.solanum.test 301 papo-driver alice :away from keyboard\r\n@batch=whois-42 :irc.solanum.test 335 papo-driver alice :is a bot\r\n@batch=whois-42 :irc.solanum.test 671 papo-driver alice :is using a secure connection\r\n@batch=whois-42 :irc.solanum.test 318 papo-driver alice :End of /WHOIS list\r\n:irc.solanum.test BATCH -whois-42\r\n").await;
     let whois = within(whois).await.unwrap().unwrap();
     assert_eq!(
         (whois.nick.as_ref(), whois.username.as_deref()),
@@ -5181,7 +5181,7 @@ async fn structured_requests_resolve_fail_and_abort() {
             whois.account.name().map(AsRef::as_ref),
             whois.server.as_deref()
         ),
-        (Some("alice"), Some("ergo.test"))
+        (Some("alice"), Some("irc.solanum.test"))
     );
     assert_eq!(whois.channels[0].name, "#papo");
     assert_eq!(prefix_symbols(&whois.channels[0].prefixes), ['@']);

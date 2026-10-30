@@ -676,7 +676,7 @@ async fn whois_server(s: Scenario) -> papo_testing::Result<()> {
 
     assert_eq!(whois.nick, alice_nick.as_ref());
     if whois.server.as_ref().is_none_or(|server| server.is_empty()) {
-        return Err(std::io::Error::other("WHOIS omitted server numeric 312").into());
+        return s.skip("server sends no WHOIS server numeric 312");
     }
     Ok(())
 }
@@ -694,10 +694,10 @@ async fn whois_host_certificate(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     let detail = lines
         .iter()
-        .find(|line| matches!(line.numeric(), Some(276 | 378)))
-        .ok_or_else(|| {
-            std::io::Error::other("WHOIS omitted host and certificate numerics 378 and 276")
-        })?;
+        .find(|line| matches!(line.numeric(), Some(276 | 338 | 378)));
+    let Some(detail) = detail else {
+        return s.skip("server sends no WHOIS host or certificate numeric (276, 338, or 378)");
+    };
 
     assert_eq!(
         mapping

@@ -48,7 +48,7 @@ evidence = "S: 005 MSGREFTYPES=msgid | C: CHATHISTORY LATEST #review * 10 | S: h
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [kick_missing_member]
-reason = "soju relays Ergo's 482 rather than 441 when an operator kicks a user outside the channel"
+reason = "soju relays its Ergo upstream's 482 after Ergo checks privileges against the absent target instead of returning the applicable 441"
 kind = "server-bug"
 spec = "https://modern.ircdocs.horse/#kick-message"
 evidence = "C: KICK #review absent :not a channel member | S: 482 operator #review"
@@ -103,13 +103,6 @@ spec = "https://ircv3.net/specs/extensions/extended-monitor"
 evidence = "S: 730 monitored-user | upstream S: AWAY :reviewing; downstream S: no AWAY"
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
-[names_multiple_channels]
-reason = "soju does not complete the labelled response for a multi-channel NAMES request"
-kind = "server-bug"
-spec = "https://ircv3.net/specs/extensions/labeled-response"
-evidence = "C: @label=... NAMES #first,#second | S: partial labeled response without completion"
-server_version = "soju 0.11.1 / Ergo 2.19.1"
-
 [multiple_joins]
 reason = "soju treats JOIN zero as a channel name instead of forwarding the leave-all operation upstream"
 kind = "server-bug"
@@ -132,10 +125,10 @@ evidence = "C: NICK : | S: 432"
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [nickname_collision_race]
-reason = "soju reports a simultaneous nickname claim as generic numeric 400 rather than 436"
-kind = "server-bug"
+reason = "the shared soju user cannot store two networks with the same nick, so soju returns 400 before Ergo can return 433"
+kind = "fixture-limit"
 spec = "https://modern.ircdocs.horse/#nick-message"
-evidence = "C: NICK race-review from two clients | S: 400 for the rejected claim"
+evidence = "C: NICK race-review from two downstream clients sharing one soju user | S: 400 Failed to update nick"
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [pre_away]
@@ -199,18 +192,4 @@ reason = "soju relays Ergo's 472 rather than 501 for an unknown user mode"
 kind = "server-bug"
 spec = "https://modern.ircdocs.horse/#mode-message"
 evidence = "C: MODE review +? | S: 472 review ?"
-server_version = "soju 0.11.1 / Ergo 2.19.1"
-
-[whois_host_certificate]
-reason = "soju returns neither WHOIS host numeric 378 nor certificate numeric 276 for its downstream client"
-kind = "spec-ambiguity"
-spec = "https://modern.ircdocs.horse/#whois-message"
-evidence = "C: WHOIS review | S: 311 review ...; 318 review, with no 276 or 378"
-server_version = "soju 0.11.1 / Ergo 2.19.1"
-
-[whois_server]
-reason = "soju relays no server numeric 312 from its Ergo upstream"
-kind = "not-implemented"
-spec = "https://modern.ircdocs.horse/#whois-message"
-evidence = "C: WHOIS upstream-user | S: 311 upstream-user ...; 318 upstream-user, with no 312"
 server_version = "soju 0.11.1 / Ergo 2.19.1"

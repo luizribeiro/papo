@@ -185,6 +185,12 @@ async fn userhost_in_names(s: Scenario) -> papo_testing::Result<()> {
 #[scenario(covers = ["base.names.multiple-channels"])]
 async fn names_multiple_channels(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
+    if matches!(
+        alice.state().isupport().targmax_for("NAMES"),
+        Some(LimitValue::Limited(limit)) if limit < 2
+    ) {
+        return s.skip("TARGMAX limits NAMES to fewer than two targets");
+    }
     let first = s.channel_name();
     let second = s.channel_name();
     alice.join(&first).await?;
@@ -1171,7 +1177,7 @@ async fn nickname_collision_race(s: Scenario) -> papo_testing::Result<()> {
         Error::Server(refusal) => refusal,
         other => panic!("nickname race did not return a server refusal: {other:?}"),
     };
-    if refusal.refusal() != Refusal::NickCollision || refusal.code() != "436" {
+    if refusal.refusal() != Refusal::NicknameInUse || refusal.code() != "433" {
         return Err(std::io::Error::other(format!(
             "unexpected nickname-race refusal: {refusal:?}"
         ))
