@@ -1,6 +1,6 @@
 use std::time::{Duration, SystemTime};
 
-use papo::{Error, Event, MessageId, Sent};
+use papo::{Account, Authorship, Error, Event, MessageId, Sent};
 use papo_conformance_macros::scenario;
 
 use crate::scenarios::support::{confirmed_line, conversation_name};
@@ -74,7 +74,7 @@ async fn draft_chathistory(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
-/// retrieves an exact long multiline message from channel history
+/// retrieves an exact own multiline message with blank lines from channel history
 #[scenario(
     requires(caps = [
         "batch",
@@ -87,26 +87,29 @@ async fn draft_chathistory(s: Scenario) -> papo_testing::Result<()> {
     covers = ["draft.chathistory.multiline"]
 )]
 async fn chathistory_multiline(s: Scenario) -> papo_testing::Result<()> {
-    let writer = s.connect("writer").await?;
+    let writer = s.connect_as_account("writer").await?;
     let channel = s.channel_name();
     writer.join(&channel).await?;
     let text = format!(
-        "missed multiline one {} and its continuation\nsecond line",
+        "missed multiline one {} and its continuation\n\n\nsecond line",
         "long ".repeat(140)
     );
     let sent = writer.privmsg(&channel, &text).await?;
-    let expected_time = confirmed_line(&sent)
-        .2
-        .expect("Ergo supplies a server time for the multiline echo");
+    let (expected_msgid, confirmed_text, expected_time) = confirmed_line(&sent);
+    assert_eq!(confirmed_text, text);
+    let expected_time = expected_time.expect("Ergo supplies a server time for the multiline echo");
+    let expected_account = writer.state().account().clone();
+    assert!(matches!(expected_account, Account::LoggedIn(_)));
 
-    let reader = s.connect("reader").await?;
-    reader.join(&channel).await?;
-    let page = reader.history(&channel).latest().limit(10).await?;
+    let page = writer.history(&channel).latest().limit(10).await?;
     let replayed = page
         .chat_messages()
         .find(|message| message.raw_text == text)
         .expect("CHATHISTORY replays the assembled multiline message");
     assert_eq!(replayed.text, text);
+    assert_eq!(replayed.authorship, Authorship::Own);
+    assert_eq!(replayed.actor.account(), &expected_account);
+    assert_eq!(replayed.msgid.as_ref(), Some(expected_msgid));
     assert_eq!(replayed.server_time, Some(expected_time));
     Ok(())
 }

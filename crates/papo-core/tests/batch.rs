@@ -448,6 +448,48 @@ fn recorded_ergo_multiline_history_preserves_text_metadata_and_order() {
 }
 
 #[test]
+fn recorded_ergo_own_multiline_history_preserves_blank_lines_and_authorship() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("papo"));
+    for line in [
+        ":irc.localhost 900 papo papo!~u@localhost papo :You are now logged in as papo",
+        "@time=2026-10-29T22:09:00.000Z :irc.localhost BATCH +1 chathistory #lounge",
+        "@time=2026-10-29T22:09:01.234Z;msgid=ownBlank4;account=papo;batch=1 :papo!~u@localhost BATCH +2 draft/multiline #lounge",
+        "@batch=2 :papo!~u@localhost PRIVMSG #lounge :first line",
+        "@batch=2 :papo!~u@localhost PRIVMSG #lounge :",
+        "@batch=2 :papo!~u@localhost PRIVMSG #lounge :",
+        "@batch=2 :papo!~u@localhost PRIVMSG #lounge :last line",
+        "BATCH -2",
+        "BATCH -1",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+
+    let Some(Event::History { items, .. }) = session.poll_event() else {
+        panic!("expected history")
+    };
+    assert_eq!(items.len(), 1);
+    let message = items[0].as_message().expect("multiline history message");
+    assert_eq!(
+        message.line.as_ref().param(1),
+        Some("first line\n\n\nlast line")
+    );
+    assert_eq!(message.authorship, Authorship::Own);
+    assert_eq!(
+        message.line.as_ref().tag("account").as_deref(),
+        Some("papo")
+    );
+    assert_eq!(
+        message.line.as_ref().tag("time").as_deref(),
+        Some("2026-10-29T22:09:01.234Z")
+    );
+    assert_eq!(
+        message.line.as_ref().tag("msgid").as_deref(),
+        Some("ownBlank4")
+    );
+}
+
+#[test]
 fn nested_multiline_history_handles_empty_unclosed_and_bounded_children() {
     let now = Instant::now();
 
