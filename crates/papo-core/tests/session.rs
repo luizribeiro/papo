@@ -364,6 +364,11 @@ fn raw_requests_require_negotiated_labels() {
     labelled.handle_line(now, b"CAP * LS :labeled-response");
     labelled.handle_line(now, b"CAP * ACK :labeled-response");
     while labelled.poll_transmit().is_some() {}
+    labelled.handle_line(
+        now,
+        b":ergo.test 001 papo :Welcome to the Ergo test network",
+    );
+    while labelled.poll_event().is_some() {}
     let first = labelled.request(now, Line::new("WHOIS").with_params(["alice"]));
     let second = labelled.request(now, Line::privmsg("#papo", "hello"));
     assert_ne!(first, second);
