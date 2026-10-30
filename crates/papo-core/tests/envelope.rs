@@ -46,8 +46,8 @@ fn derived_events_keep_their_causal_time() {
             "@{tagged} :emily!~e@cloak.example CHGHOST emily users/emily"
         ))
         .event(|event| {
-            matches!(event, Event::HostChanged { server_time, .. }
-                if *server_time == Some(expected))
+            matches!(event, Event::HostChanged { envelope, .. }
+                if envelope.server_time() == Some(expected))
         })
         .server(&format!(
             "@+typing=active;{tagged} :emily!~e@cloak.example TAGMSG #papo-dev"

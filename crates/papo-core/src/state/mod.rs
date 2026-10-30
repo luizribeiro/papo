@@ -1032,7 +1032,7 @@ impl State {
             own.realname = Some(change.realname.to_owned());
             if realname_changed {
                 outbox.event(Event::RealnameChanged {
-                    server_time: crate::LineEnvelope::from_line(message).server_time(),
+                    envelope: crate::LineEnvelope::from_line(message),
                     actor: message.raw_source().unwrap_or(nick).to_owned(),
                     nick: self.casemapping.nick(nick),
                     realname: change.realname.to_owned(),

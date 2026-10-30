@@ -563,9 +563,9 @@ pub papo_core::Event::HistoryTargets(alloc::vec::Vec<(papo::Conversation, std::t
 #[non_exhaustive] pub papo_core::Event::HostChanged
 pub papo_core::Event::HostChanged::actor: alloc::string::String
 pub papo_core::Event::HostChanged::authorship: papo_core::Authorship
+pub papo_core::Event::HostChanged::envelope: papo_core::LineEnvelope
 pub papo_core::Event::HostChanged::host: alloc::string::String
 pub papo_core::Event::HostChanged::nick: papo::Nick
-pub papo_core::Event::HostChanged::server_time: core::option::Option<std::time::SystemTime>
 pub papo_core::Event::HostChanged::username: alloc::string::String
 #[non_exhaustive] pub papo_core::Event::Invited
 pub papo_core::Event::Invited::actor: alloc::string::String
@@ -650,6 +650,7 @@ pub papo_core::Event::ReadMarkerChanged(papo_core::ReadMarker)
 #[non_exhaustive] pub papo_core::Event::RealnameChanged
 pub papo_core::Event::RealnameChanged::actor: alloc::string::String
 pub papo_core::Event::RealnameChanged::authorship: papo_core::Authorship
+pub papo_core::Event::RealnameChanged::envelope: papo_core::LineEnvelope
 pub papo_core::Event::RealnameChanged::nick: papo::Nick
 pub papo_core::Event::RealnameChanged::realname: alloc::string::String
 pub papo_core::Event::RealnameChanged::server_time: core::option::Option<std::time::SystemTime>

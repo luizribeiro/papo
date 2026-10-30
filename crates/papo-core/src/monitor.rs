@@ -367,13 +367,8 @@ impl Monitor {
                 let Some(entries) = message.param(1) else {
                     return Handled::No;
                 };
-                if !self.handle_online(
-                    entries,
-                    isupport,
-                    internal_nick,
-                    crate::LineEnvelope::from_line(message).server_time(),
-                    outbox,
-                ) {
+                let envelope = crate::LineEnvelope::from_line(message);
+                if !self.handle_online(entries, isupport, internal_nick, &envelope, outbox) {
                     return Handled::No;
                 }
             }
@@ -419,7 +414,7 @@ impl Monitor {
         entries: &str,
         isupport: &Isupport,
         internal_nick: Option<&str>,
-        server_time: Option<std::time::SystemTime>,
+        envelope: &crate::LineEnvelope,
         outbox: &mut Outbox,
     ) -> bool {
         let mut handled = false;
@@ -454,7 +449,7 @@ impl Monitor {
                 });
             } else if userhost_changed && let (Some(user), Some(host)) = (user, host) {
                 outbox.event(Event::HostChanged {
-                    server_time,
+                    envelope: envelope.clone(),
                     actor: nick.to_owned(),
                     nick: self.casemapping.nick(nick),
                     username: user.to_owned(),

@@ -2531,53 +2531,45 @@ pub(crate) fn from_core_with_receipt(
             })
         }
         papo_core::Event::HostChanged {
-            server_time,
+            envelope,
             actor,
             username,
             host,
             authorship,
             ..
-        } => Event::HostChanged(HostChanged {
-            server_time,
-            received_at,
-            actor: match source::user_from_prefix(
-                &actor,
-                casemapping,
-                origin,
-                Account::Unknown,
-                None,
-                None,
-            ) {
-                Some(actor) => actor,
-                None => return CoreEvent::Unknown,
-            },
-            new_username: username,
-            new_host: host,
-            authorship: Authorship::from_core(authorship),
-        }),
+        } => {
+            let envelope = map_envelope(&envelope);
+            let Some(actor) = user_from_raw(&actor, &envelope) else {
+                return CoreEvent::Unknown;
+            };
+            Event::HostChanged(HostChanged {
+                server_time: envelope.server_time,
+                received_at: envelope.received_at,
+                actor,
+                new_username: username,
+                new_host: host,
+                authorship: Authorship::from_core(authorship),
+            })
+        }
         papo_core::Event::RealnameChanged {
-            server_time,
+            envelope,
             actor,
             realname,
             authorship,
             ..
-        } => Event::RealnameChanged(RealnameChanged {
-            server_time,
-            received_at,
-            actor: match source::user_from_prefix(
-                &actor,
-                casemapping,
-                origin,
-                Account::Unknown,
-                None,
-                None,
-            ) {
-                Some(actor) => actor,
-                None => return CoreEvent::Unknown,
-            },
-            new: realname,
-            authorship: Authorship::from_core(authorship),
-        }),
+        } => {
+            let envelope = map_envelope(&envelope);
+            let Some(actor) = user_from_raw(&actor, &envelope) else {
+                return CoreEvent::Unknown;
+            };
+            Event::RealnameChanged(RealnameChanged {
+                server_time: envelope.server_time,
+                received_at: envelope.received_at,
+                actor,
+                new: realname,
+                authorship: Authorship::from_core(authorship),
+            })
+        }
         papo_core::Event::ModeChanged {
             envelope,
             subject,
@@ -5212,7 +5204,7 @@ mod tests {
     fn maps_host_changed() {
         assert!(matches!(
             forwarded(papo_core::Event::__host_changed(
-                None,
+                papo_core::LineEnvelope::default(),
                 "emily!em@127.0.0.1".into(),
                 Casemapping::default().nick("emily"),
                 "~em".into(),
@@ -5227,13 +5219,10 @@ mod tests {
     #[test]
     fn maps_realname_changed() {
         assert!(matches!(
-            forwarded(papo_core::Event::__realname_changed(
-                Some(UNIX_EPOCH + Duration::from_secs(42)),
-                "emily!~em@users/emily".into(),
-                Casemapping::default().nick("emily"),
-                "Emily Smith".into(),
-                papo_core::Authorship::Other,
-            )),
+            mapped_live_event(
+                "@time=1970-01-01T00:00:42.000Z :emily!~em@users/emily SETNAME :Emily Smith",
+                Instant::now(),
+            ),
             Event::RealnameChanged(changed)
                 if changed.actor.nick() == "emily"
                     && changed.new == "Emily Smith"
