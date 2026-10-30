@@ -287,7 +287,7 @@ pub fn state(nick: impl Into<String>, connected: bool) -> State {
 mod tests {
     use super::{
         connected, exercise_session_mapping, exercise_session_mapping_invariants, joined, message,
-        set_message_account, set_message_actor, state, user_source,
+        set_message_account, set_message_actor, set_message_id, state, user_source,
     };
 
     #[test]
@@ -402,5 +402,15 @@ mod tests {
         assert!(
             matches!(recipient.account, crate::Account::LoggedIn(account) if account == "emily")
         );
+    }
+
+    #[test]
+    fn sets_message_id_on_the_payload_and_receipt() {
+        let mut message = message(None, "#papo", "release ready", false);
+        set_message_id(&mut message, crate::MessageId::from("ErgoFixture1"));
+
+        assert_eq!(message.msgid().map(AsRef::as_ref), Some("ErgoFixture1"));
+        let reference = crate::MessageRef::from(&message);
+        assert_eq!(reference.msgid().map(AsRef::as_ref), Some("ErgoFixture1"));
     }
 }
