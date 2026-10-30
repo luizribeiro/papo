@@ -6,6 +6,10 @@ use papo_test_server::{DeploymentProfile, create_account, unique};
 use super::support::PASSWORD;
 use crate::Scenario;
 
+const CLIENT_CERTIFICATE: &[u8] = include_bytes!("../../../../papo/tests/data/client.pem");
+const CLIENT_KEY: &[u8] = include_bytes!("../../../../papo/tests/data/client.key");
+const CLIENT_CERTFP: &str = "60eb8e5dbf6aa3e388743d9250b29e3862759373b4610b9ba3c0ea2330b4bfc4";
+
 /// authenticates an account with SASL PLAIN
 #[scenario(
     requires(caps = ["sasl"]),
@@ -145,6 +149,49 @@ async fn sasl_mechanisms_reply(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| event.as_other().filter(|line| line.numeric() == Some(908)))
         .await?;
     assert!(mechanisms.get(1).is_some_and(|value| !value.is_empty()));
+    Ok(())
+}
+
+/// authenticates with SASL EXTERNAL using a mapped TLS certificate
+#[scenario(requires(caps = ["sasl=EXTERNAL"]), covers = ["ircv3.sasl.external"])]
+async fn sasl_external(s: Scenario) -> papo_testing::Result<()> {
+    if !matches!(
+        DeploymentProfile::from_env()?,
+        DeploymentProfile::ErgoDefault | DeploymentProfile::ErgoPersistent
+    ) {
+        return s.skip("the selected profile has no managed certificate mapping");
+    }
+
+    let mut owner = s.connect_as_account("external-owner").await?;
+    let account = crate::scenarios::support::logged_in_account(&owner.state()).clone();
+    owner
+        .send_raw(papo::Line::new("NS").with_params(["CERT", "ADD", CLIENT_CERTFP]))
+        .await?;
+    owner
+        .wait_for(|event| {
+            event.as_notice().filter(|message| {
+                crate::source_nick(&message.actor) == Some("NickServ")
+                    && message.text.contains("successfully added")
+            })
+        })
+        .await?;
+
+    let endpoint = papo::Endpoint::tls("localhost", s.server.tls_addr().port()).unwrap();
+    let alice = s
+        .connect_with(
+            s.configure_at("external", endpoint)?
+                .tls_ca_pem(std::fs::read(s.server.ca_pem_path())?)
+                .tls_client_cert(
+                    papo::CertificateChain::new(CLIENT_CERTIFICATE.to_vec()),
+                    papo::PrivateKey::new(CLIENT_KEY.to_vec()),
+                )
+                .sasl(Sasl::external()),
+        )
+        .await?;
+    assert_eq!(
+        crate::scenarios::support::logged_in_account(&alice.state()).as_ref(),
+        account.as_ref()
+    );
     Ok(())
 }
 

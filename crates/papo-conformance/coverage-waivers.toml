@@ -1,5 +1,4 @@
 [waivers]
-"ircv3.sasl.external" = "The managed servers do not provision a client certificate fingerprint mapped to an account."
 "draft.account-registration.verify" = "The managed servers expose no mail sink from which a verification code can be obtained."
 "core.tls.sni" = "The local harness has no TLS-terminating observer that can inspect the ClientHello server name."
 "draft.oper-tag" = "None of the six managed server profiles advertises draft/oper-tag, so a single local fixture cannot emit an operator tag."
