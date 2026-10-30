@@ -10,8 +10,8 @@ run() { local output=$1; shift
     >"$output"
 }
 cd "$(dirname "$0")/.."
-if ! cargo test --quiet --locked -p papo-core --lib --no-default-features -- --list \
-  | grep -q '^stable_build_tests::'; then
+listed=$(cargo test --quiet --locked -p papo-core --lib --no-default-features -- --list)
+if ! grep -q '^stable_build_tests::' <<<"$listed"; then
   echo "papo-core's stable-only unit tests are not listed" >&2
   exit 1
 fi
