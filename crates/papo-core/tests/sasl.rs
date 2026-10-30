@@ -110,6 +110,10 @@ fn debug_output_redacts_a_queued_oauth_bearer_response() {
     .update(queue_debug_marker)
     .inspect(|session| assert_session_debug_redacts(session, "oauth-token-7391"))
     .client("AUTHENTICATE biwsAWF1dGg9QmVhcmVyIG9hdXRoLXRva2VuLTczOTEBAQ==")
+    .server(":ergo.test 903 alice :SASL authentication successful")
+    .client("CAP END")
+    .server(":ergo.test 001 alice :Welcome to the Ergo test network")
+    .event(|event| matches!(event, Event::Line(line) if line.as_ref().command_is("001")))
     .client("PRIVMSG #papo :ordinary debug marker");
 }
 
