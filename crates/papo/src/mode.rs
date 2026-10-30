@@ -960,6 +960,16 @@ mod tests {
                 ))
             ));
         }
+        for request in [
+            client.mode("#papo").add_with('l', "25"),
+            client.mode("#papo").remove_with('l', "25"),
+        ] {
+            assert!(!matches!(
+                request.await,
+                Err(crate::Error::InvalidInput(crate::InvalidInput::InvalidMode(message)))
+                    if message.contains("channel key")
+            ));
+        }
     }
 
     fn state(line: &str) -> crate::State {
