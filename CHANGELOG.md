@@ -20,6 +20,9 @@ as disconnected if registration ends first, and `State::is_connected` remains fa
 JOIN requests now complete with a refusal for any target-naming 4xx/5xx numeric or `FAIL JOIN`,
 including server-specific invalid-channel numerics such as 448 and 479.
 
+SASL failure numerics for raw, post-registration authentication attempts are now reported as
+warnings without closing the connection or changing papo's completed SASL exchange.
+
 ### Migration from the 2026-10-24 API
 
 This section covers breaking changes since `46c832d`. Papo had not been released at that point,

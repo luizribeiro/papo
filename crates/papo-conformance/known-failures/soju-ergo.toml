@@ -159,13 +159,6 @@ spec = "https://ircv3.net/specs/extensions/sasl-3.2"
 evidence = "C: PASS bouncer-credentials; AUTHENTICATE PLAIN targets the bouncer session"
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
-[sasl_protocol_errors]
-reason = "soju treats a post-registration AUTHENTICATE abort as a fatal bouncer authentication failure"
-kind = "fixture-limit"
-spec = "https://ircv3.net/specs/extensions/sasl-3.2"
-evidence = "C: AUTHENTICATE PLAIN after registration | S: downstream connection closes"
-server_version = "soju 0.11.1 / Ergo 2.19.1"
-
 [setname]
 reason = "soju replaces the upstream real name with the nickname in relayed SETNAME state"
 kind = "server-bug"

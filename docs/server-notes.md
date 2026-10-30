@@ -101,7 +101,6 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 - `channel_metadata` (`soju 0.11.1 / Ergo 2.19.1`) — soju advertises a one-byte metadata value limit, preventing this channel metadata value ([spec](https://ircv3.net/specs/extensions/metadata)). Evidence: `S: CAP LS draft/metadata-3=max-value-bytes=1 | C: METADATA #review SET ... :triage`
 - `quit` (`soju 0.11.1 / Ergo 2.19.1`) — soju disconnects the downstream client without quitting its persistent upstream connection ([spec](https://modern.ircdocs.horse/#quit-message)). Evidence: `downstream C: QUIT :conformance complete | upstream S: connection remains attached`
 - `sasl_plain` (`soju 0.11.1 / Ergo 2.19.1`) — bouncer authentication replaces the scenario's direct upstream SASL credentials ([spec](https://ircv3.net/specs/extensions/sasl-3.2)). Evidence: `C: PASS bouncer-credentials; AUTHENTICATE PLAIN targets the bouncer session`
-- `sasl_protocol_errors` (`soju 0.11.1 / Ergo 2.19.1`) — soju treats a post-registration AUTHENTICATE abort as a fatal bouncer authentication failure ([spec](https://ircv3.net/specs/extensions/sasl-3.2)). Evidence: `C: AUTHENTICATE PLAIN after registration | S: downstream connection closes`
 - `server_queries` (`soju 0.11.1 / Ergo 2.19.1`) — soju keeps the upstream session attached after downstream QUIT, leaving no WHOWAS record to relay ([spec](https://modern.ircdocs.horse/#whowas-message)). Evidence: `downstream C: QUIT; WHOWAS alice | upstream connection remains attached; S: no 314 row`
 
 ### Observations

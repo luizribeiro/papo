@@ -425,6 +425,104 @@ fn already_authenticated_counts_as_success() {
     .client("CAP END");
 }
 
+fn registered_with_required_sasl() -> Transcript {
+    Transcript::new(Config::default().sasl(Sasl::plain("alice", papo_core::Secret::new("hunter2"))))
+        .connect_default()
+        .server("CAP * LS :sasl=PLAIN")
+        .client("CAP REQ :sasl")
+        .server("CAP * ACK :sasl")
+        .client("AUTHENTICATE PLAIN")
+        .server("AUTHENTICATE +")
+        .client("AUTHENTICATE AGFsaWNlAGh1bnRlcjI=")
+        .server(":soju.test 900 papo papo!u@host alice :You are now logged in as alice")
+        .server(":soju.test 903 papo :SASL authentication successful")
+        .client("CAP END")
+        .welcome(":soju.test 001 papo :Welcome to soju, papo")
+        .server(":soju.test 422 papo :No MOTD")
+        .event(|event| matches!(event, Event::Connected(_)))
+}
+
+#[test]
+fn raw_post_registration_sasl_abort_is_a_nonfatal_warning() {
+    registered_with_required_sasl()
+        .send(papo_proto::Line::new("AUTHENTICATE").param("PLAIN"))
+        .client("AUTHENTICATE PLAIN")
+        .server("AUTHENTICATE +")
+        .event(|event| {
+            matches!(event, Event::Line(message)
+                if message.as_ref().command_is("AUTHENTICATE"))
+        })
+        .send(papo_proto::Line::new("AUTHENTICATE").param("*"))
+        .client("AUTHENTICATE *")
+        .server(":soju.test 906 papo :SASL authentication aborted")
+        .event(|event| {
+            matches!(event, Event::AuthenticationFailed { reason, .. }
+                if reason == "SASL authentication aborted")
+        })
+        .inspect(|session| assert_eq!(session.account(), Some("alice")))
+        .no_client()
+        .no_event();
+}
+
+#[test]
+fn late_sasl_statuses_do_not_change_the_managed_exchange() {
+    for (numeric, reason) in [
+        ("902", "You must use a nick assigned to you"),
+        ("904", "SASL authentication failed"),
+        ("905", "SASL message too long"),
+    ] {
+        registered_with_required_sasl()
+            .server(&format!(":soju.test {numeric} papo :{reason}"))
+            .event(|event| {
+                matches!(event, Event::AuthenticationFailed { reason: actual, .. }
+                    if actual == reason)
+            })
+            .inspect(|session| assert_eq!(session.account(), Some("alice")))
+            .no_client()
+            .no_event();
+    }
+
+    for (line, numeric) in [
+        (
+            ":soju.test 907 papo :You have already authenticated using SASL",
+            "907",
+        ),
+        (
+            ":soju.test 908 papo EXTERNAL,PLAIN :are available SASL mechanisms",
+            "908",
+        ),
+    ] {
+        registered_with_required_sasl()
+            .server(line)
+            .event(|event| {
+                matches!(event, Event::Line(message)
+                    if message.as_ref().command_is(numeric))
+            })
+            .inspect(|session| assert_eq!(session.account(), Some("alice")))
+            .no_client()
+            .no_event();
+    }
+}
+
+#[test]
+fn in_exchange_sasl_failure_still_closes_required_authentication() {
+    Transcript::new(
+        Config::default().sasl(Sasl::plain("alice", papo_core::Secret::new("hunter2"))),
+    )
+    .connect_default()
+    .server("CAP * LS :sasl=PLAIN")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE PLAIN")
+    .server(":soju.test 904 papo :SASL authentication failed")
+    .event(|event| {
+        matches!(event, Event::Close { kind: CloseKind::SaslFailed, reason, .. }
+            if reason.contains("SASL authentication failed"))
+    })
+    .no_client()
+    .no_event();
+}
+
 #[test]
 fn authenticates_when_sasl_arrives_after_connect() {
     Transcript::new(
@@ -903,7 +1001,7 @@ fn rejects_scram_success_while_aborting_a_bad_server_proof() {
 }
 
 #[test]
-fn ignores_sasl_success_before_capability_ack() {
+fn does_not_accept_sasl_success_before_capability_ack() {
     for numeric in [903, 907] {
         for require_sasl in [true, false] {
             let sasl = Sasl::plain("alice", papo_core::Secret::new("hunter2"));
@@ -914,9 +1012,15 @@ fn ignores_sasl_success_before_capability_ack() {
                 .client("CAP REQ :sasl")
                 .server(&format!(
                     ":ergo.test {numeric} alice :SASL authentication successful"
-                ))
-                .no_client()
-                .server("CAP * NAK :sasl");
+                ));
+            let transcript = if numeric == 907 {
+                transcript.event(|event| {
+                    matches!(event, Event::Line(message) if message.as_ref().command_is("907"))
+                })
+            } else {
+                transcript
+            };
+            let transcript = transcript.no_client().server("CAP * NAK :sasl");
             if require_sasl {
                 transcript
                     .event(|event| {

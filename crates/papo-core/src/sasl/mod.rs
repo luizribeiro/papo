@@ -480,6 +480,24 @@ impl SaslSession {
     }
 
     fn handle_status(&mut self, now: Instant, message: &LineRef<'_>, outbox: &mut Outbox) -> bool {
+        if self.active.is_none() && !self.aborting {
+            if message.command_is("902")
+                || message.command_is("904")
+                || message.command_is("905")
+                || message.command_is("906")
+            {
+                outbox.event(crate::Event::AuthenticationFailed {
+                    reason: message
+                        .param(1)
+                        .unwrap_or("an unmanaged SASL request failed")
+                        .to_owned(),
+                });
+                return true;
+            }
+            if message.command_is("907") || message.command_is("908") {
+                return false;
+            }
+        }
         if message.command_is("900") {
             if let Some(account) = message.param(2) {
                 self.account = Some(account.to_owned());
