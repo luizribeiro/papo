@@ -99,10 +99,18 @@ impl State {
             self.nick = self.casemapping.nick(nick);
             let key = NameKey::new(join.channel, self.casemapping);
             if !self.channels.contains_key(&key) && self.channels.len() >= self.max_channels {
+                self.cancel_channel_join(join.channel);
                 self.warn_limit(StateLimit::Channels, outbox);
                 return Handled::Yes;
             }
-            self.channel_epoch = self.channel_epoch.wrapping_add(1);
+            let epoch = self
+                .pending_channel_epochs
+                .remove(&key)
+                .map(|(epoch, _)| epoch)
+                .unwrap_or_else(|| {
+                    self.channel_epoch = self.channel_epoch.wrapping_add(1);
+                    self.channel_epoch
+                });
             self.channel_lifecycle(ChannelLifecycle::Joined {
                 key,
                 channel: std::sync::Arc::new(Channel::new(
@@ -110,7 +118,7 @@ impl State {
                     self.casemapping,
                     isupport,
                     false,
-                    self.channel_epoch,
+                    epoch,
                 )),
             });
         }

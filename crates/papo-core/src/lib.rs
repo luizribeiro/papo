@@ -3679,6 +3679,7 @@ impl Session {
             .collect();
         for id in expired {
             self.invalidate_list_request(id);
+            self.cancel_channel_join_request(id);
             self.requests
                 .retain(|_, (pending, _, _, _, _)| *pending != id);
             self.unlabelled_requests.retain(|request| request.id != id);
@@ -3696,6 +3697,7 @@ impl Session {
                 if let ResponseMatcher::ListMode { channel, mode } = &request.matcher {
                     self.state.invalidate_mode_list(channel, *mode);
                 }
+                self.cancel_channel_join_matcher(&request.matcher);
                 self.away_messages.remove(&request.id);
                 self.outbox.event(Event::RequestTimedOut { id: request.id });
                 unlabelled_expired = true;
@@ -4290,6 +4292,7 @@ impl Session {
             if let Some(message) = away_message {
                 self.away_messages.insert(id, message);
             }
+            self.reserve_channel_join_matcher(&matcher);
             if track_sync {
                 self.unlabelled_requests.push_back(UnlabelledRequest {
                     id,
@@ -4333,6 +4336,7 @@ impl Session {
             self.outbox.transmit_ordered(ping, Some(*request));
         }
         let deferred = who_fence.is_some().then(|| line.clone());
+        self.reserve_channel_join_matcher(&matcher);
         self.unlabelled_requests.push_back(UnlabelledRequest {
             id,
             started: None,
@@ -4357,6 +4361,53 @@ impl Session {
             self.state.track_who(&channel);
         }
         Ok(id)
+    }
+
+    fn reserve_channel_join(&mut self, channel: &str) {
+        let before = self.state.change_generation();
+        self.state.reserve_channel_join(channel);
+        if before != self.state.change_generation() {
+            self.state_generation = self.state_generation.wrapping_add(1);
+        }
+    }
+
+    fn cancel_channel_join(&mut self, channel: &str) {
+        let before = self.state.change_generation();
+        self.state.cancel_channel_join(channel);
+        if before != self.state.change_generation() {
+            self.state_generation = self.state_generation.wrapping_add(1);
+        }
+    }
+
+    fn reserve_channel_join_matcher(&mut self, matcher: &ResponseMatcher) {
+        if let ResponseMatcher::Join(channel) = matcher {
+            self.reserve_channel_join(channel);
+        }
+    }
+
+    fn cancel_channel_join_matcher(&mut self, matcher: &ResponseMatcher) {
+        if let ResponseMatcher::Join(channel) = matcher
+            && self.state.channel(channel).is_none()
+        {
+            self.cancel_channel_join(channel);
+        }
+    }
+
+    fn cancel_channel_join_request(&mut self, id: RequestId) {
+        let channels: Vec<_> = self
+            .unlabelled_requests
+            .iter()
+            .filter(|request| request.id == id)
+            .filter_map(|request| match &request.matcher {
+                ResponseMatcher::Join(channel) => Some(channel.clone()),
+                _ => None,
+            })
+            .collect();
+        for channel in channels {
+            if self.state.channel(&channel).is_none() {
+                self.cancel_channel_join(&channel);
+            }
+        }
     }
 
     /// Authenticates as an IRC operator without copying the password into a plain line.
@@ -4787,6 +4838,7 @@ impl Session {
     /// Removes a request that the transport refused before writing it.
     #[doc(hidden)]
     pub fn __cancel_request(&mut self, id: RequestId) {
+        self.cancel_channel_join_request(id);
         self.requests
             .retain(|_, (pending, _, _, _, _)| *pending != id);
         self.unlabelled_requests.retain(|pending| pending.id != id);

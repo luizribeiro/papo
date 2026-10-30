@@ -9,6 +9,52 @@ fn server(session: &mut Session, line: &str) {
 }
 
 #[test]
+fn channel_message_during_join_keeps_the_reserved_membership() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("papo"));
+    session.join(now, "#review", None).unwrap();
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"JOIN #review\r\n"
+    );
+
+    server(
+        &mut session,
+        "@msgid=Ergo8ZZ5 :alice!~alice@cloak.example PRIVMSG #review :!ping",
+    );
+    let guard = std::iter::from_fn(|| session.poll_event())
+        .find_map(|event| match event {
+            Event::Line(line) => line.__channel_guard().cloned(),
+            _ => None,
+        })
+        .unwrap();
+    assert_eq!(
+        session.state().__resolve_channel(&guard).as_deref(),
+        Some("#review")
+    );
+
+    server(&mut session, ":papo!p@localhost JOIN #review");
+    assert_eq!(
+        session.state().__resolve_channel(&guard).as_deref(),
+        Some("#review")
+    );
+    session
+        .send_target_guarded_text_detailed(
+            now,
+            TextKind::Privmsg,
+            "#review",
+            "pong",
+            &[],
+            Some(TargetGuard::Channel(guard)),
+        )
+        .unwrap();
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"PRIVMSG #review pong\r\n"
+    );
+}
+
+#[test]
 fn membership_guard_follows_rename_and_expires_on_part() {
     let mut session = Session::new(Config::default().nick("papo"));
     server(

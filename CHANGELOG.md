@@ -351,6 +351,8 @@ Dropping the `Driver` still ends the stream without a final `Event::Disconnected
 
 #### Other observable corrections
 
+- Channel replies received while a requested join is completing retain that pending membership
+  identity, so they no longer fail spuriously with `Error::TargetGone` before the JOIN echo.
 - Incoming text, server reasons, malformed lines, and URL failures use bounded, terminal-safe
   display text. Channel keys and other credentials remain redacted in state, events, raw request
   responses, errors, and `Debug` output.
