@@ -1883,6 +1883,14 @@ impl LineEnvelope {
         }
     }
 
+    pub(crate) fn with_account(mut self, account: Option<&str>) -> Self {
+        if !self.account_known {
+            self.account = account.map(str::to_owned);
+            self.account_known = true;
+        }
+        self
+    }
+
     /// Returns the server-assigned message identifier, when supplied.
     #[must_use]
     pub fn msgid(&self) -> Option<&str> {

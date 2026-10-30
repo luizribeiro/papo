@@ -2,7 +2,7 @@
 
 mod support;
 
-use papo_core::{Account, Authorship, Config, Event};
+use papo_core::{Authorship, Config, Event};
 use support::Transcript;
 
 #[test]
@@ -14,13 +14,14 @@ fn reports_extended_and_plain_join_facts() {
                 event,
                 Event::Joined {
                     actor,
-                    account: Account::LoggedIn(account),
+                    envelope,
                     realname: Some(realname),
                     channel,
                     authorship: Authorship::Other,
                     ..
                 } if actor == "alice!~a@host"
-                    && account == "alice"
+                    && envelope.account() == Some("alice")
+                    && envelope.__account_known()
                     && realname == "Alice Liddell"
                     && channel == "#chan"
             )
@@ -31,10 +32,13 @@ fn reports_extended_and_plain_join_facts() {
                 event,
                 Event::Joined {
                     actor,
-                    account: Account::LoggedOut,
+                    envelope,
                     realname: Some(realname),
                     ..
-                } if actor == "bob!~b@host" && realname == "Bob"
+                } if actor == "bob!~b@host"
+                    && envelope.account().is_none()
+                    && envelope.__account_known()
+                    && realname == "Bob"
             )
         })
         .server("@account=carol :carol!~c@host JOIN #chan")
@@ -43,10 +47,10 @@ fn reports_extended_and_plain_join_facts() {
                 event,
                 Event::Joined {
                     actor,
-                    account: Account::Unknown,
+                    envelope,
                     realname: None,
                     ..
-                } if actor == "carol!~c@host"
+                } if actor == "carol!~c@host" && envelope.account() == Some("carol")
             )
         });
 }
