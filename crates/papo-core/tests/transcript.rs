@@ -8,6 +8,14 @@ use papo_core::{Config, Event};
 use papo_proto::Line;
 use support::{TEST_DEADLINE, Transcript};
 
+fn registered() -> Transcript {
+    Transcript::new(Config::default())
+        .connect_default()
+        .welcome(":ergo.test 001 papo :Welcome to Ergo")
+        .server(":ergo.test 422 papo :MOTD File is missing")
+        .event(|event| matches!(event, Event::Connected(_)))
+}
+
 #[test]
 fn shared_test_deadline_is_five_seconds() {
     assert_eq!(TEST_DEADLINE, Duration::from_secs(5));
@@ -15,8 +23,7 @@ fn shared_test_deadline_is_five_seconds() {
 
 #[test]
 fn drives_server_lines_events_and_time() {
-    Transcript::new(Config::default())
-        .connect_default()
+    registered()
         .send(Line::new("NICK").with_params(["tester"]))
         .client("NICK tester")
         .server(":ergo.test NOTICE tester :Connection established")
@@ -29,8 +36,7 @@ fn drives_server_lines_events_and_time() {
 
 #[test]
 fn plays_trace_file_contents() {
-    Transcript::new(Config::default())
-        .connect_default()
+    registered()
         .send(Line::new("NICK").with_params(["tester"]))
         .play(include_str!("data/harness.irc"))
         .event(|event| matches!(event, Event::Line(message) if message.as_ref().command_is("NOTICE")))
@@ -40,8 +46,7 @@ fn plays_trace_file_contents() {
 
 #[test]
 fn loads_trace_files() {
-    Transcript::new(Config::default())
-        .connect_default()
+    registered()
         .send(Line::new("NICK").with_params(["tester"]))
         .load("tests/data/harness.irc")
         .event(|event| matches!(event, Event::Line(message) if message.as_ref().command_is("NOTICE")))
@@ -66,8 +71,7 @@ mod failure_reports {
     #[test]
     fn reports_unexpected_client_output_with_a_readable_diff() {
         let panic = panic::catch_unwind(|| {
-            Transcript::new(Config::default())
-                .connect_default()
+            registered()
                 .send(Line::new("NICK").with_params(["tester"]))
                 .client("NICK someone-else");
         })
@@ -94,8 +98,7 @@ mod failure_reports {
     #[test]
     fn drop_reports_unexamined_output() {
         let panic = panic::catch_unwind(|| {
-            Transcript::new(Config::default())
-                .connect_default()
+            registered()
                 .send(Line::new("NICK").with_params(["tester"]))
                 .server(":ergo.test NOTICE tester :Connection established");
         })
@@ -108,8 +111,7 @@ mod failure_reports {
 
 #[test]
 fn can_explicitly_ignore_remaining_output() {
-    Transcript::new(Config::default())
-        .connect_default()
+    registered()
         .send(Line::new("NICK").with_params(["tester"]))
         .server(":ergo.test NOTICE tester :Connection established")
         .ignore_rest();
