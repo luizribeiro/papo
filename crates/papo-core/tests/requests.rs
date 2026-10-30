@@ -3008,11 +3008,7 @@ fn labelled_join_aborts_once_before_any_bytes_are_transmitted() {
 #[test]
 fn abort_reports_when_a_labelled_privmsg_reached_the_transport() {
     let now = Instant::now();
-    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
-    session.handle_connected(now);
-    session.handle_line(now, b":ergo.test CAP * LS :echo-message labeled-response");
-    session.handle_line(now, b":ergo.test CAP * ACK :echo-message labeled-response");
-    while session.poll_transmit().is_some() {}
+    let mut session = echo_session(now);
     let id = session
         .send_text_detailed(now, TextKind::Privmsg, "#papo", "deploy complete", &[])
         .unwrap()
