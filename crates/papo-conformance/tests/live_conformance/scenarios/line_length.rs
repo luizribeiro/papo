@@ -74,6 +74,37 @@ async fn connect_line_lengths(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// answers UnrealIRCd's registration ping cookie with the matching PONG
+#[scenario(covers = ["base.ping.server-initiated"])]
+#[allow(
+    clippy::unused_async,
+    reason = "conformance scenarios use one async interface"
+)]
+async fn server_ping_during_registration(s: Scenario) -> papo_testing::Result<()> {
+    if papo_test_server::DeploymentProfile::from_env()?
+        != papo_test_server::DeploymentProfile::UnrealIrcd
+    {
+        return s.skip("the selected profile has no deterministic registration PING");
+    }
+
+    let mut connection = open_connection(&s)?;
+    for _ in 0..256 {
+        let bytes = read_bounded_line(&mut connection)?
+            .ok_or_else(|| io::Error::other("server closed before its registration PING"))?;
+        let measured = measure(&bytes)?;
+        let (_, arguments) = command_parts(&bytes, measured.tags)?;
+        if measured.command == "PING" {
+            assert!(!arguments.is_empty());
+            connection.get_mut().write_all(b"PONG ")?;
+            connection.get_mut().write_all(arguments)?;
+            connection.get_mut().write_all(b"\r\n")?;
+            connection.get_mut().flush()?;
+            return Ok(());
+        }
+    }
+    Err(io::Error::other("server omitted its registration PING").into())
+}
+
 fn open_connection(s: &Scenario) -> io::Result<BufReader<TcpStream>> {
     let mut stream = TcpStream::connect(s.server.plaintext_addr())?;
     stream.set_read_timeout(Some(Duration::from_secs(10)))?;
