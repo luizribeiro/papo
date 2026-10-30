@@ -54,16 +54,29 @@ async fn cap_notify_new(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
-/// negotiates multiline CAP 302 and observes a NAK
+/// negotiates CAP 302 and observes a NAK
 #[scenario(covers = [
     "base.connreg.cap-interleave",
     "ircv3.cap.ls-req-ack",
-    "ircv3.cap.nak-response",
-    "core.cap.ls-302-multiline"
+    "ircv3.cap.nak-response"
 ])]
 async fn capability_negotiation(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
-    // CAP framing is inspected raw because continuation markers and NAK are the behavior under test.
+    let nak = alice
+        .request_raw(papo::Line::new("CAP").with_params(["REQ", "papo.example/unavailable"]))
+        .await?;
+    assert_eq!(nak.len(), 1);
+    assert_eq!(nak[0].command(), "CAP");
+    assert_eq!(nak[0].get(1), Some("NAK"));
+    assert_eq!(nak[0].get(2), Some("papo.example/unavailable"));
+    Ok(())
+}
+
+/// marks every non-final CAP LS 302 line as continued
+#[scenario(covers = ["core.cap.ls-302-multiline"])]
+async fn capability_negotiation_multiline(s: Scenario) -> papo_testing::Result<()> {
+    let alice = s.connect("alice").await?;
+    // CAP framing is inspected raw because continuation markers are the behavior under test.
     let lines = alice
         .request_raw(papo::Line::new("CAP").with_params(["LS", "302"]))
         .await?;
@@ -79,14 +92,6 @@ async fn capability_negotiation(s: Scenario) -> papo_testing::Result<()> {
     let last = lines.last().expect("CAP LS returned at least two lines");
     assert_eq!(last.get(1), Some("LS"));
     assert_ne!(last.get(2), Some("*"));
-
-    let nak = alice
-        .request_raw(papo::Line::new("CAP").with_params(["REQ", "papo.example/unavailable"]))
-        .await?;
-    assert_eq!(nak.len(), 1);
-    assert_eq!(nak[0].command(), "CAP");
-    assert_eq!(nak[0].get(1), Some("NAK"));
-    assert_eq!(nak[0].get(2), Some("papo.example/unavailable"));
     Ok(())
 }
 

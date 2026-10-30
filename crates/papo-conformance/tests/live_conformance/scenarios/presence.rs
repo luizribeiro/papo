@@ -737,7 +737,7 @@ fn oper_credentials(s: &Scenario) -> papo_testing::Result<(String, String)> {
     let profile = std::env::var("PAPO_TEST_PROFILE").unwrap_or_else(|_| "ergo-default".into());
     if matches!(
         profile.as_str(),
-        "ergo-default" | "ergo-persistent" | "unrealircd"
+        "ergo-default" | "ergo-persistent" | "solanum" | "unrealircd"
     ) {
         return Ok((
             papo_test_server::OPER_NAME.into(),

@@ -19,7 +19,7 @@ fn name_rules(state: &papo::State) -> papo::NameRules<'_> {
 )]
 async fn netsplit_members_are_quits(s: Scenario) -> papo_testing::Result<()> {
     if std::env::var("PAPO_TEST_PROFILE").unwrap_or_default() != "solanum" {
-        return s.skip("the selected profile has no managed user-bearing server link");
+        return s.skip("the selected server does not wrap netsplits in a batch");
     }
     let mut alice = s.connect_as_account("alice").await?;
     let channel = s.channel_name();
@@ -1454,11 +1454,11 @@ async fn channel_mode_exceptions(s: Scenario) -> papo_testing::Result<()> {
 }
 
 /// prevents an authenticated account from joining through an account extban
-#[scenario(covers = ["ircv3.account-extban"])]
+#[scenario(
+    requires(isupport = ["ACCOUNTEXTBAN"]),
+    covers = ["ircv3.account-extban"]
+)]
 async fn account_extban(s: Scenario) -> papo_testing::Result<()> {
-    if std::env::var("PAPO_TEST_PROFILE").unwrap_or_else(|_| "ergo-default".into()) != "solanum" {
-        return s.skip("the selected profile does not expose Solanum's account extban syntax");
-    }
     let alice = s.connect("alice").await?;
     let bob = s.connect_as_account("bob").await?;
     let account = crate::scenarios::support::logged_in_account(&bob.state()).clone();
@@ -1466,7 +1466,7 @@ async fn account_extban(s: Scenario) -> papo_testing::Result<()> {
     alice.join(&channel).await?;
     alice
         .mode(&channel)
-        .add_with('b', format!("$a:{account}"))
+        .ban(papo::Extban::account(&account)?)
         .await?;
 
     let Error::Server(refusal) = bob.join(&channel).await.unwrap_err() else {

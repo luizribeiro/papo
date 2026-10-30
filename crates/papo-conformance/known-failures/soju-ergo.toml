@@ -110,6 +110,13 @@ spec = "https://modern.ircdocs.horse/#who-message"
 evidence = "downstream C: AWAY :reading WHO reply fields | C: WHO #review | S: 352 row has H rather than G; WHOIS has no 301"
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
+[wildcard_who_stays_separate_from_channel_who]
+reason = "soju does not complete a wildcard WHO issued alongside a channel WHO"
+kind = "not-implemented"
+spec = "https://modern.ircdocs.horse/#who-message"
+evidence = "C: WHO *; C: WHO #channel | S: channel WHO rows and end; no wildcard WHO completion"
+server_version = "soju 0.11.1 / Ergo 2.19.1"
+
 [targmax_privmsg]
 reason = "TARGMAX defines an accepted target count but does not require a refusal or a particular excess-target behavior"
 kind = "spec-ambiguity"

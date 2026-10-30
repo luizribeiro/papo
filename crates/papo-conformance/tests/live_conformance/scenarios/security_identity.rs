@@ -70,7 +70,8 @@ async fn private_reply_after_nick_takeover(s: Scenario) -> papo_testing::Result<
 /// keeps a broadcast out of the replyable message event
 #[scenario(covers = ["security.reply.broadcast-private"])]
 async fn broadcast_is_a_server_notice(s: Scenario) -> papo_testing::Result<()> {
-    if profile() != "solanum" {
+    let profile = profile();
+    if !matches!(profile.as_str(), "solanum" | "unrealircd") {
         return s.skip("the selected profile does not preserve operator broadcast masks");
     }
     let oper = s.connect("oper").await?;
@@ -81,11 +82,13 @@ async fn broadcast_is_a_server_notice(s: Scenario) -> papo_testing::Result<()> {
     )
     .await?;
 
-    oper.send_raw(papo::Line::privmsg(
-        "$$*.papo.test",
-        "deployment status requested",
-    ))
-    .await?;
+    let target = if profile == "solanum" {
+        "$$*.papo.test"
+    } else {
+        "$*.papo.test"
+    };
+    oper.send_raw(papo::Line::privmsg(target, "deployment status requested"))
+        .await?;
     let broadcast = recipient
         .wait_for(|event| {
             event

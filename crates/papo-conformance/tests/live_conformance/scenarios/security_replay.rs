@@ -134,9 +134,6 @@ async fn abandoned_batch_members_stay_replay_only(_s: Scenario) -> papo_testing:
 /// keeps a message refusal separate from a concurrent unlabelled PART
 #[scenario(covers = ["security.r4.unlabelled-command-numerics"])]
 async fn message_refusal_does_not_fail_part(s: Scenario) -> papo_testing::Result<()> {
-    if profile() != "solanum" {
-        return s.skip("the selected profile does not exercise Solanum's unlabelled 404 ordering");
-    }
     let alice = s.connect("alice").await?;
     let mut bob = s
         .connect_with(
@@ -168,9 +165,6 @@ async fn message_refusal_does_not_fail_part(s: Scenario) -> papo_testing::Result
 /// keeps wildcard WHO rows separate from a concurrent channel WHO
 #[scenario(covers = ["security.r5.wildcard-who-routing"])]
 async fn wildcard_who_stays_separate_from_channel_who(s: Scenario) -> papo_testing::Result<()> {
-    if profile() != "solanum" {
-        return s.skip("the selected profile does not exercise Solanum's unlabelled WHO replies");
-    }
     let alice = s.connect("alice").await?;
     let bob = s
         .connect_with(s.configure("bob")?.disable(papo::Feature::LabeledResponse))

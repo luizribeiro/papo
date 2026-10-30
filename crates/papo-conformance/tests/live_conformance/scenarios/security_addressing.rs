@@ -52,7 +52,8 @@ async fn multiline_dm_after_nick_change(s: Scenario) -> papo_testing::Result<()>
     covers = ["security.history.stale-dm-target"]
 )]
 async fn stale_dm_history_target(s: Scenario) -> papo_testing::Result<()> {
-    if std::env::var("PAPO_TEST_PROFILE").as_deref() != Ok("soju-ergo") {
+    let profile = std::env::var("PAPO_TEST_PROFILE").unwrap_or_else(|_| "ergo-default".into());
+    if !matches!(profile.as_str(), "ergo-persistent" | "soju-ergo") {
         return s.skip("the selected profile does not retain raw direct-message targets");
     }
     let mut writer = s.connect("writer").await?;

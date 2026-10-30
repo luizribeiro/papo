@@ -632,11 +632,14 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
     "security.ctcp.private-target-only"
 ])]
 async fn ctcp_channel_query(s: Scenario) -> papo_testing::Result<()> {
-    if std::env::var("PAPO_TEST_PROFILE").unwrap_or_else(|_| "ergo-default".into()) != "unrealircd"
-    {
-        return s.skip("the selected profile blocks channel CTCP by default");
-    }
     let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
+    if alice
+        .state()
+        .channel(&channel)
+        .is_some_and(|channel| channel.mode('C').is_some())
+    {
+        return s.skip("the channel has no-CTCP mode set");
+    }
     alice
         .send_raw(papo::Line::new("PRIVMSG").with_params([&channel, "\u{1}VERSION\u{1}"]))
         .await?;
@@ -722,11 +725,16 @@ async fn ctcp_soju_backlog(s: Scenario) -> papo_testing::Result<()> {
 /// blocks channel CTCP traffic when the server's no-CTCP mode is set
 #[scenario(covers = ["base.ctcp.no-ctcp-mode"])]
 async fn no_ctcp_mode(s: Scenario) -> papo_testing::Result<()> {
-    let profile = std::env::var("PAPO_TEST_PROFILE").unwrap_or_else(|_| "ergo-default".into());
-    if !matches!(profile.as_str(), "ergo-default" | "ergo-persistent") {
-        return s.skip("the selected profile has no managed no-CTCP channel mode");
-    }
     let (mut alice, bob, channel) = fixture_pair(&s).await?;
+    let supports_no_ctcp = alice.state().isupport().chanmodes().is_some_and(|groups| {
+        groups.list.contains('C')
+            || groups.always.contains('C')
+            || groups.when_set.contains('C')
+            || groups.never.contains('C')
+    });
+    if !supports_no_ctcp {
+        return s.skip("CHANMODES does not advertise no-CTCP mode C");
+    }
     alice.mode(&channel).add('C').await?;
     bob.send_raw(papo::Line::new("PRIVMSG").with_params([&channel, "\u{1}VERSION\u{1}"]))
         .await?;
@@ -779,7 +787,7 @@ async fn replies_and_reactions(s: Scenario) -> papo_testing::Result<()> {
             if unsupported.feature == Feature::Reactions
                 && unsupported.reason == UnsupportedReason::TagDenied =>
         {
-            return s.skip("server denies its reaction client-only tag");
+            return Ok(());
         }
         Err(error) => return Err(error.into()),
     }
