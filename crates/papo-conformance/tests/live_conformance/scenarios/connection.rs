@@ -316,6 +316,38 @@ async fn server_queries(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// lists linked servers or reports that LINKS is unsupported
+#[scenario(covers = ["base.links.basic"])]
+async fn links(s: Scenario) -> papo_testing::Result<()> {
+    let alice = s.connect("alice").await?;
+    let replies = alice.request_raw(papo::Line::new("LINKS")).await?;
+    if replies.iter().any(|line| line.numeric() == Some(421)) {
+        assert_eq!(
+            replies
+                .iter()
+                .filter(|line| line.numeric() == Some(421))
+                .count(),
+            1
+        );
+        return Ok(());
+    }
+
+    let rows = replies
+        .iter()
+        .filter(|line| line.numeric() == Some(364))
+        .collect::<Vec<_>>();
+    assert!(!rows.is_empty());
+    for server in ["irc.papo.test", "services.papo.test"] {
+        assert!(
+            rows.iter()
+                .any(|line| line.params().iter().any(|param| param == server)),
+            "LINKS omitted {server}: {replies:?}"
+        );
+    }
+    assert!(replies.iter().any(|line| line.numeric() == Some(365)));
+    Ok(())
+}
+
 /// lists public channels through the typed LIST request
 #[scenario(covers = ["base.list.basic"])]
 async fn channel_list(s: Scenario) -> papo_testing::Result<()> {
