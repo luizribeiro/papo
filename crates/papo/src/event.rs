@@ -995,27 +995,25 @@ impl ServerNotice {
         } else {
             Audience::Me
         };
-        let Some(source) = message.source() else {
+        let Some(prefix) = message.raw_source() else {
             return Err(raw);
         };
-        let actor = match source {
-            papo_proto::Source::User { .. } => {
-                let Some(user) = source::user_from_line(
-                    &message,
-                    isupport.casemapping(),
-                    origin,
-                    account_tag_enabled,
-                    prove_not_bot,
-                ) else {
-                    return Err(raw);
-                };
-                Source::User(user)
-            }
-            papo_proto::Source::Server(_) => {
-                source::from_proto_with_origin(source, isupport.casemapping(), origin)
-            }
+        let envelope = line_envelope_with_account_tag(
+            &message,
+            isupport.casemapping(),
+            origin,
+            account_tag_enabled,
+            received_at,
+        );
+        let Some(actor) = source::from_line(
+            source::LinePrefix::Raw(prefix),
+            &envelope,
+            isupport.casemapping(),
+            origin,
+            prove_not_bot,
+        ) else {
+            return Err(raw);
         };
-        let envelope = line_envelope(&message, isupport.casemapping(), origin, received_at);
         let receipt = match &to {
             Audience::Channel(channel) => crate::message_ref::Receipt::new(
                 actor.clone(),
@@ -1222,17 +1220,6 @@ fn message_metadata(
         Conversation::Private(nick) => nick.origin(),
         _ => crate::Origin::NONE,
     };
-    let actor = match message.source()? {
-        papo_proto::Source::User { .. } => Source::User(source::user_from_line(
-            message,
-            isupport.casemapping(),
-            origin,
-            account_tag_enabled,
-            prove_not_bot,
-        )?),
-        papo_proto::Source::Server(server) => Source::Server(server.into()),
-    };
-    let tags = Tags::from_message(message);
     let envelope = line_envelope_with_account_tag(
         message,
         isupport.casemapping(),
@@ -1240,6 +1227,14 @@ fn message_metadata(
         account_tag_enabled,
         received_at,
     );
+    let actor = source::from_line(
+        source::LinePrefix::Raw(message.raw_source()?),
+        &envelope,
+        isupport.casemapping(),
+        origin,
+        prove_not_bot,
+    )?;
+    let tags = Tags::from_message(message);
     let reply_to = tag_owned(message, &["+reply", "+draft/reply"]).map(MessageId::from);
     #[cfg(feature = "unstable")]
     let relayed_by = tag_owned(message, &[crate::cap::RELAYMSG.as_str()])
@@ -1302,15 +1297,6 @@ pub(crate) struct EventEnvelope {
     pub(crate) account: Account,
     pub(crate) bot: bool,
     pub(crate) oper: Option<Oper>,
-}
-
-pub(crate) fn line_envelope(
-    line: &LineRef<'_>,
-    casemapping: Casemapping,
-    origin: crate::Origin,
-    received_at: SystemTime,
-) -> EventEnvelope {
-    line_envelope_with_account_tag(line, casemapping, origin, false, received_at)
 }
 
 impl EventEnvelope {
