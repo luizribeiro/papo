@@ -15,32 +15,22 @@ pub struct UserSource {
 }
 
 impl UserSource {
-    pub(crate) fn identity(nick: Nick, account: Account) -> Self {
-        Self {
-            nick,
-            username: None,
-            host: None,
-            account,
-            is_bot: None,
-            oper: None,
-        }
-    }
-
     pub(crate) fn set_account(&mut self, account: Account) {
         self.account = account;
     }
 
-    pub(crate) fn from_monitor(
+    pub(crate) fn from_state(
         nick: &Nick,
         username: Option<String>,
         host: Option<String>,
+        account: Account,
         origin: crate::Origin,
     ) -> Self {
         Self {
             nick: origin.__nick(nick.casemapping(), nick.as_ref()),
             username: username.filter(|_| host.is_some()),
             host,
-            account: Account::Unknown,
+            account,
             is_bot: None,
             oper: None,
         }

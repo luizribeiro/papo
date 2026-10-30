@@ -2122,7 +2122,7 @@ impl TagMessage {
 /// A server-relayed message redaction.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Redacted {
-    /// Identity, time, and account tags from the line.
+    /// Identity and time facts from the line.
     pub envelope: LineEnvelope,
     /// Actor prefix without its leading colon.
     pub actor: String,
@@ -2651,7 +2651,7 @@ pub enum Event {
     /// A user left a shared channel with `PART`.
     #[non_exhaustive]
     Parted {
-        /// Identity, time, and account tags from the line.
+        /// Identity and time facts from the line.
         envelope: LineEnvelope,
         /// The departing user's prefix.
         actor: String,
@@ -2667,7 +2667,7 @@ pub enum Event {
     /// A user was removed from a shared channel with `KICK`.
     #[non_exhaustive]
     Kicked {
-        /// Identity, time, and account tags from the line.
+        /// Identity and time facts from the line.
         envelope: LineEnvelope,
         /// The affected channel.
         channel: ChannelName,
@@ -2685,7 +2685,7 @@ pub enum Event {
     /// A user was invited to a channel.
     #[non_exhaustive]
     Invited {
-        /// Identity and time tags from the invitation line.
+        /// Identity and time facts from the invitation line.
         envelope: LineEnvelope,
         /// The invited channel.
         channel: ChannelName,
@@ -2701,7 +2701,7 @@ pub enum Event {
     /// A user sharing channels with the session disconnected.
     #[non_exhaustive]
     Quit {
-        /// Identity, time, and account tags from the line.
+        /// Identity and time facts from the line.
         envelope: LineEnvelope,
         /// The disconnected user's prefix.
         actor: String,
@@ -2719,7 +2719,7 @@ pub enum Event {
     /// A user changed nickname.
     #[non_exhaustive]
     NickChanged {
-        /// Identity, time, and account tags from the line.
+        /// Identity and time facts from the line.
         envelope: LineEnvelope,
         /// The renamed user's prefix before the change.
         actor: String,
@@ -2735,7 +2735,7 @@ pub enum Event {
     /// A joined channel was renamed.
     #[non_exhaustive]
     ChannelRenamed {
-        /// Identity and time tags from the rename line.
+        /// Identity and time facts from the rename line.
         envelope: LineEnvelope,
         /// The previous channel name.
         old: ChannelName,
@@ -2809,7 +2809,7 @@ pub enum Event {
     /// A user or channel mode changed.
     #[non_exhaustive]
     ModeChanged {
-        /// Identity, time, and account tags from the line.
+        /// Identity and time facts from the line.
         envelope: LineEnvelope,
         /// User or channel whose modes changed.
         subject: Subject,
@@ -2827,7 +2827,7 @@ pub enum Event {
     /// A channel topic changed live.
     #[non_exhaustive]
     TopicChanged {
-        /// Identity, time, and account tags from the line.
+        /// Identity and time facts from the line.
         envelope: LineEnvelope,
         /// The affected channel.
         channel: ChannelName,

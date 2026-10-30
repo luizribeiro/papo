@@ -1960,14 +1960,15 @@ pub(crate) fn from_core_with_receipt(
                 Conversation::Private(nick) => Some(state.__reply_token_for(nick)),
                 _ => None,
             });
-            let Some(actor) = source::user_from_prefix(
-                &change.actor,
-                casemapping,
-                origin,
-                Account::Unknown,
-                None,
-                None,
-            ) else {
+            let envelope = EventEnvelope {
+                msgid: None,
+                server_time: change.server_time,
+                received_at,
+                account: Account::Unknown,
+                bot: false,
+                oper: None,
+            };
+            let Some(actor) = user_from_raw(&change.actor, &envelope) else {
                 return CoreEvent::Unknown;
             };
             let authorship = Authorship::from_core(change.authorship);
@@ -2531,8 +2532,13 @@ pub(crate) fn from_core_with_receipt(
             ..
         } => {
             let envelope = map_envelope(&envelope);
-            let Some(actor) = source::from_core_with_account(actor, origin, envelope.account)
-            else {
+            let Some(actor) = source::from_line(
+                source::LinePrefix::Core(actor),
+                &envelope,
+                casemapping,
+                origin,
+                prove_not_bot,
+            ) else {
                 return CoreEvent::Unknown;
             };
             Event::ModeChanged(ModeChanged {
@@ -2559,8 +2565,13 @@ pub(crate) fn from_core_with_receipt(
             ..
         } => {
             let envelope = map_envelope(&envelope);
-            let Some(actor) = source::from_core_with_account(actor, origin, envelope.account)
-            else {
+            let Some(actor) = source::from_line(
+                source::LinePrefix::Core(actor),
+                &envelope,
+                casemapping,
+                origin,
+                prove_not_bot,
+            ) else {
                 return CoreEvent::Unknown;
             };
             Event::TopicChanged(TopicChanged {
@@ -2582,7 +2593,7 @@ pub(crate) fn from_core_with_receipt(
             host,
             ..
         } => {
-            let subject = UserSource::from_monitor(&nick, username, host, origin);
+            let subject = UserSource::from_state(&nick, username, host, Account::Unknown, origin);
             let reply_token = reply_state.map(|state| state.__reply_token_for(subject.nick()));
             let receipt = crate::message_ref::Receipt::without_recipient(
                 Source::User(subject.clone()),
