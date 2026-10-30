@@ -1155,6 +1155,48 @@ mod tests {
     }
 
     #[test]
+    fn live_and_history_build_the_same_actor_from_one_line() {
+        let raw = "@account=alice;bot;draft/oper=network-admin;msgid=RfcBTzyxY120019 :alice!~a@staff.example PART #papo :Deploying release";
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().nick("papo"));
+        session.handle_line(now, b":papo!~p@client.example JOIN #papo");
+        session.handle_line(
+            now,
+            b"@account=alice :alice!~a@staff.example JOIN #papo alice :Alice Example",
+        );
+        while session.poll_event().is_some() {}
+        session.handle_line(now, raw.as_bytes());
+        let live = crate::event_impl::from_core(
+            session.poll_event().expect("live part event"),
+            session.isupport().casemapping(),
+            crate::Origin::NONE,
+            true,
+            true,
+            UNIX_EPOCH,
+        );
+        let crate::event_impl::CoreEvent::Forward(PageEvent::Parted(live)) = live else {
+            panic!("expected live part")
+        };
+
+        let historical = history_item(
+            papo_core::HistoryItem::Parted(HistoryLine {
+                line: LineRef::parse(raw).unwrap().to_owned(),
+                context: false,
+                authorship: papo_core::Authorship::Other,
+                subject_authorship: papo_core::Authorship::Unknown,
+            }),
+            None,
+            &crate::Client::disconnected_for_test(),
+            UNIX_EPOCH,
+        );
+        let PageEvent::Parted(historical) = historical else {
+            panic!("expected historical part")
+        };
+
+        assert_eq!(live.actor, historical.actor);
+    }
+
+    #[test]
     fn converts_ids_timestamps_and_message_events() {
         assert!(
             matches!(HistoryReference::from(crate::MessageId::from("2Zl7JeYG6I8fG9q1lJ55BQ")).value, MsgRef::Msgid(id) if id == "2Zl7JeYG6I8fG9q1lJ55BQ")
