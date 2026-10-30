@@ -151,7 +151,7 @@ async fn foreign_rename_into_own_nick_keeps_own_identity() {
     assert_eq!(client.state().username(), "papo");
 }
 
-#[tokio::test]
+#[tokio::test(start_paused = true)]
 async fn oversized_unlabelled_list_returns_a_state_limit_error() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("irc://hostile.offline.test", "papo")
