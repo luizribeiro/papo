@@ -2003,6 +2003,7 @@ fn sweeps_joined_channels_with_a_rate_limited_whox_query() {
     .client("CAP LS 302")
     .client("NICK emily")
     .client("USER papo 0 * papo")
+    .welcome(":ergo.test 001 emily :Welcome to Ergo")
     .send(Line::privmsg("#papo", "warmup"))
     .client("PRIVMSG #papo warmup")
     .server(":ergo.test 005 emily WHOX BOT=B PREFIX=(ov)@+ :are supported")
