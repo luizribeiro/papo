@@ -508,6 +508,12 @@ async fn tls_certificate_rejected(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// sends the configured TLS server name in the `ClientHello`
+#[scenario(covers = ["core.tls.sni"])]
+async fn tls_sni(s: Scenario) -> papo_testing::Result<()> {
+    process_owned::tls_sni(s).await
+}
+
 /// upgrades plaintext to TLS and persists the advertised STS policy
 #[scenario(covers = ["core.sts.upgrade", "core.sts.persistence"])]
 async fn sts(s: Scenario) -> papo_testing::Result<()> {

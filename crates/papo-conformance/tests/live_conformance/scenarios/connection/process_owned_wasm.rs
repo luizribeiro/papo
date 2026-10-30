@@ -8,6 +8,10 @@ pub(super) async fn sts(s: Scenario) -> papo_testing::Result<()> {
     s.skip("process-owned STS setup is unavailable on WASI")
 }
 
+pub(super) async fn tls_sni(s: Scenario) -> papo_testing::Result<()> {
+    s.skip("a local ClientHello observer is unavailable on this target")
+}
+
 pub(super) async fn server_password_waits_for_live_sts(s: Scenario) -> papo_testing::Result<()> {
     s.skip("process-owned STS setup is unavailable on WASI")
 }

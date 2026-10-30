@@ -74,7 +74,7 @@ async fn connect_line_lengths(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
-/// answers UnrealIRCd's registration ping cookie with the matching PONG
+/// answers `UnrealIRCd`'s registration ping cookie with the matching `PONG`
 #[scenario(covers = ["base.ping.server-initiated"])]
 #[allow(
     clippy::unused_async,

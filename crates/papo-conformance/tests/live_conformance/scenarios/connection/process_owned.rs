@@ -1,6 +1,9 @@
 use std::{
     fs,
+    io::{self, Read},
+    net::TcpListener,
     sync::{Arc, Mutex},
+    thread,
     time::Duration,
 };
 
@@ -149,6 +152,108 @@ pub(super) async fn sts(s: Scenario) -> papo_testing::Result<()> {
     assert!(policy.is_active_at(std::time::SystemTime::now()));
     s.quit_all().await?;
     Ok(())
+}
+
+pub(super) async fn tls_sni(_s: Scenario) -> papo_testing::Result<()> {
+    let listener = TcpListener::bind("127.0.0.1:0")?;
+    let address = listener.local_addr()?;
+    let observer = thread::spawn(move || -> io::Result<String> {
+        let (mut stream, _) = listener.accept()?;
+        stream.set_read_timeout(Some(Duration::from_secs(10)))?;
+        let hello = read_client_hello(&mut stream)?;
+        parse_server_name(&hello)
+    });
+
+    let expected = "sni.papo.test";
+    let endpoint = Endpoint::tls(address.ip().to_string(), address.port()).unwrap();
+    let result = Client::builder(endpoint, papo_test_server::unique("sni-client"))
+        .tls_server_name(expected)
+        .connect()
+        .await;
+    assert!(result.is_err(), "the observer is not a TLS server");
+    let server_name = observer
+        .join()
+        .map_err(|_| io::Error::other("ClientHello observer panicked"))??;
+    assert_eq!(server_name, expected);
+    Ok(())
+}
+
+fn read_client_hello(stream: &mut impl Read) -> io::Result<Vec<u8>> {
+    let mut handshake = Vec::new();
+    loop {
+        let mut header = [0_u8; 5];
+        stream.read_exact(&mut header)?;
+        if header[0] != 22 {
+            return Err(io::Error::other(
+                "first TLS handshake used a non-handshake record",
+            ));
+        }
+        let length = usize::from(u16::from_be_bytes([header[3], header[4]]));
+        let start = handshake.len();
+        handshake.resize(start + length, 0);
+        stream.read_exact(&mut handshake[start..])?;
+        if handshake.len() >= 4 {
+            let length = (usize::from(handshake[1]) << 16)
+                | (usize::from(handshake[2]) << 8)
+                | usize::from(handshake[3]);
+            if handshake.len() >= length + 4 {
+                handshake.truncate(length + 4);
+                return Ok(handshake);
+            }
+        }
+    }
+}
+
+fn parse_server_name(handshake: &[u8]) -> io::Result<String> {
+    let mut input = handshake;
+    if take(&mut input, 1)? != [1] {
+        return Err(io::Error::other("TLS handshake was not a ClientHello"));
+    }
+    take(&mut input, 3)?;
+    take(&mut input, 2 + 32)?;
+    let session_id = usize::from(take(&mut input, 1)?[0]);
+    take(&mut input, session_id)?;
+    let cipher_suites = usize::from(take_u16(&mut input)?);
+    take(&mut input, cipher_suites)?;
+    let compression = usize::from(take(&mut input, 1)?[0]);
+    take(&mut input, compression)?;
+    let extensions = usize::from(take_u16(&mut input)?);
+    let mut extensions = take(&mut input, extensions)?;
+    while !extensions.is_empty() {
+        let kind = take_u16(&mut extensions)?;
+        let length = usize::from(take_u16(&mut extensions)?);
+        let mut extension = take(&mut extensions, length)?;
+        if kind != 0 {
+            continue;
+        }
+        let names = usize::from(take_u16(&mut extension)?);
+        let mut names = take(&mut extension, names)?;
+        while !names.is_empty() {
+            let kind = take(&mut names, 1)?[0];
+            let length = usize::from(take_u16(&mut names)?);
+            let name = take(&mut names, length)?;
+            if kind == 0 {
+                return std::str::from_utf8(name)
+                    .map(str::to_owned)
+                    .map_err(|_| io::Error::other("SNI name was not UTF-8"));
+            }
+        }
+    }
+    Err(io::Error::other("ClientHello omitted server_name"))
+}
+
+fn take<'a>(input: &mut &'a [u8], length: usize) -> io::Result<&'a [u8]> {
+    if input.len() < length {
+        return Err(io::Error::other("truncated ClientHello"));
+    }
+    let (value, remaining) = input.split_at(length);
+    *input = remaining;
+    Ok(value)
+}
+
+fn take_u16(input: &mut &[u8]) -> io::Result<u16> {
+    let value = take(input, 2)?;
+    Ok(u16::from_be_bytes([value[0], value[1]]))
 }
 
 pub(super) async fn server_password_waits_for_live_sts(_s: Scenario) -> papo_testing::Result<()> {
