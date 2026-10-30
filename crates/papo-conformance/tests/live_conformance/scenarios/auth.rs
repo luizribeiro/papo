@@ -125,6 +125,29 @@ async fn sasl_protocol_errors(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// reports the available mechanisms after an unknown SASL mechanism
+#[scenario(requires(caps = ["sasl"]), covers = ["ircv3.sasl.mechs-908"])]
+async fn sasl_mechanisms_reply(s: Scenario) -> papo_testing::Result<()> {
+    if !matches!(
+        DeploymentProfile::from_env()?,
+        DeploymentProfile::Solanum | DeploymentProfile::UnrealIrcd
+    ) {
+        return s.skip("the selected server does not relay the services SASL mechanism list");
+    }
+
+    let mut alice = s
+        .connect_with(s.configure("alice")?.enable(papo::Feature::Sasl))
+        .await?;
+    alice
+        .send_raw(papo::Line::new("AUTHENTICATE").with_params(["PAPO-UNKNOWN"]))
+        .await?;
+    let mechanisms = alice
+        .wait_for(|event| event.as_other().filter(|line| line.numeric() == Some(908)))
+        .await?;
+    assert!(mechanisms.get(1).is_some_and(|value| !value.is_empty()));
+    Ok(())
+}
+
 async fn authenticate(s: Scenario, scram: bool) -> papo_testing::Result<()> {
     let account = unique("alice-account");
     create_account(&s.server, &account, PASSWORD)?;
