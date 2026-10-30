@@ -2001,20 +2001,7 @@ pub(crate) fn from_core_with_receipt(
             });
             let envelope = map_envelope(&message.envelope);
             let tags = Tags::from_pairs(message.tags);
-            let Some(actor) = source::user_from_prefix(
-                &message.actor,
-                casemapping,
-                origin,
-                envelope.account,
-                if tags.contains("bot") {
-                    Some(true)
-                } else {
-                    prove_not_bot.then_some(false)
-                },
-                tags.get("draft/oper").map(|name| Oper {
-                    name: (!name.is_empty()).then(|| name.to_owned()),
-                }),
-            ) else {
+            let Some(actor) = user_from_raw(&message.actor, &envelope) else {
                 return CoreEvent::Unknown;
             };
             let authorship = Authorship::from_core(message.authorship);
@@ -2101,18 +2088,9 @@ pub(crate) fn from_core_with_receipt(
                 _ => None,
             });
             let envelope = map_envelope(&redacted.envelope);
-            let actor = source::user_from_prefix(
-                &redacted.actor,
-                casemapping,
-                origin,
-                envelope.account,
-                None,
-                None,
-            )
-            .map_or_else(
-                || source::from_prefix(redacted.actor, casemapping, origin),
-                Source::User,
-            );
+            let Some(actor) = actor_from_raw(&redacted.actor, &envelope) else {
+                return CoreEvent::Unknown;
+            };
             let authorship = Authorship::from_core(redacted.authorship);
             let mut receipt = guard_receipt(
                 crate::message_ref::Receipt::new(
@@ -4533,28 +4511,24 @@ mod tests {
 
     #[test]
     fn maps_tag_messages_with_typed_accessors() {
-        let tag = papo_core::TagMessage {
-            envelope: papo_core::LineEnvelope::default(),
-            actor: "alice!~a@cloak".into(),
-            authorship: papo_core::Authorship::Other,
-            conversation: papo_core::Conversation::Channel(Casemapping::default().channel("#ops")),
-            status: Some(crate::Prefix::__new('o', '@')),
-            return_address: "@#ops".into(),
-            tags: vec![
-                ("+typing".into(), Some("paused".into())),
-                ("+draft/react".into(), Some("👍".into())),
-                ("+reply".into(), Some("RKi9Cw".into())),
-                ("draft/oper".into(), Some("network-admin".into())),
-            ],
-        };
-        let Event::Reacted(reaction) = forwarded(papo_core::Event::TagMessage(tag)) else {
-            panic!("expected reaction")
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().nick("papo"));
+        session.handle_line(now, b":papo!~p@client.example JOIN #ops");
+        while session.poll_event().is_some() {}
+        session.handle_line(
+            now,
+            "@+draft/react=👍;+reply=RKi9Cw;draft/oper=network-admin :alice!~a@cloak TAGMSG #ops"
+                .as_bytes(),
+        );
+        let event = forwarded(session.poll_event().expect("tag message"));
+        let Event::Reacted(reaction) = event else {
+            panic!("expected reaction: {event:?}")
         };
         assert_eq!(reaction.actor.nick(), "alice");
         assert!(
             matches!(&reaction.conversation, Conversation::Channel(channel) if channel == "#ops")
         );
-        assert_eq!(reaction.return_address(), "@#ops");
+        assert_eq!(reaction.return_address(), "#ops");
         assert_eq!(reaction.reaction, "👍");
         assert_eq!(reaction.reacts_to, "RKi9Cw");
         assert_eq!(reaction.action, crate::event::ReactionAction::Added);
