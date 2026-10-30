@@ -41,30 +41,30 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
         .add_with('l', LIMIT)
         .remove('n')
         .await?;
-    let changed = wait_channel_mode(&mut bob, &channel, 'k').await?;
-    assert_eq!(subject_name(&changed.subject), channel);
-    assert_eq!(
-        crate::source_nick(&changed.actor),
-        Some(alice_nick.as_ref())
-    );
-    assert_eq!(changed.changes.len(), 4);
+    for peer in [&mut alice, &mut bob] {
+        let changed = wait_channel_mode(peer, &channel, 'k').await?;
+        assert_eq!(subject_name(&changed.subject), channel);
+        assert_eq!(
+            crate::source_nick(&changed.actor),
+            Some(alice_nick.as_ref())
+        );
+        assert_eq!(changed.changes.len(), 4);
 
-    // Servers reorder the applied mode string on the wire (UnrealIRCd turns an
-    // input of +bklm-n into +m-n+bkl), so changes are matched by letter, never index.
-    let ban = find_change(&changed, 'b');
-    assert_eq!(ban.action, ModeAction::Add);
-    assert!(matches!(ban.arg.clone(), Some(ModeArg::Mask(mask)) if mask == MASK));
-    let key = find_change(&changed, 'k');
-    assert_eq!(key.action, ModeAction::Add);
-    assert!(matches!(key.arg.clone(), Some(ModeArg::Key(value)) if value.expose() == KEY));
-    let limit = find_change(&changed, 'l');
-    assert_eq!(limit.action, ModeAction::Add);
-    assert!(matches!(limit.arg.clone(), Some(ModeArg::Value(value)) if value == LIMIT));
-    let no_external = find_change(&changed, 'n');
-    assert_eq!(no_external.action, ModeAction::Remove);
-    assert_eq!(no_external.arg, None);
+        // Servers reorder the applied mode string on the wire (UnrealIRCd turns an
+        // input of +bklm-n into +m-n+bkl), so changes are matched by letter, never index.
+        let ban = find_change(&changed, 'b');
+        assert_eq!(ban.action, ModeAction::Add);
+        assert!(matches!(ban.arg.clone(), Some(ModeArg::Mask(mask)) if mask == MASK));
+        let key = find_change(&changed, 'k');
+        assert_eq!(key.action, ModeAction::Add);
+        assert!(matches!(key.arg.clone(), Some(ModeArg::Key(value)) if value.expose() == KEY));
+        let limit = find_change(&changed, 'l');
+        assert_eq!(limit.action, ModeAction::Add);
+        assert!(matches!(limit.arg.clone(), Some(ModeArg::Value(value)) if value == LIMIT));
+        let no_external = find_change(&changed, 'n');
+        assert_eq!(no_external.action, ModeAction::Remove);
+        assert_eq!(no_external.arg, None);
 
-    for peer in [&alice, &bob] {
         let state = peer.state();
         let channel_state = state.channel(&channel).unwrap();
         assert_eq!(channel_state.mode('k'), Some(ModeValue::Set));
@@ -86,22 +86,22 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
         .remove_with('k', KEY)
         .remove('l')
         .await?;
-    let removed = wait_channel_mode(&mut bob, &channel, 'l').await?;
-    assert_eq!(removed.changes.len(), 3);
+    for peer in [&mut alice, &mut bob] {
+        let removed = wait_channel_mode(peer, &channel, 'l').await?;
+        assert_eq!(removed.changes.len(), 3);
 
-    let ban = find_change(&removed, 'b');
-    assert_eq!(ban.action, ModeAction::Remove);
-    assert!(matches!(ban.arg.clone(), Some(ModeArg::Mask(mask)) if mask == MASK));
-    let key = find_change(&removed, 'k');
-    assert_eq!(key.action, ModeAction::Remove);
-    // The echoed key varies by server: Ergo, soju, and Solanum send "*" rather than
-    // the real key, so only its presence is checked here, never its value.
-    assert!(matches!(key.arg.clone(), Some(ModeArg::Key(value)) if !value.expose().is_empty()));
-    let limit = find_change(&removed, 'l');
-    assert_eq!(limit.action, ModeAction::Remove);
-    assert_eq!(limit.arg, None);
+        let ban = find_change(&removed, 'b');
+        assert_eq!(ban.action, ModeAction::Remove);
+        assert!(matches!(ban.arg.clone(), Some(ModeArg::Mask(mask)) if mask == MASK));
+        let key = find_change(&removed, 'k');
+        assert_eq!(key.action, ModeAction::Remove);
+        // The echoed key varies by server: Ergo, soju, and Solanum send "*" rather than
+        // the real key, so only its presence is checked here, never its value.
+        assert!(matches!(key.arg.clone(), Some(ModeArg::Key(value)) if !value.expose().is_empty()));
+        let limit = find_change(&removed, 'l');
+        assert_eq!(limit.action, ModeAction::Remove);
+        assert_eq!(limit.arg, None);
 
-    for peer in [&alice, &bob] {
         let state = peer.state();
         let channel_state = state.channel(&channel).unwrap();
         assert_eq!(channel_state.mode('k'), None);

@@ -41,45 +41,67 @@ async fn statusmsg_peers(s: &Scenario) -> papo_testing::Result<StatusmsgPeers> {
 
     let bob_direct = alice.direct(bob_nick.as_ref()).await?;
     let carol_direct = alice.direct(carol_nick.as_ref()).await?;
-    alice
-        .mode(&channel)
-        .op(&bob_direct)
-        .voice(&carol_direct)
-        .await?;
-    for peer in [&mut alice, &mut bob, &mut carol, &mut dave] {
+    alice.mode(&channel).op(&bob_direct).await?;
+    for (name, peer) in [
+        ("alice", &mut alice),
+        ("bob", &mut bob),
+        ("carol", &mut carol),
+        ("dave", &mut dave),
+    ] {
+        let changed = wait_channel_mode(peer, &channel, 'o').await?;
+        assert_eq!(
+            crate::source_nick(&changed.actor),
+            Some(alice_nick.as_ref())
+        );
+        let [change] = changed.changes.as_slice() else {
+            panic!("operator grant should contain one change: {changed:?}")
+        };
+        assert_eq!(change.action, ModeAction::Add);
+        assert!(
+            matches!(change.arg.clone(), Some(ModeArg::Member { nick, .. }) if nick == bob_nick.as_ref())
+        );
+
+        let state = peer.state();
+        let member = state
+            .channel(&channel)
+            .expect("channel is in state")
+            .member(bob_nick.as_ref())
+            .unwrap();
+        assert_eq!(
+            member.prefixes(),
+            &[papo::Prefix::__new('o', '@')],
+            "{name} has Bob's operator rank"
+        );
+    }
+
+    alice.mode(&channel).voice(&carol_direct).await?;
+    for (name, peer) in [
+        ("alice", &mut alice),
+        ("bob", &mut bob),
+        ("carol", &mut carol),
+        ("dave", &mut dave),
+    ] {
         let changed = wait_channel_mode(peer, &channel, 'v').await?;
         assert_eq!(
             crate::source_nick(&changed.actor),
             Some(alice_nick.as_ref())
         );
-        assert_eq!(changed.changes.len(), 2);
-        for (letter, nick) in [('o', &bob_nick), ('v', &carol_nick)] {
-            let change = changed
-                .changes
-                .iter()
-                .find(|change| change.mode == letter)
-                .unwrap();
-            assert_eq!(change.action, ModeAction::Add);
-            assert!(
-                matches!(change.arg.clone(), Some(ModeArg::Member { nick: value, .. }) if value == nick.as_ref())
-            );
-        }
-    }
-    for (name, peer) in [
-        ("alice", &alice),
-        ("bob", &bob),
-        ("carol", &carol),
-        ("dave", &dave),
-    ] {
-        let state = peer.state();
-        let members = state.channel(&channel).expect("channel is in state");
-        assert_eq!(
-            members.member(bob_nick.as_ref()).unwrap().prefixes(),
-            &[papo::Prefix::__new('o', '@')],
-            "{name} has Bob's operator rank"
+        let [change] = changed.changes.as_slice() else {
+            panic!("voice grant should contain one change: {changed:?}")
+        };
+        assert_eq!(change.action, ModeAction::Add);
+        assert!(
+            matches!(change.arg.clone(), Some(ModeArg::Member { nick, .. }) if nick == carol_nick.as_ref())
         );
+
+        let state = peer.state();
+        let member = state
+            .channel(&channel)
+            .expect("channel is in state")
+            .member(carol_nick.as_ref())
+            .unwrap();
         assert_eq!(
-            members.member(carol_nick.as_ref()).unwrap().prefixes(),
+            member.prefixes(),
             &[papo::Prefix::__new('v', '+')],
             "{name} has Carol's voice rank"
         );
