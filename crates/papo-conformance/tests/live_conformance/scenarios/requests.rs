@@ -106,6 +106,58 @@ async fn client_batch_errors(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// rejects a raw multiline batch beyond its advertised byte limit
+#[scenario(
+    requires(caps = ["batch", "draft/multiline", "standard-replies"]),
+    covers = ["draft.multiline.errors-limits"]
+)]
+async fn multiline_limit_refusal(s: Scenario) -> papo_testing::Result<()> {
+    let mut alice = s.connect("alice").await?;
+    let state = alice.state();
+    let value = state
+        .caps()
+        .get(&papo::cap::MULTILINE)
+        .and_then(Option::as_deref)
+        .ok_or_else(|| std::io::Error::other("draft/multiline omitted its limits"))?;
+    let max_bytes = value
+        .split(',')
+        .find_map(|item| item.strip_prefix("max-bytes=")?.parse::<usize>().ok())
+        .ok_or_else(|| std::io::Error::other("draft/multiline omitted max-bytes"))?;
+    let channel = s.channel_name();
+    alice.join(&channel).await?;
+    let batch = "papo-over-limit";
+    alice
+        .send_raw(papo::Line::new("BATCH").with_params([
+            format!("+{batch}"),
+            "draft/multiline".to_owned(),
+            channel.clone(),
+        ]))
+        .await?;
+    let text = "x".repeat(400);
+    for _ in 0..=(max_bytes / text.len()) {
+        alice
+            .send_raw(
+                papo::Line::new("PRIVMSG")
+                    .with_tag("batch", batch)
+                    .with_params([channel.clone(), text.clone()]),
+            )
+            .await?;
+    }
+    alice
+        .send_raw(papo::Line::new("BATCH").with_params([format!("-{batch}")]))
+        .await?;
+    let refusal = alice
+        .wait_for(|event| {
+            event.as_standard_reply().filter(|reply| {
+                reply.command == "BATCH" && reply.code == papo::fail::MULTILINE_MAX_BYTES
+            })
+        })
+        .await?;
+    assert_eq!(refusal.kind, StandardReplyKind::Fail);
+    assert!(!refusal.description.is_empty());
+    Ok(())
+}
+
 /// an invalid real name produces a typed standard failure
 #[scenario(
     requires(caps = ["standard-replies", "setname"]),
