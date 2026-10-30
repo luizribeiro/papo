@@ -9,6 +9,7 @@ CHANTYPES=#
 CHATHISTORY=50
 CLIENTTAGDENY=*,-draft/typing,-typing,-draft/channel-context,-draft/reply,-reply
 DEAF=d
+DRAFT/ICON=https://icon.papo.test/papo.png
 ELIST=MNUCT
 EXCEPTS
 EXTBAN=~,acfijmnpqrtACFGOST

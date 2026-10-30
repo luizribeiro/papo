@@ -215,6 +215,20 @@ async fn extended_isupport(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// exposes a bounded HTTPS network icon URL without fetching it
+#[scenario(requires(isupport = ["draft/ICON"]), covers = ["draft.network-icon"])]
+async fn network_icon(s: Scenario) -> papo_testing::Result<()> {
+    let alice = s.connect("alice").await?;
+    let support = alice.state().isupport().clone();
+    let Advertised::Value(value) = support.get("draft/ICON") else {
+        panic!("draft/ICON was required but has no value")
+    };
+    assert!(value.starts_with("https://"));
+    assert!(value.len() <= 512);
+    assert_eq!(support.icon_url(64).as_deref(), Some(value));
+    Ok(())
+}
+
 /// discovers the connection identity during the welcome burst
 #[scenario(requires(caps = ["draft/whoami"]), covers = ["ergo.whoami"])]
 async fn whoami(s: Scenario) -> papo_testing::Result<()> {

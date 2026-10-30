@@ -63,6 +63,7 @@ set {{
  tls {{ certificate "{cert}"; key "{key}"; }}
  modes-on-join "+ntH 100:1d";
  kline-address "papo@example.invalid"; network-name "papo"; default-server "irc.papo.test"; help-channel "#help";
+ network-icon 'https://icon.papo.test/papo.png';
  options {{ identd-check; }}
  plaintext-policy {{ user allow; oper warn; server warn; }}
  anti-flood {{ everyone {{ connect-flood 255:10; }} unknown-users {{ nick-flood 255:10; lag-penalty 1; lag-penalty-bytes 10000; }} }}
