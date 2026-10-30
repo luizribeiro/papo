@@ -10,6 +10,15 @@ use papo_core::{
 };
 use papo_proto::{Command, Line, LineRef, Numeric};
 
+fn complete_registration(session: &mut Session, now: Instant) {
+    session.handle_line(
+        now,
+        b":ergo.test 001 papo :Welcome to the Ergo test network",
+    );
+    session.handle_line(now, b":ergo.test 422 papo :MOTD File is missing");
+    while session.poll_event().is_some() {}
+}
+
 fn labelled_session(now: Instant) -> Session {
     labelled_session_with(now, Config::default())
 }
@@ -20,12 +29,7 @@ fn labelled_session_with(now: Instant, config: Config) -> Session {
     session.handle_line(now, b"CAP * LS :labeled-response");
     session.handle_line(now, b"CAP * ACK :labeled-response");
     while session.poll_transmit().is_some() {}
-    session.handle_line(
-        now,
-        b":ergo.test 001 papo :Welcome to the Ergo test network",
-    );
-    session.handle_line(now, b":ergo.test 422 papo :MOTD File is missing");
-    while session.poll_event().is_some() {}
+    complete_registration(&mut session, now);
     session
 }
 
@@ -66,12 +70,7 @@ fn echo_session(now: Instant) -> Session {
     session.handle_line(now, b"CAP * LS :echo-message labeled-response");
     session.handle_line(now, b"CAP * ACK :echo-message labeled-response");
     while session.poll_transmit().is_some() {}
-    session.handle_line(
-        now,
-        b":ergo.test 001 papo :Welcome to the Ergo test network",
-    );
-    session.handle_line(now, b":ergo.test 422 papo :MOTD File is missing");
-    while session.poll_event().is_some() {}
+    complete_registration(&mut session, now);
     session
 }
 
@@ -2032,11 +2031,7 @@ fn resolves_a_labelled_echo_and_an_ack() {
 #[test]
 fn exposes_the_msgid_and_time_of_a_labelled_echo() {
     let now = Instant::now();
-    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
-    session.handle_connected(now);
-    session.handle_line(now, b"CAP * LS :echo-message labeled-response");
-    session.handle_line(now, b"CAP * ACK :echo-message labeled-response");
-    while session.poll_transmit().is_some() {}
+    let mut session = echo_session(now);
     let id = request(&mut session, now, Line::privmsg("#papo", "hello from papo"));
     session.handle_line(
         now,
@@ -2063,11 +2058,7 @@ fn exposes_the_msgid_and_time_of_a_labelled_echo() {
 #[test]
 fn does_not_report_sent_info_for_a_non_message_request() {
     let now = Instant::now();
-    let mut session = Session::new(Config::default().rate_limit(RateLimit::unlimited()));
-    session.handle_connected(now);
-    session.handle_line(now, b"CAP * LS :echo-message labeled-response");
-    session.handle_line(now, b"CAP * ACK :echo-message labeled-response");
-    while session.poll_transmit().is_some() {}
+    let mut session = echo_session(now);
     request(&mut session, now, Line::new("WHOIS").with_params(["alice"]));
     session.handle_line(
         now,
@@ -2438,6 +2429,7 @@ fn request_deadline_starts_when_its_rate_limited_line_is_transmitted() {
     session.handle_line(now, b":ergo.test CAP * LS :labeled-response");
     session.handle_line(now, b":ergo.test CAP * ACK :labeled-response");
     while session.poll_transmit().is_some() {}
+    complete_registration(&mut session, now);
     let alice = request(&mut session, now, Line::new("WHOIS").with_params(["alice"]));
     let bob = request(&mut session, now, Line::new("WHOIS").with_params(["bob"]));
     assert!(session.poll_transmit().is_some());
@@ -2471,6 +2463,7 @@ fn transmitted_request_starts_its_own_deadline_after_label_order_diverges() {
     session.handle_line(now, b":ergo.test CAP * LS :labeled-response");
     session.handle_line(now, b":ergo.test CAP * ACK :labeled-response");
     while session.poll_transmit().is_some() {}
+    complete_registration(&mut session, now);
 
     let ids: Vec<_> = (0..63)
         .map(|index| {
