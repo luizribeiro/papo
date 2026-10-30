@@ -6,7 +6,6 @@
 "core.cap-notify.del" = "The managed servers cannot remove a capability while connected without reloading or replacing the server process."
 "core.tls.sni" = "The local harness has no TLS-terminating observer that can inspect the ClientHello server name."
 "base.links.basic" = "Every managed profile runs one standalone IRC server; Ergo returns only end-of-LINKS for that topology, so no link row exists to verify."
-"base.message.line-too-long" = "papo bounds outbound lines before transmission, so a live scenario cannot elicit server numeric 417 with an oversized line."
 "base.privmsg.empty-text" = "papo rejects empty chat text locally before a server can return numeric 412."
 "draft.multiline.errors-limits" = "papo applies multiline limits before transmission, preventing a live server-limit refusal scenario."
 "draft.network-icon" = "UnrealIRCd validates the configured icon by fetching it over trusted HTTPS at startup; the isolated fixture has no public-CA HTTPS origin."

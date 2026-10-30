@@ -189,6 +189,33 @@ async fn echo_message(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// rejects a client line that cannot be relayed within the wire limit
+#[scenario(covers = ["base.message.line-too-long"])]
+async fn relayed_line_too_long(s: Scenario) -> papo_testing::Result<()> {
+    if !matches!(
+        papo_test_server::DeploymentProfile::from_env()?,
+        papo_test_server::DeploymentProfile::ErgoDefault
+            | papo_test_server::DeploymentProfile::ErgoPersistent
+    ) {
+        return s.skip("the selected server does not reject overlong relayed lines");
+    }
+
+    let alice = s.connect("alice").await?;
+    let channel = s.channel_name();
+    alice.join(&channel).await?;
+    let overhead = "PRIVMSG ".len() + channel.len() + " :\r\n".len();
+    let text = "x".repeat(papo_proto::MAX_LINE_LEN - overhead);
+    let replies = alice
+        .request_raw(papo::Line::new("PRIVMSG").with_params([channel, text]))
+        .await?;
+    let refusal = replies
+        .iter()
+        .find(|line| line.numeric() == Some(papo::numeric::ERR_INPUTTOOLONG))
+        .unwrap_or_else(|| panic!("Ergo omitted numeric 417: {replies:?}"));
+    assert!(refusal.params().iter().any(|param| !param.is_empty()));
+    Ok(())
+}
+
 /// peer display text removes terminal controls while retaining raw IRC text
 #[scenario(
     requires(caps = ["labeled-response"]),
