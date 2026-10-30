@@ -1,6 +1,6 @@
 use std::time::{Duration, SystemTime};
 
-use papo::{Account, Authorship, Error, Event, MessageId, Sent};
+use papo::{Account, Authorship, Client, Endpoint, Error, Event, MessageId, Sasl, Sent};
 use papo_conformance_macros::scenario;
 
 use crate::scenarios::support::{confirmed_line, conversation_name};
@@ -15,14 +15,14 @@ async fn history_peers(
     texts: &[&str],
 ) -> papo_testing::Result<(Peer, Peer, String, Vec<Sent>)> {
     let writer = s.connect("writer").await?;
+    let reader = s.connect("reader").await?;
     let channel = s.channel_name();
     writer.join(&channel).await?;
+    reader.join(&channel).await?;
     let mut sent = Vec::with_capacity(texts.len());
     for text in texts {
         sent.push(writer.privmsg(&channel, *text).await?);
     }
-    let reader = s.connect("reader").await?;
-    reader.join(&channel).await?;
     Ok((writer, reader, channel, sent))
 }
 
@@ -162,6 +162,9 @@ async fn chathistory_paging(s: Scenario) -> papo_testing::Result<()> {
         "release window closed",
     ];
     let (_, reader, channel, sent) = history_peers(&s, &texts).await?;
+    if !reader.state().isupport().msgreftypes().contains(&"msgid") {
+        return s.skip("server does not advertise msgid history references");
+    }
     let ids = sent
         .iter()
         .map(|message| confirmed_line(message).0)
@@ -191,6 +194,12 @@ async fn chathistory_paging(s: Scenario) -> papo_testing::Result<()> {
     covers = ["draft.chathistory.end-pagination"]
 )]
 async fn terminal_history_page(s: Scenario) -> papo_testing::Result<()> {
+    #[derive(Clone, Copy)]
+    enum ReferenceType {
+        Id,
+        Time,
+    }
+
     enum Cursor {
         Id(String),
         Time(SystemTime),
@@ -209,6 +218,20 @@ async fn terminal_history_page(s: Scenario) -> papo_testing::Result<()> {
     for text in &texts {
         alice.privmsg(&channel, text).await?;
     }
+    let Some(reference_type) =
+        alice
+            .state()
+            .isupport()
+            .msgreftypes()
+            .into_iter()
+            .find_map(|kind| match kind {
+                "msgid" => Some(ReferenceType::Id),
+                "timestamp" => Some(ReferenceType::Time),
+                _ => None,
+            })
+    else {
+        return s.skip("server advertises no supported history reference type");
+    };
 
     let mut cursor = None;
     let mut remaining = texts.len();
@@ -240,9 +263,17 @@ async fn terminal_history_page(s: Scenario) -> papo_testing::Result<()> {
         }
         assert!(!messages.is_empty(), "an empty page must report the end");
         let oldest = messages.first().expect("nonempty page");
-        cursor = Some(match oldest.msgid() {
-            Some(id) => Cursor::Id(id.as_ref().to_owned()),
-            None => Cursor::Time(oldest.server_time.expect("history has server time")),
+        cursor = Some(match reference_type {
+            ReferenceType::Id => Cursor::Id(
+                oldest
+                    .msgid()
+                    .expect("msgid history references require message IDs")
+                    .as_ref()
+                    .to_owned(),
+            ),
+            ReferenceType::Time => {
+                Cursor::Time(oldest.server_time.expect("history has server time"))
+            }
         });
         remaining = start;
     }
@@ -305,7 +336,25 @@ async fn soju_server_notice_history(s: Scenario) -> papo_testing::Result<()> {
     if std::env::var("PAPO_TEST_PROFILE").as_deref() != Ok("soju-ergo") {
         return s.skip("the selected profile does not expose soju's BouncerServ");
     }
-    let mut alice = s.connect("alice").await?;
+    let bouncer = s
+        .server
+        .bouncer()
+        .expect("the soju profile exposes its admin fixture account");
+    let address = s.server.plaintext_addr();
+    let mut alice = s
+        .connect_with(
+            Client::builder(
+                Endpoint::plaintext(address.ip().to_string(), address.port()).unwrap(),
+                bouncer.username(),
+            )
+            .realname("papo bouncer administrator")
+            .allow_insecure_auth(true)
+            .sasl(Sasl::plain(
+                format!("{}/ergo", bouncer.username()),
+                papo::Secret::new(bouncer.password()),
+            )),
+        )
+        .await?;
     let text = papo_test_server::unique("history-notice");
     let bouncer = alice.direct("BouncerServ").await?;
     alice

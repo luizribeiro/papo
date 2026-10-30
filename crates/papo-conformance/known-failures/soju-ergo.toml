@@ -1,50 +1,29 @@
-[account_tag]
-reason = "soju does not relay upstream account identity into shared-channel state and message tags"
-kind = "not-implemented"
-spec = "https://ircv3.net/specs/extensions/account-tag"
-evidence = "S: PRIVMSG #review :authenticated message, without an account tag"
-server_version = "soju 0.11.1 / Ergo 2.19.1"
-
 [away_notify]
-reason = "soju does not relay upstream away-notify changes between attached clients"
+reason = "soju replaces a downstream client's away text with aggregate AWAY *, which Ergo does not expose as public away state"
 kind = "not-implemented"
 spec = "https://ircv3.net/specs/extensions/away-notify"
-evidence = "upstream S: AWAY :reviewing; downstream S: no AWAY notification"
-server_version = "soju 0.11.1 / Ergo 2.19.1"
-
-[batch]
-reason = "soju's replay does not expose the upstream history batch expected by this scenario"
-kind = "not-implemented"
-spec = "https://ircv3.net/specs/extensions/chathistory"
-evidence = "C: CHATHISTORY LATEST #review * 50 | S: no upstream chathistory batch"
+evidence = "downstream C: AWAY :reviewing | soju upstream C: AWAY * | observer S: no AWAY notification"
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [channel_modes_and_join_refusals]
-reason = "soju does not relay a later upstream channel MODE change to the observing client"
+reason = "soju stops relaying later channel MODE and message traffic to a newly joined observing network"
 kind = "not-implemented"
 spec = "https://modern.ircdocs.horse/#mode-message"
-evidence = "upstream S: MODE #review +i | downstream S: no MODE notification"
+evidence = "observer S: JOIN and channel sync complete | later S: no MODE +m, MODE +v, or voiced PRIVMSG before the observer timeout"
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [chathistory_errors]
-reason = "soju returns an empty page for an unavailable target instead of relaying INVALID_TARGET"
-kind = "server-bug"
+reason = "the specification recommends both INVALID_TARGET for an unavailable target and an empty batch when no content exists"
+kind = "spec-ambiguity"
 spec = "https://ircv3.net/specs/extensions/chathistory"
-evidence = "C: CHATHISTORY LATEST #missing * 50 | S: empty batch, not FAIL CHATHISTORY INVALID_TARGET"
-server_version = "soju 0.11.1 / Ergo 2.19.1"
-
-[chathistory_paging]
-reason = "soju echoes messages without server identifiers usable as history page references"
-kind = "not-implemented"
-spec = "https://ircv3.net/specs/extensions/message-ids"
-evidence = "S: echo PRIVMSG #review :paging marker, without a msgid tag"
+evidence = "C: CHATHISTORY LATEST #missing * 10 | S: an empty chathistory batch"
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [terminal_history_page]
-reason = "soju omits message IDs from history while advertising only msgid references, preventing backward pagination"
+reason = "soju never marks the final nonempty history page with draft/chathistory-end"
 kind = "not-implemented"
 spec = "https://ircv3.net/specs/extensions/chathistory"
-evidence = "S: 005 MSGREFTYPES=msgid | C: CHATHISTORY LATEST #review * 10 | S: history PRIVMSG lines without msgid"
+evidence = "S: 005 MSGREFTYPES=timestamp | S: final five-message chathistory batch has no draft/chathistory-end tag"
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [kick_missing_member]
@@ -55,24 +34,17 @@ evidence = "C: KICK #review absent :not a channel member | S: 482 operator #revi
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [draft_chathistory]
-reason = "soju's history layer does not expose the earlier upstream message"
+reason = "soju never marks the final nonempty history page with draft/chathistory-end"
 kind = "not-implemented"
 spec = "https://ircv3.net/specs/extensions/chathistory"
-evidence = "C: CHATHISTORY LATEST #review * 50 | S: batch omits the earlier upstream PRIVMSG"
-server_version = "soju 0.11.1 / Ergo 2.19.1"
-
-[draft_metadata_2]
-reason = "soju advertises the upstream metadata limit but applies a smaller local limit"
-kind = "server-bug"
-spec = "https://ircv3.net/specs/extensions/metadata"
-evidence = "S: CAP LS draft/metadata-3=max-value-bytes=... | C: METADATA * SET ... | S: FAIL METADATA VALUE_INVALID"
+evidence = "C: CHATHISTORY LATEST #review * 10 | S: batch contains all three messages but has no draft/chathistory-end tag"
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [metadata_subscriptions]
 reason = "soju advertises metadata subscriptions but rejects a valid vendor key as KEY_INVALID"
 kind = "server-bug"
 spec = "https://ircv3.net/specs/extensions/metadata"
-evidence = "C: METADATA * SUB example.org/papo-topic-category | S: FAIL METADATA KEY_INVALID"
+evidence = "C: METADATA * SUB example.org/papo-presence | S: FAIL METADATA KEY_INVALID"
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [metadata_does_not_cross_nick_handoffs]
@@ -82,60 +54,32 @@ spec = "https://ircv3.net/specs/extensions/metadata"
 evidence = "C: METADATA * SUB example.org/papo-identity | S: FAIL METADATA KEY_INVALID"
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
-[channel_metadata]
-reason = "soju advertises a one-byte metadata value limit, preventing this channel metadata value"
-kind = "fixture-limit"
-spec = "https://ircv3.net/specs/extensions/metadata"
-evidence = "S: CAP LS draft/metadata-3=max-value-bytes=1 | C: METADATA #review SET ... :triage"
-server_version = "soju 0.11.1 / Ergo 2.19.1"
-
-[extended_join]
-reason = "soju omits the upstream real name from relayed extended JOIN messages"
-kind = "server-bug"
-spec = "https://ircv3.net/specs/extensions/extended-join"
-evidence = "upstream S: JOIN #review account :Alice Reviewer | downstream S: JOIN #review account :"
-server_version = "soju 0.11.1 / Ergo 2.19.1"
-
 [monitor]
-reason = "soju reports a monitored user online but does not relay that user's upstream away change"
+reason = "soju replaces a downstream client's away text with aggregate AWAY *, which Ergo does not expose as public away state"
 kind = "not-implemented"
 spec = "https://ircv3.net/specs/extensions/extended-monitor"
-evidence = "S: 730 monitored-user | upstream S: AWAY :reviewing; downstream S: no AWAY"
+evidence = "S: 730 monitored-user | soju upstream C: AWAY * | observer S: no AWAY notification"
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [multiple_joins]
-reason = "soju treats JOIN zero as a channel name instead of forwarding the leave-all operation upstream"
-kind = "server-bug"
-spec = "https://modern.ircdocs.horse/#join-message"
-evidence = "C: JOIN 0 | S: attempts to join channel 0"
-server_version = "soju 0.11.1 / Ergo 2.19.1"
-
-[nick_change_and_collision]
-reason = "soju rejects an upstream nickname collision without preserving the 433 refusal category"
+reason = "soju does not implement JOIN 0 and rejects it locally as a non-channel target"
 kind = "not-implemented"
-spec = "https://modern.ircdocs.horse/#nick-message"
-evidence = "C: NICK occupied | upstream S: 433 occupied; downstream S: generic failure"
+spec = "https://modern.ircdocs.horse/#join-message"
+evidence = "C: JOIN 0 | S: 403 0 :Not a channel name"
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [nick_errors]
 reason = "soju reports an empty nickname with 432 rather than 431"
-kind = "server-bug"
+kind = "spec-ambiguity"
 spec = "https://modern.ircdocs.horse/#nick-message"
 evidence = "C: NICK : | S: 432"
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
-[nickname_collision_race]
-reason = "the shared soju user cannot store two networks with the same nick, so soju returns 400 before Ergo can return 433"
-kind = "fixture-limit"
-spec = "https://modern.ircdocs.horse/#nick-message"
-evidence = "C: NICK race-review from two downstream clients sharing one soju user | S: 400 Failed to update nick"
-server_version = "soju 0.11.1 / Ergo 2.19.1"
-
 [pre_away]
-reason = "soju does not forward the downstream client's registration-time AWAY state to the upstream connection"
-kind = "not-implemented"
+reason = "soju accepts pre-registration AWAY but maps per-client state to aggregate upstream AWAY *, which Ergo leaves publicly present"
+kind = "fixture-limit"
 spec = "https://ircv3.net/specs/extensions/pre-away"
-evidence = "downstream C: AWAY :reviewing during registration | upstream S: user remains available"
+evidence = "downstream C: AWAY :reviewing during registration | C: WHOIS alice | S: no 301; alice remains present"
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [quit]
@@ -160,28 +104,21 @@ evidence = "downstream C: QUIT; WHOWAS alice | upstream connection remains attac
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [who_and_whois]
-reason = "soju omits a shared-channel upstream user from the downstream WHO result"
+reason = "soju's aggregate AWAY * does not expose the downstream client's away state through Ergo WHO and WHOIS"
 kind = "not-implemented"
 spec = "https://modern.ircdocs.horse/#who-message"
-evidence = "C: WHO #review | S: 315 #review, with no 352 row for the upstream user"
-server_version = "soju 0.11.1 / Ergo 2.19.1"
-
-[whox]
-reason = "soju replaces the configured upstream real name with the nickname in WHOX replies"
-kind = "server-bug"
-spec = "https://ircv3.net/specs/extensions/whox"
-evidence = "C: WHO #review %tcuhnfar,... | S: 354 ... alice :alice"
+evidence = "downstream C: AWAY :reading WHO reply fields | C: WHO #review | S: 352 row has H rather than G; WHOIS has no 301"
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [targmax_privmsg]
-reason = "soju delivers PRIVMSG to all five targets despite relaying Ergo's TARGMAX=PRIVMSG:4"
-kind = "server-bug"
+reason = "TARGMAX defines an accepted target count but does not require a refusal or a particular excess-target behavior"
+kind = "spec-ambiguity"
 spec = "https://modern.ircdocs.horse/#targmax-parameter"
 evidence = "S: 005 TARGMAX=...,PRIVMSG:4,... | C: PRIVMSG bob,carol,dave,erin,frank :over the target limit | S: delivered to all five, no 407"
 server_version = "soju 0.11.1 / Ergo 2.19.1"
 
 [user_modes]
-reason = "soju relays Ergo's 472 rather than 501 for an unknown user mode"
+reason = "Ergo replies 472 rather than 501 for an unknown user mode; soju relays the reply unchanged"
 kind = "server-bug"
 spec = "https://modern.ircdocs.horse/#mode-message"
 evidence = "C: MODE review +? | S: 472 review ?"

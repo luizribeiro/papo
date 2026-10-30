@@ -43,14 +43,14 @@ async fn labeled_response(s: Scenario) -> papo_testing::Result<()> {
 )]
 async fn batch(s: Scenario) -> papo_testing::Result<()> {
     let writer = s.connect("writer").await?;
+    let reader = s.connect("reader").await?;
     let channel = s.channel_name();
     writer.join(&channel).await?;
+    reader.join(&channel).await?;
     let sent = writer
         .privmsg(&channel, "batch correlation deployment")
         .await?;
 
-    let reader = s.connect("reader").await?;
-    reader.join(&channel).await?;
     let page = reader.history(&channel).latest().limit(10).await?;
     assert_eq!(
         conversation_name(&page.conversation),

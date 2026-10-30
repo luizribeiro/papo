@@ -356,15 +356,17 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
 ])]
 async fn multiclient(s: Scenario) -> papo_testing::Result<()> {
     let profile = std::env::var("PAPO_TEST_PROFILE").unwrap_or_else(|_| "ergo-default".into());
-    if !matches!(profile.as_str(), "ergo-default" | "ergo-persistent") {
+    if !matches!(
+        profile.as_str(),
+        "ergo-default" | "ergo-persistent" | "soju-ergo"
+    ) {
         return s.skip("the selected profile does not expose account multiclient attachment");
     }
-    let mut desktop = s.connect_as_account("alice").await?;
-    let account = crate::scenarios::support::logged_in_account(&desktop.state()).clone();
+    let (mut desktop, account_key) = s.connect_as_account_with_key("alice").await?;
     let channel = s.channel_name();
     desktop.join(&channel).await?;
     let mut phone = s
-        .connect_account_session("alice-phone", account.as_ref())
+        .connect_account_session("alice-phone", account_key)
         .await?;
     phone
         .wait_for(|event| {

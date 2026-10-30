@@ -55,8 +55,8 @@ async fn stale_dm_history_target(s: Scenario) -> papo_testing::Result<()> {
     if std::env::var("PAPO_TEST_PROFILE").as_deref() != Ok("soju-ergo") {
         return s.skip("the selected profile does not retain raw direct-message targets");
     }
-    let mut writer = s.connect_as_account("writer").await?;
-    let reader = s.connect_as_account("reader").await?;
+    let mut writer = s.connect("writer").await?;
+    let reader = s.connect("reader").await?;
     let old_nick = reader.nick();
     let new_nick = format!("r{old_nick}");
     let text = "can you send the incident report?";

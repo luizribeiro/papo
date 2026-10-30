@@ -285,22 +285,6 @@ async fn multidevice_nick_shared_state(s: Scenario) -> papo_testing::Result<()> 
     let new = format!("m{old}");
 
     let outcome = desktop.set_nick(&new).await;
-    if std::env::var("PAPO_TEST_PROFILE").as_deref() == Ok("soju-ergo") {
-        outcome?;
-        for changed in [
-            desktop.wait_for(Event::as_nick_changed).await?,
-            phone.wait_for(Event::as_nick_changed).await?,
-            tablet.wait_for(Event::as_nick_changed).await?,
-        ] {
-            assert_eq!(changed.actor.nick(), old.as_ref());
-            assert_eq!(changed.new.as_ref(), new);
-            assert_eq!(changed.authorship, papo::Authorship::Own);
-        }
-        for peer in [&desktop, &phone, &tablet] {
-            assert_eq!(peer.state().nick().as_ref(), new);
-        }
-        return Ok(());
-    }
     assert!(matches!(outcome, Err(Error::Server(_))));
     desktop.expect_none(Event::as_nick_changed).await?;
     phone.expect_none(Event::as_nick_changed).await?;
@@ -407,11 +391,7 @@ async fn multidevice_reconnect_catchup(s: Scenario) -> papo_testing::Result<()> 
         .filter(|message| message.authorship == Authorship::Own)
         .filter(|message| texts.contains(&message.text.as_str()))
         .count();
-    if std::env::var("PAPO_TEST_PROFILE").as_deref() == Ok("soju-ergo") {
-        assert_eq!(own, 0);
-    } else {
-        assert_eq!(own, 2);
-    }
+    assert_eq!(own, 2);
     let replayed = page
         .items
         .iter()

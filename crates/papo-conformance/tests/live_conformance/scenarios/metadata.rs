@@ -3,6 +3,32 @@ use papo_conformance_macros::scenario;
 
 use crate::{Scenario, scenarios::support::subject_name};
 
+fn require_metadata_capacity(
+    s: &Scenario,
+    peer: &crate::Peer,
+    value: &str,
+) -> papo_testing::Result<()> {
+    let state = peer.state();
+    let limits = state
+        .caps()
+        .get(&papo::cap::METADATA)
+        .and_then(Option::as_deref)
+        .expect("draft/metadata-2 advertises metadata limits");
+    let limit = |name: &str| {
+        limits.split(',').find_map(|item| {
+            let (key, value) = item.split_once('=')?;
+            (key == name).then(|| value.parse::<usize>().ok()).flatten()
+        })
+    };
+    if limit("max-keys") == Some(0) {
+        return s.skip("server does not allow clients to set metadata keys");
+    }
+    if limit("max-value-bytes").is_some_and(|maximum| value.len() > maximum) {
+        return s.skip("fixture metadata value exceeds the advertised limit");
+    }
+    Ok(())
+}
+
 /// sets, gets, and removes client metadata
 #[scenario(
     requires(caps = ["batch", "draft/metadata-2"]),
@@ -13,6 +39,7 @@ async fn draft_metadata_2(s: Scenario) -> papo_testing::Result<()> {
     let value = "fixture metadata value";
     let mut alice = s.connect("alice").await?;
     let nick = alice.state().nick().clone();
+    require_metadata_capacity(&s, &alice, value)?;
 
     alice.metadata().set(key.clone(), value).await?;
     let changed = alice.wait_for(Event::as_metadata_changed).await?;
@@ -79,6 +106,7 @@ async fn metadata_subscriptions(s: Scenario) -> papo_testing::Result<()> {
             .metadata_subscriptions()
             .any(|subscribed| subscribed == &key)
     );
+    require_metadata_capacity(&s, &alice, "available")?;
 
     let alice_nick = alice.state().nick().clone();
     alice.metadata().set(key.clone(), "available").await?;
@@ -143,6 +171,7 @@ async fn metadata_does_not_cross_nick_handoffs(s: Scenario) -> papo_testing::Res
     alice.join(&channel).await?;
     mallory.join(&channel).await?;
     observer.metadata().subscribe([key.clone()]).await?;
+    require_metadata_capacity(&s, &alice, "Alice Admin")?;
 
     let alice_nick = alice.nick();
     let mallory_nick = mallory.nick();
@@ -191,6 +220,7 @@ async fn channel_metadata(s: Scenario) -> papo_testing::Result<()> {
     let mut bob = s
         .connect_with(s.configure("bob")?.metadata_subscriptions([key.clone()]))
         .await?;
+    require_metadata_capacity(&s, &alice, value)?;
     alice.join(channel.clone()).await?;
     bob.join(channel.clone()).await?;
 
