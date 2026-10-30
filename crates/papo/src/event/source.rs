@@ -160,83 +160,6 @@ pub(crate) fn from_proto_with_origin(
     }
 }
 
-pub(crate) fn user_from_line(
-    line: &papo_proto::LineRef<'_>,
-    casemapping: Casemapping,
-    origin: crate::Origin,
-    account_tag_enabled: bool,
-    prove_not_bot: bool,
-) -> Option<UserSource> {
-    let papo_proto::Source::User {
-        nick,
-        username,
-        host,
-        ..
-    } = line.source()?
-    else {
-        return None;
-    };
-    let account = line.tag("account").map_or_else(
-        || {
-            if account_tag_enabled {
-                Account::LoggedOut
-            } else {
-                Account::Unknown
-            }
-        },
-        |account| Account::LoggedIn(origin.__account(casemapping, account)),
-    );
-    let is_bot = if line.tags().any(|(key, _)| key == "bot") {
-        Some(true)
-    } else {
-        prove_not_bot.then_some(false)
-    };
-    let oper = line
-        .tags()
-        .find(|(key, _)| *key == "draft/oper")
-        .map(|(_, value)| Oper {
-            name: value.map(std::borrow::Cow::into_owned),
-        });
-    Some(UserSource {
-        nick: origin.__nick(casemapping, nick),
-        username: username.filter(|_| host.is_some()).map(str::to_owned),
-        host: host.map(str::to_owned),
-        account,
-        is_bot,
-        oper,
-    })
-}
-
-pub(crate) fn user_from_prefix(
-    prefix: &str,
-    casemapping: Casemapping,
-    origin: crate::Origin,
-    account: Account,
-    is_bot: Option<bool>,
-    oper: Option<Oper>,
-) -> Option<UserSource> {
-    let line = papo_proto::Line::new("TAGMSG")
-        .param("*")
-        .with_source(prefix);
-    let papo_proto::Source::User {
-        nick,
-        username,
-        host,
-        ..
-    } = line.as_ref().source()?
-    else {
-        return None;
-    };
-    Some(UserSource {
-        nick: origin.__nick(casemapping, nick),
-        username: username.filter(|_| host.is_some()).map(str::to_owned),
-        host: host.map(str::to_owned),
-        account,
-        is_bot,
-        oper,
-    })
-}
-
 pub(crate) enum LinePrefix<'a> {
     Raw(&'a str),
     Core(papo_core::Source),
@@ -289,33 +212,6 @@ pub(crate) fn from_core(source: papo_core::Source, origin: crate::Origin) -> Opt
         papo_core::Source::Server { name, .. } => Some(Source::Server(name)),
         _ => None,
     }
-}
-
-pub(crate) fn from_core_with_account(
-    source: papo_core::Source,
-    origin: crate::Origin,
-    account: Account,
-) -> Option<Source> {
-    let mut source = from_core(source, origin)?;
-    if let Source::User(user) = &mut source {
-        user.set_account(account);
-    }
-    Some(source)
-}
-
-pub(crate) fn from_prefix(
-    prefix: String,
-    casemapping: Casemapping,
-    origin: crate::Origin,
-) -> Source {
-    let message = papo_proto::Line::new("NOTICE")
-        .with_params(["*"])
-        .with_source(prefix);
-    from_proto_with_origin(
-        message.as_ref().source().expect("owned source is present"),
-        casemapping,
-        origin,
-    )
 }
 
 #[cfg(test)]
