@@ -824,7 +824,6 @@ where
         0,
         false,
         VecDeque::new(),
-        &events.connected,
         false,
     )
     .await;
@@ -900,7 +899,6 @@ async fn run_connection<S>(
     sts_port: u16,
     sts_websocket: bool,
     mut pending_events: VecDeque<Event>,
-    connected: &AtomicBool,
     reconnectable: bool,
 ) -> ConnectionEnd
 where
@@ -911,8 +909,7 @@ where
         Some(connection) => session.handle_connected_with(current, connection),
         None => session.handle_connected(current),
     }
-    connected.store(true, Ordering::Relaxed);
-    publish_state(events, session, true);
+    publish_session_state(events, session);
     let mut commands_open = true;
     let mut quit = None;
     let mut requests = BTreeMap::new();
@@ -1142,19 +1139,19 @@ where
                     }
                     let recipient =
                         session.__direct_acquire(&nick, None, None, crate::Account::Unknown);
-                    publish_state(events, session, true);
+                    publish_session_state(events, session);
                     _ = result.send(Ok(recipient));
                 }
                 Some(Command::DirectProve { recipient, account, result }) => {
                     let recipient = session
                         .__direct_prove(&recipient, account)
                         .ok_or(Error::TargetGone);
-                    publish_state(events, session, true);
+                    publish_session_state(events, session);
                     _ = result.send(recipient);
                 }
                 Some(Command::DirectRelease { recipient }) => {
                     session.__direct_release(&recipient);
-                    publish_state(events, session, true);
+                    publish_session_state(events, session);
                 }
                 Some(Command::SendText { kind, target, conversation, status, receipt, text, tags, mut fallbacks, action, guard, result }) => {
                     let tags: Vec<_> = tags.iter().map(|(key, value)| (key.as_str(), value.as_str())).collect();
@@ -1319,8 +1316,7 @@ where
     for (_, result) in sync_waiters {
         _ = result.send(Err(Error::disconnected(disconnected.clone())));
     }
-    connected.store(false, Ordering::Relaxed);
-    publish_state(events, session, false);
+    publish_session_state(events, session);
     close_stream_before(
         &mut stream,
         quit.as_ref().and_then(|quit: &Quit| quit.deadline),
@@ -1418,7 +1414,7 @@ async fn drain<S>(
 where
     S: AsyncWrite + Unpin,
 {
-    publish_state(events, session, true);
+    publish_session_state(events, session);
     if !drain_transmit(stream, session, pending_write, transmits, deadline).await? {
         return Ok(None);
     }
@@ -2011,6 +2007,12 @@ fn publish_state(events: &EventSink, session: &Session, connected: bool) {
         .write()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     *slot = next;
+}
+
+fn publish_session_state(events: &EventSink, session: &Session) {
+    let registered = session.__is_registered();
+    events.connected.store(registered, Ordering::Relaxed);
+    publish_state(events, session, registered);
 }
 
 fn after_connect(

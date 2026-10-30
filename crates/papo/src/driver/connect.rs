@@ -288,7 +288,6 @@ pub(super) async fn run_planned_connection(
         plan.address.port,
         plan.address.is_websocket(),
         pending_events,
-        &events.connected,
         true,
     )
     .await

@@ -14,6 +14,9 @@ provider, `websocket` adds native and WASI WebSocket transports, `precis` adds U
 and account comparison, and `unstable` exposes experimental extension APIs without semantic
 versioning guarantees.
 
+User sends queued during initial registration or reconnection now wait for numeric 001. They fail
+as disconnected if registration ends first, and `State::is_connected` remains false until 001.
+
 ### Migration from the 2026-10-24 API
 
 This section covers breaking changes since `46c832d`. Papo had not been released at that point,

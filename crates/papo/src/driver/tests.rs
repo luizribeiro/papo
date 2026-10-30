@@ -1105,7 +1105,7 @@ async fn registration_is_forwarded() {
     assert!(!client.state().is_connected());
     let task = tokio::spawn(driver);
     welcome_burst(&mut server).await;
-    assert!(client.state().is_connected());
+    assert!(!client.state().is_connected());
     within(server.write_all(b":ergo.test CAP * LS :\r\n"))
         .await
         .unwrap();

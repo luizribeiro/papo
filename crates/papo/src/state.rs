@@ -409,7 +409,7 @@ impl State {
             && self.connected == connected
     }
 
-    /// Reports whether the client currently has an open transport.
+    /// Reports whether the server has registered the current connection with numeric 001.
     #[must_use]
     pub const fn is_connected(&self) -> bool {
         self.connected
