@@ -2286,7 +2286,6 @@ pub(crate) fn from_core_with_receipt(
         papo_core::Event::Joined {
             envelope,
             actor,
-            account,
             realname,
             channel,
             authorship,
@@ -2294,13 +2293,12 @@ pub(crate) fn from_core_with_receipt(
             ..
         } => {
             let envelope = map_envelope(&envelope);
-            let Some(actor) = source::user_from_prefix(
-                &actor,
+            let Some(Source::User(actor)) = source::from_line(
+                source::LinePrefix::Raw(&actor),
+                &envelope,
                 channel.casemapping(),
                 origin,
-                account,
-                None,
-                None,
+                prove_not_bot,
             ) else {
                 return CoreEvent::Unknown;
             };
@@ -2330,9 +2328,7 @@ pub(crate) fn from_core_with_receipt(
             ..
         } => {
             let envelope = map_envelope(&envelope);
-            let Some(actor) =
-                source::user_from_prefix(&actor, casemapping, origin, envelope.account, None, None)
-            else {
+            let Some(actor) = user_from_raw(&actor, &envelope) else {
                 return CoreEvent::Unknown;
             };
             Event::Parted(Parted {
@@ -2387,7 +2383,9 @@ pub(crate) fn from_core_with_receipt(
             ..
         } => {
             let envelope = map_envelope(&envelope);
-            let actor = source::from_prefix(actor, casemapping, origin);
+            let Some(actor) = actor_from_raw(&actor, &envelope) else {
+                return CoreEvent::Unknown;
+            };
             let reply_token = actor
                 .user()
                 .and_then(|user| reply_state.map(|state| state.__reply_token_for(user.nick())));
@@ -2420,21 +2418,14 @@ pub(crate) fn from_core_with_receipt(
             ..
         } => {
             let envelope = map_envelope(&envelope);
+            let Some(actor) = user_from_raw(&actor, &envelope) else {
+                return CoreEvent::Unknown;
+            };
             Event::Quit(Quit {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
-                actor: match source::user_from_prefix(
-                    &actor,
-                    casemapping,
-                    origin,
-                    envelope.account,
-                    None,
-                    None,
-                ) {
-                    Some(actor) => actor,
-                    None => return CoreEvent::Unknown,
-                },
+                actor,
                 reason: reason.map(|reason| papo_proto::display_text(&reason).into_owned()),
                 channels,
                 authorship: Authorship::from_core(authorship),
@@ -2451,21 +2442,14 @@ pub(crate) fn from_core_with_receipt(
             ..
         } => {
             let envelope = map_envelope(&envelope);
+            let Some(actor) = user_from_raw(&actor, &envelope) else {
+                return CoreEvent::Unknown;
+            };
             Event::NickChanged(NickChanged {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
-                actor: match source::user_from_prefix(
-                    &actor,
-                    casemapping,
-                    origin,
-                    envelope.account,
-                    None,
-                    None,
-                ) {
-                    Some(actor) => actor,
-                    None => return CoreEvent::Unknown,
-                },
+                actor,
                 new,
                 channels,
                 authorship: Authorship::from_core(authorship),
@@ -2481,13 +2465,16 @@ pub(crate) fn from_core_with_receipt(
             ..
         } => {
             let envelope = map_envelope(&envelope);
+            let Some(actor) = actor_from_raw(&actor, &envelope) else {
+                return CoreEvent::Unknown;
+            };
             Event::ChannelRenamed(ChannelRenamed {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 old,
                 new,
-                actor: source::from_prefix(actor, casemapping, origin),
+                actor,
                 authorship: Authorship::from_core(authorship),
                 reason: reason.map(|reason| papo_proto::display_text(&reason).into_owned()),
             })
@@ -4386,7 +4373,6 @@ mod tests {
             papo_core::Event::__joined(
                 papo_core::LineEnvelope::default(),
                 "Alice[bot]!~a@cloak.example".to_owned(),
-                Account::Unknown,
                 None,
                 Casemapping::Ascii.channel("#Papo[dev]"),
                 Casemapping::Ascii.nick("Alice[bot]"),
@@ -4967,7 +4953,6 @@ mod tests {
         let event = forwarded(papo_core::Event::__joined(
             papo_core::LineEnvelope::default(),
             "alice!~a@host".to_owned(),
-            Account::LoggedIn(Casemapping::default().account("alice")),
             Some("Alice Liddell".to_owned()),
             Casemapping::default().channel("#papo"),
             Casemapping::default().nick("alice"),
@@ -4978,7 +4963,7 @@ mod tests {
         assert_eq!(joined.channel, "#papo");
         assert_eq!(joined.actor.nick(), "alice");
         assert_eq!(joined.realname.as_deref(), Some("Alice Liddell"));
-        assert!(matches!(joined.actor.account(), Account::LoggedIn(account) if account == "alice"));
+        assert_eq!(joined.actor.account(), &Account::LoggedOut);
         assert_eq!(joined.netjoin, None);
     }
 
@@ -5007,7 +4992,7 @@ mod tests {
         let joined_event = Event::Joined(joined.clone());
         assert_eq!(joined_event.server_time(), None);
         assert_eq!(joined_event.received_at(), Some(received_at));
-        assert_eq!(joined.actor.account(), &Account::Unknown);
+        assert!(matches!(joined.actor.account(), Account::LoggedIn(account) if account == "emily"));
     }
 
     #[test]

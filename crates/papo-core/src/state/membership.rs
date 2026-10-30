@@ -80,18 +80,12 @@ impl State {
         } else {
             crate::LineEnvelope::from_line(message)
         };
-        let account = if join.realname.is_some() {
-            Account::from_notify(join.account, self.casemapping)
-        } else {
-            Account::Unknown
-        };
         outbox.event(Event::Joined {
             envelope,
             actor: message
                 .raw_source()
                 .expect("user source is present")
                 .to_owned(),
-            account,
             realname: join.realname.map(str::to_owned),
             channel: self.casemapping.channel(join.channel),
             nick: self.casemapping.nick(nick),

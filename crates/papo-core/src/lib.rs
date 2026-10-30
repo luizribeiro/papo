@@ -2625,8 +2625,6 @@ pub enum Event {
         envelope: LineEnvelope,
         /// The joining user's prefix.
         actor: String,
-        /// The joining user's known account state.
-        account: Account,
         /// The joining user's real name, when supplied by the server.
         realname: Option<String>,
         /// The channel that was joined.
@@ -2862,7 +2860,7 @@ hidden_event_constructors! {
     __features_changed(added: Vec<Feature>, removed: Vec<Feature>) => FeaturesChanged;
     __casemapping_changed(old: Casemapping, new: Casemapping) => CasemappingChanged;
     __channel_recreated(channel: ChannelName, previous_created_at: std::time::SystemTime, created_at: std::time::SystemTime) => ChannelRecreated;
-    __joined(envelope: LineEnvelope, actor: String, account: Account, realname: Option<String>, channel: ChannelName, nick: Nick, authorship: Authorship, netjoin: Option<SplitServers>) => Joined;
+    __joined(envelope: LineEnvelope, actor: String, realname: Option<String>, channel: ChannelName, nick: Nick, authorship: Authorship, netjoin: Option<SplitServers>) => Joined;
     __account_created(account: AccountName, logged_in: bool) => AccountCreated;
     __verification_required(account: AccountName, message: String) => VerificationRequired;
     __metadata_sync_later(target: String, retry_after: Option<Duration>) => MetadataSyncLater;
