@@ -6617,6 +6617,46 @@ async fn manual_who_refreshes_joined_member_state_at_numeric_315() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn message_accessors_report_the_wire_audience() {
+    let (mut server, _client, mut events, driver) = scripted(config());
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":ergo.test 005 papo-driver CHANTYPES=# STATUSMSG=@+ :are supported\r\n:papo-driver!papo@localhost JOIN #review\r\n:alice!~alice@cloak.example JOIN #review\r\n:ergo.test 353 papo-driver = #review :@papo-driver +alice\r\n:ergo.test 366 papo-driver #review :End of NAMES list\r\n",
+    )
+    .await;
+    while !matches!(
+        next_active_event(&mut events).await,
+        Event::ChannelSynced(_)
+    ) {}
+    client_line(&mut server, b"MODE #review\r\n").await;
+    client_line(&mut server, b"WHO #review\r\n").await;
+
+    server_line(
+        &mut server,
+        b":alice!~alice@cloak.example PRIVMSG @#review :operators approve\r\n@+channel-context=#review :alice!~alice@cloak.example PRIVMSG papo-driver :release ready\r\n",
+    )
+    .await;
+    let status_message = next_message(&mut events).await;
+    assert_eq!(
+        status_message.status().map(crate::Prefix::symbol),
+        Some('@')
+    );
+    let channel_message = next_message(&mut events).await;
+    assert_eq!(
+        channel_message.channel_context().map(AsRef::as_ref),
+        Some("#review")
+    );
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn capability_loss_fails_a_pending_request_immediately() {
     let (mut server, client, mut events, driver) =
         scripted(config().wanted_caps(["labeled-response"]));
