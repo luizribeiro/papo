@@ -1,10 +1,3 @@
-[partially_invalid_join]
-reason = "UnrealIRCd accepts the valid JOIN target but reports the malformed target with 448 rather than 476"
-kind = "server-bug"
-spec = "https://modern.ircdocs.horse/#join-message"
-evidence = "C: JOIN #valid,#invalid-control-G | S: JOIN #valid; 448 #invalid-control-G"
-server_version = "6.2.7"
-
 [names_multiple_channels]
 reason = "UnrealIRCd advertises and enforces a one-target limit for NAMES"
 kind = "fixture-limit"

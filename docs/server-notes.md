@@ -10,7 +10,6 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 - `client_batch_errors` (`2.19.1`) — Ergo reports generic INVALID_PARAMS for unknown and unopened client batches rather than UNKNOWN_TYPE and INVALID_REFTAG ([spec](https://ircv3.net/specs/extensions/client-batch)). Evidence: `C: BATCH +papo/unknown; BATCH -missing | S: FAIL BATCH INVALID_PARAMS for both requests`
 - `kick_missing_member` (`2.19.1`) — Ergo returns 482 rather than 441 when an operator kicks a user outside the channel ([spec](https://modern.ircdocs.horse/#kick-message)). Evidence: `C: KICK #review absent :not a channel member | S: 482 operator #review`
 - `names_multiple_channels` (`2.19.1`) — Ergo returns NAMES for only the first channel in a comma-separated target list ([spec](https://modern.ircdocs.horse/#names-message)). Evidence: `C: NAMES #first,#second | S: 353/366 for #first only`
-- `partially_invalid_join` (`2.19.1`) — Ergo accepts the valid JOIN target but reports the malformed target with 403 rather than 476 ([spec](https://modern.ircdocs.horse/#join-message)). Evidence: `C: JOIN #valid,#invalid-control-G | S: JOIN #valid; 403 #invalid-control-G`
 - `user_modes` (`2.19.1`) — Ergo reports an unknown user mode with channel-mode numeric 472 rather than 501 ([spec](https://modern.ircdocs.horse/#mode-message)). Evidence: `C: MODE review +? | S: 472 review ?`
 
 ### Unimplemented features
@@ -38,7 +37,6 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 - `client_batch_errors` (`2.19.1`) — Ergo reports generic INVALID_PARAMS for unknown and unopened client batches rather than UNKNOWN_TYPE and INVALID_REFTAG ([spec](https://ircv3.net/specs/extensions/client-batch)). Evidence: `C: BATCH +papo/unknown; BATCH -missing | S: FAIL BATCH INVALID_PARAMS for both requests`
 - `kick_missing_member` (`2.19.1`) — Ergo returns 482 rather than 441 when an operator kicks a user outside the channel ([spec](https://modern.ircdocs.horse/#kick-message)). Evidence: `C: KICK #review absent :not a channel member | S: 482 operator #review`
 - `names_multiple_channels` (`2.19.1`) — Ergo returns NAMES for only the first channel in a comma-separated target list ([spec](https://modern.ircdocs.horse/#names-message)). Evidence: `C: NAMES #first,#second | S: 353/366 for #first only`
-- `partially_invalid_join` (`2.19.1`) — Ergo accepts the valid JOIN target but reports the malformed target with 403 rather than 476 ([spec](https://modern.ircdocs.horse/#join-message)). Evidence: `C: JOIN #valid,#invalid-control-G | S: JOIN #valid; 403 #invalid-control-G`
 - `user_modes` (`2.19.1`) — Ergo reports an unknown user mode with channel-mode numeric 472 rather than 501 ([spec](https://modern.ircdocs.horse/#mode-message)). Evidence: `C: MODE review +? | S: 472 review ?`
 
 ### Unimplemented features
@@ -77,7 +75,6 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 - `multiple_joins` (`soju 0.11.1 / Ergo 2.19.1`) — soju treats JOIN zero as a channel name instead of forwarding the leave-all operation upstream ([spec](https://modern.ircdocs.horse/#join-message)). Evidence: `C: JOIN 0 | S: attempts to join channel 0`
 - `nick_errors` (`soju 0.11.1 / Ergo 2.19.1`) — soju reports an empty nickname with 432 rather than 431 ([spec](https://modern.ircdocs.horse/#nick-message)). Evidence: `C: NICK : | S: 432`
 - `nickname_collision_race` (`soju 0.11.1 / Ergo 2.19.1`) — soju reports a simultaneous nickname claim as generic numeric 400 rather than 436 ([spec](https://modern.ircdocs.horse/#nick-message)). Evidence: `C: NICK race-review from two clients | S: 400 for the rejected claim`
-- `partially_invalid_join` (`soju 0.11.1 / Ergo 2.19.1`) — soju does not complete the labelled response for a mixed valid and malformed JOIN ([spec](https://ircv3.net/specs/extensions/labeled-response)). Evidence: `C: @label=... JOIN #valid,#invalid-control-G | S: partial response without labeled completion`
 - `setname` (`soju 0.11.1 / Ergo 2.19.1`) — soju replaces the upstream real name with the nickname in relayed SETNAME state ([spec](https://ircv3.net/specs/extensions/setname)). Evidence: `upstream S: SETNAME :Alice Reviewer | downstream S: SETNAME :alice`
 - `whox` (`soju 0.11.1 / Ergo 2.19.1`) — soju replaces the configured upstream real name with the nickname in WHOX replies ([spec](https://ircv3.net/specs/extensions/whox)). Evidence: `C: WHO #review %tcuhnfar,... | S: 354 ... alice :alice`
 - `targmax_privmsg` (`soju 0.11.1 / Ergo 2.19.1`) — soju delivers PRIVMSG to all five targets despite relaying Ergo's TARGMAX=PRIVMSG:4 ([spec](https://modern.ircdocs.horse/#targmax-parameter)). Evidence: `S: 005 TARGMAX=...,PRIVMSG:4,... | C: PRIVMSG bob,carol,dave,erin,frank :over the target limit | S: delivered to all five, no 407`
@@ -150,7 +147,6 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 - `elist_filters` (`0-unstable-2026-09-13`) — Solanum does not label the filtered LIST terminator, so the labelled request cannot complete ([spec](https://ircv3.net/specs/extensions/labeled-response)). Evidence: `C: @label=... LIST #review,>1,<3,C<10,T<10 | S: unlabeled 323 terminator`
 - `kick_rules` (`0-unstable-2026-09-13`) — Solanum applies a multi-target KICK only to the first target and uses that target as the default comment ([spec](https://modern.ircdocs.horse/#kick-message)). Evidence: `C: KICK #review first,second | S: KICK #review first :first`
 - `names_multiple_channels` (`0-unstable-2026-09-13`) — Solanum returns NAMES for only the first channel in a comma-separated target list ([spec](https://modern.ircdocs.horse/#names-message)). Evidence: `C: NAMES #first,#second | S: 353/366 for #first only`
-- `partially_invalid_join` (`0-unstable-2026-09-13`) — Solanum accepts the valid JOIN target but reports the malformed target with 479 rather than 476 ([spec](https://modern.ircdocs.horse/#join-message)). Evidence: `C: JOIN #valid,#invalid-control-G | S: JOIN #valid; 479 #invalid-control-G`
 - `part` (`0-unstable-2026-09-13`) — Solanum does not complete the labelled PART request from its echoed channel departure ([spec](https://ircv3.net/specs/extensions/labeled-response)). Evidence: `C: @label=... PART #review :reason | S: unlabeled PART, with no labeled ACK`
 - `topic` (`0-unstable-2026-09-13`) — Solanum does not complete the labelled TOPIC request from its echoed topic change ([spec](https://ircv3.net/specs/extensions/labeled-response)). Evidence: `C: @label=... TOPIC #review :new topic | S: unlabeled TOPIC, with no labeled ACK`
 
@@ -174,7 +170,6 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 ## UnrealIRCd
 
 ### Server bugs
-- `partially_invalid_join` (`6.2.7`) — UnrealIRCd accepts the valid JOIN target but reports the malformed target with 448 rather than 476 ([spec](https://modern.ircdocs.horse/#join-message)). Evidence: `C: JOIN #valid,#invalid-control-G | S: JOIN #valid; 448 #invalid-control-G`
 - `standard_replies` (`6.2.7`) — UnrealIRCd advertises standard-replies but does not reject this invalid real name with FAIL ([spec](https://ircv3.net/specs/extensions/setname)). Evidence: `C: SETNAME : | S: no FAIL SETNAME INVALID_REALNAME`
 - `status_message` (`6.2.7`) — UnrealIRCd advertises STATUSMSG but does not deliver a message addressed to voiced members ([spec](https://modern.ircdocs.horse/#statusmsg-parameter)). Evidence: `S: 005 STATUSMSG=@+ | C: PRIVMSG +#review :operators only | S: no delivery`
 - `client_batch_errors` (`6.2.7`) — UnrealIRCd reports MULTILINE_INVALID rather than INVALID_REFTAG when closing an unopened client batch ([spec](https://ircv3.net/specs/extensions/client-batch)). Evidence: `C: BATCH -missing | S: FAIL BATCH MULTILINE_INVALID`

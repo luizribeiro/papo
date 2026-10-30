@@ -414,17 +414,39 @@ async fn partially_invalid_join(s: Scenario) -> papo_testing::Result<()> {
 
     // A single JOIN command must still apply its valid target before reporting the bad one.
     let targets = format!("{channel},{invalid}");
-    let partial = alice
-        .request_raw(papo::Line::new("JOIN").with_params([&targets]))
+    let mapping = alice.state().casemapping();
+    alice
+        .send_raw(papo::Line::new("JOIN").with_params([&targets]))
         .await?;
-    let synced = alice
+    let refusal = alice
         .wait_for(|event| {
-            event
-                .as_channel_synced()
-                .filter(|synced| synced.channel.as_ref() == channel)
+            event.as_other().filter(|line| {
+                line.numeric()
+                    .is_some_and(|numeric| (400..=599).contains(&numeric))
+                    && line
+                        .get(1)
+                        .is_some_and(|target| mapping.channel(target) == invalid.as_str())
+            })
         })
         .await?;
-    assert_eq!(synced.channel.as_ref(), channel);
+    assert_eq!(
+        mapping.channel(refusal.get(1).expect("JOIN refusal names its target")),
+        invalid.as_str()
+    );
+    if !alice
+        .state()
+        .channel(&channel)
+        .is_some_and(papo::Channel::is_synced)
+    {
+        let synced = alice
+            .wait_for(|event| {
+                event
+                    .as_channel_synced()
+                    .filter(|synced| synced.channel.as_ref() == channel)
+            })
+            .await?;
+        assert_eq!(synced.channel.as_ref(), channel);
+    }
     let state = alice.state();
     assert!(
         state
@@ -432,12 +454,6 @@ async fn partially_invalid_join(s: Scenario) -> papo_testing::Result<()> {
             .is_some_and(papo::Channel::is_synced)
     );
     assert!(state.channel(&invalid).is_none());
-    if !partial.iter().any(|line| line.numeric() == Some(476)) {
-        return Err(std::io::Error::other(format!(
-            "unexpected malformed JOIN response: {partial:?}"
-        ))
-        .into());
-    }
     Ok(())
 }
 

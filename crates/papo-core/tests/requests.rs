@@ -1543,7 +1543,7 @@ fn join_sync_and_errors_use_the_named_concurrent_channel() {
     for line in [
         ":alice!alice@staff.example JOIN #papo{ alice :Alice Example",
         ":papo!papo@localhost JOIN #papo{ * :Papo Client",
-        ":ergo.test 471 papo #unknown :Cannot join channel (+l)",
+        ":irc.papo.test 448 papo #unknown :Cannot join channel: Channel name contains illegal characters (must be valid UTF8)",
         ":ergo.test 473 papo #invite :Cannot join channel (+i)",
         ":ergo.test 353 papo = #papo{ :@papo alice",
         ":ergo.test 366 papo #papo{ :End of /NAMES list",
@@ -1570,8 +1570,33 @@ fn join_refusals_resolve_the_matching_channel() {
     let cases = [
         (
             "#missing",
-            ":ergo.test 403 papo #missing :No such channel",
+            "@time=2026-10-30T09:30:04.156Z :ergo.test 403 papo #missing :No such channel",
             Refusal::NoSuchChannel,
+        ),
+        (
+            "#solanum-bad",
+            "@time=2026-10-30T09:31:19.666Z :irc.papo.test 479 papo #solanum-bad :Illegal channel name",
+            Refusal::Other,
+        ),
+        (
+            "#unreal-bad",
+            ":irc.papo.test 448 papo #unreal-bad :Cannot join channel: Channel name contains illegal characters (must be valid UTF8)",
+            Refusal::Other,
+        ),
+        (
+            "#inspircd-bad",
+            "@time=2026-10-30T09:31:49.278Z :irc.papo.test 476 papo #inspircd-bad :Invalid channel name",
+            Refusal::BadChannelMask,
+        ),
+        (
+            "#soju-bad",
+            ":bouncer.papo.test 476 papo #soju-bad :Invalid channel name",
+            Refusal::BadChannelMask,
+        ),
+        (
+            "#vendor-bad",
+            ":irc.example.test 599 papo #vendor-bad :JOIN refused",
+            Refusal::Other,
         ),
         (
             "#overflow",
@@ -1865,11 +1890,6 @@ fn standard_failures_require_fail_kind_and_matching_command() {
             ResponseMatcher::Who("#papo".into()),
         ),
         (
-            "JOIN",
-            Line::join("#papo"),
-            ResponseMatcher::Join("#papo".into()),
-        ),
-        (
             "PART",
             Line::new("PART").with_params(["#papo"]),
             ResponseMatcher::Part("#papo".into()),
@@ -1948,6 +1968,26 @@ fn standard_failures_require_fail_kind_and_matching_command() {
         }
         assert_eq!(response_id(&mut session), id);
     }
+}
+
+#[test]
+fn fail_join_requires_the_pending_target_in_its_context() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("papo"));
+    let id = session
+        .request_with_matcher(
+            now,
+            Line::join("#pending"),
+            ResponseMatcher::Join("#pending".into()),
+        )
+        .unwrap();
+    session.handle_line(
+        now,
+        b"FAIL JOIN CHANNEL_FULL #different :Cannot join channel",
+    );
+    assert_no_response(&mut session);
+    session.handle_line(now, b"FAIL JOIN CHANNEL_FULL #pending :Cannot join channel");
+    assert_eq!(response_id(&mut session), id);
 }
 
 #[test]
@@ -2254,7 +2294,7 @@ fn labelled_join_times_out_once_when_sync_never_finishes() {
 }
 
 #[test]
-fn labelled_join_without_an_echo_times_out_once() {
+fn labelled_join_with_an_unrelated_error_times_out_once() {
     let now = Instant::now();
     let mut session = labelled_session(now);
     let id = session
@@ -2265,6 +2305,14 @@ fn labelled_join_without_an_echo_times_out_once() {
         )
         .unwrap();
     _ = session.poll_transmit();
+    session.handle_line(
+        now,
+        b":irc.papo.test 448 papo #different :Cannot join channel: Channel name contains illegal characters (must be valid UTF8)",
+    );
+    assert!(
+        std::iter::from_fn(|| session.poll_event())
+            .all(|event| !matches!(event, Event::Response(_)))
+    );
 
     session.handle_timeout(now + std::time::Duration::from_secs(30));
     assert_eq!(

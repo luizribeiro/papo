@@ -1461,14 +1461,17 @@ impl ResponseMatcher {
                 })
             }
             Self::Join(channel) => {
-                if Self::standard_failure(message, "JOIN")
-                    || numeric.is_some_and(|numeric| {
-                        Self::numeric_names_command(message, numeric, "JOIN")
-                    })
-                {
+                let named = |index| Self::target_is(message, index, channel, mapping);
+                if StandardReplyView::parse(message).is_some_and(|reply| {
+                    reply.kind == StandardReplyKind::Fail
+                        && reply.command.eq_ignore_ascii_case("JOIN")
+                        && reply
+                            .context
+                            .iter()
+                            .any(|target| names_equal(mapping, target, channel))
+                }) {
                     return Some(true);
                 }
-                let named = |index| Self::target_is(message, index, channel, mapping);
                 if message.command() == Command::Join && own_source && named(0) {
                     return Some(state.channel(channel).is_some_and(Channel::is_synced));
                 }
@@ -1476,11 +1479,8 @@ impl ResponseMatcher {
                     return Some(true);
                 }
                 numeric.and_then(|numeric| {
-                    let refusal = matches!(
-                        numeric.code(),
-                        403 | 405 | 437 | 471 | 473 | 474 | 475 | 476 | 477 | 489
-                    );
-                    (named(1) && (numeric == Numeric::RPL_ENDOFNAMES || refusal)).then_some(true)
+                    (named(1) && (numeric == Numeric::RPL_ENDOFNAMES || numeric.is_error()))
+                        .then_some(true)
                 })
             }
             Self::Part(channel) => ((message.command() == Command::Part

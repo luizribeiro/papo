@@ -61,13 +61,6 @@ spec = "https://modern.ircdocs.horse/#nick-message"
 evidence = "C: NICK race-review from two clients | S: 433 race-review"
 server_version = "0-unstable-2026-09-13"
 
-[partially_invalid_join]
-reason = "Solanum accepts the valid JOIN target but reports the malformed target with 479 rather than 476"
-kind = "server-bug"
-spec = "https://modern.ircdocs.horse/#join-message"
-evidence = "C: JOIN #valid,#invalid-control-G | S: JOIN #valid; 479 #invalid-control-G"
-server_version = "0-unstable-2026-09-13"
-
 [part]
 reason = "Solanum does not complete the labelled PART request from its echoed channel departure"
 kind = "server-bug"

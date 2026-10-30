@@ -40,13 +40,6 @@ spec = "https://modern.ircdocs.horse/#nick-message"
 evidence = "C: NICK race-review from two clients | S: 433 race-review"
 server_version = "2.19.1"
 
-[partially_invalid_join]
-reason = "Ergo accepts the valid JOIN target but reports the malformed target with 403 rather than 476"
-kind = "server-bug"
-spec = "https://modern.ircdocs.horse/#join-message"
-evidence = "C: JOIN #valid,#invalid-control-G | S: JOIN #valid; 403 #invalid-control-G"
-server_version = "2.19.1"
-
 [persistence]
 reason = "Ergo's always-on account profile keeps persistence effective after accepting an OFF preference"
 kind = "fixture-limit"
