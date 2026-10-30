@@ -149,6 +149,7 @@ fn wipes_webpush_auth_and_combined_key_buffers() {
     while session.poll_transmit().is_some() {}
     session.handle_line(now, b"CAP * ACK :draft/webpush labeled-response");
     while session.poll_transmit().is_some() {}
+    session.handle_line(now, b":ergo.test 001 papo :Welcome to Ergo");
 
     session
         .webpush_register(
@@ -189,6 +190,7 @@ fn wipes_bouncer_password_attribute_buffers() {
     while session.poll_transmit().is_some() {}
     session.handle_line(now, b"CAP * ACK :soju.im/bouncer-networks labeled-response");
     while session.poll_transmit().is_some() {}
+    session.handle_line(now, b":ergo.test 001 papo :Welcome to Ergo");
 
     let password = papo_core::Secret::new(PASSWORD);
     let config = papo_core::__bouncer_attributes(
