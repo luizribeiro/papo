@@ -25,6 +25,8 @@ pub(crate) fn history_item(
     let mapping = state.casemapping();
     let origin = client.origin();
     let account_tag_enabled = state.caps().contains_key(&crate::cap::ACCOUNT_TAG);
+    let prove_not_bot = state.caps().contains_key(&crate::cap::MESSAGE_TAGS)
+        && state.isupport().bot_mode().is_some();
     match item {
         papo_core::HistoryItem::Message(item) => {
             let authorship = crate::Authorship::from_core(item.authorship);
@@ -46,6 +48,7 @@ pub(crate) fn history_item(
                 state.isupport().inner(),
                 history_conversation,
                 account_tag_enabled,
+                prove_not_bot,
                 received_at,
                 Some(&state),
             )
@@ -61,6 +64,7 @@ pub(crate) fn history_item(
                     state.isupport().inner(),
                     history_conversation,
                     account_tag_enabled,
+                    prove_not_bot,
                     received_at,
                     Some(&state),
                 )
@@ -150,6 +154,35 @@ where
     convert(&raw.as_ref()).unwrap_or_else(|| other(raw.clone(), received_at))
 }
 
+fn actor_from_line(
+    message: &papo_proto::LineRef<'_>,
+    envelope: &crate::event_impl::EventEnvelope,
+    mapping: crate::Casemapping,
+    origin: crate::Origin,
+    prove_not_bot: bool,
+) -> Option<crate::Source> {
+    crate::event_impl::source::from_line(
+        crate::event_impl::source::LinePrefix::Raw(message.raw_source()?),
+        envelope,
+        mapping,
+        origin,
+        prove_not_bot,
+    )
+}
+
+fn user_from_line(
+    message: &papo_proto::LineRef<'_>,
+    envelope: &crate::event_impl::EventEnvelope,
+    mapping: crate::Casemapping,
+    origin: crate::Origin,
+    prove_not_bot: bool,
+) -> Option<crate::UserSource> {
+    match actor_from_line(message, envelope, mapping, origin, prove_not_bot)? {
+        crate::Source::User(user) => Some(user),
+        crate::Source::Server(_) => None,
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn reaction(
     message: &papo_proto::LineRef<'_>,
@@ -160,6 +193,7 @@ fn reaction(
     isupport: &papo_proto::Isupport,
     history_conversation: Option<&crate::Conversation>,
     account_tag_enabled: bool,
+    prove_not_bot: bool,
     received_at: SystemTime,
     state: Option<&crate::State>,
 ) -> Option<Event> {
@@ -187,13 +221,7 @@ fn reaction(
         received_at,
     );
     let return_address = crate::event_impl::return_address(message, &conversation);
-    let actor = crate::event_impl::source::user_from_line(
-        message,
-        mapping,
-        origin,
-        account_tag_enabled,
-        false,
-    )?;
+    let actor = user_from_line(message, &envelope, mapping, origin, prove_not_bot)?;
     let mut receipt = crate::message_ref::Receipt::new(
         crate::Source::User(actor.clone()),
         authorship,
@@ -231,6 +259,7 @@ fn redaction(
     isupport: &papo_proto::Isupport,
     history_conversation: Option<&crate::Conversation>,
     account_tag_enabled: bool,
+    prove_not_bot: bool,
     received_at: SystemTime,
     state: Option<&crate::State>,
 ) -> Option<Event> {
@@ -252,18 +281,7 @@ fn redaction(
         received_at,
     );
     let return_address = crate::event_impl::return_address(message, &conversation);
-    let actor = match message.source()? {
-        papo_proto::Source::User { .. } => {
-            crate::Source::User(crate::event_impl::source::user_from_line(
-                message,
-                mapping,
-                origin,
-                account_tag_enabled,
-                false,
-            )?)
-        }
-        papo_proto::Source::Server(server) => crate::Source::Server(server.into()),
-    };
+    let actor = actor_from_line(message, &envelope, mapping, origin, prove_not_bot)?;
     let mut receipt = crate::message_ref::Receipt::new(
         actor.clone(),
         authorship,
@@ -1494,6 +1512,7 @@ mod tests {
             &papo_proto::Isupport::default(),
             None,
             true,
+            false,
             UNIX_EPOCH,
             None,
         ) else {
