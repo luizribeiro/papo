@@ -123,6 +123,7 @@ pub(crate) fn history_item(
                     mapping,
                     origin,
                     account_tag_enabled,
+                    prove_not_bot,
                     received_at,
                 )
             })
@@ -492,6 +493,7 @@ fn topic_changed(
     mapping: crate::Casemapping,
     origin: crate::Origin,
     account_tag_enabled: bool,
+    prove_not_bot: bool,
     received_at: SystemTime,
 ) -> Option<Event> {
     let envelope = crate::event_impl::line_envelope_with_account_tag(
@@ -501,6 +503,7 @@ fn topic_changed(
         account_tag_enabled,
         received_at,
     );
+    let actor = actor_from_line(message, &envelope, mapping, origin, prove_not_bot)?;
     Some(Event::TopicChanged(TopicChanged {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
@@ -510,12 +513,7 @@ fn topic_changed(
             .param(1)
             .filter(|topic| !topic.is_empty())
             .map(str::to_owned),
-        actor: crate::event_impl::source::from_proto_with_account(
-            message.source()?,
-            mapping,
-            origin,
-            envelope.account,
-        ),
+        actor,
         authorship,
     }))
 }

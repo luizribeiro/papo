@@ -170,19 +170,6 @@ pub(crate) fn from_proto_with_origin(
     }
 }
 
-pub(crate) fn from_proto_with_account(
-    source: papo_proto::Source<'_>,
-    casemapping: Casemapping,
-    origin: crate::Origin,
-    account: Account,
-) -> Source {
-    let mut source = from_proto_with_origin(source, casemapping, origin);
-    if let Source::User(user) = &mut source {
-        user.set_account(account);
-    }
-    source
-}
-
 pub(crate) fn user_from_line(
     line: &papo_proto::LineRef<'_>,
     casemapping: Casemapping,
