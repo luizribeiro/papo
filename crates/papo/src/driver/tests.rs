@@ -760,6 +760,49 @@ async fn every_private_core_line_refuses_a_nick_taken_after_receipt() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn channel_core_line_retains_the_actor_identity() {
+    let (mut server, client, mut events, driver) = scripted(config().wanted_caps(["message-tags"]));
+    let driver = tokio::spawn(driver);
+    complete_connect_caps(&mut server, &mut events, "message-tags", "message-tags").await;
+    server_line(
+        &mut server,
+        b":papo-driver!p@localhost JOIN #review\r\n:alice!~a@cloak.example JOIN #review\r\n:mallory!~m@users.example JOIN #review\r\n",
+    )
+    .await;
+    for _ in 0..3 {
+        assert!(matches!(
+            next_active_event(&mut events).await,
+            Event::Joined(_)
+        ));
+    }
+    server_line(
+        &mut server,
+        b"@msgid=ErgoActor1 :alice!~a@cloak.example TAGMSG #review\r\n",
+    )
+    .await;
+    let Event::TagMsg(tag) = next_active_event(&mut events).await else {
+        panic!("expected a channel tag message")
+    };
+
+    server_line(
+        &mut server,
+        b":alice!~a@cloak.example QUIT :Client Quit\r\n:mallory!~m@users.example NICK alice\r\n",
+    )
+    .await;
+    while !matches!(next_active_event(&mut events).await, Event::NickChanged(_)) {}
+    assert!(matches!(
+        within(client.direct_to(&tag)).await,
+        Err(Error::TargetGone)
+    ));
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn private_reply_refuses_a_different_known_account() {
     let settings = config().wanted_caps(["account-tag", "extended-join"]);
     let (mut server, client, mut events, driver) = scripted(settings);
