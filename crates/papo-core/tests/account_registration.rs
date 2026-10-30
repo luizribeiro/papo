@@ -60,8 +60,13 @@ fn configured_registration_waits_for_before_connect_capability() {
         .update(queue_debug_marker)
         .inspect(|session| assert_session_debug_redacts(session, "unique-registration-password"))
         .client("REGISTER alice alice@example.org unique-registration-password")
-        .client("PRIVMSG #papo :ordinary debug marker")
-        .event(|event| matches!(event, Event::RequestUntracked { .. }));
+        .no_client()
+        .event(|event| matches!(event, Event::RequestUntracked { .. }))
+        .server(":ergo.test REGISTER SUCCESS alice :Account successfully registered")
+        .event(|event| matches!(event, Event::AccountCreated { account, .. } if account == "alice"))
+        .client("CAP END")
+        .welcome(":ergo.test 001 papo :Welcome to Ergo")
+        .client("PRIVMSG #papo :ordinary debug marker");
 }
 
 #[test]
@@ -599,7 +604,7 @@ fn early_registration_reserves_its_id_before_a_later_whois() {
             .unwrap();
         assert_ne!(whois, registration);
     })
-    .client("WHOIS alice")
+    .no_client()
     .server("CAP * ACK :draft/account-registration labeled-response")
     .client("@label=0 REGISTER * * unique-password");
 }

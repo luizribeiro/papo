@@ -299,19 +299,19 @@ impl Session {
         emit_events: bool,
     ) -> Result<RequestId, RequestError> {
         let id = RequestId(self.next_request_id);
-        self.queue_request_with_id(now, message, feature, emit_events, id, None)?;
+        self.queue_request_with_id(now, message, feature, emit_events, id, None, true)?;
         self.next_request_id = self.next_request_id.wrapping_add(1);
         Ok(id)
     }
 
-    pub(super) fn queue_reserved_request(
+    pub(super) fn queue_registration_request(
         &mut self,
         now: Instant,
         message: Line,
         feature: Feature,
         id: RequestId,
     ) -> Result<(), RequestError> {
-        self.queue_request_with_id(now, message, Some(feature), true, id, None)
+        self.queue_request_with_id(now, message, Some(feature), true, id, None, false)
     }
 
     pub(super) fn queue_guarded_request(
@@ -323,11 +323,12 @@ impl Session {
         guard: Option<crate::TargetGuard>,
     ) -> Result<RequestId, RequestError> {
         let id = RequestId(self.next_request_id);
-        self.queue_request_with_id(now, message, feature, emit_events, id, guard)?;
+        self.queue_request_with_id(now, message, feature, emit_events, id, guard, true)?;
         self.next_request_id = self.next_request_id.wrapping_add(1);
         Ok(id)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn queue_request_with_id(
         &mut self,
         now: Instant,
@@ -336,6 +337,7 @@ impl Session {
         emit_events: bool,
         id: RequestId,
         guard: Option<crate::TargetGuard>,
+        requires_registration: bool,
     ) -> Result<(), RequestError> {
         self.rate_limit.advance(now);
         let sent = self.caps.enabled().contains_key(&cap::ECHO_MESSAGE)
@@ -358,7 +360,8 @@ impl Session {
         } else {
             self.outbox.event(Event::RequestUntracked { id });
         }
-        self.outbox.transmit_guarded(line, None, Some(id), guard);
+        self.outbox
+            .transmit_guarded(line, None, Some(id), guard, requires_registration);
         Ok(())
     }
 }

@@ -3278,6 +3278,7 @@ struct QueuedLine {
     token: Option<TransmitToken>,
     request: Option<RequestId>,
     guard: Option<TargetGuard>,
+    requires_registration: bool,
 }
 
 impl Transmission {
@@ -3285,6 +3286,13 @@ impl Transmission {
         match self {
             Self::Line(_) => 1,
             Self::Batch { lines, .. } => lines.len(),
+        }
+    }
+
+    fn requires_registration(&self) -> bool {
+        match self {
+            Self::Line(line) => line.requires_registration,
+            Self::Batch { token, request, .. } => token.is_some() || request.is_some(),
         }
     }
 }
@@ -3304,7 +3312,8 @@ impl Outbox {
         token: Option<TransmitToken>,
         request: Option<RequestId>,
     ) {
-        self.transmit_guarded(line, token, request, None);
+        let requires_registration = token.is_some() || request.is_some();
+        self.transmit_guarded(line, token, request, None, requires_registration);
     }
 
     fn transmit_guarded(
@@ -3313,6 +3322,7 @@ impl Outbox {
         token: Option<TransmitToken>,
         request: Option<RequestId>,
         guard: Option<TargetGuard>,
+        requires_registration: bool,
     ) {
         if self.close_requested {
             if let Some(token) = token {
@@ -3328,8 +3338,9 @@ impl Outbox {
             token,
             request,
             guard,
+            requires_registration,
         };
-        if bypasses_rate_limit(&line.line) {
+        if !line.requires_registration && bypasses_rate_limit(&line.line) {
             self.immediate.push_back(line);
         } else {
             self.transmits.push_back(Transmission::Line(line));
@@ -3348,6 +3359,7 @@ impl Outbox {
             token: None,
             request,
             guard: None,
+            requires_registration: request.is_some(),
         }));
     }
 
@@ -3416,6 +3428,7 @@ impl Outbox {
                 token: None,
                 request: None,
                 guard: None,
+                requires_registration: false,
             }),
             Err(error) => self.close(
                 CloseKind::Other,
@@ -3586,7 +3599,8 @@ impl Session {
         self.away_messages.clear();
         self.rate_limit.reset(now);
         self.account_registration.handle_disconnected();
-        if let Some(pending) = self.config.registration_on_connect.clone() {
+        if let Some(mut pending) = self.config.registration_on_connect.clone() {
+            pending.request = Some(self.reserve_request_id());
             self.account_registration.begin(pending);
         }
         self.away_on_connect_sent = false;
@@ -3857,7 +3871,8 @@ impl Session {
         drop(message);
         let token = TransmitToken(self.next_transmit_token);
         self.next_transmit_token = self.next_transmit_token.wrapping_add(1);
-        self.outbox.transmit_guarded(line, Some(token), None, guard);
+        self.outbox
+            .transmit_guarded(line, Some(token), None, guard, true);
         Ok(token)
     }
 
@@ -4167,6 +4182,7 @@ impl Session {
                     (index == last).then_some(token).flatten(),
                     request,
                     guard.clone(),
+                    true,
                 );
             }
         }
@@ -4611,12 +4627,19 @@ impl Session {
                 }
                 continue;
             }
-            if self.outbox.transmits.is_empty()
-                || !self.rate_limit.take(self.isupport.value().saferate())
-            {
+            let position = if self.welcome_state.is_registering() {
+                self.outbox
+                    .transmits
+                    .iter()
+                    .position(|transmit| !transmit.requires_registration())
+            } else {
+                (!self.outbox.transmits.is_empty()).then_some(0)
+            };
+            let position = position?;
+            if !self.rate_limit.take(self.isupport.value().saferate()) {
                 return None;
             }
-            match self.outbox.transmits.pop_front()? {
+            match self.outbox.transmits.remove(position)? {
                 Transmission::Line(line) => {
                     if let Some(transmit) = self.prepare_queued_line(line) {
                         return Some(transmit);
@@ -4638,6 +4661,7 @@ impl Session {
                         token: last.then_some(token).flatten(),
                         request: last.then_some(request).flatten(),
                         guard: (!last).then(|| guard.clone()).flatten(),
+                        requires_registration: token.is_some() || request.is_some(),
                     };
                     let Some(transmit) = self.prepare_queued_line(queued) else {
                         if !last {
@@ -4647,6 +4671,7 @@ impl Session {
                                     token: None,
                                     request: None,
                                     guard: None,
+                                    requires_registration: false,
                                 });
                             }
                             self.recipient_gone(token, request);
@@ -4891,6 +4916,13 @@ impl Session {
         self.welcome_state.is_connected()
     }
 
+    /// Reports whether numeric 001 has registered the current connection.
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __is_registered(&self) -> bool {
+        self.welcome_state.is_registered()
+    }
+
     /// Returns the account name reported by the server, when authenticated.
     #[must_use]
     pub fn account(&self) -> Option<&str> {
@@ -4973,7 +5005,7 @@ impl Session {
             .param(password);
         if let Some(request) = request {
             self.require_feature(Feature::AccountCreation)?;
-            self.queue_reserved_request(now, message, Feature::AccountCreation, request)?;
+            self.queue_registration_request(now, message, Feature::AccountCreation, request)?;
         } else {
             self.request_for_feature(now, message, Feature::AccountCreation)?;
         }
@@ -5006,11 +5038,13 @@ impl Session {
         {
             return Err(RequestError::unsupported(Feature::AccountCreation));
         }
-        self.request_for_feature(
-            now,
-            Line::new("VERIFY").param(account).param(code),
-            Feature::AccountCreation,
-        )?;
+        let message = Line::new("VERIFY").param(account).param(code);
+        if self.welcome_state.is_connected() {
+            self.request_for_feature(now, message, Feature::AccountCreation)?;
+        } else {
+            let request = self.reserve_request_id();
+            self.queue_registration_request(now, message, Feature::AccountCreation, request)?;
+        }
         self.account_registration.request_started();
         Ok(())
     }

@@ -22,10 +22,18 @@ pub(super) struct WelcomeState {
     welcome_text: Option<String>,
     motd_lines: Option<Vec<String>>,
     next_alt_nick: usize,
-    connected: bool,
+    registration: Registration,
     webirc_pending: bool,
     password_sent: bool,
     registration_error: Option<BuildError>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Registration {
+    Disconnected,
+    Registering,
+    Welcomed,
+    Connected,
 }
 
 impl WelcomeState {
@@ -38,7 +46,7 @@ impl WelcomeState {
             welcome_text: None,
             motd_lines: None,
             next_alt_nick: 0,
-            connected: false,
+            registration: Registration::Disconnected,
             webirc_pending: false,
             password_sent: false,
             registration_error: registration_error(config),
@@ -46,6 +54,7 @@ impl WelcomeState {
     }
 
     pub(super) fn handle_connected(&mut self, now: Instant, config: &Config, outbox: &mut Outbox) {
+        self.registration = Registration::Registering;
         if let Some(error) = self.registration_error {
             outbox.close(
                 CloseKind::Other,
@@ -59,7 +68,6 @@ impl WelcomeState {
         self.welcome_text = None;
         self.motd_lines = None;
         self.next_alt_nick = 0;
-        self.connected = false;
         self.webirc_pending = config.webirc.is_some();
         self.password_sent = false;
         if let Some(webirc) = &config.webirc {
@@ -112,6 +120,7 @@ impl WelcomeState {
             );
             Handled::Yes
         } else if message.command_is("001") {
+            self.registration = Registration::Welcomed;
             self.webirc_pending = false;
             if let Some(nick) = message.param(0) {
                 nick.clone_into(&mut self.nick);
@@ -267,7 +276,7 @@ impl WelcomeState {
         self.welcome_deadline = None;
         self.welcome_text = None;
         self.motd_lines = None;
-        self.connected = false;
+        self.registration = Registration::Disconnected;
         self.webirc_pending = false;
         self.password_sent = false;
     }
@@ -277,7 +286,18 @@ impl WelcomeState {
     }
 
     pub(super) const fn is_connected(&self) -> bool {
-        self.connected
+        matches!(self.registration, Registration::Connected)
+    }
+
+    pub(super) const fn is_registered(&self) -> bool {
+        matches!(
+            self.registration,
+            Registration::Welcomed | Registration::Connected
+        )
+    }
+
+    pub(super) const fn is_registering(&self) -> bool {
+        matches!(self.registration, Registration::Registering)
     }
 
     pub(super) const fn is_in_welcome_burst(&self) -> bool {
@@ -306,7 +326,7 @@ impl WelcomeState {
             );
             return;
         }
-        self.connected = true;
+        self.registration = Registration::Connected;
         outbox.event(Event::Connected(Welcome {
             nick: self.origin.__nick(isupport.casemapping(), &self.nick),
             text: self.welcome_text.take().unwrap_or_default(),

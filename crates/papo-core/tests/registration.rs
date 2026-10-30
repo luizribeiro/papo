@@ -198,6 +198,38 @@ fn welcome_adopts_the_server_nick_and_cancels_the_timeout() {
 }
 
 #[test]
+fn reconnect_holds_user_lines_until_the_welcome_numeric() {
+    Transcript::new(
+        Config::default()
+            .wanted_caps([] as [&str; 0])
+            .welcome_timeout(Duration::from_secs(60))
+            .ping_interval(Duration::from_secs(30))
+            .ping_timeout(Duration::from_secs(120)),
+    )
+    .connect_default()
+    .server(":ergo.test CAP * LS :")
+    .client("CAP END")
+    .welcome(":ergo.test 001 papo :Welcome to Ergo")
+    .server(":ergo.test 422 papo :MOTD File is missing")
+    .event(|event| matches!(event, Event::Connected(_)))
+    .disconnect()
+    .connect_default()
+    .send(papo_proto::Line::privmsg(
+        "#papo",
+        "deployment finished successfully",
+    ))
+    .no_client()
+    .advance(Duration::from_secs(30))
+    .client("PING papo-0")
+    .no_client()
+    .server(":ergo.test CAP * LS :")
+    .client("CAP END")
+    .no_client()
+    .welcome(":ergo.test 001 papo :Welcome back to Ergo")
+    .client("PRIVMSG #papo :deployment finished successfully");
+}
+
+#[test]
 fn welcome_timeout_is_the_first_deadline_and_closes_once() {
     let timeout = Duration::from_secs(23);
     Transcript::new(Config::default().welcome_timeout(timeout))
