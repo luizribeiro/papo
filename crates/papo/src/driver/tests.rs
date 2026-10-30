@@ -25,6 +25,31 @@ fn prefix_symbols(prefixes: &[crate::Prefix]) -> Vec<char> {
     prefixes.iter().map(|prefix| prefix.symbol()).collect()
 }
 
+fn assert_join_burst_channel(channel: &crate::Channel) {
+    assert_eq!(
+        channel.topic_set_at(),
+        Some(UNIX_EPOCH + Duration::from_secs(1_793_099_900))
+    );
+    let mut modes = channel.modes().collect::<Vec<_>>();
+    modes.sort_unstable_by_key(|(mode, _)| *mode);
+    assert_eq!(
+        modes,
+        [
+            ('k', crate::ModeValue::Set),
+            ('l', crate::ModeValue::Value("50")),
+            ('n', crate::ModeValue::Set),
+        ]
+    );
+    assert_eq!(
+        channel.key().map(crate::Secret::expose),
+        Some("review-key-2026")
+    );
+    assert_eq!(
+        channel.created_at(),
+        Some(UNIX_EPOCH + Duration::from_secs(1_793_098_801))
+    );
+}
+
 fn reconnectable_stream(
     settings: Config,
     reconnect: Reconnect,
@@ -9195,6 +9220,103 @@ async fn client_reads_owned_state_snapshots() {
         Err(disconnected!())
     ));
     assert!(!client.state().is_connected());
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn channel_accessors_report_the_join_burst() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+
+    server_line(
+        &mut server,
+        b":ergo.test 005 papo-driver CHANMODES=Ibe,k,fl,imnst PREFIX=(ov)@+ :are supported\r\n:papo-driver!papo@localhost JOIN #review\r\n",
+    )
+    .await;
+    while !matches!(next_active_event(&mut events).await, Event::Joined(_)) {}
+    server_line(
+        &mut server,
+        b":ergo.test 353 papo-driver = #review :@papo-driver +alice\r\n:ergo.test NOTICE papo-driver :names received\r\n",
+    )
+    .await;
+    while !matches!(next_active_event(&mut events).await, Event::ServerNotice(_)) {}
+    assert!(!client.state().channel("#review").unwrap().is_synced());
+
+    server_line(
+        &mut server,
+        b":ergo.test 366 papo-driver #review :End of NAMES list\r\n",
+    )
+    .await;
+    while !matches!(
+        next_active_event(&mut events).await,
+        Event::ChannelSynced(_)
+    ) {}
+    assert!(client.state().channel("#review").unwrap().is_synced());
+    client_line(&mut server, b"MODE #review\r\n").await;
+    client_line(&mut server, b"WHO #review\r\n").await;
+
+    server_line(
+        &mut server,
+        b":ergo.test 324 papo-driver #review +kln review-key-2026 50\r\n",
+    )
+    .await;
+    while client
+        .state()
+        .channel("#review")
+        .and_then(crate::Channel::key)
+        .is_none()
+    {
+        tokio::task::yield_now().await;
+    }
+    server_line(
+        &mut server,
+        b":ergo.test 329 papo-driver #review 1793098801\r\n",
+    )
+    .await;
+    while client
+        .state()
+        .channel("#review")
+        .and_then(crate::Channel::created_at)
+        .is_none()
+    {
+        tokio::task::yield_now().await;
+    }
+    server_line(
+        &mut server,
+        b":ergo.test 332 papo-driver #review :Release coordination\r\n:ergo.test 333 papo-driver #review alice 1793099900\r\n",
+    )
+    .await;
+    while client
+        .state()
+        .channel("#review")
+        .and_then(crate::Channel::topic_set_at)
+        .is_none()
+    {
+        tokio::task::yield_now().await;
+    }
+
+    let state = client.state();
+    let channel = state.channel("#review").unwrap();
+    assert_join_burst_channel(channel);
+
+    let same_client = state.name_rules().unwrap().nick("alice");
+    let originless = crate::Casemapping::default().nick("alice");
+    let (foreign_client, _foreign_events, _foreign_driver, _foreign_connections) =
+        crate::__testing::wire_client(
+            crate::Client::builder("irc://foreign.test", "papo-foreign")
+                .casemapping(crate::Casemapping::default()),
+        );
+    let foreign = foreign_client.state().name_rules().unwrap().nick("alice");
+    assert_eq!(channel.member(&same_client).unwrap().nick(), "alice");
+    assert!(channel.member(&foreign).is_none());
+    assert_eq!(channel.member(&originless).unwrap().nick(), "alice");
+    assert!(channel.member("missing").is_none());
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
 }
 
 #[tokio::test(flavor = "current_thread")]
