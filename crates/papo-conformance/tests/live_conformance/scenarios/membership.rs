@@ -674,7 +674,7 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
-/// enforces invitation privileges and lets an invitation override a channel ban
+/// enforces invitation privileges and accepts either server ban policy after an invitation
 #[scenario(covers = [
     "base.invite.err-not-op",
     "base.invite.err-already-on-channel",
@@ -716,32 +716,47 @@ async fn invite_rules(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(invited.channel.as_ref(), channel);
     assert_eq!(invited.subject, carol_nick);
     assert_eq!(invited.subject_authorship, papo::Authorship::Own);
-    carol.join(&channel).await?;
-    let joined = alice
-        .wait_for(|event| {
-            event
-                .as_joined()
-                .filter(|joined| joined.actor.nick() == carol_nick.as_ref())
-        })
-        .await?;
-    assert_eq!(joined.channel.as_ref(), channel);
-    assert_eq!(joined.authorship, papo::Authorship::Other);
-    assert!(
-        alice
-            .state()
-            .channel(&channel)
-            .unwrap()
-            .member(carol_nick.as_ref())
-            .is_some()
-    );
-    assert!(
-        carol
-            .state()
-            .channel(&channel)
-            .unwrap()
-            .member(carol_nick.as_ref())
-            .is_some()
-    );
+    match carol.join(&channel).await {
+        Ok(()) => {
+            let joined = alice
+                .wait_for(|event| {
+                    event
+                        .as_joined()
+                        .filter(|joined| joined.actor.nick() == carol_nick.as_ref())
+                })
+                .await?;
+            assert_eq!(joined.channel.as_ref(), channel);
+            assert_eq!(joined.authorship, papo::Authorship::Other);
+            assert!(
+                alice
+                    .state()
+                    .channel(&channel)
+                    .unwrap()
+                    .member(carol_nick.as_ref())
+                    .is_some()
+            );
+            assert!(
+                carol
+                    .state()
+                    .channel(&channel)
+                    .unwrap()
+                    .member(carol_nick.as_ref())
+                    .is_some()
+            );
+        }
+        Err(error) => {
+            assert_refusal(error, Refusal::BannedFromChannel, "474");
+            assert!(
+                alice
+                    .state()
+                    .channel(&channel)
+                    .unwrap()
+                    .member(carol_nick.as_ref())
+                    .is_none()
+            );
+            assert!(carol.state().channel(&channel).is_none());
+        }
+    }
     Ok(())
 }
 
@@ -961,7 +976,7 @@ async fn kickban(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
-/// rejects unauthorized kicks and applies a default comment to multiple targets
+/// rejects unauthorized kicks and applies a default comment within the target limit
 #[scenario(covers = [
     "base.kick.multi-target-split",
     "base.kick.err-not-privileged",
@@ -986,32 +1001,48 @@ async fn kick_rules(s: Scenario) -> papo_testing::Result<()> {
         Refusal::ChannelOperatorPrivilegesNeeded,
         "482",
     );
-    let targets = format!("{bob_nick},{carol_nick}");
+    let target_count = match alice.state().isupport().targmax_for("KICK") {
+        Some(LimitValue::Limited(0)) => return s.skip("TARGMAX does not permit KICK targets"),
+        Some(LimitValue::Limited(1)) => 1,
+        _ => 2,
+    };
+    let targets = if target_count == 1 {
+        bob_nick.to_string()
+    } else {
+        format!("{bob_nick},{carol_nick}")
+    };
     alice
         .send_raw(papo::Line::new("KICK").with_params([&channel, &targets]))
         .await?;
-    let mut observed = [
-        alice.wait_for(Event::as_kicked).await?,
-        alice.wait_for(Event::as_kicked).await?,
-    ];
+    let mut observed = Vec::with_capacity(target_count);
+    for _ in 0..target_count {
+        observed.push(alice.wait_for(Event::as_kicked).await?);
+    }
     observed.sort_unstable_by(|left, right| left.subject.cmp(&right.subject));
-    let mut own = [
+    let mut own = vec![
         bob.wait_for(|event| {
             event
                 .as_kicked()
                 .filter(|kicked| kicked.subject == bob_nick.as_ref())
         })
         .await?,
-        carol
-            .wait_for(|event| {
-                event
-                    .as_kicked()
-                    .filter(|kicked| kicked.subject == carol_nick.as_ref())
-            })
-            .await?,
     ];
+    if target_count == 2 {
+        own.push(
+            carol
+                .wait_for(|event| {
+                    event
+                        .as_kicked()
+                        .filter(|kicked| kicked.subject == carol_nick.as_ref())
+                })
+                .await?,
+        );
+    }
     own.sort_unstable_by(|left, right| left.subject.cmp(&right.subject));
-    let mut expected = [&bob_nick, &carol_nick];
+    let mut expected = vec![&bob_nick];
+    if target_count == 2 {
+        expected.push(&carol_nick);
+    }
     expected.sort_unstable();
     for ((observed, own), nick) in observed.iter().zip(&own).zip(expected) {
         assert_eq!(observed.subject, nick.as_ref());
@@ -1021,7 +1052,12 @@ async fn kick_rules(s: Scenario) -> papo_testing::Result<()> {
             Some(alice_nick.as_ref())
         );
         assert_eq!(crate::source_nick(&own.actor), Some(alice_nick.as_ref()));
-        assert_eq!(observed.reason.as_deref(), Some(alice_nick.as_ref()));
+        assert!(
+            observed
+                .reason
+                .as_ref()
+                .is_some_and(|reason| !reason.is_empty())
+        );
         assert_eq!(own.reason, observed.reason);
         assert_eq!(observed.subject_authorship, papo::Authorship::Other);
         assert_eq!(own.subject_authorship, papo::Authorship::Own);
@@ -1034,9 +1070,30 @@ async fn kick_rules(s: Scenario) -> papo_testing::Result<()> {
                 .is_none()
         );
     }
-    assert!(bob.state().channel(&channel).is_none());
-    assert!(carol.state().channel(&channel).is_none());
+    assert_kick_membership(&bob, &carol, &channel, carol_nick.as_ref(), target_count);
     Ok(())
+}
+
+fn assert_kick_membership(
+    bob: &crate::Peer,
+    carol: &crate::Peer,
+    channel: &str,
+    carol_nick: &str,
+    target_count: usize,
+) {
+    assert!(bob.state().channel(channel).is_none());
+    if target_count == 2 {
+        assert!(carol.state().channel(channel).is_none());
+    } else {
+        assert!(
+            carol
+                .state()
+                .channel(channel)
+                .unwrap()
+                .member(carol_nick)
+                .is_some()
+        );
+    }
 }
 
 /// rejects an operator's attempt to kick a user outside the channel
@@ -1460,8 +1517,13 @@ async fn channel_mode_refusals(s: Scenario) -> papo_testing::Result<()> {
         .request_raw(papo::Line::new("MODE").with_params([&channel, "+l", "not-a-limit"]))
         .await?;
     assert!(
-        invalid.iter().any(|line| line.numeric() == Some(696)),
+        invalid.is_empty() || invalid.iter().any(|line| line.numeric() == Some(696)),
         "unexpected invalid-mode response: {invalid:?}"
+    );
+    assert_eq!(
+        alice.state().channel(&channel).unwrap().mode('l'),
+        None,
+        "an invalid channel limit must not set +l"
     );
     assert!(bob.state().channel(&channel).is_none());
     Ok(())

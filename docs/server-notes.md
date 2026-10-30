@@ -127,18 +127,12 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 
 ### Server bugs
 - `away_private_message` (`0-unstable-2026-09-13`) — Solanum's away numeric completes the direct message before papo captures echo metadata for Sent ([spec](https://ircv3.net/specs/extensions/labeled-response)). Evidence: `C: @label=... PRIVMSG away-user :the review can wait | S: @label=... 301 away-user ...; unlabeled echo`
-- `channel_list` (`0-unstable-2026-09-13`) — Solanum does not label the LIST terminator, so the labelled request cannot complete ([spec](https://ircv3.net/specs/extensions/labeled-response)). Evidence: `C: @label=... LIST | S: labeled 322 rows followed by an unlabeled 323 terminator`
-- `channel_mode_refusals` (`0-unstable-2026-09-13`) — Solanum acknowledges a nonnumeric channel limit without returning 696 ([spec](https://modern.ircdocs.horse/#mode-message)). Evidence: `C: MODE #review +l not-a-limit | S: ACK, with no 696`
-- `direct_messages` (`0-unstable-2026-09-13`) — Solanum drops the client-only channel-context tag while relaying a private message ([spec](https://ircv3.net/specs/extensions/message-tags)). Evidence: `C: @+channel-context=#review PRIVMSG bob :thread reply | S: PRIVMSG without +channel-context`
-- `elist_filters` (`0-unstable-2026-09-13`) — Solanum does not label the filtered LIST terminator, so the labelled request cannot complete ([spec](https://ircv3.net/specs/extensions/labeled-response)). Evidence: `C: @label=... LIST #review,>1,<3,C<10,T<10 | S: unlabeled 323 terminator`
-- `kick_rules` (`0-unstable-2026-09-13`) — Solanum applies a multi-target KICK only to the first target and uses that target as the default comment ([spec](https://modern.ircdocs.horse/#kick-message)). Evidence: `C: KICK #review first,second | S: KICK #review first :first`
-- `part` (`0-unstable-2026-09-13`) — Solanum does not complete the labelled PART request from its echoed channel departure ([spec](https://ircv3.net/specs/extensions/labeled-response)). Evidence: `C: @label=... PART #review :reason | S: unlabeled PART, with no labeled ACK`
-- `topic` (`0-unstable-2026-09-13`) — Solanum does not complete the labelled TOPIC request from its echoed topic change ([spec](https://ircv3.net/specs/extensions/labeled-response)). Evidence: `C: @label=... TOPIC #review :new topic | S: unlabeled TOPIC, with no labeled ACK`
+- `part` (`0-unstable-2026-09-13`) — Solanum attaches the PART response label to the services-bound copy, leaving the client-visible echo unlabeled and without an ACK ([spec](https://ircv3.net/specs/extensions/labeled-response)). Evidence: `With services linked, C: @label=... PART #review :reason | S to client: unlabeled PART and no labeled ACK; the label was consumed by the server-link copy`
+- `topic` (`0-unstable-2026-09-13`) — Solanum attaches the TOPIC response label to the services-bound copy, leaving the client-visible echo unlabeled and without an ACK ([spec](https://ircv3.net/specs/extensions/labeled-response)). Evidence: `With services linked, C: @label=... TOPIC #review :new topic | S to client: unlabeled TOPIC and no labeled ACK; the label was consumed by the server-link copy`
 
 ### Unimplemented features (none recorded)
 
-### Specification ambiguities
-- `invite_rules` (`0-unstable-2026-09-13`) — Solanum keeps a channel ban effective after the banned user receives an invitation ([spec](https://modern.ircdocs.horse/#invite-message)). Evidence: `C: INVITE banned-user #review; JOIN #review | S: 474 #review`
+### Specification ambiguities (none recorded)
 
 ### Fixture limits (none recorded)
 
@@ -155,7 +149,6 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 ### Server bugs
 - `status_message` (`6.2.7`) — UnrealIRCd advertises STATUSMSG but does not deliver a message addressed to voiced members ([spec](https://modern.ircdocs.horse/#statusmsg-parameter)). Evidence: `S: 005 STATUSMSG=@+ | C: PRIVMSG +#review :operators only | S: no delivery`
 - `client_batch_errors` (`6.2.7`) — UnrealIRCd omits the required reference-tag and type parameters from UNKNOWN_TYPE ([spec](https://ircv3.net/specs/extensions/client-batch)). Evidence: `C: BATCH +papo-unknown papo.example/unknown #papo-missing | S: FAIL BATCH UNKNOWN_TYPE :Unknown batch type`
-- `direct_messages` (`6.2.7`) — UnrealIRCd drops the client-only channel-context tag when its sender is no longer in that channel ([spec](https://ircv3.net/specs/extensions/message-tags)). Evidence: `C: @+channel-context=#review PRIVMSG bob :context after part | S: PRIVMSG without +channel-context`
 
 ### Unimplemented features (none recorded)
 

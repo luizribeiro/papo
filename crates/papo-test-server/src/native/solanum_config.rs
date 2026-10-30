@@ -45,6 +45,7 @@ impl Configuration {
                 r#"loadmodule "extensions/extb_account";
 loadmodule "extensions/invite_notify";
 loadmodule "extensions/m_echotags";
+loadmodule "extensions/tag_channel_context";
 loadmodule "extensions/tag_message_id";
 loadmodule "extensions/tag_typing";
 serverinfo {{ name = "irc.papo.test"; sid = "001"; description = "papo test server"; network_name = "papo"; ssl_cert = "{cert}"; ssl_private_key = "{key}"; ssld_count = 1; default_max_clients = 1000; nicklen = 30; }};
@@ -98,6 +99,7 @@ mod tests {
             super::Configuration::with_paths(&directory, "/solanum/modules", "/atheme/modules")
                 .unwrap();
         let ircd = fs::read_to_string(directory.path().join("solanum.conf")).unwrap();
+        assert!(ircd.contains("extensions/tag_channel_context"));
         assert!(ircd.contains("extensions/tag_message_id"));
         assert!(ircd.contains(&format!("sslport = {}", config.tls.port())));
         assert!(ircd.contains("connect_timeout = 1 second"));

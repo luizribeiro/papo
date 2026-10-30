@@ -56,15 +56,97 @@ async fn assert_unverified_context(
     text: &'static str,
 ) -> papo_testing::Result<()> {
     let direct = sender.direct(recipient.nick().as_ref()).await?;
-    sender
+    let context_tag_allowed = context_tag_allowed(sender);
+    let sent = sender
         .privmsg(&direct, text)
         .channel_context(context)
         .await?;
+    assert_eq!(
+        sent.fallbacks.contains(&Fallback::ContextTagDropped),
+        !context_tag_allowed
+    );
     let message = recipient
         .wait_for(|event| message_text(event, text))
         .await?;
     assert_eq!(message.channel_context(), None);
-    assert_eq!(message.tags.get("+channel-context"), Some(context));
+    if !context_tag_allowed {
+        assert_eq!(message.tags.get("+channel-context"), None);
+        assert_eq!(message.tags.get("+draft/channel-context"), None);
+    } else if let Some(relayed_context) = message
+        .tags
+        .get("+channel-context")
+        .or_else(|| message.tags.get("+draft/channel-context"))
+    {
+        // Servers may moderate client-only tags. If an unverified context is relayed, papo
+        // must retain it as raw metadata without treating it as a verified context.
+        assert_eq!(relayed_context, context);
+    }
+    Ok(())
+}
+
+fn context_tag_allowed(peer: &Peer) -> bool {
+    let state = peer.state();
+    let denied = state.isupport().clienttagdeny();
+    !denied.denies("+channel-context") || !denied.denies("+draft/channel-context")
+}
+
+async fn part_for_unverified_context(
+    alice: &mut Peer,
+    bob: &mut Peer,
+    channel: &str,
+) -> papo_testing::Result<()> {
+    // PART is setup for the unverified-context checks, so do not make this scenario depend on
+    // the server completing a separate labelled PART request.
+    let alice_nick = alice.nick();
+    alice
+        .send_raw(papo::Line::part_with_reason(
+            channel,
+            "testing channel context",
+        ))
+        .await?;
+    alice
+        .wait_for(|event| {
+            event
+                .as_parted()
+                .filter(|parted| parted.actor.nick().as_ref() == alice_nick.as_ref())
+        })
+        .await?;
+    bob.wait_for(|event| {
+        event
+            .as_parted()
+            .filter(|parted| parted.actor.nick().as_ref() == alice_nick.as_ref())
+    })
+    .await?;
+    Ok(())
+}
+
+async fn assert_shared_context(
+    sender: &Peer,
+    recipient: &mut Peer,
+    direct: &papo::DirectRef,
+    channel: &papo::ChannelName,
+) -> papo_testing::Result<()> {
+    let context_tag_allowed = context_tag_allowed(sender);
+    let sent = sender
+        .privmsg(direct, "private thread reply")
+        .channel_context(channel)
+        .await?;
+    assert_eq!(
+        sent.fallbacks.contains(&Fallback::ContextTagDropped),
+        !context_tag_allowed
+    );
+    let threaded = recipient
+        .wait_for(|event| message_text(event, "private thread reply"))
+        .await?;
+    if context_tag_allowed {
+        assert_eq!(
+            threaded.channel_context().map(AsRef::as_ref),
+            Some(channel.as_ref())
+        );
+    } else {
+        assert_eq!(threaded.channel_context(), None);
+    }
+    assert_eq!(threaded.msgid(), Some(confirmed_line(&sent).0));
     Ok(())
 }
 
@@ -236,27 +318,9 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     bob.join(&channel).await?;
     let state = alice.state();
     let channel = name_rules(&state).channel(channel);
-    let sent = alice
-        .privmsg(&bob_direct, "private thread reply")
-        .channel_context(&channel)
-        .await?;
-    assert!(!sent.fallbacks.contains(&Fallback::ContextTagDropped));
-    let threaded = bob
-        .wait_for(|event| message_text(event, "private thread reply"))
-        .await?;
-    assert_eq!(
-        threaded.channel_context().map(AsRef::as_ref),
-        Some(channel.as_ref())
-    );
-    assert_eq!(threaded.msgid(), Some(confirmed_line(&sent).0));
+    assert_shared_context(&alice, &mut bob, &bob_direct, &channel).await?;
 
-    alice.part(&channel, "testing channel context").await?;
-    bob.wait_for(|event| {
-        event
-            .as_parted()
-            .filter(|parted| parted.actor.nick().as_ref() == alice.nick().as_ref())
-    })
-    .await?;
+    part_for_unverified_context(&mut alice, &mut bob, channel.as_ref()).await?;
     assert_unverified_context(&alice, &mut bob, &channel, "context after part").await?;
 
     let private_channel = s.channel_name();

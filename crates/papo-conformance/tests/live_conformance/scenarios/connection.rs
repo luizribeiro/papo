@@ -250,10 +250,10 @@ async fn server_queries(s: Scenario) -> papo_testing::Result<()> {
 /// lists public channels through the typed LIST request
 #[scenario(covers = ["base.list.basic"])]
 async fn channel_list(s: Scenario) -> papo_testing::Result<()> {
-    let alice = s.connect("alice").await?;
+    let mut alice = s.connect("alice").await?;
     let channel = s.channel_name();
     alice.join(&channel).await?;
-    alice.set_topic(&channel, "release coordination").await?;
+    set_topic_for_list(&mut alice, &channel, "release coordination").await?;
 
     let listed = alice.list().await?;
     let entry = listed
@@ -268,14 +268,12 @@ async fn channel_list(s: Scenario) -> papo_testing::Result<()> {
 /// applies ELIST mask, user-count, creation-time, and topic-time filters
 #[scenario(requires(isupport = ["ELIST"]), covers = ["base.list.elist-filters"])]
 async fn elist_filters(s: Scenario) -> papo_testing::Result<()> {
-    let alice = s.connect("alice").await?;
+    let mut alice = s.connect("alice").await?;
     let bob = s.connect("bob").await?;
     let channel = s.channel_name();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
-    alice
-        .set_topic(&channel, "fresh two-person channel")
-        .await?;
+    set_topic_for_list(&mut alice, &channel, "fresh two-person channel").await?;
 
     let state = alice.state();
     let filters = state.isupport().get("ELIST");
@@ -305,6 +303,24 @@ async fn elist_filters(s: Scenario) -> papo_testing::Result<()> {
         .expect("ELIST includes the matching channel");
     assert_eq!(entry.members_count, 2);
     assert!(entry.topic.ends_with("fresh two-person channel"));
+    Ok(())
+}
+
+async fn set_topic_for_list(
+    peer: &mut crate::Peer,
+    channel: &str,
+    topic: &'static str,
+) -> papo_testing::Result<()> {
+    // LIST is the behavior under test. Send setup without a label so a server's labelled
+    // TOPIC handling cannot prevent the scenario from reaching the LIST request.
+    peer.send_raw(papo::Line::new("TOPIC").with_params([channel, topic]))
+        .await?;
+    peer.wait_for(|event| {
+        event.as_topic_changed().filter(|changed| {
+            changed.channel.as_ref() == channel && changed.topic.as_deref() == Some(topic)
+        })
+    })
+    .await?;
     Ok(())
 }
 
