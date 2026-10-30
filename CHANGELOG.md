@@ -348,6 +348,8 @@ Dropping the `Driver` still ends the stream without a final `Event::Disconnected
   limit returns an error rather than silently dropping text.
 - Length-based splits in outgoing `draft/multiline` messages concatenate without introducing
   line breaks; confirmed text exactly preserves user-authored spaces and newlines.
+- Multiline messages replayed inside chat history, event playback, and labeled-response batches
+  retain their exact text, server time, message ID, account, and other opening tags.
 - Reconnect catch-up deduplicates every live event by msgid, including messages, and own sends
   consume their correlated echo before application delivery.
 - `Typing::Done` clears the active-send throttle, so a following active notification is not

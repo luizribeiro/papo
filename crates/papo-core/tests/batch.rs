@@ -399,6 +399,135 @@ fn recorded_ergo_latest_batch_becomes_history() {
 }
 
 #[test]
+fn recorded_ergo_multiline_history_preserves_text_metadata_and_order() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    for line in [
+        "@time=2026-10-29T21:14:06.000Z;label=test :irc.localhost BATCH +1 chathistory #lounge",
+        "@time=2026-10-29T21:14:07.603Z;msgid=rd7sHq2kzT4;account=weblounge-bot;batch=1 :weblounge-bot!~u@weblounge BATCH +2 draft/multiline #lounge",
+        "@batch=2 :weblounge-bot!~u@weblounge PRIVMSG #lounge :missed multiline one",
+        "@batch=2;draft/multiline-concat :weblounge-bot!~u@weblounge PRIVMSG #lounge : and its continuation",
+        "@batch=2 :weblounge-bot!~u@weblounge PRIVMSG #lounge :second line",
+        "BATCH -2",
+        "@time=2026-10-29T21:15:00.000Z;msgid=pl41nMsg;batch=1 :alice!~a@host PRIVMSG #lounge :plain line",
+        "BATCH -1",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+
+    let Some(Event::History { items, .. }) = session.poll_event() else {
+        panic!("expected history")
+    };
+    assert_eq!(items.len(), 2);
+    let multiline = items[0].as_message().expect("multiline history message");
+    assert_eq!(
+        multiline.line.as_ref().param(1),
+        Some("missed multiline one and its continuation\nsecond line")
+    );
+    assert_eq!(
+        multiline.line.as_ref().tag("time").as_deref(),
+        Some("2026-10-29T21:14:07.603Z")
+    );
+    assert_eq!(
+        multiline.line.as_ref().tag("msgid").as_deref(),
+        Some("rd7sHq2kzT4")
+    );
+    assert_eq!(
+        multiline.line.as_ref().tag("account").as_deref(),
+        Some("weblounge-bot")
+    );
+    assert_eq!(
+        items[1]
+            .as_message()
+            .expect("plain history message")
+            .line
+            .as_ref()
+            .param(1),
+        Some("plain line")
+    );
+}
+
+#[test]
+fn nested_multiline_history_handles_empty_unclosed_and_bounded_children() {
+    let now = Instant::now();
+
+    let mut empty = Session::new(Config::default());
+    for line in [
+        "BATCH +h chathistory #papo",
+        "@batch=h BATCH +m draft/multiline #papo",
+        "@batch=h BATCH -m",
+        "@batch=h :alice PRIVMSG #papo :after empty",
+        "BATCH -h",
+    ] {
+        empty.handle_line(now, line.as_bytes());
+    }
+    assert!(matches!(
+        empty.poll_event(),
+        Some(Event::History { items, .. })
+            if items.len() == 1
+                && items[0].as_message().unwrap().line.as_ref().param(1) == Some("after empty")
+    ));
+
+    let mut unclosed = Session::new(
+        Config::default()
+            .rate_limit(RateLimit::unlimited())
+            .batch_timeout(Duration::from_secs(2)),
+    );
+    unclosed.handle_connected(now);
+    unclosed.handle_line(now, b"BATCH +h chathistory #papo");
+    unclosed.handle_line(now, b"@batch=h BATCH +m draft/multiline #papo");
+    unclosed.handle_line(now, b"@batch=m :alice PRIVMSG #papo :unfinished");
+    unclosed.handle_line(now, b"BATCH -h");
+    assert!(matches!(unclosed.poll_event(), Some(Event::Line(_))));
+    unclosed.handle_timeout(now + Duration::from_secs(2));
+    assert!(matches!(
+        unclosed.poll_event(),
+        Some(Event::History { items, end: false, .. })
+            if items.len() == 1
+                && items[0].as_message().unwrap().line.as_ref().param(1) == Some("unfinished")
+    ));
+
+    let mut over_lines = Session::new(Config::default().max_batch_lines(1));
+    over_lines.handle_line(now, b"BATCH +h chathistory #papo");
+    over_lines.handle_line(now, b"@batch=h BATCH +m draft/multiline #papo");
+    over_lines.handle_line(now, b"@batch=m :alice PRIVMSG #papo :one");
+    over_lines.handle_line(now, b"@batch=m :alice PRIVMSG #papo :two");
+    assert!(
+        std::iter::from_fn(|| over_lines.poll_event()).any(|event| matches!(
+            event,
+            Event::BatchAbandoned {
+                reason: BatchAbandonReason::LineLimit,
+                ..
+            }
+        ))
+    );
+
+    let mut over_bytes = Session::new(Config::default().max_batch_lines(10));
+    over_bytes.handle_line(now, b"CAP * LS :batch draft/multiline=max-bytes=512");
+    over_bytes.handle_line(now, b"CAP * ACK :batch draft/multiline");
+    over_bytes.handle_line(now, b"BATCH +h chathistory #papo");
+    over_bytes.handle_line(now, b"@batch=h BATCH +m draft/multiline #papo");
+    for text in ["a".repeat(256), "b".repeat(256)] {
+        over_bytes.handle_line(
+            now,
+            format!("@batch=m :alice PRIVMSG #papo :{text}").as_bytes(),
+        );
+    }
+    assert!(matches!(
+        over_bytes.poll_event(),
+        Some(Event::BatchAbandoned {
+            reason: BatchAbandonReason::ByteLimit,
+            ..
+        })
+    ));
+    over_bytes.handle_line(now, b"BATCH -h");
+    assert!(matches!(
+        over_bytes.poll_event(),
+        Some(Event::History { items, .. }) if items.len() == 2
+    ));
+}
+
+#[test]
 fn classifies_event_playback_items_in_wire_order() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());

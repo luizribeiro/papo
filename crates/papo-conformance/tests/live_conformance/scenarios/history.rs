@@ -74,6 +74,43 @@ async fn draft_chathistory(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// retrieves an exact long multiline message from channel history
+#[scenario(
+    requires(caps = [
+        "batch",
+        "draft/chathistory",
+        "draft/multiline",
+        "echo-message",
+        "labeled-response",
+        "server-time"
+    ]),
+    covers = ["draft.chathistory.multiline"]
+)]
+async fn chathistory_multiline(s: Scenario) -> papo_testing::Result<()> {
+    let writer = s.connect("writer").await?;
+    let channel = s.channel_name();
+    writer.join(&channel).await?;
+    let text = format!(
+        "missed multiline one {} and its continuation\nsecond line",
+        "long ".repeat(140)
+    );
+    let sent = writer.privmsg(&channel, &text).await?;
+    let expected_time = confirmed_line(&sent)
+        .2
+        .expect("Ergo supplies a server time for the multiline echo");
+
+    let reader = s.connect("reader").await?;
+    reader.join(&channel).await?;
+    let page = reader.history(&channel).latest().limit(10).await?;
+    let replayed = page
+        .chat_messages()
+        .find(|message| message.raw_text == text)
+        .expect("CHATHISTORY replays the assembled multiline message");
+    assert_eq!(replayed.text, text);
+    assert_eq!(replayed.server_time, Some(expected_time));
+    Ok(())
+}
+
 /// replays channel history through Ergo's legacy command
 #[scenario(requires(caps = ["batch"]), covers = ["ergo.history-legacy"])]
 async fn legacy_history(s: Scenario) -> papo_testing::Result<()> {

@@ -32,6 +32,7 @@ struct OpenBatch {
     end: bool,
     messages: Vec<Line>,
     completed: Vec<BatchEvent>,
+    multiline_collectors: Vec<String>,
     lines: usize,
     multiline_bytes: usize,
     buffered_bytes: usize,
@@ -177,6 +178,14 @@ impl Batches {
                 reason: BatchAbandonReason::OpenBatchLimit,
             }]);
         }
+        let multiline_collectors = if kind == cap::MULTILINE.as_str() {
+            parent
+                .as_deref()
+                .map(|parent| self.aggregate_references(parent))
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
         self.open.insert(
             reference.to_owned(),
             OpenBatch {
@@ -193,6 +202,7 @@ impl Batches {
                     .any(|(key, _)| key == "draft/chathistory-end"),
                 messages: Vec::new(),
                 completed: Vec::new(),
+                multiline_collectors: multiline_collectors.clone(),
                 lines: 0,
                 multiline_bytes: 0,
                 buffered_bytes: retained_bytes(message),
@@ -201,6 +211,15 @@ impl Batches {
             },
         );
         self.buffered_bytes = self.buffered_bytes.saturating_add(retained_bytes(message));
+        for collector in multiline_collectors {
+            let batch = self
+                .open
+                .get_mut(&collector)
+                .expect("resolved multiline collector remains open");
+            batch.messages.push(message.to_owned());
+            batch.buffered_bytes = batch.buffered_bytes.saturating_add(retained_bytes(message));
+            self.buffered_bytes = self.buffered_bytes.saturating_add(retained_bytes(message));
+        }
         BatchAction::Consumed
     }
 
@@ -209,7 +228,7 @@ impl Batches {
         let valid = valid_reference(reference)
             && message.len() == 1
             && self.open.get(reference).is_some_and(|batch| {
-                batch.parent.as_deref() == actual_parent.as_deref()
+                (actual_parent.is_none() || batch.parent.as_deref() == actual_parent.as_deref())
                     && !self
                         .open
                         .values()
@@ -223,9 +242,26 @@ impl Batches {
         self.buffered_bytes = self.buffered_bytes.saturating_sub(batch.buffered_bytes);
         let mut completed = std::mem::take(&mut batch.completed);
         let response_messages = batch.label.as_ref().map(|_| batch.messages.clone());
-        if batch.is_typed_aggregate() && !self.has_typed_aggregate_ancestor(batch.parent.as_deref())
+        if batch.is_typed_aggregate()
+            && (batch.kind == cap::MULTILINE.as_str()
+                || !self.has_typed_aggregate_ancestor(batch.parent.as_deref()))
         {
             completed.extend(complete(&mut batch, reference));
+        }
+        if batch.kind == cap::MULTILINE.as_str() && !batch.multiline_collectors.is_empty() {
+            let replacement = completed
+                .iter()
+                .find_map(|event| match event {
+                    BatchEvent::Multiline(message) => Some(message.clone()),
+                    _ => None,
+                })
+                .into_iter()
+                .collect::<Vec<_>>();
+            self.replace_multiline_placeholders(
+                reference,
+                &batch.multiline_collectors,
+                &replacement,
+            );
         }
         if let Some(label) = batch.label.take() {
             let echo = completed.iter().find_map(|event| match event {
@@ -245,6 +281,9 @@ impl Batches {
                 history,
                 history_targets,
             });
+        }
+        if !batch.multiline_collectors.is_empty() {
+            completed.retain(|event| !matches!(event, BatchEvent::Multiline(_)));
         }
         if let Some(parent) = batch.parent {
             let retained = moved_bytes.saturating_add(
@@ -423,11 +462,32 @@ impl Batches {
         for (candidate, kind) in &types {
             self.remember_abandoned(candidate, kind);
         }
+        let multiline_replacements: Vec<_> = references
+            .iter()
+            .filter_map(|candidate| {
+                let batch = &self.open[candidate];
+                (batch.kind == cap::MULTILINE.as_str() && !batch.multiline_collectors.is_empty())
+                    .then(|| {
+                        (
+                            candidate.clone(),
+                            batch.multiline_collectors.clone(),
+                            batch.messages.clone(),
+                        )
+                    })
+            })
+            .collect();
+        let mut absorbed_multiline = HashSet::new();
+        for (candidate, collectors, messages) in multiline_replacements {
+            self.replace_multiline_placeholders(&candidate, &collectors, &messages);
+            absorbed_multiline.insert(candidate);
+        }
         let mut messages = Vec::new();
         for candidate in references {
             let batch = self.open.remove(&candidate).expect("selected open batch");
             self.buffered_bytes = self.buffered_bytes.saturating_sub(batch.buffered_bytes);
-            messages.extend(batch.messages);
+            if !absorbed_multiline.contains(&candidate) {
+                messages.extend(batch.messages);
+            }
             for event in batch.completed {
                 collect_messages(event, &mut messages);
             }
@@ -472,12 +532,19 @@ impl Batches {
     fn aggregate_references(&self, reference: &str) -> Vec<String> {
         let ancestors = self.ancestors(reference);
         let mut aggregates = Vec::new();
-        if let Some(reference) = ancestors
+        let multiline = ancestors
             .iter()
-            .rev()
-            .find(|reference| self.open[*reference].is_typed_aggregate())
-        {
+            .find(|reference| self.open[*reference].kind == cap::MULTILINE.as_str());
+        if let Some(reference) = multiline.or_else(|| {
+            ancestors
+                .iter()
+                .rev()
+                .find(|reference| self.open[*reference].is_typed_aggregate())
+        }) {
             aggregates.push(reference.clone());
+            if multiline.is_some() {
+                return aggregates;
+            }
         }
         for reference in ancestors {
             if self.open[&reference].label.is_some() && !aggregates.contains(&reference) {
@@ -485,6 +552,43 @@ impl Batches {
             }
         }
         aggregates
+    }
+
+    fn replace_multiline_placeholders(
+        &mut self,
+        reference: &str,
+        collectors: &[String],
+        replacement: &[Line],
+    ) {
+        let opening = format!("+{reference}");
+        for collector in collectors {
+            let Some(batch) = self.open.get_mut(collector) else {
+                continue;
+            };
+            let Some(index) = batch.messages.iter().position(|message| {
+                let message = message.as_ref();
+                message.command_is("BATCH") && message.param(0) == Some(opening.as_str())
+            }) else {
+                continue;
+            };
+            let previous = retained_bytes(&batch.messages[index].as_ref());
+            let replacement_bytes = replacement
+                .iter()
+                .map(|message| retained_bytes(&message.as_ref()))
+                .sum::<usize>();
+            batch
+                .messages
+                .splice(index..=index, replacement.iter().cloned());
+            if replacement_bytes >= previous {
+                let added = replacement_bytes - previous;
+                batch.buffered_bytes = batch.buffered_bytes.saturating_add(added);
+                self.buffered_bytes = self.buffered_bytes.saturating_add(added);
+            } else {
+                let removed = previous - replacement_bytes;
+                batch.buffered_bytes = batch.buffered_bytes.saturating_sub(removed);
+                self.buffered_bytes = self.buffered_bytes.saturating_sub(removed);
+            }
+        }
     }
 
     fn has_typed_aggregate_ancestor<'a>(&'a self, mut parent: Option<&'a str>) -> bool {
@@ -973,11 +1077,13 @@ mod tests {
         }
 
         let expected =
-            retained_bytes(&history) + retained_bytes(&multiline) + retained_bytes(&message);
+            retained_bytes(&history) + 2 * retained_bytes(&multiline) + retained_bytes(&message);
         assert_eq!(batches.recount(), expected);
         assert_eq!(batches.buffered_bytes, expected + retained_bytes(&message));
         assert!(batches.accounting_is_sound());
-        batches.buffered_bytes = expected - 1;
+        assert_eq!(handle(&mut batches, "BATCH -multiline"), (false, None));
+        assert!(batches.accounting_is_sound());
+        batches.buffered_bytes = batches.recount() - 1;
         assert!(!batches.accounting_is_sound());
     }
 
