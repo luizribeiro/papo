@@ -490,6 +490,106 @@ fn recorded_ergo_own_multiline_history_preserves_blank_lines_and_authorship() {
 }
 
 #[test]
+fn recorded_unreal_multiline_history_takes_sender_from_members() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("writer"));
+    for line in [
+        ":irc.papo.test 900 writer writer!~writer@localhost writer :You are now logged in as writer",
+        "@time=2026-10-30T08:34:54.000Z :irc.papo.test BATCH +OUTER chathistory #chan",
+        "@time=2026-10-30T08:34:55.140Z;msgid=cmvFANsQg0htDXVHaPTOg0;account=writer;batch=OUTER :irc.papo.test BATCH +INNER draft/multiline #chan",
+        "@time=2026-10-30T08:34:55.140Z;account=writer;batch=INNER :writer!~writer@localhost PRIVMSG #chan :missed multiline one ",
+        "@time=2026-10-30T08:34:55.140Z;account=writer;batch=INNER;draft/multiline-concat :writer!~writer@localhost PRIVMSG #chan :and its continuation",
+        "@batch=OUTER :irc.papo.test BATCH -INNER",
+        ":irc.papo.test BATCH -OUTER",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+
+    let Some(Event::History { items, .. }) = session.poll_event() else {
+        panic!("expected history")
+    };
+    let [HistoryItem::Message(message)] = items.as_slice() else {
+        panic!("expected one replayed message: {items:?}")
+    };
+    assert_eq!(
+        message.line.as_ref().raw_source(),
+        Some("writer!~writer@localhost")
+    );
+    assert_eq!(message.authorship, Authorship::Own);
+    assert_eq!(
+        message.line.as_ref().param(1),
+        Some("missed multiline one and its continuation")
+    );
+    assert_eq!(
+        message.line.as_ref().tag("msgid").as_deref(),
+        Some("cmvFANsQg0htDXVHaPTOg0")
+    );
+    assert_eq!(
+        message.line.as_ref().tag("time").as_deref(),
+        Some("2026-10-30T08:34:55.140Z")
+    );
+    assert_eq!(
+        message.line.as_ref().tag("account").as_deref(),
+        Some("writer")
+    );
+}
+
+#[test]
+fn live_multiline_with_server_opener_takes_sender_from_members() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("writer"));
+    for line in [
+        "@time=2026-10-30T08:34:55.140Z;msgid=liveMultiline;account=writer :irc.papo.test BATCH +INNER draft/multiline #chan",
+        "@batch=INNER :writer!~writer@localhost PRIVMSG #chan :first line",
+        "@batch=INNER :writer!~writer@localhost PRIVMSG #chan :second line",
+        ":irc.papo.test BATCH -INNER",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+
+    let Some(Event::MultilineMessage(multiline)) = session.poll_event() else {
+        panic!("expected multiline message")
+    };
+    assert_eq!(
+        multiline.message.as_ref().raw_source(),
+        Some("writer!~writer@localhost")
+    );
+    assert_eq!(multiline.message.authorship(), Authorship::Own);
+    assert_eq!(
+        multiline.message.as_ref().param(1),
+        Some("first line\nsecond line")
+    );
+    assert_eq!(
+        multiline.message.as_ref().tag("msgid").as_deref(),
+        Some("liveMultiline")
+    );
+}
+
+#[test]
+fn multiline_rejects_inconsistent_member_and_user_opener_sources() {
+    let now = Instant::now();
+    for lines in [
+        vec![
+            ":irc.papo.test BATCH +m draft/multiline #chan",
+            "@batch=m :writer!~writer@localhost PRIVMSG #chan :first line",
+            "@batch=m :other!~other@localhost PRIVMSG #chan :second line",
+        ],
+        vec![
+            ":other!~other@localhost BATCH +m draft/multiline #chan",
+            "@batch=m :writer!~writer@localhost PRIVMSG #chan :first line",
+            "@batch=m :writer!~writer@localhost PRIVMSG #chan :second line",
+        ],
+    ] {
+        let mut session = Session::new(Config::default());
+        for line in lines {
+            session.handle_line(now, line.as_bytes());
+        }
+        session.handle_line(now, b"BATCH -m");
+        assert_eq!(session.poll_event(), None);
+    }
+}
+
+#[test]
 fn nested_multiline_history_handles_empty_unclosed_and_bounded_children() {
     let now = Instant::now();
 

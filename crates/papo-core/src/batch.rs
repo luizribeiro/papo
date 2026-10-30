@@ -739,6 +739,7 @@ fn complete(batch: &mut OpenBatch, reference: &str) -> Vec<BatchEvent> {
 fn multiline(batch: &mut OpenBatch) -> Option<Line> {
     let first = batch.messages.first()?.as_ref();
     let command = first.raw_command();
+    let source = first.raw_source();
     let target = batch
         .params
         .first()
@@ -749,6 +750,7 @@ fn multiline(batch: &mut OpenBatch) -> Option<Line> {
         message.command_is(command)
             && message.param(0) == Some(target)
             && message.param(1).is_some()
+            && message.raw_source() == source
     }) {
         return None;
     }
@@ -761,7 +763,14 @@ fn multiline(batch: &mut OpenBatch) -> Option<Line> {
         text.push_str(line.param(1).expect("validated multiline text"));
     }
     let opening = batch.opening.as_ref();
-    let source = opening.raw_source().or_else(|| first.raw_source());
+    // Members are the actual messages and therefore authoritative for their sender. Servers may
+    // open replayed multiline batches themselves, but a user opener that names a different sender
+    // is inconsistent, just like mixed member commands or targets, and is not assembled.
+    if matches!(opening.source(), Some(papo_proto::Source::User { .. }))
+        && opening.raw_source() != source
+    {
+        return None;
+    }
     let mut message = Line::new(command).param(target).param(&text);
     if let Some(source) = source {
         message = message.with_source(source);
