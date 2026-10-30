@@ -2795,6 +2795,8 @@ pub enum Event {
     /// A user's real name changed.
     #[non_exhaustive]
     RealnameChanged {
+        /// Valid server time on the line that caused the change, when supplied.
+        server_time: Option<std::time::SystemTime>,
         /// Identity and time facts from the line.
         envelope: LineEnvelope,
         /// The affected user's prefix.
@@ -2873,7 +2875,7 @@ hidden_event_constructors! {
     __account_changed(envelope: LineEnvelope, actor: String, nick: Nick, account: Account, authorship: Authorship) => AccountChanged;
     __away_changed(envelope: LineEnvelope, actor: String, nick: Nick, away: Away, authorship: Authorship) => AwayChanged;
     __host_changed(envelope: LineEnvelope, actor: String, nick: Nick, username: String, host: String, authorship: Authorship) => HostChanged;
-    __realname_changed(envelope: LineEnvelope, actor: String, nick: Nick, realname: String, authorship: Authorship) => RealnameChanged;
+    __realname_changed(server_time: Option<std::time::SystemTime>, envelope: LineEnvelope, actor: String, nick: Nick, realname: String, authorship: Authorship) => RealnameChanged;
     __mode_changed(envelope: LineEnvelope, subject: Subject, actor: Source, authorship: Authorship, subject_authorship: Authorship, own_nick: Option<Nick>, changes: Vec<ModeChange>) => ModeChanged;
     __topic_changed(envelope: LineEnvelope, channel: ChannelName, topic: Option<String>, actor: Source, authorship: Authorship) => TopicChanged;
     __state_limit_reached(limit: StateLimit) => StateLimitReached;

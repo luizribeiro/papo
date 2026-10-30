@@ -270,8 +270,10 @@ impl State {
         if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) {
             user.realname = Some(change.realname.to_owned());
         }
+        let envelope = crate::LineEnvelope::from_line(message);
         outbox.event(Event::RealnameChanged {
-            envelope: crate::LineEnvelope::from_line(message),
+            server_time: envelope.server_time(),
+            envelope,
             actor: message.raw_source().unwrap_or(nick).to_owned(),
             nick: self.casemapping.nick(nick),
             realname: change.realname.to_owned(),

@@ -1031,8 +1031,10 @@ impl State {
             own.update_userhost(Some(user), Some(host));
             own.realname = Some(change.realname.to_owned());
             if realname_changed {
+                let envelope = crate::LineEnvelope::from_line(message);
                 outbox.event(Event::RealnameChanged {
-                    envelope: crate::LineEnvelope::from_line(message),
+                    server_time: envelope.server_time(),
+                    envelope,
                     actor: message.raw_source().unwrap_or(nick).to_owned(),
                     nick: self.casemapping.nick(nick),
                     realname: change.realname.to_owned(),
