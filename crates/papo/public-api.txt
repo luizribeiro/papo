@@ -3357,10 +3357,9 @@ pub struct papo::AccountName
 impl papo::AccountName
 pub fn papo::AccountName::as_str(&self) -> &str
 pub const fn papo::AccountName::casemapping(&self) -> papo::Casemapping
+pub fn papo::AccountName::into_string(self) -> alloc::string::String
 pub fn papo::AccountName::key(&self) -> &str
 pub const fn papo::AccountName::origin(&self) -> papo::Origin
-impl papo::AccountName
-pub fn papo::AccountName::into_string(self) -> alloc::string::String
 impl core::clone::Clone for papo::AccountName
 pub fn papo::AccountName::clone(&self) -> Self
 impl core::cmp::Eq for papo::AccountName
@@ -3559,10 +3558,9 @@ pub struct papo::ChannelName
 impl papo::ChannelName
 pub fn papo::ChannelName::as_str(&self) -> &str
 pub const fn papo::ChannelName::casemapping(&self) -> papo::Casemapping
+pub fn papo::ChannelName::into_string(self) -> alloc::string::String
 pub fn papo::ChannelName::key(&self) -> &str
 pub const fn papo::ChannelName::origin(&self) -> papo::Origin
-impl papo::ChannelName
-pub fn papo::ChannelName::into_string(self) -> alloc::string::String
 impl core::clone::Clone for papo::ChannelName
 pub fn papo::ChannelName::clone(&self) -> Self
 impl core::cmp::Eq for papo::ChannelName
@@ -3578,8 +3576,6 @@ impl core::cmp::PartialEq<str> for papo::ChannelName
 pub fn papo::ChannelName::eq(&self, &str) -> bool
 impl core::cmp::PartialOrd for papo::ChannelName
 pub fn papo::ChannelName::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
-impl core::convert::AsRef<str> for papo::ChannelName
-pub fn papo::ChannelName::as_ref(&self) -> &str
 impl core::convert::From<&papo::ChannelName> for papo::ChannelName
 pub fn papo::ChannelName::from(&Self) -> Self
 impl core::fmt::Debug for papo::ChannelName
@@ -3588,7 +3584,14 @@ impl core::fmt::Display for papo::ChannelName
 pub fn papo::ChannelName::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::hash::Hash for papo::ChannelName
 pub fn papo::ChannelName::hash<H: core::hash::Hasher>(&self, &mut H)
-impl core::ops::deref::Deref for papo::ChannelName
+impl papo::AsChannel for papo::ChannelName
+impl core::marker::Freeze for papo::ChannelName
+impl core::marker::Send for papo::ChannelName
+impl core::marker::Sync for papo::ChannelName
+impl core::marker::Unpin for papo::ChannelName
+impl core::marker::UnsafeUnpin for papo::ChannelName
+impl core::panic::unwind_safe::RefUnwindSafe for papo::ChannelName
+impl core::panic::unwind_safe::UnwindSafe for papo::ChannelName
 pub enum papo::Color
 pub papo::Color::Hex(u32)
 pub papo::Color::Palette(u8)
@@ -3907,6 +3910,7 @@ pub struct papo::Mask
 impl papo::Mask
 pub fn papo::Mask::as_str(&self) -> &str
 pub const fn papo::Mask::casemapping(&self) -> papo::Casemapping
+pub fn papo::Mask::into_string(self) -> alloc::string::String
 pub fn papo::Mask::key(&self) -> &str
 pub const fn papo::Mask::origin(&self) -> papo::Origin
 impl papo::Mask
@@ -3914,8 +3918,6 @@ pub fn papo::Mask::exact(&impl MaskSource) -> core::option::Option<Self>
 pub fn papo::Mask::for_host(&impl MaskSource) -> core::option::Option<Self>
 pub fn papo::Mask::for_nick(&papo::Nick) -> Self
 pub fn papo::Mask::for_user_host(&impl MaskSource) -> core::option::Option<Self>
-impl papo::Mask
-pub fn papo::Mask::into_string(self) -> alloc::string::String
 impl core::clone::Clone for papo::Mask
 pub fn papo::Mask::clone(&self) -> Self
 impl core::cmp::Eq for papo::Mask
@@ -4145,10 +4147,9 @@ pub struct papo::Nick
 impl papo::Nick
 pub fn papo::Nick::as_str(&self) -> &str
 pub const fn papo::Nick::casemapping(&self) -> papo::Casemapping
+pub fn papo::Nick::into_string(self) -> alloc::string::String
 pub fn papo::Nick::key(&self) -> &str
 pub const fn papo::Nick::origin(&self) -> papo::Origin
-impl papo::Nick
-pub fn papo::Nick::into_string(self) -> alloc::string::String
 impl core::clone::Clone for papo::Nick
 pub fn papo::Nick::clone(&self) -> Self
 impl core::cmp::Eq for papo::Nick
@@ -4164,8 +4165,6 @@ impl core::cmp::PartialEq<str> for papo::Nick
 pub fn papo::Nick::eq(&self, &str) -> bool
 impl core::cmp::PartialOrd for papo::Nick
 pub fn papo::Nick::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
-impl core::convert::AsRef<str> for papo::Nick
-pub fn papo::Nick::as_ref(&self) -> &str
 impl core::convert::From<&papo::Nick> for papo::Nick
 pub fn papo::Nick::from(&Self) -> Self
 impl core::fmt::Debug for papo::Nick
@@ -4174,7 +4173,14 @@ impl core::fmt::Display for papo::Nick
 pub fn papo::Nick::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::hash::Hash for papo::Nick
 pub fn papo::Nick::hash<H: core::hash::Hasher>(&self, &mut H)
-impl core::ops::deref::Deref for papo::Nick
+impl papo_proto::AsNick for papo::Nick
+impl core::marker::Freeze for papo::Nick
+impl core::marker::Send for papo::Nick
+impl core::marker::Sync for papo::Nick
+impl core::marker::Unpin for papo::Nick
+impl core::marker::UnsafeUnpin for papo::Nick
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Nick
+impl core::panic::unwind_safe::UnwindSafe for papo::Nick
 pub struct papo::Origin(_)
 impl papo::Origin
 impl core::clone::Clone for papo::Origin

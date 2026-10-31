@@ -321,9 +321,25 @@ macro_rules! name_identifier {
             pub fn key(&self) -> &str {
                 &self.folded
             }
+
+            /// Returns the owned name as the server sent it.
+            #[must_use]
+            pub fn into_string(self) -> String {
+                self.original
+            }
         }
 
-        original_text!($name, original);
+        impl fmt::Display for $name {
+            fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                formatter.write_str(&self.original)
+            }
+        }
+
+        impl From<&Self> for $name {
+            fn from(value: &Self) -> Self {
+                value.clone()
+            }
+        }
 
         impl PartialEq for $name {
             fn eq(&self, other: &Self) -> bool {
@@ -374,6 +390,28 @@ macro_rules! name_identifier {
 name_identifier!(Nick, "An IRC nickname.");
 name_identifier!(ChannelName, "An IRC channel name.");
 name_identifier!(AccountName, "An IRC account name.");
+
+macro_rules! string_traits {
+    ($($name:ty),+ $(,)?) => {
+        $(
+            impl Deref for $name {
+                type Target = str;
+
+                fn deref(&self) -> &Self::Target {
+                    self.as_str()
+                }
+            }
+
+            impl AsRef<str> for $name {
+                fn as_ref(&self) -> &str {
+                    self.as_str()
+                }
+            }
+        )+
+    };
+}
+
+string_traits!(AccountName);
 
 macro_rules! text_comparisons {
     ($($name:ty),+ $(,)?) => {
@@ -431,6 +469,7 @@ name_identifier!(
     Mask,
     "An IRC user or channel mask. High-level clients can compare server list entries with `papo::State::same_list_entry`."
 );
+string_traits!(Mask);
 
 mod name_argument {
     use super::NameParts;
