@@ -2972,15 +2972,8 @@ pub struct ChannelGuard {
 
 impl PartialEq for ChannelGuard {
     fn eq(&self, other: &Self) -> bool {
-        self.origin == other.origin
-            && self.channel == other.channel
-            && self.epoch == other.epoch
-            && self.created_at == other.created_at
-            && match (&self.pending_join, &other.pending_join) {
-                (Some(left), Some(right)) => std::sync::Weak::ptr_eq(left, right),
-                (None, None) => true,
-                _ => false,
-            }
+        (&self.origin, &self.channel, self.epoch, self.created_at)
+            == (&other.origin, &other.channel, other.epoch, other.created_at)
     }
 }
 

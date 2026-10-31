@@ -37,6 +37,8 @@ fn pending_join_guard(session: &mut Session, now: Instant) -> (RequestId, Channe
             _ => None,
         })
         .unwrap();
+    assert_eq!(guard, guard.clone());
+    assert_ne!(guard, session.state().__channel_guard(guard.__channel()));
     assert_eq!(
         session.state().__resolve_channel(&guard).as_deref(),
         Some("#review")
