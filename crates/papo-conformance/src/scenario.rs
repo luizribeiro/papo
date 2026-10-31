@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use papo::{Builder, Client, Endpoint, IntoEndpoint, Sasl};
+use papo::{Account, Builder, Client, Endpoint, IntoEndpoint, Sasl};
 use papo_test_server::{ServerInfo, create_account, unique};
 
 use papo_testing::{Error, Result, skipped};
@@ -107,7 +107,8 @@ impl Scenario {
     /// Registers an account and returns a connected peer plus its fixture session key.
     ///
     /// The key can be passed to [`Self::configure_account_session`] to attach more clients,
-    /// including when the selected profile uses a bouncer network.
+    /// including when the selected profile uses a bouncer network. Bouncer profiles wait until
+    /// the upstream account is reflected downstream before returning.
     ///
     /// # Errors
     ///
@@ -131,7 +132,24 @@ impl Scenario {
                 papo::Secret::new(ACCOUNT_PASSWORD),
             ))
         };
-        Ok((self.connect_with(builder).await?, account))
+        let mut peer = self.connect_with(builder).await?;
+        if self.server.bouncer().is_some()
+            && !matches!(
+                peer.state().account(),
+                Account::LoggedIn(current) if current.as_ref() == account
+            )
+        {
+            peer.wait_for(|event| {
+                event.as_account_changed().filter(|changed| {
+                    matches!(
+                        &changed.new,
+                        Account::LoggedIn(current) if current.as_ref() == account
+                    )
+                })
+            })
+            .await?;
+        }
+        Ok((peer, account))
     }
 
     /// Connects another client authenticated to an account created by this fixture.
