@@ -76,7 +76,7 @@ pub(super) async fn open_connection(
         if plan.address.is_secure() {
             _ = progress.send(papo_core::ConnectPhase::Tls);
         }
-        transport::connect_websocket(&url, None)
+        transport::browser::connect_websocket(&url, None)
             .await
             .map_err(Error::transport)
     }

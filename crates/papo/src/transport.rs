@@ -12,13 +12,14 @@ use thiserror::Error;
 #[cfg(sockets)]
 use tokio::net::TcpStream;
 
+#[cfg(browser)]
+#[path = "transport/browser.rs"]
+pub(crate) mod browser;
 #[cfg(all(feature = "websocket", sockets))]
 mod websocket;
 #[cfg(browser)]
 #[path = "transport/websocket_browser.rs"]
 mod websocket_browser;
-#[cfg(browser)]
-pub(crate) use websocket_browser::connect_websocket;
 #[cfg(all(test, not(browser)))]
 #[path = "transport/websocket_browser_native.rs"]
 mod websocket_browser_native;
