@@ -18,8 +18,8 @@ impl NameRules<'_> {
     pub fn parse_extban(&self, mask: &Mask) -> Option<crate::Extban> {
         let syntax = self.state.isupport.extban()?;
         let body = match syntax.prefix {
-            Some(prefix) => mask.strip_prefix(prefix)?,
-            None => mask.as_ref(),
+            Some(prefix) => mask.as_str().strip_prefix(prefix)?,
+            None => mask.as_str(),
         };
         let (kind, account) = body.split_once(':')?;
         if !self.state.isupport.accountextban().contains(&kind)

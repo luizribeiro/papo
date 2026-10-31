@@ -487,7 +487,7 @@ impl Client {
             let current = state.resolve_channel(channel).ok_or(Error::TargetGone)?;
             if current != *channel.__channel() {
                 let prefix = text
-                    .strip_suffix(channel.__channel().as_ref())
+                    .strip_suffix(channel.__channel().as_str())
                     .ok_or(Error::TargetGone)?;
                 text = format!("{prefix}{current}");
             }
@@ -1203,7 +1203,7 @@ impl Client {
                 .await?;
             crate::requests::whois(
                 response,
-                &nick,
+                nick.as_str(),
                 client.state().isupport().inner(),
                 client.origin(),
             )
@@ -1463,9 +1463,9 @@ impl Client {
                         let response = client
                             .correlated(
                                 Line::new("MODE").with_params([
-                                    channel.as_ref(),
+                                    channel.as_str(),
                                     "+b",
-                                    ban.as_ref(),
+                                    ban.as_str(),
                                 ]),
                                 Some(ResponseMatcher::Mode(channel.to_string())),
                             )
@@ -1495,7 +1495,7 @@ impl Client {
                             let state = client.state();
                             if !entries
                                 .iter()
-                                .any(|entry| state.same_list_entry(&entry.mask, &ban))
+                                .any(|entry| state.same_list_entry(&entry.mask, ban.as_str()))
                             {
                                 return Err(Error::Unconfirmed);
                             }

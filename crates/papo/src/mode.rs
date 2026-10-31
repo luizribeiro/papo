@@ -30,7 +30,7 @@ impl Extban {
     /// ```
     pub fn account(name: impl crate::AsAccount) -> Result<Self, InvalidInput> {
         let name = Casemapping::Ascii.account(crate::AsAccount::__parts(&name).text());
-        if name.as_ref() == "0" || name.contains(['*', '?']) || name.check().is_err() {
+        if name.as_str() == "0" || name.as_str().contains(['*', '?']) || name.check().is_err() {
             return Err(InvalidInput::InvalidExtbanAccount(name.into_string()));
         }
         Ok(Self(ExtbanKind::Account(name)))
@@ -129,7 +129,7 @@ impl BanTarget {
                 let prefix = syntax
                     .prefix
                     .map_or(String::new(), |value| value.to_string());
-                let account = names.account(account.as_ref());
+                let account = names.account(account.as_str());
                 Ok(names.mask(format!("{prefix}{kind}:{account}")))
             }
         }
@@ -642,8 +642,8 @@ impl Argument {
         match self {
             Self::Raw(value) => value,
             Self::Secret(value) => value.expose(),
-            Self::Nick(value) => value,
-            Self::Mask(value) => value,
+            Self::Nick(value) => value.as_str(),
+            Self::Mask(value) => value.as_str(),
             Self::PendingNick(_) | Self::Ban(_) => {
                 unreachable!("arguments are resolved before encoding")
             }
@@ -826,7 +826,7 @@ fn same_change(state: &crate::State, left: &ModeChange, right: &ModeChange) -> b
     }
     match (&left.arg, &right.arg) {
         (Some(ModeArg::Mask(left)), Some(ModeArg::Mask(right))) => {
-            state.same_list_entry(left, right)
+            state.same_list_entry(left, right.as_str())
         }
         (left, right) => left == right,
     }
@@ -843,7 +843,7 @@ pub(crate) fn tracked_ban(
         .is_some_and(|entries| {
             entries
                 .iter()
-                .any(|entry| state.same_list_entry(&entry.mask, ban))
+                .any(|entry| state.same_list_entry(&entry.mask, ban.as_str()))
         })
 }
 

@@ -719,7 +719,7 @@ fn handle_disconnected_command(
             if !defaults
                 .parted_while_disconnected
                 .iter()
-                .any(|parted| parted == channel.as_ref())
+                .any(|parted| parted == channel.as_str())
             {
                 defaults.parted_while_disconnected.push(channel);
             }

@@ -551,7 +551,7 @@ pub(crate) async fn assert_channel_requests(server: &mut DuplexStream, client: &
     client_line(server, b"@label=6 LIST #papo,#rust-*,##chat\r\n").await;
     server_line(server, b"@label=6 :ergo.test BATCH +list-42 labeled-response\r\n@batch=list-42 :ergo.test 321 papo-driver Channel :Users Name\r\n@batch=list-42 :ergo.test 322 papo-driver #papo 42 :Ergonomic IRC\r\n@batch=list-42 :ergo.test 322 papo-driver #rust 17 :The Rust Programming Language\r\n@batch=list-42 :ergo.test 323 papo-driver :End of /LIST\r\n:ergo.test BATCH -list-42\r\n").await;
     let list = within(list).await.unwrap().unwrap();
-    assert_eq!((list.len(), list[0].name.as_ref()), (2, "#papo"));
+    assert_eq!((list.len(), list[0].name.as_str()), (2, "#papo"));
     assert_eq!(
         (list[1].members_count, list[1].topic.as_str()),
         (17, "The Rust Programming Language")

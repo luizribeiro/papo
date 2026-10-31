@@ -500,7 +500,13 @@ mod tests {
         assert!(hidden.oper.is_some());
         assert_eq!(hidden.rank(), Some(crate::Rank::Op));
         assert_eq!(
-            (visible.channel.as_deref(), visible.prefixes[0].symbol()),
+            (
+                visible
+                    .channel
+                    .as_ref()
+                    .map(papo_proto::ChannelName::as_str),
+                visible.prefixes[0].symbol()
+            ),
             (Some("#rust"), '+')
         );
         assert_eq!(visible.rank(), Some(crate::Rank::Voice));

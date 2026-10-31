@@ -5169,7 +5169,7 @@ async fn structured_requests_resolve_fail_and_abort() {
     server_line(&mut server, b"@label=0 :irc.solanum.test BATCH +whois-42 labeled-response\r\n@batch=whois-42 :irc.solanum.test 311 papo-driver alice ~alice client.example * :Alice Example\r\n@batch=whois-42 :irc.solanum.test 312 papo-driver alice irc.solanum.test :Solanum Test Network\r\n@batch=whois-42 :irc.solanum.test 317 papo-driver alice 42 1760544000 :seconds idle, signon time\r\n@batch=whois-42 :irc.solanum.test 319 papo-driver alice :@#papo +#rust\r\n@batch=whois-42 :irc.solanum.test 330 papo-driver alice alice :is logged in as\r\n@batch=whois-42 :irc.solanum.test 301 papo-driver alice :away from keyboard\r\n@batch=whois-42 :irc.solanum.test 335 papo-driver alice :is a bot\r\n@batch=whois-42 :irc.solanum.test 671 papo-driver alice :is using a secure connection\r\n@batch=whois-42 :irc.solanum.test 318 papo-driver alice :End of /WHOIS list\r\n:irc.solanum.test BATCH -whois-42\r\n").await;
     let whois = within(whois).await.unwrap().unwrap();
     assert_eq!(
-        (whois.nick.as_ref(), whois.username.as_deref()),
+        (whois.nick.as_str(), whois.username.as_deref()),
         ("alice", Some("~alice"))
     );
     assert_eq!(
@@ -5178,7 +5178,7 @@ async fn structured_requests_resolve_fail_and_abort() {
     );
     assert_eq!(
         (
-            whois.account.name().map(AsRef::as_ref),
+            whois.account.name().map(crate::AccountName::as_str),
             whois.server.as_deref()
         ),
         (Some("alice"), Some("irc.solanum.test"))
@@ -6706,7 +6706,9 @@ async fn message_accessors_report_the_wire_audience() {
     );
     let channel_message = next_message(&mut events).await;
     assert_eq!(
-        channel_message.channel_context().map(AsRef::as_ref),
+        channel_message
+            .channel_context()
+            .map(crate::ChannelName::as_str),
         Some("#review")
     );
 

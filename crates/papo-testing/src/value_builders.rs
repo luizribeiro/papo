@@ -109,7 +109,7 @@ mod tests {
     #[test]
     fn builds_state_and_distinct_error_categories() {
         let state = StateBuilder::new("alice").connected(true).build();
-        assert_eq!(state.nick().as_ref(), "alice");
+        assert_eq!(state.nick().as_str(), "alice");
         assert!(state.is_connected());
 
         assert!(matches!(ErrorBuilder::timeout().build(), Error::Timeout));

@@ -363,8 +363,11 @@ impl Command {
             request = request.reply_to(id.clone());
         }
         let context = match self.message.conversation() {
-            Conversation::Private(_) => self.message.channel_context().map(AsRef::as_ref),
-            Conversation::Channel(channel) => Some(channel.as_ref()),
+            Conversation::Private(_) => self
+                .message
+                .channel_context()
+                .map(papo::ChannelName::as_str),
+            Conversation::Channel(channel) => Some(channel.as_str()),
             _ => None,
         };
         if let Some(context) = context {

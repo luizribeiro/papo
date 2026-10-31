@@ -1078,8 +1078,8 @@ where
                 Some(Command::Join { channel, key, result }) => {
                     defaults
                         .parted_while_disconnected
-                        .retain(|parted| parted != channel.as_ref());
-                    match session.join(now(), channel.as_ref(), key.as_ref()) {
+                        .retain(|parted| parted != channel.as_str());
+                    match session.join(now(), channel.as_str(), key.as_ref()) {
                         Ok(id) => {
                             requests.insert(id, PendingRequest::Response(result));
                             join_keys.insert(id, (channel, key));
@@ -1460,7 +1460,7 @@ where
             event::CoreEvent::Forward(event) => {
                 catchup::remember_live_event(catchups.values_mut(), &event);
                 if let Event::ChannelSynced(synced) = &event {
-                    resolve_sync_waiters(session, sync_waiters, &synced.channel);
+                    resolve_sync_waiters(session, sync_waiters, synced.channel.as_str());
                 }
                 if !part_restored_channel(session, defaults, &event)? {
                     update_rejoin_channels(session, defaults, &event);
@@ -1819,7 +1819,7 @@ fn update_rejoin_channels(_session: &Session, defaults: &mut PostConnect, event:
             {
                 defaults
                     .channels
-                    .push(Autojoin::new(joined.channel.as_ref(), None));
+                    .push(Autojoin::new(joined.channel.as_str(), None));
             }
         }
         Event::Parted(parted) if parted.authorship == crate::Authorship::Own => {
@@ -1828,7 +1828,7 @@ fn update_rejoin_channels(_session: &Session, defaults: &mut PostConnect, event:
                 .retain(|entry| parted.channel != entry.channel.as_str());
             defaults
                 .parted_while_disconnected
-                .retain(|channel| parted.channel != channel.as_ref());
+                .retain(|channel| parted.channel != channel.as_str());
         }
         Event::Kicked(kicked) if kicked.subject_authorship == crate::Authorship::Own => {
             defaults
@@ -1842,7 +1842,7 @@ fn update_rejoin_channels(_session: &Session, defaults: &mut PostConnect, event:
                 }
             }
             for channel in &mut defaults.parted_while_disconnected {
-                if renamed.old == channel.as_ref() {
+                if renamed.old == channel.as_str() {
                     *channel = renamed.new.clone();
                 }
             }
@@ -1863,7 +1863,7 @@ fn part_restored_channel(
         || !defaults
             .parted_while_disconnected
             .iter()
-            .any(|channel| joined.channel == channel.as_ref())
+            .any(|channel| joined.channel == channel.as_str())
     {
         return Ok(false);
     }
@@ -2045,7 +2045,7 @@ fn after_connect(
             .send(
                 now(),
                 Line::new("MODE")
-                    .with_params([welcome.nick.as_ref().to_owned(), format!("+{mode}")]),
+                    .with_params([welcome.nick.as_str().to_owned(), format!("+{mode}")]),
             )
             .map_err(io::Error::other)?;
     }

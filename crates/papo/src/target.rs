@@ -175,19 +175,19 @@ impl sealed::Sealed for crate::Nick {}
 
 impl AsNick for crate::Nick {
     fn __parts(&self) -> sealed::Parts<'_> {
-        name_parts(self.as_ref(), self.origin())
+        name_parts(self.as_str(), self.origin())
     }
 }
 
 impl AsConversation for crate::Nick {
     fn __parts(&self) -> sealed::Parts<'_> {
-        name_parts(self.as_ref(), self.origin())
+        name_parts(self.as_str(), self.origin())
     }
 }
 
 impl AsMask for crate::Nick {
     fn __parts(&self) -> sealed::Parts<'_> {
-        name_parts(self.as_ref(), self.origin())
+        name_parts(self.as_str(), self.origin())
     }
 }
 
@@ -195,19 +195,19 @@ impl sealed::Sealed for crate::ChannelName {}
 
 impl Target for crate::ChannelName {
     fn __parts(&self) -> sealed::Parts<'_> {
-        name_parts(self.as_ref(), self.origin())
+        name_parts(self.as_str(), self.origin())
     }
 }
 
 impl AsConversation for crate::ChannelName {
     fn __parts(&self) -> sealed::Parts<'_> {
-        name_parts(self.as_ref(), self.origin())
+        name_parts(self.as_str(), self.origin())
     }
 }
 
 impl AsMask for crate::ChannelName {
     fn __parts(&self) -> sealed::Parts<'_> {
-        name_parts(self.as_ref(), self.origin())
+        name_parts(self.as_str(), self.origin())
     }
 }
 
@@ -215,7 +215,7 @@ impl sealed::Sealed for crate::Mask {}
 
 impl AsMask for crate::Mask {
     fn __parts(&self) -> sealed::Parts<'_> {
-        name_parts(self.as_ref(), self.origin())
+        name_parts(self.as_str(), self.origin())
     }
 }
 
