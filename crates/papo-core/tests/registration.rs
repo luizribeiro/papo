@@ -4,9 +4,31 @@ mod support;
 
 use std::time::Duration;
 
-use papo_core::{BatchAbandonReason, CloseKind, Config, Event, Session, cap};
+use papo_core::{BatchAbandonReason, CloseKind, Config, Event, Sasl, Session, cap};
 use papo_proto::{BuildError, Isupport};
 use support::Transcript;
+
+#[test]
+fn registration_starts_only_at_numeric_welcome() {
+    let config = Config::default().sasl(Sasl::plain(
+        "alice",
+        papo_core::Secret::new("correct horse battery staple"),
+    ));
+    Transcript::new(config)
+        .connect_default()
+        .inspect(|session| assert!(!session.__is_registered()))
+        .server("CAP * LS :sasl=PLAIN")
+        .client("CAP REQ :sasl")
+        .server("CAP * ACK :sasl")
+        .client("AUTHENTICATE PLAIN")
+        .server("AUTHENTICATE +")
+        .client("AUTHENTICATE AGFsaWNlAGNvcnJlY3QgaG9yc2UgYmF0dGVyeSBzdGFwbGU=")
+        .server(":ergo.test 903 papo :SASL authentication successful")
+        .client("CAP END")
+        .inspect(|session| assert!(!session.__is_registered()))
+        .welcome(":ergo.test 001 papo :Welcome to the Ergo test network")
+        .inspect(|session| assert!(session.__is_registered()));
+}
 
 #[test]
 fn sends_password_after_capability_discovery() {
