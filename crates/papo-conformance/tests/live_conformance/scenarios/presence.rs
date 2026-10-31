@@ -27,7 +27,7 @@ async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(message.text, text);
     assert_eq!(
         crate::source_nick(&message.actor),
-        Some(alice_nick.as_ref())
+        Some(alice_nick.as_str())
     );
     assert_eq!(
         crate::scenarios::support::conversation_name(message.conversation()),
@@ -39,12 +39,12 @@ async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(message.server_time, server_time);
     assert!(matches!(
         message.actor.account(),
-        Account::LoggedIn(observed) if observed == account.as_ref()
+        Account::LoggedIn(observed) if observed == account.as_str()
     ));
     assert!(sent.fallbacks.is_empty());
     assert!(matches!(
-        bob.state().user(alice_nick.as_ref()).unwrap().account(),
-        Account::LoggedIn(observed) if observed == account.as_ref()
+        bob.state().user(alice_nick.as_str()).unwrap().account(),
+        Account::LoggedIn(observed) if observed == account.as_str()
     ));
     alice
         .send_raw(papo::Line::new("PART").with_params([&channel, "account-tag check"]))
@@ -53,12 +53,12 @@ async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| {
             event
                 .as_parted()
-                .filter(|parted| parted.actor.nick() == alice_nick.as_ref())
+                .filter(|parted| parted.actor.nick() == alice_nick.as_str())
         })
         .await?;
     assert!(matches!(
         parted.actor.account(),
-        Account::LoggedIn(observed) if observed == account.as_ref()
+        Account::LoggedIn(observed) if observed == account.as_str()
     ));
     bob.expect_none(|event| event.as_message().filter(|message| message.text == text))
         .await?;
@@ -81,7 +81,7 @@ async fn account_notify(s: Scenario) -> papo_testing::Result<()> {
         .state()
         .name_rules()
         .expect("server advertised CASEMAPPING")
-        .account(alice_nick.as_ref());
+        .account(alice_nick.as_str());
 
     let outcome = alice
         .create_account(
@@ -97,15 +97,15 @@ async fn account_notify(s: Scenario) -> papo_testing::Result<()> {
     ));
     let changed = bob.wait_for(Event::as_account_changed).await?;
 
-    assert_eq!(changed.actor.nick(), alice_nick.as_ref());
+    assert_eq!(changed.actor.nick(), alice_nick.as_str());
     assert_eq!(
-        changed.new.name().as_ref().map(AsRef::as_ref),
-        Some(account.as_ref())
+        changed.new.name().map(papo::AccountName::as_str),
+        Some(account.as_str())
     );
     assert_eq!(alice.state().account(), &Account::LoggedIn(account.clone()));
     assert!(matches!(
-        bob.state().user(alice_nick.as_ref()).unwrap().account(),
-        Account::LoggedIn(observed) if observed == account.as_ref()
+        bob.state().user(alice_nick.as_str()).unwrap().account(),
+        Account::LoggedIn(observed) if observed == account.as_str()
     ));
     alice.wait_for(Event::as_account_creation).await?;
     bob.expect_none(Event::as_account_changed).await?;
@@ -128,25 +128,25 @@ async fn away_notify(s: Scenario) -> papo_testing::Result<()> {
     alice.set_away(away).await?;
     let changed = bob.wait_for(Event::as_away_changed).await?;
 
-    assert_eq!(changed.actor.nick(), alice_nick.as_ref());
+    assert_eq!(changed.actor.nick(), alice_nick.as_str());
     assert_eq!(changed.new, Away::__away_value(Some(away.to_owned())));
     assert_eq!(
         alice.state().away(),
         &Away::__away_value(Some(away.to_owned()))
     );
     assert_eq!(
-        bob.state().user(alice_nick.as_ref()).unwrap().away(),
+        bob.state().user(alice_nick.as_str()).unwrap().away(),
         &Away::__away_value(Some(away.to_owned()))
     );
 
     alice.clear_away().await?;
     let returned = bob.wait_for(Event::as_away_changed).await?;
 
-    assert_eq!(returned.actor.nick(), alice_nick.as_ref());
+    assert_eq!(returned.actor.nick(), alice_nick.as_str());
     assert_eq!(returned.new, Away::Present);
     assert_eq!(alice.state().away(), &Away::Present);
     assert_eq!(
-        bob.state().user(alice_nick.as_ref()).unwrap().away(),
+        bob.state().user(alice_nick.as_str()).unwrap().away(),
         &Away::Present
     );
     bob.expect_none(Event::as_away_changed).await?;
@@ -164,16 +164,16 @@ async fn away_private_message(s: Scenario) -> papo_testing::Result<()> {
     alice.set_away(away).await?;
 
     let text = "the review can wait until you return";
-    let alice_direct = bob.direct(alice_nick.as_ref()).await?;
+    let alice_direct = bob.direct(alice_nick.as_str()).await?;
     let sent = bob.privmsg(&alice_direct, text).await?;
     let message = alice
         .wait_for(|event| event.as_message().filter(|message| message.text == text))
         .await?;
 
-    assert_eq!(crate::source_nick(&message.actor), Some(bob_nick.as_ref()));
+    assert_eq!(crate::source_nick(&message.actor), Some(bob_nick.as_str()));
     assert_eq!(
         crate::scenarios::support::conversation_name(message.conversation()),
-        Some(bob_nick.as_ref())
+        Some(bob_nick.as_str())
     );
     assert_eq!(message.text, text);
     let (id, sent_text, server_time) = confirmed_line(&sent);
@@ -205,8 +205,8 @@ async fn pre_away(s: Scenario) -> papo_testing::Result<()> {
     assert!(connected.caps.contains_key(&papo::cap::PRE_AWAY));
     assert_eq!(alice.state().away(), &Away::__away_value(None));
 
-    let whois = bob.whois(alice.nick().as_ref()).await?;
-    assert_eq!(whois.nick, alice.nick().as_ref());
+    let whois = bob.whois(alice.nick().as_str()).await?;
+    assert_eq!(whois.nick, alice.nick().as_str());
     assert_eq!(whois.away, Away::__away_value(Some(away.to_owned())));
     alice.expect_none(Event::as_disconnected).await?;
     Ok(())
@@ -226,28 +226,28 @@ async fn setname(s: Scenario) -> papo_testing::Result<()> {
     let own = alice
         .wait_for(|event| {
             event.as_realname_changed().filter(|changed| {
-                changed.actor.nick() == alice_nick.as_ref() && changed.new == realname
+                changed.actor.nick() == alice_nick.as_str() && changed.new == realname
             })
         })
         .await?;
     let observed = bob
         .wait_for(|event| {
             event.as_realname_changed().filter(|changed| {
-                changed.actor.nick() == alice_nick.as_ref() && changed.new == realname
+                changed.actor.nick() == alice_nick.as_str() && changed.new == realname
             })
         })
         .await?;
 
     assert_eq!(own.actor.nick(), &alice_nick);
     assert_eq!(own.new, realname);
-    assert_eq!(observed.actor.nick(), alice_nick.as_ref());
+    assert_eq!(observed.actor.nick(), alice_nick.as_str());
     assert_eq!(observed.new, realname);
     assert_eq!(
-        alice.state().user(alice_nick.as_ref()).unwrap().realname(),
+        alice.state().user(alice_nick.as_str()).unwrap().realname(),
         Some(realname)
     );
     assert_eq!(
-        bob.state().user(alice_nick.as_ref()).unwrap().realname(),
+        bob.state().user(alice_nick.as_str()).unwrap().realname(),
         Some(realname)
     );
     alice.expect_none(Event::as_realname_changed).await?;
@@ -275,13 +275,13 @@ async fn chghost(s: Scenario) -> papo_testing::Result<()> {
     alice.oper(oper_name, papo::Secret::new(password)).await?;
     alice
         .send_raw(
-            papo::Line::new("CHGHOST").with_params([bob_nick.as_ref(), "conformance.example"]),
+            papo::Line::new("CHGHOST").with_params([bob_nick.as_str(), "conformance.example"]),
         )
         .await?;
     let own = bob
         .wait_for(|event| {
             event.as_host_changed().filter(|changed| {
-                changed.actor.nick() == bob_nick.as_ref()
+                changed.actor.nick() == bob_nick.as_str()
                     && changed.new_host == "conformance.example"
             })
         })
@@ -289,13 +289,13 @@ async fn chghost(s: Scenario) -> papo_testing::Result<()> {
     let observed = alice
         .wait_for(|event| {
             event.as_host_changed().filter(|changed| {
-                changed.actor.nick() == bob_nick.as_ref()
+                changed.actor.nick() == bob_nick.as_str()
                     && changed.new_host == "conformance.example"
             })
         })
         .await?;
 
-    assert_eq!(own.actor.nick(), observed.actor.nick().as_ref());
+    assert_eq!(own.actor.nick(), observed.actor.nick().as_str());
     assert_eq!(own.new_username, observed.new_username);
     assert_eq!(own.new_host, observed.new_host);
     assert_eq!(own.actor.nick(), &bob_nick);
@@ -303,7 +303,7 @@ async fn chghost(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(own.new_host, "conformance.example");
     for peer in [&alice, &bob] {
         let state = peer.state();
-        let user = state.user(bob_nick.as_ref()).unwrap();
+        let user = state.user(bob_nick.as_str()).unwrap();
         assert_eq!(user.username(), Some(own.new_username.as_str()));
         assert_eq!(user.host(), Some("conformance.example"));
     }
@@ -323,14 +323,14 @@ async fn monitor(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let bob = s.connect("bob").await?;
     let bob_nick = bob.nick();
-    alice.monitor().add([bob_nick.as_ref()]).await?;
+    alice.monitor().add([bob_nick.as_str()]).await?;
     let online = alice.wait_for(Event::as_monitor_online).await?;
 
-    assert_eq!(online.subject.nick(), bob_nick.as_ref());
+    assert_eq!(online.subject.nick(), bob_nick.as_str());
     let state = alice.state();
     let monitored = state.monitor_online().collect::<Vec<_>>();
     assert_eq!(monitored.len(), 1);
-    assert_eq!(monitored[0].nick(), bob_nick.as_ref());
+    assert_eq!(monitored[0].nick(), bob_nick.as_str());
     assert_eq!(monitored[0].username(), online.subject.username());
     assert_eq!(monitored[0].host(), online.subject.host());
 
@@ -338,10 +338,10 @@ async fn monitor(s: Scenario) -> papo_testing::Result<()> {
     bob.set_away(away).await?;
     let changed = alice.wait_for(Event::as_away_changed).await?;
 
-    assert_eq!(changed.actor.nick(), bob_nick.as_ref());
+    assert_eq!(changed.actor.nick(), bob_nick.as_str());
     assert_eq!(changed.new, Away::__away_value(Some(away.to_owned())));
     assert_eq!(
-        alice.state().user(bob_nick.as_ref()).unwrap().away(),
+        alice.state().user(bob_nick.as_str()).unwrap().away(),
         &Away::__away_value(Some(away.to_owned()))
     );
 
@@ -349,7 +349,7 @@ async fn monitor(s: Scenario) -> papo_testing::Result<()> {
     bob.set_nick(new_nick.clone()).await?;
     let offline = alice.wait_for(Event::as_monitor_offline).await?;
 
-    assert_eq!(offline.subject, bob_nick.as_ref());
+    assert_eq!(offline.subject, bob_nick.as_str());
     assert_eq!(bob.state().nick(), new_nick.as_str());
     assert!(
         alice
@@ -380,13 +380,13 @@ async fn bot_mode(s: Scenario) -> papo_testing::Result<()> {
     let changed = alice
         .wait_for(|event| {
             event.as_mode_changed().filter(|changed| {
-                subject_name(&changed.subject) == alice_nick.as_ref()
+                subject_name(&changed.subject) == alice_nick.as_str()
                     && changed.changes.iter().any(|change| change.mode == 'B')
             })
         })
         .await?;
 
-    assert_eq!(subject_name(&changed.subject), alice_nick.as_ref());
+    assert_eq!(subject_name(&changed.subject), alice_nick.as_str());
     let bot_change = changed
         .changes
         .iter()
@@ -397,9 +397,9 @@ async fn bot_mode(s: Scenario) -> papo_testing::Result<()> {
 
     alice.join(&channel).await?;
     bob.join(&channel).await?;
-    let whois = bob.whois(alice_nick.clone()).await?;
+    let whois = bob.whois(alice_nick.as_str()).await?;
 
-    assert_eq!(whois.nick, alice_nick.as_ref());
+    assert_eq!(whois.nick, alice_nick.as_str());
     assert!(
         whois
             .username
@@ -418,7 +418,7 @@ async fn bot_mode(s: Scenario) -> papo_testing::Result<()> {
 
     assert_eq!(
         crate::source_nick(&message.actor),
-        Some(alice_nick.as_ref())
+        Some(alice_nick.as_str())
     );
     assert_eq!(
         crate::scenarios::support::conversation_name(message.conversation()),
@@ -459,12 +459,12 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
     let who = bob.who(channel.clone()).await?;
     let alice_who = who
         .iter()
-        .find(|entry| entry.nick == alice_nick.as_ref())
+        .find(|entry| entry.nick == alice_nick.as_str())
         .unwrap();
 
     assert_eq!(
-        alice_who.channel.as_ref().map(AsRef::as_ref),
-        Some(channel_name.as_ref())
+        alice_who.channel.as_ref().map(papo::ChannelName::as_str),
+        Some(channel_name.as_str())
     );
     assert!(!alice_who.username.is_empty());
     assert!(!alice_who.host.is_empty());
@@ -489,7 +489,7 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
         .iter()
         .find(|line| {
             line.numeric() == Some(352)
-                && line.get(5).is_some_and(|nick| nick == alice_nick.as_ref())
+                && line.get(5).is_some_and(|nick| nick == alice_nick.as_str())
         })
         .unwrap();
     assert_eq!(
@@ -512,9 +512,9 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
                 .is_some_and(|name| mapping.channel(name) == channel_name)
     }));
 
-    let whois = bob.whois(alice_nick.clone()).await?;
+    let whois = bob.whois(alice_nick.as_str()).await?;
 
-    assert_eq!(whois.nick, alice_nick.as_ref());
+    assert_eq!(whois.nick, alice_nick.as_str());
     assert!(
         whois
             .username
@@ -529,7 +529,7 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
         whois
             .channels
             .iter()
-            .any(|joined| joined.name == channel_name.as_ref())
+            .any(|joined| joined.name == channel_name.as_str())
     );
 
     assert_refusal(
@@ -554,10 +554,10 @@ async fn operator_visibility(s: Scenario) -> papo_testing::Result<()> {
     alice.oper(oper_name, papo::Secret::new(password)).await?;
     assert!(alice.state().user_modes().any(|mode_| mode_ == 'o'));
 
-    let who = bob.who(alice_nick.as_ref()).await?;
+    let who = bob.who(alice_nick.as_str()).await?;
     let row = who
         .iter()
-        .find(|entry| entry.nick == alice_nick.as_ref())
+        .find(|entry| entry.nick == alice_nick.as_str())
         .unwrap();
     assert_eq!(
         row.oper.as_ref().and_then(|oper| oper.name.as_deref()),
@@ -566,7 +566,7 @@ async fn operator_visibility(s: Scenario) -> papo_testing::Result<()> {
     assert!(row.oper.is_some());
 
     let whois = bob
-        .request_raw(papo::Line::new("WHOIS").with_params([alice_nick.as_ref()]))
+        .request_raw(papo::Line::new("WHOIS").with_params([alice_nick.as_str()]))
         .await?;
     let operator = whois
         .iter()
@@ -574,7 +574,7 @@ async fn operator_visibility(s: Scenario) -> papo_testing::Result<()> {
         .unwrap();
     assert_eq!(
         operator.get(1).expect("313 includes the operator nickname"),
-        alice_nick.as_ref()
+        alice_nick.as_str()
     );
     assert!(operator.get(2).is_some_and(|text| !text.is_empty()));
     assert!(whois.iter().any(|line| line.numeric() == Some(318)));
@@ -615,16 +615,16 @@ async fn operator_commands(s: Scenario) -> papo_testing::Result<()> {
     assert!(matches!(refusal.code().as_str(), "464" | "491"));
 
     alice
-        .send_raw(papo::Line::new("KILL").with_params([charlie_nick.as_ref(), "conformance test"]))
+        .send_raw(papo::Line::new("KILL").with_params([charlie_nick.as_str(), "conformance test"]))
         .await?;
     let quit = bob
         .wait_for(|event| {
             event
                 .as_quit()
-                .filter(|quit| quit.actor.nick() == charlie_nick.as_ref())
+                .filter(|quit| quit.actor.nick() == charlie_nick.as_str())
         })
         .await?;
-    assert_eq!(quit.actor.nick(), charlie_nick.as_ref());
+    assert_eq!(quit.actor.nick(), charlie_nick.as_str());
     assert!(
         quit.reason
             .as_deref()
@@ -650,11 +650,11 @@ async fn operator_wallops(s: Scenario) -> papo_testing::Result<()> {
     let mut bob = s.connect("bob").await?;
     alice.oper(oper_name, papo::Secret::new(password)).await?;
     let bob_nick = bob.nick();
-    bob.send_raw(papo::Line::new("MODE").with_params([bob_nick.as_ref(), "+w"]))
+    bob.send_raw(papo::Line::new("MODE").with_params([bob_nick.as_str(), "+w"]))
         .await?;
     bob.wait_for(|event| {
         event.as_mode_changed().filter(|changed| {
-            subject_name(&changed.subject) == bob_nick.as_ref()
+            subject_name(&changed.subject) == bob_nick.as_str()
                 && changed
                     .changes
                     .iter()
@@ -684,9 +684,9 @@ async fn whois_server(s: Scenario) -> papo_testing::Result<()> {
     let bob = s.connect("bob").await?;
     let alice_nick = alice.nick();
 
-    let whois = bob.whois(alice_nick.as_ref()).await?;
+    let whois = bob.whois(alice_nick.as_str()).await?;
 
-    assert_eq!(whois.nick, alice_nick.as_ref());
+    assert_eq!(whois.nick, alice_nick.as_str());
     if whois.server.as_ref().is_none_or(|server| server.is_empty()) {
         return s.skip("server sends no WHOIS server numeric 312");
     }
@@ -702,7 +702,7 @@ async fn whois_host_certificate(s: Scenario) -> papo_testing::Result<()> {
 
     // The host and certificate numerics have no richer public result type.
     let lines = alice
-        .request_raw(papo::Line::new("WHOIS").with_params([alice_nick.as_ref()]))
+        .request_raw(papo::Line::new("WHOIS").with_params([alice_nick.as_str()]))
         .await?;
     let detail = lines
         .iter()
@@ -714,15 +714,15 @@ async fn whois_host_certificate(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(
         mapping
             .nick(detail.get(1).expect("WHOIS detail includes the nickname"))
-            .as_ref(),
-        alice_nick.as_ref()
+            .as_str(),
+        alice_nick.as_str()
     );
     assert!(detail.get(2).is_some_and(|value| !value.is_empty()));
     assert!(lines.iter().any(|line| {
         line.numeric() == Some(318)
             && line
                 .get(1)
-                .is_some_and(|nick| mapping.nick(nick) == alice_nick.as_ref())
+                .is_some_and(|nick| mapping.nick(nick) == alice_nick.as_str())
     }));
     Ok(())
 }
