@@ -24,6 +24,16 @@ fn live_activity_retains_the_line_envelope() {
 }
 
 #[test]
+fn ordinary_tags_do_not_invent_actor_facts() {
+    Transcript::new(Config::default())
+        .server("@time=2026-10-20T18:42:11.123Z;msgid=RfcBTzyxY120012 :emily!~e@cloak.example JOIN #papo")
+        .event(|event| {
+            matches!(event, Event::Joined { envelope, .. }
+                if !envelope.__account_known() && !envelope.bot())
+        });
+}
+
+#[test]
 fn derived_events_keep_their_causal_time() {
     let expected = papo_proto::time::parse("2026-10-20T18:42:11.123Z").unwrap();
     let tagged = "time=2026-10-20T18:42:11.123Z;msgid=RfcBTzyxY120019";
