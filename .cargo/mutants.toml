@@ -1,4 +1,9 @@
 exclude_re = [
+  # These helpers contain the assertions for cfg(test) proptest modules; replacing them removes the test itself.
+  'replace check_action with \(\)$',
+  'replace check_chat with \(\)$',
+  # Once a batch starts, its lines drain atomically and this temporary flag is never observed.
+  'replace \|\| with && in Session::poll_transmit_tracked$',
   # A stable build already returns `None`, so this replacement is equivalent.
   'replace Config::selected_bouncer_network -> Option<&str> with None$',
   # Typing changes have no message identifier, so both empty-vector forms are equivalent.
