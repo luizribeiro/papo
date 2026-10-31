@@ -7,7 +7,7 @@ use std::{
 };
 
 use super::{
-    certificate, directory::TemporaryDirectory, process::ServerChild,
+    certificate, directory::TemporaryDirectory, process, process::ServerChild,
     server::TestServer as ErgoServer, server::wait_until_ready_until, soju_config::Configuration,
 };
 
@@ -30,6 +30,10 @@ impl TestServer {
     ///
     /// Returns an error if configuration, startup, or account setup fails.
     pub fn start() -> io::Result<Self> {
+        process::retry_start(Self::start_once)
+    }
+
+    fn start_once() -> io::Result<Self> {
         let ergo = ErgoServer::start_default()?;
         let directory = TemporaryDirectory::create()?;
         certificate::generate(directory.path())?;

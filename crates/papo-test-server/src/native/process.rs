@@ -1,4 +1,5 @@
 use std::{
+    fmt,
     io::{self, Read},
     process::{Child, Command, ExitStatus, Stdio},
     sync::{Arc, Mutex},
@@ -6,6 +7,7 @@ use std::{
 };
 
 const STDERR_LIMIT: usize = 4096;
+const START_ATTEMPTS: usize = 3;
 pub(crate) struct ServerChild {
     child: Child,
     stderr: Arc<Mutex<Tail>>,
@@ -74,13 +76,7 @@ impl ServerChild {
             .stderr
             .lock()
             .map_or_else(|_| String::new(), |tail| tail.text());
-        let stderr = stderr.trim();
-        let message = if stderr.is_empty() {
-            summary
-        } else {
-            format!("{summary}: {stderr}")
-        };
-        io::Error::new(kind, message)
+        io::Error::new(kind, Failure::new(summary, stderr))
     }
 }
 
@@ -89,6 +85,62 @@ impl Drop for ServerChild {
         let _ = self.stop();
     }
 }
+
+pub(crate) fn retry_start<T>(mut start: impl FnMut() -> io::Result<T>) -> io::Result<T> {
+    for attempt in 1..=START_ATTEMPTS {
+        match start() {
+            Err(error) if attempt < START_ATTEMPTS && retryable(&error) => {}
+            result => return result,
+        }
+    }
+    unreachable!()
+}
+
+fn retryable(error: &io::Error) -> bool {
+    error.kind() == io::ErrorKind::AddrInUse
+        || error
+            .get_ref()
+            .and_then(|source| source.downcast_ref::<Failure>())
+            .is_some_and(|failure| failure.retryable)
+}
+
+struct Failure {
+    summary: String,
+    stderr: String,
+    retryable: bool,
+}
+
+impl Failure {
+    fn new(summary: String, stderr: String) -> Self {
+        let diagnostic = stderr.to_ascii_lowercase();
+        let retryable = ["address already in use", "address in use", "eaddrinuse"]
+            .iter()
+            .any(|phrase| diagnostic.contains(phrase));
+        Self {
+            summary,
+            stderr,
+            retryable,
+        }
+    }
+}
+
+impl fmt::Display for Failure {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "{}", self.summary)?;
+        if !self.stderr.is_empty() {
+            write!(formatter, ": {}", self.stderr.trim())?;
+        }
+        Ok(())
+    }
+}
+
+impl fmt::Debug for Failure {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self, formatter)
+    }
+}
+
+impl std::error::Error for Failure {}
 
 #[derive(Default)]
 struct Tail(Vec<u8>);
@@ -107,7 +159,48 @@ impl Tail {
 
 #[cfg(test)]
 mod tests {
-    use super::{STDERR_LIMIT, Tail};
+    use std::io;
+
+    use super::{Failure, STDERR_LIMIT, Tail, retry_start};
+
+    #[test]
+    fn retries_an_address_in_use_startup_exit() {
+        let mut attempts = 0;
+        let port = retry_start(|| {
+            attempts += 1;
+            if attempts == 1 {
+                Err(io::Error::other(Failure::new(
+                    "soju exited with exit status: 1".into(),
+                    "listen tcp 127.0.0.1:43821: bind: address already in use".into(),
+                )))
+            } else {
+                Ok(43822)
+            }
+        })
+        .unwrap();
+
+        assert_eq!((port, attempts), (43822, 2));
+    }
+
+    #[test]
+    fn does_not_retry_a_configuration_error() {
+        let mut attempts = 0;
+        let error = retry_start::<()>(|| {
+            attempts += 1;
+            Err(io::Error::other(Failure::new(
+                "InspIRCd exited with exit status: 1".into(),
+                "unknown configuration directive: link".into(),
+            )))
+        })
+        .unwrap_err();
+
+        assert_eq!(attempts, 1);
+        assert!(
+            error
+                .to_string()
+                .contains("unknown configuration directive")
+        );
+    }
 
     #[test]
     fn bounds_stderr_that_keeps_arriving() {
