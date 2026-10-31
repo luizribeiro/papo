@@ -56,6 +56,14 @@ impl ServerChild {
         Ok(None)
     }
 
+    pub(crate) fn check(&mut self, name: &str) -> io::Result<()> {
+        self.try_wait(name).map(|_| ())
+    }
+
+    pub(crate) fn timeout(&self, name: &str) -> io::Error {
+        self.failure(io::ErrorKind::TimedOut, format!("{name} did not start"))
+    }
+
     pub(crate) fn stop(&mut self) -> io::Result<()> {
         if self.child.try_wait()?.is_none() {
             self.child.kill()?;

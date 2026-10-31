@@ -2,18 +2,18 @@ use std::{
     io::{self, Read, Write},
     net::{SocketAddr, TcpStream},
     path::PathBuf,
-    process::{Child, ExitStatus, Stdio},
+    process::{ExitStatus, Stdio},
     thread,
     time::{Duration, Instant},
 };
 
-use super::{certificate, directory::TemporaryDirectory, ergo::Configuration};
-
-const START_ATTEMPTS: usize = 5;
+use super::{
+    certificate, directory::TemporaryDirectory, ergo::Configuration, process, process::ServerChild,
+};
 
 /// A child Ergo process with isolated storage and loopback listeners.
 pub struct TestServer {
-    child: Child,
+    child: ServerChild,
     directory: TemporaryDirectory,
     configuration: Configuration,
     plaintext: SocketAddr,
@@ -164,11 +164,7 @@ impl TestServer {
     ///
     /// Returns an error if the process status cannot be read or Ergo cannot be stopped.
     pub fn stop(&mut self) -> io::Result<()> {
-        if self.child.try_wait()?.is_none() {
-            self.child.kill()?;
-            self.child.wait()?;
-        }
-        Ok(())
+        self.child.stop()
     }
 
     /// Restarts Ergo on the same listener addresses and waits until it is ready.
@@ -178,20 +174,14 @@ impl TestServer {
     /// Returns an error if Ergo cannot be stopped, spawned, or made ready.
     pub fn restart(&mut self) -> io::Result<()> {
         self.stop()?;
-        self.child = self
-            .configuration
-            .command("run", &self.directory)?
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()?;
+        self.child = ServerChild::spawn(&mut self.configuration.command("run", &self.directory)?)?;
         self.wait_until_ready()
     }
 
     fn start_with(
         mut configuration: impl FnMut(&TemporaryDirectory) -> io::Result<Configuration>,
     ) -> io::Result<Self> {
-        let mut errors = Vec::with_capacity(START_ATTEMPTS);
-        for _ in 0..START_ATTEMPTS {
+        process::retry_start(|| {
             let directory = TemporaryDirectory::create()?;
             certificate::generate(directory.path())?;
             let config = configuration(&directory)?;
@@ -205,11 +195,7 @@ impl TestServer {
                     "ergo initdb failed with {status}"
                 )));
             }
-            let child = config
-                .command("run", &directory)?
-                .stdout(Stdio::null())
-                .stderr(Stdio::null())
-                .spawn()?;
+            let child = ServerChild::spawn(&mut config.command("run", &directory)?)?;
             let mut server = Self {
                 child,
                 directory,
@@ -219,20 +205,9 @@ impl TestServer {
                 secure_websocket: config.secure_websocket,
                 configuration: config,
             };
-            match server.wait_until_ready() {
-                Ok(()) => return Ok(server),
-                Err(error) => errors.push(error),
-            }
-        }
-        let errors = errors
-            .iter()
-            .enumerate()
-            .map(|(index, error)| format!("attempt {}: {error}", index + 1))
-            .collect::<Vec<_>>()
-            .join("; ");
-        Err(io::Error::other(format!(
-            "Ergo failed to become ready after {START_ATTEMPTS} attempts: {errors}"
-        )))
+            server.wait_until_ready()?;
+            Ok(server)
+        })
     }
 
     fn wait_until_ready(&mut self) -> io::Result<()> {
@@ -243,7 +218,24 @@ impl TestServer {
             self.websocket,
             self.secure_websocket,
         ];
-        wait_until_ready_until("Ergo", addresses, deadline, || self.child.try_wait())
+        wait_for_child_until("Ergo", addresses, deadline, &mut self.child)
+    }
+}
+
+pub(crate) fn wait_for_child_until<const N: usize>(
+    server_name: &str,
+    addresses: [SocketAddr; N],
+    deadline: Instant,
+    child: &mut ServerChild,
+) -> io::Result<()> {
+    let result = wait_until_ready_with(addresses, deadline, || child.check(server_name));
+    if result
+        .as_ref()
+        .is_err_and(|error| error.kind() == io::ErrorKind::TimedOut)
+    {
+        Err(child.timeout(server_name))
+    } else {
+        result
     }
 }
 
@@ -253,12 +245,23 @@ pub(crate) fn wait_until_ready_until<const N: usize>(
     deadline: Instant,
     mut child_status: impl FnMut() -> io::Result<Option<ExitStatus>>,
 ) -> io::Result<()> {
-    while Instant::now() < deadline {
+    wait_until_ready_with(addresses, deadline, || {
         if let Some(status) = child_status()? {
             return Err(io::Error::other(format!(
                 "{server_name} exited with {status}"
             )));
         }
+        Ok(())
+    })
+}
+
+fn wait_until_ready_with<const N: usize>(
+    addresses: [SocketAddr; N],
+    deadline: Instant,
+    mut child_check: impl FnMut() -> io::Result<()>,
+) -> io::Result<()> {
+    while Instant::now() < deadline {
+        child_check()?;
         if addresses
             .iter()
             .all(|address| TcpStream::connect(address).is_ok())
@@ -270,7 +273,7 @@ pub(crate) fn wait_until_ready_until<const N: usize>(
     }
     Err(io::Error::new(
         io::ErrorKind::TimedOut,
-        format!("{server_name} did not start"),
+        "server did not start",
     ))
 }
 
@@ -290,13 +293,6 @@ fn answers_irc(address: SocketAddr) -> bool {
     matches!(connection.read(&mut reply), Ok(count) if count > 0)
 }
 
-impl Drop for TestServer {
-    fn drop(&mut self) {
-        let _ = self.child.kill();
-        let _ = self.child.wait();
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::{
@@ -308,7 +304,7 @@ mod tests {
         time::{Duration, Instant},
     };
 
-    use super::{Configuration, TestServer, answers_irc, wait_until_ready_until};
+    use super::{Configuration, TestServer, answers_irc, wait_until_ready_with};
 
     #[test]
     fn irc_probe_requires_a_reply_from_an_open_port() {
@@ -358,16 +354,15 @@ mod tests {
         let addresses = listeners
             .each_ref()
             .map(|listener| listener.local_addr().unwrap());
-        let error = wait_until_ready_until(
-            "Ergo",
+        let error = wait_until_ready_with(
             addresses,
             Instant::now() + Duration::from_millis(20),
-            || Ok::<_, io::Error>(None),
+            || Ok::<_, io::Error>(()),
         )
         .unwrap_err();
 
         assert_eq!(error.kind(), io::ErrorKind::TimedOut);
-        assert_eq!(error.to_string(), "Ergo did not start");
+        assert_eq!(error.to_string(), "server did not start");
     }
 
     #[test]
