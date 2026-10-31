@@ -587,6 +587,7 @@ impl State {
             channel: channel.clone(),
             epoch: joined.map(|channel| channel.epoch).or(pending),
             created_at: joined.and_then(Channel::created_at),
+            pending_join: None,
         }
     }
 
@@ -609,6 +610,13 @@ impl State {
                 return None;
             }
             return Some(channel.name.clone());
+        }
+        if guard
+            .pending_join
+            .as_ref()
+            .is_some_and(|lifetime| lifetime.upgrade().is_some())
+        {
+            return Some(guard.channel.clone());
         }
         if self
             .pending_channel_epochs
@@ -816,6 +824,7 @@ impl State {
     pub(crate) fn handle_message(
         &mut self,
         message: &LineRef<'_>,
+        reserved_channel_epoch: Option<u64>,
         own_nick: &str,
         isupport: &Isupport,
         enabled_caps: &Capabilities,
@@ -849,7 +858,14 @@ impl State {
             return Handled::Yes;
         }
         if let Some(join) = Join::parse(message) {
-            return self.handle_join(message, join, isupport, no_implicit_names, outbox);
+            return self.handle_join(
+                message,
+                join,
+                reserved_channel_epoch,
+                isupport,
+                no_implicit_names,
+                outbox,
+            );
         }
         if let Some(handled) = self.handle_user_update(message, isupport, own_away_message, outbox)
         {
@@ -1999,6 +2015,7 @@ mod metadata_tests {
 
         state.handle_message(
             &line,
+            None,
             "papo",
             &Isupport::default(),
             &Capabilities::default(),

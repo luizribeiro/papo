@@ -61,6 +61,7 @@ impl State {
         &mut self,
         message: &LineRef<'_>,
         join: Join<'_>,
+        reserved_epoch: Option<u64>,
         isupport: &Isupport,
         no_implicit_names: bool,
         outbox: &mut Outbox,
@@ -103,10 +104,12 @@ impl State {
                 self.warn_limit(StateLimit::Channels, outbox);
                 return Handled::Yes;
             }
-            let epoch = self
-                .pending_channel_epochs
-                .remove(&key)
-                .map(|(epoch, _)| epoch)
+            let epoch = reserved_epoch
+                .or_else(|| {
+                    self.pending_channel_epochs
+                        .remove(&key)
+                        .map(|(epoch, _)| epoch)
+                })
                 .unwrap_or_else(|| {
                     self.channel_epoch = self.channel_epoch.wrapping_add(1);
                     self.channel_epoch

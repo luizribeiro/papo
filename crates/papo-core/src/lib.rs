@@ -2954,13 +2954,30 @@ pub struct RecipientGuard {
 
 /// Captured proof of a channel membership lifecycle.
 #[doc(hidden)]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct ChannelGuard {
     origin: papo_proto::Origin,
     channel: ChannelName,
     epoch: Option<u64>,
     created_at: Option<std::time::SystemTime>,
+    pending_join: Option<std::sync::Weak<()>>,
 }
+
+impl PartialEq for ChannelGuard {
+    fn eq(&self, other: &Self) -> bool {
+        self.origin == other.origin
+            && self.channel == other.channel
+            && self.epoch == other.epoch
+            && self.created_at == other.created_at
+            && match (&self.pending_join, &other.pending_join) {
+                (Some(left), Some(right)) => std::sync::Weak::ptr_eq(left, right),
+                (None, None) => true,
+                _ => false,
+            }
+    }
+}
+
+impl Eq for ChannelGuard {}
 
 /// Identity proof attached to an outbound target.
 #[doc(hidden)]
@@ -5152,6 +5169,7 @@ impl Session {
         let state_handled = whoami
             || self.state.handle_message(
                 message,
+                None,
                 self.welcome_state.nick(),
                 self.isupport.value(),
                 self.caps.enabled(),
@@ -5780,6 +5798,7 @@ impl Session {
         let event_count = self.outbox.events.len();
         let handled = self.state.handle_message(
             &message.as_ref(),
+            None,
             self.welcome_state.nick(),
             self.isupport.value(),
             self.caps.enabled(),
