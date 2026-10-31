@@ -2,16 +2,72 @@
 
 use std::time::{Duration, Instant, UNIX_EPOCH};
 
-use papo_core::{Config, Event, Session, TargetGuard, TextKind};
+use papo_core::{
+    ChannelGuard, Config, Event, RateLimit, RequestId, Session, TargetGuard, TextKind,
+};
 
 fn server(session: &mut Session, line: &str) {
     session.handle_line(Instant::now(), line.as_bytes());
 }
 
+fn labelled_session(now: Instant) -> Session {
+    let mut session = Session::new(
+        Config::default()
+            .nick("papo")
+            .rate_limit(RateLimit::unlimited()),
+    );
+    session.handle_connected(now);
+    session.handle_line(now, b"CAP * LS :labeled-response");
+    session.handle_line(now, b"CAP * ACK :labeled-response");
+    while session.poll_transmit().is_some() {}
+    session
+}
+
+fn pending_join_guard(session: &mut Session, now: Instant) -> (RequestId, ChannelGuard) {
+    let id = session.join(now, "#review", None).unwrap();
+    assert!(session.poll_transmit().is_some());
+    server(
+        session,
+        "@msgid=Ergo8ZZ5 :alice!~alice@cloak.example PRIVMSG #review :!ping",
+    );
+    let guard = std::iter::from_fn(|| session.poll_event())
+        .find_map(|event| match event {
+            Event::Line(line) => line.__channel_guard().cloned(),
+            _ => None,
+        })
+        .unwrap();
+    assert_eq!(
+        session.state().__resolve_channel(&guard).as_deref(),
+        Some("#review")
+    );
+    (id, guard)
+}
+
+fn assert_pending_reply_refused(session: &mut Session, guard: ChannelGuard) {
+    assert_eq!(session.state().__resolve_channel(&guard), None);
+    while session.poll_transmit().is_some() {}
+    while session.poll_event().is_some() {}
+    session
+        .send_target_guarded_text_detailed(
+            Instant::now(),
+            TextKind::Privmsg,
+            "#review",
+            "pong",
+            &[],
+            Some(TargetGuard::Channel(guard)),
+        )
+        .unwrap();
+    assert_eq!(session.poll_transmit(), None);
+}
+
 #[test]
 fn channel_message_during_join_keeps_the_reserved_membership() {
     let now = Instant::now();
-    let mut session = Session::new(Config::default().nick("papo"));
+    let mut session = Session::new(
+        Config::default()
+            .nick("papo")
+            .rate_limit(RateLimit::unlimited()),
+    );
     session.join(now, "#review", None).unwrap();
     assert_eq!(
         session.poll_transmit().unwrap().as_ref(),
@@ -52,6 +108,62 @@ fn channel_message_during_join_keeps_the_reserved_membership() {
         session.poll_transmit().unwrap().as_ref(),
         b"PRIVMSG #review pong\r\n"
     );
+}
+
+#[test]
+fn labelled_failure_releases_the_pending_join() {
+    let now = Instant::now();
+    let mut session = labelled_session(now);
+    let (_, guard) = pending_join_guard(&mut session, now);
+
+    server(
+        &mut session,
+        "@label=0 :ergo.test FAIL JOIN ACCOUNT_REQUIRED #review :Account required",
+    );
+
+    assert_pending_reply_refused(&mut session, guard);
+}
+
+#[test]
+fn unlabelled_completion_releases_the_pending_join() {
+    let now = Instant::now();
+    let mut session = Session::new(
+        Config::default()
+            .nick("papo")
+            .rate_limit(RateLimit::unlimited()),
+    );
+    let (_, guard) = pending_join_guard(&mut session, now);
+
+    server(
+        &mut session,
+        ":ergo.test FAIL JOIN ACCOUNT_REQUIRED #review :Account required",
+    );
+
+    assert_pending_reply_refused(&mut session, guard);
+}
+
+#[test]
+fn every_join_refusal_numeric_releases_the_pending_join() {
+    for line in [
+        ":ergo.test 403 papo #review :No such channel",
+        ":ergo.test 405 papo #review :You have joined too many channels",
+        ":ergo.test 471 papo #review :Cannot join channel (+l)",
+        ":ergo.test 473 papo #review :Cannot join channel (+i)",
+        ":ergo.test 474 papo #review :Cannot join channel (+b)",
+        ":ergo.test 475 papo #review :Cannot join channel (+k)",
+    ] {
+        let now = Instant::now();
+        let mut session = Session::new(
+            Config::default()
+                .nick("papo")
+                .rate_limit(RateLimit::unlimited()),
+        );
+        let (_, guard) = pending_join_guard(&mut session, now);
+
+        server(&mut session, line);
+
+        assert_pending_reply_refused(&mut session, guard);
+    }
 }
 
 #[test]
