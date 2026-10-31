@@ -45,6 +45,31 @@ fn multiline_session_with_rate_limit(
     session
 }
 
+fn registering_multiline_session(now: Instant) -> Session {
+    let config = Config::default()
+        .wanted_caps([
+            "batch",
+            "draft/multiline",
+            "echo-message",
+            "labeled-response",
+        ])
+        .rate_limit(RateLimit::unlimited());
+    let mut session = Session::new(config);
+    session.handle_connected(now);
+    drain(&mut session);
+    session.handle_line(
+        now,
+        b"CAP * LS :batch draft/multiline=max-bytes=4096,max-lines=100 echo-message labeled-response",
+    );
+    drain(&mut session);
+    session.handle_line(
+        now,
+        b"CAP * ACK :batch draft/multiline echo-message labeled-response",
+    );
+    drain(&mut session);
+    session
+}
+
 fn drain(session: &mut Session) -> Vec<String> {
     std::iter::from_fn(|| session.poll_transmit())
         .map(|line| String::from_utf8(line.to_vec()).unwrap())
@@ -175,6 +200,76 @@ fn unlabelled_text_tags_only_its_last_line_for_write_completion() {
         .map(|transmit| transmit.into_parts().1)
         .collect::<Vec<_>>();
     assert_eq!(tokens, [None, None, None, Some(sent.transmit.unwrap())]);
+}
+
+#[test]
+fn multiline_response_and_request_batches_wait_for_welcome() {
+    let now = Instant::now();
+    let mut session = registering_multiline_session(now);
+    let request = session
+        .send_text_detailed(
+            now,
+            TextKind::Privmsg,
+            "#release",
+            "review started\nreview complete",
+            &[],
+        )
+        .unwrap();
+    assert!(request.transmit.is_none());
+    assert!(request.request.is_some());
+
+    session.handle_line(now, b"CAP * DEL :labeled-response");
+    let response = session
+        .send_text_detailed(
+            now,
+            TextKind::Notice,
+            "#operations",
+            "maintenance started\nmaintenance complete",
+            &[],
+        )
+        .unwrap();
+    assert!(response.request.is_none());
+    let response_token = response.transmit.unwrap();
+    assert_eq!(session.poll_transmit_tracked(), None);
+
+    session.handle_line(
+        now + Duration::from_millis(1),
+        b":irc.example 001 papo :Welcome to the network",
+    );
+    let transmitted = std::iter::from_fn(|| session.poll_transmit_tracked())
+        .map(|transmit| {
+            let (line, token) = transmit.into_parts();
+            (String::from_utf8(line.to_vec()).unwrap(), token)
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        transmitted,
+        [
+            (
+                "@label=0 BATCH +b0-0 draft/multiline #release\r\n".into(),
+                None,
+            ),
+            (
+                "@batch=b0-0 PRIVMSG #release :review started\r\n".into(),
+                None,
+            ),
+            (
+                "@batch=b0-0 PRIVMSG #release :review complete\r\n".into(),
+                None,
+            ),
+            ("BATCH -b0-0\r\n".into(), None),
+            ("BATCH +b1-0 draft/multiline #operations\r\n".into(), None,),
+            (
+                "@batch=b1-0 NOTICE #operations :maintenance started\r\n".into(),
+                None,
+            ),
+            (
+                "@batch=b1-0 NOTICE #operations :maintenance complete\r\n".into(),
+                None,
+            ),
+            ("BATCH -b1-0\r\n".into(), Some(response_token)),
+        ]
+    );
 }
 
 #[test]
