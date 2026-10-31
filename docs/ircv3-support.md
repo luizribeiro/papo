@@ -84,12 +84,12 @@ Ratified IRCv3 specifications and drafts published on ircv3.net are part of papo
 | [Account extended ban](https://ircv3.net/specs/extensions/account-extban) | `ACCOUNTEXTBAN` | Yes | [`Extban::account`](https://docs.rs/papo/latest/papo/enum.Extban.html#method.account) | [Yes](conformance-matrix.md) |
 | [Bot mode](https://ircv3.net/specs/extensions/bot-mode) | `BOT, bot` | Opt-in | [`Builder::bot`](https://docs.rs/papo/latest/papo/struct.Builder.html#method.bot) | [Yes](conformance-matrix.md) |
 | [Monitor](https://ircv3.net/specs/extensions/monitor) | `MONITOR` | Yes | [`Client::monitor`](https://docs.rs/papo/latest/papo/struct.Client.html#method.monitor) | [Yes](conformance-matrix.md) |
-| [Network icon](https://ircv3.net/specs/extensions/network-icon) | `draft/ICON` | Yes | [`Isupport::icon_url`](https://docs.rs/papo/latest/papo/struct.Isupport.html#method.icon_url) | No |
+| [Network icon](https://ircv3.net/specs/extensions/network-icon) | `draft/ICON` | Yes | [`Isupport::icon_url`](https://docs.rs/papo/latest/papo/struct.Isupport.html#method.icon_url) | [Yes](conformance-matrix.md) |
 | [WHOX](https://ircv3.net/specs/extensions/whox) | `WHOX` | Yes | [`Client::who`](https://docs.rs/papo/latest/papo/struct.Client.html#method.who) | [Yes](conformance-matrix.md) |
 | [UTF8ONLY](https://ircv3.net/specs/extensions/utf8-only) | `UTF8ONLY` | Yes | [`Isupport::utf8only`](https://docs.rs/papo/latest/papo/struct.Isupport.html#method.utf8only) | [Yes](conformance-matrix.md) |
 | [CLIENTTAGDENY](https://ircv3.net/specs/extensions/message-tags#rpl_isupport-tokens) | `CLIENTTAGDENY` | Yes | [`Isupport::clienttagdeny`](https://docs.rs/papo/latest/papo/struct.Isupport.html#method.clienttagdeny) | No |
 | [MSGREFTYPES](https://ircv3.net/specs/extensions/chathistory#isupport-tokens) | `MSGREFTYPES` | Yes | [`Isupport::msgreftypes`](https://docs.rs/papo/latest/papo/struct.Isupport.html#method.msgreftypes) | No |
-| [Server Name Indication](https://ircv3.net/docs/sni) | `SNI` | Yes | [`Builder::tls_server_name`](https://docs.rs/papo/latest/papo/struct.Builder.html#method.tls_server_name) | No |
+| [Server Name Indication](https://ircv3.net/docs/sni) | `SNI` | Yes | [`Builder::tls_server_name`](https://docs.rs/papo/latest/papo/struct.Builder.html#method.tls_server_name) | [Yes](conformance-matrix.md) |
 | [WebIRC](https://ircv3.net/specs/extensions/webirc) | `WEBIRC` | Opt-in | [`Builder::webirc`](https://docs.rs/papo/latest/papo/struct.Builder.html#method.webirc) | [Yes](conformance-matrix.md) |
 | [WebSocket](https://ircv3.net/specs/extensions/websocket) | `binary.ircv3.net, text.ircv3.net` | Opt-in | [`Client::builder`](https://docs.rs/papo/latest/papo/struct.Client.html#method.builder) | [Yes](conformance-matrix.md) |
 | [FILEHOST](https://github.com/ircv3/ircv3-specifications/pull/562) | `draft/FILEHOST, soju.im/FILEHOST` | Unstable | [`State::filehost`](https://docs.rs/papo/latest/papo/struct.State.html#method.filehost) | No |
