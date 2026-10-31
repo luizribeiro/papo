@@ -402,6 +402,12 @@ mod tests {
         assert!(
             matches!(recipient.account, crate::Account::LoggedIn(account) if account == "emily")
         );
+        let actor = message
+            .receipt
+            .actor_recipient()
+            .expect("user actor recipient guard");
+        assert_eq!(actor.nick, "emily");
+        assert!(matches!(actor.account, crate::Account::LoggedIn(account) if account == "emily"));
     }
 
     #[test]

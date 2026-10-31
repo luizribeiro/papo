@@ -174,6 +174,9 @@ impl Receipt {
     }
 
     pub(crate) fn update_account(&mut self, account: Account) {
+        if let Source::User(actor) = &mut self.identity.actor {
+            actor.set_account(account.clone());
+        }
         self.identity.actor_account = account;
     }
 }
