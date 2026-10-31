@@ -203,6 +203,9 @@ their `NameRules` replacements are `nick`, `channel`, `account`, `mask`, `conver
 Names now remember both their producing client and casemapping, and equality, ordering, and hashing
 include those facts. Text comparisons still apply the name's fold. The public
 `Casemapping::{nick, channel, account, mask}` constructors and name `check()` methods were hidden.
+`Nick`, `ChannelName`, `AccountName`, and `Mask` no longer implement `Deref<Target = str>` or
+`AsRef<str>`. Use `as_str()` for the server's display spelling and `key()` for the folded storage
+key; `Display` continues to use the server's spelling.
 `Casemapping` now implements `FromStr` and `Display`, with `as_str()` for its wire token.
 `isupport::Extban` was renamed `ExtbanSyntax`; `Isupport::casemapping()` is optional, and status
 prefixes from ISUPPORT, WHO/WHOIS, members, and event audiences use the shared `Prefix` and `Rank`

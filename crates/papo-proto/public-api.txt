@@ -517,8 +517,6 @@ impl core::cmp::PartialEq<str> for papo_proto::AccountName
 pub fn papo_proto::AccountName::eq(&self, &str) -> bool
 impl core::cmp::PartialOrd for papo_proto::AccountName
 pub fn papo_proto::AccountName::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
-impl core::convert::AsRef<str> for papo_proto::AccountName
-pub fn papo_proto::AccountName::as_ref(&self) -> &str
 impl core::convert::From<&papo_proto::AccountName> for alloc::string::String
 pub fn alloc::string::String::from(&papo_proto::AccountName) -> Self
 impl core::convert::From<&papo_proto::AccountName> for papo_proto::AccountName
@@ -531,9 +529,6 @@ impl core::fmt::Display for papo_proto::AccountName
 pub fn papo_proto::AccountName::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::hash::Hash for papo_proto::AccountName
 pub fn papo_proto::AccountName::hash<H: core::hash::Hasher>(&self, &mut H)
-impl core::ops::deref::Deref for papo_proto::AccountName
-pub type papo_proto::AccountName::Target = str
-pub fn papo_proto::AccountName::deref(&self) -> &Self::Target
 impl papo_proto::AsAccount for papo_proto::AccountName
 impl core::marker::Freeze for papo_proto::AccountName
 impl core::marker::Send for papo_proto::AccountName
@@ -1114,8 +1109,6 @@ impl core::cmp::PartialEq<str> for papo_proto::Mask
 pub fn papo_proto::Mask::eq(&self, &str) -> bool
 impl core::cmp::PartialOrd for papo_proto::Mask
 pub fn papo_proto::Mask::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
-impl core::convert::AsRef<str> for papo_proto::Mask
-pub fn papo_proto::Mask::as_ref(&self) -> &str
 impl core::convert::From<&papo_proto::Mask> for papo_proto::Mask
 pub fn papo_proto::Mask::from(&Self) -> Self
 impl core::fmt::Debug for papo_proto::Mask
@@ -1124,9 +1117,6 @@ impl core::fmt::Display for papo_proto::Mask
 pub fn papo_proto::Mask::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::hash::Hash for papo_proto::Mask
 pub fn papo_proto::Mask::hash<H: core::hash::Hasher>(&self, &mut H)
-impl core::ops::deref::Deref for papo_proto::Mask
-pub type papo_proto::Mask::Target = str
-pub fn papo_proto::Mask::deref(&self) -> &Self::Target
 impl core::marker::Freeze for papo_proto::Mask
 impl core::marker::Send for papo_proto::Mask
 impl core::marker::Sync for papo_proto::Mask

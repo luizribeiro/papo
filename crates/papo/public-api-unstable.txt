@@ -3537,8 +3537,6 @@ impl core::cmp::PartialEq<str> for papo::AccountName
 pub fn papo::AccountName::eq(&self, &str) -> bool
 impl core::cmp::PartialOrd for papo::AccountName
 pub fn papo::AccountName::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
-impl core::convert::AsRef<str> for papo::AccountName
-pub fn papo::AccountName::as_ref(&self) -> &str
 impl core::convert::From<&papo::AccountName> for papo::AccountName
 pub fn papo::AccountName::from(&Self) -> Self
 impl core::fmt::Debug for papo::AccountName
@@ -3547,7 +3545,14 @@ impl core::fmt::Display for papo::AccountName
 pub fn papo::AccountName::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::hash::Hash for papo::AccountName
 pub fn papo::AccountName::hash<H: core::hash::Hasher>(&self, &mut H)
-impl core::ops::deref::Deref for papo::AccountName
+impl papo::AsAccount for papo::AccountName
+impl core::marker::Freeze for papo::AccountName
+impl core::marker::Send for papo::AccountName
+impl core::marker::Sync for papo::AccountName
+impl core::marker::Unpin for papo::AccountName
+impl core::marker::UnsafeUnpin for papo::AccountName
+impl core::panic::unwind_safe::RefUnwindSafe for papo::AccountName
+impl core::panic::unwind_safe::UnwindSafe for papo::AccountName
 pub trait papo::AsAccount: papo::name_argument::Sealed
 impl papo::AsAccount for alloc::borrow::Cow<'_, str>
 impl papo::AsAccount for alloc::boxed::Box<str>
@@ -4125,8 +4130,6 @@ impl core::cmp::PartialEq<str> for papo::Mask
 pub fn papo::Mask::eq(&self, &str) -> bool
 impl core::cmp::PartialOrd for papo::Mask
 pub fn papo::Mask::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
-impl core::convert::AsRef<str> for papo::Mask
-pub fn papo::Mask::as_ref(&self) -> &str
 impl core::convert::From<&papo::Mask> for papo::Mask
 pub fn papo::Mask::from(&Self) -> Self
 impl core::fmt::Debug for papo::Mask
@@ -4135,7 +4138,13 @@ impl core::fmt::Display for papo::Mask
 pub fn papo::Mask::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::hash::Hash for papo::Mask
 pub fn papo::Mask::hash<H: core::hash::Hasher>(&self, &mut H)
-impl core::ops::deref::Deref for papo::Mask
+impl core::marker::Freeze for papo::Mask
+impl core::marker::Send for papo::Mask
+impl core::marker::Sync for papo::Mask
+impl core::marker::Unpin for papo::Mask
+impl core::marker::UnsafeUnpin for papo::Mask
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Mask
+impl core::panic::unwind_safe::UnwindSafe for papo::Mask
 pub struct papo::Member
 impl papo::Member
 pub fn papo::Member::has(&self, papo::isupport::Rank) -> bool

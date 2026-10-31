@@ -391,28 +391,6 @@ name_identifier!(Nick, "An IRC nickname.");
 name_identifier!(ChannelName, "An IRC channel name.");
 name_identifier!(AccountName, "An IRC account name.");
 
-macro_rules! string_traits {
-    ($($name:ty),+ $(,)?) => {
-        $(
-            impl Deref for $name {
-                type Target = str;
-
-                fn deref(&self) -> &Self::Target {
-                    self.as_str()
-                }
-            }
-
-            impl AsRef<str> for $name {
-                fn as_ref(&self) -> &str {
-                    self.as_str()
-                }
-            }
-        )+
-    };
-}
-
-string_traits!(AccountName);
-
 macro_rules! text_comparisons {
     ($($name:ty),+ $(,)?) => {
         $(
@@ -469,7 +447,6 @@ name_identifier!(
     Mask,
     "An IRC user or channel mask. High-level clients can compare server list entries with `papo::State::same_list_entry`."
 );
-string_traits!(Mask);
 
 mod name_argument {
     use super::NameParts;
