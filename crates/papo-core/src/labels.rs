@@ -172,7 +172,6 @@ impl Session {
             let mut request = self.unlabelled_requests.remove(index).unwrap();
             self.requests
                 .retain(|_, (pending, _, _, _, _)| *pending != request.id);
-            self.cancel_channel_join_matcher(&request.matcher);
             if let ResponseMatcher::ListMode { channel, mode } = request.matcher {
                 self.state.invalidate_mode_list(&channel, mode);
             }
@@ -197,7 +196,6 @@ impl Session {
         if complete {
             let request = self.unlabelled_requests.remove(index).unwrap();
             self.away_messages.remove(&request.id);
-            self.cancel_channel_join_matcher(&request.matcher);
             let whois_channels =
                 parse_whois_channels(request.lines.as_slice(), self.isupport.value());
             let enabled_features = self.supported_features();
@@ -284,7 +282,6 @@ impl Session {
         let request = self.unlabelled_requests.remove(index).unwrap();
         self.requests
             .retain(|_, (pending, _, _, _, _)| *pending != request.id);
-        self.cancel_channel_join_matcher(&request.matcher);
         self.outbox.event(Event::RequestAborted {
             id: request.id,
             transmitted: request.started.is_some(),

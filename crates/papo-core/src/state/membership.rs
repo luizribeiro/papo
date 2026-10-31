@@ -100,7 +100,6 @@ impl State {
             self.nick = self.casemapping.nick(nick);
             let key = NameKey::new(join.channel, self.casemapping);
             if !self.channels.contains_key(&key) && self.channels.len() >= self.max_channels {
-                self.cancel_channel_join(join.channel);
                 self.warn_limit(StateLimit::Channels, outbox);
                 return Handled::Yes;
             }

@@ -62,7 +62,6 @@ pub struct State {
     rejoin_creation_times: HashMap<NameKey<String>, SystemTime>,
     reply_epoch: u64,
     channel_epoch: u64,
-    pending_channel_epochs: HashMap<NameKey<String>, (u64, usize)>,
     departure_sequence: u64,
     departed_identities: VecDeque<(crate::ReplyIdentity, Nick)>,
     max_channels: usize,
@@ -101,7 +100,6 @@ impl Clone for State {
             rejoin_creation_times: self.rejoin_creation_times.clone(),
             reply_epoch: self.reply_epoch,
             channel_epoch: self.channel_epoch,
-            pending_channel_epochs: self.pending_channel_epochs.clone(),
             departure_sequence: self.departure_sequence,
             departed_identities: self.departed_identities.clone(),
             max_channels: self.max_channels,
@@ -432,7 +430,6 @@ impl State {
             rejoin_creation_times: HashMap::new(),
             reply_epoch: 0,
             channel_epoch: 0,
-            pending_channel_epochs: HashMap::new(),
             departure_sequence: 0,
             departed_identities: VecDeque::new(),
             max_channels: config.max_channels,
@@ -578,14 +575,10 @@ impl State {
     #[must_use]
     pub fn __channel_guard(&self, channel: &ChannelName) -> crate::ChannelGuard {
         let joined = self.channel(channel);
-        let pending = self
-            .pending_channel_epochs
-            .get(self.casemapping.fold(channel).as_ref())
-            .map(|(epoch, _)| *epoch);
         crate::ChannelGuard {
             origin: self.casemapping.origin(),
             channel: channel.clone(),
-            epoch: joined.map(|channel| channel.epoch).or(pending),
+            epoch: joined.map(|channel| channel.epoch),
             created_at: joined.and_then(Channel::created_at),
             pending_join: None,
         }
@@ -618,13 +611,6 @@ impl State {
         {
             return Some(guard.channel.clone());
         }
-        if self
-            .pending_channel_epochs
-            .get(self.casemapping.fold(&guard.channel).as_ref())
-            .is_some_and(|(epoch, _)| Some(*epoch) == guard.epoch)
-        {
-            return Some(guard.channel.clone());
-        }
         let channel = self.channel(&guard.channel)?;
         match (guard.created_at, channel.created_at) {
             (Some(expected), Some(actual)) if expected == actual => Some(channel.name.clone()),
@@ -636,18 +622,6 @@ impl State {
         self.channel_epoch = self.channel_epoch.wrapping_add(1);
         self.mark_changed();
         self.channel_epoch
-    }
-
-    pub(crate) fn cancel_channel_join(&mut self, channel: &str) {
-        let key = self.casemapping.fold(channel);
-        let Some((_, count)) = self.pending_channel_epochs.get_mut(key.as_ref()) else {
-            return;
-        };
-        *count -= 1;
-        if *count == 0 {
-            self.pending_channel_epochs.remove(key.as_ref());
-            self.mark_changed();
-        }
     }
 
     fn new_user(&mut self, nick: &str, username: Option<&str>, host: Option<&str>) -> User {
@@ -1264,10 +1238,6 @@ impl State {
             channels.insert(NameKey::new(name, mapping), channel);
         }
         self.channels = channels;
-        self.pending_channel_epochs = std::mem::take(&mut self.pending_channel_epochs)
-            .into_iter()
-            .map(|(channel, epoch)| (NameKey::new(channel.original(), mapping), epoch))
-            .collect();
         let mut users = HashMap::new();
         for mut user in std::mem::take(&mut self.users).into_values() {
             let incoming_is_own = user.nick.as_ref() == old_own_nick.as_ref();
