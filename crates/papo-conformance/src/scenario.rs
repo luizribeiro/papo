@@ -136,14 +136,14 @@ impl Scenario {
         if self.server.bouncer().is_some()
             && !matches!(
                 peer.state().account(),
-                Account::LoggedIn(current) if current.as_ref() == account
+                Account::LoggedIn(current) if current.as_str() == account
             )
         {
             peer.wait_for(|event| {
                 event.as_account_changed().filter(|changed| {
                     matches!(
                         &changed.new,
-                        Account::LoggedIn(current) if current.as_ref() == account
+                        Account::LoggedIn(current) if current.as_str() == account
                     )
                 })
             })

@@ -32,13 +32,13 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
     let square_nick = format!("[{stem}]");
     let curly_nick = format!("{{{stem}}}");
     let mut square = s
-        .connect_with(s.configure_nick("square", rfc1459_nick(&square_nick))?)
+        .connect_with(s.configure_nick("square", rfc1459_nick(&square_nick).as_str())?)
         .await?;
     let curly = s
-        .connect_with(s.configure_nick("curly", rfc1459_nick(&curly_nick))?)
+        .connect_with(s.configure_nick("curly", rfc1459_nick(&curly_nick).as_str())?)
         .await?;
-    assert_eq!(square.state().nick().as_ref(), square_nick);
-    assert_ne!(curly.state().nick().as_ref(), curly_nick);
+    assert_eq!(square.state().nick().as_str(), square_nick);
+    assert_ne!(curly.state().nick().as_str(), curly_nick);
     assert_eq!(square.state().nick(), curly_nick.as_str());
     let Error::Server(refusal) = curly.set_nick(curly_nick.clone()).await.unwrap_err() else {
         panic!("rfc1459-equivalent nickname did not return a server refusal");
@@ -54,10 +54,10 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| {
             event
                 .as_joined()
-                .filter(|joined| joined.actor.nick().as_ref() == curly.nick().as_ref())
+                .filter(|joined| joined.actor.nick().as_str() == curly.nick().as_str())
         })
         .await?;
-    assert_eq!(joined.channel.as_ref(), mixed_channel);
+    assert_eq!(joined.channel.as_str(), mixed_channel);
     assert_eq!(
         square
             .state()
@@ -73,8 +73,8 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
     let alice_nick = format!("{base}[x]");
     alice.set_nick(alice_nick.clone()).await?;
     let changed = alice.wait_for(Event::as_nick_changed).await?;
-    assert_eq!(changed.actor.nick().as_ref(), base);
-    assert_eq!(changed.new.as_ref(), alice_nick);
+    assert_eq!(changed.actor.nick().as_str(), base);
+    assert_eq!(changed.new.as_str(), alice_nick);
     assert_eq!(changed.authorship, papo::Authorship::Own);
 
     // ALICE-<n>{X} folds to the same name as alice-<n>[x], so this claim must collide.
@@ -92,21 +92,21 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
     alice.join(&chan).await?;
     bob.join(&folded).await?;
     let bob_join = bob.wait_for(Event::as_joined).await?;
-    assert_eq!(bob_join.channel.as_ref(), chan);
+    assert_eq!(bob_join.channel.as_str(), chan);
     assert_eq!(bob_join.authorship, papo::Authorship::Own);
     let observed_join = alice
         .wait_for(|event| {
             event
                 .as_joined()
-                .filter(|joined| joined.actor.nick().as_ref() == bob_nick.as_ref())
+                .filter(|joined| joined.actor.nick().as_str() == bob_nick.as_str())
         })
         .await?;
-    assert_eq!(observed_join.channel.as_ref(), chan);
+    assert_eq!(observed_join.channel.as_str(), chan);
     assert_eq!(observed_join.authorship, papo::Authorship::Other);
 
-    assert_eq!(bob.state().channel(&folded).unwrap().name().as_ref(), chan);
+    assert_eq!(bob.state().channel(&folded).unwrap().name().as_str(), chan);
     assert_eq!(
-        alice.state().channel(&folded).unwrap().name().as_ref(),
+        alice.state().channel(&folded).unwrap().name().as_str(),
         chan
     );
     let alice_folded_nick = format!("{}{{X}}", base.to_ascii_uppercase());
@@ -116,7 +116,7 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
         .unwrap()
         .member(alice_folded_nick.as_str())
         .unwrap();
-    assert_eq!(own_member.nick().as_ref(), alice_nick);
+    assert_eq!(own_member.nick().as_str(), alice_nick);
     assert_eq!(
         alice
             .state()

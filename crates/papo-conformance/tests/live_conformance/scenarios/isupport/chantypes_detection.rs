@@ -34,12 +34,12 @@ async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
         let joined = alice
             .wait_for(|event| {
                 event.as_joined().filter(|joined| {
-                    joined.channel.as_ref() == name && joined.actor.nick() == bob_nick.as_ref()
+                    joined.channel.as_str() == name && joined.actor.nick() == bob_nick.as_str()
                 })
             })
             .await?;
-        assert_eq!(joined.channel.as_ref(), name);
-        assert_eq!(joined.actor.nick(), bob_nick.as_ref());
+        assert_eq!(joined.channel.as_str(), name);
+        assert_eq!(joined.actor.nick(), bob_nick.as_str());
         assert_eq!(joined.authorship, papo::Authorship::Other);
 
         let text = format!("hello {c} channel");
@@ -55,7 +55,7 @@ async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
             message.conversation()
         ));
         assert_eq!(message.return_address(), name.as_str());
-        assert_eq!(crate::source_nick(&message.actor), Some(bob_nick.as_ref()));
+        assert_eq!(crate::source_nick(&message.actor), Some(bob_nick.as_str()));
     }
 
     for c in UNADVERTISED_CHANTYPES_CANDIDATES {
@@ -82,7 +82,7 @@ async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
     }
 
     let direct = "a direct message";
-    let alice_direct = bob.direct(alice_nick.as_ref()).await?;
+    let alice_direct = bob.direct(alice_nick.as_str()).await?;
     bob.privmsg(&alice_direct, direct).await?;
     let private = alice
         .wait_for(|event| event.as_message().filter(|message| message.text == direct))
@@ -92,9 +92,9 @@ async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
     ));
     assert_eq!(
         crate::scenarios::support::conversation_name(private.conversation()),
-        Some(bob_nick.as_ref())
+        Some(bob_nick.as_str())
     );
-    assert_eq!(private.return_address(), bob_nick.as_ref());
+    assert_eq!(private.return_address(), bob_nick.as_str());
 
     assert_eq!(alice.state().channels().count(), types.chars().count());
     alice.expect_none(Event::as_joined).await?;

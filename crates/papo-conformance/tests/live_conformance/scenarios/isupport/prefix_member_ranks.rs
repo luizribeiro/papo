@@ -38,7 +38,7 @@ async fn prefix_member_ranks(s: Scenario) -> papo_testing::Result<()> {
     };
     assert_eq!(allowed_symbols, expected_symbols);
     assert_eq!(
-        member_prefixes(&alice.state(), &channel, &alice_nick),
+        member_prefixes(&alice.state(), &channel, alice_nick.as_str()),
         ['@']
     );
 
@@ -56,7 +56,7 @@ async fn prefix_member_ranks(s: Scenario) -> papo_testing::Result<()> {
     }
     for peer in [&alice, &bob] {
         assert_eq!(
-            member_prefixes(&peer.state(), &channel, &bob_nick),
+            member_prefixes(&peer.state(), &channel, bob_nick.as_str()),
             allowed_symbols
         );
     }
@@ -65,12 +65,12 @@ async fn prefix_member_ranks(s: Scenario) -> papo_testing::Result<()> {
     assert_dave_view(&s, &channel, &bob_nick, &allowed_symbols, has_halfop).await?;
 
     if has_halfop {
-        alice.mode(&channel).dehalfop(bob_nick.as_ref()).await?;
+        alice.mode(&channel).dehalfop(bob_nick.as_str()).await?;
         let changed = wait_channel_mode(&mut bob, &channel, 'h').await?;
         assert!(
             matches!(changed.changes.as_slice(), [change] if change.action == ModeAction::Remove)
         );
-        assert!(!member_prefixes(&bob.state(), &channel, &bob_nick).contains(&'%'));
+        assert!(!member_prefixes(&bob.state(), &channel, bob_nick.as_str()).contains(&'%'));
     }
 
     bob.expect_none(|event| channel_mode(event, &channel))
@@ -125,7 +125,7 @@ async fn grant_rank(
     bob_nick: &Nick,
     prefix: Prefix,
 ) -> papo_testing::Result<()> {
-    let bob_direct = alice.direct(bob_nick.as_ref()).await?;
+    let bob_direct = alice.direct(bob_nick.as_str()).await?;
     if prefix.mode() == 'h' {
         alice.mode(channel).halfop(&bob_direct).await?;
     } else {
@@ -138,14 +138,14 @@ async fn grant_rank(
     let changed = wait_channel_mode(bob, channel, prefix.mode()).await?;
     assert_eq!(
         crate::source_nick(&changed.actor),
-        Some(alice_nick.as_ref())
+        Some(alice_nick.as_str())
     );
     assert_eq!(changed.changes.len(), 1);
     let change = &changed.changes[0];
     assert_eq!(change.action, ModeAction::Add);
     assert_eq!(change.mode, prefix.mode());
     assert!(
-        matches!(change.arg.clone(), Some(ModeArg::Member { nick, prefix: changed, .. }) if nick == bob_nick.as_ref() && changed == prefix)
+        matches!(change.arg.clone(), Some(ModeArg::Member { nick, prefix: changed, .. }) if nick == bob_nick.as_str() && changed == prefix)
     );
     Ok(())
 }
@@ -162,9 +162,15 @@ async fn assert_carol_view(
     assert!(!carol.state().caps().contains_key(&papo::cap::MULTI_PREFIX));
     carol.join(channel).await?;
     let carol_nick = carol.nick();
-    assert_eq!(member_prefixes(&carol.state(), channel, bob_nick), ['@']);
-    assert_eq!(member_prefixes(&carol.state(), channel, alice_nick), ['@']);
-    assert!(member_prefixes(&carol.state(), channel, &carol_nick).is_empty());
+    assert_eq!(
+        member_prefixes(&carol.state(), channel, bob_nick.as_str()),
+        ['@']
+    );
+    assert_eq!(
+        member_prefixes(&carol.state(), channel, alice_nick.as_str()),
+        ['@']
+    );
+    assert!(member_prefixes(&carol.state(), channel, carol_nick.as_str()).is_empty());
     Ok(())
 }
 
@@ -182,7 +188,7 @@ async fn assert_dave_view(
     let member = state
         .channel(channel)
         .unwrap()
-        .member(bob_nick.as_ref())
+        .member(bob_nick.as_str())
         .unwrap();
     assert_eq!(
         member

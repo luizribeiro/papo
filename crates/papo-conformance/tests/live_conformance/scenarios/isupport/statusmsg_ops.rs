@@ -39,8 +39,8 @@ async fn statusmsg_peers(s: &Scenario) -> papo_testing::Result<StatusmsgPeers> {
             .is_some_and(|tokens| tokens.contains('@'))
     );
 
-    let bob_direct = alice.direct(bob_nick.as_ref()).await?;
-    let carol_direct = alice.direct(carol_nick.as_ref()).await?;
+    let bob_direct = alice.direct(bob_nick.as_str()).await?;
+    let carol_direct = alice.direct(carol_nick.as_str()).await?;
     alice.mode(&channel).op(&bob_direct).await?;
     for (name, peer) in [
         ("alice", &mut alice),
@@ -51,21 +51,21 @@ async fn statusmsg_peers(s: &Scenario) -> papo_testing::Result<StatusmsgPeers> {
         let changed = wait_channel_mode(peer, &channel, 'o').await?;
         assert_eq!(
             crate::source_nick(&changed.actor),
-            Some(alice_nick.as_ref())
+            Some(alice_nick.as_str())
         );
         let [change] = changed.changes.as_slice() else {
             panic!("operator grant should contain one change: {changed:?}")
         };
         assert_eq!(change.action, ModeAction::Add);
         assert!(
-            matches!(change.arg.clone(), Some(ModeArg::Member { nick, .. }) if nick == bob_nick.as_ref())
+            matches!(change.arg.clone(), Some(ModeArg::Member { nick, .. }) if nick == bob_nick.as_str())
         );
 
         let state = peer.state();
         let member = state
             .channel(&channel)
             .expect("channel is in state")
-            .member(bob_nick.as_ref())
+            .member(bob_nick.as_str())
             .unwrap();
         assert_eq!(
             member.prefixes(),
@@ -84,21 +84,21 @@ async fn statusmsg_peers(s: &Scenario) -> papo_testing::Result<StatusmsgPeers> {
         let changed = wait_channel_mode(peer, &channel, 'v').await?;
         assert_eq!(
             crate::source_nick(&changed.actor),
-            Some(alice_nick.as_ref())
+            Some(alice_nick.as_str())
         );
         let [change] = changed.changes.as_slice() else {
             panic!("voice grant should contain one change: {changed:?}")
         };
         assert_eq!(change.action, ModeAction::Add);
         assert!(
-            matches!(change.arg.clone(), Some(ModeArg::Member { nick, .. }) if nick == carol_nick.as_ref())
+            matches!(change.arg.clone(), Some(ModeArg::Member { nick, .. }) if nick == carol_nick.as_str())
         );
 
         let state = peer.state();
         let member = state
             .channel(&channel)
             .expect("channel is in state")
-            .member(carol_nick.as_ref())
+            .member(carol_nick.as_str())
             .unwrap();
         assert_eq!(
             member.prefixes(),
@@ -152,7 +152,7 @@ async fn statusmsg_ops(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(received.msgid(), Some(id));
     assert_eq!(
         crate::source_nick(&received.actor),
-        Some(alice_nick.as_ref())
+        Some(alice_nick.as_str())
     );
 
     for peer in [&mut carol, &mut dave] {

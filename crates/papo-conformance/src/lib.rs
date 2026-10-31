@@ -43,13 +43,13 @@ pub trait SourceNick {
 
 impl SourceNick for papo::Source {
     fn source_nick(&self) -> Option<&str> {
-        self.nick().map(AsRef::<str>::as_ref)
+        self.nick().map(papo::Nick::as_str)
     }
 }
 
 impl SourceNick for papo::UserSource {
     fn source_nick(&self) -> Option<&str> {
-        Some(self.nick())
+        Some(self.nick().as_str())
     }
 }
 

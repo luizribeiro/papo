@@ -41,14 +41,14 @@ async fn casemapping_ascii(s: Scenario) -> papo_testing::Result<()> {
         (square, curly)
     } else {
         (
-            s.connect_with(s.configure_nick("square", ascii_nick(&square_nick))?)
+            s.connect_with(s.configure_nick("square", ascii_nick(&square_nick).as_str())?)
                 .await?,
-            s.connect_with(s.configure_nick("curly", ascii_nick(&curly_nick))?)
+            s.connect_with(s.configure_nick("curly", ascii_nick(&curly_nick).as_str())?)
                 .await?,
         )
     };
-    assert_eq!(square.state().nick().as_ref(), square_nick);
-    assert_eq!(curly.state().nick().as_ref(), curly_nick);
+    assert_eq!(square.state().nick().as_str(), square_nick);
+    assert_eq!(curly.state().nick().as_str(), curly_nick);
     assert_ne!(square.state().nick(), curly_nick.as_str());
 
     let mixed_channel = format!("#Papo-{stem}");
@@ -59,10 +59,10 @@ async fn casemapping_ascii(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| {
             event
                 .as_joined()
-                .filter(|joined| joined.actor.nick().as_ref() == curly_nick)
+                .filter(|joined| joined.actor.nick().as_str() == curly_nick)
         })
         .await?;
-    assert_eq!(joined.channel.as_ref(), mixed_channel);
+    assert_eq!(joined.channel.as_str(), mixed_channel);
     assert_same_channel(&square.state(), &mixed_channel, &lowercase_channel);
     assert!(square.state().channel(&lowercase_channel).is_some());
     assert!(curly.state().channel(&mixed_channel).is_some());
@@ -74,18 +74,18 @@ async fn casemapping_ascii(s: Scenario) -> papo_testing::Result<()> {
     alice.set_nick(alice_square_nick.clone()).await?;
     let alice_changed = alice.wait_for(Event::as_nick_changed).await?;
     assert_eq!(alice_changed.actor.nick(), &base);
-    assert_eq!(alice_changed.new.as_ref(), alice_square_nick);
+    assert_eq!(alice_changed.new.as_str(), alice_square_nick);
     assert_eq!(alice_changed.authorship, papo::Authorship::Own);
 
-    let bob_curly_nick = format!("{}{{X}}", base.to_ascii_uppercase());
+    let bob_curly_nick = format!("{}{{X}}", base.as_str().to_ascii_uppercase());
     bob.set_nick(bob_curly_nick.clone()).await?;
     let bob_changed = bob.wait_for(Event::as_nick_changed).await?;
     assert_eq!(bob_changed.actor.nick(), &bob_original);
-    assert_eq!(bob_changed.new.as_ref(), bob_curly_nick);
+    assert_eq!(bob_changed.new.as_str(), bob_curly_nick);
     assert_eq!(bob_changed.authorship, papo::Authorship::Own);
     assert_eq!(bob.state().nick(), bob_curly_nick.as_str());
 
-    let bob_square_attempt = format!("{}[X]", base.to_ascii_uppercase());
+    let bob_square_attempt = format!("{}[X]", base.as_str().to_ascii_uppercase());
     let Error::Server(refusal) = bob.set_nick(bob_square_attempt).await.unwrap_err() else {
         panic!("ascii-folded nickname collision did not return a server refusal");
     };
@@ -96,19 +96,19 @@ async fn casemapping_ascii(s: Scenario) -> papo_testing::Result<()> {
 
     let channel_base = s.channel_name();
     let chan = format!("{channel_base}[x]^y");
-    let folded = format!("{}{{X}}~Y", channel_base.to_ascii_uppercase());
+    let folded = format!("{}{{X}}~Y", channel_base.as_str().to_ascii_uppercase());
 
     alice.join(&chan).await?;
     bob.join(&folded).await?;
 
     let alice_joined = alice.wait_for(Event::as_joined).await?;
-    assert_eq!(alice_joined.channel.as_ref(), chan);
-    assert_eq!(alice_joined.actor.nick().as_ref(), alice_square_nick);
+    assert_eq!(alice_joined.channel.as_str(), chan);
+    assert_eq!(alice_joined.actor.nick().as_str(), alice_square_nick);
     assert_eq!(alice_joined.authorship, papo::Authorship::Own);
 
     let bob_joined = bob.wait_for(Event::as_joined).await?;
-    assert_eq!(bob_joined.channel.as_ref(), folded);
-    assert_eq!(bob_joined.actor.nick().as_ref(), bob_curly_nick);
+    assert_eq!(bob_joined.channel.as_str(), folded);
+    assert_eq!(bob_joined.actor.nick().as_str(), bob_curly_nick);
     assert_eq!(bob_joined.authorship, papo::Authorship::Own);
 
     alice.expect_none(Event::as_joined).await?;
@@ -116,21 +116,21 @@ async fn casemapping_ascii(s: Scenario) -> papo_testing::Result<()> {
     assert!(alice.state().channel(&folded).is_none());
     let alice_state = alice.state();
     let found = alice_state
-        .channel(chan.to_ascii_uppercase())
+        .channel(chan.as_str().to_ascii_uppercase())
         .expect("ascii folding finds the channel by its letter-uppercased name");
-    assert_eq!(found.name().as_ref(), chan);
+    assert_eq!(found.name().as_str(), chan);
     assert!(bob.state().channel(&chan).is_none());
 
     let channel_name = name_rules(&alice_state).channel(&chan);
     assert_ne!(channel_name, folded.as_str());
-    assert_eq!(channel_name, chan.to_ascii_uppercase().as_str());
+    assert_eq!(channel_name, chan.as_str().to_ascii_uppercase().as_str());
 
     assert!(
         alice
             .state()
             .channel(&chan)
             .unwrap()
-            .member(alice_square_nick.to_ascii_uppercase())
+            .member(alice_square_nick.as_str().to_ascii_uppercase())
             .is_some()
     );
     Ok(())
