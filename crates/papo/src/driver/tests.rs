@@ -2198,6 +2198,18 @@ async fn reconnect_history_pages_stop_at_the_target_limit() {
     let timestamp_request = String::from_utf8(timestamp_request).unwrap();
     assert!(timestamp_request.starts_with("@label=5 CHATHISTORY AFTER #rust timestamp="));
     assert!(timestamp_request.ends_with(" 100\r\n"));
+    server_line(&mut second_server, b":ergo.test BATCH +playback chathistory #papo\r\n@batch=playback;time=2026-10-15T12:00:30.000Z;msgid=RfcBTzyxY12PLAY :carol!~c@localhost PRIVMSG #papo :server playback\r\n:ergo.test BATCH -playback\r\n").await;
+    let Some(Event::History(replay)) = next_event(&mut events).await else {
+        panic!("expected server-initiated replay")
+    };
+    assert_eq!(replay.reason, crate::HistoryReason::Replay);
+    assert!(
+        matches!(&replay.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
+    );
+    assert_eq!(
+        replay.chat_messages().next().unwrap().text,
+        "server playback"
+    );
     let mut first_page = String::from(
         "@label=4 :ergo.test BATCH +reply0 labeled-response\r\n@batch=reply0 :ergo.test BATCH +history0 chathistory #papo\r\n",
     );

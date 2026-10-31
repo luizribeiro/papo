@@ -268,11 +268,17 @@ impl Batches {
                 BatchEvent::Multiline(message) => Some(message.clone()),
                 _ => None,
             });
-            let history = completed.iter().find_map(history_from_event);
-            let history_targets = completed.iter().find_map(|event| match event {
-                BatchEvent::HistoryTargets(targets) => Some(targets.clone()),
-                _ => None,
-            });
+            let history = completed
+                .iter()
+                .position(|event| matches!(event, BatchEvent::History { .. }))
+                .and_then(|index| history_from_event(completed.remove(index)));
+            let history_targets = completed
+                .iter()
+                .position(|event| matches!(event, BatchEvent::HistoryTargets(_)))
+                .and_then(|index| match completed.remove(index) {
+                    BatchEvent::HistoryTargets(targets) => Some(targets),
+                    _ => None,
+                });
             completed.push(BatchEvent::Response {
                 label,
                 echo,
@@ -787,11 +793,11 @@ fn multiline(batch: &mut OpenBatch) -> Option<Line> {
     Some(message)
 }
 
-fn history_from_event(event: &BatchEvent) -> Option<(String, Vec<HistoryItem>, bool)> {
+fn history_from_event(event: BatchEvent) -> Option<(String, Vec<HistoryItem>, bool)> {
     let BatchEvent::History { target, items, end } = event else {
         return None;
     };
-    Some((target.clone(), items.clone(), *end))
+    Some((target, items, end))
 }
 
 fn collect_messages(event: BatchEvent, messages: &mut Vec<Line>) {

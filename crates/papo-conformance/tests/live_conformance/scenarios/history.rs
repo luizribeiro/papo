@@ -37,7 +37,7 @@ async fn draft_chathistory(s: Scenario) -> papo_testing::Result<()> {
         "history records the migration",
         "history ends with a health check",
     ];
-    let (writer, reader, channel, sent) = history_peers(&s, &texts).await?;
+    let (writer, mut reader, channel, sent) = history_peers(&s, &texts).await?;
     let page = reader.history(&channel).latest().limit(10).await?;
     assert_eq!(
         conversation_name(&page.conversation),
@@ -71,6 +71,7 @@ async fn draft_chathistory(s: Scenario) -> papo_testing::Result<()> {
         );
         assert!(message.tags.get("time").is_some());
     }
+    reader.expect_none(Event::as_history).await?;
     Ok(())
 }
 

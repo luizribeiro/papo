@@ -254,9 +254,6 @@ fn assembles_deduplicated_context_aware_pages() {
     ] {
         session.handle_line(now, line.as_bytes());
     }
-    assert!(
-        matches!(session.poll_event(), Some(Event::History { items, end: true, .. }) if items.len() == 2)
-    );
     let Some(Event::Response(response)) = session.poll_event() else {
         panic!("expected history response")
     };
@@ -271,6 +268,55 @@ fn assembles_deduplicated_context_aware_pages() {
     assert!(matches!(page.items[1], HistoryItem::TagMsg(_)));
     assert!(page.items[1].clone().into_line().context);
     assert_eq!(page.messages().count(), 1);
+    assert_eq!(session.poll_event(), None);
+}
+
+#[test]
+fn consumes_direct_labeled_history_with_nested_multiline() {
+    let (mut session, now) = history_session("CHATHISTORY=1000 MSGREFTYPES=msgid,timestamp");
+    session
+        .chathistory(now, HistoryQuery::__latest("#papo".into(), None, 50))
+        .unwrap();
+    let _ = session.poll_transmit();
+    for line in [
+        "@label=0 :ergo.test BATCH +history chathistory #papo",
+        "@batch=history;time=2026-10-29T21:14:07.603Z;msgid=rd7sHq2kzT4 :alice!~a@cloak BATCH +multiline draft/multiline #papo",
+        "@batch=multiline :alice!~a@cloak PRIVMSG #papo :deployment completed ",
+        "@batch=multiline;draft/multiline-concat :alice!~a@cloak PRIVMSG #papo :successfully",
+        ":ergo.test BATCH -multiline",
+        ":ergo.test BATCH -history",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+
+    let Some(Event::Response(response)) = session.poll_event() else {
+        panic!("expected history response")
+    };
+    let page = response.history.expect("history page");
+    assert_eq!(page.items.len(), 1);
+    assert_eq!(
+        page.items[0].as_message().unwrap().as_ref().param(1),
+        Some("deployment completed successfully")
+    );
+    assert_eq!(session.poll_event(), None);
+}
+
+#[test]
+fn uncorrelated_history_batches_remain_replays() {
+    for opening in [
+        ":ergo.test BATCH +history chathistory #papo",
+        "@label=expired :ergo.test BATCH +history chathistory #papo",
+    ] {
+        let (mut session, now) = history_session("CHATHISTORY=1000 MSGREFTYPES=msgid,timestamp");
+        session.handle_line(now, opening.as_bytes());
+        session.handle_line(now, b"@batch=history;time=2026-10-15T12:00:01.000Z;msgid=RKi9Cw :alice!~a@cloak PRIVMSG #papo :earlier deployment");
+        session.handle_line(now, b":ergo.test BATCH -history");
+
+        assert!(
+            matches!(session.poll_event(), Some(Event::History { items, .. }) if items.len() == 1)
+        );
+        assert_eq!(session.poll_event(), None);
+    }
 }
 
 #[test]
@@ -392,9 +438,10 @@ fn reports_targets_with_parsed_server_times() {
     ] {
         session.handle_line(now, line.as_bytes());
     }
-    let Some(Event::HistoryTargets(targets)) = session.poll_event() else {
-        panic!("expected history targets")
+    let Some(Event::Response(response)) = session.poll_event() else {
+        panic!("expected targets response")
     };
+    let targets = response.history_targets.unwrap();
     assert_eq!(targets.len(), 2);
     assert!(matches!(&targets[0].0, Conversation::Channel(channel) if channel == "#papo"));
     assert_eq!(
@@ -402,10 +449,7 @@ fn reports_targets_with_parsed_server_times() {
         UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000)
     );
     assert!(matches!(&targets[1].0, Conversation::Private(nick) if nick == "Alice"));
-    let Some(Event::Response(response)) = session.poll_event() else {
-        panic!("expected targets response")
-    };
-    assert_eq!(response.history_targets.unwrap(), targets);
+    assert_eq!(session.poll_event(), None);
 }
 
 #[test]

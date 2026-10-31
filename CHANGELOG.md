@@ -373,6 +373,8 @@ Dropping the `Driver` still ends the stream without a final `Event::Disconnected
 - Multiline messages replayed inside chat history, event playback, and labeled-response batches
   retain their exact text (including blank lines), authorship, server time, message ID, account,
   and other opening tags, including when the server rather than the sender opens the nested batch.
+- Requested history pages resolve only their request and are not also emitted as replay events.
+  Server-initiated and uncorrelated history batches remain replay events.
 - Reconnect catch-up deduplicates every live event by msgid, including messages, and own sends
   consume their correlated echo before application delivery.
 - `Typing::Done` clears the active-send throttle, so a following active notification is not

@@ -2587,11 +2587,6 @@ fn links_nested_chathistory_to_its_response() {
     session.handle_line(now, b"@batch=reply :ergo.test BATCH -history");
     session.handle_line(now, b":ergo.test BATCH -reply");
 
-    assert!(matches!(
-        session.poll_event(),
-        Some(Event::History { conversation: Conversation::Channel(channel), items, end, .. })
-            if channel == "#papo" && items.len() == 1 && end
-    ));
     let Some(Event::Response(response)) = session.poll_event() else {
         panic!("expected correlated history response")
     };
@@ -2601,6 +2596,7 @@ fn links_nested_chathistory_to_its_response() {
     assert!(matches!(history.conversation, Conversation::Channel(channel) if channel == "#papo"));
     assert_eq!(history.items.len(), 1);
     assert!(history.end);
+    assert_eq!(session.poll_event(), None);
 }
 
 #[test]

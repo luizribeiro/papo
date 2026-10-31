@@ -1512,12 +1512,6 @@ where
                 items,
                 end,
             } => {
-                if catchups.values().any(|catchup| {
-                    matches!(&conversation, crate::Conversation::Channel(channel)
-                        if channel == catchup.target.as_str())
-                }) {
-                    continue;
-                }
                 let Some(commands) = events.commands.upgrade() else {
                     continue;
                 };

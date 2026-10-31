@@ -1876,16 +1876,11 @@ mod tests {
         assert!(matches!(&page.items[5], Event::Other(line) if line.command() == "TAGMSG"));
         let message = page.chat_messages().next().unwrap();
         assert_eq!(message.text, "earlier");
-        let Some(Event::History(history)) = next_event(&mut events).await else {
-            panic!("expected replay batch event")
-        };
-        assert_eq!(history.reason, HistoryReason::Replay);
-        assert!(matches!(history.items[1], Event::Reacted(_)));
-        assert!(matches!(history.items[2], Event::Joined(_)));
-        assert!(matches!(history.items[3], Event::ModeChanged(_)));
-        assert!(matches!(history.items[4], Event::ModeChanged(_)));
-        assert!(matches!(&history.items[5], Event::Other(line) if line.command() == "TAGMSG"));
-        assert_eq!(history.chat_messages().next().unwrap().text, "earlier");
+        assert!(
+            tokio::time::timeout(Duration::from_millis(1), events.next())
+                .await
+                .is_err()
+        );
         abort_task(task).await;
     }
 
