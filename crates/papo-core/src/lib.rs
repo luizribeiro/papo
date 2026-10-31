@@ -3262,7 +3262,10 @@ struct Outbox {
 
 #[derive(Debug)]
 enum Transmission {
-    Line(QueuedLine),
+    Line {
+        queued: QueuedLine,
+        requires_registration: bool,
+    },
     Batch {
         lines: VecDeque<WireLine>,
         started: bool,
@@ -3278,20 +3281,22 @@ struct QueuedLine {
     token: Option<TransmitToken>,
     request: Option<RequestId>,
     guard: Option<TargetGuard>,
-    requires_registration: bool,
 }
 
 impl Transmission {
     fn line_count(&self) -> usize {
         match self {
-            Self::Line(_) => 1,
+            Self::Line { .. } => 1,
             Self::Batch { lines, .. } => lines.len(),
         }
     }
 
     fn requires_registration(&self) -> bool {
         match self {
-            Self::Line(line) => line.requires_registration,
+            Self::Line {
+                requires_registration,
+                ..
+            } => *requires_registration,
             Self::Batch { token, request, .. } => token.is_some() || request.is_some(),
         }
     }
@@ -3338,12 +3343,14 @@ impl Outbox {
             token,
             request,
             guard,
-            requires_registration,
         };
-        if !line.requires_registration && bypasses_rate_limit(&line.line) {
+        if !requires_registration && bypasses_rate_limit(&line.line) {
             self.immediate.push_back(line);
         } else {
-            self.transmits.push_back(Transmission::Line(line));
+            self.transmits.push_back(Transmission::Line {
+                queued: line,
+                requires_registration,
+            });
         }
     }
 
@@ -3354,13 +3361,16 @@ impl Outbox {
         if !self.credentials_allowed(&line, None, request) {
             return;
         }
-        self.transmits.push_back(Transmission::Line(QueuedLine {
-            line,
-            token: None,
-            request,
-            guard: None,
-            requires_registration: request.is_some(),
-        }));
+        let requires_registration = request.is_some();
+        self.transmits.push_back(Transmission::Line {
+            queued: QueuedLine {
+                line,
+                token: None,
+                request,
+                guard: None,
+            },
+            requires_registration,
+        });
     }
 
     fn transmit_guarded_batch(
@@ -3428,7 +3438,6 @@ impl Outbox {
                 token: None,
                 request: None,
                 guard: None,
-                requires_registration: false,
             }),
             Err(error) => self.close(
                 CloseKind::Other,
@@ -3470,7 +3479,7 @@ impl Outbox {
                 self.transmits
                     .drain(..)
                     .filter_map(|transmit| match transmit {
-                        Transmission::Line(line) => line.token,
+                        Transmission::Line { queued, .. } => queued.token,
                         Transmission::Batch { token, .. } => token,
                     }),
             )
@@ -4640,8 +4649,8 @@ impl Session {
                 return None;
             }
             match self.outbox.transmits.remove(position)? {
-                Transmission::Line(line) => {
-                    if let Some(transmit) = self.prepare_queued_line(line) {
+                Transmission::Line { queued, .. } => {
+                    if let Some(transmit) = self.prepare_queued_line(queued) {
                         return Some(transmit);
                     }
                 }
@@ -4661,7 +4670,6 @@ impl Session {
                         token: last.then_some(token).flatten(),
                         request: last.then_some(request).flatten(),
                         guard: (!last).then(|| guard.clone()).flatten(),
-                        requires_registration: token.is_some() || request.is_some(),
                     };
                     let Some(transmit) = self.prepare_queued_line(queued) else {
                         if !last {
@@ -4671,7 +4679,6 @@ impl Session {
                                     token: None,
                                     request: None,
                                     guard: None,
-                                    requires_registration: false,
                                 });
                             }
                             self.recipient_gone(token, request);
@@ -5904,9 +5911,9 @@ impl Session {
         );
         if !registered
             && result.is_ok()
-            && let Some(Transmission::Line(line)) = self.outbox.transmits.pop_back()
+            && let Some(Transmission::Line { queued, .. }) = self.outbox.transmits.pop_back()
         {
-            self.outbox.immediate.push_back(line);
+            self.outbox.immediate.push_back(queued);
         }
     }
 
