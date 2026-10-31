@@ -2,7 +2,7 @@ use std::{
     io::{self, Read, Write},
     net::{SocketAddr, TcpStream},
     path::PathBuf,
-    process::{ExitStatus, Stdio},
+    process::Stdio,
     thread,
     time::{Duration, Instant},
 };
@@ -237,22 +237,6 @@ pub(crate) fn wait_for_child_until<const N: usize>(
     } else {
         result
     }
-}
-
-pub(crate) fn wait_until_ready_until<const N: usize>(
-    server_name: &str,
-    addresses: [SocketAddr; N],
-    deadline: Instant,
-    mut child_status: impl FnMut() -> io::Result<Option<ExitStatus>>,
-) -> io::Result<()> {
-    wait_until_ready_with(addresses, deadline, || {
-        if let Some(status) = child_status()? {
-            return Err(io::Error::other(format!(
-                "{server_name} exited with {status}"
-            )));
-        }
-        Ok(())
-    })
 }
 
 fn wait_until_ready_with<const N: usize>(

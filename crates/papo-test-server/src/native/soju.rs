@@ -8,7 +8,7 @@ use std::{
 
 use super::{
     certificate, directory::TemporaryDirectory, process, process::ServerChild,
-    server::TestServer as ErgoServer, server::wait_until_ready_until, soju_config::Configuration,
+    server::TestServer as ErgoServer, server::wait_for_child_until, soju_config::Configuration,
 };
 
 pub(crate) const ACCOUNT: &str = "papo-bouncer";
@@ -41,11 +41,11 @@ impl TestServer {
         let mut child = ServerChild::spawn(
             Command::new(required_env("SOJU_BIN")?).args(["-config", path_text(&config.path)?]),
         )?;
-        wait_until_ready_until(
+        wait_for_child_until(
             "soju",
             config.endpoints,
             Instant::now() + Duration::from_secs(10),
-            || child.try_wait("soju"),
+            &mut child,
         )?;
         let upstream = format!("irc+insecure://{}", ergo.plaintext_addr());
         run_control(
