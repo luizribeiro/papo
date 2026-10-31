@@ -25,8 +25,10 @@ pub(crate) fn history_item(
     let mapping = state.casemapping();
     let origin = client.origin();
     let account_tag_enabled = state.caps().contains_key(&crate::cap::ACCOUNT_TAG);
-    let prove_not_bot = state.caps().contains_key(&crate::cap::MESSAGE_TAGS)
-        && state.isupport().bot_mode().is_some();
+    let prove_not_bot = crate::event_impl::can_prove_non_bot(
+        state.caps().contains_key(&crate::cap::MESSAGE_TAGS),
+        state.isupport().bot_mode().is_some(),
+    );
     match item {
         papo_core::HistoryItem::Message(item) => {
             let authorship = crate::Authorship::from_core(item.authorship);
@@ -320,8 +322,10 @@ fn joined(
         mapping,
         client.origin(),
         state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
-        state.caps().contains_key(&crate::cap::MESSAGE_TAGS)
-            && state.isupport().bot_mode().is_some(),
+        crate::event_impl::can_prove_non_bot(
+            state.caps().contains_key(&crate::cap::MESSAGE_TAGS),
+            state.isupport().bot_mode().is_some(),
+        ),
         received_at,
     )
     .map(Event::Joined)
@@ -347,8 +351,10 @@ fn parted(
         &envelope,
         mapping,
         client.origin(),
-        state.caps().contains_key(&crate::cap::MESSAGE_TAGS)
-            && state.isupport().bot_mode().is_some(),
+        crate::event_impl::can_prove_non_bot(
+            state.caps().contains_key(&crate::cap::MESSAGE_TAGS),
+            state.isupport().bot_mode().is_some(),
+        ),
     )?;
     Some(Event::Parted(Parted {
         msgid: envelope.msgid,
@@ -386,8 +392,10 @@ fn quit(
         &envelope,
         mapping,
         origin,
-        state.caps().contains_key(&crate::cap::MESSAGE_TAGS)
-            && state.isupport().bot_mode().is_some(),
+        crate::event_impl::can_prove_non_bot(
+            state.caps().contains_key(&crate::cap::MESSAGE_TAGS),
+            state.isupport().bot_mode().is_some(),
+        ),
     )?;
     Some(Event::Quit(Quit {
         msgid: envelope.msgid,
@@ -429,8 +437,10 @@ fn kicked(
         &envelope,
         mapping,
         client.origin(),
-        state.caps().contains_key(&crate::cap::MESSAGE_TAGS)
-            && state.isupport().bot_mode().is_some(),
+        crate::event_impl::can_prove_non_bot(
+            state.caps().contains_key(&crate::cap::MESSAGE_TAGS),
+            state.isupport().bot_mode().is_some(),
+        ),
     )?;
     Some(Event::Kicked(Kicked {
         msgid: envelope.msgid,
@@ -470,8 +480,10 @@ fn nick_changed(
         &envelope,
         mapping,
         client.origin(),
-        state.caps().contains_key(&crate::cap::MESSAGE_TAGS)
-            && state.isupport().bot_mode().is_some(),
+        crate::event_impl::can_prove_non_bot(
+            state.caps().contains_key(&crate::cap::MESSAGE_TAGS),
+            state.isupport().bot_mode().is_some(),
+        ),
     )?;
     Some(Event::NickChanged(NickChanged {
         msgid: envelope.msgid,
@@ -555,8 +567,10 @@ fn mode_changed(
         &envelope,
         mapping,
         client.origin(),
-        state.caps().contains_key(&crate::cap::MESSAGE_TAGS)
-            && state.isupport().bot_mode().is_some(),
+        crate::event_impl::can_prove_non_bot(
+            state.caps().contains_key(&crate::cap::MESSAGE_TAGS),
+            state.isupport().bot_mode().is_some(),
+        ),
     )?;
     Some(Event::ModeChanged(ModeChanged {
         msgid: envelope.msgid,

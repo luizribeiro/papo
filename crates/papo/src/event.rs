@@ -15,6 +15,10 @@ use papo_proto::{
 
 use crate::{Client, Disconnected, ModeAction, ModeArg, ModeChange};
 
+pub(crate) const fn can_prove_non_bot(message_tags: bool, bot_mode: bool) -> bool {
+    message_tags && bot_mode
+}
+
 #[path = "event/channel.rs"]
 mod channel;
 #[path = "event/connection.rs"]

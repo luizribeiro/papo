@@ -1740,8 +1740,10 @@ fn text_target(line: &Line) -> Option<&str> {
 }
 
 fn can_prove_non_bot(session: &Session) -> bool {
-    session.caps().contains_key(&crate::cap::MESSAGE_TAGS)
-        && session.isupport().bot_mode().is_some()
+    event::can_prove_non_bot(
+        session.caps().contains_key(&crate::cap::MESSAGE_TAGS),
+        session.isupport().bot_mode().is_some(),
+    )
 }
 
 async fn drain_transmit<S>(
