@@ -311,7 +311,7 @@ async fn sasl_connection_reports_each_protocol_phase() {
         "alice",
         crate::Secret::new("correct horse battery staple"),
     ));
-    let (mut server, _client, mut events, driver) = scripted(settings);
+    let (mut server, client, mut events, driver) = scripted(settings);
     let task = tokio::spawn(driver);
 
     assert!(matches!(
@@ -352,11 +352,15 @@ async fn sasl_connection_reports_each_protocol_phase() {
         }))
     ));
     client_line(&mut server, b"CAP END\r\n").await;
+    assert!(!client.state().is_connected());
     server_line(
         &mut server,
-        b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n",
+        b":ergo.test 001 papo-driver :Welcome\r\nPING :welcome-observed\r\n",
     )
     .await;
+    client_line(&mut server, b"PONG welcome-observed\r\n").await;
+    assert!(client.state().is_connected());
+    server_line(&mut server, b":ergo.test 422 papo-driver :No MOTD\r\n").await;
     assert_connected(&mut events).await;
 
     within(server.shutdown()).await.unwrap();
