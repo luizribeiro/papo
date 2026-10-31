@@ -12,16 +12,24 @@ use crate::{Account, Nick};
 /// The handle follows nickname changes and refuses a send with [`crate::Error::TargetGone`] after
 /// the identity leaves or the nickname changes hands. When the user shares no channel with the
 /// client, papo reserves one server-side `MONITOR` entry until the last clone is dropped. Handles
-/// compare by logged-in account when both accounts are known and otherwise by the tracked IRC user
-/// identity. [`crate::Client::send_raw`] is the explicit escape hatch for deliberately unguarded
-/// IRC lines.
+/// created with a known logged-in account compare by account; other handles compare by the tracked
+/// IRC user identity captured at creation, which remains the same through nickname changes. The
+/// choice is fixed at creation, so learning an account later does not change equality or hashing.
+/// [`crate::Client::send_raw`] is the explicit escape hatch for deliberately unguarded IRC lines.
 #[derive(Clone)]
 pub struct DirectRef(Arc<DirectInner>);
 
 struct DirectInner {
+    identity: DirectIdentity,
     recipient: papo_core::RecipientGuard,
     state: Arc<RwLock<Arc<crate::State>>>,
     _lease: Option<MonitorLease>,
+}
+
+#[derive(Eq, Hash, PartialEq)]
+enum DirectIdentity {
+    Account(crate::AccountName),
+    TrackedUser(papo_core::ReplyToken),
 }
 
 pub(crate) struct MonitorLease {
@@ -45,11 +53,16 @@ impl DirectRef {
         recipient: papo_core::RecipientGuard,
         monitored: bool,
     ) -> Self {
+        let identity = match recipient.__account() {
+            Account::LoggedIn(account) => DirectIdentity::Account(account.clone()),
+            _ => DirectIdentity::TrackedUser(recipient.__token()),
+        };
         Self(Arc::new(DirectInner {
             _lease: monitored.then(|| MonitorLease {
                 recipient: recipient.clone(),
                 commands: client.commands.clone(),
             }),
+            identity,
             recipient,
             state: Arc::clone(&client.state),
         }))
@@ -97,10 +110,7 @@ impl std::fmt::Display for DirectRef {
 
 impl PartialEq for DirectRef {
     fn eq(&self, other: &Self) -> bool {
-        match (self.0.recipient.__account(), other.0.recipient.__account()) {
-            (Account::LoggedIn(left), Account::LoggedIn(right)) => left == right,
-            _ => self.0.recipient.__token() == other.0.recipient.__token(),
-        }
+        self.0.identity == other.0.identity
     }
 }
 
@@ -108,9 +118,7 @@ impl Eq for DirectRef {}
 
 impl Hash for DirectRef {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        // Account visibility can differ between two handles for the same tracked user. A constant
-        // hash preserves the equality contract across that transition; IRC user sets are small.
-        0_u8.hash(state);
+        self.0.identity.hash(state);
     }
 }
 
@@ -187,6 +195,7 @@ impl crate::Client {
 #[cfg(all(test, not(browser)))]
 mod tests {
     use std::{
+        collections::{HashMap, HashSet},
         hash::{DefaultHasher, Hash, Hasher},
         sync::Arc,
         time::Duration,
@@ -195,6 +204,12 @@ mod tests {
     use crate::{Account, Casemapping};
     use papo_core::{Config, Event, ResponseMatcher, Session};
     use papo_proto::{Line, LineRef};
+
+    fn direct_hash(direct: &super::DirectRef) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        direct.hash(&mut hasher);
+        hasher.finish()
+    }
 
     fn response_with(lines: &[&str]) -> papo_core::Response {
         let now = crate::rt::now_mono();
@@ -259,7 +274,7 @@ mod tests {
     }
 
     #[test]
-    fn direct_references_use_account_or_tracked_user_identity() {
+    fn direct_references_use_stable_captured_identity() {
         let mut session = Session::new(Config::default().nick("papo"));
         let prove = |session: &mut Session, nick: &str, account: Account| {
             let acquired = session.__direct_acquire(nick, None, None, Account::Unknown);
@@ -267,6 +282,11 @@ mod tests {
         };
         let account = Account::LoggedIn(session.isupport().casemapping().account("alice-account"));
         let desktop = prove(&mut session, "alice", account.clone());
+        let desktop_unverified = papo_core::RecipientGuard::__from_parts(
+            desktop.__nick().clone(),
+            Account::Unknown,
+            desktop.__token(),
+        );
         let phone = prove(&mut session, "alice-phone", account);
         let mallory_account =
             Account::LoggedIn(session.isupport().casemapping().account("mallory-account"));
@@ -275,12 +295,14 @@ mod tests {
         let carol = prove(&mut session, "carol", Account::LoggedOut);
         let (client, _) = crate::driver::test_support::client_with_commands(&session);
         let desktop = super::DirectRef::new(&client, desktop, false);
+        let desktop_unverified = super::DirectRef::new(&client, desktop_unverified, false);
         let phone = super::DirectRef::new(&client, phone, false);
         let mallory = super::DirectRef::new(&client, mallory, false);
         let bob = super::DirectRef::new(&client, bob, false);
         let carol = super::DirectRef::new(&client, carol, false);
 
         assert_eq!(desktop, phone);
+        assert_ne!(desktop, desktop_unverified);
         assert_ne!(desktop, mallory);
         assert_eq!(bob, bob.clone());
         assert_ne!(bob, carol);
@@ -289,19 +311,47 @@ mod tests {
         assert!(debug.starts_with("DirectRef { nick: Nick"));
         assert!(debug.contains("\"alice\""));
 
-        let hash = |direct: &super::DirectRef| {
-            let mut hasher = DefaultHasher::new();
-            direct.hash(&mut hasher);
-            hasher.finish()
-        };
-        let expected_hash = {
-            let mut hasher = DefaultHasher::new();
-            0_u8.hash(&mut hasher);
-            hasher.finish()
-        };
-        assert_eq!(hash(&desktop), hash(&phone));
-        assert_eq!(hash(&desktop), expected_hash);
-        assert_eq!(hash(&bob), expected_hash);
+        assert_eq!(direct_hash(&desktop), direct_hash(&phone));
+        assert_ne!(direct_hash(&desktop), direct_hash(&mallory));
+        assert_ne!(direct_hash(&bob), direct_hash(&carol));
+    }
+
+    #[test]
+    #[allow(clippy::mutable_key_type)]
+    fn direct_references_distribute_in_hash_maps() {
+        let now = crate::rt::now_mono();
+        let mut session = Session::new(Config::default().nick("papo"));
+        session.handle_line(now, b":papo!p@localhost JOIN #release");
+        for index in 0..64 {
+            session.handle_line(
+                now,
+                format!(":reviewer{index:02}!review@cloak.example JOIN #release").as_bytes(),
+            );
+        }
+        let (client, _) = crate::driver::test_support::client_with_commands(&session);
+        let handles: Vec<_> = (0..64)
+            .map(|index| {
+                let nick = session
+                    .isupport()
+                    .casemapping()
+                    .nick(format!("reviewer{index:02}"));
+                let recipient =
+                    papo_core::RecipientGuard::__new(session.state(), nick, Account::Unknown);
+                super::DirectRef::new(&client, recipient, false)
+            })
+            .collect();
+        let hashes: HashSet<_> = handles.iter().map(direct_hash).collect();
+        let by_recipient: HashMap<_, _> = handles
+            .iter()
+            .enumerate()
+            .map(|(index, direct)| (direct.clone(), index))
+            .collect();
+
+        assert_eq!(hashes.len(), 64);
+        assert_eq!(by_recipient.len(), 64);
+        for (index, direct) in handles.iter().enumerate() {
+            assert_eq!(by_recipient.get(direct), Some(&index));
+        }
     }
 
     #[tokio::test]
@@ -390,6 +440,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::mutable_key_type)]
     fn guarded_names_and_direct_nick_follow_renames_and_departures() {
         let now = crate::rt::now_mono();
         let mut session = Session::new(Config::default().nick("papo"));
@@ -410,6 +461,8 @@ mod tests {
         );
         let (client, _) = crate::driver::test_support::client_with_commands(&session);
         let direct = super::DirectRef::new(&client, recipient.clone(), false);
+        let original_hash = direct_hash(&direct);
+        let by_recipient = HashMap::from([(direct.clone(), "release owner")]);
         assert_eq!(direct.nick(), "alice");
         session.handle_line(
             now,
@@ -418,6 +471,16 @@ mod tests {
         session.handle_line(now, b":alice!~alice@cloak.example NICK alicia");
         *client.state.write().unwrap() = Arc::new(crate::State::from_session(&session, true));
         assert_eq!(direct.nick(), "alicia");
+        let renamed_recipient = papo_core::RecipientGuard::__new(
+            session.state(),
+            session.isupport().casemapping().nick("alicia"),
+            Account::Unknown,
+        );
+        let renamed = super::DirectRef::new(&client, renamed_recipient, false);
+        assert_eq!(direct, renamed);
+        assert_eq!(direct_hash(&direct), original_hash);
+        assert_eq!(direct_hash(&renamed), original_hash);
+        assert_eq!(by_recipient.get(&renamed), Some(&"release owner"));
 
         let channel_parts = crate::target::sealed::Parts {
             text: std::borrow::Cow::Borrowed("#review"),

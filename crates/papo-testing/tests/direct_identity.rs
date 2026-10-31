@@ -108,14 +108,9 @@ async fn direct_refs_use_logged_in_account_identity_for_equality_and_hashing() {
         direct.hash(&mut hasher);
         hasher.finish()
     };
-    let expected_hash = {
-        let mut hasher = DefaultHasher::new();
-        0_u8.hash(&mut hasher);
-        hasher.finish()
-    };
     assert_eq!(hash(&desktop), hash(&phone));
-    assert_eq!(hash(&desktop), expected_hash);
-    assert_eq!(hash(&bob), expected_hash);
+    assert_ne!(hash(&desktop), hash(&mallory));
+    assert_ne!(hash(&bob), hash(&carol));
     client.privmsg(&desktop, "desktop review").await.unwrap();
     assert_eq!(wire.next_sent().await, "PRIVMSG alice :desktop review");
 }
