@@ -20,6 +20,10 @@ fn labelled_session(now: Instant) -> Session {
     session.handle_connected(now);
     session.handle_line(now, b"CAP * LS :labeled-response");
     session.handle_line(now, b"CAP * ACK :labeled-response");
+    session.handle_line(
+        now,
+        b":ergo.test 001 papo :Welcome to the Ergo test network",
+    );
     while session.poll_transmit().is_some() {}
     session
 }
