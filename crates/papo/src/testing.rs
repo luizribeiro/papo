@@ -145,7 +145,7 @@ pub fn user_source(
 ) -> UserSource {
     let nick = nick.into();
     let source = Source::from_proto(
-        papo_proto::Source::__user(&nick, username.as_deref(), host.as_deref()),
+        papo_proto::Source::__user(nick.as_str(), username.as_deref(), host.as_deref()),
         nick.casemapping(),
     );
     drop((username, host));
@@ -172,7 +172,9 @@ pub fn message(
     let text = text.into();
     let target = target.into();
     let conversation = if private {
-        let other = actor.as_ref().map_or(target.as_str(), |actor| actor.nick());
+        let other = actor
+            .as_ref()
+            .map_or(target.as_str(), |actor| actor.nick().as_str());
         crate::Conversation::Private(crate::Casemapping::default().nick(other))
     } else {
         crate::Conversation::Channel(crate::Casemapping::default().channel(&target))
@@ -354,7 +356,7 @@ mod tests {
             crate::Casemapping::default().nick("bob"),
             true,
         );
-        assert_eq!(joined.channel.as_ref(), "#papo");
+        assert_eq!(joined.channel.as_str(), "#papo");
         assert_eq!(joined.authorship, crate::Authorship::Own);
 
         let connected = connected(crate::Casemapping::default().nick("bob"));
@@ -363,7 +365,7 @@ mod tests {
         assert!(!connected.reconnected);
 
         let snapshot = state("bob", true);
-        assert_eq!(snapshot.nick().as_ref(), "bob");
+        assert_eq!(snapshot.nick().as_str(), "bob");
         assert!(snapshot.is_connected());
     }
 

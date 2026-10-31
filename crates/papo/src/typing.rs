@@ -51,7 +51,7 @@ impl Typer {
                 let guard = papo_core::RecipientGuard::__from_parts(
                     nick.clone(),
                     account,
-                    state.__reply_token_for(nick),
+                    state.__reply_token_for(nick.as_str()),
                 );
                 (
                     Some(crate::message_ref::RecipientGuard::from_core(&guard)),

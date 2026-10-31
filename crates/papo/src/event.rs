@@ -1024,7 +1024,7 @@ impl ServerNotice {
                 authorship,
                 &Conversation::Channel(channel.clone()),
                 reply_token,
-                message.param(0).unwrap_or(channel).to_owned(),
+                message.param(0).unwrap_or(channel.as_str()).to_owned(),
             ),
             Audience::Broadcast(_) | Audience::Me => {
                 crate::message_ref::Receipt::without_recipient(
@@ -1147,7 +1147,7 @@ pub(crate) fn historical_message_event(
     let snapshot = client.state();
     let Ok((status, conversation)) = papo_core::classify_conversation(
         &raw.as_ref(),
-        snapshot.nick(),
+        snapshot.nick().as_str(),
         snapshot.isupport().inner(),
     ) else {
         return unparsed_from_line(raw, received_at);
@@ -1193,7 +1193,7 @@ pub(crate) fn historical_conversation(
         return crate::message_ref::stamp_conversation(conversation, own_nick.origin());
     }
     if let Some(Conversation::Private(nick)) = history_conversation {
-        return Conversation::Private(own_nick.origin().__nick(mapping, nick.as_ref()));
+        return Conversation::Private(own_nick.origin().__nick(mapping, nick.as_str()));
     }
     if authorship != Authorship::Own
         && message
@@ -1270,7 +1270,7 @@ fn message_metadata(
 
 pub(crate) fn return_address(message: &LineRef<'_>, conversation: &Conversation) -> String {
     match conversation {
-        Conversation::Channel(channel) => message.param(0).unwrap_or(channel).to_owned(),
+        Conversation::Channel(channel) => message.param(0).unwrap_or(channel.as_str()).to_owned(),
         Conversation::Private(nick) => nick.to_string(),
         _ => message.param(0).unwrap_or("*").to_owned(),
     }
@@ -1941,9 +1941,9 @@ pub(crate) fn from_core_with_receipt(
             Conversation::Channel(channel) => Some(state.__channel_guard(channel)),
             _ => None,
         });
-        let actor_token = receipt
-            .actor_recipient()
-            .and_then(|actor| reply_state.map(|state| state.__reply_token_for(&actor.nick)));
+        let actor_token = receipt.actor_recipient().and_then(|actor| {
+            reply_state.map(|state| state.__reply_token_for(actor.nick.as_str()))
+        });
         receipt.set_actor_token(actor_token);
         receipt.set_channel(guard);
         receipt
@@ -1961,7 +1961,7 @@ pub(crate) fn from_core_with_receipt(
         papo_core::Event::TypingChanged(change) => {
             let return_address = change.return_address();
             let reply_token = reply_state.and_then(|state| match &change.conversation {
-                Conversation::Private(nick) => Some(state.__reply_token_for(nick)),
+                Conversation::Private(nick) => Some(state.__reply_token_for(nick.as_str())),
                 _ => None,
             });
             let envelope = EventEnvelope {
@@ -2001,7 +2001,7 @@ pub(crate) fn from_core_with_receipt(
         papo_core::Event::TagMessage(message) => {
             let return_address = message.__return_address().to_owned();
             let reply_token = reply_state.and_then(|state| match &message.conversation {
-                Conversation::Private(nick) => Some(state.__reply_token_for(nick)),
+                Conversation::Private(nick) => Some(state.__reply_token_for(nick.as_str())),
                 _ => None,
             });
             let envelope = map_envelope(&message.envelope);
@@ -2089,7 +2089,7 @@ pub(crate) fn from_core_with_receipt(
         papo_core::Event::Redacted(redacted) => {
             let return_address = redacted.__return_address().to_owned();
             let reply_token = reply_state.and_then(|state| match &redacted.conversation {
-                Conversation::Private(nick) => Some(state.__reply_token_for(nick)),
+                Conversation::Private(nick) => Some(state.__reply_token_for(nick.as_str())),
                 _ => None,
             });
             let envelope = map_envelope(&redacted.envelope);
@@ -2355,9 +2355,9 @@ pub(crate) fn from_core_with_receipt(
             let Some(actor) = actor_from_raw(&actor, &envelope) else {
                 return CoreEvent::Unknown;
             };
-            let reply_token = actor
-                .user()
-                .and_then(|user| reply_state.map(|state| state.__reply_token_for(user.nick())));
+            let reply_token = actor.user().and_then(|user| {
+                reply_state.map(|state| state.__reply_token_for(user.nick().as_str()))
+            });
             let receipt = crate::message_ref::Receipt::without_recipient(
                 actor.clone(),
                 reply_token,
@@ -2598,7 +2598,8 @@ pub(crate) fn from_core_with_receipt(
             ..
         } => {
             let subject = UserSource::from_state(&nick, username, host, Account::Unknown, origin);
-            let reply_token = reply_state.map(|state| state.__reply_token_for(subject.nick()));
+            let reply_token =
+                reply_state.map(|state| state.__reply_token_for(subject.nick().as_str()));
             let receipt = crate::message_ref::Receipt::without_recipient(
                 Source::User(subject.clone()),
                 reply_token,
@@ -3862,7 +3863,10 @@ mod tests {
         let reply: Option<&MessageId> = tagged.in_reply_to.as_ref();
         assert_eq!(reply.unwrap(), "RfcBTzyxY120003");
         #[cfg(feature = "unstable")]
-        assert_eq!(tagged.relayed_by.as_deref(), Some("bridge-bot"));
+        assert_eq!(
+            tagged.relayed_by.as_ref().map(papo_proto::Nick::as_str),
+            Some("bridge-bot")
+        );
         assert_eq!(chat("PRIVMSG", "human message").actor.is_bot(), None);
 
         for time in [None, Some("not-a-time")] {
@@ -5411,7 +5415,10 @@ mod tests {
         let mode = event.as_mode_changed().expect("typed mode event");
         assert!(mode.actor.nick().is_some_and(|nick| nick == "ChanServ"));
         assert_eq!(mode.authorship, Authorship::Other);
-        assert_eq!(mode.own_nick.as_ref().map(AsRef::as_ref), Some("emily"));
+        assert_eq!(
+            mode.own_nick.as_ref().map(papo_proto::Nick::as_str),
+            Some("emily")
+        );
         assert!(
             matches!(&mode.changes[0].arg, Some(ModeArg::Member { nick, .. }) if nick == "emily"),
             "{:?}",

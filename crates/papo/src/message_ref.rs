@@ -461,7 +461,7 @@ macro_rules! typed_address_pairs {
             impl<I: Into<MessageId>> From<($address, I)> for MessageRef {
                 fn from((address, msgid): ($address, I)) -> Self {
                     Self::new(
-                        address.as_ref().to_owned(),
+                        address.as_str().to_owned(),
                         vec![msgid.into()],
                         address.origin(),
                         None,

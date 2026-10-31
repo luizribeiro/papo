@@ -153,7 +153,7 @@ async fn member_sees_channel_rename_and_relay_attribution() {
                     assert_eq!(renamed.new, new_channel.as_str());
                     assert_eq!(renamed.new.origin(), member.origin());
                     assert_eq!(
-                        renamed.actor.nick().map(AsRef::as_ref),
+                        renamed.actor.nick().map(papo::Nick::as_str),
                         Some(operator_nick.as_str())
                     );
                     assert_eq!(renamed.reason.as_deref(), Some("Project renamed"));
@@ -178,7 +178,10 @@ async fn member_sees_channel_rename_and_relay_attribution() {
         loop {
             match member_events.next().await {
                 Some(Event::Message(message)) if message.text == "Hello from Matrix" => {
-                    assert_eq!(message.relayed_by.as_deref(), Some(operator_nick.as_str()));
+                    assert_eq!(
+                        message.relayed_by.as_ref().map(papo::Nick::as_str),
+                        Some(operator_nick.as_str())
+                    );
                     break;
                 }
                 Some(Event::Disconnected(disconnected)) => {

@@ -200,7 +200,7 @@ fn reaction(
 ) -> Option<Event> {
     let reaction = Reaction::parse(message)?;
     let (status, conversation) =
-        papo_core::classify_conversation(message, own_nick, isupport).ok()?;
+        papo_core::classify_conversation(message, own_nick.as_str(), isupport).ok()?;
     let conversation = crate::event_impl::historical_conversation(
         message,
         authorship,
@@ -265,7 +265,7 @@ fn redaction(
     state: Option<&crate::State>,
 ) -> Option<Event> {
     let (status, conversation) =
-        papo_core::classify_conversation(message, own_nick, isupport).ok()?;
+        papo_core::classify_conversation(message, own_nick.as_str(), isupport).ok()?;
     let conversation = crate::event_impl::historical_conversation(
         message,
         authorship,

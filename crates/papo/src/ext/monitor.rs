@@ -143,7 +143,7 @@ mod tests {
             client
                 .state()
                 .monitored()
-                .map(crate::Nick::as_ref)
+                .map(crate::Nick::as_str)
                 .collect::<Vec<_>>(),
             ["alice", "bob"]
         );
@@ -161,7 +161,7 @@ mod tests {
             client
                 .state()
                 .monitored()
-                .map(crate::Nick::as_ref)
+                .map(crate::Nick::as_str)
                 .collect::<Vec<_>>(),
             ["alice"]
         );

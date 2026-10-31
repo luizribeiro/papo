@@ -200,7 +200,7 @@ impl State {
         conversation: &crate::Conversation,
     ) -> Option<papo_core::ReplyToken> {
         match conversation {
-            crate::Conversation::Private(nick) => Some(self.core.__reply_token_for(nick)),
+            crate::Conversation::Private(nick) => Some(self.core.__reply_token_for(nick.as_str())),
             _ => None,
         }
     }

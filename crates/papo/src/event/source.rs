@@ -27,7 +27,7 @@ impl UserSource {
         origin: crate::Origin,
     ) -> Self {
         Self {
-            nick: origin.__nick(nick.casemapping(), nick.as_ref()),
+            nick: origin.__nick(nick.casemapping(), nick.as_str()),
             username: username.filter(|_| host.is_some()),
             host,
             account,
@@ -202,7 +202,7 @@ pub(crate) fn from_core(source: papo_core::Source, origin: crate::Origin) -> Opt
             host,
             ..
         } => Some(Source::User(UserSource {
-            nick: origin.__nick(nick.casemapping(), nick.as_ref()),
+            nick: origin.__nick(nick.casemapping(), nick.as_str()),
             username: username.filter(|_| host.is_some()),
             host,
             account: Account::Unknown,
@@ -246,7 +246,7 @@ mod tests {
             Some("network-admin")
         );
         assert_eq!(
-            Mask::exact(&source).as_deref(),
+            Mask::exact(&source).as_ref().map(Mask::as_str),
             Some("Alice[bot]!~alice@staff.example")
         );
     }
