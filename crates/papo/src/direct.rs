@@ -544,4 +544,76 @@ mod tests {
         ));
         assert!(resolved.await.unwrap().is_err());
     }
+
+    #[tokio::test]
+    async fn unknown_current_account_requires_who_proof() {
+        let now = crate::rt::now_mono();
+        let mut session = Session::new(Config::default().nick("papo"));
+        session.handle_line(
+            now,
+            b":ergo.test 005 papo CASEMAPPING=rfc1459 MONITOR=100 :are supported",
+        );
+        session.handle_line(now, b":papo!~papo@localhost JOIN #review");
+        session.handle_line(now, b":alice!~alice@cloak.example JOIN #review");
+        let (client, mut commands) = crate::driver::test_support::client_with_commands(&session);
+        let nick = session.isupport().casemapping().nick("alice");
+        let account = Account::LoggedIn(session.isupport().casemapping().account("alice-account"));
+        let recipient = papo_core::RecipientGuard::__from_parts(
+            nick.clone(),
+            account.clone(),
+            papo_core::ReplyToken::__unknown(nick.origin()),
+        );
+        let direct = super::DirectRef::new(&client, recipient, false);
+        let sending = tokio::spawn({
+            let client = client.clone();
+            async move { client.privmsg(direct, "release approved").await }
+        });
+
+        let crate::driver::Command::DirectAcquire { result, .. } =
+            next_command(&mut commands).await
+        else {
+            panic!("expected MONITOR acquisition")
+        };
+        result
+            .send(Ok(session.__direct_acquire("alice", None, None, account)))
+            .unwrap();
+        let crate::driver::Command::Request { message, .. } = next_command(&mut commands).await
+        else {
+            panic!("expected WHO request")
+        };
+        assert_eq!(message.params(), ["alice", "%na"]);
+        sending.abort();
+    }
+
+    #[tokio::test]
+    async fn different_known_account_refuses_without_who() {
+        let now = crate::rt::now_mono();
+        let mut session = Session::new(Config::default().nick("papo"));
+        session.handle_line(
+            now,
+            b":ergo.test 005 papo CASEMAPPING=rfc1459 MONITOR=100 :are supported",
+        );
+        session.handle_line(now, b":papo!~papo@localhost JOIN #review * :Papo");
+        session.handle_line(
+            now,
+            b":alice!~alice@cloak.example JOIN #review mallory-account :Alice Example",
+        );
+        let (client, mut commands) = crate::driver::test_support::client_with_commands(&session);
+        let nick = session.isupport().casemapping().nick("alice");
+        let recipient = papo_core::RecipientGuard::__from_parts(
+            nick.clone(),
+            Account::LoggedIn(session.isupport().casemapping().account("alice-account")),
+            papo_core::ReplyToken::__unknown(nick.origin()),
+        );
+        let direct = super::DirectRef::new(&client, recipient, false);
+
+        assert!(matches!(
+            client.privmsg(direct, "release approved").await,
+            Err(crate::Error::TargetGone)
+        ));
+        assert!(matches!(
+            commands.try_recv(),
+            Err(tokio::sync::mpsc::error::TryRecvError::Empty)
+        ));
+    }
 }
