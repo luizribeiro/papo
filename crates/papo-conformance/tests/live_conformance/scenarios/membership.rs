@@ -842,7 +842,7 @@ async fn part_multiple_and_refusal(s: Scenario) -> papo_testing::Result<()> {
             bob.state()
                 .channel(channel)
                 .unwrap()
-                .member(alice_nick.as_ref())
+                .member(alice_nick.as_str())
                 .is_none()
         );
     }
@@ -879,16 +879,16 @@ async fn quit(s: Scenario) -> papo_testing::Result<()> {
         }
     ));
     assert_eq!(disconnected.reconnect_in, None);
-    assert_eq!(observed.actor.nick(), alice_nick.as_ref());
+    assert_eq!(observed.actor.nick(), alice_nick.as_str());
     let observed_reason = observed.reason.as_deref().unwrap();
     assert!(observed_reason == reason || observed_reason == format!("Quit: {reason}"));
     assert_eq!(observed.channels.len(), 1);
-    assert_eq!(observed.channels[0].as_ref(), channel);
+    assert_eq!(observed.channels[0].as_str(), channel);
     assert!(
         bob.state()
             .channel(&channel)
             .unwrap()
-            .member(alice_nick.as_ref())
+            .member(alice_nick.as_str())
             .is_none()
     );
     bob.expect_none(Event::as_quit).await?;
@@ -907,14 +907,14 @@ async fn kick(s: Scenario) -> papo_testing::Result<()> {
     bob.join(&channel).await?;
 
     let reason = "refresh channel membership";
-    alice.kick(&channel, bob_nick.as_ref(), reason).await?;
+    alice.kick(&channel, bob_nick.as_str(), reason).await?;
     let observed = alice.wait_for(Event::as_kicked).await?;
     let own = bob.wait_for(Event::as_kicked).await?;
 
     for kicked in [&observed, &own] {
-        assert_eq!(kicked.channel.as_ref(), channel);
-        assert_eq!(kicked.subject, bob_nick.as_ref());
-        assert_eq!(crate::source_nick(&kicked.actor), Some(alice_nick.as_ref()));
+        assert_eq!(kicked.channel.as_str(), channel);
+        assert_eq!(kicked.subject, bob_nick.as_str());
+        assert_eq!(crate::source_nick(&kicked.actor), Some(alice_nick.as_str()));
         assert_eq!(kicked.reason.as_deref(), Some(reason));
     }
     assert_eq!(observed.subject_authorship, papo::Authorship::Other);
@@ -924,7 +924,7 @@ async fn kick(s: Scenario) -> papo_testing::Result<()> {
             .state()
             .channel(&channel)
             .unwrap()
-            .member(bob_nick.as_ref())
+            .member(bob_nick.as_str())
             .is_none()
     );
     assert!(bob.state().channel(&channel).is_none());
@@ -946,7 +946,7 @@ async fn kickban(s: Scenario) -> papo_testing::Result<()> {
 
     let first = alice
         .kickban(&channel)
-        .nick(bob_nick.as_ref())
+        .nick(bob_nick.as_str())
         .ban(ban.as_str())
         .reason("repeated flooding")
         .await?;
@@ -957,7 +957,7 @@ async fn kickban(s: Scenario) -> papo_testing::Result<()> {
     join_seen_by(&bob, &mut alice, &channel).await?;
     let duplicate = alice
         .kickban(&channel)
-        .nick(bob_nick.as_ref())
+        .nick(bob_nick.as_str())
         .ban(ban.as_str())
         .reason("ban already present")
         .await?;
@@ -995,7 +995,7 @@ async fn kick_rules(s: Scenario) -> papo_testing::Result<()> {
     carol.join(&channel).await?;
 
     assert_refusal(
-        bob.kick(&channel, carol_nick.as_ref(), "not permitted")
+        bob.kick(&channel, carol_nick.as_str(), "not permitted")
             .await
             .unwrap_err(),
         Refusal::ChannelOperatorPrivilegesNeeded,
@@ -1023,7 +1023,7 @@ async fn kick_rules(s: Scenario) -> papo_testing::Result<()> {
         bob.wait_for(|event| {
             event
                 .as_kicked()
-                .filter(|kicked| kicked.subject == bob_nick.as_ref())
+                .filter(|kicked| kicked.subject == bob_nick.as_str())
         })
         .await?,
     ];
@@ -1033,7 +1033,7 @@ async fn kick_rules(s: Scenario) -> papo_testing::Result<()> {
                 .wait_for(|event| {
                     event
                         .as_kicked()
-                        .filter(|kicked| kicked.subject == carol_nick.as_ref())
+                        .filter(|kicked| kicked.subject == carol_nick.as_str())
                 })
                 .await?,
         );
@@ -1045,13 +1045,13 @@ async fn kick_rules(s: Scenario) -> papo_testing::Result<()> {
     }
     expected.sort_unstable();
     for ((observed, own), nick) in observed.iter().zip(&own).zip(expected) {
-        assert_eq!(observed.subject, nick.as_ref());
-        assert_eq!(own.subject, nick.as_ref());
+        assert_eq!(observed.subject, nick.as_str());
+        assert_eq!(own.subject, nick.as_str());
         assert_eq!(
             crate::source_nick(&observed.actor),
-            Some(alice_nick.as_ref())
+            Some(alice_nick.as_str())
         );
-        assert_eq!(crate::source_nick(&own.actor), Some(alice_nick.as_ref()));
+        assert_eq!(crate::source_nick(&own.actor), Some(alice_nick.as_str()));
         assert!(
             observed
                 .reason
@@ -1070,7 +1070,7 @@ async fn kick_rules(s: Scenario) -> papo_testing::Result<()> {
                 .is_none()
         );
     }
-    assert_kick_membership(&bob, &carol, &channel, carol_nick.as_ref(), target_count);
+    assert_kick_membership(&bob, &carol, &channel, carol_nick.as_str(), target_count);
     Ok(())
 }
 
@@ -1106,7 +1106,7 @@ async fn kick_missing_member(s: Scenario) -> papo_testing::Result<()> {
     alice.join(&channel).await?;
 
     let refusal = match alice
-        .kick(&channel, bob_nick, "not a channel member")
+        .kick(&channel, bob_nick.as_str(), "not a channel member")
         .await
         .unwrap_err()
     {
@@ -1143,8 +1143,8 @@ async fn nick_change_and_collision(s: Scenario) -> papo_testing::Result<()> {
     let observed = bob.wait_for(Event::as_nick_changed).await?;
 
     for changed in [&own, &observed] {
-        assert_eq!(changed.actor.nick(), old_nick.as_ref());
-        assert_eq!(changed.new.as_ref(), new_nick);
+        assert_eq!(changed.actor.nick(), old_nick.as_str());
+        assert_eq!(changed.new.as_str(), new_nick);
     }
     assert_eq!(own.authorship, papo::Authorship::Own);
     assert_eq!(observed.authorship, papo::Authorship::Other);
@@ -1168,7 +1168,7 @@ async fn nick_change_and_collision(s: Scenario) -> papo_testing::Result<()> {
         bob.state()
             .channel(&channel)
             .unwrap()
-            .member(old_nick.as_ref())
+            .member(old_nick.as_str())
             .is_none()
     );
 
@@ -1268,11 +1268,11 @@ async fn topic(s: Scenario) -> papo_testing::Result<()> {
     let set_at = own.server_time.expect("Ergo tags live topic changes");
 
     for changed in [&own, &observed] {
-        assert_eq!(changed.channel.as_ref(), channel);
+        assert_eq!(changed.channel.as_str(), channel);
         assert_eq!(changed.topic.as_deref(), Some(text));
         assert_eq!(
             crate::source_nick(&changed.actor),
-            Some(alice_nick.as_ref())
+            Some(alice_nick.as_str())
         );
     }
     for peer in [&alice, &bob] {
@@ -1290,8 +1290,8 @@ async fn topic(s: Scenario) -> papo_testing::Result<()> {
         synchronized
             .topic_set_by()
             .and_then(papo::Source::nick)
-            .map(AsRef::<str>::as_ref),
-        Some(alice_nick.as_ref())
+            .map(papo::Nick::as_str),
+        Some(alice_nick.as_str())
     );
     assert!(synchronized.topic_set_at().is_some());
 
@@ -1302,11 +1302,11 @@ async fn topic(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     for peer in [&mut alice, &mut bob, &mut carol] {
         let changed = peer.wait_for(Event::as_topic_changed).await?;
-        assert_eq!(changed.channel.as_ref(), channel);
+        assert_eq!(changed.channel.as_str(), channel);
         assert_eq!(changed.topic, None);
         assert_eq!(
             crate::source_nick(&changed.actor),
-            Some(alice_nick.as_ref())
+            Some(alice_nick.as_str())
         );
         assert_eq!(peer.state().channel(&channel).unwrap().topic(), None);
         assert_eq!(
@@ -1541,7 +1541,7 @@ async fn user_modes(s: Scenario) -> papo_testing::Result<()> {
 
     // User-mode query and error numerics have no richer public result type.
     let initial = alice
-        .request_raw(papo::Line::new("MODE").with_params([nick.as_ref()]))
+        .request_raw(papo::Line::new("MODE").with_params([nick.as_str()]))
         .await?;
     assert!(initial.iter().any(|line| line.numeric() == Some(221)));
     if alice.state().user_modes().any(|mode| mode == 'i') {
@@ -1549,7 +1549,7 @@ async fn user_modes(s: Scenario) -> papo_testing::Result<()> {
         let removed = alice
             .wait_for(|event| {
                 event.as_mode_changed().filter(|changed| {
-                    subject_name(&changed.subject) == nick.as_ref()
+                    subject_name(&changed.subject) == nick.as_str()
                         && changed
                             .changes
                             .iter()
@@ -1568,7 +1568,7 @@ async fn user_modes(s: Scenario) -> papo_testing::Result<()> {
     let added = alice
         .wait_for(|event| {
             event.as_mode_changed().filter(|changed| {
-                subject_name(&changed.subject) == nick.as_ref()
+                subject_name(&changed.subject) == nick.as_str()
                     && changed
                         .changes
                         .iter()
@@ -1576,20 +1576,20 @@ async fn user_modes(s: Scenario) -> papo_testing::Result<()> {
             })
         })
         .await?;
-    assert_eq!(subject_name(&added.subject), nick.as_ref());
+    assert_eq!(subject_name(&added.subject), nick.as_str());
     assert!(added.changes.iter().any(|change| {
         change.mode == 'i' && change.action == ModeAction::Add && change.arg.clone().is_none()
     }));
     assert!(alice.state().user_modes().any(|mode| mode == 'i'));
 
     let current = alice
-        .request_raw(papo::Line::new("MODE").with_params([nick.as_ref()]))
+        .request_raw(papo::Line::new("MODE").with_params([nick.as_str()]))
         .await?;
     assert!(current.iter().any(|line| {
         line.numeric() == Some(221) && line.params().iter().any(|param| param.contains('i'))
     }));
     let unknown = alice
-        .request_raw(papo::Line::new("MODE").with_params([nick.as_ref(), "+?"]))
+        .request_raw(papo::Line::new("MODE").with_params([nick.as_str(), "+?"]))
         .await?;
     if !unknown.iter().any(|line| line.numeric() == Some(501)) {
         return Err(std::io::Error::other(format!(
@@ -1629,7 +1629,7 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
     alice.mode(&channel).key(channel_key()).add('s').await?;
     let modes = wait_channel_mode(&mut bob, &channel, 'k').await?;
     assert_eq!(subject_name(&modes.subject), channel);
-    assert_actor_or_server(&modes.actor, alice_nick.as_ref());
+    assert_actor_or_server(&modes.actor, alice_nick.as_str());
     assert_eq!(modes.changes.len(), 2);
     let key_change = modes
         .changes
@@ -1695,10 +1695,10 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
         Refusal::InviteOnlyChannel,
         "473",
     );
-    alice.invite(carol_nick.as_ref(), &channel).await?;
+    alice.invite(carol_nick.as_str(), &channel).await?;
     let invited = carol.wait_for(Event::as_invited).await?;
     assert_eq!(invited.subject, carol_nick);
-    assert_eq!(invited.channel.as_ref(), channel);
+    assert_eq!(invited.channel.as_str(), channel);
     carol.join(&channel).key(channel_key()).await?;
 
     alice.mode(&channel).add('m').await?;
@@ -1710,7 +1710,7 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
         Refusal::CannotSendToChannel,
         "404",
     );
-    let bob_direct = alice.direct(bob_nick.as_ref()).await?;
+    let bob_direct = alice.direct(bob_nick.as_str()).await?;
     alice.mode(&channel).voice(&bob_direct).await?;
     wait_channel_mode(&mut bob, &channel, 'v').await?;
     bob.privmsg(&channel, "allowed after voice").await?;
