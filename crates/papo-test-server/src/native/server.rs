@@ -228,7 +228,11 @@ pub(crate) fn wait_for_child_until<const N: usize>(
     deadline: Instant,
     child: &mut ServerChild,
 ) -> io::Result<()> {
-    let result = wait_until_ready_with(addresses, deadline, || child.check(server_name));
+    let result = wait_until_ready_with(addresses, deadline, || {
+        child
+            .check(server_name)
+            .map_err(|error| classify_bind_collision(error, &addresses))
+    });
     if result
         .as_ref()
         .is_err_and(|error| error.kind() == io::ErrorKind::TimedOut)
@@ -236,6 +240,17 @@ pub(crate) fn wait_for_child_until<const N: usize>(
         Err(child.timeout(server_name))
     } else {
         result
+    }
+}
+
+fn classify_bind_collision(error: io::Error, addresses: &[SocketAddr]) -> io::Error {
+    if addresses
+        .iter()
+        .any(|address| TcpStream::connect(address).is_ok())
+    {
+        io::Error::new(io::ErrorKind::AddrInUse, error)
+    } else {
+        error
     }
 }
 
@@ -288,7 +303,31 @@ mod tests {
         time::{Duration, Instant},
     };
 
-    use super::{Configuration, TestServer, answers_irc, wait_until_ready_with};
+    use super::{
+        Configuration, TestServer, answers_irc, classify_bind_collision, wait_until_ready_with,
+    };
+
+    #[test]
+    fn only_an_occupied_listener_reclassifies_a_child_exit() {
+        let occupied = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let occupied_address = occupied.local_addr().unwrap();
+        let closed = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let closed_address = closed.local_addr().unwrap();
+        drop(closed);
+
+        let collision = classify_bind_collision(
+            io::Error::other("Solanum exited with exit status: 1"),
+            &[occupied_address],
+        );
+        let configuration = classify_bind_collision(
+            io::Error::other("unknown configuration directive"),
+            &[closed_address],
+        );
+
+        assert_eq!(collision.kind(), io::ErrorKind::AddrInUse);
+        assert_eq!(configuration.kind(), io::ErrorKind::Other);
+        assert_eq!(configuration.to_string(), "unknown configuration directive");
+    }
 
     #[test]
     fn irc_probe_requires_a_reply_from_an_open_port() {
