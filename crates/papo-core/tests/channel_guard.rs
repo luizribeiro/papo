@@ -320,10 +320,17 @@ fn completed_rejoin_invalidates_the_previous_pending_guard() {
     for line in [
         ":papo!p@localhost JOIN #review",
         ":ergo.test 366 papo #review :End of /NAMES list",
-        ":papo!p@localhost PART #review :Network maintenance",
     ] {
         server(&mut session, line);
     }
+    assert_eq!(
+        session.state().__resolve_channel(&guard).as_deref(),
+        Some("#review")
+    );
+    server(
+        &mut session,
+        ":papo!p@localhost PART #review :Network maintenance",
+    );
 
     session.join(now, "#review", None).unwrap();
     assert!(session.poll_transmit().is_some());
