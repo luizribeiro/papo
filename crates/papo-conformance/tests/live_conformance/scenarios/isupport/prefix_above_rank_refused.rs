@@ -30,7 +30,7 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
         return s.skip("PREFIX advertises no status mode above channel operator");
     }
 
-    let bob_direct = alice.direct(bob_nick.as_ref()).await?;
+    let bob_direct = alice.direct(bob_nick.as_str()).await?;
     for prefix in &above {
         let error = alice
             .mode(&channel)
@@ -45,14 +45,14 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
         let channel_state = state.channel(&channel).unwrap();
         assert!(
             channel_state
-                .member(bob_nick.as_ref())
+                .member(bob_nick.as_str())
                 .unwrap()
                 .prefixes()
                 .is_empty()
         );
         assert_eq!(
             channel_state
-                .member(alice_nick.as_ref())
+                .member(alice_nick.as_str())
                 .unwrap()
                 .prefixes(),
             &[papo::Prefix::__new('o', '@')]
@@ -69,13 +69,13 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
         let promoted = wait_channel_mode(peer, &channel, 'o').await?;
         assert_eq!(
             crate::source_nick(&promoted.actor),
-            Some(alice_nick.as_ref())
+            Some(alice_nick.as_str())
         );
         assert_eq!(promoted.changes.len(), 1);
         let change = &promoted.changes[0];
         assert_eq!(change.action, ModeAction::Add);
         assert!(
-            matches!(change.arg.clone(), Some(ModeArg::Member { nick, .. }) if nick == bob_nick.as_ref())
+            matches!(change.arg.clone(), Some(ModeArg::Member { nick, .. }) if nick == bob_nick.as_str())
         );
     }
     for peer in [&alice, &bob, &carol] {
@@ -83,7 +83,7 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
         let member = state
             .channel(&channel)
             .unwrap()
-            .member(bob_nick.as_ref())
+            .member(bob_nick.as_str())
             .unwrap();
         assert_eq!(member.prefixes(), &[papo::Prefix::__new('o', '@')]);
     }

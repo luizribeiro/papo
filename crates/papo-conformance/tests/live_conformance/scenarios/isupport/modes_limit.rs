@@ -44,7 +44,7 @@ async fn modes_limit(s: Scenario) -> papo_testing::Result<()> {
             assert_eq!(change.mode, 'b');
             assert_eq!(change.action, ModeAction::Add);
             assert!(
-                matches!(change.arg.clone(), Some(ModeArg::Mask(value)) if value == mask.as_ref())
+                matches!(change.arg.clone(), Some(ModeArg::Mask(value)) if value == mask.as_str())
             );
         }
     };

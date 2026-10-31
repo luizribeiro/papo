@@ -14,7 +14,7 @@ use crate::scenarios::support::{confirmed_line, conversation_name};
 )]
 async fn labeled_response(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
-    let whois = alice.whois(alice.nick().clone()).await?;
+    let whois = alice.whois(alice.nick().as_str()).await?;
     assert_eq!(whois.nick, alice.nick());
     assert!(
         whois

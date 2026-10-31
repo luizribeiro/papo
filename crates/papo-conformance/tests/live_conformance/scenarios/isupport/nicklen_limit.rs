@@ -22,16 +22,16 @@ async fn nicklen_limit(s: Scenario) -> papo_testing::Result<()> {
     let n: usize = raw.parse().expect("NICKLEN value is numeric");
     assert_eq!(support.nicklen(), Some(n));
 
-    let padding = n.saturating_sub(original.chars().count());
+    let padding = n.saturating_sub(original.as_str().chars().count());
     let at_limit = format!("{original}{}", "q".repeat(padding));
-    assert_eq!(at_limit.chars().count(), n);
+    assert_eq!(at_limit.as_str().chars().count(), n);
 
     bob.set_nick(at_limit.clone()).await?;
     let own = bob.wait_for(Event::as_nick_changed).await?;
     let observed = alice.wait_for(Event::as_nick_changed).await?;
     for changed in [&own, &observed] {
-        assert_eq!(changed.actor.nick(), original.as_ref());
-        assert_eq!(changed.new.as_ref(), at_limit);
+        assert_eq!(changed.actor.nick(), original.as_str());
+        assert_eq!(changed.new.as_str(), at_limit);
     }
     assert_eq!(own.actor.nick(), &original);
     assert_eq!(own.authorship, papo::Authorship::Own);
@@ -55,7 +55,7 @@ async fn nicklen_limit(s: Scenario) -> papo_testing::Result<()> {
     );
 
     let over = format!("{at_limit}r");
-    assert_eq!(over.chars().count(), n + 1);
+    assert_eq!(over.as_str().chars().count(), n + 1);
     let Error::InvalidInput(InvalidInput::InvalidName {
         argument,
         name,

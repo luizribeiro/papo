@@ -79,7 +79,7 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
     for changed in [&on_bob, &on_carol] {
         assert_eq!(
             crate::source_nick(&changed.actor),
-            Some(alice_nick.as_ref())
+            Some(alice_nick.as_str())
         );
         assert_eq!(changed.changes.len(), 1);
         let change = &changed.changes[0];
@@ -107,7 +107,7 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
             crate::scenarios::support::conversation_name(message.conversation()),
             Some(channel.as_str())
         );
-        assert_eq!(crate::source_nick(&message.actor), Some(bob_nick.as_ref()));
+        assert_eq!(crate::source_nick(&message.actor), Some(bob_nick.as_str()));
         assert!(!crate::scenarios::support::conversation_is_private(
             message.conversation()
         ));
@@ -117,7 +117,7 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
         let member = state
             .channel(&channel)
             .unwrap()
-            .member(carol_nick.as_ref())
+            .member(carol_nick.as_str())
             .unwrap();
         assert!(member.prefixes().is_empty());
     }
@@ -127,7 +127,7 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
         let removed = wait_channel_mode(peer, &channel, letter).await?;
         assert_eq!(
             crate::source_nick(&removed.actor),
-            Some(alice_nick.as_ref())
+            Some(alice_nick.as_str())
         );
         assert_eq!(removed.changes.len(), 1);
         let change = &removed.changes[0];
@@ -143,7 +143,7 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
     let message = bob.wait_for(|event| message_text(event, again)).await?;
     assert_eq!(
         crate::source_nick(&message.actor),
-        Some(carol_nick.as_ref())
+        Some(carol_nick.as_str())
     );
     Ok(())
 }

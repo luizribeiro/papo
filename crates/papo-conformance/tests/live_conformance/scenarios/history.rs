@@ -67,7 +67,7 @@ async fn draft_chathistory(s: Scenario) -> papo_testing::Result<()> {
     for message in messages {
         assert_eq!(
             crate::source_nick(&message.actor),
-            Some(writer.nick().as_ref())
+            Some(writer.nick().as_str())
         );
         assert!(message.tags.get("time").is_some());
     }
@@ -211,7 +211,7 @@ async fn terminal_history_page(s: Scenario) -> papo_testing::Result<()> {
         .name_rules()
         .expect("server advertised CASEMAPPING")
         .channel(s.channel_name());
-    alice.join(&channel).await?;
+    alice.join(channel.as_str()).await?;
     let texts = (1..=25)
         .map(|number| format!("deployment log entry {number:02}"))
         .collect::<Vec<_>>();
@@ -237,15 +237,21 @@ async fn terminal_history_page(s: Scenario) -> papo_testing::Result<()> {
     let mut remaining = texts.len();
     loop {
         let page = match cursor {
-            None => alice.history(&*channel).latest().limit(10).await?,
+            None => alice.history(channel.as_str()).latest().limit(10).await?,
             Some(Cursor::Id(ref id)) => {
                 alice
-                    .history(&*channel)
+                    .history(channel.as_str())
                     .before(MessageId::from(id.clone()))
                     .limit(10)
                     .await?
             }
-            Some(Cursor::Time(time)) => alice.history(&*channel).before(time).limit(10).await?,
+            Some(Cursor::Time(time)) => {
+                alice
+                    .history(channel.as_str())
+                    .before(time)
+                    .limit(10)
+                    .await?
+            }
         };
         let messages = page.chat_messages().collect::<Vec<_>>();
         let page_texts = messages
@@ -422,11 +428,11 @@ async fn event_playback(s: Scenario) -> papo_testing::Result<()> {
             _ => None,
         })
         .expect("history contains the topic change");
-    assert_eq!(topic.channel.as_ref(), channel);
+    assert_eq!(topic.channel.as_str(), channel);
     assert_eq!(topic.topic.as_deref(), Some("incident response completed"));
     assert_eq!(
         crate::source_nick(&topic.actor),
-        Some(writer.nick().as_ref())
+        Some(writer.nick().as_str())
     );
     Ok(())
 }
@@ -499,10 +505,10 @@ async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
             }
             event
                 .as_channel_synced()
-                .filter(|synced| synced.channel.as_ref() == channel)
+                .filter(|synced| synced.channel.as_str() == channel)
         })
         .await?;
-    assert_eq!(synced.channel.as_ref(), channel);
+    assert_eq!(synced.channel.as_str(), channel);
     assert!(phone.state().channel(&channel).is_some());
     let replayed = match early_marker {
         Some(marker) => marker,

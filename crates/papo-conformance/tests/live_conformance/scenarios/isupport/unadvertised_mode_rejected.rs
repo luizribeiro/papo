@@ -41,7 +41,7 @@ async fn unadvertised_mode_rejected(s: Scenario) -> papo_testing::Result<()> {
         let changed = wait_channel_mode(peer, &channel, 'm').await?;
         assert_eq!(
             crate::source_nick(&changed.actor),
-            Some(alice_nick.as_ref())
+            Some(alice_nick.as_str())
         );
         assert_eq!(changed.changes.len(), 1);
         let applied = &changed.changes[0];

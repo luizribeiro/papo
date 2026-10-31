@@ -46,7 +46,7 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(subject_name(&changed.subject), channel);
         assert_eq!(
             crate::source_nick(&changed.actor),
-            Some(alice_nick.as_ref())
+            Some(alice_nick.as_str())
         );
         assert_eq!(changed.changes.len(), 4);
 

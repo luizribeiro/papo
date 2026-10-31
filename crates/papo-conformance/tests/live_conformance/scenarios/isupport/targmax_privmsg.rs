@@ -64,7 +64,7 @@ async fn targmax_privmsg(s: Scenario) -> papo_testing::Result<()> {
     let mapping = alice.state().casemapping();
     let targets = within_nicks
         .iter()
-        .map(AsRef::as_ref)
+        .map(papo::Nick::as_str)
         .collect::<Vec<_>>()
         .join(",");
     let (within_limit, over_limit) = recipients.split_at_mut(limit);
@@ -100,7 +100,7 @@ async fn targmax_privmsg(s: Scenario) -> papo_testing::Result<()> {
                 line.numeric() == Some(407)
                     && line
                         .get(1)
-                        .is_some_and(|nick| mapping.nick(nick) == frank_nick.as_ref())
+                        .is_some_and(|nick| mapping.nick(nick) == frank_nick.as_str())
             })
         })
         .await?;
@@ -108,8 +108,8 @@ async fn targmax_privmsg(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(
         mapping
             .nick(refusal.get(1).expect("407 includes the refused nickname"))
-            .as_ref(),
-        frank_nick.as_ref()
+            .as_str(),
+        frank_nick.as_str()
     );
     frank
         .expect_none(|event| message_text(event, over_limit_text))
@@ -128,14 +128,14 @@ async fn expect_delivery(
     assert_eq!(message.text, text);
     assert_eq!(
         crate::scenarios::support::conversation_name(message.conversation()),
-        Some(sender_nick.as_ref())
+        Some(sender_nick.as_str())
     );
     assert!(crate::scenarios::support::conversation_is_private(
         message.conversation()
     ));
     assert_eq!(
         crate::source_nick(&message.actor),
-        Some(sender_nick.as_ref())
+        Some(sender_nick.as_str())
     );
     Ok(())
 }

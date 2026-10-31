@@ -189,8 +189,8 @@ async fn sasl_external(s: Scenario) -> papo_testing::Result<()> {
         )
         .await?;
     assert_eq!(
-        crate::scenarios::support::logged_in_account(&alice.state()).as_ref(),
-        account.as_ref()
+        crate::scenarios::support::logged_in_account(&alice.state()).as_str(),
+        account.as_str()
     );
     Ok(())
 }
@@ -218,10 +218,10 @@ async fn authenticate(s: Scenario, scram: bool) -> papo_testing::Result<()> {
         )
     );
 
-    let whois = alice.whois(alice.state().nick().clone()).await?;
+    let whois = alice.whois(alice.state().nick().as_str()).await?;
     assert_eq!(whois.nick, *alice.state().nick());
     assert_eq!(
-        whois.account.name().map(AsRef::as_ref),
+        whois.account.name().map(papo::AccountName::as_str),
         Some(account.as_str())
     );
     alice.expect_none(Event::as_account_changed).await?;
@@ -238,14 +238,14 @@ async fn services(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect_as_account("alice").await?;
     let account = crate::scenarios::support::logged_in_account(&alice.state()).clone();
     alice
-        .send_raw(papo::Line::new("NS").with_params(["INFO", account.as_ref()]))
+        .send_raw(papo::Line::new("NS").with_params(["INFO", account.as_str()]))
         .await?;
     let nickserv = alice
         .wait_for(|event| {
             event.as_notice().filter(|message| {
                 message.kind == papo::MessageKind::Text
                     && crate::source_nick(&message.actor) == Some("NickServ")
-                    && message.text.contains(account.as_ref())
+                    && message.text.contains(account.as_str())
             })
         })
         .await?;
@@ -298,7 +298,7 @@ async fn account_creation(s: Scenario) -> papo_testing::Result<()> {
         .state()
         .name_rules()
         .expect("server advertised CASEMAPPING")
-        .account(nick.as_ref());
+        .account(nick.as_str());
     let outcome = alice
         .create_account(NewAccount::new(papo::Secret::new(PASSWORD)).account(account.clone()))
         .await?;
@@ -315,7 +315,7 @@ async fn account_creation(s: Scenario) -> papo_testing::Result<()> {
         &papo::Account::LoggedIn(account.clone())
     );
 
-    let whois = alice.whois(nick.clone()).await?;
+    let whois = alice.whois(nick.as_str()).await?;
     assert_eq!(whois.nick, nick);
     assert_eq!(whois.account, papo::Account::LoggedIn(account));
     alice.expect_none(Event::as_account_creation).await?;
@@ -364,7 +364,7 @@ async fn account_creation_error(s: Scenario) -> papo_testing::Result<()> {
     let account = alice
         .state()
         .casemapping()
-        .account(alice.state().nick().as_ref());
+        .account(alice.state().nick().as_str());
     let registered = alice
         .create_account(NewAccount::new(papo::Secret::new(PASSWORD)).account(account.clone()))
         .await?;

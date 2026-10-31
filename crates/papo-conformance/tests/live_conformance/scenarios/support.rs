@@ -52,8 +52,8 @@ pub(super) trait ConversationName {
 impl ConversationName for Conversation {
     fn name(&self) -> Option<&str> {
         match self {
-            Conversation::Channel(name) => Some(name),
-            Conversation::Private(name) => Some(name),
+            Conversation::Channel(name) => Some(name.as_str()),
+            Conversation::Private(name) => Some(name.as_str()),
             _ => None,
         }
     }
@@ -83,8 +83,8 @@ pub(super) fn conversation_is_private(conversation: &impl ConversationName) -> b
 
 pub(super) fn subject_name(subject: &Subject) -> &str {
     match subject {
-        Subject::Channel(channel) => channel,
-        Subject::User(nick) => nick,
+        Subject::Channel(channel) => channel.as_str(),
+        Subject::User(nick) => nick.as_str(),
         _ => panic!("unexpected subject"),
     }
 }
@@ -143,7 +143,7 @@ pub(super) async fn join_seen_by(
                 .filter(|joined| joined.actor.nick() == member_nick.as_str())
         })
         .await?;
-    assert_eq!(joined.channel.as_ref(), channel);
+    assert_eq!(joined.channel.as_str(), channel);
     assert_eq!(joined.actor.nick(), member_nick.as_str());
     assert_eq!(joined.authorship, papo::Authorship::Other);
     Ok(())
@@ -160,7 +160,7 @@ pub(super) async fn wait_for_channel(peer: &mut Peer, channel: &str) -> papo_tes
     peer.wait_for(|event| {
         event
             .as_channel_synced()
-            .filter(|synced| synced.channel.as_ref() == channel)
+            .filter(|synced| synced.channel.as_str() == channel)
     })
     .await?;
     Ok(())

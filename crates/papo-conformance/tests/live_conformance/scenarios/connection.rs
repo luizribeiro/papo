@@ -15,7 +15,7 @@ async fn connect(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     assert_connected(&alice, "alice");
     let connected = alice.wait_for(Event::as_connected).await?;
-    assert_eq!(connected.nick, alice.state().nick().as_ref());
+    assert_eq!(connected.nick, alice.state().nick().as_str());
     for (name, value) in &connected.caps {
         assert_eq!(alice.state().caps().get(name), Some(value));
     }
@@ -299,7 +299,7 @@ async fn server_queries(s: Scenario) -> papo_testing::Result<()> {
     let nick = alice.nick();
     alice.quit("record this departure").await?;
     let whowas = bob
-        .request_raw(papo::Line::new("WHOWAS").with_params([nick.as_ref(), "1"]))
+        .request_raw(papo::Line::new("WHOWAS").with_params([nick.as_str(), "1"]))
         .await?;
     let users = whowas
         .iter()
@@ -310,7 +310,7 @@ async fn server_queries(s: Scenario) -> papo_testing::Result<()> {
         users[0]
             .get(1)
             .expect("WHOWAS user reply includes a nickname"),
-        nick.as_ref()
+        nick.as_str()
     );
     assert!(
         whowas
@@ -373,7 +373,7 @@ async fn channel_list(s: Scenario) -> papo_testing::Result<()> {
     let listed = alice.list().await?;
     let entry = listed
         .iter()
-        .find(|entry| entry.name.as_ref() == channel)
+        .find(|entry| entry.name.as_str() == channel)
         .expect("LIST includes the visible channel");
     assert_eq!(entry.members_count, 1);
     assert!(entry.topic.ends_with("release coordination"));
@@ -414,7 +414,7 @@ async fn elist_filters(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     let entry = listed
         .iter()
-        .find(|entry| entry.name.as_ref() == channel)
+        .find(|entry| entry.name.as_str() == channel)
         .expect("ELIST includes the matching channel");
     assert_eq!(entry.members_count, 2);
     assert!(entry.topic.ends_with("fresh two-person channel"));
@@ -432,7 +432,7 @@ async fn set_topic_for_list(
         .await?;
     peer.wait_for(|event| {
         event.as_topic_changed().filter(|changed| {
-            changed.channel.as_ref() == channel && changed.topic.as_deref() == Some(topic)
+            changed.channel.as_str() == channel && changed.topic.as_deref() == Some(topic)
         })
     })
     .await?;
@@ -470,10 +470,10 @@ async fn webirc(s: Scenario) -> papo_testing::Result<()> {
         )
         .await?;
     let bob = s.connect("bob").await?;
-    let whois = alice.whois(alice.state().nick().clone()).await?;
-    let ordinary = alice.whois(bob.state().nick().clone()).await?;
+    let whois = alice.whois(alice.state().nick().as_str()).await?;
+    let ordinary = alice.whois(bob.state().nick().as_str()).await?;
     assert_eq!(whois.nick, *alice.state().nick());
-    assert_eq!(ordinary.nick, bob.state().nick().as_ref());
+    assert_eq!(ordinary.nick, bob.state().nick().as_str());
     assert!(whois.host.is_some());
     assert_ne!(whois.host, ordinary.host);
     alice.expect_none(Event::as_disconnected).await?;
@@ -576,8 +576,8 @@ async fn register_over(
 fn assert_connected(alice: &crate::Peer, label: &str) {
     let state = alice.state();
     assert!(state.is_connected());
-    assert!(state.nick().starts_with(label));
-    assert!(state.nick().len() > label.len());
+    assert!(state.nick().as_str().starts_with(label));
+    assert!(state.nick().as_str().len() > label.len());
     assert!(!state.isupport().chantypes().is_empty());
     assert!(!state.isupport().prefix().is_empty());
 }
