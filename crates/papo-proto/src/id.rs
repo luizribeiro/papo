@@ -309,6 +309,18 @@ macro_rules! name_identifier {
             pub const fn origin(&self) -> Origin {
                 self.origin
             }
+
+            /// Returns the name as the server sent it, for display.
+            #[must_use]
+            pub fn as_str(&self) -> &str {
+                &self.original
+            }
+
+            /// Returns the folded comparison key, for storage and lookup.
+            #[must_use]
+            pub fn key(&self) -> &str {
+                &self.folded
+            }
         }
 
         original_text!($name, original);
@@ -494,7 +506,7 @@ macro_rules! typed_name_argument {
             impl name_argument::Sealed for $ty {
                 fn parts(&self) -> NameParts<'_> {
                     NameParts {
-                        text: Cow::Borrowed(self.as_ref()),
+                        text: Cow::Borrowed(self.as_str()),
                         folded: Some((&self.folded, self.casemapping)),
                         origin: self.origin(),
                     }
@@ -578,8 +590,12 @@ impl Nick {
     /// advertised `NICKLEN`.
     #[doc(hidden)]
     pub fn check(&self, isupport: &Isupport) -> Result<(), InvalidIdentifier> {
-        check_parameter(self)?;
-        let first = self.chars().next().ok_or(InvalidIdentifier::Empty)?;
+        check_parameter(self.as_str())?;
+        let first = self
+            .as_str()
+            .chars()
+            .next()
+            .ok_or(InvalidIdentifier::Empty)?;
         if matches!(first, '$' | ':')
             || isupport.chantypes().contains(first)
             || isupport
@@ -589,11 +605,15 @@ impl Nick {
         {
             return Err(InvalidIdentifier::InvalidPrefix(first));
         }
-        if let Some(character) = self.chars().find(|character| ",*?!@".contains(*character)) {
+        if let Some(character) = self
+            .as_str()
+            .chars()
+            .find(|character| ",*?!@".contains(*character))
+        {
             return Err(InvalidIdentifier::InvalidCharacter(character));
         }
         match isupport.name_limit(crate::isupport::NameLimit::Nick) {
-            crate::isupport::KnownLimit::Known(maximum) => check_length(self, maximum),
+            crate::isupport::KnownLimit::Known(maximum) => check_length(self.as_str(), maximum),
             crate::isupport::KnownLimit::Unknown => Ok(()),
         }
     }
@@ -608,18 +628,23 @@ impl ChannelName {
     /// contains a forbidden character, or exceeds the server's length limit.
     #[doc(hidden)]
     pub fn check(&self, isupport: &Isupport) -> Result<(), InvalidIdentifier> {
-        let first = self.chars().next().ok_or(InvalidIdentifier::Empty)?;
+        let first = self
+            .as_str()
+            .chars()
+            .next()
+            .ok_or(InvalidIdentifier::Empty)?;
         if !isupport.chantypes().contains(first) {
             return Err(InvalidIdentifier::InvalidPrefix(first));
         }
         if let Some(character) = self
+            .as_str()
             .chars()
             .find(|character| matches!(character, '\0' | '\r' | '\n' | ' ' | '\u{7}' | ','))
         {
             return Err(InvalidIdentifier::InvalidCharacter(character));
         }
         match isupport.name_limit(crate::isupport::NameLimit::Channel) {
-            crate::isupport::KnownLimit::Known(maximum) => check_length(self, maximum),
+            crate::isupport::KnownLimit::Known(maximum) => check_length(self.as_str(), maximum),
             crate::isupport::KnownLimit::Unknown => Ok(()),
         }
     }
@@ -666,8 +691,8 @@ impl AccountName {
     /// Returns an error for an empty name, the logout marker, or wire delimiters.
     #[doc(hidden)]
     pub fn check(&self) -> Result<(), InvalidIdentifier> {
-        check_parameter(self)?;
-        if self.as_ref() == "*" {
+        check_parameter(self.as_str())?;
+        if self.as_str() == "*" {
             return Err(InvalidIdentifier::InvalidCharacter('*'));
         }
         Ok(())
@@ -726,8 +751,8 @@ impl Mask {
     /// another target.
     #[doc(hidden)]
     pub fn check(&self) -> Result<(), InvalidIdentifier> {
-        check_parameter(self)?;
-        if self.contains(',') {
+        check_parameter(self.as_str())?;
+        if self.as_str().contains(',') {
             return Err(InvalidIdentifier::InvalidCharacter(','));
         }
         Ok(())
@@ -800,7 +825,7 @@ macro_rules! name_address_conversions {
 
         impl From<&Nick> for $name {
             fn from(value: &Nick) -> Self {
-                Self(value.as_ref().to_owned())
+                Self(value.as_str().to_owned())
             }
         }
 
@@ -812,7 +837,7 @@ macro_rules! name_address_conversions {
 
         impl From<&ChannelName> for $name {
             fn from(value: &ChannelName) -> Self {
-                Self(value.as_ref().to_owned())
+                Self(value.as_str().to_owned())
             }
         }
     };
@@ -1065,6 +1090,35 @@ mod tests {
         );
         assert_eq!(nick.casemapping(), Casemapping::Rfc1459);
         assert_eq!(Nick::from(&nick).into_string(), "Alice[bot]");
+    }
+
+    #[test]
+    fn name_text_and_keys_have_one_explicit_meaning() {
+        let alice = Casemapping::Rfc1459.nick("Alice");
+        let lowercase = Casemapping::Rfc1459.nick("alice");
+
+        assert_eq!(alice.as_str(), "Alice");
+        assert_eq!(alice.to_string(), "Alice");
+        assert_eq!(alice.key(), "alice");
+        assert_eq!(alice.key(), lowercase.key());
+        assert_eq!(alice, lowercase);
+        assert_eq!(hash(&alice), hash(&lowercase));
+
+        let channel = Casemapping::Rfc1459.channel("#Papo[");
+        let account = Casemapping::Rfc1459.account("Alice[");
+        let mask = Casemapping::Rfc1459.mask("Alice[!*@Staff.Example");
+        assert_eq!((channel.as_str(), channel.key()), ("#Papo[", "#papo{"));
+        assert_eq!((account.as_str(), account.key()), ("Alice[", "alice{"));
+        assert_eq!(
+            (mask.as_str(), mask.key()),
+            ("Alice[!*@Staff.Example", "alice{!*@staff.example")
+        );
+    }
+
+    fn hash(value: &impl Hash) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        value.hash(&mut hasher);
+        hasher.finish()
     }
 
     #[test]

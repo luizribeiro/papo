@@ -3355,7 +3355,9 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::Account
 impl core::panic::unwind_safe::UnwindSafe for papo::Account
 pub struct papo::AccountName
 impl papo::AccountName
+pub fn papo::AccountName::as_str(&self) -> &str
 pub const fn papo::AccountName::casemapping(&self) -> papo::Casemapping
+pub fn papo::AccountName::key(&self) -> &str
 pub const fn papo::AccountName::origin(&self) -> papo::Origin
 impl papo::AccountName
 pub fn papo::AccountName::into_string(self) -> alloc::string::String
@@ -3555,7 +3557,9 @@ impl core::marker::StructuralPartialEq for papo::Casemapping
 impl core::str::traits::FromStr for papo::Casemapping
 pub struct papo::ChannelName
 impl papo::ChannelName
+pub fn papo::ChannelName::as_str(&self) -> &str
 pub const fn papo::ChannelName::casemapping(&self) -> papo::Casemapping
+pub fn papo::ChannelName::key(&self) -> &str
 pub const fn papo::ChannelName::origin(&self) -> papo::Origin
 impl papo::ChannelName
 pub fn papo::ChannelName::into_string(self) -> alloc::string::String
@@ -3901,7 +3905,9 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::ListMode
 impl core::panic::unwind_safe::UnwindSafe for papo::ListMode
 pub struct papo::Mask
 impl papo::Mask
+pub fn papo::Mask::as_str(&self) -> &str
 pub const fn papo::Mask::casemapping(&self) -> papo::Casemapping
+pub fn papo::Mask::key(&self) -> &str
 pub const fn papo::Mask::origin(&self) -> papo::Origin
 impl papo::Mask
 pub fn papo::Mask::exact(&impl MaskSource) -> core::option::Option<Self>
@@ -4137,7 +4143,9 @@ impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo::ModeValue<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo::ModeValue<'a>
 pub struct papo::Nick
 impl papo::Nick
+pub fn papo::Nick::as_str(&self) -> &str
 pub const fn papo::Nick::casemapping(&self) -> papo::Casemapping
+pub fn papo::Nick::key(&self) -> &str
 pub const fn papo::Nick::origin(&self) -> papo::Origin
 impl papo::Nick
 pub fn papo::Nick::into_string(self) -> alloc::string::String
