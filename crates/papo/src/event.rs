@@ -1903,6 +1903,16 @@ pub(crate) fn from_core(
     )
 }
 
+fn conversation_reply_token(
+    state: Option<&papo_core::State>,
+    conversation: &Conversation,
+) -> Option<papo_core::ReplyToken> {
+    state.and_then(|state| match conversation {
+        Conversation::Private(nick) => Some(state.__reply_token_for(nick.as_str())),
+        _ => None,
+    })
+}
+
 #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
 pub(crate) fn from_core_with_receipt(
     event: papo_core::Event,
@@ -1960,10 +1970,7 @@ pub(crate) fn from_core_with_receipt(
         papo_core::Event::MultilineMessage(message) => return CoreEvent::Line(message.message),
         papo_core::Event::TypingChanged(change) => {
             let return_address = change.return_address();
-            let reply_token = reply_state.and_then(|state| match &change.conversation {
-                Conversation::Private(nick) => Some(state.__reply_token_for(nick.as_str())),
-                _ => None,
-            });
+            let reply_token = conversation_reply_token(reply_state, &change.conversation);
             let envelope = EventEnvelope {
                 msgid: None,
                 server_time: change.server_time,
@@ -2000,10 +2007,7 @@ pub(crate) fn from_core_with_receipt(
         }
         papo_core::Event::TagMessage(message) => {
             let return_address = message.__return_address().to_owned();
-            let reply_token = reply_state.and_then(|state| match &message.conversation {
-                Conversation::Private(nick) => Some(state.__reply_token_for(nick.as_str())),
-                _ => None,
-            });
+            let reply_token = conversation_reply_token(reply_state, &message.conversation);
             let envelope = map_envelope(&message.envelope);
             let tags = Tags::from_pairs(message.tags);
             let Some(actor) = user_from_raw(&message.actor, &envelope) else {
@@ -2088,10 +2092,7 @@ pub(crate) fn from_core_with_receipt(
         }
         papo_core::Event::Redacted(redacted) => {
             let return_address = redacted.__return_address().to_owned();
-            let reply_token = reply_state.and_then(|state| match &redacted.conversation {
-                Conversation::Private(nick) => Some(state.__reply_token_for(nick.as_str())),
-                _ => None,
-            });
+            let reply_token = conversation_reply_token(reply_state, &redacted.conversation);
             let envelope = map_envelope(&redacted.envelope);
             let Some(actor) = actor_from_raw(&redacted.actor, &envelope) else {
                 return CoreEvent::Unknown;
@@ -3069,6 +3070,26 @@ mod tests {
             panic!("expected tag message")
         };
         assert!(has_channel_guard("TagMsg", &event));
+    }
+
+    #[test]
+    fn conversation_reply_tokens_guard_only_private_recipients() {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().nick("papo"));
+        session.handle_line(now, b":alice!~alice@cloak.example JOIN #review");
+        let mapping = session.isupport().casemapping();
+        let private = Conversation::Private(crate::Origin::NONE.__nick(mapping, "alice"));
+        let channel = Conversation::Channel(crate::Origin::NONE.__channel(mapping, "#review"));
+
+        assert_eq!(
+            super::conversation_reply_token(Some(session.state()), &private),
+            Some(session.state().__reply_token_for("alice"))
+        );
+        assert_eq!(
+            super::conversation_reply_token(Some(session.state()), &channel),
+            None
+        );
+        assert_eq!(super::conversation_reply_token(None, &private), None);
     }
 
     #[test]
