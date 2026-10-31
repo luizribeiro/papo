@@ -27,9 +27,18 @@ fn labelled_session(now: Instant) -> Session {
 fn pending_join_guard(session: &mut Session, now: Instant) -> (RequestId, ChannelGuard) {
     let id = session.join(now, "#review", None).unwrap();
     assert!(session.poll_transmit().is_some());
+    let guard = received_channel_guard(session, "#review", "Ergo8ZZ5");
+    assert_eq!(
+        session.state().__resolve_channel(&guard).as_deref(),
+        Some("#review")
+    );
+    (id, guard)
+}
+
+fn received_channel_guard(session: &mut Session, channel: &str, msgid: &str) -> ChannelGuard {
     server(
         session,
-        "@msgid=Ergo8ZZ5 :alice!~alice@cloak.example PRIVMSG #review :!ping",
+        &format!("@msgid={msgid} :alice!~alice@cloak.example PRIVMSG {channel} :!ping"),
     );
     let guard = std::iter::from_fn(|| session.poll_event())
         .find_map(|event| match event {
@@ -39,11 +48,7 @@ fn pending_join_guard(session: &mut Session, now: Instant) -> (RequestId, Channe
         .unwrap();
     assert_eq!(guard, guard.clone());
     assert_ne!(guard, session.state().__channel_guard(guard.__channel()));
-    assert_eq!(
-        session.state().__resolve_channel(&guard).as_deref(),
-        Some("#review")
-    );
-    (id, guard)
+    guard
 }
 
 fn assert_pending_reply_refused(session: &mut Session, guard: ChannelGuard) {
@@ -269,6 +274,90 @@ fn pending_join_follows_a_casemapping_change() {
     assert_eq!(
         session.state().__resolve_channel(&guard).as_deref(),
         Some("#review{")
+    );
+}
+
+#[test]
+fn duplicate_pending_joins_share_only_their_channel_reservation() {
+    let now = Instant::now();
+    let mut session = Session::new(
+        Config::default()
+            .nick("papo")
+            .rate_limit(RateLimit::unlimited()),
+    );
+    let generation = session.state_generation();
+    let first = session.join(now, "#review", None).unwrap();
+    assert_eq!(session.state_generation(), generation.wrapping_add(1));
+    let duplicate = session.join(now, "#Review", None).unwrap();
+    assert_eq!(session.state_generation(), generation.wrapping_add(1));
+    let other = session.join(now, "#release", None).unwrap();
+    assert_eq!(session.state_generation(), generation.wrapping_add(2));
+    while session.poll_transmit().is_some() {}
+
+    let guard = received_channel_guard(&mut session, "#review", "Ergo91C3");
+    session.__cancel_request(first);
+    assert_eq!(
+        session.state().__resolve_channel(&guard).as_deref(),
+        Some("#review")
+    );
+    session.__cancel_request(duplicate);
+    assert_eq!(session.state().__resolve_channel(&guard), None);
+
+    let other_guard = received_channel_guard(&mut session, "#release", "Ergo91C4");
+    session.__cancel_request(other);
+    assert_eq!(session.state().__resolve_channel(&other_guard), None);
+}
+
+#[test]
+fn completed_rejoin_invalidates_the_previous_pending_guard() {
+    let now = Instant::now();
+    let mut session = Session::new(
+        Config::default()
+            .nick("papo")
+            .rate_limit(RateLimit::unlimited()),
+    );
+    let (_, guard) = pending_join_guard(&mut session, now);
+    for line in [
+        ":papo!p@localhost JOIN #review",
+        ":ergo.test 366 papo #review :End of /NAMES list",
+        ":papo!p@localhost PART #review :Network maintenance",
+    ] {
+        server(&mut session, line);
+    }
+
+    session.join(now, "#review", None).unwrap();
+    assert!(session.poll_transmit().is_some());
+    for line in [
+        ":papo!p@localhost JOIN #review",
+        ":ergo.test 366 papo #review :End of /NAMES list",
+    ] {
+        server(&mut session, line);
+    }
+
+    assert_eq!(session.state().__resolve_channel(&guard), None);
+}
+
+#[test]
+fn netjoin_transfers_the_pending_epoch_into_membership() {
+    let now = Instant::now();
+    let mut session = Session::new(
+        Config::default()
+            .nick("papo")
+            .rate_limit(RateLimit::unlimited()),
+    );
+    let (_, guard) = pending_join_guard(&mut session, now);
+    for line in [
+        ":ergo.test BATCH +join netjoin ergo.test irc.remote",
+        "@batch=join :papo!p@localhost JOIN #review",
+        ":ergo.test BATCH -join",
+        ":ergo.test 366 papo #review :End of /NAMES list",
+    ] {
+        server(&mut session, line);
+    }
+
+    assert_eq!(
+        session.state().__resolve_channel(&guard).as_deref(),
+        Some("#review")
     );
 }
 
