@@ -5,6 +5,7 @@ use std::time::{Duration, Instant, UNIX_EPOCH};
 use papo_core::{
     ChannelGuard, Config, Event, RateLimit, RequestId, Session, TargetGuard, TextKind,
 };
+use papo_proto::Casemapping;
 
 fn server(session: &mut Session, line: &str) {
     session.handle_line(Instant::now(), line.as_bytes());
@@ -164,6 +165,109 @@ fn every_join_refusal_numeric_releases_the_pending_join() {
 
         assert_pending_reply_refused(&mut session, guard);
     }
+}
+
+#[test]
+fn timeout_releases_the_pending_join() {
+    let now = Instant::now();
+    let mut session = Session::new(
+        Config::default()
+            .nick("papo")
+            .rate_limit(RateLimit::unlimited()),
+    );
+    let (_, guard) = pending_join_guard(&mut session, now);
+    session.handle_timeout(now + Duration::from_secs(30));
+    assert_pending_reply_refused(&mut session, guard);
+}
+
+#[test]
+fn transport_cancellation_releases_the_pending_join() {
+    let now = Instant::now();
+    let mut session = Session::new(
+        Config::default()
+            .nick("papo")
+            .rate_limit(RateLimit::unlimited()),
+    );
+    let (id, guard) = pending_join_guard(&mut session, now);
+    session.__cancel_request(id);
+    assert_pending_reply_refused(&mut session, guard);
+}
+
+#[test]
+fn own_departure_aborts_and_releases_the_pending_join() {
+    let now = Instant::now();
+    let mut session = Session::new(
+        Config::default()
+            .nick("papo")
+            .rate_limit(RateLimit::unlimited()),
+    );
+    let (_, guard) = pending_join_guard(&mut session, now);
+
+    server(
+        &mut session,
+        ":papo!p@localhost PART #review :Registration required",
+    );
+
+    assert_pending_reply_refused(&mut session, guard);
+}
+
+#[test]
+fn disconnect_and_connection_clear_release_pending_joins() {
+    let now = Instant::now();
+    let mut disconnected = Session::new(
+        Config::default()
+            .nick("papo")
+            .rate_limit(RateLimit::unlimited()),
+    );
+    let (_, disconnected_guard) = pending_join_guard(&mut disconnected, now);
+    disconnected.handle_disconnected(now);
+    assert_pending_reply_refused(&mut disconnected, disconnected_guard);
+
+    let mut cleared = Session::new(
+        Config::default()
+            .nick("papo")
+            .rate_limit(RateLimit::unlimited()),
+    );
+    let (_, cleared_guard) = pending_join_guard(&mut cleared, now);
+    cleared.handle_connected(now);
+    assert_pending_reply_refused(&mut cleared, cleared_guard);
+}
+
+#[test]
+fn pending_join_follows_a_casemapping_change() {
+    let now = Instant::now();
+    let mut session = Session::new(
+        Config::default()
+            .nick("papo")
+            .casemapping(Casemapping::Ascii)
+            .rate_limit(RateLimit::unlimited()),
+    );
+    session.join(now, "#Review[", None).unwrap();
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"JOIN #Review[\r\n"
+    );
+
+    server(
+        &mut session,
+        ":ergo.test 005 papo CASEMAPPING=rfc1459 :are supported",
+    );
+    server(
+        &mut session,
+        "@msgid=Ergo91B2 :alice!~alice@cloak.example PRIVMSG #review{ :!ping",
+    );
+    let guard = std::iter::from_fn(|| session.poll_event())
+        .find_map(|event| match event {
+            Event::Line(line) => line.__channel_guard().cloned(),
+            _ => None,
+        })
+        .unwrap();
+
+    server(&mut session, ":papo!p@localhost JOIN #review{");
+    assert_eq!(
+        session.state().__resolve_channel(&guard).as_deref(),
+        Some("#review{")
+    );
 }
 
 #[test]
