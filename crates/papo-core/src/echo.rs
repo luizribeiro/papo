@@ -60,7 +60,7 @@ impl Session {
         let channel_guard = conversation
             .as_ref()
             .and_then(|conversation| match conversation {
-                crate::Conversation::Channel(channel) => Some(self.state.__channel_guard(channel)),
+                crate::Conversation::Channel(channel) => Some(self.channel_guard(channel)),
                 crate::Conversation::Private(_) => None,
             });
         ReceivedLine {

@@ -632,19 +632,10 @@ impl State {
         }
     }
 
-    pub(crate) fn reserve_channel_join(&mut self, channel: &str) {
-        let key = NameKey::new(channel, self.casemapping);
-        if self.channels.contains_key(&key) {
-            return;
-        }
-        if let Some((_, count)) = self.pending_channel_epochs.get_mut(&key) {
-            *count = count.saturating_add(1);
-            return;
-        }
+    pub(crate) fn reserve_channel_epoch(&mut self) -> u64 {
         self.channel_epoch = self.channel_epoch.wrapping_add(1);
-        self.pending_channel_epochs
-            .insert(key, (self.channel_epoch, 1));
         self.mark_changed();
+        self.channel_epoch
     }
 
     pub(crate) fn cancel_channel_join(&mut self, channel: &str) {

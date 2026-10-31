@@ -1623,9 +1623,16 @@ struct UnlabelledRequest {
     id: RequestId,
     started: Option<Instant>,
     matcher: ResponseMatcher,
+    channel_join: Option<ChannelJoinReservation>,
     fence: Option<String>,
     deferred: Option<WireLine>,
     lines: bounded::BoundedCollection<Line>,
+}
+
+#[derive(Clone, Debug)]
+struct ChannelJoinReservation {
+    epoch: u64,
+    lifetime: std::sync::Arc<()>,
 }
 
 /// One channel reported by a `WHOIS` response.
@@ -4309,12 +4316,13 @@ impl Session {
             if let Some(message) = away_message {
                 self.away_messages.insert(id, message);
             }
-            self.reserve_channel_join_matcher(&matcher);
             if track_sync {
+                let channel_join = self.channel_join_reservation(&matcher);
                 self.unlabelled_requests.push_back(UnlabelledRequest {
                     id,
                     started: None,
                     matcher,
+                    channel_join,
                     fence: None,
                     deferred: None,
                     lines: bounded::BoundedCollection::new(response_row_limit),
@@ -4353,11 +4361,12 @@ impl Session {
             self.outbox.transmit_ordered(ping, Some(*request));
         }
         let deferred = who_fence.is_some().then(|| line.clone());
-        self.reserve_channel_join_matcher(&matcher);
+        let channel_join = self.channel_join_reservation(&matcher);
         self.unlabelled_requests.push_back(UnlabelledRequest {
             id,
             started: None,
             matcher,
+            channel_join,
             fence: fence.clone(),
             deferred,
             lines: bounded::BoundedCollection::new(response_row_limit),
@@ -4380,12 +4389,59 @@ impl Session {
         Ok(id)
     }
 
-    fn reserve_channel_join(&mut self, channel: &str) {
+    fn channel_join_reservation(
+        &mut self,
+        matcher: &ResponseMatcher,
+    ) -> Option<ChannelJoinReservation> {
+        let ResponseMatcher::Join(channel) = matcher else {
+            return None;
+        };
+        if self.state.channel(channel).is_some() {
+            return None;
+        }
+        if let Some(reservation) = self.unlabelled_requests.iter().find_map(|request| {
+            match (&request.matcher, &request.channel_join) {
+                (ResponseMatcher::Join(pending), Some(reservation))
+                    if names_equal(self.isupport.value().casemapping(), pending, channel) =>
+                {
+                    Some(reservation.clone())
+                }
+                _ => None,
+            }
+        }) {
+            return Some(reservation);
+        }
         let before = self.state.change_generation();
-        self.state.reserve_channel_join(channel);
+        let epoch = self.state.reserve_channel_epoch();
         if before != self.state.change_generation() {
             self.state_generation = self.state_generation.wrapping_add(1);
         }
+        Some(ChannelJoinReservation {
+            epoch,
+            lifetime: std::sync::Arc::new(()),
+        })
+    }
+
+    fn pending_channel_join(&self, channel: &str) -> Option<&ChannelJoinReservation> {
+        self.unlabelled_requests.iter().find_map(|request| {
+            let ResponseMatcher::Join(pending) = &request.matcher else {
+                return None;
+            };
+            names_equal(self.isupport.value().casemapping(), pending, channel)
+                .then_some(request.channel_join.as_ref())
+                .flatten()
+        })
+    }
+
+    fn channel_guard(&self, channel: &ChannelName) -> ChannelGuard {
+        let mut guard = self.state.__channel_guard(channel);
+        if guard.epoch.is_none()
+            && let Some(reservation) = self.pending_channel_join(channel)
+        {
+            guard.epoch = Some(reservation.epoch);
+            guard.pending_join = Some(std::sync::Arc::downgrade(&reservation.lifetime));
+        }
+        guard
     }
 
     fn cancel_channel_join(&mut self, channel: &str) {
@@ -4393,12 +4449,6 @@ impl Session {
         self.state.cancel_channel_join(channel);
         if before != self.state.change_generation() {
             self.state_generation = self.state_generation.wrapping_add(1);
-        }
-    }
-
-    fn reserve_channel_join_matcher(&mut self, matcher: &ResponseMatcher) {
-        if let ResponseMatcher::Join(channel) = matcher {
-            self.reserve_channel_join(channel);
         }
     }
 
@@ -5166,10 +5216,15 @@ impl Session {
         let typing_handled = self.report_typing(now, message, context.batch_type().is_some());
         self.stop_typing_for_message(message);
         self.handle_identity_lifecycle(message);
+        let reserved_channel_epoch = (message.command() == Command::Join)
+            .then(|| message.param(0))
+            .flatten()
+            .and_then(|channel| self.pending_channel_join(channel))
+            .map(|reservation| reservation.epoch);
         let state_handled = whoami
             || self.state.handle_message(
                 message,
-                None,
+                reserved_channel_epoch,
                 self.welcome_state.nick(),
                 self.isupport.value(),
                 self.caps.enabled(),
@@ -5796,9 +5851,14 @@ impl Session {
 
     fn apply_aggregate_state(&mut self, message: &Line) -> VecDeque<Event> {
         let event_count = self.outbox.events.len();
+        let reserved_channel_epoch = (message.as_ref().command() == Command::Join)
+            .then(|| message.as_ref().param(0))
+            .flatten()
+            .and_then(|channel| self.pending_channel_join(channel))
+            .map(|reservation| reservation.epoch);
         let handled = self.state.handle_message(
             &message.as_ref(),
-            None,
+            reserved_channel_epoch,
             self.welcome_state.nick(),
             self.isupport.value(),
             self.caps.enabled(),
@@ -6152,6 +6212,7 @@ mod tests {
                     channel: "#one".into(),
                     mode: ListMode::Ban,
                 },
+                channel_join: None,
                 fence: None,
                 deferred: None,
                 lines: crate::bounded::BoundedCollection::new(1_000),
@@ -6163,6 +6224,7 @@ mod tests {
                     channel: "#two".into(),
                     mode: ListMode::Quiet,
                 },
+                channel_join: None,
                 fence: None,
                 deferred: None,
                 lines: crate::bounded::BoundedCollection::new(1_000),
