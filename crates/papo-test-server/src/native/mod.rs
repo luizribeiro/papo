@@ -6,6 +6,7 @@ mod fault;
 mod inspircd;
 mod inspircd_config;
 mod ports;
+mod process;
 mod server;
 mod soju;
 mod soju_config;

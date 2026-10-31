@@ -2,13 +2,13 @@ use std::{
     env, io,
     net::SocketAddr,
     path::{Path, PathBuf},
-    process::{Child, Command, Stdio},
+    process::{Command, Stdio},
     time::{Duration, Instant},
 };
 
 use super::{
-    certificate, directory::TemporaryDirectory, server::TestServer as ErgoServer,
-    server::wait_until_ready_until, soju_config::Configuration,
+    certificate, directory::TemporaryDirectory, process::ServerChild,
+    server::TestServer as ErgoServer, server::wait_until_ready_until, soju_config::Configuration,
 };
 
 pub(crate) const ACCOUNT: &str = "papo-bouncer";
@@ -16,7 +16,7 @@ pub(crate) const PASSWORD: &str = "mC8r-Zq4v_N7xLp2";
 
 /// A process-owned soju bouncer connected to an isolated Ergo upstream.
 pub struct TestServer {
-    child: Child,
+    child: ServerChild,
     ergo: ErgoServer,
     directory: TemporaryDirectory,
     configuration: PathBuf,
@@ -34,16 +34,14 @@ impl TestServer {
         let directory = TemporaryDirectory::create()?;
         certificate::generate(directory.path())?;
         let config = Configuration::new(&directory)?;
-        let mut child = Command::new(required_env("SOJU_BIN")?)
-            .args(["-config", path_text(&config.path)?])
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()?;
+        let mut child = ServerChild::spawn(
+            Command::new(required_env("SOJU_BIN")?).args(["-config", path_text(&config.path)?]),
+        )?;
         wait_until_ready_until(
             "soju",
             config.endpoints,
             Instant::now() + Duration::from_secs(10),
-            || child.try_wait(),
+            || child.try_wait("soju"),
         )?;
         let upstream = format!("irc+insecure://{}", ergo.plaintext_addr());
         run_control(
@@ -132,13 +130,6 @@ fn required_env(name: &str) -> io::Result<String> {
 fn path_text(path: &Path) -> io::Result<&str> {
     path.to_str()
         .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "non-UTF-8 temporary path"))
-}
-
-impl Drop for TestServer {
-    fn drop(&mut self) {
-        let _ = self.child.kill();
-        let _ = self.child.wait();
-    }
 }
 
 #[cfg(test)]
