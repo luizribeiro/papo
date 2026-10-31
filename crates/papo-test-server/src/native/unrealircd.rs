@@ -1,12 +1,12 @@
 use std::{
     env, fs, io,
     path::{Path, PathBuf},
-    process::{Child, Command, Stdio},
+    process::Command,
     thread,
     time::{Duration, Instant},
 };
 
-use super::{atheme, certificate, directory::TemporaryDirectory};
+use super::{atheme, certificate, directory::TemporaryDirectory, process, process::ServerChild};
 
 pub(crate) struct Configuration {
     pub(crate) plaintext: std::net::SocketAddr,
@@ -108,7 +108,7 @@ files {{ pidfile "{pid}"; tunefile "{tune}"; }}
 #[doc(hidden)]
 /// An UnrealIRCd process linked to Atheme for the target runner.
 pub struct TestServer {
-    children: Vec<Child>,
+    children: Vec<ServerChild>,
     directory: TemporaryDirectory,
     config: Configuration,
 }
@@ -120,12 +120,7 @@ impl TestServer {
     ///
     /// Returns an error when configuration, process startup, or readiness fails.
     pub fn start() -> io::Result<Self> {
-        for _ in 0..4 {
-            if let Ok(server) = Self::start_once() {
-                return Ok(server);
-            }
-        }
-        Self::start_once()
+        process::retry_start(Self::start_once)
     }
 
     fn start_once() -> io::Result<Self> {
@@ -136,20 +131,15 @@ impl TestServer {
             &required_env("UNREALIRCD_CONFIG")?,
             &required_env("ATHEME_MODULES")?,
         )?;
-        let unreal = Configuration::command("UNREALIRCD_BIN", &directory)?
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()?;
+        let unreal =
+            ServerChild::spawn(&mut Configuration::command("UNREALIRCD_BIN", &directory)?)?;
         let mut server = Self {
             children: vec![unreal],
             directory,
             config,
         };
         server.wait_for(false)?;
-        let atheme = atheme::command(&server.directory)?
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()?;
+        let atheme = ServerChild::spawn(&mut atheme::command(&server.directory)?)?;
         server.children.push(atheme);
         server.wait_for(true)?;
         Ok(server)
@@ -164,37 +154,22 @@ impl TestServer {
                 self.config.websocket,
                 self.config.secure_websocket,
             ];
-            return super::server::wait_until_ready_until(
+            return super::server::wait_for_child_until(
                 "UnrealIRCd",
                 endpoints,
                 deadline,
-                || {
-                    for child in &mut self.children {
-                        if let Some(status) = child.try_wait()? {
-                            return Ok(Some(status));
-                        }
-                    }
-                    Ok(None)
-                },
+                &mut self.children[0],
             );
         }
         while Instant::now() < deadline {
-            for child in &mut self.children {
-                if let Some(status) = child.try_wait()? {
-                    return Err(io::Error::other(format!(
-                        "test server exited with {status}"
-                    )));
-                }
-            }
+            self.children[0].check("UnrealIRCd")?;
+            self.children[1].check("Atheme")?;
             if self.services_linked() {
                 return Ok(());
             }
             thread::sleep(Duration::from_millis(20));
         }
-        Err(io::Error::new(
-            io::ErrorKind::TimedOut,
-            "test server did not start",
-        ))
+        Err(self.children[1].timeout("Atheme"))
     }
 
     fn services_linked(&self) -> bool {
@@ -228,8 +203,7 @@ impl TestServer {
 impl Drop for TestServer {
     fn drop(&mut self) {
         for child in self.children.iter_mut().rev() {
-            let _ = child.kill();
-            let _ = child.wait();
+            let _ = child.stop();
         }
     }
 }
