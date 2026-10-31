@@ -760,6 +760,20 @@ mod tests {
     }
 
     #[test]
+    fn sts_tls_handshake_failures_are_distinct_from_connection_failures() {
+        let handshake = ConnectError::new(
+            ConnectErrorKind::HandshakeFailed,
+            io::Error::other("TLS handshake failed"),
+        );
+        assert!(handshake.is_sts_tls_failure());
+        let refused = ConnectError::new(
+            ConnectErrorKind::Refused,
+            io::Error::new(io::ErrorKind::ConnectionRefused, "connection refused"),
+        );
+        assert!(!refused.is_sts_tls_failure());
+    }
+
+    #[test]
     fn hostile_terminal_numeric_reasons_strip_control_strings() {
         for (numeric, kind, reason, expected) in [
             (
