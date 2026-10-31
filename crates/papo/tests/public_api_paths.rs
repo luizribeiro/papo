@@ -158,7 +158,7 @@ fn wire_address_exposures(snapshot: &str) -> Vec<&str> {
 }
 
 fn internal_type_paths(snapshot: &str) -> Vec<&str> {
-    snapshot
+    facade_items(snapshot)
         .lines()
         .flat_map(|line| {
             line.split(|character: char| {
@@ -379,6 +379,16 @@ fn internal_path_check_finds_core_and_proto_paths() {
     assert_eq!(
         internal_types_without_reexports(snapshot),
         ["papo_core::State", "papo_proto::Line"]
+    );
+}
+
+#[test]
+fn internal_path_check_ignores_dependency_trait_impls_on_reexports() {
+    let snapshot = "pub use papo::Nick\n# re-exported type surfaces\n\
+                    impl papo_proto::AsNick for papo::Nick\n";
+    assert_eq!(
+        internal_types_without_reexports(snapshot),
+        Vec::<&str>::new()
     );
 }
 
