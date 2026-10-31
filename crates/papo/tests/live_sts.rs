@@ -77,7 +77,7 @@ async fn sts_tls_handshake_failure_stops_reconnection() {
             }
         });
 
-        let error = Client::builder(
+        let (_client, _events, driver) = Client::builder(
             Endpoint::plaintext("127.0.0.1", plaintext_port).unwrap(),
             "papo-sts-failure",
         )
@@ -87,9 +87,8 @@ async fn sts_tls_handshake_failure_stops_reconnection() {
                 .max_delay(Duration::ZERO)
                 .max_attempts(4),
         )
-        .connect()
-        .await
-        .unwrap_err();
+        .build();
+        let error = driver.await.unwrap_err();
 
         assert!(matches!(
             error,
