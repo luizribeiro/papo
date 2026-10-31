@@ -304,8 +304,10 @@ mod tests {
     };
 
     use super::{
-        Configuration, TestServer, answers_irc, classify_bind_collision, wait_until_ready_with,
+        Configuration, TestServer, answers_irc, classify_bind_collision, wait_for_child_until,
+        wait_until_ready_with,
     };
+    use crate::native::process::ServerChild;
 
     #[test]
     fn only_an_occupied_listener_reclassifies_a_child_exit() {
@@ -386,6 +388,26 @@ mod tests {
 
         assert_eq!(error.kind(), io::ErrorKind::TimedOut);
         assert_eq!(error.to_string(), "server did not start");
+    }
+
+    #[test]
+    fn readiness_timeout_uses_the_child_diagnostic() {
+        let listener = TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let address = listener.local_addr().unwrap();
+        drop(listener);
+        let mut child =
+            ServerChild::spawn(std::process::Command::new("sh").args(["-c", "sleep 60"])).unwrap();
+
+        let error = wait_for_child_until(
+            "InspIRCd",
+            [address],
+            Instant::now().checked_sub(Duration::from_secs(1)).unwrap(),
+            &mut child,
+        )
+        .unwrap_err();
+
+        assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+        assert_eq!(error.to_string(), "InspIRCd did not start");
     }
 
     #[test]

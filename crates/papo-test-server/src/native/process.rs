@@ -167,9 +167,49 @@ impl Tail {
 
 #[cfg(test)]
 mod tests {
-    use std::io;
+    use std::{io, process::Command};
 
-    use super::{Failure, STDERR_LIMIT, Tail, retry_start};
+    use super::{Failure, STDERR_LIMIT, ServerChild, Tail, retry_start};
+
+    #[test]
+    fn child_id_matches_the_spawned_process() {
+        let mut child = ServerChild::spawn(Command::new("sh").args(["-c", "exit 0"])).unwrap();
+
+        assert_eq!(child.id(), child.child.id());
+        child.child.wait().unwrap();
+    }
+
+    #[test]
+    fn exited_child_reports_its_final_stderr_line() {
+        let mut child = ServerChild::spawn(Command::new("sh").args([
+            "-c",
+            "printf 'loading ircd.yaml\\nlisten: address already in use\\n' >&2",
+        ]))
+        .unwrap();
+        child.child.wait().unwrap();
+
+        let error = child.try_wait("Ergo").unwrap_err();
+
+        assert!(child.reader.is_none());
+        assert!(
+            error
+                .to_string()
+                .ends_with("listen: address already in use")
+        );
+    }
+
+    #[test]
+    fn failure_debug_shows_the_cause_and_stderr() {
+        let failure = Failure::new(
+            "Solanum exited with exit status: 1".into(),
+            "ERROR: binding listener: Address already in use".into(),
+        );
+
+        assert_eq!(
+            format!("{failure:?}"),
+            "Solanum exited with exit status: 1: ERROR: binding listener: Address already in use"
+        );
+    }
 
     #[test]
     fn retries_an_address_in_use_startup_exit() {
@@ -207,6 +247,28 @@ mod tests {
             error
                 .to_string()
                 .contains("unknown configuration directive")
+        );
+    }
+
+    #[test]
+    fn exhausts_address_in_use_retries_with_the_last_diagnostic() {
+        let mut attempts = 0;
+        let error = retry_start::<()>(|| {
+            attempts += 1;
+            Err(io::Error::other(Failure::new(
+                "soju exited with exit status: 1".into(),
+                format!(
+                    "listen tcp 127.0.0.1:{}: bind: address already in use",
+                    43820 + attempts
+                ),
+            )))
+        })
+        .unwrap_err();
+
+        assert_eq!(attempts, 3);
+        assert_eq!(
+            error.to_string(),
+            "soju exited with exit status: 1: listen tcp 127.0.0.1:43823: bind: address already in use"
         );
     }
 
