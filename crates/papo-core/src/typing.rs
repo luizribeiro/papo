@@ -373,11 +373,11 @@ impl TypingTable {
         let table = Arc::make_mut(table);
         for (conversation, typer) in &mut table.entries {
             *conversation = refold_conversation(conversation, mapping);
-            typer.nick = mapping.nick(typer.nick.as_ref());
+            typer.nick = mapping.nick(typer.nick.as_str());
         }
         for deadline in &mut table.deadlines {
             deadline.conversation = refold_conversation(&deadline.conversation, mapping);
-            deadline.nick = mapping.nick(deadline.nick.as_ref());
+            deadline.nick = mapping.nick(deadline.nick.as_str());
         }
         table.deduplicate();
     }
@@ -409,7 +409,7 @@ fn rename_conversation(conversation: &mut Conversation, old: &ChannelName, new: 
 }
 
 fn rename_address(address: &mut String, old: &ChannelName, new: &ChannelName) {
-    let Some(prefix) = address.strip_suffix(old.as_ref()) else {
+    let Some(prefix) = address.strip_suffix(old.as_str()) else {
         return;
     };
     *address = format!("{prefix}{new}");
@@ -613,8 +613,8 @@ impl Session {
 
 fn refold_conversation(conversation: &Conversation, mapping: crate::Names) -> Conversation {
     match conversation {
-        Conversation::Channel(channel) => Conversation::Channel(mapping.channel(channel.as_ref())),
-        Conversation::Private(nick) => Conversation::Private(mapping.nick(nick.as_ref())),
+        Conversation::Channel(channel) => Conversation::Channel(mapping.channel(channel.as_str())),
+        Conversation::Private(nick) => Conversation::Private(mapping.nick(nick.as_str())),
     }
 }
 

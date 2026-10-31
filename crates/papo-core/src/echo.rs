@@ -47,7 +47,7 @@ impl Session {
         let reply_token = conversation.as_ref().map_or_else(
             || self.state.__reply_token(),
             |conversation| match conversation {
-                crate::Conversation::Private(nick) => self.state.__reply_token_for(nick),
+                crate::Conversation::Private(nick) => self.state.__reply_token_for(nick.as_str()),
                 crate::Conversation::Channel(_) => {
                     if let Some(papo_proto::Source::User { nick, .. }) = line.as_ref().source() {
                         self.state.__reply_token_for(nick)

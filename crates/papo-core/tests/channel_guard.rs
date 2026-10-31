@@ -33,7 +33,11 @@ fn pending_join_guard(session: &mut Session, now: Instant) -> (RequestId, Channe
     assert!(session.poll_transmit().is_some());
     let guard = received_channel_guard(session, "#review", "Ergo8ZZ5");
     assert_eq!(
-        session.state().__resolve_channel(&guard).as_deref(),
+        session
+            .state()
+            .__resolve_channel(&guard)
+            .as_ref()
+            .map(papo_proto::ChannelName::as_str),
         Some("#review")
     );
     (id, guard)
@@ -97,13 +101,21 @@ fn channel_message_during_join_keeps_the_reserved_membership() {
         })
         .unwrap();
     assert_eq!(
-        session.state().__resolve_channel(&guard).as_deref(),
+        session
+            .state()
+            .__resolve_channel(&guard)
+            .as_ref()
+            .map(papo_proto::ChannelName::as_str),
         Some("#review")
     );
 
     server(&mut session, ":papo!p@localhost JOIN #review");
     assert_eq!(
-        session.state().__resolve_channel(&guard).as_deref(),
+        session
+            .state()
+            .__resolve_channel(&guard)
+            .as_ref()
+            .map(papo_proto::ChannelName::as_str),
         Some("#review")
     );
     session
@@ -276,7 +288,11 @@ fn pending_join_follows_a_casemapping_change() {
 
     server(&mut session, ":papo!p@localhost JOIN #review{");
     assert_eq!(
-        session.state().__resolve_channel(&guard).as_deref(),
+        session
+            .state()
+            .__resolve_channel(&guard)
+            .as_ref()
+            .map(papo_proto::ChannelName::as_str),
         Some("#review{")
     );
 }
@@ -301,7 +317,11 @@ fn duplicate_pending_joins_share_only_their_channel_reservation() {
     let guard = received_channel_guard(&mut session, "#review", "Ergo91C3");
     session.__cancel_request(first);
     assert_eq!(
-        session.state().__resolve_channel(&guard).as_deref(),
+        session
+            .state()
+            .__resolve_channel(&guard)
+            .as_ref()
+            .map(papo_proto::ChannelName::as_str),
         Some("#review")
     );
     session.__cancel_request(duplicate);
@@ -328,7 +348,11 @@ fn completed_rejoin_invalidates_the_previous_pending_guard() {
         server(&mut session, line);
     }
     assert_eq!(
-        session.state().__resolve_channel(&guard).as_deref(),
+        session
+            .state()
+            .__resolve_channel(&guard)
+            .as_ref()
+            .map(papo_proto::ChannelName::as_str),
         Some("#review")
     );
     server(
@@ -367,7 +391,11 @@ fn netjoin_transfers_the_pending_epoch_into_membership() {
     }
 
     assert_eq!(
-        session.state().__resolve_channel(&guard).as_deref(),
+        session
+            .state()
+            .__resolve_channel(&guard)
+            .as_ref()
+            .map(papo_proto::ChannelName::as_str),
         Some("#review")
     );
 }
@@ -407,7 +435,11 @@ fn membership_guard_follows_rename_and_expires_on_part() {
         ":alice!~alice@cloak.example RENAME #review #release :Review completed",
     );
     assert_eq!(
-        session.state().__resolve_channel(&guard).as_deref(),
+        session
+            .state()
+            .__resolve_channel(&guard)
+            .as_ref()
+            .map(papo_proto::ChannelName::as_str),
         Some("#release")
     );
     assert_eq!(
@@ -467,7 +499,11 @@ fn creation_time_proves_a_channel_across_membership_epochs() {
     server(&mut session, ":papo!p@localhost JOIN #review");
     server(&mut session, ":ergo.test 329 papo #review 1793098800");
     assert_eq!(
-        session.state().__resolve_channel(&guard).as_deref(),
+        session
+            .state()
+            .__resolve_channel(&guard)
+            .as_ref()
+            .map(papo_proto::ChannelName::as_str),
         Some("#review")
     );
 

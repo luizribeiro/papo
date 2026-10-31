@@ -56,7 +56,7 @@ fn notifications_update_state_in_start_order_without_refresh_churn() {
     let conversation = conversation(&session, "#papo");
     let typers: Vec<_> = session.state().typing(&conversation).collect();
     assert_eq!(typers.len(), 2);
-    assert_eq!(typers[0].nick().as_ref(), "alice");
+    assert_eq!(typers[0].nick().as_str(), "alice");
     assert!(!typers[0].is_paused());
     assert_eq!(typers[1].nick(), "bob");
 

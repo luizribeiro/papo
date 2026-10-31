@@ -25,7 +25,8 @@ impl TextKind {
 pub(super) fn text_budget(state: &State, kind: TextKind, target: &str) -> usize {
     // Reserve the longest plausible IRC hostname until the server reveals the visible host.
     let host_len = state.host().map_or(UNKNOWN_HOST_LEN, str::len);
-    let source_len = 1 + state.nick().len() + 1 + state.username().len() + 1 + host_len + 1;
+    let source_len =
+        1 + state.nick().as_str().len() + 1 + state.username().len() + 1 + host_len + 1;
     let message_len = kind.command().len() + 1 + target.len() + 2;
     512usize.saturating_sub(source_len + message_len + 2)
 }

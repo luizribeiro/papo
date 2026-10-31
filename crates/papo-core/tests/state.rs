@@ -660,7 +660,7 @@ fn wire_names_capture_the_advertised_ascii_casemapping() {
                 panic!("extended join should report the account");
             };
 
-            assert_eq!(channel.name().as_ref(), "#Papo[dev]");
+            assert_eq!(channel.name().as_str(), "#Papo[dev]");
             assert_eq!(channel.name().casemapping(), Casemapping::Ascii);
             assert_eq!(
                 channel.member("emily[bot]").unwrap().nick().casemapping(),

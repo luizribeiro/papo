@@ -315,8 +315,8 @@ pub enum Conversation {
 impl Conversation {
     fn as_str(&self) -> &str {
         match self {
-            Self::Channel(channel) => channel,
-            Self::Private(nick) => nick,
+            Self::Channel(channel) => channel.as_str(),
+            Self::Private(nick) => nick.as_str(),
         }
     }
 }
@@ -550,7 +550,7 @@ impl CtcpReplies {
 pub fn __ctcp_reply(actor: &Source, command: &str, text: &str) -> Option<Line> {
     let nick = actor.nick()?;
     let body = Ctcp::build(command, (!text.is_empty()).then_some(text))?;
-    Some(Line::notice(nick.as_ref(), body))
+    Some(Line::notice(nick.as_str(), body))
 }
 
 /// Connection state captured when a session becomes ready for use.
@@ -1415,7 +1415,7 @@ impl ResponseMatcher {
             _ => None,
         };
         let own_source = matches!(message.source(), Some(ProtoSource::User { nick, .. }) if names_equal(mapping, nick, own_nick));
-        let current_own_source = matches!(message.source(), Some(ProtoSource::User { nick, .. }) if names_equal(mapping, nick, state.nick()));
+        let current_own_source = matches!(message.source(), Some(ProtoSource::User { nick, .. }) if names_equal(mapping, nick, state.nick().as_str()));
         match self {
             Self::Whois(nick) => {
                 if Self::standard_failure(message, "WHOIS")
@@ -3052,7 +3052,7 @@ impl RecipientGuard {
     #[doc(hidden)]
     #[must_use]
     pub fn __new(state: &State, nick: Nick, account: Account) -> Self {
-        let token = state.__reply_token_for(&nick);
+        let token = state.__reply_token_for(nick.as_str());
         Self {
             nick,
             account,
@@ -4501,7 +4501,7 @@ impl Session {
     fn channel_guard(&self, channel: &ChannelName) -> ChannelGuard {
         let mut guard = self.state.__channel_guard(channel);
         if guard.epoch.is_none()
-            && let Some(reservation) = self.pending_channel_join(channel)
+            && let Some(reservation) = self.pending_channel_join(channel.as_str())
         {
             guard.epoch = Some(reservation.epoch);
             guard.pending_join = Some(std::sync::Arc::downgrade(&reservation.lifetime));
@@ -4648,7 +4648,7 @@ impl Session {
         let nick = recipient.__nick();
         let recipient = RecipientGuard::__new(&self.state, nick.clone(), account);
         self.monitor
-            .refresh_direct_identity(nick, recipient.__token());
+            .refresh_direct_identity(nick.as_str(), recipient.__token());
         Some(recipient)
     }
 
@@ -4765,7 +4765,7 @@ impl Session {
                     return None;
                 };
                 (current != *channel.__channel())
-                    .then(|| (Some(channel.__channel().as_ref()), current.to_string()))
+                    .then(|| (Some(channel.__channel().as_str()), current.to_string()))
             }
             None => None,
         };
@@ -4983,7 +4983,7 @@ impl Session {
     #[must_use]
     pub fn account(&self) -> Option<&str> {
         match self.state.account() {
-            Account::LoggedIn(account) => Some(account.as_ref()),
+            Account::LoggedIn(account) => Some(account.as_str()),
             Account::Unknown | Account::LoggedOut => None,
         }
     }
@@ -5297,7 +5297,7 @@ impl Session {
             now,
             message,
             self.welcome_state.is_connected(),
-            self.state.nick(),
+            self.state.nick().as_str(),
             &self.config,
             self.isupport.value(),
             &self.monitor,
@@ -5368,9 +5368,9 @@ impl Session {
             self.outbox.event(Event::Line(received));
         }
         if message.command() == Command::Nick
-            && self.welcome_state.nick() != self.state.nick().as_ref()
+            && self.welcome_state.nick() != self.state.nick().as_str()
         {
-            self.welcome_state.update_nick(self.state.nick());
+            self.welcome_state.update_nick(self.state.nick().as_str());
         }
         self.apply_close_request();
         self.report_feature_changes(before_features);

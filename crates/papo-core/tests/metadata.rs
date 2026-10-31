@@ -16,8 +16,8 @@ fn key(value: &str) -> MetadataKey {
 
 fn subject_name(subject: &Subject) -> &str {
     match subject {
-        Subject::Channel(channel) => channel,
-        Subject::User(nick) => nick,
+        Subject::Channel(channel) => channel.as_str(),
+        Subject::User(nick) => nick.as_str(),
         _ => panic!("unexpected subject"),
     }
 }

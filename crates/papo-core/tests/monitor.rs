@@ -80,7 +80,7 @@ fn guarded_direct_monitor_follows_rename_and_releases_its_watch() {
                 session
                     .state()
                     .monitored()
-                    .map(AsRef::as_ref)
+                    .map(Nick::as_str)
                     .collect::<Vec<_>>(),
                 ["alice"]
             );
@@ -153,7 +153,7 @@ fn invalid_nicks_are_never_sent_or_stored() {
                 session
                     .state()
                     .monitored()
-                    .map(Nick::as_ref)
+                    .map(Nick::as_str)
                     .collect::<Vec<_>>(),
                 ["alice"]
             );
@@ -184,7 +184,7 @@ fn unsolicited_presence_is_ignored_for_undesired_nicks() {
                 session
                     .state()
                     .monitor_online()
-                    .map(|user| user.nick().as_ref())
+                    .map(|user| user.nick().as_str())
                     .collect::<Vec<_>>(),
                 ["alice"]
             );
@@ -216,7 +216,7 @@ fn desired_nicks_keep_insertion_order_after_add_and_remove() {
                 session
                     .state()
                     .monitored()
-                    .map(Nick::as_ref)
+                    .map(Nick::as_str)
                     .collect::<Vec<_>>(),
                 ["alice", "carol", "dave"]
             );
@@ -407,7 +407,7 @@ fn tracks_online_offline_and_list_full_replies() {
             let mut online: Vec<_> = session
                 .state()
                 .monitor_online()
-                .map(|user| (user.nick().as_ref(), user.username(), user.host()))
+                .map(|user| (user.nick().as_str(), user.username(), user.host()))
                 .collect();
             online.sort_unstable();
             assert_eq!(
@@ -451,7 +451,7 @@ fn list_full_forgets_only_the_rejected_presence() {
                 session
                     .state()
                     .monitor_online()
-                    .map(|user| user.nick().as_ref())
+                    .map(|user| user.nick().as_str())
                     .collect::<Vec<_>>(),
                 ["bob"]
             );
@@ -725,7 +725,10 @@ fn monitor_offline_retains_a_shared_user() {
         .inspect(|session| {
             let alice = session.state().user("alice").unwrap();
             assert_eq!(
-                alice.channels().map(AsRef::as_ref).collect::<Vec<_>>(),
+                alice
+                    .channels()
+                    .map(papo_proto::ChannelName::as_str)
+                    .collect::<Vec<_>>(),
                 ["#papo"]
             );
             assert_eq!(session.state().monitor_online().count(), 0);
