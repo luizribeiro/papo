@@ -24,15 +24,15 @@ async fn multiline_dm_after_nick_change(s: Scenario) -> papo_testing::Result<()>
     alice.join(&channel).await?;
     bob.join(&channel).await?;
 
-    let bob_direct = alice.direct(old_nick.as_ref()).await?;
+    let bob_direct = alice.direct(old_nick.as_str()).await?;
     alice.privmsg(&bob_direct, text).await?;
     bob.set_nick(&new_nick).await?;
     let message = bob.wait_for(|event| message_text(event, text)).await?;
     assert_eq!(
         conversation_name(message.conversation()),
-        Some(alice.nick().as_ref())
+        Some(alice.nick().as_str())
     );
-    assert_eq!(message.return_address(), alice.nick().as_ref());
+    assert_eq!(message.return_address(), alice.nick().as_str());
 
     bob.reply(&message, "release approved").await?;
     let reply = alice
@@ -65,11 +65,11 @@ async fn stale_dm_history_target(s: Scenario) -> papo_testing::Result<()> {
     writer.join(&channel).await?;
     join_seen_by(&reader, &mut writer, &channel).await?;
 
-    let reader_direct = writer.direct(old_nick.as_ref()).await?;
+    let reader_direct = writer.direct(old_nick.as_str()).await?;
     writer.privmsg(&reader_direct, text).await?;
     reader.set_nick(&new_nick).await?;
     let page = reader
-        .history(writer.nick().as_ref())
+        .history(writer.nick().as_str())
         .latest()
         .limit(10)
         .await?;
@@ -79,9 +79,9 @@ async fn stale_dm_history_target(s: Scenario) -> papo_testing::Result<()> {
         .expect("direct-message history contains the stored message");
     assert_eq!(
         conversation_name(message.conversation()),
-        Some(writer.nick().as_ref())
+        Some(writer.nick().as_str())
     );
-    assert_eq!(message.return_address(), writer.nick().as_ref());
+    assert_eq!(message.return_address(), writer.nick().as_str());
 
     reader.reply(message, "the report is attached").await?;
     Ok(())

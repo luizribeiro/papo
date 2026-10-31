@@ -23,7 +23,7 @@ async fn private_reply_after_nick_takeover(s: Scenario) -> papo_testing::Result<
     alice.join(&channel).await?;
     mallory.join(&channel).await?;
 
-    let bot_direct = alice.direct(bot.nick().as_ref()).await?;
+    let bot_direct = alice.direct(bot.nick().as_str()).await?;
     alice.privmsg(&bot_direct, "control request").await?;
     let control = bot
         .wait_for(|event| message_text(event, "control request"))
@@ -42,13 +42,13 @@ async fn private_reply_after_nick_takeover(s: Scenario) -> papo_testing::Result<
     bot.wait_for(|event| {
         event
             .as_quit()
-            .filter(|quit| quit.actor.nick() == alice_nick.as_ref())
+            .filter(|quit| quit.actor.nick() == alice_nick.as_str())
     })
     .await?;
-    mallory.set_nick(alice_nick.as_ref()).await?;
+    mallory.set_nick(alice_nick.as_str()).await?;
     bot.wait_for(|event| {
         event.as_nick_changed().filter(|changed| {
-            changed.actor.nick() == mallory_nick.as_ref() && changed.new == alice_nick.as_ref()
+            changed.actor.nick() == mallory_nick.as_str() && changed.new == alice_nick.as_str()
         })
     })
     .await?;
@@ -102,7 +102,7 @@ async fn broadcast_is_a_server_notice(s: Scenario) -> papo_testing::Result<()> {
     ));
     assert_eq!(
         crate::source_nick(&broadcast.actor),
-        Some(oper.nick().as_ref())
+        Some(oper.nick().as_str())
     );
     Ok(())
 }

@@ -76,7 +76,7 @@ async fn multidevice_away_shared_state(s: Scenario) -> papo_testing::Result<()> 
         .wait_for(|event| {
             event
                 .as_joined()
-                .filter(|joined| joined.actor.nick().as_ref() == observer.nick().as_ref())
+                .filter(|joined| joined.actor.nick().as_str() == observer.nick().as_str())
         })
         .await?;
 
@@ -89,7 +89,7 @@ async fn multidevice_away_shared_state(s: Scenario) -> papo_testing::Result<()> 
         observer.expect_none(Event::as_away_changed).await?;
         assert_eq!(phone.state().away(), &Away::Present);
         assert_eq!(
-            observer.state().user(nick.as_ref()).unwrap().away(),
+            observer.state().user(nick.as_str()).unwrap().away(),
             &Away::Present
         );
         return Ok(());
@@ -98,14 +98,14 @@ async fn multidevice_away_shared_state(s: Scenario) -> papo_testing::Result<()> 
         .wait_for(|event| {
             event
                 .as_away_changed()
-                .filter(|changed| changed.actor.nick() == nick.as_ref())
+                .filter(|changed| changed.actor.nick() == nick.as_str())
         })
         .await?;
     let visible = observer
         .wait_for(|event| {
             event
                 .as_away_changed()
-                .filter(|changed| changed.actor.nick() == nick.as_ref())
+                .filter(|changed| changed.actor.nick() == nick.as_str())
         })
         .await?;
     assert_eq!(sibling.new, away);
@@ -113,7 +113,7 @@ async fn multidevice_away_shared_state(s: Scenario) -> papo_testing::Result<()> 
     assert_eq!(sibling.authorship, Authorship::Own);
     assert_eq!(visible.authorship, Authorship::Other);
     assert_eq!(phone.state().away(), &away);
-    assert_eq!(observer.state().user(nick.as_ref()).unwrap().away(), &away);
+    assert_eq!(observer.state().user(nick.as_str()).unwrap().away(), &away);
     phone.expect_none(Event::as_away_changed).await?;
     observer.expect_none(Event::as_away_changed).await?;
     Ok(())
@@ -290,13 +290,13 @@ async fn multidevice_nick_shared_state(s: Scenario) -> papo_testing::Result<()> 
     phone.expect_none(Event::as_nick_changed).await?;
     tablet.expect_none(Event::as_nick_changed).await?;
     for peer in [&desktop, &phone, &tablet] {
-        assert_eq!(peer.state().nick(), old.as_ref());
+        assert_eq!(peer.state().nick(), old.as_str());
         let members = peer.state();
         assert!(
             members
                 .channel(&channel)
                 .expect("joined channel remains in state")
-                .member(old.as_ref())
+                .member(old.as_str())
                 .is_some()
         );
         assert!(members.channel(&channel).unwrap().member(&new).is_none());
@@ -319,7 +319,7 @@ async fn multidevice_ctcp_session_replies(s: Scenario) -> papo_testing::Result<(
     let nick = desktop.nick();
 
     sender
-        .send_raw(papo::Line::new("PRIVMSG").with_params([nick.as_ref(), "\u{1}VERSION\u{1}"]))
+        .send_raw(papo::Line::new("PRIVMSG").with_params([nick.as_str(), "\u{1}VERSION\u{1}"]))
         .await?;
     for peer in [&mut desktop, &mut phone, &mut tablet] {
         let query = peer
@@ -329,13 +329,13 @@ async fn multidevice_ctcp_session_replies(s: Scenario) -> papo_testing::Result<(
                     .filter(|query| query.command == "VERSION")
             })
             .await?;
-        assert_eq!(query.return_address(), sender.nick().as_ref());
+        assert_eq!(query.return_address(), sender.nick().as_str());
     }
     for _ in 0..3 {
         let reply = sender
             .wait_for(|event| {
                 event.as_ctcp_reply().filter(|reply| {
-                    reply.command == "VERSION" && reply.actor.nick().as_ref() == nick.as_ref()
+                    reply.command == "VERSION" && reply.actor.nick().as_str() == nick.as_str()
                 })
             })
             .await?;
@@ -428,7 +428,7 @@ async fn multidevice_typing_own_state(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(typing.authorship, papo::Authorship::Own);
     assert_eq!(
         crate::source_nick(&typing.actor),
-        Some(desktop.nick().as_ref())
+        Some(desktop.nick().as_str())
     );
     assert_eq!(typing.state, papo::Typing::Active);
     assert_eq!(
@@ -439,7 +439,7 @@ async fn multidevice_typing_own_state(s: Scenario) -> papo_testing::Result<()> {
         phone
             .state()
             .typing(&typing.conversation)
-            .filter(|typer| typer.nick() == desktop.nick().as_ref())
+            .filter(|typer| typer.nick() == desktop.nick().as_str())
             .count(),
         0
     );
@@ -470,7 +470,7 @@ async fn multidevice_dm_fanout_thread(s: Scenario) -> papo_testing::Result<()> {
     wait_for_channel(&mut phone, &channel).await?;
     wait_for_channel(&mut tablet, &channel).await?;
 
-    let desktop_direct = sender.direct(desktop.nick().as_ref()).await?;
+    let desktop_direct = sender.direct(desktop.nick().as_str()).await?;
     let sent = sender.privmsg(&desktop_direct, text).await?;
     let on_desktop = desktop.wait_for(|event| chat_text(event, text)).await?;
     let on_phone = phone.wait_for(|event| chat_text(event, text)).await?;
@@ -482,9 +482,9 @@ async fn multidevice_dm_fanout_thread(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(message.authorship, papo::Authorship::Other);
         assert_eq!(
             conversation_name(message.conversation()),
-            Some(sender.nick().as_ref())
+            Some(sender.nick().as_str())
         );
-        assert_eq!(message.return_address(), sender.nick().as_ref());
+        assert_eq!(message.return_address(), sender.nick().as_str());
     }
     for peer in [&mut desktop, &mut phone, &mut tablet] {
         peer.expect_none(|event| chat_text(event, text)).await?;
@@ -498,14 +498,14 @@ async fn multidevice_dm_fanout_thread(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(sibling_reply.in_reply_to.as_ref(), Some(id));
     assert_eq!(
         conversation_name(sibling_reply.conversation()),
-        Some(sender.nick().as_ref())
+        Some(sender.nick().as_str())
     );
-    assert_eq!(sibling_reply.return_address(), sender.nick().as_ref());
+    assert_eq!(sibling_reply.return_address(), sender.nick().as_str());
     let received_reply = sender
         .wait_for(|event| chat_text(event, "reviewed from the phone"))
         .await?;
     assert_eq!(received_reply.in_reply_to.as_ref(), Some(id));
-    assert_eq!(received_reply.return_address(), desktop.nick().as_ref());
+    assert_eq!(received_reply.return_address(), desktop.nick().as_str());
     desktop
         .expect_none(|event| chat_text(event, "reviewed from the phone"))
         .await?;

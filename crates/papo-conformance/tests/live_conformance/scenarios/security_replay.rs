@@ -22,7 +22,7 @@ async fn reconnect_follows_channel_rename(s: Scenario) -> papo_testing::Result<(
     alice
         .wait_for(|event| {
             event.as_joined().filter(|joined| {
-                joined.channel.as_ref() == old && joined.authorship == papo::Authorship::Own
+                joined.channel.as_str() == old && joined.authorship == papo::Authorship::Own
             })
         })
         .await?;
@@ -37,11 +37,11 @@ async fn reconnect_follows_channel_rename(s: Scenario) -> papo_testing::Result<(
     let joined = alice
         .wait_for(|event| {
             event.as_joined().filter(|joined| {
-                joined.authorship == papo::Authorship::Own && joined.channel.as_ref() == renamed
+                joined.authorship == papo::Authorship::Own && joined.channel.as_str() == renamed
             })
         })
         .await?;
-    assert_eq!(joined.channel.as_ref(), renamed);
+    assert_eq!(joined.channel.as_str(), renamed);
     assert!(alice.state().channel(&old).is_none());
     assert!(alice.state().channel(&renamed).is_some());
     Ok(())
@@ -79,7 +79,7 @@ async fn parted_rejoin_is_not_restored(s: Scenario) -> papo_testing::Result<()> 
     alice
         .wait_for(|event| {
             event.as_parted().filter(|parted| {
-                parted.authorship == papo::Authorship::Own && parted.channel.as_ref() == channel
+                parted.authorship == papo::Authorship::Own && parted.channel.as_str() == channel
             })
         })
         .await?;
@@ -91,7 +91,7 @@ async fn parted_rejoin_is_not_restored(s: Scenario) -> papo_testing::Result<()> 
     alice
         .expect_none(|event| {
             event.as_joined().filter(|joined| {
-                joined.authorship == papo::Authorship::Own && joined.channel.as_ref() == channel
+                joined.authorship == papo::Authorship::Own && joined.channel.as_str() == channel
             })
         })
         .await?;
@@ -181,12 +181,12 @@ async fn wildcard_who_stays_separate_from_channel_who(s: Scenario) -> papo_testi
     assert!(
         wildcard
             .iter()
-            .any(|entry| entry.nick == alice_nick.as_ref())
+            .any(|entry| entry.nick == alice_nick.as_str())
     );
     assert!(
         channel_rows
             .iter()
-            .any(|entry| entry.nick == alice_nick.as_ref()),
+            .any(|entry| entry.nick == alice_nick.as_str()),
         "wildcard WHO rows: {wildcard:?}; channel WHO rows: {channel_rows:?}"
     );
     Ok(())
@@ -252,7 +252,7 @@ async fn early_account_creation_reserves_its_request_id(_s: Scenario) -> papo_te
         .await;
     wire.server(":offline.test 318 papo-wire alice :End of /WHOIS list")
         .await;
-    assert_eq!(whois.await?.nick.as_ref(), "alice");
+    assert_eq!(whois.await?.nick.as_str(), "alice");
     Ok(())
 }
 
@@ -272,7 +272,7 @@ async fn ctcp_playback_has_no_automatic_reply(s: Scenario) -> papo_testing::Resu
     let bob_nick = bob.nick();
 
     alice
-        .send_raw(papo::Line::privmsg(bob_nick.as_ref(), "\u{1}VERSION\u{1}"))
+        .send_raw(papo::Line::privmsg(bob_nick.as_str(), "\u{1}VERSION\u{1}"))
         .await?;
     alice.ping().await?;
     bob.wait_for(|event| {
@@ -290,14 +290,14 @@ async fn ctcp_playback_has_no_automatic_reply(s: Scenario) -> papo_testing::Resu
         )
         .await?;
     let page = phone
-        .history(alice.nick().as_ref())
+        .history(alice.nick().as_str())
         .latest()
         .limit(10)
         .await?;
     assert!(page.items.iter().any(|item| {
         matches!(item, papo::Event::CtcpQuery(query)
             if query.command == "VERSION"
-                && query.actor.nick().as_ref() == alice.nick().as_ref())
+                && query.actor.nick().as_str() == alice.nick().as_str())
     }));
     alice
         .expect_none(|event| {

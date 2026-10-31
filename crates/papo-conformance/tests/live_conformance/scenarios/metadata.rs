@@ -43,7 +43,7 @@ async fn draft_metadata_2(s: Scenario) -> papo_testing::Result<()> {
 
     alice.metadata().set(key.clone(), value).await?;
     let changed = alice.wait_for(Event::as_metadata_changed).await?;
-    assert_eq!(subject_name(&changed.subject), nick.as_ref());
+    assert_eq!(subject_name(&changed.subject), nick.as_str());
     assert_eq!(changed.key, key);
     assert_eq!(
         changed.value.as_ref().map(|value| value.value.as_str()),
@@ -75,7 +75,7 @@ async fn draft_metadata_2(s: Scenario) -> papo_testing::Result<()> {
                 .filter(|changed| changed.value.is_none())
         })
         .await?;
-    assert_eq!(subject_name(&removed.subject), nick.as_ref());
+    assert_eq!(subject_name(&removed.subject), nick.as_str());
     assert_eq!(removed.key, key);
     assert_eq!(removed.value, None);
     assert!(
@@ -120,11 +120,11 @@ async fn metadata_subscriptions(s: Scenario) -> papo_testing::Result<()> {
     let bob_change = bob
         .wait_for(|event| {
             event.as_metadata_changed().filter(|changed| {
-                subject_name(&changed.subject) == alice_nick.as_ref() && changed.key == key
+                subject_name(&changed.subject) == alice_nick.as_str() && changed.key == key
             })
         })
         .await?;
-    assert_eq!(subject_name(&alice_change.subject), alice_nick.as_ref());
+    assert_eq!(subject_name(&alice_change.subject), alice_nick.as_str());
     assert_eq!(alice_change.key, bob_change.key);
     assert_eq!(alice_change.value, bob_change.value);
     assert_eq!(
@@ -137,7 +137,7 @@ async fn metadata_subscriptions(s: Scenario) -> papo_testing::Result<()> {
     );
     let bob_state = bob.state();
     let cached = bob_state
-        .metadata(alice_nick.as_ref())
+        .metadata(alice_nick.as_str())
         .expect("subscriber caches the visible metadata");
     assert_eq!(cached.get(&key).unwrap().value, "available");
 
@@ -148,7 +148,7 @@ async fn metadata_subscriptions(s: Scenario) -> papo_testing::Result<()> {
     let current = bob.state();
     assert!(
         current
-            .metadata(alice_nick.as_ref())
+            .metadata(alice_nick.as_str())
             .unwrap()
             .iter()
             .eq(cached.iter())
@@ -179,31 +179,31 @@ async fn metadata_does_not_cross_nick_handoffs(s: Scenario) -> papo_testing::Res
     observer
         .wait_for(|event| {
             event.as_metadata_changed().filter(|changed| {
-                subject_name(&changed.subject) == alice_nick.as_ref() && changed.key == key
+                subject_name(&changed.subject) == alice_nick.as_str() && changed.key == key
             })
         })
         .await?;
-    assert!(observer.state().metadata(alice_nick.as_ref()).is_some());
+    assert!(observer.state().metadata(alice_nick.as_str()).is_some());
 
     alice.quit("handoff").await?;
     observer
         .wait_for(|event| {
             event
                 .as_quit()
-                .filter(|quit| quit.actor.nick() == alice_nick.as_ref())
+                .filter(|quit| quit.actor.nick() == alice_nick.as_str())
         })
         .await?;
-    assert!(observer.state().metadata(alice_nick.as_ref()).is_none());
+    assert!(observer.state().metadata(alice_nick.as_str()).is_none());
 
-    mallory.set_nick(alice_nick.as_ref()).await?;
+    mallory.set_nick(alice_nick.as_str()).await?;
     observer
         .wait_for(|event| {
             event.as_nick_changed().filter(|changed| {
-                changed.actor.nick() == mallory_nick.as_ref() && changed.new == alice_nick.as_ref()
+                changed.actor.nick() == mallory_nick.as_str() && changed.new == alice_nick.as_str()
             })
         })
         .await?;
-    assert!(observer.state().metadata(alice_nick.as_ref()).is_none());
+    assert!(observer.state().metadata(alice_nick.as_str()).is_none());
     Ok(())
 }
 
@@ -287,7 +287,7 @@ async fn metadata_error(s: Scenario) -> papo_testing::Result<()> {
 
     let error = bob
         .metadata()
-        .set_on(alice.state().nick().as_ref(), key, "x")
+        .set_on(alice.state().nick().as_str(), key, "x")
         .await
         .expect_err("a client cannot write another client's metadata");
     let papo::Error::Server(error) = error else {
@@ -355,9 +355,9 @@ async fn draft_channel_rename(s: Scenario) -> papo_testing::Result<()> {
     let alice_rename = alice.wait_for(Event::as_channel_renamed).await?;
     let bob_rename = bob.wait_for(Event::as_channel_renamed).await?;
     for event in [&alice_rename, &bob_rename] {
-        assert_eq!(event.old.as_ref(), channel);
-        assert_eq!(event.new.as_ref(), renamed);
-        assert_eq!(crate::source_nick(&event.actor), Some(alice_nick.as_ref()));
+        assert_eq!(event.old.as_str(), channel);
+        assert_eq!(event.new.as_str(), renamed);
+        assert_eq!(crate::source_nick(&event.actor), Some(alice_nick.as_str()));
         assert_eq!(event.reason.as_deref(), Some(reason));
     }
     for peer in [&alice, &bob] {
@@ -402,7 +402,10 @@ async fn relay_message(s: Scenario) -> papo_testing::Result<()> {
     let message = bob
         .wait_for(|event| event.as_message().filter(|message| message.text == text))
         .await?;
-    assert_eq!(message.relayed_by.as_deref(), Some(alice_nick.as_ref()));
+    assert_eq!(
+        message.relayed_by.as_ref().map(papo::Nick::as_str),
+        Some(alice_nick.as_str())
+    );
     assert_eq!(
         crate::scenarios::support::conversation_name(message.conversation()),
         Some(channel.as_str())
