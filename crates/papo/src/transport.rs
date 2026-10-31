@@ -17,6 +17,8 @@ mod websocket;
 #[cfg(browser)]
 #[path = "transport/websocket_browser.rs"]
 mod websocket_browser;
+#[cfg(browser)]
+pub(crate) use websocket_browser::connect_websocket;
 #[cfg(all(test, not(browser)))]
 #[path = "transport/websocket_browser_native.rs"]
 mod websocket_browser_native;
@@ -112,22 +114,6 @@ pub(crate) async fn connect_websocket(
     websocket::connect(url, tls)
         .await
         .map(stream::Stream::from_websocket)
-}
-
-/// Opens a browser WebSocket connection.
-///
-/// # Errors
-///
-/// Returns an error when the browser rejects the URL or the opening handshake fails.
-#[cfg(browser)]
-pub async fn connect_websocket(
-    url: &str,
-    _tls: Option<&TlsConfig>,
-) -> Result<stream::Stream, ConnectError> {
-    websocket_browser::WebSocket::connect(url)
-        .await
-        .map(stream::Stream::from_websocket)
-        .map_err(ConnectError::BrowserWebSocket)
 }
 
 /// Resolves a host and connects to each address in order until one succeeds.

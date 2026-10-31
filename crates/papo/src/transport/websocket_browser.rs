@@ -26,6 +26,21 @@ use pure::{Protocol, below, retry_at};
 use read::ReadState;
 use write::WriteState;
 
+/// Opens a browser WebSocket connection.
+///
+/// # Errors
+///
+/// Returns an error when the browser rejects the URL or the opening handshake fails.
+pub(crate) async fn connect_websocket(
+    url: &str,
+    _tls: Option<&super::TlsConfig>,
+) -> Result<super::stream::Stream, super::ConnectError> {
+    WebSocket::connect(url)
+        .await
+        .map(super::stream::Stream::from_websocket)
+        .map_err(super::ConnectError::BrowserWebSocket)
+}
+
 pub(super) struct WebSocket {
     socket: web_sys::WebSocket,
     secure: bool,

@@ -1,3 +1,10 @@
+exclude_globs = [
+  # Native mutation tests cannot compile browser-only platform files; the browser suite covers them.
+  'crates/papo/src/**/*_browser.rs',
+  'crates/papo/src/**/browser.rs',
+  'crates/papo/src/transport/websocket_browser/**/*.rs',
+]
+
 exclude_re = [
   # These helpers contain the assertions for cfg(test) proptest modules; replacing them removes the test itself.
   'replace check_action with \(\)$',
@@ -6,4 +13,6 @@ exclude_re = [
   'replace Config::selected_bouncer_network -> Option<&str> with None$',
   # Typing changes have no message identifier, so both empty-vector forms are equivalent.
   'replace <impl ReplyReference for TypingChanged>::msgids -> Vec<MessageId> with vec!\[\]$',
+  # Native all-features supports every protocol; the browser suite pins the unsupported TCP/TLS arms.
+  'replace ServerAddress::is_supported -> bool with true$',
 ]
