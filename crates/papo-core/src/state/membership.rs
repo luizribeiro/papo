@@ -15,7 +15,7 @@ impl State {
         let Some(ProtoSource::User { nick, .. }) = message.source() else {
             return Handled::No;
         };
-        let ours = crate::names_equal(self.casemapping, nick, &self.nick);
+        let ours = crate::names_equal(self.casemapping, nick, self.nick.as_str());
         let authorship = self.nick_authorship(nick);
         let channels = if ours {
             self.channels
@@ -92,10 +92,10 @@ impl State {
             authorship: self.nick_authorship(nick),
             netjoin: None,
         });
-        let ours = crate::names_equal(self.casemapping, nick, &self.nick);
+        let ours = crate::names_equal(self.casemapping, nick, self.nick.as_str());
         if ours {
             let old_nick = self.nick.clone();
-            self.rename_user(&old_nick, nick);
+            self.rename_user(old_nick.as_str(), nick);
             self.nick = self.casemapping.nick(nick);
             let key = NameKey::new(join.channel, self.casemapping);
             if !self.channels.contains_key(&key) && self.channels.len() >= self.max_channels {
@@ -260,9 +260,9 @@ impl State {
             .users
             .get(nick_key.as_ref())
             .is_none_or(|user| user.channels.is_empty())
-            && !self.is_monitored(&nick_name)
+            && !self.is_monitored(nick_name.as_str())
         {
-            self.remove_metadata(&nick_name);
+            self.remove_metadata(nick_name.as_str());
         }
     }
 
@@ -273,7 +273,7 @@ impl State {
         };
         self.remember_departed(&user);
         for channel in user.channels {
-            if let Some(joined) = self.channel_mut(&channel) {
+            if let Some(joined) = self.channel_mut(channel.as_str()) {
                 joined.members.remove(folded.as_ref());
             }
         }
@@ -281,8 +281,8 @@ impl State {
 
     pub(super) fn rename_user(&mut self, old_nick: &str, new_nick: &str) {
         let mapping = self.casemapping;
-        if !crate::names_equal(mapping, old_nick, &self.nick)
-            && crate::names_equal(mapping, new_nick, &self.nick)
+        if !crate::names_equal(mapping, old_nick, self.nick.as_str())
+            && crate::names_equal(mapping, new_nick, self.nick.as_str())
         {
             return;
         }
@@ -293,7 +293,7 @@ impl State {
         };
         user.nick = mapping.nick(new_nick);
         for channel_key in &user.channels {
-            if let Some(channel) = self.channel_mut(channel_key)
+            if let Some(channel) = self.channel_mut(channel_key.as_str())
                 && let Some(mut member) = channel.members.remove(old_key.as_ref())
             {
                 member.nick = mapping.nick(new_nick);
@@ -303,7 +303,7 @@ impl State {
             }
         }
         self.users
-            .insert(NameKey::new(new_key.as_ref(), mapping), user);
+            .insert(NameKey::new(new_key.as_str(), mapping), user);
     }
 
     pub(super) fn is_monitored(&self, nick: &str) -> bool {

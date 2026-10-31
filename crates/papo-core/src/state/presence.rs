@@ -42,7 +42,7 @@ impl State {
     ) {
         if message.command() == Command::Numeric(Numeric::RPL_WELCOME) {
             let old_nick = self.nick.clone();
-            self.rename_user(&old_nick, own_nick);
+            self.rename_user(old_nick.as_str(), own_nick);
             self.nick = self.casemapping.nick(own_nick);
         }
         self.apply_user_tags(message, outbox);
@@ -148,7 +148,7 @@ impl State {
             }
             Command::Numeric(Numeric::RPL_UNAWAY) if self.own_user().away != Away::Present => {
                 self.users
-                    .get_mut(self.casemapping.fold(&self.nick).as_ref())
+                    .get_mut(self.nick.key())
                     .expect("own user is always present")
                     .away = Away::Present;
                 outbox.event(Event::AwayChanged {
@@ -166,7 +166,7 @@ impl State {
                     message: own_away_message.map(str::to_owned),
                 };
                 self.users
-                    .get_mut(self.casemapping.fold(&self.nick).as_ref())
+                    .get_mut(self.nick.key())
                     .expect("own user is always present")
                     .away = away.clone();
                 outbox.event(Event::AwayChanged {
@@ -222,14 +222,11 @@ impl State {
         let (Some(nick), Some(host)) = (message.param(0), message.param(1)) else {
             return Some(Handled::No);
         };
-        if !crate::names_equal(self.casemapping, nick, &self.nick) {
+        if !crate::names_equal(self.casemapping, nick, self.nick.as_str()) {
             return Some(Handled::No);
         }
         let fallback_username = self.nick.to_string();
-        let Some(own) = self
-            .users
-            .get_mut(self.casemapping.fold(&self.nick).as_ref())
-        else {
+        let Some(own) = self.users.get_mut(self.nick.key()) else {
             return Some(Handled::No);
         };
         own.host = Some(host.to_owned());

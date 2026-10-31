@@ -66,10 +66,7 @@ impl State {
             return;
         };
         for member in channel.members.values() {
-            if let Some(user) = self
-                .users
-                .get_mut(self.casemapping.fold(&member.nick).as_ref())
-            {
+            if let Some(user) = self.users.get_mut(member.nick.key()) {
                 user.channels.remove(&key);
             }
         }
@@ -77,12 +74,14 @@ impl State {
             .users
             .values()
             .filter(|user| {
-                user.nick != self.nick && user.channels.is_empty() && !self.is_monitored(&user.nick)
+                user.nick != self.nick
+                    && user.channels.is_empty()
+                    && !self.is_monitored(user.nick.as_str())
             })
             .map(|user| user.nick.clone())
             .collect();
         for nick in orphaned {
-            self.remove_metadata(&nick);
+            self.remove_metadata(nick.as_str());
         }
         let own = self.nick.clone();
         self.users

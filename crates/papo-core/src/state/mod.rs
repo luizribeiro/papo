@@ -332,14 +332,12 @@ impl State {
     }
 
     fn own_user(&self) -> &User {
-        let nick = self.casemapping.fold(&self.nick);
-        self.users
-            .get(nick.as_ref())
-            .expect("own user is always present")
+        let nick = self.nick.key();
+        self.users.get(nick).expect("own user is always present")
     }
 
     pub(super) fn nick_authorship(&self, nick: &str) -> Authorship {
-        if crate::names_equal(self.casemapping.casemapping(), nick, &self.nick) {
+        if crate::names_equal(self.casemapping.casemapping(), nick, self.nick.as_str()) {
             Authorship::Own
         } else {
             Authorship::Other
@@ -412,7 +410,7 @@ impl State {
         own.away = Away::Present;
         own.realname = Some(config.realname.clone());
         let mut users = HashMap::new();
-        users.insert(NameKey::new(nick.as_ref(), names), own);
+        users.insert(NameKey::new(nick.as_str(), names), own);
         Self {
             nick,
             user_modes: HashSet::new(),
@@ -463,7 +461,7 @@ impl State {
         for channel in self.channels.values() {
             if let Some(created_at) = channel.created_at {
                 rejoin_creation_times
-                    .insert(NameKey::new(channel.name.as_ref(), casemapping), created_at);
+                    .insert(NameKey::new(channel.name.as_str(), casemapping), created_at);
             }
         }
         let reply_epoch = self.reply_epoch.wrapping_add(1);
@@ -679,10 +677,10 @@ impl State {
         account: Account,
     ) -> Option<()> {
         let nick = recipient.__nick();
-        if self.__reply_token_for(nick) != recipient.__token() {
+        if self.__reply_token_for(nick.as_str()) != recipient.__token() {
             return None;
         }
-        let user = self.users.get_mut(self.casemapping.fold(nick).as_ref())?;
+        let user = self.users.get_mut(nick.key())?;
         if user.account != *recipient.__account() && user.account != account {
             return None;
         }
@@ -751,7 +749,7 @@ impl State {
 
     pub(crate) fn sync_own_account(&mut self, account: Option<&str>) {
         self.users
-            .get_mut(self.casemapping.fold(&self.nick).as_ref())
+            .get_mut(self.nick.key())
             .expect("own user is always present")
             .account = Account::from_notify(account, self.casemapping);
     }
@@ -878,7 +876,7 @@ impl State {
                         .map(str::to_owned),
                     authorship,
                 });
-                if crate::names_equal(mapping, nick, &self.nick) {
+                if crate::names_equal(mapping, nick, self.nick.as_str()) {
                     self.remove_channel(channel);
                 } else {
                     self.remove_member(channel, nick);
@@ -906,7 +904,7 @@ impl State {
                     .filter(|reason| !reason.is_empty())
                     .map(str::to_owned),
             });
-            if crate::names_equal(mapping, nick, &self.nick) {
+            if crate::names_equal(mapping, nick, self.nick.as_str()) {
                 self.remove_channel(channel);
             } else {
                 self.remove_member(channel, nick);
@@ -922,9 +920,9 @@ impl State {
             else {
                 return Handled::No;
             };
-            let own_rename = crate::names_equal(mapping, nick, &self.nick);
+            let own_rename = crate::names_equal(mapping, nick, self.nick.as_str());
             let collides_with_own =
-                !own_rename && crate::names_equal(mapping, new_nick, &self.nick);
+                !own_rename && crate::names_equal(mapping, new_nick, self.nick.as_str());
             let authorship = self.source_authorship(message);
             let mut channels: Vec<_> = if authorship == Authorship::Own {
                 self.channels
@@ -1021,12 +1019,9 @@ impl State {
             return false;
         }
         let old_nick = self.nick.clone();
-        self.rename_user(&old_nick, nick);
+        self.rename_user(old_nick.as_str(), nick);
         self.nick = self.casemapping.nick(nick);
-        if let Some(own) = self
-            .users
-            .get_mut(self.casemapping.fold(&self.nick).as_ref())
-        {
+        if let Some(own) = self.users.get_mut(self.nick.key()) {
             let realname_changed = own.realname.as_deref() != Some(change.realname);
             own.update_userhost(Some(user), Some(host));
             own.realname = Some(change.realname.to_owned());
@@ -1134,7 +1129,7 @@ impl State {
             };
             channel.created_at = created_at;
             let channel_name = channel.name.clone();
-            let key = NameKey::new(channel_name.as_ref(), channel_name.casemapping());
+            let key = NameKey::new(channel_name.as_str(), channel_name.casemapping());
             if let Some(created_at) = created_at
                 && let Some(previous) = self.rejoin_creation_times.remove(&key)
                 && previous != created_at
@@ -1152,9 +1147,9 @@ impl State {
     fn handle_user_modes(&mut self, message: &LineRef<'_>, isupport: &Isupport) -> bool {
         let modestring = match message.command() {
             Command::Mode
-                if message
-                    .param(0)
-                    .is_some_and(|nick| crate::names_equal(self.casemapping, nick, &self.nick)) =>
+                if message.param(0).is_some_and(|nick| {
+                    crate::names_equal(self.casemapping, nick, self.nick.as_str())
+                }) =>
             {
                 message.param(1)
             }
@@ -1175,7 +1170,7 @@ impl State {
         }
         if let Some(bot_mode) = isupport.bot_mode() {
             self.users
-                .get_mut(self.casemapping.fold(&self.nick).as_ref())
+                .get_mut(self.nick.key())
                 .expect("own user is always present")
                 .is_bot = Some(self.user_modes.contains(&bot_mode));
         }
@@ -1239,7 +1234,7 @@ impl State {
         self.nick = self
             .casemapping
             .origin()
-            .__nick(mapping, self.nick.as_ref());
+            .__nick(mapping, self.nick.as_str());
         let mut channels = HashMap::new();
         for mut channel in std::mem::take(&mut self.channels).into_values() {
             let name = {
@@ -1248,14 +1243,14 @@ impl State {
                 channel.name = self
                     .casemapping
                     .origin()
-                    .__channel(mapping, channel.name.as_ref());
+                    .__channel(mapping, channel.name.as_str());
                 let mut members = HashMap::new();
                 for mut member in std::mem::take(&mut channel.members).into_values() {
                     member.nick = self
                         .casemapping
                         .origin()
-                        .__nick(mapping, member.nick.as_ref());
-                    members.insert(NameKey::new(member.nick.as_ref(), mapping), member);
+                        .__nick(mapping, member.nick.as_str());
+                    members.insert(NameKey::new(member.nick.as_str(), mapping), member);
                 }
                 channel.members = members;
                 channel.name.to_string()
@@ -1265,27 +1260,27 @@ impl State {
         self.channels = channels;
         let mut users = HashMap::new();
         for mut user in std::mem::take(&mut self.users).into_values() {
-            let incoming_is_own = user.nick.as_ref() == old_own_nick.as_ref();
+            let incoming_is_own = user.nick.as_str() == old_own_nick.as_str();
             user.nick = self
                 .casemapping
                 .origin()
-                .__nick(mapping, user.nick.as_ref());
+                .__nick(mapping, user.nick.as_str());
             if let Account::LoggedIn(account) = &mut user.account {
                 *account = self
                     .casemapping
                     .origin()
-                    .__account(mapping, account.as_ref());
+                    .__account(mapping, account.as_str());
             }
             let mut channels = BTreeSet::new();
             for channel in std::mem::take(&mut user.channels) {
                 channels.insert(
                     self.casemapping
                         .origin()
-                        .__channel(mapping, channel.as_ref()),
+                        .__channel(mapping, channel.as_str()),
                 );
             }
             user.channels = channels;
-            match users.entry(NameKey::new(user.nick.as_ref(), mapping)) {
+            match users.entry(NameKey::new(user.nick.as_str(), mapping)) {
                 std::collections::hash_map::Entry::Vacant(entry) => {
                     entry.insert(user);
                 }
@@ -1301,7 +1296,7 @@ impl State {
             who_sweeps.insert(
                 self.casemapping
                     .origin()
-                    .__channel(mapping, channel.as_ref()),
+                    .__channel(mapping, channel.as_str()),
                 count,
             );
         }
@@ -1313,15 +1308,15 @@ impl State {
                     *channel = self
                         .casemapping
                         .origin()
-                        .__channel(mapping, channel.as_ref());
+                        .__channel(mapping, channel.as_str());
                 }
                 Conversation::Private(nick) => {
-                    *nick = self.casemapping.origin().__nick(mapping, nick.as_ref());
+                    *nick = self.casemapping.origin().__nick(mapping, nick.as_str());
                 }
             }
             let name = match &marker.conversation {
-                Conversation::Channel(channel) => channel.as_ref(),
-                Conversation::Private(nick) => nick.as_ref(),
+                Conversation::Channel(channel) => channel.as_str(),
+                Conversation::Private(nick) => nick.as_str(),
             };
             read_markers.insert(NameKey::new(name, mapping), marker);
         }
@@ -1370,7 +1365,7 @@ impl State {
         let (status, target) = classify_target_with_names(
             target.as_ref(),
             None,
-            &self.nick,
+            self.nick.as_str(),
             self.casemapping,
             &self.isupport,
         )?;
@@ -1943,8 +1938,8 @@ fn same_list_entry(a: &Mask, b: &Mask, isupport: &Isupport) -> bool {
     let account = |mask: &Mask| {
         let syntax = isupport.extban()?;
         let body = match syntax.prefix {
-            Some(prefix) => mask.strip_prefix(prefix)?,
-            None => mask.as_ref(),
+            Some(prefix) => mask.as_str().strip_prefix(prefix)?,
+            None => mask.as_str(),
         };
         let (kind, account) = body.split_once(':')?;
         isupport
@@ -1960,7 +1955,7 @@ fn same_list_entry(a: &Mask, b: &Mask, isupport: &Isupport) -> bool {
 }
 
 fn canonical_list_mask(mask: &Mask) -> Mask {
-    if mask.contains(['!', '@']) {
+    if mask.as_str().contains(['!', '@']) {
         mask.clone()
     } else {
         mask.casemapping().mask(format!("{mask}!*@*"))
