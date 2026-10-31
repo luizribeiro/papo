@@ -93,8 +93,14 @@ async fn client_batch_errors(s: Scenario) -> papo_testing::Result<()> {
     let unknown = alice.wait_for(Event::as_standard_reply).await?;
     assert_eq!(unknown.kind, StandardReplyKind::Fail);
     assert_eq!(unknown.command, "BATCH");
-    assert_eq!(unknown.code, "UNKNOWN_TYPE");
-    assert_eq!(unknown.context, ["papo-unknown", "papo.example/unknown"]);
+    if unknown.code != "UNKNOWN_TYPE" || unknown.context != ["papo-unknown", "papo.example/unknown"]
+    {
+        return Err(std::io::Error::other(format!(
+            "unknown client-batch reply was {} with context {:?}, expected UNKNOWN_TYPE with the batch reference and type",
+            unknown.code, unknown.context
+        ))
+        .into());
+    }
 
     alice
         .send_raw(papo::Line::new("BATCH").with_params(["-papo-not-open"]))
