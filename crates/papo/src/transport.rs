@@ -349,6 +349,13 @@ mod tests {
     }
 
     #[test]
+    fn private_key_uses_zeroizing_storage() {
+        let key = PrivateKey::new(b"private key material".to_vec());
+        let storage: &zeroize::Zeroizing<Vec<u8>> = &key.0.0;
+        assert_eq!(storage.as_slice(), b"private key material");
+    }
+
+    #[test]
     fn empty_ca_document_is_rejected() {
         let config = TlsConfig {
             roots: TlsRoots::Ca(Vec::new()),

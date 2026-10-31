@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use zeroize::Zeroize;
+use zeroize::Zeroizing;
 
 /// The roots trusted by a TLS connection.
 #[derive(Clone, Debug)]
@@ -36,13 +36,7 @@ impl CertificateChain {
 #[derive(Clone)]
 pub struct PrivateKey(pub(super) Arc<PrivateKeyBytes>);
 
-pub(super) struct PrivateKeyBytes(pub(super) Vec<u8>);
-
-impl Drop for PrivateKeyBytes {
-    fn drop(&mut self) {
-        self.0.zeroize();
-    }
-}
+pub(super) struct PrivateKeyBytes(pub(super) Zeroizing<Vec<u8>>);
 
 impl std::fmt::Debug for PrivateKey {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -54,7 +48,7 @@ impl PrivateKey {
     /// Wraps PEM-encoded private-key data.
     #[must_use]
     pub fn new(value: impl Into<Vec<u8>>) -> Self {
-        Self(Arc::new(PrivateKeyBytes(value.into())))
+        Self(Arc::new(PrivateKeyBytes(Zeroizing::new(value.into()))))
     }
 
     pub(super) fn expose(&self) -> &[u8] {
