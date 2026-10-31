@@ -99,29 +99,29 @@ async fn extended_join(s: Scenario) -> papo_testing::Result<()> {
     let account = crate::scenarios::support::logged_in_account(&alice.state()).clone();
     bob.join(&channel).await?;
     let joined = bob.wait_for(Event::as_joined).await?;
-    assert_eq!(joined.channel.as_ref(), channel);
+    assert_eq!(joined.channel.as_str(), channel);
     assert_eq!(joined.actor.nick(), &bob_nick);
     assert_eq!(joined.authorship, papo::Authorship::Own);
 
     alice.join(&channel).await?;
     let joined = alice.wait_for(Event::as_joined).await?;
-    assert_eq!(joined.channel.as_ref(), channel);
+    assert_eq!(joined.channel.as_str(), channel);
     assert_eq!(joined.actor.nick(), &alice_nick);
     assert_eq!(joined.authorship, papo::Authorship::Own);
     let joined = bob.wait_for(Event::as_joined).await?;
 
-    assert_eq!(joined.channel.as_ref(), channel);
-    assert_eq!(joined.actor.nick(), alice_nick.as_ref());
+    assert_eq!(joined.channel.as_str(), channel);
+    assert_eq!(joined.actor.nick(), alice_nick.as_str());
     assert_eq!(joined.authorship, papo::Authorship::Other);
     let bob_state = bob.state();
-    let observed = bob_state.user(alice_nick.as_ref()).unwrap();
+    let observed = bob_state.user(alice_nick.as_str()).unwrap();
     assert_eq!(observed.realname(), Some("papo test peer"));
-    assert!(matches!(observed.account(), Account::LoggedIn(name) if name == account.as_ref()));
+    assert!(matches!(observed.account(), Account::LoggedIn(name) if name == account.as_str()));
     assert!(
         bob_state
             .channel(&channel)
             .unwrap()
-            .member(alice_nick.as_ref())
+            .member(alice_nick.as_str())
             .is_some()
     );
     assert!(
@@ -129,7 +129,7 @@ async fn extended_join(s: Scenario) -> papo_testing::Result<()> {
             .state()
             .channel(&channel)
             .unwrap()
-            .member(bob_nick.as_ref())
+            .member(bob_nick.as_str())
             .is_some()
     );
     bob.expect_none(Event::as_joined).await?;
@@ -154,20 +154,20 @@ async fn userhost_in_names(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| {
             event
                 .as_joined()
-                .filter(|joined| joined.actor.nick() == bob_nick.as_ref())
+                .filter(|joined| joined.actor.nick() == bob_nick.as_str())
         })
         .await?;
-    assert_eq!(joined.channel.as_ref(), channel);
+    assert_eq!(joined.channel.as_str(), channel);
 
     let bob_state = bob.state();
-    let observed = bob_state.user(alice_nick.as_ref()).unwrap();
+    let observed = bob_state.user(alice_nick.as_str()).unwrap();
     assert!(observed.username().is_some_and(|user| !user.is_empty()));
     assert!(observed.host().is_some_and(|host| !host.is_empty()));
     assert!(
         bob_state
             .channel(&channel)
             .unwrap()
-            .member(alice_nick.as_ref())
+            .member(alice_nick.as_str())
             .is_some()
     );
     assert!(
@@ -175,7 +175,7 @@ async fn userhost_in_names(s: Scenario) -> papo_testing::Result<()> {
             .state()
             .channel(&channel)
             .unwrap()
-            .member(bob_nick.as_ref())
+            .member(bob_nick.as_str())
             .is_some()
     );
     Ok(())
@@ -289,14 +289,14 @@ async fn no_implicit_names(s: Scenario) -> papo_testing::Result<()> {
     alice.join(&channel).await?;
     let joined = alice.wait_for(Event::as_joined).await?;
     let synced = alice.wait_for(Event::as_channel_synced).await?;
-    assert_eq!(joined.channel.as_ref(), channel);
+    assert_eq!(joined.channel.as_str(), channel);
     assert_eq!(joined.actor.nick(), &alice_nick);
     assert_eq!(joined.authorship, papo::Authorship::Own);
-    assert_eq!(synced.channel.as_ref(), channel);
+    assert_eq!(synced.channel.as_str(), channel);
     let state = alice.state();
     let joined_channel = state.channel(&channel).unwrap();
     assert!(joined_channel.is_synced());
-    assert!(joined_channel.member(alice_nick.as_ref()).is_some());
+    assert!(joined_channel.member(alice_nick.as_str()).is_some());
     alice.expect_none(Event::as_channel_synced).await?;
     Ok(())
 }
@@ -334,14 +334,14 @@ async fn multiple_joins(s: Scenario) -> papo_testing::Result<()> {
             .wait_for(|event| {
                 event
                     .as_channel_synced()
-                    .filter(|synced| synced.channel.as_ref() == channel)
+                    .filter(|synced| synced.channel.as_str() == channel)
             })
             .await?;
-        assert_eq!(synced.channel.as_ref(), channel);
+        assert_eq!(synced.channel.as_str(), channel);
         let joined = alice
             .wait_for(|event| {
                 event.as_joined().filter(|joined| {
-                    joined.channel.as_ref() == channel && joined.actor.nick() == bob_nick.as_ref()
+                    joined.channel.as_str() == channel && joined.actor.nick() == bob_nick.as_str()
                 })
             })
             .await?;
@@ -352,7 +352,7 @@ async fn multiple_joins(s: Scenario) -> papo_testing::Result<()> {
                 .state()
                 .channel(channel)
                 .unwrap()
-                .member(bob_nick.as_ref())
+                .member(bob_nick.as_str())
                 .is_some()
         );
     }
@@ -389,10 +389,10 @@ async fn multiple_joins(s: Scenario) -> papo_testing::Result<()> {
     let mut channels = [&first, &second];
     channels.sort_unstable();
     for ((own, observed), channel) in own.iter().zip(&observed).zip(channels) {
-        assert_eq!(own.channel.as_ref(), channel);
-        assert_eq!(observed.channel.as_ref(), channel);
+        assert_eq!(own.channel.as_str(), channel);
+        assert_eq!(observed.channel.as_str(), channel);
         assert_eq!(own.actor.nick(), &bob_nick);
-        assert_eq!(observed.actor.nick(), bob_nick.as_ref());
+        assert_eq!(observed.actor.nick(), bob_nick.as_str());
         assert_eq!(own.authorship, papo::Authorship::Own);
         assert_eq!(observed.authorship, papo::Authorship::Other);
         assert!(bob.state().channel(channel).is_none());
@@ -401,7 +401,7 @@ async fn multiple_joins(s: Scenario) -> papo_testing::Result<()> {
                 .state()
                 .channel(channel)
                 .unwrap()
-                .member(bob_nick.as_ref())
+                .member(bob_nick.as_str())
                 .is_none()
         );
     }
@@ -448,10 +448,10 @@ async fn partially_invalid_join(s: Scenario) -> papo_testing::Result<()> {
             .wait_for(|event| {
                 event
                     .as_channel_synced()
-                    .filter(|synced| synced.channel.as_ref() == channel)
+                    .filter(|synced| synced.channel.as_str() == channel)
             })
             .await?;
-        assert_eq!(synced.channel.as_ref(), channel);
+        assert_eq!(synced.channel.as_str(), channel);
     }
     let state = alice.state();
     assert!(
@@ -514,7 +514,7 @@ async fn whox(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     let nick = alice.nick();
 
-    let entries = alice.who(nick.as_ref()).await?;
+    let entries = alice.who(nick.as_str()).await?;
     let entry = entries
         .iter()
         .find(|entry| entry.nick == nick)
@@ -551,7 +551,7 @@ async fn multi_prefix(s: Scenario) -> papo_testing::Result<()> {
     let changed = wait_channel_mode(&mut alice, &channel, 'v').await?;
 
     assert_eq!(subject_name(&changed.subject), channel);
-    assert_actor_or_server(&changed.actor, alice_nick.as_ref());
+    assert_actor_or_server(&changed.actor, alice_nick.as_str());
     let voice = changed
         .changes
         .iter()
@@ -561,12 +561,12 @@ async fn multi_prefix(s: Scenario) -> papo_testing::Result<()> {
     assert!(matches!(voice.arg.clone(), Some(ModeArg::Member { nick, .. }) if nick == alice_nick));
     bob.join(&channel).await?;
     let joined = alice.wait_for(Event::as_joined).await?;
-    assert_eq!(joined.channel.as_ref(), channel);
-    assert_eq!(joined.actor.nick(), bob_nick.as_ref());
+    assert_eq!(joined.channel.as_str(), channel);
+    assert_eq!(joined.actor.nick(), bob_nick.as_str());
     let prefixes = bob
         .state()
         .channel(&channel)
-        .and_then(|channel| channel.member(alice_nick.as_ref()))
+        .and_then(|channel| channel.member(alice_nick.as_str()))
         .map(|member| member.prefixes().to_vec());
     assert_eq!(
         prefixes.map(|prefixes| {
@@ -582,7 +582,7 @@ async fn multi_prefix(s: Scenario) -> papo_testing::Result<()> {
             .state()
             .channel(&channel)
             .unwrap()
-            .member(bob_nick.as_ref())
+            .member(bob_nick.as_str())
             .is_some()
     );
     bob.expect_none(|event| {
@@ -615,12 +615,12 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
     alice.join(&channel).await?;
     bob.join(&channel).await?;
 
-    let bob_direct = alice.direct(bob_nick.as_ref()).await?;
+    let bob_direct = alice.direct(bob_nick.as_str()).await?;
     alice.mode(&channel).op(&bob_direct).await?;
     let promoted = wait_channel_mode(&mut bob, &channel, 'o').await?;
 
     assert_eq!(subject_name(&promoted.subject), channel);
-    assert_actor_or_server(&promoted.actor, alice_nick.as_ref());
+    assert_actor_or_server(&promoted.actor, alice_nick.as_str());
     let operator = promoted
         .changes
         .iter()
@@ -628,31 +628,31 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
         .unwrap();
     assert_eq!(operator.action, ModeAction::Add);
     assert!(
-        matches!(operator.arg.clone(), Some(ModeArg::Member { nick, .. }) if nick == bob_nick.as_ref())
+        matches!(operator.arg.clone(), Some(ModeArg::Member { nick, .. }) if nick == bob_nick.as_str())
     );
     assert!(
         bob.state()
             .channel(&channel)
             .unwrap()
-            .member(bob_nick.as_ref())
+            .member(bob_nick.as_str())
             .unwrap()
             .rank()
             >= Some(Rank::Op)
     );
 
-    alice.invite(carol_nick.as_ref(), &channel).await?;
+    alice.invite(carol_nick.as_str(), &channel).await?;
     let target = carol.wait_for(Event::as_invited).await?;
     let observer = bob.wait_for(Event::as_invited).await?;
 
-    assert_eq!(target.channel.as_ref(), channel);
-    assert_eq!(target.subject.as_ref(), carol_nick.as_ref());
-    assert_eq!(crate::source_nick(&target.actor), Some(alice_nick.as_ref()));
+    assert_eq!(target.channel.as_str(), channel);
+    assert_eq!(target.subject.as_str(), carol_nick.as_str());
+    assert_eq!(crate::source_nick(&target.actor), Some(alice_nick.as_str()));
     assert_eq!(target.subject_authorship, papo::Authorship::Own);
-    assert_eq!(observer.channel.as_ref(), channel);
-    assert_eq!(observer.subject.as_ref(), carol_nick.as_ref());
+    assert_eq!(observer.channel.as_str(), channel);
+    assert_eq!(observer.subject.as_str(), carol_nick.as_str());
     assert_eq!(
         crate::source_nick(&observer.actor),
-        Some(alice_nick.as_ref())
+        Some(alice_nick.as_str())
     );
     assert_eq!(observer.subject_authorship, papo::Authorship::Other);
     assert!(
@@ -660,14 +660,14 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
             .state()
             .channel(&channel)
             .unwrap()
-            .member(carol_nick.as_ref())
+            .member(carol_nick.as_str())
             .is_none()
     );
     assert!(
         bob.state()
             .channel(&channel)
             .unwrap()
-            .member(carol_nick.as_ref())
+            .member(carol_nick.as_str())
             .is_none()
     );
     carol.expect_none(Event::as_invited).await?;
@@ -701,19 +701,19 @@ async fn invite_rules(s: Scenario) -> papo_testing::Result<()> {
         .await?;
 
     assert_refusal(
-        bob.invite(carol_nick.as_ref(), &channel).await.unwrap_err(),
+        bob.invite(carol_nick.as_str(), &channel).await.unwrap_err(),
         Refusal::ChannelOperatorPrivilegesNeeded,
         "482",
     );
     assert_refusal(
-        alice.invite(bob_nick.as_ref(), &channel).await.unwrap_err(),
+        alice.invite(bob_nick.as_str(), &channel).await.unwrap_err(),
         Refusal::UserOnChannel,
         "443",
     );
 
-    alice.invite(carol_nick.as_ref(), &channel).await?;
+    alice.invite(carol_nick.as_str(), &channel).await?;
     let invited = carol.wait_for(Event::as_invited).await?;
-    assert_eq!(invited.channel.as_ref(), channel);
+    assert_eq!(invited.channel.as_str(), channel);
     assert_eq!(invited.subject, carol_nick);
     assert_eq!(invited.subject_authorship, papo::Authorship::Own);
     match carol.join(&channel).await {
@@ -722,17 +722,17 @@ async fn invite_rules(s: Scenario) -> papo_testing::Result<()> {
                 .wait_for(|event| {
                     event
                         .as_joined()
-                        .filter(|joined| joined.actor.nick() == carol_nick.as_ref())
+                        .filter(|joined| joined.actor.nick() == carol_nick.as_str())
                 })
                 .await?;
-            assert_eq!(joined.channel.as_ref(), channel);
+            assert_eq!(joined.channel.as_str(), channel);
             assert_eq!(joined.authorship, papo::Authorship::Other);
             assert!(
                 alice
                     .state()
                     .channel(&channel)
                     .unwrap()
-                    .member(carol_nick.as_ref())
+                    .member(carol_nick.as_str())
                     .is_some()
             );
             assert!(
@@ -740,7 +740,7 @@ async fn invite_rules(s: Scenario) -> papo_testing::Result<()> {
                     .state()
                     .channel(&channel)
                     .unwrap()
-                    .member(carol_nick.as_ref())
+                    .member(carol_nick.as_str())
                     .is_some()
             );
         }
@@ -751,7 +751,7 @@ async fn invite_rules(s: Scenario) -> papo_testing::Result<()> {
                     .state()
                     .channel(&channel)
                     .unwrap()
-                    .member(carol_nick.as_ref())
+                    .member(carol_nick.as_str())
                     .is_none()
             );
             assert!(carol.state().channel(&channel).is_none());
@@ -776,8 +776,8 @@ async fn part(s: Scenario) -> papo_testing::Result<()> {
     let observed = bob.wait_for(Event::as_parted).await?;
 
     for departed in [&own, &observed] {
-        assert_eq!(departed.channel.as_ref(), channel);
-        assert_eq!(departed.actor.nick(), alice_nick.as_ref());
+        assert_eq!(departed.channel.as_str(), channel);
+        assert_eq!(departed.actor.nick(), alice_nick.as_str());
         assert_eq!(departed.reason.as_deref(), Some(reason));
     }
     assert_eq!(own.authorship, papo::Authorship::Own);
@@ -787,7 +787,7 @@ async fn part(s: Scenario) -> papo_testing::Result<()> {
         bob.state()
             .channel(&channel)
             .unwrap()
-            .member(alice_nick.as_ref())
+            .member(alice_nick.as_str())
             .is_none()
     );
     alice.expect_none(Event::as_parted).await?;
@@ -829,10 +829,10 @@ async fn part_multiple_and_refusal(s: Scenario) -> papo_testing::Result<()> {
     let mut expected = [&first, &second];
     expected.sort_unstable();
     for ((own, observed), channel) in own.iter().zip(&observed).zip(expected) {
-        assert_eq!(own.channel.as_ref(), channel);
-        assert_eq!(observed.channel.as_ref(), channel);
+        assert_eq!(own.channel.as_str(), channel);
+        assert_eq!(observed.channel.as_str(), channel);
         assert_eq!(own.actor.nick(), &alice_nick);
-        assert_eq!(observed.actor.nick(), alice_nick.as_ref());
+        assert_eq!(observed.actor.nick(), alice_nick.as_str());
         assert_eq!(own.reason.as_deref(), Some(reason));
         assert_eq!(observed.reason.as_deref(), Some(reason));
         assert_eq!(own.authorship, papo::Authorship::Own);
