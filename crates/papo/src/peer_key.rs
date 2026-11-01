@@ -123,7 +123,7 @@ enum PeerIdentity {
 
 #[derive(Clone, Eq, Hash, PartialEq)]
 struct AccountPin {
-    scope: String,
+    scope: PeerScope,
     casemapping: crate::Casemapping,
     account: String,
     id: Option<String>,

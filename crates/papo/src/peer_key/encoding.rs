@@ -7,14 +7,14 @@ pub(super) fn encode(
     casemapping: crate::Casemapping,
     account: &str,
 ) -> AccountPin {
-    let scope = legacy_scope(scope);
+    let encoded_scope = legacy_scope(scope);
     let encoded = format!(
-        "{PREFIX}{}:{}:{scope}{account}",
+        "{PREFIX}{}:{}:{encoded_scope}{account}",
         casemapping.as_str(),
-        scope.len()
+        encoded_scope.len()
     );
     AccountPin {
-        scope,
+        scope: scope.clone(),
         casemapping,
         account: account.to_owned(),
         id: None,
@@ -39,15 +39,46 @@ pub(super) fn parse(value: &str) -> Result<AccountPin, InvalidPeerKey> {
     if scope.is_empty() || account.is_empty() {
         return Err(InvalidPeerKey);
     }
+    let parsed_scope = parse_legacy_scope(scope).ok_or(InvalidPeerKey)?;
     let account = casemapping.account(account);
     account.check().map_err(|_| InvalidPeerKey)?;
     Ok(AccountPin {
-        scope: scope.to_owned(),
+        scope: parsed_scope,
         casemapping,
         account: account.key().to_owned(),
         id: None,
         encoded: value.to_owned(),
     })
+}
+
+fn parse_legacy_scope(value: &str) -> Option<PeerScope> {
+    let mut rest = value.strip_prefix("server=")?;
+    let server = take_legacy_value(&mut rest)?;
+    if rest.is_empty() {
+        return Some(PeerScope::server(&server));
+    }
+    rest = rest.strip_prefix(";login=")?;
+    let login = take_legacy_value(&mut rest)?;
+    rest = rest.strip_prefix(";network=")?;
+    let network = take_legacy_value(&mut rest)?;
+    rest = rest.strip_prefix(";upstream=")?;
+    let upstream = take_legacy_value(&mut rest)?;
+    rest.is_empty().then_some(PeerScope {
+        server,
+        bouncer: Some(BouncerScope {
+            login,
+            network,
+            upstream,
+        }),
+    })
+}
+
+fn take_legacy_value(rest: &mut &str) -> Option<String> {
+    let (len, value) = rest.split_once(':')?;
+    let len = len.parse::<usize>().ok()?;
+    let (value, remaining) = value.get(..len).zip(value.get(len..))?;
+    *rest = remaining;
+    Some(value.to_owned())
 }
 
 fn legacy_scope(scope: &PeerScope) -> String {
