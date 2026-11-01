@@ -88,10 +88,12 @@ async fn session_pins_follow_renames_and_expire_on_reuse_and_logout() {
     let bob_thread = bob.nick().key().to_owned();
     let bob_pin = bob.peer_key().clone();
     wire.server(":bob!~bob@users.example NICK robert").await;
-    assert!(matches!(
-        next_active_event(&mut events).await,
-        Event::NickChanged(_)
-    ));
+    let Event::NickChanged(changed) = next_active_event(&mut events).await else {
+        panic!("expected nickname change");
+    };
+    assert_eq!(changed.actor.nick(), "bob");
+    assert_eq!(changed.new, "robert");
+    assert_match(&bob_pin, changed.peer_key().unwrap());
     let renamed = client.direct("robert").await.unwrap();
     assert_ne!(renamed.nick().key(), bob_thread);
     assert_match(&bob_pin, renamed.peer_key());

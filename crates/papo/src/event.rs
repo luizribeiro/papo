@@ -6,7 +6,6 @@
 use papo_core::{Account, Conversation, RequestId, Response, Welcome, sts::StsAction};
 use std::time::SystemTime;
 
-#[cfg(feature = "unstable")]
 use papo_proto::Nick;
 use papo_proto::{
     Casemapping, ChannelName, Ctcp as ProtoCtcp, Isupport, Line as ProtoLine, LineRef, MessageId,
@@ -1818,22 +1817,31 @@ impl Event {
 }
 
 pub(crate) fn attach_live_peer_key(event: &mut Event, state: &crate::State) {
+    if let Event::NickChanged(changed) = event {
+        let nick = changed.new.clone();
+        attach_actor_peer_key(&mut changed.actor, &nick, state);
+        return;
+    }
     if !matches!(event.conversation(), Some(Conversation::Private(_))) {
         return;
     }
     let Some(actor) = private_actor_mut(event) else {
         return;
     };
+    let nick = actor.nick().clone();
+    attach_actor_peer_key(actor, &nick, state);
+}
+
+fn attach_actor_peer_key(actor: &mut UserSource, nick: &Nick, state: &crate::State) {
     let account = if actor.account() == &Account::Unknown {
         state
-            .user(actor.nick())
+            .user(nick)
             .map_or_else(|| Account::Unknown, |user| user.account().clone())
     } else {
         actor.account().clone()
     };
     let scope = state.peer_scope();
-    let peer_key =
-        crate::peer_key::PeerKey::live(scope.as_ref(), &account, state.peer_token(actor.nick()));
+    let peer_key = crate::peer_key::PeerKey::live(scope.as_ref(), &account, state.peer_token(nick));
     if let Some(peer_key) = peer_key {
         actor.set_peer_key(peer_key);
     }

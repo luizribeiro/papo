@@ -829,6 +829,8 @@ pub papo::event::NickChanged::msgid: core::option::Option<papo::MessageId>
 pub papo::event::NickChanged::new: papo::Nick
 pub papo::event::NickChanged::received_at: std::time::SystemTime
 pub papo::event::NickChanged::server_time: core::option::Option<std::time::SystemTime>
+impl papo::event::NickChanged
+pub fn papo::event::NickChanged::peer_key(&self) -> core::option::Option<&papo::PeerKey>
 impl core::clone::Clone for papo::event::NickChanged
 pub fn papo::event::NickChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::NickChanged

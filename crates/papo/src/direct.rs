@@ -9,8 +9,9 @@ use crate::Nick;
 
 /// A stable, guarded identity for direct messages to one IRC user.
 ///
-/// The handle follows nickname changes and refuses a send with [`crate::Error::TargetGone`] after
-/// the identity leaves or the nickname changes hands. When the user shares no channel with the
+/// The handle follows a nickname change only when papo observes that user's `NICK` line, and
+/// refuses a send with [`crate::Error::TargetGone`] after the identity leaves or the nickname
+/// changes hands. When the user shares no channel with the
 /// client, papo reserves one server-side `MONITOR` entry until the last clone is dropped. Handles
 /// compare by the tracked IRC user on one connection, regardless of when account information was
 /// learned and across nickname changes. Different users remain unequal even when logged into the
