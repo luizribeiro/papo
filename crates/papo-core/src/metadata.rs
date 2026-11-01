@@ -2,7 +2,7 @@ use web_time::Instant;
 
 use papo_proto::{Line, MetadataKey};
 
-use crate::{Capabilities, Feature, RequestError, RequestId, Session, cap};
+use crate::{Capabilities, Feature, RequestError, RequestId, Session, cap, state::StateGrowth};
 
 /// One server-returned metadata value.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -177,8 +177,9 @@ impl Session {
     /// # Errors
     ///
     /// Returns [`RequestError::EmptyText`] for an empty value,
-    /// [`RequestError::Unsupported`] when metadata was not negotiated, or an error documented by
-    /// [`Session::request`].
+    /// [`RequestError::Unsupported`] when metadata was not negotiated, or
+    /// [`RequestError::StateLimit`] when `SET` would exceed a metadata target or key limit. Other
+    /// failures are documented by [`Session::request`].
     pub fn metadata(
         &mut self,
         now: Instant,
@@ -214,6 +215,12 @@ impl Session {
                         maximum,
                         actual: value.len(),
                     });
+                }
+                if value.is_some() {
+                    self.ensure_state_capacity(StateGrowth::Metadata {
+                        target: &target,
+                        key: &key,
+                    })?;
                 }
                 params.extend([target, "SET".into(), key]);
                 params.extend(value);

@@ -212,7 +212,8 @@ impl Metadata {
     /// Returns [`Error::Unsupported`] for [`crate::Feature::Metadata`] with reason
     /// [`crate::UnsupportedReason::NotOffered`] or
     /// [`crate::UnsupportedReason::DisabledByClient`]. Invalid keys or oversized values return
-    /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
+    /// [`Error::InvalidInput`]; creating a target or key past its configured bound returns
+    /// [`Error::StateLimit`] before sending; a refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. Request limits, timeouts, and disconnects retain their matching
     /// [`Error`] variants.
     pub fn set(
@@ -237,7 +238,8 @@ impl Metadata {
     /// Returns [`Error::Unsupported`] for [`crate::Feature::Metadata`] with reason
     /// [`crate::UnsupportedReason::NotOffered`] or
     /// [`crate::UnsupportedReason::DisabledByClient`]. Invalid keys or oversized values return
-    /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
+    /// [`Error::InvalidInput`]; creating a target or key past its configured bound returns
+    /// [`Error::StateLimit`] before sending; a refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. Request limits, timeouts, and disconnects retain their matching
     /// [`Error`] variants.
     pub fn set_on(

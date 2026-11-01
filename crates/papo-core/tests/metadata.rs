@@ -23,7 +23,11 @@ fn subject_name(subject: &Subject) -> &str {
 }
 
 fn registered(value: &str) -> Transcript {
-    Transcript::new(Config::default().wanted_caps(["draft/metadata-2"]))
+    registered_with(Config::default(), value)
+}
+
+fn registered_with(config: Config, value: &str) -> Transcript {
+    Transcript::new(config.wanted_caps(["draft/metadata-2"]))
         .connect_default()
         .server(&format!("CAP * LS :draft/metadata-2={value}"))
         .client("CAP REQ :draft/metadata-2")
@@ -32,6 +36,99 @@ fn registered(value: &str) -> Transcript {
         .welcome(":ergo.test 001 alice :Welcome to Ergo")
         .server(":ergo.test 422 alice :MOTD File is missing")
         .event(|event| matches!(event, Event::Connected(_)))
+}
+
+#[test]
+fn metadata_set_refuses_growth_when_its_store_is_full() {
+    let config = Config::default()
+        .max_metadata_targets(1)
+        .max_metadata_keys_per_target(1);
+    registered_with(config.clone(), "max-subs=100,max-keys=100")
+        .update(|session| {
+            session
+                .metadata(
+                    std::time::Instant::now(),
+                    MetadataCommand::__set(
+                        "alice".into(),
+                        "avatar".into(),
+                        Some("https://cdn.example.net/a.png".into()),
+                    ),
+                )
+                .unwrap();
+        })
+        .client("METADATA alice SET avatar https://cdn.example.net/a.png")
+        .ignore_rest();
+
+    registered_with(config, "max-subs=100,max-keys=100")
+        .server(":ergo.test METADATA alice avatar * :https://cdn.example.net/a.png")
+        .event(|event| matches!(event, Event::MetadataChanged { .. }))
+        .update(|session| {
+            session
+                .metadata(
+                    std::time::Instant::now(),
+                    MetadataCommand::__set(
+                        "*".into(),
+                        "avatar".into(),
+                        Some("https://cdn.example.net/a2.png".into()),
+                    ),
+                )
+                .unwrap();
+        })
+        .event(|event| matches!(event, Event::RequestUntracked { .. }))
+        .client("METADATA * SET avatar https://cdn.example.net/a2.png")
+        .update(|session| {
+            assert_eq!(
+                session.metadata(
+                    std::time::Instant::now(),
+                    MetadataCommand::__set(
+                        "alice".into(),
+                        "status".into(),
+                        Some("reviewing".into()),
+                    ),
+                ),
+                Err(RequestError::StateLimit(StateLimit::MetadataKeys))
+            );
+            assert_eq!(
+                session.metadata(
+                    std::time::Instant::now(),
+                    MetadataCommand::__set(
+                        "bob".into(),
+                        "avatar".into(),
+                        Some("https://cdn.example.net/b.png".into()),
+                    ),
+                ),
+                Err(RequestError::StateLimit(StateLimit::MetadataTargets))
+            );
+        })
+        .no_client()
+        .server(":ergo.test METADATA alice status * :reviewing")
+        .event(|event| {
+            matches!(
+                event,
+                Event::StateLimitReached {
+                    limit: StateLimit::MetadataKeys,
+                    ..
+                }
+            )
+        })
+        .server(":ergo.test METADATA alice pronouns * :they/them")
+        .no_event()
+        .server(":ergo.test METADATA bob avatar * :https://cdn.example.net/b.png")
+        .event(|event| {
+            matches!(
+                event,
+                Event::StateLimitReached {
+                    limit: StateLimit::MetadataTargets,
+                    ..
+                }
+            )
+        })
+        .server(":ergo.test METADATA carol avatar * :https://cdn.example.net/c.png")
+        .no_event()
+        .inspect(|session| {
+            assert_eq!(session.state().metadata_target_count(), 1);
+            assert_eq!(session.state().metadata("alice").unwrap().iter().len(), 1);
+        });
 }
 
 fn assert_cached_visibility(session: &papo_core::Session) {
