@@ -174,6 +174,86 @@ async fn oversized_unlabelled_list_returns_a_state_limit_error() {
     ));
 }
 
+#[tokio::test]
+async fn unfinished_ban_list_stays_bounded_and_the_client_keeps_working() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://hostile.offline.test", "papo")
+            .rate_limit(papo::RateLimit::unlimited()),
+    );
+    wire.register(&[]).await;
+    connected(&mut events).await;
+    for line in [
+        ":papo!~papo@localhost JOIN #papo",
+        ":alice!~alice@users.example JOIN #papo",
+    ] {
+        wire.server(line).await;
+        assert!(matches!(
+            next_active_event(&mut events).await,
+            papo::Event::Joined(_)
+        ));
+    }
+
+    let requester = client.clone();
+    let request =
+        tokio::spawn(async move { requester.list_modes("#papo", papo::ListMode::Ban).await });
+    assert_eq!(wire.next_sent().await, "MODE #papo b");
+
+    let replier = client.clone();
+    let event_task = tokio::spawn(async move {
+        let mut warnings = 0;
+        loop {
+            match next_active_event(&mut events).await {
+                papo::Event::Warning(papo::event::Warning::StateLimitReached {
+                    kind: papo::StateLimit::ListEntries,
+                    ..
+                }) => warnings += 1,
+                papo::Event::Message(message) if message.text == "state limit survived" => {
+                    replier
+                        .privmsg(message.return_address(), "still responsive")
+                        .await
+                        .unwrap();
+                    return warnings;
+                }
+                _ => {}
+            }
+        }
+    });
+
+    for index in 0..1_000 {
+        wire.server(format!(
+            ":hostile.offline.test 367 papo #papo *!*@host{index}.example oper 1793505600"
+        ))
+        .await;
+    }
+    tokio::task::yield_now().await;
+    assert!(!request.is_finished());
+    wire.server(":hostile.offline.test 367 papo #papo *!*@host1000.example oper 1793505600")
+        .await;
+    assert!(matches!(
+        request.await.unwrap(),
+        Err(papo::Error::StateLimit(papo::StateLimit::ListEntries))
+    ));
+    for index in 1_001..10_001 {
+        wire.server(format!(
+            ":hostile.offline.test 367 papo #papo *!*@host{index}.example oper 1793505600"
+        ))
+        .await;
+    }
+    assert_eq!(
+        client
+            .state()
+            .channel("#papo")
+            .unwrap()
+            .list(papo::ListMode::Ban),
+        None
+    );
+
+    wire.server(":alice!~alice@users.example PRIVMSG #papo :state limit survived")
+        .await;
+    assert_eq!(wire.next_sent().await, "PRIVMSG #papo :still responsive");
+    assert_eq!(event_task.await.unwrap(), 1);
+}
+
 async fn client_pair(caps: &[&str]) -> (ClientPair, ClientPair) {
     let make = |endpoint, nick| {
         wire(

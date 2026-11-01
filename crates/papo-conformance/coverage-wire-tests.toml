@@ -130,6 +130,9 @@
 "security::oversized_unlabelled_list_returns_a_state_limit_error" = [
   "security.adv-19.unlabelled-response-bound",
 ]
+"security::unfinished_ban_list_stays_bounded_and_the_client_keeps_working" = [
+  "security.list-mode.unfinished-reply-bound",
+]
 "security::read_marker_state_is_bounded_and_warns_once" = [
   "security.adv-20.read-marker-bound",
 ]
