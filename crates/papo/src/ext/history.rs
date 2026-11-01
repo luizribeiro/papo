@@ -7,7 +7,9 @@ use tokio::sync::oneshot;
 use crate::{
     Client, Error, Event, Line, Message,
     driver::Command,
-    event::{Kicked, ModeChanged, NickChanged, Parted, Quit, Reacted, Redacted, TopicChanged},
+    event::{
+        Kicked, ModeChanged, NickChanged, Parted, Quit, Reacted, Redacted, TagMsg, TopicChanged,
+    },
 };
 
 fn other(line: Line, received_at: SystemTime) -> Event {
@@ -141,6 +143,15 @@ pub(crate) fn history_item(
                 )
             })
         }
+        papo_core::HistoryItem::TagMsg(item) => typed_or_raw(&item.line, received_at, |message| {
+            historical_tagmsg(
+                message,
+                crate::Authorship::from_core(item.authorship),
+                history_conversation,
+                client,
+                received_at,
+            )
+        }),
         item => {
             let raw = item.into_line().line;
             other(raw, received_at)
@@ -148,6 +159,58 @@ pub(crate) fn history_item(
     };
     crate::event_impl::attach_historical_peer_key(&mut event, &state);
     event
+}
+
+fn historical_tagmsg(
+    message: &papo_proto::LineRef<'_>,
+    authorship: crate::Authorship,
+    history_conversation: Option<&crate::Conversation>,
+    client: &Client,
+    received_at: SystemTime,
+) -> Option<Event> {
+    if !message.command_is("TAGMSG") {
+        return None;
+    }
+    let state = client.state();
+    let mapping = state.casemapping();
+    let (status, conversation) =
+        papo_core::classify_conversation(message, state.nick().as_str(), state.isupport().inner())
+            .ok()?;
+    let conversation = crate::event_impl::historical_conversation(
+        message,
+        authorship,
+        conversation,
+        history_conversation,
+        state.nick(),
+        mapping,
+    );
+    let envelope = crate::event_impl::line_envelope_with_account_tag(
+        message,
+        mapping,
+        client.origin(),
+        state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
+        received_at,
+    );
+    let actor = user_from_line(message, &envelope, mapping, client.origin(), false)?;
+    let mut receipt = crate::message_ref::Receipt::new(
+        crate::Source::User(actor.clone()),
+        authorship,
+        &conversation,
+        None,
+        crate::event_impl::return_address(message, &conversation),
+    );
+    receipt.set_reference(envelope.msgid.iter().cloned(), None);
+    Some(Event::TagMsg(TagMsg {
+        msgid: envelope.msgid,
+        server_time: envelope.server_time,
+        received_at: envelope.received_at,
+        actor,
+        authorship,
+        conversation,
+        status,
+        receipt,
+        tags: crate::Tags::from_message(message),
+    }))
 }
 
 fn typed_or_raw<F>(raw: &papo_proto::Line, received_at: SystemTime, convert: F) -> Event
@@ -1969,7 +2032,7 @@ mod tests {
                 ..
             }] if mask == "*!*@spammer.example"
         ));
-        assert!(matches!(&page.items[5], Event::Other(line) if line.command() == "TAGMSG"));
+        assert!(matches!(&page.items[5], Event::TagMsg(_)));
         let message = page.chat_messages().next().unwrap();
         assert_eq!(message.text, "earlier");
         assert!(
