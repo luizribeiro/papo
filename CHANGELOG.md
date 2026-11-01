@@ -30,6 +30,12 @@ for that user stay equal across account discovery and nickname changes; differen
 unequal even on the same account or after a departed user's nickname is reused. Handles are per
 connection, so after a reconnect a new handle does not equal an old one.
 
+`PeerKey` pins an identity to a nickname-addressed direct thread across reconnects when account
+proof is scoped by a TLS-authenticated server name. It does not merge threads: two nicknames on one
+account have equal pins but remain distinct conversations. Session-only pins cover unverified
+peers, plaintext and custom streams, while private message, notice, TAGMSG, and history senders
+expose the same pin through `UserSource::peer_key`.
+
 ### Migration from the 2026-10-24 API
 
 This section covers breaking changes since `46c832d`. Papo had not been released at that point,

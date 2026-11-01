@@ -8,20 +8,82 @@ use std::{
 const PREFIX: &str = "papo-peer-v1:";
 static NEXT_EPHEMERAL: AtomicU64 = AtomicU64::new(1);
 
-/// The verified account or session-scoped identity behind a direct conversation.
+/// An identity pin for a nickname-addressed direct conversation.
 ///
-/// Verified keys compare the account under the server's advertised casemapping together with the
+/// Verified pins compare the account under the server's advertised casemapping together with the
 /// server name authenticated by TLS. A bound bouncer network ID is part of that scope. They remain
 /// equal across reconnects, process restarts, and multiple simultaneous nicknames logged into the
-/// same account. Connecting through another host deliberately produces a different key.
+/// same account. Connecting through another host deliberately produces a different pin.
 ///
-/// Plaintext connections and caller-supplied streams produce only session keys because papo did
+/// A `PeerKey` is not a conversation key. Applications key threads by the nickname's folded
+/// [`crate::Nick::key`] within their configured connection, and store this value as the identity
+/// pinned to that thread. Two nicknames on one account have equal pins but remain separate threads;
+/// a nickname change starts a new thread even though the live user's pin remains equal.
+///
+/// Plaintext connections and caller-supplied streams produce only session pins because papo did
 /// not verify a certificate for their server name. `ISUPPORT NETWORK` is descriptive and never
-/// affects identity. Session keys remain equal only while papo can prove continuity of one IRC
+/// affects identity. Session pins remain equal only while papo can prove continuity of one IRC
 /// user. They change after reconnect, departure and nickname reuse, or account logout.
 ///
 /// Only [`Self::as_verified_str`] exposes a persistable representation. Parsing accepts that
-/// representation, while session keys deliberately have no string form.
+/// representation, while session pins deliberately have no string form.
+///
+/// Store the folded nickname key and pin together. Compare the current pin before routing an
+/// incoming message or sending, and replace the pin only after the user accepts a warning:
+///
+/// ```ignore
+/// fn warning(stored: &papo::PeerKey, current: &papo::PeerKey) -> Option<&'static str> {
+///     (stored != current).then(|| {
+///         if stored.is_verified() && current.is_verified() {
+///             "different account"
+///         } else {
+///             "cannot verify identity"
+///         }
+///     })
+/// }
+///
+/// fn inspect_incoming(thread: (&str, &papo::PeerKey), sender: &papo::UserSource) {
+///     if sender.nick().key() == thread.0
+///         && let Some(current) = sender.peer_key()
+///         && let Some(alert) = warning(thread.1, current)
+///     {
+///         eprintln!("{alert}");
+///     }
+/// }
+///
+/// async fn current_peer(
+///     client: &papo::Client,
+///     nick: &papo::Nick,
+///     stored: &papo::PeerKey,
+///     accept: &mut impl FnMut(&str) -> bool,
+/// ) -> Result<Option<papo::DirectRef>, papo::Error> {
+///     let peer = client.direct(nick).await?;
+///     if let Some(alert) = warning(stored, peer.peer_key()) {
+///         if !accept(alert) { return Ok(None); }
+///     }
+///     Ok(Some(peer))
+/// }
+///
+/// async fn send(
+///     client: &papo::Client,
+///     nick: &papo::Nick,
+///     stored: &papo::PeerKey,
+///     mut accept: impl FnMut(&str) -> bool,
+/// ) -> Result<(), papo::Error> {
+///     if let Some(peer) = current_peer(client, nick, stored, &mut accept).await? {
+///         match client.privmsg(&peer, "release approved").await {
+///             Ok(_) => {}
+///             Err(papo::Error::TargetGone) => {
+///                 if let Some(rebound) = current_peer(client, nick, stored, &mut accept).await? {
+///                     client.privmsg(&rebound, "release approved").await?;
+///                 }
+///             }
+///             Err(error) => return Err(error),
+///         }
+///     }
+///     Ok(())
+/// }
+/// ```
 #[derive(Clone, Eq, Hash, PartialEq)]
 pub struct PeerKey(PeerIdentity);
 
@@ -100,15 +162,15 @@ impl PeerKey {
         Self(PeerIdentity::Ephemeral { origin, sequence })
     }
 
-    /// Reports whether this key is backed by a proven account at an authenticated server scope.
+    /// Reports whether this pin is backed by a proven account at an authenticated server scope.
     #[must_use]
     pub const fn is_verified(&self) -> bool {
         matches!(self.0, PeerIdentity::Verified(_))
     }
 
-    /// Returns the stable representation of a verified key.
+    /// Returns the stable representation of a verified pin.
     ///
-    /// Session keys return `None` so they cannot accidentally be stored as durable identities.
+    /// Session pins return `None` so they cannot accidentally be stored as durable identities.
     /// A returned value round-trips through [`str::parse`](FromStr::from_str).
     #[must_use]
     #[allow(dead_code)]
