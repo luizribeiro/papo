@@ -1,6 +1,10 @@
 use papo_core::NetworkState;
 
-pub(crate) fn scope(state: &crate::State, server: &str, network_id: &str) -> Option<String> {
+pub(crate) fn scope(
+    state: &crate::State,
+    server: &str,
+    network_id: &str,
+) -> Option<crate::peer_key::PeerScope> {
     let login = state.bouncer_login.as_deref()?;
     let network = state
         .core
@@ -23,17 +27,13 @@ fn format_scope(
     upstream: &str,
     tls: Option<bool>,
     state: Option<NetworkState>,
-) -> Option<String> {
+) -> Option<crate::peer_key::PeerScope> {
     if tls != Some(true) || state != Some(NetworkState::Connected) {
         return None;
     }
     let upstream = crate::sts::normalize_host(upstream);
-    Some(format!(
-        "server={}:{server};login={}:{login};network={}:{network_id};upstream={}:{upstream}",
-        server.len(),
-        login.len(),
-        network_id.len(),
-        upstream.len()
+    Some(crate::peer_key::PeerScope::bouncer(
+        server, login, network_id, &upstream,
     ))
 }
 
@@ -58,7 +58,12 @@ mod tests {
         .unwrap();
         assert_eq!(
             expected,
-            "server=15:bouncer.example;login=5:alice;network=9:libera-42;upstream=15:irc.libera.chat"
+            crate::peer_key::PeerScope::bouncer(
+                "bouncer.example",
+                "alice",
+                "libera-42",
+                "irc.libera.chat"
+            )
         );
         assert_ne!(
             scope("alice", "oftc-17", "irc.oftc.net", Some(true), connected),

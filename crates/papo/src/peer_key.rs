@@ -8,6 +8,58 @@ use std::{
 const PREFIX: &str = "papo-peer-v1:";
 static NEXT_EPHEMERAL: AtomicU64 = AtomicU64::new(1);
 
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub(crate) struct PeerScope {
+    server: String,
+    bouncer: Option<BouncerScope>,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+struct BouncerScope {
+    login: String,
+    network: String,
+    upstream: String,
+}
+
+impl PeerScope {
+    pub(crate) fn server(server: &str) -> Self {
+        Self {
+            server: server.to_owned(),
+            bouncer: None,
+        }
+    }
+
+    pub(crate) fn bouncer(server: &str, login: &str, network: &str, upstream: &str) -> Self {
+        Self {
+            server: server.to_owned(),
+            bouncer: Some(BouncerScope {
+                login: login.to_owned(),
+                network: network.to_owned(),
+                upstream: upstream.to_owned(),
+            }),
+        }
+    }
+
+    fn legacy(&self) -> String {
+        let mut value = format!("server={}:{}", self.server.len(), self.server);
+        if let Some(bouncer) = &self.bouncer {
+            use std::fmt::Write as _;
+            write!(
+                value,
+                ";login={}:{};network={}:{};upstream={}:{}",
+                bouncer.login.len(),
+                bouncer.login,
+                bouncer.network.len(),
+                bouncer.network,
+                bouncer.upstream.len(),
+                bouncer.upstream
+            )
+            .expect("writing to a string cannot fail");
+        }
+        value
+    }
+}
+
 /// An identity pin for a nickname-addressed direct conversation.
 ///
 /// Verified pins compare the account under the server's advertised casemapping together with the
@@ -103,7 +155,7 @@ pub struct InvalidPeerKey;
 
 impl PeerKey {
     pub(crate) fn live(
-        scope: Option<&str>,
+        scope: Option<&PeerScope>,
         account: &crate::Account,
         token: papo_core::PeerToken,
         origin: crate::Origin,
@@ -111,9 +163,9 @@ impl PeerKey {
         Self::new(scope, account, token.__is_known().then_some(token), origin)
     }
 
-    pub(crate) fn historical(scope: Option<&str>, account: &crate::Account) -> Option<Self> {
+    pub(crate) fn historical(scope: Option<&PeerScope>, account: &crate::Account) -> Option<Self> {
         match (scope, account) {
-            (Some(scope), crate::Account::LoggedIn(account)) if !scope.is_empty() => {
+            (Some(scope), crate::Account::LoggedIn(account)) => {
                 Some(Self::verified(scope, account.casemapping(), account.key()))
             }
             _ => None,
@@ -121,14 +173,12 @@ impl PeerKey {
     }
 
     fn new(
-        scope: Option<&str>,
+        scope: Option<&PeerScope>,
         account: &crate::Account,
         tracked: Option<papo_core::PeerToken>,
         origin: crate::Origin,
     ) -> Self {
-        if let (Some(scope), crate::Account::LoggedIn(account)) = (scope, account)
-            && !scope.is_empty()
-        {
+        if let (Some(scope), crate::Account::LoggedIn(account)) = (scope, account) {
             return Self::verified(scope, account.casemapping(), account.key());
         }
         tracked.map_or_else(
@@ -137,7 +187,11 @@ impl PeerKey {
         )
     }
 
-    fn verified(scope: &str, casemapping: crate::Casemapping, account: &str) -> Self {
+    fn verified(scope: &PeerScope, casemapping: crate::Casemapping, account: &str) -> Self {
+        Self::verified_legacy(&scope.legacy(), casemapping, account)
+    }
+
+    fn verified_legacy(scope: &str, casemapping: crate::Casemapping, account: &str) -> Self {
         let value = format!(
             "{PREFIX}{}:{}:{scope}{account}",
             casemapping.as_str(),
@@ -204,7 +258,7 @@ impl FromStr for PeerKey {
         }
         let account = casemapping.account(account);
         account.check().map_err(|_| InvalidPeerKey)?;
-        Ok(Self::verified(scope, casemapping, account.key()))
+        Ok(Self::verified_legacy(scope, casemapping, account.key()))
     }
 }
 

@@ -53,7 +53,7 @@ impl DirectRef {
         let state = client.state();
         let scope = state.peer_scope();
         let peer_key = crate::peer_key::PeerKey::live(
-            scope.as_deref(),
+            scope.as_ref(),
             recipient.__account(),
             state.peer_token(recipient.__nick()),
             client.origin(),
@@ -696,12 +696,21 @@ mod tests {
     #[test]
     fn peer_keys_compare_by_scope_and_canonical_account() {
         let account = Account::LoggedIn(Casemapping::Rfc1459.account("Alice[Ops]"));
-        let first =
-            crate::peer_key::PeerKey::historical(Some("server=12:irc.example"), &account).unwrap();
-        let same =
-            crate::peer_key::PeerKey::historical(Some("server=12:irc.example"), &account).unwrap();
-        let other =
-            crate::peer_key::PeerKey::historical(Some("server=13:chat.example"), &account).unwrap();
+        let first = crate::peer_key::PeerKey::historical(
+            Some(&crate::peer_key::PeerScope::server("irc.example")),
+            &account,
+        )
+        .unwrap();
+        let same = crate::peer_key::PeerKey::historical(
+            Some(&crate::peer_key::PeerScope::server("irc.example")),
+            &account,
+        )
+        .unwrap();
+        let other = crate::peer_key::PeerKey::historical(
+            Some(&crate::peer_key::PeerScope::server("chat.example")),
+            &account,
+        )
+        .unwrap();
 
         assert!(first.is_verified());
         assert_eq!(first, same);
@@ -719,8 +728,11 @@ mod tests {
     #[test]
     fn verified_peer_keys_round_trip_with_delimiters_and_unicode() {
         let account = Account::LoggedIn(Casemapping::Rfc1459.account("Alice[Ops]"));
-        let key = crate::peer_key::PeerKey::historical(Some("server=15:irc.example:🌐"), &account)
-            .unwrap();
+        let key = crate::peer_key::PeerKey::historical(
+            Some(&crate::peer_key::PeerScope::server("irc.example:🌐")),
+            &account,
+        )
+        .unwrap();
         let encoded = key.as_verified_str().unwrap();
         let parsed = encoded.parse::<crate::peer_key::PeerKey>().unwrap();
 

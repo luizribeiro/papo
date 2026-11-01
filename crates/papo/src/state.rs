@@ -306,7 +306,7 @@ impl State {
         self.core.__peer_token_for(nick.as_str())
     }
 
-    pub(crate) fn peer_scope(&self) -> Option<String> {
+    pub(crate) fn peer_scope(&self) -> Option<crate::peer_key::PeerScope> {
         self.isupport.casemapping()?;
         let server = self.authenticated_server_name.as_deref()?;
         match self.isupport.get("BOUNCER_NETID") {
@@ -327,7 +327,7 @@ impl State {
             {
                 None
             }
-            papo_proto::Advertised::Absent => Some(format!("server={}:{server}", server.len())),
+            papo_proto::Advertised::Absent => Some(crate::peer_key::PeerScope::server(server)),
         }
     }
 
@@ -683,7 +683,7 @@ mod name_tests {
         State::from_session(&session, false)
     }
 
-    fn peer_scope(isupport: Option<&str>) -> Option<String> {
+    fn peer_scope(isupport: Option<&str>) -> Option<crate::peer_key::PeerScope> {
         let mut session = Session::new(Config::default());
         session.handle_connected_with(
             crate::rt::now_mono(),
@@ -707,7 +707,7 @@ mod name_tests {
         assert_eq!(peer_scope(None), None);
         assert_eq!(
             peer_scope(Some("CASEMAPPING=rfc1459")),
-            Some("server=15:bouncer.example".to_owned())
+            Some(crate::peer_key::PeerScope::server("bouncer.example"))
         );
         assert_eq!(
             peer_scope(Some("CASEMAPPING=rfc1459 BOUNCER_NETID=libera-42")),

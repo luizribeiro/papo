@@ -1833,7 +1833,7 @@ pub(crate) fn attach_live_peer_key(event: &mut Event, state: &crate::State) {
     };
     let scope = state.peer_scope();
     actor.set_peer_key(crate::peer_key::PeerKey::live(
-        scope.as_deref(),
+        scope.as_ref(),
         &account,
         state.peer_token(actor.nick()),
         actor.nick().origin(),
@@ -1848,8 +1848,7 @@ pub(crate) fn attach_historical_peer_key(event: &mut Event, state: &crate::State
         return;
     };
     let scope = state.peer_scope();
-    if let Some(peer_key) = crate::peer_key::PeerKey::historical(scope.as_deref(), actor.account())
-    {
+    if let Some(peer_key) = crate::peer_key::PeerKey::historical(scope.as_ref(), actor.account()) {
         actor.set_peer_key(peer_key);
     }
 }
