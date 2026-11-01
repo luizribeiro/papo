@@ -1,30 +1,30 @@
 use super::{AccountPin, BouncerScope, InvalidPeerKey, PeerScope};
 
-const PREFIX: &str = "papo-peer-v1:";
+const PREFIX: &str = "papo-pin:1;";
+const LEGACY_PREFIX: &str = "papo-peer-v1:";
 
 pub(super) fn encode(
     scope: &PeerScope,
     casemapping: crate::Casemapping,
     account: &str,
 ) -> AccountPin {
-    let encoded_scope = legacy_scope(scope);
-    let encoded_casemap = percent_encode(casemapping.as_str());
-    let encoded = format!(
-        "{PREFIX}{encoded_casemap}:{}:{encoded_scope}{account}",
-        encoded_scope.len()
-    );
-    AccountPin {
+    let mut pin = AccountPin {
         scope: scope.clone(),
         casemapping,
         account: account.to_owned(),
         id: None,
-        encoded,
-    }
+        encoded: String::new(),
+    };
+    pin.encoded = render(&pin);
+    pin
 }
 
 pub(super) fn parse(value: &str) -> Result<AccountPin, InvalidPeerKey> {
+    if value.starts_with(PREFIX) {
+        return parse_fields(value);
+    }
     let (casemapping, rest) = value
-        .strip_prefix(PREFIX)
+        .strip_prefix(LEGACY_PREFIX)
         .and_then(|value| value.split_once(':'))
         .ok_or(InvalidPeerKey)?;
     let casemapping = percent_decode(casemapping)?
@@ -49,6 +49,106 @@ pub(super) fn parse(value: &str) -> Result<AccountPin, InvalidPeerKey> {
         id: None,
         encoded: value.to_owned(),
     })
+}
+
+fn parse_fields(value: &str) -> Result<AccountPin, InvalidPeerKey> {
+    let fields = value[PREFIX.len()..]
+        .split(';')
+        .map(|field| {
+            let (name, value) = field.split_once('=').ok_or(InvalidPeerKey)?;
+            Ok((name, percent_decode(value)?))
+        })
+        .collect::<Result<Vec<_>, InvalidPeerKey>>()?;
+    let names = fields.iter().map(|field| field.0).collect::<Vec<_>>();
+    let (scope, account_offset) = match names.as_slice() {
+        ["server", "casemap", "account"] | ["server", "casemap", "account", "id"] => {
+            (PeerScope::server(&fields[0].1), 1)
+        }
+        [
+            "server",
+            "bouncer-login",
+            "netid",
+            "upstream",
+            "casemap",
+            "account",
+        ]
+        | [
+            "server",
+            "bouncer-login",
+            "netid",
+            "upstream",
+            "casemap",
+            "account",
+            "id",
+        ] => (
+            bouncer_scope(&fields[0].1, &fields[1].1, &fields[2].1, &fields[3].1),
+            4,
+        ),
+        _ => return Err(InvalidPeerKey),
+    };
+    let casemap = &fields[account_offset].1;
+    let account = &fields[account_offset + 1].1;
+    let id = fields.get(account_offset + 2).map(|field| &field.1);
+    if scope.server.is_empty()
+        || scope.bouncer.as_ref().is_some_and(|scope| {
+            scope.login.is_empty() || scope.network.is_empty() || scope.upstream.is_empty()
+        })
+        || account.is_empty()
+        || id.is_some_and(String::is_empty)
+    {
+        return Err(InvalidPeerKey);
+    }
+    let casemapping = casemap
+        .parse::<crate::Casemapping>()
+        .map_err(|_| InvalidPeerKey)?;
+    let account = casemapping.account(account);
+    account.check().map_err(|_| InvalidPeerKey)?;
+    let mut pin = AccountPin {
+        scope,
+        casemapping,
+        account: account.key().to_owned(),
+        id: id.cloned(),
+        encoded: String::new(),
+    };
+    pin.encoded = render(&pin);
+    Ok(pin)
+}
+
+fn render(pin: &AccountPin) -> String {
+    use std::fmt::Write as _;
+    let mut encoded = format!("{PREFIX}server={}", percent_encode(&pin.scope.server));
+    if let Some(bouncer) = &pin.scope.bouncer {
+        write!(
+            encoded,
+            ";bouncer-login={};netid={};upstream={}",
+            percent_encode(&bouncer.login),
+            percent_encode(&bouncer.network),
+            percent_encode(&bouncer.upstream)
+        )
+        .expect("writing to a string cannot fail");
+    }
+    write!(
+        encoded,
+        ";casemap={};account={}",
+        pin.casemapping.as_str(),
+        percent_encode(&pin.account)
+    )
+    .expect("writing to a string cannot fail");
+    if let Some(id) = &pin.id {
+        write!(encoded, ";id={}", percent_encode(id)).expect("writing to a string cannot fail");
+    }
+    encoded
+}
+
+fn bouncer_scope(server: &str, login: &str, network: &str, upstream: &str) -> PeerScope {
+    PeerScope {
+        server: server.to_owned(),
+        bouncer: Some(BouncerScope {
+            login: login.to_owned(),
+            network: network.to_owned(),
+            upstream: upstream.to_owned(),
+        }),
+    }
 }
 
 fn parse_legacy_scope(value: &str) -> Option<PeerScope> {
@@ -79,30 +179,6 @@ fn take_legacy_value(rest: &mut &str) -> Option<String> {
     let (value, remaining) = value.get(..len).zip(value.get(len..))?;
     *rest = remaining;
     Some(value.to_owned())
-}
-
-fn legacy_scope(scope: &PeerScope) -> String {
-    let mut value = format!("server={}:{}", scope.server.len(), scope.server);
-    if let Some(BouncerScope {
-        login,
-        network,
-        upstream,
-    }) = &scope.bouncer
-    {
-        use std::fmt::Write as _;
-        write!(
-            value,
-            ";login={}:{};network={}:{};upstream={}:{}",
-            login.len(),
-            login,
-            network.len(),
-            network,
-            upstream.len(),
-            upstream
-        )
-        .expect("writing to a string cannot fail");
-    }
-    value
 }
 
 fn percent_encode(value: &str) -> String {

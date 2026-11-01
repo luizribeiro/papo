@@ -756,6 +756,10 @@ mod tests {
         let encoded = key.as_verified_str().unwrap();
         let parsed = encoded.parse::<crate::peer_key::PeerKey>().unwrap();
 
+        assert_eq!(
+            encoded,
+            "papo-pin:1;server=irc.example%3A%F0%9F%8C%90;casemap=rfc1459;account=alice%7Bops%7D"
+        );
         assert_eq!(parsed, key);
         assert_eq!(parsed.as_verified_str(), Some(encoded));
     }
