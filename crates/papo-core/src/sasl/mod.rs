@@ -175,6 +175,8 @@ pub(super) struct SaslSession {
     awaiting_challenge: bool,
     completion: Completion,
     account: Option<String>,
+    pending_account: Option<String>,
+    account_update: AccountUpdate,
     device: Option<String>,
     challenge: String,
     entropy: Option<Box<dyn Entropy + Send>>,
@@ -195,6 +197,14 @@ enum Completion {
     Pending,
     Success,
     Failed,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub(super) enum AccountUpdate {
+    #[default]
+    Unchanged,
+    LoggedIn(String),
+    LoggedOut,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -244,6 +254,8 @@ impl std::fmt::Debug for SaslSession {
             .field("awaiting_challenge", &self.awaiting_challenge)
             .field("completion", &self.completion)
             .field("account", &self.account)
+            .field("pending_account", &self.pending_account)
+            .field("account_update", &self.account_update)
             .field("device", &self.device)
             .field("challenge_len", &self.challenge.len())
             .field("has_entropy", &self.entropy.is_some())
@@ -279,6 +291,8 @@ impl SaslSession {
             },
             configured,
             account: None,
+            pending_account: None,
+            account_update: AccountUpdate::Unchanged,
             device: config.sasl.as_ref().and_then(|sasl| sasl.device.clone()),
             challenge: String::new(),
             entropy,
@@ -305,6 +319,8 @@ impl SaslSession {
             Completion::Pending
         };
         self.account = None;
+        self.pending_account = None;
+        self.account_update = AccountUpdate::Unchanged;
         self.challenge.clear();
         self.failures.clear();
         self.failure_kind = FailureKind::Login;
@@ -375,6 +391,7 @@ impl SaslSession {
         self.active = None;
         self.awaiting_challenge = false;
         self.completion = Completion::Pending;
+        self.pending_account = None;
         self.challenge.clear();
         self.failures.clear();
         self.failure_kind = FailureKind::Login;
@@ -500,10 +517,15 @@ impl SaslSession {
         }
         if message.command_is("900") {
             if let Some(account) = message.param(2) {
-                self.account = Some(account.to_owned());
+                if self.active.is_some() || self.aborting {
+                    self.pending_account = Some(account.to_owned());
+                } else {
+                    self.publish_account(Some(account.to_owned()));
+                }
             }
         } else if message.command_is("901") {
-            self.account = None;
+            self.pending_account = None;
+            self.publish_account(None);
         } else if (message.command_is("903") || message.command_is("907"))
             && (self.aborting
                 || (matches!(self.active, Some(Mechanism::ScramSha256 { .. }))
@@ -518,6 +540,9 @@ impl SaslSession {
                 self.scram = None;
                 self.scram_step = ScramStep::None;
                 self.completion = Completion::Success;
+                if let Some(account) = self.pending_account.take() {
+                    self.publish_account(Some(account));
+                }
             }
         } else if message.command_is("904") || message.command_is("905") {
             self.record_active_failure(message.param(1).unwrap_or("SASL mechanism failed"));
@@ -547,6 +572,7 @@ impl SaslSession {
             && message.param(1) == Some("ACCOUNT_REQUIRED")
         {
             self.completion = Completion::Failed;
+            self.pending_account = None;
             self.deadline = None;
             outbox.close(
                 crate::CloseKind::AccountRequired,
@@ -578,6 +604,10 @@ impl SaslSession {
         self.account.as_deref()
     }
 
+    pub(super) fn take_account_update(&mut self) -> AccountUpdate {
+        std::mem::take(&mut self.account_update)
+    }
+
     pub(super) const fn next_deadline(&self) -> Option<Instant> {
         self.deadline
     }
@@ -602,6 +632,7 @@ impl SaslSession {
 
     pub(super) fn handle_disconnected(&mut self) {
         self.deadline = None;
+        self.pending_account = None;
     }
 
     fn start_next(&mut self, now: Instant, outbox: &mut Outbox) {
@@ -661,6 +692,12 @@ impl SaslSession {
         self.deadline = None;
         self.scram = None;
         self.scram_step = ScramStep::None;
+        self.pending_account = None;
+    }
+
+    fn publish_account(&mut self, account: Option<String>) {
+        self.account.clone_from(&account);
+        self.account_update = account.map_or(AccountUpdate::LoggedOut, AccountUpdate::LoggedIn);
     }
 
     fn retain_available(&mut self, available: &str) {

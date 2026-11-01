@@ -22,6 +22,8 @@ including server-specific invalid-channel numerics such as 448 and 479.
 
 SASL failure numerics for raw, post-registration authentication attempts are now reported as
 warnings without closing the connection or changing papo's completed SASL exchange.
+An account reported during SASL is published only after the exchange succeeds, including SCRAM
+server-proof verification; failed or aborted exchanges discard the pending account.
 
 `DirectRef` equality and hashing now identify only the tracked IRC user on one connection. Handles
 for that user stay equal across account discovery and nickname changes; different users remain

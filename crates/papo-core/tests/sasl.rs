@@ -251,10 +251,20 @@ fn authenticates_with_plain_and_records_the_account() {
     .server("AUTHENTICATE +")
     .client("AUTHENTICATE YWRtaW4AYWxpY2VAcGhvbmUAY29ycmVjdCBob3JzZSBiYXR0ZXJ5IHN0YXBsZQ==")
     .server(":ergo.test 900 alice alice!~u@host alice :You are now logged in as alice")
-    .inspect(|session| assert_eq!(session.account(), Some("alice")))
+    .inspect(|session| {
+        assert_eq!(session.account(), None);
+        assert!(matches!(
+            session.state().account(),
+            Account::Unknown | Account::LoggedOut
+        ));
+    })
     .no_client()
     .server(":ergo.test 903 alice :SASL authentication successful")
-    .client("CAP END");
+    .client("CAP END")
+    .inspect(|session| {
+        assert_eq!(session.account(), Some("alice"));
+        assert!(matches!(session.state().account(), Account::LoggedIn(name) if name == "alice"));
+    });
 }
 
 #[test]
@@ -270,12 +280,12 @@ fn accepts_prefixed_plain_challenge_and_tracks_logout() {
     .server(":solanum.example AUTHENTICATE +")
     .client("AUTHENTICATE AGVtZXJzaW9uAGh1bnRlcjI=")
     .server(":solanum.example 900 emersion emersion!user@host emersion :logged in")
+    .server(":solanum.example 903 emersion :SASL authentication successful")
+    .client("CAP END")
     .inspect(|session| {
         assert_eq!(session.account(), Some("emersion"));
         assert!(matches!(session.state().account(), Account::LoggedIn(name) if name == "emersion"));
     })
-    .server(":solanum.example 903 emersion :SASL authentication successful")
-    .client("CAP END")
     .server(":solanum.example 901 emersion emersion!user@host :logged out")
     .inspect(|session| {
         assert_eq!(session.account(), None);
@@ -975,6 +985,62 @@ fn rejects_scram_success_without_a_verified_server_proof() {
 }
 
 #[test]
+fn unverified_scram_success_discards_the_pending_account() {
+    scram_after_client_final(false)
+        .server(":ergo.test 900 user user!~u@host user :You are now logged in as user")
+        .inspect(|session| {
+            assert_eq!(session.account(), None);
+            assert!(matches!(
+                session.state().account(),
+                Account::Unknown | Account::LoggedOut
+            ));
+        })
+        .server(":ergo.test 903 user :SASL authentication successful")
+        .event(|event| {
+            matches!(event, Event::AuthenticationFailed { reason, .. }
+                if reason.contains("without a verified server proof"))
+        })
+        .client("CAP END")
+        .inspect(|session| {
+            assert_eq!(session.account(), None);
+            assert!(matches!(
+                session.state().account(),
+                Account::Unknown | Account::LoggedOut
+            ));
+        });
+}
+
+#[test]
+fn sasl_failure_discards_the_pending_account() {
+    Transcript::new(
+        Config::default().sasl(
+            Sasl::plain(
+                "alice",
+                papo_core::Secret::new("correct horse battery staple"),
+            )
+            .optional(),
+        ),
+    )
+    .connect_default()
+    .server("CAP * LS :sasl=PLAIN")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE PLAIN")
+    .server(":solanum.example 900 alice alice!user@host alice :logged in")
+    .inspect(|session| assert_eq!(session.account(), None))
+    .server(":solanum.example 904 alice :SASL authentication failed")
+    .event(|event| matches!(event, Event::AuthenticationFailed { .. }))
+    .client("CAP END")
+    .inspect(|session| {
+        assert_eq!(session.account(), None);
+        assert!(matches!(
+            session.state().account(),
+            Account::Unknown | Account::LoggedOut
+        ));
+    });
+}
+
+#[test]
 fn rejects_scram_success_while_aborting_a_bad_server_proof() {
     for require_sasl in [true, false] {
         let transcript = scram_after_client_final(require_sasl)
@@ -1041,13 +1107,25 @@ fn does_not_accept_sasl_success_before_capability_ack() {
 }
 
 #[test]
-fn authenticates_with_scram_sha256_using_fixed_entropy() {
+fn verified_scram_success_publishes_the_pending_account() {
     scram_until_server_final(
         "AUTHENTICATE dj1hV3UvY3hvOUIyWko1ajMxdnRZeTlObTAxUGY4U2FmbXpGQjN3VEgrS2l3PQ==",
     )
     .client("AUTHENTICATE +")
+    .server(":ergo.test 900 user user!~u@host user :You are now logged in as user")
+    .inspect(|session| {
+        assert_eq!(session.account(), None);
+        assert!(matches!(
+            session.state().account(),
+            Account::Unknown | Account::LoggedOut
+        ));
+    })
     .server(":ergo.test 903 user :SASL authentication successful")
-    .client("CAP END");
+    .client("CAP END")
+    .inspect(|session| {
+        assert_eq!(session.account(), Some("user"));
+        assert!(matches!(session.state().account(), Account::LoggedIn(name) if name == "user"));
+    });
 }
 
 #[test]
