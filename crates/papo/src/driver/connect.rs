@@ -19,8 +19,6 @@ use super::{
 };
 #[cfg(sockets)]
 use crate::address::Protocol;
-#[cfg(any(sockets, browser))]
-use crate::transport;
 use crate::{Error, Event, InvalidInput, Reconnect};
 
 #[cfg(any(sockets, browser))]
@@ -28,7 +26,9 @@ use crate::{Error, Event, InvalidInput, Reconnect};
 pub(super) async fn open_connection(
     plan: ConnectionPlan,
     progress: mpsc::UnboundedSender<papo_core::ConnectPhase>,
-) -> Result<transport::stream::Stream, Error> {
+) -> Result<crate::transport::stream::Stream, Error> {
+    use crate::transport;
+
     #[cfg(sockets)]
     {
         if let Some(url) = plan.address.websocket_url() {
