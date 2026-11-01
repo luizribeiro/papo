@@ -867,6 +867,7 @@ mod browser_tests {
     use super::{ConnectionPlan, authenticated_server_name};
     use crate::transport::TlsConfig;
 
+    #[test]
     #[wasm_bindgen_test]
     fn secure_websocket_authenticates_its_normalized_hostname() {
         let plan = ConnectionPlan {
