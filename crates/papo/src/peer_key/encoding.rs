@@ -169,6 +169,7 @@ mod tests {
         let encoded = percent_encode("josé;net=id%");
         assert_eq!(encoded, "jos%C3%A9%3Bnet%3Did%25");
         assert_eq!(percent_decode(&encoded).as_deref(), Ok("josé;net=id%"));
+        assert_eq!(percent_decode("%3b").as_deref(), Ok(";"));
     }
 
     #[test]
@@ -208,6 +209,49 @@ mod tests {
             identified.check(&name_only),
             PeerKeyCheck::Mismatch(PeerKeyMismatch::CannotVerify)
         ));
+
+        for current in [
+            pin("account=bob;id=account-42"),
+            "papo-pin:1;server=irc.example;casemap=ascii;account=alice;id=account-42"
+                .parse()
+                .unwrap(),
+        ] {
+            assert!(matches!(
+                name_only.check(&current),
+                PeerKeyCheck::Mismatch(PeerKeyMismatch::DifferentAccount)
+            ));
+        }
+        for current in [
+            pin("account=bob"),
+            "papo-pin:1;server=irc.example;casemap=ascii;account=alice"
+                .parse()
+                .unwrap(),
+        ] {
+            assert!(matches!(
+                name_only.check(&current),
+                PeerKeyCheck::Mismatch(PeerKeyMismatch::DifferentAccount)
+            ));
+        }
+    }
+
+    #[test]
+    fn peer_key_errors_and_debug_text_are_specific_and_redacted() {
+        use crate::{PeerKey, PeerKeyMismatch, peer_key::PeerPinMismatch};
+
+        let invalid = "not-a-pin".parse::<PeerKey>().unwrap_err();
+        assert_eq!(invalid.to_string(), "invalid persisted peer key");
+        let identified = "papo-pin:1;server=irc.example;casemap=rfc1459;account=alice"
+            .parse::<PeerKey>()
+            .unwrap();
+        assert_eq!(format!("{identified:?}"), "PeerKey { verified: true, .. }");
+        assert_eq!(
+            PeerPinMismatch::new(PeerKeyMismatch::DifferentAccount, identified.clone()).to_string(),
+            "the peer account changed"
+        );
+        assert_eq!(
+            PeerPinMismatch::new(PeerKeyMismatch::CannotVerify, identified).to_string(),
+            "the current peer identity cannot be verified"
+        );
     }
 
     #[test]
