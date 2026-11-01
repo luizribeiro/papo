@@ -467,6 +467,9 @@ pub enum Error {
     /// The intended user left, changed nickname, or no longer holds a private reply nickname.
     #[error("the target user is no longer present")]
     TargetGone,
+    /// The current peer identity does not match the stored pin.
+    #[error(transparent)]
+    PeerPinMismatch(crate::PeerPinMismatch),
     /// The server's MONITOR list has no room for another guarded direct recipient.
     #[error("the server's MONITOR list is full at {limit} entries")]
     #[non_exhaustive]

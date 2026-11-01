@@ -183,8 +183,15 @@ impl crate::Client {
     /// occupied. It also returns an unsupported, server, invalid-input, timeout, or disconnected
     /// error if the identity cannot be established without failing open.
     pub fn direct(&self, nick: impl crate::AsNick) -> crate::RequestFuture<DirectRef> {
-        let client = self.clone();
         let nick = crate::AsNick::__parts(&nick).into_owned();
+        self.direct_parts(nick)
+    }
+
+    fn direct_parts(
+        &self,
+        nick: crate::target::sealed::Parts<'static>,
+    ) -> crate::RequestFuture<DirectRef> {
+        let client = self.clone();
         crate::RequestFuture::new(async move {
             let nick = client.resolve(crate::target::Role::Nick("direct: nick"), nick)?;
             let snapshot = client.state();
@@ -199,6 +206,36 @@ impl crate::Client {
             let recipient = crate::direct_runtime::acquire(&client, nick.clone()).await?;
             let (recipient, _) = crate::direct_runtime::prove(&client, nick, recipient).await?;
             Ok(DirectRef::new(&client, recipient, true))
+        })
+    }
+
+    /// Opens a guarded direct-message handle only when the current identity matches `stored`.
+    ///
+    /// An upgraded pin is accepted and available from the returned handle. On a mismatch, the
+    /// error contains the exhaustive reason and current pin so the application can ask the user
+    /// before opening a fresh handle with [`Self::direct`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::Error::PeerPinMismatch`] without returning a handle when the stored pin
+    /// does not authorize the current peer. It otherwise returns the errors documented by
+    /// [`Self::direct`].
+    pub fn direct_pinned(
+        &self,
+        nick: impl crate::AsNick,
+        stored: &crate::PeerKey,
+    ) -> crate::RequestFuture<DirectRef> {
+        let client = self.clone();
+        let nick = crate::AsNick::__parts(&nick).into_owned();
+        let stored = stored.clone();
+        crate::RequestFuture::new(async move {
+            let current = client.direct_parts(nick).await?;
+            match stored.check(current.peer_key()) {
+                crate::PeerKeyCheck::Match | crate::PeerKeyCheck::Upgrade(_) => Ok(current),
+                crate::PeerKeyCheck::Mismatch(reason) => Err(crate::Error::PeerPinMismatch(
+                    crate::PeerPinMismatch::new(reason, current.peer_key().clone()),
+                )),
+            }
         })
     }
 }
@@ -787,7 +824,10 @@ mod tests {
             "papo-pin:1;server=irc.example;netid=libera;casemap=rfc1459;account=alice",
             "papo-pin:1;server=irc.example;casemap=rfc1459;account=alice;extra=value",
         ] {
-            assert!(matches!(value.parse::<PeerKey>(), Err(InvalidPeerKey)), "{value}");
+            assert!(
+                matches!(value.parse::<PeerKey>(), Err(InvalidPeerKey)),
+                "{value}"
+            );
         }
     }
 }

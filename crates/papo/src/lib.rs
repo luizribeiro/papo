@@ -381,7 +381,7 @@ pub use papo_proto::{
     Color, FormatBuilder, InvalidIdentifier, Line, LineRef, Mask, MessageId, MetadataKey, Nick,
     Origin, Param, ServerName, Span, Style, Typing, UnknownCasemapping, WireLine, strip_formatting,
 };
-pub use peer_key::{InvalidPeerKey, PeerKey, PeerKeyCheck, PeerKeyMismatch};
+pub use peer_key::{InvalidPeerKey, PeerKey, PeerKeyCheck, PeerKeyMismatch, PeerPinMismatch};
 pub use reconnect::Reconnect;
 pub use requests::{ListEntry, ListRequest, WhoEntry, Whois, WhoisChannel};
 pub use state::{Channel, ModeListEntry, ReadMarker, State};

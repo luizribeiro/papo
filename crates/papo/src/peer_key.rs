@@ -150,6 +150,34 @@ pub enum PeerKeyMismatch {
     CannotVerify,
 }
 
+/// A stored peer pin that did not authorize opening the current identity.
+#[derive(Clone, Debug)]
+pub struct PeerPinMismatch {
+    reason: PeerKeyMismatch,
+    current: Box<PeerKey>,
+}
+
+impl PeerPinMismatch {
+    pub(crate) fn new(reason: PeerKeyMismatch, current: PeerKey) -> Self {
+        Self {
+            reason,
+            current: Box::new(current),
+        }
+    }
+
+    /// Returns why the current identity could not be accepted.
+    #[must_use]
+    pub const fn reason(&self) -> PeerKeyMismatch {
+        self.reason
+    }
+
+    /// Returns the current pin for an explicit user-approved replacement.
+    #[must_use]
+    pub const fn current_key(&self) -> &PeerKey {
+        &self.current
+    }
+}
+
 /// An error returned when a persisted peer key is malformed or unsupported.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct InvalidPeerKey;
@@ -277,4 +305,17 @@ impl fmt::Display for InvalidPeerKey {
     }
 }
 
+impl fmt::Display for PeerPinMismatch {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.reason {
+            PeerKeyMismatch::DifferentAccount => formatter.write_str("the peer account changed"),
+            PeerKeyMismatch::CannotVerify => {
+                formatter.write_str("the current peer identity cannot be verified")
+            }
+        }
+    }
+}
+
 impl std::error::Error for InvalidPeerKey {}
+
+impl std::error::Error for PeerPinMismatch {}
