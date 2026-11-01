@@ -4,6 +4,7 @@ use papo::{Event, Reconnect};
 
 use super::direct::next_active_event;
 
+#[allow(dead_code)]
 pub fn reconnecting() -> Reconnect {
     Reconnect::exponential()
         .initial_delay(Duration::ZERO)
