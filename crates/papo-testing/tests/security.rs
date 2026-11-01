@@ -1275,6 +1275,49 @@ async fn scram_success_requires_verified_server_proof() {
         ));
     }
 
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://hostile.offline.test", "papo-wire")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never())
+            .sasl(Sasl::scram_sha256("alice", papo::Secret::new(PASSWORD)).optional())
+            .allow_insecure_auth(true),
+    );
+    assert_eq!(wire.next_sent().await, "CAP LS 302");
+    assert_eq!(wire.next_sent().await, "NICK papo-wire");
+    assert_eq!(wire.next_sent().await, "USER papo-wire 0 * papo-wire");
+    wire.server(":offline.test CAP * LS :sasl=SCRAM-SHA-256")
+        .await;
+    assert_eq!(wire.next_sent().await, "CAP REQ :sasl");
+    wire.server(":offline.test CAP * ACK :sasl").await;
+    assert_eq!(wire.next_sent().await, "AUTHENTICATE SCRAM-SHA-256");
+    wire.server(
+        ":offline.test 900 papo-wire papo-wire!~papo@localhost alice :You are now logged in as alice",
+    )
+    .await;
+    wire.server(":offline.test 903 papo-wire :SASL authentication successful")
+        .await;
+    loop {
+        if matches!(
+            next_active_event(&mut events).await,
+            papo::Event::Warning(papo::event::Warning::AuthenticationFailed { reason, .. })
+                if reason.contains("verified server proof")
+        ) {
+            break;
+        }
+    }
+    assert!(matches!(
+        client.state().account(),
+        papo::Account::Unknown | papo::Account::LoggedOut
+    ));
+    assert_eq!(wire.next_sent().await, "CAP END");
+    wire.server(":offline.test 001 papo-wire :Welcome to the hostile test network")
+        .await;
+    connected(&mut events).await;
+    assert!(matches!(
+        client.state().account(),
+        papo::Account::Unknown | papo::Account::LoggedOut
+    ));
+
     let (_client, mut events, mut wire) = start_scram("irc://offline.test").await;
     send_bad_server_proof(&mut wire).await;
     wire.server(":offline.test 903 papo-wire :SASL authentication successful")
