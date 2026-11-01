@@ -1,6 +1,6 @@
 use std::{fmt, hash::Hash, str::FromStr};
 
-const PREFIX: &str = "papo-peer-v1:";
+mod encoding;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub(crate) struct PeerScope {
@@ -33,25 +33,6 @@ impl PeerScope {
                 upstream: upstream.to_owned(),
             }),
         }
-    }
-
-    fn legacy(&self) -> String {
-        let mut value = format!("server={}:{}", self.server.len(), self.server);
-        if let Some(bouncer) = &self.bouncer {
-            use std::fmt::Write as _;
-            write!(
-                value,
-                ";login={}:{};network={}:{};upstream={}:{}",
-                bouncer.login.len(),
-                bouncer.login,
-                bouncer.network.len(),
-                bouncer.network,
-                bouncer.upstream.len(),
-                bouncer.upstream
-            )
-            .expect("writing to a string cannot fail");
-        }
-        value
     }
 }
 
@@ -203,22 +184,11 @@ impl PeerKey {
     }
 
     fn verified(scope: &PeerScope, casemapping: crate::Casemapping, account: &str) -> Self {
-        Self::verified_legacy(&scope.legacy(), casemapping, account)
-    }
-
-    fn verified_legacy(scope: &str, casemapping: crate::Casemapping, account: &str) -> Self {
-        let encoded = format!(
-            "{PREFIX}{}:{}:{scope}{account}",
-            casemapping.as_str(),
-            scope.len()
-        );
-        Self(PeerIdentity::Account(AccountPin {
-            scope: scope.to_owned(),
+        Self(PeerIdentity::Account(encoding::encode(
+            scope,
             casemapping,
-            account: account.to_owned(),
-            id: None,
-            encoded,
-        }))
+            account,
+        )))
     }
 
     /// Checks this stored pin against the current pin for the same nickname thread.
@@ -288,25 +258,7 @@ impl FromStr for PeerKey {
     type Err = InvalidPeerKey;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
-        let (casemapping, rest) = value
-            .strip_prefix(PREFIX)
-            .and_then(|value| value.split_once(':'))
-            .ok_or(InvalidPeerKey)?;
-        let casemapping = casemapping
-            .parse::<crate::Casemapping>()
-            .map_err(|_| InvalidPeerKey)?;
-        let (scope_len, joined) = rest.split_once(':').ok_or(InvalidPeerKey)?;
-        let scope_len = scope_len.parse::<usize>().map_err(|_| InvalidPeerKey)?;
-        let (scope, account) = joined
-            .get(..scope_len)
-            .zip(joined.get(scope_len..))
-            .ok_or(InvalidPeerKey)?;
-        if scope.is_empty() || account.is_empty() {
-            return Err(InvalidPeerKey);
-        }
-        let account = casemapping.account(account);
-        account.check().map_err(|_| InvalidPeerKey)?;
-        Ok(Self::verified_legacy(scope, casemapping, account.key()))
+        encoding::parse(value).map(|pin| Self(PeerIdentity::Account(pin)))
     }
 }
 
