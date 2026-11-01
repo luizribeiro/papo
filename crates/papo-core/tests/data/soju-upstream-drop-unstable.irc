@@ -1,0 +1,34 @@
+# soju 0.11.1 in the soju-ergo profile, with bouncer-network capabilities.
+# alice-old left and mallory took alice while the upstream was disabled.
+S: :bouncer.papo.test 005 * AWAYLEN=390 BOT=B BOUNCER_NETID=1 CASEMAPPING=ascii CHANLIMIT=#:100 CHANMODES=Ibe,k,fl,CEMRUimnstu CHANNELLEN=64 CHANTYPES=# CHATHISTORY=1000 ELIST=U EXCEPTS EXTBAN=,m INVEX :are supported
+S: :bouncer.papo.test 005 * KICKLEN=390 MAXLIST=beI:100 MAXTARGETS=4 MODES MONITOR=100 MSGREFTYPES=timestamp NETWORK=ErgoTest NICKLEN=32 PREFIX=(qaohv)~&@%+ SAFELIST STATUSMSG=~&@%+ TARGMAX=NAMES:1,LIST:1,KICK:,WHOIS:1,USERHOST:10,PRIVMSG:4,TAGMSG:4,NOTICE:4,MONITOR:100 TOPICLEN=390 :are supported
+S: :bouncer.papo.test 005 * UTF8ONLY WHOX draft/ACCOUNTREQUIRED soju.im/SAFERATE :are supported
+S: :ergo.test 221 papo-bouncer +Zi
+S: BOUNCER NETWORK 1 state=connected;nickname=papo-bouncer;realname=papo-bouncer;tls=0;host=127.0.0.1;port=34181;name=ergo
+S: :papo-bouncer!~u@7fu8skn4epsiy.irc JOIN #review
+S: :bouncer.papo.test 353 * = #review :@alice papo-bouncer
+S: :bouncer.papo.test 366 * #review :End of /NAMES list
+S: :ergo.test 324 papo-bouncer #review +Cnt
+S: :ergo.test 329 papo-bouncer #review 1793542081
+# upstream disabled
+S: :bouncer.papo.test CAP papo-bouncer NEW draft/extended-monitor
+S: :bouncer.papo.test CAP papo-bouncer DEL sasl
+S: :bouncer.papo.test CAP papo-bouncer DEL draft/account-registration
+S: BOUNCER NETWORK 1 state=disconnected
+S: BOUNCER NETWORK 1 name=ergo;state=disconnected;nickname=papo-bouncer;realname=papo-bouncer;tls=0;host=127.0.0.1;port=34181
+# upstream enabled
+S: BOUNCER NETWORK 1 host=127.0.0.1;port=34181;name=ergo;state=disconnected;nickname=papo-bouncer;realname=papo-bouncer;tls=0
+S: :bouncer.papo.test CAP papo-bouncer DEL draft/extended-monitor
+S: :bouncer.papo.test CAP papo-bouncer NEW sasl=PLAIN,ANONYMOUS
+S: :bouncer.papo.test CAP papo-bouncer NEW draft/account-registration
+S: BOUNCER NETWORK 1 state=connected;error
+S: :bouncer.papo.test 005 * -KICKLEN -MAXLIST -MAXTARGETS -MODES -MONITOR -NETWORK -NICKLEN -PREFIX -SAFELIST -STATUSMSG -TARGMAX -TOPICLEN -UTF8ONLY :are supported
+S: :bouncer.papo.test 005 * -WHOX :are supported
+S: :bouncer.papo.test 005 * KICKLEN=390 MAXLIST=beI:100 MAXTARGETS=4 MODES MONITOR=100 NETWORK=ErgoTest NICKLEN=32 PREFIX=(qaohv)~&@%+ SAFELIST STATUSMSG=~&@%+ TARGMAX=NAMES:1,LIST:1,KICK:,WHOIS:1,USERHOST:10,PRIVMSG:4,TAGMSG:4,NOTICE:4,MONITOR:100 :are supported
+S: :bouncer.papo.test 005 * TOPICLEN=390 UTF8ONLY WHOX :are supported
+S: :ergo.test 221 papo-bouncer +Zi
+S: :papo-bouncer!~u@7fu8skn4epsiy.irc JOIN #review
+S: :bouncer.papo.test 353 * = #review :papo-bouncer @alice
+S: :bouncer.papo.test 366 * #review :End of /NAMES list
+S: :ergo.test 324 papo-bouncer #review +Cnt
+S: :ergo.test 329 papo-bouncer #review 1793542089
