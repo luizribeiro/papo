@@ -4472,10 +4472,7 @@ impl Session {
         message: Line,
         matcher: ResponseMatcher,
     ) -> Result<RequestId, RequestError> {
-        if matches!(matcher, ResponseMatcher::Mode(_)) {
-            self.ensure_state_capacity(StateGrowth::ListModes(&message.as_ref()))?;
-        }
-        let response_row_limit = self.response_row_limit(&matcher);
+        let response_row_limit = self.response_row_limit(&message, &matcher)?;
         let who_sweep = match &matcher {
             ResponseMatcher::Who(channel)
                 if message.as_ref().command() == Command::Who
@@ -4573,13 +4570,20 @@ impl Session {
         Ok(id)
     }
 
-    fn response_row_limit(&self, matcher: &ResponseMatcher) -> usize {
-        match matcher {
+    fn response_row_limit(
+        &self,
+        message: &Line,
+        matcher: &ResponseMatcher,
+    ) -> Result<usize, RequestError> {
+        if matches!(matcher, ResponseMatcher::Mode(_)) {
+            self.ensure_state_capacity(StateGrowth::ListModes(&message.as_ref()))?;
+        }
+        Ok(match matcher {
             ResponseMatcher::ListMode { .. } => {
                 self.config.max_list_entries_per_mode.saturating_add(1)
             }
             _ => matcher.response_row_limit(),
-        }
+        })
     }
 
     fn channel_join_reservation(
