@@ -284,6 +284,8 @@ pub mod metadata;
 mod mode;
 mod name_rules;
 pub mod numeric;
+#[cfg(feature = "unstable")]
+mod peer_bouncer;
 mod peer_key;
 mod reconnect;
 mod requests;

@@ -180,12 +180,14 @@ impl Channel {
 /// ```
 #[derive(Debug)]
 pub struct State {
-    core: Arc<papo_core::State>,
+    pub(crate) core: Arc<papo_core::State>,
     channels: Arc<[Channel]>,
     typing: Arc<crate::typing::TypingTable>,
     pub(crate) caps: Capabilities,
     pub(crate) isupport: Arc<Isupport>,
     authenticated_server_name: Option<String>,
+    #[cfg(feature = "unstable")]
+    pub(crate) bouncer_login: Option<String>,
     #[cfg(feature = "unstable")]
     bouncer_network: Option<papo_core::NetworkId>,
     unsupported: BTreeMap<Feature, UnsupportedReason>,
@@ -305,19 +307,28 @@ impl State {
     }
 
     pub(crate) fn peer_scope(&self) -> Option<String> {
-        if self.isupport.casemapping().is_none()
-            || !matches!(
-                self.isupport.get("BOUNCER_NETID"),
-                papo_proto::Advertised::Absent
-            )
-            || self
-                .caps
-                .contains_key(&crate::Cap::from(crate::cap::BOUNCER_NETWORKS_NAME))
-        {
-            return None;
-        }
+        self.isupport.casemapping()?;
         let server = self.authenticated_server_name.as_deref()?;
-        Some(format!("server={}:{server}", server.len()))
+        match self.isupport.get("BOUNCER_NETID") {
+            papo_proto::Advertised::Value(network) => {
+                #[cfg(feature = "unstable")]
+                return crate::peer_bouncer::scope(self, server, network);
+                #[cfg(not(feature = "unstable"))]
+                {
+                    _ = network;
+                    None
+                }
+            }
+            papo_proto::Advertised::Bare => None,
+            papo_proto::Advertised::Absent
+                if self
+                    .caps
+                    .contains_key(&crate::Cap::from(crate::cap::BOUNCER_NETWORKS_NAME)) =>
+            {
+                None
+            }
+            papo_proto::Advertised::Absent => Some(format!("server={}:{server}", server.len())),
+        }
     }
 
     pub(crate) fn parse_target_inner(
@@ -396,6 +407,8 @@ impl State {
             caps: session.caps().clone(),
             isupport: Arc::new(Isupport::from_proto(session.isupport().clone())),
             authenticated_server_name: session.__authenticated_server_name().map(str::to_owned),
+            #[cfg(feature = "unstable")]
+            bouncer_login: session.__sasl_identity().map(str::to_owned),
             #[cfg(feature = "unstable")]
             bouncer_network: match session.isupport().get("BOUNCER_NETID") {
                 papo_proto::Advertised::Value(id) => Some(papo_core::NetworkId::from(id)),
@@ -690,7 +703,7 @@ mod name_tests {
     }
 
     #[test]
-    fn peer_scope_requires_isupport_and_refuses_bouncers() {
+    fn peer_scope_requires_isupport_and_complete_bouncer_facts() {
         assert_eq!(peer_scope(None), None);
         assert_eq!(
             peer_scope(Some("CASEMAPPING=rfc1459")),
