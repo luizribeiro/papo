@@ -1122,7 +1122,7 @@ impl State {
             return Handled::Yes;
         }
         let mode_reported = self.report_mode_change(message, isupport, outbox);
-        if self.handle_channel_mode(message, isupport)
+        if self.handle_channel_mode(message, isupport, outbox)
             || self.handle_channel_metadata(message, isupport, outbox)
             || self.handle_user_modes(message, isupport)
             || self.handle_topic(message, outbox)
@@ -1201,18 +1201,26 @@ impl State {
         true
     }
 
-    fn handle_channel_mode(&mut self, message: &LineRef<'_>, isupport: &Isupport) -> bool {
+    fn handle_channel_mode(
+        &mut self,
+        message: &LineRef<'_>,
+        isupport: &Isupport,
+        outbox: &mut Outbox,
+    ) -> bool {
         let Some(target) = message
             .param(0)
             .filter(|target| message.command() == Command::Mode && isupport.is_channel(target))
         else {
             return false;
         };
+        let maximum = self.max_list_entries_per_mode;
         if let Some(modestring) = message.param(1)
             && let Some(channel) = self.channel_mut(target)
         {
             channel.apply_modes(modestring, message.params().skip(2), isupport, false);
-            channel.apply_list_modes(message, modestring, isupport);
+            if channel.apply_list_modes(message, modestring, isupport, maximum) {
+                self.warn_limit(StateLimit::ListEntries, outbox);
+            }
         }
         true
     }
@@ -1826,7 +1834,14 @@ impl Channel {
         }
     }
 
-    fn apply_list_modes(&mut self, message: &LineRef<'_>, modestring: &str, isupport: &Isupport) {
+    fn apply_list_modes(
+        &mut self,
+        message: &LineRef<'_>,
+        modestring: &str,
+        isupport: &Isupport,
+        maximum: usize,
+    ) -> bool {
+        let mut overflowed = false;
         let actor = message
             .source()
             .map(|source| Source::from_proto_with_names(source, self.casemapping));
@@ -1848,16 +1863,21 @@ impl Channel {
                     .iter()
                     .any(|entry| same_list_entry(&entry.mask, &mask, isupport))
                 {
-                    entries.push(ModeListEntry {
-                        mask,
-                        actor: actor.clone(),
-                        set_at,
-                    });
+                    if entries.len() < maximum {
+                        entries.push(ModeListEntry {
+                            mask,
+                            actor: actor.clone(),
+                            set_at,
+                        });
+                    } else {
+                        overflowed = true;
+                    }
                 }
             } else {
                 entries.retain(|entry| !same_list_entry(&entry.mask, &mask, isupport));
             }
         }
+        overflowed
     }
 
     /// Returns the channel name as received from the server.

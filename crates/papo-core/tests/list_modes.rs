@@ -2,7 +2,9 @@
 
 use std::time::{Duration, Instant, UNIX_EPOCH};
 
-use papo_core::{Config, Event, ListMode, RequestId, ResponseMatcher, Session};
+use papo_core::{
+    Config, Event, ListMode, RequestError, RequestId, ResponseMatcher, Session, StateLimit,
+};
 use papo_proto::Line;
 
 fn request(session: &mut Session, now: Instant, mode: ListMode) -> RequestId {
@@ -199,6 +201,93 @@ fn one_thousand_and_one_rows_fail_without_retaining_the_last_row() {
             .unwrap()
             .list(ListMode::Ban),
         None
+    );
+}
+
+#[test]
+fn list_mode_changes_refuse_growth_when_the_cached_list_is_full() {
+    let now = Instant::now();
+    let config = Config::default().max_list_entries_per_mode(1);
+    let mut below = Session::new(config.clone());
+    below.handle_line(
+        now,
+        b":ergo.test 005 papo CHANMODES=beI,k,l,imnst :are supported",
+    );
+    below.handle_line(now, b":papo!~papo@localhost JOIN #papo");
+    let empty = request(&mut below, now, ListMode::Ban);
+    _ = below.poll_transmit();
+    below.handle_line(now, b":ergo.test 368 papo #papo :End of channel ban list");
+    _ = response(&mut below, empty);
+    below
+        .request_with_matcher(
+            now,
+            Line::new("MODE").with_params(["#papo", "+b", "*!*@gateway.example"]),
+            ResponseMatcher::Mode("#papo".into()),
+        )
+        .unwrap();
+    assert_eq!(
+        String::from_utf8(below.poll_transmit().unwrap().to_vec()).unwrap(),
+        "MODE #papo +b *!*@gateway.example\r\n"
+    );
+
+    let mut full = Session::new(config);
+    full.handle_line(
+        now,
+        b":ergo.test 005 papo CHANMODES=beI,k,l,imnst :are supported",
+    );
+    full.handle_line(now, b":papo!~papo@localhost JOIN #papo");
+    let list = request(&mut full, now, ListMode::Ban);
+    _ = full.poll_transmit();
+    full.handle_line(
+        now,
+        b":ergo.test 367 papo #papo *!*@gateway.example oper 1761048000",
+    );
+    full.handle_line(now, b":ergo.test 368 papo #papo :End of channel ban list");
+    _ = response(&mut full, list);
+    full.request_with_matcher(
+        now,
+        Line::new("MODE").with_params(["#papo", "+b", "*!*@gateway.example"]),
+        ResponseMatcher::Mode("#papo".into()),
+    )
+    .unwrap();
+    _ = full.poll_transmit();
+    _ = full.poll_transmit();
+    assert_eq!(
+        full.request_with_matcher(
+            now,
+            Line::new("MODE").with_params(["#papo", "+b", "*!*@crawler.example"]),
+            ResponseMatcher::Mode("#papo".into()),
+        ),
+        Err(RequestError::StateLimit(StateLimit::ListEntries))
+    );
+    assert_eq!(full.poll_transmit(), None);
+
+    for mask in ["*!*@crawler.example", "*!*@scanner.example"] {
+        full.handle_line(
+            now,
+            format!(":oper!admin@staff.example MODE #papo +b {mask}").as_bytes(),
+        );
+    }
+    let warnings = std::iter::from_fn(|| full.poll_event())
+        .filter(|event| {
+            matches!(
+                event,
+                Event::StateLimitReached {
+                    limit: StateLimit::ListEntries,
+                    ..
+                }
+            )
+        })
+        .count();
+    assert_eq!(warnings, 1);
+    assert_eq!(
+        full.state()
+            .channel("#papo")
+            .unwrap()
+            .list(ListMode::Ban)
+            .unwrap()
+            .len(),
+        1
     );
 }
 

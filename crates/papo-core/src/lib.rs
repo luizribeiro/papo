@@ -4464,7 +4464,8 @@ impl Session {
     /// # Errors
     ///
     /// Returns [`RequestError::PendingLimit`] when 256 requests are already pending, or
-    /// [`RequestError::Build`] when the message cannot be represented on the wire.
+    /// [`RequestError::Build`] when the message cannot be represented on the wire. A list-mode
+    /// change returns [`RequestError::StateLimit`] when it would overflow a cached list.
     pub fn request_with_matcher(
         &mut self,
         now: Instant,

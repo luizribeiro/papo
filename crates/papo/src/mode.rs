@@ -142,6 +142,7 @@ impl BanTarget {
 /// together, split across commands at the server's advertised `MODES` limit.
 /// Awaiting returns an error only when no change was confirmed; after a partial success, the
 /// result contains the facts confirmed before a later request or connection failure.
+/// Adding a new entry to a full cached list returns [`Error::StateLimit`] before sending.
 #[must_use = "requests do nothing unless awaited"]
 pub struct SetModes {
     client: Client,
