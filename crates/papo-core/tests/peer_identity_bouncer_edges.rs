@@ -82,7 +82,6 @@ fn one_resync_with_multiple_channels_only_ends_identity_once() {
     assert_ne!(session.state().__peer_token_for("alice"), current);
 }
 
-#[cfg(feature = "unstable")]
 #[test]
 fn only_selected_network_states_outside_connected_end_identity() {
     for (line, changes) in [
@@ -93,15 +92,7 @@ fn only_selected_network_states_outside_connected_end_identity() {
         ("BOUNCER NETWORK 1 *", true),
     ] {
         let now = Instant::now();
-        let mut session = Session::new(
-            Config::default()
-                .nick("papo-bouncer")
-                .enable(papo_core::Feature::Bouncer)
-                .wanted_caps(["soju.im/bouncer-networks"]),
-        );
-        session.handle_connected(now);
-        session.handle_line(now, b"CAP * LS :soju.im/bouncer-networks");
-        session.handle_line(now, b"CAP * ACK :soju.im/bouncer-networks");
+        let mut session = Session::new(Config::default().nick("papo-bouncer"));
         for setup in [
             ":bouncer.papo.test 005 * BOUNCER_NETID=1 CASEMAPPING=ascii :are supported",
             ":papo-bouncer!~u@client.example JOIN #review",

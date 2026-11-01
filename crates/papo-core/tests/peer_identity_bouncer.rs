@@ -55,19 +55,9 @@ fn stable_soju_notice_ends_peer_identity() {
     );
 }
 
-#[cfg(feature = "unstable")]
 #[test]
 fn selected_bouncer_network_drop_ends_peer_identity() {
-    let now = Instant::now();
-    let mut session = Session::new(
-        Config::default()
-            .nick("papo-bouncer")
-            .enable(papo_core::Feature::Bouncer)
-            .wanted_caps(["soju.im/bouncer-networks"]),
-    );
-    session.handle_connected(now);
-    session.handle_line(now, b"CAP * LS :soju.im/bouncer-networks");
-    session.handle_line(now, b"CAP * ACK :soju.im/bouncer-networks");
+    let mut session = Session::new(Config::default().nick("papo-bouncer"));
     replay(
         &mut session,
         include_str!("data/soju-upstream-drop-unstable.irc"),
