@@ -54,6 +54,7 @@ ids = [
   "tag.multiline-concat", "tag.bot",
   "core.cap.ls-302-multiline", "core.cap-notify.new", "core.cap-notify.del", "core.sasl.reauth",
   "core.sts.upgrade", "core.sts.persistence", "core.batch.netsplit-netjoin", "core.labeled-response.correlation",
+  "core.join.server-forced",
   "core.dm.privmsg", "core.dm.notice", "core.dm.echo-self", "core.multiclient.fanout",
   "core.multiclient.state-sync-on-attach", "core.multiclient.own-message-without-echo", "core.webirc.gateway",
   "core.websocket.plain-transport", "core.websocket.tls-transport",

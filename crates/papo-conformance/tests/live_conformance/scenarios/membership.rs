@@ -301,6 +301,52 @@ async fn no_implicit_names(s: Scenario) -> papo_testing::Result<()> {
     Ok(())
 }
 
+/// tracks a channel membership imposed by a server operator
+#[scenario(covers = ["core.join.server-forced"])]
+async fn server_forced_join(s: Scenario) -> papo_testing::Result<()> {
+    if !matches!(
+        DeploymentProfile::from_env()?,
+        DeploymentProfile::ErgoDefault
+            | DeploymentProfile::ErgoPersistent
+            | DeploymentProfile::UnrealIrcd
+    ) {
+        return s.skip("the selected profile has no managed SAJOIN-capable operator");
+    }
+    let oper = s.connect("oper").await?;
+    let mut alice = s.connect("alice").await?;
+    let channel = s.channel_name();
+    let alice_nick = alice.nick();
+    oper.oper(
+        papo_test_server::OPER_NAME,
+        papo::Secret::new(papo_test_server::OPER_PASSWORD),
+    )
+    .await?;
+    oper.send_raw(papo::Line::new("SAJOIN").with_params([alice_nick.as_str(), &channel]))
+        .await?;
+
+    let joined = alice
+        .wait_for(|event| {
+            event.as_joined().filter(|joined| {
+                joined.channel.as_str() == channel && joined.actor.nick() == alice_nick.as_str()
+            })
+        })
+        .await?;
+    assert_eq!(joined.authorship, papo::Authorship::Own);
+    let synced = alice
+        .wait_for(|event| {
+            event
+                .as_channel_synced()
+                .filter(|synced| synced.channel.as_str() == channel)
+        })
+        .await?;
+    assert_eq!(synced.channel.as_str(), channel);
+    let state = alice.state();
+    let joined_channel = state.channel(&channel).unwrap();
+    assert!(joined_channel.is_synced());
+    assert!(joined_channel.member(alice_nick.as_str()).is_some());
+    Ok(())
+}
+
 /// joins several keyed channels and leaves all of them with JOIN zero
 #[scenario(covers = [
     "base.join.basic",
