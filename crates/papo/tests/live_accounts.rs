@@ -110,12 +110,20 @@ async fn tls_account_proof_produces_the_same_pin_on_refs_and_messages() {
             }
         };
         let alice_ref = bob_client.direct(&alice).await.unwrap();
-        assert_eq!(message.actor.peer_key(), Some(alice_ref.peer_key()));
+        assert!(matches!(
+            alice_ref
+                .peer_key()
+                .check(message.actor.peer_key().unwrap()),
+            papo::PeerKeyCheck::Match
+        ));
         let stored = message.actor.peer_key().unwrap().as_verified_str().unwrap();
-        assert_eq!(
-            stored.parse::<papo::PeerKey>().unwrap(),
-            *alice_ref.peer_key()
-        );
+        assert!(matches!(
+            stored
+                .parse::<papo::PeerKey>()
+                .unwrap()
+                .check(alice_ref.peer_key()),
+            papo::PeerKeyCheck::Match
+        ));
 
         alice_client.quit("peer key verified").await.unwrap();
         bob_client.quit("peer key verified").await.unwrap();

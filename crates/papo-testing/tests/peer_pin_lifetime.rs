@@ -9,7 +9,7 @@ use papo::{Event, Reconnect};
 use papo_testing::wire;
 use support::{
     direct::{connected, next_active_event},
-    peer_pin::{join, reconnecting},
+    peer_pin::{assert_match, assert_mismatch, join, reconnecting},
 };
 
 #[tokio::test(start_paused = true)]
@@ -58,8 +58,12 @@ async fn verified_pins_survive_reconnect_while_session_pins_do_not() {
         join(&mut events, &mut wire, line).await;
     }
 
-    assert_eq!(client.direct("alice").await.unwrap().peer_key(), &alice_pin);
-    assert_ne!(client.direct("bob").await.unwrap().peer_key(), &bob_pin);
+    assert_match(&alice_pin, client.direct("alice").await.unwrap().peer_key());
+    assert_mismatch(
+        &bob_pin,
+        client.direct("bob").await.unwrap().peer_key(),
+        papo::PeerKeyMismatch::CannotVerify,
+    );
 }
 
 #[tokio::test]
@@ -90,7 +94,7 @@ async fn session_pins_follow_renames_and_expire_on_reuse_and_logout() {
     ));
     let renamed = client.direct("robert").await.unwrap();
     assert_ne!(renamed.nick().key(), bob_thread);
-    assert_eq!(renamed.peer_key(), &bob_pin);
+    assert_match(&bob_pin, renamed.peer_key());
 
     wire.server(":robert!~bob@users.example QUIT :Client exited")
         .await;
@@ -104,7 +108,11 @@ async fn session_pins_follow_renames_and_expire_on_reuse_and_logout() {
         ":robert!~mallory@visitor.example JOIN #review * :Mallory",
     )
     .await;
-    assert_ne!(client.direct("robert").await.unwrap().peer_key(), &bob_pin);
+    assert_mismatch(
+        &bob_pin,
+        client.direct("robert").await.unwrap().peer_key(),
+        papo::PeerKeyMismatch::CannotVerify,
+    );
 
     wire.server(":alice!~alice@cloak.example ACCOUNT *").await;
     assert!(matches!(
@@ -113,5 +121,9 @@ async fn session_pins_follow_renames_and_expire_on_reuse_and_logout() {
     ));
     let logged_out = client.direct("alice").await.unwrap();
     assert!(!logged_out.peer_key().is_verified());
-    assert_ne!(logged_out.peer_key(), &alice_pin);
+    assert_mismatch(
+        &alice_pin,
+        logged_out.peer_key(),
+        papo::PeerKeyMismatch::CannotVerify,
+    );
 }

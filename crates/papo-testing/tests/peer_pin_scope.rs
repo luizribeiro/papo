@@ -7,7 +7,10 @@ mod support {
 
 use papo::Reconnect;
 use papo_testing::wire;
-use support::{direct::connected, peer_pin::join};
+use support::{
+    direct::connected,
+    peer_pin::{assert_match, assert_mismatch, join},
+};
 
 #[tokio::test]
 async fn equal_account_pins_do_not_merge_nickname_threads() {
@@ -30,7 +33,7 @@ async fn equal_account_pins_do_not_merge_nickname_threads() {
 
     assert_ne!(desktop, phone);
     assert_ne!(desktop.nick().key(), phone.nick().key());
-    assert_eq!(desktop.peer_key(), phone.peer_key());
+    assert_match(desktop.peer_key(), phone.peer_key());
     assert!(desktop.peer_key().is_verified());
 }
 
@@ -98,10 +101,10 @@ async fn only_the_tls_authenticated_server_name_scopes_durable_pins() {
     )
     .await;
     let plaintext = pin("irc://verified.example", None, Some("OneName"), None).await;
-    assert_eq!(first, renamed);
-    assert_ne!(first, other_host);
-    assert_ne!(first, overridden);
-    assert_ne!(first, bounced);
+    assert_match(&first, &renamed);
+    assert_mismatch(&first, &other_host, papo::PeerKeyMismatch::DifferentAccount);
+    assert_mismatch(&first, &overridden, papo::PeerKeyMismatch::DifferentAccount);
+    assert_mismatch(&first, &bounced, papo::PeerKeyMismatch::CannotVerify);
     assert!(first.is_verified());
     assert!(!bounced.is_verified());
     assert!(!plaintext.is_verified());

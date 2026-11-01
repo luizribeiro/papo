@@ -9,7 +9,7 @@ use papo::{Event, Reconnect};
 use papo_testing::wire;
 use support::{
     direct::{connected, next_active_event},
-    peer_pin::join,
+    peer_pin::{assert_match, join},
 };
 
 #[tokio::test]
@@ -42,6 +42,6 @@ async fn private_message_notice_and_tagmsg_expose_the_sender_pin() {
             Event::TagMsg(event) => event.actor,
             event => panic!("unexpected event: {event:?}"),
         };
-        assert_eq!(actor.peer_key(), Some(&expected));
+        assert_match(&expected, actor.peer_key().unwrap());
     }
 }

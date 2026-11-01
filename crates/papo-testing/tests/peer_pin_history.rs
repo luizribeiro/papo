@@ -7,7 +7,10 @@ mod support {
 
 use papo::{Event, Reconnect};
 use papo_testing::wire;
-use support::{direct::connected, peer_pin::join};
+use support::{
+    direct::connected,
+    peer_pin::{assert_match, join},
+};
 
 async fn history_page(
     client: &papo::Client,
@@ -70,17 +73,15 @@ async fn history_uses_account_pins_without_reusing_live_session_pins() {
         join(&mut events, &mut wire, line).await;
     }
     let alice = client.direct("alice").await.unwrap().peer_key().clone();
-    let bob = client.direct("bob").await.unwrap().peer_key().clone();
 
     let archived_alice =
         history_page(&client, &mut wire, 0, "alice", ";account=alice-account").await;
     let archived_bob = history_page(&client, &mut wire, 1, "bob", "").await;
     let alice_message = archived_alice.chat_messages().next().unwrap();
     let bob_message = archived_bob.chat_messages().next().unwrap();
-    assert_eq!(alice_message.actor.peer_key(), Some(&alice));
+    assert_match(&alice, alice_message.actor.peer_key().unwrap());
     assert!(alice_message.actor.peer_key().unwrap().is_verified());
-    assert_ne!(bob_message.actor.peer_key(), Some(&bob));
-    assert_eq!(bob_message.actor.peer_key(), None);
+    assert!(bob_message.actor.peer_key().is_none());
     let alice_tag = archived_alice
         .items
         .iter()
@@ -97,6 +98,6 @@ async fn history_uses_account_pins_without_reusing_live_session_pins() {
             _ => None,
         })
         .unwrap();
-    assert_eq!(alice_tag.actor.peer_key(), Some(&alice));
-    assert_eq!(bob_tag.actor.peer_key(), None);
+    assert_match(&alice, alice_tag.actor.peer_key().unwrap());
+    assert!(bob_tag.actor.peer_key().is_none());
 }
