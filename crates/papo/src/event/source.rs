@@ -69,7 +69,9 @@ impl UserSource {
     /// Returns the identity pin when this source sent a private-conversation event.
     ///
     /// Channel and server-wide events return `None`. See [`crate::PeerKey`] for the distinction
-    /// between durable Account pins and unverified Continuity pins.
+    /// between durable Account pins and unverified Continuity pins. A `CHATHISTORY` replay carrying
+    /// an `account` tag produces the same Account pin as a live line in the same authenticated
+    /// scope; replay without that tag returns `None`.
     #[must_use]
     pub fn peer_key(&self) -> Option<&crate::PeerKey> {
         self.peer_key.as_deref()

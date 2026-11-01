@@ -186,6 +186,9 @@ impl PeerKey {
     }
 
     /// Checks this stored pin against the current pin for the same nickname thread.
+    ///
+    /// A stored Account pin without an immutable account ID returns [`PeerKeyCheck::Upgrade`] once
+    /// the server supplies that ID. Applications must replace the stored pin with the upgraded pin.
     #[must_use]
     pub fn check(&self, current: &Self) -> PeerKeyCheck {
         match (&self.0, &current.0) {
