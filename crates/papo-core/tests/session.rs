@@ -28,10 +28,7 @@ fn config_builders_set_registration_identity_and_timeout() {
         .max_list_entries_per_mode(29)
         .max_read_markers(31)
         .max_metadata_targets(37)
-        .max_metadata_keys_per_target(41);
-    #[cfg(feature = "unstable")]
-    let config = config.max_bouncer_networks(43);
-    let config = config
+        .max_metadata_keys_per_target(41)
         .max_open_batches(3)
         .max_batch_lines(5)
         .batch_timeout(Duration::from_secs(7))
@@ -58,8 +55,6 @@ fn config_builders_set_registration_identity_and_timeout() {
     assert_eq!(config.max_read_markers, 31);
     assert_eq!(config.max_metadata_targets, 37);
     assert_eq!(config.max_metadata_keys_per_target, 41);
-    #[cfg(feature = "unstable")]
-    assert_eq!(config.max_bouncer_networks, 43);
     assert_eq!(config.max_open_batches, 3);
     assert_eq!(config.max_batch_lines, 5);
     assert_eq!(config.batch_timeout, Duration::from_secs(7));
@@ -89,8 +84,6 @@ fn config_builders_set_registration_identity_and_timeout() {
     assert_eq!(config.max_read_markers, 1_000);
     assert_eq!(config.max_metadata_targets, 10_000);
     assert_eq!(config.max_metadata_keys_per_target, 10_000);
-    #[cfg(feature = "unstable")]
-    assert_eq!(config.max_bouncer_networks, 10_000);
     assert_eq!(config.max_open_batches, 64);
     assert_eq!(config.max_batch_lines, 10_000);
     assert_eq!(config.batch_timeout, Duration::from_secs(120));

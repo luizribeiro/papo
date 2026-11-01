@@ -11,6 +11,17 @@ use papo_core::{
 use support::{Transcript, assert_session_debug_redacts, queue_debug_marker};
 
 #[test]
+fn configures_the_bouncer_network_limit() {
+    assert_eq!(Config::default().max_bouncer_networks, 10_000);
+    assert_eq!(
+        Config::default()
+            .max_bouncer_networks(43)
+            .max_bouncer_networks,
+        43
+    );
+}
+
+#[test]
 fn network_ids_have_the_identifier_value_shape() {
     let owned = "1".to_owned();
     let from_borrowed = NetworkId::from(&owned);
