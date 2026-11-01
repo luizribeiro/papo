@@ -161,35 +161,34 @@ const fn hex(byte: u8) -> Option<u8> {
     }
 }
 
-#[cfg(test)]
 mod tests {
-    fn pin(fields: &str) -> super::super::PeerKey {
-        format!("papo-pin:1;server=irc.example;casemap=rfc1459;{fields}")
-            .parse()
-            .unwrap()
-    }
-
     #[test]
     fn percent_encoding_round_trips_utf8_and_delimiters() {
-        let encoded = super::percent_encode("josé;net=id%");
+        use super::{percent_decode, percent_encode};
+
+        let encoded = percent_encode("josé;net=id%");
         assert_eq!(encoded, "jos%C3%A9%3Bnet%3Did%25");
-        assert_eq!(
-            super::percent_decode(&encoded).as_deref(),
-            Ok("josé;net=id%")
-        );
+        assert_eq!(percent_decode(&encoded).as_deref(), Ok("josé;net=id%"));
     }
 
     #[test]
     fn malformed_percent_encoding_is_rejected() {
+        use super::{InvalidPeerKey, percent_decode};
+
         for value in ["%", "%0", "%GG", "%FF"] {
-            assert_eq!(super::percent_decode(value), Err(super::InvalidPeerKey));
+            assert_eq!(percent_decode(value), Err(InvalidPeerKey));
         }
     }
 
     #[test]
     fn account_ids_control_pin_comparison() {
-        use super::super::{PeerKeyCheck, PeerKeyMismatch};
+        use crate::{PeerKey, PeerKeyCheck, PeerKeyMismatch};
 
+        let pin = |fields: &str| {
+            format!("papo-pin:1;server=irc.example;casemap=rfc1459;{fields}")
+                .parse::<PeerKey>()
+                .unwrap()
+        };
         let name_only = pin("account=alice");
         let identified = pin("account=alice;id=account-42");
         assert!(matches!(
@@ -214,14 +213,14 @@ mod tests {
     #[test]
     fn bouncer_fields_round_trip_in_fixed_order() {
         let value = "papo-pin:1;server=bouncer.example;bouncer-login=alice%40example;netid=libera;upstream=irc.libera.chat;casemap=rfc1459;account=alice";
-        let pin = value.parse::<super::super::PeerKey>().unwrap();
+        let pin = value.parse::<crate::PeerKey>().unwrap();
         assert_eq!(pin.as_verified_str(), Some(value));
     }
 
     #[test]
     fn parsed_server_hosts_use_tls_normalization() {
         let pin = "papo-pin:1;server=IRC.EXAMPLE.;casemap=rfc1459;account=alice"
-            .parse::<super::super::PeerKey>()
+            .parse::<crate::PeerKey>()
             .unwrap();
         assert_eq!(
             pin.as_verified_str(),
