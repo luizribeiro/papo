@@ -540,6 +540,7 @@ mod tests {
         let connection = Connection {
             host: "irc.example.net".to_owned(),
             security: ConnectionSecurity::Secure,
+            authenticated_server_name: Some("irc.example.net".to_owned()),
         };
         let mut caps = Caps::default();
         let mut sasl = SaslSession::new(&config, None);

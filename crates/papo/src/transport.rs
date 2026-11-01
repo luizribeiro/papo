@@ -38,7 +38,15 @@ pub use tls::{CertificateChain, PrivateKey};
 pub(crate) use tls::{ClientCertificate, TlsConfig, TlsRoots};
 #[cfg(not(tls))]
 #[derive(Clone, Debug, Default)]
-pub(crate) struct TlsConfig;
+pub(crate) struct TlsConfig {
+    server_name: Option<String>,
+}
+
+impl TlsConfig {
+    pub(crate) fn server_name_or<'a>(&'a self, fallback: &'a str) -> &'a str {
+        self.server_name.as_deref().unwrap_or(fallback)
+    }
+}
 
 #[cfg(any(sockets, browser))]
 #[cfg_attr(browser, path = "transport/stream_browser.rs")]

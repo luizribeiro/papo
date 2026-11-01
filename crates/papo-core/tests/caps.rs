@@ -606,6 +606,7 @@ fn sts_upgrade_can_reconnect_the_same_session_securely() {
         .connect_with(Connection {
             host: "irc.example.net".to_owned(),
             security: ConnectionSecurity::Plaintext,
+            authenticated_server_name: None,
         })
         .client("CAP LS 302")
         .client("NICK papo")
@@ -617,6 +618,7 @@ fn sts_upgrade_can_reconnect_the_same_session_securely() {
         .connect_with(Connection {
             host: "IRC.Example.NET.".to_owned(),
             security: ConnectionSecurity::Secure,
+            authenticated_server_name: Some("irc.example.net".to_owned()),
         })
         .client("CAP LS 302")
         .client("NICK papo")

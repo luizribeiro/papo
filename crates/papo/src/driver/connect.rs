@@ -297,6 +297,7 @@ pub(super) async fn run_planned_connection(
         Some(Connection {
             host: plan.address.host.clone(),
             security,
+            authenticated_server_name: authenticated_server_name(plan),
         }),
         Some(sts_store),
         plan.address.port,
@@ -305,6 +306,14 @@ pub(super) async fn run_planned_connection(
         true,
     )
     .await
+}
+
+fn authenticated_server_name(plan: &ConnectionPlan) -> Option<String> {
+    if !plan.address.is_secure() {
+        return None;
+    }
+    let name = plan.tls.server_name_or(&plan.address.host);
+    Some(name.strip_suffix('.').unwrap_or(name).to_ascii_lowercase())
 }
 
 fn triage_connection_end(
