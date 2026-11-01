@@ -5044,6 +5044,65 @@ mod tests {
     }
 
     #[test]
+    fn every_private_event_actor_accepts_a_peer_pin() {
+        let isupport = Isupport::default();
+        let parse = |line: Line| parse_event(line, &isupport, "papo", UNIX_EPOCH);
+        let tag = |tags| {
+            forwarded(papo_core::Event::TagMessage(papo_core::TagMessage {
+                envelope: papo_core::LineEnvelope::default(),
+                actor: "alice!~alice@cloak.example".into(),
+                authorship: papo_core::Authorship::Other,
+                conversation: papo_core::Conversation::Private(
+                    Casemapping::default().nick("alice"),
+                ),
+                status: None,
+                return_address: "alice".into(),
+                tags,
+            }))
+        };
+        let redacted = forwarded(papo_core::Event::Redacted(papo_core::Redacted {
+            envelope: papo_core::LineEnvelope::default(),
+            actor: "alice!~alice@cloak.example".into(),
+            authorship: papo_core::Authorship::Other,
+            conversation: papo_core::Conversation::Private(Casemapping::default().nick("alice")),
+            status: None,
+            return_address: "alice".into(),
+            msgid: "RfcBTzyxY120001".into(),
+            reason: Some("off-topic".into()),
+        }));
+        let mut cases = [
+            parse(
+                Line::notice("papo", "review complete").with_source("alice!~alice@cloak.example"),
+            ),
+            parse(
+                Line::privmsg("papo", "\x01VERSION\x01").with_source("alice!~alice@cloak.example"),
+            ),
+            parse(
+                Line::notice("papo", "\x01VERSION papo-0.1\x01")
+                    .with_source("alice!~alice@cloak.example"),
+            ),
+            tag(Vec::new()),
+            tag(vec![
+                ("+draft/react".into(), Some("👍".into())),
+                ("+draft/reply".into(), Some("RfcBTzyxY120001".into())),
+            ]),
+            tag(vec![("+typing".into(), Some("active".into()))]),
+            redacted,
+        ];
+
+        for event in &mut cases {
+            assert_eq!(super::private_actor_mut(event).unwrap().nick(), "alice");
+        }
+        assert!(matches!(cases[0], Event::Notice(_)));
+        assert!(matches!(cases[1], Event::CtcpQuery(_)));
+        assert!(matches!(cases[2], Event::CtcpReply(_)));
+        assert!(matches!(cases[3], Event::TagMsg(_)));
+        assert!(matches!(cases[4], Event::Reacted(_)));
+        assert!(matches!(cases[5], Event::TypingChanged(_)));
+        assert!(matches!(cases[6], Event::Redacted(_)));
+    }
+
+    #[test]
     fn classifies_an_own_message() {
         let now = Instant::now();
         let mut session = Session::new(Config::default().nick("Papo[bot]"));
@@ -5369,19 +5428,30 @@ mod tests {
 
     #[test]
     fn maps_nick_changed() {
-        assert!(matches!(
-            forwarded(papo_core::Event::__nick_changed(
-                papo_core::LineEnvelope::default(),
-                "emily!~emily@cloak.example".into(),
-                Casemapping::default().nick("emily"),
-                Casemapping::default().nick("em"),
-                vec![Casemapping::default().channel("#papo")],
-                papo_core::Authorship::Other,
-            )),
-            Event::NickChanged(changed)
-                if changed.actor.nick() == "emily" && changed.new == "em"
-                    && changed.channels == ["#papo"]
+        let Event::NickChanged(mut changed) = forwarded(papo_core::Event::__nick_changed(
+            papo_core::LineEnvelope::default(),
+            "emily!~emily@cloak.example".into(),
+            Casemapping::default().nick("emily"),
+            Casemapping::default().nick("em"),
+            vec![Casemapping::default().channel("#papo")],
+            papo_core::Authorship::Other,
+        )) else {
+            panic!("expected nickname change")
+        };
+        assert_eq!(changed.actor.nick(), "emily");
+        assert_eq!(changed.new, "em");
+        assert_eq!(changed.channels, ["#papo"]);
+
+        changed.actor.set_account(Account::LoggedIn(
+            Casemapping::default().account("emily-account"),
         ));
+        let scope = crate::peer_key::PeerScope::server("irc.example");
+        let pin = crate::PeerKey::historical(Some(&scope), changed.actor.account()).unwrap();
+        changed.actor.set_peer_key(pin);
+        assert_eq!(
+            changed.peer_key().and_then(crate::PeerKey::as_verified_str),
+            Some("papo-pin:1;server=irc.example;casemap=rfc1459;account=emily-account")
+        );
     }
 
     #[test]

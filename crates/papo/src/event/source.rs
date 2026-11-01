@@ -286,6 +286,29 @@ mod tests {
         let pin = crate::PeerKey::historical(Some(&scope), pinned.account()).unwrap();
         pinned.set_peer_key(pin);
         assert_eq!(pinned, source);
+
+        let mut different_nick = source.clone();
+        different_nick.nick = mapping.nick("bob");
+        let mut different_username = source.clone();
+        different_username.username = Some("~operator".into());
+        let mut different_host = source.clone();
+        different_host.host = Some("users.example".into());
+        let mut different_account = source.clone();
+        different_account.account = Account::LoggedIn(mapping.account("bob-account"));
+        let mut different_bot = source.clone();
+        different_bot.is_bot = Some(false);
+        let mut different_oper = source.clone();
+        different_oper.oper = Some(Oper { name: None });
+        for different in [
+            different_nick,
+            different_username,
+            different_host,
+            different_account,
+            different_bot,
+            different_oper,
+        ] {
+            assert_ne!(source, different);
+        }
     }
 
     #[test]
