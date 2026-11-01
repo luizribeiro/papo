@@ -54,4 +54,20 @@ async fn pinned_direct_open_blocks_identity_changes() {
         mismatch.current_key().check(accepted.peer_key()),
         PeerKeyCheck::Match
     ));
+
+    let replacement = accepted.peer_key().clone();
+    wire.server(":alice!~alice@cloak.example ACCOUNT *").await;
+    assert!(matches!(
+        events.next().await,
+        Some(Event::AccountChanged(_))
+    ));
+    let Error::PeerPinMismatch(unverified) = client
+        .direct_pinned("alice", &replacement)
+        .await
+        .unwrap_err()
+    else {
+        panic!("expected a pin mismatch");
+    };
+    assert_eq!(unverified.reason(), PeerKeyMismatch::CannotVerify);
+    assert!(!unverified.current_key().is_verified());
 }
