@@ -6183,8 +6183,9 @@ mod tests {
     use papo_proto::{Casemapping, Line, LineRef};
 
     use super::{
-        Authorship, CloseKind, Config, Event, ListMode, MultilineMessage, NameKey, Outbox,
-        ReceivedLine, ReplyToken, RequestId, ResponseMatcher, Session, State, UnlabelledRequest,
+        Authorship, CloseKind, Config, Connection, Event, ListMode, MultilineMessage, NameKey,
+        Outbox, ReceivedLine, ReplyToken, RequestId, ResponseMatcher, Session, State,
+        UnlabelledRequest,
     };
 
     fn unmarked_received_mode() -> ReceivedLine {
@@ -6230,6 +6231,28 @@ mod tests {
             Some(std::cmp::Ordering::Equal)
         );
         assert_eq!(papo.partial_cmp(&rust), Some(std::cmp::Ordering::Less));
+    }
+
+    #[test]
+    fn connection_and_peer_proof_accessors_report_exact_state() {
+        let now = std::time::Instant::now();
+        let mut session = Session::new(Config::default().nick("papo"));
+        assert_eq!(session.__authenticated_server_name(), None);
+        assert!(!session.state().__peer_token_for("alice").__is_known());
+
+        session.handle_connected_with(
+            now,
+            Connection {
+                host: "irc.example".into(),
+                security: crate::sts::ConnectionSecurity::Secure,
+                authenticated_server_name: Some("irc.example".into()),
+            },
+        );
+        session.handle_line(now, b":papo!p@localhost JOIN #release");
+        session.handle_line(now, b":alice!~alice@cloak.example JOIN #release");
+
+        assert_eq!(session.__authenticated_server_name(), Some("irc.example"));
+        assert!(session.state().__peer_token_for("alice").__is_known());
     }
 
     #[test]

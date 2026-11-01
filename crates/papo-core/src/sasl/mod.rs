@@ -875,9 +875,21 @@ impl Mechanism {
 
 #[cfg(test)]
 mod chunk_tests {
-    use super::{Sasl, receive_challenge};
-    use crate::Secret;
+    use super::{Sasl, SaslSession, receive_challenge};
+    use crate::{Config, Secret};
 
+    #[test]
+    fn authentication_state_follows_completion() {
+        let authenticated = SaslSession::new(&Config::default(), None);
+        assert!(authenticated.is_authenticated());
+
+        let pending_config = Config::default().sasl(Sasl::plain(
+            "alice",
+            Secret::new("correct horse battery staple"),
+        ));
+        let pending = SaslSession::new(&pending_config, None);
+        assert!(!pending.is_authenticated());
+    }
     #[test]
     fn configured_authentication_identity_covers_every_mechanism() {
         let password = || Secret::new("correct horse battery staple");
