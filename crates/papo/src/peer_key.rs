@@ -38,7 +38,13 @@ impl PeerScope {
 /// nothing. A bouncer upstream disconnect ends continuity for that network even though the
 /// downstream connection remains open; a duplicate self-JOIN resync is treated the same way.
 /// This can require applications to confirm a peer again after a harmless upstream reconnect.
-/// Plaintext and caller-supplied streams cannot produce Account pins.
+///
+/// Native and WASI `ircs://` and `wss://` connections, and browser `wss://` connections, can
+/// produce durable Account pins. Plaintext, browser `ws://`, and caller-supplied streams produce
+/// only Continuity pins. The authenticated scope is the normalized hostname, without its port:
+/// changing hostnames makes an old Account pin [`PeerKeyMismatch::DifferentAccount`], or
+/// [`PeerKeyMismatch::CannotVerify`] when the new connection has only Continuity. Applications
+/// should migrate stored pins to a new hostname only as an explicit trust decision.
 ///
 /// Pins do not key conversations. Store one beside the folded [`crate::Nick::key`] for each thread;
 /// two nicknames logged into one account remain different threads. Use [`Self::check`], never raw

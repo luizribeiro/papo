@@ -842,12 +842,40 @@ mod tests {
             authenticated_server_name(&plan("ircs://IRC.Example")),
             Some("irc.example".to_owned())
         );
+        assert_eq!(
+            authenticated_server_name(&plan("wss://IRC.Example:8443/webirc")),
+            Some("irc.example".to_owned())
+        );
+        assert_eq!(
+            authenticated_server_name(&plan("wss://irc.example:9443/other")),
+            Some("irc.example".to_owned())
+        );
 
         let mut overridden = plan("ircs://edge.example");
         overridden.tls.server_name = Some("Identity.Example.".to_owned());
         assert_eq!(
             authenticated_server_name(&overridden),
             Some("identity.example".to_owned())
+        );
+    }
+}
+
+#[cfg(all(test, browser))]
+mod browser_tests {
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+    use super::{ConnectionPlan, authenticated_server_name};
+    use crate::transport::TlsConfig;
+
+    #[wasm_bindgen_test]
+    fn secure_websocket_authenticates_its_normalized_hostname() {
+        let plan = ConnectionPlan {
+            address: "wss://IRC.Example:8443/webirc".parse().unwrap(),
+            tls: TlsConfig::default(),
+        };
+        assert_eq!(
+            authenticated_server_name(&plan),
+            Some("irc.example".to_owned())
         );
     }
 }

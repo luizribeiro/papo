@@ -37,6 +37,8 @@ compare pins with `PeerKey::check`, and `Client::direct_pinned` blocks opening a
 mismatch. Private message, notice, TAGMSG, rename, and history events expose applicable pins.
 An upstream bouncer disconnect now ends Continuity pins and live direct targets for that network,
 including stable builds that only observe soju's notice or self-JOIN resync.
+Browser `wss://` connections produce hostname-scoped Account pins; browser `ws://` remains
+Continuity-only.
 
 ### Migration from the 2026-10-24 API
 
