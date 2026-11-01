@@ -1846,6 +1846,46 @@ impl core::marker::Unpin for papo::NameCheck
 impl core::marker::UnsafeUnpin for papo::NameCheck
 impl core::panic::unwind_safe::RefUnwindSafe for papo::NameCheck
 impl core::panic::unwind_safe::UnwindSafe for papo::NameCheck
+pub enum papo::PeerKeyCheck
+pub papo::PeerKeyCheck::Match
+pub papo::PeerKeyCheck::Mismatch(papo::PeerKeyMismatch)
+pub papo::PeerKeyCheck::Upgrade(papo::PeerKey)
+impl core::clone::Clone for papo::PeerKeyCheck
+pub fn papo::PeerKeyCheck::clone(&self) -> Self
+impl core::cmp::Eq for papo::PeerKeyCheck
+impl core::cmp::PartialEq for papo::PeerKeyCheck
+pub fn papo::PeerKeyCheck::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::PeerKeyCheck
+pub fn papo::PeerKeyCheck::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::PeerKeyCheck
+impl core::marker::Freeze for papo::PeerKeyCheck
+impl core::marker::Send for papo::PeerKeyCheck
+impl core::marker::Sync for papo::PeerKeyCheck
+impl core::marker::Unpin for papo::PeerKeyCheck
+impl core::marker::UnsafeUnpin for papo::PeerKeyCheck
+impl core::panic::unwind_safe::RefUnwindSafe for papo::PeerKeyCheck
+impl core::panic::unwind_safe::UnwindSafe for papo::PeerKeyCheck
+pub enum papo::PeerKeyMismatch
+pub papo::PeerKeyMismatch::CannotVerify
+pub papo::PeerKeyMismatch::DifferentAccount
+impl core::clone::Clone for papo::PeerKeyMismatch
+pub fn papo::PeerKeyMismatch::clone(&self) -> Self
+impl core::cmp::Eq for papo::PeerKeyMismatch
+impl core::cmp::PartialEq for papo::PeerKeyMismatch
+pub fn papo::PeerKeyMismatch::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::PeerKeyMismatch
+pub fn papo::PeerKeyMismatch::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::PeerKeyMismatch
+pub fn papo::PeerKeyMismatch::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for papo::PeerKeyMismatch
+impl core::marker::StructuralPartialEq for papo::PeerKeyMismatch
+impl core::marker::Freeze for papo::PeerKeyMismatch
+impl core::marker::Send for papo::PeerKeyMismatch
+impl core::marker::Sync for papo::PeerKeyMismatch
+impl core::marker::Unpin for papo::PeerKeyMismatch
+impl core::marker::UnsafeUnpin for papo::PeerKeyMismatch
+impl core::panic::unwind_safe::RefUnwindSafe for papo::PeerKeyMismatch
+impl core::panic::unwind_safe::UnwindSafe for papo::PeerKeyMismatch
 #[non_exhaustive] pub enum papo::ReadMarker
 pub papo::ReadMarker::ReadUntil(std::time::SystemTime)
 pub papo::ReadMarker::Unset

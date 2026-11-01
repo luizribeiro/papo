@@ -23,6 +23,7 @@ impl PeerScope {
         }
     }
 
+    #[cfg(feature = "unstable")]
     pub(crate) fn bouncer(server: &str, login: &str, network: &str, upstream: &str) -> Self {
         Self {
             server: server.to_owned(),
@@ -137,6 +138,26 @@ pub struct PeerKey(PeerIdentity);
 enum PeerIdentity {
     Account(String),
     Continuity(papo_core::PeerToken),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+/// Result of checking a stored peer pin against the current pin.
+pub enum PeerKeyCheck {
+    /// The pins identify the same account or observed user continuity.
+    Match,
+    /// The account name still matches and the current pin adds an immutable account ID.
+    Upgrade(PeerKey),
+    /// The pins cannot be accepted without user confirmation.
+    Mismatch(PeerKeyMismatch),
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+/// Exhaustive reason that a stored peer pin does not match the current pin.
+pub enum PeerKeyMismatch {
+    /// Both pins are durable but identify different accounts or authenticated scopes.
+    DifferentAccount,
+    /// At least one side lacks enough durable proof to verify the identity.
+    CannotVerify,
 }
 
 /// An error returned when a persisted peer key is malformed or unsupported.
