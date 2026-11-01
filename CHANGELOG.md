@@ -23,8 +23,10 @@ including server-specific invalid-channel numerics such as 448 and 479.
 SASL failure numerics for raw, post-registration authentication attempts are now reported as
 warnings without closing the connection or changing papo's completed SASL exchange.
 
-`DirectRef` equality and hashing now use the captured account or tracked-user identity, so distinct
-recipients distribute normally in hash maps and identity remains stable across nickname changes.
+`DirectRef` equality and hashing now identify only the tracked IRC user on one connection. Handles
+for that user stay equal across account discovery and nickname changes; different users remain
+unequal even on the same account or after a departed user's nickname is reused. Handles are per
+connection, so after a reconnect a new handle does not equal an old one.
 
 ### Migration from the 2026-10-24 API
 

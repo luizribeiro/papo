@@ -5,6 +5,7 @@ mod support {
 }
 
 use std::{
+    collections::{HashMap, HashSet},
     hash::{DefaultHasher, Hash, Hasher},
     time::Duration,
 };
@@ -12,6 +13,53 @@ use std::{
 use papo::Reconnect;
 use papo_testing::wire;
 use support::direct::{connected, next_active_event};
+
+fn direct_hash(direct: &papo::DirectRef) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    direct.hash(&mut hasher);
+    hasher.finish()
+}
+
+#[tokio::test]
+#[allow(clippy::mutable_key_type)]
+async fn learning_an_account_keeps_direct_ref_identity() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test", "papo")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&["account-notify"]).await;
+    connected(&mut events).await;
+    for line in [
+        ":papo!p@localhost JOIN #review",
+        ":alice!~alice@cloak.example JOIN #review",
+    ] {
+        wire.server(line).await;
+        assert!(matches!(
+            next_active_event(&mut events).await,
+            papo::Event::Joined(_)
+        ));
+    }
+    let before_account = client.direct("alice").await.unwrap();
+
+    wire.server(":alice!~alice@cloak.example ACCOUNT alice-account")
+        .await;
+    assert!(matches!(
+        next_active_event(&mut events).await,
+        papo::Event::AccountChanged(_)
+    ));
+    let after_account = client.direct("alice").await.unwrap();
+
+    assert_eq!(before_account, after_account);
+    assert_eq!(direct_hash(&before_account), direct_hash(&after_account));
+    let by_recipient = HashMap::from([
+        (before_account.clone(), "unknown"),
+        (after_account.clone(), "logged in"),
+    ]);
+    let recipients = HashSet::from([before_account, after_account]);
+    assert_eq!(by_recipient.len(), 1);
+    assert_eq!(recipients.len(), 1);
+}
 
 #[tokio::test]
 async fn direct_ref_follows_rename_and_refuses_a_nickname_takeover() {
@@ -40,6 +88,9 @@ async fn direct_ref_follows_rename_and_refuses_a_nickname_takeover() {
         next_active_event(&mut events).await,
         papo::Event::NickChanged(_)
     ));
+    let renamed = client.direct("alicia").await.unwrap();
+    assert_eq!(direct, renamed);
+    assert_eq!(direct_hash(&direct), direct_hash(&renamed));
     client.privmsg(&direct, "release approved").await.unwrap();
     assert_eq!(wire.next_sent().await, "PRIVMSG alicia :release approved");
 
@@ -55,6 +106,8 @@ async fn direct_ref_follows_rename_and_refuses_a_nickname_takeover() {
         next_active_event(&mut events).await,
         papo::Event::NickChanged(_)
     ));
+    let replacement = client.direct("alicia").await.unwrap();
+    assert_ne!(direct, replacement);
     assert!(matches!(
         client.notice(&direct, "classified").await,
         Err(papo::Error::TargetGone)
@@ -67,7 +120,7 @@ async fn direct_ref_follows_rename_and_refuses_a_nickname_takeover() {
 }
 
 #[tokio::test]
-async fn direct_refs_use_logged_in_account_identity_for_equality_and_hashing() {
+async fn direct_refs_identify_users_not_accounts() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo")
             .rate_limit(papo::RateLimit::unlimited())
@@ -94,7 +147,7 @@ async fn direct_refs_use_logged_in_account_identity_for_equality_and_hashing() {
     let mallory = client.direct("mallory").await.unwrap();
     let bob = client.direct("bob").await.unwrap();
     let carol = client.direct("carol").await.unwrap();
-    assert_eq!(desktop, phone);
+    assert_ne!(desktop, phone);
     assert_ne!(desktop, mallory);
     assert_eq!(bob, bob.clone());
     assert_ne!(bob, carol);
@@ -103,14 +156,9 @@ async fn direct_refs_use_logged_in_account_identity_for_equality_and_hashing() {
     assert!(debug.starts_with("DirectRef { nick: Nick"));
     assert!(debug.contains("\"alice\""));
 
-    let hash = |direct: &papo::DirectRef| {
-        let mut hasher = DefaultHasher::new();
-        direct.hash(&mut hasher);
-        hasher.finish()
-    };
-    assert_eq!(hash(&desktop), hash(&phone));
-    assert_ne!(hash(&desktop), hash(&mallory));
-    assert_ne!(hash(&bob), hash(&carol));
+    assert_ne!(direct_hash(&desktop), direct_hash(&phone));
+    assert_ne!(direct_hash(&desktop), direct_hash(&mallory));
+    assert_ne!(direct_hash(&bob), direct_hash(&carol));
     client.privmsg(&desktop, "desktop review").await.unwrap();
     assert_eq!(wire.next_sent().await, "PRIVMSG alice :desktop review");
 }

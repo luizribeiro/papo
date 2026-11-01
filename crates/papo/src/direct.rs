@@ -5,31 +5,26 @@ use std::{
 
 use tokio::sync::mpsc;
 
-use crate::{Account, Nick};
+use crate::Nick;
 
 /// A stable, guarded identity for direct messages to one IRC user.
 ///
 /// The handle follows nickname changes and refuses a send with [`crate::Error::TargetGone`] after
 /// the identity leaves or the nickname changes hands. When the user shares no channel with the
 /// client, papo reserves one server-side `MONITOR` entry until the last clone is dropped. Handles
-/// created with a known logged-in account compare by account; other handles compare by the tracked
-/// IRC user identity captured at creation, which remains the same through nickname changes. The
-/// choice is fixed at creation, so learning an account later does not change equality or hashing.
+/// compare by the tracked IRC user on one connection, regardless of when account information was
+/// learned and across nickname changes. Different users remain unequal even when logged into the
+/// same account, and a nickname reused after departure identifies a new user. Handles are per
+/// connection: after a reconnect, a new handle does not equal an old one.
 /// [`crate::Client::send_raw`] is the explicit escape hatch for deliberately unguarded IRC lines.
 #[derive(Clone)]
 pub struct DirectRef(Arc<DirectInner>);
 
 struct DirectInner {
-    identity: DirectIdentity,
+    identity: papo_core::ReplyToken,
     recipient: papo_core::RecipientGuard,
     state: Arc<RwLock<Arc<crate::State>>>,
     _lease: Option<MonitorLease>,
-}
-
-#[derive(Eq, Hash, PartialEq)]
-enum DirectIdentity {
-    Account(crate::AccountName),
-    TrackedUser(papo_core::ReplyToken),
 }
 
 pub(crate) struct MonitorLease {
@@ -53,10 +48,7 @@ impl DirectRef {
         recipient: papo_core::RecipientGuard,
         monitored: bool,
     ) -> Self {
-        let identity = match recipient.__account() {
-            Account::LoggedIn(account) => DirectIdentity::Account(account.clone()),
-            _ => DirectIdentity::TrackedUser(recipient.__token()),
-        };
+        let identity = recipient.__token();
         Self(Arc::new(DirectInner {
             _lease: monitored.then(|| MonitorLease {
                 recipient: recipient.clone(),
@@ -225,10 +217,11 @@ mod tests {
         session.handle_line(now, b":ergo.test 315 papo alice :End of WHO list");
         let mut response = std::iter::from_fn(|| session.poll_event())
             .find_map(|event| match event {
-                Event::Response(response) if response.id == id => Some(response),
+                Event::Response(response) => Some(response),
                 _ => None,
             })
             .unwrap();
+        assert_eq!(response.id, id);
         response.lines = lines
             .iter()
             .map(|line| LineRef::parse(line).unwrap().to_owned())
@@ -301,8 +294,8 @@ mod tests {
         let bob = super::DirectRef::new(&client, bob, false);
         let carol = super::DirectRef::new(&client, carol, false);
 
-        assert_eq!(desktop, phone);
-        assert_ne!(desktop, desktop_unverified);
+        assert_ne!(desktop, phone);
+        assert_eq!(desktop, desktop_unverified);
         assert_ne!(desktop, mallory);
         assert_eq!(bob, bob.clone());
         assert_ne!(bob, carol);
@@ -311,7 +304,8 @@ mod tests {
         assert!(debug.starts_with("DirectRef { nick: Nick"));
         assert!(debug.contains("\"alice\""));
 
-        assert_eq!(direct_hash(&desktop), direct_hash(&phone));
+        assert_ne!(direct_hash(&desktop), direct_hash(&phone));
+        assert_eq!(direct_hash(&desktop), direct_hash(&desktop_unverified));
         assert_ne!(direct_hash(&desktop), direct_hash(&mallory));
         assert_ne!(direct_hash(&bob), direct_hash(&carol));
     }
