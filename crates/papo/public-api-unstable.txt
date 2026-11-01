@@ -2327,6 +2327,7 @@ impl !core::panic::unwind_safe::UnwindSafe for papo::ConnectError
 pub struct papo::DirectRef(_)
 impl papo::DirectRef
 pub fn papo::DirectRef::nick(&self) -> papo::Nick
+pub fn papo::DirectRef::peer_key(&self) -> &papo::PeerKey
 impl core::clone::Clone for papo::DirectRef
 pub fn papo::DirectRef::clone(&self) -> Self
 impl core::cmp::Eq for papo::DirectRef
@@ -2534,6 +2535,28 @@ impl core::marker::Unpin for papo::HistoryRequest
 impl core::marker::UnsafeUnpin for papo::HistoryRequest
 impl !core::panic::unwind_safe::RefUnwindSafe for papo::HistoryRequest
 impl !core::panic::unwind_safe::UnwindSafe for papo::HistoryRequest
+pub struct papo::InvalidPeerKey
+impl core::clone::Clone for papo::InvalidPeerKey
+pub fn papo::InvalidPeerKey::clone(&self) -> Self
+impl core::cmp::Eq for papo::InvalidPeerKey
+impl core::cmp::PartialEq for papo::InvalidPeerKey
+pub fn papo::InvalidPeerKey::eq(&self, &Self) -> bool
+impl core::error::Error for papo::InvalidPeerKey
+impl core::fmt::Debug for papo::InvalidPeerKey
+pub fn papo::InvalidPeerKey::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo::InvalidPeerKey
+pub fn papo::InvalidPeerKey::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::InvalidPeerKey
+pub fn papo::InvalidPeerKey::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for papo::InvalidPeerKey
+impl core::marker::StructuralPartialEq for papo::InvalidPeerKey
+impl core::marker::Freeze for papo::InvalidPeerKey
+impl core::marker::Send for papo::InvalidPeerKey
+impl core::marker::Sync for papo::InvalidPeerKey
+impl core::marker::Unpin for papo::InvalidPeerKey
+impl core::marker::UnsafeUnpin for papo::InvalidPeerKey
+impl core::panic::unwind_safe::RefUnwindSafe for papo::InvalidPeerKey
+impl core::panic::unwind_safe::UnwindSafe for papo::InvalidPeerKey
 pub struct papo::Isupport
 impl papo::Isupport
 pub fn papo::Isupport::account_required(&self) -> bool
@@ -2919,6 +2942,30 @@ impl core::marker::Unpin for papo::Oper
 impl core::marker::UnsafeUnpin for papo::Oper
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Oper
 impl core::panic::unwind_safe::UnwindSafe for papo::Oper
+pub struct papo::PeerKey(_)
+impl papo::PeerKey
+pub fn papo::PeerKey::as_verified_str(&self) -> core::option::Option<&str>
+pub const fn papo::PeerKey::is_verified(&self) -> bool
+impl core::clone::Clone for papo::PeerKey
+pub fn papo::PeerKey::clone(&self) -> Self
+impl core::cmp::Eq for papo::PeerKey
+impl core::cmp::PartialEq for papo::PeerKey
+pub fn papo::PeerKey::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::PeerKey
+pub fn papo::PeerKey::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::PeerKey
+pub fn papo::PeerKey::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::StructuralPartialEq for papo::PeerKey
+impl core::str::traits::FromStr for papo::PeerKey
+pub type papo::PeerKey::Err = papo::InvalidPeerKey
+pub fn papo::PeerKey::from_str(&str) -> core::result::Result<Self, Self::Err>
+impl core::marker::Freeze for papo::PeerKey
+impl core::marker::Send for papo::PeerKey
+impl core::marker::Sync for papo::PeerKey
+impl core::marker::Unpin for papo::PeerKey
+impl core::marker::UnsafeUnpin for papo::PeerKey
+impl core::panic::unwind_safe::RefUnwindSafe for papo::PeerKey
+impl core::panic::unwind_safe::UnwindSafe for papo::PeerKey
 pub struct papo::Persistence
 impl papo::Persistence
 pub fn papo::Persistence::get(&self) -> papo::RequestFuture<papo::PersistenceStatus>
@@ -3302,6 +3349,7 @@ pub fn papo::UserSource::host(&self) -> core::option::Option<&str>
 pub const fn papo::UserSource::is_bot(&self) -> core::option::Option<bool>
 pub const fn papo::UserSource::nick(&self) -> &papo::Nick
 pub const fn papo::UserSource::oper(&self) -> core::option::Option<&papo::Oper>
+pub fn papo::UserSource::peer_key(&self) -> core::option::Option<&papo::PeerKey>
 pub fn papo::UserSource::username(&self) -> core::option::Option<&str>
 impl core::clone::Clone for papo::UserSource
 pub fn papo::UserSource::clone(&self) -> Self

@@ -22,7 +22,6 @@ pub struct DirectRef(Arc<DirectInner>);
 
 struct DirectInner {
     identity: papo_core::ReplyToken,
-    #[allow(dead_code)]
     peer_key: crate::peer_key::PeerKey,
     recipient: papo_core::RecipientGuard,
     state: Arc<RwLock<Arc<crate::State>>>,
@@ -73,6 +72,15 @@ impl DirectRef {
 
     pub(crate) fn recipient(&self) -> &papo_core::RecipientGuard {
         &self.0.recipient
+    }
+
+    /// Returns the identity pin captured for this direct conversation.
+    ///
+    /// Nicknames remain the conversation boundary even when two references have equal pins. See
+    /// [`crate::PeerKey`] for the nickname-keyed thread and warning flow.
+    #[must_use]
+    pub fn peer_key(&self) -> &crate::PeerKey {
+        &self.0.peer_key
     }
 
     /// Returns the recipient's current nickname.

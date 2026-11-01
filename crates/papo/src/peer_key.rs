@@ -31,7 +31,7 @@ static NEXT_EPHEMERAL: AtomicU64 = AtomicU64::new(1);
 /// Store the folded nickname key and pin together. Compare the current pin before routing an
 /// incoming message or sending, and replace the pin only after the user accepts a warning:
 ///
-/// ```ignore
+/// ```no_run
 /// fn warning(stored: &papo::PeerKey, current: &papo::PeerKey) -> Option<&'static str> {
 ///     (stored != current).then(|| {
 ///         if stored.is_verified() && current.is_verified() {
@@ -173,7 +173,6 @@ impl PeerKey {
     /// Session pins return `None` so they cannot accidentally be stored as durable identities.
     /// A returned value round-trips through [`str::parse`](FromStr::from_str).
     #[must_use]
-    #[allow(dead_code)]
     pub fn as_verified_str(&self) -> Option<&str> {
         match &self.0 {
             PeerIdentity::Verified(value) => Some(value),

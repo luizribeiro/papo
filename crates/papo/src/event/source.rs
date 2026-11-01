@@ -66,6 +66,15 @@ impl UserSource {
         &self.account
     }
 
+    /// Returns the identity pin when this source sent a private-conversation event.
+    ///
+    /// Channel and server-wide events return `None`. See [`crate::PeerKey`] for the distinction
+    /// between durable verified pins and session-scoped pins.
+    #[must_use]
+    pub fn peer_key(&self) -> Option<&crate::PeerKey> {
+        self.peer_key.as_deref()
+    }
+
     /// Returns whether this live line proves the user is or is not a bot.
     #[must_use]
     pub const fn is_bot(&self) -> Option<bool> {
