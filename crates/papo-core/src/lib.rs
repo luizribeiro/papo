@@ -5288,6 +5288,7 @@ impl Session {
             .and_then(|channel| self.pending_channel_join(channel))
             .map(|reservation| reservation.epoch);
         let state_handled = whoami
+            || self.handle_duplicate_own_join(message)
             || self.state.handle_message(
                 message,
                 reserved_channel_epoch,
@@ -5401,6 +5402,25 @@ impl Session {
         if !before_typing.same_entries(self.state.__typing_table()) {
             self.typing_generation = self.typing_generation.wrapping_add(1);
         }
+    }
+
+    fn handle_duplicate_own_join(&mut self, message: &LineRef<'_>) -> bool {
+        let duplicate = papo_proto::Join::parse(message).is_some_and(|join| {
+            self.state.channel(join.channel).is_some()
+                && matches!(message.source(), Some(ProtoSource::User { nick, .. })
+                if names_equal(
+                    self.isupport.value().casemapping(),
+                    nick,
+                    self.state.nick().as_str(),
+                ))
+        });
+        if !duplicate {
+            return false;
+        }
+        !matches!(
+            self.isupport.value().get("BOUNCER_NETID"),
+            papo_proto::Advertised::Value(_)
+        )
     }
 
     fn report_feature_changes(

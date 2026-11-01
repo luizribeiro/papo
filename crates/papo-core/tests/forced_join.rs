@@ -189,3 +189,73 @@ fn solanum_forward_resolves_the_original_join_with_470() {
     assert!(session.state().channel("#staff").is_none());
     assert!(session.state().channel("#operations").is_some());
 }
+
+#[test]
+fn matching_forced_join_completes_once_and_duplicate_is_ignored() {
+    let now = Instant::now();
+    let mut session = request_session();
+    let id = session.join(now, "#release", None).unwrap();
+    assert!(session.poll_transmit().is_some());
+
+    server(
+        &mut session,
+        now,
+        ":papo!~papo@localhost JOIN #release * :Papo Bot",
+    );
+    server(
+        &mut session,
+        now,
+        ":alice!~alice@staff.example JOIN #release alice :Alice Example",
+    );
+    server(
+        &mut session,
+        now,
+        ":ergo.test 366 papo #release :End of /NAMES list",
+    );
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"MODE #release\r\n"
+    );
+    let events = std::iter::from_fn(|| session.poll_event()).collect::<Vec<_>>();
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| matches!(event, Event::Response(response) if response.id == id))
+            .count(),
+        1
+    );
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| matches!(event, Event::Joined { channel, nick, .. } if channel == "#release" && nick == "papo"))
+            .count(),
+        1
+    );
+    let channel = session.state().channel("#release").unwrap();
+    let guard = session.state().__channel_guard(channel.name());
+    assert_eq!(channel.members().count(), 2);
+
+    server(
+        &mut session,
+        now,
+        ":papo!~papo@localhost JOIN #Release * :Papo Bot",
+    );
+    server(
+        &mut session,
+        now,
+        ":ergo.test 366 papo #Release :End of /NAMES list",
+    );
+    assert_eq!(session.poll_transmit(), None);
+    assert_eq!(session.poll_event(), None);
+    let channel = session.state().channel("#release").unwrap();
+    assert_eq!(channel.members().count(), 2);
+    assert!(channel.member("alice").is_some());
+    assert_eq!(
+        session
+            .state()
+            .__resolve_channel(&guard)
+            .as_ref()
+            .map(papo_proto::ChannelName::as_str),
+        Some("#release")
+    );
+}
