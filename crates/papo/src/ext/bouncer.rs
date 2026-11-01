@@ -296,8 +296,9 @@ impl Bouncer {
     /// # Errors
     ///
     /// Returns [`Error::InvalidInput`] for an invalid endpoint or password,
-    /// [`Error::Unsupported`] for [`crate::Feature::Bouncer`], [`Error::Server`] when refused, or
-    /// an error documented by [`Client::request_raw`].
+    /// [`Error::Unsupported`] for [`crate::Feature::Bouncer`], [`Error::StateLimit`] before sending
+    /// when another network would exceed the configured state bound, [`Error::Server`] when
+    /// refused, or an error documented by [`Client::request_raw`].
     pub fn add(&self, endpoint: impl crate::IntoEndpoint) -> AddNetwork {
         let config = crate::address::unstable::endpoint(endpoint)
             .and_then(|endpoint| NetworkConfig::from_endpoint(&endpoint));

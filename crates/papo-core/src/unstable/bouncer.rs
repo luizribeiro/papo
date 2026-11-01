@@ -9,7 +9,7 @@ use papo_proto::{Line, LineRef, Param};
 use web_time::Instant;
 use zeroize::{Zeroize, Zeroizing};
 
-use crate::{Feature, RequestError, RequestId, Secret, Session};
+use crate::{Feature, RequestError, RequestId, Secret, Session, state::StateGrowth};
 
 impl Session {
     /// Returns the successfully authenticated SASL identity configured by the client.
@@ -328,7 +328,8 @@ impl Session {
     ///
     /// # Errors
     ///
-    /// Failures are documented by [`Session::request`].
+    /// Returns [`RequestError::StateLimit`] when another network would exceed the network store
+    /// limit. Other failures are documented by [`Session::request`].
     pub fn bouncer_add(
         &mut self,
         now: Instant,
@@ -337,6 +338,7 @@ impl Session {
         if attributes.__is_secret() {
             self.require_secure_credentials()?;
         }
+        self.ensure_state_capacity(StateGrowth::BouncerNetwork)?;
         self.request_for_feature(
             now,
             Line::new("BOUNCER").param("ADDNETWORK").param(attributes),

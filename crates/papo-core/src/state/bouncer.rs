@@ -6,8 +6,6 @@ use super::State;
 #[cfg(test)]
 use super::StateSnapshot;
 
-const MAX_BOUNCER_NETWORKS: usize = 10_000;
-
 impl State {
     #[cfg(test)]
     pub(super) fn bouncer_snapshot(&self, message: &LineRef<'_>) -> Option<StateSnapshot> {
@@ -32,7 +30,7 @@ impl State {
             return true;
         }
         if !self.bouncer_networks.contains_key(&update.id)
-            && self.bouncer_networks.len() >= MAX_BOUNCER_NETWORKS
+            && self.bouncer_networks.len() >= self.max_bouncer_networks
         {
             self.warn_limit(StateLimit::BouncerNetworks, outbox);
             return true;

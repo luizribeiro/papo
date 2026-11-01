@@ -5,7 +5,9 @@ mod support;
 
 use std::collections::BTreeMap;
 
-use papo_core::{CloseKind, Config, Event, Feature, NetworkId, NetworkState, StateLimit};
+use papo_core::{
+    CloseKind, Config, Event, Feature, NetworkId, NetworkState, RequestError, StateLimit,
+};
 use support::{Transcript, assert_session_debug_redacts, queue_debug_marker};
 
 #[test]
@@ -27,7 +29,11 @@ fn network_ids_have_the_identifier_value_shape() {
 }
 
 fn registered() -> Transcript {
-    Transcript::new(Config::default().enable(Feature::Bouncer).wanted_caps([
+    registered_with(Config::default())
+}
+
+fn registered_with(config: Config) -> Transcript {
+    Transcript::new(config.enable(Feature::Bouncer).wanted_caps([
         "batch",
         "labeled-response",
         "soju.im/bouncer-networks",
@@ -40,6 +46,55 @@ fn registered() -> Transcript {
     .welcome(":soju.example 001 papo :Welcome to soju")
     .server(":soju.example 422 papo :MOTD File is missing")
     .event(|event| matches!(event, Event::Connected(_)))
+}
+
+#[test]
+fn bouncer_add_refuses_growth_when_the_network_store_is_full() {
+    let attributes = papo_core::__bouncer_attributes(
+        Some("irc.libera.chat"),
+        Some("Libera Chat"),
+        Some(6697),
+        Some(true),
+        Some("alice"),
+        None,
+        None,
+        None,
+    )
+    .unwrap();
+    registered_with(Config::default().max_bouncer_networks(1))
+        .update(|session| {
+            session
+                .bouncer_add(std::time::Instant::now(), attributes.clone())
+                .unwrap();
+        })
+        .client(r"@label=0 BOUNCER ADDNETWORK host=irc.libera.chat;name=Libera\sChat;port=6697;tls=1;nickname=alice")
+        .ignore_rest();
+
+    registered_with(Config::default().max_bouncer_networks(1))
+        .server("BOUNCER NETWORK 42 host=irc.example.org;state=connected")
+        .event(|event| matches!(event, Event::BouncerNetworkChanged { .. }))
+        .update(|session| {
+            session
+                .bouncer_change(
+                    std::time::Instant::now(),
+                    &NetworkId::from("42"),
+                    attributes.clone(),
+                )
+                .unwrap();
+        })
+        .client(r"@label=0 BOUNCER CHANGENETWORK 42 host=irc.libera.chat;name=Libera\sChat;port=6697;tls=1;nickname=alice")
+        .update(|session| {
+            assert_eq!(
+                session.bouncer_add(std::time::Instant::now(), attributes.clone()),
+                Err(RequestError::StateLimit(StateLimit::BouncerNetworks))
+            );
+        })
+        .no_client()
+        .server("BOUNCER NETWORK 43 host=irc.backup.example;state=disconnected")
+        .event(|event| matches!(event, Event::StateLimitReached { limit: StateLimit::BouncerNetworks, .. }))
+        .server("BOUNCER NETWORK 44 host=irc.chat.example;state=disconnected")
+        .no_event()
+        .inspect(|session| assert_eq!(session.state().bouncer_networks().count(), 1));
 }
 
 fn bound_config() -> Config {
