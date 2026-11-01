@@ -99,16 +99,8 @@ async fn tls_account_proof_produces_the_same_pin_on_refs_and_messages() {
             .privmsg(&bob_ref, "peer key live proof")
             .await
             .unwrap();
-        let message = loop {
-            match bob_events.next().await {
-                Some(Event::Message(message)) if message.text == "peer key live proof" => {
-                    break message;
-                }
-                Some(Event::Disconnected(disconnected)) => panic!("disconnected: {disconnected}"),
-                Some(_) => {}
-                None => panic!("driver stopped before private message"),
-            }
-        };
+        let message =
+            wait_account_message(&bob_client, &mut bob_events, &alice, "peer key live proof").await;
         let alice_ref = bob_client.direct(&alice).await.unwrap();
         assert!(matches!(
             alice_ref
@@ -129,6 +121,29 @@ async fn tls_account_proof_produces_the_same_pin_on_refs_and_messages() {
         bob_client.quit("peer key verified").await.unwrap();
     })
     .await;
+}
+
+async fn wait_account_message(
+    client: &Client,
+    events: &mut papo::Events,
+    sender: &str,
+    text: &str,
+) -> papo::Message {
+    let mut received = None;
+    loop {
+        match events.next().await {
+            Some(Event::Message(message)) if message.text == text => received = Some(message),
+            Some(Event::Disconnected(disconnected)) => panic!("disconnected: {disconnected}"),
+            Some(_) => {}
+            None => panic!("driver stopped before account proof and private message"),
+        }
+        let account_proved = client.state().user(sender).is_some_and(
+            |user| matches!(user.account(), papo::Account::LoggedIn(account) if account == sender),
+        );
+        if account_proved && let Some(message) = received.take() {
+            return message;
+        }
+    }
 }
 
 async fn wait_connected(events: &mut papo::Events, nick: &str) {

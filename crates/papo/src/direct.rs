@@ -1,6 +1,6 @@
 use std::{
     hash::{Hash, Hasher},
-    sync::{Arc, RwLock},
+    sync::{Arc, OnceLock, RwLock},
 };
 
 use tokio::sync::mpsc;
@@ -24,6 +24,7 @@ pub struct DirectRef(Arc<DirectInner>);
 struct DirectInner {
     identity: papo_core::ReplyToken,
     peer_key: crate::peer_key::PeerKey,
+    upgraded_peer_key: OnceLock<crate::peer_key::PeerKey>,
     recipient: papo_core::RecipientGuard,
     state: Arc<RwLock<Arc<crate::State>>>,
     _lease: Option<MonitorLease>,
@@ -66,6 +67,7 @@ impl DirectRef {
             }),
             identity,
             peer_key,
+            upgraded_peer_key: OnceLock::new(),
             recipient,
             state: Arc::clone(&client.state),
         }))
@@ -75,13 +77,46 @@ impl DirectRef {
         &self.0.recipient
     }
 
-    /// Returns the identity pin captured for this direct conversation.
+    /// Returns the current identity pin for this direct conversation.
     ///
-    /// Nicknames remain the conversation boundary even when two references have equal pins. See
-    /// [`crate::PeerKey`] for the nickname-keyed thread and warning flow.
+    /// A Continuity pin captured before account proof upgrades to an Account pin once papo proves
+    /// the account for the same uninterrupted user. Nicknames remain the conversation boundary
+    /// even when two references have equal pins. See [`crate::PeerKey`] for the nickname-keyed
+    /// thread and warning flow.
     #[must_use]
     pub fn peer_key(&self) -> &crate::PeerKey {
-        &self.0.peer_key
+        self.refresh_peer_key();
+        self.0.upgraded_peer_key.get().unwrap_or(&self.0.peer_key)
+    }
+
+    fn refresh_peer_key(&self) {
+        if self.0.peer_key.is_verified() || self.0.upgraded_peer_key.get().is_some() {
+            return;
+        }
+        let state = self
+            .0
+            .state
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let papo_core::RecipientStatus::Current(nick) = state.resolve_recipient(&self.0.recipient)
+        else {
+            return;
+        };
+        let Some(user) = state.user(&nick) else {
+            return;
+        };
+        let scope = state.peer_scope();
+        let Some(current) =
+            crate::peer_key::PeerKey::live(scope.as_ref(), user.account(), state.peer_token(&nick))
+        else {
+            return;
+        };
+        if matches!(
+            self.0.peer_key.check(&current),
+            crate::PeerKeyCheck::Upgrade(_)
+        ) {
+            _ = self.0.upgraded_peer_key.set(current);
+        }
     }
 
     /// Returns the recipient's current nickname.
@@ -251,7 +286,7 @@ mod tests {
     };
 
     use crate::{Account, Casemapping};
-    use papo_core::{Config, Event, ResponseMatcher, Session};
+    use papo_core::{Config, Connection, Event, ResponseMatcher, Session, sts::ConnectionSecurity};
     use papo_proto::{Line, LineRef};
 
     fn direct_hash(direct: &super::DirectRef) -> u64 {
@@ -269,6 +304,7 @@ mod tests {
         super::DirectRef(Arc::new(super::DirectInner {
             identity: recipient.__token(),
             peer_key,
+            upgraded_peer_key: std::sync::OnceLock::new(),
             recipient,
             state: Arc::clone(&client.state),
             _lease: None,
@@ -797,6 +833,61 @@ mod tests {
         ));
         assert!(matches!(
             alice.check(&bob),
+            crate::PeerKeyCheck::Mismatch(crate::PeerKeyMismatch::CannotVerify)
+        ));
+    }
+
+    #[tokio::test]
+    async fn direct_peer_key_does_not_depend_on_account_proof_timing() {
+        let now = crate::rt::now_mono();
+        let mut session = Session::new(Config::default().nick("papo"));
+        session.handle_connected_with(
+            now,
+            Connection {
+                host: "irc.example".into(),
+                security: ConnectionSecurity::Secure,
+                authenticated_server_name: Some("irc.example".into()),
+            },
+        );
+        for line in [
+            ":irc.example 005 papo CASEMAPPING=rfc1459 :are supported",
+            ":papo!p@localhost JOIN #review * :Papo",
+            ":alice!~alice@cloak.example JOIN #review * :Alice",
+        ] {
+            session.handle_line(now, line.as_bytes());
+        }
+        let (client, _) = crate::driver::test_support::client_with_commands(&session);
+        let before = client.direct("alice").await.unwrap();
+        let continuity = before.peer_key().clone();
+        assert!(!continuity.is_verified());
+
+        session.handle_line(
+            now,
+            b"@account=alice-account :alice!~alice@cloak.example PRIVMSG papo :proof",
+        );
+        *client.state.write().unwrap() = Arc::new(crate::State::from_session(&session, true));
+        let upgraded = before.peer_key();
+        assert!(upgraded.is_verified());
+        assert!(matches!(
+            continuity.check(upgraded),
+            crate::PeerKeyCheck::Upgrade(pin) if pin.as_verified_str() == upgraded.as_verified_str()
+        ));
+
+        let after = client.direct("alice").await.unwrap();
+        assert!(matches!(
+            upgraded.check(after.peer_key()),
+            crate::PeerKeyCheck::Match
+        ));
+
+        session.handle_line(now, b":alice!~alice@cloak.example QUIT :Client exited");
+        session.handle_line(
+            now,
+            b":alice!~other@new.example JOIN #review mallory-account :Replacement",
+        );
+        *client.state.write().unwrap() = Arc::new(crate::State::from_session(&session, true));
+        let replacement = client.direct("alice").await.unwrap();
+        assert!(matches!(
+            continuity.check(replacement.peer_key()),
             crate::PeerKeyCheck::Mismatch(crate::PeerKeyMismatch::CannotVerify)
         ));
     }

@@ -83,7 +83,7 @@ pub struct PeerKey(PeerIdentity);
 
 #[derive(Clone, Eq, Hash, PartialEq)]
 enum PeerIdentity {
-    Account(AccountPin),
+    Account(Box<AccountPin>, Option<papo_core::PeerToken>),
     Continuity(papo_core::PeerToken),
 }
 
@@ -101,7 +101,7 @@ struct AccountPin {
 pub enum PeerKeyCheck {
     /// The pins identify the same account or observed user continuity.
     Match,
-    /// The account name still matches and the current pin adds an immutable account ID.
+    /// The current pin adds durable account proof or an immutable account ID.
     Upgrade(PeerKey),
     /// The pins cannot be accepted without user confirmation.
     Mismatch(PeerKeyMismatch),
@@ -159,9 +159,12 @@ impl PeerKey {
 
     pub(crate) fn historical(scope: Option<&PeerScope>, account: &crate::Account) -> Option<Self> {
         match (scope, account) {
-            (Some(scope), crate::Account::LoggedIn(account)) => {
-                Some(Self::verified(scope, account.casemapping(), account.key()))
-            }
+            (Some(scope), crate::Account::LoggedIn(account)) => Some(Self::verified(
+                scope,
+                account.casemapping(),
+                account.key(),
+                None,
+            )),
             _ => None,
         }
     }
@@ -172,26 +175,37 @@ impl PeerKey {
         tracked: Option<papo_core::PeerToken>,
     ) -> Option<Self> {
         if let (Some(scope), crate::Account::LoggedIn(account)) = (scope, account) {
-            return Some(Self::verified(scope, account.casemapping(), account.key()));
+            return Some(Self::verified(
+                scope,
+                account.casemapping(),
+                account.key(),
+                tracked,
+            ));
         }
         tracked.map(|token| Self(PeerIdentity::Continuity(token)))
     }
 
-    fn verified(scope: &PeerScope, casemapping: crate::Casemapping, account: &str) -> Self {
-        Self(PeerIdentity::Account(encoding::encode(
-            scope,
-            casemapping,
-            account,
-        )))
+    fn verified(
+        scope: &PeerScope,
+        casemapping: crate::Casemapping,
+        account: &str,
+        continuity: Option<papo_core::PeerToken>,
+    ) -> Self {
+        Self(PeerIdentity::Account(
+            Box::new(encoding::encode(scope, casemapping, account)),
+            continuity,
+        ))
     }
 
     /// Checks this stored pin against the current pin for the same nickname thread.
     ///
-    /// A stored Account pin without an immutable account ID returns [`PeerKeyCheck::Upgrade`] once
-    /// the server supplies that ID. Applications must replace the stored pin with the upgraded pin.
+    /// A Continuity pin returns [`PeerKeyCheck::Upgrade`] when the current Account pin belongs to
+    /// the same uninterrupted user. A stored Account pin without an immutable account ID also
+    /// upgrades once the server supplies that ID. Applications must replace the stored pin with the
+    /// upgraded pin.
     #[must_use]
-    pub fn check(&self, current: &Self) -> PeerKeyCheck {
-        match (&self.0, &current.0) {
+    pub fn check(&self, current_key: &Self) -> PeerKeyCheck {
+        match (&self.0, &current_key.0) {
             (PeerIdentity::Continuity(stored), PeerIdentity::Continuity(current)) => {
                 if stored == current {
                     PeerKeyCheck::Match
@@ -199,11 +213,16 @@ impl PeerKey {
                     PeerKeyCheck::Mismatch(PeerKeyMismatch::CannotVerify)
                 }
             }
-            (PeerIdentity::Account(stored), PeerIdentity::Account(current)) => {
-                check_accounts(stored, current)
+            (PeerIdentity::Account(stored, _), PeerIdentity::Account(current, _)) => {
+                check_accounts(stored, current, current_key)
             }
-            (PeerIdentity::Account(_), PeerIdentity::Continuity(_))
-            | (PeerIdentity::Continuity(_), PeerIdentity::Account(_)) => {
+            (PeerIdentity::Continuity(stored), PeerIdentity::Account(_, Some(current)))
+                if stored == current =>
+            {
+                PeerKeyCheck::Upgrade(current_key.clone())
+            }
+            (PeerIdentity::Account(_, _), PeerIdentity::Continuity(_))
+            | (PeerIdentity::Continuity(_), PeerIdentity::Account(_, _)) => {
                 PeerKeyCheck::Mismatch(PeerKeyMismatch::CannotVerify)
             }
         }
@@ -212,7 +231,7 @@ impl PeerKey {
     /// Reports whether this is a durable Account pin at a TLS-authenticated server scope.
     #[must_use]
     pub const fn is_verified(&self) -> bool {
-        matches!(self.0, PeerIdentity::Account(_))
+        matches!(self.0, PeerIdentity::Account(_, _))
     }
 
     /// Returns the stable representation of a verified pin.
@@ -222,13 +241,17 @@ impl PeerKey {
     #[must_use]
     pub fn as_verified_str(&self) -> Option<&str> {
         match &self.0 {
-            PeerIdentity::Account(pin) => Some(&pin.encoded),
+            PeerIdentity::Account(pin, _) => Some(&pin.encoded),
             PeerIdentity::Continuity(_) => None,
         }
     }
 }
 
-fn check_accounts(stored: &AccountPin, current: &AccountPin) -> PeerKeyCheck {
+fn check_accounts(
+    stored: &AccountPin,
+    current: &AccountPin,
+    current_key: &PeerKey,
+) -> PeerKeyCheck {
     if stored.scope != current.scope {
         return PeerKeyCheck::Mismatch(PeerKeyMismatch::DifferentAccount);
     }
@@ -237,7 +260,7 @@ fn check_accounts(stored: &AccountPin, current: &AccountPin) -> PeerKeyCheck {
         (None, Some(_))
             if stored.casemapping == current.casemapping && stored.account == current.account =>
         {
-            PeerKeyCheck::Upgrade(PeerKey(PeerIdentity::Account(current.clone())))
+            PeerKeyCheck::Upgrade(current_key.clone())
         }
         (Some(_), None) => PeerKeyCheck::Mismatch(PeerKeyMismatch::CannotVerify),
         (None, None)
@@ -255,7 +278,7 @@ impl FromStr for PeerKey {
     type Err = InvalidPeerKey;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
-        encoding::parse(value).map(|pin| Self(PeerIdentity::Account(pin)))
+        encoding::parse(value).map(|pin| Self(PeerIdentity::Account(Box::new(pin), None)))
     }
 }
 
