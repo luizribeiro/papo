@@ -730,6 +730,11 @@ mod tests {
         assert!(first.is_verified());
         assert_eq!(first, same);
         assert_ne!(first, other);
+        assert!(matches!(first.check(&same), crate::PeerKeyCheck::Match));
+        assert!(matches!(
+            first.check(&other),
+            crate::PeerKeyCheck::Mismatch(crate::PeerKeyMismatch::DifferentAccount)
+        ));
     }
 
     #[test]

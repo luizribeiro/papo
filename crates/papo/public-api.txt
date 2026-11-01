@@ -2871,6 +2871,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::Oper
 pub struct papo::PeerKey(_)
 impl papo::PeerKey
 pub fn papo::PeerKey::as_verified_str(&self) -> core::option::Option<&str>
+pub fn papo::PeerKey::check(&self, &Self) -> papo::PeerKeyCheck
 pub const fn papo::PeerKey::is_verified(&self) -> bool
 impl core::clone::Clone for papo::PeerKey
 pub fn papo::PeerKey::clone(&self) -> Self
