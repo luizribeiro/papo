@@ -33,9 +33,10 @@ fn parse_fields(value: &str) -> Result<AccountPin, InvalidPeerKey> {
         .collect::<Result<Vec<_>, InvalidPeerKey>>()?;
     let names = fields.iter().map(|field| field.0).collect::<Vec<_>>();
     let (scope, account_offset) = match names.as_slice() {
-        ["server", "casemap", "account"] | ["server", "casemap", "account", "id"] => {
-            (PeerScope::server(&fields[0].1), 1)
-        }
+        ["server", "casemap", "account"] | ["server", "casemap", "account", "id"] => (
+            PeerScope::server(&crate::sts::normalize_host(&fields[0].1)),
+            1,
+        ),
         [
             "server",
             "bouncer-login",
@@ -114,11 +115,11 @@ fn render(pin: &AccountPin) -> String {
 
 fn bouncer_scope(server: &str, login: &str, network: &str, upstream: &str) -> PeerScope {
     PeerScope {
-        server: server.to_owned(),
+        server: crate::sts::normalize_host(server),
         bouncer: Some(BouncerScope {
             login: login.to_owned(),
             network: network.to_owned(),
-            upstream: upstream.to_owned(),
+            upstream: crate::sts::normalize_host(upstream),
         }),
     }
 }
@@ -215,5 +216,16 @@ mod tests {
         let value = "papo-pin:1;server=bouncer.example;bouncer-login=alice%40example;netid=libera;upstream=irc.libera.chat;casemap=rfc1459;account=alice";
         let pin = value.parse::<super::super::PeerKey>().unwrap();
         assert_eq!(pin.as_verified_str(), Some(value));
+    }
+
+    #[test]
+    fn parsed_server_hosts_use_tls_normalization() {
+        let pin = "papo-pin:1;server=IRC.EXAMPLE.;casemap=rfc1459;account=alice"
+            .parse::<super::super::PeerKey>()
+            .unwrap();
+        assert_eq!(
+            pin.as_verified_str(),
+            Some("papo-pin:1;server=irc.example;casemap=rfc1459;account=alice")
+        );
     }
 }
