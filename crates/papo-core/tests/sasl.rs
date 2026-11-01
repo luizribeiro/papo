@@ -97,6 +97,73 @@ fn oauth_bearer_sends_an_rfc_7628_response_and_redacts_its_token() {
 }
 
 #[test]
+fn oauth_bearer_publishes_the_pending_account_only_after_success() {
+    Transcript::new(
+        Config::default().sasl(Sasl::oauth_bearer(papo_core::Secret::new(
+            "oauth-token-7391",
+        ))),
+    )
+    .connect_default()
+    .server("CAP * LS :sasl=OAUTHBEARER")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE OAUTHBEARER")
+    .server("AUTHENTICATE +")
+    .client("AUTHENTICATE biwsAWF1dGg9QmVhcmVyIG9hdXRoLXRva2VuLTczOTEBAQ==")
+    .server(":ergo.test 900 papo papo!~papo@localhost alice :You are now logged in as alice")
+    .no_event()
+    .inspect(|session| {
+        assert_eq!(session.account(), None);
+        assert!(matches!(
+            session.state().account(),
+            Account::Unknown | Account::LoggedOut
+        ));
+    })
+    .server(":ergo.test 903 papo :SASL authentication successful")
+    .client("CAP END")
+    .no_event()
+    .inspect(|session| {
+        assert_eq!(session.account(), Some("alice"));
+        assert!(matches!(session.state().account(), Account::LoggedIn(name) if name == "alice"));
+    });
+}
+
+#[test]
+fn oauth_bearer_failure_discards_the_pending_account() {
+    Transcript::new(
+        Config::default().sasl(
+            Sasl::oauth_bearer(papo_core::Secret::new("expired-oauth-token-4821")).optional(),
+        ),
+    )
+    .connect_default()
+    .server("CAP * LS :sasl=OAUTHBEARER")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE OAUTHBEARER")
+    .server("AUTHENTICATE +")
+    .client("AUTHENTICATE biwsAWF1dGg9QmVhcmVyIGV4cGlyZWQtb2F1dGgtdG9rZW4tNDgyMQEB")
+    .server(":ergo.test 900 papo papo!~papo@localhost alice :You are now logged in as alice")
+    .no_event()
+    .inspect(|session| {
+        assert_eq!(session.account(), None);
+        assert!(matches!(
+            session.state().account(),
+            Account::Unknown | Account::LoggedOut
+        ));
+    })
+    .server(":ergo.test 904 papo :SASL authentication failed")
+    .event(|event| matches!(event, Event::AuthenticationFailed { .. }))
+    .client("CAP END")
+    .inspect(|session| {
+        assert_eq!(session.account(), None);
+        assert!(matches!(
+            session.state().account(),
+            Account::Unknown | Account::LoggedOut
+        ));
+    });
+}
+
+#[test]
 fn debug_output_redacts_a_queued_oauth_bearer_response() {
     Transcript::new(secure_sasl(Sasl::oauth_bearer(papo_core::Secret::new(
         "oauth-token-7391",
