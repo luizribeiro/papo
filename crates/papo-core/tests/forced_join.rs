@@ -2,8 +2,23 @@
 
 mod support;
 
-use papo_core::{Authorship, Config, Event, WhoOnJoin};
+use std::time::Instant;
+
+use papo_core::{Authorship, Config, Event, RateLimit, Refusal, Session, WhoOnJoin};
 use support::Transcript;
+
+fn server(session: &mut Session, now: Instant, line: &str) {
+    session.handle_line(now, line.as_bytes());
+}
+
+fn request_session() -> Session {
+    Session::new(
+        Config::default()
+            .nick("papo")
+            .rate_limit(RateLimit::unlimited())
+            .who_on_join(WhoOnJoin::Never),
+    )
+}
 
 #[test]
 fn unrequested_own_join_builds_a_normal_membership() {
@@ -65,4 +80,112 @@ fn unrequested_own_join_builds_a_normal_membership() {
         );
     })
     .no_event();
+}
+
+#[test]
+fn unrelated_forced_join_leaves_the_requested_join_pending() {
+    let now = Instant::now();
+    let mut session = request_session();
+    let id = session.join(now, "#review", None).unwrap();
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"JOIN #review\r\n"
+    );
+
+    server(
+        &mut session,
+        now,
+        ":papo!~papo@localhost JOIN #operations * :Papo Bot",
+    );
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Joined { channel, .. }) if channel == "#operations"
+    ));
+    assert_eq!(session.poll_event(), None);
+    server(
+        &mut session,
+        now,
+        ":ergo.test 366 papo #operations :End of /NAMES list",
+    );
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"MODE #operations\r\n"
+    );
+    assert!(
+        std::iter::from_fn(|| session.poll_event())
+            .all(|event| !matches!(event, Event::Response(response) if response.id == id))
+    );
+
+    server(
+        &mut session,
+        now,
+        ":papo!~papo@localhost JOIN #review * :Papo Bot",
+    );
+    server(
+        &mut session,
+        now,
+        ":ergo.test 366 papo #review :End of /NAMES list",
+    );
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"MODE #review\r\n"
+    );
+    let events = std::iter::from_fn(|| session.poll_event()).collect::<Vec<_>>();
+    assert_eq!(
+        events
+            .iter()
+            .filter(|event| matches!(event, Event::Response(response) if response.id == id))
+            .count(),
+        1
+    );
+    assert!(session.state().channel("#operations").is_some());
+    assert!(session.state().channel("#review").is_some());
+}
+
+#[test]
+fn solanum_forward_resolves_the_original_join_with_470() {
+    let now = Instant::now();
+    let mut session = request_session();
+    let id = session.join(now, "#staff", None).unwrap();
+    assert!(session.poll_transmit().is_some());
+
+    server(
+        &mut session,
+        now,
+        ":irc.papo.test 470 papo #staff #operations :Forwarding to another channel",
+    );
+    let Some(Event::Response(response)) = session.poll_event() else {
+        panic!("forward numeric did not resolve the original JOIN")
+    };
+    assert_eq!(response.id, id);
+    assert_eq!(response.error().unwrap().refusal(), Refusal::Other);
+    assert_eq!(response.lines[0].as_ref().raw_command(), "470");
+
+    server(
+        &mut session,
+        now,
+        ":papo!~papo@localhost JOIN #operations * :Papo Bot",
+    );
+    server(
+        &mut session,
+        now,
+        ":irc.papo.test 366 papo #operations :End of /NAMES list.",
+    );
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"MODE #operations\r\n"
+    );
+    let events = std::iter::from_fn(|| session.poll_event()).collect::<Vec<_>>();
+    assert!(
+        events.iter().any(
+            |event| matches!(event, Event::Joined { channel, .. } if channel == "#operations")
+        )
+    );
+    assert!(
+        !events
+            .iter()
+            .any(|event| matches!(event, Event::Response(response) if response.id == id))
+    );
+    assert!(session.state().channel("#staff").is_none());
+    assert!(session.state().channel("#operations").is_some());
 }
