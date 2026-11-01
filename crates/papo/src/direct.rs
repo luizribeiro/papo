@@ -56,8 +56,8 @@ impl DirectRef {
             scope.as_ref(),
             recipient.__account(),
             state.peer_token(recipient.__nick()),
-            client.origin(),
-        );
+        )
+        .expect("a direct reference captures a tracked IRC user");
         Self(Arc::new(DirectInner {
             _lease: monitored.then(|| MonitorLease {
                 recipient: recipient.clone(),
@@ -220,6 +220,21 @@ mod tests {
         let mut hasher = DefaultHasher::new();
         direct.hash(&mut hasher);
         hasher.finish()
+    }
+
+    fn untracked_direct(
+        client: &crate::Client,
+        recipient: papo_core::RecipientGuard,
+    ) -> super::DirectRef {
+        let scope = crate::peer_key::PeerScope::server("verified.example");
+        let peer_key = crate::PeerKey::historical(Some(&scope), recipient.__account()).unwrap();
+        super::DirectRef(Arc::new(super::DirectInner {
+            identity: recipient.__token(),
+            peer_key,
+            recipient,
+            state: Arc::clone(&client.state),
+            _lease: None,
+        }))
     }
 
     fn response_with(lines: &[&str]) -> papo_core::Response {
@@ -577,7 +592,7 @@ mod tests {
             account.clone(),
             papo_core::ReplyToken::__unknown(nick.origin()),
         );
-        let direct = super::DirectRef::new(&client, recipient.clone(), false);
+        let direct = untracked_direct(&client, recipient.clone());
         let resolved = tokio::spawn({
             let client = client.clone();
             async move { client.privmsg(direct, "release approved").await }

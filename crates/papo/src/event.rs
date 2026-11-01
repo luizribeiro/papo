@@ -1832,12 +1832,11 @@ pub(crate) fn attach_live_peer_key(event: &mut Event, state: &crate::State) {
         actor.account().clone()
     };
     let scope = state.peer_scope();
-    actor.set_peer_key(crate::peer_key::PeerKey::live(
-        scope.as_ref(),
-        &account,
-        state.peer_token(actor.nick()),
-        actor.nick().origin(),
-    ));
+    let peer_key =
+        crate::peer_key::PeerKey::live(scope.as_ref(), &account, state.peer_token(actor.nick()));
+    if let Some(peer_key) = peer_key {
+        actor.set_peer_key(peer_key);
+    }
 }
 
 pub(crate) fn attach_historical_peer_key(event: &mut Event, state: &crate::State) {

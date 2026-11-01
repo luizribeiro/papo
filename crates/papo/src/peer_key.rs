@@ -1,12 +1,6 @@
-use std::{
-    fmt,
-    hash::Hash,
-    str::FromStr,
-    sync::atomic::{AtomicU64, Ordering},
-};
+use std::{fmt, hash::Hash, str::FromStr};
 
 const PREFIX: &str = "papo-peer-v1:";
-static NEXT_EPHEMERAL: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub(crate) struct PeerScope {
@@ -141,12 +135,8 @@ pub struct PeerKey(PeerIdentity);
 
 #[derive(Clone, Eq, Hash, PartialEq)]
 enum PeerIdentity {
-    Verified(String),
-    Tracked(papo_core::PeerToken),
-    Ephemeral {
-        origin: crate::Origin,
-        sequence: u64,
-    },
+    Account(String),
+    Continuity(papo_core::PeerToken),
 }
 
 /// An error returned when a persisted peer key is malformed or unsupported.
@@ -158,9 +148,8 @@ impl PeerKey {
         scope: Option<&PeerScope>,
         account: &crate::Account,
         token: papo_core::PeerToken,
-        origin: crate::Origin,
-    ) -> Self {
-        Self::new(scope, account, token.__is_known().then_some(token), origin)
+    ) -> Option<Self> {
+        Self::new(scope, account, token.__is_known().then_some(token))
     }
 
     pub(crate) fn historical(scope: Option<&PeerScope>, account: &crate::Account) -> Option<Self> {
@@ -176,15 +165,11 @@ impl PeerKey {
         scope: Option<&PeerScope>,
         account: &crate::Account,
         tracked: Option<papo_core::PeerToken>,
-        origin: crate::Origin,
-    ) -> Self {
+    ) -> Option<Self> {
         if let (Some(scope), crate::Account::LoggedIn(account)) = (scope, account) {
-            return Self::verified(scope, account.casemapping(), account.key());
+            return Some(Self::verified(scope, account.casemapping(), account.key()));
         }
-        tracked.map_or_else(
-            || Self::ephemeral(origin),
-            |token| Self(PeerIdentity::Tracked(token)),
-        )
+        tracked.map(|token| Self(PeerIdentity::Continuity(token)))
     }
 
     fn verified(scope: &PeerScope, casemapping: crate::Casemapping, account: &str) -> Self {
@@ -197,30 +182,13 @@ impl PeerKey {
             casemapping.as_str(),
             scope.len()
         );
-        Self(PeerIdentity::Verified(value))
-    }
-
-    fn ephemeral(origin: crate::Origin) -> Self {
-        let mut sequence = NEXT_EPHEMERAL.load(Ordering::Relaxed);
-        loop {
-            let next = sequence.checked_add(1).expect("peer key space exhausted");
-            match NEXT_EPHEMERAL.compare_exchange_weak(
-                sequence,
-                next,
-                Ordering::Relaxed,
-                Ordering::Relaxed,
-            ) {
-                Ok(_) => break,
-                Err(actual) => sequence = actual,
-            }
-        }
-        Self(PeerIdentity::Ephemeral { origin, sequence })
+        Self(PeerIdentity::Account(value))
     }
 
     /// Reports whether this pin is backed by a proven account at an authenticated server scope.
     #[must_use]
     pub const fn is_verified(&self) -> bool {
-        matches!(self.0, PeerIdentity::Verified(_))
+        matches!(self.0, PeerIdentity::Account(_))
     }
 
     /// Returns the stable representation of a verified pin.
@@ -230,8 +198,8 @@ impl PeerKey {
     #[must_use]
     pub fn as_verified_str(&self) -> Option<&str> {
         match &self.0 {
-            PeerIdentity::Verified(value) => Some(value),
-            PeerIdentity::Tracked(_) | PeerIdentity::Ephemeral { .. } => None,
+            PeerIdentity::Account(value) => Some(value),
+            PeerIdentity::Continuity(_) => None,
         }
     }
 }
