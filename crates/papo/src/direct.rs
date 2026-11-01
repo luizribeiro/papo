@@ -766,12 +766,12 @@ mod tests {
 
     #[test]
     fn persisted_peer_accounts_are_canonicalized() {
-        let key = "papo-peer-v1:rfc1459:4:ErgoAlice[Ops]"
+        let key = "papo-pin:1;server=irc.example;casemap=rfc1459;account=Alice%5BOps%5D"
             .parse::<crate::peer_key::PeerKey>()
             .unwrap();
         assert_eq!(
             key.as_verified_str(),
-            Some("papo-peer-v1:rfc1459:4:Ergoalice{ops}")
+            Some("papo-pin:1;server=irc.example;casemap=rfc1459;account=alice%7Bops%7D")
         );
     }
 
@@ -781,13 +781,16 @@ mod tests {
 
         for value in [
             "",
-            "papo-peer-v2:rfc1459:4:Ergoalice",
-            "papo-peer-v1:unknown:4:Ergoalice",
-            "papo-peer-v1:rfc1459:x:Ergoalice",
-            "papo-peer-v1:rfc1459:40:Ergoalice",
-            "papo-peer-v1:rfc1459:0:alice",
-            "papo-peer-v1:rfc1459:4:Ergo",
-            "papo-peer-v1:rfc1459:4:Ergo*",
+            "papo-peer-v1:rfc1459:4:Ergoalice",
+            "papo-pin:2;server=irc.example;casemap=rfc1459;account=alice",
+            "papo-pin:1;server=irc.example;account=alice;casemap=rfc1459",
+            "papo-pin:1;server=irc.example;casemap=unknown;account=alice",
+            "papo-pin:1;server=;casemap=rfc1459;account=alice",
+            "papo-pin:1;server=irc.example;casemap=rfc1459;account=",
+            "papo-pin:1;server=irc.example;casemap=rfc1459;account=ali%GGce",
+            "papo-pin:1;server=irc.example;casemap=rfc1459;account=alice;id=",
+            "papo-pin:1;server=irc.example;netid=libera;casemap=rfc1459;account=alice",
+            "papo-pin:1;server=irc.example;casemap=rfc1459;account=alice;extra=value",
         ] {
             assert_eq!(value.parse::<PeerKey>(), Err(InvalidPeerKey), "{value}");
         }

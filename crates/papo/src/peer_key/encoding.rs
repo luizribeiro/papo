@@ -1,7 +1,6 @@
 use super::{AccountPin, BouncerScope, InvalidPeerKey, PeerScope};
 
 const PREFIX: &str = "papo-pin:1;";
-const LEGACY_PREFIX: &str = "papo-peer-v1:";
 
 pub(super) fn encode(
     scope: &PeerScope,
@@ -20,35 +19,8 @@ pub(super) fn encode(
 }
 
 pub(super) fn parse(value: &str) -> Result<AccountPin, InvalidPeerKey> {
-    if value.starts_with(PREFIX) {
-        return parse_fields(value);
-    }
-    let (casemapping, rest) = value
-        .strip_prefix(LEGACY_PREFIX)
-        .and_then(|value| value.split_once(':'))
-        .ok_or(InvalidPeerKey)?;
-    let casemapping = percent_decode(casemapping)?
-        .parse::<crate::Casemapping>()
-        .map_err(|_| InvalidPeerKey)?;
-    let (scope_len, joined) = rest.split_once(':').ok_or(InvalidPeerKey)?;
-    let scope_len = scope_len.parse::<usize>().map_err(|_| InvalidPeerKey)?;
-    let (scope, account) = joined
-        .get(..scope_len)
-        .zip(joined.get(scope_len..))
-        .ok_or(InvalidPeerKey)?;
-    if scope.is_empty() || account.is_empty() {
-        return Err(InvalidPeerKey);
-    }
-    let parsed_scope = parse_legacy_scope(scope).ok_or(InvalidPeerKey)?;
-    let account = casemapping.account(account);
-    account.check().map_err(|_| InvalidPeerKey)?;
-    Ok(AccountPin {
-        scope: parsed_scope,
-        casemapping,
-        account: account.key().to_owned(),
-        id: None,
-        encoded: value.to_owned(),
-    })
+    value.strip_prefix(PREFIX).ok_or(InvalidPeerKey)?;
+    parse_fields(value)
 }
 
 fn parse_fields(value: &str) -> Result<AccountPin, InvalidPeerKey> {
@@ -149,36 +121,6 @@ fn bouncer_scope(server: &str, login: &str, network: &str, upstream: &str) -> Pe
             upstream: upstream.to_owned(),
         }),
     }
-}
-
-fn parse_legacy_scope(value: &str) -> Option<PeerScope> {
-    let mut rest = value.strip_prefix("server=")?;
-    let server = take_legacy_value(&mut rest)?;
-    if rest.is_empty() {
-        return Some(PeerScope::server(&server));
-    }
-    rest = rest.strip_prefix(";login=")?;
-    let login = take_legacy_value(&mut rest)?;
-    rest = rest.strip_prefix(";network=")?;
-    let network = take_legacy_value(&mut rest)?;
-    rest = rest.strip_prefix(";upstream=")?;
-    let upstream = take_legacy_value(&mut rest)?;
-    rest.is_empty().then_some(PeerScope {
-        server,
-        bouncer: Some(BouncerScope {
-            login,
-            network,
-            upstream,
-        }),
-    })
-}
-
-fn take_legacy_value(rest: &mut &str) -> Option<String> {
-    let (len, value) = rest.split_once(':')?;
-    let len = len.parse::<usize>().ok()?;
-    let (value, remaining) = value.get(..len).zip(value.get(len..))?;
-    *rest = remaining;
-    Some(value.to_owned())
 }
 
 fn percent_encode(value: &str) -> String {
