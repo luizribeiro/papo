@@ -164,6 +164,40 @@ fn list_mode_limit_counts_rows_without_the_completion_numeric() {
 }
 
 #[test]
+fn list_mode_snapshot_refuses_the_third_row_at_a_limit_of_two() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().max_list_entries_per_mode(2));
+    session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
+    let id = request(&mut session, now, ListMode::Ban);
+    _ = session.poll_transmit();
+    for host in ["gateway.example", "crawler.example"] {
+        session.handle_line(
+            now,
+            format!(":ergo.test 367 papo #papo *!*@{host} oper 1761048000").as_bytes(),
+        );
+    }
+    assert!(
+        !std::iter::from_fn(|| session.poll_event())
+            .any(|event| matches!(event, Event::Response(_)))
+    );
+
+    session.handle_line(
+        now,
+        b":ergo.test 367 papo #papo *!*@scanner.example oper 1761048000",
+    );
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::StateLimitReached {
+            limit: StateLimit::ListEntries,
+            ..
+        })
+    ));
+    let response = response(&mut session, id);
+    assert_eq!(response.state_limit, Some(StateLimit::ListEntries));
+    assert_eq!(response.lines.len(), 2);
+}
+
+#[test]
 fn one_thousand_and_one_rows_fail_without_retaining_the_last_row() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
@@ -288,6 +322,83 @@ fn list_mode_changes_refuse_growth_when_the_cached_list_is_full() {
             .unwrap()
             .len(),
         1
+    );
+}
+
+#[test]
+fn every_cached_list_mode_refuses_growth_at_its_limit() {
+    let cases = [
+        (ListMode::Ban, 367, 368, "", "*!*@gateway.example"),
+        (ListMode::Except, 348, 349, "", "*!*@staff.example"),
+        (ListMode::Invex, 346, 347, "", "$a:invited"),
+        (ListMode::Quiet, 728, 729, " q", "*!*@noisy.example"),
+    ];
+    for (mode, row, end, extra, mask) in cases {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().max_list_entries_per_mode(1));
+        session.handle_line(
+            now,
+            b":solanum.example 005 papo CHANMODES=eIbq,k,flj,CFLPQcgimnprstz :are supported",
+        );
+        session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
+        let id = request(&mut session, now, mode);
+        _ = session.poll_transmit();
+        session.handle_line(
+            now,
+            format!(":solanum.example {row} papo #papo{extra} {mask} oper 1761048000").as_bytes(),
+        );
+        session.handle_line(
+            now,
+            format!(":solanum.example {end} papo #papo{extra} :End of mode list").as_bytes(),
+        );
+        _ = response(&mut session, id);
+
+        let letter = mode_letter(mode);
+        assert_eq!(
+            session.request_with_matcher(
+                now,
+                Line::new("MODE").with_params(["#papo", &format!("+{letter}"), "*!*@new.example"]),
+                ResponseMatcher::Mode("#papo".into()),
+            ),
+            Err(RequestError::StateLimit(StateLimit::ListEntries))
+        );
+        assert_eq!(session.poll_transmit(), None);
+    }
+}
+
+#[test]
+fn a_full_cached_list_allows_an_atomic_replacement() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().max_list_entries_per_mode(1));
+    session.handle_line(
+        now,
+        b":ergo.test 005 papo CHANMODES=beI,k,l,imnst :are supported",
+    );
+    session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
+    let id = request(&mut session, now, ListMode::Ban);
+    _ = session.poll_transmit();
+    session.handle_line(
+        now,
+        b":ergo.test 367 papo #papo *!*@gateway.example oper 1761048000",
+    );
+    session.handle_line(now, b":ergo.test 368 papo #papo :End of channel ban list");
+    _ = response(&mut session, id);
+
+    session
+        .request_with_matcher(
+            now,
+            Line::new("MODE").with_params([
+                "#papo",
+                "-b+b",
+                "*!*@gateway.example",
+                "*!*@crawler.example",
+            ]),
+            ResponseMatcher::Mode("#papo".into()),
+        )
+        .unwrap();
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"MODE #papo -b+b *!*@gateway.example *!*@crawler.example\r\n"
     );
 }
 

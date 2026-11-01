@@ -534,6 +534,22 @@ fn mark_read_refuses_new_targets_when_the_marker_store_is_full() {
 }
 
 #[test]
+fn mark_read_honors_a_configured_limit_greater_than_one() {
+    let (mut session, now) = read_marker_session_with(Config::default().max_read_markers(2));
+    session.handle_line(
+        now,
+        b":ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z",
+    );
+    while session.poll_event().is_some() {}
+
+    session.mark_read(now, "#operations", UNIX_EPOCH).unwrap();
+    assert_eq!(
+        transmitted(&mut session),
+        "@label=0 MARKREAD #operations timestamp=1970-01-01T00:00:00.000Z"
+    );
+}
+
+#[test]
 fn rejects_multiple_history_targets_without_queueing() {
     let invalid = RequestError::Build(papo_proto::BuildError::InvalidParam(0));
     let (mut history, now) = history_session("CHATHISTORY=1000 MSGREFTYPES=msgid,timestamp");

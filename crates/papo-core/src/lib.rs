@@ -1403,13 +1403,6 @@ pub enum ResponseMatcher {
 }
 
 impl ResponseMatcher {
-    fn response_row_limit(&self) -> usize {
-        match self {
-            Self::ListMode { .. } => unreachable!("list-mode limits come from session config"),
-            _ => 10_000,
-        }
-    }
-
     fn is_list_row(&self, message: &LineRef<'_>) -> bool {
         let Self::ListMode { mode, .. } = self else {
             return false;
@@ -4582,7 +4575,7 @@ impl Session {
             ResponseMatcher::ListMode { .. } => {
                 self.config.max_list_entries_per_mode.saturating_add(1)
             }
-            _ => matcher.response_row_limit(),
+            _ => 10_000,
         })
     }
 
