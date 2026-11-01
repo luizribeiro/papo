@@ -1575,9 +1575,14 @@ pub papo_core::Config::decoding: papo_core::Decoding
 pub papo_core::Config::disabled_caps: alloc::vec::Vec<alloc::string::String>
 pub papo_core::Config::host: alloc::string::String
 pub papo_core::Config::max_batch_lines: usize
+pub papo_core::Config::max_bouncer_networks: usize
 pub papo_core::Config::max_channels: usize
+pub papo_core::Config::max_list_entries_per_mode: usize
 pub papo_core::Config::max_members_per_channel: usize
+pub papo_core::Config::max_metadata_keys_per_target: usize
+pub papo_core::Config::max_metadata_targets: usize
 pub papo_core::Config::max_open_batches: usize
+pub papo_core::Config::max_read_markers: usize
 pub papo_core::Config::metadata_subscriptions: alloc::vec::Vec<alloc::string::String>
 pub papo_core::Config::nick: alloc::string::String
 pub papo_core::Config::password: core::option::Option<papo::Secret>
@@ -1607,9 +1612,14 @@ pub fn papo_core::Config::disable(self, papo_core::Feature) -> Self
 pub fn papo_core::Config::enable(self, papo_core::Feature) -> Self
 pub fn papo_core::Config::host(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub const fn papo_core::Config::max_batch_lines(self, usize) -> Self
+pub const fn papo_core::Config::max_bouncer_networks(self, usize) -> Self
 pub const fn papo_core::Config::max_channels(self, usize) -> Self
+pub const fn papo_core::Config::max_list_entries_per_mode(self, usize) -> Self
 pub const fn papo_core::Config::max_members_per_channel(self, usize) -> Self
+pub const fn papo_core::Config::max_metadata_keys_per_target(self, usize) -> Self
+pub const fn papo_core::Config::max_metadata_targets(self, usize) -> Self
 pub const fn papo_core::Config::max_open_batches(self, usize) -> Self
+pub const fn papo_core::Config::max_read_markers(self, usize) -> Self
 pub fn papo_core::Config::metadata_subscriptions<I, S>(self, I) -> Self where I: core::iter::traits::collect::IntoIterator<Item = S>, S: core::convert::Into<alloc::string::String>
 pub fn papo_core::Config::nick(self, impl core::convert::Into<alloc::string::String>) -> Self
 pub fn papo_core::Config::password(self, papo::Secret) -> Self

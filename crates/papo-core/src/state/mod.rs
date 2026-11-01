@@ -40,9 +40,7 @@ const WHOX_FIELDS: &str = "%tcuhnfar,152";
 const WHOX_TOKEN: &str = "152";
 const MAX_LAST_SEEN_TARGETS: usize = 1_000;
 const MAX_DEPARTED_IDENTITIES: usize = 1_000;
-const MAX_READ_MARKERS: usize = 1_000;
-const MAX_METADATA_TARGETS: usize = 10_000;
-pub(crate) const MAX_METADATA_KEYS_PER_TARGET: usize = 10_000;
+
 /// The known channel and user state for a session.
 #[derive(Debug, Eq, PartialEq)]
 pub struct State {
@@ -66,12 +64,17 @@ pub struct State {
     departed_identities: VecDeque<(crate::ReplyIdentity, Nick)>,
     max_channels: usize,
     max_members_per_channel: usize,
+    max_list_entries_per_mode: usize,
+    max_metadata_targets: usize,
+    max_metadata_keys_per_target: usize,
     channel_limit_warned: bool,
     member_limit_warned: bool,
     #[cfg(feature = "unstable")]
     persistence: Option<PersistenceStatus>,
     #[cfg(feature = "unstable")]
     bouncer_networks: HashMap<NetworkId, BouncerNetwork>,
+    #[cfg(feature = "unstable")]
+    max_bouncer_networks: usize,
     metadata: HashMap<NameKey<String>, BTreeMap<MetadataKey, MetadataValue>>,
     metadata_subscriptions: Vec<MetadataKey>,
     limits_warned: HashSet<StateLimit>,
@@ -104,12 +107,17 @@ impl Clone for State {
             departed_identities: self.departed_identities.clone(),
             max_channels: self.max_channels,
             max_members_per_channel: self.max_members_per_channel,
+            max_list_entries_per_mode: self.max_list_entries_per_mode,
+            max_metadata_targets: self.max_metadata_targets,
+            max_metadata_keys_per_target: self.max_metadata_keys_per_target,
             channel_limit_warned: self.channel_limit_warned,
             member_limit_warned: self.member_limit_warned,
             #[cfg(feature = "unstable")]
             persistence: self.persistence,
             #[cfg(feature = "unstable")]
             bouncer_networks: self.bouncer_networks.clone(),
+            #[cfg(feature = "unstable")]
+            max_bouncer_networks: self.max_bouncer_networks,
             metadata: self.metadata.clone(),
             metadata_subscriptions: self.metadata_subscriptions.clone(),
             limits_warned: self.limits_warned.clone(),
@@ -422,7 +430,7 @@ impl State {
             who_sweeps: HashMap::new(),
             who_on_join: config.who_on_join,
             read_markers: HashMap::new(),
-            read_marker_order: BoundedCollection::new(MAX_READ_MARKERS),
+            read_marker_order: BoundedCollection::new(config.max_read_markers),
             last_seen: HashMap::new(),
             last_seen_order: VecDeque::new(),
             rejoin_creation_times: HashMap::new(),
@@ -432,12 +440,17 @@ impl State {
             departed_identities: VecDeque::new(),
             max_channels: config.max_channels,
             max_members_per_channel: config.max_members_per_channel,
+            max_list_entries_per_mode: config.max_list_entries_per_mode,
+            max_metadata_targets: config.max_metadata_targets,
+            max_metadata_keys_per_target: config.max_metadata_keys_per_target,
             channel_limit_warned: false,
             member_limit_warned: false,
             #[cfg(feature = "unstable")]
             persistence: None,
             #[cfg(feature = "unstable")]
             bouncer_networks: HashMap::new(),
+            #[cfg(feature = "unstable")]
+            max_bouncer_networks: config.max_bouncer_networks,
             metadata: HashMap::new(),
             metadata_subscriptions: Vec::new(),
             limits_warned: HashSet::new(),
@@ -1370,7 +1383,7 @@ impl State {
             read_markers.insert(NameKey::new(name, mapping), marker);
         }
         self.read_markers = read_markers;
-        self.read_marker_order = BoundedCollection::new(MAX_READ_MARKERS);
+        self.read_marker_order = BoundedCollection::new(self.read_marker_order.limit());
         for key in self.read_markers.keys().cloned() {
             let evicted = self.read_marker_order.push_evict_oldest(key);
             debug_assert!(evicted.is_none());

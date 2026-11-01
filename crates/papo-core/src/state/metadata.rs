@@ -1,6 +1,6 @@
 use super::{
-    BTreeMap, Command, Event, LineRef, MAX_METADATA_TARGETS, MetadataValue, NameKey, Numeric,
-    Outbox, State, StateLimit, Subject, metadata_update,
+    BTreeMap, Command, Event, LineRef, MetadataValue, NameKey, Numeric, Outbox, State, StateLimit,
+    Subject, metadata_update,
 };
 use crate::Visibility;
 
@@ -97,7 +97,7 @@ impl State {
         let target_key = NameKey::new(target, self.casemapping);
         if let Some(value) = &value {
             if !self.metadata.contains_key(&target_key)
-                && self.metadata.len() >= MAX_METADATA_TARGETS
+                && self.metadata.len() >= self.max_metadata_targets
             {
                 self.warn_limit(StateLimit::MetadataTargets, outbox);
                 return;

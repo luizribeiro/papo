@@ -225,6 +225,12 @@ const DEFAULT_PING_INTERVAL: Duration = Duration::from_secs(60);
 const DEFAULT_PING_TIMEOUT: Duration = Duration::from_secs(120);
 const DEFAULT_MAX_CHANNELS: usize = 10_000;
 const DEFAULT_MAX_MEMBERS_PER_CHANNEL: usize = 100_000;
+const DEFAULT_MAX_LIST_ENTRIES_PER_MODE: usize = 1_000;
+const DEFAULT_MAX_READ_MARKERS: usize = 1_000;
+const DEFAULT_MAX_METADATA_TARGETS: usize = 10_000;
+const DEFAULT_MAX_METADATA_KEYS_PER_TARGET: usize = 10_000;
+#[cfg(feature = "unstable")]
+const DEFAULT_MAX_BOUNCER_NETWORKS: usize = 10_000;
 const DEFAULT_MAX_OPEN_BATCHES: usize = 64;
 const DEFAULT_MAX_BATCH_LINES: usize = 10_000;
 const DEFAULT_BATCH_TIMEOUT: Duration = Duration::from_secs(120);
@@ -656,6 +662,17 @@ pub struct Config {
     pub max_channels: usize,
     /// Maximum number of members retained for one channel.
     pub max_members_per_channel: usize,
+    /// Maximum number of entries retained for one channel list mode.
+    pub max_list_entries_per_mode: usize,
+    /// Maximum number of read markers retained for conversations.
+    pub max_read_markers: usize,
+    /// Maximum number of targets retained in the metadata cache.
+    pub max_metadata_targets: usize,
+    /// Maximum number of metadata keys retained for one target.
+    pub max_metadata_keys_per_target: usize,
+    /// Maximum number of upstream bouncer networks retained in state.
+    #[cfg(feature = "unstable")]
+    pub max_bouncer_networks: usize,
     /// Maximum number of batches retained at once.
     pub max_open_batches: usize,
     /// Maximum number of server lines retained in one batch.
@@ -711,6 +728,12 @@ impl Default for Config {
             sasl: None,
             max_channels: DEFAULT_MAX_CHANNELS,
             max_members_per_channel: DEFAULT_MAX_MEMBERS_PER_CHANNEL,
+            max_list_entries_per_mode: DEFAULT_MAX_LIST_ENTRIES_PER_MODE,
+            max_read_markers: DEFAULT_MAX_READ_MARKERS,
+            max_metadata_targets: DEFAULT_MAX_METADATA_TARGETS,
+            max_metadata_keys_per_target: DEFAULT_MAX_METADATA_KEYS_PER_TARGET,
+            #[cfg(feature = "unstable")]
+            max_bouncer_networks: DEFAULT_MAX_BOUNCER_NETWORKS,
             max_open_batches: DEFAULT_MAX_OPEN_BATCHES,
             max_batch_lines: DEFAULT_MAX_BATCH_LINES,
             batch_byte_budget: batch::DEFAULT_BYTE_BUDGET,
@@ -1071,6 +1094,42 @@ impl Config {
     #[must_use]
     pub const fn max_members_per_channel(mut self, maximum: usize) -> Self {
         self.max_members_per_channel = maximum;
+        self
+    }
+
+    /// Sets the maximum entries retained for each channel list mode.
+    #[must_use]
+    pub const fn max_list_entries_per_mode(mut self, maximum: usize) -> Self {
+        self.max_list_entries_per_mode = maximum;
+        self
+    }
+
+    /// Sets the maximum number of read markers retained for conversations.
+    #[must_use]
+    pub const fn max_read_markers(mut self, maximum: usize) -> Self {
+        self.max_read_markers = maximum;
+        self
+    }
+
+    /// Sets the maximum number of targets retained in the metadata cache.
+    #[must_use]
+    pub const fn max_metadata_targets(mut self, maximum: usize) -> Self {
+        self.max_metadata_targets = maximum;
+        self
+    }
+
+    /// Sets the maximum metadata keys retained for each target.
+    #[must_use]
+    pub const fn max_metadata_keys_per_target(mut self, maximum: usize) -> Self {
+        self.max_metadata_keys_per_target = maximum;
+        self
+    }
+
+    /// Sets the maximum number of upstream bouncer networks retained in state.
+    #[cfg(feature = "unstable")]
+    #[must_use]
+    pub const fn max_bouncer_networks(mut self, maximum: usize) -> Self {
+        self.max_bouncer_networks = maximum;
         self
     }
 
@@ -5346,7 +5405,7 @@ impl Session {
                 self.caps.enabled(),
                 self.no_implicit_names(),
                 MetadataContext {
-                    max_keys: state::MAX_METADATA_KEYS_PER_TARGET,
+                    max_keys: self.config.max_metadata_keys_per_target,
                     subscription_batch: context.batch_type() == Some("metadata-subs"),
                 },
                 own_away_message.as_deref(),
@@ -6053,7 +6112,7 @@ impl Session {
             self.caps.enabled(),
             self.no_implicit_names(),
             MetadataContext {
-                max_keys: state::MAX_METADATA_KEYS_PER_TARGET,
+                max_keys: self.config.max_metadata_keys_per_target,
                 subscription_batch: false,
             },
             None,

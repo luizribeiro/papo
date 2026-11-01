@@ -26,12 +26,15 @@ impl<T> BoundedCollection<T> {
     }
 
     pub(crate) fn push_evict_oldest(&mut self, value: T) -> Option<T> {
-        let evicted = (self.entries.len() >= self.limit).then(|| {
+        self.entries.push(value);
+        (self.entries.len() > self.limit).then(|| {
             self.overflowed = true;
             self.entries.remove(0)
-        });
-        self.entries.push(value);
-        evicted
+        })
+    }
+
+    pub(crate) const fn limit(&self) -> usize {
+        self.limit
     }
 
     pub(crate) fn take_overflow_warning(&mut self) -> bool {

@@ -2,7 +2,7 @@ papo 311
 papo-bot 1
 papo-conformance 13
 papo-conformance-macros 1
-papo-core 151
+papo-core 160
 papo-proto 24
 papo-test-server 27
 papo-testing 7

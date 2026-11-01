@@ -25,6 +25,11 @@ fn config_builders_set_registration_identity_and_timeout() {
         .rate_limit(RateLimit::new(7, Duration::from_millis(250)).unwrap())
         .max_channels(17)
         .max_members_per_channel(23)
+        .max_list_entries_per_mode(29)
+        .max_read_markers(31)
+        .max_metadata_targets(37)
+        .max_metadata_keys_per_target(41)
+        .max_bouncer_networks(43)
         .max_open_batches(3)
         .max_batch_lines(5)
         .batch_timeout(Duration::from_secs(7))
@@ -47,6 +52,11 @@ fn config_builders_set_registration_identity_and_timeout() {
     assert_eq!(config.ping_timeout, Duration::from_secs(82));
     assert_eq!(config.max_channels, 17);
     assert_eq!(config.max_members_per_channel, 23);
+    assert_eq!(config.max_list_entries_per_mode, 29);
+    assert_eq!(config.max_read_markers, 31);
+    assert_eq!(config.max_metadata_targets, 37);
+    assert_eq!(config.max_metadata_keys_per_target, 41);
+    assert_eq!(config.max_bouncer_networks, 43);
     assert_eq!(config.max_open_batches, 3);
     assert_eq!(config.max_batch_lines, 5);
     assert_eq!(config.batch_timeout, Duration::from_secs(7));
@@ -72,6 +82,11 @@ fn config_builders_set_registration_identity_and_timeout() {
     let config = Config::default();
     assert_eq!(config.max_channels, 10_000);
     assert_eq!(config.max_members_per_channel, 100_000);
+    assert_eq!(config.max_list_entries_per_mode, 1_000);
+    assert_eq!(config.max_read_markers, 1_000);
+    assert_eq!(config.max_metadata_targets, 10_000);
+    assert_eq!(config.max_metadata_keys_per_target, 10_000);
+    assert_eq!(config.max_bouncer_networks, 10_000);
     assert_eq!(config.max_open_batches, 64);
     assert_eq!(config.max_batch_lines, 10_000);
     assert_eq!(config.batch_timeout, Duration::from_secs(120));
