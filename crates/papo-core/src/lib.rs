@@ -4636,13 +4636,15 @@ impl Session {
     ///
     /// # Errors
     ///
-    /// Failures are the same as [`Session::request_with_matcher`].
+    /// Returns [`RequestError::StateLimit`] when joining a new channel would exceed the channel
+    /// store limit. Other failures are the same as [`Session::request_with_matcher`].
     pub fn join(
         &mut self,
         now: Instant,
         channel: &str,
         key: Option<&Secret>,
     ) -> Result<RequestId, RequestError> {
+        self.ensure_state_capacity(StateGrowth::Channel(channel))?;
         let mut line = Line::new("JOIN").param(channel);
         if let Some(key) = key {
             line = line.param(key);
@@ -4650,7 +4652,6 @@ impl Session {
         self.request_with_matcher(now, line, ResponseMatcher::Join(channel.into()))
     }
 
-    #[expect(dead_code)]
     pub(crate) fn ensure_state_capacity(
         &self,
         growth: StateGrowth<'_>,

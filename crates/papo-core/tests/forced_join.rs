@@ -4,7 +4,9 @@ mod support;
 
 use std::time::Instant;
 
-use papo_core::{Authorship, Config, Event, RateLimit, Refusal, Session, StateLimit, WhoOnJoin};
+use papo_core::{
+    Authorship, Config, Event, RateLimit, Refusal, RequestError, Session, StateLimit, WhoOnJoin,
+};
 use support::Transcript;
 
 fn server(session: &mut Session, now: Instant, line: &str) {
@@ -345,4 +347,58 @@ fn channel_limit_recovers_after_own_part_or_kick() {
         assert_eq!(session.poll_transmit(), None);
         assert_eq!(session.poll_event(), None);
     }
+}
+
+#[test]
+fn join_refuses_new_channels_when_the_channel_store_is_full() {
+    let now = Instant::now();
+    let config = Config::default()
+        .nick("papo")
+        .max_channels(1)
+        .rate_limit(RateLimit::unlimited());
+    let mut below = Session::new(config.clone());
+    below.join(now, "#review", None).unwrap();
+    assert_eq!(
+        String::from_utf8(below.poll_transmit().unwrap().to_vec()).unwrap(),
+        "JOIN #review\r\n"
+    );
+
+    let mut full = Session::new(config);
+    server(
+        &mut full,
+        now,
+        ":papo!~papo@localhost JOIN #review * :Papo Bot",
+    );
+    while full.poll_event().is_some() {}
+    full.join(now, "#review", None).unwrap();
+    assert_eq!(
+        String::from_utf8(full.poll_transmit().unwrap().to_vec()).unwrap(),
+        "JOIN #review\r\n"
+    );
+    assert_eq!(
+        full.join(now, "#operations", None),
+        Err(RequestError::StateLimit(StateLimit::Channels))
+    );
+    assert_eq!(full.poll_transmit(), None);
+
+    for channel in ["#operations", "#security"] {
+        server(
+            &mut full,
+            now,
+            &format!(":papo!~papo@localhost JOIN {channel} * :Papo Bot"),
+        );
+    }
+    let warnings = std::iter::from_fn(|| full.poll_event())
+        .filter(|event| {
+            matches!(
+                event,
+                Event::StateLimitReached {
+                    limit: StateLimit::Channels,
+                    ..
+                }
+            )
+        })
+        .count();
+    assert_eq!(warnings, 1);
+    assert_eq!(full.state().channels().count(), 1);
 }

@@ -481,7 +481,6 @@ impl State {
         self.change_generation = self.change_generation.wrapping_add(1);
     }
 
-    #[expect(dead_code)]
     pub(crate) fn full_store_for(&self, growth: StateGrowth<'_>) -> Option<StateLimit> {
         match growth {
             StateGrowth::Channel(channel) => (self.channel(channel).is_none()
@@ -521,7 +520,6 @@ impl State {
         }
     }
 
-    #[expect(dead_code)]
     fn list_mode_request_exceeds_limit(&self, message: &LineRef<'_>) -> bool {
         let (Some(target), Some(modestring)) = (message.param(0), message.param(1)) else {
             return false;

@@ -329,6 +329,48 @@ mod tests {
         task.abort();
     }
 
+    #[tokio::test]
+    async fn wire_client_join_refuses_a_full_channel_store_without_sending() {
+        use tokio::io::AsyncReadExt as _;
+
+        let mut builder = crate::Client::builder("irc://offline.test", "papo-wire");
+        builder.config.max_channels = 1;
+        builder.config.rate_limit = papo_core::RateLimit::unlimited();
+        let (client, mut events, driver, mut connections) = super::wire_client(builder);
+        let task = tokio::spawn(driver);
+        let (mut server, _) = connections.recv().await.unwrap();
+        super::client_line(
+            &mut server,
+            b"CAP LS 302\r\nNICK papo-wire\r\nUSER papo-wire 0 * papo-wire\r\n",
+        )
+        .await;
+        super::server_line(&mut server, b":offline.test CAP * LS :\r\n").await;
+        super::client_line(&mut server, b"CAP END\r\n").await;
+        super::server_line(
+            &mut server,
+            b":offline.test 001 papo-wire :Welcome to ErgoTest\r\n:offline.test 005 papo-wire CHANTYPES=# CASEMAPPING=rfc1459 :are supported\r\n:offline.test 422 papo-wire :MOTD File is missing\r\n",
+        )
+        .await;
+        while !matches!(events.next().await, Some(crate::Event::Connected(_))) {}
+
+        super::server_line(
+            &mut server,
+            b":papo-wire!papo@localhost JOIN #review * :Papo Wire\r\n",
+        )
+        .await;
+        while !matches!(events.next().await, Some(crate::Event::Joined(_))) {}
+        assert!(matches!(
+            client.join("#operations").await,
+            Err(crate::Error::StateLimit(crate::StateLimit::Channels))
+        ));
+        assert!(
+            tokio::time::timeout(std::time::Duration::from_millis(10), server.read_u8())
+                .await
+                .is_err()
+        );
+        task.abort();
+    }
+
     #[test]
     fn constructs_payloads_and_state_without_network_io() {
         let source = user_source(

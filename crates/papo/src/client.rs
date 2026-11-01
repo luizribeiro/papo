@@ -1260,8 +1260,9 @@ impl Client {
     /// [`crate::Refusal::BannedFromChannel`], [`crate::Refusal::BadChannelKey`],
     /// [`crate::Refusal::BadChannelMask`], [`crate::Refusal::SecureOnlyChannel`],
     /// [`crate::Refusal::TryAgain`], or [`crate::Refusal::Other`] when refused. It can also
-    /// return [`Error::InvalidInput`], [`Error::TooManyPendingRequests`], [`Error::Timeout`], or
-    /// [`Error::Disconnected`].
+    /// return [`Error::StateLimit`] before sending when a new channel would exceed the configured
+    /// state bound, [`Error::InvalidInput`], [`Error::TooManyPendingRequests`], [`Error::Timeout`],
+    /// or [`Error::Disconnected`].
     /// ```compile_fail
     /// # fn swapped(client: &papo::Client, nick: &papo::Nick) {
     /// let _ = client.join(nick);
