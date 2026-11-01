@@ -6637,6 +6637,7 @@ mod tests {
         let line = |wire| LineRef::parse(wire).unwrap();
 
         let ban_row = line(":ergo.test 367 papo #papo{ *!*@gateway.example oper 1761048000");
+        assert!(ban.is_list_row(&ban_row));
         assert_eq!(ban.matches(&ban_row, mapping, "papo", &state), Some(false));
         for wire in [
             ":ergo.test 348 papo #papo{ *!*@staff.example oper 1761048000",
@@ -6653,12 +6654,28 @@ mod tests {
 
         let wrong_quiet =
             line(":solanum.example 728 papo #papo{ b *!*@noisy.example oper 1761048000");
+        assert!(!quiet.is_list_row(&wrong_quiet));
         assert_eq!(quiet.matches(&wrong_quiet, mapping, "papo", &state), None);
+        let quiet_row =
+            line(":solanum.example 728 papo #papo{ q *!*@noisy.example oper 1761048000");
+        assert!(quiet.is_list_row(&quiet_row));
         let quiet_end = line(":solanum.example 729 papo #papo{ q :End of channel quiet list");
         assert_eq!(
             quiet.matches(&quiet_end, mapping, "papo", &state),
             Some(true)
         );
+    }
+
+    #[test]
+    fn list_mode_response_capacity_tracks_configured_state_limit() {
+        let session = Session::new(Config::default().max_list_entries_per_mode(12_345));
+        let message = Line::new("MODE").with_params(["#papo", "+b"]);
+        let matcher = ResponseMatcher::ListMode {
+            channel: "#papo".into(),
+            mode: ListMode::Ban,
+        };
+
+        assert_eq!(session.response_row_limit(&message, &matcher), Ok(12_346));
     }
 
     #[test]
