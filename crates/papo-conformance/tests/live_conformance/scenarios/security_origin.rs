@@ -1,4 +1,4 @@
-use std::{io, time::Duration};
+use std::{io, process::Command, time::Duration};
 
 use papo::{
     Client, DisconnectCause, Endpoint, Error, Event, Feature, InvalidInput, NetworkId,
@@ -240,5 +240,143 @@ async fn bouncer_notifications_are_single_source(s: Scenario) -> papo_testing::R
         .expect_none(|event| connected_network_change(event, &added))
         .await?;
     bound.expect_none(Event::as_bouncer_network_changed).await?;
+    Ok(())
+}
+
+fn set_network_enabled(
+    bouncer: &papo_test_server::BouncerInfo,
+    username: &str,
+    network: &str,
+    enabled: bool,
+) -> io::Result<()> {
+    let status = Command::new(std::env::var("SOJUCTL_BIN").map_err(io::Error::other)?)
+        .args(["-config"])
+        .arg(bouncer.config_path())
+        .args([
+            "user",
+            "run",
+            username,
+            "network",
+            "update",
+            network,
+            "-enabled",
+            if enabled { "true" } else { "false" },
+        ])
+        .status()?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(io::Error::other(format!(
+            "sojuctl could not update the upstream network: {status}"
+        )))
+    }
+}
+
+/// rejects a continuity pin and live target after a bouncer upstream session ends
+#[scenario(
+    requires(caps = ["soju.im/bouncer-networks"]),
+    covers = ["security.bouncer.upstream-drop-identity"]
+)]
+async fn bouncer_upstream_drop_ends_peer_identity(s: Scenario) -> papo_testing::Result<()> {
+    if std::env::var("PAPO_TEST_PROFILE").as_deref() != Ok("soju-ergo") {
+        return s.skip("the selected profile is not the managed soju bouncer");
+    }
+    let bouncer = s.server.bouncer().unwrap();
+    let network = papo_test_server::unique("identity-drop");
+    let login = bouncer.provision_network(&network, "papo identity observer", None)?;
+    let bouncer_address = s.server.plaintext_addr();
+    let control = s
+        .connect_with(
+            Client::builder(
+                Endpoint::plaintext(bouncer_address.ip().to_string(), bouncer_address.port())
+                    .unwrap(),
+                &network,
+            )
+            .sasl(Sasl::plain(
+                login.account_username(),
+                papo::Secret::new(login.password()),
+            ))
+            .allow_insecure_auth(true)
+            .enable(Feature::Bouncer),
+        )
+        .await?;
+    let id = control
+        .bouncer()
+        .networks()
+        .await?
+        .into_iter()
+        .find(|candidate| candidate.name.as_deref() == Some(network.as_str()))
+        .unwrap()
+        .id;
+    let channel = s.channel_name();
+    let mut observer = s
+        .connect_with(
+            control
+                .bouncer()
+                .network(&id)
+                .enable(Feature::Bouncer)
+                .autojoin([&channel]),
+        )
+        .await?;
+    observer.wait_for(Event::as_channel_synced).await?;
+
+    let upstream = bouncer.upstream_addr();
+    let upstream_endpoint =
+        Endpoint::plaintext(upstream.ip().to_string(), upstream.port()).unwrap();
+    let alice_nick = papo_test_server::unique("alice-identity");
+    let alice = s
+        .connect_with(Client::builder(upstream_endpoint.clone(), &alice_nick))
+        .await?;
+    alice.join(&channel).await?;
+    observer
+        .wait_for(|event| {
+            event
+                .as_joined()
+                .filter(|joined| joined.actor.nick() == alice_nick.as_str())
+        })
+        .await?;
+    let direct = observer.direct(&alice_nick).await?;
+    let stored = direct.peer_key().clone();
+    assert!(!stored.is_verified());
+
+    set_network_enabled(bouncer, login.account_username(), &network, false)?;
+    observer
+        .wait_for(|event| {
+            event.as_bouncer_network_changed().filter(|changed| {
+                changed.id == id
+                    && changed
+                        .network
+                        .as_ref()
+                        .is_some_and(|network| network.state == Some(NetworkState::Disconnected))
+            })
+        })
+        .await?;
+    assert!(matches!(
+        observer
+            .privmsg(&direct, "must not reach a replacement")
+            .await,
+        Err(Error::TargetGone)
+    ));
+
+    alice.quit("identity handoff during outage").await?;
+    let stranger = s
+        .connect_with(Client::builder(upstream_endpoint, &alice_nick))
+        .await?;
+    stranger.join(&channel).await?;
+    set_network_enabled(bouncer, login.account_username(), &network, true)?;
+    observer.wait_for(Event::as_channel_synced).await?;
+
+    let Error::PeerPinMismatch(mismatch) = observer
+        .direct_pinned(&alice_nick, &stored)
+        .await
+        .unwrap_err()
+    else {
+        panic!("the old continuity pin unexpectedly authorized the replacement");
+    };
+    assert_eq!(mismatch.reason(), papo::PeerKeyMismatch::CannotVerify);
+    assert!(matches!(
+        stored.check(mismatch.current_key()),
+        papo::PeerKeyCheck::Mismatch(papo::PeerKeyMismatch::CannotVerify)
+    ));
     Ok(())
 }
