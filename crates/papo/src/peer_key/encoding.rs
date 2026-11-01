@@ -162,6 +162,12 @@ const fn hex(byte: u8) -> Option<u8> {
 
 #[cfg(test)]
 mod tests {
+    fn pin(fields: &str) -> super::super::PeerKey {
+        format!("papo-pin:1;server=irc.example;casemap=rfc1459;{fields}")
+            .parse()
+            .unwrap()
+    }
+
     #[test]
     fn percent_encoding_round_trips_utf8_and_delimiters() {
         let encoded = super::percent_encode("josé;net=id%");
@@ -177,5 +183,37 @@ mod tests {
         for value in ["%", "%0", "%GG", "%FF"] {
             assert_eq!(super::percent_decode(value), Err(super::InvalidPeerKey));
         }
+    }
+
+    #[test]
+    fn account_ids_control_pin_comparison() {
+        use super::super::{PeerKeyCheck, PeerKeyMismatch};
+
+        let name_only = pin("account=alice");
+        let identified = pin("account=alice;id=account-42");
+        assert!(matches!(
+            name_only.check(&identified),
+            PeerKeyCheck::Upgrade(pin) if pin.as_verified_str() == identified.as_verified_str()
+        ));
+
+        let renamed = pin("account=alice_away;id=account-42");
+        assert!(matches!(identified.check(&renamed), PeerKeyCheck::Match));
+
+        let replacement = pin("account=alice;id=account-99");
+        assert!(matches!(
+            identified.check(&replacement),
+            PeerKeyCheck::Mismatch(PeerKeyMismatch::DifferentAccount)
+        ));
+        assert!(matches!(
+            identified.check(&name_only),
+            PeerKeyCheck::Mismatch(PeerKeyMismatch::CannotVerify)
+        ));
+    }
+
+    #[test]
+    fn bouncer_fields_round_trip_in_fixed_order() {
+        let value = "papo-pin:1;server=bouncer.example;bouncer-login=alice%40example;netid=libera;upstream=irc.libera.chat;casemap=rfc1459;account=alice";
+        let pin = value.parse::<super::super::PeerKey>().unwrap();
+        assert_eq!(pin.as_verified_str(), Some(value));
     }
 }
