@@ -186,8 +186,7 @@ pub struct State {
     pub(crate) caps: Capabilities,
     pub(crate) isupport: Arc<Isupport>,
     authenticated_server_name: Option<String>,
-    #[cfg(feature = "unstable")]
-    pub(crate) bouncer_login: Option<String>,
+    peer_pin_bouncer: crate::peer_bouncer::PeerState,
     #[cfg(feature = "unstable")]
     bouncer_network: Option<papo_core::NetworkId>,
     unsupported: BTreeMap<Feature, UnsupportedReason>,
@@ -311,13 +310,7 @@ impl State {
         let server = self.authenticated_server_name.as_deref()?;
         match self.isupport.get("BOUNCER_NETID") {
             papo_proto::Advertised::Value(network) => {
-                #[cfg(feature = "unstable")]
-                return crate::peer_bouncer::scope(self, server, network);
-                #[cfg(not(feature = "unstable"))]
-                {
-                    _ = network;
-                    None
-                }
+                self.peer_pin_bouncer.scope(&self.core, server, network)
             }
             papo_proto::Advertised::Bare => None,
             papo_proto::Advertised::Absent
@@ -407,8 +400,7 @@ impl State {
             caps: session.caps().clone(),
             isupport: Arc::new(Isupport::from_proto(session.isupport().clone())),
             authenticated_server_name: session.__authenticated_server_name().map(str::to_owned),
-            #[cfg(feature = "unstable")]
-            bouncer_login: session.__sasl_identity().map(str::to_owned),
+            peer_pin_bouncer: crate::peer_bouncer::PeerState::from_session(session),
             #[cfg(feature = "unstable")]
             bouncer_network: match session.isupport().get("BOUNCER_NETID") {
                 papo_proto::Advertised::Value(id) => Some(papo_core::NetworkId::from(id)),

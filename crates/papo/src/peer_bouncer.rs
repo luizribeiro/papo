@@ -1,23 +1,36 @@
 use papo_core::NetworkState;
 
-pub(crate) fn scope(
-    state: &crate::State,
-    server: &str,
-    network_id: &str,
-) -> Option<crate::peer_key::PeerScope> {
-    let login = state.bouncer_login.as_deref()?;
-    let network = state
-        .core
-        .bouncer_networks()
-        .find(|network| network.id == network_id)?;
-    format_scope(
-        server,
-        login,
-        network_id,
-        network.host.as_deref()?,
-        network.tls,
-        network.state,
-    )
+#[derive(Debug)]
+pub(crate) struct PeerState {
+    login: Option<String>,
+}
+
+impl PeerState {
+    pub(crate) fn from_session(session: &papo_core::Session) -> Self {
+        Self {
+            login: session.__sasl_identity().map(str::to_owned),
+        }
+    }
+
+    pub(crate) fn scope(
+        &self,
+        state: &papo_core::State,
+        server: &str,
+        network_id: &str,
+    ) -> Option<crate::peer_key::PeerScope> {
+        let login = self.login.as_deref()?;
+        let network = state
+            .bouncer_networks()
+            .find(|network| network.id == network_id)?;
+        format_scope(
+            server,
+            login,
+            network_id,
+            network.host.as_deref()?,
+            network.tls,
+            network.state,
+        )
+    }
 }
 
 fn format_scope(
@@ -32,18 +45,21 @@ fn format_scope(
         return None;
     }
     let upstream = crate::sts::normalize_host(upstream);
-    Some(crate::peer_key::PeerScope::bouncer(
-        server, login, network_id, &upstream,
-    ))
+    Some(crate::peer_key::PeerScope {
+        server: server.to_owned(),
+        bouncer: Some(crate::peer_key::BouncerScope {
+            login: login.to_owned(),
+            network: network_id.to_owned(),
+            upstream,
+        }),
+    })
 }
 
-#[cfg(test)]
 mod tests {
-    use super::format_scope;
-    use papo_core::NetworkState;
-
     #[test]
     fn durable_scope_requires_every_bound_tls_upstream_fact() {
+        use super::{NetworkState, format_scope};
+
         let scope = |login, network, host, tls, state| {
             format_scope("bouncer.example", login, network, host, tls, state)
         };
@@ -56,18 +72,14 @@ mod tests {
             connected,
         )
         .unwrap();
-        assert_eq!(
-            expected,
-            crate::peer_key::PeerScope::bouncer(
-                "bouncer.example",
-                "alice",
-                "libera-42",
-                "irc.libera.chat"
-            )
-        );
+        assert_eq!(expected.server, "bouncer.example");
+        let bouncer = expected.bouncer.as_ref().unwrap();
+        assert_eq!(bouncer.login, "alice");
+        assert_eq!(bouncer.network, "libera-42");
+        assert_eq!(bouncer.upstream, "irc.libera.chat");
         assert_ne!(
             scope("alice", "oftc-17", "irc.oftc.net", Some(true), connected),
-            Some(expected.clone())
+            Some(expected)
         );
         assert_eq!(
             scope("alice", "libera-42", "irc.libera.chat", None, connected),

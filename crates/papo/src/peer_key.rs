@@ -4,15 +4,15 @@ mod encoding;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub(crate) struct PeerScope {
-    server: String,
-    bouncer: Option<BouncerScope>,
+    pub(super) server: String,
+    pub(super) bouncer: Option<BouncerScope>,
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-struct BouncerScope {
-    login: String,
-    network: String,
-    upstream: String,
+pub(super) struct BouncerScope {
+    pub(super) login: String,
+    pub(super) network: String,
+    pub(super) upstream: String,
 }
 
 impl PeerScope {
@@ -20,18 +20,6 @@ impl PeerScope {
         Self {
             server: server.to_owned(),
             bouncer: None,
-        }
-    }
-
-    #[cfg(feature = "unstable")]
-    pub(crate) fn bouncer(server: &str, login: &str, network: &str, upstream: &str) -> Self {
-        Self {
-            server: server.to_owned(),
-            bouncer: Some(BouncerScope {
-                login: login.to_owned(),
-                network: network.to_owned(),
-                upstream: upstream.to_owned(),
-            }),
         }
     }
 }

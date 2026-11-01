@@ -284,7 +284,7 @@ pub mod metadata;
 mod mode;
 mod name_rules;
 pub mod numeric;
-#[cfg(feature = "unstable")]
+#[cfg_attr(not(feature = "unstable"), path = "peer_bouncer/stable.rs")]
 mod peer_bouncer;
 mod peer_key;
 mod reconnect;
