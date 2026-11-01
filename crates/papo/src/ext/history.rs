@@ -29,7 +29,7 @@ pub(crate) fn history_item(
         state.caps().contains_key(&crate::cap::MESSAGE_TAGS),
         state.isupport().bot_mode().is_some(),
     );
-    match item {
+    let mut event = match item {
         papo_core::HistoryItem::Message(item) => {
             let authorship = crate::Authorship::from_core(item.authorship);
             crate::event_impl::historical_message_event(
@@ -145,7 +145,9 @@ pub(crate) fn history_item(
             let raw = item.into_line().line;
             other(raw, received_at)
         }
-    }
+    };
+    crate::event_impl::attach_historical_peer_key(&mut event, &state);
+    event
 }
 
 fn typed_or_raw<F>(raw: &papo_proto::Line, received_at: SystemTime, convert: F) -> Event

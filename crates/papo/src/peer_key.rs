@@ -49,7 +49,6 @@ impl PeerKey {
         Self::new(scope, account, token.__is_known().then_some(token), origin)
     }
 
-    #[allow(dead_code)]
     pub(crate) fn historical(
         scope: Option<&str>,
         account: &crate::Account,

@@ -1840,7 +1840,6 @@ pub(crate) fn attach_live_peer_key(event: &mut Event, state: &crate::State) {
     ));
 }
 
-#[allow(dead_code)]
 pub(crate) fn attach_historical_peer_key(event: &mut Event, state: &crate::State) {
     if !matches!(event.conversation(), Some(Conversation::Private(_))) {
         return;
