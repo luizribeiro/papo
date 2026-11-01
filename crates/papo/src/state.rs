@@ -185,7 +185,6 @@ pub struct State {
     typing: Arc<crate::typing::TypingTable>,
     pub(crate) caps: Capabilities,
     pub(crate) isupport: Arc<Isupport>,
-    #[allow(dead_code)]
     authenticated_server_name: Option<String>,
     peer_bouncer_network: Option<String>,
     #[cfg(feature = "unstable")]
@@ -302,12 +301,10 @@ impl State {
         papo_core::RecipientGuard::__new(&self.core, nick.clone(), account)
     }
 
-    #[allow(dead_code)]
     pub(crate) fn peer_token(&self, nick: &Nick) -> papo_core::PeerToken {
         self.core.__peer_token_for(nick.as_str())
     }
 
-    #[allow(dead_code)]
     pub(crate) fn peer_scope(&self) -> Option<String> {
         let server = self.authenticated_server_name.as_deref()?;
         let scope = format!("server={}:{server}", server.len());

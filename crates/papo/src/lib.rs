@@ -284,6 +284,7 @@ pub mod metadata;
 mod mode;
 mod name_rules;
 pub mod numeric;
+mod peer_key;
 mod reconnect;
 mod requests;
 mod rt;

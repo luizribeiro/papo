@@ -22,6 +22,8 @@ pub struct DirectRef(Arc<DirectInner>);
 
 struct DirectInner {
     identity: papo_core::ReplyToken,
+    #[allow(dead_code)]
+    peer_key: crate::peer_key::PeerKey,
     recipient: papo_core::RecipientGuard,
     state: Arc<RwLock<Arc<crate::State>>>,
     _lease: Option<MonitorLease>,
@@ -49,12 +51,21 @@ impl DirectRef {
         monitored: bool,
     ) -> Self {
         let identity = recipient.__token();
+        let state = client.state();
+        let scope = state.peer_scope();
+        let peer_key = crate::peer_key::PeerKey::live(
+            scope.as_deref(),
+            recipient.__account(),
+            state.peer_token(recipient.__nick()),
+            client.origin(),
+        );
         Self(Arc::new(DirectInner {
             _lease: monitored.then(|| MonitorLease {
                 recipient: recipient.clone(),
                 commands: client.commands.clone(),
             }),
             identity,
+            peer_key,
             recipient,
             state: Arc::clone(&client.state),
         }))
@@ -672,5 +683,29 @@ mod tests {
             commands.try_recv(),
             Err(tokio::sync::mpsc::error::TryRecvError::Empty)
         ));
+    }
+
+    #[test]
+    fn peer_keys_compare_by_scope_and_canonical_account() {
+        let account = Account::LoggedIn(Casemapping::Rfc1459.account("Alice[Ops]"));
+        let first = crate::peer_key::PeerKey::historical(
+            Some("server=12:irc.example"),
+            &account,
+            crate::Origin::NONE,
+        );
+        let same = crate::peer_key::PeerKey::historical(
+            Some("server=12:irc.example"),
+            &account,
+            crate::Origin::NONE,
+        );
+        let other = crate::peer_key::PeerKey::historical(
+            Some("server=13:chat.example"),
+            &account,
+            crate::Origin::NONE,
+        );
+
+        assert!(first.is_verified());
+        assert_eq!(first, same);
+        assert_ne!(first, other);
     }
 }
