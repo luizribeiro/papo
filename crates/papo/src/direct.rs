@@ -708,4 +708,66 @@ mod tests {
         assert_eq!(first, same);
         assert_ne!(first, other);
     }
+
+    #[test]
+    fn unverified_historical_peer_keys_are_fresh() {
+        let first =
+            crate::peer_key::PeerKey::historical(None, &Account::LoggedOut, crate::Origin::NONE);
+        let second =
+            crate::peer_key::PeerKey::historical(None, &Account::LoggedOut, crate::Origin::NONE);
+
+        assert!(!first.is_verified());
+        assert_ne!(first, second);
+    }
+
+    #[test]
+    fn verified_peer_keys_round_trip_with_delimiters_and_unicode() {
+        let account = Account::LoggedIn(Casemapping::Rfc1459.account("Alice[Ops]"));
+        let key = crate::peer_key::PeerKey::historical(
+            Some("server=15:irc.example:🌐"),
+            &account,
+            crate::Origin::NONE,
+        );
+        let encoded = key.as_verified_str().unwrap();
+        let parsed = encoded.parse::<crate::peer_key::PeerKey>().unwrap();
+
+        assert_eq!(parsed, key);
+        assert_eq!(parsed.as_verified_str(), Some(encoded));
+    }
+
+    #[test]
+    fn persisted_peer_accounts_are_canonicalized() {
+        let key = "papo-peer-v1:rfc1459:4:ErgoAlice[Ops]"
+            .parse::<crate::peer_key::PeerKey>()
+            .unwrap();
+        assert_eq!(
+            key.as_verified_str(),
+            Some("papo-peer-v1:rfc1459:4:Ergoalice{ops}")
+        );
+    }
+
+    #[test]
+    fn session_peer_keys_have_no_persistable_form() {
+        let key =
+            crate::peer_key::PeerKey::historical(None, &Account::LoggedOut, crate::Origin::NONE);
+        assert_eq!(key.as_verified_str(), None);
+    }
+
+    #[test]
+    fn malformed_persisted_peer_keys_are_rejected() {
+        use crate::peer_key::{InvalidPeerKey, PeerKey};
+
+        for value in [
+            "",
+            "papo-peer-v2:rfc1459:4:Ergoalice",
+            "papo-peer-v1:unknown:4:Ergoalice",
+            "papo-peer-v1:rfc1459:x:Ergoalice",
+            "papo-peer-v1:rfc1459:40:Ergoalice",
+            "papo-peer-v1:rfc1459:0:alice",
+            "papo-peer-v1:rfc1459:4:Ergo",
+            "papo-peer-v1:rfc1459:4:Ergo*",
+        ] {
+            assert_eq!(value.parse::<PeerKey>(), Err(InvalidPeerKey), "{value}");
+        }
+    }
 }
