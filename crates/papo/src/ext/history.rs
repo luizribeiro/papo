@@ -1119,8 +1119,9 @@ impl Client {
     /// [`crate::UnsupportedReason::NotOffered`] or
     /// [`crate::UnsupportedReason::DisabledByClient`]. An unencodable timestamp returns
     /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
-    /// [`crate::Refusal::Other`]. It can also return [`Error::TooManyPendingRequests`], [`Error::Timeout`],
-    /// or [`Error::Disconnected`].
+    /// [`crate::Refusal::Other`]. It returns [`Error::StateLimit`] before sending when a new target
+    /// would exceed the configured read-marker bound. It can also return
+    /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
     pub fn mark_read(
         &self,
         target: impl crate::AsConversation,

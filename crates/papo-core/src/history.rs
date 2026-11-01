@@ -3,7 +3,7 @@ use web_time::Instant;
 
 use papo_proto::{LimitValue, Line, time};
 
-use crate::{Conversation, Feature, RequestError, RequestId, Session};
+use crate::{Conversation, Feature, RequestError, RequestId, Session, state::StateGrowth};
 
 const LOCAL_HISTORY_LIMIT: usize = 1_000;
 
@@ -148,6 +148,7 @@ impl Session {
     /// # Errors
     ///
     /// Returns [`RequestError::Unsupported`] when read markers were not negotiated,
+    /// [`RequestError::StateLimit`] when a new target would exceed the read-marker store limit,
     /// or an error documented by [`Session::request`].
     pub fn mark_read(
         &mut self,
@@ -157,16 +158,14 @@ impl Session {
     ) -> Result<RequestId, RequestError> {
         self.require_feature(Feature::ReadMarkers)?;
         self.validate_target(target)?;
-        self.request_for_feature(
-            now,
-            Line::new("MARKREAD")
-                .param(target.to_owned())
-                .param(format!(
-                    "timestamp={}",
-                    time::format(read_until).ok_or(RequestError::InvalidMessageReference)?
-                )),
-            Feature::ReadMarkers,
-        )
+        let line = Line::new("MARKREAD")
+            .param(target.to_owned())
+            .param(format!(
+                "timestamp={}",
+                time::format(read_until).ok_or(RequestError::InvalidMessageReference)?
+            ));
+        self.ensure_state_capacity(StateGrowth::ReadMarker(target))?;
+        self.request_for_feature(now, line, Feature::ReadMarkers)
     }
 
     /// Queries the current read marker for a conversation.

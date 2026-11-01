@@ -65,6 +65,9 @@ impl State {
                 if self.read_marker_order.take_overflow_warning() {
                     self.warn_limit(StateLimit::ReadMarkers, outbox);
                 }
+                if evicted == key {
+                    return true;
+                }
             }
             self.read_markers.insert(key, marker.clone());
             outbox.event(Event::ReadMarkerChanged(marker));

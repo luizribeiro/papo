@@ -36,8 +36,12 @@ fn history_session(isupport: &str) -> (Session, Instant) {
 }
 
 fn read_marker_session() -> (Session, Instant) {
+    read_marker_session_with(Config::default())
+}
+
+fn read_marker_session_with(mut config: Config) -> (Session, Instant) {
     let now = Instant::now();
-    let mut config = Config::default().rate_limit(RateLimit::unlimited());
+    config.rate_limit = RateLimit::unlimited();
     config.wanted_caps = vec!["draft/read-marker".into(), "labeled-response".into()];
     let mut session = Session::new(config);
     session.handle_connected(now);
@@ -474,6 +478,59 @@ fn sends_read_marker_set_and_query_commands() {
     );
     session.read_marker(now, "#papo").unwrap();
     assert_eq!(transmitted(&mut session), "@label=1 MARKREAD #papo");
+}
+
+#[test]
+fn mark_read_refuses_new_targets_when_the_marker_store_is_full() {
+    let (mut below, now) = read_marker_session_with(Config::default().max_read_markers(1));
+    below.mark_read(now, "#papo", UNIX_EPOCH).unwrap();
+    assert_eq!(
+        transmitted(&mut below),
+        "@label=0 MARKREAD #papo timestamp=1970-01-01T00:00:00.000Z"
+    );
+
+    let (mut full, now) = read_marker_session_with(Config::default().max_read_markers(1));
+    full.handle_line(
+        now,
+        b":ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z",
+    );
+    while full.poll_event().is_some() {}
+    full.mark_read(
+        now,
+        "#papo",
+        UNIX_EPOCH + Duration::from_secs(1_760_529_343),
+    )
+    .unwrap();
+    assert_eq!(
+        transmitted(&mut full),
+        "@label=0 MARKREAD #papo timestamp=2025-10-15T11:55:43.000Z"
+    );
+    assert_eq!(
+        full.mark_read(now, "#operations", UNIX_EPOCH),
+        Err(RequestError::StateLimit(StateLimit::ReadMarkers))
+    );
+    assert_eq!(full.poll_transmit(), None);
+
+    for target in ["#operations", "#security"] {
+        full.handle_line(
+            now,
+            format!(":ergo.test MARKREAD {target} timestamp=2025-10-15T11:55:42.123Z").as_bytes(),
+        );
+    }
+    let warnings = std::iter::from_fn(|| full.poll_event())
+        .filter(|event| {
+            matches!(
+                event,
+                Event::StateLimitReached {
+                    limit: StateLimit::ReadMarkers,
+                    ..
+                }
+            )
+        })
+        .count();
+    assert_eq!(warnings, 1);
+    assert!(full.state().read_marker("#security").is_some());
+    assert!(full.state().read_marker("#papo").is_none());
 }
 
 #[test]
