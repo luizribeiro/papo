@@ -1,4 +1,4 @@
-use std::{fmt, hash::Hash, str::FromStr};
+use std::{fmt, str::FromStr};
 
 mod encoding;
 
@@ -112,7 +112,7 @@ impl PeerScope {
 ///     Ok(())
 /// }
 /// ```
-#[derive(Clone, Eq, Hash, PartialEq)]
+#[derive(Clone)]
 pub struct PeerKey(PeerIdentity);
 
 #[derive(Clone, Eq, Hash, PartialEq)]
@@ -130,7 +130,7 @@ struct AccountPin {
     encoded: String,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 /// Result of checking a stored peer pin against the current pin.
 pub enum PeerKeyCheck {
     /// The pins identify the same account or observed user continuity.

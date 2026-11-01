@@ -3,7 +3,7 @@ use std::{fmt, sync::Arc};
 use crate::{Account, Casemapping, Nick, Oper};
 
 /// A user prefix and the identity facts carried by the same IRC line.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct UserSource {
     nick: Nick,
@@ -87,6 +87,19 @@ impl UserSource {
         self.oper.as_ref()
     }
 }
+
+impl PartialEq for UserSource {
+    fn eq(&self, other: &Self) -> bool {
+        self.nick == other.nick
+            && self.username == other.username
+            && self.host == other.host
+            && self.account == other.account
+            && self.is_bot == other.is_bot
+            && self.oper == other.oper
+    }
+}
+
+impl Eq for UserSource {}
 
 impl fmt::Display for UserSource {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {

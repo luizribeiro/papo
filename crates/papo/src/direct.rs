@@ -728,8 +728,6 @@ mod tests {
         .unwrap();
 
         assert!(first.is_verified());
-        assert_eq!(first, same);
-        assert_ne!(first, other);
         assert!(matches!(first.check(&same), crate::PeerKeyCheck::Match));
         assert!(matches!(
             first.check(&other),
@@ -739,10 +737,7 @@ mod tests {
 
     #[test]
     fn unverified_history_has_no_peer_key() {
-        assert_eq!(
-            crate::peer_key::PeerKey::historical(None, &Account::LoggedOut),
-            None
-        );
+        assert!(crate::peer_key::PeerKey::historical(None, &Account::LoggedOut).is_none());
     }
 
     #[test]
@@ -760,7 +755,7 @@ mod tests {
             encoded,
             "papo-pin:1;server=irc.example%3A%F0%9F%8C%90;casemap=rfc1459;account=alice%7Bops%7D"
         );
-        assert_eq!(parsed, key);
+        assert!(matches!(key.check(&parsed), crate::PeerKeyCheck::Match));
         assert_eq!(parsed.as_verified_str(), Some(encoded));
     }
 
@@ -792,7 +787,7 @@ mod tests {
             "papo-pin:1;server=irc.example;netid=libera;casemap=rfc1459;account=alice",
             "papo-pin:1;server=irc.example;casemap=rfc1459;account=alice;extra=value",
         ] {
-            assert_eq!(value.parse::<PeerKey>(), Err(InvalidPeerKey), "{value}");
+            assert!(matches!(value.parse::<PeerKey>(), Err(InvalidPeerKey)), "{value}");
         }
     }
 }

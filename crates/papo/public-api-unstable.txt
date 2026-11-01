@@ -1900,12 +1900,8 @@ pub papo::PeerKeyCheck::Mismatch(papo::PeerKeyMismatch)
 pub papo::PeerKeyCheck::Upgrade(papo::PeerKey)
 impl core::clone::Clone for papo::PeerKeyCheck
 pub fn papo::PeerKeyCheck::clone(&self) -> Self
-impl core::cmp::Eq for papo::PeerKeyCheck
-impl core::cmp::PartialEq for papo::PeerKeyCheck
-pub fn papo::PeerKeyCheck::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo::PeerKeyCheck
 pub fn papo::PeerKeyCheck::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::PeerKeyCheck
 impl core::marker::Freeze for papo::PeerKeyCheck
 impl core::marker::Send for papo::PeerKeyCheck
 impl core::marker::Sync for papo::PeerKeyCheck
@@ -2989,14 +2985,8 @@ pub fn papo::PeerKey::check(&self, &Self) -> papo::PeerKeyCheck
 pub const fn papo::PeerKey::is_verified(&self) -> bool
 impl core::clone::Clone for papo::PeerKey
 pub fn papo::PeerKey::clone(&self) -> Self
-impl core::cmp::Eq for papo::PeerKey
-impl core::cmp::PartialEq for papo::PeerKey
-pub fn papo::PeerKey::eq(&self, &Self) -> bool
 impl core::fmt::Debug for papo::PeerKey
 pub fn papo::PeerKey::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for papo::PeerKey
-pub fn papo::PeerKey::hash<__H: core::hash::Hasher>(&self, &mut __H)
-impl core::marker::StructuralPartialEq for papo::PeerKey
 impl core::str::traits::FromStr for papo::PeerKey
 pub type papo::PeerKey::Err = papo::InvalidPeerKey
 pub fn papo::PeerKey::from_str(&str) -> core::result::Result<Self, Self::Err>
@@ -3401,7 +3391,6 @@ impl core::fmt::Debug for papo::UserSource
 pub fn papo::UserSource::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo::UserSource
 pub fn papo::UserSource::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::UserSource
 impl core::marker::Freeze for papo::UserSource
 impl core::marker::Send for papo::UserSource
 impl core::marker::Sync for papo::UserSource
