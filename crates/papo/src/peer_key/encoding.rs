@@ -170,6 +170,7 @@ mod tests {
         assert_eq!(encoded, "jos%C3%A9%3Bnet%3Did%25");
         assert_eq!(percent_decode(&encoded).as_deref(), Ok("josé;net=id%"));
         assert_eq!(percent_decode("%3b").as_deref(), Ok(";"));
+        assert_eq!(percent_decode("%3f").as_deref(), Ok("?"));
     }
 
     #[test]
