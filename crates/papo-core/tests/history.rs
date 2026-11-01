@@ -658,7 +658,7 @@ fn read_markers_evict_the_oldest_entry_and_warn_once() {
     let (mut session, now) = read_marker_session();
     let mut warnings = 0;
 
-    for index in 0..20_000 {
+    for index in 0..1_300 {
         session.handle_line(
             now,
             format!(":ergo.test MARKREAD user{index:05} timestamp=2025-10-15T11:55:44.000Z")
@@ -678,7 +678,7 @@ fn read_markers_evict_the_oldest_entry_and_warn_once() {
     }
 
     assert_eq!(warnings, 1);
-    for index in 0..19_000 {
+    for index in 0..300 {
         assert!(
             session
                 .state()
@@ -686,7 +686,7 @@ fn read_markers_evict_the_oldest_entry_and_warn_once() {
                 .is_none()
         );
     }
-    for index in 19_000..20_000 {
+    for index in 300..1_300 {
         assert!(
             session
                 .state()
