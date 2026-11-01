@@ -308,6 +308,13 @@ impl State {
         self.core.__peer_token_for(nick.as_str())
     }
 
+    pub(crate) fn peer_account_id<'a>(&'a self, nick: &Nick, account: &Account) -> Option<&'a str> {
+        let user = self.core.user(nick)?;
+        (user.account() == account)
+            .then(|| user.__account_id())
+            .flatten()
+    }
+
     pub(crate) fn peer_scope(&self) -> Option<crate::peer_key::PeerScope> {
         self.isupport.casemapping()?;
         let server = self.authenticated_server_name.as_deref()?;

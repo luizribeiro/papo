@@ -154,9 +154,15 @@ impl PeerKey {
     pub(crate) fn live(
         scope: Option<&PeerScope>,
         account: &crate::Account,
+        account_id: Option<&str>,
         token: papo_core::PeerToken,
     ) -> Option<Self> {
-        Self::new(scope, account, token.__is_known().then_some(token))
+        Self::new(
+            scope,
+            account,
+            account_id,
+            token.__is_known().then_some(token),
+        )
     }
 
     pub(crate) fn historical(scope: Option<&PeerScope>, account: &crate::Account) -> Option<Self> {
@@ -166,6 +172,7 @@ impl PeerKey {
                 account.casemapping(),
                 account.key(),
                 None,
+                None,
             )),
             _ => None,
         }
@@ -174,6 +181,7 @@ impl PeerKey {
     fn new(
         scope: Option<&PeerScope>,
         account: &crate::Account,
+        account_id: Option<&str>,
         tracked: Option<papo_core::PeerToken>,
     ) -> Option<Self> {
         if let (Some(scope), crate::Account::LoggedIn(account)) = (scope, account) {
@@ -181,6 +189,7 @@ impl PeerKey {
                 scope,
                 account.casemapping(),
                 account.key(),
+                account_id,
                 tracked,
             ));
         }
@@ -191,10 +200,11 @@ impl PeerKey {
         scope: &PeerScope,
         casemapping: crate::Casemapping,
         account: &str,
+        account_id: Option<&str>,
         continuity: Option<papo_core::PeerToken>,
     ) -> Self {
         Self(PeerIdentity::Account(
-            Box::new(encoding::encode(scope, casemapping, account)),
+            Box::new(encoding::encode(scope, casemapping, account, account_id)),
             continuity,
         ))
     }

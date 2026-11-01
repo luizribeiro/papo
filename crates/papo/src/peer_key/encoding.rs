@@ -6,12 +6,13 @@ pub(super) fn encode(
     scope: &PeerScope,
     casemapping: crate::Casemapping,
     account: &str,
+    id: Option<&str>,
 ) -> AccountPin {
     let mut pin = AccountPin {
         scope: scope.clone(),
         casemapping,
         account: account.to_owned(),
-        id: None,
+        id: id.map(str::to_owned),
         encoded: String::new(),
     };
     pin.encoded = render(&pin);

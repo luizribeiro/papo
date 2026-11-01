@@ -11,6 +11,11 @@ impl State {
         };
         let actor = message.raw_source().unwrap_or(nick).to_owned();
         let authorship = self.source_authorship(message);
+        let account_id = message
+            .tag("account")
+            .zip(message.tag("inspircd.org/account-id"))
+            .map(|(_, id)| id.into_owned())
+            .filter(|id| !id.is_empty());
         if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) {
             for (key, value) in message.tags() {
                 match (key, value) {
@@ -30,6 +35,9 @@ impl State {
                     ("bot", _) => user.is_bot = Some(true),
                     _ => {}
                 }
+            }
+            if let Some(account_id) = account_id {
+                user.account_id = Some(account_id);
             }
         }
     }

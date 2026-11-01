@@ -1866,7 +1866,12 @@ fn attach_actor_peer_key(actor: &mut UserSource, nick: &Nick, state: &crate::Sta
         actor.account().clone()
     };
     let scope = state.peer_scope();
-    let peer_key = crate::peer_key::PeerKey::live(scope.as_ref(), &account, state.peer_token(nick));
+    let peer_key = crate::peer_key::PeerKey::live(
+        scope.as_ref(),
+        &account,
+        state.peer_account_id(nick, &account),
+        state.peer_token(nick),
+    );
     if let Some(peer_key) = peer_key {
         actor.set_peer_key(peer_key);
     }

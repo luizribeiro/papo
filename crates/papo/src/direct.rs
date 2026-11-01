@@ -57,6 +57,7 @@ impl DirectRef {
         let peer_key = crate::peer_key::PeerKey::live(
             scope.as_ref(),
             recipient.__account(),
+            state.peer_account_id(recipient.__nick(), recipient.__account()),
             state.peer_token(recipient.__nick()),
         )
         .expect("a direct reference captures a tracked IRC user");
@@ -90,7 +91,7 @@ impl DirectRef {
     }
 
     fn refresh_peer_key(&self) {
-        if self.0.peer_key.is_verified() || self.0.upgraded_peer_key.get().is_some() {
+        if self.0.upgraded_peer_key.get().is_some() {
             return;
         }
         let state = self
@@ -105,10 +106,20 @@ impl DirectRef {
         let Some(user) = state.user(&nick) else {
             return;
         };
+        if state
+            .capture_recipient(&nick, crate::Account::Unknown)
+            .__token()
+            != self.0.identity
+        {
+            return;
+        }
         let scope = state.peer_scope();
-        let Some(current) =
-            crate::peer_key::PeerKey::live(scope.as_ref(), user.account(), state.peer_token(&nick))
-        else {
+        let Some(current) = crate::peer_key::PeerKey::live(
+            scope.as_ref(),
+            user.account(),
+            state.peer_account_id(&nick, user.account()),
+            state.peer_token(&nick),
+        ) else {
             return;
         };
         if matches!(
@@ -828,13 +839,27 @@ mod tests {
         session.handle_line(now, b":alice!~alice@cloak.example JOIN #release");
         session.handle_line(now, b":bob!~bob@cloak.example JOIN #release");
         let unknown = Account::Unknown;
-        let alice = crate::PeerKey::live(None, &unknown, session.state().__peer_token_for("alice"))
-            .unwrap();
-        let same_alice =
-            crate::PeerKey::live(None, &unknown, session.state().__peer_token_for("alice"))
-                .unwrap();
-        let bob =
-            crate::PeerKey::live(None, &unknown, session.state().__peer_token_for("bob")).unwrap();
+        let alice = crate::PeerKey::live(
+            None,
+            &unknown,
+            None,
+            session.state().__peer_token_for("alice"),
+        )
+        .unwrap();
+        let same_alice = crate::PeerKey::live(
+            None,
+            &unknown,
+            None,
+            session.state().__peer_token_for("alice"),
+        )
+        .unwrap();
+        let bob = crate::PeerKey::live(
+            None,
+            &unknown,
+            None,
+            session.state().__peer_token_for("bob"),
+        )
+        .unwrap();
 
         assert!(!alice.is_verified());
         assert_eq!(alice.as_verified_str(), None);
@@ -900,6 +925,113 @@ mod tests {
         assert!(matches!(
             continuity.check(replacement.peer_key()),
             crate::PeerKeyCheck::Mismatch(crate::PeerKeyMismatch::CannotVerify)
+        ));
+    }
+
+    #[tokio::test]
+    async fn direct_account_peer_key_upgrades_when_inspircd_id_appears() {
+        let now = crate::rt::now_mono();
+        let mut session = Session::new(Config::default().nick("papo"));
+        session.handle_connected_with(
+            now,
+            Connection {
+                host: "irc.example".into(),
+                security: ConnectionSecurity::Secure,
+                authenticated_server_name: Some("irc.example".into()),
+            },
+        );
+        for line in [
+            ":irc.example 005 papo CASEMAPPING=rfc1459 :are supported",
+            ":papo!p@localhost JOIN #review papo-account :Papo",
+            ":alice!a@cloak.example JOIN #review alice-account :Alice",
+            ":bob!b@cloak.example JOIN #review bob-account :Bob",
+            ":carol!c@cloak.example JOIN #review carol-account :Carol",
+        ] {
+            session.handle_line(now, line.as_bytes());
+        }
+        let (client, _) = crate::driver::test_support::client_with_commands(&session);
+        let alice = client.direct("alice").await.unwrap();
+        let bob = client.direct("bob").await.unwrap();
+        let carol = client.direct("carol").await.unwrap();
+        let alice_name_pin = alice.peer_key().clone();
+        let bob_name_pin = bob.peer_key().clone();
+        let carol_name_pin = carol.peer_key().clone();
+        assert_eq!(
+            alice_name_pin.as_verified_str(),
+            Some("papo-pin:1;server=irc.example;casemap=rfc1459;account=alice-account")
+        );
+        assert!(matches!(
+            alice_name_pin.check(alice.peer_key()),
+            crate::PeerKeyCheck::Match
+        ));
+
+        session.handle_line(
+            now,
+            b"@inspircd.org/account-id=AAAAAAAAB;account=alice-account :alice!a@cloak.example PRIVMSG papo :identity proof",
+        );
+        *client.state.write().unwrap() = Arc::new(crate::State::from_session(&session, true));
+        let alice_id_pin = alice.peer_key().clone();
+        assert_eq!(
+            alice_id_pin.as_verified_str(),
+            Some(
+                "papo-pin:1;server=irc.example;casemap=rfc1459;account=alice-account;id=AAAAAAAAB"
+            )
+        );
+        assert!(matches!(
+            alice_name_pin.check(&alice_id_pin),
+            crate::PeerKeyCheck::Upgrade(pin)
+                if pin.as_verified_str() == alice_id_pin.as_verified_str()
+        ));
+
+        session.handle_line(
+            now,
+            b"@inspircd.org/account-id=AAAAAAAAC;account=alice-account :alice!a@cloak.example PRIVMSG papo :conflicting proof",
+        );
+        session.handle_line(
+            now,
+            b"@inspircd.org/account-id=BBBBBBBBB;account=mallory-account :bob!b@cloak.example PRIVMSG papo :different account",
+        );
+        session.handle_line(now, b":carol!c@cloak.example QUIT :Client exited");
+        session.handle_line(
+            now,
+            b"@inspircd.org/account-id=CCCCCCCCC;account=carol-account :carol!new@new.example JOIN #review carol-account :Carol replacement",
+        );
+        session.handle_line(
+            now,
+            b"@inspircd.org/account-id=CCCCCCCCC;account=carol-account :carol!new@new.example PRIVMSG papo :replacement proof",
+        );
+        *client.state.write().unwrap() = Arc::new(crate::State::from_session(&session, true));
+
+        assert_eq!(
+            alice.peer_key().as_verified_str(),
+            alice_id_pin.as_verified_str(),
+            "a direct reference stops refreshing after its first upgrade"
+        );
+        assert_eq!(
+            bob.peer_key().as_verified_str(),
+            bob_name_pin.as_verified_str(),
+            "a different account must not upgrade a direct reference"
+        );
+        assert_eq!(
+            carol.peer_key().as_verified_str(),
+            carol_name_pin.as_verified_str(),
+            "a replacement user must not upgrade a direct reference"
+        );
+
+        let current_alice = client.direct("alice").await.unwrap();
+        let current_bob = client.direct("bob").await.unwrap();
+        let current_carol = client.direct("carol").await.unwrap();
+        assert!(matches!(
+            alice_id_pin.check(current_alice.peer_key()),
+            crate::PeerKeyCheck::Mismatch(crate::PeerKeyMismatch::DifferentAccount)
+        ));
+        assert!(matches!(
+            bob_name_pin.check(current_bob.peer_key()),
+            crate::PeerKeyCheck::Mismatch(crate::PeerKeyMismatch::DifferentAccount)
+        ));
+        assert!(matches!(
+            carol_name_pin.check(current_carol.peer_key()),
+            crate::PeerKeyCheck::Upgrade(_)
         ));
     }
 
