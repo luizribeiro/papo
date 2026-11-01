@@ -43,6 +43,12 @@
 "peer_pin_open::pinned_direct_open_blocks_identity_changes" = [
   "security.dm-direct.peer-pin-mismatch",
 ]
+"peer_pin_open::bouncer_upstream_drop_rejects_continuity_pin_and_live_target" = [
+  "security.bouncer.upstream-drop-identity",
+]
+"peer_pin_bouncer_account::bouncer_drop_preserves_account_pin_proved_by_a_new_line" = [
+  "security.bouncer.upstream-drop-identity",
+]
 "direct_reply::concurrent_guarded_sends_refuse_an_impostor_during_account_proof" = [
   "security.guard-proof.concurrent-impostor",
 ]
