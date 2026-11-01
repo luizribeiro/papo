@@ -30,6 +30,14 @@ fn replay(session: &mut Session, trace: &str) {
             dropped = true;
             assert!(session.state().user("alice").is_none());
             assert!(!session.state().__peer_token_for("alice").__is_known());
+            let remaining = session
+                .state()
+                .channel("#review")
+                .unwrap()
+                .members()
+                .map(|member| member.nick().as_str())
+                .collect::<Vec<_>>();
+            assert_eq!(remaining, ["papo-bouncer"]);
             assert_eq!(
                 session.state().__resolve_recipient(guard.as_ref().unwrap()),
                 RecipientStatus::Gone

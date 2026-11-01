@@ -37,14 +37,29 @@ fn duplicate_own_join_is_a_stable_bouncer_resync_signal() {
 
 #[test]
 fn nearby_notices_and_ordinary_duplicate_joins_preserve_identity() {
-    for signal in [
-        ":BouncerServ!service@BouncerServ NOTICE papo-bouncer :disconnected from ergo",
-        ":BouncerServ!BouncerServ@BouncerServ NOTICE somebody-else :disconnected from ergo",
-        ":BouncerServ!BouncerServ@BouncerServ NOTICE papo-bouncer :connected to ergo",
-        ":papo-bouncer!~u@client.example JOIN #review",
+    for (signal, advertises_bouncer) in [
+        (
+            ":BouncerServ!service@BouncerServ NOTICE papo-bouncer :disconnected from ergo",
+            true,
+        ),
+        (
+            ":BouncerServ!BouncerServ@BouncerServ NOTICE somebody-else :disconnected from ergo",
+            true,
+        ),
+        (
+            ":BouncerServ!BouncerServ@BouncerServ NOTICE papo-bouncer :connected to ergo",
+            true,
+        ),
+        (":papo-bouncer!~u@client.example JOIN #review", false),
     ] {
         let now = Instant::now();
         let mut session = Session::new(Config::default().nick("papo-bouncer"));
+        if advertises_bouncer {
+            session.handle_line(
+                now,
+                b":bouncer.papo.test 005 * BOUNCER_NETID=1 CASEMAPPING=ascii :are supported",
+            );
+        }
         for line in [
             ":papo-bouncer!~u@client.example JOIN #review",
             ":alice!~alice@cloak.example JOIN #review",
