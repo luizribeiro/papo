@@ -164,18 +164,27 @@ impl Session {
         else {
             return false;
         };
+        let list_limit_reached = self.unlabelled_requests.get(index).is_some_and(|request| {
+            request.matcher.is_list_row(message)
+                && request
+                    .lines
+                    .iter()
+                    .filter(|line| request.matcher.is_list_row(&line.as_ref()))
+                    .count()
+                    >= self.config.max_list_entries_per_mode
+        });
         let request = self.unlabelled_requests.get_mut(index).unwrap();
         if join_started {
             request.started = Some(now);
         }
-        if request.lines.push_reject(message.to_owned()).is_err() {
+        if list_limit_reached || request.lines.push_reject(message.to_owned()).is_err() {
             let mut request = self.unlabelled_requests.remove(index).unwrap();
             self.requests
                 .retain(|_, (pending, _, _, _, _)| *pending != request.id);
             if let ResponseMatcher::ListMode { channel, mode } = request.matcher {
                 self.state.invalidate_mode_list(&channel, mode);
             }
-            if request.lines.take_overflow_warning() {
+            if list_limit_reached || request.lines.take_overflow_warning() {
                 self.state
                     .warn_limit(crate::StateLimit::ListEntries, &mut self.outbox);
             }

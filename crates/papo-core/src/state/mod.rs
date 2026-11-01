@@ -41,7 +41,6 @@ const WHOX_TOKEN: &str = "152";
 const MAX_LAST_SEEN_TARGETS: usize = 1_000;
 const MAX_DEPARTED_IDENTITIES: usize = 1_000;
 
-#[expect(dead_code)]
 #[derive(Clone, Copy)]
 pub(crate) enum StateGrowth<'a> {
     Channel(&'a str),

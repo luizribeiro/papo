@@ -136,6 +136,32 @@ fn an_empty_ban_list_completes_at_368() {
 }
 
 #[test]
+fn list_mode_limit_counts_rows_without_the_completion_numeric() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().max_list_entries_per_mode(1));
+    session.handle_line(now, b":papo!~papo@localhost JOIN #papo");
+    let id = request(&mut session, now, ListMode::Ban);
+    _ = session.poll_transmit();
+    session.handle_line(
+        now,
+        b":ergo.test 367 papo #papo *!*@gateway.example oper 1761048000",
+    );
+    session.handle_line(now, b":ergo.test 368 papo #papo :End of channel ban list");
+    let response = response(&mut session, id);
+    assert_eq!(response.lines.len(), 2);
+    assert_eq!(
+        session
+            .state()
+            .channel("#papo")
+            .unwrap()
+            .list(ListMode::Ban)
+            .unwrap()
+            .len(),
+        1
+    );
+}
+
+#[test]
 fn one_thousand_and_one_rows_fail_without_retaining_the_last_row() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());

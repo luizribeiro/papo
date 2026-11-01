@@ -1405,9 +1405,20 @@ pub enum ResponseMatcher {
 impl ResponseMatcher {
     fn response_row_limit(&self) -> usize {
         match self {
-            Self::ListMode { .. } => 1_000,
+            Self::ListMode { .. } => unreachable!("list-mode limits come from session config"),
             _ => 10_000,
         }
+    }
+
+    fn is_list_row(&self, message: &LineRef<'_>) -> bool {
+        let Self::ListMode { mode, .. } = self else {
+            return false;
+        };
+        let Command::Numeric(numeric) = message.command() else {
+            return false;
+        };
+        let offset = usize::from(*mode == ListMode::Quiet);
+        numeric.code() == mode.numerics().0 && (offset == 0 || message.param(2) == Some("q"))
     }
 
     #[doc(hidden)]
@@ -4460,7 +4471,10 @@ impl Session {
         message: Line,
         matcher: ResponseMatcher,
     ) -> Result<RequestId, RequestError> {
-        let response_row_limit = matcher.response_row_limit();
+        if matches!(matcher, ResponseMatcher::Mode(_)) {
+            self.ensure_state_capacity(StateGrowth::ListModes(&message.as_ref()))?;
+        }
+        let response_row_limit = self.response_row_limit(&matcher);
         let who_sweep = match &matcher {
             ResponseMatcher::Who(channel)
                 if message.as_ref().command() == Command::Who
@@ -4556,6 +4570,15 @@ impl Session {
             self.state.track_who(&channel);
         }
         Ok(id)
+    }
+
+    fn response_row_limit(&self, matcher: &ResponseMatcher) -> usize {
+        match matcher {
+            ResponseMatcher::ListMode { .. } => {
+                self.config.max_list_entries_per_mode.saturating_add(1)
+            }
+            _ => matcher.response_row_limit(),
+        }
     }
 
     fn channel_join_reservation(
