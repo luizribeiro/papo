@@ -30,11 +30,11 @@ for that user stay equal across account discovery and nickname changes; differen
 unequal even on the same account or after a departed user's nickname is reused. Handles are per
 connection, so after a reconnect a new handle does not equal an old one.
 
-`PeerKey` pins an identity to a nickname-addressed direct thread across reconnects when account
-proof is scoped by a TLS-authenticated server name. It does not merge threads: two nicknames on one
-account have equal pins but remain distinct conversations. Session-only pins cover unverified
-peers, plaintext and custom streams, while private message, notice, TAGMSG, and history senders
-expose the same pin through `UserSource::peer_key`.
+`PeerKey` pins an identity to a nickname-addressed direct thread. Account pins use a readable,
+versioned persisted form scoped by a TLS-authenticated server, or by the complete authenticated
+bouncer and TLS-upstream scope. Continuity pins are unverified and connection-local. Applications
+compare pins with `PeerKey::check`, and `Client::direct_pinned` blocks opening a handle on a typed
+mismatch. Private message, notice, TAGMSG, rename, and history events expose applicable pins.
 
 ### Migration from the 2026-10-24 API
 

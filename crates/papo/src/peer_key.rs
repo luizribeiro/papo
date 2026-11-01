@@ -38,78 +38,47 @@ impl PeerScope {
 
 /// An identity pin for a nickname-addressed direct conversation.
 ///
-/// Verified pins compare the account under the server's advertised casemapping together with the
-/// server name authenticated by TLS. A bound bouncer network ID is part of that scope. They remain
-/// equal across reconnects, process restarts, and multiple simultaneous nicknames logged into the
-/// same account. Connecting through another host deliberately produces a different pin.
+/// An Account pin is the security boundary as far as its TLS-authenticated server is trusted. It
+/// identifies a server-asserted account after `005` established the casemapping, not a person:
+/// account names can be transferred, compromised, dropped, and re-registered. Through a bouncer,
+/// the authenticated bouncer host, bouncer login, network ID, and TLS upstream host all form the
+/// scope. Account pins are persistable and can survive reconnects and process restarts.
 ///
-/// A `PeerKey` is not a conversation key. Applications key threads by the nickname's folded
-/// [`crate::Nick::key`] within their configured connection, and store this value as the identity
-/// pinned to that thread. Two nicknames on one account have equal pins but remain separate threads;
-/// a nickname change starts a new thread even though the live user's pin remains equal.
+/// A Continuity pin is best-effort evidence that papo has observed one IRC user without a break on
+/// this connection. It depends on papo seeing departures and must be presented as unverified. It
+/// cannot be persisted, changes after lost continuity, and is unavailable when papo can prove
+/// nothing. Plaintext and caller-supplied streams cannot produce Account pins.
 ///
-/// Plaintext connections and caller-supplied streams produce only session pins because papo did
-/// not verify a certificate for their server name. `ISUPPORT NETWORK` is descriptive and never
-/// affects identity. Session pins remain equal only while papo can prove continuity of one IRC
-/// user. They change after reconnect, departure and nickname reuse, or account logout.
-///
-/// Only [`Self::as_verified_str`] exposes a persistable representation. Parsing accepts that
-/// representation, while session pins deliberately have no string form.
-///
-/// Store the folded nickname key and pin together. Compare the current pin before routing an
-/// incoming message or sending, and replace the pin only after the user accepts a warning:
+/// Pins do not key conversations. Store one beside the folded [`crate::Nick::key`] for each thread;
+/// two nicknames logged into one account remain different threads. Use [`Self::check`], never raw
+/// equality, and treat an [`InvalidPeerKey`] while loading storage as identity that cannot be
+/// verified.
 ///
 /// ```no_run
-/// fn warning(stored: &papo::PeerKey, current: &papo::PeerKey) -> Option<&'static str> {
-///     (stored != current).then(|| {
-///         if stored.is_verified() && current.is_verified() {
-///             "different account"
-///         } else {
-///             "cannot verify identity"
-///         }
-///     })
-/// }
-///
-/// fn inspect_incoming(thread: (&str, &papo::PeerKey), sender: &papo::UserSource) {
-///     if sender.nick().key() == thread.0
-///         && let Some(current) = sender.peer_key()
-///         && let Some(alert) = warning(thread.1, current)
-///     {
-///         eprintln!("{alert}");
+/// fn inspect_incoming(stored: &papo::PeerKey, sender: &papo::UserSource) {
+///     let Some(current) = sender.peer_key() else { return };
+///     match stored.check(current) {
+///         papo::PeerKeyCheck::Match => {}
+///         papo::PeerKeyCheck::Upgrade(pin) => persist(pin),
+///         papo::PeerKeyCheck::Mismatch(reason) => warn(reason, current),
 ///     }
 /// }
+/// # fn persist(_: papo::PeerKey) {}
+/// # fn warn(_: papo::PeerKeyMismatch, _: &papo::PeerKey) {}
 ///
-/// async fn current_peer(
+/// async fn open(
 ///     client: &papo::Client,
 ///     nick: &papo::Nick,
 ///     stored: &papo::PeerKey,
-///     accept: &mut impl FnMut(&str) -> bool,
-/// ) -> Result<Option<papo::DirectRef>, papo::Error> {
-///     let peer = client.direct(nick).await?;
-///     if let Some(alert) = warning(stored, peer.peer_key()) {
-///         if !accept(alert) { return Ok(None); }
-///     }
-///     Ok(Some(peer))
-/// }
-///
-/// async fn send(
-///     client: &papo::Client,
-///     nick: &papo::Nick,
-///     stored: &papo::PeerKey,
-///     mut accept: impl FnMut(&str) -> bool,
-/// ) -> Result<(), papo::Error> {
-///     if let Some(peer) = current_peer(client, nick, stored, &mut accept).await? {
-///         match client.privmsg(&peer, "release approved").await {
-///             Ok(_) => {}
-///             Err(papo::Error::TargetGone) => {
-///                 if let Some(rebound) = current_peer(client, nick, stored, &mut accept).await? {
-///                     client.privmsg(&rebound, "release approved").await?;
-///                 }
-///             }
-///             Err(error) => return Err(error),
+/// ) -> Result<papo::DirectRef, papo::Error> {
+///     match client.direct_pinned(nick, stored).await {
+///         Ok(peer) => Ok(peer),
+///         Err(papo::Error::PeerPinMismatch(mismatch)) => {
+///             warn(mismatch.reason(), mismatch.current_key());
+///             client.direct(nick).await // only after the user approves replacement
 ///         }
+///         Err(error) => Err(error),
 ///     }
-///     Ok(())
 /// }
 /// ```
 #[derive(Clone)]
@@ -240,7 +209,7 @@ impl PeerKey {
         }
     }
 
-    /// Reports whether this pin is backed by a proven account at an authenticated server scope.
+    /// Reports whether this is a durable Account pin at a TLS-authenticated server scope.
     #[must_use]
     pub const fn is_verified(&self) -> bool {
         matches!(self.0, PeerIdentity::Account(_))
@@ -248,7 +217,7 @@ impl PeerKey {
 
     /// Returns the stable representation of a verified pin.
     ///
-    /// Session pins return `None` so they cannot accidentally be stored as durable identities.
+    /// Continuity pins return `None` so they cannot accidentally be stored as durable identities.
     /// A returned value round-trips through [`str::parse`](FromStr::from_str).
     #[must_use]
     pub fn as_verified_str(&self) -> Option<&str> {

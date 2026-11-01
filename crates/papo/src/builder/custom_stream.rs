@@ -28,7 +28,7 @@ impl Builder {
     ///
     /// [`StreamSecurity::Encrypted`] is a declaration by the caller that encryption has already
     /// been established. Papo does not inspect or add encryption to a custom stream, so it cannot
-    /// authenticate a server name and [`crate::PeerKey`] remains session-scoped.
+    /// authenticate a server name and [`crate::PeerKey`] remains continuity-scoped.
     pub fn stream_with_security(
         mut self,
         stream: impl futures_io::AsyncRead + futures_io::AsyncWrite + Send + Unpin + 'static,

@@ -69,7 +69,7 @@ impl UserSource {
     /// Returns the identity pin when this source sent a private-conversation event.
     ///
     /// Channel and server-wide events return `None`. See [`crate::PeerKey`] for the distinction
-    /// between durable verified pins and session-scoped pins.
+    /// between durable Account pins and unverified Continuity pins.
     #[must_use]
     pub fn peer_key(&self) -> Option<&crate::PeerKey> {
         self.peer_key.as_deref()
