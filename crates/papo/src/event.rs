@@ -2717,8 +2717,8 @@ mod tests {
     };
     use crate::{Subject, Visibility};
     use papo_core::{
-        Account, Away, BatchAbandonReason, Config, Feature, Session,
-        StandardReply as CoreStandardReply, StateLimit,
+        Account, Away, BatchAbandonReason, Config, Connection, Feature, Session,
+        StandardReply as CoreStandardReply, StateLimit, sts::ConnectionSecurity,
     };
     use papo_proto::{Casemapping, Isupport, Line, LineRef, Typing};
     use tokio::io::AsyncWriteExt as _;
@@ -4996,6 +4996,51 @@ mod tests {
                 Conversation::Private(ref nick) if nick == "alice"
             ));
         }
+    }
+
+    #[test]
+    fn live_peer_pin_prefers_the_received_account_over_stale_state() {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().nick("papo"));
+        session.handle_connected_with(
+            now,
+            Connection {
+                host: "irc.example".into(),
+                security: ConnectionSecurity::Secure,
+                authenticated_server_name: Some("irc.example".into()),
+            },
+        );
+        for line in [
+            ":irc.example 005 papo CASEMAPPING=rfc1459 :are supported",
+            ":papo!~papo@localhost JOIN #review * :Papo",
+            ":alice!~alice@cloak.example JOIN #review stale-account :Alice",
+        ] {
+            session.handle_line(now, line.as_bytes());
+        }
+        let state = crate::State::from_session(&session, true);
+        let conversation = Conversation::Private(state.name_rules().unwrap().nick("alice"));
+        let mut event = message_event_from_line(
+            Line::privmsg("papo", "release ready")
+                .with_source("alice!~alice@cloak.example")
+                .with_tag("account", "fresh-account"),
+            None,
+            Authorship::Other,
+            conversation,
+            None,
+            None,
+            state.isupport().inner(),
+            true,
+            false,
+            UNIX_EPOCH,
+            None,
+        );
+
+        super::attach_live_peer_key(&mut event, &state);
+        let actor = &event.as_message().unwrap().actor;
+        assert_eq!(
+            actor.peer_key().and_then(crate::PeerKey::as_verified_str),
+            Some("papo-pin:1;server=irc.example;casemap=rfc1459;account=fresh-account")
+        );
     }
 
     #[test]
