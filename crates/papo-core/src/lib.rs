@@ -2995,7 +2995,7 @@ pub struct ReplyToken {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct PeerToken {
     origin: papo_proto::Origin,
-    identity: Option<PeerIdentity>,
+    identity: Option<ReplyIdentity>,
 }
 
 impl PeerToken {
@@ -3129,12 +3129,6 @@ pub enum RecipientStatus {
 struct ReplyIdentity {
     epoch: u64,
     sequence: u64,
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-struct PeerIdentity {
-    reply: ReplyIdentity,
-    account_sequence: u64,
 }
 
 impl ReceivedLine {

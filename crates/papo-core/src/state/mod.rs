@@ -174,7 +174,6 @@ pub struct User {
     channels: BTreeSet<ChannelName>,
     reply_epoch: u64,
     departure_sequence: u64,
-    account_sequence: u64,
 }
 
 /// A read-only view of cached metadata values.
@@ -521,12 +520,9 @@ impl State {
     pub fn __peer_token_for(&self, target: &str) -> crate::PeerToken {
         crate::PeerToken {
             origin: self.casemapping.origin(),
-            identity: self.user(target).map(|user| crate::PeerIdentity {
-                reply: crate::ReplyIdentity {
-                    epoch: user.reply_epoch,
-                    sequence: user.departure_sequence,
-                },
-                account_sequence: user.account_sequence,
+            identity: self.user(target).map(|user| crate::ReplyIdentity {
+                epoch: user.reply_epoch,
+                sequence: user.departure_sequence,
             }),
         }
     }
@@ -1909,18 +1905,11 @@ impl User {
             channels: BTreeSet::new(),
             reply_epoch,
             departure_sequence,
-            account_sequence: 0,
         }
     }
 
     fn update_account(&mut self, account: Account) {
-        if self.account != account {
-            self.account_sequence = self
-                .account_sequence
-                .checked_add(1)
-                .expect("peer account identity space exhausted");
-            self.account = account;
-        }
+        self.account = account;
     }
 
     fn update_userhost(&mut self, user: Option<&str>, host: Option<&str>) {

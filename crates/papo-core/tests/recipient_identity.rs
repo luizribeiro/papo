@@ -13,7 +13,7 @@ fn peer(session: &Session, nick: &str) -> PeerToken {
 }
 
 #[test]
-fn peer_proof_follows_nick_and_changes_after_account_logout() {
+fn peer_proof_follows_nick_and_account_knowledge() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().nick("papo"));
     server(&mut session, now, ":papo!~papo@localhost JOIN #review");
@@ -38,15 +38,27 @@ fn peer_proof_follows_nick_and_changes_after_account_logout() {
         ":alicia!~alice@cloak.example ACCOUNT alice-account",
     );
     let logged_in = peer(&session, "alicia");
-    assert_ne!(logged_in, unverified);
+    assert_eq!(logged_in, unverified);
     server(
         &mut session,
         now + Duration::from_millis(4),
         ":alicia!~alice@cloak.example ACCOUNT *",
     );
     let logged_out = peer(&session, "alicia");
-    assert_ne!(logged_out, logged_in);
-    assert_ne!(logged_out, unverified);
+    assert_eq!(logged_out, logged_in);
+    assert_eq!(logged_out, unverified);
+
+    server(
+        &mut session,
+        now + Duration::from_millis(5),
+        ":alicia!~alice@cloak.example QUIT :Client exited",
+    );
+    server(
+        &mut session,
+        now + Duration::from_millis(6),
+        ":alicia!~other@new.example JOIN #review mallory :Different person",
+    );
+    assert_ne!(peer(&session, "alicia"), unverified);
 }
 
 #[test]
