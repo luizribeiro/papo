@@ -3246,6 +3246,18 @@ enum Utf8CasemappingWarning {
     Emitted,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum UpstreamIdentitySignal {
+    ExplicitDrop,
+    DuplicateOwnJoin,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum BouncerResync {
+    Idle,
+    Active,
+}
+
 /// Sans-I/O state for one IRC client session.
 pub struct Session {
     account_registration: AccountRegistration,
@@ -3265,6 +3277,7 @@ pub struct Session {
     monitor: Monitor,
     nick_regain: NickRegain,
     metadata_subscriptions_sent: bool,
+    bouncer_resync: BouncerResync,
     rate_limit: RateLimiter,
     remembered_casemapping: Casemapping,
     requests: PendingRequests,
@@ -3303,6 +3316,7 @@ impl std::fmt::Debug for Session {
                 "metadata_subscriptions_sent",
                 &self.metadata_subscriptions_sent,
             )
+            .field("bouncer_resync", &self.bouncer_resync)
             .field("rate_limit", &self.rate_limit)
             .field("remembered_casemapping", &self.remembered_casemapping)
             .field("requests", &self.requests)
@@ -3631,6 +3645,7 @@ impl Session {
             monitor: Monitor::new(origin),
             nick_regain: NickRegain::default(),
             metadata_subscriptions_sent: false,
+            bouncer_resync: BouncerResync::Idle,
             rate_limit,
             remembered_casemapping,
             requests: BTreeMap::new(),
@@ -3691,6 +3706,7 @@ impl Session {
         }
         self.away_on_connect_sent = false;
         self.metadata_subscriptions_sent = false;
+        self.bouncer_resync = BouncerResync::Idle;
         self.caps.handle_connected(now);
         self.utf8_casemapping_warning = Utf8CasemappingWarning::Pending;
         self.isupport.handle_connected();
@@ -3899,6 +3915,7 @@ impl Session {
         self.monitor.handle_disconnected();
         self.nick_regain.reset();
         self.metadata_subscriptions_sent = false;
+        self.bouncer_resync = BouncerResync::Idle;
         let casemapping = self.state.casemapping();
         self.remembered_casemapping = casemapping;
         self.state
@@ -5280,6 +5297,9 @@ impl Session {
         if isupport_handled {
             self.remember_casemapping();
         }
+        if let Some(signal) = self.upstream_identity_signal(message) {
+            self.end_upstream_session(signal);
+        }
         let connection_finished = !was_connected && self.welcome_state.is_connected();
         if connection_finished {
             self.monitor
@@ -5417,6 +5437,11 @@ impl Session {
         {
             self.welcome_state.update_nick(self.state.nick().as_str());
         }
+        if self.bouncer_resync == BouncerResync::Active
+            && message.command() == Command::Numeric(Numeric::RPL_CHANNELMODEIS)
+        {
+            self.bouncer_resync = BouncerResync::Idle;
+        }
         self.apply_close_request();
         self.report_feature_changes(before_features);
         let remembers_message = matches!(message.command(), Command::Privmsg | Command::Notice)
@@ -5452,10 +5477,59 @@ impl Session {
         if !duplicate {
             return false;
         }
-        !matches!(
+        let behind_bouncer = matches!(
             self.isupport.value().get("BOUNCER_NETID"),
             papo_proto::Advertised::Value(_)
-        )
+        );
+        if behind_bouncer {
+            self.end_upstream_session(UpstreamIdentitySignal::DuplicateOwnJoin);
+        }
+        !behind_bouncer
+    }
+
+    fn upstream_identity_signal(&self, message: &LineRef<'_>) -> Option<UpstreamIdentitySignal> {
+        let papo_proto::Advertised::Value(selected) = self.isupport.value().get("BOUNCER_NETID")
+        else {
+            return None;
+        };
+        let notice = message.command() == Command::Notice
+            && message.raw_source() == Some("BouncerServ!BouncerServ@BouncerServ")
+            && message.param(0).is_some_and(|target| {
+                names_equal(
+                    self.isupport.value().casemapping(),
+                    target,
+                    self.state.nick().as_str(),
+                )
+            })
+            && message
+                .param(1)
+                .is_some_and(|text| text.starts_with("disconnected from "));
+        let network_drop = message.command_is("BOUNCER")
+            && message
+                .param(0)
+                .is_some_and(|subcommand| subcommand.eq_ignore_ascii_case("NETWORK"))
+            && message.param(1) == Some(selected)
+            && message.param(2).is_some_and(|attributes| {
+                attributes == "*"
+                    || attributes.split(';').any(|attribute| {
+                        attribute
+                            .strip_prefix("state=")
+                            .is_some_and(|state| state != "connected")
+                    })
+            });
+        (notice || network_drop).then_some(UpstreamIdentitySignal::ExplicitDrop)
+    }
+
+    fn end_upstream_session(&mut self, signal: UpstreamIdentitySignal) {
+        let duplicate_in_same_resync = signal == UpstreamIdentitySignal::DuplicateOwnJoin
+            && self.bouncer_resync == BouncerResync::Active;
+        self.bouncer_resync = BouncerResync::Active;
+        if duplicate_in_same_resync {
+            return;
+        }
+        self.monitor.handle_disconnected();
+        self.state.end_session_identities();
+        self.sync_monitored_state();
     }
 
     fn report_feature_changes(

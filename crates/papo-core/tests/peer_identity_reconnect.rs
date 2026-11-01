@@ -41,3 +41,29 @@ fn peer_proof_changes_after_departure_and_reconnect() {
     );
     assert_ne!(session.state().__peer_token_for("alice"), replacement);
 }
+
+#[test]
+fn soju_upstream_drop_ends_the_identity_session() {
+    let now = Instant::now();
+    let dropped = |mut session: Session, signal: &str| {
+        for line in [
+            ":soju.example 005 papo BOUNCER_NETID=1 :are supported",
+            ":papo!~papo@client.example JOIN #review",
+            ":alice!~alice@cloak.example JOIN #review",
+        ] {
+            server(&mut session, now, line);
+        }
+        let original = session.state().__peer_token_for("alice");
+        server(&mut session, now, signal);
+        assert!(session.state().user("alice").is_none());
+        assert_ne!(session.state().__peer_token_for("alice"), original);
+    };
+    dropped(
+        Session::new(Config::default().nick("papo")),
+        ":BouncerServ!BouncerServ@BouncerServ NOTICE papo :disconnected from ergo",
+    );
+    dropped(
+        Session::new(Config::default().nick("papo")),
+        "BOUNCER NETWORK 1 state=disconnected",
+    );
+}

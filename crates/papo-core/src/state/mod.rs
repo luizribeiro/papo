@@ -538,6 +538,13 @@ impl State {
         if guard.token.origin != self.casemapping.origin() {
             return crate::RecipientStatus::Gone;
         }
+        if guard
+            .token
+            .identity
+            .is_some_and(|identity| identity.epoch != self.reply_epoch)
+        {
+            return crate::RecipientStatus::Gone;
+        }
         let tracked = guard.token.identity.and_then(|expected| {
             self.users.values().find(|user| {
                 expected.epoch == user.reply_epoch
@@ -660,6 +667,28 @@ impl State {
             self.reply_epoch,
             self.departure_sequence,
         )
+    }
+
+    pub(crate) fn end_session_identities(&mut self) {
+        self.reply_epoch = self
+            .reply_epoch
+            .checked_add(1)
+            .expect("reply identity space exhausted");
+        let own = self.nick.clone();
+        for channel in self.channels.values_mut() {
+            Arc::make_mut(channel)
+                .members
+                .retain(|_, member| member.nick == own);
+        }
+        self.users.retain(|_, user| user.nick == own);
+        if let Some(user) = self.users.get_mut(own.key()) {
+            user.reply_epoch = self.reply_epoch;
+        }
+        self.departed_identities.clear();
+        self.who_sweeps.clear();
+        self.metadata.clear();
+        self.typing = TypingTable::new();
+        self.mark_changed();
     }
 
     pub(super) fn remember_departed(&mut self, user: &User) {
