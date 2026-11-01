@@ -80,16 +80,23 @@ async fn history_uses_account_pins_without_reusing_live_session_pins() {
     assert_eq!(alice_message.actor.peer_key(), Some(&alice));
     assert!(alice_message.actor.peer_key().unwrap().is_verified());
     assert_ne!(bob_message.actor.peer_key(), Some(&bob));
-    assert!(!bob_message.actor.peer_key().unwrap().is_verified());
-    for page in [&archived_alice, &archived_bob] {
-        let tag = page
-            .items
-            .iter()
-            .find_map(|item| match item {
-                Event::TagMsg(tag) => Some(tag),
-                _ => None,
-            })
-            .unwrap();
-        assert!(tag.actor.peer_key().is_some());
-    }
+    assert_eq!(bob_message.actor.peer_key(), None);
+    let alice_tag = archived_alice
+        .items
+        .iter()
+        .find_map(|item| match item {
+            Event::TagMsg(tag) => Some(tag),
+            _ => None,
+        })
+        .unwrap();
+    let bob_tag = archived_bob
+        .items
+        .iter()
+        .find_map(|item| match item {
+            Event::TagMsg(tag) => Some(tag),
+            _ => None,
+        })
+        .unwrap();
+    assert_eq!(alice_tag.actor.peer_key(), Some(&alice));
+    assert_eq!(bob_tag.actor.peer_key(), None);
 }

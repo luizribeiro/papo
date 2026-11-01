@@ -696,21 +696,12 @@ mod tests {
     #[test]
     fn peer_keys_compare_by_scope_and_canonical_account() {
         let account = Account::LoggedIn(Casemapping::Rfc1459.account("Alice[Ops]"));
-        let first = crate::peer_key::PeerKey::historical(
-            Some("server=12:irc.example"),
-            &account,
-            crate::Origin::NONE,
-        );
-        let same = crate::peer_key::PeerKey::historical(
-            Some("server=12:irc.example"),
-            &account,
-            crate::Origin::NONE,
-        );
-        let other = crate::peer_key::PeerKey::historical(
-            Some("server=13:chat.example"),
-            &account,
-            crate::Origin::NONE,
-        );
+        let first =
+            crate::peer_key::PeerKey::historical(Some("server=12:irc.example"), &account).unwrap();
+        let same =
+            crate::peer_key::PeerKey::historical(Some("server=12:irc.example"), &account).unwrap();
+        let other =
+            crate::peer_key::PeerKey::historical(Some("server=13:chat.example"), &account).unwrap();
 
         assert!(first.is_verified());
         assert_eq!(first, same);
@@ -718,24 +709,18 @@ mod tests {
     }
 
     #[test]
-    fn unverified_historical_peer_keys_are_fresh() {
-        let first =
-            crate::peer_key::PeerKey::historical(None, &Account::LoggedOut, crate::Origin::NONE);
-        let second =
-            crate::peer_key::PeerKey::historical(None, &Account::LoggedOut, crate::Origin::NONE);
-
-        assert!(!first.is_verified());
-        assert_ne!(first, second);
+    fn unverified_history_has_no_peer_key() {
+        assert_eq!(
+            crate::peer_key::PeerKey::historical(None, &Account::LoggedOut),
+            None
+        );
     }
 
     #[test]
     fn verified_peer_keys_round_trip_with_delimiters_and_unicode() {
         let account = Account::LoggedIn(Casemapping::Rfc1459.account("Alice[Ops]"));
-        let key = crate::peer_key::PeerKey::historical(
-            Some("server=15:irc.example:🌐"),
-            &account,
-            crate::Origin::NONE,
-        );
+        let key = crate::peer_key::PeerKey::historical(Some("server=15:irc.example:🌐"), &account)
+            .unwrap();
         let encoded = key.as_verified_str().unwrap();
         let parsed = encoded.parse::<crate::peer_key::PeerKey>().unwrap();
 
@@ -752,13 +737,6 @@ mod tests {
             key.as_verified_str(),
             Some("papo-peer-v1:rfc1459:4:Ergoalice{ops}")
         );
-    }
-
-    #[test]
-    fn session_peer_keys_have_no_persistable_form() {
-        let key =
-            crate::peer_key::PeerKey::historical(None, &Account::LoggedOut, crate::Origin::NONE);
-        assert_eq!(key.as_verified_str(), None);
     }
 
     #[test]

@@ -44,6 +44,7 @@ async fn verified_pins_survive_reconnect_while_session_pins_do_not() {
     let bob_pin = client.direct("bob").await.unwrap().peer_key().clone();
     assert!(alice_pin.is_verified());
     assert!(!bob_pin.is_verified());
+    assert_eq!(bob_pin.as_verified_str(), None);
 
     wire.close().await;
     while !matches!(events.next().await, Some(Event::Disconnected(_))) {}

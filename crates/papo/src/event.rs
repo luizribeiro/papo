@@ -1848,11 +1848,10 @@ pub(crate) fn attach_historical_peer_key(event: &mut Event, state: &crate::State
         return;
     };
     let scope = state.peer_scope();
-    actor.set_peer_key(crate::peer_key::PeerKey::historical(
-        scope.as_deref(),
-        actor.account(),
-        actor.nick().origin(),
-    ));
+    if let Some(peer_key) = crate::peer_key::PeerKey::historical(scope.as_deref(), actor.account())
+    {
+        actor.set_peer_key(peer_key);
+    }
 }
 
 fn private_actor_mut(event: &mut Event) -> Option<&mut UserSource> {

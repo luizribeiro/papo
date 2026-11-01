@@ -111,12 +111,13 @@ impl PeerKey {
         Self::new(scope, account, token.__is_known().then_some(token), origin)
     }
 
-    pub(crate) fn historical(
-        scope: Option<&str>,
-        account: &crate::Account,
-        origin: crate::Origin,
-    ) -> Self {
-        Self::new(scope, account, None, origin)
+    pub(crate) fn historical(scope: Option<&str>, account: &crate::Account) -> Option<Self> {
+        match (scope, account) {
+            (Some(scope), crate::Account::LoggedIn(account)) if !scope.is_empty() => {
+                Some(Self::verified(scope, account.casemapping(), account.key()))
+            }
+            _ => None,
+        }
     }
 
     fn new(
