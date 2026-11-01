@@ -708,6 +708,38 @@ mod name_tests {
     }
 
     #[test]
+    fn bouncer_capability_without_a_network_id_never_falls_back_to_server_scope() {
+        let mut session = Session::new(
+            Config::default()
+                .enable(papo_core::Feature::Bouncer)
+                .wanted_caps([crate::cap::BOUNCER_NETWORKS_NAME]),
+        );
+        let now = crate::rt::now_mono();
+        session.handle_connected_with(
+            now,
+            Connection {
+                host: "bouncer.example".into(),
+                security: ConnectionSecurity::Secure,
+                authenticated_server_name: Some("bouncer.example".into()),
+            },
+        );
+        session.handle_line(now, b"CAP * LS :soju.im/bouncer-networks");
+        session.handle_line(now, b"CAP * ACK :soju.im/bouncer-networks");
+        session.handle_line(
+            now,
+            b":bouncer.example 005 papo CASEMAPPING=rfc1459 :are supported",
+        );
+
+        let state = State::from_session(&session, true);
+        assert!(
+            state
+                .caps()
+                .contains_key(&crate::Cap::from(crate::cap::BOUNCER_NETWORKS_NAME))
+        );
+        assert_eq!(state.peer_scope(), None);
+    }
+
+    #[test]
     fn converts_channel_sources_with_the_client_origin() {
         let origin = crate::Origin::__new(73);
         let mut config = Config::default().casemapping(Casemapping::Rfc1459);

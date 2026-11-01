@@ -106,4 +106,43 @@ mod tests {
             None
         );
     }
+
+    #[test]
+    fn durable_scope_uses_the_selected_network() {
+        use papo_core::{Config, Session};
+
+        let now = crate::rt::now_mono();
+        let mut session = Session::new(
+            Config::default()
+                .enable(papo_core::Feature::Bouncer)
+                .wanted_caps(["soju.im/bouncer-networks"]),
+        );
+        session.handle_connected(now);
+        session.handle_line(now, b"CAP * LS :soju.im/bouncer-networks");
+        session.handle_line(now, b"CAP * ACK :soju.im/bouncer-networks");
+        session.handle_line(
+            now,
+            b"BOUNCER NETWORK libera-42 host=IRC.Libera.Chat.;tls=1;state=connected",
+        );
+        session.handle_line(
+            now,
+            b"BOUNCER NETWORK oftc-17 host=irc.oftc.net;tls=1;state=connected",
+        );
+        let peer = super::PeerState {
+            login: Some("alice".into()),
+        };
+
+        let scope = peer
+            .scope(session.state(), "bouncer.example", "libera-42")
+            .unwrap();
+        assert_eq!(scope.server, "bouncer.example");
+        let bouncer = scope.bouncer.unwrap();
+        assert_eq!(bouncer.login, "alice");
+        assert_eq!(bouncer.network, "libera-42");
+        assert_eq!(bouncer.upstream, "irc.libera.chat");
+        assert_eq!(
+            peer.scope(session.state(), "bouncer.example", "missing-91"),
+            None
+        );
+    }
 }
