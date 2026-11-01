@@ -35,7 +35,10 @@ impl PeerScope {
 /// A Continuity pin is best-effort evidence that papo has observed one IRC user without a break on
 /// this connection. It depends on papo seeing departures and must be presented as unverified. It
 /// cannot be persisted, changes after lost continuity, and is unavailable when papo can prove
-/// nothing. Plaintext and caller-supplied streams cannot produce Account pins.
+/// nothing. A bouncer upstream disconnect ends continuity for that network even though the
+/// downstream connection remains open; a duplicate self-JOIN resync is treated the same way.
+/// This can require applications to confirm a peer again after a harmless upstream reconnect.
+/// Plaintext and caller-supplied streams cannot produce Account pins.
 ///
 /// Pins do not key conversations. Store one beside the folded [`crate::Nick::key`] for each thread;
 /// two nicknames logged into one account remain different threads. Use [`Self::check`], never raw

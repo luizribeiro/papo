@@ -35,6 +35,8 @@ versioned persisted form scoped by a TLS-authenticated server, or by the complet
 bouncer and TLS-upstream scope. Continuity pins are unverified and connection-local. Applications
 compare pins with `PeerKey::check`, and `Client::direct_pinned` blocks opening a handle on a typed
 mismatch. Private message, notice, TAGMSG, rename, and history events expose applicable pins.
+An upstream bouncer disconnect now ends Continuity pins and live direct targets for that network,
+including stable builds that only observe soju's notice or self-JOIN resync.
 
 ### Migration from the 2026-10-24 API
 
