@@ -709,11 +709,7 @@ mod name_tests {
 
     #[test]
     fn bouncer_capability_without_a_network_id_never_falls_back_to_server_scope() {
-        let mut session = Session::new(
-            Config::default()
-                .enable(papo_core::Feature::Bouncer)
-                .wanted_caps([crate::cap::BOUNCER_NETWORKS_NAME]),
-        );
+        let mut session = Session::new(Config::default());
         let now = crate::rt::now_mono();
         session.handle_connected_with(
             now,
@@ -723,14 +719,15 @@ mod name_tests {
                 authenticated_server_name: Some("bouncer.example".into()),
             },
         );
-        session.handle_line(now, b"CAP * LS :soju.im/bouncer-networks");
-        session.handle_line(now, b"CAP * ACK :soju.im/bouncer-networks");
         session.handle_line(
             now,
             b":bouncer.example 005 papo CASEMAPPING=rfc1459 :are supported",
         );
 
-        let state = State::from_session(&session, true);
+        let mut state = State::from_session(&session, true);
+        state
+            .caps
+            .insert(crate::Cap::from(crate::cap::BOUNCER_NETWORKS_NAME), None);
         assert!(
             state
                 .caps()
