@@ -458,8 +458,8 @@ pub enum Error {
     /// retrying an action such as `KICK` or `MODE +b` can repeat its effect.
     #[error("the IRC operation timed out")]
     Timeout,
-    /// Server input exceeded a bounded state collection.
-    #[error("server input exceeded the {0:?} state limit")]
+    /// A bounded state collection reached its configured limit.
+    #[error("the {0:?} state limit was reached")]
     StateLimit(crate::StateLimit),
     /// A requested state change could not be confirmed from server replies or state.
     #[error("the IRC operation could not be confirmed")]
@@ -611,6 +611,7 @@ impl Error {
             Request::InvalidMessageReference => {
                 Self::InvalidInput(InvalidInput::UnusableMessageReference)
             }
+            Request::StateLimit(limit) => Self::StateLimit(limit),
             Request::EmailRequired => Self::InvalidInput(InvalidInput::EmailRequired),
             Request::CustomAccountNameUnsupported => {
                 Self::InvalidInput(InvalidInput::AccountNameMustMatchNick)
@@ -1016,6 +1017,10 @@ mod tests {
         assert!(matches!(
             Error::request(Request::InvalidMessageReference),
             Error::InvalidInput(InvalidInput::UnusableMessageReference)
+        ));
+        assert!(matches!(
+            Error::request(Request::StateLimit(StateLimit::ReadMarkers)),
+            Error::StateLimit(StateLimit::ReadMarkers)
         ));
         assert!(matches!(
             Error::request(Request::EmailRequired),

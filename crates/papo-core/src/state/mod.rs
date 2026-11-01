@@ -41,6 +41,20 @@ const WHOX_TOKEN: &str = "152";
 const MAX_LAST_SEEN_TARGETS: usize = 1_000;
 const MAX_DEPARTED_IDENTITIES: usize = 1_000;
 
+#[expect(dead_code)]
+#[derive(Clone, Copy)]
+pub(crate) enum StateGrowth<'a> {
+    Channel(&'a str),
+    ListModes(&'a LineRef<'a>),
+    ReadMarker(&'a str),
+    Metadata {
+        target: &'a str,
+        key: &'a str,
+    },
+    #[cfg(feature = "unstable")]
+    BouncerNetwork,
+}
+
 /// The known channel and user state for a session.
 #[derive(Debug, Eq, PartialEq)]
 pub struct State {
@@ -465,6 +479,94 @@ impl State {
 
     fn mark_changed(&mut self) {
         self.change_generation = self.change_generation.wrapping_add(1);
+    }
+
+    #[expect(dead_code)]
+    pub(crate) fn full_store_for(&self, growth: StateGrowth<'_>) -> Option<StateLimit> {
+        match growth {
+            StateGrowth::Channel(channel) => (self.channel(channel).is_none()
+                && self.channels.len() >= self.max_channels)
+                .then_some(StateLimit::Channels),
+            StateGrowth::ListModes(message) => self
+                .list_mode_request_exceeds_limit(message)
+                .then_some(StateLimit::ListEntries),
+            StateGrowth::ReadMarker(target) => {
+                let target = NameKey::new(target, self.casemapping);
+                (!self.read_markers.contains_key(&target)
+                    && self.read_markers.len() >= self.read_marker_order.limit())
+                .then_some(StateLimit::ReadMarkers)
+            }
+            StateGrowth::Metadata { target, key } => {
+                let target = if target == "*" {
+                    self.nick.as_str()
+                } else {
+                    target
+                };
+                let target = NameKey::new(target, self.casemapping);
+                let values = self.metadata.get(&target);
+                if values.is_none() && self.metadata.len() >= self.max_metadata_targets {
+                    Some(StateLimit::MetadataTargets)
+                } else if values.is_none_or(|values| !values.contains_key(key))
+                    && values.map_or(0, BTreeMap::len) >= self.max_metadata_keys_per_target
+                {
+                    Some(StateLimit::MetadataKeys)
+                } else {
+                    None
+                }
+            }
+            #[cfg(feature = "unstable")]
+            StateGrowth::BouncerNetwork => (self.bouncer_networks.len()
+                >= self.max_bouncer_networks)
+                .then_some(StateLimit::BouncerNetworks),
+        }
+    }
+
+    #[expect(dead_code)]
+    fn list_mode_request_exceeds_limit(&self, message: &LineRef<'_>) -> bool {
+        let (Some(target), Some(modestring)) = (message.param(0), message.param(1)) else {
+            return false;
+        };
+        let Some(channel) = self.channel(target) else {
+            return false;
+        };
+        let mut lists: HashMap<_, Vec<_>> = channel
+            .lists
+            .iter()
+            .map(|(mode, entries)| {
+                (
+                    *mode,
+                    entries.iter().map(|entry| entry.mask.clone()).collect(),
+                )
+            })
+            .collect();
+        for change in ModeChanges::parse(modestring, message.params().skip(2), &self.isupport) {
+            let mode = match (change.kind, change.mode) {
+                (ModeKind::List, 'b') => ListMode::Ban,
+                (ModeKind::List, 'e') => ListMode::Except,
+                (ModeKind::List, 'I') => ListMode::Invex,
+                (ModeKind::List, 'q') => ListMode::Quiet,
+                _ => continue,
+            };
+            let (Some(entries), Some(mask)) = (lists.get_mut(&mode), change.arg) else {
+                continue;
+            };
+            let mask = self.casemapping.mask(mask);
+            if change.action == papo_proto::ModeAction::Add {
+                if entries
+                    .iter()
+                    .any(|entry| same_list_entry(entry, &mask, &self.isupport))
+                {
+                    continue;
+                }
+                if entries.len() >= self.max_list_entries_per_mode {
+                    return true;
+                }
+                entries.push(mask);
+            } else {
+                entries.retain(|entry| !same_list_entry(entry, &mask, &self.isupport));
+            }
+        }
+        false
     }
 
     pub(crate) fn reset(&mut self, config: &Config, casemapping: Casemapping, isupport: &Isupport) {

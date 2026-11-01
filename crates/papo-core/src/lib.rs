@@ -211,8 +211,8 @@ pub use ratelimit::{InvalidRateLimit, RateLimit};
 pub use refusal::Refusal;
 use sasl::{AccountUpdate, SaslSession};
 pub use sasl::{Entropy, Sasl};
-use state::MetadataContext;
 pub use state::{Account, Away, Channel, Member, MetadataView, State, User};
+use state::{MetadataContext, StateGrowth};
 use sts::ConnectionSecurity;
 #[doc(hidden)]
 pub use typing::TypingTable;
@@ -2230,6 +2230,8 @@ pub enum RequestError {
     Unsupported(Unsupported),
     /// The server cannot accept the supplied history reference.
     InvalidMessageReference,
+    /// The request would grow a bounded state collection past its configured limit.
+    StateLimit(StateLimit),
     /// Account creation requires an email address.
     EmailRequired,
     /// The server requires the account name to match the current nickname.
@@ -2317,6 +2319,9 @@ impl std::fmt::Display for RequestError {
                 .write_str("credentials require an explicit opt-in on a plaintext connection"),
             Self::Unsupported(unsupported) => unsupported.fmt(formatter),
             Self::InvalidMessageReference => formatter.write_str("unsupported message reference"),
+            Self::StateLimit(limit) => {
+                write!(formatter, "request would exceed the {limit:?} state limit")
+            }
             Self::EmailRequired => formatter.write_str("account registration requires an email"),
             Self::CustomAccountNameUnsupported => {
                 formatter.write_str("server does not support a custom account name")
@@ -2349,6 +2354,7 @@ impl std::error::Error for RequestError {
             | Self::InsecureAuthentication
             | Self::Unsupported(_)
             | Self::InvalidMessageReference
+            | Self::StateLimit(_)
             | Self::EmailRequired
             | Self::CustomAccountNameUnsupported
             | Self::MetadataValueTooLong { .. }
@@ -4642,6 +4648,17 @@ impl Session {
             line = line.param(key);
         }
         self.request_with_matcher(now, line, ResponseMatcher::Join(channel.into()))
+    }
+
+    #[expect(dead_code)]
+    pub(crate) fn ensure_state_capacity(
+        &self,
+        growth: StateGrowth<'_>,
+    ) -> Result<(), RequestError> {
+        match self.state.full_store_for(growth) {
+            Some(limit) => Err(RequestError::StateLimit(limit)),
+            None => Ok(()),
+        }
     }
 
     /// Adds nicknames to the desired server-side monitor list.
