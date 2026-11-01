@@ -4,7 +4,7 @@ mod support;
 
 use std::time::Instant;
 
-use papo_core::{Authorship, Config, Event, RateLimit, Refusal, Session, WhoOnJoin};
+use papo_core::{Authorship, Config, Event, RateLimit, Refusal, Session, StateLimit, WhoOnJoin};
 use support::Transcript;
 
 fn server(session: &mut Session, now: Instant, line: &str) {
@@ -258,4 +258,91 @@ fn matching_forced_join_completes_once_and_duplicate_is_ignored() {
             .map(papo_proto::ChannelName::as_str),
         Some("#release")
     );
+}
+
+#[test]
+fn channel_limit_recovers_after_own_part_or_kick() {
+    for departure in [
+        ":papo!~papo@localhost PART #review :Review complete",
+        ":oper!admin@staff.example KICK #review papo :Review complete",
+    ] {
+        let now = Instant::now();
+        let mut session = Session::new(
+            Config::default()
+                .nick("papo")
+                .max_channels(1)
+                .rate_limit(RateLimit::unlimited()),
+        );
+        server(
+            &mut session,
+            now,
+            ":papo!~papo@localhost JOIN #review * :Papo Bot",
+        );
+        assert!(matches!(session.poll_event(), Some(Event::Joined { .. })));
+
+        server(
+            &mut session,
+            now,
+            ":papo!~papo@localhost JOIN #operations * :Papo Bot",
+        );
+        let events = std::iter::from_fn(|| session.poll_event()).collect::<Vec<_>>();
+        assert!(events.iter().any(
+            |event| matches!(event, Event::Joined { channel, .. } if channel == "#operations")
+        ));
+        assert_eq!(
+            events
+                .iter()
+                .filter(|event| matches!(
+                    event,
+                    Event::StateLimitReached {
+                        limit: StateLimit::Channels,
+                        ..
+                    }
+                ))
+                .count(),
+            1
+        );
+        assert_eq!(session.state().channels().count(), 1);
+        assert!(session.state().channel("#operations").is_none());
+        assert_eq!(session.state().user("papo").unwrap().channels().count(), 1);
+
+        server(
+            &mut session,
+            now,
+            ":papo!~papo@localhost JOIN #security * :Papo Bot",
+        );
+        let events = std::iter::from_fn(|| session.poll_event()).collect::<Vec<_>>();
+        assert!(
+            events.iter().any(
+                |event| matches!(event, Event::Joined { channel, .. } if channel == "#security")
+            )
+        );
+        assert!(
+            !events
+                .iter()
+                .any(|event| matches!(event, Event::StateLimitReached { .. }))
+        );
+        assert_eq!(session.state().channels().count(), 1);
+        assert!(session.state().channel("#security").is_none());
+
+        server(&mut session, now, departure);
+        assert!(matches!(
+            session.poll_event(),
+            Some(Event::Parted { .. } | Event::Kicked { .. })
+        ));
+        assert_eq!(session.state().channels().count(), 0);
+        server(
+            &mut session,
+            now,
+            ":papo!~papo@localhost JOIN #deployment * :Papo Bot",
+        );
+        assert!(matches!(
+            session.poll_event(),
+            Some(Event::Joined { channel, .. }) if channel == "#deployment"
+        ));
+        assert_eq!(session.state().channels().count(), 1);
+        assert!(session.state().channel("#deployment").is_some());
+        assert_eq!(session.poll_transmit(), None);
+        assert_eq!(session.poll_event(), None);
+    }
 }
