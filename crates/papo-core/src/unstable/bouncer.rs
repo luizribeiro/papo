@@ -11,6 +11,16 @@ use zeroize::{Zeroize, Zeroizing};
 
 use crate::{Feature, RequestError, RequestId, Secret, Session};
 
+impl Session {
+    /// Returns the successfully authenticated SASL identity configured by the client.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __sasl_identity(&self) -> Option<&str> {
+        self.sasl.is_authenticated().then_some(())?;
+        self.config.sasl.as_ref()?.authentication_identity()
+    }
+}
+
 /// Stable identifier assigned to a network by a bouncer.
 ///
 /// Equality, ordering, and hashing use the exact received bytes.

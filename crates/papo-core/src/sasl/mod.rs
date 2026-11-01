@@ -42,6 +42,24 @@ pub(crate) enum Mechanism {
 }
 
 impl Sasl {
+    pub(super) fn authentication_identity(&self) -> Option<&str> {
+        self.mechanisms
+            .iter()
+            .find_map(|mechanism| match mechanism {
+                Mechanism::Plain {
+                    username, authzid, ..
+                } => authzid
+                    .as_deref()
+                    .filter(|identity| !identity.is_empty())
+                    .or(Some(username)),
+                Mechanism::External { authzid } => {
+                    authzid.as_deref().filter(|identity| !identity.is_empty())
+                }
+                Mechanism::ScramSha256 { username, .. } => Some(username),
+                Mechanism::OAuthBearer { .. } => None,
+            })
+    }
+
     /// Uses the SASL PLAIN mechanism.
     ///
     /// ```compile_fail
@@ -600,6 +618,10 @@ impl SaslSession {
             || (!self.require && matches!(self.completion, Completion::Failed))
     }
 
+    pub(super) const fn is_authenticated(&self) -> bool {
+        matches!(self.completion, Completion::Success)
+    }
+
     pub(super) fn account(&self) -> Option<&str> {
         self.account.as_deref()
     }
@@ -853,7 +875,36 @@ impl Mechanism {
 
 #[cfg(test)]
 mod chunk_tests {
-    use super::receive_challenge;
+    use super::{Sasl, receive_challenge};
+    use crate::Secret;
+
+    #[test]
+    fn configured_authentication_identity_covers_every_mechanism() {
+        let password = || Secret::new("correct horse battery staple");
+        assert_eq!(
+            Sasl::plain("alice", password()).authentication_identity(),
+            Some("alice")
+        );
+        assert_eq!(
+            Sasl::plain("alice", password())
+                .authzid("operator")
+                .authentication_identity(),
+            Some("operator")
+        );
+        assert_eq!(Sasl::external().authentication_identity(), None);
+        assert_eq!(
+            Sasl::external().authzid("alice").authentication_identity(),
+            Some("alice")
+        );
+        assert_eq!(
+            Sasl::oauth_bearer(password()).authentication_identity(),
+            None
+        );
+        assert_eq!(
+            Sasl::scram_sha256("alice", password()).authentication_identity(),
+            Some("alice")
+        );
+    }
 
     #[test]
     fn reassembles_literal_400_byte_server_chunks() {
