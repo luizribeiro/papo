@@ -8,9 +8,9 @@ pub(super) fn encode(
     account: &str,
 ) -> AccountPin {
     let encoded_scope = legacy_scope(scope);
+    let encoded_casemap = percent_encode(casemapping.as_str());
     let encoded = format!(
-        "{PREFIX}{}:{}:{encoded_scope}{account}",
-        casemapping.as_str(),
+        "{PREFIX}{encoded_casemap}:{}:{encoded_scope}{account}",
         encoded_scope.len()
     );
     AccountPin {
@@ -27,7 +27,7 @@ pub(super) fn parse(value: &str) -> Result<AccountPin, InvalidPeerKey> {
         .strip_prefix(PREFIX)
         .and_then(|value| value.split_once(':'))
         .ok_or(InvalidPeerKey)?;
-    let casemapping = casemapping
+    let casemapping = percent_decode(casemapping)?
         .parse::<crate::Casemapping>()
         .map_err(|_| InvalidPeerKey)?;
     let (scope_len, joined) = rest.split_once(':').ok_or(InvalidPeerKey)?;
@@ -103,4 +103,61 @@ fn legacy_scope(scope: &PeerScope) -> String {
         .expect("writing to a string cannot fail");
     }
     value
+}
+
+fn percent_encode(value: &str) -> String {
+    use std::fmt::Write as _;
+    let mut encoded = String::new();
+    for byte in value.bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~') {
+            encoded.push(char::from(byte));
+        } else {
+            write!(encoded, "%{byte:02X}").expect("writing to a string cannot fail");
+        }
+    }
+    encoded
+}
+
+fn percent_decode(value: &str) -> Result<String, InvalidPeerKey> {
+    let mut decoded = Vec::with_capacity(value.len());
+    let mut bytes = value.bytes();
+    while let Some(byte) = bytes.next() {
+        if byte != b'%' {
+            decoded.push(byte);
+            continue;
+        }
+        let high = bytes.next().and_then(hex).ok_or(InvalidPeerKey)?;
+        let low = bytes.next().and_then(hex).ok_or(InvalidPeerKey)?;
+        decoded.push(high * 16 + low);
+    }
+    String::from_utf8(decoded).map_err(|_| InvalidPeerKey)
+}
+
+const fn hex(byte: u8) -> Option<u8> {
+    match byte {
+        b'0'..=b'9' => Some(byte - b'0'),
+        b'a'..=b'f' => Some(byte - b'a' + 10),
+        b'A'..=b'F' => Some(byte - b'A' + 10),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn percent_encoding_round_trips_utf8_and_delimiters() {
+        let encoded = super::percent_encode("josé;net=id%");
+        assert_eq!(encoded, "jos%C3%A9%3Bnet%3Did%25");
+        assert_eq!(
+            super::percent_decode(&encoded).as_deref(),
+            Ok("josé;net=id%")
+        );
+    }
+
+    #[test]
+    fn malformed_percent_encoding_is_rejected() {
+        for value in ["%", "%0", "%GG", "%FF"] {
+            assert_eq!(super::percent_decode(value), Err(super::InvalidPeerKey));
+        }
+    }
 }
