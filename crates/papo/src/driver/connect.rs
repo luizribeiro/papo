@@ -313,7 +313,7 @@ fn authenticated_server_name(plan: &ConnectionPlan) -> Option<String> {
         return None;
     }
     let name = plan.tls.server_name_or(&plan.address.host);
-    Some(name.strip_suffix('.').unwrap_or(name).to_ascii_lowercase())
+    Some(crate::sts::normalize_host(name))
 }
 
 fn triage_connection_end(
@@ -535,20 +535,16 @@ pub(super) fn plan_with_stored_sts(base: &ConnectionPlan, store: &dyn StsStore) 
 }
 
 fn get_sts_policy(store: &dyn StsStore, host: &str) -> Option<StsPolicy> {
-    store.get(&normalize_sts_host(host))
+    store.get(&crate::sts::normalize_host(host))
 }
 
 fn put_sts_policy(store: &dyn StsStore, mut policy: StsPolicy) {
-    policy.host = normalize_sts_host(&policy.host);
+    policy.host = crate::sts::normalize_host(&policy.host);
     store.put(policy);
 }
 
 fn remove_sts_policy(store: &dyn StsStore, host: &str) {
-    store.remove(&normalize_sts_host(host));
-}
-
-fn normalize_sts_host(host: &str) -> String {
-    host.strip_suffix('.').unwrap_or(host).to_ascii_lowercase()
+    store.remove(&crate::sts::normalize_host(host));
 }
 
 pub(super) fn is_fatal_failure(error: &Error, close_kind: Option<papo_core::CloseKind>) -> bool {
@@ -772,6 +768,7 @@ mod tests {
     use std::io;
 
     use super::*;
+    use crate::transport::TlsConfig;
 
     fn connection_end(error: Error, registered: bool) -> ConnectionEnd {
         ConnectionEnd {
@@ -827,6 +824,30 @@ mod tests {
                 &mut || 0,
             ),
             Duration::from_secs(4)
+        );
+    }
+
+    #[test]
+    fn only_verified_transport_plans_authenticate_a_server_name() {
+        fn plan(address: &str) -> ConnectionPlan {
+            ConnectionPlan {
+                address: address.parse().unwrap(),
+                tls: TlsConfig::default(),
+            }
+        }
+
+        assert_eq!(authenticated_server_name(&plan("irc://irc.example")), None);
+        assert_eq!(authenticated_server_name(&plan("ws://irc.example")), None);
+        assert_eq!(
+            authenticated_server_name(&plan("ircs://IRC.Example")),
+            Some("irc.example".to_owned())
+        );
+
+        let mut overridden = plan("ircs://edge.example");
+        overridden.tls.server_name = Some("Identity.Example.".to_owned());
+        assert_eq!(
+            authenticated_server_name(&overridden),
+            Some("identity.example".to_owned())
         );
     }
 }
