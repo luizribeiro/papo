@@ -1457,7 +1457,13 @@ where
             crate::rt::now_wall(),
             Some(session.state()),
         ) {
-            event::CoreEvent::Forward(event) => {
+            event::CoreEvent::Forward(mut event) => {
+                let state = events
+                    .state
+                    .read()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                crate::event_impl::attach_live_peer_key(&mut event, &state);
+                drop(state);
                 catchup::remember_live_event(catchups.values_mut(), &event);
                 if let Event::ChannelSynced(synced) = &event {
                     resolve_sync_waiters(session, sync_waiters, synced.channel.as_str());
@@ -1496,7 +1502,7 @@ where
             }
             event::CoreEvent::Line(message) => {
                 drop_bad_rejoin_key(session, defaults, &message.as_ref());
-                let event = crate::event_impl::incoming_from_core(
+                let mut event = crate::event_impl::incoming_from_core(
                     message,
                     session.state().nick().origin(),
                     session.isupport(),
@@ -1504,6 +1510,12 @@ where
                     can_prove_non_bot(session),
                     crate::rt::now_wall(),
                 );
+                let state = events
+                    .state
+                    .read()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                crate::event_impl::attach_live_peer_key(&mut event, &state);
+                drop(state);
                 catchup::remember_live_event(catchups.values_mut(), &event);
                 if is_resolved_sent_duplicate(resolved_sent, &event) {
                     continue;

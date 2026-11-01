@@ -1817,6 +1817,62 @@ impl Event {
     }
 }
 
+pub(crate) fn attach_live_peer_key(event: &mut Event, state: &crate::State) {
+    if !matches!(event.conversation(), Some(Conversation::Private(_))) {
+        return;
+    }
+    let Some(actor) = private_actor_mut(event) else {
+        return;
+    };
+    let account = if actor.account() == &Account::Unknown {
+        state
+            .user(actor.nick())
+            .map_or_else(|| Account::Unknown, |user| user.account().clone())
+    } else {
+        actor.account().clone()
+    };
+    let scope = state.peer_scope();
+    actor.set_peer_key(crate::peer_key::PeerKey::live(
+        scope.as_deref(),
+        &account,
+        state.peer_token(actor.nick()),
+        actor.nick().origin(),
+    ));
+}
+
+#[allow(dead_code)]
+pub(crate) fn attach_historical_peer_key(event: &mut Event, state: &crate::State) {
+    if !matches!(event.conversation(), Some(Conversation::Private(_))) {
+        return;
+    }
+    let Some(actor) = private_actor_mut(event) else {
+        return;
+    };
+    let scope = state.peer_scope();
+    actor.set_peer_key(crate::peer_key::PeerKey::historical(
+        scope.as_deref(),
+        actor.account(),
+        actor.nick().origin(),
+    ));
+}
+
+fn private_actor_mut(event: &mut Event) -> Option<&mut UserSource> {
+    match event {
+        Event::Message(event) => Some(&mut event.actor),
+        Event::Notice(event) => Some(&mut event.actor),
+        Event::CtcpQuery(event) => Some(&mut event.actor),
+        Event::CtcpReply(event) => Some(&mut event.actor),
+        Event::TagMsg(event) => Some(&mut event.actor),
+        Event::Reacted(event) => Some(&mut event.actor),
+        Event::TypingChanged(event) => Some(&mut event.actor),
+        Event::Redacted(event) => match &mut event.actor {
+            Source::User(actor) => Some(actor),
+            Source::Server(_) => None,
+        },
+        _ => None,
+    }
+}
+
 fn tagged_from_tags(tags: &Tags) -> Option<SystemTime> {
     tags.get("time")
         .or_else(|| tags.get("znc.in/server-time-iso"))

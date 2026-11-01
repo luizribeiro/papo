@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, sync::Arc};
 
 use crate::{Account, Casemapping, Nick, Oper};
 
@@ -10,6 +10,7 @@ pub struct UserSource {
     username: Option<String>,
     host: Option<String>,
     account: Account,
+    peer_key: Option<Arc<crate::peer_key::PeerKey>>,
     is_bot: Option<bool>,
     oper: Option<Oper>,
 }
@@ -17,6 +18,10 @@ pub struct UserSource {
 impl UserSource {
     pub(crate) fn set_account(&mut self, account: Account) {
         self.account = account;
+    }
+
+    pub(crate) fn set_peer_key(&mut self, peer_key: crate::peer_key::PeerKey) {
+        self.peer_key = Some(Arc::new(peer_key));
     }
 
     pub(crate) fn from_state(
@@ -31,6 +36,7 @@ impl UserSource {
             username: username.filter(|_| host.is_some()),
             host,
             account,
+            peer_key: None,
             is_bot: None,
             oper: None,
         }
@@ -153,6 +159,7 @@ pub(crate) fn from_proto_with_origin(
             username: username.filter(|_| host.is_some()).map(str::to_owned),
             host: host.map(str::to_owned),
             account: Account::Unknown,
+            peer_key: None,
             is_bot: None,
             oper: None,
         }),
@@ -206,6 +213,7 @@ pub(crate) fn from_core(source: papo_core::Source, origin: crate::Origin) -> Opt
             username: username.filter(|_| host.is_some()),
             host,
             account: Account::Unknown,
+            peer_key: None,
             is_bot: None,
             oper: None,
         })),
@@ -230,6 +238,7 @@ mod tests {
             username: Some("~alice".into()),
             host: Some("staff.example".into()),
             account: Account::LoggedIn(account.clone()),
+            peer_key: None,
             is_bot: Some(true),
             oper: Some(Oper {
                 name: Some("network-admin".into()),
@@ -259,6 +268,7 @@ mod tests {
             username: None,
             host: None,
             account: Account::Unknown,
+            peer_key: None,
             is_bot: None,
             oper: None,
         };
