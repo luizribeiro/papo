@@ -17,7 +17,7 @@ impl State {
                     ("account", Some(account)) => {
                         let account = Account::LoggedIn(self.casemapping.account(account.as_ref()));
                         if user.account != account {
-                            user.account = account.clone();
+                            user.update_account(account.clone());
                             outbox.event(Event::AccountChanged {
                                 envelope: crate::LineEnvelope::from_line(message),
                                 actor: actor.clone(),
@@ -72,7 +72,7 @@ impl State {
         if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref())
             && user.account != account
         {
-            user.account = account.clone();
+            user.update_account(account.clone());
             outbox.event(Event::AccountChanged {
                 envelope,
                 actor,
@@ -330,7 +330,7 @@ impl State {
             outbox,
         );
         if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) {
-            user.account = Account::from_notify(reply.account, self.casemapping);
+            user.update_account(Account::from_notify(reply.account, self.casemapping));
         }
         Some(Handled::Yes)
     }

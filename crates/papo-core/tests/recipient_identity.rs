@@ -2,10 +2,51 @@
 
 use std::time::{Duration, Instant};
 
-use papo_core::{Account, Config, RecipientGuard, RecipientStatus, ReplyToken, Session};
+use papo_core::{Account, Config, PeerToken, RecipientGuard, RecipientStatus, ReplyToken, Session};
 
 fn server(session: &mut Session, now: Instant, line: &str) {
     session.handle_line(now, line.as_bytes());
+}
+
+fn peer(session: &Session, nick: &str) -> PeerToken {
+    session.state().__peer_token_for(nick)
+}
+
+#[test]
+fn peer_proof_follows_nick_and_changes_after_account_logout() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("papo"));
+    server(&mut session, now, ":papo!~papo@localhost JOIN #review");
+    server(
+        &mut session,
+        now + Duration::from_millis(1),
+        ":alice!~alice@cloak.example JOIN #review",
+    );
+    let unverified = peer(&session, "alice");
+    assert!(unverified.__is_known());
+
+    server(
+        &mut session,
+        now + Duration::from_millis(2),
+        ":alice!~alice@cloak.example NICK alicia",
+    );
+    assert_eq!(peer(&session, "alicia"), unverified);
+
+    server(
+        &mut session,
+        now + Duration::from_millis(3),
+        ":alicia!~alice@cloak.example ACCOUNT alice-account",
+    );
+    let logged_in = peer(&session, "alicia");
+    assert_ne!(logged_in, unverified);
+    server(
+        &mut session,
+        now + Duration::from_millis(4),
+        ":alicia!~alice@cloak.example ACCOUNT *",
+    );
+    let logged_out = peer(&session, "alicia");
+    assert_ne!(logged_out, logged_in);
+    assert_ne!(logged_out, unverified);
 }
 
 #[test]

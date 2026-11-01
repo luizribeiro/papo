@@ -174,6 +174,7 @@ pub struct User {
     channels: BTreeSet<ChannelName>,
     reply_epoch: u64,
     departure_sequence: u64,
+    account_sequence: u64,
 }
 
 /// A read-only view of cached metadata values.
@@ -464,7 +465,10 @@ impl State {
                     .insert(NameKey::new(channel.name.as_str(), casemapping), created_at);
             }
         }
-        let reply_epoch = self.reply_epoch.wrapping_add(1);
+        let reply_epoch = self
+            .reply_epoch
+            .checked_add(1)
+            .expect("reply identity space exhausted");
         let channel_epoch = self.channel_epoch;
         *self = Self::with_casemapping(config, casemapping);
         self.reply_epoch = reply_epoch;
@@ -507,6 +511,22 @@ impl State {
             identity: self.user(target).map(|user| crate::ReplyIdentity {
                 epoch: user.reply_epoch,
                 sequence: user.departure_sequence,
+            }),
+        }
+    }
+
+    /// Returns the peer-proof identity for the current holder of `target`.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __peer_token_for(&self, target: &str) -> crate::PeerToken {
+        crate::PeerToken {
+            origin: self.casemapping.origin(),
+            identity: self.user(target).map(|user| crate::PeerIdentity {
+                reply: crate::ReplyIdentity {
+                    epoch: user.reply_epoch,
+                    sequence: user.departure_sequence,
+                },
+                account_sequence: user.account_sequence,
             }),
         }
     }
@@ -628,7 +648,10 @@ impl State {
     }
 
     fn new_user(&mut self, nick: &str, username: Option<&str>, host: Option<&str>) -> User {
-        self.departure_sequence = self.departure_sequence.wrapping_add(1);
+        self.departure_sequence = self
+            .departure_sequence
+            .checked_add(1)
+            .expect("recipient identity space exhausted");
         User::new(
             nick,
             username,
@@ -684,7 +707,7 @@ impl State {
         if user.account != *recipient.__account() && user.account != account {
             return None;
         }
-        user.account = account;
+        user.update_account(account);
         user.monitored = true;
         self.mark_changed();
         Some(())
@@ -748,10 +771,11 @@ impl State {
     }
 
     pub(crate) fn sync_own_account(&mut self, account: Option<&str>) {
+        let account = Account::from_notify(account, self.casemapping);
         self.users
             .get_mut(self.nick.key())
             .expect("own user is always present")
-            .account = Account::from_notify(account, self.casemapping);
+            .update_account(account);
     }
 
     pub(crate) fn set_mode_list(
@@ -1856,6 +1880,17 @@ impl User {
             channels: BTreeSet::new(),
             reply_epoch,
             departure_sequence,
+            account_sequence: 0,
+        }
+    }
+
+    fn update_account(&mut self, account: Account) {
+        if self.account != account {
+            self.account_sequence = self
+                .account_sequence
+                .checked_add(1)
+                .expect("peer account identity space exhausted");
+            self.account = account;
         }
     }
 

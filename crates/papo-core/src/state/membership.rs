@@ -121,7 +121,7 @@ impl State {
         if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref())
             && join.realname.is_some()
         {
-            user.account = Account::from_notify(join.account, self.casemapping);
+            user.update_account(Account::from_notify(join.account, self.casemapping));
             user.realname = join.realname.map(str::to_owned);
         }
         if ours && no_implicit_names {

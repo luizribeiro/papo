@@ -2987,6 +2987,23 @@ pub struct ReplyToken {
     identity: Option<ReplyIdentity>,
 }
 
+/// Opaque identity of one peer while the session can prove continuity.
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct PeerToken {
+    origin: papo_proto::Origin,
+    identity: Option<PeerIdentity>,
+}
+
+impl PeerToken {
+    /// Reports whether state currently tracks a concrete IRC user.
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __is_known(self) -> bool {
+        self.identity.is_some()
+    }
+}
+
 impl ReplyToken {
     /// Builds an identity proof that requires external verification before use.
     #[doc(hidden)]
@@ -3109,6 +3126,12 @@ pub enum RecipientStatus {
 struct ReplyIdentity {
     epoch: u64,
     sequence: u64,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+struct PeerIdentity {
+    reply: ReplyIdentity,
+    account_sequence: u64,
 }
 
 impl ReceivedLine {
