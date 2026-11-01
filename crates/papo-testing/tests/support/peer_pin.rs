@@ -4,6 +4,7 @@ use papo::{Event, Reconnect};
 
 use super::direct::next_active_event;
 
+#[allow(dead_code)]
 pub fn assert_match(stored: &papo::PeerKey, current: &papo::PeerKey) {
     assert!(matches!(stored.check(current), papo::PeerKeyCheck::Match));
 }

@@ -113,6 +113,7 @@ ids = [
   "security.dm-direct.monitor-lifecycle",
   "security.dm-direct.write-time-recheck",
   "security.dm-direct.send-path-enumeration",
+  "security.dm-direct.peer-pin-mismatch",
   "security.guard-proof.concurrent-impostor",
   "security.guard-proof.reconnect-takeover",
   "security.guard-proof.concurrent-genuine",
