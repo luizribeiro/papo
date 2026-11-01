@@ -103,5 +103,6 @@ async fn only_the_tls_authenticated_server_name_scopes_durable_pins() {
     assert_ne!(first, overridden);
     assert_ne!(first, bounced);
     assert!(first.is_verified());
+    assert!(!bounced.is_verified());
     assert!(!plaintext.is_verified());
 }

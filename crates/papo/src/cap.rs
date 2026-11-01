@@ -7,6 +7,8 @@ pub use papo_core::cap::{
     NO_IMPLICIT_NAMES, NOPE, OPER_TAG, PRE_AWAY, READ_MARKER, SASL, SERVER_TIME, SETNAME,
     STANDARD_REPLIES, STS, USERHOST_IN_NAMES, WHOAMI,
 };
+
+pub(crate) const BOUNCER_NETWORKS_NAME: &str = "soju.im/bouncer-networks";
 #[cfg(feature = "unstable")]
 #[doc(inline)]
 pub use papo_core::cap::{

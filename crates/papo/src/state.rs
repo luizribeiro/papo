@@ -186,7 +186,6 @@ pub struct State {
     pub(crate) caps: Capabilities,
     pub(crate) isupport: Arc<Isupport>,
     authenticated_server_name: Option<String>,
-    peer_bouncer_network: Option<String>,
     #[cfg(feature = "unstable")]
     bouncer_network: Option<papo_core::NetworkId>,
     unsupported: BTreeMap<Feature, UnsupportedReason>,
@@ -306,14 +305,19 @@ impl State {
     }
 
     pub(crate) fn peer_scope(&self) -> Option<String> {
+        if self.isupport.casemapping().is_none()
+            || !matches!(
+                self.isupport.get("BOUNCER_NETID"),
+                papo_proto::Advertised::Absent
+            )
+            || self
+                .caps
+                .contains_key(&crate::Cap::from(crate::cap::BOUNCER_NETWORKS_NAME))
+        {
+            return None;
+        }
         let server = self.authenticated_server_name.as_deref()?;
-        let scope = format!("server={}:{server}", server.len());
-        let scope = if let Some(network) = &self.peer_bouncer_network {
-            format!("{scope};bouncer={}:{network}", network.len())
-        } else {
-            scope
-        };
-        Some(scope)
+        Some(format!("server={}:{server}", server.len()))
     }
 
     pub(crate) fn parse_target_inner(
@@ -392,10 +396,6 @@ impl State {
             caps: session.caps().clone(),
             isupport: Arc::new(Isupport::from_proto(session.isupport().clone())),
             authenticated_server_name: session.__authenticated_server_name().map(str::to_owned),
-            peer_bouncer_network: match session.isupport().get("BOUNCER_NETID") {
-                papo_proto::Advertised::Value(id) => Some(id.to_owned()),
-                _ => None,
-            },
             #[cfg(feature = "unstable")]
             bouncer_network: match session.isupport().get("BOUNCER_NETID") {
                 papo_proto::Advertised::Value(id) => Some(papo_core::NetworkId::from(id)),
@@ -670,7 +670,7 @@ mod name_tests {
         State::from_session(&session, false)
     }
 
-    fn peer_scope(network: Option<&str>) -> String {
+    fn peer_scope(isupport: Option<&str>) -> Option<String> {
         let mut session = Session::new(Config::default());
         session.handle_connected_with(
             crate::rt::now_mono(),
@@ -680,23 +680,26 @@ mod name_tests {
                 authenticated_server_name: Some("bouncer.example".into()),
             },
         );
-        if let Some(network) = network {
+        if let Some(isupport) = isupport {
             session.handle_line(
                 crate::rt::now_mono(),
-                format!(":soju.example 005 papo BOUNCER_NETID={network} :are supported").as_bytes(),
+                format!(":irc.example 005 papo {isupport} :are supported").as_bytes(),
             );
         }
-        State::from_session(&session, true).peer_scope().unwrap()
+        State::from_session(&session, true).peer_scope()
     }
 
     #[test]
-    fn bound_bouncer_network_is_part_of_the_authenticated_scope() {
-        assert_eq!(peer_scope(None), "server=15:bouncer.example");
+    fn peer_scope_requires_isupport_and_refuses_bouncers() {
+        assert_eq!(peer_scope(None), None);
         assert_eq!(
-            peer_scope(Some("libera-42")),
-            "server=15:bouncer.example;bouncer=9:libera-42"
+            peer_scope(Some("CASEMAPPING=rfc1459")),
+            Some("server=15:bouncer.example".to_owned())
         );
-        assert_ne!(peer_scope(Some("libera-42")), peer_scope(Some("oftc-17")));
+        assert_eq!(
+            peer_scope(Some("CASEMAPPING=rfc1459 BOUNCER_NETID=libera-42")),
+            None
+        );
     }
 
     #[test]
