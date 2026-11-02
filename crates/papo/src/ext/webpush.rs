@@ -47,6 +47,28 @@ impl PushKeys {
     }
 }
 
+/// Outcome of registering a Web Push subscription.
+///
+/// [Ergo reports a warning after successful registration](https://github.com/ergochat/ergo/blob/v2.19.1/irc/handlers.go#L4383-L4386)
+/// when the account is not always-on. The subscription is registered, but push notifications
+/// will not arrive until always-on mode is enabled.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub struct RegisterOutcome {
+    persistence_required: bool,
+}
+
+impl RegisterOutcome {
+    /// Returns whether push delivery requires the account to enable always-on mode.
+    ///
+    /// When this is true, the application should tell the user to enable always-on mode. The
+    /// registration succeeded, but push notifications will not arrive until they do.
+    #[must_use]
+    pub const fn persistence_required(&self) -> bool {
+        self.persistence_required
+    }
+}
+
 impl WebPush {
     /// Registers a Web Push endpoint and its URL-safe encoded keys.
     ///
@@ -66,7 +88,7 @@ impl WebPush {
         &self,
         endpoint: impl Into<String>,
         keys: PushKeys,
-    ) -> crate::RequestFuture<()> {
+    ) -> crate::RequestFuture<RegisterOutcome> {
         let client = self.client.clone();
         let endpoint = endpoint.into();
         crate::RequestFuture::new(async move {
@@ -77,7 +99,7 @@ impl WebPush {
                     auth: keys.auth,
                 })
                 .await?;
-            webpush_result(&response)
+            register_result(&response)
         })
     }
 
@@ -118,6 +140,23 @@ fn webpush_result(response: &Response) -> Result<(), Error> {
     crate::requests::empty(response)
 }
 
+fn register_result(response: &Response) -> Result<RegisterOutcome, Error> {
+    crate::requests::empty(response)?;
+    let persistence_required = response.lines.iter().any(|line| {
+        let message = line.as_ref();
+        message.command_is("WARN")
+            && message
+                .param(0)
+                .is_some_and(|command| command.eq_ignore_ascii_case("WEBPUSH"))
+            && message
+                .param(1)
+                .is_some_and(|code| code.eq_ignore_ascii_case("PERSISTENCE_REQUIRED"))
+    });
+    Ok(RegisterOutcome {
+        persistence_required,
+    })
+}
+
 #[cfg(all(test, not(browser)))]
 mod tests {
     use crate::driver::test_support::*;
@@ -152,12 +191,39 @@ mod tests {
             }
         });
         client_line(&mut server, b"@label=0 WEBPUSH REGISTER https://push.example.net/message/ErgoTest/alice p256dh=AQIDBAUGBwgJCgsMDQ4P_w;auth=-vv8_f7_\r\n").await;
-        server_line(
-            &mut server,
-            b"@label=0 :ergo.test WEBPUSH REGISTER https://push.example.net/message/ErgoTest/alice p256dh=AQIDBAUGBwgJCgsMDQ4P_w;auth=-vv8_f7_\r\n",
-        )
-        .await;
-        assert!(within(register).await.unwrap().is_ok());
+        server_line(&mut server, b"@label=0 :ergo.test BATCH +webpush0 labeled-response\r\n@batch=webpush0 :ergo.test WEBPUSH REGISTER https://push.example.net/message/ErgoTest/alice p256dh=AQIDBAUGBwgJCgsMDQ4P_w;auth=-vv8_f7_\r\n@batch=webpush0 :ergo.test WARN WEBPUSH PERSISTENCE_REQUIRED :You have enabled push notifications, but you will not receive them unless you become always-on\r\n:ergo.test BATCH -webpush0\r\n").await;
+        assert!(
+            within(register)
+                .await
+                .unwrap()
+                .unwrap()
+                .persistence_required()
+        );
+
+        let unrelated_warning = tokio::spawn({
+            let client = client.clone();
+            async move {
+                client
+                    .webpush()
+                    .register(
+                        "https://push.example.net/message/ErgoTest/alice",
+                        super::PushKeys::new(
+                            "AQIDBAUGBwgJCgsMDQ4P_w",
+                            crate::Secret::new("-vv8_f7_"),
+                        ),
+                    )
+                    .await
+            }
+        });
+        client_line(&mut server, b"@label=1 WEBPUSH REGISTER https://push.example.net/message/ErgoTest/alice p256dh=AQIDBAUGBwgJCgsMDQ4P_w;auth=-vv8_f7_\r\n").await;
+        server_line(&mut server, b"@label=1 :ergo.test BATCH +webpush1 labeled-response\r\n@batch=webpush1 :ergo.test WEBPUSH REGISTER https://push.example.net/message/ErgoTest/alice p256dh=AQIDBAUGBwgJCgsMDQ4P_w;auth=-vv8_f7_\r\n@batch=webpush1 :ergo.test WARN REGISTER PERSISTENCE_REQUIRED :This text must not control Web Push behavior\r\n:ergo.test BATCH -webpush1\r\n").await;
+        assert!(
+            !within(unrelated_warning)
+                .await
+                .unwrap()
+                .unwrap()
+                .persistence_required()
+        );
 
         let unregister = tokio::spawn(async move {
             client
@@ -167,12 +233,12 @@ mod tests {
         });
         client_line(
             &mut server,
-            b"@label=1 WEBPUSH UNREGISTER https://push.example.net/message/ErgoTest/alice\r\n",
+            b"@label=2 WEBPUSH UNREGISTER https://push.example.net/message/ErgoTest/alice\r\n",
         )
         .await;
         server_line(
             &mut server,
-            b"@label=1 :ergo.test FAIL WEBPUSH MAX_REGISTRATIONS :Too many registrations\r\n",
+            b"@label=2 :ergo.test FAIL WEBPUSH MAX_REGISTRATIONS :Too many registrations\r\n",
         )
         .await;
         assert!(matches!(

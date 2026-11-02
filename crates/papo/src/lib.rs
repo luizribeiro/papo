@@ -341,7 +341,7 @@ pub use ext::monitor::Monitor;
 pub use ext::{
     bouncer::{AddNetwork, Bouncer, ChangeNetwork},
     persistence::Persistence,
-    webpush::{PushKeys, WebPush},
+    webpush::{PushKeys, RegisterOutcome, WebPush},
 };
 pub use isupport_impl::Isupport;
 pub use message_ref::{MessageRef, NoticeRef};

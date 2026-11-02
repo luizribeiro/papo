@@ -3110,6 +3110,24 @@ impl core::marker::Unpin for papo::Reconnect
 impl core::marker::UnsafeUnpin for papo::Reconnect
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Reconnect
 impl core::panic::unwind_safe::UnwindSafe for papo::Reconnect
+#[non_exhaustive] pub struct papo::RegisterOutcome
+impl papo::RegisterOutcome
+pub const fn papo::RegisterOutcome::persistence_required(&self) -> bool
+impl core::clone::Clone for papo::RegisterOutcome
+pub fn papo::RegisterOutcome::clone(&self) -> Self
+impl core::cmp::Eq for papo::RegisterOutcome
+impl core::cmp::PartialEq for papo::RegisterOutcome
+pub fn papo::RegisterOutcome::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::RegisterOutcome
+pub fn papo::RegisterOutcome::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::RegisterOutcome
+impl core::marker::Freeze for papo::RegisterOutcome
+impl core::marker::Send for papo::RegisterOutcome
+impl core::marker::Sync for papo::RegisterOutcome
+impl core::marker::Unpin for papo::RegisterOutcome
+impl core::marker::UnsafeUnpin for papo::RegisterOutcome
+impl core::panic::unwind_safe::RefUnwindSafe for papo::RegisterOutcome
+impl core::panic::unwind_safe::UnwindSafe for papo::RegisterOutcome
 pub struct papo::RenameChannel
 impl papo::RenameChannel
 pub fn papo::RenameChannel::reason(self, impl core::convert::Into<alloc::string::String>) -> Self
@@ -3442,7 +3460,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::WebIrc
 impl core::panic::unwind_safe::UnwindSafe for papo::WebIrc
 pub struct papo::WebPush
 impl papo::WebPush
-pub fn papo::WebPush::register(&self, impl core::convert::Into<alloc::string::String>, papo::PushKeys) -> papo::RequestFuture<()>
+pub fn papo::WebPush::register(&self, impl core::convert::Into<alloc::string::String>, papo::PushKeys) -> papo::RequestFuture<papo::RegisterOutcome>
 pub fn papo::WebPush::unregister(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 impl core::fmt::Debug for papo::WebPush
 pub fn papo::WebPush::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
