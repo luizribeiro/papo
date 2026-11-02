@@ -579,10 +579,7 @@ impl State {
         self.core.monitor_online()
     }
 
-    /// Iterates over desired monitored nicknames in insertion order.
-    ///
-    /// The iterator includes nicknames that the server rejected because its
-    /// monitor list was full.
+    /// Iterates over currently tracked monitored nicknames in insertion order.
     #[must_use]
     pub fn monitored(&self) -> impl ExactSizeIterator<Item = &Nick> {
         self.core.monitored()

@@ -70,8 +70,20 @@ impl Monitor {
         self.pending.contains(&key) || self.tracked.contains(&key)
     }
 
+    pub(super) fn confirms(&self, nick: &str) -> bool {
+        self.tracked.contains(&self.casemapping.nick(nick))
+    }
+
     pub(super) fn reserved_len(&self) -> usize {
         self.pending.len() + self.tracked.len()
+    }
+
+    pub(super) fn limit(&self, isupport: &Isupport) -> Option<usize> {
+        let advertised = match isupport.monitor()? {
+            LimitValue::Limited(limit) => limit,
+            LimitValue::Unlimited => usize::MAX,
+        };
+        Some(self.server_limit.unwrap_or(advertised).min(advertised))
     }
 
     pub(super) fn online(&self) -> impl Iterator<Item = (&str, Option<&str>, Option<&str>)> {
