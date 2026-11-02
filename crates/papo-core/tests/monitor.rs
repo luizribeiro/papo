@@ -218,7 +218,7 @@ fn desired_nicks_keep_insertion_order_after_add_and_remove() {
                     .monitored()
                     .map(Nick::as_str)
                     .collect::<Vec<_>>(),
-                ["alice", "carol", "dave"]
+                ["alice", "carol"]
             );
         })
         .no_client();
@@ -457,7 +457,7 @@ fn list_full_forgets_only_the_rejected_presence() {
             );
         })
         .server(":ergo.test 730 papo :alice!~alice@cloak.example")
-        .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "alice"))
+        .no_event()
         .server(":ergo.test 730 papo :bob!bob@users.example")
         .no_event();
 }

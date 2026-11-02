@@ -884,7 +884,7 @@ impl State {
     pub(crate) fn sync_monitored(&mut self, monitor: &Monitor, isupport: &Isupport) {
         self.update_casemapping(isupport.casemapping());
         let monitored = monitor
-            .desired()
+            .tracked()
             .map(|nick| self.casemapping.nick(nick))
             .collect();
         if self.monitored != monitored {
@@ -969,6 +969,13 @@ impl State {
                 let user = self.new_user(nick, username, host);
                 self.users.insert(key.clone(), user);
             }
+            if let Some(user) = self.users.get_mut(&key) {
+                user.monitored = true;
+            }
+        } else if monitor
+            .direct()
+            .any(|known| crate::names_equal(isupport.casemapping(), known, nick))
+        {
             if let Some(user) = self.users.get_mut(&key) {
                 user.monitored = true;
             }

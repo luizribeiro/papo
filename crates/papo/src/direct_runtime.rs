@@ -163,8 +163,13 @@ mod tests {
         let mut session = Session::new(Config::default());
         session.handle_line(
             crate::rt::now_mono(),
+            b":ergo.test 001 papo :Welcome to ErgoTest",
+        );
+        session.handle_line(
+            crate::rt::now_mono(),
             b":ergo.test 005 papo MONITOR=100 :are supported",
         );
+        session.handle_line(crate::rt::now_mono(), b":ergo.test 376 papo :End of MOTD");
         session.monitor_add((0..99).map(|index| format!("reviewer{index}")));
         assert!(
             require_monitor_slot(&crate::State::from_session(&session, false), "alice").is_ok()

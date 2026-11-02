@@ -15,6 +15,8 @@ type NickKey = Nick;
 pub(super) struct Monitor {
     desired: Vec<String>,
     direct: HashMap<NickKey, DirectWatch>,
+    pending: HashSet<NickKey>,
+    tracked: HashSet<NickKey>,
     presence: HashMap<NickKey, Presence>,
     casemapping: Names,
     unsupported_warned: bool,
@@ -52,12 +54,23 @@ impl Monitor {
             .any(|known| crate::names_equal(isupport.casemapping(), known, nick))
     }
 
-    pub(super) fn desired(&self) -> impl Iterator<Item = &str> {
-        self.desired.iter().map(String::as_str)
-    }
-
     pub(super) fn direct(&self) -> impl Iterator<Item = &str> {
         self.direct.values().map(|watch| watch.nick.as_str())
+    }
+
+    pub(super) fn tracked(&self) -> impl Iterator<Item = &str> {
+        self.desired
+            .iter()
+            .filter_map(|nick| self.reserves(nick).then_some(nick.as_str()))
+    }
+
+    pub(super) fn reserves(&self, nick: &str) -> bool {
+        let key = self.casemapping.nick(nick);
+        self.pending.contains(&key) || self.tracked.contains(&key)
+    }
+
+    pub(super) fn reserved_len(&self) -> usize {
+        self.pending.len() + self.tracked.len()
     }
 
     pub(super) fn online(&self) -> impl Iterator<Item = (&str, Option<&str>, Option<&str>)> {
@@ -84,6 +97,8 @@ impl Monitor {
 
     pub(super) fn handle_disconnected(&mut self) {
         self.presence.clear();
+        self.pending.clear();
+        self.tracked.clear();
     }
 
     pub(super) fn identity_departed(&mut self, nick: &str, isupport: &Isupport) {
@@ -119,8 +134,11 @@ impl Monitor {
                 if isupport.monitor().is_some() {
                     transmit_chunks("-", &[old.to_owned()], outbox);
                     transmit_chunks("+", &[new.to_owned()], outbox);
+                    self.pending.insert(self.casemapping.nick(new));
                 }
             }
+            self.pending.remove(&old_key);
+            self.tracked.remove(&old_key);
             new.clone_into(&mut watch.nick);
             self.direct.insert(self.casemapping.nick(new), watch);
         }
@@ -166,6 +184,16 @@ impl Monitor {
         );
         if added {
             self.add([nick.to_owned()], isupport, registered, outbox);
+        } else if registered && !self.reserves(nick) {
+            let limit = match isupport.monitor() {
+                Some(LimitValue::Limited(limit)) => limit,
+                Some(LimitValue::Unlimited) => usize::MAX,
+                None => 0,
+            };
+            if self.reserved_len() < limit {
+                self.pending.insert(self.casemapping.nick(nick));
+                transmit_chunks("+", &[nick.to_owned()], outbox);
+            }
         }
     }
 
@@ -211,6 +239,8 @@ impl Monitor {
 
     pub(super) fn restore(&mut self, isupport: &Isupport, outbox: &mut Outbox) {
         self.presence.clear();
+        self.pending.clear();
+        self.tracked.clear();
         if matches!(isupport.get("MONITOR"), Advertised::Value("0")) {
             if !self.desired.is_empty() {
                 self.warn_unsupported(UnsupportedReason::LimitZero, outbox);
@@ -227,7 +257,10 @@ impl Monitor {
             LimitValue::Limited(limit) => limit,
             LimitValue::Unlimited => usize::MAX,
         };
-        transmit_chunks("+", &self.desired[..self.desired.len().min(limit)], outbox);
+        let requested = self.desired[..self.desired.len().min(limit)].to_vec();
+        self.pending
+            .extend(requested.iter().map(|nick| self.casemapping.nick(nick)));
+        transmit_chunks("+", &requested, outbox);
         if self.desired.len() > limit {
             outbox.event(Event::MonitorListFull {
                 limit,
@@ -270,7 +303,7 @@ impl Monitor {
                 full.push(nick);
                 continue;
             }
-            if registered && self.desired.len() < limit {
+            if registered && self.reserved_len() + added.len() < limit {
                 added.push(nick.clone());
             } else if registered && support.is_some() {
                 unavailable.push(nick.clone());
@@ -278,6 +311,8 @@ impl Monitor {
             self.desired.push(nick);
         }
         if !added.is_empty() {
+            self.pending
+                .extend(added.iter().map(|nick| mapping.nick(nick)));
             transmit_chunks("+", &added, outbox);
         }
         if !unavailable.is_empty() {
@@ -314,7 +349,12 @@ impl Monitor {
             Some(LimitValue::Unlimited) => usize::MAX,
             None => 0,
         };
-        let old: Vec<_> = self.desired.iter().take(limit).cloned().collect();
+        let old: Vec<_> = self
+            .desired
+            .iter()
+            .filter(|nick| self.reserves(nick))
+            .cloned()
+            .collect();
         for nick in nicks {
             let nick = nick.as_ref();
             if mapping.nick(nick).check(isupport).is_err() {
@@ -326,11 +366,28 @@ impl Monitor {
                 .position(|known| crate::names_equal(mapping, known, nick))
             {
                 self.desired.remove(index);
-                self.presence.remove(&mapping.nick(nick));
+                let key = mapping.nick(nick);
+                self.pending.remove(&key);
+                self.tracked.remove(&key);
+                self.presence.remove(&key);
             }
         }
         if registered && isupport.monitor().is_some() {
-            let new: Vec<_> = self.desired.iter().take(limit).cloned().collect();
+            let mut new: Vec<_> = self
+                .desired
+                .iter()
+                .filter(|nick| self.reserves(nick))
+                .cloned()
+                .collect();
+            for nick in &self.desired {
+                if new.len() == limit {
+                    break;
+                }
+                if !self.reserves(nick) {
+                    self.pending.insert(mapping.nick(nick));
+                    new.push(nick.clone());
+                }
+            }
             let removed: Vec<_> = old
                 .iter()
                 .filter(|nick| !new.iter().any(|new| crate::names_equal(mapping, nick, new)))
@@ -348,6 +405,8 @@ impl Monitor {
 
     pub(super) fn clear(&mut self, supported: bool, outbox: &mut Outbox) {
         self.desired.clear();
+        self.pending.clear();
+        self.tracked.clear();
         self.presence.clear();
         if supported {
             outbox.transmit("MONITOR", ["C"]);
@@ -397,7 +456,19 @@ impl Monitor {
                 }
                 let mapping = self.names(isupport);
                 for nick in &nicks {
-                    self.presence.remove(&mapping.nick(nick));
+                    let key = mapping.nick(nick);
+                    if !self.pending.remove(&key) && !self.tracked.remove(&key) {
+                        continue;
+                    }
+                    self.presence.remove(&key);
+                    self.direct.remove(&key);
+                    if let Some(index) = self
+                        .desired
+                        .iter()
+                        .position(|known| crate::names_equal(mapping, known, nick))
+                    {
+                        self.desired.remove(index);
+                    }
                 }
                 outbox.event(Event::MonitorListFull {
                     limit,
@@ -407,6 +478,20 @@ impl Monitor {
             _ => return Handled::No,
         }
         Handled::Yes
+    }
+
+    fn confirm(&mut self, nick: &str) -> bool {
+        let key = self.casemapping.nick(nick);
+        let desired = self
+            .desired
+            .iter()
+            .any(|known| self.casemapping.nick(known) == key);
+        if self.pending.remove(&key) || desired {
+            self.tracked.insert(key);
+            true
+        } else {
+            self.tracked.contains(&key)
+        }
     }
 
     fn handle_online(
@@ -423,6 +508,12 @@ impl Monitor {
                 continue;
             };
             handled = true;
+            if !self.confirm(nick)
+                && !internal_nick
+                    .is_some_and(|known| crate::names_equal(isupport.casemapping(), known, nick))
+            {
+                continue;
+            }
             if !self.accepts_presence(nick, isupport, internal_nick) {
                 continue;
             }
@@ -477,6 +568,12 @@ impl Monitor {
         let mut handled = false;
         for nick in entries.split(',').filter(|nick| !nick.is_empty()) {
             handled = true;
+            if !self.confirm(nick)
+                && !internal_nick
+                    .is_some_and(|known| crate::names_equal(isupport.casemapping(), known, nick))
+            {
+                continue;
+            }
             if self.accepts_presence(nick, isupport, internal_nick)
                 && self.replace_presence(nick, Presence::Offline(nick.to_owned()), isupport)
             {
@@ -494,7 +591,7 @@ impl Monitor {
         isupport: &Isupport,
         internal_nick: Option<&str>,
     ) -> bool {
-        self.desires(nick, isupport)
+        self.tracked.contains(&self.casemapping.nick(nick))
             || internal_nick
                 .is_some_and(|known| crate::names_equal(isupport.casemapping(), known, nick))
     }
@@ -525,6 +622,16 @@ impl Monitor {
         }
         self.casemapping = Names::new(mapping, self.casemapping.origin());
         let names = self.casemapping;
+        self.pending = self
+            .pending
+            .drain()
+            .map(|nick| names.nick(nick.as_str()))
+            .collect();
+        self.tracked = self
+            .tracked
+            .drain()
+            .map(|nick| names.nick(nick.as_str()))
+            .collect();
         let mut refolded = HashMap::new();
         for presence in std::mem::take(&mut self.presence).into_values() {
             refolded.insert(names.nick(presence.nick()), presence);
