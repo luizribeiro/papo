@@ -514,7 +514,9 @@ mod tests {
             Some("cloak.example"),
             Account::Unknown,
         );
-        result.send(Ok(acquired.clone())).unwrap();
+        result
+            .send(Ok(crate::direct_runtime::Acquired::new(acquired.clone())))
+            .unwrap();
         let crate::driver::Command::Request {
             message, result, ..
         } = next_command(&mut commands).await
@@ -678,7 +680,9 @@ mod tests {
             panic!("expected MONITOR acquisition")
         };
         let acquired = session.__direct_acquire("alice", None, None, account.clone());
-        result.send(Ok(acquired)).unwrap();
+        result
+            .send(Ok(crate::direct_runtime::Acquired::new(acquired)))
+            .unwrap();
         let crate::driver::Command::Request {
             message, result, ..
         } = next_command(&mut commands).await
@@ -740,7 +744,9 @@ mod tests {
             panic!("expected MONITOR acquisition")
         };
         result
-            .send(Ok(session.__direct_acquire("alice", None, None, account)))
+            .send(Ok(crate::direct_runtime::Acquired::new(
+                session.__direct_acquire("alice", None, None, account),
+            )))
             .unwrap();
         let crate::driver::Command::Request { message, .. } = next_command(&mut commands).await
         else {

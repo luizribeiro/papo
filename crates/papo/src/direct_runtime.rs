@@ -1,9 +1,24 @@
 use crate::{Account, Error};
 
-pub(crate) async fn acquire(
-    client: &crate::Client,
-    nick: String,
-) -> Result<papo_core::RecipientGuard, Error> {
+#[derive(Debug)]
+pub(crate) struct Acquired {
+    recipient: papo_core::RecipientGuard,
+}
+
+impl Acquired {
+    pub(crate) fn new(recipient: papo_core::RecipientGuard) -> Self {
+        Self { recipient }
+    }
+
+    pub(crate) fn confirmed(
+        self,
+        _client: &crate::Client,
+    ) -> std::future::Ready<Result<papo_core::RecipientGuard, Error>> {
+        std::future::ready(Ok(self.recipient))
+    }
+}
+
+pub(crate) async fn acquire(client: &crate::Client, nick: String) -> Result<Acquired, Error> {
     let (result, receiver) = tokio::sync::oneshot::channel();
     client
         .commands
@@ -34,8 +49,9 @@ pub(crate) async fn refresh(
 pub(crate) async fn prove(
     client: &crate::Client,
     nick: String,
-    acquired: papo_core::RecipientGuard,
+    acquired: Acquired,
 ) -> Result<(papo_core::RecipientGuard, Account), Error> {
+    let recipient = acquired.recipient;
     let response = match client
         .correlated(
             crate::Line::new("WHO").with_params([nick.clone(), "%na".to_owned()]),
@@ -45,21 +61,21 @@ pub(crate) async fn prove(
     {
         Ok(response) => response,
         Err(error) => {
-            release(client, acquired).await;
+            release(client, recipient).await;
             return Err(error);
         }
     };
     let account = match who_account(client, &nick, &response) {
         Ok(account) => account,
         Err(error) => {
-            release(client, acquired).await;
+            release(client, recipient).await;
             return Err(error);
         }
     };
-    match refresh(client, acquired.clone(), account.clone()).await {
+    match refresh(client, recipient.clone(), account.clone()).await {
         Ok(recipient) => Ok((recipient, account)),
         Err(error) => {
-            release(client, acquired).await;
+            release(client, recipient).await;
             Err(error)
         }
     }

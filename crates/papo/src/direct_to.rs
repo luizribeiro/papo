@@ -72,6 +72,7 @@ impl crate::Client {
             drop(snapshot);
             let acquired = crate::direct_runtime::acquire(&client, nick.clone()).await?;
             if !matches!(recipient.__account(), crate::Account::LoggedIn(_)) {
+                let acquired = acquired.confirmed(&client).await?;
                 return Ok(DirectRef::new(&client, acquired, true));
             }
             let (refreshed, actual) = crate::direct_runtime::prove(&client, nick, acquired).await?;

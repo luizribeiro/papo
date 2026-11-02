@@ -38,7 +38,7 @@ use papo_core::{
     Connection, HistoryQuery, RequestError, RequestId, Response, ResponseMatcher, Session,
     TextKind, TransmitToken, sts::StsStore,
 };
-use papo_proto::{Command as ProtoCommand, LimitValue, Line, Numeric, Typing};
+use papo_proto::{Command as ProtoCommand, Line, Numeric, Typing};
 use tokio::{
     io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
     sync::{mpsc, oneshot},
@@ -172,7 +172,7 @@ pub(crate) enum Command {
     },
     DirectAcquire {
         nick: String,
-        result: oneshot::Sender<Result<papo_core::RecipientGuard, Error>>,
+        result: oneshot::Sender<Result<crate::direct_runtime::Acquired, Error>>,
     },
     DirectProve {
         recipient: papo_core::RecipientGuard,
@@ -1140,13 +1140,10 @@ where
                     _ = result.send(Ok(()));
                 }
                 Some(Command::DirectAcquire { nick, result }) => {
-                    let already_monitored = session
-                        .state()
-                        .monitored()
-                        .any(|known| known == nick.as_str());
-                    if !already_monitored
-                        && let Some(LimitValue::Limited(limit)) = session.isupport().monitor()
-                        && session.state().monitored().len() >= limit
+                    let already_reserved = session.__monitor_reserves(&nick);
+                    if !already_reserved
+                        && let Some(limit) = session.__monitor_limit()
+                        && session.__monitor_reserved_len() >= limit
                     {
                         _ = result.send(Err(Error::MonitorFull { limit }));
                         continue;
@@ -1154,7 +1151,7 @@ where
                     let recipient =
                         session.__direct_acquire(&nick, None, None, crate::Account::Unknown);
                     publish_session_state(events, session);
-                    _ = result.send(Ok(recipient));
+                    _ = result.send(Ok(crate::direct_runtime::Acquired::new(recipient)));
                 }
                 Some(Command::DirectProve { recipient, account, result }) => {
                     let recipient = session
