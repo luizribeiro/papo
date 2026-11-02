@@ -1,5 +1,6 @@
 use papo::event::ModeChanged;
 use papo::{Account, AccountName, Conversation, Error, Event, Message, Refusal, State, Subject};
+use papo_test_server::DeploymentProfile;
 
 use crate::Peer;
 
@@ -18,6 +19,24 @@ pub(super) fn confirmed_line(
         panic!("message should be sent as one logical line")
     };
     (id, text, *server_time)
+}
+
+pub(super) fn assert_delivery_tags(
+    received_id: Option<&papo::MessageId>,
+    received_time: Option<std::time::SystemTime>,
+    sent_id: &papo::MessageId,
+    sent_time: Option<std::time::SystemTime>,
+    profile: DeploymentProfile,
+) {
+    assert_eq!(received_id, Some(sent_id));
+    assert!(received_time.is_some());
+    assert!(sent_time.is_some());
+
+    // Server-time requires a timestamp on each delivered copy, not a shared timestamp. Solanum
+    // stamps copies during outbound delivery; the other fixture servers stamp once before fanout.
+    if profile != DeploymentProfile::Solanum {
+        assert_eq!(received_time, sent_time);
+    }
 }
 
 pub(super) fn logged_in_account(state: &State) -> &AccountName {
@@ -164,4 +183,38 @@ pub(super) async fn wait_for_channel(peer: &mut Peer, channel: &str) -> papo_tes
     })
     .await?;
     Ok(())
+}
+
+mod tests {
+    use std::time::{Duration, UNIX_EPOCH};
+
+    use papo::MessageId;
+    use papo_test_server::DeploymentProfile;
+
+    use super::assert_delivery_tags;
+
+    #[test]
+    fn solanum_delivery_copies_may_have_distinct_timestamps() {
+        let id = MessageId::from("RfcBTzyxY120004");
+        assert_delivery_tags(
+            Some(&id),
+            Some(UNIX_EPOCH + Duration::from_millis(1_793_591_285_984)),
+            &id,
+            Some(UNIX_EPOCH + Duration::from_millis(1_793_591_285_985)),
+            DeploymentProfile::Solanum,
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "assertion `left == right` failed")]
+    fn shared_stamp_profiles_require_equal_delivery_timestamps() {
+        let id = MessageId::from("RfcBTzyxY120005");
+        assert_delivery_tags(
+            Some(&id),
+            Some(UNIX_EPOCH + Duration::from_millis(1_793_591_285_984)),
+            &id,
+            Some(UNIX_EPOCH + Duration::from_millis(1_793_591_285_985)),
+            DeploymentProfile::ErgoDefault,
+        );
+    }
 }

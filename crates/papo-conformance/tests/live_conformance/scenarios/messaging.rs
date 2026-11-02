@@ -3,7 +3,8 @@ use papo_conformance_macros::scenario;
 use papo_proto::Typing;
 
 use super::support::{
-    confirmed_line, conversation_is_private, conversation_name, message_text, notice_text,
+    assert_delivery_tags, confirmed_line, conversation_is_private, conversation_name, message_text,
+    notice_text,
 };
 use crate::{Peer, Scenario};
 
@@ -329,8 +330,13 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(received.raw_text, "private hello");
     assert!(is_private(&received));
     let (id, _, server_time) = confirmed_line(&sent);
-    assert_eq!(received.msgid(), Some(id));
-    assert_eq!(received.server_time, server_time);
+    assert_delivery_tags(
+        received.msgid(),
+        received.server_time,
+        id,
+        server_time,
+        papo_test_server::DeploymentProfile::from_env()?,
+    );
 
     let alice_direct = bob.direct(alice.nick().as_str()).await?;
     let sent = bob.notice(&alice_direct, "private notice").await?;
@@ -344,8 +350,13 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     );
     assert_eq!(received.raw_text, "private notice");
     let (id, _, server_time) = confirmed_line(&sent);
-    assert_eq!(received.msgid.as_ref(), Some(id));
-    assert_eq!(received.server_time, server_time);
+    assert_delivery_tags(
+        received.msgid.as_ref(),
+        received.server_time,
+        id,
+        server_time,
+        papo_test_server::DeploymentProfile::from_env()?,
+    );
 
     let own = alice.direct(alice.nick()).await?;
     let sent = alice.privmsg(own, "note to self").await?;
