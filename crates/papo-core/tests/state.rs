@@ -1338,6 +1338,51 @@ fn orders_membership_prefixes_after_each_mode_change() {
 }
 
 #[test]
+fn live_prefix_change_survives_an_older_join_who_row() {
+    Transcript::new(Config::default().nick("bob"))
+        .server(
+            ":ergo.test 005 bob CHANMODES=Ibe,k,fl,CEMRUimnstu WHOX PREFIX=(qaohv)~&@%+ :are supported",
+        )
+        .server(":bob!~u@localhost JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "bob"))
+        .server(":ergo.test 353 bob = #papo :@alice bob")
+        .server(":ergo.test 366 bob #papo :End of NAMES list")
+        .client("MODE #papo")
+        .client("WHO #papo %tcuhnfar,152")
+        .event(|event| matches!(event, Event::ChannelSynced { channel, .. } if channel == "#papo"))
+        .update(|session| {
+            session
+                .request_with_matcher(
+                    Instant::now(),
+                    Line::new("WHO").with_params(["#papo", "%tcuhnfar,152"]),
+                    ResponseMatcher::Who("#papo".into()),
+                )
+                .unwrap();
+        })
+        .client("WHO #papo %tcuhnfar,152")
+        .server(":alice!~u@localhost MODE #papo +v bob")
+        .server(":ergo.test 315 bob #papo :End of WHO list")
+        .server(":ergo.test 354 bob 152 #papo ~u localhost bob H@ 0 :papo test peer")
+        .server(":ergo.test 315 bob #papo :End of WHO list")
+        .server(":ergo.test 354 bob 152 #papo ~u localhost bob H 0 :papo test peer")
+        .inspect(|session| {
+            assert_eq!(
+                prefix_symbols(
+                    session
+                        .state()
+                        .channel("#papo")
+                        .unwrap()
+                        .member("bob")
+                        .unwrap()
+                        .prefixes()
+                ),
+                ['@', '+']
+            );
+        })
+        .ignore_rest();
+}
+
+#[test]
 fn ignores_membership_modes_for_unknown_channels_and_members() {
     Transcript::new(Config::default().nick("emily"))
         .server(":ergo.test 005 emily CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(ov)@+ :are supported")

@@ -1,7 +1,7 @@
 use super::{
     Account, AccountNotify, Authorship, Away, AwayNotify, Chghost, Command, Event, Handled,
-    Isupport, LineRef, Numeric, Outbox, ProtoSource, Setname, State, WHOX_FIELDS, WHOX_TOKEN,
-    WhoUser, WhoxFlags, WhoxPresence, WhoxReply,
+    Isupport, LineRef, NameKey, Numeric, Outbox, ProtoSource, Setname, State, WHOX_FIELDS,
+    WHOX_TOKEN, WhoSweep, WhoUser, WhoxFlags, WhoxPresence, WhoxReply,
 };
 
 impl State {
@@ -287,9 +287,9 @@ impl State {
     ) -> Option<Handled> {
         if message.command() == Command::Numeric(Numeric::RPL_ENDOFWHO) {
             let channel = self.casemapping.channel(message.param(1)?);
-            let count = self.who_sweeps.get_mut(&channel)?;
-            *count -= 1;
-            if *count == 0 {
+            let sweep = self.who_sweeps.get_mut(&channel)?;
+            sweep.count -= 1;
+            if sweep.count == 0 {
                 self.who_sweeps.remove(&channel);
             }
             outbox.event(Event::MembersRefreshed { channel });
@@ -336,6 +336,13 @@ impl State {
     }
 
     fn apply_who_user(&mut self, reply: WhoUser<'_>, flags: &WhoxFlags, outbox: &mut Outbox) {
+        let channel = self.casemapping.channel(reply.channel);
+        let nick = NameKey::new(reply.nick.to_owned(), self.casemapping);
+        let prefix_changes = self
+            .who_sweeps
+            .get(&channel)
+            .and_then(|sweep| sweep.prefix_changes.get(&nick))
+            .cloned();
         self.add_member(
             reply.channel,
             reply.nick,
@@ -344,6 +351,14 @@ impl State {
             &flags.prefixes,
             outbox,
         );
+        // Apply the snapshot first, then restore live changes observed while it was in flight.
+        if let Some(prefix_changes) = prefix_changes
+            && let Some(channel) = self.channel_mut(reply.channel)
+        {
+            for (prefix, action) in prefix_changes {
+                channel.apply_prefix_change(reply.nick, prefix, action);
+            }
+        }
         if let Some(user) = self
             .users
             .get_mut(self.casemapping.fold(reply.nick).as_ref())
@@ -427,7 +442,7 @@ impl State {
         if self.who_sweeps.contains_key(&key) {
             return;
         }
-        self.who_sweeps.insert(key, 1);
+        self.who_sweeps.insert(key, WhoSweep::new());
         if isupport.whox() {
             outbox.transmit("WHO", [channel, WHOX_FIELDS]);
         } else {
@@ -441,7 +456,10 @@ impl State {
             .channels
             .contains_key(self.casemapping.fold(channel).as_ref())
         {
-            *self.who_sweeps.entry(key).or_default() += 1;
+            self.who_sweeps
+                .entry(key)
+                .and_modify(|sweep| sweep.count += 1)
+                .or_insert_with(WhoSweep::new);
         }
     }
 }

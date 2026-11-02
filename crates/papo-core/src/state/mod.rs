@@ -64,7 +64,7 @@ pub struct State {
     channels: HashMap<NameKey<String>, Arc<Channel>>,
     users: HashMap<NameKey<String>, User>,
     monitored: Vec<Nick>,
-    who_sweeps: HashMap<ChannelName, usize>,
+    who_sweeps: HashMap<ChannelName, WhoSweep>,
     who_on_join: WhoOnJoin,
     read_markers: HashMap<NameKey<String>, ReadMarker>,
     read_marker_order: BoundedCollection<NameKey<String>>,
@@ -93,6 +93,23 @@ pub struct State {
     limits_warned: HashSet<StateLimit>,
     pub(crate) typing: Arc<TypingTable>,
     change_generation: u64,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct WhoSweep {
+    count: usize,
+    // WHO rows are snapshots that may have been assembled before a later live MODE line. Keep
+    // only the last live action for each bounded member/prefix pair until every sweep completes.
+    prefix_changes: HashMap<NameKey<String>, HashMap<Prefix, papo_proto::ModeAction>>,
+}
+
+impl WhoSweep {
+    fn new() -> Self {
+        Self {
+            count: 1,
+            prefix_changes: HashMap::new(),
+        }
+    }
 }
 
 impl Clone for State {
@@ -1214,12 +1231,25 @@ impl State {
             return false;
         };
         let maximum = self.max_list_entries_per_mode;
+        let mut prefix_changes = Vec::new();
+        let mut list_limit = false;
         if let Some(modestring) = message.param(1)
             && let Some(channel) = self.channel_mut(target)
         {
-            channel.apply_modes(modestring, message.params().skip(2), isupport, false);
-            if channel.apply_list_modes(message, modestring, isupport, maximum) {
-                self.warn_limit(StateLimit::ListEntries, outbox);
+            prefix_changes =
+                channel.apply_modes(modestring, message.params().skip(2), isupport, false);
+            list_limit = channel.apply_list_modes(message, modestring, isupport, maximum);
+        }
+        if list_limit {
+            self.warn_limit(StateLimit::ListEntries, outbox);
+        }
+        if let Some(sweep) = self.who_sweeps.get_mut(&self.casemapping.channel(target)) {
+            for (nick, prefix, action) in prefix_changes {
+                sweep
+                    .prefix_changes
+                    .entry(nick)
+                    .or_default()
+                    .insert(prefix, action);
             }
         }
         true
@@ -1289,7 +1319,7 @@ impl State {
                 return false;
             };
             if let Some(modestring) = message.param(2) {
-                channel.apply_modes(modestring, message.params().skip(3), isupport, true);
+                _ = channel.apply_modes(modestring, message.params().skip(3), isupport, true);
             }
         } else {
             let created_at = message.param(2).and_then(parse_unix_seconds);
@@ -1461,12 +1491,16 @@ impl State {
         }
         self.users = users;
         let mut who_sweeps = HashMap::new();
-        for (channel, count) in std::mem::take(&mut self.who_sweeps) {
+        for (channel, mut sweep) in std::mem::take(&mut self.who_sweeps) {
+            sweep.prefix_changes = std::mem::take(&mut sweep.prefix_changes)
+                .into_iter()
+                .map(|(nick, changes)| (NameKey::new(nick.original().to_owned(), mapping), changes))
+                .collect();
             who_sweeps.insert(
                 self.casemapping
                     .origin()
                     .__channel(mapping, channel.as_str()),
-                count,
+                sweep,
             );
         }
         self.who_sweeps = who_sweeps;
@@ -1762,7 +1796,8 @@ impl Channel {
         args: impl Iterator<Item = &'a str> + 'a,
         isupport: &'a Isupport,
         replace: bool,
-    ) {
+    ) -> Vec<(NameKey<String>, Prefix, papo_proto::ModeAction)> {
+        let mut prefix_changes = Vec::new();
         if replace {
             self.modes.clear();
             self.key = None;
@@ -1783,38 +1818,12 @@ impl Channel {
                     let Some(nick) = change.arg else {
                         continue;
                     };
-                    let Some(member) = self.members.get_mut(self.casemapping.fold(nick).as_ref())
-                    else {
-                        continue;
-                    };
-                    if change.action == papo_proto::ModeAction::Add
-                        && !member.prefixes.contains(&prefix)
-                    {
-                        member.prefixes.push(prefix);
-                        for index in 1..member.prefixes.len() {
-                            let mut index = index;
-                            while index > 0 {
-                                let Some((current, previous)) = member
-                                    .prefixes
-                                    .get(index)
-                                    .zip(member.prefixes.get(index - 1))
-                                else {
-                                    break;
-                                };
-                                let out_of_order = self
-                                    .prefix_order
-                                    .iter()
-                                    .position(|item| item == current)
-                                    < self.prefix_order.iter().position(|item| item == previous);
-                                if !out_of_order {
-                                    break;
-                                }
-                                member.prefixes.swap(index, index - 1);
-                                index -= 1;
-                            }
-                        }
-                    } else if change.action == papo_proto::ModeAction::Remove {
-                        member.prefixes.retain(|held| *held != prefix);
+                    if self.apply_prefix_change(nick, prefix, change.action) {
+                        prefix_changes.push((
+                            NameKey::new(nick.to_owned(), self.casemapping),
+                            prefix,
+                            change.action,
+                        ));
                     }
                 }
                 ModeKind::AlwaysArg | ModeKind::ArgWhenSet | ModeKind::NoArg => {
@@ -1832,6 +1841,29 @@ impl Channel {
                 ModeKind::List | ModeKind::Unknown => {}
             }
         }
+        prefix_changes
+    }
+
+    fn apply_prefix_change(
+        &mut self,
+        nick: &str,
+        prefix: Prefix,
+        action: papo_proto::ModeAction,
+    ) -> bool {
+        let Some(member) = self.members.get_mut(self.casemapping.fold(nick).as_ref()) else {
+            return false;
+        };
+        if action == papo_proto::ModeAction::Add && !member.prefixes.contains(&prefix) {
+            member.prefixes.push(prefix);
+            member.prefixes.sort_by_key(|held| {
+                self.prefix_order
+                    .iter()
+                    .position(|advertised| advertised == held)
+            });
+        } else if action == papo_proto::ModeAction::Remove {
+            member.prefixes.retain(|held| *held != prefix);
+        }
+        true
     }
 
     fn apply_list_modes(
