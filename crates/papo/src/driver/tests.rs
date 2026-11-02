@@ -1925,6 +1925,7 @@ fn only_bad_keys_remove_channels_from_the_rejoin_set() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+#[allow(clippy::too_many_lines)]
 async fn write_timeout_resumes_before_the_next_line() {
     let now = crate::rt::now_mono();
     let mut session = Session::new(config().rate_limit(papo_core::RateLimit::unlimited()));
@@ -1947,6 +1948,7 @@ async fn write_timeout_resumes_before_the_next_line() {
     let mut transmits = std::collections::BTreeMap::new();
     let mut join_keys = std::collections::BTreeMap::new();
     let mut sync_waiters = Vec::new();
+    let mut direct_waiters = Vec::new();
     let mut catchups = std::collections::BTreeMap::new();
     let mut resolved_sent = VecDeque::new();
     let mut registration = super::ConnectWait::default();
@@ -1977,6 +1979,7 @@ async fn write_timeout_resumes_before_the_next_line() {
         &mut transmits,
         &mut join_keys,
         &mut sync_waiters,
+        &mut direct_waiters,
         &mut catchups,
         &mut resolved_sent,
         &mut registration,
@@ -2008,6 +2011,7 @@ async fn write_timeout_resumes_before_the_next_line() {
         &mut transmits,
         &mut join_keys,
         &mut sync_waiters,
+        &mut direct_waiters,
         &mut catchups,
         &mut resolved_sent,
         &mut registration,
@@ -7022,6 +7026,35 @@ async fn typed_channel_and_guarded_direct_destinations_reach_the_wire() {
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[test]
+fn direct_confirmation_skips_waiters_for_other_nicks() {
+    let mut session = Session::new(config());
+    let bob = session.__direct_acquire("bob", None, None, crate::Account::Unknown);
+    let alice = session.__direct_acquire("alice", None, None, crate::Account::Unknown);
+    let (bob_result, mut bob_receiver) = tokio::sync::oneshot::channel();
+    let (alice_result, mut alice_receiver) = tokio::sync::oneshot::channel();
+    let mut waiters = vec![
+        super::PendingDirect {
+            recipient: bob,
+            result: bob_result,
+        },
+        super::PendingDirect {
+            recipient: alice,
+            result: alice_result,
+        },
+    ];
+
+    super::resolve_direct_waiter(&mut session, &mut waiters, "alice", None);
+
+    assert!(matches!(alice_receiver.try_recv(), Ok(Ok(()))));
+    assert!(matches!(
+        bob_receiver.try_recv(),
+        Err(tokio::sync::oneshot::error::TryRecvError::Empty)
+    ));
+    assert_eq!(waiters.len(), 1);
+    assert_eq!(waiters.first().unwrap().recipient.__nick(), "bob");
 }
 
 #[tokio::test(flavor = "current_thread")]

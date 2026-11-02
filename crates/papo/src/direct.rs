@@ -515,7 +515,10 @@ mod tests {
             Account::Unknown,
         );
         result
-            .send(Ok(crate::direct_runtime::Acquired::new(acquired.clone())))
+            .send(Ok(crate::direct_runtime::Acquired::new(
+                acquired.clone(),
+                None,
+            )))
             .unwrap();
         let crate::driver::Command::Request {
             message, result, ..
@@ -681,7 +684,7 @@ mod tests {
         };
         let acquired = session.__direct_acquire("alice", None, None, account.clone());
         result
-            .send(Ok(crate::direct_runtime::Acquired::new(acquired)))
+            .send(Ok(crate::direct_runtime::Acquired::new(acquired, None)))
             .unwrap();
         let crate::driver::Command::Request {
             message, result, ..
@@ -746,6 +749,7 @@ mod tests {
         result
             .send(Ok(crate::direct_runtime::Acquired::new(
                 session.__direct_acquire("alice", None, None, account),
+                None,
             )))
             .unwrap();
         let crate::driver::Command::Request { message, .. } = next_command(&mut commands).await

@@ -3,18 +3,34 @@ use crate::{Account, Error};
 #[derive(Debug)]
 pub(crate) struct Acquired {
     recipient: papo_core::RecipientGuard,
+    confirmation: Option<tokio::sync::oneshot::Receiver<Result<(), Error>>>,
 }
 
 impl Acquired {
-    pub(crate) fn new(recipient: papo_core::RecipientGuard) -> Self {
-        Self { recipient }
+    pub(crate) fn new(
+        recipient: papo_core::RecipientGuard,
+        confirmation: Option<tokio::sync::oneshot::Receiver<Result<(), Error>>>,
+    ) -> Self {
+        Self {
+            recipient,
+            confirmation,
+        }
     }
 
-    pub(crate) fn confirmed(
+    pub(crate) async fn confirmed(
         self,
-        _client: &crate::Client,
-    ) -> std::future::Ready<Result<papo_core::RecipientGuard, Error>> {
-        std::future::ready(Ok(self.recipient))
+        client: &crate::Client,
+    ) -> Result<papo_core::RecipientGuard, Error> {
+        if let Some(confirmation) = self.confirmation {
+            match confirmation.await.map_err(|_| Error::connection_lost())? {
+                Ok(()) => {}
+                Err(error) => {
+                    release(client, self.recipient).await;
+                    return Err(error);
+                }
+            }
+        }
+        Ok(self.recipient)
     }
 }
 

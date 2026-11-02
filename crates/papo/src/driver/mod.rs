@@ -874,6 +874,11 @@ struct PendingWrite {
     token: Option<TransmitToken>,
 }
 
+struct PendingDirect {
+    recipient: papo_core::RecipientGuard,
+    result: oneshot::Sender<Result<(), Error>>,
+}
+
 impl ConnectionEnd {
     fn login_error(&self, awaiting_registration: bool) -> Error {
         match &self.error {
@@ -931,6 +936,7 @@ where
     let mut join_keys = BTreeMap::new();
     let mut active_typing = BTreeMap::new();
     let mut sync_waiters = Vec::new();
+    let mut direct_waiters = Vec::new();
     let mut catchups = BTreeMap::new();
     let mut resolved_sent = VecDeque::new();
     let mut registered_at = None;
@@ -958,6 +964,7 @@ where
             &mut transmits,
             &mut join_keys,
             &mut sync_waiters,
+            &mut direct_waiters,
             &mut catchups,
             &mut resolved_sent,
             registration,
@@ -1151,7 +1158,20 @@ where
                     let recipient =
                         session.__direct_acquire(&nick, None, None, crate::Account::Unknown);
                     publish_session_state(events, session);
-                    _ = result.send(Ok(crate::direct_runtime::Acquired::new(recipient)));
+                    let confirmation = if session.__monitor_confirms(&nick) {
+                        None
+                    } else {
+                        let (result, receiver) = oneshot::channel();
+                        direct_waiters.push(PendingDirect {
+                            recipient: recipient.clone(),
+                            result,
+                        });
+                        Some(receiver)
+                    };
+                    _ = result.send(Ok(crate::direct_runtime::Acquired::new(
+                        recipient,
+                        confirmation,
+                    )));
                 }
                 Some(Command::DirectProve { recipient, account, result }) => {
                     let recipient = session
@@ -1327,6 +1347,11 @@ where
     for (_, result) in sync_waiters {
         _ = result.send(Err(Error::disconnected(disconnected.clone())));
     }
+    for waiter in direct_waiters {
+        _ = waiter
+            .result
+            .send(Err(Error::disconnected(disconnected.clone())));
+    }
     publish_session_state(events, session);
     close_stream_before(
         &mut stream,
@@ -1407,6 +1432,7 @@ async fn drain<S>(
     transmits: &mut BTreeMap<TransmitToken, PendingTransmit>,
     join_keys: &mut BTreeMap<RequestId, (crate::ChannelName, Option<crate::Secret>)>,
     sync_waiters: &mut Vec<(String, oneshot::Sender<Result<(), Error>>)>,
+    direct_waiters: &mut Vec<PendingDirect>,
     catchups: &mut BTreeMap<RequestId, Catchup>,
     resolved_sent: &mut VecDeque<String>,
     registration: &mut ConnectWait,
@@ -1455,6 +1481,7 @@ where
             Some(session.state()),
         ) {
             event::CoreEvent::Forward(mut event) => {
+                resolve_direct_waiters(session, direct_waiters, &event);
                 let state = events
                     .state
                     .read()
@@ -1664,6 +1691,42 @@ where
     }
     drain_transmit(stream, session, pending_write, transmits, deadline).await?;
     Ok(None)
+}
+
+fn resolve_direct_waiters(session: &mut Session, waiters: &mut Vec<PendingDirect>, event: &Event) {
+    match event {
+        Event::MonitorOnline(online) => {
+            resolve_direct_waiter(session, waiters, online.subject.nick().as_str(), None);
+        }
+        Event::MonitorOffline(offline) => {
+            resolve_direct_waiter(session, waiters, offline.subject.as_str(), None);
+        }
+        Event::Warning(event::Warning::MonitorListFull { maximum, nicks }) => {
+            for nick in nicks {
+                resolve_direct_waiter(session, waiters, nick.as_str(), Some(*maximum));
+            }
+        }
+        _ => {}
+    }
+}
+
+fn resolve_direct_waiter(
+    session: &mut Session,
+    waiters: &mut Vec<PendingDirect>,
+    nick: &str,
+    limit: Option<usize>,
+) {
+    let key = session.isupport().casemapping().fold(nick);
+    while let Some(index) = waiters
+        .iter()
+        .position(|pending| pending.recipient.__nick().key() == key)
+    {
+        let pending = waiters.swap_remove(index);
+        let result = limit.map_or_else(|| Ok(()), |limit| Err(Error::MonitorFull { limit }));
+        if pending.result.send(result).is_err() && limit.is_none() {
+            session.__direct_release(&pending.recipient);
+        }
+    }
 }
 
 const RESOLVED_SENT_CAPACITY: usize = 1_024;
