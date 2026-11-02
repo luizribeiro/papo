@@ -538,9 +538,6 @@ impl Monitor {
             {
                 continue;
             }
-            if !self.accepts_presence(nick, isupport, internal_nick) {
-                continue;
-            }
             let previous = self
                 .presence
                 .get(&self.casemapping.nick(nick))
@@ -598,26 +595,13 @@ impl Monitor {
             {
                 continue;
             }
-            if self.accepts_presence(nick, isupport, internal_nick)
-                && self.replace_presence(nick, Presence::Offline(nick.to_owned()), isupport)
-            {
+            if self.replace_presence(nick, Presence::Offline(nick.to_owned()), isupport) {
                 outbox.event(Event::MonitorOffline {
                     nick: self.casemapping.nick(nick),
                 });
             }
         }
         handled
-    }
-
-    fn accepts_presence(
-        &self,
-        nick: &str,
-        isupport: &Isupport,
-        internal_nick: Option<&str>,
-    ) -> bool {
-        self.tracked.contains(&self.casemapping.nick(nick))
-            || internal_nick
-                .is_some_and(|known| crate::names_equal(isupport.casemapping(), known, nick))
     }
 
     fn replace_presence(&mut self, nick: &str, next: Presence, isupport: &Isupport) -> bool {
