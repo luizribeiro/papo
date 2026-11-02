@@ -149,7 +149,7 @@ mod tests {
         client_line(&mut server, b"@label=0 WEBPUSH REGISTER https://push.example.net/message/ErgoTest/alice p256dh=AQIDBAUGBwgJCgsMDQ4P_w;auth=-vv8_f7_\r\n").await;
         server_line(
             &mut server,
-            b"@label=0 :ergo.test WEBPUSH SUCCESS :Subscription registered\r\n",
+            b"@label=0 :ergo.test WEBPUSH REGISTER https://push.example.net/message/ErgoTest/alice p256dh=AQIDBAUGBwgJCgsMDQ4P_w;auth=-vv8_f7_\r\n",
         )
         .await;
         assert!(within(register).await.unwrap().is_ok());

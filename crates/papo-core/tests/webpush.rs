@@ -45,13 +45,21 @@ fn registers_and_unregisters_webpush_endpoints_with_both_caps() {
             .client(&format!(
                 "@label=0 WEBPUSH REGISTER {ENDPOINT} p256dh={P256DH};auth={AUTH}"
             ))
+            .server(&format!(
+                "@label=0 :ergo.test WEBPUSH REGISTER {ENDPOINT} p256dh={P256DH};auth={AUTH}"
+            ))
+            .event(|event| matches!(event, Event::Response(_)))
             .client("PRIVMSG #papo :ordinary debug marker")
             .update(|session| {
                 session
                     .webpush_unregister(std::time::Instant::now(), ENDPOINT)
                     .unwrap();
             })
-            .client(&format!("@label=1 WEBPUSH UNREGISTER {ENDPOINT}"));
+            .client(&format!("@label=1 WEBPUSH UNREGISTER {ENDPOINT}"))
+            .server(&format!(
+                "@label=1 :ergo.test WEBPUSH UNREGISTER {ENDPOINT}"
+            ))
+            .event(|event| matches!(event, Event::Response(_)));
     }
 }
 
