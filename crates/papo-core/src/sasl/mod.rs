@@ -207,6 +207,7 @@ pub(super) struct SaslSession {
     plain_fallback: PlainFallback,
     scram: Option<ScramClient>,
     scram_step: ScramStep,
+    oauth_bearer_step: OAuthBearerStep,
     proof: Proof,
 }
 
@@ -239,6 +240,14 @@ enum ScramStep {
     Initial,
     ServerFirst,
     ServerFinal,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+enum OAuthBearerStep {
+    #[default]
+    None,
+    Error,
+    Outcome,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -286,6 +295,7 @@ impl std::fmt::Debug for SaslSession {
             .field("plain_fallback", &self.plain_fallback)
             .field("has_scram", &self.scram.is_some())
             .field("scram_step", &self.scram_step)
+            .field("oauth_bearer_step", &self.oauth_bearer_step)
             .field("proof", &self.proof)
             .finish()
     }
@@ -323,6 +333,7 @@ impl SaslSession {
             plain_fallback,
             scram: None,
             scram_step: ScramStep::None,
+            oauth_bearer_step: OAuthBearerStep::None,
             proof: Proof::Unverified,
         }
     }
@@ -347,6 +358,7 @@ impl SaslSession {
         self.abort_outcome = AbortOutcome::Retry;
         self.scram = None;
         self.scram_step = ScramStep::None;
+        self.oauth_bearer_step = OAuthBearerStep::None;
         self.proof = Proof::Unverified;
     }
 
@@ -418,6 +430,7 @@ impl SaslSession {
         self.abort_outcome = AbortOutcome::Retry;
         self.scram = None;
         self.scram_step = ScramStep::None;
+        self.oauth_bearer_step = OAuthBearerStep::None;
         self.proof = Proof::Unverified;
     }
 
@@ -436,6 +449,15 @@ impl SaslSession {
         let Some(mechanism) = self.active.as_ref() else {
             return Handled::No;
         };
+        if self.oauth_bearer_step == OAuthBearerStep::Outcome {
+            self.abort(
+                now,
+                "the server sent a second OAUTHBEARER error challenge",
+                AbortOutcome::Fail,
+                outbox,
+            );
+            return Handled::Yes;
+        }
         if !self.awaiting_challenge {
             return Handled::No;
         }
@@ -475,6 +497,23 @@ impl SaslSession {
             self.deadline = crate::deadline(now, SASL_TIMEOUT);
             return Handled::Yes;
         }
+        self.handle_non_scram_challenge(now, outbox)
+    }
+
+    fn handle_non_scram_challenge(&mut self, now: Instant, outbox: &mut Outbox) -> Handled {
+        if matches!(self.active, Some(Mechanism::OAuthBearer { .. }))
+            && self.oauth_bearer_step == OAuthBearerStep::Error
+        {
+            transmit_response(&[0x01], outbox);
+            self.awaiting_challenge = false;
+            self.oauth_bearer_step = OAuthBearerStep::Outcome;
+            self.deadline = crate::deadline(now, SASL_TIMEOUT);
+            return Handled::Yes;
+        }
+        let Some(mechanism) = self.active.as_ref() else {
+            return Handled::No;
+        };
+        let is_oauth_bearer = matches!(mechanism, Mechanism::OAuthBearer { .. });
         let response = match mechanism {
             Mechanism::Plain {
                 username,
@@ -509,7 +548,10 @@ impl SaslSession {
             Mechanism::ScramSha256 { .. } => unreachable!(),
         };
         transmit_response(&response, outbox);
-        self.awaiting_challenge = false;
+        self.awaiting_challenge = is_oauth_bearer;
+        if is_oauth_bearer {
+            self.oauth_bearer_step = OAuthBearerStep::Error;
+        }
         self.deadline = crate::deadline(now, SASL_TIMEOUT);
         Handled::Yes
     }
@@ -545,6 +587,10 @@ impl SaslSession {
             self.pending_account = None;
             self.publish_account(None);
         } else if (message.command_is("903") || message.command_is("907"))
+            && self.oauth_bearer_step == OAuthBearerStep::Outcome
+        {
+            self.fail_all("OAUTHBEARER succeeded after an error challenge", outbox);
+        } else if (message.command_is("903") || message.command_is("907"))
             && (self.aborting
                 || (matches!(self.active, Some(Mechanism::ScramSha256 { .. }))
                     && self.proof != Proof::Verified))
@@ -557,6 +603,7 @@ impl SaslSession {
                 self.deadline = None;
                 self.scram = None;
                 self.scram_step = ScramStep::None;
+                self.oauth_bearer_step = OAuthBearerStep::None;
                 self.completion = Completion::Success;
                 if let Some(account) = self.pending_account.take() {
                     self.publish_account(Some(account));
@@ -714,6 +761,7 @@ impl SaslSession {
         self.deadline = None;
         self.scram = None;
         self.scram_step = ScramStep::None;
+        self.oauth_bearer_step = OAuthBearerStep::None;
         self.pending_account = None;
     }
 

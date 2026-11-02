@@ -8,6 +8,11 @@ use papo_core::{
 };
 use support::{Transcript, assert_session_debug_redacts, queue_debug_marker};
 
+const OAUTH_BEARER_INVALID_TOKEN: &str = concat!(
+    "AUTHENTICATE ",
+    "eyJzdGF0dXMiOiJpbnZhbGlkX3Rva2VuIiwic2NoZW1lcyI6ImJlYXJlciIsInNjb3BlIjoiIn0="
+);
+
 struct FixedEntropy;
 
 impl Entropy for FixedEntropy {
@@ -151,8 +156,15 @@ fn oauth_bearer_failure_discards_the_pending_account() {
             Account::Unknown | Account::LoggedOut
         ));
     })
+    .server(OAUTH_BEARER_INVALID_TOKEN)
+    .client("AUTHENTICATE AQ==")
+    .no_event()
     .server(":ergo.test 904 papo :SASL authentication failed")
-    .event(|event| matches!(event, Event::AuthenticationFailed { .. }))
+    .event(|event| {
+        matches!(event, Event::AuthenticationFailed { reason, .. }
+            if reason.contains("SASL authentication failed")
+                && !reason.contains("invalid_token"))
+    })
     .client("CAP END")
     .inspect(|session| {
         assert_eq!(session.account(), None);
