@@ -1734,7 +1734,7 @@ impl ResponseBoundary {
                 }
                 StandardReplyView::parse(message)
                     .filter(|reply| reply.command.eq_ignore_ascii_case("WEBPUSH"))
-                    .map(|reply| reply.kind == StandardReplyKind::Fail)
+                    .map(|_| false)
             }
         }
     }

@@ -209,6 +209,32 @@ fn completes_unlabelled_webpush_replies_and_redacts_echoed_keys() {
 }
 
 #[test]
+fn completes_unlabelled_registration_failures_at_the_fence() {
+    registered_without_labels("draft/webpush")
+        .update(|session| {
+            session
+                .webpush_register(
+                    std::time::Instant::now(),
+                    ENDPOINT,
+                    P256DH,
+                    &papo_core::Secret::new(AUTH),
+                )
+                .unwrap();
+        })
+        .client(&format!(
+            "WEBPUSH REGISTER {ENDPOINT} p256dh={P256DH};auth={AUTH}"
+        ))
+        .client("PING papo-webpush-0")
+        .server(&format!(":ergo.test FAIL WEBPUSH MAX_REGISTRATIONS REGISTER {ENDPOINT} :You have too many push subscriptions already"))
+        .no_event()
+        .server(":ergo.test PONG ergo.test :papo-webpush-0")
+        .event(|event| {
+            matches!(event, Event::Response(response)
+                if response.refusal() == Some(Refusal::WebPushRegistrationLimit))
+        });
+}
+
+#[test]
 fn rejects_invalid_endpoints_and_keys_before_queueing() {
     let mut unsupported = Session::new(Config::default());
     assert_eq!(
