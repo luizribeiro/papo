@@ -243,6 +243,9 @@ pub enum Refusal {
     /// The account has reached its Web Push registration limit.
     #[cfg(feature = "unstable")]
     WebPushRegistrationLimit,
+    /// Ergo has Web Push disabled, the session is not logged in, or the connection is over Tor.
+    #[cfg(feature = "unstable")]
+    WebPushForbidden,
     /// Persistence parameters are invalid.
     #[cfg(feature = "unstable")]
     InvalidPersistenceParameters,
@@ -519,6 +522,7 @@ mod tests {
             "RELAYMSG" "BANNED" => BannedRelaySender,
             "WEBPUSH" "INVALID_PARAMS" => InvalidWebPushParameters,
             "WEBPUSH" "MAX_REGISTRATIONS" => WebPushRegistrationLimit,
+            "WEBPUSH" "FORBIDDEN" => WebPushForbidden,
             "PERSISTENCE" "ACCOUNT_REQUIRED" => AccountRequired,
             "PERSISTENCE" "INVALID_PARAMETERS" => InvalidPersistenceParameters,
             "PERSISTENCE" "INTERNAL_ERROR" => InternalError,
@@ -574,6 +578,12 @@ mod tests {
                 "WEBPUSH",
                 "MAX_REGISTRATIONS",
                 Refusal::WebPushRegistrationLimit,
+            ),
+            (
+                Feature::WebPush,
+                "WEBPUSH",
+                "FORBIDDEN",
+                Refusal::WebPushForbidden,
             ),
             (
                 Feature::Persistence,

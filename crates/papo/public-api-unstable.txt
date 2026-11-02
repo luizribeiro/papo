@@ -4813,6 +4813,7 @@ pub papo::Refusal::UserNotInChannel
 pub papo::Refusal::UserOnChannel
 pub papo::Refusal::UsersDontMatch
 pub papo::Refusal::WeakPassword
+pub papo::Refusal::WebPushForbidden
 pub papo::Refusal::WebPushRegistrationLimit
 impl core::clone::Clone for papo::Refusal
 pub fn papo::Refusal::clone(&self) -> Self

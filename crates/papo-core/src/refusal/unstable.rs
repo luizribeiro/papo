@@ -52,6 +52,7 @@ const STANDARD: &[Entry] = &[
         WebPushRegistrationLimit,
         WebPush
     ),
+    entry!("WEBPUSH", "FORBIDDEN", WebPushForbidden, WebPush),
     entry!("PERSISTENCE", "ACCOUNT_REQUIRED", AccountRequired),
     entry!(
         "PERSISTENCE",

@@ -183,14 +183,19 @@ fn rejects_invalid_endpoints_and_keys_before_queueing() {
 
 #[test]
 fn types_every_webpush_failure() {
-    for (code, expected) in [
-        ("INVALID_PARAMS", Refusal::InvalidWebPushParameters),
-        ("INTERNAL_ERROR", Refusal::InternalError),
-        ("MAX_REGISTRATIONS", Refusal::WebPushRegistrationLimit),
+    for (code, parameters, expected) in [
+        ("INVALID_PARAMS", "", Refusal::InvalidWebPushParameters),
+        ("INTERNAL_ERROR", "", Refusal::InternalError),
+        ("MAX_REGISTRATIONS", "", Refusal::WebPushRegistrationLimit),
+        (
+            "FORBIDDEN",
+            " UNREGISTER https://push.example.net/message/ErgoTest/alice",
+            Refusal::WebPushForbidden,
+        ),
     ] {
         registered("draft/webpush")
             .server(&format!(
-                ":ergo.test FAIL WEBPUSH {code} :Web push request rejected"
+                ":ergo.test FAIL WEBPUSH {code}{parameters} :Web push request rejected"
             ))
             .event(|event| {
                 matches!(event, Event::StandardReply(reply)

@@ -1151,6 +1151,7 @@ pub papo_core::Refusal::UserNotInChannel
 pub papo_core::Refusal::UserOnChannel
 pub papo_core::Refusal::UsersDontMatch
 pub papo_core::Refusal::WeakPassword
+pub papo_core::Refusal::WebPushForbidden
 pub papo_core::Refusal::WebPushRegistrationLimit
 impl core::clone::Clone for papo_core::Refusal
 pub fn papo_core::Refusal::clone(&self) -> Self
