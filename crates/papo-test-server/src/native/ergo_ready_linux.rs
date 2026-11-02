@@ -1,5 +1,5 @@
 use std::{
-    io,
+    fs, io,
     net::SocketAddr,
     os::unix::net::UnixDatagram,
     path::Path,
@@ -15,9 +15,15 @@ pub(crate) struct ReadySignal {
 
 impl ReadySignal {
     pub(crate) fn bind(directory: &Path, command: &mut Command) -> io::Result<Self> {
-        let socket = UnixDatagram::bind(directory.join("notify.sock"))?;
+        let path = directory.join("notify.sock");
+        if let Err(error) = fs::remove_file(&path)
+            && error.kind() != io::ErrorKind::NotFound
+        {
+            return Err(error);
+        }
+        let socket = UnixDatagram::bind(&path)?;
         socket.set_read_timeout(Some(Duration::from_millis(100)))?;
-        command.env("NOTIFY_SOCKET", directory.join("notify.sock"));
+        command.env("NOTIFY_SOCKET", path);
         Ok(Self { socket })
     }
 

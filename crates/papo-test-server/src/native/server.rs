@@ -470,6 +470,15 @@ mod tests {
     }
 
     #[test]
+    fn restarts_ergo_on_the_same_listeners() {
+        let mut server = TestServer::start().unwrap();
+        let process = server.process_id();
+        server.restart().unwrap();
+        assert_ne!(server.process_id(), process);
+        TcpStream::connect(server.plaintext_addr()).unwrap();
+    }
+
+    #[test]
     fn starts_greets_and_stops_ergo() {
         // This test owns a server to verify native process cleanup in isolation.
         let server = TestServer::start().unwrap();
