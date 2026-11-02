@@ -2263,6 +2263,71 @@ fn empty_labelled_batch_resolves_a_synced_rejoin() {
 }
 
 #[test]
+fn unrelated_response_batch_leaves_a_deferred_join_for_its_own_batch() {
+    let now = Instant::now();
+    let mut session = echo_session(now);
+    let join = session
+        .request_with_matcher(
+            now,
+            Line::join("#release"),
+            ResponseMatcher::Join("#release".into()),
+        )
+        .unwrap();
+    let info = request(
+        &mut session,
+        now,
+        Line::new("PRIVMSG").with_params(["NickServ", "INFO alice"]),
+    );
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"@label=0 JOIN #release\r\n"
+    );
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"@label=1 PRIVMSG NickServ :INFO alice\r\n"
+    );
+
+    session.handle_line(now, b"@label=1 :ergo.test BATCH +info-44 labeled-response");
+    for line in [
+        "@batch=info-44;msgid=RKi9Cw :papo!~papo@localhost PRIVMSG NickServ :INFO alice",
+        "@batch=info-44 :NickServ!service@services NOTICE papo :Information on alice",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    session.handle_line(now, b":ergo.test BATCH -info-44");
+
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Response(response)) if response.id == info && response.lines.len() == 2
+    ));
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Line(message))
+            if message.as_ref().command() == Command::Privmsg
+                && message.as_ref().param(0) == Some("NickServ")
+    ));
+    assert_eq!(session.poll_event(), None);
+
+    session.handle_line(now, b"@label=0 :ergo.test BATCH +join-44 labeled-response");
+    for line in [
+        "@batch=join-44 :papo!~papo@localhost JOIN #release * :Papo Bot",
+        "@batch=join-44 :ergo.test 353 papo = #release :@papo alice",
+        "@batch=join-44 :ergo.test 366 papo #release :End of /NAMES list",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    session.handle_line(now, b":ergo.test BATCH -join-44");
+
+    let responses: Vec<_> = std::iter::from_fn(|| session.poll_event())
+        .filter_map(|event| match event {
+            Event::Response(response) => Some((response.id, response.lines.len())),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(responses, [(join, 2)]);
+}
+
+#[test]
 fn labelled_join_times_out_once_when_sync_never_finishes() {
     let now = Instant::now();
     let mut session = labelled_session(now);
@@ -2462,6 +2527,38 @@ fn resolves_a_recorded_ergo_whois_batch_once() {
     assert_eq!(response.lines.len(), 3);
     assert!(response.lines[0].as_ref().command_is("311"));
     assert!(response.lines[2].as_ref().command_is("318"));
+    assert_eq!(session.poll_event(), None);
+}
+
+#[test]
+fn labelled_whois_batch_dispatches_presence_before_its_response() {
+    let now = Instant::now();
+    let mut session = labelled_session(now);
+    session.handle_line(now, b":papo!~papo@client.example JOIN #papo * :Papo Bot");
+    session.handle_line(
+        now,
+        b":alice!~alice@staff.example JOIN #papo * :Alice Example",
+    );
+    while session.poll_event().is_some() {}
+    let id = request(&mut session, now, Line::new("WHOIS").with_params(["alice"]));
+    session.handle_line(now, b"@label=0 :ergo.test BATCH +whois-43 labeled-response");
+    for line in [
+        "@batch=whois-43 :ergo.test 311 papo alice ~alice staff.example * :Alice Example",
+        "@batch=whois-43 :ergo.test 301 papo alice :Reviewing the release",
+        "@batch=whois-43 :ergo.test 318 papo alice :End of /WHOIS list",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    session.handle_line(now, b":ergo.test BATCH -whois-43");
+
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::AwayChanged { nick, .. }) if nick == "alice"
+    ));
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Response(response)) if response.id == id && response.lines.len() == 3
+    ));
     assert_eq!(session.poll_event(), None);
 }
 

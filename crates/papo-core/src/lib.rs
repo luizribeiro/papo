@@ -3301,7 +3301,16 @@ pub enum StateLimit {
     IsupportTokens,
 }
 
-type PendingRequests = BTreeMap<String, (RequestId, Option<Instant>, bool, Option<Feature>, bool)>;
+#[derive(Debug)]
+struct PendingRequest {
+    id: RequestId,
+    started: Option<Instant>,
+    sent: bool,
+    feature: Option<Feature>,
+    emit_events: bool,
+}
+
+type PendingRequests = BTreeMap<String, PendingRequest>;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Utf8CasemappingWarning {
@@ -3866,17 +3875,17 @@ impl Session {
         let expired: BTreeSet<_> = self
             .requests
             .iter()
-            .filter(|(_, (_, started, _, _, _))| {
-                started
+            .filter(|(_, request)| {
+                request
+                    .started
                     .and_then(|started| crate::deadline(started, self.config.request_timeout))
                     .is_some_and(|deadline| now >= deadline)
             })
-            .map(|(_, (id, _, _, _, _))| *id)
+            .map(|(_, request)| request.id)
             .collect();
         for id in expired {
             self.invalidate_list_request(id);
-            self.requests
-                .retain(|_, (pending, _, _, _, _)| *pending != id);
+            self.requests.retain(|_, pending| pending.id != id);
             self.unlabelled_requests.retain(|request| request.id != id);
             self.away_messages.remove(&id);
             self.outbox.event(Event::RequestTimedOut { id });
@@ -3954,12 +3963,13 @@ impl Session {
         self.outbox.reset_connection(false);
         self.batches.reset();
         let mut labelled = BTreeMap::new();
-        for (_, (id, started, _, _, _)) in std::mem::take(&mut self.requests) {
-            self.unlabelled_requests.retain(|request| request.id != id);
+        for (_, request) in std::mem::take(&mut self.requests) {
+            self.unlabelled_requests
+                .retain(|pending| pending.id != request.id);
             labelled
-                .entry(id)
-                .and_modify(|transmitted| *transmitted |= started.is_some())
-                .or_insert_with(|| started.is_some());
+                .entry(request.id)
+                .and_modify(|transmitted| *transmitted |= request.started.is_some())
+                .or_insert_with(|| request.started.is_some());
         }
         for (id, transmitted) in labelled {
             self.outbox.event(Event::RequestAborted { id, transmitted });
@@ -4306,7 +4316,16 @@ impl Session {
         }
         self.next_request_id = self.next_request_id.wrapping_add(1);
         for label in labels.iter().cloned() {
-            self.requests.insert(label, (id, None, true, None, false));
+            self.requests.insert(
+                label,
+                PendingRequest {
+                    id,
+                    started: None,
+                    sent: true,
+                    feature: None,
+                    emit_events: false,
+                },
+            );
         }
         let transmit = self.queue_text_lines(
             lines,
@@ -4931,12 +4950,12 @@ impl Session {
         let (Some(id), Some(now)) = (request, self.rate_limit.now) else {
             return;
         };
-        if let Some((_, started, _, _, _)) = self
+        if let Some(request) = self
             .requests
             .values_mut()
-            .find(|(request_id, started, _, _, _)| *request_id == id && started.is_none())
+            .find(|request| request.id == id && request.started.is_none())
         {
-            *started = Some(now);
+            request.started = Some(now);
         }
         for pending in &mut self.unlabelled_requests {
             if pending.id == id && pending.started.is_none() {
@@ -4999,8 +5018,9 @@ impl Session {
             self.nick_regain.next_deadline(),
             self.requests
                 .values()
-                .filter_map(|(_, started, _, _, _)| {
-                    started
+                .filter_map(|request| {
+                    request
+                        .started
                         .and_then(|started| crate::deadline(started, self.config.request_timeout))
                 })
                 .min(),
@@ -5098,8 +5118,7 @@ impl Session {
     /// Removes a request that the transport refused before writing it.
     #[doc(hidden)]
     pub fn __cancel_request(&mut self, id: RequestId) {
-        self.requests
-            .retain(|_, (pending, _, _, _, _)| *pending != id);
+        self.requests.retain(|_, pending| pending.id != id);
         self.unlabelled_requests.retain(|pending| pending.id != id);
         self.away_messages.remove(&id);
     }
@@ -5478,15 +5497,13 @@ impl Session {
             && message.tag("label").is_some_and(|label| {
                 self.requests
                     .get(label.as_ref())
-                    .is_some_and(|(_, _, sent, _, _)| *sent)
+                    .is_some_and(|request| request.sent)
             })
             && self.is_own_source(message);
         let labelled_request = enclosing_request.or_else(|| {
-            message.tag("label").and_then(|label| {
-                self.requests
-                    .get(label.as_ref())
-                    .map(|(id, _, _, _, _)| *id)
-            })
+            message
+                .tag("label")
+                .and_then(|label| self.requests.get(label.as_ref()).map(|request| request.id))
         });
         let labelled_response =
             self.resolve_labelled_message(message, queued_events, emit_response_events);
@@ -5662,16 +5679,17 @@ impl Session {
         let labels: Vec<_> = self
             .requests
             .iter()
-            .filter(|(_, (_, _, _, required, _))| *required == Some(feature))
+            .filter(|(_, request)| request.feature == Some(feature))
             .map(|(label, _)| label.clone())
             .collect();
         for label in labels {
-            let Some((id, _, _, _, _)) = self.requests.remove(&label) else {
+            let Some(request) = self.requests.remove(&label) else {
                 continue;
             };
-            self.unlabelled_requests.retain(|pending| pending.id != id);
+            self.unlabelled_requests
+                .retain(|pending| pending.id != request.id);
             self.outbox.event(Event::RequestUnsupported {
-                id,
+                id: request.id,
                 unsupported: Unsupported::new(feature, reason),
             });
         }
@@ -6051,17 +6069,15 @@ impl Session {
             unreachable!("response dispatcher received another batch event");
         };
         let request = self.requests.remove(&label);
-        if let Some((id, _, _, _, _)) = &request {
-            self.away_messages.remove(id);
+        if let Some(request) = &request {
+            self.away_messages.remove(&request.id);
         }
-        let deferred = request.as_ref().is_some_and(|(id, _, _, _, _)| {
+        let deferred = request.as_ref().is_some_and(|request| {
             self.unlabelled_requests
                 .iter()
-                .any(|pending| pending.id == *id)
+                .any(|pending| pending.id == request.id)
         });
-        let emit_events = request
-            .as_ref()
-            .is_none_or(|(_, _, _, _, emit_events)| *emit_events);
+        let emit_events = request.as_ref().is_none_or(|request| request.emit_events);
         let queued_events = self.outbox.events.len();
         let bouncer_batch = cfg!(feature = "unstable") && batch_type == cap::BOUNCER_NETWORKS_NAME;
         let context = DispatchContext::from_batch_type(batch_type);
@@ -6072,7 +6088,7 @@ impl Session {
                     &message.as_ref(),
                     &context,
                     request.is_none(),
-                    request.as_ref().map(|(id, _, _, _, _)| *id),
+                    request.as_ref().map(|request| request.id),
                 );
             }
         }
@@ -6082,15 +6098,15 @@ impl Session {
         if let Some((_, items, _)) = &mut history {
             self.mark_history_authorship(items);
         }
-        if deferred && let Some((id, _, _, _, _)) = &request {
-            self.resolve_deferred(*id);
+        if deferred && let Some(request) = &request {
+            self.resolve_deferred(request.id);
         }
-        if let Some((id, _, sent, _, _)) = request
+        if let Some(request) = request
             && !deferred
         {
             let whois_channels = parse_whois_channels(&messages, self.isupport.value());
             let enabled_features = self.supported_features();
-            let echoed = (sent && emit_events).then(|| {
+            let echoed = (request.sent && emit_events).then(|| {
                 messages
                     .iter()
                     .filter(|message| {
@@ -6103,8 +6119,8 @@ impl Session {
                     .collect::<Vec<_>>()
             });
             self.outbox.event(Event::Response(Response {
-                id,
-                sent: if sent {
+                id: request.id,
+                sent: if request.sent {
                     echo.as_ref()
                         .and_then(|message| sent_info(&message.as_ref()))
                         .or_else(|| {

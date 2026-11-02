@@ -240,9 +240,7 @@ fn sends_each_bouncer_network_operation() {
     .unwrap();
     registered()
         .update(|session| {
-            session
-                .bouncer_networks(std::time::Instant::now())
-                .unwrap();
+            session.bouncer_networks(std::time::Instant::now()).unwrap();
         })
         .client("@label=0 BOUNCER LISTNETWORKS")
         .server("@label=0 BATCH +networks soju.im/bouncer-networks")
@@ -274,6 +272,21 @@ fn sends_each_bouncer_network_operation() {
         })
         .client("@label=3 BOUNCER DELNETWORK 43")
         .server("@label=3 BOUNCER DELNETWORK 43")
+        .event(|event| matches!(event, Event::Response(response) if response.lines.len() == 1))
+        .no_event();
+}
+
+#[test]
+fn labelled_network_list_dispatches_each_update_once() {
+    registered()
+        .update(|session| {
+            session.bouncer_networks(std::time::Instant::now()).unwrap();
+        })
+        .client("@label=0 BOUNCER LISTNETWORKS")
+        .server("@label=0 BATCH +networks soju.im/bouncer-networks")
+        .server(r"@batch=networks BOUNCER NETWORK 42 name=Libera\sChat;state=connected")
+        .server("BATCH -networks")
+        .event(|event| matches!(event, Event::BouncerNetworkChanged { id, .. } if id == "42"))
         .event(|event| matches!(event, Event::Response(response) if response.lines.len() == 1))
         .no_event();
 }

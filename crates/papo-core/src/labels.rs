@@ -1,7 +1,7 @@
 use crate::{
-    Command, Event, Feature, Instant, Line, LineRef, MAX_PENDING_REQUESTS, Numeric, RequestError,
-    RequestId, Response, ResponseMatcher, Session, UnlabelledRequest, cap, parse_whois_channels,
-    sent_info,
+    Command, Event, Feature, Instant, Line, LineRef, MAX_PENDING_REQUESTS, Numeric, PendingRequest,
+    RequestError, RequestId, Response, ResponseMatcher, Session, UnlabelledRequest, cap,
+    parse_whois_channels, sent_info,
 };
 
 impl Session {
@@ -9,9 +9,10 @@ impl Session {
         let Some(label) = message.tag("label") else {
             return false;
         };
-        let Some((id, _, sent, _, _)) = self.requests.remove(label.as_ref()) else {
+        let Some(request) = self.requests.remove(label.as_ref()) else {
             return false;
         };
+        let id = request.id;
         self.away_messages.remove(&id);
         if message.command_is("ACK") && self.resolve_deferred(id) {
             return true;
@@ -30,7 +31,11 @@ impl Session {
             let enabled_features = self.supported_features();
             self.outbox.event(Event::Response(Response {
                 id,
-                sent: if sent { sent_info(message) } else { None },
+                sent: if request.sent {
+                    sent_info(message)
+                } else {
+                    None
+                },
                 lines,
                 history: None,
                 history_targets: None,
@@ -92,7 +97,7 @@ impl Session {
         message
             .tag("label")
             .and_then(|label| self.requests.get(label.as_ref()))
-            .is_none_or(|(_, _, _, _, emit_events)| *emit_events)
+            .is_none_or(|request| request.emit_events)
     }
 
     pub(super) fn confirmed_away_message<'a>(&'a self, message: &LineRef<'_>) -> Option<&'a str> {
@@ -110,7 +115,7 @@ impl Session {
 
     fn confirmed_away_request(&self, message: &LineRef<'_>, away: bool) -> Option<RequestId> {
         if let Some(label) = message.tag("label") {
-            self.requests.get(label.as_ref()).map(|(id, ..)| *id)
+            self.requests.get(label.as_ref()).map(|request| request.id)
         } else {
             self.unlabelled_requests.iter().find_map(|request| {
                 matches!(&request.matcher, ResponseMatcher::Away(value) if *value == away)
@@ -179,8 +184,7 @@ impl Session {
         }
         if list_limit_reached || request.lines.push_reject(message.to_owned()).is_err() {
             let mut request = self.unlabelled_requests.remove(index).unwrap();
-            self.requests
-                .retain(|_, (pending, _, _, _, _)| *pending != request.id);
+            self.requests.retain(|_, pending| pending.id != request.id);
             if let ResponseMatcher::ListMode { channel, mode } = request.matcher {
                 self.state.invalidate_mode_list(&channel, mode);
             }
@@ -289,8 +293,7 @@ impl Session {
             return false;
         };
         let request = self.unlabelled_requests.remove(index).unwrap();
-        self.requests
-            .retain(|_, (pending, _, _, _, _)| *pending != request.id);
+        self.requests.retain(|_, pending| pending.id != request.id);
         self.outbox.event(Event::RequestAborted {
             id: request.id,
             transmitted: request.started.is_some(),
@@ -364,8 +367,16 @@ impl Session {
         }
         let line = message.encode()?;
         if let Some(label) = label {
-            self.requests
-                .insert(label, (id, None, sent, feature, emit_events));
+            self.requests.insert(
+                label,
+                PendingRequest {
+                    id,
+                    started: None,
+                    sent,
+                    feature,
+                    emit_events,
+                },
+            );
         } else {
             self.outbox.event(Event::RequestUntracked { id });
         }
