@@ -8,7 +8,8 @@ use std::{
 };
 
 use super::{
-    certificate, directory::TemporaryDirectory, ergo::Configuration, process, process::ServerChild,
+    certificate, directory::TemporaryDirectory, ergo::Configuration, ergo_ready::ReadySignal,
+    process, process::ServerChild,
 };
 
 /// A child Ergo process with isolated storage and loopback listeners.
@@ -174,8 +175,8 @@ impl TestServer {
     /// Returns an error if Ergo cannot be stopped, spawned, or made ready.
     pub fn restart(&mut self) -> io::Result<()> {
         self.stop()?;
-        self.child = ServerChild::spawn(&mut self.configuration.command("run", &self.directory)?)?;
-        self.wait_until_ready()
+        self.child = spawn_ergo(&self.configuration, &self.directory)?;
+        Ok(())
     }
 
     fn start_with(
@@ -195,31 +196,38 @@ impl TestServer {
                     "ergo initdb failed with {status}"
                 )));
             }
-            let child = ServerChild::spawn(&mut config.command("run", &directory)?)?;
-            let mut server = Self {
-                child,
+            Ok(Self {
+                child: spawn_ergo(&config, &directory)?,
                 directory,
                 plaintext: config.plaintext,
                 tls: config.tls,
                 websocket: config.websocket,
                 secure_websocket: config.secure_websocket,
                 configuration: config,
-            };
-            server.wait_until_ready()?;
-            Ok(server)
+            })
         })
     }
+}
 
-    fn wait_until_ready(&mut self) -> io::Result<()> {
-        let deadline = Instant::now() + Duration::from_secs(10);
-        let addresses = [
-            self.plaintext,
-            self.tls,
-            self.websocket,
-            self.secure_websocket,
-        ];
-        wait_for_child_until("Ergo", addresses, deadline, &mut self.child)
-    }
+fn spawn_ergo(
+    configuration: &Configuration,
+    directory: &TemporaryDirectory,
+) -> io::Result<ServerChild> {
+    let mut command = configuration.command("run", directory)?;
+    let ready = ReadySignal::bind(directory.path(), &mut command)?;
+    let mut child = ServerChild::spawn(&mut command)?;
+    let deadline = Instant::now() + Duration::from_secs(10);
+    ready.wait(
+        [
+            configuration.plaintext,
+            configuration.tls,
+            configuration.websocket,
+            configuration.secure_websocket,
+        ],
+        deadline,
+        &mut child,
+    )?;
+    Ok(child)
 }
 
 pub(crate) fn wait_for_child_until<const N: usize>(
@@ -436,6 +444,29 @@ mod tests {
 
         assert!((2..=5).contains(&attempts));
         assert_ne!(server.plaintext_addr(), occupied_address);
+    }
+
+    #[test]
+    fn rejects_readiness_from_another_ergo_process() {
+        let occupied = TestServer::start().unwrap();
+        let occupied_addresses = [
+            occupied.plaintext_addr(),
+            occupied.tls_addr(),
+            occupied.websocket_addr(),
+            occupied.secure_websocket_addr(),
+        ];
+        let mut attempts = 0;
+        TestServer::start_with(|directory| {
+            attempts += 1;
+            if attempts == 1 {
+                Ok(Configuration::from_addresses(directory, occupied_addresses))
+            } else {
+                Configuration::new(directory)
+            }
+        })
+        .unwrap();
+
+        assert_eq!(attempts, 2);
     }
 
     #[test]

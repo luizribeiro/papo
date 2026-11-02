@@ -2,6 +2,9 @@ mod atheme;
 mod certificate;
 mod directory;
 mod ergo;
+#[cfg_attr(target_os = "linux", path = "ergo_ready_linux.rs")]
+#[cfg_attr(not(target_os = "linux"), path = "ergo_ready_other.rs")]
+mod ergo_ready;
 mod fault;
 mod inspircd;
 mod inspircd_config;

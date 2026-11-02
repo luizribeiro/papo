@@ -4,5 +4,5 @@ papo-conformance 13
 papo-conformance-macros 1
 papo-core 163
 papo-proto 24
-papo-test-server 27
+papo-test-server 29
 papo-testing 7
