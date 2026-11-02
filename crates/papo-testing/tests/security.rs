@@ -1263,6 +1263,58 @@ async fn start_cap_negotiation() -> (papo::Client, Events, Wire) {
     (client, events, wire)
 }
 
+#[tokio::test]
+async fn oauth_bearer_error_challenge_is_acknowledged_without_publication() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://hostile.offline.test", "papo-wire")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never())
+            .sasl(Sasl::oauth_bearer(papo::Secret::new("expired-oauth-token-4821")).optional())
+            .allow_insecure_auth(true),
+    );
+    assert_eq!(wire.next_sent().await, "CAP LS 302");
+    assert_eq!(wire.next_sent().await, "NICK papo-wire");
+    assert_eq!(wire.next_sent().await, "USER papo-wire 0 * papo-wire");
+    wire.server(":offline.test CAP * LS :sasl=OAUTHBEARER")
+        .await;
+    assert_eq!(wire.next_sent().await, "CAP REQ :sasl");
+    wire.server(":offline.test CAP * ACK :sasl").await;
+    assert_eq!(wire.next_sent().await, "AUTHENTICATE OAUTHBEARER");
+    wire.server("AUTHENTICATE +").await;
+    assert!(wire.next_sent().await.starts_with("AUTHENTICATE "));
+    wire.server(
+        ":offline.test 900 papo-wire papo-wire!~papo@localhost alice :You are now logged in as alice",
+    )
+    .await;
+    wire.server(concat!(
+        "AUTHENTICATE ",
+        "eyJzdGF0dXMiOiJpbnZhbGlkX3Rva2VuIiwic2NoZW1lcyI6ImJlYXJlciIsInNjb3BlIjoiIn0="
+    ))
+    .await;
+    assert_eq!(wire.next_sent().await, "AUTHENTICATE AQ==");
+    assert!(matches!(
+        client.state().account(),
+        papo::Account::Unknown | papo::Account::LoggedOut
+    ));
+    wire.server(":offline.test 904 papo-wire :SASL authentication failed")
+        .await;
+    loop {
+        if matches!(
+            next_active_event(&mut events).await,
+            papo::Event::Warning(papo::event::Warning::AuthenticationFailed { reason, .. })
+                if reason.contains("SASL authentication failed")
+                    && !reason.contains("invalid_token")
+        ) {
+            break;
+        }
+    }
+    assert_eq!(wire.next_sent().await, "CAP END");
+    assert!(matches!(
+        client.state().account(),
+        papo::Account::Unknown | papo::Account::LoggedOut
+    ));
+}
+
 async fn send_bad_server_proof(wire: &mut Wire) {
     wire.server("AUTHENTICATE +").await;
     let client_first = wire.next_sent().await;

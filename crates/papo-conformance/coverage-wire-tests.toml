@@ -95,6 +95,9 @@
 "security::scram_never_falls_back_to_plain_unsafely" = [
   "security.sasl.no-plain-fallback-after-bad-proof",
 ]
+"security::oauth_bearer_error_challenge_is_acknowledged_without_publication" = [
+  "security.sasl.oauthbearer-error-challenge",
+]
 "security::server_password_waits_for_sts" = [
   "security.s3.pass-after-sts-decision",
   "security.adv-1.pass-before-sts",
