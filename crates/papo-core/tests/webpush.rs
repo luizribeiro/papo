@@ -80,6 +80,39 @@ fn registers_and_unregisters_webpush_endpoints_with_both_caps() {
 }
 
 #[test]
+fn preserves_labelled_registration_warnings_in_ergo_order() {
+    registered("draft/webpush")
+        .update(|session| {
+            session
+                .webpush_register(
+                    std::time::Instant::now(),
+                    ENDPOINT,
+                    P256DH,
+                    &papo_core::Secret::new(AUTH),
+                )
+                .unwrap();
+        })
+        .client(&format!(
+            "@label=0 WEBPUSH REGISTER {ENDPOINT} p256dh={P256DH};auth={AUTH}"
+        ))
+        .server("@label=0 :ergo.test BATCH +webpush labeled-response")
+        .no_event()
+        .server(&format!(
+            "@batch=webpush :ergo.test WEBPUSH REGISTER {ENDPOINT} p256dh={P256DH};auth={AUTH}"
+        ))
+        .no_event()
+        .server("@batch=webpush :ergo.test WARN WEBPUSH PERSISTENCE_REQUIRED :You have enabled push notifications, but you will not receive them unless you become always-on")
+        .no_event()
+        .server(":ergo.test BATCH -webpush")
+        .event(|event| {
+            matches!(event, Event::Response(response)
+                if response.lines.len() == 2
+                    && response.lines[0].as_ref().command_is("WEBPUSH")
+                    && response.lines[1].as_ref().param(1) == Some("PERSISTENCE_REQUIRED"))
+        });
+}
+
+#[test]
 fn completes_unlabelled_webpush_replies_and_redacts_echoed_keys() {
     const SECRET_AUTH: &str = "dW5pcXVlLXdlYnB1c2gtYXV0aC00ODYy";
 
@@ -97,13 +130,14 @@ fn completes_unlabelled_webpush_replies_and_redacts_echoed_keys() {
         .client(&format!(
             "WEBPUSH REGISTER {ENDPOINT} p256dh={P256DH};auth={SECRET_AUTH}"
         ))
-        .server(
-            ":ergo.test WARN WEBPUSH PERSISTENCE_REQUIRED :Always-on mode is required for push delivery",
-        )
-        .no_event()
+        .client("PING papo-webpush-0")
         .server(&format!(
             ":ergo.test WEBPUSH REGISTER {ENDPOINT} p256dh={P256DH};auth={SECRET_AUTH}"
         ))
+        .no_event()
+        .server(":ergo.test WARN WEBPUSH PERSISTENCE_REQUIRED :You have enabled push notifications, but you will not receive them unless you become always-on")
+        .no_event()
+        .server(":ergo.test PONG ergo.test :papo-webpush-0")
         .inspect(|session| assert!(!format!("{session:?}").contains(SECRET_AUTH)))
         .event(|event| {
             let Event::Response(response) = event else {
@@ -111,8 +145,35 @@ fn completes_unlabelled_webpush_replies_and_redacts_echoed_keys() {
             };
             let debug = format!("{response:?}");
             !debug.contains(SECRET_AUTH)
-                && response.lines.len() == 2
-                && response.lines[1].get(2) == Some("<redacted>")
+                && response.lines.len() == 3
+                && response.lines[0].get(2) == Some("<redacted>")
+                && response.lines[1].as_ref().param(1) == Some("PERSISTENCE_REQUIRED")
+        })
+        .update(|session| {
+            session
+                .webpush_register(
+                    std::time::Instant::now(),
+                    ENDPOINT,
+                    P256DH,
+                    &papo_core::Secret::new(SECRET_AUTH),
+                )
+                .unwrap();
+        })
+        .client(&format!(
+            "WEBPUSH REGISTER {ENDPOINT} p256dh={P256DH};auth={SECRET_AUTH}"
+        ))
+        .client("PING papo-webpush-1")
+        .server(&format!(
+            ":ergo.test WEBPUSH REGISTER {ENDPOINT} p256dh={P256DH};auth={SECRET_AUTH}"
+        ))
+        .no_event()
+        .server(":ergo.test PONG ergo.test :papo-webpush-1")
+        .event(|event| {
+            matches!(event, Event::Response(response)
+                if response.lines.len() == 2
+                    && response.lines.iter().all(|line| {
+                        line.as_ref().param(1) != Some("PERSISTENCE_REQUIRED")
+                    }))
         })
         .update(|session| {
             session

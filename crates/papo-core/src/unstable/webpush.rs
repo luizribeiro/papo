@@ -38,13 +38,12 @@ impl Session {
         keys.push_str(";auth=");
         keys.push_str(auth);
         let keys = Secret::new(keys.as_str());
-        self.request_with_command_response(
+        self.request_with_webpush_register_response(
             now,
             Line::new("WEBPUSH")
                 .param("REGISTER")
                 .param(endpoint)
                 .param(keys),
-            "WEBPUSH",
         )
     }
 

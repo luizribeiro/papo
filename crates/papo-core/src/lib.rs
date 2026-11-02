@@ -1697,13 +1697,14 @@ impl ResponseMatcher {
 enum ResponseBoundary {
     Matcher(ResponseMatcher),
     Command(String),
+    WebPushRegister,
 }
 
 impl ResponseBoundary {
     fn matcher(&self) -> Option<&ResponseMatcher> {
         match self {
             Self::Matcher(matcher) => Some(matcher),
-            Self::Command(_) => None,
+            Self::Command(_) | Self::WebPushRegister => None,
         }
     }
 
@@ -1724,12 +1725,32 @@ impl ResponseBoundary {
                     .filter(|reply| reply.command.eq_ignore_ascii_case(command))
                     .map(|reply| reply.kind == StandardReplyKind::Fail)
             }
+            Self::WebPushRegister => {
+                if message.command_is("WEBPUSH") {
+                    return message
+                        .param(0)
+                        .is_some_and(|value| value.eq_ignore_ascii_case("REGISTER"))
+                        .then_some(false);
+                }
+                StandardReplyView::parse(message)
+                    .filter(|reply| reply.command.eq_ignore_ascii_case("WEBPUSH"))
+                    .map(|reply| reply.kind == StandardReplyKind::Fail)
+            }
         }
     }
 
     fn is_list_row(&self, message: &LineRef<'_>) -> bool {
         self.matcher()
             .is_some_and(|matcher| matcher.is_list_row(message))
+    }
+
+    fn fence(&self, request_id: u64) -> Option<String> {
+        let prefix = match self {
+            Self::Matcher(ResponseMatcher::Mode(_)) => "papo-mode",
+            Self::WebPushRegister => "papo-webpush",
+            Self::Matcher(_) | Self::Command(_) => return None,
+        };
+        Some(format!("{prefix}-{request_id}"))
     }
 }
 
@@ -4595,6 +4616,14 @@ impl Session {
         self.request_with_boundary(now, message, ResponseBoundary::Command(command.to_owned()))
     }
 
+    pub(crate) fn request_with_webpush_register_response(
+        &mut self,
+        now: Instant,
+        message: Line,
+    ) -> Result<RequestId, RequestError> {
+        self.request_with_boundary(now, message, ResponseBoundary::WebPushRegister)
+    }
+
     fn request_with_boundary(
         &mut self,
         now: Instant,
@@ -4666,8 +4695,7 @@ impl Session {
                 pending.fence = Some(token.clone());
                 (pending.id, token, pending.deferred.is_none())
             });
-        let fence = matches!(matcher, Some(ResponseMatcher::Mode(_)))
-            .then(|| format!("papo-mode-{}", self.next_request_id));
+        let fence = boundary.fence(self.next_request_id);
         self.next_request_id = self.next_request_id.wrapping_add(1);
         if let Some((request, token, true)) = &who_fence {
             let ping = Line::new("PING").param(token.as_str()).encode()?;
