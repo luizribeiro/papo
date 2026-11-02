@@ -3308,6 +3308,43 @@ struct PendingRequest {
     sent: bool,
     feature: Option<Feature>,
     emit_events: bool,
+    echo: Option<SentEcho>,
+}
+
+#[derive(Debug)]
+struct SentEcho {
+    kind: TextKind,
+    target: String,
+    text: String,
+    reply: Option<Line>,
+}
+
+impl SentEcho {
+    fn new(kind: TextKind, target: &str, text: &str) -> Self {
+        Self {
+            kind,
+            target: target.to_owned(),
+            text: text.to_owned(),
+            reply: None,
+        }
+    }
+
+    fn from_message(message: &LineRef<'_>) -> Option<Self> {
+        let kind = match message.command() {
+            Command::Privmsg => TextKind::Privmsg,
+            Command::Notice => TextKind::Notice,
+            _ => return None,
+        };
+        Some(Self::new(kind, message.param(0)?, message.param(1)?))
+    }
+
+    fn matches(&self, message: &LineRef<'_>, mapping: Casemapping) -> bool {
+        message.command_is(self.kind.command())
+            && message
+                .param(0)
+                .is_some_and(|target| names_equal(mapping, target, &self.target))
+            && message.param(1) == Some(self.text.as_str())
+    }
 }
 
 type PendingRequests = BTreeMap<String, PendingRequest>;
@@ -4315,7 +4352,7 @@ impl Session {
             return Err(RequestError::PendingLimit);
         }
         self.next_request_id = self.next_request_id.wrapping_add(1);
-        for label in labels.iter().cloned() {
+        for (label, text) in labels.iter().cloned().zip(&confirmation_texts) {
             self.requests.insert(
                 label,
                 PendingRequest {
@@ -4324,6 +4361,7 @@ impl Session {
                     sent: true,
                     feature: None,
                     emit_events: false,
+                    echo: Some(SentEcho::new(kind, target, text)),
                 },
             );
         }
@@ -6366,7 +6404,7 @@ mod tests {
 
     use super::{
         Authorship, CloseKind, Config, Connection, Event, ListMode, MultilineMessage, NameKey,
-        Outbox, ReceivedLine, ReplyToken, RequestId, ResponseMatcher, Session, State,
+        Outbox, ReceivedLine, ReplyToken, RequestId, ResponseMatcher, SentEcho, Session, State,
         UnlabelledRequest,
     };
 
@@ -6386,6 +6424,26 @@ mod tests {
             },
             channel_guard: None,
         }
+    }
+
+    #[test]
+    fn sent_echo_matches_command_target_and_text() {
+        let echo = SentEcho::from_message(
+            &Line::privmsg("Alice[", "the review can wait until you return").as_ref(),
+        )
+        .unwrap();
+        assert!(echo.matches(
+            &Line::privmsg("alice{", "the review can wait until you return").as_ref(),
+            Casemapping::Rfc1459,
+        ));
+        for mismatch in [
+            Line::new("NOTICE").with_params(["Alice[", "the review can wait until you return"]),
+            Line::privmsg("bob", "the review can wait until you return"),
+            Line::privmsg("Alice[", "the review should not wait"),
+        ] {
+            assert!(!echo.matches(&mismatch.as_ref(), Casemapping::Rfc1459));
+        }
+        assert!(SentEcho::from_message(&Line::new("PING").param("irc.example").as_ref()).is_none());
     }
 
     fn session_with_channel_modes() -> Session {

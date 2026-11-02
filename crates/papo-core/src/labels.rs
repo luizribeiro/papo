@@ -1,6 +1,6 @@
 use crate::{
     Command, Event, Feature, Instant, Line, LineRef, MAX_PENDING_REQUESTS, Numeric, PendingRequest,
-    RequestError, RequestId, Response, ResponseMatcher, Session, UnlabelledRequest, cap,
+    RequestError, RequestId, Response, ResponseMatcher, SentEcho, Session, UnlabelledRequest, cap,
     parse_whois_channels, sent_info,
 };
 
@@ -46,6 +46,22 @@ impl Session {
             }));
         }
         true
+    }
+
+    fn pending_sent_label(&self, message: &LineRef<'_>) -> Option<String> {
+        if message.tag("label").is_some() || !self.is_own_source(message) {
+            return None;
+        }
+        let mapping = self.isupport.value().casemapping();
+        self.requests
+            .iter()
+            .filter_map(|(label, request)| {
+                let echo = request.echo.as_ref()?;
+                (echo.reply.is_some() && echo.matches(message, mapping))
+                    .then_some((request.id, label))
+            })
+            .min_by_key(|(id, _)| *id)
+            .map(|(_, label)| label.clone())
     }
 
     pub(super) fn resolve_deferred(&mut self, id: RequestId) -> bool {
@@ -94,9 +110,12 @@ impl Session {
     }
 
     pub(super) fn response_emits_events(&self, message: &LineRef<'_>) -> bool {
-        message
+        let label = message
             .tag("label")
-            .and_then(|label| self.requests.get(label.as_ref()))
+            .map(std::borrow::Cow::into_owned)
+            .or_else(|| self.pending_sent_label(message));
+        label
+            .and_then(|label| self.requests.get(&label))
             .is_none_or(|request| request.emit_events)
     }
 
@@ -367,6 +386,9 @@ impl Session {
         }
         let line = message.encode()?;
         if let Some(label) = label {
+            let echo = sent
+                .then(|| SentEcho::from_message(&message.as_ref()))
+                .flatten();
             self.requests.insert(
                 label,
                 PendingRequest {
@@ -375,6 +397,7 @@ impl Session {
                     sent,
                     feature,
                     emit_events,
+                    echo,
                 },
             );
         } else {
