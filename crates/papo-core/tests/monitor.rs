@@ -463,6 +463,95 @@ fn list_full_forgets_only_the_rejected_presence() {
 }
 
 #[test]
+fn list_full_untracks_only_rejected_targets_from_a_batched_add() {
+    registered()
+        .update(|session| session.monitor_add(["alice", "bob", "carol"]))
+        .client("MONITOR + alice,bob,carol")
+        .server(":solanum.example 731 papo :alice")
+        .event(|event| matches!(event, Event::MonitorOffline { nick, .. } if nick == "alice"))
+        .server(":solanum.example 734 papo 1 bob,carol :Monitor list is full")
+        .event(|event| matches!(event, Event::MonitorListFull { limit: 1, nicks, .. } if nicks == &["bob", "carol"]))
+        .inspect(|session| {
+            assert_eq!(
+                session
+                    .state()
+                    .monitored()
+                    .map(Nick::as_str)
+                    .collect::<Vec<_>>(),
+                ["alice"]
+            );
+        })
+        .update(|session| session.monitor_add(["dave"]))
+        .event(|event| matches!(event, Event::MonitorListFull { limit: 1, nicks, .. } if nicks == &["dave"]))
+        .no_client();
+}
+
+#[test]
+fn unsolicited_list_full_does_not_change_other_monitor_entries() {
+    registered()
+        .update(|session| session.monitor_add(["alice", "bob"]))
+        .client("MONITOR + alice,bob")
+        .server(":insp.example 731 papo :alice,bob")
+        .event(|event| matches!(event, Event::MonitorOffline { nick, .. } if nick == "alice"))
+        .event(|event| matches!(event, Event::MonitorOffline { nick, .. } if nick == "bob"))
+        .server(":insp.example 734 papo 1 mallory :Monitor list is full")
+        .event(
+            |event| matches!(event, Event::MonitorListFull { nicks, .. } if nicks == &["mallory"]),
+        )
+        .inspect(|session| {
+            assert_eq!(
+                session
+                    .state()
+                    .monitored()
+                    .map(Nick::as_str)
+                    .collect::<Vec<_>>(),
+                ["alice", "bob"]
+            );
+        })
+        .update(|session| session.monitor_add(["carol"]))
+        .client("MONITOR + carol");
+}
+
+#[test]
+fn rejected_direct_watch_releases_its_monitor_slot() {
+    let alice = RefCell::new(None);
+    let bob = RefCell::new(None);
+    registered()
+        .update(|session| {
+            *alice.borrow_mut() = Some(session.__direct_acquire(
+                "alice",
+                None,
+                None,
+                Account::Unknown,
+            ));
+        })
+        .client("MONITOR + alice")
+        .server(":solanum.example 734 papo 1 alice :Monitor list is full")
+        .event(|event| matches!(event, Event::MonitorListFull { limit: 1, nicks, .. } if nicks == &["alice"]))
+        .inspect(|session| {
+            assert_eq!(session.state().monitored().count(), 0);
+            assert!(session.state().user("alice").is_none());
+        })
+        .update(|session| {
+            *bob.borrow_mut() = Some(session.__direct_acquire(
+                "bob",
+                None,
+                None,
+                Account::Unknown,
+            ));
+        })
+        .client("MONITOR + bob")
+        .server(":solanum.example 731 papo :bob")
+        .event(|event| matches!(event, Event::MonitorOffline { nick, .. } if nick == "bob"))
+        .update(|session| {
+            session.__direct_release(alice.borrow().as_ref().unwrap());
+            session.__direct_release(bob.borrow().as_ref().unwrap());
+        })
+        .client("MONITOR - bob")
+        .no_client();
+}
+
+#[test]
 fn malformed_monitor_replies_remain_messages() {
     registered()
         .server(":ergo.test 730 papo :!alice@cloak.example")

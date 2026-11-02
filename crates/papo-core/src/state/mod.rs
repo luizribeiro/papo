@@ -962,6 +962,14 @@ impl State {
         nick: &str,
     ) {
         self.update_casemapping(isupport.casemapping());
+        let monitored = monitor
+            .tracked()
+            .map(|nick| self.casemapping.nick(nick))
+            .collect();
+        if self.monitored != monitored {
+            self.monitored = monitored;
+            self.mark_changed();
+        }
         let key = NameKey::new(nick, self.casemapping);
         if let Some((username, host)) = monitor.online_nick(nick, isupport) {
             if !self.users.contains_key(&key) {
@@ -1738,10 +1746,7 @@ impl State {
         self.users.values().filter(|user| user.monitored)
     }
 
-    /// Iterates over desired monitored nicknames in insertion order.
-    ///
-    /// The iterator includes nicknames that the server rejected because its
-    /// monitor list was full.
+    /// Iterates over currently tracked monitored nicknames in insertion order.
     #[must_use]
     pub fn monitored(&self) -> impl ExactSizeIterator<Item = &Nick> {
         self.monitored.iter()

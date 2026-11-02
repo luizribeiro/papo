@@ -19,6 +19,7 @@ pub(super) struct Monitor {
     tracked: HashSet<NickKey>,
     presence: HashMap<NickKey, Presence>,
     casemapping: Names,
+    server_limit: Option<usize>,
     unsupported_warned: bool,
 }
 
@@ -99,6 +100,7 @@ impl Monitor {
         self.presence.clear();
         self.pending.clear();
         self.tracked.clear();
+        self.server_limit = None;
     }
 
     pub(super) fn identity_departed(&mut self, nick: &str, isupport: &Isupport) {
@@ -190,6 +192,7 @@ impl Monitor {
                 Some(LimitValue::Unlimited) => usize::MAX,
                 None => 0,
             };
+            let limit = self.server_limit.unwrap_or(limit).min(limit);
             if self.reserved_len() < limit {
                 self.pending.insert(self.casemapping.nick(nick));
                 transmit_chunks("+", &[nick.to_owned()], outbox);
@@ -241,6 +244,7 @@ impl Monitor {
         self.presence.clear();
         self.pending.clear();
         self.tracked.clear();
+        self.server_limit = None;
         if matches!(isupport.get("MONITOR"), Advertised::Value("0")) {
             if !self.desired.is_empty() {
                 self.warn_unsupported(UnsupportedReason::LimitZero, outbox);
@@ -285,11 +289,15 @@ impl Monitor {
         let mapping = self.names(isupport);
         self.update_casemapping(mapping.casemapping());
         let support = isupport.monitor();
-        let limit = match support {
+        let advertised_limit = match support {
             Some(LimitValue::Limited(limit)) => limit,
             Some(LimitValue::Unlimited) => usize::MAX,
             None => 0,
         };
+        let limit = self
+            .server_limit
+            .unwrap_or(advertised_limit)
+            .min(advertised_limit);
         let mut added = Vec::new();
         let mut unavailable = Vec::new();
         let mut full = Vec::new();
@@ -455,6 +463,7 @@ impl Monitor {
                     return Handled::No;
                 }
                 let mapping = self.names(isupport);
+                let reserved = self.reserved_len();
                 for nick in &nicks {
                     let key = mapping.nick(nick);
                     if !self.pending.remove(&key) && !self.tracked.remove(&key) {
@@ -469,6 +478,9 @@ impl Monitor {
                     {
                         self.desired.remove(index);
                     }
+                }
+                if self.reserved_len() != reserved {
+                    self.server_limit = Some(self.server_limit.map_or(limit, |old| old.min(limit)));
                 }
                 outbox.event(Event::MonitorListFull {
                     limit,
