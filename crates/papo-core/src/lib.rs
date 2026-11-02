@@ -1687,7 +1687,6 @@ impl ResponseMatcher {
 #[derive(Debug)]
 enum ResponseBoundary {
     Matcher(ResponseMatcher),
-    #[allow(dead_code)]
     Command(String),
 }
 
@@ -3917,6 +3916,10 @@ impl Session {
         }
         match LineRef::parse(&decoded) {
             Ok(message) => {
+                let redacted = redact_sensitive_server_line(&message);
+                let message = redacted
+                    .as_ref()
+                    .map_or(message, |redacted| redacted.as_ref());
                 let multiline_max_bytes = outgoing::multiline_limits(self.caps.enabled())
                     .map_or(usize::MAX, |limits| limits.max_bytes);
                 match self.batches.handle(
@@ -4566,6 +4569,15 @@ impl Session {
         matcher: ResponseMatcher,
     ) -> Result<RequestId, RequestError> {
         self.request_with_boundary(now, message, ResponseBoundary::Matcher(matcher))
+    }
+
+    pub(crate) fn request_with_command_response(
+        &mut self,
+        now: Instant,
+        message: Line,
+        command: &str,
+    ) -> Result<RequestId, RequestError> {
+        self.request_with_boundary(now, message, ResponseBoundary::Command(command.to_owned()))
     }
 
     fn request_with_boundary(
@@ -6401,6 +6413,20 @@ fn requested_message_feature(message: &LineRef<'_>) -> Option<Feature> {
         return Some(Feature::Reactions);
     }
     message.tag("+typing").map(|_| Feature::Typing)
+}
+
+fn redact_sensitive_server_line(message: &LineRef<'_>) -> Option<Line> {
+    if !message.command_is("WEBPUSH")
+        || !message
+            .param(0)
+            .is_some_and(|subcommand| subcommand.eq_ignore_ascii_case("REGISTER"))
+        || message.param(2).is_none()
+    {
+        return None;
+    }
+    let mut redacted = message.to_owned();
+    redacted.__replace_param(2, "<redacted>");
+    Some(redacted)
 }
 
 fn parse_whois_channels(lines: &[Line], isupport: &papo_proto::Isupport) -> Vec<WhoisChannel> {

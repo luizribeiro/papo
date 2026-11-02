@@ -26,6 +26,22 @@ fn registered(cap: &str) -> Transcript {
     .event(|event| matches!(event, Event::Connected(_)))
 }
 
+fn registered_without_labels(cap: &str) -> Transcript {
+    Transcript::new(
+        Config::default()
+            .enable(Feature::WebPush)
+            .wanted_caps([cap]),
+    )
+    .connect_default()
+    .server(&format!("CAP * LS :{cap}"))
+    .client(&format!("CAP REQ :{cap}"))
+    .server(&format!("CAP * ACK :{cap}"))
+    .client("CAP END")
+    .welcome(":ergo.test 001 alice :Welcome to Ergo")
+    .server(":ergo.test 422 alice :MOTD File is missing")
+    .event(|event| matches!(event, Event::Connected(_)))
+}
+
 #[test]
 fn registers_and_unregisters_webpush_endpoints_with_both_caps() {
     for cap in ["draft/webpush", "soju.im/webpush"] {
@@ -61,6 +77,74 @@ fn registers_and_unregisters_webpush_endpoints_with_both_caps() {
             ))
             .event(|event| matches!(event, Event::Response(_)));
     }
+}
+
+#[test]
+fn completes_unlabelled_webpush_replies_and_redacts_echoed_keys() {
+    const SECRET_AUTH: &str = "dW5pcXVlLXdlYnB1c2gtYXV0aC00ODYy";
+
+    registered_without_labels("draft/webpush")
+        .update(|session| {
+            session
+                .webpush_register(
+                    std::time::Instant::now(),
+                    ENDPOINT,
+                    P256DH,
+                    &papo_core::Secret::new(SECRET_AUTH),
+                )
+                .unwrap();
+        })
+        .client(&format!(
+            "WEBPUSH REGISTER {ENDPOINT} p256dh={P256DH};auth={SECRET_AUTH}"
+        ))
+        .server(
+            ":ergo.test WARN WEBPUSH PERSISTENCE_REQUIRED :Always-on mode is required for push delivery",
+        )
+        .no_event()
+        .server(&format!(
+            ":ergo.test WEBPUSH REGISTER {ENDPOINT} p256dh={P256DH};auth={SECRET_AUTH}"
+        ))
+        .inspect(|session| assert!(!format!("{session:?}").contains(SECRET_AUTH)))
+        .event(|event| {
+            let Event::Response(response) = event else {
+                return false;
+            };
+            let debug = format!("{response:?}");
+            !debug.contains(SECRET_AUTH)
+                && response.lines.len() == 2
+                && response.lines[1].get(2) == Some("<redacted>")
+        })
+        .update(|session| {
+            session
+                .webpush_unregister(std::time::Instant::now(), ENDPOINT)
+                .unwrap();
+        })
+        .client(&format!("WEBPUSH UNREGISTER {ENDPOINT}"))
+        .server(":ergo.test FAIL WEBPUSH INVALID_PARAMS UNREGISTER https://push.example.net/message/ErgoTest/alice :Invalid web push URL")
+        .event(|event| {
+            matches!(event, Event::Response(response)
+                if response.refusal() == Some(Refusal::InvalidWebPushParameters))
+        })
+        .update(|session| {
+            session
+                .webpush_unregister(std::time::Instant::now(), ENDPOINT)
+                .unwrap();
+        })
+        .client(&format!("WEBPUSH UNREGISTER {ENDPOINT}"))
+        .server(&format!(":ergo.test WEBPUSH UNREGISTER {ENDPOINT}"))
+        .event(|event| matches!(event, Event::Response(_)))
+        .server(":ergo.test EXTENSION REGISTER account.example ordinary-diagnostic")
+        .event(|event| {
+            matches!(event, Event::Line(line)
+                if line.as_ref().param(2) == Some("ordinary-diagnostic"))
+        })
+        .server(&format!(
+            ":ergo.test WEBPUSH UNREGISTER {ENDPOINT} ordinary-diagnostic"
+        ))
+        .event(|event| {
+            matches!(event, Event::Line(line)
+                if line.as_ref().param(2) == Some("ordinary-diagnostic"))
+        });
 }
 
 #[test]

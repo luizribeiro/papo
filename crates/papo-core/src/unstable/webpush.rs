@@ -38,13 +38,13 @@ impl Session {
         keys.push_str(";auth=");
         keys.push_str(auth);
         let keys = Secret::new(keys.as_str());
-        self.request_for_feature(
+        self.request_with_command_response(
             now,
             Line::new("WEBPUSH")
                 .param("REGISTER")
                 .param(endpoint)
                 .param(keys),
-            Feature::WebPush,
+            "WEBPUSH",
         )
     }
 
@@ -61,10 +61,10 @@ impl Session {
     ) -> Result<RequestId, RequestError> {
         self.require_feature(Feature::WebPush)?;
         validate_endpoint(endpoint)?;
-        self.request_for_feature(
+        self.request_with_command_response(
             now,
             Line::new("WEBPUSH").param("UNREGISTER").param(endpoint),
-            Feature::WebPush,
+            "WEBPUSH",
         )
     }
 }
