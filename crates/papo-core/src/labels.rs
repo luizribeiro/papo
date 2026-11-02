@@ -5,23 +5,33 @@ use crate::{
 };
 
 impl Session {
-    pub(super) fn resolve_message(&mut self, message: &LineRef<'_>) -> bool {
-        let Some(label) = message.tag("label") else {
-            return false;
-        };
-        let Some(request) = self.requests.remove(label.as_ref()) else {
-            return false;
-        };
+    pub(super) fn resolve_message(&mut self, message: &LineRef<'_>) -> Option<bool> {
+        let label = message
+            .tag("label")
+            .map(std::borrow::Cow::into_owned)
+            .or_else(|| self.pending_sent_label(message))?;
+        if message.command() == Command::Numeric(Numeric::RPL_AWAY)
+            && let Some(request) = self.requests.get_mut(&label)
+            && request.sent
+            && let Some(echo) = &mut request.echo
+        {
+            echo.reply = Some(message.to_owned());
+            return Some(false);
+        }
+        let request = self.requests.remove(&label)?;
         let id = request.id;
         self.away_messages.remove(&id);
         if message.command_is("ACK") && self.resolve_deferred(id) {
-            return true;
+            return Some(true);
         }
-        let lines = if message.command_is("ACK") {
-            Vec::new()
-        } else {
-            vec![message.to_owned()]
-        };
+        let mut lines = request
+            .echo
+            .and_then(|echo| echo.reply)
+            .into_iter()
+            .collect::<Vec<_>>();
+        if !message.command_is("ACK") {
+            lines.push(message.to_owned());
+        }
         let whois_channels = parse_whois_channels(&lines, self.isupport.value());
         if !self
             .unlabelled_requests
@@ -45,7 +55,7 @@ impl Session {
                 enabled_features,
             }));
         }
-        true
+        Some(true)
     }
 
     fn pending_sent_label(&self, message: &LineRef<'_>) -> Option<String> {
@@ -96,17 +106,22 @@ impl Session {
         queued_events: usize,
         emit_events: bool,
     ) -> bool {
-        let resolved = self.resolve_message(message);
-        if resolved && !emit_events {
-            let response = self
-                .outbox
-                .events
-                .pop_back()
-                .expect("a resolved request queued its response");
+        let Some(complete) = self.resolve_message(message) else {
+            return false;
+        };
+        if !emit_events {
+            let response = complete.then(|| {
+                self.outbox
+                    .events
+                    .pop_back()
+                    .expect("a resolved request queued its response")
+            });
             self.outbox.events.truncate(queued_events);
-            self.outbox.event(response);
+            if let Some(response) = response {
+                self.outbox.event(response);
+            }
         }
-        resolved
+        true
     }
 
     pub(super) fn response_emits_events(&self, message: &LineRef<'_>) -> bool {

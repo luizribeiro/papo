@@ -2096,6 +2096,180 @@ fn exposes_the_msgid_and_time_of_a_labelled_echo() {
 }
 
 #[test]
+fn away_numeric_waits_for_solanums_unlabelled_echo() {
+    let now = Instant::now();
+    let mut session = echo_session(now);
+    let id = session
+        .send_text(now, TextKind::Privmsg, "alice", "the review can wait", &[])
+        .unwrap()
+        .unwrap();
+    while session.poll_transmit().is_some() {}
+    session.handle_line(now, b"@label=0 :irc.solanum.test 301 papo alice :is away");
+    assert_eq!(session.poll_event(), None);
+    session.handle_line(
+        now,
+        b"@msgid=RfcBTzyxY120004;time=2026-11-01T22:45:01.123Z :papo!~papo@client.example PRIVMSG alice :the review can wait",
+    );
+    let Some(Event::Response(response)) = session.poll_event() else {
+        panic!("matching echo should complete the send")
+    };
+    assert_eq!(response.id, id);
+    assert_eq!(response.lines.len(), 2);
+    assert_eq!(response.sent().unwrap().msgid, "RfcBTzyxY120004");
+    assert_eq!(session.poll_event(), None);
+}
+
+#[test]
+fn away_numeric_waits_for_solanums_unlabelled_notice_echo() {
+    let now = Instant::now();
+    let mut session = echo_session(now);
+    let id = request(
+        &mut session,
+        now,
+        Line::new("NOTICE").with_params(["alice", "the deployment finished"]),
+    );
+    while session.poll_transmit().is_some() {}
+    session.handle_line(now, b"@label=0 :irc.solanum.test 301 papo alice :is away");
+    assert_eq!(session.poll_event(), None);
+    session.handle_line(
+        now,
+        b"@msgid=RfcBTzyxY120005;time=2026-11-01T22:46:01.123Z :papo!~papo@client.example NOTICE alice :the deployment finished",
+    );
+
+    let Some(Event::Response(response)) = session.poll_event() else {
+        panic!("matching notice echo should complete the send")
+    };
+    assert_eq!(response.id, id);
+    assert_eq!(response.lines.len(), 2);
+    let sent = response.sent().expect("notice echo identity");
+    assert_eq!(sent.msgid, "RfcBTzyxY120005");
+    assert_eq!(
+        sent.server_time.as_deref(),
+        Some("2026-11-01T22:46:01.123Z")
+    );
+    assert_eq!(session.poll_event(), None);
+}
+
+#[test]
+fn another_users_matching_message_does_not_confirm_an_away_send() {
+    let now = Instant::now();
+    let mut session = echo_session(now);
+    let id = session
+        .send_text(now, TextKind::Privmsg, "alice", "the review can wait", &[])
+        .unwrap()
+        .unwrap();
+    while session.poll_transmit().is_some() {}
+    session.handle_line(now, b"@label=0 :irc.solanum.test 301 papo alice :is away");
+    session.handle_line(
+        now,
+        b":mallory!~mallory@client.example PRIVMSG alice :the review can wait",
+    );
+    assert!(matches!(session.poll_event(), Some(Event::Line(_))));
+    assert_eq!(session.poll_event(), None);
+
+    session.handle_line(
+        now,
+        b"@msgid=RfcBTzyxY120006 :papo!~papo@client.example PRIVMSG alice :the review can wait",
+    );
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Response(response)) if response.id == id
+    ));
+    assert_eq!(session.poll_event(), None);
+}
+
+#[test]
+fn labelled_own_echo_uses_its_label_when_pending_text_matches() {
+    let now = Instant::now();
+    let mut session = echo_session(now);
+    let first = session
+        .send_text(now, TextKind::Privmsg, "alice", "the review can wait", &[])
+        .unwrap()
+        .unwrap();
+    let second = session
+        .send_text(now, TextKind::Privmsg, "alice", "the review can wait", &[])
+        .unwrap()
+        .unwrap();
+    while session.poll_transmit().is_some() {}
+    session.handle_line(now, b"@label=0 :irc.solanum.test 301 papo alice :is away");
+    session.handle_line(
+        now,
+        b"@label=1;msgid=RfcBTzyxY120007 :papo!~papo@client.example PRIVMSG alice :the review can wait",
+    );
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Response(response)) if response.id == second
+    ));
+
+    session.handle_line(
+        now,
+        b"@msgid=RfcBTzyxY120008 :papo!~papo@client.example PRIVMSG alice :the review can wait",
+    );
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Response(response)) if response.id == first
+    ));
+    assert_eq!(session.poll_event(), None);
+}
+
+#[test]
+fn unrelated_own_echo_does_not_confirm_an_away_send() {
+    let now = Instant::now();
+    let mut session = echo_session(now);
+    let id = session
+        .send_text(now, TextKind::Privmsg, "alice", "the review can wait", &[])
+        .unwrap()
+        .unwrap();
+    while session.poll_transmit().is_some() {}
+    session.handle_line(now, b"@label=0 :irc.solanum.test 301 papo alice :is away");
+    for line in [
+        ":papo!~papo@client.example PRIVMSG bob :the review can wait",
+        ":papo!~papo@client.example PRIVMSG alice :the review is ready",
+    ] {
+        session.handle_line(now, line.as_bytes());
+        assert!(matches!(session.poll_event(), Some(Event::Line(_))));
+        assert_eq!(session.poll_event(), None);
+    }
+
+    session.handle_line(
+        now,
+        b"@msgid=RfcBTzyxY120009 :papo!~papo@client.example PRIVMSG alice :the review can wait",
+    );
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Response(response)) if response.id == id
+    ));
+    assert_eq!(session.poll_event(), None);
+}
+
+#[test]
+fn unlabelled_text_match_requires_an_away_numeric() {
+    let now = Instant::now();
+    let mut session = echo_session(now);
+    let id = session
+        .send_text(now, TextKind::Privmsg, "alice", "the review can wait", &[])
+        .unwrap()
+        .unwrap();
+    while session.poll_transmit().is_some() {}
+    session.handle_line(
+        now,
+        b"@msgid=RfcBTzyxY120010 :papo!~papo@client.example PRIVMSG alice :the review can wait",
+    );
+    assert!(matches!(session.poll_event(), Some(Event::Line(_))));
+    assert_eq!(session.poll_event(), None);
+
+    session.handle_line(
+        now,
+        b"@label=0;msgid=RfcBTzyxY120011 :papo!~papo@client.example PRIVMSG alice :the review can wait",
+    );
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::Response(response)) if response.id == id
+    ));
+    assert_eq!(session.poll_event(), None);
+}
+
+#[test]
 fn does_not_report_sent_info_for_a_non_message_request() {
     let now = Instant::now();
     let mut session = echo_session(now);
