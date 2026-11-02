@@ -56,8 +56,12 @@ impl WebPush {
     /// [`crate::UnsupportedReason::NotOffered`] or
     /// [`crate::UnsupportedReason::DisabledByClient`]. Invalid endpoints or keys return
     /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
-    /// [`crate::Refusal::Other`]. It can also return [`Error::TooManyPendingRequests`], [`Error::Timeout`],
-    /// or [`Error::Disconnected`].
+    /// [`crate::Refusal::InvalidWebPushParameters`], [`crate::Refusal::WebPushForbidden`],
+    /// [`crate::Refusal::WebPushRegistrationLimit`], or [`crate::Refusal::InternalError`]. Soju
+    /// caps a user at 25 subscriptions but reports that limit as
+    /// [`crate::Refusal::InternalError`], indistinguishable from other internal errors. It can
+    /// also return [`Error::TooManyPendingRequests`], [`Error::Timeout`], or
+    /// [`Error::Disconnected`].
     pub fn register(
         &self,
         endpoint: impl Into<String>,
@@ -85,8 +89,9 @@ impl WebPush {
     /// [`crate::UnsupportedReason::NotOffered`] or
     /// [`crate::UnsupportedReason::DisabledByClient`]. An invalid endpoint returns
     /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
-    /// [`crate::Refusal::Other`]. It can also return [`Error::TooManyPendingRequests`], [`Error::Timeout`],
-    /// or [`Error::Disconnected`].
+    /// [`crate::Refusal::InvalidWebPushParameters`], [`crate::Refusal::WebPushForbidden`], or
+    /// [`crate::Refusal::InternalError`]. It can also return [`Error::TooManyPendingRequests`],
+    /// [`Error::Timeout`], or [`Error::Disconnected`].
     pub fn unregister(&self, endpoint: impl Into<String>) -> crate::RequestFuture<()> {
         let client = self.client.clone();
         let endpoint = endpoint.into();
