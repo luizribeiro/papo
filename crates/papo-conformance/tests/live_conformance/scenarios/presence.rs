@@ -1,7 +1,7 @@
 use papo::{Account, AccountCreation, Away, Error, Event, NewAccount, Refusal};
 use papo_conformance_macros::scenario;
 
-use super::support::{assert_refusal, confirmed_line, subject_name};
+use super::support::{assert_delivery_tags, assert_refusal, confirmed_line, subject_name};
 use crate::Scenario;
 
 /// delivers an authenticated sender account
@@ -178,8 +178,13 @@ async fn away_private_message(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(message.text, text);
     let (id, sent_text, server_time) = confirmed_line(&sent);
     assert_eq!(sent_text, text);
-    assert_eq!(message.msgid(), Some(id));
-    assert_eq!(message.server_time, server_time);
+    assert_delivery_tags(
+        message.msgid(),
+        message.server_time,
+        id,
+        server_time,
+        papo_test_server::DeploymentProfile::from_env()?,
+    );
     assert_eq!(
         alice.state().away(),
         &Away::__away_value(Some(away.to_owned()))

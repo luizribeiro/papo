@@ -118,7 +118,6 @@ Wire excerpts use `C:` for client lines and `S:` for server lines.
 ## Solanum
 
 ### Server bugs
-- `away_private_message` (`0-unstable-2026-09-13`) — Solanum's away numeric completes the direct message before papo captures echo metadata for Sent ([spec](https://ircv3.net/specs/extensions/labeled-response)). Evidence: `C: @label=... PRIVMSG away-user :the review can wait | S: @label=... 301 away-user ...; unlabeled echo`
 - `part` (`0-unstable-2026-09-13`) — Solanum attaches the PART response label to the services-bound copy, leaving the client-visible echo unlabeled and without an ACK ([spec](https://ircv3.net/specs/extensions/labeled-response)). Evidence: `With services linked, C: @label=... PART #review :reason | S to client: unlabeled PART and no labeled ACK; the label was consumed by the server-link copy`
 - `topic` (`0-unstable-2026-09-13`) — Solanum attaches the TOPIC response label to the services-bound copy, leaving the client-visible echo unlabeled and without an ACK ([spec](https://ircv3.net/specs/extensions/labeled-response)). Evidence: `With services linked, C: @label=... TOPIC #review :new topic | S to client: unlabeled TOPIC and no labeled ACK; the label was consumed by the server-link copy`
 

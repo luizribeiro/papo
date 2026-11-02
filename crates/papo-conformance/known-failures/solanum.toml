@@ -1,10 +1,3 @@
-[away_private_message]
-reason = "Solanum's away numeric completes the direct message before papo captures echo metadata for Sent"
-kind = "server-bug"
-spec = "https://ircv3.net/specs/extensions/labeled-response"
-evidence = "C: @label=... PRIVMSG away-user :the review can wait | S: @label=... 301 away-user ...; unlabeled echo"
-server_version = "0-unstable-2026-09-13"
-
 [part]
 reason = "Solanum attaches the PART response label to the services-bound copy, leaving the client-visible echo unlabeled and without an ACK"
 kind = "server-bug"
