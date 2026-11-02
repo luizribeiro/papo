@@ -27,6 +27,21 @@ fn secure_sasl(sasl: Sasl) -> Config {
         .sasl(sasl)
 }
 
+fn oauth_bearer_after_initial_response() -> Transcript {
+    Transcript::new(
+        Config::default().sasl(
+            Sasl::oauth_bearer(papo_core::Secret::new("expired-oauth-token-4821")).optional(),
+        ),
+    )
+    .connect_default()
+    .server("CAP * LS :sasl=OAUTHBEARER")
+    .client("CAP REQ :sasl")
+    .server("CAP * ACK :sasl")
+    .client("AUTHENTICATE OAUTHBEARER")
+    .server("AUTHENTICATE +")
+    .client("AUTHENTICATE biwsAWF1dGg9QmVhcmVyIGV4cGlyZWQtb2F1dGgtdG9rZW4tNDgyMQEB")
+}
+
 #[test]
 fn configures_mechanisms_policy_and_entropy() {
     let config = Config::default().sasl(
@@ -173,6 +188,101 @@ fn oauth_bearer_failure_discards_the_pending_account() {
             Account::Unknown | Account::LoggedOut
         ));
     });
+}
+
+#[test]
+fn oauth_bearer_answers_only_one_error_challenge() {
+    oauth_bearer_after_initial_response()
+        .server(OAUTH_BEARER_INVALID_TOKEN)
+        .client("AUTHENTICATE AQ==")
+        .server(OAUTH_BEARER_INVALID_TOKEN)
+        .client("AUTHENTICATE *")
+        .server(":ergo.test 906 papo :SASL authentication aborted")
+        .event(|event| {
+            matches!(event, Event::AuthenticationFailed { reason, .. }
+                if reason.contains("second OAUTHBEARER error challenge"))
+        })
+        .client("CAP END");
+}
+
+#[test]
+fn oauth_bearer_rejects_a_malformed_error_challenge() {
+    oauth_bearer_after_initial_response()
+        .server("AUTHENTICATE not-base64!")
+        .client("AUTHENTICATE *")
+        .server(":ergo.test 906 papo :SASL authentication aborted")
+        .event(|event| {
+            matches!(event, Event::AuthenticationFailed { reason, .. }
+                if reason.contains("invalid SASL challenge"))
+        })
+        .client("CAP END");
+}
+
+#[test]
+fn oauth_bearer_error_challenge_is_bounded_at_4096_bytes() {
+    let full_chunk = format!("AUTHENTICATE {}", "YWFh".repeat(100));
+
+    let mut transcript = oauth_bearer_after_initial_response();
+    for _ in 0..10 {
+        transcript = transcript.server(&full_chunk).no_client();
+    }
+    transcript
+        .server(&format!("AUTHENTICATE {}", "YWFh".repeat(24)))
+        .client("AUTHENTICATE AQ==")
+        .server(":ergo.test 904 papo :SASL authentication failed")
+        .event(|event| matches!(event, Event::AuthenticationFailed { .. }))
+        .client("CAP END");
+
+    let mut transcript = oauth_bearer_after_initial_response();
+    for _ in 0..10 {
+        transcript = transcript.server(&full_chunk).no_client();
+    }
+    transcript
+        .server(&format!("AUTHENTICATE {}", "YWFh".repeat(25)))
+        .client("AUTHENTICATE *")
+        .server(":ergo.test 906 papo :SASL authentication aborted")
+        .event(|event| {
+            matches!(event, Event::AuthenticationFailed { reason, .. }
+                if reason.contains("invalid SASL challenge"))
+        })
+        .client("CAP END");
+}
+
+#[test]
+fn oauth_bearer_error_outcome_has_a_bounded_deadline() {
+    oauth_bearer_after_initial_response()
+        .server(OAUTH_BEARER_INVALID_TOKEN)
+        .client("AUTHENTICATE AQ==")
+        .deadline(Some(std::time::Duration::from_secs(30)))
+        .advance(std::time::Duration::from_secs(30))
+        .client("AUTHENTICATE *")
+        .server(":ergo.test 906 papo :SASL authentication aborted")
+        .event(|event| {
+            matches!(event, Event::AuthenticationFailed { reason, .. }
+                if reason.contains("timed out after 30 seconds"))
+        })
+        .client("CAP END");
+}
+
+#[test]
+fn oauth_bearer_never_accepts_success_after_an_error_challenge() {
+    oauth_bearer_after_initial_response()
+        .server(":ergo.test 900 papo papo!~papo@localhost alice :You are now logged in as alice")
+        .server(OAUTH_BEARER_INVALID_TOKEN)
+        .client("AUTHENTICATE AQ==")
+        .server(":ergo.test 903 papo :SASL authentication successful")
+        .event(|event| {
+            matches!(event, Event::AuthenticationFailed { reason, .. }
+                if reason.contains("succeeded after an error challenge"))
+        })
+        .client("CAP END")
+        .inspect(|session| {
+            assert_eq!(session.account(), None);
+            assert!(matches!(
+                session.state().account(),
+                Account::Unknown | Account::LoggedOut
+            ));
+        });
 }
 
 #[test]
