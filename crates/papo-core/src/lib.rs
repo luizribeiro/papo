@@ -1685,10 +1685,51 @@ impl ResponseMatcher {
 }
 
 #[derive(Debug)]
+enum ResponseBoundary {
+    Matcher(ResponseMatcher),
+    #[allow(dead_code)]
+    Command(String),
+}
+
+impl ResponseBoundary {
+    fn matcher(&self) -> Option<&ResponseMatcher> {
+        match self {
+            Self::Matcher(matcher) => Some(matcher),
+            Self::Command(_) => None,
+        }
+    }
+
+    fn matches(
+        &self,
+        message: &LineRef<'_>,
+        mapping: Casemapping,
+        own_nick: &str,
+        state: &State,
+    ) -> Option<bool> {
+        match self {
+            Self::Matcher(matcher) => matcher.matches(message, mapping, own_nick, state),
+            Self::Command(command) => {
+                if message.command_is(command) {
+                    return Some(true);
+                }
+                StandardReplyView::parse(message)
+                    .filter(|reply| reply.command.eq_ignore_ascii_case(command))
+                    .map(|reply| reply.kind == StandardReplyKind::Fail)
+            }
+        }
+    }
+
+    fn is_list_row(&self, message: &LineRef<'_>) -> bool {
+        self.matcher()
+            .is_some_and(|matcher| matcher.is_list_row(message))
+    }
+}
+
+#[derive(Debug)]
 struct UnlabelledRequest {
     id: RequestId,
     started: Option<Instant>,
-    matcher: ResponseMatcher,
+    boundary: ResponseBoundary,
     channel_join: Option<ChannelJoinReservation>,
     fence: Option<String>,
     deferred: Option<WireLine>,
@@ -3935,7 +3976,9 @@ impl Session {
                 .and_then(|started| crate::deadline(started, self.config.request_timeout))
                 .is_some_and(|deadline| now >= deadline)
             {
-                if let ResponseMatcher::ListMode { channel, mode } = &request.matcher {
+                if let Some(ResponseMatcher::ListMode { channel, mode }) =
+                    request.boundary.matcher()
+                {
                     self.state.invalidate_mode_list(channel, *mode);
                 }
                 self.away_messages.remove(&request.id);
@@ -3985,8 +4028,8 @@ impl Session {
             .unlabelled_requests
             .iter()
             .find(|request| request.id == id)
-            .and_then(|request| match &request.matcher {
-                ResponseMatcher::ListMode { channel, mode } => Some((channel.clone(), *mode)),
+            .and_then(|request| match request.boundary.matcher() {
+                Some(ResponseMatcher::ListMode { channel, mode }) => Some((channel.clone(), *mode)),
                 _ => None,
             });
         if let Some((channel, mode)) = list {
@@ -4522,9 +4565,21 @@ impl Session {
         message: Line,
         matcher: ResponseMatcher,
     ) -> Result<RequestId, RequestError> {
-        let response_row_limit = self.response_row_limit(&message, &matcher)?;
-        let who_sweep = match &matcher {
-            ResponseMatcher::Who(channel)
+        self.request_with_boundary(now, message, ResponseBoundary::Matcher(matcher))
+    }
+
+    fn request_with_boundary(
+        &mut self,
+        now: Instant,
+        message: Line,
+        boundary: ResponseBoundary,
+    ) -> Result<RequestId, RequestError> {
+        let matcher = boundary.matcher();
+        let response_row_limit = matcher.map_or(Ok(10_000), |matcher| {
+            self.response_row_limit(&message, matcher)
+        })?;
+        let who_sweep = match matcher {
+            Some(ResponseMatcher::Who(channel))
                 if message.as_ref().command() == Command::Who
                     && self.state.channel(channel).is_some() =>
             {
@@ -4532,13 +4587,13 @@ impl Session {
             }
             _ => None,
         };
-        let away_message = matches!(matcher, ResponseMatcher::Away(true))
+        let away_message = matches!(matcher, Some(ResponseMatcher::Away(true)))
             .then(|| message.as_ref().param(0).map(str::to_owned))
             .flatten();
         if self.caps.enabled().contains_key(&cap::LABELED_RESPONSE) {
             let track_sync = matches!(
                 matcher,
-                ResponseMatcher::Join(_) | ResponseMatcher::ListMode { .. }
+                Some(ResponseMatcher::Join(_) | ResponseMatcher::ListMode { .. })
             );
             if track_sync && self.unlabelled_requests.len() >= MAX_PENDING_REQUESTS {
                 return Err(RequestError::PendingLimit);
@@ -4548,11 +4603,12 @@ impl Session {
                 self.away_messages.insert(id, message);
             }
             if track_sync {
-                let channel_join = self.channel_join_reservation(&matcher);
+                let channel_join =
+                    matcher.and_then(|matcher| self.channel_join_reservation(matcher));
                 self.unlabelled_requests.push_back(UnlabelledRequest {
                     id,
                     started: None,
-                    matcher,
+                    boundary,
                     channel_join,
                     fence: None,
                     deferred: None,
@@ -4570,12 +4626,11 @@ impl Session {
         }
         let line = message.encode()?;
         let id = RequestId(self.next_request_id);
-        let who_fence = matches!(&matcher, ResponseMatcher::Who(_))
+        let who_fence = matches!(matcher, Some(ResponseMatcher::Who(_)))
             .then(|| {
-                self.unlabelled_requests
-                    .iter_mut()
-                    .rev()
-                    .find(|request| matches!(&request.matcher, ResponseMatcher::Who(_)))
+                self.unlabelled_requests.iter_mut().rev().find(|request| {
+                    matches!(request.boundary.matcher(), Some(ResponseMatcher::Who(_)))
+                })
             })
             .flatten()
             .map(|pending| {
@@ -4584,7 +4639,7 @@ impl Session {
                 pending.fence = Some(token.clone());
                 (pending.id, token, pending.deferred.is_none())
             });
-        let fence = matches!(matcher, ResponseMatcher::Mode(_))
+        let fence = matches!(matcher, Some(ResponseMatcher::Mode(_)))
             .then(|| format!("papo-mode-{}", self.next_request_id));
         self.next_request_id = self.next_request_id.wrapping_add(1);
         if let Some((request, token, true)) = &who_fence {
@@ -4592,11 +4647,11 @@ impl Session {
             self.outbox.transmit_ordered(ping, Some(*request));
         }
         let deferred = who_fence.is_some().then(|| line.clone());
-        let channel_join = self.channel_join_reservation(&matcher);
+        let channel_join = matcher.and_then(|matcher| self.channel_join_reservation(matcher));
         self.unlabelled_requests.push_back(UnlabelledRequest {
             id,
             started: None,
-            matcher,
+            boundary,
             channel_join,
             fence: fence.clone(),
             deferred,
@@ -4647,8 +4702,8 @@ impl Session {
             return None;
         }
         if let Some(reservation) = self.unlabelled_requests.iter().find_map(|request| {
-            match (&request.matcher, &request.channel_join) {
-                (ResponseMatcher::Join(pending), Some(reservation))
+            match (request.boundary.matcher(), &request.channel_join) {
+                (Some(ResponseMatcher::Join(pending)), Some(reservation))
                     if names_equal(self.isupport.value().casemapping(), pending, channel) =>
                 {
                     Some(reservation.clone())
@@ -4671,7 +4726,7 @@ impl Session {
 
     fn pending_channel_join(&self, channel: &str) -> Option<&ChannelJoinReservation> {
         self.unlabelled_requests.iter().find_map(|request| {
-            let ResponseMatcher::Join(pending) = &request.matcher else {
+            let Some(ResponseMatcher::Join(pending)) = request.boundary.matcher() else {
                 return None;
             };
             names_equal(self.isupport.value().casemapping(), pending, channel)
@@ -6404,8 +6459,8 @@ mod tests {
 
     use super::{
         Authorship, CloseKind, Config, Connection, Event, ListMode, MultilineMessage, NameKey,
-        Outbox, ReceivedLine, ReplyToken, RequestId, ResponseMatcher, SentEcho, Session, State,
-        UnlabelledRequest,
+        Outbox, ReceivedLine, ReplyToken, RequestId, ResponseBoundary, ResponseMatcher, SentEcho,
+        Session, State, UnlabelledRequest,
     };
 
     fn unmarked_received_mode() -> ReceivedLine {
@@ -6592,10 +6647,10 @@ mod tests {
             UnlabelledRequest {
                 id: requested,
                 started: None,
-                matcher: ResponseMatcher::ListMode {
+                boundary: ResponseBoundary::Matcher(ResponseMatcher::ListMode {
                     channel: "#one".into(),
                     mode: ListMode::Ban,
-                },
+                }),
                 channel_join: None,
                 fence: None,
                 deferred: None,
@@ -6604,10 +6659,10 @@ mod tests {
             UnlabelledRequest {
                 id: RequestId(42),
                 started: None,
-                matcher: ResponseMatcher::ListMode {
+                boundary: ResponseBoundary::Matcher(ResponseMatcher::ListMode {
                     channel: "#two".into(),
                     mode: ListMode::Quiet,
-                },
+                }),
                 channel_join: None,
                 fence: None,
                 deferred: None,

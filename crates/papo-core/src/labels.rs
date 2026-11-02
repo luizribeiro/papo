@@ -77,7 +77,7 @@ impl Session {
     pub(super) fn resolve_deferred(&mut self, id: RequestId) -> bool {
         let Some(index) = self.unlabelled_requests.iter().position(|request| {
             request.id == id
-                && matches!(&request.matcher, ResponseMatcher::Join(channel)
+                && matches!(request.boundary.matcher(), Some(ResponseMatcher::Join(channel))
                     if self.state.channel(channel).is_some_and(crate::Channel::is_synced))
         }) else {
             return false;
@@ -152,7 +152,7 @@ impl Session {
             self.requests.get(label.as_ref()).map(|request| request.id)
         } else {
             self.unlabelled_requests.iter().find_map(|request| {
-                matches!(&request.matcher, ResponseMatcher::Away(value) if *value == away)
+                matches!(request.boundary.matcher(), Some(ResponseMatcher::Away(value)) if *value == away)
                     .then_some(request.id)
             })
         }
@@ -178,8 +178,8 @@ impl Session {
                     return None;
                 }
                 let join_started = matches!(
-                    &request.matcher,
-                    ResponseMatcher::Join(channel)
+                    request.boundary.matcher(),
+                    Some(ResponseMatcher::Join(channel))
                         if message.command() == Command::Join
                             && message
                                 .param(0)
@@ -194,7 +194,7 @@ impl Session {
                 fence
                     .or_else(|| {
                         request
-                            .matcher
+                            .boundary
                             .matches(message, mapping, self.welcome_state.nick(), &self.state)
                             .map(|complete| complete && request.fence.is_none())
                     })
@@ -204,11 +204,11 @@ impl Session {
             return false;
         };
         let list_limit_reached = self.unlabelled_requests.get(index).is_some_and(|request| {
-            request.matcher.is_list_row(message)
+            request.boundary.is_list_row(message)
                 && request
                     .lines
                     .iter()
-                    .filter(|line| request.matcher.is_list_row(&line.as_ref()))
+                    .filter(|line| request.boundary.is_list_row(&line.as_ref()))
                     .count()
                     >= self.config.max_list_entries_per_mode
         });
@@ -219,8 +219,8 @@ impl Session {
         if list_limit_reached || request.lines.push_reject(message.to_owned()).is_err() {
             let mut request = self.unlabelled_requests.remove(index).unwrap();
             self.requests.retain(|_, pending| pending.id != request.id);
-            if let ResponseMatcher::ListMode { channel, mode } = request.matcher {
-                self.state.invalidate_mode_list(&channel, mode);
+            if let Some(ResponseMatcher::ListMode { channel, mode }) = request.boundary.matcher() {
+                self.state.invalidate_mode_list(channel, *mode);
             }
             if list_limit_reached || request.lines.take_overflow_warning() {
                 self.state
@@ -257,7 +257,9 @@ impl Session {
                 state_limit: None,
                 enabled_features,
             };
-            self.finish_mode_list_response(&request.matcher, &mut response);
+            if let Some(matcher) = request.boundary.matcher() {
+                self.finish_mode_list_response(matcher, &mut response);
+            }
             self.outbox.event(Event::Response(response));
             self.start_deferred_who();
         }
@@ -276,7 +278,7 @@ impl Session {
             .unlabelled_requests
             .iter()
             .take(index)
-            .any(|request| matches!(&request.matcher, ResponseMatcher::Who(_)))
+            .any(|request| matches!(request.boundary.matcher(), Some(ResponseMatcher::Who(_))))
         {
             return;
         }
@@ -295,10 +297,10 @@ impl Session {
     }
 
     fn fence_completes(&self, request: &UnlabelledRequest, mapping: crate::Casemapping) -> bool {
-        !matches!(&request.matcher, ResponseMatcher::Who(_))
+        !matches!(request.boundary.matcher(), Some(ResponseMatcher::Who(_)))
             || request.lines.iter().any(|line| {
                 request
-                    .matcher
+                    .boundary
                     .matches(
                         &line.as_ref(),
                         mapping,
@@ -313,8 +315,8 @@ impl Session {
         let Some(index) =
             self.unlabelled_requests
                 .iter()
-                .position(|request| match &request.matcher {
-                    ResponseMatcher::Join(channel) => ResponseMatcher::own_channel_departure(
+                .position(|request| match request.boundary.matcher() {
+                    Some(ResponseMatcher::Join(channel)) => ResponseMatcher::own_channel_departure(
                         message,
                         channel,
                         mapping,
