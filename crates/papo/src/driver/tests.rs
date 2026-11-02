@@ -7058,6 +7058,35 @@ fn direct_confirmation_skips_waiters_for_other_nicks() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn rejected_monitor_entry_fails_the_pending_direct_request() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let task = tokio::spawn(driver);
+    welcome_burst(&mut server).await;
+    server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
+    client_line(&mut server, b"CAP END\r\n").await;
+    server_line(&mut server, b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 005 papo-driver MONITOR=100 :are supported\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n").await;
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Connected(_))
+    ));
+
+    let direct = tokio::spawn(async move { client.direct("alice").await });
+    client_line(&mut server, b"MONITOR + alice\r\n").await;
+    server_line(
+        &mut server,
+        b":solanum.example 734 papo-driver 1 alice :Monitor list is full\r\n",
+    )
+    .await;
+    assert!(matches!(
+        within(direct).await.unwrap(),
+        Err(Error::MonitorFull { limit: 1 })
+    ));
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn chat_text_uses_plain_splitting_and_rejects_empty_input() {
     let (mut server, client, _events, driver) = scripted(config());
     let task = tokio::spawn(driver);

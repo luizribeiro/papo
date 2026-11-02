@@ -215,9 +215,10 @@ impl crate::Client {
     ///
     /// # Errors
     ///
-    /// Returns [`crate::Error::MonitorFull`] when the server's advertised `MONITOR` limit is already
-    /// occupied. It also returns an unsupported, server, invalid-input, timeout, or disconnected
-    /// error if the identity cannot be established without failing open.
+    /// Returns [`crate::Error::MonitorFull`] when the server's `MONITOR` limit is already occupied
+    /// or the server refuses this nickname with `ERR_MONLISTFULL`. It also returns an unsupported,
+    /// server, invalid-input, timeout, or disconnected error if the identity cannot be established
+    /// without failing open.
     pub fn direct(&self, nick: impl crate::AsNick) -> crate::RequestFuture<DirectRef> {
         let nick = crate::AsNick::__parts(&nick).into_owned();
         self.direct_parts(nick)

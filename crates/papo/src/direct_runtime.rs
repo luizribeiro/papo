@@ -67,14 +67,31 @@ pub(crate) async fn prove(
     nick: String,
     acquired: Acquired,
 ) -> Result<(papo_core::RecipientGuard, Account), Error> {
-    let recipient = acquired.recipient;
-    let response = match client
-        .correlated(
-            crate::Line::new("WHO").with_params([nick.clone(), "%na".to_owned()]),
-            Some(papo_core::ResponseMatcher::Who(nick.clone())),
-        )
-        .await
-    {
+    let Acquired {
+        recipient,
+        confirmation,
+    } = acquired;
+    let response = client.correlated(
+        crate::Line::new("WHO").with_params([nick.clone(), "%na".to_owned()]),
+        Some(papo_core::ResponseMatcher::Who(nick.clone())),
+    );
+    tokio::pin!(response);
+    let response = if let Some(mut confirmation) = confirmation {
+        tokio::select! {
+            confirmed = &mut confirmation => match confirmed {
+                Ok(Ok(())) => response.await,
+                Ok(Err(error)) => Err(error),
+                Err(_) => Err(Error::connection_lost()),
+            },
+            response = &mut response => match confirmation.try_recv() {
+                Ok(Err(error)) => Err(error),
+                _ => response,
+            },
+        }
+    } else {
+        response.await
+    };
+    let response = match response {
         Ok(response) => response,
         Err(error) => {
             release(client, recipient).await;
