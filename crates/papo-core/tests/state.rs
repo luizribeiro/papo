@@ -842,6 +842,95 @@ fn account_tag_fills_an_unknown_account() {
         .ignore_rest();
 }
 
+fn account_id_transcript() -> Transcript {
+    Transcript::new(Config::default().nick("emily").wanted_caps([
+        "account-tag",
+        "message-tags",
+        "account-notify",
+        "extended-join",
+    ]))
+    .connect()
+    .client("CAP LS 302")
+    .client("NICK emily")
+    .client("USER papo 0 * papo")
+    .server(":irc.example CAP * LS :account-tag message-tags account-notify extended-join")
+    .client("CAP REQ :account-tag message-tags account-notify extended-join")
+    .server(":irc.example CAP * ACK :account-tag message-tags account-notify extended-join")
+    .client("CAP END")
+    .welcome(":irc.example 001 emily :Welcome to the network")
+    .server(":emily!em@users.example JOIN #papo emily :Emily Example")
+    .server(":dan!~dan@users.example JOIN #papo dan :Daniel Example")
+}
+
+#[test]
+fn inspircd_account_id_tags_track_the_most_recent_live_message() {
+    account_id_transcript()
+        .server("@account=dan;inspircd.org/account-id=4107 :dan!~dan@users.example PRIVMSG #papo :hello Emily")
+        .inspect(|session| {
+            assert_eq!(
+                session.state().user("dan").unwrap().__account_id(),
+                Some("4107")
+            );
+        })
+        .server("@account=dan;inspircd.org/account-id=9834 :dan!~dan@users.example JOIN #rust dan :Daniel Example")
+        .inspect(|session| {
+            assert_eq!(
+                session.state().user("dan").unwrap().__account_id(),
+                Some("9834")
+            );
+        })
+        .ignore_rest();
+}
+
+#[test]
+fn inspircd_empty_account_id_tag_is_not_stored() {
+    account_id_transcript()
+        .server("@account=dan;inspircd.org/account-id= :dan!~dan@users.example PRIVMSG #papo :hello Emily")
+        .inspect(|session| {
+            assert_eq!(session.state().user("dan").unwrap().__account_id(), None);
+        })
+        .ignore_rest();
+}
+
+#[test]
+fn inspircd_account_id_tag_requires_an_account_tag() {
+    account_id_transcript()
+        .server("@inspircd.org/account-id=4107 :dan!~dan@users.example PRIVMSG #papo :hello Emily")
+        .inspect(|session| {
+            assert_eq!(session.state().user("dan").unwrap().__account_id(), None);
+        })
+        .ignore_rest();
+}
+
+#[test]
+fn inspircd_account_id_survives_the_same_account_and_clears_on_changes() {
+    account_id_transcript()
+        .server("@account=dan;inspircd.org/account-id=4107 :dan!~dan@users.example PRIVMSG #papo :first message")
+        .server("@account=dan :dan!~dan@users.example PRIVMSG #papo :same account")
+        .inspect(|session| {
+            assert_eq!(
+                session.state().user("dan").unwrap().__account_id(),
+                Some("4107")
+            );
+        })
+        .server(":dan!~dan@users.example ACCOUNT dan-work")
+        .inspect(|session| {
+            assert_eq!(session.state().user("dan").unwrap().__account_id(), None);
+        })
+        .server("@account=dan-work;inspircd.org/account-id=9251 :dan!~dan@users.example PRIVMSG #papo :work account")
+        .inspect(|session| {
+            assert_eq!(
+                session.state().user("dan").unwrap().__account_id(),
+                Some("9251")
+            );
+        })
+        .server(":dan!~dan@users.example ACCOUNT *")
+        .inspect(|session| {
+            assert_eq!(session.state().user("dan").unwrap().__account_id(), None);
+        })
+        .ignore_rest();
+}
+
 #[test]
 fn away_notify_sets_and_clears_a_joined_users_message() {
     Transcript::new(Config::default().nick("emily"))
