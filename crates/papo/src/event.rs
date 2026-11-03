@@ -117,6 +117,9 @@ pub struct CtcpQuery {
     /// The server-assigned message identifier, when supplied.
     pub(crate) msgid: Option<MessageId>,
     /// Valid server time, when supplied.
+    ///
+    /// This also accepts ZNC's `znc.in/server-time-iso` tag, which is not part of any `IRCv3`
+    /// specification.
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
     pub received_at: SystemTime,
@@ -148,6 +151,9 @@ pub struct CtcpReply {
     /// The server-assigned message identifier, when supplied.
     pub(crate) msgid: Option<MessageId>,
     /// Valid server time, when supplied.
+    ///
+    /// This also accepts ZNC's `znc.in/server-time-iso` tag, which is not part of any `IRCv3`
+    /// specification.
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
     pub received_at: SystemTime,
@@ -292,6 +298,9 @@ pub struct Message {
     /// The server-assigned message identifier, when supplied.
     pub(crate) msgid: Option<MessageId>,
     /// Valid server time, when supplied.
+    ///
+    /// This also accepts ZNC's `znc.in/server-time-iso` tag, which is not part of any `IRCv3`
+    /// specification.
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
     pub received_at: SystemTime,
@@ -335,6 +344,9 @@ pub struct Notice {
     /// The server-assigned message identifier, when supplied.
     pub msgid: Option<MessageId>,
     /// Valid server time, when supplied.
+    ///
+    /// This also accepts ZNC's `znc.in/server-time-iso` tag, which is not part of any `IRCv3`
+    /// specification.
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
     pub received_at: SystemTime,
@@ -376,6 +388,9 @@ pub struct ServerNotice {
     /// The server-assigned message identifier, when supplied.
     pub msgid: Option<MessageId>,
     /// Valid server time, when supplied.
+    ///
+    /// This also accepts ZNC's `znc.in/server-time-iso` tag, which is not part of any `IRCv3`
+    /// specification.
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
     pub received_at: SystemTime,
@@ -393,6 +408,9 @@ pub struct Unparsed {
     /// The server-assigned message identifier, when supplied.
     pub msgid: Option<MessageId>,
     /// Valid server time, when supplied.
+    ///
+    /// This also accepts ZNC's `znc.in/server-time-iso` tag, which is not part of any `IRCv3`
+    /// specification.
     pub server_time: Option<SystemTime>,
     /// Time at which the line was received.
     pub received_at: SystemTime,
@@ -1318,6 +1336,8 @@ pub(crate) fn line_envelope_with_account_tag(
     account_tag_enabled: bool,
     received_at: SystemTime,
 ) -> EventEnvelope {
+    // NONSTANDARD(znc): ZNC uses its legacy tag instead of IRCv3 `time`, so playback keeps its
+    // original timestamps.
     let server_time =
         tag_owned(line, &["time", "znc.in/server-time-iso"]).and_then(|value| time::parse(&value));
     EventEnvelope {
@@ -1421,6 +1441,8 @@ fn tag_owned(message: &LineRef<'_>, keys: &[&str]) -> Option<String> {
 pub(crate) fn unparsed_from_line(line: ProtoLine, received_at: SystemTime) -> Event {
     let message = line.as_ref();
     let msgid = tag_owned(&message, &["msgid"]).map(MessageId::from);
+    // NONSTANDARD(znc): ZNC uses its legacy tag instead of IRCv3 `time`, so unparsed playback
+    // lines keep their original timestamps.
     let server_time = tag_owned(&message, &["time", "znc.in/server-time-iso"])
         .and_then(|value| time::parse(&value));
     Event::Other(Unparsed {
@@ -1750,6 +1772,9 @@ impl Event {
     }
 
     /// Returns the timestamp supplied by the server, when present and valid.
+    ///
+    /// This also accepts ZNC's `znc.in/server-time-iso` tag, which is not part of any `IRCv3`
+    /// specification.
     #[must_use]
     pub fn server_time(&self) -> Option<SystemTime> {
         match self {
@@ -1878,6 +1903,8 @@ fn private_actor_mut(event: &mut Event) -> Option<&mut UserSource> {
 }
 
 fn tagged_from_tags(tags: &Tags) -> Option<SystemTime> {
+    // NONSTANDARD(znc): ZNC uses its legacy tag instead of IRCv3 `time`, so tag-only events keep
+    // their original timestamps.
     tags.get("time")
         .or_else(|| tags.get("znc.in/server-time-iso"))
         .and_then(time::parse)
