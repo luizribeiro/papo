@@ -194,6 +194,9 @@ impl Isupport {
     }
 
     /// Reports whether the server permits clients to send without local pacing.
+    ///
+    /// The `soju.im/SAFERATE` spelling is a soju extension and is not part of any `IRCv3`
+    /// specification.
     #[must_use]
     pub fn saferate(&self) -> bool {
         self.inner.saferate()

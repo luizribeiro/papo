@@ -470,7 +470,9 @@ impl Isupport {
         account_required => "DRAFT/ACCOUNTREQUIRED",
         /// Reports whether safe `LIST` behavior is available.
         safelist => "SAFELIST",
-        /// Reports whether the server permits clients to send without local pacing.
+        /// Reports whether the server permits clients to send without local pacing. The `soju.im/SAFERATE` spelling is a soju extension and is not part of any `IRCv3` specification.
+        // NONSTANDARD(soju): soju's vendor-prefixed token has the same pacing semantics as
+        // SAFERATE.
         saferate => "SAFERATE",
     }
 

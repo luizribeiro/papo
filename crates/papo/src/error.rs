@@ -37,6 +37,9 @@ pub enum ConnectErrorKind {
     /// An IRC capability required by the connection settings is unavailable.
     CapabilityUnavailable,
     /// The server requires an authenticated account.
+    ///
+    /// Pre-registration detection can rely on soju's `soju.im/account-required` capability, which
+    /// is not part of any `IRCv3` specification.
     AccountRequired,
     /// The server rejected the connection password.
     PasswordIncorrect,

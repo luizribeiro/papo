@@ -26,6 +26,8 @@ impl std::error::Error for InvalidRateLimit {}
 ///
 /// The default permits a burst of five lines and then two lines per second. A server's
 /// `SAFERATE` token disables local pacing unless [`Self::strict`] is selected.
+/// The `soju.im/SAFERATE` spelling is a soju extension and is not part of any `IRCv3`
+/// specification.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct RateLimit {
     burst: usize,
@@ -64,6 +66,9 @@ impl RateLimit {
     }
 
     /// Keeps this limit active when the server advertises `SAFERATE`.
+    ///
+    /// This also applies to soju's `soju.im/SAFERATE` extension, which is not part of any `IRCv3`
+    /// specification.
     #[must_use]
     pub const fn strict(mut self) -> Self {
         self.strict = true;

@@ -626,9 +626,13 @@ impl State {
     /// Uploads use an HTTP `POST` whose response supplies the uploaded URL in its `Location`
     /// header. The caller authenticates that request with its own credentials; papo does not
     /// expose authentication secrets. Non-HTTPS endpoints are ignored.
+    /// The `soju.im/FILEHOST` spelling is a soju extension and is not part of any `IRCv3`
+    /// specification.
     #[must_use]
     #[cfg(feature = "unstable")]
     pub fn filehost(&self) -> Option<&str> {
+        // NONSTANDARD(soju): soju advertises its older vendor token without a capability, so papo
+        // accepts it as the draft FILEHOST token.
         ["draft/FILEHOST", "soju.im/FILEHOST"]
             .into_iter()
             .find_map(|name| match self.isupport.get(name) {

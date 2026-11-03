@@ -639,6 +639,9 @@ pub struct Config {
     /// Maximum silence before the session closes the connection.
     pub ping_timeout: Duration,
     /// Outbound line rate limit, ignored when the server advertises `SAFERATE` unless strict.
+    ///
+    /// The `soju.im/SAFERATE` spelling is a soju extension and is not part of any `IRCv3`
+    /// specification.
     pub rate_limit: RateLimit,
     /// Default transport security used by [`Session::handle_connected`].
     pub connection_security: ConnectionSecurity,
@@ -1013,6 +1016,8 @@ impl Config {
     ///
     /// The limit is ignored while the server advertises `SAFERATE` unless
     /// [`RateLimit::strict`] was selected.
+    /// The `soju.im/SAFERATE` spelling is a soju extension and is not part of any `IRCv3`
+    /// specification.
     #[must_use]
     pub const fn rate_limit(mut self, rate_limit: RateLimit) -> Self {
         self.rate_limit = rate_limit;
@@ -2336,6 +2341,9 @@ pub enum CloseKind {
     /// The server requested an STS upgrade to TLS.
     StsUpgrade,
     /// The server requires an authenticated account.
+    ///
+    /// Pre-registration detection can rely on soju's `soju.im/account-required` capability, which
+    /// is not part of any `IRCv3` specification.
     AccountRequired,
     /// The server rejected the connection password (`464`).
     PasswordIncorrect,
@@ -4955,6 +4963,8 @@ impl Session {
                 (!self.outbox.transmits.is_empty()).then_some(0)
             };
             let position = position?;
+            // NONSTANDARD(soju): soju's vendor SAFERATE spelling disables pacing like the
+            // unprefixed token.
             if !self.rate_limit.take(self.isupport.value().saferate()) {
                 return None;
             }
@@ -5114,6 +5124,8 @@ impl Session {
             self.welcome_state.next_deadline(),
             self.sasl.next_deadline(),
             self.keepalive.next_deadline(),
+            // NONSTANDARD(soju): soju's vendor SAFERATE spelling suppresses pacing deadlines like
+            // the unprefixed token.
             self.rate_limit.next_deadline(
                 !self.outbox.transmits.is_empty(),
                 self.isupport.value().saferate(),
@@ -5691,6 +5703,8 @@ impl Session {
         if !duplicate {
             return false;
         }
+        // NONSTANDARD(soju): soju's BOUNCER_NETID plus a duplicate self-JOIN signals an upstream
+        // resync, so papo discards stale upstream identity state.
         let behind_bouncer = matches!(
             self.isupport.value().get("BOUNCER_NETID"),
             papo_proto::Advertised::Value(_)
@@ -5706,6 +5720,8 @@ impl Session {
         else {
             return None;
         };
+        // NONSTANDARD(soju): soju's BouncerServ announces upstream loss with this source and text,
+        // so papo ends peer continuity while the downstream connection stays open.
         let notice = message.command() == Command::Notice
             && message.raw_source() == Some("BouncerServ!BouncerServ@BouncerServ")
             && message.param(0).is_some_and(|target| {
@@ -5718,6 +5734,8 @@ impl Session {
             && message
                 .param(1)
                 .is_some_and(|text| text.starts_with("disconnected from "));
+        // NONSTANDARD(soju): soju sends bound-network state lines outside negotiated bouncer
+        // notifications, so BOUNCER_NETID is sufficient evidence to recognize the disconnect.
         let network_drop = message.command_is("BOUNCER")
             && message
                 .param(0)

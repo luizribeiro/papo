@@ -313,6 +313,8 @@ impl Caps {
             && config.password.is_none()
             && self.advertised.contains_key(&cap::ACCOUNT_REQUIRED)
         {
+            // NONSTANDARD(soju): soju advertises account-required as a vendor capability, so papo
+            // rejects unauthenticated registration before the server does.
             outbox.close(
                 CloseKind::AccountRequired,
                 "the server requires an authenticated account".to_owned(),

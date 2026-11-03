@@ -37,6 +37,8 @@ impl PeerScope {
 /// cannot be persisted, changes after lost continuity, and is unavailable when papo can prove
 /// nothing. A bouncer upstream disconnect ends continuity for that network even though the
 /// downstream connection remains open; a duplicate self-JOIN resync is treated the same way.
+/// Detecting these transitions relies on soju's `BOUNCER_NETID`, `BouncerServ` notice, and
+/// `BOUNCER NETWORK` line, none of which is part of any `IRCv3` specification.
 /// This can require applications to confirm a peer again after a harmless upstream reconnect.
 ///
 /// Native and WASI `ircs://` and `wss://` connections, and browser `wss://` connections, can

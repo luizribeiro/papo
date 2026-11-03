@@ -16,6 +16,8 @@ pub const NAME_ALIASES: &[(NameKind, &str, &str)] = &[
     (NameKind::Tag, "+draft/reply", "+reply"),
     (NameKind::Tag, "+draft/channel-context", "+channel-context"),
     (NameKind::Isupport, "draft/CHATHISTORY", "CHATHISTORY"),
+    // NONSTANDARD(soju): soju used a vendor-prefixed SAFERATE token, so papo treats it as the
+    // unprefixed token when deciding whether to pace output.
     (NameKind::Isupport, "soju.im/SAFERATE", "SAFERATE"),
 ];
 
