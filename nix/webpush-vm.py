@@ -98,3 +98,85 @@ def assert_message(line, target, text):
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T.*Z", parsed_tags["time"])
     pattern = rf":sender![^ ]+ PRIVMSG {re.escape(target)} :{re.escape(text)}"
     assert re.fullmatch(pattern, message), line
+
+
+start_all()
+ergo.wait_for_unit("ergochat.service")
+receiver.wait_for_unit("webpush-receiver.service")
+receiver.wait_until_succeeds("ss -ltn | grep -q ':8443 '")
+ergo.wait_until_succeeds("ping -c1 203.0.113.2")
+
+server = "irc://203.0.113.1:6667"
+password = "q7Hx-2mZp_9vLcT4wRfB"
+account = "alice"
+main_endpoint = endpoint + "/main"
+second_endpoint = endpoint + "/second"
+third_endpoint = endpoint + "/third"
+
+with subtest("account and typed unauthenticated refusal"):
+    assert "CREATED" in run("create", server, account, password)
+    assert "TYPED_FORBIDDEN" in run(
+        "forbidden", server, endpoint + "/forbidden", p256dh, auth
+    )
+
+with subtest("register, refresh, and unregister"):
+    assert "REGISTERED" in run(
+        "register", server, account, password, main_endpoint, p256dh, auth
+    )
+    first = wait_records(1)
+    assert decrypt(first[0], "/main") == "PING webpush"
+    assert "REGISTERED" in run(
+        "register", server, account, password, main_endpoint, p256dh, auth
+    )
+    assert len(records()) == 1
+    assert "UNREGISTERED" in run(
+        "unregister", server, account, password, main_endpoint
+    )
+
+with subtest("subscription limit is typed"):
+    assert "REGISTERED" in run(
+        "register", server, account, password, main_endpoint, p256dh, auth
+    )
+    assert "REGISTERED" in run(
+        "register", server, account, password, second_endpoint, p256dh, auth
+    )
+    assert "TYPED_LIMIT" in run(
+        "limit", server, account, password, third_endpoint, p256dh, auth
+    )
+    pushed = wait_records(4)
+    for index, path in [(1, "/main"), (2, "/second"), (3, "/third")]:
+        assert decrypt(pushed[index], path) == "PING webpush"
+    assert "UNREGISTERED" in run(
+        "unregister", server, account, password, second_endpoint
+    )
+
+with subtest("away user receives encrypted DM and highlight"):
+    dm = "encrypted direct message"
+    assert "SENT" in run("send", server, "sender", account, dm)
+    pushed = wait_records(5)
+    assert_message(decrypt(pushed[4], "/main"), account, dm)
+
+    highlight = "alice: encrypted channel highlight"
+    assert "SENT" in run(
+        "send", server, "sender", "#papo-webpush", highlight
+    )
+    pushed = wait_records(6)
+    assert_message(
+        decrypt(pushed[5], "/main"), "#papo-webpush", highlight
+    )
+
+with subtest("registration reports disabled persistence"):
+    persistence_account = "bob"
+    persistence_endpoint = endpoint + "/persistence-required"
+    assert "CREATED" in run(
+        "create", server, persistence_account, password
+    )
+    assert "PERSISTENCE_REQUIRED" in run(
+        "persistence-required",
+        server,
+        persistence_account,
+        password,
+        persistence_endpoint,
+        p256dh,
+        auth,
+    )

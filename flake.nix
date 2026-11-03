@@ -154,6 +154,16 @@
             doCheck = false;
           }
         );
+        webpushTestClient = craneLib.buildPackage (
+          craneArgs
+          // {
+            inherit cargoArtifacts;
+            pname = "papo-webpush-test-client";
+            src = craneLib.cleanCargoSource ./.;
+            cargoExtraArgs = "-p papo-webpush-test-client";
+            doCheck = false;
+          }
+        );
         cargoWasip3 = pkgs.writeShellApplication {
           name = "cargo-wasip3";
           text = ''
@@ -756,6 +766,11 @@
               installPhaseCommand = "mkdir -p $out";
             }
           );
+        }
+        // pkgs.lib.optionalAttrs (system == "x86_64-linux") {
+          webpush-vm = import ./nix/webpush-vm.nix {
+            inherit ergochat pkgs webpushTestClient;
+          };
         };
 
         devShells.default = pkgs.mkShell {

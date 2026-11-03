@@ -37,6 +37,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
             assert!(!outcome.persistence_required());
             println!("REGISTERED");
         }
+        "persistence-required" => {
+            let account = next(&mut args, "account")?;
+            let password = next(&mut args, "password")?;
+            let endpoint = next(&mut args, "endpoint")?;
+            let keys = keys(&mut args)?;
+            let (client, _events) = authenticated(&url, &account, &password).await?;
+            let outcome = client.webpush().register(endpoint, keys).await?;
+            assert!(outcome.persistence_required());
+            println!("PERSISTENCE_REQUIRED");
+        }
         "unregister" => {
             let account = next(&mut args, "account")?;
             let password = next(&mut args, "password")?;
