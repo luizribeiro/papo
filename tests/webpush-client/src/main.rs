@@ -1,9 +1,10 @@
 //! Drive typed papo Web Push operations in the NixOS VM test.
 
-use std::{env, error::Error};
+use std::{env, error::Error, fmt};
 
 use papo::{
-    AccountCreation, Client, Event, Feature, NewAccount, PersistenceSetting, PushKeys, Sasl, Secret,
+    AccountCreation, Client, Error as PapoError, Event, Feature, Line, NewAccount,
+    PersistenceSetting, PushKeys, Refusal, Sasl, Secret,
 };
 
 const CHANNEL: &str = "#papo-webpush";
@@ -32,7 +33,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 client.join(CHANNEL).await?;
             }
             client.set_away("Web Push VM test").await?;
-            client.webpush().register(endpoint, keys).await?;
+            let outcome = client.webpush().register(endpoint, keys).await?;
+            assert!(!outcome.persistence_required());
             println!("REGISTERED");
         }
         "unregister" => {
@@ -42,6 +44,41 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let (client, _events) = authenticated(&url, &account, &password).await?;
             client.webpush().unregister(endpoint).await?;
             println!("UNREGISTERED");
+        }
+        "forbidden" => {
+            let endpoint = next(&mut args, "endpoint")?;
+            let keys = keys(&mut args)?;
+            let (client, _events) = anonymous(&url, "unregistered-user").await?;
+            expect_refusal(
+                client.webpush().register(endpoint, keys).await,
+                Refusal::WebPushForbidden,
+            )?;
+            println!("TYPED_FORBIDDEN");
+        }
+        "limit" => {
+            let account = next(&mut args, "account")?;
+            let password = next(&mut args, "password")?;
+            let endpoint = next(&mut args, "endpoint")?;
+            let keys = keys(&mut args)?;
+            let (client, _events) = authenticated(&url, &account, &password).await?;
+            expect_refusal(
+                client.webpush().register(endpoint, keys).await,
+                Refusal::WebPushRegistrationLimit,
+            )?;
+            println!("TYPED_LIMIT");
+        }
+        "send" => {
+            let nick = next(&mut args, "nick")?;
+            let target = next(&mut args, "target")?;
+            let text = next(&mut args, "text")?;
+            let (client, _events) = anonymous(&url, &nick).await?;
+            if target.starts_with('#') {
+                client.join(&target).await?;
+            }
+            client
+                .send_raw(Line::new("PRIVMSG").with_params([target, text]))
+                .await?;
+            println!("SENT");
         }
         _ => return Err(format!("unknown command: {command}").into()),
     }
@@ -101,4 +138,14 @@ fn keys(args: &mut impl Iterator<Item = String>) -> Result<PushKeys, Box<dyn Err
 
 fn next(args: &mut impl Iterator<Item = String>, name: &str) -> Result<String, Box<dyn Error>> {
     args.next().ok_or_else(|| format!("missing {name}").into())
+}
+
+fn expect_refusal<T: fmt::Debug>(
+    result: Result<T, PapoError>,
+    expected: Refusal,
+) -> Result<(), Box<dyn Error>> {
+    match result {
+        Err(PapoError::Server(error)) if error.refusal() == expected => Ok(()),
+        other => Err(format!("expected {expected:?}, got {other:?}").into()),
+    }
 }
