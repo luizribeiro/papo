@@ -1,0 +1,13 @@
+[package]
+name = "papo-webpush-test-client"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+papo = { version = "0.1.0", path = "../../crates/papo", features = ["unstable"] }
+tokio = { version = "1.53.3", features = ["macros", "rt"] }
+
+[lints]
+workspace = true

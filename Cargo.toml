@@ -18,6 +18,7 @@ members = [
   "examples/create-account",
   "examples/browser-worker",
   "examples/sts-store",
+  "tests/webpush-client",
 ]
 exclude = ["fuzz"]
 

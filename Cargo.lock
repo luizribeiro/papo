@@ -727,6 +727,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "papo-webpush-test-client"
+version = "0.0.0"
+dependencies = [
+ "papo",
+ "tokio",
+]
+
+[[package]]
 name = "pbkdf2"
 version = "0.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
