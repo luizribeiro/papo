@@ -81,13 +81,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let nick = next(&mut args, "nick")?;
             let target = next(&mut args, "target")?;
             let text = next(&mut args, "text")?;
-            let (client, _events) = anonymous(&url, &nick).await?;
+            let (client, mut events) = anonymous(&url, &nick).await?;
             if target.starts_with('#') {
                 client.join(&target).await?;
             }
             client
-                .send_raw(Line::new("PRIVMSG").with_params([target, text]))
+                .send_raw(Line::new("PRIVMSG").with_params([target, text.clone()]))
                 .await?;
+            wait_for_echo(&mut events, &text).await?;
             println!("SENT");
         }
         _ => return Err(format!("unknown command: {command}").into()),
@@ -158,4 +159,17 @@ fn expect_refusal<T: fmt::Debug>(
         Err(PapoError::Server(error)) if error.refusal() == expected => Ok(()),
         other => Err(format!("expected {expected:?}, got {other:?}").into()),
     }
+}
+
+async fn wait_for_echo(events: &mut papo::Events, text: &str) -> Result<(), Box<dyn Error>> {
+    while let Some(event) = events.next().await {
+        match event {
+            Event::Message(message) if message.text == text => return Ok(()),
+            Event::Disconnected(disconnected) => {
+                return Err(format!("disconnected before echo: {disconnected}").into());
+            }
+            _ => {}
+        }
+    }
+    Err("event stream ended before echo".into())
 }
