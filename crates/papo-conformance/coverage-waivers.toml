@@ -1,7 +1,6 @@
 [waivers]
 "draft.account-registration.verify" = "The managed servers expose no mail sink from which a verification code can be obtained."
 "draft.oper-tag" = "None of the six managed server profiles advertises draft/oper-tag, so a single local fixture cannot emit an operator tag."
-"draft.webpush" = "The managed profiles have no always-on HTTPS push endpoint configured for WEBPUSH registration."
 "ergo.authtoken" = "Ergo authtoken support is disabled in the managed profile."
 "ergo.sasl-oauthbearer" = "The managed Ergo profile has no OAuth2 or JWT authentication provider configured."
 "ircv3.message-tags.size-limit-417" = "papo bounds outbound tag sections before transmission, preventing a live server numeric 417 scenario."

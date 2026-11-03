@@ -18,22 +18,25 @@ class CoverageTests(unittest.TestCase):
         profiles = MODULE["PROFILES"]
         statuses = {"one": {profile: "✓" for profile in profiles}}
         MODULE["validate"](
-            ["a", "b"], {"one": ["a"]}, {}, {"b": "unobservable"}, statuses
+            ["a", "b"], {"one": ["a"]}, {}, {}, {"b": "unobservable"}, statuses
         )
         cases = [
-            (["a", "a"], {"one": ["a"]}, {}, {}, "duplicate ids"),
-            (["a"], {"one": ["unknown"]}, {}, {}, "unknown checklist"),
-            (["a"], {"one": []}, {}, {"a": "waived"}, "without covers"),
-            (["a"], {}, {"security::one": []}, {"a": "waived"}, "without covers"),
-            (["a"], {"one": ["a"]}, {}, {"a": "stale"}, "still have waivers"),
-            (["a", "b"], {"one": ["a"]}, {}, {}, "without a scenario"),
-            (["a"], {"two": ["a"]}, {}, {}, "missing from conformance"),
-            (["a"], {}, {}, {"a": ""}, {}, "without reasons"),
+            (["a", "a"], {"one": ["a"]}, {}, {}, {}, "duplicate ids"),
+            (["a"], {"one": ["unknown"]}, {}, {}, {}, "unknown checklist"),
+            (["a"], {"one": []}, {}, {}, {"a": "waived"}, "without covers"),
+            (["a"], {}, {"security::one": []}, {}, {"a": "waived"}, "without covers"),
+            (["a"], {}, {}, {"check": {"covers": [], "profiles": []}}, {"a": "waived"}, "without covers"),
+            (["a"], {"one": ["a"]}, {}, {}, {"a": "stale"}, "still have waivers"),
+            (["a", "b"], {"one": ["a"]}, {}, {}, {}, "without a scenario"),
+            (["a"], {"two": ["a"]}, {}, {}, {}, "missing from conformance"),
+            (["a"], {}, {}, {}, {"a": ""}, {}, "without reasons"),
         ]
-        for checklist, declarations, wire, waivers, *rest in cases:
+        for checklist, declarations, wire, system, waivers, *rest in cases:
             matrix, message = (statuses, rest[0]) if len(rest) == 1 else rest
             with self.subTest(message=message), self.assertRaisesRegex(ValueError, message):
-                MODULE["validate"](checklist, declarations, wire, waivers, matrix)
+                MODULE["validate"](
+                    checklist, declarations, wire, system, waivers, matrix
+                )
 
     def test_validation_counts_wire_tests_as_coverage(self):
         statuses = {"one": {profile: "✓" for profile in MODULE["PROFILES"]}}
@@ -42,7 +45,19 @@ class CoverageTests(unittest.TestCase):
             {"one": ["live"]},
             {"security::proof": ["security"]},
             {},
+            {},
             statuses,
+        )
+
+    def test_validation_counts_system_checks_as_profile_coverage(self):
+        profile = MODULE["validate"].__globals__["PROFILES"][0]
+        MODULE["validate"](
+            ["draft"],
+            {},
+            {},
+            {"webpush-vm": {"covers": ["draft"], "profiles": [profile]}},
+            {},
+            {},
         )
 
     def test_render_combines_results_and_explains_waivers(self):
@@ -50,7 +65,7 @@ class CoverageTests(unittest.TestCase):
         MODULE["render"].__globals__["PROFILE_LABELS"] = ("First", "Second")
         statuses = {"one": {"first": "✓", "second": "—"},
                     "two": {"first": "⚠ [^1]", "second": "✗"}}
-        output = MODULE["render"](["a", "b"], {"one": ["a"], "two": ["a"]}, {},
+        output = MODULE["render"](["a", "b"], {"one": ["a"], "two": ["a"]}, {}, {},
                                   {"b": "linked | servers"}, statuses)
         self.assertIn("| `a` | `one`, `two` | ⚠ | ✗ |", output)
         self.assertIn("| `b` | Waiver: linked \\| servers | — | — |", output)
@@ -59,11 +74,24 @@ class CoverageTests(unittest.TestCase):
         MODULE["render"].__globals__["PROFILES"] = ("first", "second")
         MODULE["render"].__globals__["PROFILE_LABELS"] = ("First", "Second")
         output = MODULE["render"](
-            ["security"], {}, {"security::proof": ["security"]}, {}, {}
+            ["security"], {}, {"security::proof": ["security"]}, {}, {}, {}
         )
         self.assertIn(
             "| `security` | Wire test `security::proof` | ✓ | ✓ |", output
         )
+
+    def test_render_marks_system_checks_for_their_profiles(self):
+        MODULE["render"].__globals__["PROFILES"] = ("ergo", "soju")
+        MODULE["render"].__globals__["PROFILE_LABELS"] = ("Ergo", "soju")
+        output = MODULE["render"](
+            ["draft"],
+            {},
+            {},
+            {"webpush-vm": {"covers": ["draft"], "profiles": ["ergo"]}},
+            {},
+            {},
+        )
+        self.assertIn("| `draft` | System check `webpush-vm` | ✓ | — |", output)
 
 if __name__ == "__main__":
     unittest.main()
