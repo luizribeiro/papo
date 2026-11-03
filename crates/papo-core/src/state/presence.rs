@@ -11,6 +11,8 @@ impl State {
         };
         let actor = message.raw_source().unwrap_or(nick).to_owned();
         let authorship = self.source_authorship(message);
+        // NONSTANDARD(inspircd): InspIRCd sends a never-reused account ID in this vendor tag next to
+        // `account`; it has no cap of its own, and without the tag pins fall back to the account name.
         let account_id = message
             .tag("account")
             .zip(message.tag("inspircd.org/account-id"))

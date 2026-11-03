@@ -215,6 +215,9 @@ impl PeerKey {
     /// the same uninterrupted user. A stored Account pin without an immutable account ID also
     /// upgrades once the server supplies that ID. Applications must replace the stored pin with the
     /// upgraded pin.
+    ///
+    /// Account IDs come from `InspIRCd`'s `inspircd.org/account-id` message tag, which is not part of
+    /// any `IRCv3` specification. On other servers Account pins hold the account name only.
     #[must_use]
     pub fn check(&self, current_key: &Self) -> PeerKeyCheck {
         match (&self.0, &current_key.0) {
