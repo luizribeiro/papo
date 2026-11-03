@@ -221,6 +221,9 @@ impl Isupport {
     }
 
     /// Returns supported message-reference types in preference order.
+    ///
+    /// The `msgid, timestamp` default follows Ergo and is not prescribed by any `IRCv3`
+    /// specification.
     #[must_use]
     pub fn msgreftypes(&self) -> Vec<&str> {
         self.inner.msgreftypes()

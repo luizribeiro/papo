@@ -46,6 +46,9 @@ pub enum ConnectErrorKind {
     /// The server banned this connection.
     Banned,
     /// The server rejected the gateway's `WEBIRC` command.
+    ///
+    /// This classification relies on Ergo's exact `ERROR` text, which is not part of any `IRCv3`
+    /// specification.
     WebIrcRejected,
     /// A server requested consecutive STS upgrades without completing login.
     StsUpgradeLoop,

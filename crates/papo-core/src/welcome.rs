@@ -10,6 +10,8 @@ use crate::{
 
 const WELCOME_BURST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
 const MAX_MOTD_LINES: usize = 1_000;
+// NONSTANDARD(ergo): Ergo rejects WEBIRC with this exact ERROR text, so papo reports a typed
+// gateway rejection rather than a generic server error.
 const ERGO_WEBIRC_REJECTION: &str =
     "WEBIRC command is not usable from your address or incorrect password given";
 

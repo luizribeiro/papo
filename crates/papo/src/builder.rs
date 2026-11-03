@@ -417,6 +417,8 @@ impl Builder {
     /// [`RateLimit::strict`] was selected.
     /// The `soju.im/SAFERATE` spelling is a soju extension and is not part of any `IRCv3`
     /// specification.
+    /// Registration traffic and `PONG` bypass the limit following Ergo's behavior, which is not
+    /// part of any `IRCv3` specification.
     pub fn rate_limit(mut self, rate_limit: RateLimit) -> Self {
         self.config.rate_limit = rate_limit;
         self

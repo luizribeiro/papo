@@ -496,10 +496,12 @@ impl Isupport {
 
     /// Returns supported message-reference types in preference order.
     ///
-    /// When the token is absent, the specification states no preference; the
-    /// returned default uses Ergo's `msgid, timestamp` order.
+    /// When the token is absent, the specification states no preference. The `msgid, timestamp`
+    /// default follows Ergo and is not prescribed by any `IRCv3` specification.
     #[must_use]
     pub fn msgreftypes(&self) -> Vec<&str> {
+        // NONSTANDARD(ergo): Ergo prefers msgid before timestamp, so papo uses that order when the
+        // server advertises no preference.
         self.value("MSGREFTYPES").map_or_else(
             || vec!["msgid", "timestamp"],
             |value| value.split(',').filter(|part| !part.is_empty()).collect(),

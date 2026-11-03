@@ -642,6 +642,8 @@ pub struct Config {
     ///
     /// The `soju.im/SAFERATE` spelling is a soju extension and is not part of any `IRCv3`
     /// specification.
+    /// Registration traffic and `PONG` bypass the limit following Ergo's behavior, which is not
+    /// part of any `IRCv3` specification.
     pub rate_limit: RateLimit,
     /// Default transport security used by [`Session::handle_connected`].
     pub connection_security: ConnectionSecurity,
@@ -1018,6 +1020,8 @@ impl Config {
     /// [`RateLimit::strict`] was selected.
     /// The `soju.im/SAFERATE` spelling is a soju extension and is not part of any `IRCv3`
     /// specification.
+    /// Registration traffic and `PONG` bypass the limit following Ergo's behavior, which is not
+    /// part of any `IRCv3` specification.
     #[must_use]
     pub const fn rate_limit(mut self, rate_limit: RateLimit) -> Self {
         self.rate_limit = rate_limit;
@@ -2329,6 +2333,9 @@ pub enum CloseKind {
     /// Required SASL authentication was unavailable or timed out.
     SaslUnavailable,
     /// The server rejected the gateway's `WEBIRC` command.
+    ///
+    /// This classification relies on Ergo's exact `ERROR` text, which is not part of any `IRCv3`
+    /// specification.
     WebIrcRejected,
     /// Connection registration did not complete before its deadline.
     WelcomeTimeout,
@@ -6406,7 +6413,7 @@ fn bypasses_rate_limit(line: &[u8]) -> bool {
     } else {
         first
     };
-    // Ergo exempts handshake traffic, and a delayed PONG risks disconnection.
+    // NONSTANDARD(ergo): Ergo exempts handshake traffic, and a delayed PONG risks disconnection.
     // These commands can safely overtake queued application traffic; QUIT cannot.
     [
         b"WEBIRC".as_slice(),

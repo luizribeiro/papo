@@ -28,6 +28,8 @@ impl std::error::Error for InvalidRateLimit {}
 /// `SAFERATE` token disables local pacing unless [`Self::strict`] is selected.
 /// The `soju.im/SAFERATE` spelling is a soju extension and is not part of any `IRCv3`
 /// specification.
+/// Registration traffic and `PONG` bypass this bucket following Ergo's behavior, which is not
+/// part of any `IRCv3` specification.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct RateLimit {
     burst: usize,
