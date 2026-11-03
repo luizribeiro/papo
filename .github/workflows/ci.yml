@@ -36,10 +36,22 @@ jobs:
             ${{ github.event.pull_request.base.sha || github.event.before }}
         run: scripts/check-no-merge-commits "$BASE_COMMIT"
       - name: Check flake
-        run: nix flake check -L
+        # GitHub-hosted runners do not provide supported nested virtualization.
+        run: |
+          nix flake check -L --no-build
+          mapfile -t checks < <(
+            nix eval --json '.#checks.x86_64-linux' \
+              --apply 'checks: builtins.attrNames (
+                builtins.removeAttrs checks [ "webpush-vm" ]
+              )' \
+              | jq -r '.[] | ".#checks.x86_64-linux." + .'
+          )
+          nix build -L --no-link "${checks[@]}"
       - name: Run pre-commit hooks
         run: nix develop -c pre-commit run --all-files --show-diff-on-failure
       - name: Run pre-push hooks
+        env:
+          SKIP: flake-check
         run: >-
           nix develop -c pre-commit run --all-files --hook-stage pre-push
           --show-diff-on-failure
