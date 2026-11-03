@@ -1971,6 +1971,9 @@ impl Channel {
     }
 
     /// Returns a fetched list mode, or `None` while its contents are unknown.
+    ///
+    /// Soju bouncer connections identified by `BOUNCER_NETID` leave fetched lists unknown; that
+    /// token is not part of any `IRCv3` specification.
     #[must_use]
     pub fn list(&self, mode: ListMode) -> Option<&[ModeListEntry]> {
         self.lists.get(&mode).map(Vec::as_slice)

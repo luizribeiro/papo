@@ -502,6 +502,8 @@ impl Client {
     /// Joined-channel results are tracked in [`Channel::list`](crate::Channel::list). A request
     /// for a channel this client has not joined is returned without being tracked, and an empty
     /// result may mean the server hid the list rather than that the list is empty.
+    /// Results on soju bouncer connections identified by `BOUNCER_NETID` are also returned without
+    /// being tracked; that token is not part of any `IRCv3` specification.
     ///
     /// # Errors
     ///

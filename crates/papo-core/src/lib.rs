@@ -6133,6 +6133,8 @@ impl Session {
             })
             .collect();
         response.mode_list = Some(entries.clone());
+        // NONSTANDARD(soju): soju exposes BOUNCER_NETID without the bouncer capability, so papo
+        // avoids treating its list reply as a durable channel snapshot.
         let bouncer = self.caps.bouncer_enabled()
             || !matches!(
                 self.isupport.value().get("BOUNCER_NETID"),
