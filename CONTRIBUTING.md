@@ -34,6 +34,12 @@ New protocol behavior comes with a transcript test in `papo-core`, plus a live s
 [papo-conformance](crates/papo-conformance) when a real server can show it. Tests use real server
 lines, and boundary tests use the spec's numbers.
 
+## Server-specific behavior
+
+Mark behavior that accommodates one server or bouncer rather than a specification with a concise
+`NONSTANDARD(<server>):` code comment at the decision site, using the lowercase server name. Add a
+plain rustdoc sentence to any public item whose behavior depends on the accommodation.
+
 ## History
 
 History is kept linear, so rebase instead of merging. Keep each commit to one idea, with its
