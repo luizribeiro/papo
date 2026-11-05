@@ -274,8 +274,16 @@ impl State {
             return Some(Handled::Yes);
         }
         let change = Setname::parse(message)?;
+        let mut channels = Vec::new();
         if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) {
             user.realname = Some(change.realname.to_owned());
+            channels.extend(user.channels.iter().cloned());
+        }
+        let nick_key = NameKey::new(nick.to_owned(), self.casemapping);
+        for channel in channels {
+            if let Some(sweep) = self.who_sweeps.get_mut(&channel) {
+                sweep.realname_changes.insert(nick_key.clone());
+            }
         }
         let envelope = crate::LineEnvelope::from_line(message);
         outbox.event(Event::RealnameChanged {
@@ -348,11 +356,11 @@ impl State {
     fn apply_who_user(&mut self, reply: WhoUser<'_>, flags: &WhoxFlags, outbox: &mut Outbox) {
         let channel = self.casemapping.channel(reply.channel);
         let nick = NameKey::new(reply.nick.to_owned(), self.casemapping);
-        let prefix_changes = self
-            .who_sweeps
-            .get(&channel)
+        let sweep = self.who_sweeps.get(&channel);
+        let prefix_changes = sweep
             .and_then(|sweep| sweep.prefix_changes.get(&nick))
             .cloned();
+        let realname_changed = sweep.is_some_and(|sweep| sweep.realname_changes.contains(&nick));
         self.add_member(
             reply.channel,
             reply.nick,
@@ -373,7 +381,9 @@ impl State {
             .users
             .get_mut(self.casemapping.fold(reply.nick).as_ref())
         {
-            user.realname = reply.realname.map(str::to_owned);
+            if !realname_changed {
+                user.realname = reply.realname.map(str::to_owned);
+            }
             user.away = match flags.presence {
                 Some(WhoxPresence::Gone) => match &user.away {
                     Away::Away { message: Some(_) } => user.away.clone(),

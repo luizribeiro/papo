@@ -1472,6 +1472,31 @@ fn live_prefix_change_survives_an_older_join_who_row() {
 }
 
 #[test]
+fn live_realname_change_survives_an_older_join_who_row() {
+    Transcript::new(Config::default().nick("bob"))
+        .server(":ergo.test 005 bob WHOX PREFIX=(qaohv)~&@%+ :are supported")
+        .server(":bob!~bob@localhost JOIN #papo * :papo test peer")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "bob"))
+        .server(":ergo.test 353 bob = #papo :@alice!~alice@localhost bob!~bob@localhost")
+        .server(":ergo.test 366 bob #papo :End of NAMES list")
+        .client("MODE #papo")
+        .client("WHO #papo %tcuhnfar,152")
+        .event(|event| matches!(event, Event::ChannelSynced { channel, .. } if channel == "#papo"))
+        .server(":alice!~alice@localhost SETNAME :Papo Conformance Client")
+        .event(|event| matches!(event, Event::RealnameChanged { nick, realname, .. } if nick == "alice" && realname == "Papo Conformance Client"))
+        .server(":ergo.test 354 bob 152 #papo ~alice localhost alice H@ 0 :papo test peer")
+        .server(":ergo.test 315 bob #papo :End of WHO list")
+        .event(|event| matches!(event, Event::MembersRefreshed { channel, .. } if channel == "#papo"))
+        .inspect(|session| {
+            assert_eq!(
+                session.state().user("alice").unwrap().realname(),
+                Some("Papo Conformance Client")
+            );
+        })
+        .ignore_rest();
+}
+
+#[test]
 fn ignores_membership_modes_for_unknown_channels_and_members() {
     Transcript::new(Config::default().nick("emily"))
         .server(":ergo.test 005 emily CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(ov)@+ :are supported")

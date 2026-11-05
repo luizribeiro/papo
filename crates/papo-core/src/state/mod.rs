@@ -101,6 +101,8 @@ struct WhoSweep {
     // WHO rows are snapshots that may have been assembled before a later live MODE line. Keep
     // only the last live action for each bounded member/prefix pair until every sweep completes.
     prefix_changes: HashMap<NameKey<String>, HashMap<Prefix, papo_proto::ModeAction>>,
+    // SETNAME is a newer live value than any WHO snapshot still in flight for a shared channel.
+    realname_changes: HashSet<NameKey<String>>,
 }
 
 impl WhoSweep {
@@ -108,6 +110,7 @@ impl WhoSweep {
         Self {
             count: 1,
             prefix_changes: HashMap::new(),
+            realname_changes: HashSet::new(),
         }
     }
 }
@@ -1511,6 +1514,10 @@ impl State {
             sweep.prefix_changes = std::mem::take(&mut sweep.prefix_changes)
                 .into_iter()
                 .map(|(nick, changes)| (NameKey::new(nick.original().to_owned(), mapping), changes))
+                .collect();
+            sweep.realname_changes = std::mem::take(&mut sweep.realname_changes)
+                .into_iter()
+                .map(|nick| NameKey::new(nick.original().to_owned(), mapping))
                 .collect();
             who_sweeps.insert(
                 self.casemapping
