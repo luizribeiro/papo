@@ -66,6 +66,96 @@ async fn direct_ref_monitors_an_unshared_user_and_releases_the_entry() {
 }
 
 #[tokio::test]
+async fn direct_ref_reopens_after_monitored_peer_returns() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test", "papo")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&[]).await;
+    connected(&mut events).await;
+    enable_monitor(&mut events, &mut wire, 100).await;
+
+    let first = tokio::spawn({
+        let client = client.clone();
+        async move { client.direct("alice").await }
+    });
+    assert_eq!(wire.next_sent().await, "MONITOR + alice");
+    assert_eq!(wire.next_sent().await, "WHO alice %na");
+    wire.server(":offline.test 354 papo alice alice-account")
+        .await;
+    wire.server(":offline.test 315 papo alice :End of WHO list")
+        .await;
+    let first = first.await.unwrap().unwrap();
+
+    wire.server(":offline.test 731 papo :alice").await;
+    assert!(matches!(
+        next_active_event(&mut events).await,
+        papo::Event::MonitorOffline(_)
+    ));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), wire.next_sent())
+            .await
+            .is_err(),
+        "731 must not release the live direct reference"
+    );
+    wire.server(":offline.test 730 papo :alice!~alice@cloak.example")
+        .await;
+    let online = tokio::time::timeout(Duration::from_secs(1), next_active_event(&mut events))
+        .await
+        .expect("returning monitored peer emits MonitorOnline");
+    assert!(matches!(online, papo::Event::MonitorOnline(_)));
+
+    let returned = tokio::spawn({
+        let client = client.clone();
+        async move { client.direct("alice").await }
+    });
+    let line = tokio::time::timeout(Duration::from_secs(1), wire.next_sent())
+        .await
+        .expect("returning peer starts a fresh WHO query");
+    assert_eq!(line, "WHO alice %na");
+    wire.server(":offline.test 354 papo alice alice-account")
+        .await;
+    wire.server(":offline.test 315 papo alice :End of WHO list")
+        .await;
+    let returned = returned.await.unwrap().unwrap();
+
+    assert!(matches!(
+        first.peer_key().check(returned.peer_key()),
+        papo::PeerKeyCheck::Match | papo::PeerKeyCheck::Upgrade(_)
+    ));
+}
+
+#[tokio::test]
+async fn cancelled_direct_request_releases_monitor_exactly_once() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test", "papo")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&[]).await;
+    connected(&mut events).await;
+    enable_monitor(&mut events, &mut wire, 100).await;
+
+    let request = tokio::spawn(async move { client.direct("alice").await });
+    assert_eq!(wire.next_sent().await, "MONITOR + alice");
+    assert_eq!(wire.next_sent().await, "WHO alice %na");
+    request.abort();
+    assert!(request.await.unwrap_err().is_cancelled());
+    assert_eq!(wire.next_sent().await, "MONITOR - alice");
+
+    wire.server(":offline.test 730 papo :alice!~alice@cloak.example")
+        .await;
+    wire.server(":offline.test 731 papo :alice").await;
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), wire.next_sent())
+            .await
+            .is_err(),
+        "late monitor replies must not release the cancelled request again"
+    );
+}
+
+#[tokio::test]
 async fn direct_ref_reports_a_full_monitor_list_without_failing_open() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo")
