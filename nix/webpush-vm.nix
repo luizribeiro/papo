@@ -6,16 +6,18 @@
 let
   receiverAddress = "203.0.113.2";
   receiverPort = 8443;
+  # The PKI derivation is cached, so validity can't be relative to its build time.
+  validity = "-not_before 20260101000000Z -not_after 20991231235959Z";
   pki = pkgs.runCommand "webpush-test-pki" { nativeBuildInputs = [ pkgs.openssl ]; } ''
     mkdir -p $out
-    openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
+    openssl req -x509 -newkey rsa:2048 -nodes ${validity} \
       -subj /CN=papo-webpush-test-ca \
       -keyout $out/ca.key -out $out/ca.crt
     openssl req -newkey rsa:2048 -nodes \
       -subj /CN=${receiverAddress} \
       -addext subjectAltName=IP:${receiverAddress} \
       -keyout $out/receiver.key -out $out/receiver.csr
-    openssl x509 -req -days 1 -in $out/receiver.csr \
+    openssl x509 -req ${validity} -in $out/receiver.csr \
       -CA $out/ca.crt -CAkey $out/ca.key -CAcreateserial \
       -copy_extensions copy -out $out/receiver.crt
   '';
