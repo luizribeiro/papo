@@ -64,6 +64,23 @@ impl DirectRef {
         recipient: papo_core::RecipientGuard,
         monitored: bool,
     ) -> Self {
+        assert!(!monitored, "monitored references transfer an acquisition");
+        Self::with_lease(client, recipient, None)
+    }
+
+    pub(crate) fn acquired(
+        client: &crate::Client,
+        acquired: crate::direct_runtime::Acquired,
+    ) -> Self {
+        let (recipient, lease) = acquired.into_parts();
+        Self::with_lease(client, recipient, Some(lease))
+    }
+
+    fn with_lease(
+        client: &crate::Client,
+        recipient: papo_core::RecipientGuard,
+        lease: Option<MonitorLease>,
+    ) -> Self {
         let identity = recipient.__token();
         let state = client.state();
         let scope = state.peer_scope();
@@ -75,10 +92,7 @@ impl DirectRef {
         )
         .expect("a direct reference captures a tracked IRC user");
         Self(Arc::new(DirectInner {
-            _lease: monitored.then(|| MonitorLease {
-                recipient: recipient.clone(),
-                commands: client.commands.clone(),
-            }),
+            _lease: lease,
             identity,
             peer_key,
             upgraded_peer_key: OnceLock::new(),
@@ -215,10 +229,6 @@ impl crate::Target for DirectRef {
     }
 }
 
-pub(crate) fn lease(client: &crate::Client, recipient: papo_core::RecipientGuard) -> MonitorLease {
-    MonitorLease::new(recipient, client.commands.clone())
-}
-
 impl crate::Client {
     /// Captures the identity currently using `nick` for guarded direct messages.
     ///
@@ -262,8 +272,8 @@ impl crate::Client {
             crate::direct_runtime::require_monitor_slot(&snapshot, &nick)?;
             drop(snapshot);
             let recipient = crate::direct_runtime::acquire(&client, nick.clone()).await?;
-            let (recipient, _) = crate::direct_runtime::prove(&client, nick, recipient).await?;
-            Ok(DirectRef::new(&client, recipient, true))
+            let (acquired, _) = crate::direct_runtime::prove(&client, nick, recipient).await?;
+            Ok(DirectRef::acquired(&client, acquired))
         })
     }
 
@@ -526,7 +536,12 @@ mod tests {
             .await
             .expect("direct_to did not reserve MONITOR")
             .unwrap();
-        let crate::driver::Command::DirectAcquire { nick, result, .. } = command else {
+        let crate::driver::Command::DirectAcquire {
+            nick,
+            commands: release_commands,
+            result,
+        } = command
+        else {
             panic!("unexpected direct_to command")
         };
         assert_eq!(nick, "alice");
@@ -540,6 +555,7 @@ mod tests {
             .send(Ok(crate::direct_runtime::Acquired::new(
                 acquired.clone(),
                 None,
+                release_commands,
             )))
             .unwrap();
         let crate::driver::Command::Request {
@@ -699,14 +715,21 @@ mod tests {
             async move { client.privmsg(direct, "release approved").await }
         });
 
-        let crate::driver::Command::DirectAcquire { result, .. } =
-            next_command(&mut commands).await
+        let crate::driver::Command::DirectAcquire {
+            commands: release_commands,
+            result,
+            ..
+        } = next_command(&mut commands).await
         else {
             panic!("expected MONITOR acquisition")
         };
         let acquired = session.__direct_acquire("alice", None, None, account.clone());
         result
-            .send(Ok(crate::direct_runtime::Acquired::new(acquired, None)))
+            .send(Ok(crate::direct_runtime::Acquired::new(
+                acquired,
+                None,
+                release_commands,
+            )))
             .unwrap();
         let crate::driver::Command::Request {
             message, result, ..
@@ -763,8 +786,11 @@ mod tests {
             async move { client.privmsg(direct, "release approved").await }
         });
 
-        let crate::driver::Command::DirectAcquire { result, .. } =
-            next_command(&mut commands).await
+        let crate::driver::Command::DirectAcquire {
+            commands: release_commands,
+            result,
+            ..
+        } = next_command(&mut commands).await
         else {
             panic!("expected MONITOR acquisition")
         };
@@ -772,6 +798,7 @@ mod tests {
             .send(Ok(crate::direct_runtime::Acquired::new(
                 session.__direct_acquire("alice", None, None, account),
                 None,
+                release_commands,
             )))
             .unwrap();
         let crate::driver::Command::Request { message, .. } = next_command(&mut commands).await

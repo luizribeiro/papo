@@ -445,17 +445,17 @@ impl Client {
                     let expected = guard.__account().clone();
                     crate::direct_runtime::require_monitor_slot(&self.state(), &text)?;
                     let acquired = crate::direct_runtime::acquire(self, text.clone()).await?;
-                    let (refreshed, actual) =
+                    let (acquired, actual) =
                         crate::direct_runtime::prove(self, text.clone(), acquired).await?;
                     if !matches!(
                         (&expected, &actual),
                         (crate::Account::LoggedIn(left), crate::Account::LoggedIn(right))
                             if left == right
                     ) {
-                        crate::direct_runtime::release(self, refreshed).await;
                         return Err(Error::TargetGone);
                     }
-                    lease = Some(crate::direct::lease(self, refreshed.clone()));
+                    let (refreshed, acquired_lease) = acquired.into_parts();
+                    lease = Some(acquired_lease);
                     recipient = Some(refreshed);
                 }
             }

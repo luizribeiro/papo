@@ -4,33 +4,35 @@ use crate::{Account, Error};
 pub(crate) struct Acquired {
     recipient: papo_core::RecipientGuard,
     confirmation: Option<tokio::sync::oneshot::Receiver<Result<(), Error>>>,
+    lease: crate::direct::MonitorLease,
 }
 
 impl Acquired {
     pub(crate) fn new(
         recipient: papo_core::RecipientGuard,
         confirmation: Option<tokio::sync::oneshot::Receiver<Result<(), Error>>>,
+        commands: tokio::sync::mpsc::Sender<crate::driver::Command>,
     ) -> Self {
+        let lease = crate::direct::MonitorLease::new(recipient.clone(), commands);
         Self {
             recipient,
             confirmation,
+            lease,
         }
     }
 
-    pub(crate) async fn confirmed(
-        self,
-        client: &crate::Client,
-    ) -> Result<papo_core::RecipientGuard, Error> {
-        if let Some(confirmation) = self.confirmation {
+    pub(crate) async fn confirmed(mut self) -> Result<Self, Error> {
+        if let Some(confirmation) = self.confirmation.take() {
             match confirmation.await.map_err(|_| Error::connection_lost())? {
                 Ok(()) => {}
-                Err(error) => {
-                    release(client, self.recipient).await;
-                    return Err(error);
-                }
+                Err(error) => return Err(error),
             }
         }
-        Ok(self.recipient)
+        Ok(self)
+    }
+
+    pub(crate) fn into_parts(self) -> (papo_core::RecipientGuard, crate::direct::MonitorLease) {
+        (self.recipient, self.lease)
     }
 }
 
@@ -38,7 +40,11 @@ pub(crate) async fn acquire(client: &crate::Client, nick: String) -> Result<Acqu
     let (result, receiver) = tokio::sync::oneshot::channel();
     client
         .commands
-        .send(crate::driver::Command::DirectAcquire { nick, result })
+        .send(crate::driver::Command::DirectAcquire {
+            nick,
+            commands: client.commands.clone(),
+            result,
+        })
         .await
         .map_err(|_| Error::connection_lost())?;
     receiver.await.map_err(|_| Error::connection_lost())?
@@ -66,11 +72,10 @@ pub(crate) async fn prove(
     client: &crate::Client,
     nick: String,
     acquired: Acquired,
-) -> Result<(papo_core::RecipientGuard, Account), Error> {
-    let Acquired {
-        recipient,
-        confirmation,
-    } = acquired;
+) -> Result<(Acquired, Account), Error> {
+    let mut acquired = acquired;
+    let recipient = acquired.recipient.clone();
+    let confirmation = acquired.confirmation.take();
     let response = client.correlated(
         crate::Line::new("WHO").with_params([nick.clone(), "%na".to_owned()]),
         Some(papo_core::ResponseMatcher::Who(nick.clone())),
@@ -93,27 +98,22 @@ pub(crate) async fn prove(
     };
     let response = match response {
         Ok(response) => response,
-        Err(error) => {
-            release(client, recipient).await;
-            return Err(error);
-        }
+        Err(error) => return Err(error),
     };
     let account = match who_account(client, &nick, &response) {
         Ok(account) => account,
-        Err(error) => {
-            release(client, recipient).await;
-            return Err(error);
-        }
+        Err(error) => return Err(error),
     };
-    match refresh(client, recipient.clone(), account.clone()).await {
-        Ok(recipient) => Ok((recipient, account)),
-        Err(error) => {
-            release(client, recipient).await;
-            Err(error)
+    match refresh(client, recipient, account.clone()).await {
+        Ok(recipient) => {
+            acquired.recipient = recipient;
+            Ok((acquired, account))
         }
+        Err(error) => Err(error),
     }
 }
 
+#[allow(dead_code)]
 pub(crate) async fn release(client: &crate::Client, recipient: papo_core::RecipientGuard) {
     _ = client
         .commands

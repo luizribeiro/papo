@@ -172,6 +172,7 @@ pub(crate) enum Command {
     },
     DirectAcquire {
         nick: String,
+        commands: mpsc::Sender<Command>,
         result: oneshot::Sender<Result<crate::direct_runtime::Acquired, Error>>,
     },
     DirectProve {
@@ -1146,7 +1147,11 @@ where
                     session.monitor_clear();
                     _ = result.send(Ok(()));
                 }
-                Some(Command::DirectAcquire { nick, result }) => {
+                Some(Command::DirectAcquire {
+                    nick,
+                    commands,
+                    result,
+                }) => {
                     let already_reserved = session.__monitor_reserves(&nick);
                     if !already_reserved
                         && let Some(limit) = session.__monitor_limit()
@@ -1171,6 +1176,7 @@ where
                     _ = result.send(Ok(crate::direct_runtime::Acquired::new(
                         recipient,
                         confirmation,
+                        commands,
                     )));
                 }
                 Some(Command::DirectProve { recipient, account, result }) => {
