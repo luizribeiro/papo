@@ -8915,9 +8915,15 @@ fn closed_waiters_do_not_enable_read_ahead() {
     let mut sync_waiters = vec![("#papo".to_owned(), sync)];
     let (registration, registration_receiver) = tokio::sync::oneshot::channel();
     let mut registration = super::ConnectWait(Some(registration));
+    let mut direct_waiters = Vec::new();
     drop((request_receiver, sync_receiver, registration_receiver));
 
-    super::drop_closed_waiters(&mut requests, &mut sync_waiters, &mut registration);
+    super::drop_closed_waiters(
+        &mut requests,
+        &mut sync_waiters,
+        &mut direct_waiters,
+        &mut registration,
+    );
 
     assert!(requests.is_empty());
     assert!(sync_waiters.is_empty());
@@ -8929,6 +8935,36 @@ fn closed_waiters_do_not_enable_read_ahead() {
         &registration,
         false,
     ));
+}
+
+#[test]
+fn resolved_by_who_direct_request_leaves_no_confirmation_waiter() {
+    let mut session = Session::new(config());
+    let now = crate::rt::now_mono();
+    for line in [
+        ":ergo.test 001 papo-driver :Welcome to ErgoTest",
+        ":ergo.test 005 papo-driver MONITOR=100 :are supported",
+        ":ergo.test 422 papo-driver :MOTD File is missing",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    let recipient = session.__direct_acquire("alice", None, None, crate::Account::Unknown);
+    let (result, confirmation) = tokio::sync::oneshot::channel();
+    let mut direct_waiters = vec![super::PendingDirect { recipient, result }];
+    let mut requests = std::collections::BTreeMap::new();
+    let mut sync_waiters = Vec::new();
+    let mut registration = super::ConnectWait::default();
+
+    drop(confirmation);
+    super::drop_closed_waiters(
+        &mut requests,
+        &mut sync_waiters,
+        &mut direct_waiters,
+        &mut registration,
+    );
+
+    assert!(direct_waiters.is_empty());
+    assert!(session.__monitor_reserves("alice"));
 }
 
 #[tokio::test(flavor = "current_thread")]

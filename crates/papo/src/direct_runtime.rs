@@ -113,14 +113,6 @@ pub(crate) async fn prove(
     }
 }
 
-#[allow(dead_code)]
-pub(crate) async fn release(client: &crate::Client, recipient: papo_core::RecipientGuard) {
-    _ = client
-        .commands
-        .send(crate::driver::Command::DirectRelease { recipient })
-        .await;
-}
-
 pub(crate) fn require_monitor_slot(state: &crate::State, nick: &str) -> Result<(), Error> {
     crate::Client::require_feature(state, crate::Feature::Monitor)?;
     if state.monitored().any(|known| known == nick) {
@@ -234,7 +226,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn release_delivers_the_exact_recipient() {
+    async fn dropping_an_acquisition_releases_the_exact_recipient() {
         let session = Session::new(Config::default());
         let (commands, mut receiver) = tokio::sync::mpsc::channel(1);
         let mut client = client(&session);
@@ -245,7 +237,11 @@ mod tests {
             papo_core::ReplyToken::__unknown(crate::Origin::NONE),
         );
 
-        release(&client, recipient.clone()).await;
+        drop(Acquired::new(
+            recipient.clone(),
+            None,
+            client.commands.clone(),
+        ));
         assert!(matches!(
             receiver.try_recv(),
             Ok(crate::driver::Command::DirectRelease { recipient: released })

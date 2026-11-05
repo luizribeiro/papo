@@ -947,7 +947,12 @@ where
     let mut pending_write = None;
     let mut drain_after_timeout = false;
     let (reason, error, close_kind, quit_timed_out) = loop {
-        drop_closed_waiters(&mut requests, &mut sync_waiters, registration);
+        drop_closed_waiters(
+            &mut requests,
+            &mut sync_waiters,
+            &mut direct_waiters,
+            registration,
+        );
         let write_deadline = [
             session.poll_timeout(),
             quit.as_ref().and_then(|quit: &Quit| quit.deadline),
@@ -1471,7 +1476,7 @@ where
             Event::Connecting(crate::event::Connecting { attempt, phase }),
         );
     }
-    drop_closed_waiters(requests, sync_waiters, registration);
+    drop_closed_waiters(requests, sync_waiters, direct_waiters, registration);
     reconcile_pending_events(events, pending_events, requests, resolved_sent);
     let read_ahead = should_read_ahead(requests, sync_waiters, catchups, registration, quitting);
     while (pending_events.is_empty() || read_ahead || after_timeout)
@@ -1729,9 +1734,7 @@ fn resolve_direct_waiter(
     {
         let pending = waiters.swap_remove(index);
         let result = limit.map_or_else(|| Ok(()), |limit| Err(Error::MonitorFull { limit }));
-        if pending.result.send(result).is_err() && limit.is_none() {
-            session.__direct_release(&pending.recipient);
-        }
+        _ = pending.result.send(result);
     }
 }
 
@@ -2072,10 +2075,12 @@ fn resolve_sync_waiters(
 fn drop_closed_waiters(
     requests: &mut BTreeMap<RequestId, PendingRequest>,
     sync_waiters: &mut Vec<(String, oneshot::Sender<Result<(), Error>>)>,
+    direct_waiters: &mut Vec<PendingDirect>,
     registration: &mut ConnectWait,
 ) {
     requests.retain(|_, request| !request.is_closed());
     sync_waiters.retain(|(_, result)| !result.is_closed());
+    direct_waiters.retain(|pending| !pending.result.is_closed());
     if registration
         .0
         .as_ref()
