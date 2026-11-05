@@ -30,9 +30,22 @@ struct DirectInner {
     _lease: Option<MonitorLease>,
 }
 
+#[derive(Debug)]
 pub(crate) struct MonitorLease {
     recipient: papo_core::RecipientGuard,
     commands: mpsc::Sender<crate::driver::Command>,
+}
+
+impl MonitorLease {
+    pub(crate) fn new(
+        recipient: papo_core::RecipientGuard,
+        commands: mpsc::Sender<crate::driver::Command>,
+    ) -> Self {
+        Self {
+            recipient,
+            commands,
+        }
+    }
 }
 
 impl Drop for MonitorLease {
@@ -203,10 +216,7 @@ impl crate::Target for DirectRef {
 }
 
 pub(crate) fn lease(client: &crate::Client, recipient: papo_core::RecipientGuard) -> MonitorLease {
-    MonitorLease {
-        recipient,
-        commands: client.commands.clone(),
-    }
+    MonitorLease::new(recipient, client.commands.clone())
 }
 
 impl crate::Client {
