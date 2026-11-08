@@ -74,7 +74,7 @@ async fn netsplit_members_are_quits(s: Scenario) -> papo_testing::Result<()> {
     assert!(!split.batch.is_empty());
     assert_eq!(split.first, "irc.papo.test");
     assert_eq!(split.second, "services.papo.test");
-    assert!(alice.state().user("ChanServ").is_none());
+    assert!(alice.snapshot().user("ChanServ").is_none());
     alice
         .wait_for(|event| {
             event
@@ -96,7 +96,7 @@ async fn extended_join(s: Scenario) -> papo_testing::Result<()> {
     let channel = s.channel_name();
     let alice_nick = alice.nick();
     let bob_nick = bob.nick();
-    let account = crate::scenarios::support::logged_in_account(&alice.state()).clone();
+    let account = crate::scenarios::support::logged_in_account(&alice.snapshot()).clone();
     bob.join(&channel).await?;
     let joined = bob.wait_for(Event::as_joined).await?;
     assert_eq!(joined.channel.as_str(), channel);
@@ -113,7 +113,7 @@ async fn extended_join(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(joined.channel.as_str(), channel);
     assert_eq!(joined.actor.nick(), alice_nick.as_str());
     assert_eq!(joined.authorship, papo::Authorship::Other);
-    let bob_state = bob.state();
+    let bob_state = bob.snapshot();
     let observed = bob_state.user(alice_nick.as_str()).unwrap();
     assert_eq!(observed.realname(), Some("papo test peer"));
     assert!(matches!(observed.account(), Account::LoggedIn(name) if name == account.as_str()));
@@ -126,7 +126,7 @@ async fn extended_join(s: Scenario) -> papo_testing::Result<()> {
     );
     assert!(
         alice
-            .state()
+            .snapshot()
             .channel(&channel)
             .unwrap()
             .member(bob_nick.as_str())
@@ -159,7 +159,7 @@ async fn userhost_in_names(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert_eq!(joined.channel.as_str(), channel);
 
-    let bob_state = bob.state();
+    let bob_state = bob.snapshot();
     let observed = bob_state.user(alice_nick.as_str()).unwrap();
     assert!(observed.username().is_some_and(|user| !user.is_empty()));
     assert!(observed.host().is_some_and(|host| !host.is_empty()));
@@ -172,7 +172,7 @@ async fn userhost_in_names(s: Scenario) -> papo_testing::Result<()> {
     );
     assert!(
         alice
-            .state()
+            .snapshot()
             .channel(&channel)
             .unwrap()
             .member(bob_nick.as_str())
@@ -186,7 +186,7 @@ async fn userhost_in_names(s: Scenario) -> papo_testing::Result<()> {
 async fn names_multiple_channels(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     if matches!(
-        alice.state().isupport().targmax_for("NAMES"),
+        alice.snapshot().isupport().targmax_for("NAMES"),
         Some(LimitValue::Limited(limit)) if limit < 2
     ) {
         return s.skip("TARGMAX limits NAMES to fewer than two targets");
@@ -198,7 +198,7 @@ async fn names_multiple_channels(s: Scenario) -> papo_testing::Result<()> {
 
     // NAMES numerics and their channel parameters are the behavior under test.
     let targets = format!("{first},{second}");
-    let mapping = alice.state().casemapping();
+    let mapping = alice.snapshot().casemapping();
     let names = alice
         .request_raw(papo::Line::new("NAMES").with_params([&targets]))
         .await?;
@@ -227,8 +227,8 @@ async fn names_multiple_channels(s: Scenario) -> papo_testing::Result<()> {
             "missing names terminator for {channel}: {names:?}"
         );
     }
-    assert!(alice.state().channel(&first).is_some());
-    assert!(alice.state().channel(&second).is_some());
+    assert!(alice.snapshot().channel(&first).is_some());
+    assert!(alice.snapshot().channel(&second).is_some());
     Ok(())
 }
 
@@ -238,7 +238,7 @@ async fn secret_names_visibility(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     let bob = s.connect("bob").await?;
     let channel = s.channel_name();
-    let mapping = bob.state().casemapping();
+    let mapping = bob.snapshot().casemapping();
     let channel_name = mapping.channel(&channel);
     alice.join(&channel).await?;
     alice.mode(&channel).add('s').await?;
@@ -265,8 +265,8 @@ async fn secret_names_visibility(s: Scenario) -> papo_testing::Result<()> {
         }),
         "missing hidden-channel terminator: {hidden:?}"
     );
-    assert!(alice.state().channel(&channel).is_some());
-    assert!(bob.state().channel(&channel).is_none());
+    assert!(alice.snapshot().channel(&channel).is_some());
+    assert!(bob.snapshot().channel(&channel).is_none());
     Ok(())
 }
 
@@ -281,7 +281,7 @@ async fn no_implicit_names(s: Scenario) -> papo_testing::Result<()> {
     let alice_nick = alice.nick();
     assert!(
         alice
-            .state()
+            .snapshot()
             .caps()
             .contains_key(&papo::cap::NO_IMPLICIT_NAMES)
     );
@@ -293,7 +293,7 @@ async fn no_implicit_names(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(joined.actor.nick(), &alice_nick);
     assert_eq!(joined.authorship, papo::Authorship::Own);
     assert_eq!(synced.channel.as_str(), channel);
-    let state = alice.state();
+    let state = alice.snapshot();
     let joined_channel = state.channel(&channel).unwrap();
     assert!(joined_channel.is_synced());
     assert!(joined_channel.member(alice_nick.as_str()).is_some());
@@ -340,7 +340,7 @@ async fn server_forced_join(s: Scenario) -> papo_testing::Result<()> {
         })
         .await?;
     assert_eq!(synced.channel.as_str(), channel);
-    let state = alice.state();
+    let state = alice.snapshot();
     let joined_channel = state.channel(&channel).unwrap();
     assert!(joined_channel.is_synced());
     assert!(joined_channel.member(alice_nick.as_str()).is_some());
@@ -392,10 +392,10 @@ async fn multiple_joins(s: Scenario) -> papo_testing::Result<()> {
             })
             .await?;
         assert_eq!(joined.authorship, papo::Authorship::Other);
-        assert!(bob.state().channel(channel).is_some());
+        assert!(bob.snapshot().channel(channel).is_some());
         assert!(
             alice
-                .state()
+                .snapshot()
                 .channel(channel)
                 .unwrap()
                 .member(bob_nick.as_str())
@@ -441,10 +441,10 @@ async fn multiple_joins(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(observed.actor.nick(), bob_nick.as_str());
         assert_eq!(own.authorship, papo::Authorship::Own);
         assert_eq!(observed.authorship, papo::Authorship::Other);
-        assert!(bob.state().channel(channel).is_none());
+        assert!(bob.snapshot().channel(channel).is_none());
         assert!(
             alice
-                .state()
+                .snapshot()
                 .channel(channel)
                 .unwrap()
                 .member(bob_nick.as_str())
@@ -466,7 +466,7 @@ async fn partially_invalid_join(s: Scenario) -> papo_testing::Result<()> {
 
     // A single JOIN command must still apply its valid target before reporting the bad one.
     let targets = format!("{channel},{invalid}");
-    let mapping = alice.state().casemapping();
+    let mapping = alice.snapshot().casemapping();
     alice
         .send_raw(papo::Line::new("JOIN").with_params([&targets]))
         .await?;
@@ -486,7 +486,7 @@ async fn partially_invalid_join(s: Scenario) -> papo_testing::Result<()> {
         invalid.as_str()
     );
     if !alice
-        .state()
+        .snapshot()
         .channel(&channel)
         .is_some_and(papo::Channel::is_synced)
     {
@@ -499,7 +499,7 @@ async fn partially_invalid_join(s: Scenario) -> papo_testing::Result<()> {
             .await?;
         assert_eq!(synced.channel.as_str(), channel);
     }
-    let state = alice.state();
+    let state = alice.snapshot();
     assert!(
         state
             .channel(&channel)
@@ -514,7 +514,7 @@ async fn partially_invalid_join(s: Scenario) -> papo_testing::Result<()> {
 async fn too_many_channels(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let Some(LimitValue::Limited(limit)) = alice
-        .state()
+        .snapshot()
         .isupport()
         .chanlimit()
         .into_iter()
@@ -530,7 +530,7 @@ async fn too_many_channels(s: Scenario) -> papo_testing::Result<()> {
     }
     let channels = (0..=limit).map(|_| s.channel_name()).collect::<Vec<_>>();
     let targets = channels.join(",");
-    let mapping = alice.state().casemapping();
+    let mapping = alice.snapshot().casemapping();
 
     // The server numeric is the behavior under test, so retain its raw response.
     alice
@@ -544,8 +544,8 @@ async fn too_many_channels(s: Scenario) -> papo_testing::Result<()> {
         mapping.channel(refusal.get(1).expect("405 includes the refused channel")),
         channels[limit].as_str()
     );
-    assert_eq!(alice.state().channels().count(), limit);
-    assert!(alice.state().channel(&channels[limit]).is_none());
+    assert_eq!(alice.snapshot().channels().count(), limit);
+    assert!(alice.snapshot().channel(&channels[limit]).is_none());
     Ok(())
 }
 
@@ -610,7 +610,7 @@ async fn multi_prefix(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(joined.channel.as_str(), channel);
     assert_eq!(joined.actor.nick(), bob_nick.as_str());
     let prefixes = bob
-        .state()
+        .snapshot()
         .channel(&channel)
         .and_then(|channel| channel.member(alice_nick.as_str()))
         .map(|member| member.prefixes().to_vec());
@@ -625,7 +625,7 @@ async fn multi_prefix(s: Scenario) -> papo_testing::Result<()> {
     );
     assert!(
         alice
-            .state()
+            .snapshot()
             .channel(&channel)
             .unwrap()
             .member(bob_nick.as_str())
@@ -677,7 +677,7 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
         matches!(operator.arg.clone(), Some(ModeArg::Member { nick, .. }) if nick == bob_nick.as_str())
     );
     assert!(
-        bob.state()
+        bob.snapshot()
             .channel(&channel)
             .unwrap()
             .member(bob_nick.as_str())
@@ -703,14 +703,14 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(observer.subject_authorship, papo::Authorship::Other);
     assert!(
         alice
-            .state()
+            .snapshot()
             .channel(&channel)
             .unwrap()
             .member(carol_nick.as_str())
             .is_none()
     );
     assert!(
-        bob.state()
+        bob.snapshot()
             .channel(&channel)
             .unwrap()
             .member(carol_nick.as_str())
@@ -739,7 +739,7 @@ async fn invite_rules(s: Scenario) -> papo_testing::Result<()> {
         .mode(&channel)
         .ban(
             alice
-                .state()
+                .snapshot()
                 .casemapping()
                 .mask(format!("{carol_nick}!*@*")),
         )
@@ -775,7 +775,7 @@ async fn invite_rules(s: Scenario) -> papo_testing::Result<()> {
             assert_eq!(joined.authorship, papo::Authorship::Other);
             assert!(
                 alice
-                    .state()
+                    .snapshot()
                     .channel(&channel)
                     .unwrap()
                     .member(carol_nick.as_str())
@@ -783,7 +783,7 @@ async fn invite_rules(s: Scenario) -> papo_testing::Result<()> {
             );
             assert!(
                 carol
-                    .state()
+                    .snapshot()
                     .channel(&channel)
                     .unwrap()
                     .member(carol_nick.as_str())
@@ -794,13 +794,13 @@ async fn invite_rules(s: Scenario) -> papo_testing::Result<()> {
             assert_refusal(error, Refusal::BannedFromChannel, "474");
             assert!(
                 alice
-                    .state()
+                    .snapshot()
                     .channel(&channel)
                     .unwrap()
                     .member(carol_nick.as_str())
                     .is_none()
             );
-            assert!(carol.state().channel(&channel).is_none());
+            assert!(carol.snapshot().channel(&channel).is_none());
         }
     }
     Ok(())
@@ -828,9 +828,9 @@ async fn part(s: Scenario) -> papo_testing::Result<()> {
     }
     assert_eq!(own.authorship, papo::Authorship::Own);
     assert_eq!(observed.authorship, papo::Authorship::Other);
-    assert!(alice.state().channel(&channel).is_none());
+    assert!(alice.snapshot().channel(&channel).is_none());
     assert!(
-        bob.state()
+        bob.snapshot()
             .channel(&channel)
             .unwrap()
             .member(alice_nick.as_str())
@@ -883,9 +883,9 @@ async fn part_multiple_and_refusal(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(observed.reason.as_deref(), Some(reason));
         assert_eq!(own.authorship, papo::Authorship::Own);
         assert_eq!(observed.authorship, papo::Authorship::Other);
-        assert!(alice.state().channel(channel).is_none());
+        assert!(alice.snapshot().channel(channel).is_none());
         assert!(
-            bob.state()
+            bob.snapshot()
                 .channel(channel)
                 .unwrap()
                 .member(alice_nick.as_str())
