@@ -46,9 +46,9 @@ including stable builds that only observe soju's notice or self-JOIN resync.
 Browser `wss://` connections produce hostname-scoped Account pins; browser `ws://` remains
 Continuity-only.
 
-`Events::next` and the `Events` stream now yield `EventWithState`, whose named fields contain the
-event and an `Arc<State>` captured immediately after it was applied. Event handlers use that
-snapshot so later server lines cannot change the state they observe.
+`Events::next` and the `Events` stream now yield `(Event, Arc<State>)`. The state is captured
+immediately after the event was applied, so later server lines cannot change the state an event
+handler observes.
 
 `Client::snapshot` replaces `Client::state` for reading the latest state outside an event handler.
 `State::connection_epoch` exposes an opaque comparable connection epoch, `Connected::epoch`
@@ -374,13 +374,14 @@ slow. The bounded queue discards state-backed events first, then other non-messa
 message-like events last. The next item is one `Event::Lagged` for the episode:
 
 ```rust,ignore
-match item.event {
+let (event, state) = item;
+match event {
     Event::Lagged(lag) => {
         for gap in lag.gaps {
             // Query client.history(&gap.conversation) when history is available.
         }
     }
-    event => handle(event, &item.state),
+    event => handle(event, &state),
 }
 ```
 
