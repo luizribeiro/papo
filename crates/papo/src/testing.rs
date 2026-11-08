@@ -354,14 +354,20 @@ mod tests {
             b":offline.test 001 papo-wire :Welcome to ErgoTest\r\n:offline.test 005 papo-wire CHANTYPES=# CASEMAPPING=rfc1459 :are supported\r\n:offline.test 422 papo-wire :MOTD File is missing\r\n",
         )
         .await;
-        while !matches!(events.next().await, Some(crate::Event::Connected(_))) {}
+        while !matches!(
+            events.next_with_state().await.map(|item| item.event),
+            Some(crate::Event::Connected(_))
+        ) {}
 
         super::server_line(
             &mut server,
             b":papo-wire!papo@localhost JOIN #review * :Papo Wire\r\n",
         )
         .await;
-        while !matches!(events.next().await, Some(crate::Event::Joined(_))) {}
+        while !matches!(
+            events.next_with_state().await.map(|item| item.event),
+            Some(crate::Event::Joined(_))
+        ) {}
         assert!(matches!(
             client.join("#operations").await,
             Err(crate::Error::StateLimit(crate::StateLimit::Channels))

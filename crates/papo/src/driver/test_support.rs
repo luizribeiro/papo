@@ -322,7 +322,7 @@ pub(crate) async fn server_line(server: &mut DuplexStream, line: &[u8]) {
 
 pub(crate) async fn next_event(events: &mut super::Events) -> Option<Event> {
     loop {
-        match events.next().await {
+        match events.next_with_state().await.map(|item| item.event) {
             Some(Event::Connecting(_)) => {}
             event => return event,
         }
@@ -626,11 +626,15 @@ pub(crate) async fn confirm_away(
     )
     .await;
     within(away).await.unwrap().unwrap();
-    assert!(matches!(events.next().await, Some(Event::AwayChanged(_))));
+    assert!(matches!(
+        events.next_with_state().await.map(|item| item.event),
+        Some(Event::AwayChanged(_))
+    ));
 }
 
 pub(crate) async fn next_message(events: &mut super::Events) -> ChatMessage {
-    let Some(Event::Message(message)) = events.next().await else {
+    let Some(Event::Message(message)) = events.next_with_state().await.map(|item| item.event)
+    else {
         panic!("expected message event")
     };
     message
@@ -730,11 +734,15 @@ pub(crate) async fn assert_reply_wire(
         );
         server_line(&mut server, joins.as_bytes()).await;
         for _ in 0..2 {
-            assert!(matches!(events.next().await, Some(Event::Joined(_))));
+            assert!(matches!(
+                events.next_with_state().await.map(|item| item.event),
+                Some(Event::Joined(_))
+            ));
         }
     }
     server_line(&mut server, incoming).await;
-    let Some(Event::Message(message)) = events.next().await else {
+    let Some(Event::Message(message)) = events.next_with_state().await.map(|item| item.event)
+    else {
         panic!("expected message event")
     };
     match kind {
@@ -781,7 +789,10 @@ pub(crate) async fn assert_reaction_wire(isupport: &str, remove: bool, expected:
     )
     .await;
     for _ in 0..2 {
-        assert!(matches!(events.next().await, Some(Event::Joined(_))));
+        assert!(matches!(
+            events.next_with_state().await.map(|item| item.event),
+            Some(Event::Joined(_))
+        ));
     }
     server_line(
         &mut server,

@@ -315,7 +315,7 @@ async fn sasl_connection_reports_each_protocol_phase() {
     let task = tokio::spawn(driver);
 
     assert!(matches!(
-        events.next().await,
+        events.next_with_state().await.map(|item| item.event),
         Some(Event::Connecting(crate::event::Connecting {
             attempt: 1,
             phase: crate::ConnectPhase::Capabilities,
@@ -326,7 +326,7 @@ async fn sasl_connection_reports_each_protocol_phase() {
     client_line(&mut server, b"CAP REQ :sasl\r\n").await;
     server_line(&mut server, b":ergo.test CAP * ACK :sasl\r\n").await;
     assert!(matches!(
-        events.next().await,
+        events.next_with_state().await.map(|item| item.event),
         Some(Event::Connecting(crate::event::Connecting {
             phase: crate::ConnectPhase::Authenticating,
             ..
@@ -345,7 +345,7 @@ async fn sasl_connection_reports_each_protocol_phase() {
     )
     .await;
     assert!(matches!(
-        events.next().await,
+        events.next_with_state().await.map(|item| item.event),
         Some(Event::Connecting(crate::event::Connecting {
             phase: crate::ConnectPhase::WaitingForWelcome,
             ..
@@ -430,12 +430,19 @@ async fn connecting_phase_overflow_reports_one_lag_episode() {
         );
     }
 
-    let lagged = events.next().await.unwrap().as_lagged().unwrap().clone();
+    let lagged = events
+        .next_with_state()
+        .await
+        .map(|item| item.event)
+        .unwrap()
+        .as_lagged()
+        .unwrap()
+        .clone();
     assert_eq!(lagged.dropped, 1);
     assert!(lagged.gaps.is_empty());
     for attempt in 2..=34 {
         assert!(matches!(
-            events.next().await,
+            events.next_with_state().await.map(|item| item.event),
             Some(Event::Connecting(crate::event::Connecting {
                 attempt: actual,
                 phase: crate::ConnectPhase::Transport,
@@ -1399,7 +1406,7 @@ async fn assert_failed_connection_progress(address: &str, attempts: usize) {
 
     for attempt in 1..=attempts {
         assert!(matches!(
-            events.next().await,
+            events.next_with_state().await.map(|item| item.event),
             Some(Event::Connecting(crate::event::Connecting {
                 attempt: event_attempt,
                 phase: crate::ConnectPhase::Transport,
@@ -1407,7 +1414,7 @@ async fn assert_failed_connection_progress(address: &str, attempts: usize) {
         ));
         if secure {
             assert!(matches!(
-                events.next().await,
+                events.next_with_state().await.map(|item| item.event),
                 Some(Event::Connecting(crate::event::Connecting {
                     attempt: event_attempt,
                     phase: crate::ConnectPhase::Tls,
