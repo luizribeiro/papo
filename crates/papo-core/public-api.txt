@@ -1561,6 +1561,29 @@ impl core::marker::Unpin for papo_core::Connection
 impl core::marker::UnsafeUnpin for papo_core::Connection
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Connection
 impl core::panic::unwind_safe::UnwindSafe for papo_core::Connection
+pub struct papo_core::ConnectionEpoch(_)
+impl core::clone::Clone for papo_core::ConnectionEpoch
+pub fn papo_core::ConnectionEpoch::clone(&self) -> Self
+impl core::cmp::Eq for papo_core::ConnectionEpoch
+impl core::cmp::Ord for papo_core::ConnectionEpoch
+pub fn papo_core::ConnectionEpoch::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for papo_core::ConnectionEpoch
+pub fn papo_core::ConnectionEpoch::eq(&self, &Self) -> bool
+impl core::cmp::PartialOrd for papo_core::ConnectionEpoch
+pub fn papo_core::ConnectionEpoch::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for papo_core::ConnectionEpoch
+pub fn papo_core::ConnectionEpoch::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_core::ConnectionEpoch
+pub fn papo_core::ConnectionEpoch::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for papo_core::ConnectionEpoch
+impl core::marker::StructuralPartialEq for papo_core::ConnectionEpoch
+impl core::marker::Freeze for papo_core::ConnectionEpoch
+impl core::marker::Send for papo_core::ConnectionEpoch
+impl core::marker::Sync for papo_core::ConnectionEpoch
+impl core::marker::Unpin for papo_core::ConnectionEpoch
+impl core::marker::UnsafeUnpin for papo_core::ConnectionEpoch
+impl core::panic::unwind_safe::RefUnwindSafe for papo_core::ConnectionEpoch
+impl core::panic::unwind_safe::UnwindSafe for papo_core::ConnectionEpoch
 #[non_exhaustive] pub struct papo_core::CtcpReplies
 impl papo_core::CtcpReplies
 pub fn papo_core::CtcpReplies::off() -> Self
@@ -2094,6 +2117,7 @@ pub fn papo_core::State::away(&self) -> &papo_core::Away
 pub const fn papo_core::State::casemapping(&self) -> papo::Casemapping
 pub fn papo_core::State::channel(&self, impl papo::AsChannel) -> core::option::Option<&papo_core::Channel>
 pub fn papo_core::State::channels(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &papo_core::Channel>
+pub const fn papo_core::State::connection_epoch(&self) -> papo_core::ConnectionEpoch
 pub fn papo_core::State::conversation(&self, impl core::convert::AsRef<str>) -> core::result::Result<papo::Conversation, papo::InvalidIdentifier>
 pub fn papo_core::State::host(&self) -> core::option::Option<&str>
 pub fn papo_core::State::last_seen(&self, impl core::convert::AsRef<str>) -> core::option::Option<&papo_core::LastSeen>

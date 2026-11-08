@@ -54,6 +54,10 @@ pub(crate) enum StateGrowth<'a> {
     BouncerNetwork,
 }
 
+/// An opaque identifier for one connection's state.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct ConnectionEpoch(u64);
+
 /// The known channel and user state for a session.
 #[derive(Debug, Eq, PartialEq)]
 pub struct State {
@@ -1575,6 +1579,12 @@ impl State {
         &self.nick
     }
 
+    /// Returns the connection epoch represented by this state.
+    #[must_use]
+    pub const fn connection_epoch(&self) -> ConnectionEpoch {
+        ConnectionEpoch(self.reply_epoch)
+    }
+
     /// Parses a wire address using the server's advertised `STATUSMSG` and `CHANTYPES` rules.
     ///
     /// Prefixes not advertised through `STATUSMSG` are left on the address and validated there.
@@ -2343,6 +2353,21 @@ mod metadata_tests {
             &snapshot.channels["#rust"]
         ));
         assert_eq!(snapshot.channel("#papo").unwrap().topic(), None);
+    }
+
+    #[test]
+    fn reset_advances_the_connection_epoch() {
+        let config = Config::default();
+        let mut state = State::new(&config);
+        let first = state.connection_epoch();
+
+        state.reset(
+            &config,
+            papo_proto::Casemapping::Rfc1459,
+            &Isupport::default(),
+        );
+
+        assert_ne!(state.connection_epoch(), first);
     }
 
     #[test]

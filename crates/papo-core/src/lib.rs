@@ -211,7 +211,7 @@ pub use ratelimit::{InvalidRateLimit, RateLimit};
 pub use refusal::Refusal;
 use sasl::{AccountUpdate, SaslSession};
 pub use sasl::{Entropy, Sasl};
-pub use state::{Account, Away, Channel, Member, MetadataView, State, User};
+pub use state::{Account, Away, Channel, ConnectionEpoch, Member, MetadataView, State, User};
 use state::{MetadataContext, StateGrowth};
 use sts::ConnectionSecurity;
 #[doc(hidden)]
