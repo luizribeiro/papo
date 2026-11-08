@@ -28,6 +28,9 @@ warnings without closing the connection or changing papo's completed SASL exchan
 An account reported during SASL is published only after the exchange succeeds, including SCRAM
 server-proof verification; failed or aborted exchanges discard the pending account.
 
+`History::latest_after` retrieves the newest history page after a saved message ID or timestamp,
+and `HistoryPage::end` reports whether older messages after that cursor may have been omitted.
+
 `DirectRef` equality and hashing now identify only the tracked IRC user on one connection. Handles
 for that user stay equal across account discovery and nickname changes; different users remain
 unequal even on the same account or after a departed user's nickname is reused. Handles are per

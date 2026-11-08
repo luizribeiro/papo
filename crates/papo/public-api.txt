@@ -2391,6 +2391,7 @@ pub fn papo::History::around(self, impl core::convert::Into<papo::HistoryReferen
 pub fn papo::History::before(self, impl core::convert::Into<papo::HistoryReference>) -> papo::HistoryRequest
 pub fn papo::History::between(self, impl core::convert::Into<papo::HistoryReference>, impl core::convert::Into<papo::HistoryReference>) -> papo::HistoryRequest
 pub fn papo::History::latest(self) -> papo::HistoryRequest
+pub fn papo::History::latest_after(self, impl core::convert::Into<papo::HistoryReference>) -> papo::HistoryRequest
 impl core::fmt::Debug for papo::History
 pub fn papo::History::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::Freeze for papo::History

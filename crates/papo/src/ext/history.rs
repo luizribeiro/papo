@@ -719,7 +719,10 @@ pub struct HistoryPage {
     pub reason: HistoryReason,
     /// Whether this page was empty or the server reported that no further page exists.
     ///
-    /// A page shorter than the requested limit does not imply the end.
+    /// For [`History::latest_after`], `true` means every available item after the reference was
+    /// returned. When it is `false`, the oldest available items may have been omitted between the
+    /// reference and this page. A page shorter than the requested limit does not imply the end,
+    /// because the server may cap or vary the number of returned items.
     pub end: bool,
 }
 
@@ -836,42 +839,45 @@ impl History {
         }
     }
 
-    /// Requests messages before `reference`.
-    pub fn before(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
-        let reference = reference.into();
-        let before = reference.value;
-        let query = self
-            .target
-            .and_then(|target| resolve_reference(&self.client, target, reference.origin))
-            .map(|target| HistoryQuery::__before(target, before, DEFAULT_HISTORY_LIMIT));
-        HistoryRequest {
-            client: self.client,
-            query,
-        }
+    /// Requests the newest messages strictly after `reference`, at most the requested limit.
+    ///
+    /// If more messages exist, the oldest are omitted, so a full page may hide a gap between
+    /// `reference` and the page; check [`HistoryPage::end`] to learn whether the page is complete.
+    /// Unlike [`History::after`], this returns the newest page after the reference.
+    pub fn latest_after(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
+        self.reference_query(reference, |target, after, limit| {
+            HistoryQuery::__latest(target, Some(after), limit)
+        })
     }
 
-    /// Requests messages after `reference`.
+    /// Requests messages immediately before `reference`.
+    pub fn before(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
+        self.reference_query(reference, HistoryQuery::__before)
+    }
+
+    /// Requests the oldest messages strictly after `reference`, at most the requested limit.
+    ///
+    /// Unlike [`History::latest_after`], this returns the oldest page after the reference.
     pub fn after(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
-        let reference = reference.into();
-        let after = reference.value;
-        let query = self
-            .target
-            .and_then(|target| resolve_reference(&self.client, target, reference.origin))
-            .map(|target| HistoryQuery::__after(target, after, DEFAULT_HISTORY_LIMIT));
-        HistoryRequest {
-            client: self.client,
-            query,
-        }
+        self.reference_query(reference, HistoryQuery::__after)
     }
 
     /// Requests messages surrounding `reference`.
     pub fn around(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
+        self.reference_query(reference, HistoryQuery::__around)
+    }
+
+    fn reference_query(
+        self,
+        reference: impl Into<HistoryReference>,
+        build: impl FnOnce(String, MsgRef, usize) -> HistoryQuery,
+    ) -> HistoryRequest {
         let reference = reference.into();
-        let around = reference.value;
+        let value = reference.value;
         let query = self
             .target
             .and_then(|target| resolve_reference(&self.client, target, reference.origin))
-            .map(|target| HistoryQuery::__around(target, around, DEFAULT_HISTORY_LIMIT));
+            .map(|target| build(target, value, DEFAULT_HISTORY_LIMIT));
         HistoryRequest {
             client: self.client,
             query,
@@ -1349,7 +1355,7 @@ mod tests {
     }
 
     #[test]
-    fn history_rejects_a_cursor_from_another_client() {
+    fn history_queries_reject_a_cursor_from_another_client() {
         let (first, _, _) = crate::Client::builder("ircs://irc.example.net", "papo-client")
             .casemapping(Casemapping::default())
             .build();
@@ -1362,7 +1368,11 @@ mod tests {
         );
 
         assert!(matches!(
-            second.history("#papo").before(cursor).query,
+            second.history("#papo").after(cursor.clone()).query,
+            Err(Error::InvalidInput(crate::InvalidInput::ForeignReference))
+        ));
+        assert!(matches!(
+            second.history("#papo").latest_after(cursor).query,
             Err(Error::InvalidInput(crate::InvalidInput::ForeignReference))
         ));
     }
@@ -1921,6 +1931,17 @@ mod tests {
             after.query,
             Ok(HistoryQuery::After { limit: 100, .. })
         ));
+        let latest_after = client
+            .history("#papo")
+            .latest_after(crate::MessageId::from("RfcBTzyxY120000"));
+        assert!(matches!(
+            latest_after.query,
+            Ok(HistoryQuery::Latest {
+                after: Some(MsgRef::Msgid(_)),
+                limit: 100,
+                ..
+            })
+        ));
         let around = client.history("#papo").around(&message_id);
         assert!(matches!(
             around.query,
@@ -2145,6 +2166,56 @@ mod tests {
         server_line(&mut server, b"@label=1 :soju.example ACK\r\n").await;
         within(reaction).await.unwrap().unwrap();
 
+        abort_task(task).await;
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn latest_after_history_reaches_the_wire_for_time_and_message_id() {
+        let config = config().wanted_caps([
+            "draft/chathistory",
+            "labeled-response",
+            "batch",
+            "server-time",
+        ]);
+        let (mut server, client, mut events, driver) = scripted(config);
+        let task = tokio::spawn(driver);
+        complete_connect_history(&mut server, &mut events).await;
+
+        let request = tokio::spawn({
+            let client = client.clone();
+            async move {
+                client
+                    .history("#papo")
+                    .latest_after(UNIX_EPOCH + Duration::from_secs(42))
+                    .limit(54)
+                    .await
+            }
+        });
+        client_line(
+            &mut server,
+            b"@label=0 CHATHISTORY LATEST #papo timestamp=1970-01-01T00:00:42.000Z 54\r\n",
+        )
+        .await;
+        history_response(&mut server, 0).await;
+        within(request).await.unwrap().unwrap();
+
+        let request = tokio::spawn({
+            let client = client.clone();
+            async move {
+                client
+                    .history("alice")
+                    .latest_after(crate::MessageId::from("RfcBTzyxY120000"))
+                    .limit(55)
+                    .await
+            }
+        });
+        client_line(
+            &mut server,
+            b"@label=1 CHATHISTORY LATEST alice msgid=RfcBTzyxY120000 55\r\n",
+        )
+        .await;
+        history_response(&mut server, 1).await;
+        within(request).await.unwrap().unwrap();
         abort_task(task).await;
     }
 
