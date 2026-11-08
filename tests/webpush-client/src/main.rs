@@ -29,7 +29,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let (client, _events) = authenticated(&url, &account, &password).await?;
             let status = client.persistence().set(PersistenceSetting::On).await?;
             assert!(status.effective);
-            if client.state().channel(CHANNEL).is_none() {
+            if client.snapshot().channel(CHANNEL).is_none() {
                 client.join(CHANNEL).await?;
             }
             client.set_away("Web Push VM test").await?;

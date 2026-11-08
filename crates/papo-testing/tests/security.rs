@@ -148,7 +148,7 @@ async fn foreign_rename_into_own_nick_keeps_own_identity() {
     }
     let changed = host_change.expect("expected own host change");
     assert_eq!(changed.new_username, "papo");
-    assert_eq!(client.state().username(), "papo");
+    assert_eq!(client.snapshot().username(), "papo");
 }
 
 #[tokio::test(start_paused = true)]
@@ -241,7 +241,7 @@ async fn unfinished_ban_list_stays_bounded_and_the_client_keeps_working() {
     }
     assert_eq!(
         client
-            .state()
+            .snapshot()
             .channel("#papo")
             .unwrap()
             .list(papo::ListMode::Ban),
@@ -477,7 +477,7 @@ async fn foreign_monitor_add_never_reaches_either_wire() {
     second_wire
         .server(":offline.test 005 papo-second MONITOR=100 :are supported")
         .await;
-    while second.state().isupport().monitor().is_none() {
+    while second.snapshot().isupport().monitor().is_none() {
         tokio::task::yield_now().await;
     }
 
@@ -485,7 +485,7 @@ async fn foreign_monitor_add_never_reaches_either_wire() {
         &second
             .monitor()
             .add([first
-                .state()
+                .snapshot()
                 .name_rules()
                 .expect("server advertised CASEMAPPING")
                 .nick("alice")])
@@ -501,7 +501,7 @@ async fn foreign_monitor_remove_never_reaches_either_wire() {
     second_wire
         .server(":offline.test 005 papo-second MONITOR=100 :are supported")
         .await;
-    while second.state().isupport().monitor().is_none() {
+    while second.snapshot().isupport().monitor().is_none() {
         tokio::task::yield_now().await;
     }
 
@@ -509,7 +509,7 @@ async fn foreign_monitor_remove_never_reaches_either_wire() {
         &second
             .monitor()
             .remove([first
-                .state()
+                .snapshot()
                 .name_rules()
                 .expect("server advertised CASEMAPPING")
                 .nick("alice")])
@@ -527,7 +527,7 @@ async fn foreign_account_verification_never_reaches_either_wire() {
         &second
             .verify_account(
                 first
-                    .state()
+                    .snapshot()
                     .name_rules()
                     .expect("server advertised CASEMAPPING")
                     .account("alice"),
@@ -548,7 +548,7 @@ async fn foreign_account_creation_never_reaches_either_wire() {
             .create_account(
                 papo::NewAccount::new(papo::Secret::new(PASSWORD)).account(
                     first
-                        .state()
+                        .snapshot()
                         .name_rules()
                         .expect("server advertised CASEMAPPING")
                         .account("alice"),
@@ -587,9 +587,9 @@ async fn read_marker_state_is_bounded_and_warns_once() {
     }
 
     assert_eq!(warnings, 1);
-    assert!(client.state().read_marker("user0000").is_none());
-    assert!(client.state().read_marker("user0001").is_some());
-    assert!(client.state().read_marker("user1000").is_some());
+    assert!(client.snapshot().read_marker("user0000").is_none());
+    assert!(client.snapshot().read_marker("user0001").is_some());
+    assert!(client.snapshot().read_marker("user1000").is_some());
 }
 
 async fn assert_no_wire(first: &mut Wire, second: &mut Wire) {
@@ -614,31 +614,31 @@ async fn foreign_names_cannot_read_another_clients_state() {
     ] {
         second_wire.server(line).await;
     }
-    while second.state().metadata("alice").is_none()
-        || second.state().read_marker("#papo").is_none()
+    while second.snapshot().metadata("alice").is_none()
+        || second.snapshot().read_marker("#papo").is_none()
     {
         tokio::task::yield_now().await;
     }
 
     let foreign_channel = first
-        .state()
+        .snapshot()
         .name_rules()
         .expect("server advertised CASEMAPPING")
         .channel("#papo");
     let foreign_nick = first
-        .state()
+        .snapshot()
         .name_rules()
         .expect("server advertised CASEMAPPING")
         .nick("alice");
-    assert!(second.state().channel("#papo").is_some());
-    assert!(second.state().channel(&foreign_channel).is_none());
-    assert!(second.state().user("alice").is_some());
-    assert!(second.state().user(&foreign_nick).is_none());
-    assert!(second.state().metadata("alice").is_some());
-    assert!(second.state().metadata(&foreign_nick).is_none());
-    assert!(second.state().read_marker("#papo").is_some());
-    assert!(second.state().read_marker(&foreign_channel).is_none());
-    let state = second.state();
+    assert!(second.snapshot().channel("#papo").is_some());
+    assert!(second.snapshot().channel(&foreign_channel).is_none());
+    assert!(second.snapshot().user("alice").is_some());
+    assert!(second.snapshot().user(&foreign_nick).is_none());
+    assert!(second.snapshot().metadata("alice").is_some());
+    assert!(second.snapshot().metadata(&foreign_nick).is_none());
+    assert!(second.snapshot().read_marker("#papo").is_some());
+    assert!(second.snapshot().read_marker(&foreign_channel).is_none());
+    let state = second.snapshot();
     let channel = state.channel("#papo").unwrap();
     assert!(channel.member("alice").is_some());
     assert!(channel.member(&foreign_nick).is_none());
@@ -836,7 +836,7 @@ async fn every_line_reference_refuses_a_stale_target() {
     wire.server(":offline.test 329 papo-wire #review 1793098800")
         .await;
     while client
-        .state()
+        .snapshot()
         .channel("#review")
         .and_then(papo::Channel::created_at)
         .is_none()
@@ -1072,7 +1072,7 @@ async fn monitored_metadata_is_not_inherited_after_a_nickname_handoff() {
         papo::Event::NickChanged(_)
     ) {}
 
-    assert!(client.state().metadata("bob").is_none());
+    assert!(client.snapshot().metadata("bob").is_none());
 }
 
 #[tokio::test]
@@ -1293,7 +1293,7 @@ async fn oauth_bearer_error_challenge_is_acknowledged_without_publication() {
     .await;
     assert_eq!(wire.next_sent().await, "AUTHENTICATE AQ==");
     assert!(matches!(
-        client.state().account(),
+        client.snapshot().account(),
         papo::Account::Unknown | papo::Account::LoggedOut
     ));
     wire.server(":offline.test 904 papo-wire :SASL authentication failed")
@@ -1310,7 +1310,7 @@ async fn oauth_bearer_error_challenge_is_acknowledged_without_publication() {
     }
     assert_eq!(wire.next_sent().await, "CAP END");
     assert!(matches!(
-        client.state().account(),
+        client.snapshot().account(),
         papo::Account::Unknown | papo::Account::LoggedOut
     ));
 }
@@ -1438,7 +1438,7 @@ async fn scram_success_requires_verified_server_proof() {
         }
     }
     assert!(matches!(
-        client.state().account(),
+        client.snapshot().account(),
         papo::Account::Unknown | papo::Account::LoggedOut
     ));
     assert_eq!(wire.next_sent().await, "CAP END");
@@ -1446,7 +1446,7 @@ async fn scram_success_requires_verified_server_proof() {
         .await;
     connected(&mut events).await;
     assert!(matches!(
-        client.state().account(),
+        client.snapshot().account(),
         papo::Account::Unknown | papo::Account::LoggedOut
     ));
 
@@ -1564,7 +1564,7 @@ async fn plaintext_credential_requests_never_reach_the_wire() {
         client
             .verify_account(
                 client
-                    .state()
+                    .snapshot()
                     .name_rules()
                     .expect("server advertised CASEMAPPING")
                     .account("alice"),
@@ -1685,7 +1685,7 @@ async fn monitor_rejects_invalid_nicks_without_poisoning_the_wire() {
     wire.register(&[]).await;
     wire.server(":offline.test 005 papo-wire MONITOR=100 :are supported")
         .await;
-    while client.state().isupport().monitor().is_none() {
+    while client.snapshot().isupport().monitor().is_none() {
         tokio::task::yield_now().await;
     }
 
@@ -1897,7 +1897,7 @@ async fn unknown_playback_is_untyped_and_has_no_side_effects() {
     }
     wire.server(":znc.example BATCH -playback").await;
 
-    let state = client.state();
+    let state = client.snapshot();
     let channel = state.channel("#papo").expect("own join remains cached");
     assert_eq!(channel.topic(), Some("current topic"));
     assert!(channel.member("bob").is_none());
@@ -1939,12 +1939,12 @@ async fn typing_status_change_preserves_the_latest_audience() {
     ));
 
     let conversation = client
-        .state()
+        .snapshot()
         .name_rules()
         .expect("server advertised CASEMAPPING")
         .conversation("#staff")
         .unwrap();
-    let state = client.state();
+    let state = client.snapshot();
     let typer = state.typing(&conversation).next().unwrap();
     assert_eq!(typer.return_address(), "@#staff");
 }
@@ -1994,7 +1994,7 @@ async fn channel_keys_are_redacted_across_state_and_events() {
         next_active_event(&mut events).await,
         papo::Event::Other(line) if line.numeric() == Some(777)
     ));
-    let state = client.state();
+    let state = client.snapshot();
     let channel = state.channel("#staff").unwrap();
     assert_eq!(
         channel.key().map(papo::Secret::expose),

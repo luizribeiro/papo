@@ -50,7 +50,7 @@ async fn retained_typers_reply_to_private_and_ops_only_audiences() {
         Event::TypingChanged(_)
     ));
     let private = {
-        let state = client.state();
+        let state = client.snapshot();
         let conversation = state.name_rules().unwrap().conversation("alice").unwrap();
         state.typing(conversation).next().unwrap().return_address()
     };
@@ -64,7 +64,7 @@ async fn retained_typers_reply_to_private_and_ops_only_audiences() {
         Event::TypingChanged(_)
     ));
     let operators = {
-        let state = client.state();
+        let state = client.snapshot();
         let conversation = state.name_rules().unwrap().conversation("#ops").unwrap();
         state.typing(conversation).next().unwrap().return_address()
     };

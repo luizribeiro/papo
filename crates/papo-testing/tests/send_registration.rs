@@ -39,7 +39,7 @@ async fn send_before_welcome_fails_if_registration_disconnects() {
         }
     });
     tokio::task::yield_now().await;
-    assert!(!client.state().is_connected());
+    assert!(!client.snapshot().is_connected());
     wire.server(":offline.test CAP * LS :").await;
     assert_eq!(wire.next_sent().await, "CAP END");
     assert!(
@@ -90,7 +90,7 @@ async fn explicit_reconnect_preserves_sends_queued_for_the_new_connection() {
         Some(Duration::ZERO)
     );
     wire.close().await;
-    assert!(!client.state().is_connected());
+    assert!(!client.snapshot().is_connected());
     assert_eq!(wire.next_sent().await, "CAP LS 302");
     assert_eq!(wire.next_sent().await, "NICK papo-wire");
     assert_eq!(wire.next_sent().await, "USER papo-wire 0 * papo-wire");
@@ -106,7 +106,7 @@ async fn explicit_reconnect_preserves_sends_queued_for_the_new_connection() {
         .await;
     assert_eq!(wire.next_sent().await, "PRIVMSG #papo :first queued update");
     assert_eq!(wire.next_sent().await, "NOTICE #papo :second queued update");
-    assert!(client.state().is_connected());
+    assert!(client.snapshot().is_connected());
     first.await.unwrap().unwrap();
     second.await.unwrap().unwrap();
 }

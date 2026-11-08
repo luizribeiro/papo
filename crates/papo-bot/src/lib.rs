@@ -212,7 +212,7 @@ impl Command {
             || config.ignore_bots
                 && (message.actor.is_bot() == Some(true)
                     || client
-                        .state()
+                        .snapshot()
                         .user(message.actor.nick())
                         .is_some_and(|user| user.is_bot() == Some(true)))
         {
@@ -391,7 +391,7 @@ fn addressed_body<'a>(
     }
     let boundary = message.text.find([':', ','])?;
     let (address, body) = message.text.split_at(boundary);
-    (client.state().nick() == address.trim()).then(|| body[1..].trim_start())
+    (client.snapshot().nick() == address.trim()).then(|| body[1..].trim_start())
 }
 
 fn split_args(mut input: &str) -> Vec<String> {
@@ -649,7 +649,7 @@ mod tests {
         let incoming = next_message(&mut events).await;
 
         assert!(matches!(
-            client.state().user("emily").unwrap().account(),
+            client.snapshot().user("emily").unwrap().account(),
             papo::Account::LoggedIn(account) if account == "Emily"
         ));
         let command = BotConfig::new("!").command(&client, &incoming).unwrap();
@@ -784,7 +784,7 @@ mod tests {
         }
 
         let config = BotConfig::new("!");
-        assert!(client.state().user("weatherbot").is_none());
+        assert!(client.snapshot().user("weatherbot").is_none());
         assert_eq!(messages[0].actor.is_bot(), Some(true));
         assert!(config.command(&client, &messages[0]).is_none());
         assert!(
@@ -793,7 +793,10 @@ mod tests {
                 .command(&client, &messages[0])
                 .is_some()
         );
-        assert_eq!(client.state().user("emily").unwrap().is_bot(), Some(true));
+        assert_eq!(
+            client.snapshot().user("emily").unwrap().is_bot(),
+            Some(true)
+        );
         assert_eq!(messages[2].actor.is_bot(), None);
         assert!(config.command(&client, &messages[2]).is_none());
         assert!(

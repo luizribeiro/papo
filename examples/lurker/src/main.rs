@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     while let Some(event) = events.next().await {
         match event {
             Event::ChannelSynced(synced) => {
-                let state = client.state();
+                let state = client.snapshot();
                 let Some(channel) = state.channel(&synced.channel) else {
                     continue;
                 };

@@ -339,7 +339,7 @@ mod tests {
         wire.register(&[]).await;
         let request = tokio::spawn({
             let nick = client
-                .state()
+                .snapshot()
                 .name_rules()
                 .expect("server advertised CASEMAPPING")
                 .nick("alice");

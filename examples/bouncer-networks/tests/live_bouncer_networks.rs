@@ -76,7 +76,7 @@ async fn lists_adds_and_attaches_to_bouncer_networks() {
             .connect()
             .await
             .unwrap();
-        assert_eq!(attached.state().bouncer_network(), Some(&id));
+        assert_eq!(attached.snapshot().bouncer_network(), Some(&id));
         loop {
             match events.next().await {
                 Some(Event::ChannelSynced(_)) => break,
