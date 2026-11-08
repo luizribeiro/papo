@@ -100,12 +100,12 @@ Ratified IRCv3 specifications and drafts published on ircv3.net are part of papo
 | Specification | Capability, tag, or token | Notes |
 | --- | --- | --- |
 | [STARTTLS](https://ircv3.net/specs/deprecated/tls) | `tls` | Deprecated in favor of direct TLS (`ircs://`) or STS. |
-| [Search](https://github.com/ircv3/ircv3-specifications/pull/496) | `SEARCH` | Not yet implemented. |
-| [Message edit and delete](https://github.com/ircv3/ircv3-specifications/pull/425) | `draft/message-edit, draft/message-delete` | Deferred for editing, with deletion covered by message redaction. |
-| [Authentication tokens](https://github.com/ircv3/ircv3-specifications/pull/602) | `draft/authtoken` | Not yet implemented. |
-| [EXTJWT](https://github.com/ircv3/ircv3-specifications/pull/547) | `draft/extjwt` | Not yet implemented beyond the protocol command name; planned in [issue #11](https://github.com/luizribeiro/papo/issues/11). |
-| [Custom emoji](https://github.com/ircv3/ircv3-specifications/pull/586) | `draft/emoji` | Not yet implemented. |
-| [Named modes](https://github.com/ircv3/ircv3-specifications/pull/484) | `draft/named-modes` | Deferred in favor of mode discovery through `CHANMODES` and `PREFIX`. |
-| [Display name tag](https://github.com/ircv3/ircv3-specifications/pull/452) | `+draft/display-name` | Not yet implemented; the `display-name` metadata key is supported. |
-| [Two-factor authentication](https://github.com/ircv3/ircv3-specifications/pull/610) | `draft/2fa` | Not yet implemented. |
+| [Search](https://github.com/ircv3/ircv3-specifications/pull/496) | `SEARCH` | Unmerged upstream proposal (pull request 496). Not yet implemented. |
+| [Message edit and delete](https://github.com/ircv3/ircv3-specifications/pull/425) | `draft/message-edit, draft/message-delete` | Unmerged upstream proposal (pull request 425). Deferred for editing, with deletion covered by message redaction. |
+| [Authentication tokens](https://github.com/ircv3/ircv3-specifications/pull/602) | `draft/authtoken` | Unmerged upstream proposal (pull request 602). Not yet implemented. |
+| [EXTJWT](https://github.com/ircv3/ircv3-specifications/pull/547) | `draft/extjwt` | Unmerged upstream proposal (pull request 547). Not yet implemented beyond the protocol command name; planned in [issue #11](https://github.com/luizribeiro/papo/issues/11). |
+| [Custom emoji](https://github.com/ircv3/ircv3-specifications/pull/586) | `draft/emoji` | Unmerged upstream proposal (pull request 586). Not yet implemented. |
+| [Named modes](https://github.com/ircv3/ircv3-specifications/pull/484) | `draft/named-modes` | Unmerged upstream proposal (pull request 484). Deferred in favor of mode discovery through `CHANMODES` and `PREFIX`. |
+| [Display name tag](https://github.com/ircv3/ircv3-specifications/pull/452) | `+draft/display-name` | Unmerged upstream proposal (pull request 452). Not yet implemented; the `display-name` metadata key is supported. |
+| [Two-factor authentication](https://github.com/ircv3/ircv3-specifications/pull/610) | `draft/2fa` | Unmerged upstream proposal (pull request 610). Not yet implemented. |
 | [Ergo negotiation trap](https://ergo.chat/nope/) | `ergo.chat/nope` | Deliberately never requested to avoid registration-time disconnection. |

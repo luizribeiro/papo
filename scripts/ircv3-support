@@ -17,12 +17,22 @@ OUTPUT = ROOT / "docs/ircv3-support.md"
 UNSUPPORTED_GROUP = "Deprecated or unsupported"
 SUPPORT = dict(Default="Yes", Automatic="Opt-in", Never="No", Superseded="Yes", OptIn="Unstable")
 ENUMS = {"Authorship", "ConnectErrorKind", "Event", "Extban", "Feature"}
+UPSTREAM_PROPOSAL = re.compile(r"^https://github\.com/ircv3/ircv3-specifications/pull/(?P<number>\d+)$")
 REGISTRY_ENTRY = re.compile(
     r'^\s*(?:#\[cfg\(feature = "unstable"\)\]\s+)?(?:\[cap\]\s+)?'
     r'\w+\s*=.*?name: "(?P<name>[^"]+)"; aliases: \[[^]]*\]; '
     r'request: Request::(?P<request>\w+)',
     re.MULTILINE,
 )
+
+
+def unsupported_notes(spec):
+    proposal = UPSTREAM_PROPOSAL.match(spec["url"])
+    if proposal is None:
+        return spec["reason"]
+    return (
+        f"Unmerged upstream proposal (pull request {proposal['number']}). {spec['reason']}"
+    )
 
 
 def load_registry(path=CAPS):
@@ -117,7 +127,7 @@ def render(groups, registry, known_coverage, live_coverage):
             for spec in group["specs"]:
                 wire = spec.get("wire") or ", ".join(spec["caps"])
                 lines.append(
-                    f"| [{spec['name']}]({spec['url']}) | `{wire}` | {spec['reason']} |"
+                    f"| [{spec['name']}]({spec['url']}) | `{wire}` | {unsupported_notes(spec)} |"
                 )
             lines.append("")
             continue

@@ -42,6 +42,23 @@ class Ircv3SupportTests(unittest.TestCase):
         self.assertIn("| `tls` | Deprecated by IRCv3. |", output)
         self.assertNotIn("| Support | papo API | Live conformance |", output)
 
+    def test_unsupported_notes_mark_unmerged_upstream_proposals(self):
+        proposal = {
+            "url": "https://github.com/ircv3/ircv3-specifications/pull/496",
+            "reason": "Not yet implemented.",
+        }
+        published = {
+            "url": "https://ircv3.net/specs/deprecated/tls",
+            "reason": "Deprecated in favor of direct TLS.",
+        }
+        self.assertEqual(
+            MODULE["unsupported_notes"](proposal),
+            "Unmerged upstream proposal (pull request 496). Not yet implemented.",
+        )
+        self.assertEqual(
+            MODULE["unsupported_notes"](published), "Deprecated in favor of direct TLS."
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
