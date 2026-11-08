@@ -131,7 +131,7 @@ async fn wait_account_message(
 ) -> papo::Message {
     let mut received = None;
     loop {
-        match events.next().await.map(|item| item.event) {
+        match events.next().await.map(|(event, _)| event) {
             Some(Event::Message(message)) if message.text == text => received = Some(message),
             Some(Event::Disconnected(disconnected)) => panic!("disconnected: {disconnected}"),
             Some(_) => {}
@@ -148,7 +148,7 @@ async fn wait_account_message(
 
 async fn wait_connected(events: &mut papo::Events, nick: &str) {
     loop {
-        match events.next().await.map(|item| item.event) {
+        match events.next().await.map(|(event, _)| event) {
             Some(Event::Connected(welcome)) if welcome.nick == nick => return,
             Some(Event::Disconnected(disconnected)) => {
                 panic!("disconnected: {disconnected}")
@@ -161,7 +161,7 @@ async fn wait_connected(events: &mut papo::Events, nick: &str) {
 
 async fn wait_joined(events: &mut papo::Events, nick: &str, channel: &str) {
     loop {
-        match events.next().await.map(|item| item.event) {
+        match events.next().await.map(|(event, _)| event) {
             Some(Event::Joined(joined))
                 if joined.actor.nick() == nick && joined.channel == channel =>
             {

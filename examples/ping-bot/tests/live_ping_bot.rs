@@ -3,7 +3,7 @@
 
 use std::time::Duration;
 
-use papo::{Client, Event, EventWithState, Message};
+use papo::{Client, Event, Message};
 use papo_test_server::{from_env, unique};
 use tokio::time::timeout;
 
@@ -66,7 +66,7 @@ impl Drop for Child {
 }
 
 async fn wait_for(events: &mut papo::Events, mut wanted: impl FnMut(&Event) -> bool) {
-    while let Some(EventWithState { event, .. }) = events.next().await {
+    while let Some((event, _)) = events.next().await {
         if wanted(&event) {
             return;
         }
@@ -77,11 +77,8 @@ async fn wait_for(events: &mut papo::Events, mut wanted: impl FnMut(&Event) -> b
 async fn wait_message(events: &mut papo::Events, text: &str) -> Message {
     loop {
         match events.next().await {
-            Some(EventWithState {
-                event: Event::Message(message),
-                ..
-            }) if message.text == text => return message,
-            Some(EventWithState { .. }) => {}
+            Some((Event::Message(message), _)) if message.text == text => return message,
+            Some(_) => {}
             None => panic!("driver stopped while waiting for {text}"),
         }
     }

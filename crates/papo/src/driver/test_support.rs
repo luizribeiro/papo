@@ -31,12 +31,12 @@ macro_rules! disconnected {
 
 pub(crate) const TEST_DEADLINE: Duration = Duration::from_secs(5);
 
-pub(super) fn queued_event(events: &super::EventSink, event: Event) -> super::EventWithState {
-    super::event_with_state(events, event)
+pub(super) fn queued_event(events: &super::EventSink, event: Event) -> super::EventItem {
+    super::event_item(events, event)
 }
 
-pub(super) fn queued_event_ref(event: &super::EventWithState) -> &Event {
-    &event.event
+pub(super) fn queued_event_ref(event: &super::EventItem) -> &Event {
+    &event.0
 }
 
 impl crate::Client {
@@ -322,7 +322,7 @@ pub(crate) async fn server_line(server: &mut DuplexStream, line: &[u8]) {
 
 pub(crate) async fn next_event(events: &mut super::Events) -> Option<Event> {
     loop {
-        match events.next().await.map(|item| item.event) {
+        match events.next().await.map(|(event, _)| event) {
             Some(Event::Connecting(_)) => {}
             event => return event,
         }
@@ -627,13 +627,13 @@ pub(crate) async fn confirm_away(
     .await;
     within(away).await.unwrap().unwrap();
     assert!(matches!(
-        events.next().await.map(|item| item.event),
+        events.next().await.map(|(event, _)| event),
         Some(Event::AwayChanged(_))
     ));
 }
 
 pub(crate) async fn next_message(events: &mut super::Events) -> ChatMessage {
-    let Some(Event::Message(message)) = events.next().await.map(|item| item.event) else {
+    let Some(Event::Message(message)) = events.next().await.map(|(event, _)| event) else {
         panic!("expected message event")
     };
     message
@@ -734,13 +734,13 @@ pub(crate) async fn assert_reply_wire(
         server_line(&mut server, joins.as_bytes()).await;
         for _ in 0..2 {
             assert!(matches!(
-                events.next().await.map(|item| item.event),
+                events.next().await.map(|(event, _)| event),
                 Some(Event::Joined(_))
             ));
         }
     }
     server_line(&mut server, incoming).await;
-    let Some(Event::Message(message)) = events.next().await.map(|item| item.event) else {
+    let Some(Event::Message(message)) = events.next().await.map(|(event, _)| event) else {
         panic!("expected message event")
     };
     match kind {
@@ -788,7 +788,7 @@ pub(crate) async fn assert_reaction_wire(isupport: &str, remove: bool, expected:
     .await;
     for _ in 0..2 {
         assert!(matches!(
-            events.next().await.map(|item| item.event),
+            events.next().await.map(|(event, _)| event),
             Some(Event::Joined(_))
         ));
     }

@@ -2,7 +2,7 @@
 
 use std::{env, error::Error, io::Write as _};
 
-use papo::{Client, Event, EventWithState};
+use papo::{Client, Event};
 
 const CHANNEL: &str = "#papo";
 
@@ -15,7 +15,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .connect()
         .await?;
 
-    while let Some(EventWithState { event, .. }) = events.next().await {
+    while let Some((event, _)) = events.next().await {
         match event {
             Event::ChannelSynced(synced) => {
                 let state = client.snapshot();

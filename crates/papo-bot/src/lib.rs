@@ -20,12 +20,12 @@
 //! cheap to clone into a spawned task:
 //!
 //! ```no_run
-//! use papo::{Client, EventWithState};
+//! use std::sync::Arc;
+//! use papo::{Client, Event, State};
 //! use papo_bot::BotConfig;
 //!
 //! # async fn lookup(_client: &Client, query: String) -> String { query }
-//! # async fn handle(client: &Client, commands: &BotConfig, item: EventWithState) {
-//! let EventWithState { event, state } = item;
+//! # async fn handle(client: &Client, commands: &BotConfig, (event, state): (Event, Arc<State>)) {
 //! let papo::Event::Message(message) = event else { return };
 //! let Some(command) = commands.command(client, &state, &message) else { return };
 //! if command.name() == "lookup" && command.account_in(["alice"]) {
@@ -607,7 +607,7 @@ mod tests {
 
     async fn next_message(events: &mut papo::Events) -> Incoming {
         loop {
-            let Some(papo::EventWithState { event, state }) = events.next().await else {
+            let Some((event, state)) = events.next().await else {
                 panic!("driver stopped while waiting for a message")
             };
             match event {

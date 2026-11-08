@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use papo::{Client, Endpoint, Event, EventWithState, Events, Message, ModeAction, ModeArg, Sasl};
+use papo::{Client, Endpoint, Event, Events, Message, ModeAction, ModeArg, Sasl};
 use papo_test_server::ServerInfo;
 
 pub(super) const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
@@ -79,21 +79,15 @@ pub(super) async fn wait_synced(events: &mut Events, channels: &[String]) {
     let mut pending = channels.to_vec();
     while !pending.is_empty() {
         match events.next().await {
-            Some(EventWithState {
-                event: Event::ChannelSynced(papo::event::ChannelSynced { channel, .. }),
-                ..
-            }) => {
+            Some((Event::ChannelSynced(papo::event::ChannelSynced { channel, .. }), _)) => {
                 if let Some(index) = pending.iter().position(|item| item == &channel) {
                     pending.swap_remove(index);
                 }
             }
-            Some(EventWithState {
-                event: Event::Disconnected(disconnected),
-                ..
-            }) => {
+            Some((Event::Disconnected(disconnected), _)) => {
                 panic!("join failed: {disconnected}")
             }
-            Some(EventWithState { .. }) => {}
+            Some(_) => {}
             None => panic!("driver stopped while joining"),
         }
     }
@@ -146,13 +140,10 @@ async fn wait_for<T>(
 ) -> T {
     loop {
         match events.next().await {
-            Some(EventWithState {
-                event: Event::Disconnected(disconnected),
-                ..
-            }) => {
+            Some((Event::Disconnected(disconnected), _)) => {
                 panic!("waiting for {expected} failed: {disconnected}")
             }
-            Some(EventWithState { event, .. }) => {
+            Some((event, _)) => {
                 if let Some(value) = match_event(event) {
                     return value;
                 }

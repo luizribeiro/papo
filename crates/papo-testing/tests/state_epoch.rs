@@ -1,17 +1,17 @@
 //! Offline wire coverage for event snapshots and connection epochs.
 
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
-use papo::{Event, EventWithState, HistoryReason, Reconnect};
+use papo::{Event, HistoryReason, Reconnect, State};
 use papo_testing::wire;
 
-async fn next_connected(events: &mut papo::Events) -> EventWithState {
+async fn next_connected(events: &mut papo::Events) -> (Event, Arc<State>) {
     loop {
         let item = events
             .next()
             .await
             .expect("driver stopped before connecting");
-        if matches!(item.event, Event::Connected(_)) {
+        if matches!(item.0, Event::Connected(_)) {
             return item;
         }
     }
@@ -23,7 +23,7 @@ async fn next_disconnected(events: &mut papo::Events) -> papo::Disconnected {
             .next()
             .await
             .expect("driver stopped before reporting the disconnection");
-        if let Event::Disconnected(disconnected) = item.event {
+        if let Event::Disconnected(disconnected) = item.0 {
             return disconnected;
         }
     }
@@ -41,13 +41,13 @@ async fn reconnect_replaces_the_current_connection_epoch() {
             ),
     );
     wire.register(&[]).await;
-    let first = next_connected(&mut events).await;
-    let Event::Connected(first_connected) = &first.event else {
+    let (first, first_state) = next_connected(&mut events).await;
+    let Event::Connected(first_connected) = &first else {
         unreachable!()
     };
     assert!(!first_connected.reconnected);
-    assert_eq!(first_connected.epoch, first.state.connection_epoch());
-    assert!(client.is_current(&first.state));
+    assert_eq!(first_connected.epoch, first_state.connection_epoch());
+    assert!(client.is_current(&first_state));
 
     wire.close().await;
     let delay = next_disconnected(&mut events)
@@ -56,18 +56,18 @@ async fn reconnect_replaces_the_current_connection_epoch() {
         .expect("disconnect should retry");
     tokio::time::advance(delay).await;
     wire.register(&[]).await;
-    let second = next_connected(&mut events).await;
-    let Event::Connected(second_connected) = &second.event else {
+    let (second, second_state) = next_connected(&mut events).await;
+    let Event::Connected(second_connected) = &second else {
         unreachable!()
     };
     assert!(second_connected.reconnected);
-    assert_eq!(second_connected.epoch, second.state.connection_epoch());
+    assert_eq!(second_connected.epoch, second_state.connection_epoch());
     assert_ne!(
-        first.state.connection_epoch(),
-        second.state.connection_epoch()
+        first_state.connection_epoch(),
+        second_state.connection_epoch()
     );
-    assert!(!client.is_current(&first.state));
-    assert!(client.is_current(&second.state));
+    assert!(!client.is_current(&first_state));
+    assert!(client.is_current(&second_state));
 }
 
 #[tokio::test(start_paused = true)]
@@ -90,20 +90,20 @@ async fn replayed_history_is_marked_without_changing_live_state() {
         wire.server(line).await;
     }
 
-    let item = events
+    let (event, state) = events
         .next()
         .await
         .expect("history batch should produce an event");
-    let Event::History(page) = &item.event else {
-        panic!("expected history, got {:?}", item.event)
+    let Event::History(page) = &event else {
+        panic!("expected history, got {event:?}")
     };
     assert_eq!(page.reason, HistoryReason::Replay);
     assert!(matches!(
         page.items.as_slice(),
         [Event::Joined(_), Event::NickChanged(_)]
     ));
-    assert_eq!(item.state.nick(), "papo-wire");
-    assert!(item.state.channel("#archive").is_none());
+    assert_eq!(state.nick(), "papo-wire");
+    assert!(state.channel("#archive").is_none());
     assert_eq!(client.snapshot().nick(), "papo-wire");
     assert!(client.snapshot().channel("#archive").is_none());
 }

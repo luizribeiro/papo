@@ -43,7 +43,7 @@ async fn connects_with_sasl_and_applies_bot_defaults() {
 
 async fn wait_joined(events: &mut papo::Events, nick: &str, channel: &str) {
     loop {
-        match events.next().await.map(|item| item.event) {
+        match events.next().await.map(|(event, _)| event) {
             Some(Event::Joined(papo::event::Joined {
                 channel: joined,
                 actor,
@@ -79,7 +79,7 @@ async fn connects_through_the_configured_websocket_url() {
 
 async fn wait_connected(events: &mut papo::Events, nick: &str) {
     loop {
-        match events.next().await.map(|item| item.event) {
+        match events.next().await.map(|(event, _)| event) {
             Some(Event::Connected(welcome)) => {
                 assert_eq!(welcome.nick, nick);
                 return;

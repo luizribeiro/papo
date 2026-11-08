@@ -17,7 +17,7 @@ async fn next_active_event(events: &mut papo::Events) -> Event {
         let event = events
             .next()
             .await
-            .map(|item| item.event)
+            .map(|(event, _)| event)
             .expect("client stopped");
         if !matches!(event, Event::Other(_)) {
             return event;

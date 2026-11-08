@@ -16,7 +16,7 @@ use std::{
     time::Duration,
 };
 
-use papo::{Client, Endpoint, Event, EventWithState, Events, Isupport, isupport::Advertised};
+use papo::{Client, Endpoint, Event, Events, Isupport, isupport::Advertised};
 use papo_core::{Cap, Capabilities, Sasl};
 use papo_test_server::ServerInfo;
 use tokio::{runtime::Builder, task::JoinHandle, time::timeout};
@@ -365,22 +365,16 @@ async fn wait_connected(client: &Client, events: &mut Events) -> Result<Welcome,
     timeout(TIMEOUT, async {
         loop {
             match events.next().await {
-                Some(EventWithState {
-                    event: Event::Connected(connected),
-                    ..
-                }) => {
+                Some((Event::Connected(connected), _)) => {
                     return Ok(Welcome {
                         caps: connected.caps,
                         isupport: client.snapshot().isupport().clone(),
                     });
                 }
-                Some(EventWithState {
-                    event: Event::Disconnected(disconnected),
-                    ..
-                }) => {
+                Some((Event::Disconnected(disconnected), _)) => {
                     return Err(disconnected.to_string());
                 }
-                Some(EventWithState { .. }) => {}
+                Some(_) => {}
                 None => return Err("driver stopped while connecting".into()),
             }
         }
@@ -420,7 +414,7 @@ mod tests {
 
     impl EventSource for super::Events {
         async fn next_event(&mut self) -> Option<Event> {
-            let super::EventWithState { event, .. } = self.next().await?;
+            let (event, _) = self.next().await?;
             Some(event)
         }
     }

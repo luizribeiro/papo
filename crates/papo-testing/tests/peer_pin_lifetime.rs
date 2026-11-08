@@ -48,7 +48,7 @@ async fn verified_pins_survive_reconnect_while_session_pins_do_not() {
 
     wire.close().await;
     while !matches!(
-        events.next().await.map(|item| item.event),
+        events.next().await.map(|(event, _)| event),
         Some(Event::Disconnected(_))
     ) {}
     wire.register(&caps).await;

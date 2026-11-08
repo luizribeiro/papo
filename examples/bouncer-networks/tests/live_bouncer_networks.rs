@@ -5,7 +5,7 @@ mod support;
 
 use std::time::Duration;
 
-use papo::{Client, Event, EventWithState, Feature, Sasl};
+use papo::{Client, Event, Feature, Sasl};
 use papo_test_server::{from_env, unique};
 use support::BouncerExample;
 use tokio::time::timeout;
@@ -79,17 +79,11 @@ async fn lists_adds_and_attaches_to_bouncer_networks() {
         assert_eq!(attached.snapshot().bouncer_network(), Some(&id));
         loop {
             match events.next().await {
-                Some(EventWithState {
-                    event: Event::ChannelSynced(_),
-                    ..
-                }) => break,
-                Some(EventWithState {
-                    event: Event::Disconnected(disconnected),
-                    ..
-                }) => {
+                Some((Event::ChannelSynced(_), _)) => break,
+                Some((Event::Disconnected(disconnected), _)) => {
                     panic!("disconnected while joining: {disconnected}")
                 }
-                Some(EventWithState { .. }) => {}
+                Some(_) => {}
                 None => panic!("driver stopped while joining"),
             }
         }

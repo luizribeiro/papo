@@ -180,7 +180,7 @@ impl Builder {
     /// # let (mut server, _) = connections.recv().await.unwrap();
     /// # papo::__testing::server_line(&mut server, b":offline.test CAP * LS :\r\n").await;
     /// # papo::__testing::server_line(&mut server, b":offline.test 005 papo-doc CASEMAPPING=ascii NICKLEN=12 :are supported\r\n:offline.test 001 papo-doc :Welcome\r\n:offline.test 422 papo-doc :MOTD is missing\r\n").await;
-    /// # while let Some(papo::EventWithState { event, .. }) = events.next().await {
+    /// # while let Some((event, _)) = events.next().await {
     /// #     if matches!(event, papo::Event::Connected(_)) { break; }
     /// # }
     /// let after = client.snapshot();
@@ -551,13 +551,13 @@ impl Builder {
     ///
     /// ```no_run
     /// # async fn run() -> Result<(), papo::Error> {
-    /// use papo::{Client, Event, EventWithState};
+    /// use papo::{Client, Event};
     ///
     /// let (_client, mut events) = Client::builder("ircs://irc.example.net", "papo-client")
     ///     .autojoin(["#papo"])
     ///     .connect()
     ///     .await?;
-    /// while let Some(EventWithState { event, .. }) = events.next().await {
+    /// while let Some((event, _)) = events.next().await {
     ///     if matches!(event, Event::ChannelSynced(ref synced) if synced.channel == "#papo") {
     ///         break;
     ///     }

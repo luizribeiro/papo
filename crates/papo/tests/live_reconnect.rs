@@ -133,7 +133,7 @@ async fn connect_poster(server: &TestServer, channel: &str) -> Client {
 async fn wait_history(events: &mut papo::Events, target: &str) -> papo::HistoryPage {
     tokio::time::timeout(Duration::from_secs(5), async {
         loop {
-            match events.next().await.map(|item| item.event) {
+            match events.next().await.map(|(event, _)| event) {
                 Some(Event::History(history))
                     if matches!(&history.conversation, papo::Conversation::Channel(channel) if channel == target) =>
                 {
@@ -161,7 +161,7 @@ async fn assert_no_repeated_history(
     loop {
         tokio::select! {
             () = &mut deadline => return,
-            event = events.next() => match event.map(|item| item.event) {
+            event = events.next() => match event.map(|(event, _)| event) {
                 Some(Event::History(history))
                     if matches!(&history.conversation, papo::Conversation::Channel(channel) if channel == target) => assert!(
                     history.chat_messages().all(|message| {
@@ -189,7 +189,7 @@ async fn wait_for(events: &mut papo::Events, operation: &str, accepted: impl Fn(
             let event = events
                 .next()
                 .await
-                .map(|item| item.event)
+                .map(|(event, _)| event)
                 .expect("driver stopped unexpectedly");
             if accepted(&event) {
                 return;

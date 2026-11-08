@@ -2,7 +2,7 @@
 
 use std::{env, error::Error};
 
-use papo::{Client, Event, EventWithState};
+use papo::{Client, Event};
 
 const CHANNEL: &str = "#papo";
 
@@ -16,7 +16,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .connect()
         .await?;
 
-    while let Some(EventWithState { event, .. }) = events.next().await {
+    while let Some((event, _)) = events.next().await {
         if let Event::Message(message) = event
             && message.text == "!ping"
             && let Err(error) = client.reply(&message, "pong").await

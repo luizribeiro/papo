@@ -315,7 +315,7 @@ async fn sasl_connection_reports_each_protocol_phase() {
     let task = tokio::spawn(driver);
 
     assert!(matches!(
-        events.next().await.map(|item| item.event),
+        events.next().await.map(|(event, _)| event),
         Some(Event::Connecting(crate::event::Connecting {
             attempt: 1,
             phase: crate::ConnectPhase::Capabilities,
@@ -326,7 +326,7 @@ async fn sasl_connection_reports_each_protocol_phase() {
     client_line(&mut server, b"CAP REQ :sasl\r\n").await;
     server_line(&mut server, b":ergo.test CAP * ACK :sasl\r\n").await;
     assert!(matches!(
-        events.next().await.map(|item| item.event),
+        events.next().await.map(|(event, _)| event),
         Some(Event::Connecting(crate::event::Connecting {
             phase: crate::ConnectPhase::Authenticating,
             ..
@@ -345,7 +345,7 @@ async fn sasl_connection_reports_each_protocol_phase() {
     )
     .await;
     assert!(matches!(
-        events.next().await.map(|item| item.event),
+        events.next().await.map(|(event, _)| event),
         Some(Event::Connecting(crate::event::Connecting {
             phase: crate::ConnectPhase::WaitingForWelcome,
             ..
@@ -433,7 +433,7 @@ async fn connecting_phase_overflow_reports_one_lag_episode() {
     let lagged = events
         .next()
         .await
-        .map(|item| item.event)
+        .map(|(event, _)| event)
         .unwrap()
         .as_lagged()
         .unwrap()
@@ -442,7 +442,7 @@ async fn connecting_phase_overflow_reports_one_lag_episode() {
     assert!(lagged.gaps.is_empty());
     for attempt in 2..=34 {
         assert!(matches!(
-            events.next().await.map(|item| item.event),
+            events.next().await.map(|(event, _)| event),
             Some(Event::Connecting(crate::event::Connecting {
                 attempt: actual,
                 phase: crate::ConnectPhase::Transport,
@@ -570,13 +570,13 @@ async fn events_keep_the_state_after_their_own_line() {
         b":papo-driver!papo@localhost JOIN #papo * :Papo Driver\r\n:papo-driver!papo@localhost NICK :papo-away\r\n",
     )
     .await;
-    let joined = events.next().await.unwrap();
-    assert!(matches!(joined.event, Event::Joined(_)));
-    assert_eq!(joined.state.nick(), "papo-driver");
-    let renamed = events.next().await.unwrap();
-    assert!(matches!(renamed.event, Event::NickChanged(_)));
-    assert_eq!(renamed.state.nick(), "papo-away");
-    assert_eq!(joined.state.nick(), "papo-driver");
+    let (joined, joined_state) = events.next().await.unwrap();
+    assert!(matches!(joined, Event::Joined(_)));
+    assert_eq!(joined_state.nick(), "papo-driver");
+    let (renamed, renamed_state) = events.next().await.unwrap();
+    assert!(matches!(renamed, Event::NickChanged(_)));
+    assert_eq!(renamed_state.nick(), "papo-away");
+    assert_eq!(joined_state.nick(), "papo-driver");
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
@@ -922,7 +922,7 @@ async fn own_private_message_uses_the_peers_known_account_guard() {
     let message = events
         .next()
         .await
-        .map(|item| item.event)
+        .map(|(event, _)| event)
         .and_then(|event| event.as_message().cloned())
         .expect("expected own message");
 
@@ -1407,7 +1407,7 @@ async fn assert_failed_connection_progress(address: &str, attempts: usize) {
 
     for attempt in 1..=attempts {
         assert!(matches!(
-            events.next().await.map(|item| item.event),
+            events.next().await.map(|(event, _)| event),
             Some(Event::Connecting(crate::event::Connecting {
                 attempt: event_attempt,
                 phase: crate::ConnectPhase::Transport,
@@ -1415,7 +1415,7 @@ async fn assert_failed_connection_progress(address: &str, attempts: usize) {
         ));
         if secure {
             assert!(matches!(
-                events.next().await.map(|item| item.event),
+                events.next().await.map(|(event, _)| event),
                 Some(Event::Connecting(crate::event::Connecting {
                     attempt: event_attempt,
                     phase: crate::ConnectPhase::Tls,
@@ -1426,7 +1426,7 @@ async fn assert_failed_connection_progress(address: &str, attempts: usize) {
             .next()
             .await
             .unwrap()
-            .event
+            .0
             .as_disconnected()
             .unwrap()
             .clone();
@@ -4336,7 +4336,7 @@ async fn registration_sets_advertised_bot_mode_and_joins_each_channel() {
             .next()
             .await
             .unwrap()
-            .event
+            .0
             .as_server_notice()
             .unwrap()
             .text,
@@ -5518,7 +5518,7 @@ async fn own_join_after_a_nick_change_is_marked_as_self() {
         .next()
         .await
         .unwrap()
-        .event
+        .0
         .as_nick_changed()
         .unwrap()
         .clone();
@@ -8967,7 +8967,7 @@ async fn quit_publishes_member_removal_while_reading_ahead() {
         let event = within(events.next())
             .await
             .expect("event stream remains open")
-            .event;
+            .0;
         if matches!(event, Event::Quit(_)) {
             assert!(
                 client
@@ -9195,7 +9195,7 @@ async fn disconnect_follows_the_retained_event_after_lag() {
             .next()
             .await
             .unwrap()
-            .event
+            .0
             .as_server_notice()
             .unwrap()
             .text,
@@ -9430,7 +9430,7 @@ fn multi_thread_stress_accounts_for_every_emitted_message() {
                 for _ in 0..entropy % 5 {
                     std::thread::yield_now();
                 }
-                match runtime.block_on(events.next()).map(|item| item.event) {
+                match runtime.block_on(events.next()).map(|(event, _)| event) {
                     Some(Event::Message(_)) => delivered += 1,
                     Some(Event::Lagged(lagged)) => reported += lagged.dropped,
                     Some(_) => {}

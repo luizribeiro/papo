@@ -2461,27 +2461,13 @@ impl core::marker::Unpin for papo::Endpoint
 impl core::marker::UnsafeUnpin for papo::Endpoint
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Endpoint
 impl core::panic::unwind_safe::UnwindSafe for papo::Endpoint
-pub struct papo::EventWithState
-pub papo::EventWithState::event: papo::Event
-pub papo::EventWithState::state: alloc::rcs::arc::Arc<papo::State>
-impl core::clone::Clone for papo::EventWithState
-pub fn papo::EventWithState::clone(&self) -> Self
-impl core::fmt::Debug for papo::EventWithState
-pub fn papo::EventWithState::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Freeze for papo::EventWithState
-impl core::marker::Send for papo::EventWithState
-impl core::marker::Sync for papo::EventWithState
-impl core::marker::Unpin for papo::EventWithState
-impl core::marker::UnsafeUnpin for papo::EventWithState
-impl !core::panic::unwind_safe::RefUnwindSafe for papo::EventWithState
-impl !core::panic::unwind_safe::UnwindSafe for papo::EventWithState
 pub struct papo::Events
 impl papo::Events
-pub async fn papo::Events::next(&mut self) -> core::option::Option<papo::EventWithState>
+pub async fn papo::Events::next(&mut self) -> core::option::Option<(papo::Event, alloc::rcs::arc::Arc<papo::State>)>
 impl core::fmt::Debug for papo::Events
 pub fn papo::Events::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl futures_core::stream::Stream for papo::Events
-pub type papo::Events::Item = papo::EventWithState
+pub type papo::Events::Item = (papo::Event, alloc::rcs::arc::Arc<papo::State>)
 pub fn papo::Events::poll_next(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<core::option::Option<Self::Item>>
 impl core::marker::Freeze for papo::Events
 impl core::marker::Send for papo::Events

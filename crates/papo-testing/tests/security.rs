@@ -23,7 +23,7 @@ fn is_foreign<T>(result: &Result<T, papo::Error>) -> bool {
 
 async fn next_login_disconnect(events: &mut Events) -> Disconnected {
     loop {
-        match events.next().await.map(|item| item.event) {
+        match events.next().await.map(|(event, _)| event) {
             Some(papo::Event::Disconnected(disconnected)) => return disconnected,
             Some(papo::Event::Connected(_)) => panic!("rejected login unexpectedly connected"),
             Some(_) => {}
@@ -33,7 +33,7 @@ async fn next_login_disconnect(events: &mut Events) -> Disconnected {
 }
 
 async fn next_active_event(events: &mut Events) -> papo::Event {
-    match events.next().await.map(|item| item.event) {
+    match events.next().await.map(|(event, _)| event) {
         Some(papo::Event::Disconnected(disconnected)) => {
             panic!("disconnected while waiting for an event: {disconnected}")
         }
@@ -1355,7 +1355,7 @@ async fn send_excessive_iteration_count(wire: &mut Wire) {
 async fn sasl_disconnect(events: &mut Events) -> Disconnected {
     tokio::time::timeout(Duration::from_secs(1), async {
         loop {
-            match events.next().await.map(|item| item.event) {
+            match events.next().await.map(|(event, _)| event) {
                 Some(papo::Event::Disconnected(disconnected)) => return disconnected,
                 Some(_) => {}
                 None => panic!("driver stopped without a disconnection event"),
@@ -1739,7 +1739,7 @@ async fn invalid_source_nicks_cannot_close_the_client_with_auto_replies() {
     wire.server("::evil!~e@h PRIVMSG papo-wire :\x01VERSION\x01")
         .await;
     assert!(matches!(
-        events.next().await.map(|item| item.event),
+        events.next().await.map(|(event, _)| event),
         Some(papo::Event::Other(_))
     ));
     assert!(
@@ -1884,7 +1884,7 @@ async fn unknown_playback_is_untyped_and_has_no_side_effects() {
         events
             .next()
             .await
-            .map(|item| item.event)
+            .map(|(event, _)| event)
             .expect("live setup event");
     }
 
@@ -1901,7 +1901,7 @@ async fn unknown_playback_is_untyped_and_has_no_side_effects() {
     ] {
         wire.server(line).await;
         assert!(matches!(
-            events.next().await.map(|item| item.event),
+            events.next().await.map(|(event, _)| event),
             Some(papo::Event::Other(_))
         ));
     }
@@ -2067,7 +2067,7 @@ async fn expired_labeled_history_is_not_delivered_twice() {
     let page = events
         .next()
         .await
-        .map(|item| item.event)
+        .map(|(event, _)| event)
         .and_then(|event| event.as_history().cloned())
         .expect("expired reply still produces one history page");
     assert_eq!(
@@ -2104,7 +2104,7 @@ async fn late_labeled_reply_is_delivered_as_a_live_message() {
     wire.server(":offline.test BATCH -reply-42").await;
 
     assert!(matches!(
-        events.next().await.map(|item| item.event),
+        events.next().await.map(|(event, _)| event),
         Some(papo::Event::ServerNotice(notice)) if notice.text == "request completed late"
     ));
 }
@@ -2141,11 +2141,11 @@ async fn oversized_multiline_fragments_are_live_messages() {
     .await;
 
     for expected in [&first, &second] {
-        assert!(matches!(events.next().await.map(|item| item.event),
+        assert!(matches!(events.next().await.map(|(event, _)| event),
             Some(papo::Event::Message(message)) if message.text == *expected));
     }
     assert!(matches!(
-        events.next().await.map(|item| item.event),
+        events.next().await.map(|(event, _)| event),
         Some(papo::Event::Warning(papo::event::Warning::BatchAbandoned {
             reason: papo::event::BatchAbandonReason::ByteLimit,
             ..

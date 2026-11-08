@@ -1,6 +1,6 @@
 use std::{collections::VecDeque, ops::Deref, time::Duration};
 
-use papo::{Client, Event, EventWithState, Events};
+use papo::{Client, Event, Events};
 use tokio::time::timeout;
 
 use papo_testing::{Error, FixtureError, Result};
@@ -44,7 +44,7 @@ impl Peer {
     ) -> Result<T> {
         let result = timeout(DEFAULT_TIMEOUT, async {
             loop {
-                let Some(EventWithState { event, .. }) = self.events.next().await else {
+                let Some((event, _)) = self.events.next().await else {
                     return Err(FixtureError::with_events(
                         "driver stopped while waiting for an event",
                         self.recent.make_contiguous(),
@@ -94,7 +94,7 @@ impl Peer {
                 tokio::select! {
                     biased;
                     item = self.events.next() => {
-                        let Some(EventWithState { event, .. }) = item else {
+                        let Some((event, _)) = item else {
                             return Err(FixtureError::with_events(
                                 "driver stopped before the PING fence",
                                 self.recent.make_contiguous(),

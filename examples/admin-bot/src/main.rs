@@ -2,7 +2,7 @@
 
 use std::{env, error::Error};
 
-use papo::{Account, Client, Event, EventWithState, Message, State};
+use papo::{Account, Client, Event, Message, State};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -15,7 +15,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .autojoin([&channel])
         .connect()
         .await?;
-    while let Some(EventWithState { event, state }) = events.next().await {
+    while let Some((event, state)) = events.next().await {
         let Event::Message(message) = event else {
             continue;
         };

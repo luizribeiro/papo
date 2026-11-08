@@ -7,14 +7,14 @@ use papo_testing::wire;
 
 async fn connected(events: &mut papo::Events) {
     while !matches!(
-        events.next().await.map(|item| item.event),
+        events.next().await.map(|(event, _)| event),
         Some(papo::Event::Connected(_))
     ) {}
 }
 
 async fn disconnected(events: &mut papo::Events) -> papo::Disconnected {
     loop {
-        match events.next().await.map(|item| item.event) {
+        match events.next().await.map(|(event, _)| event) {
             Some(papo::Event::Disconnected(disconnected)) => return disconnected,
             Some(_) => {}
             None => panic!("driver stopped before reporting the disconnection"),

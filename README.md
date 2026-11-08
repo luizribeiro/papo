@@ -19,7 +19,7 @@ supported Rust version is 1.91.
 ## Quick start
 
 ```rust
-use papo::{Client, Event, EventWithState};
+use papo::{Client, Event};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -28,7 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .connect()
         .await?;
 
-    while let Some(EventWithState { event, .. }) = events.next().await {
+    while let Some((event, _)) = events.next().await {
         if let Event::Message(message) = event
             && message.text == "!ping"
             && let Err(error) = client.reply(&message, "pong").await

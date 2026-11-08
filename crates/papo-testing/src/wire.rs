@@ -223,11 +223,8 @@ mod tests {
     async fn next_connected(events: &mut papo::Events) -> papo::event::Connected {
         loop {
             match events.next().await {
-                Some(papo::EventWithState {
-                    event: papo::Event::Connected(connected),
-                    ..
-                }) => return connected,
-                Some(papo::EventWithState { .. }) => {}
+                Some((papo::Event::Connected(connected), _)) => return connected,
+                Some(_) => {}
                 None => panic!("driver stopped before connecting"),
             }
         }
@@ -236,11 +233,8 @@ mod tests {
     async fn next_disconnected(events: &mut papo::Events) -> papo::Disconnected {
         loop {
             match events.next().await {
-                Some(papo::EventWithState {
-                    event: papo::Event::Disconnected(disconnected),
-                    ..
-                }) => return disconnected,
-                Some(papo::EventWithState { .. }) => {}
+                Some((papo::Event::Disconnected(disconnected), _)) => return disconnected,
+                Some(_) => {}
                 None => panic!("driver stopped before disconnecting"),
             }
         }
@@ -295,7 +289,7 @@ mod tests {
         )
         .await;
 
-        while let Some(papo::EventWithState { event, .. }) = events.next().await {
+        while let Some((event, _)) = events.next().await {
             let Some(message) = event.as_message() else {
                 continue;
             };

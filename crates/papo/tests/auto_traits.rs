@@ -1,12 +1,12 @@
 //! Compile-time guards for the thread-safety contracts of public types and futures.
 
-use std::{future::IntoFuture, time::SystemTime};
+use std::{future::IntoFuture, sync::Arc, time::SystemTime};
 
 use futures_core::Stream;
 use papo::{
-    Builder, Client, Driver, Error, Event, EventWithState, Events, History, HistoryRequest,
-    JoinChannel, Kickban, Line, ListRequest, Message as ChatMessage, MessageId, NewAccount,
-    RequestFuture, SendMessage, SetModes, State,
+    Builder, Client, Driver, Error, Event, Events, History, HistoryRequest, JoinChannel, Kickban,
+    Line, ListRequest, Message as ChatMessage, MessageId, NewAccount, RequestFuture, SendMessage,
+    SetModes, State,
 };
 use papo_proto::Typing;
 
@@ -22,7 +22,7 @@ fn assert_unpin<T: Unpin>() {}
 
 fn assert_clone<T: Clone>() {}
 
-fn assert_event_stream<T: Stream<Item = EventWithState>>() {}
+fn assert_event_stream<T: Stream<Item = (Event, Arc<State>)>>() {}
 
 fn assert_message_request_futures(client: &Client, message: &ChatMessage) {
     let target = "#papo";
@@ -43,7 +43,7 @@ fn public_handles_events_and_errors_keep_their_auto_traits() {
     assert_send_sync::<Client>();
     assert_send_sync::<Events>();
     assert_send_sync::<Event>();
-    assert_send_sync::<EventWithState>();
+    assert_send_sync::<(Event, Arc<State>)>();
     assert_send_sync::<Error>();
     assert_clone::<Client>();
     assert_event_stream::<Events>();

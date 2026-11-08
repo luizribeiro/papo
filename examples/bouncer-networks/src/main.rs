@@ -2,7 +2,7 @@
 
 use std::{env, error::Error};
 
-use papo::{Client, Event, EventWithState, Feature, NetworkState, Sasl, Secret};
+use papo::{Client, Event, Feature, NetworkState, Sasl, Secret};
 
 const CHANNEL: &str = "#papo";
 
@@ -36,7 +36,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .name("second")
         .nick(&nick)
         .await?;
-    while let Some(EventWithState { event, .. }) = manager_events.next().await {
+    while let Some((event, _)) = manager_events.next().await {
         if let Event::BouncerNetworkChanged(changed) = event
             && changed.id == id
             && let Some(network) = changed.network
@@ -54,7 +54,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .autojoin([CHANNEL])
         .connect()
         .await?;
-    while let Some(EventWithState { event, .. }) = events.next().await {
+    while let Some((event, _)) = events.next().await {
         if let Event::ChannelSynced(synced) = event {
             println!("attached {id} {}", synced.channel);
             attached.quit("example complete").await?;

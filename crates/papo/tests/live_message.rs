@@ -272,7 +272,7 @@ async fn account_client(
 
 async fn wait_reaction(events: &mut papo::Events) -> papo::event::Reacted {
     loop {
-        match events.next().await.map(|item| item.event) {
+        match events.next().await.map(|(event, _)| event) {
             Some(Event::Reacted(reaction)) => return reaction,
             Some(Event::Disconnected(disconnected)) => {
                 panic!("disconnected: {disconnected}")
@@ -286,7 +286,7 @@ async fn wait_reaction(events: &mut papo::Events) -> papo::event::Reacted {
 async fn wait_ready(events: &mut papo::Events, nick: &str, channel: &str) {
     let mut registered = false;
     loop {
-        match events.next().await.map(|item| item.event) {
+        match events.next().await.map(|(event, _)| event) {
             Some(Event::Connected(welcome)) => registered = welcome.nick == nick,
             Some(Event::Joined(papo::event::Joined {
                 channel: joined,
@@ -307,7 +307,7 @@ async fn wait_message(
     accepted: impl Fn(&ChatMessage) -> bool,
 ) -> ChatMessage {
     loop {
-        match events.next().await.map(|item| item.event) {
+        match events.next().await.map(|(event, _)| event) {
             Some(Event::Message(message)) if accepted(&message) => return message,
             Some(Event::Disconnected(disconnected)) => {
                 panic!("disconnected while waiting for a message: {disconnected}")
@@ -323,7 +323,7 @@ async fn wait_own_message(
     accepted: impl Fn(&ChatMessage) -> bool,
 ) -> ChatMessage {
     loop {
-        match events.next().await.map(|item| item.event) {
+        match events.next().await.map(|(event, _)| event) {
             Some(Event::Message(message)) if accepted(&message) => return message,
             Some(Event::Disconnected(disconnected)) => {
                 panic!("disconnected while waiting for an own message: {disconnected}")

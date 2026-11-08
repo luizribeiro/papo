@@ -141,7 +141,7 @@ async fn wait_for(events: &mut papo::Events, accepted: impl Fn(&Event) -> bool) 
         let event = events
             .next()
             .await
-            .map(|item| item.event)
+            .map(|(event, _)| event)
             .expect("driver stopped unexpectedly");
         if accepted(&event) {
             return;

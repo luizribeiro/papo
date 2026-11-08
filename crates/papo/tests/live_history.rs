@@ -179,7 +179,7 @@ fn chats<'a>(
 
 async fn wait_synced(events: &mut papo::Events, channel: &str) {
     loop {
-        match events.next().await.map(|item| item.event) {
+        match events.next().await.map(|(event, _)| event) {
             Some(Event::ChannelSynced(papo::event::ChannelSynced {
                 channel: synced, ..
             })) if synced == channel => return,
