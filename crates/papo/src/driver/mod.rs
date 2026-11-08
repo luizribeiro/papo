@@ -539,6 +539,15 @@ impl From<&str> for Autojoin {
     }
 }
 
+/// An event and the state immediately after it was applied.
+#[derive(Clone, Debug)]
+pub struct EventWithState {
+    /// The IRC event.
+    pub event: Event,
+    /// State immediately after `event`, before any later event.
+    pub state: Arc<State>,
+}
+
 /// The events produced by a running IRC client.
 ///
 /// Delivery is bounded without blocking socket reads. When the buffer is full, events recoverable

@@ -323,7 +323,7 @@ pub use builder::StreamSecurity;
 pub use client::{Client, Fallback, JoinChannel, Kickban, SendMessage, Sent, SentOutcome};
 pub use direct::DirectRef;
 pub use direct_to::DirectSource;
-pub use driver::{Driver, Events};
+pub use driver::{Driver, EventWithState, Events};
 pub use error::{
     ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, ServerError,
 };
