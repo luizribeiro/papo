@@ -986,7 +986,7 @@ where
     let mut buffer = [0; 4096];
     let mut pending_write = None;
     let mut drain_after_timeout = false;
-    let (reason, error, close_kind, quit_timed_out) = loop {
+    let (reason, error, close_kind, quit_timed_out) = 'connection: loop {
         drop_closed_waiters(
             &mut requests,
             &mut sync_waiters,
@@ -1063,7 +1063,52 @@ where
                 }
                 Ok(count) => {
                     if let Some(bytes) = buffer.get(..count) {
-                        session.handle_bytes(now(), bytes);
+                        for line in bytes.split_inclusive(|byte| *byte == b'\n') {
+                            session.handle_bytes(now(), line);
+                            match drain(
+                                &mut stream,
+                                session,
+                                &mut pending_write,
+                                events,
+                                &mut pending_events,
+                                &mut requests,
+                                &mut transmits,
+                                &mut join_keys,
+                                &mut sync_waiters,
+                                &mut direct_waiters,
+                                &mut catchups,
+                                &mut resolved_sent,
+                                registration,
+                                defaults,
+                                registered,
+                                attempt,
+                                &mut registered_at,
+                                &mut sts,
+                                &mut sts_store,
+                                sts_port,
+                                sts_websocket,
+                                quit.is_some(),
+                                true,
+                                deadline,
+                            )
+                            .await
+                            {
+                                Ok(Some((kind, reason))) => {
+                                    let error = Error::disconnected_close(kind, reason.clone());
+                                    break 'connection (reason, error, Some(kind), false);
+                                }
+                                Ok(None) => {}
+                                Err(error) => {
+                                    let reason = error.to_string();
+                                    break 'connection (
+                                        reason.clone(),
+                                        Error::connection_lost_with(reason),
+                                        None,
+                                        false,
+                                    );
+                                }
+                            }
+                        }
                     }
                 }
                 Err(error) => {
@@ -1522,6 +1567,7 @@ where
     while (pending_events.is_empty() || read_ahead || after_timeout)
         && let Some(core_event) = session.poll_event()
     {
+        publish_session_state(events, session);
         match event::from_core_with_receipt(
             core_event,
             session.isupport().casemapping(),

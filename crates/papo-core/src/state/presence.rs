@@ -18,6 +18,7 @@ impl State {
             .zip(message.tag("inspircd.org/account-id"))
             .map(|(_, id)| id.into_owned())
             .filter(|id| !id.is_empty());
+        let mut changed = false;
         if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) {
             for (key, value) in message.tags() {
                 match (key, value) {
@@ -25,6 +26,7 @@ impl State {
                         let account = Account::LoggedIn(self.casemapping.account(account.as_ref()));
                         if user.account != account {
                             user.update_account(account.clone());
+                            changed = true;
                             outbox.event(Event::AccountChanged {
                                 envelope: crate::LineEnvelope::from_line(message),
                                 actor: actor.clone(),
@@ -34,13 +36,22 @@ impl State {
                             });
                         }
                     }
-                    ("bot", _) => user.is_bot = Some(true),
+                    ("bot", _) if user.is_bot != Some(true) => {
+                        user.is_bot = Some(true);
+                        changed = true;
+                    }
                     _ => {}
                 }
             }
-            if let Some(account_id) = account_id {
+            if let Some(account_id) = account_id
+                && user.account_id.as_deref() != Some(account_id.as_str())
+            {
                 user.account_id = Some(account_id);
+                changed = true;
             }
+        }
+        if changed {
+            self.mark_changed();
         }
     }
 

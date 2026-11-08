@@ -2152,6 +2152,28 @@ fn bot_tag_marks_a_shared_user() {
 }
 
 #[test]
+fn user_tags_advance_the_snapshot_generation() {
+    let now = Instant::now();
+    let mut session = papo_core::Session::new(Config::default().nick("emily"));
+    session.handle_bytes(
+        now,
+        b":emily!em@127.0.0.1 JOIN #papo\r\n:papo-bot!bot@services.example JOIN #papo\r\n",
+    );
+    let before_bot = session.state_generation();
+    session.handle_bytes(
+        now,
+        b"@bot :papo-bot!bot@services.example PRIVMSG #papo :status green\r\n",
+    );
+    assert_ne!(session.state_generation(), before_bot);
+    let before_account = session.state_generation();
+    session.handle_bytes(
+        now,
+        b"@account=papo-bot :papo-bot!bot@services.example PRIVMSG #papo :deploy complete\r\n",
+    );
+    assert_ne!(session.state_generation(), before_account);
+}
+
+#[test]
 fn sweeps_joined_channels_with_a_rate_limited_whox_query() {
     Transcript::rate_limited(
         Config::default()

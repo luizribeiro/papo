@@ -553,6 +553,29 @@ async fn message_fields_use_captured_session_facts() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn events_keep_the_state_after_their_own_line() {
+    let (mut server, _client, mut events, driver) = scripted(config());
+    let task = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+
+    server_line(
+        &mut server,
+        b":papo-driver!papo@localhost JOIN #papo * :Papo Driver\r\n:papo-driver!papo@localhost NICK :papo-away\r\n",
+    )
+    .await;
+    let joined = events.next_with_state().await.unwrap();
+    assert!(matches!(joined.event, Event::Joined(_)));
+    assert_eq!(joined.state.nick(), "papo-driver");
+    let renamed = events.next_with_state().await.unwrap();
+    assert!(matches!(renamed.event, Event::NickChanged(_)));
+    assert_eq!(renamed.state.nick(), "papo-away");
+    assert_eq!(joined.state.nick(), "papo-driver");
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn live_bot_facts_require_message_tags_and_bot_mode() {
     async fn observe(message_tags: bool, bot_mode: bool) -> Vec<Option<bool>> {
         let settings = config().wanted_caps(message_tags.then_some("message-tags"));
