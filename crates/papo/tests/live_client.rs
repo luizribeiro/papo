@@ -26,7 +26,7 @@ async fn registers_messages_itself_and_quits() {
         .connect()
         .await
         .unwrap();
-        let state = client.state();
+        let state = client.snapshot();
         assert!(state.is_connected() && state.nick() == nick.as_str());
 
         loop {

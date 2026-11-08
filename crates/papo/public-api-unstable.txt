@@ -13,6 +13,7 @@ pub use papo::Capabilities
 pub use papo::Casemapping
 pub use papo::ChannelName
 pub use papo::Color
+pub use papo::ConnectionEpoch
 pub use papo::Conversation
 pub use papo::CtcpReplies
 pub use papo::Feature
@@ -481,6 +482,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ChannelSynced
 impl core::panic::unwind_safe::UnwindSafe for papo::event::ChannelSynced
 #[non_exhaustive] pub struct papo::event::Connected
 pub papo::event::Connected::caps: papo::Capabilities
+pub papo::event::Connected::epoch: papo::ConnectionEpoch
 pub papo::event::Connected::nick: papo::Nick
 pub papo::event::Connected::reconnected: bool
 pub papo::event::Connected::welcome: alloc::string::String
@@ -2242,6 +2244,7 @@ pub fn papo::Client::clear_away(&self) -> papo::RequestFuture<()>
 pub fn papo::Client::clear_topic(&self, impl papo::AsChannel) -> papo::RequestFuture<()>
 pub fn papo::Client::ctcp_reply(&self, &papo::event::CtcpQuery, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::invite(&self, &papo::DirectRef, impl papo::AsChannel) -> papo::RequestFuture<()>
+pub fn papo::Client::is_current(&self, &papo::State) -> bool
 pub fn papo::Client::join(&self, impl papo::AsChannel) -> papo::JoinChannel
 pub fn papo::Client::kick(&self, impl papo::AsChannel, impl papo::AsNick, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::kickban(&self, impl papo::AsChannel) -> papo::Kickban
@@ -2264,7 +2267,7 @@ pub fn papo::Client::set_away(&self, impl core::convert::Into<alloc::string::Str
 pub fn papo::Client::set_nick(&self, impl papo::AsNick) -> papo::RequestFuture<()>
 pub fn papo::Client::set_realname(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::set_topic(&self, impl papo::AsChannel, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
-pub fn papo::Client::state(&self) -> alloc::rcs::arc::Arc<papo::State>
+pub fn papo::Client::snapshot(&self) -> alloc::rcs::arc::Arc<papo::State>
 pub fn papo::Client::typing(&self, impl papo::Target, papo::Typing) -> papo::RequestFuture<()>
 pub fn papo::Client::unreact(&self, impl core::convert::Into<papo::MessageRef>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::who(&self, impl papo::AsMask) -> papo::RequestFuture<alloc::vec::Vec<papo::WhoEntry>>
@@ -3309,6 +3312,7 @@ pub const fn papo::State::caps(&self) -> &papo::Capabilities
 pub fn papo::State::casemapping(&self) -> papo::Casemapping
 pub fn papo::State::channel(&self, impl papo::AsChannel) -> core::option::Option<&papo::Channel>
 pub fn papo::State::channels(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &papo::Channel>
+pub fn papo::State::connection_epoch(&self) -> papo::ConnectionEpoch
 pub fn papo::State::features(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo::Feature> + '_
 pub fn papo::State::filehost(&self) -> core::option::Option<&str>
 pub fn papo::State::host(&self) -> core::option::Option<&str>
@@ -3925,6 +3929,29 @@ impl core::marker::Unpin for papo::Color
 impl core::marker::UnsafeUnpin for papo::Color
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Color
 impl core::panic::unwind_safe::UnwindSafe for papo::Color
+pub struct papo::ConnectionEpoch(_)
+impl core::clone::Clone for papo::ConnectionEpoch
+pub fn papo::ConnectionEpoch::clone(&self) -> Self
+impl core::cmp::Eq for papo::ConnectionEpoch
+impl core::cmp::Ord for papo::ConnectionEpoch
+pub fn papo::ConnectionEpoch::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for papo::ConnectionEpoch
+pub fn papo::ConnectionEpoch::eq(&self, &Self) -> bool
+impl core::cmp::PartialOrd for papo::ConnectionEpoch
+pub fn papo::ConnectionEpoch::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for papo::ConnectionEpoch
+pub fn papo::ConnectionEpoch::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::ConnectionEpoch
+pub fn papo::ConnectionEpoch::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for papo::ConnectionEpoch
+impl core::marker::StructuralPartialEq for papo::ConnectionEpoch
+impl core::marker::Freeze for papo::ConnectionEpoch
+impl core::marker::Send for papo::ConnectionEpoch
+impl core::marker::Sync for papo::ConnectionEpoch
+impl core::marker::Unpin for papo::ConnectionEpoch
+impl core::marker::UnsafeUnpin for papo::ConnectionEpoch
+impl core::panic::unwind_safe::RefUnwindSafe for papo::ConnectionEpoch
+impl core::panic::unwind_safe::UnwindSafe for papo::ConnectionEpoch
 #[non_exhaustive] pub enum papo::Conversation
 pub papo::Conversation::Channel(papo::ChannelName)
 pub papo::Conversation::Private(papo::Nick)

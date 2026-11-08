@@ -494,7 +494,7 @@ impl Builder {
     /// modes, topics, presence, metadata, read markers, and typing—are discarded first, followed
     /// by other non-message events, and then messages, notices, CTCP, tag messages, reactions, and
     /// redactions. One lag event reports each lag episode. Re-read
-    /// [`Client::state`](crate::Client::state) for state-backed changes and use
+    /// [`Client::snapshot`](crate::Client::snapshot) for state-backed changes and use
     /// [`Client::history`](crate::Client::history) for reported message gaps. Gap filling is not
     /// automatic.
     ///

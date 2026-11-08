@@ -1474,7 +1474,7 @@ pub enum Event {
     Connected(Connected),
     /// Events were discarded because the event buffer was full.
     ///
-    /// State-backed changes are discarded first and remain visible through [`Client::state`].
+    /// State-backed changes are discarded first and remain visible through [`Client::snapshot`].
     /// Message-like events are discarded last; their conversation gaps can be recovered with
     /// [`Client::history`] when the server supports history.
     Lagged(Lagged),

@@ -52,7 +52,7 @@ async fn registers_then_logs_in_with_sasl() {
                 .unwrap();
         wait_connected(&mut authenticated_events, &account).await;
         assert!(matches!(
-            authenticated.state().account(),
+            authenticated.snapshot().account(),
             papo::Account::LoggedIn(logged_in)
                 if logged_in == account.as_str()
                     && logged_in.origin() == authenticated.origin()
@@ -137,7 +137,7 @@ async fn wait_account_message(
             Some(_) => {}
             None => panic!("driver stopped before account proof and private message"),
         }
-        let account_proved = client.state().user(sender).is_some_and(
+        let account_proved = client.snapshot().user(sender).is_some_and(
             |user| matches!(user.account(), papo::Account::LoggedIn(account) if account == sender),
         );
         if account_proved && let Some(message) = received.take() {

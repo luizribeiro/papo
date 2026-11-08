@@ -31,7 +31,7 @@ async fn connect_waits_for_registration_after_an_sts_upgrade() {
         .await
         .unwrap();
 
-        assert!(client.state().is_connected());
+        assert!(client.snapshot().is_connected());
         while let Some(event) = events.next().await {
             if matches!(event, Event::Connected(ref welcome) if welcome.nick == nick.as_str()) {
                 client.quit("STS upgrade complete").await.unwrap();

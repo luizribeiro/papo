@@ -48,7 +48,7 @@ fn everyday_api_is_nameable_from_the_facade() {
         .autojoin_with_key("#papo", papo::Secret::new("correct horse battery staple"));
     let (client, mut events, driver): (papo::Client, papo::Events, papo::Driver) = builder.build();
 
-    let state: std::sync::Arc<papo::State> = client.state();
+    let state: std::sync::Arc<papo::State> = client.snapshot();
     let channel = state
         .name_rules()
         .expect("server advertised CASEMAPPING")

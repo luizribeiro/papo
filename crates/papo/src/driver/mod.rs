@@ -541,7 +541,7 @@ impl From<&str> for Autojoin {
 /// The events produced by a running IRC client.
 ///
 /// Delivery is bounded without blocking socket reads. When the buffer is full, events recoverable
-/// from [`Client::state`] are discarded first, followed by other non-message events and then
+/// from [`Client::snapshot`] are discarded first, followed by other non-message events and then
 /// message-like events. One [`Event::Lagged`] reports each lag episode. Re-read State after loss;
 /// use the warning's message gaps with [`Client::history`] when history is available. papo does
 /// not fill those gaps automatically.
@@ -1530,6 +1530,7 @@ where
                     welcome: welcome.text,
                     caps: welcome.caps,
                     reconnected,
+                    epoch: session.state().connection_epoch(),
                 });
                 enqueue_event(events, pending_events, event);
                 events.receiver.finish_connecting();

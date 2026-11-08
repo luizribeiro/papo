@@ -576,15 +576,30 @@ impl Client {
 
     /// Returns the latest immutable state snapshot.
     ///
+    /// Use this for code outside an event handler. Inside an event handler, use the state paired
+    /// with each event from [`crate::Events`] so it cannot include later events.
     /// The returned snapshot can be held across `.await` points.
     #[must_use]
-    pub fn state(&self) -> Arc<State> {
+    pub fn snapshot(&self) -> Arc<State> {
         Arc::clone(
             &self
                 .state
                 .read()
                 .unwrap_or_else(std::sync::PoisonError::into_inner),
         )
+    }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub fn state(&self) -> Arc<State> {
+        self.snapshot()
+    }
+
+    /// Reports whether `state` belongs to this client's current connection epoch.
+    #[must_use]
+    pub fn is_current(&self, state: &State) -> bool {
+        self.origin == state.nick().origin()
+            && self.snapshot().connection_epoch() == state.connection_epoch()
     }
 
     /// Returns the client's current nickname.
