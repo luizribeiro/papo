@@ -44,7 +44,7 @@ impl Peer {
     ) -> Result<T> {
         let result = timeout(DEFAULT_TIMEOUT, async {
             loop {
-                let Some(event) = self.events.next().await else {
+                let Some(event) = self.events.next_with_state().await.map(|item| item.event) else {
                     return Err(FixtureError::with_events(
                         "driver stopped while waiting for an event",
                         self.recent.make_contiguous(),

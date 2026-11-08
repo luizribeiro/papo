@@ -145,7 +145,7 @@ async fn deleted_bound_network_stops_reconnecting(s: Scenario) -> papo_testing::
         .connect()
         .await?;
     loop {
-        match events.next().await {
+        match events.next_with_state().await.map(|item| item.event) {
             Some(Event::Connected(_)) => break,
             Some(Event::Disconnected(disconnected)) => {
                 panic!("bound client disconnected before reconnecting: {disconnected}")
@@ -157,7 +157,7 @@ async fn deleted_bound_network_stops_reconnecting(s: Scenario) -> papo_testing::
 
     control.bouncer().remove(&id).await?;
     let reconnecting = loop {
-        match events.next().await {
+        match events.next_with_state().await.map(|item| item.event) {
             Some(Event::Disconnected(disconnected)) => break disconnected,
             Some(_) => {}
             None => panic!("bound client stopped before reporting the deletion"),
@@ -165,7 +165,7 @@ async fn deleted_bound_network_stops_reconnecting(s: Scenario) -> papo_testing::
     };
     assert!(reconnecting.is_reconnecting());
     let stopped = loop {
-        match events.next().await {
+        match events.next_with_state().await.map(|item| item.event) {
             Some(Event::Disconnected(disconnected)) => break disconnected,
             Some(_) => {}
             None => panic!("bound client stopped without the binding error"),

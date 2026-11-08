@@ -14,7 +14,11 @@ fn reply_reference(expected: &str, event: Event) -> MessageRef {
 
 async fn next_active_event(events: &mut papo::Events) -> Event {
     loop {
-        let event = events.next().await.expect("client stopped");
+        let event = events
+            .next_with_state()
+            .await
+            .map(|item| item.event)
+            .expect("client stopped");
         if !matches!(event, Event::Other(_)) {
             return event;
         }

@@ -187,7 +187,7 @@ async fn concurrent_guarded_sends_refuse_a_takeover_across_reconnect() {
 
     wire.close().await;
     let delay = loop {
-        let Some(event) = events.next().await else {
+        let Some(event) = events.next_with_state().await.map(|item| item.event) else {
             panic!("driver stopped before reconnecting")
         };
         if let papo::Event::Disconnected(disconnected) = event {

@@ -364,7 +364,7 @@ fn unstable_feature_for_cap(name: &str) -> Option<papo::Feature> {
 async fn wait_connected(client: &Client, events: &mut Events) -> Result<Welcome, String> {
     timeout(TIMEOUT, async {
         loop {
-            match events.next().await {
+            match events.next_with_state().await.map(|item| item.event) {
                 Some(Event::Connected(connected)) => {
                     return Ok(Welcome {
                         caps: connected.caps,

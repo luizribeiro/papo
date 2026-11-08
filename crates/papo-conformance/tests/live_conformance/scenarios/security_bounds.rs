@@ -8,7 +8,7 @@ async fn connected(events: &mut papo::Events) {
 }
 
 async fn next_active_event(events: &mut papo::Events) -> Event {
-    match events.next().await {
+    match events.next_with_state().await.map(|item| item.event) {
         Some(Event::Disconnected(disconnected)) => {
             panic!("disconnected while waiting for an event: {disconnected}")
         }
@@ -19,7 +19,7 @@ async fn next_active_event(events: &mut papo::Events) -> Event {
 
 async fn next_disconnect(events: &mut papo::Events) -> papo::Disconnected {
     loop {
-        match events.next().await {
+        match events.next_with_state().await.map(|item| item.event) {
             Some(Event::Disconnected(disconnected)) => return disconnected,
             Some(_) => {}
             None => panic!("driver stopped before reporting a disconnection"),

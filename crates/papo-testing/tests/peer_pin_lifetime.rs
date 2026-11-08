@@ -47,7 +47,10 @@ async fn verified_pins_survive_reconnect_while_session_pins_do_not() {
     assert_eq!(bob_pin.as_verified_str(), None);
 
     wire.close().await;
-    while !matches!(events.next().await, Some(Event::Disconnected(_))) {}
+    while !matches!(
+        events.next_with_state().await.map(|item| item.event),
+        Some(Event::Disconnected(_))
+    ) {}
     wire.register(&caps).await;
     connected(&mut events).await;
     for line in [
