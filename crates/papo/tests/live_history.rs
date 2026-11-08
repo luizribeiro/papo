@@ -86,6 +86,75 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
     .await;
 }
 
+#[tokio::test(flavor = "current_thread")]
+async fn latest_after_returns_the_newest_page_and_reports_a_gap() {
+    within(async {
+        let server = from_env();
+        let channel = format!("#{}", unique("papo-latest-after"));
+        let nick = unique("papo-latest-after");
+        let (client, mut events) = Client::builder(
+            Endpoint::plaintext(
+                server.plaintext_addr().ip().to_string(),
+                server.plaintext_addr().port(),
+            )
+            .unwrap(),
+            support::nick(&nick),
+        )
+        .disable(Feature::EventPlayback)
+        .disable(Feature::Multiline)
+        .autojoin([&channel])
+        .connect()
+        .await
+        .unwrap();
+        wait_synced(&mut events, &channel).await;
+
+        let texts = [
+            "history saved the rollout plan",
+            "history saved the migration start",
+            "history saved the schema update",
+            "history saved the service restart",
+            "history saved the final health check",
+        ];
+        let mut sent = Vec::new();
+        for text in texts {
+            sent.push(client.privmsg(&channel, text).await.unwrap());
+        }
+        let cursor = confirmed_line(&sent[1]).0.clone();
+
+        let newest = client
+            .history(&channel)
+            .latest_after(cursor.clone())
+            .limit(2)
+            .await
+            .unwrap();
+        assert_eq!(
+            chats(newest.chat_messages(), &texts)
+                .iter()
+                .map(|message| message.text.as_str())
+                .collect::<Vec<_>>(),
+            &texts[3..]
+        );
+        assert!(!newest.end);
+
+        let complete = client
+            .history(&channel)
+            .latest_after(cursor)
+            .limit(10)
+            .await
+            .unwrap();
+        assert_eq!(
+            chats(complete.chat_messages(), &texts)
+                .iter()
+                .map(|message| message.text.as_str())
+                .collect::<Vec<_>>(),
+            &texts[2..]
+        );
+        assert!(complete.end);
+        client.quit("latest history test complete").await.unwrap();
+    })
+    .await;
+}
+
 fn confirmed_line(sent: &papo::Sent) -> (&papo::MessageId, &str, Option<std::time::SystemTime>) {
     let papo::SentOutcome::Confirmed {
         lines, server_time, ..
