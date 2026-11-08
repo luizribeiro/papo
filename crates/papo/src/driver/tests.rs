@@ -315,7 +315,7 @@ async fn sasl_connection_reports_each_protocol_phase() {
     let task = tokio::spawn(driver);
 
     assert!(matches!(
-        events.next_with_state().await.map(|item| item.event),
+        events.next().await.map(|item| item.event),
         Some(Event::Connecting(crate::event::Connecting {
             attempt: 1,
             phase: crate::ConnectPhase::Capabilities,
@@ -326,7 +326,7 @@ async fn sasl_connection_reports_each_protocol_phase() {
     client_line(&mut server, b"CAP REQ :sasl\r\n").await;
     server_line(&mut server, b":ergo.test CAP * ACK :sasl\r\n").await;
     assert!(matches!(
-        events.next_with_state().await.map(|item| item.event),
+        events.next().await.map(|item| item.event),
         Some(Event::Connecting(crate::event::Connecting {
             phase: crate::ConnectPhase::Authenticating,
             ..
@@ -345,7 +345,7 @@ async fn sasl_connection_reports_each_protocol_phase() {
     )
     .await;
     assert!(matches!(
-        events.next_with_state().await.map(|item| item.event),
+        events.next().await.map(|item| item.event),
         Some(Event::Connecting(crate::event::Connecting {
             phase: crate::ConnectPhase::WaitingForWelcome,
             ..
@@ -431,7 +431,7 @@ async fn connecting_phase_overflow_reports_one_lag_episode() {
     }
 
     let lagged = events
-        .next_with_state()
+        .next()
         .await
         .map(|item| item.event)
         .unwrap()
@@ -442,7 +442,7 @@ async fn connecting_phase_overflow_reports_one_lag_episode() {
     assert!(lagged.gaps.is_empty());
     for attempt in 2..=34 {
         assert!(matches!(
-            events.next_with_state().await.map(|item| item.event),
+            events.next().await.map(|item| item.event),
             Some(Event::Connecting(crate::event::Connecting {
                 attempt: actual,
                 phase: crate::ConnectPhase::Transport,
@@ -570,10 +570,10 @@ async fn events_keep_the_state_after_their_own_line() {
         b":papo-driver!papo@localhost JOIN #papo * :Papo Driver\r\n:papo-driver!papo@localhost NICK :papo-away\r\n",
     )
     .await;
-    let joined = events.next_with_state().await.unwrap();
+    let joined = events.next().await.unwrap();
     assert!(matches!(joined.event, Event::Joined(_)));
     assert_eq!(joined.state.nick(), "papo-driver");
-    let renamed = events.next_with_state().await.unwrap();
+    let renamed = events.next().await.unwrap();
     assert!(matches!(renamed.event, Event::NickChanged(_)));
     assert_eq!(renamed.state.nick(), "papo-away");
     assert_eq!(joined.state.nick(), "papo-driver");
@@ -920,7 +920,7 @@ async fn own_private_message_uses_the_peers_known_account_guard() {
         Some(Event::Joined(_))
     ));
     let message = events
-        .next_with_state()
+        .next()
         .await
         .map(|item| item.event)
         .and_then(|event| event.as_message().cloned())
@@ -1407,7 +1407,7 @@ async fn assert_failed_connection_progress(address: &str, attempts: usize) {
 
     for attempt in 1..=attempts {
         assert!(matches!(
-            events.next_with_state().await.map(|item| item.event),
+            events.next().await.map(|item| item.event),
             Some(Event::Connecting(crate::event::Connecting {
                 attempt: event_attempt,
                 phase: crate::ConnectPhase::Transport,
@@ -1415,7 +1415,7 @@ async fn assert_failed_connection_progress(address: &str, attempts: usize) {
         ));
         if secure {
             assert!(matches!(
-                events.next_with_state().await.map(|item| item.event),
+                events.next().await.map(|item| item.event),
                 Some(Event::Connecting(crate::event::Connecting {
                     attempt: event_attempt,
                     phase: crate::ConnectPhase::Tls,
@@ -1423,7 +1423,7 @@ async fn assert_failed_connection_progress(address: &str, attempts: usize) {
             ));
         }
         let disconnected = events
-            .next_with_state()
+            .next()
             .await
             .unwrap()
             .event
@@ -4271,7 +4271,7 @@ async fn registration_sets_advertised_bot_mode_and_joins_each_channel() {
     .await;
     assert_eq!(
         events
-            .next_with_state()
+            .next()
             .await
             .unwrap()
             .event
@@ -5453,7 +5453,7 @@ async fn own_join_after_a_nick_change_is_marked_as_self() {
     )
     .await;
     let changed = events
-        .next_with_state()
+        .next()
         .await
         .unwrap()
         .event
@@ -8902,7 +8902,7 @@ async fn quit_publishes_member_removal_while_reading_ahead() {
     assert_eq!(within(whois).await.unwrap().unwrap().nick, "dan");
 
     loop {
-        let event = within(events.next_with_state())
+        let event = within(events.next())
             .await
             .expect("event stream remains open")
             .event;
@@ -9130,7 +9130,7 @@ async fn disconnect_follows_the_retained_event_after_lag() {
     ));
     assert_eq!(
         events
-            .next_with_state()
+            .next()
             .await
             .unwrap()
             .event
@@ -9368,10 +9368,7 @@ fn multi_thread_stress_accounts_for_every_emitted_message() {
                 for _ in 0..entropy % 5 {
                     std::thread::yield_now();
                 }
-                match runtime
-                    .block_on(events.next_with_state())
-                    .map(|item| item.event)
-                {
+                match runtime.block_on(events.next()).map(|item| item.event) {
                     Some(Event::Message(_)) => delivered += 1,
                     Some(Event::Lagged(lagged)) => reported += lagged.dropped,
                     Some(_) => {}

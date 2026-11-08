@@ -27,7 +27,7 @@ async fn metadata_wildcard_sets_the_current_user() {
             .await
             .unwrap();
         loop {
-            match events.next_with_state().await.map(|item| item.event) {
+            match events.next().await.map(|item| item.event) {
                 Some(Event::MetadataChanged(changed))
                     if changed.key == "example.org/papo-wildcard" =>
                 {
@@ -86,7 +86,7 @@ async fn subscriber_receives_another_clients_metadata() {
             .await
             .unwrap();
         loop {
-            match reader_events.next_with_state().await.map(|item| item.event) {
+            match reader_events.next().await.map(|item| item.event) {
                 Some(Event::MetadataChanged(changed))
                     if matches!(&changed.subject, papo::Subject::User(nick) if nick == writer_nick.as_str())
                         && changed.key == "status" =>
@@ -148,7 +148,7 @@ async fn member_sees_channel_rename_and_relay_attribution() {
             .await
             .unwrap();
         loop {
-            match member_events.next_with_state().await.map(|item| item.event) {
+            match member_events.next().await.map(|item| item.event) {
                 Some(Event::ChannelRenamed(renamed)) if renamed.old == old_channel.as_str() => {
                     assert_eq!(renamed.new, new_channel.as_str());
                     assert_eq!(renamed.new.origin(), member.origin());
@@ -176,7 +176,7 @@ async fn member_sees_channel_rename_and_relay_attribution() {
             .await
             .unwrap();
         loop {
-            match member_events.next_with_state().await.map(|item| item.event) {
+            match member_events.next().await.map(|item| item.event) {
                 Some(Event::Message(message)) if message.text == "Hello from Matrix" => {
                     assert_eq!(
                         message.relayed_by.as_ref().map(papo::Nick::as_str),
@@ -199,7 +199,7 @@ async fn member_sees_channel_rename_and_relay_attribution() {
 
 async fn wait_synced(events: &mut papo::Events, channel: &str) {
     loop {
-        match events.next_with_state().await.map(|item| item.event) {
+        match events.next().await.map(|item| item.event) {
             Some(Event::ChannelSynced(papo::event::ChannelSynced {
                 channel: synced, ..
             })) if synced == channel => return,

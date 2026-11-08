@@ -355,7 +355,7 @@ mod tests {
         )
         .await;
         while !matches!(
-            events.next_with_state().await.map(|item| item.event),
+            events.next().await.map(|item| item.event),
             Some(crate::Event::Connected(_))
         ) {}
 
@@ -365,7 +365,7 @@ mod tests {
         )
         .await;
         while !matches!(
-            events.next_with_state().await.map(|item| item.event),
+            events.next().await.map(|item| item.event),
             Some(crate::Event::Joined(_))
         ) {}
         assert!(matches!(

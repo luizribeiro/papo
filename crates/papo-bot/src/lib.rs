@@ -606,7 +606,7 @@ mod tests {
 
     async fn next_message(events: &mut papo::Events) -> Incoming {
         loop {
-            let Some(item) = events.next_with_state().await else {
+            let Some(item) = events.next().await else {
                 panic!("driver stopped while waiting for a message")
             };
             match item.event {

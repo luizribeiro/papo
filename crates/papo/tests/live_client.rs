@@ -30,7 +30,7 @@ async fn registers_messages_itself_and_quits() {
         assert!(state.is_connected() && state.nick() == nick.as_str());
 
         loop {
-            match events.next_with_state().await.map(|item| item.event).unwrap() {
+            match events.next().await.map(|item| item.event).unwrap() {
                 Event::Connected(welcome) => {
                     assert_eq!(welcome.nick, nick.as_str());
                     break;
@@ -59,7 +59,7 @@ async fn registers_messages_itself_and_quits() {
 
         client.quit("live client test complete").await.unwrap();
         loop {
-            match events.next_with_state().await.map(|item| item.event) {
+            match events.next().await.map(|item| item.event) {
                 Some(Event::Disconnected(_)) => break,
                 Some(_) => {}
                 None => panic!("driver stopped without a disconnected event"),

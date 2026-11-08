@@ -139,7 +139,7 @@ async fn forward_client_lines(
 async fn wait_for(events: &mut papo::Events, accepted: impl Fn(&Event) -> bool) {
     loop {
         let event = events
-            .next_with_state()
+            .next()
             .await
             .map(|item| item.event)
             .expect("driver stopped unexpectedly");

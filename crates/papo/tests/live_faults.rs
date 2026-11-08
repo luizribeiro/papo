@@ -104,13 +104,7 @@ async fn solanum_kline_after_welcome_stops_reconnecting() {
             DisconnectCause::Connect(ref error) if error.kind() == ConnectErrorKind::Banned
         ));
         assert!(!disconnected.is_reconnecting());
-        assert!(
-            victim_events
-                .next_with_state()
-                .await
-                .map(|item| item.event)
-                .is_none()
-        );
+        assert!(victim_events.next().await.map(|item| item.event).is_none());
     })
     .await;
 }
@@ -146,7 +140,7 @@ async fn quit_returns_within_its_bound_when_the_peer_stops_reading() {
 async fn wait_for(events: &mut papo::Events, accepted: impl Fn(&Event) -> bool) -> Event {
     loop {
         let event = events
-            .next_with_state()
+            .next()
             .await
             .map(|item| item.event)
             .expect("driver stopped unexpectedly");

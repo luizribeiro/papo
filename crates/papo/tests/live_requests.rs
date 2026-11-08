@@ -24,7 +24,7 @@ async fn typed_requests_round_trip_against_ergo() {
             .await
             .unwrap();
         loop {
-            match events.next_with_state().await.map(|item| item.event) {
+            match events.next().await.map(|item| item.event) {
                 Some(Event::Connected(_)) => break,
                 Some(Event::Disconnected(disconnected)) => {
                     panic!("disconnected: {disconnected}")
