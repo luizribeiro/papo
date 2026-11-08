@@ -36,7 +36,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .name("second")
         .nick(&nick)
         .await?;
-    while let Some(event) = manager_events.next().await {
+    while let Some(event) = manager_events
+        .next_with_state()
+        .await
+        .map(|item| item.event)
+    {
         if let Event::BouncerNetworkChanged(changed) = event
             && changed.id == id
             && let Some(network) = changed.network
@@ -54,7 +58,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .autojoin([CHANNEL])
         .connect()
         .await?;
-    while let Some(event) = events.next().await {
+    while let Some(event) = events.next_with_state().await.map(|item| item.event) {
         if let Event::ChannelSynced(synced) = event {
             println!("attached {id} {}", synced.channel);
             attached.quit("example complete").await?;

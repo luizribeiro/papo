@@ -67,7 +67,7 @@ async fn prints_membership_snapshot_and_changes() {
 }
 
 async fn wait_for(events: &mut papo::Events, mut wanted: impl FnMut(&Event) -> bool) {
-    while let Some(event) = events.next().await {
+    while let Some(event) = events.next_with_state().await.map(|item| item.event) {
         if wanted(&event) {
             return;
         }

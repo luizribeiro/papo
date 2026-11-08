@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
     let (client, mut events) = builder.connect().await?;
 
-    while let Some(event) = events.next().await {
+    while let Some(event) = events.next_with_state().await.map(|item| item.event) {
         if !matches!(event, Event::ChannelSynced(ref synced) if synced.channel == channel.as_str())
         {
             continue;

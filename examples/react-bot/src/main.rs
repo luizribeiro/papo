@@ -15,7 +15,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .connect()
         .await?;
 
-    while let Some(event) = events.next().await {
+    while let Some(event) = events.next_with_state().await.map(|item| item.event) {
         let Event::Message(message) = event else {
             continue;
         };

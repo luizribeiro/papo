@@ -66,7 +66,7 @@ impl Drop for Child {
 }
 
 async fn wait_for(events: &mut papo::Events, mut wanted: impl FnMut(&Event) -> bool) {
-    while let Some(event) = events.next().await {
+    while let Some(event) = events.next_with_state().await.map(|item| item.event) {
         if wanted(&event) {
             return;
         }
@@ -76,7 +76,7 @@ async fn wait_for(events: &mut papo::Events, mut wanted: impl FnMut(&Event) -> b
 
 async fn wait_message(events: &mut papo::Events, text: &str) -> Message {
     loop {
-        match events.next().await {
+        match events.next_with_state().await.map(|item| item.event) {
             Some(Event::Message(message)) if message.text == text => return message,
             Some(_) => {}
             None => panic!("driver stopped while waiting for {text}"),

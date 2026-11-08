@@ -2,7 +2,7 @@
 
 use std::{env, error::Error};
 
-use papo::{Account, Client, Event, Message};
+use papo::{Account, Client, Event, Message, State};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -15,11 +15,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .autojoin([&channel])
         .connect()
         .await?;
-    while let Some(event) = events.next().await {
-        let Event::Message(message) = event else {
+    while let Some(item) = events.next_with_state().await {
+        let Event::Message(message) = item.event else {
             continue;
         };
-        let Some(body) = command_body(&client, &message) else {
+        let Some(body) = command_body(&item.state, &message) else {
             continue;
         };
         let words = body.split_whitespace().collect::<Vec<_>>();
@@ -53,13 +53,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn command_body<'a>(client: &Client, message: &'a Message) -> Option<&'a str> {
+fn command_body<'a>(state: &State, message: &'a Message) -> Option<&'a str> {
     if let Some(body) = message.text.strip_prefix('!') {
         return Some(body.trim_start());
     }
     let boundary = message.text.find([':', ','])?;
     let (address, body) = message.text.split_at(boundary);
-    (client.nick() == address.trim()).then(|| body[1..].trim_start())
+    (state.nick() == address.trim()).then(|| body[1..].trim_start())
 }
 
 async fn reply(client: &Client, message: &Message, text: impl Into<String>) {

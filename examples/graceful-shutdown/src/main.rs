@@ -18,9 +18,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 eprintln!("could not quit: {error}");
             }
         }
-        () = async { while events.next().await.is_some() {} } => return Ok(()),
+        () = async { while events.next_with_state().await.map(|item| item.event).is_some() {} } => return Ok(()),
     }
-    while events.next().await.is_some() {}
+    while events
+        .next_with_state()
+        .await
+        .map(|item| item.event)
+        .is_some()
+    {}
     Ok(())
 }
 

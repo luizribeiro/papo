@@ -78,7 +78,7 @@ async fn lists_adds_and_attaches_to_bouncer_networks() {
             .unwrap();
         assert_eq!(attached.snapshot().bouncer_network(), Some(&id));
         loop {
-            match events.next().await {
+            match events.next_with_state().await.map(|item| item.event) {
                 Some(Event::ChannelSynced(_)) => break,
                 Some(Event::Disconnected(disconnected)) => {
                     panic!("disconnected while joining: {disconnected}")

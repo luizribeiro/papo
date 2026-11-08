@@ -95,7 +95,7 @@ async fn high_level_client_uses_the_browser_websocket() {
 
 async fn wait_for(events: &mut Events, accepted: impl Fn(&ClientEvent) -> bool) {
     loop {
-        match events.next().await {
+        match events.next_with_state().await.map(|item| item.event) {
             Some(event) if accepted(&event) => return,
             Some(ClientEvent::Disconnected(disconnected)) if !disconnected.is_reconnecting() => {
                 panic!("browser client disconnected: {disconnected}")
