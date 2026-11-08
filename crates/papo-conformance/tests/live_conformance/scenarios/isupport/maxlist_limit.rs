@@ -10,7 +10,7 @@ async fn maxlist_limit(s: Scenario) -> papo_testing::Result<()> {
     let channel = s.channel_name();
     alice.join(&channel).await?;
 
-    let state = alice.state();
+    let state = alice.snapshot();
     let maximum = state
         .isupport()
         .maxlist()

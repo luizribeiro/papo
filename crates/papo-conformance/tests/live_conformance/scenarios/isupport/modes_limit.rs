@@ -15,7 +15,7 @@ async fn modes_limit(s: Scenario) -> papo_testing::Result<()> {
     alice.join(&channel).await?;
     join_seen_by(&bob, &mut alice, &channel).await?;
 
-    let support = alice.state().isupport().clone();
+    let support = alice.snapshot().isupport().clone();
     let limit = match support.get("MODES") {
         Advertised::Value(value) => Some(value.parse::<usize>().expect("MODES value is numeric")),
         Advertised::Bare => None,
@@ -27,7 +27,7 @@ async fn modes_limit(s: Scenario) -> papo_testing::Result<()> {
     // Short enough that a chunk at InspIRCd's MODES=20, the largest among the
     // tested servers, still fits a 512-byte line alongside a full-length
     // generated channel name.
-    let mapping = alice.state().casemapping();
+    let mapping = alice.snapshot().casemapping();
     let masks = (1..=count)
         .map(|i| mapping.mask(format!("flood{i}!*@{i}")))
         .collect::<Vec<_>>();

@@ -84,7 +84,7 @@ async fn isupport_snapshot(s: Scenario) -> papo_testing::Result<()> {
     let alice = s
         .connect_with(s.configure("alice")?.enable(papo::Feature::WebPush))
         .await?;
-    let state = alice.state();
+    let state = alice.snapshot();
     let support = state.isupport();
     let actual = render_snapshot(support.tokens());
     assert!(

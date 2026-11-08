@@ -11,7 +11,7 @@ async fn channellen_limit(s: Scenario) -> papo_testing::Result<()> {
     let alice_nick = alice.nick();
     let bob_nick = bob.nick();
 
-    let state = alice.state();
+    let state = alice.snapshot();
     let support = state.isupport();
     let Advertised::Value(raw) = support.get("CHANNELLEN") else {
         panic!("server did not advertise CHANNELLEN with a value");
@@ -43,7 +43,7 @@ async fn channellen_limit(s: Scenario) -> papo_testing::Result<()> {
 
     for peer in [&alice, &bob] {
         assert_eq!(
-            peer.state().channel(&at_limit).unwrap().name().as_str(),
+            peer.snapshot().channel(&at_limit).unwrap().name().as_str(),
             at_limit
         );
     }
@@ -57,8 +57,8 @@ async fn channellen_limit(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(name, over);
     assert_eq!(reason, InvalidIdentifier::__too_long(n + 1, n));
 
-    assert!(alice.state().channel(&over).is_none());
-    assert_eq!(alice.state().channels().count(), 1);
+    assert!(alice.snapshot().channel(&over).is_none());
+    assert_eq!(alice.snapshot().channels().count(), 1);
     alice.expect_none(Event::as_joined).await?;
     bob.expect_none(Event::as_joined).await?;
     Ok(())

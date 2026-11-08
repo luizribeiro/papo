@@ -21,7 +21,7 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
     alice.join(&channel).await?;
     join_seen_by(&bob, &mut alice, &channel).await?;
 
-    let support = alice.state().isupport().clone();
+    let support = alice.snapshot().isupport().clone();
     let groups = support.chanmodes().expect("CHANMODES has four groups");
     assert!(groups.list.contains('b'));
     assert!(groups.always.contains('k'));
@@ -32,7 +32,7 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
         .mode(&channel)
         .ban(
             alice
-                .state()
+                .snapshot()
                 .name_rules()
                 .expect("server advertised CASEMAPPING")
                 .mask(MASK),
@@ -65,7 +65,7 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(no_external.action, ModeAction::Remove);
         assert_eq!(no_external.arg, None);
 
-        let state = peer.state();
+        let state = peer.snapshot();
         let channel_state = state.channel(&channel).unwrap();
         assert_eq!(channel_state.mode('k'), Some(ModeValue::Set));
         assert_eq!(channel_state.key().map(papo::Secret::expose), Some(KEY));
@@ -78,7 +78,7 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
         .mode(&channel)
         .unban(
             alice
-                .state()
+                .snapshot()
                 .name_rules()
                 .expect("server advertised CASEMAPPING")
                 .mask(MASK),
@@ -102,7 +102,7 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(limit.action, ModeAction::Remove);
         assert_eq!(limit.arg, None);
 
-        let state = peer.state();
+        let state = peer.snapshot();
         let channel_state = state.channel(&channel).unwrap();
         assert_eq!(channel_state.mode('k'), None);
         assert_eq!(channel_state.mode('l'), None);

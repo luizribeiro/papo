@@ -14,7 +14,7 @@ async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
     let bob_nick = bob.nick();
 
     let types = {
-        let state = alice.state();
+        let state = alice.snapshot();
         let Advertised::Value(raw) = state.isupport().get("CHANTYPES") else {
             panic!("the server did not advertise a CHANTYPES value");
         };
@@ -27,7 +27,7 @@ async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
 
     for c in types.chars() {
         let name = format!("{c}{stem}");
-        assert!(alice.state().isupport().is_channel(&name));
+        assert!(alice.snapshot().isupport().is_channel(&name));
 
         alice.join(&name).await?;
         bob.join(&name).await?;
@@ -63,7 +63,7 @@ async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
             continue;
         }
         let name = format!("{c}{stem}");
-        assert!(!alice.state().isupport().is_channel(&name));
+        assert!(!alice.snapshot().isupport().is_channel(&name));
 
         // papo rejects an unadvertised prefix locally, so the server never sees this JOIN.
         let error = alice.join(&name).await.unwrap_err();
@@ -78,7 +78,7 @@ async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
             }
             other => panic!("expected an invalid-prefix rejection for {name:?}, got {other:?}"),
         }
-        assert!(alice.state().channel(&name).is_none());
+        assert!(alice.snapshot().channel(&name).is_none());
     }
 
     let direct = "a direct message";
@@ -96,7 +96,7 @@ async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
     );
     assert_eq!(private.return_address(), bob_nick.as_str());
 
-    assert_eq!(alice.state().channels().count(), types.chars().count());
+    assert_eq!(alice.snapshot().channels().count(), types.chars().count());
     alice.expect_none(Event::as_joined).await?;
     Ok(())
 }

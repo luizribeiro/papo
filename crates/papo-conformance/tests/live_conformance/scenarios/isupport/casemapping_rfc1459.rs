@@ -21,7 +21,7 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
     let mut bob = s.connect("bob").await?;
     let bob_nick = bob.nick();
 
-    let state = alice.state();
+    let state = alice.snapshot();
     let support = state.isupport();
     if support.get("CASEMAPPING") != Advertised::Value("rfc1459") {
         return s.skip("server casemapping is not rfc1459");
@@ -37,9 +37,9 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
     let curly = s
         .connect_with(s.configure_nick("curly", rfc1459_nick(&curly_nick).as_str())?)
         .await?;
-    assert_eq!(square.state().nick().as_str(), square_nick);
-    assert_ne!(curly.state().nick().as_str(), curly_nick);
-    assert_eq!(square.state().nick(), curly_nick.as_str());
+    assert_eq!(square.snapshot().nick().as_str(), square_nick);
+    assert_ne!(curly.snapshot().nick().as_str(), curly_nick);
+    assert_eq!(square.snapshot().nick(), curly_nick.as_str());
     let Error::Server(refusal) = curly.set_nick(curly_nick.clone()).await.unwrap_err() else {
         panic!("rfc1459-equivalent nickname did not return a server refusal");
     };
@@ -60,14 +60,14 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(joined.channel.as_str(), mixed_channel);
     assert_eq!(
         square
-            .state()
+            .snapshot()
             .name_rules()
             .expect("server advertised CASEMAPPING")
             .channel(&mixed_channel),
         lowercase_channel.as_str()
     );
-    assert!(square.state().channel(&lowercase_channel).is_some());
-    assert!(curly.state().channel(&mixed_channel).is_some());
+    assert!(square.snapshot().channel(&lowercase_channel).is_some());
+    assert!(curly.snapshot().channel(&mixed_channel).is_some());
 
     let base = alice.nick().to_string();
     let alice_nick = format!("{base}[x]");
@@ -83,7 +83,7 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
         .await
         .unwrap_err();
     assert_refusal(collision, Refusal::NicknameInUse, "433");
-    assert_eq!(bob.state().nick(), &bob_nick);
+    assert_eq!(bob.snapshot().nick(), &bob_nick);
     bob.expect_none(Event::as_nick_changed).await?;
 
     let chan_base = s.channel_name();
@@ -104,13 +104,16 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(observed_join.channel.as_str(), chan);
     assert_eq!(observed_join.authorship, papo::Authorship::Other);
 
-    assert_eq!(bob.state().channel(&folded).unwrap().name().as_str(), chan);
     assert_eq!(
-        alice.state().channel(&folded).unwrap().name().as_str(),
+        bob.snapshot().channel(&folded).unwrap().name().as_str(),
+        chan
+    );
+    assert_eq!(
+        alice.snapshot().channel(&folded).unwrap().name().as_str(),
         chan
     );
     let alice_folded_nick = format!("{}{{X}}", base.to_ascii_uppercase());
-    let alice_state = alice.state();
+    let alice_state = alice.snapshot();
     let own_member = alice_state
         .channel(&chan)
         .unwrap()
@@ -119,7 +122,7 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(own_member.nick().as_str(), alice_nick);
     assert_eq!(
         alice
-            .state()
+            .snapshot()
             .name_rules()
             .expect("server advertised CASEMAPPING")
             .channel(&chan),
