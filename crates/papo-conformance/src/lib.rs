@@ -16,7 +16,7 @@ use std::{
     time::Duration,
 };
 
-use papo::{Client, Endpoint, Event, Events, Isupport, isupport::Advertised};
+use papo::{Client, Endpoint, Event, EventWithState, Events, Isupport, isupport::Advertised};
 use papo_core::{Cap, Capabilities, Sasl};
 use papo_test_server::ServerInfo;
 use tokio::{runtime::Builder, task::JoinHandle, time::timeout};
@@ -364,17 +364,23 @@ fn unstable_feature_for_cap(name: &str) -> Option<papo::Feature> {
 async fn wait_connected(client: &Client, events: &mut Events) -> Result<Welcome, String> {
     timeout(TIMEOUT, async {
         loop {
-            match events.next().await.map(|item| item.event) {
-                Some(Event::Connected(connected)) => {
+            match events.next().await {
+                Some(EventWithState {
+                    event: Event::Connected(connected),
+                    ..
+                }) => {
                     return Ok(Welcome {
                         caps: connected.caps,
                         isupport: client.snapshot().isupport().clone(),
                     });
                 }
-                Some(Event::Disconnected(disconnected)) => {
+                Some(EventWithState {
+                    event: Event::Disconnected(disconnected),
+                    ..
+                }) => {
                     return Err(disconnected.to_string());
                 }
-                Some(_) => {}
+                Some(EventWithState { .. }) => {}
                 None => return Err("driver stopped while connecting".into()),
             }
         }
@@ -414,7 +420,8 @@ mod tests {
 
     impl EventSource for super::Events {
         async fn next_event(&mut self) -> Option<Event> {
-            self.next().await.map(|item| item.event)
+            let super::EventWithState { event, .. } = self.next().await?;
+            Some(event)
         }
     }
 

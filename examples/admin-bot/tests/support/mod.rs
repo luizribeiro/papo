@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use papo::{Client, Endpoint, Event, Events, Message, ModeAction, ModeArg, Sasl};
+use papo::{Client, Endpoint, Event, EventWithState, Events, Message, ModeAction, ModeArg, Sasl};
 use papo_test_server::ServerInfo;
 
 pub(super) const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
@@ -78,16 +78,22 @@ pub(super) async fn connect(
 pub(super) async fn wait_synced(events: &mut Events, channels: &[String]) {
     let mut pending = channels.to_vec();
     while !pending.is_empty() {
-        match events.next().await.map(|item| item.event) {
-            Some(Event::ChannelSynced(papo::event::ChannelSynced { channel, .. })) => {
+        match events.next().await {
+            Some(EventWithState {
+                event: Event::ChannelSynced(papo::event::ChannelSynced { channel, .. }),
+                ..
+            }) => {
                 if let Some(index) = pending.iter().position(|item| item == &channel) {
                     pending.swap_remove(index);
                 }
             }
-            Some(Event::Disconnected(disconnected)) => {
+            Some(EventWithState {
+                event: Event::Disconnected(disconnected),
+                ..
+            }) => {
                 panic!("join failed: {disconnected}")
             }
-            Some(_) => {}
+            Some(EventWithState { .. }) => {}
             None => panic!("driver stopped while joining"),
         }
     }
@@ -139,11 +145,14 @@ async fn wait_for<T>(
     mut match_event: impl FnMut(Event) -> Option<T>,
 ) -> T {
     loop {
-        match events.next().await.map(|item| item.event) {
-            Some(Event::Disconnected(disconnected)) => {
+        match events.next().await {
+            Some(EventWithState {
+                event: Event::Disconnected(disconnected),
+                ..
+            }) => {
                 panic!("waiting for {expected} failed: {disconnected}")
             }
-            Some(event) => {
+            Some(EventWithState { event, .. }) => {
                 if let Some(value) = match_event(event) {
                     return value;
                 }

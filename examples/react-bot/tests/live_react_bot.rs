@@ -3,7 +3,7 @@
 
 use std::time::Duration;
 
-use papo::{Client, Event};
+use papo::{Client, Event, EventWithState};
 use papo_test_server::{from_env, unique};
 use tokio::time::timeout;
 
@@ -69,7 +69,7 @@ impl Drop for Child {
 }
 
 async fn wait_for(events: &mut papo::Events, mut wanted: impl FnMut(&Event) -> bool) -> Event {
-    while let Some(event) = events.next().await.map(|item| item.event) {
+    while let Some(EventWithState { event, .. }) = events.next().await {
         if wanted(&event) {
             return event;
         }
