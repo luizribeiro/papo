@@ -348,6 +348,7 @@ struct Quit {
 }
 
 const PRECONNECT_EVENT_CAPACITY: usize = 32;
+type PendingEvents = VecDeque<Event>;
 
 struct EventReceiver {
     inner: Mutex<mpsc::Receiver<Event>>,
@@ -416,7 +417,7 @@ struct EventSink {
     regular: mpsc::Sender<Event>,
     receiver: Arc<EventReceiver>,
     dropped: Arc<Mutex<DroppedEvents>>,
-    disconnected: oneshot::Sender<VecDeque<Event>>,
+    disconnected: oneshot::Sender<PendingEvents>,
     connected: Arc<AtomicBool>,
     state: Arc<RwLock<Arc<State>>>,
     commands: mpsc::WeakSender<Command>,
@@ -467,7 +468,7 @@ impl DroppedEvents {
 }
 
 impl EventSink {
-    fn finish(self, pending: VecDeque<Event>) {
+    fn finish(self, pending: PendingEvents) {
         drop(self.regular);
         _ = self.disconnected.send(pending);
     }
@@ -554,8 +555,8 @@ pub struct Events {
     _commands: mpsc::Sender<Command>,
     receiver: Arc<EventReceiver>,
     dropped: Arc<Mutex<DroppedEvents>>,
-    disconnected: Option<oneshot::Receiver<VecDeque<Event>>>,
-    pending: VecDeque<Event>,
+    disconnected: Option<oneshot::Receiver<PendingEvents>>,
+    pending: PendingEvents,
 }
 
 impl std::fmt::Debug for Events {
@@ -860,7 +861,7 @@ struct ConnectionEnd {
     registered_at: Option<Instant>,
     sts: StsActions,
     sts_store: Option<Arc<dyn StsStore>>,
-    pending_events: VecDeque<Event>,
+    pending_events: PendingEvents,
     reconnect_now: bool,
 }
 
@@ -918,7 +919,7 @@ async fn run_connection<S>(
     mut sts_store: Option<Arc<dyn StsStore>>,
     sts_port: u16,
     sts_websocket: bool,
-    mut pending_events: VecDeque<Event>,
+    mut pending_events: PendingEvents,
     reconnectable: bool,
 ) -> ConnectionEnd
 where
@@ -1438,7 +1439,7 @@ async fn drain<S>(
     session: &mut Session,
     pending_write: &mut Option<PendingWrite>,
     events: &EventSink,
-    pending_events: &mut VecDeque<Event>,
+    pending_events: &mut PendingEvents,
     requests: &mut BTreeMap<RequestId, PendingRequest>,
     transmits: &mut BTreeMap<TransmitToken, PendingTransmit>,
     join_keys: &mut BTreeMap<RequestId, (crate::ChannelName, Option<crate::Secret>)>,
@@ -1781,7 +1782,7 @@ fn own_line_msgid(event: &Event) -> Option<&str> {
 
 fn reconcile_pending_events(
     events: &EventSink,
-    pending: &mut VecDeque<Event>,
+    pending: &mut PendingEvents,
     requests: &BTreeMap<RequestId, PendingRequest>,
     resolved_sent: &mut VecDeque<String>,
 ) {
@@ -2008,7 +2009,7 @@ fn rejoin_retained_start(channel_count: usize) -> usize {
     channel_count.saturating_sub(MAX_REJOIN_CHANNELS)
 }
 
-fn enqueue_event(events: &EventSink, pending: &mut VecDeque<Event>, event: Event) {
+fn enqueue_event(events: &EventSink, pending: &mut PendingEvents, event: Event) {
     if !pending.is_empty() {
         hold_event(events, pending, event);
         return;
@@ -2016,7 +2017,7 @@ fn enqueue_event(events: &EventSink, pending: &mut VecDeque<Event>, event: Event
     send_event(events, event);
 }
 
-fn hold_event(events: &EventSink, pending: &mut VecDeque<Event>, event: Event) {
+fn hold_event(events: &EventSink, pending: &mut PendingEvents, event: Event) {
     if pending.len() == events.receiver.capacity
         && let Some(position) = pending
             .iter()

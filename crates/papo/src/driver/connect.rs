@@ -14,8 +14,8 @@ use tokio::sync::mpsc;
 
 use super::{
     BackoffEntropy, BoxConnection, Command, ConnectFuture, ConnectWait, ConnectionEnd,
-    ConnectionPlan, Connector, EventSink, PostConnect, STABLE_CONNECTION, StsActions,
-    enqueue_event, finish, now, run_connection,
+    ConnectionPlan, Connector, EventSink, PendingEvents, PostConnect, STABLE_CONNECTION,
+    StsActions, enqueue_event, finish, now, run_connection,
 };
 #[cfg(sockets)]
 use crate::address::Protocol;
@@ -228,7 +228,7 @@ pub(super) async fn run_plan(
     }
 }
 
-fn finish_requested(events: EventSink, mut pending_events: VecDeque<Event>) {
+fn finish_requested(events: EventSink, mut pending_events: PendingEvents) {
     pending_events.push_back(Event::Disconnected(crate::Disconnected::new(
         crate::DisconnectCause::Requested {
             quit_unacknowledged: false,
@@ -242,7 +242,7 @@ fn enqueue_retry_event(
     events: &EventSink,
     mut end: ConnectionEnd,
     disconnected: crate::Disconnected,
-) -> VecDeque<Event> {
+) -> PendingEvents {
     enqueue_event(
         events,
         &mut end.pending_events,
@@ -277,7 +277,7 @@ pub(super) async fn run_planned_connection(
     attempt: usize,
     plan: &ConnectionPlan,
     sts_store: Arc<dyn StsStore>,
-    pending_events: VecDeque<Event>,
+    pending_events: PendingEvents,
 ) -> ConnectionEnd {
     // WebSocket security is selected by the URL and cannot be upgraded by IRC STS.
     let security = if cfg!(browser) || plan.address.is_secure() {
@@ -377,7 +377,7 @@ async fn connect_or_wait(
     progress: mpsc::UnboundedReceiver<papo_core::ConnectPhase>,
     commands: &mut mpsc::Receiver<Command>,
     events: &EventSink,
-    pending_events: &mut VecDeque<Event>,
+    pending_events: &mut PendingEvents,
     defaults: &mut PostConnect,
     fail_fast: bool,
     sts_required: bool,
@@ -583,7 +583,7 @@ async fn connect_while_disconnected(
     mut progress: mpsc::UnboundedReceiver<papo_core::ConnectPhase>,
     commands: &mut mpsc::Receiver<Command>,
     events: &EventSink,
-    pending_events: &mut VecDeque<Event>,
+    pending_events: &mut PendingEvents,
     defaults: &mut PostConnect,
     last_cause: Option<&crate::DisconnectCause>,
     timeout: Duration,
