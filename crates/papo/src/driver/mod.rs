@@ -592,11 +592,6 @@ impl Events {
         next.await
     }
 
-    #[doc(hidden)]
-    pub async fn next_with_state(&mut self) -> Option<EventWithState> {
-        self.next().await
-    }
-
     fn poll_next_with_state(
         &mut self,
         context: &mut task::Context<'_>,
