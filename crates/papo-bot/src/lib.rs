@@ -7,7 +7,7 @@
 //!
 //! # Writing a bot
 //!
-//! Pass the receiving [`Client`] and each [`papo::Message`] event payload to
+//! Pass the receiving [`Client`], event state, and each [`papo::Message`] event payload to
 //! [`BotConfig::command`]. It accepts live `PRIVMSG` commands addressed by prefix or mention and
 //! ignores known bots by default. Unlike raw `papo` event handling, it rejects replayed messages
 //! itself. Authorize privileged commands with
@@ -20,13 +20,13 @@
 //! cheap to clone into a spawned task:
 //!
 //! ```no_run
-//! use papo::{Client, Event};
+//! use papo::{Client, EventWithState};
 //! use papo_bot::BotConfig;
 //!
 //! # async fn lookup(_client: &Client, query: String) -> String { query }
-//! # async fn handle(client: &Client, commands: &BotConfig, event: Event) {
-//! let Event::Message(message) = event else { return };
-//! let Some(command) = commands.command(client, &message) else { return };
+//! # async fn handle(client: &Client, commands: &BotConfig, item: EventWithState) {
+//! let papo::Event::Message(message) = item.event else { return };
+//! let Some(command) = commands.command(client, &item.state, &message) else { return };
 //! if command.name() == "lookup" && command.account_in(["alice"]) {
 //!     let client = client.clone();
 //!     let command = command.clone();
@@ -50,7 +50,7 @@ use web_time::Instant;
 
 use papo::{
     Account, AccountName, Client, Conversation, InvalidRateLimit, Message as ChatMessage,
-    MessageKind, UserSource,
+    MessageKind, State, UserSource,
 };
 
 const MAX_RATE_TARGETS: usize = 1024;
@@ -170,12 +170,17 @@ impl BotConfig {
         self
     }
 
-    /// Parses `message` as a live command using `client`'s nickname and cached user state.
+    /// Parses `message` as a live command using its event's `state`.
     ///
     /// Replayed messages and messages produced by another client are ignored.
     #[must_use]
-    pub fn command(&self, client: &Client, message: &ChatMessage) -> Option<Command> {
-        Command::parse(client, message, self)
+    pub fn command(
+        &self,
+        client: &Client,
+        state: &State,
+        message: &ChatMessage,
+    ) -> Option<Command> {
+        Command::parse(client, state, message, self)
     }
 }
 
@@ -205,20 +210,24 @@ pub struct Command {
 }
 
 impl Command {
-    fn parse(client: &Client, message: &ChatMessage, config: &BotConfig) -> Option<Self> {
+    fn parse(
+        client: &Client,
+        state: &State,
+        message: &ChatMessage,
+        config: &BotConfig,
+    ) -> Option<Self> {
         if message.authorship == papo::Authorship::Own
             || message.kind != MessageKind::Text
             || message.origin() != papo::Origin::NONE && message.origin() != client.origin()
             || config.ignore_bots
                 && (message.actor.is_bot() == Some(true)
-                    || client
-                        .snapshot()
+                    || state
                         .user(message.actor.nick())
                         .is_some_and(|user| user.is_bot() == Some(true)))
         {
             return None;
         }
-        let body = addressed_body(client, message, config)?;
+        let body = addressed_body(state, message, config)?;
         let name_end = body.find(char::is_whitespace).unwrap_or(body.len());
         let name = &body[..name_end];
         if name.is_empty() {
@@ -379,7 +388,7 @@ impl Command {
 }
 
 fn addressed_body<'a>(
-    client: &Client,
+    state: &State,
     message: &'a ChatMessage,
     config: &BotConfig,
 ) -> Option<&'a str> {
@@ -391,7 +400,7 @@ fn addressed_body<'a>(
     }
     let boundary = message.text.find([':', ','])?;
     let (address, body) = message.text.split_at(boundary);
-    (client.snapshot().nick() == address.trim()).then(|| body[1..].trim_start())
+    (state.nick() == address.trim()).then(|| body[1..].trim_start())
 }
 
 fn split_args(mut input: &str) -> Vec<String> {
@@ -582,21 +591,42 @@ mod tests {
             .build()
     }
 
-    async fn next_message(events: &mut papo::Events) -> papo::Message {
+    struct Incoming {
+        message: papo::Message,
+        state: Arc<papo::State>,
+    }
+
+    impl std::ops::Deref for Incoming {
+        type Target = papo::Message;
+
+        fn deref(&self) -> &Self::Target {
+            &self.message
+        }
+    }
+
+    async fn next_message(events: &mut papo::Events) -> Incoming {
         loop {
-            match events.next().await {
-                Some(papo::Event::Message(message)) => return message,
-                Some(papo::Event::Disconnected(disconnected)) => {
+            let Some(item) = events.next_with_state().await else {
+                panic!("driver stopped while waiting for a message")
+            };
+            match item.event {
+                papo::Event::Message(message) => {
+                    return Incoming {
+                        message,
+                        state: item.state,
+                    };
+                }
+                papo::Event::Disconnected(disconnected) => {
                     panic!("disconnected while waiting for a message: {disconnected}")
                 }
-                Some(_) => {}
-                None => panic!("driver stopped while waiting for a message"),
+                _ => {}
             }
         }
     }
 
     fn parse(message: &papo::Message, config: &BotConfig) -> Option<Command> {
-        config.command(&client(Casemapping::Rfc1459), message)
+        let client = client(Casemapping::Rfc1459);
+        config.command(&client, &client.snapshot(), message)
     }
 
     #[test]
@@ -652,7 +682,9 @@ mod tests {
             client.snapshot().user("emily").unwrap().account(),
             papo::Account::LoggedIn(account) if account == "Emily"
         ));
-        let command = BotConfig::new("!").command(&client, &incoming).unwrap();
+        let command = BotConfig::new("!")
+            .command(&client, &incoming.state, &incoming)
+            .unwrap();
         assert_eq!(command.account(), None);
         assert!(!command.account_in(["emily"]));
         driver.abort();
@@ -674,8 +706,12 @@ mod tests {
         let other = client(Casemapping::Rfc1459);
         let config = BotConfig::new("!");
 
-        assert!(config.command(&receiving, &incoming).is_some());
-        assert!(config.command(&other, &incoming).is_none());
+        assert!(
+            config
+                .command(&receiving, &incoming.state, &incoming)
+                .is_some()
+        );
+        assert!(config.command(&other, &incoming.state, &incoming).is_none());
         driver.abort();
     }
 
@@ -708,7 +744,9 @@ mod tests {
         }
 
         let config = BotConfig::new("!");
-        let stale = config.command(&client, &messages[0]).unwrap();
+        let stale = config
+            .command(&client, &messages[0].state, &messages[0])
+            .unwrap();
         assert!(matches!(
             stale.reply("classified").await,
             Err(papo::Error::TargetGone)
@@ -717,7 +755,9 @@ mod tests {
             stale.private_notice("classified").await,
             Err(papo::Error::TargetGone)
         ));
-        let current = config.command(&client, &messages[1]).unwrap();
+        let current = config
+            .command(&client, &messages[1].state, &messages[1])
+            .unwrap();
         assert_eq!(current.reply("public").await.unwrap(), ReplyStatus::Sent);
         tokio::task::yield_now().await;
 
@@ -746,7 +786,9 @@ mod tests {
         let driver = tokio::spawn(driver);
         let message = next_message(&mut events).await;
 
-        let command = BotConfig::new("!").command(&client, &message).unwrap();
+        let command = BotConfig::new("!")
+            .command(&client, &message.state, &message)
+            .unwrap();
         assert_eq!(command.reply("public").await.unwrap(), ReplyStatus::Sent);
         assert_eq!(
             command.private_notice("public").await.unwrap(),
@@ -786,11 +828,15 @@ mod tests {
         let config = BotConfig::new("!");
         assert!(client.snapshot().user("weatherbot").is_none());
         assert_eq!(messages[0].actor.is_bot(), Some(true));
-        assert!(config.command(&client, &messages[0]).is_none());
+        assert!(
+            config
+                .command(&client, &messages[0].state, &messages[0])
+                .is_none()
+        );
         assert!(
             BotConfig::new("!")
                 .ignore_bots(false)
-                .command(&client, &messages[0])
+                .command(&client, &messages[0].state, &messages[0])
                 .is_some()
         );
         assert_eq!(
@@ -798,11 +844,15 @@ mod tests {
             Some(true)
         );
         assert_eq!(messages[2].actor.is_bot(), None);
-        assert!(config.command(&client, &messages[2]).is_none());
+        assert!(
+            config
+                .command(&client, &messages[2].state, &messages[2])
+                .is_none()
+        );
         assert!(
             BotConfig::new("!")
                 .ignore_bots(false)
-                .command(&client, &messages[2])
+                .command(&client, &messages[2].state, &messages[2])
                 .is_some()
         );
         driver.abort();
@@ -876,14 +926,16 @@ mod tests {
     #[test]
     fn honors_server_casemapping_for_mentions() {
         let incoming = message("#papo", "papo[bot]: ping");
+        let ascii = client(Casemapping::Ascii);
         assert!(
             BotConfig::new("!")
-                .command(&client(Casemapping::Ascii), &incoming)
+                .command(&ascii, &ascii.snapshot(), &incoming)
                 .is_none()
         );
+        let rfc1459 = client(Casemapping::Rfc1459);
         assert!(
             BotConfig::new("!")
-                .command(&client(Casemapping::Rfc1459), &incoming)
+                .command(&rfc1459, &rfc1459.snapshot(), &incoming)
                 .is_some()
         );
     }
@@ -975,7 +1027,9 @@ mod tests {
             .build();
         let driver = tokio::spawn(driver);
         let incoming = next_message(&mut events).await;
-        let command = BotConfig::new("!").command(&client, &incoming).unwrap();
+        let command = BotConfig::new("!")
+            .command(&client, &incoming.state, &incoming)
+            .unwrap();
         assert_eq!(command.say("pong").await.unwrap(), ReplyStatus::Sent);
         tokio::task::yield_now().await;
         let output = String::from_utf8(output.lock().unwrap().clone()).unwrap();
@@ -1013,12 +1067,16 @@ mod tests {
         }
 
         let config = BotConfig::new("!");
-        let channel = config.command(&client, &messages[0]).unwrap();
+        let channel = config
+            .command(&client, &messages[0].state, &messages[0])
+            .unwrap();
         assert_eq!(
             channel.private_notice("channel pong").await.unwrap(),
             ReplyStatus::Sent
         );
-        let private = config.command(&client, &messages[1]).unwrap();
+        let private = config
+            .command(&client, &messages[1].state, &messages[1])
+            .unwrap();
         assert_eq!(
             private.private_notice("private pong").await.unwrap(),
             ReplyStatus::Sent
