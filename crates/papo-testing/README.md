@@ -55,8 +55,8 @@ fn main() {
         wire.server(":alice!~alice@cloak.example PRIVMSG #papo :!ping")
             .await;
 
-        while let Some(event) = events.next().await {
-            let Some(message) = event.as_message() else { continue };
+        while let Some(item) = events.next().await {
+            let Some(message) = item.event.as_message() else { continue };
             if message.text == "!ping" {
                 client.reply(message, "pong").await.unwrap();
                 break;

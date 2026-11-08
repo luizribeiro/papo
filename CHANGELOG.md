@@ -46,6 +46,17 @@ including stable builds that only observe soju's notice or self-JOIN resync.
 Browser `wss://` connections produce hostname-scoped Account pins; browser `ws://` remains
 Continuity-only.
 
+`Events::next` and the `Events` stream now yield `EventWithState`, whose named fields contain the
+event and an `Arc<State>` captured immediately after it was applied. Event handlers use that
+snapshot so later server lines cannot change the state they observe.
+
+`Client::snapshot` replaces `Client::state` for reading the latest state outside an event handler.
+`State::connection_epoch` exposes an opaque comparable connection epoch, `Connected::epoch`
+identifies the new epoch, and `Client::is_current` reports whether a snapshot belongs to it.
+
+`papo-bot` command parsing now takes the event snapshot, preventing bot filtering and mention
+matching from observing a later event.
+
 ### Migration from the 2026-10-24 API
 
 This section covers breaking changes since `46c832d`. Papo had not been released at that point,
@@ -202,7 +213,7 @@ let nick = client.state().nickname("Alice");
 if client.state().is_valid_nick(candidate) { /* ... */ }
 
 // After
-let state = client.state();
+let state = client.snapshot();
 let rules = state.name_rules().ok_or("waiting for server ISUPPORT")?;
 let nick = rules.nick("Alice");
 match rules.check_nick(candidate) {
@@ -333,7 +344,7 @@ order as one driver-owned composite operation.
 | `ModesApplied { applied, refused }` could report a partial batch as complete | `unconfirmed: Vec<(ModeChange, Error)>` and `is_complete()` expose missing confirmations |
 | Dropping mode, kickban, or multiline-redact futures could stop midway | Once accepted by the driver, composite actions continue even if the caller drops its future |
 | `State::read_marker() -> Option<SystemTime>` conflated unknown and explicitly unset | `Option<ReadMarker>` distinguishes unknown, `Unset`, and `ReadUntil(time)` |
-| `State` implemented a partly deep `Clone` | Keep and clone the `Arc<State>` returned by `Client::state`; channel snapshots share unchanged storage |
+| `State` implemented a partly deep `Clone` | Keep and clone the `Arc<State>` returned by `Client::snapshot`; channel snapshots share unchanged storage |
 | `State::metadata() -> &HashMap` exposed storage and nondeterministic order | `MetadataView` provides `get` and an exact-size iterator in metadata-key order |
 | `State::typing(&Conversation)` tied the iterator to the argument borrow | `typing(impl AsConversation) -> Typers<'_>` owns its resolved lookup key |
 | `Typer::return_address() -> String` lost private-recipient guards | It returns a guarded `MessageRef` while preserving status-prefixed audiences |
@@ -363,22 +374,21 @@ slow. The bounded queue discards state-backed events first, then other non-messa
 message-like events last. The next item is one `Event::Lagged` for the episode:
 
 ```rust,ignore
-match event {
+match item.event {
     Event::Lagged(lag) => {
-        let current = client.state();
         for gap in lag.gaps {
             // Query client.history(&gap.conversation) when history is available.
         }
     }
-    event => handle(event),
+    event => handle(event, &item.state),
 }
 ```
 
 `Lagged::dropped` counts all discarded events. Each bounded `MessageGap` identifies its
-conversation, dropped count, and first/last known msgid and server time. Re-read `Client::state()`
-for membership, modes, topics, presence, metadata, read markers, and typing; papo does not fill
-message gaps automatically. `Builder::event_capacity` defaults to 1,024 events and should cover
-the largest expected burst while the event loop is busy, not merely the average rate.
+conversation, dropped count, and first/last known msgid and server time. Use the state paired with
+the lag event for membership, modes, topics, presence, metadata, read markers, and typing; papo
+does not fill message gaps automatically. `Builder::event_capacity` defaults to 1,024 events and
+should cover the largest expected burst while the event loop is busy, not merely the average rate.
 
 The connection now stays alive while either a `Client` clone or its `Events` stream exists.
 Dropping all clients does not end an observe-only event loop, and dropping only `Events` does not
