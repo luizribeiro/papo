@@ -99,7 +99,7 @@ async fn chathistory_multiline(s: Scenario) -> papo_testing::Result<()> {
     let (expected_msgid, confirmed_text, expected_time) = confirmed_line(&sent);
     assert_eq!(confirmed_text, text);
     let expected_time = expected_time.expect("Ergo supplies a server time for the multiline echo");
-    let expected_account = writer.state().account().clone();
+    let expected_account = writer.snapshot().account().clone();
     assert!(matches!(expected_account, Account::LoggedIn(_)));
 
     let page = writer.history(&channel).latest().limit(10).await?;
@@ -162,7 +162,12 @@ async fn chathistory_paging(s: Scenario) -> papo_testing::Result<()> {
         "release window closed",
     ];
     let (_, reader, channel, sent) = history_peers(&s, &texts).await?;
-    if !reader.state().isupport().msgreftypes().contains(&"msgid") {
+    if !reader
+        .snapshot()
+        .isupport()
+        .msgreftypes()
+        .contains(&"msgid")
+    {
         return s.skip("server does not advertise msgid history references");
     }
     let ids = sent
@@ -207,7 +212,7 @@ async fn terminal_history_page(s: Scenario) -> papo_testing::Result<()> {
 
     let alice = s.connect("alice").await?;
     let channel = alice
-        .state()
+        .snapshot()
         .name_rules()
         .expect("server advertised CASEMAPPING")
         .channel(s.channel_name());
@@ -218,17 +223,16 @@ async fn terminal_history_page(s: Scenario) -> papo_testing::Result<()> {
     for text in &texts {
         alice.privmsg(&channel, text).await?;
     }
-    let Some(reference_type) =
-        alice
-            .state()
-            .isupport()
-            .msgreftypes()
-            .into_iter()
-            .find_map(|kind| match kind {
-                "msgid" => Some(ReferenceType::Id),
-                "timestamp" => Some(ReferenceType::Time),
-                _ => None,
-            })
+    let Some(reference_type) = alice
+        .snapshot()
+        .isupport()
+        .msgreftypes()
+        .into_iter()
+        .find_map(|kind| match kind {
+            "msgid" => Some(ReferenceType::Id),
+            "timestamp" => Some(ReferenceType::Time),
+            _ => None,
+        })
     else {
         return s.skip("server advertises no supported history reference type");
     };
@@ -390,7 +394,7 @@ async fn soju_server_notice_history(s: Scenario) -> papo_testing::Result<()> {
         )
         .await?;
     let bouncer = alice
-        .state()
+        .snapshot()
         .name_rules()
         .expect("server advertised CASEMAPPING")
         .nick("BouncerServ");
@@ -449,7 +453,7 @@ async fn draft_read_marker(s: Scenario) -> papo_testing::Result<()> {
     let time = read_marker_time();
     assert_eq!(alice.mark_read(&channel, time).await?, Some(time));
     assert_eq!(
-        alice.state().read_marker(&channel),
+        alice.snapshot().read_marker(&channel),
         Some(papo::ReadMarker::ReadUntil(time))
     );
     assert_eq!(alice.fetch_read_marker(&channel).await?, Some(time));
@@ -457,7 +461,7 @@ async fn draft_read_marker(s: Scenario) -> papo_testing::Result<()> {
     let older = time - Duration::from_secs(60);
     assert_eq!(alice.mark_read(&channel, older).await?, Some(time));
     assert_eq!(
-        alice.state().read_marker(&channel),
+        alice.snapshot().read_marker(&channel),
         Some(papo::ReadMarker::ReadUntil(time))
     );
     assert_eq!(alice.fetch_read_marker(&channel).await?, Some(time));
@@ -480,7 +484,7 @@ async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
     );
     assert_eq!(initial.read_until, None);
     assert_eq!(
-        alice.state().read_marker(&channel),
+        alice.snapshot().read_marker(&channel),
         Some(papo::ReadMarker::Unset)
     );
 
@@ -509,7 +513,7 @@ async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
         })
         .await?;
     assert_eq!(synced.channel.as_str(), channel);
-    assert!(phone.state().channel(&channel).is_some());
+    assert!(phone.snapshot().channel(&channel).is_some());
     let replayed = match early_marker {
         Some(marker) => marker,
         None => phone.wait_for(Event::as_read_marker_changed).await?,
@@ -520,7 +524,7 @@ async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
     );
     assert_eq!(replayed.read_until, Some(time));
     assert_eq!(
-        phone.state().read_marker(&channel),
+        phone.snapshot().read_marker(&channel),
         Some(papo::ReadMarker::ReadUntil(time))
     );
     Ok(())

@@ -79,7 +79,7 @@ async fn sasl_protocol_errors(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s
         .connect_with(s.configure("alice")?.enable(papo::Feature::Sasl))
         .await?;
-    assert!(alice.state().caps().contains_key(&papo::cap::SASL));
+    assert!(alice.snapshot().caps().contains_key(&papo::cap::SASL));
     // SASL is driven raw here because the numeric wire outcomes are the behavior under test.
     alice
         .send_raw(papo::Line::new("AUTHENTICATE").with_params(["PLAIN"]))
@@ -163,7 +163,7 @@ async fn sasl_external(s: Scenario) -> papo_testing::Result<()> {
     }
 
     let mut owner = s.connect_as_account("external-owner").await?;
-    let account = crate::scenarios::support::logged_in_account(&owner.state()).clone();
+    let account = crate::scenarios::support::logged_in_account(&owner.snapshot()).clone();
     owner
         .send_raw(papo::Line::new("NS").with_params(["CERT", "ADD", CLIENT_CERTFP]))
         .await?;
@@ -189,7 +189,7 @@ async fn sasl_external(s: Scenario) -> papo_testing::Result<()> {
         )
         .await?;
     assert_eq!(
-        crate::scenarios::support::logged_in_account(&alice.state()).as_str(),
+        crate::scenarios::support::logged_in_account(&alice.snapshot()).as_str(),
         account.as_str()
     );
     Ok(())
@@ -205,21 +205,21 @@ async fn authenticate(s: Scenario, scram: bool) -> papo_testing::Result<()> {
     };
     let mut alice = s.connect_with(s.configure("alice")?.sasl(sasl)).await?;
     let connected = alice.wait_for(Event::as_connected).await?;
-    assert_eq!(&connected.nick, alice.state().nick());
+    assert_eq!(&connected.nick, alice.snapshot().nick());
     assert!(connected.caps.contains_key(&papo::cap::SASL));
     assert_eq!(
-        alice.state().account(),
+        alice.snapshot().account(),
         &papo::Account::LoggedIn(
             alice
-                .state()
+                .snapshot()
                 .name_rules()
                 .expect("server advertised CASEMAPPING")
                 .account(&account)
         )
     );
 
-    let whois = alice.whois(alice.state().nick().as_str()).await?;
-    assert_eq!(whois.nick, *alice.state().nick());
+    let whois = alice.whois(alice.snapshot().nick().as_str()).await?;
+    assert_eq!(whois.nick, *alice.snapshot().nick());
     assert_eq!(
         whois.account.name().map(papo::AccountName::as_str),
         Some(account.as_str())
@@ -236,7 +236,7 @@ async fn services(s: Scenario) -> papo_testing::Result<()> {
         return s.skip("the selected profile does not expose Ergo services aliases");
     }
     let mut alice = s.connect_as_account("alice").await?;
-    let account = crate::scenarios::support::logged_in_account(&alice.state()).clone();
+    let account = crate::scenarios::support::logged_in_account(&alice.snapshot()).clone();
     alice
         .send_raw(papo::Line::new("NS").with_params(["INFO", account.as_str()]))
         .await?;
@@ -274,7 +274,7 @@ async fn services(s: Scenario) -> papo_testing::Result<()> {
     ));
     alice.part(&channel, "checking the founder grant").await?;
     alice.join(&channel).await?;
-    let state = alice.state();
+    let state = alice.snapshot();
     let founder = state
         .channel(&channel)
         .unwrap()
@@ -293,9 +293,9 @@ async fn services(s: Scenario) -> papo_testing::Result<()> {
 )]
 async fn account_creation(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
-    let nick = alice.state().nick().clone();
+    let nick = alice.snapshot().nick().clone();
     let account = alice
-        .state()
+        .snapshot()
         .name_rules()
         .expect("server advertised CASEMAPPING")
         .account(nick.as_str());
@@ -311,7 +311,7 @@ async fn account_creation(s: Scenario) -> papo_testing::Result<()> {
     ));
     assert_eq!(alice.wait_for(Event::as_account_creation).await?, outcome);
     assert_eq!(
-        alice.state().account(),
+        alice.snapshot().account(),
         &papo::Account::LoggedIn(account.clone())
     );
 
@@ -362,9 +362,9 @@ async fn account_registration_once(s: Scenario) -> papo_testing::Result<()> {
 async fn account_creation_error(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let account = alice
-        .state()
+        .snapshot()
         .casemapping()
-        .account(alice.state().nick().as_str());
+        .account(alice.snapshot().nick().as_str());
     let registered = alice
         .create_account(NewAccount::new(papo::Secret::new(PASSWORD)).account(account.clone()))
         .await?;
@@ -403,7 +403,7 @@ async fn persistence(s: Scenario) -> papo_testing::Result<()> {
         )
         .await?;
     let initial = alice.persistence().get().await?;
-    assert_eq!(alice.state().persistence(), Some(initial));
+    assert_eq!(alice.snapshot().persistence(), Some(initial));
 
     let enabled = alice
         .persistence()
@@ -420,7 +420,7 @@ async fn persistence(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert_eq!(changed.setting, enabled.setting);
     assert_eq!(changed.effective, enabled.effective);
-    assert_eq!(alice.state().persistence(), Some(enabled));
+    assert_eq!(alice.snapshot().persistence(), Some(enabled));
 
     let disabled = alice
         .persistence()
@@ -428,6 +428,6 @@ async fn persistence(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert_eq!(disabled.setting, papo::PersistenceSetting::Off);
     assert!(!disabled.effective);
-    assert_eq!(alice.state().persistence(), Some(disabled));
+    assert_eq!(alice.snapshot().persistence(), Some(disabled));
     Ok(())
 }

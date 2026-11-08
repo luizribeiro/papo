@@ -15,9 +15,9 @@ async fn connect(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     assert_connected(&alice, "alice");
     let connected = alice.wait_for(Event::as_connected).await?;
-    assert_eq!(connected.nick, alice.state().nick().as_str());
+    assert_eq!(connected.nick, alice.snapshot().nick().as_str());
     for (name, value) in &connected.caps {
-        assert_eq!(alice.state().caps().get(name), Some(value));
+        assert_eq!(alice.snapshot().caps().get(name), Some(value));
     }
     alice.expect_none(Event::as_disconnected).await?;
     Ok(())
@@ -48,7 +48,7 @@ async fn cap_notify_new(s: Scenario) -> papo_testing::Result<()> {
             .any(|name| !connected.caps.contains_key(name))
     );
     for (name, value) in &changed.added {
-        assert_eq!(alice.state().caps().get(name), Some(value));
+        assert_eq!(alice.snapshot().caps().get(name), Some(value));
     }
     alice.expect_none(Event::as_disconnected).await?;
     Ok(())
@@ -93,7 +93,7 @@ async fn cap_notify_del(s: Scenario) -> papo_testing::Result<()> {
         .expect("the provisioned network is listed")
         .id;
     let mut bound = s.connect_with(control.bouncer().network(&id)).await?;
-    let before = bound.state().caps().clone();
+    let before = bound.snapshot().caps().clone();
     control
         .send_raw(papo::Line::privmsg(
             "BouncerServ",
@@ -113,7 +113,7 @@ async fn cap_notify_del(s: Scenario) -> papo_testing::Result<()> {
         changed
             .removed
             .keys()
-            .all(|name| !bound.state().caps().contains_key(name))
+            .all(|name| !bound.snapshot().caps().contains_key(name))
     );
     Ok(())
 }
@@ -170,7 +170,7 @@ async fn capability_negotiation_multiline(s: Scenario) -> papo_testing::Result<(
 ])]
 async fn isupport(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
-    let state = alice.state();
+    let state = alice.snapshot();
     let support = state.isupport();
     assert!(matches!(support.get("NETWORK"), Advertised::Value(value) if !value.is_empty()));
     assert_eq!(support.get("PAPO_UNKNOWN_TOKEN"), Advertised::Absent);
@@ -205,12 +205,12 @@ async fn extended_isupport(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     assert!(
         alice
-            .state()
+            .snapshot()
             .caps()
             .contains_key(&papo::cap::EXTENDED_ISUPPORT)
     );
-    assert!(!alice.state().isupport().chantypes().is_empty());
-    assert!(!alice.state().isupport().prefix().is_empty());
+    assert!(!alice.snapshot().isupport().chantypes().is_empty());
+    assert!(!alice.snapshot().isupport().prefix().is_empty());
     alice.expect_none(Event::as_disconnected).await?;
     Ok(())
 }
@@ -219,7 +219,7 @@ async fn extended_isupport(s: Scenario) -> papo_testing::Result<()> {
 #[scenario(requires(isupport = ["draft/ICON"]), covers = ["draft.network-icon"])]
 async fn network_icon(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
-    let support = alice.state().isupport().clone();
+    let support = alice.snapshot().isupport().clone();
     let Advertised::Value(value) = support.get("draft/ICON") else {
         panic!("draft/ICON was required but has no value")
     };
@@ -234,7 +234,7 @@ async fn network_icon(s: Scenario) -> papo_testing::Result<()> {
 async fn whoami(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     alice.join(s.channel_name()).await?;
-    let state = alice.state();
+    let state = alice.snapshot();
     assert!(state.caps().contains_key(&papo::cap::WHOAMI));
     let identity = state
         .user(state.nick())
@@ -390,7 +390,7 @@ async fn elist_filters(s: Scenario) -> papo_testing::Result<()> {
     bob.join(&channel).await?;
     set_topic_for_list(&mut alice, &channel, "fresh two-person channel").await?;
 
-    let state = alice.state();
+    let state = alice.snapshot();
     let filters = state.isupport().get("ELIST");
     let Advertised::Value(filters) = filters else {
         return s.skip("ELIST does not advertise filter letters");
@@ -401,7 +401,7 @@ async fn elist_filters(s: Scenario) -> papo_testing::Result<()> {
     {
         return s.skip("ELIST does not support mask, count, creation, and topic filters");
     }
-    let mapping = alice.state().casemapping();
+    let mapping = alice.snapshot().casemapping();
     let listed = alice
         .list()
         .channels([
@@ -470,10 +470,10 @@ async fn webirc(s: Scenario) -> papo_testing::Result<()> {
         )
         .await?;
     let bob = s.connect("bob").await?;
-    let whois = alice.whois(alice.state().nick().as_str()).await?;
-    let ordinary = alice.whois(bob.state().nick().as_str()).await?;
-    assert_eq!(whois.nick, *alice.state().nick());
-    assert_eq!(ordinary.nick, bob.state().nick().as_str());
+    let whois = alice.whois(alice.snapshot().nick().as_str()).await?;
+    let ordinary = alice.whois(bob.snapshot().nick().as_str()).await?;
+    assert_eq!(whois.nick, *alice.snapshot().nick());
+    assert_eq!(ordinary.nick, bob.snapshot().nick().as_str());
     assert!(whois.host.is_some());
     assert_ne!(whois.host, ordinary.host);
     alice.expect_none(Event::as_disconnected).await?;
@@ -574,7 +574,7 @@ async fn register_over(
 }
 
 fn assert_connected(alice: &crate::Peer, label: &str) {
-    let state = alice.state();
+    let state = alice.snapshot();
     assert!(state.is_connected());
     assert!(state.nick().as_str().starts_with(label));
     assert!(state.nick().as_str().len() > label.len());
@@ -588,7 +588,7 @@ async fn ping(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let elapsed = alice.ping().await?;
     assert!(elapsed <= Duration::from_secs(10));
-    assert!(alice.state().is_connected());
+    assert!(alice.snapshot().is_connected());
     alice.expect_none(Event::as_disconnected).await?;
     Ok(())
 }

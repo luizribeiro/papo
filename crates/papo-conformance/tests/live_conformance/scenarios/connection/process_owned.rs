@@ -64,7 +64,7 @@ pub(super) async fn bouncer_networks(s: Scenario) -> papo_testing::Result<()> {
     let initial = alice.bouncer().networks().await?;
     assert_eq!(
         alice
-            .state()
+            .snapshot()
             .bouncer_networks()
             .cloned()
             .collect::<Vec<_>>(),
@@ -76,7 +76,7 @@ pub(super) async fn bouncer_networks(s: Scenario) -> papo_testing::Result<()> {
     let name = papo_test_server::unique("managed-network");
     let endpoint = format!("irc://{upstream}");
     let upstream_nick = alice
-        .state()
+        .snapshot()
         .casemapping()
         .nick(papo_test_server::unique("upstream-alice"));
     let id = alice
@@ -97,7 +97,7 @@ pub(super) async fn bouncer_networks(s: Scenario) -> papo_testing::Result<()> {
 
     let changed_name = papo_test_server::unique("renamed-network");
     let upstream_nick = alice
-        .state()
+        .snapshot()
         .casemapping()
         .nick(papo_test_server::unique("upstream-bob"));
     alice
@@ -138,8 +138,8 @@ pub(super) async fn sts(s: Scenario) -> papo_testing::Result<()> {
             .sts_store(store.clone()),
         )
         .await?;
-    assert!(alice.state().is_connected());
-    assert_eq!(alice.state().nick(), nick.as_str());
+    assert!(alice.snapshot().is_connected());
+    assert_eq!(alice.snapshot().nick(), nick.as_str());
     let policy = store
         .0
         .lock()
