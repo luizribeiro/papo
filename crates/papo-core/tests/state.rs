@@ -2,7 +2,10 @@
 
 mod support;
 
-use std::time::{Duration, Instant, UNIX_EPOCH};
+use std::{
+    cell::Cell,
+    time::{Duration, Instant, UNIX_EPOCH},
+};
 
 use papo_core::{
     Account, Authorship, Away, Config, Conversation, Event, ModeAction, ModeArg, ModeChange,
@@ -2137,7 +2140,8 @@ fn bounds_channels_and_members_with_one_warning_each() {
 }
 
 #[test]
-fn bot_tag_marks_a_shared_user() {
+fn repeated_bot_tag_does_not_advance_the_snapshot_generation() {
+    let generation = Cell::new(0);
     Transcript::new(Config::default().nick("emily"))
         .server(":emily!em@127.0.0.1 JOIN #papo")
         .server(":papo-bot!bot@services.example JOIN #papo")
@@ -2147,7 +2151,10 @@ fn bot_tag_marks_a_shared_user() {
                 session.state().user("papo-bot").unwrap().is_bot(),
                 Some(true)
             );
+            generation.set(session.state_generation());
         })
+        .server("@bot :papo-bot!bot@services.example PRIVMSG #papo :deployment complete")
+        .inspect(|session| assert_eq!(session.state_generation(), generation.get()))
         .ignore_rest();
 }
 
