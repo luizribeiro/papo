@@ -2065,8 +2065,9 @@ async fn expired_labeled_history_is_not_delivered_twice() {
     }
 
     let page = events
-        .next()
+        .next_with_state()
         .await
+        .map(|item| item.event)
         .and_then(|event| event.as_history().cloned())
         .expect("expired reply still produces one history page");
     assert_eq!(

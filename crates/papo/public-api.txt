@@ -2365,12 +2365,11 @@ impl !core::panic::unwind_safe::RefUnwindSafe for papo::EventWithState
 impl !core::panic::unwind_safe::UnwindSafe for papo::EventWithState
 pub struct papo::Events
 impl papo::Events
-pub async fn papo::Events::next(&mut self) -> core::option::Option<papo::Event>
-pub async fn papo::Events::next_with_state(&mut self) -> core::option::Option<papo::EventWithState>
+pub async fn papo::Events::next(&mut self) -> core::option::Option<papo::EventWithState>
 impl core::fmt::Debug for papo::Events
 pub fn papo::Events::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl futures_core::stream::Stream for papo::Events
-pub type papo::Events::Item = papo::Event
+pub type papo::Events::Item = papo::EventWithState
 pub fn papo::Events::poll_next(core::pin::Pin<&mut Self>, &mut core::task::wake::Context<'_>) -> core::task::poll::Poll<core::option::Option<Self::Item>>
 impl core::marker::Freeze for papo::Events
 impl core::marker::Send for papo::Events

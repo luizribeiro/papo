@@ -173,15 +173,15 @@ impl Builder {
     ///     .casemapping(papo::Casemapping::Ascii);
     /// # let (client, mut events, driver, mut connections) =
     /// #     papo::__testing::wire_client(builder);
-    /// let before = client.state();
+    /// let before = client.snapshot();
     /// let rules = before.name_rules().expect("casemapping was seeded");
     /// assert_eq!(rules.check_nick("release_candidate"), papo::NameCheck::Unknown);
     /// # let driver = tokio::spawn(driver);
     /// # let (mut server, _) = connections.recv().await.unwrap();
     /// # papo::__testing::server_line(&mut server, b":offline.test CAP * LS :\r\n").await;
     /// # papo::__testing::server_line(&mut server, b":offline.test 005 papo-doc CASEMAPPING=ascii NICKLEN=12 :are supported\r\n:offline.test 001 papo-doc :Welcome\r\n:offline.test 422 papo-doc :MOTD is missing\r\n").await;
-    /// # while !matches!(events.next().await, Some(papo::Event::Connected(_))) {}
-    /// let after = client.state();
+    /// # while !matches!(events.next().await.map(|item| item.event), Some(papo::Event::Connected(_))) {}
+    /// let after = client.snapshot();
     /// let rules = after.name_rules().expect("005 supplied name rules");
     /// assert!(matches!(rules.check_nick("release_candidate"),
     ///     papo::NameCheck::Invalid(_)));
@@ -555,8 +555,8 @@ impl Builder {
     ///     .autojoin(["#papo"])
     ///     .connect()
     ///     .await?;
-    /// while let Some(event) = events.next().await {
-    ///     if matches!(event, Event::ChannelSynced(ref synced) if synced.channel == "#papo") {
+    /// while let Some(item) = events.next().await {
+    ///     if matches!(item.event, Event::ChannelSynced(ref synced) if synced.channel == "#papo") {
     ///         break;
     ///     }
     /// }

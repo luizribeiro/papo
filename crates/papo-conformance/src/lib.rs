@@ -394,8 +394,7 @@ fn runtime() -> tokio::runtime::Runtime {
 mod tests {
     use std::{
         collections::VecDeque,
-        fs,
-        future::{self, Future},
+        fs, future,
         path::{Path, PathBuf},
         time::Duration,
     };
@@ -410,12 +409,12 @@ mod tests {
     };
 
     trait EventSource {
-        fn next_event(&mut self) -> impl Future<Output = Option<Event>>;
+        async fn next_event(&mut self) -> Option<Event>;
     }
 
     impl EventSource for super::Events {
-        fn next_event(&mut self) -> impl Future<Output = Option<Event>> {
-            self.next()
+        async fn next_event(&mut self) -> Option<Event> {
+            self.next_with_state().await.map(|item| item.event)
         }
     }
 
@@ -488,13 +487,11 @@ mod tests {
     }
 
     impl EventSource for ScriptedEvents {
-        fn next_event(&mut self) -> impl Future<Output = Option<Event>> {
+        async fn next_event(&mut self) -> Option<Event> {
             let event = self.events.pop_front();
-            async move {
-                match event {
-                    Some(event) => Some(event),
-                    None => future::pending().await,
-                }
+            match event {
+                Some(event) => Some(event),
+                None => future::pending().await,
             }
         }
     }

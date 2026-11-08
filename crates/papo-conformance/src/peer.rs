@@ -93,13 +93,14 @@ impl Peer {
             loop {
                 tokio::select! {
                     biased;
-                    event = self.events.next() => {
-                        let Some(event) = event else {
+                    item = self.events.next_with_state() => {
+                        let Some(item) = item else {
                             return Err(FixtureError::with_events(
                                 "driver stopped before the PING fence",
                                 self.recent.make_contiguous(),
                             ).into());
                         };
+                        let event = item.event;
                         let matched = extract(&event).is_some();
                         let disconnected = event.as_disconnected().cloned();
                         self.remember(event);

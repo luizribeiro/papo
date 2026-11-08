@@ -920,8 +920,9 @@ async fn own_private_message_uses_the_peers_known_account_guard() {
         Some(Event::Joined(_))
     ));
     let message = events
-        .next()
+        .next_with_state()
         .await
+        .map(|item| item.event)
         .and_then(|event| event.as_message().cloned())
         .expect("expected own message");
 
@@ -1422,9 +1423,10 @@ async fn assert_failed_connection_progress(address: &str, attempts: usize) {
             ));
         }
         let disconnected = events
-            .next()
+            .next_with_state()
             .await
             .unwrap()
+            .event
             .as_disconnected()
             .unwrap()
             .clone();
@@ -4269,9 +4271,10 @@ async fn registration_sets_advertised_bot_mode_and_joins_each_channel() {
     .await;
     assert_eq!(
         events
-            .next()
+            .next_with_state()
             .await
             .unwrap()
+            .event
             .as_server_notice()
             .unwrap()
             .text,
@@ -5450,9 +5453,10 @@ async fn own_join_after_a_nick_change_is_marked_as_self() {
     )
     .await;
     let changed = events
-        .next()
+        .next_with_state()
         .await
         .unwrap()
+        .event
         .as_nick_changed()
         .unwrap()
         .clone();
@@ -8898,9 +8902,10 @@ async fn quit_publishes_member_removal_while_reading_ahead() {
     assert_eq!(within(whois).await.unwrap().unwrap().nick, "dan");
 
     loop {
-        let event = within(events.next())
+        let event = within(events.next_with_state())
             .await
-            .expect("event stream remains open");
+            .expect("event stream remains open")
+            .event;
         if matches!(event, Event::Quit(_)) {
             assert!(
                 client
@@ -9125,9 +9130,10 @@ async fn disconnect_follows_the_retained_event_after_lag() {
     ));
     assert_eq!(
         events
-            .next()
+            .next_with_state()
             .await
             .unwrap()
+            .event
             .as_server_notice()
             .unwrap()
             .text,
@@ -9362,7 +9368,10 @@ fn multi_thread_stress_accounts_for_every_emitted_message() {
                 for _ in 0..entropy % 5 {
                     std::thread::yield_now();
                 }
-                match runtime.block_on(events.next()) {
+                match runtime
+                    .block_on(events.next_with_state())
+                    .map(|item| item.event)
+                {
                     Some(Event::Message(_)) => delivered += 1,
                     Some(Event::Lagged(lagged)) => reported += lagged.dropped,
                     Some(_) => {}

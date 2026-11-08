@@ -161,7 +161,7 @@ async fn assert_no_repeated_history(
     loop {
         tokio::select! {
             () = &mut deadline => return,
-            event = events.next() => match event {
+            event = events.next_with_state() => match event.map(|item| item.event) {
                 Some(Event::History(history))
                     if matches!(&history.conversation, papo::Conversation::Channel(channel) if channel == target) => assert!(
                     history.chat_messages().all(|message| {

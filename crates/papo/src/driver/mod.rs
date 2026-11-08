@@ -580,21 +580,21 @@ impl std::fmt::Debug for Events {
 }
 
 impl Events {
-    /// Waits for the next event, or returns `None` after the driver stops.
-    ///
-    /// This method is cancel-safe: cancelling the future does not consume an event.
-    pub async fn next(&mut self) -> Option<Event> {
-        let next = self.next_with_state();
-        #[cfg(all(test, not(browser)))]
-        let next = test_support::within(next);
-        next.await.map(|item| item.event)
-    }
-
     /// Waits for the next event and its state, or returns `None` after the driver stops.
     ///
+    /// The state is captured immediately after the event was applied and before any later event.
+    /// Use [`Client::snapshot`] for the latest state outside event handling.
     /// This method is cancel-safe: cancelling the future does not consume an event.
+    pub async fn next(&mut self) -> Option<EventWithState> {
+        let next = std::future::poll_fn(|context| self.poll_next_with_state(context));
+        #[cfg(all(test, not(browser)))]
+        let next = test_support::within(next);
+        next.await
+    }
+
+    #[doc(hidden)]
     pub async fn next_with_state(&mut self) -> Option<EventWithState> {
-        std::future::poll_fn(|context| self.poll_next_with_state(context)).await
+        self.next().await
     }
 
     fn poll_next_with_state(
@@ -649,14 +649,13 @@ impl Events {
 }
 
 impl Stream for Events {
-    type Item = Event;
+    type Item = EventWithState;
 
     fn poll_next(
         mut self: Pin<&mut Self>,
         context: &mut task::Context<'_>,
     ) -> task::Poll<Option<Self::Item>> {
         self.poll_next_with_state(context)
-            .map(|item| item.map(|item| item.event))
     }
 }
 

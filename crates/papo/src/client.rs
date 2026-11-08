@@ -576,8 +576,8 @@ impl Client {
 
     /// Returns the latest immutable state snapshot.
     ///
-    /// Use this for code outside an event handler. Inside an event handler, use the state paired
-    /// with each event from [`crate::Events`] so it cannot include later events.
+    /// Use this for code outside an event handler. Inside an event handler, use the state returned
+    /// by [`crate::Events::next`] so it cannot include later events.
     /// The returned snapshot can be held across `.await` points.
     #[must_use]
     pub fn snapshot(&self) -> Arc<State> {

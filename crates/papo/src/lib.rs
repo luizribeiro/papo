@@ -13,8 +13,8 @@
 //!         .connect()
 //!         .await?;
 //!
-//!     while let Some(event) = events.next().await {
-//!         if let Event::Message(message) = event
+//!     while let Some(item) = events.next().await {
+//!         if let Event::Message(message) = item.event
 //!             && message.text == "!ping"
 //!             && let Err(error) = client.reply(&message, "pong").await
 //!         {
