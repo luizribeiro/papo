@@ -2069,6 +2069,68 @@ async fn write_timeout_resumes_before_the_next_line() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn current_state_requires_the_client_origin_and_connection_epoch() {
+    let (first_stream, mut first_server) = tokio::io::duplex(4096);
+    let (second_stream, mut second_server) = tokio::io::duplex(4096);
+    let streams = Arc::new(Mutex::new(VecDeque::from([
+        Box::new(first_stream) as super::BoxConnection,
+        Box::new(second_stream) as super::BoxConnection,
+    ])));
+    let connector: super::Connector = Arc::new(move |_, _| {
+        let stream = streams.lock().unwrap().pop_front().unwrap();
+        Box::pin(async move { Ok(stream) })
+    });
+    let (client, mut events, driver) = Driver::with_connector(
+        Ok(ConnectionPlan {
+            address: "irc://irc.example.net".parse().unwrap(),
+            tls: TlsConfig::default(),
+        }),
+        Session::new(config()),
+        super::DEFAULT_CHANNEL_CAPACITY,
+        None,
+        super::PostConnect::default(),
+        Reconnect::never(),
+        Box::new(papo_core::sts::MemoryStsStore::new()),
+        connector,
+    );
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut first_server, &mut events).await;
+    let first = client.snapshot();
+    assert!(client.is_current(&first));
+
+    let mut foreign_config = config();
+    foreign_config.origin = crate::Origin::__new(41);
+    let (mut foreign_server, foreign_client, mut foreign_events, foreign_driver) =
+        scripted(foreign_config);
+    let foreign_driver = tokio::spawn(foreign_driver);
+    complete_connect(&mut foreign_server, &mut foreign_events).await;
+    let foreign = foreign_client.snapshot();
+    assert_eq!(foreign.connection_epoch(), first.connection_epoch());
+    assert!(!client.is_current(&foreign));
+    within(foreign_server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(foreign_driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+
+    within(client.reconnect()).await.unwrap();
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Disconnected(_))
+    ));
+    complete_connect(&mut second_server, &mut events).await;
+    let second = client.snapshot();
+    assert!(!client.is_current(&first));
+    assert!(client.is_current(&second));
+
+    let quit = tokio::spawn(async move { client.quit("").await });
+    client_line(&mut second_server, b"QUIT\r\n").await;
+    within(second_server.shutdown()).await.unwrap();
+    within(quit).await.unwrap().unwrap();
+    within(driver).await.unwrap().unwrap();
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn explicit_reconnect_redials_without_backoff() {
     let (first_stream, mut first_server) = tokio::io::duplex(4096);
     let (second_stream, mut second_server) = tokio::io::duplex(4096);
