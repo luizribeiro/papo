@@ -229,12 +229,15 @@ pub(super) async fn run_plan(
 }
 
 fn finish_requested(events: EventSink, mut pending_events: PendingEvents) {
-    pending_events.push_back(Event::Disconnected(crate::Disconnected::new(
-        crate::DisconnectCause::Requested {
-            quit_unacknowledged: false,
-        },
-        None,
-    )));
+    pending_events.push_back(super::event_with_state(
+        &events,
+        Event::Disconnected(crate::Disconnected::new(
+            crate::DisconnectCause::Requested {
+                quit_unacknowledged: false,
+            },
+            None,
+        )),
+    ));
     events.finish(pending_events);
 }
 
@@ -454,7 +457,11 @@ fn finish_connection_failure(
     if registration.0.is_some() {
         let disconnected = super::disconnected_event(&error, None);
         registration.failed(error);
-        events.finish(VecDeque::from([Event::Disconnected(disconnected)]));
+        let pending = VecDeque::from([super::event_with_state(
+            &events,
+            Event::Disconnected(disconnected),
+        )]);
+        events.finish(pending);
         return Ok(());
     }
     finish(

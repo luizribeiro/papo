@@ -31,12 +31,12 @@ macro_rules! disconnected {
 
 pub(crate) const TEST_DEADLINE: Duration = Duration::from_secs(5);
 
-pub(super) fn queued_event(_events: &super::EventSink, event: Event) -> Event {
-    event
+pub(super) fn queued_event(events: &super::EventSink, event: Event) -> super::EventWithState {
+    super::event_with_state(events, event)
 }
 
-pub(super) fn queued_event_ref(event: &Event) -> &Event {
-    event
+pub(super) fn queued_event_ref(event: &super::EventWithState) -> &Event {
+    &event.event
 }
 
 impl crate::Client {

@@ -348,16 +348,16 @@ struct Quit {
 }
 
 const PRECONNECT_EVENT_CAPACITY: usize = 32;
-type PendingEvents = VecDeque<Event>;
+type PendingEvents = VecDeque<EventWithState>;
 
 struct EventReceiver {
-    inner: Mutex<mpsc::Receiver<Event>>,
+    inner: Mutex<mpsc::Receiver<EventWithState>>,
     capacity: usize,
     connecting: AtomicBool,
 }
 
 impl EventReceiver {
-    fn poll_recv(&self, context: &mut task::Context<'_>) -> task::Poll<Option<Event>> {
+    fn poll_recv(&self, context: &mut task::Context<'_>) -> task::Poll<Option<EventWithState>> {
         self.inner
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -377,7 +377,10 @@ impl EventReceiver {
         self.capacity
     }
 
-    fn discard_for_overflow(&self, sender: &mpsc::Sender<Event>) -> Option<Event> {
+    fn discard_for_overflow(
+        &self,
+        sender: &mpsc::Sender<EventWithState>,
+    ) -> Option<EventWithState> {
         let mut receiver = self
             .inner
             .lock()
@@ -397,7 +400,7 @@ impl EventReceiver {
         let position = queued
             .iter()
             .enumerate()
-            .min_by_key(|(_, event)| event.overflow_class().priority)
+            .min_by_key(|(_, item)| item.event.overflow_class().priority)
             .map(|(position, _)| position)?;
         let discarded = queued.remove(position);
         for event in queued {
@@ -414,7 +417,7 @@ impl EventReceiver {
 }
 
 struct EventSink {
-    regular: mpsc::Sender<Event>,
+    regular: mpsc::Sender<EventWithState>,
     receiver: Arc<EventReceiver>,
     dropped: Arc<Mutex<DroppedEvents>>,
     disconnected: oneshot::Sender<PendingEvents>,
@@ -432,8 +435,9 @@ struct DroppedEvents {
 }
 
 impl DroppedEvents {
-    fn record(&mut self, event: &Event) {
+    fn record(&mut self, item: &EventWithState) {
         self.count = self.count.saturating_add(1);
+        let event = &item.event;
         let class = event.overflow_class();
         let Some(conversation) = class.conversation else {
             return;
@@ -566,6 +570,7 @@ pub struct Events {
     dropped: Arc<Mutex<DroppedEvents>>,
     disconnected: Option<oneshot::Receiver<PendingEvents>>,
     pending: PendingEvents,
+    state: Arc<RwLock<Arc<State>>>,
 }
 
 impl std::fmt::Debug for Events {
@@ -579,22 +584,25 @@ impl Events {
     ///
     /// This method is cancel-safe: cancelling the future does not consume an event.
     pub async fn next(&mut self) -> Option<Event> {
-        let next = std::future::poll_fn(|context| Pin::new(&mut *self).poll_next(context));
+        let next = self.next_with_state();
         #[cfg(all(test, not(browser)))]
         let next = test_support::within(next);
-        next.await
+        next.await.map(|item| item.event)
     }
-}
 
-impl Stream for Events {
-    type Item = Event;
+    /// Waits for the next event and its state, or returns `None` after the driver stops.
+    ///
+    /// This method is cancel-safe: cancelling the future does not consume an event.
+    pub async fn next_with_state(&mut self) -> Option<EventWithState> {
+        std::future::poll_fn(|context| self.poll_next_with_state(context)).await
+    }
 
-    fn poll_next(
-        mut self: Pin<&mut Self>,
+    fn poll_next_with_state(
+        &mut self,
         context: &mut task::Context<'_>,
-    ) -> task::Poll<Option<Self::Item>> {
-        if let Some(event) = self.pending.pop_front() {
-            return task::Poll::Ready(Some(event));
+    ) -> task::Poll<Option<EventWithState>> {
+        if let Some(item) = self.pending.pop_front() {
+            return task::Poll::Ready(Some(item));
         }
         let dropped = std::mem::take(
             &mut *self
@@ -603,13 +611,22 @@ impl Stream for Events {
                 .unwrap_or_else(std::sync::PoisonError::into_inner),
         );
         if dropped.count != 0 {
-            return task::Poll::Ready(Some(Event::Lagged(crate::event::Lagged {
-                dropped: dropped.count,
-                gaps: dropped.gaps,
-            })));
+            let state = Arc::clone(
+                &self
+                    .state
+                    .read()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner),
+            );
+            return task::Poll::Ready(Some(EventWithState {
+                event: Event::Lagged(crate::event::Lagged {
+                    dropped: dropped.count,
+                    gaps: dropped.gaps,
+                }),
+                state,
+            }));
         }
         match self.receiver.poll_recv(context) {
-            task::Poll::Ready(Some(event)) => return task::Poll::Ready(Some(event)),
+            task::Poll::Ready(Some(item)) => return task::Poll::Ready(Some(item)),
             task::Poll::Pending => return task::Poll::Pending,
             task::Poll::Ready(None) => {}
         }
@@ -628,6 +645,18 @@ impl Stream for Events {
             }
             task::Poll::Pending => task::Poll::Pending,
         }
+    }
+}
+
+impl Stream for Events {
+    type Item = Event;
+
+    fn poll_next(
+        mut self: Pin<&mut Self>,
+        context: &mut task::Context<'_>,
+    ) -> task::Poll<Option<Self::Item>> {
+        self.poll_next_with_state(context)
+            .map(|item| item.map(|item| item.event))
     }
 }
 
@@ -795,7 +824,7 @@ pub(crate) fn channels(capacity: usize, session: &Session) -> Channels {
         dropped: Arc::clone(&dropped),
         disconnected: disconnect_sender,
         connected: Arc::clone(&connected),
-        state,
+        state: Arc::clone(&state),
         commands: client.commands.downgrade(),
     };
     let event_commands = client.commands.clone();
@@ -807,6 +836,7 @@ pub(crate) fn channels(capacity: usize, session: &Session) -> Channels {
             dropped,
             disconnected: Some(disconnect_receiver),
             pending: VecDeque::new(),
+            state: Arc::clone(&state),
         },
         commands: command_receiver,
         event_sink: events,
@@ -1567,7 +1597,7 @@ where
                     continue;
                 }
                 if should_hold_sent_candidate(requests, &event) {
-                    hold_event(events, pending_events, event);
+                    hold_event(events, pending_events, event_with_state(events, event));
                     continue;
                 }
                 enqueue_event(events, pending_events, event);
@@ -1798,7 +1828,7 @@ fn reconcile_pending_events(
     let hold = requests.values().any(PendingRequest::is_text);
     let mut retained = VecDeque::new();
     while let Some(event) = pending.pop_front() {
-        if is_resolved_sent_duplicate(resolved_sent, &event) {
+        if is_resolved_sent_duplicate(resolved_sent, &event.event) {
             continue;
         }
         if hold {
@@ -2019,19 +2049,30 @@ fn rejoin_retained_start(channel_count: usize) -> usize {
 }
 
 fn enqueue_event(events: &EventSink, pending: &mut PendingEvents, event: Event) {
+    let item = event_with_state(events, event);
     if !pending.is_empty() {
-        hold_event(events, pending, event);
+        hold_event(events, pending, item);
         return;
     }
-    send_event(events, event);
+    send_event(events, item);
 }
 
-fn hold_event(events: &EventSink, pending: &mut PendingEvents, event: Event) {
+fn event_with_state(events: &EventSink, event: Event) -> EventWithState {
+    let state = Arc::clone(
+        &events
+            .state
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner),
+    );
+    EventWithState { event, state }
+}
+
+fn hold_event(events: &EventSink, pending: &mut PendingEvents, item: EventWithState) {
     if pending.len() == events.receiver.capacity
         && let Some(position) = pending
             .iter()
             .enumerate()
-            .min_by_key(|(_, event)| event.overflow_class().priority)
+            .min_by_key(|(_, item)| item.event.overflow_class().priority)
             .map(|(position, _)| position)
         && let Some(discarded) = pending.remove(position)
     {
@@ -2041,10 +2082,10 @@ fn hold_event(events: &EventSink, pending: &mut PendingEvents, event: Event) {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .record(&discarded);
     }
-    pending.push_back(event);
+    pending.push_back(item);
 }
 
-fn send_event(events: &EventSink, event: Event) {
+fn send_event(events: &EventSink, item: EventWithState) {
     if let Some(discarded) = events.receiver.discard_for_overflow(&events.regular) {
         events
             .dropped
@@ -2052,14 +2093,14 @@ fn send_event(events: &EventSink, event: Event) {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .record(&discarded);
     }
-    match events.regular.try_send(event) {
+    match events.regular.try_send(item) {
         Ok(()) | Err(mpsc::error::TrySendError::Closed(_)) => {}
-        Err(mpsc::error::TrySendError::Full(event)) => {
+        Err(mpsc::error::TrySendError::Full(item)) => {
             events
                 .dropped
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .record(&event);
+                .record(&item);
         }
     }
 }
@@ -2189,7 +2230,7 @@ fn finish(events: EventSink, end: ConnectionEnd, _will_retry: bool) -> Result<()
     } else {
         disconnected_event(&end.error, None)
     };
-    pending.push_back(Event::Disconnected(disconnected));
+    pending.push_back(event_with_state(&events, Event::Disconnected(disconnected)));
     events.finish(pending);
     if let Some(quit) = end.quit {
         for response in quit.results {
