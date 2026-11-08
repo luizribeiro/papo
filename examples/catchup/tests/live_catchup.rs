@@ -100,7 +100,7 @@ async fn prints_three_unread_messages_and_advances_the_marker() {
 
 async fn wait_synced(events: &mut papo::Events, channel: &str) {
     loop {
-        match events.next_with_state().await.map(|item| item.event) {
+        match events.next().await.map(|item| item.event) {
             Some(Event::ChannelSynced(papo::event::ChannelSynced {
                 channel: synced, ..
             })) if synced == channel => return,

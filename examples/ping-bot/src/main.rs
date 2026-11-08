@@ -16,7 +16,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .connect()
         .await?;
 
-    while let Some(event) = events.next_with_state().await.map(|item| item.event) {
+    while let Some(event) = events.next().await.map(|item| item.event) {
         if let Event::Message(message) = event
             && message.text == "!ping"
             && let Err(error) = client.reply(&message, "pong").await

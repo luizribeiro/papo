@@ -128,7 +128,7 @@ async fn authenticated(
         .enable(Feature::Persistence)
         .connect()
         .await?;
-    while let Some(event) = events.next_with_state().await.map(|item| item.event) {
+    while let Some(event) = events.next().await.map(|item| item.event) {
         match event {
             Event::Connected(_) => return Ok((client, events)),
             Event::Disconnected(disconnected) => {
@@ -162,7 +162,7 @@ fn expect_refusal<T: fmt::Debug>(
 }
 
 async fn wait_for_echo(events: &mut papo::Events, text: &str) -> Result<(), Box<dyn Error>> {
-    while let Some(event) = events.next_with_state().await.map(|item| item.event) {
+    while let Some(event) = events.next().await.map(|item| item.event) {
         match event {
             Event::Message(message) if message.text == text => return Ok(()),
             Event::Disconnected(disconnected) => {

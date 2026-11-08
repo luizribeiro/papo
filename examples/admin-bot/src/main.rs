@@ -15,7 +15,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .autojoin([&channel])
         .connect()
         .await?;
-    while let Some(item) = events.next_with_state().await {
+    while let Some(item) = events.next().await {
         let Event::Message(message) = item.event else {
             continue;
         };

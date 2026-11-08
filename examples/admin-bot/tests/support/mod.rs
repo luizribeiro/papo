@@ -78,7 +78,7 @@ pub(super) async fn connect(
 pub(super) async fn wait_synced(events: &mut Events, channels: &[String]) {
     let mut pending = channels.to_vec();
     while !pending.is_empty() {
-        match events.next_with_state().await.map(|item| item.event) {
+        match events.next().await.map(|item| item.event) {
             Some(Event::ChannelSynced(papo::event::ChannelSynced { channel, .. })) => {
                 if let Some(index) = pending.iter().position(|item| item == &channel) {
                     pending.swap_remove(index);
@@ -139,7 +139,7 @@ async fn wait_for<T>(
     mut match_event: impl FnMut(Event) -> Option<T>,
 ) -> T {
     loop {
-        match events.next_with_state().await.map(|item| item.event) {
+        match events.next().await.map(|item| item.event) {
             Some(Event::Disconnected(disconnected)) => {
                 panic!("waiting for {expected} failed: {disconnected}")
             }

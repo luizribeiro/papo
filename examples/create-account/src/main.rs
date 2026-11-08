@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
     let (client, mut events) = builder.connect().await?;
 
-    while let Some(event) = events.next_with_state().await.map(|item| item.event) {
+    while let Some(event) = events.next().await.map(|item| item.event) {
         let created = match event {
             Event::AccountCreation(AccountCreation::Created { account, .. }) => account,
             Event::AccountCreation(AccountCreation::VerificationRequired {
