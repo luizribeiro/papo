@@ -4,7 +4,7 @@
 //! # Quick start
 //!
 //! ```no_run
-//! use papo::{Client, Event};
+//! use papo::{Client, Event, EventWithState};
 //!
 //! #[tokio::main(flavor = "current_thread")]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -13,8 +13,8 @@
 //!         .connect()
 //!         .await?;
 //!
-//!     while let Some(item) = events.next().await {
-//!         if let Event::Message(message) = item.event
+//!     while let Some(EventWithState { event, .. }) = events.next().await {
+//!         if let Event::Message(message) = event
 //!             && message.text == "!ping"
 //!             && let Err(error) = client.reply(&message, "pong").await
 //!         {

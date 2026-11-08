@@ -25,8 +25,9 @@
 //!
 //! # async fn lookup(_client: &Client, query: String) -> String { query }
 //! # async fn handle(client: &Client, commands: &BotConfig, item: EventWithState) {
-//! let papo::Event::Message(message) = item.event else { return };
-//! let Some(command) = commands.command(client, &item.state, &message) else { return };
+//! let EventWithState { event, state } = item;
+//! let papo::Event::Message(message) = event else { return };
+//! let Some(command) = commands.command(client, &state, &message) else { return };
 //! if command.name() == "lookup" && command.account_in(["alice"]) {
 //!     let client = client.clone();
 //!     let command = command.clone();
@@ -606,15 +607,12 @@ mod tests {
 
     async fn next_message(events: &mut papo::Events) -> Incoming {
         loop {
-            let Some(item) = events.next().await else {
+            let Some(papo::EventWithState { event, state }) = events.next().await else {
                 panic!("driver stopped while waiting for a message")
             };
-            match item.event {
+            match event {
                 papo::Event::Message(message) => {
-                    return Incoming {
-                        message,
-                        state: item.state,
-                    };
+                    return Incoming { message, state };
                 }
                 papo::Event::Disconnected(disconnected) => {
                     panic!("disconnected while waiting for a message: {disconnected}")

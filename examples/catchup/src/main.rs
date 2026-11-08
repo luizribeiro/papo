@@ -2,7 +2,7 @@
 
 use std::{env, error::Error, time::UNIX_EPOCH};
 
-use papo::{Client, Event, Sasl, Secret};
+use papo::{Client, Event, EventWithState, Sasl, Secret};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
     let (client, mut events) = builder.connect().await?;
 
-    while let Some(event) = events.next().await.map(|item| item.event) {
+    while let Some(EventWithState { event, .. }) = events.next().await {
         if !matches!(event, Event::ChannelSynced(ref synced) if synced.channel == channel.as_str())
         {
             continue;

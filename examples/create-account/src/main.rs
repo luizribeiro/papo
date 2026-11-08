@@ -2,7 +2,7 @@
 
 use std::{env, error::Error, io};
 
-use papo::{AccountCreation, Client, Event, NewAccount, Secret};
+use papo::{AccountCreation, Client, Event, EventWithState, NewAccount, Secret};
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -18,7 +18,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
     let (client, mut events) = builder.connect().await?;
 
-    while let Some(event) = events.next().await.map(|item| item.event) {
+    while let Some(EventWithState { event, .. }) = events.next().await {
         let created = match event {
             Event::AccountCreation(AccountCreation::Created { account, .. }) => account,
             Event::AccountCreation(AccountCreation::VerificationRequired {

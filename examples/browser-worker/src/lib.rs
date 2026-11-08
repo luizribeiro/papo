@@ -1,7 +1,7 @@
 //! `SharedWorker` entry point for forwarding IRC events to a browser page.
 #![cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 
-use papo::Client;
+use papo::{Client, EventWithState};
 use wasm_bindgen::prelude::wasm_bindgen;
 use web_sys::MessagePort;
 
@@ -17,7 +17,7 @@ pub fn run(port: MessagePort, url: String, nick: String) {
 
 async fn forward_events(port: &MessagePort, url: String, nick: String) -> Result<(), papo::Error> {
     let (_client, mut events) = Client::builder(url, nick).connect().await?;
-    while let Some(event) = events.next().await.map(|item| item.event) {
+    while let Some(EventWithState { event, .. }) = events.next().await {
         post(port, &format!("{event:?}"));
     }
     Ok(())
