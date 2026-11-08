@@ -135,7 +135,7 @@ impl Scenario {
         let mut peer = self.connect_with(builder).await?;
         if self.server.bouncer().is_some()
             && !matches!(
-                peer.state().account(),
+                peer.snapshot().account(),
                 Account::LoggedIn(current) if current.as_str() == account
             )
         {

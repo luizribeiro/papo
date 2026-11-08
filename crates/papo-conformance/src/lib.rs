@@ -368,7 +368,7 @@ async fn wait_connected(client: &Client, events: &mut Events) -> Result<Welcome,
                 Some(Event::Connected(connected)) => {
                     return Ok(Welcome {
                         caps: connected.caps,
-                        isupport: client.state().isupport().clone(),
+                        isupport: client.snapshot().isupport().clone(),
                     });
                 }
                 Some(Event::Disconnected(disconnected)) => {
