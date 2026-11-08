@@ -14,7 +14,7 @@ async fn nicklen_limit(s: Scenario) -> papo_testing::Result<()> {
     alice.join(&channel).await?;
     join_seen_by(&bob, &mut alice, &channel).await?;
 
-    let state = bob.state();
+    let state = bob.snapshot();
     let support = state.isupport();
     let Advertised::Value(raw) = support.get("NICKLEN") else {
         panic!("server did not advertise NICKLEN with a value");
@@ -36,10 +36,10 @@ async fn nicklen_limit(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(own.actor.nick(), &original);
     assert_eq!(own.authorship, papo::Authorship::Own);
     assert_eq!(observed.authorship, papo::Authorship::Other);
-    assert_eq!(bob.state().nick(), at_limit.as_str());
+    assert_eq!(bob.snapshot().nick(), at_limit.as_str());
     assert!(
         alice
-            .state()
+            .snapshot()
             .channel(&channel)
             .unwrap()
             .member(&at_limit)
@@ -47,7 +47,7 @@ async fn nicklen_limit(s: Scenario) -> papo_testing::Result<()> {
     );
     assert!(
         alice
-            .state()
+            .snapshot()
             .channel(&channel)
             .unwrap()
             .member(&original)
@@ -71,6 +71,6 @@ async fn nicklen_limit(s: Scenario) -> papo_testing::Result<()> {
 
     bob.expect_none(Event::as_nick_changed).await?;
     alice.expect_none(Event::as_nick_changed).await?;
-    assert_eq!(bob.state().nick(), at_limit.as_str());
+    assert_eq!(bob.snapshot().nick(), at_limit.as_str());
     Ok(())
 }

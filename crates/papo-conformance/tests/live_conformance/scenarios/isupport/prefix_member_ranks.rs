@@ -24,8 +24,8 @@ async fn prefix_member_ranks(s: Scenario) -> papo_testing::Result<()> {
     join_seen_by(&bob, &mut alice, &channel).await?;
 
     // Parsed by hand from the raw token, independently of `Isupport::prefix`'s own parser.
-    let expected = parse_prefix_token(alice.state().isupport());
-    assert_eq!(alice.state().isupport().prefix(), expected);
+    let expected = parse_prefix_token(alice.snapshot().isupport());
+    assert_eq!(alice.snapshot().isupport().prefix(), expected);
     let allowed = allowed_prefixes(&expected);
     let allowed_symbols: Vec<char> = allowed.iter().map(|prefix| prefix.symbol()).collect();
     let has_halfop = allowed.iter().any(|prefix| prefix.mode() == 'h');
@@ -38,7 +38,7 @@ async fn prefix_member_ranks(s: Scenario) -> papo_testing::Result<()> {
     };
     assert_eq!(allowed_symbols, expected_symbols);
     assert_eq!(
-        member_prefixes(&alice.state(), &channel, alice_nick.as_str()),
+        member_prefixes(&alice.snapshot(), &channel, alice_nick.as_str()),
         ['@']
     );
 
@@ -56,7 +56,7 @@ async fn prefix_member_ranks(s: Scenario) -> papo_testing::Result<()> {
     }
     for peer in [&alice, &bob] {
         assert_eq!(
-            member_prefixes(&peer.state(), &channel, bob_nick.as_str()),
+            member_prefixes(&peer.snapshot(), &channel, bob_nick.as_str()),
             allowed_symbols
         );
     }
@@ -70,7 +70,7 @@ async fn prefix_member_ranks(s: Scenario) -> papo_testing::Result<()> {
         assert!(
             matches!(changed.changes.as_slice(), [change] if change.action == ModeAction::Remove)
         );
-        assert!(!member_prefixes(&bob.state(), &channel, bob_nick.as_str()).contains(&'%'));
+        assert!(!member_prefixes(&bob.snapshot(), &channel, bob_nick.as_str()).contains(&'%'));
     }
 
     bob.expect_none(|event| channel_mode(event, &channel))
@@ -159,18 +159,23 @@ async fn assert_carol_view(
     let carol = s
         .connect_with(s.configure("carol")?.disable(papo::Feature::MultiPrefix))
         .await?;
-    assert!(!carol.state().caps().contains_key(&papo::cap::MULTI_PREFIX));
+    assert!(
+        !carol
+            .snapshot()
+            .caps()
+            .contains_key(&papo::cap::MULTI_PREFIX)
+    );
     carol.join(channel).await?;
     let carol_nick = carol.nick();
     assert_eq!(
-        member_prefixes(&carol.state(), channel, bob_nick.as_str()),
+        member_prefixes(&carol.snapshot(), channel, bob_nick.as_str()),
         ['@']
     );
     assert_eq!(
-        member_prefixes(&carol.state(), channel, alice_nick.as_str()),
+        member_prefixes(&carol.snapshot(), channel, alice_nick.as_str()),
         ['@']
     );
-    assert!(member_prefixes(&carol.state(), channel, carol_nick.as_str()).is_empty());
+    assert!(member_prefixes(&carol.snapshot(), channel, carol_nick.as_str()).is_empty());
     Ok(())
 }
 
@@ -182,9 +187,13 @@ async fn assert_dave_view(
     has_halfop: bool,
 ) -> papo_testing::Result<()> {
     let dave = s.connect("dave").await?;
-    assert!(dave.state().caps().contains_key(&papo::cap::MULTI_PREFIX));
+    assert!(
+        dave.snapshot()
+            .caps()
+            .contains_key(&papo::cap::MULTI_PREFIX)
+    );
     dave.join(channel).await?;
-    let state = dave.state();
+    let state = dave.snapshot();
     let member = state
         .channel(channel)
         .unwrap()

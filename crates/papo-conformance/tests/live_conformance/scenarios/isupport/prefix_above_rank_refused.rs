@@ -20,7 +20,7 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
     join_seen_by(&bob, &mut alice, &channel).await?;
     join_seen_by(&carol, &mut alice, &channel).await?;
 
-    let prefixes = alice.state().isupport().prefix();
+    let prefixes = alice.snapshot().isupport().prefix();
     let operator_position = prefixes
         .iter()
         .position(|prefix| prefix.symbol() == '@')
@@ -41,7 +41,7 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
     }
 
     for peer in [&alice, &bob, &carol] {
-        let state = peer.state();
+        let state = peer.snapshot();
         let channel_state = state.channel(&channel).unwrap();
         assert!(
             channel_state
@@ -79,7 +79,7 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
         );
     }
     for peer in [&alice, &bob, &carol] {
-        let state = peer.state();
+        let state = peer.snapshot();
         let member = state
             .channel(&channel)
             .unwrap()

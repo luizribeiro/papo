@@ -15,7 +15,7 @@ async fn unadvertised_mode_rejected(s: Scenario) -> papo_testing::Result<()> {
     alice.join(&channel).await?;
     join_seen_by(&bob, &mut alice, &channel).await?;
 
-    let letter = unadvertised_mode_letter(alice.state().isupport())
+    let letter = unadvertised_mode_letter(alice.snapshot().isupport())
         .expect("CHANMODES and PREFIX leave at least one Latin letter unadvertised");
 
     assert_invalid_message(&alice.mode(&channel).add(letter).await);
@@ -32,8 +32,11 @@ async fn unadvertised_mode_rejected(s: Scenario) -> papo_testing::Result<()> {
     alice
         .expect_none(|event| channel_mode(event, &channel))
         .await?;
-    assert_eq!(alice.state().channel(&channel).unwrap().mode('m'), None);
-    assert_eq!(alice.state().channel(&channel).unwrap().mode(letter), None);
+    assert_eq!(alice.snapshot().channel(&channel).unwrap().mode('m'), None);
+    assert_eq!(
+        alice.snapshot().channel(&channel).unwrap().mode(letter),
+        None
+    );
 
     let alice_nick = alice.nick();
     alice.mode(&channel).add('m').await?;
@@ -49,7 +52,7 @@ async fn unadvertised_mode_rejected(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(applied.arg, None);
     }
     for peer in [&alice, &bob] {
-        let state = peer.state();
+        let state = peer.snapshot();
         let channel_state = state.channel(&channel).unwrap();
         assert_eq!(channel_state.mode('m'), Some(ModeValue::Set));
         assert_eq!(channel_state.mode(letter), None);

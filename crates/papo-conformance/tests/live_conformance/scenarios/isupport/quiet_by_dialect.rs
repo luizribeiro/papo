@@ -22,7 +22,7 @@ impl Dialect {
 }
 
 fn pick_dialect(alice: &Peer) -> Option<Dialect> {
-    let state = alice.state();
+    let state = alice.snapshot();
     let support = state.isupport();
     let has_q_list = support
         .chanmodes()
@@ -113,7 +113,7 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
         ));
     }
     for peer in [&alice, &bob, &carol] {
-        let state = peer.state();
+        let state = peer.snapshot();
         let member = state
             .channel(&channel)
             .unwrap()

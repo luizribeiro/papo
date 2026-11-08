@@ -33,7 +33,7 @@ async fn statusmsg_peers(s: &Scenario) -> papo_testing::Result<StatusmsgPeers> {
 
     assert!(
         alice
-            .state()
+            .snapshot()
             .isupport()
             .statusmsg()
             .is_some_and(|tokens| tokens.contains('@'))
@@ -61,7 +61,7 @@ async fn statusmsg_peers(s: &Scenario) -> papo_testing::Result<StatusmsgPeers> {
             matches!(change.arg.clone(), Some(ModeArg::Member { nick, .. }) if nick == bob_nick.as_str())
         );
 
-        let state = peer.state();
+        let state = peer.snapshot();
         let member = state
             .channel(&channel)
             .expect("channel is in state")
@@ -94,7 +94,7 @@ async fn statusmsg_peers(s: &Scenario) -> papo_testing::Result<StatusmsgPeers> {
             matches!(change.arg.clone(), Some(ModeArg::Member { nick, .. }) if nick == carol_nick.as_str())
         );
 
-        let state = peer.state();
+        let state = peer.snapshot();
         let member = state
             .channel(&channel)
             .expect("channel is in state")
@@ -257,7 +257,7 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
     }
 
     let bare_channel = bob
-        .state()
+        .snapshot()
         .name_rules()
         .expect("server advertised CASEMAPPING")
         .channel(&channel);
