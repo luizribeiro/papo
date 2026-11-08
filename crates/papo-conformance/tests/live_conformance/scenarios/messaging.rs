@@ -37,7 +37,7 @@ async fn fixture_pair_with(
     assert_eq!(joined.actor.nick(), bob_nick.as_str());
     assert_eq!(joined.authorship, papo::Authorship::Other);
     for peer in [&alice, &bob] {
-        let state = peer.state();
+        let state = peer.snapshot();
         let members = state.channel(&channel).expect("joined channel is in state");
         assert!(members.is_synced());
         assert!(members.member(alice.nick().as_str()).is_some());
@@ -86,7 +86,7 @@ async fn assert_unverified_context(
 }
 
 fn context_tag_allowed(peer: &Peer) -> bool {
-    let state = peer.state();
+    let state = peer.snapshot();
     let denied = state.isupport().clienttagdeny();
     !denied.denies("+channel-context") || !denied.denies("+draft/channel-context")
 }
@@ -373,13 +373,13 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
                 .filter(|message| message.raw_text == "note to self")
         })
         .await?;
-    assert_eq!(alice.state().nick(), &alice.nick());
-    assert_eq!(bob.state().nick(), &bob.nick());
+    assert_eq!(alice.snapshot().nick(), &alice.nick());
+    assert_eq!(bob.snapshot().nick(), &bob.nick());
 
     let channel = s.channel_name();
     alice.join(&channel).await?;
     bob.join(&channel).await?;
-    let state = alice.state();
+    let state = alice.snapshot();
     let channel = name_rules(&state).channel(channel);
     assert_shared_context(&alice, &mut bob, &bob_direct, &channel).await?;
 
@@ -438,7 +438,7 @@ async fn multiclient(s: Scenario) -> papo_testing::Result<()> {
                 .filter(|synced| synced.channel.as_str() == channel)
         })
         .await?;
-    let phone_state = phone.state();
+    let phone_state = phone.snapshot();
     let attached = phone_state
         .channel(&channel)
         .expect("another account session inherits joined channels");
@@ -468,9 +468,15 @@ async fn own_message_without_echo(s: Scenario) -> papo_testing::Result<()> {
                 .disable(papo::Feature::EchoMessages),
         )
         .await?;
-    assert!(phone.state().caps().get(&papo::cap::ECHO_MESSAGE).is_none());
+    assert!(
+        phone
+            .snapshot()
+            .caps()
+            .get(&papo::cap::ECHO_MESSAGE)
+            .is_none()
+    );
 
-    if phone.state().channel(&channel).is_none() {
+    if phone.snapshot().channel(&channel).is_none() {
         phone.join(&channel).await?;
     }
     let text = "message from another logged-in session";
@@ -526,7 +532,7 @@ async fn status_message(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(received.raw_text, "voiced members only");
     assert_eq!(received.msgid(), Some(confirmed_line(&sent).0));
     assert!(
-        bob.state()
+        bob.snapshot()
             .channel(&channel)
             .and_then(|members| members.member(bob.nick()))
             .is_some_and(|member| member
@@ -553,7 +559,7 @@ async fn status_message_or_higher(s: Scenario) -> papo_testing::Result<()> {
     let mut bob = s.connect("bob").await?;
     let mut carol = s.connect("carol").await?;
     let mut dave = s.connect("dave").await?;
-    let state = alice.state();
+    let state = alice.snapshot();
     let channel = name_rules(&state).channel(s.channel_name());
     alice.join(channel.as_str()).await?;
     bob.join(channel.as_str()).await?;
@@ -697,7 +703,7 @@ async fn ctcp(s: Scenario) -> papo_testing::Result<()> {
 async fn ctcp_channel_query(s: Scenario) -> papo_testing::Result<()> {
     let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
     if alice
-        .state()
+        .snapshot()
         .channel(&channel)
         .is_some_and(|channel| channel.mode('C').is_some())
     {
@@ -789,12 +795,16 @@ async fn ctcp_soju_backlog(s: Scenario) -> papo_testing::Result<()> {
 #[scenario(covers = ["base.ctcp.no-ctcp-mode"])]
 async fn no_ctcp_mode(s: Scenario) -> papo_testing::Result<()> {
     let (mut alice, bob, channel) = fixture_pair(&s).await?;
-    let supports_no_ctcp = alice.state().isupport().chanmodes().is_some_and(|groups| {
-        groups.list.contains('C')
-            || groups.always.contains('C')
-            || groups.when_set.contains('C')
-            || groups.never.contains('C')
-    });
+    let supports_no_ctcp = alice
+        .snapshot()
+        .isupport()
+        .chanmodes()
+        .is_some_and(|groups| {
+            groups.list.contains('C')
+                || groups.always.contains('C')
+                || groups.when_set.contains('C')
+                || groups.never.contains('C')
+        });
     if !supports_no_ctcp {
         return s.skip("CHANMODES does not advertise no-CTCP mode C");
     }
@@ -926,7 +936,7 @@ async fn typing_status_target(s: Scenario) -> papo_testing::Result<()> {
     let mut bob = s.connect("bob").await?;
     let mut carol = s.connect("carol").await?;
     let mut dave = s.connect("dave").await?;
-    let state = alice.state();
+    let state = alice.snapshot();
     let channel = name_rules(&state).channel(s.channel_name());
     alice.join(channel.as_str()).await?;
     bob.join(channel.as_str()).await?;
@@ -1040,7 +1050,7 @@ async fn draft_message_redaction(s: Scenario) -> papo_testing::Result<()> {
     let Error::Server(refusal) = alice
         .redact(
             (
-                name_rules(&alice.state()).channel(&channel),
+                name_rules(&alice.snapshot()).channel(&channel),
                 "missing-message-id",
             ),
             "unknown message",

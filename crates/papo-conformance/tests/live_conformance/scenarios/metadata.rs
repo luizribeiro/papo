@@ -8,7 +8,7 @@ fn require_metadata_capacity(
     peer: &crate::Peer,
     value: &str,
 ) -> papo_testing::Result<()> {
-    let state = peer.state();
+    let state = peer.snapshot();
     let limits = state
         .caps()
         .get(&papo::cap::METADATA)
@@ -38,7 +38,7 @@ async fn draft_metadata_2(s: Scenario) -> papo_testing::Result<()> {
     let key = MetadataKey::new("example.org/papo-conformance");
     let value = "fixture metadata value";
     let mut alice = s.connect("alice").await?;
-    let nick = alice.state().nick().clone();
+    let nick = alice.snapshot().nick().clone();
     require_metadata_capacity(&s, &alice, value)?;
 
     alice.metadata().set(key.clone(), value).await?;
@@ -63,7 +63,7 @@ async fn draft_metadata_2(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(stored.value, value);
     assert_eq!(stored.visibility, Visibility::Public);
     assert_eq!(
-        alice.state().metadata(&nick).unwrap().get(&key),
+        alice.snapshot().metadata(&nick).unwrap().get(&key),
         Some(stored)
     );
 
@@ -80,7 +80,7 @@ async fn draft_metadata_2(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(removed.value, None);
     assert!(
         alice
-            .state()
+            .snapshot()
             .metadata(&nick)
             .is_none_or(|values| values.get(&key).is_none())
     );
@@ -102,13 +102,13 @@ async fn metadata_subscriptions(s: Scenario) -> papo_testing::Result<()> {
     bob.join(channel).await?;
     bob.metadata().subscribe([key.clone()]).await?;
     assert!(
-        bob.state()
+        bob.snapshot()
             .metadata_subscriptions()
             .any(|subscribed| subscribed == &key)
     );
     require_metadata_capacity(&s, &alice, "available")?;
 
-    let alice_nick = alice.state().nick().clone();
+    let alice_nick = alice.snapshot().nick().clone();
     alice.metadata().set(key.clone(), "available").await?;
     let alice_change = alice
         .wait_for(|event| {
@@ -135,17 +135,17 @@ async fn metadata_subscriptions(s: Scenario) -> papo_testing::Result<()> {
         bob_change.value.as_ref().unwrap().visibility,
         Visibility::Public
     );
-    let bob_state = bob.state();
+    let bob_state = bob.snapshot();
     let cached = bob_state
         .metadata(alice_nick.as_str())
         .expect("subscriber caches the visible metadata");
     assert_eq!(cached.get(&key).unwrap().value, "available");
 
     bob.metadata().unsubscribe([key.clone()]).await?;
-    assert!(bob.state().metadata_subscriptions().next().is_none());
+    assert!(bob.snapshot().metadata_subscriptions().next().is_none());
     alice.metadata().set(key, "busy").await?;
     bob.expect_none(Event::as_metadata_changed).await?;
-    let current = bob.state();
+    let current = bob.snapshot();
     assert!(
         current
             .metadata(alice_nick.as_str())
@@ -183,7 +183,7 @@ async fn metadata_does_not_cross_nick_handoffs(s: Scenario) -> papo_testing::Res
             })
         })
         .await?;
-    assert!(observer.state().metadata(alice_nick.as_str()).is_some());
+    assert!(observer.snapshot().metadata(alice_nick.as_str()).is_some());
 
     alice.quit("handoff").await?;
     observer
@@ -193,7 +193,7 @@ async fn metadata_does_not_cross_nick_handoffs(s: Scenario) -> papo_testing::Res
                 .filter(|quit| quit.actor.nick() == alice_nick.as_str())
         })
         .await?;
-    assert!(observer.state().metadata(alice_nick.as_str()).is_none());
+    assert!(observer.snapshot().metadata(alice_nick.as_str()).is_none());
 
     mallory.set_nick(alice_nick.as_str()).await?;
     observer
@@ -203,7 +203,7 @@ async fn metadata_does_not_cross_nick_handoffs(s: Scenario) -> papo_testing::Res
             })
         })
         .await?;
-    assert!(observer.state().metadata(alice_nick.as_str()).is_none());
+    assert!(observer.snapshot().metadata(alice_nick.as_str()).is_none());
     Ok(())
 }
 
@@ -262,7 +262,7 @@ async fn channel_metadata(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(charlie_change.key, bob_change.key);
     assert_eq!(charlie_change.value, bob_change.value);
     for peer in [&alice, &bob, &charlie] {
-        let state = peer.state();
+        let state = peer.snapshot();
         let values = state
             .metadata(&channel)
             .expect("channel metadata is synchronized");
@@ -287,7 +287,7 @@ async fn metadata_error(s: Scenario) -> papo_testing::Result<()> {
 
     let error = bob
         .metadata()
-        .set_on(alice.state().nick().as_str(), key, "x")
+        .set_on(alice.snapshot().nick().as_str(), key, "x")
         .await
         .expect_err("a client cannot write another client's metadata");
     let papo::Error::Server(error) = error else {
@@ -298,7 +298,7 @@ async fn metadata_error(s: Scenario) -> papo_testing::Result<()> {
         error.code().as_str(),
         "KEY_NO_PERMISSION" | "KEY_INVALID"
     ));
-    assert!(alice.state().metadata(alice.state().nick()).is_none());
+    assert!(alice.snapshot().metadata(alice.snapshot().nick()).is_none());
     alice.expect_none(Event::as_metadata_changed).await?;
     bob.expect_none(Event::as_metadata_changed).await?;
     Ok(())
@@ -326,9 +326,9 @@ async fn channel_rename_error(s: Scenario) -> papo_testing::Result<()> {
     };
     assert!(error.command().is_some_and(|command| command == "RENAME"));
     assert_eq!(error.code(), "CHANNEL_NAME_IN_USE");
-    assert!(alice.state().channel(&old).is_some());
-    assert!(alice.state().channel(&occupied).is_none());
-    assert!(bob.state().channel(&occupied).is_some());
+    assert!(alice.snapshot().channel(&old).is_some());
+    assert!(alice.snapshot().channel(&occupied).is_none());
+    assert!(bob.snapshot().channel(&occupied).is_some());
     alice.expect_none(Event::as_channel_renamed).await?;
     bob.expect_none(Event::as_channel_renamed).await?;
     Ok(())
@@ -361,7 +361,7 @@ async fn draft_channel_rename(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(event.reason.as_deref(), Some(reason));
     }
     for peer in [&alice, &bob] {
-        let snapshot = peer.state();
+        let snapshot = peer.snapshot();
         assert!(snapshot.channel(&channel).is_none());
         let state = snapshot
             .channel(&renamed)
@@ -391,7 +391,7 @@ async fn relay_message(s: Scenario) -> papo_testing::Result<()> {
     bob.join(&channel).await?;
 
     let text = "Hello from the bridged network";
-    let mapping = alice.state().casemapping();
+    let mapping = alice.snapshot().casemapping();
     alice
         .relay(
             mapping.channel(&channel),

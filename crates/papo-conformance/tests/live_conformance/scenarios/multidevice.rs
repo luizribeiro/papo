@@ -83,13 +83,13 @@ async fn multidevice_away_shared_state(s: Scenario) -> papo_testing::Result<()> 
     let reason = "reviewing the production rollout";
     desktop.set_away(reason).await?;
     let away = Away::__away_value(Some(reason.to_owned()));
-    assert_eq!(desktop.state().away(), &away);
+    assert_eq!(desktop.snapshot().away(), &away);
     if std::env::var("PAPO_TEST_PROFILE").as_deref() == Ok("soju-ergo") {
         phone.expect_none(Event::as_away_changed).await?;
         observer.expect_none(Event::as_away_changed).await?;
-        assert_eq!(phone.state().away(), &Away::Present);
+        assert_eq!(phone.snapshot().away(), &Away::Present);
         assert_eq!(
-            observer.state().user(nick.as_str()).unwrap().away(),
+            observer.snapshot().user(nick.as_str()).unwrap().away(),
             &Away::Present
         );
         return Ok(());
@@ -112,8 +112,11 @@ async fn multidevice_away_shared_state(s: Scenario) -> papo_testing::Result<()> 
     assert_eq!(visible.new, away);
     assert_eq!(sibling.authorship, Authorship::Own);
     assert_eq!(visible.authorship, Authorship::Other);
-    assert_eq!(phone.state().away(), &away);
-    assert_eq!(observer.state().user(nick.as_str()).unwrap().away(), &away);
+    assert_eq!(phone.snapshot().away(), &away);
+    assert_eq!(
+        observer.snapshot().user(nick.as_str()).unwrap().away(),
+        &away
+    );
     phone.expect_none(Event::as_away_changed).await?;
     observer.expect_none(Event::as_away_changed).await?;
     Ok(())
@@ -146,7 +149,7 @@ async fn multidevice_read_marker_fanout(s: Scenario) -> papo_testing::Result<()>
         .await?;
     assert_eq!(marker.read_until, Some(time));
     assert_eq!(
-        phone.state().read_marker(&channel),
+        phone.snapshot().read_marker(&channel),
         Some(papo::ReadMarker::ReadUntil(time))
     );
     phone
@@ -290,8 +293,8 @@ async fn multidevice_nick_shared_state(s: Scenario) -> papo_testing::Result<()> 
     phone.expect_none(Event::as_nick_changed).await?;
     tablet.expect_none(Event::as_nick_changed).await?;
     for peer in [&desktop, &phone, &tablet] {
-        assert_eq!(peer.state().nick(), old.as_str());
-        let members = peer.state();
+        assert_eq!(peer.snapshot().nick(), old.as_str());
+        let members = peer.snapshot();
         assert!(
             members
                 .channel(&channel)
@@ -437,7 +440,7 @@ async fn multidevice_typing_own_state(s: Scenario) -> papo_testing::Result<()> {
     );
     assert_eq!(
         phone
-            .state()
+            .snapshot()
             .typing(&typing.conversation)
             .filter(|typer| typer.nick() == desktop.nick().as_str())
             .count(),
