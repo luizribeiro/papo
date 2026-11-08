@@ -12,7 +12,7 @@ use crate::Scenario;
 async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect_as_account("alice").await?;
     let mut bob = s.connect("bob").await?;
-    let account = crate::scenarios::support::logged_in_account(&alice.state()).clone();
+    let account = crate::scenarios::support::logged_in_account(&alice.snapshot()).clone();
     let alice_nick = alice.nick();
     let channel = s.channel_name();
     alice.join(&channel).await?;
@@ -43,7 +43,7 @@ async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
     ));
     assert!(sent.fallbacks.is_empty());
     assert!(matches!(
-        bob.state().user(alice_nick.as_str()).unwrap().account(),
+        bob.snapshot().user(alice_nick.as_str()).unwrap().account(),
         Account::LoggedIn(observed) if observed == account.as_str()
     ));
     alice
@@ -78,7 +78,7 @@ async fn account_notify(s: Scenario) -> papo_testing::Result<()> {
     alice.join(&channel).await?;
     bob.join(&channel).await?;
     let account = alice
-        .state()
+        .snapshot()
         .name_rules()
         .expect("server advertised CASEMAPPING")
         .account(alice_nick.as_str());
@@ -102,9 +102,12 @@ async fn account_notify(s: Scenario) -> papo_testing::Result<()> {
         changed.new.name().map(papo::AccountName::as_str),
         Some(account.as_str())
     );
-    assert_eq!(alice.state().account(), &Account::LoggedIn(account.clone()));
+    assert_eq!(
+        alice.snapshot().account(),
+        &Account::LoggedIn(account.clone())
+    );
     assert!(matches!(
-        bob.state().user(alice_nick.as_str()).unwrap().account(),
+        bob.snapshot().user(alice_nick.as_str()).unwrap().account(),
         Account::LoggedIn(observed) if observed == account.as_str()
     ));
     alice.wait_for(Event::as_account_creation).await?;
@@ -131,11 +134,11 @@ async fn away_notify(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(changed.actor.nick(), alice_nick.as_str());
     assert_eq!(changed.new, Away::__away_value(Some(away.to_owned())));
     assert_eq!(
-        alice.state().away(),
+        alice.snapshot().away(),
         &Away::__away_value(Some(away.to_owned()))
     );
     assert_eq!(
-        bob.state().user(alice_nick.as_str()).unwrap().away(),
+        bob.snapshot().user(alice_nick.as_str()).unwrap().away(),
         &Away::__away_value(Some(away.to_owned()))
     );
 
@@ -144,9 +147,9 @@ async fn away_notify(s: Scenario) -> papo_testing::Result<()> {
 
     assert_eq!(returned.actor.nick(), alice_nick.as_str());
     assert_eq!(returned.new, Away::Present);
-    assert_eq!(alice.state().away(), &Away::Present);
+    assert_eq!(alice.snapshot().away(), &Away::Present);
     assert_eq!(
-        bob.state().user(alice_nick.as_str()).unwrap().away(),
+        bob.snapshot().user(alice_nick.as_str()).unwrap().away(),
         &Away::Present
     );
     bob.expect_none(Event::as_away_changed).await?;
@@ -186,7 +189,7 @@ async fn away_private_message(s: Scenario) -> papo_testing::Result<()> {
         papo_test_server::DeploymentProfile::from_env()?,
     );
     assert_eq!(
-        alice.state().away(),
+        alice.snapshot().away(),
         &Away::__away_value(Some(away.to_owned()))
     );
     assert!(sent.fallbacks.is_empty());
@@ -208,7 +211,7 @@ async fn pre_away(s: Scenario) -> papo_testing::Result<()> {
     let connected = alice.wait_for(Event::as_connected).await?;
     assert_eq!(connected.nick, alice.nick());
     assert!(connected.caps.contains_key(&papo::cap::PRE_AWAY));
-    assert_eq!(alice.state().away(), &Away::__away_value(None));
+    assert_eq!(alice.snapshot().away(), &Away::__away_value(None));
 
     let whois = bob.whois(alice.nick().as_str()).await?;
     assert_eq!(whois.nick, alice.nick().as_str());
@@ -248,11 +251,15 @@ async fn setname(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(observed.actor.nick(), alice_nick.as_str());
     assert_eq!(observed.new, realname);
     assert_eq!(
-        alice.state().user(alice_nick.as_str()).unwrap().realname(),
+        alice
+            .snapshot()
+            .user(alice_nick.as_str())
+            .unwrap()
+            .realname(),
         Some(realname)
     );
     assert_eq!(
-        bob.state().user(alice_nick.as_str()).unwrap().realname(),
+        bob.snapshot().user(alice_nick.as_str()).unwrap().realname(),
         Some(realname)
     );
     alice.expect_none(Event::as_realname_changed).await?;
@@ -307,7 +314,7 @@ async fn chghost(s: Scenario) -> papo_testing::Result<()> {
     assert!(!own.new_username.is_empty());
     assert_eq!(own.new_host, "conformance.example");
     for peer in [&alice, &bob] {
-        let state = peer.state();
+        let state = peer.snapshot();
         let user = state.user(bob_nick.as_str()).unwrap();
         assert_eq!(user.username(), Some(own.new_username.as_str()));
         assert_eq!(user.host(), Some("conformance.example"));
@@ -332,7 +339,7 @@ async fn monitor(s: Scenario) -> papo_testing::Result<()> {
     let online = alice.wait_for(Event::as_monitor_online).await?;
 
     assert_eq!(online.subject.nick(), bob_nick.as_str());
-    let state = alice.state();
+    let state = alice.snapshot();
     let monitored = state.monitor_online().collect::<Vec<_>>();
     assert_eq!(monitored.len(), 1);
     assert_eq!(monitored[0].nick(), bob_nick.as_str());
@@ -346,7 +353,7 @@ async fn monitor(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(changed.actor.nick(), bob_nick.as_str());
     assert_eq!(changed.new, Away::__away_value(Some(away.to_owned())));
     assert_eq!(
-        alice.state().user(bob_nick.as_str()).unwrap().away(),
+        alice.snapshot().user(bob_nick.as_str()).unwrap().away(),
         &Away::__away_value(Some(away.to_owned()))
     );
 
@@ -355,10 +362,10 @@ async fn monitor(s: Scenario) -> papo_testing::Result<()> {
     let offline = alice.wait_for(Event::as_monitor_offline).await?;
 
     assert_eq!(offline.subject, bob_nick.as_str());
-    assert_eq!(bob.state().nick(), new_nick.as_str());
+    assert_eq!(bob.snapshot().nick(), new_nick.as_str());
     assert!(
         alice
-            .state()
+            .snapshot()
             .monitor_online()
             .all(|user| user.nick() != &bob_nick)
     );
@@ -398,7 +405,7 @@ async fn bot_mode(s: Scenario) -> papo_testing::Result<()> {
         .find(|change| change.mode == 'B')
         .unwrap();
     assert_eq!(bot_change.action, papo::ModeAction::Add);
-    assert!(alice.state().user_modes().any(|mode_| mode_ == 'B'));
+    assert!(alice.snapshot().user_modes().any(|mode_| mode_ == 'B'));
 
     alice.join(&channel).await?;
     bob.join(&channel).await?;
@@ -452,7 +459,7 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
     let bob = s.connect("bob").await?;
     let channel = s.channel_name();
     let alice_nick = alice.nick();
-    let state = bob.state();
+    let state = bob.snapshot();
     let mapping = state.casemapping();
     let expected_bot = state.isupport().bot_mode().map(|_| false);
     let channel_name = mapping.channel(&channel);
@@ -557,7 +564,7 @@ async fn operator_visibility(s: Scenario) -> papo_testing::Result<()> {
     bob.join(&channel).await?;
 
     alice.oper(oper_name, papo::Secret::new(password)).await?;
-    assert!(alice.state().user_modes().any(|mode_| mode_ == 'o'));
+    assert!(alice.snapshot().user_modes().any(|mode_| mode_ == 'o'));
 
     let who = bob.who(alice_nick.as_str()).await?;
     let row = who
@@ -703,7 +710,7 @@ async fn whois_server(s: Scenario) -> papo_testing::Result<()> {
 async fn whois_host_certificate(s: Scenario) -> papo_testing::Result<()> {
     let alice = s.connect("alice").await?;
     let alice_nick = alice.nick();
-    let mapping = alice.state().casemapping();
+    let mapping = alice.snapshot().casemapping();
 
     // The host and certificate numerics have no richer public result type.
     let lines = alice

@@ -84,8 +84,8 @@ async fn hostile_isupport_stays_bounded(_s: Scenario) -> papo_testing::Result<()
     wire.server(format!(":offline.test PONG offline.test :{token}"))
         .await;
     ping.await.unwrap()?;
-    assert!(client.state().isupport().tokens().len() <= 1_024);
-    assert_eq!(client.state().isupport().nicklen(), Some(31));
+    assert!(client.snapshot().isupport().tokens().len() <= 1_024);
+    assert_eq!(client.snapshot().isupport().nicklen(), Some(31));
     Ok(())
 }
 
@@ -209,7 +209,7 @@ async fn unsolicited_monitor_presence_stays_inert(_s: Scenario) -> papo_testing:
     wire.server(format!(":offline.test PONG offline.test :{token}"))
         .await;
     ping.await.unwrap()?;
-    assert_eq!(client.state().monitor_online().count(), 0);
+    assert_eq!(client.snapshot().monitor_online().count(), 0);
 
     let add = tokio::spawn({
         let client = client.clone();
@@ -223,7 +223,7 @@ async fn unsolicited_monitor_presence_stays_inert(_s: Scenario) -> papo_testing:
         next_active_event(&mut events).await,
         Event::MonitorOnline(_)
     ) {}
-    assert_eq!(client.state().monitor_online().count(), 1);
+    assert_eq!(client.snapshot().monitor_online().count(), 1);
     Ok(())
 }
 

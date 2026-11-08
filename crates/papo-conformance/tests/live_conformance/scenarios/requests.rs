@@ -29,7 +29,7 @@ async fn labeled_response(s: Scenario) -> papo_testing::Result<()> {
             .is_some_and(|realname| !realname.is_empty())
     );
     assert!(whois.host.is_some());
-    assert_eq!(alice.state().nick(), &whois.nick);
+    assert_eq!(alice.snapshot().nick(), &whois.nick);
     Ok(())
 }
 
@@ -119,7 +119,7 @@ async fn client_batch_errors(s: Scenario) -> papo_testing::Result<()> {
 )]
 async fn multiline_limit_refusal(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
-    let state = alice.state();
+    let state = alice.snapshot();
     let value = state
         .caps()
         .get(&papo::cap::MULTILINE)
@@ -171,7 +171,7 @@ async fn multiline_limit_refusal(s: Scenario) -> papo_testing::Result<()> {
 )]
 async fn standard_replies(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
-    let namelen = alice.state().isupport().namelen().unwrap_or(150);
+    let namelen = alice.snapshot().isupport().namelen().unwrap_or(150);
     let invalid_realname = "r".repeat(namelen + 1);
     alice
         .send_raw(papo::Line::new("SETNAME").with_params([invalid_realname]))

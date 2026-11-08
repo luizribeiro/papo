@@ -170,7 +170,7 @@ pub(super) async fn join_seen_by(
 
 pub(super) async fn wait_for_channel(peer: &mut Peer, channel: &str) -> papo_testing::Result<()> {
     if peer
-        .state()
+        .snapshot()
         .channel(channel)
         .is_some_and(papo::Channel::is_synced)
     {

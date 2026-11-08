@@ -82,8 +82,8 @@ async fn bound_client_reference(s: Scenario) -> papo_testing::Result<()> {
     let mut second = s
         .connect_with(control.bouncer().network(&id).autojoin([&channel]))
         .await?;
-    assert_eq!(first.state().bouncer_network(), Some(&id));
-    assert_eq!(second.state().bouncer_network(), Some(&id));
+    assert_eq!(first.snapshot().bouncer_network(), Some(&id));
+    assert_eq!(second.snapshot().bouncer_network(), Some(&id));
     first.wait_for(Event::as_channel_synced).await?;
     second.wait_for(Event::as_channel_synced).await?;
 
