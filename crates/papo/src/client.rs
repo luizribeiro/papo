@@ -589,9 +589,7 @@ impl Client {
         )
     }
 
-    #[doc(hidden)]
-    #[must_use]
-    pub fn state(&self) -> Arc<State> {
+    pub(crate) fn state(&self) -> Arc<State> {
         self.snapshot()
     }
 
