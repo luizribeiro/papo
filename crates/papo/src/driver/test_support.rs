@@ -31,6 +31,14 @@ macro_rules! disconnected {
 
 pub(crate) const TEST_DEADLINE: Duration = Duration::from_secs(5);
 
+pub(super) fn queued_event(_events: &super::EventSink, event: Event) -> Event {
+    event
+}
+
+pub(super) fn queued_event_ref(event: &Event) -> &Event {
+    event
+}
+
 impl crate::Client {
     pub(crate) fn disconnected_for_test() -> Self {
         super::channels(

@@ -420,10 +420,13 @@ async fn connecting_phase_overflow_reports_one_lag_episode() {
     for attempt in 1..=34 {
         super::send_event(
             &event_sink,
-            Event::Connecting(crate::event::Connecting {
-                attempt,
-                phase: crate::ConnectPhase::Transport,
-            }),
+            super::test_support::queued_event(
+                &event_sink,
+                Event::Connecting(crate::event::Connecting {
+                    attempt,
+                    phase: crate::ConnectPhase::Transport,
+                }),
+            ),
         );
     }
 
@@ -8488,12 +8491,18 @@ fn held_events_drop_the_oldest_with_a_closed_receiver() {
         super::hold_event(
             &channels.event_sink,
             &mut pending,
-            Event::Message(crate::__testing::message(None, "#papo", text, false)),
+            super::test_support::queued_event(
+                &channels.event_sink,
+                Event::Message(crate::__testing::message(None, "#papo", text, false)),
+            ),
         );
     }
     assert_eq!(pending.len(), 1);
     assert_eq!(
-        pending.front().unwrap().as_message().unwrap().text,
+        super::test_support::queued_event_ref(pending.front().unwrap())
+            .as_message()
+            .unwrap()
+            .text,
         "second deployment"
     );
     let dropped = channels.event_sink.dropped.lock().unwrap();
@@ -8503,14 +8512,18 @@ fn held_events_drop_the_oldest_with_a_closed_receiver() {
 
 #[test]
 fn lagged_message_gap_list_stops_at_32_conversations() {
+    let channels = super::channels(1, &Session::new(config()));
     let mut dropped = super::DroppedEvents::default();
     for index in 0..33 {
-        dropped.record(&Event::Message(crate::__testing::message(
-            None,
-            format!("#deployment-{index}"),
-            format!("deployment update {index}"),
-            false,
-        )));
+        dropped.record(&super::test_support::queued_event(
+            &channels.event_sink,
+            Event::Message(crate::__testing::message(
+                None,
+                format!("#deployment-{index}"),
+                format!("deployment update {index}"),
+                false,
+            )),
+        ));
     }
 
     assert_eq!(dropped.count, 33);
@@ -8533,21 +8546,27 @@ fn event_overflow_discards_state_before_messages() {
     channels
         .event_sink
         .regular
-        .try_send(Event::Message(crate::__testing::message(
-            None,
-            "#papo",
-            "release candidate ready",
-            false,
-        )))
+        .try_send(super::test_support::queued_event(
+            &channels.event_sink,
+            Event::Message(crate::__testing::message(
+                None,
+                "#papo",
+                "release candidate ready",
+                false,
+            )),
+        ))
         .unwrap();
     channels
         .event_sink
         .regular
-        .try_send(Event::Joined(crate::__testing::joined(
-            test_channel("#papo"),
-            test_nick("alice"),
-            false,
-        )))
+        .try_send(super::test_support::queued_event(
+            &channels.event_sink,
+            Event::Joined(crate::__testing::joined(
+                test_channel("#papo"),
+                test_nick("alice"),
+                false,
+            )),
+        ))
         .unwrap();
 
     let discarded = channels
@@ -8555,7 +8574,10 @@ fn event_overflow_discards_state_before_messages() {
         .receiver
         .discard_for_overflow(&channels.event_sink.regular)
         .unwrap();
-    assert!(matches!(discarded, Event::Joined(_)));
+    assert!(matches!(
+        super::test_support::queued_event_ref(&discarded),
+        Event::Joined(_)
+    ));
     assert_eq!(channels.event_sink.receiver.len(), 1);
 }
 
