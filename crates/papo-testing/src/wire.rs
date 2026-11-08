@@ -222,7 +222,7 @@ mod tests {
 
     async fn next_connected(events: &mut papo::Events) -> papo::event::Connected {
         loop {
-            match events.next_with_state().await.map(|item| item.event) {
+            match events.next().await.map(|item| item.event) {
                 Some(papo::Event::Connected(connected)) => return connected,
                 Some(_) => {}
                 None => panic!("driver stopped before connecting"),
@@ -232,7 +232,7 @@ mod tests {
 
     async fn next_disconnected(events: &mut papo::Events) -> papo::Disconnected {
         loop {
-            match events.next_with_state().await.map(|item| item.event) {
+            match events.next().await.map(|item| item.event) {
                 Some(papo::Event::Disconnected(disconnected)) => return disconnected,
                 Some(_) => {}
                 None => panic!("driver stopped before disconnecting"),
@@ -274,13 +274,7 @@ mod tests {
         _ = next_connected(&mut events).await;
 
         drop(wire);
-        assert!(
-            events
-                .next_with_state()
-                .await
-                .map(|item| item.event)
-                .is_none()
-        );
+        assert!(events.next().await.map(|item| item.event).is_none());
     }
 
     #[tokio::test(start_paused = true)]
@@ -295,7 +289,7 @@ mod tests {
         )
         .await;
 
-        while let Some(event) = events.next_with_state().await.map(|item| item.event) {
+        while let Some(event) = events.next().await.map(|item| item.event) {
             let Some(message) = event.as_message() else {
                 continue;
             };

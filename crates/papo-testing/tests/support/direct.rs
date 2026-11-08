@@ -2,7 +2,7 @@ use papo::Events;
 use papo_testing::Wire;
 
 pub async fn next_active_event(events: &mut Events) -> papo::Event {
-    match events.next_with_state().await.map(|item| item.event) {
+    match events.next().await.map(|item| item.event) {
         Some(papo::Event::Disconnected(disconnected)) => {
             panic!("disconnected while waiting for an event: {disconnected}")
         }

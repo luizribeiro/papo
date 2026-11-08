@@ -39,7 +39,7 @@ async fn pinned_direct_open_blocks_identity_changes() {
     wire.server(":alice!~alice@cloak.example ACCOUNT replacement-account")
         .await;
     assert!(matches!(
-        events.next_with_state().await.map(|item| item.event),
+        events.next().await.map(|item| item.event),
         Some(Event::AccountChanged(_))
     ));
     let error = client.direct_pinned("alice", &stored).await.unwrap_err();
@@ -61,7 +61,7 @@ async fn pinned_direct_open_blocks_identity_changes() {
     let replacement = accepted.peer_key().clone();
     wire.server(":alice!~alice@cloak.example ACCOUNT *").await;
     assert!(matches!(
-        events.next_with_state().await.map(|item| item.event),
+        events.next().await.map(|item| item.event),
         Some(Event::AccountChanged(_))
     ));
     let Error::PeerPinMismatch(unverified) = client

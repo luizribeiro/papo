@@ -21,7 +21,7 @@ async fn assert_unavailable(
     wire.server(":offline.test CAP * LS :").await;
 
     loop {
-        match events.next_with_state().await.map(|item| item.event) {
+        match events.next().await.map(|item| item.event) {
             Some(papo::Event::Disconnected(disconnected)) => {
                 let DisconnectCause::Connect(error) = &disconnected.cause else {
                     panic!("unexpected disconnect: {disconnected:?}");
