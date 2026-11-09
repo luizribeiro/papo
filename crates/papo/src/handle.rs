@@ -1,7 +1,90 @@
 use std::{
     hash::{Hash, Hasher},
-    sync::{Arc, RwLock},
+    sync::{Arc, OnceLock, RwLock},
 };
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+enum UserIdentity {
+    Expected(crate::Origin, String),
+    Proven(papo_core::ReplyToken),
+}
+
+/// A live identity for one IRC user.
+#[derive(Clone)]
+pub struct UserHandle(Arc<UserInner>);
+
+struct UserInner {
+    identity: UserIdentity,
+    nick: crate::Nick,
+    proof: OnceLock<papo_core::Proven>,
+    state: Arc<RwLock<Arc<crate::State>>>,
+}
+
+impl UserHandle {
+    pub(crate) fn new(
+        client: &crate::Client,
+        nick: crate::Nick,
+        proof: Option<papo_core::Proven>,
+    ) -> Self {
+        let identity = proof
+            .as_ref()
+            .and_then(papo_core::Proven::__recipient)
+            .map_or_else(
+                || UserIdentity::Expected(nick.origin(), nick.key().to_owned()),
+                |recipient| UserIdentity::Proven(recipient.__token()),
+            );
+        let stored = OnceLock::new();
+        if let Some(proof) = proof {
+            stored.set(proof).expect("a new handle has no proof");
+        }
+        Self(Arc::new(UserInner {
+            identity,
+            nick,
+            proof: stored,
+            state: Arc::clone(&client.state),
+        }))
+    }
+
+    pub(crate) fn proof(&self) -> Option<&papo_core::Proven> {
+        self.0.proof.get()
+    }
+
+    /// Returns the current nickname, or the last known nickname after departure.
+    #[must_use]
+    pub fn nick(&self) -> crate::Nick {
+        let state = self
+            .0
+            .state
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        self.proof()
+            .and_then(|proof| state.core.__resolve_proven(proof).ok())
+            .unwrap_or_else(|| self.0.nick.clone())
+    }
+}
+
+impl std::fmt::Debug for UserHandle {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("UserHandle")
+            .field("nick", &self.nick())
+            .finish_non_exhaustive()
+    }
+}
+
+impl PartialEq for UserHandle {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.identity == other.0.identity
+    }
+}
+
+impl Eq for UserHandle {}
+
+impl Hash for UserHandle {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.identity.hash(state);
+    }
+}
 
 /// A live identity for one joined-channel lifecycle.
 #[derive(Clone)]
@@ -78,6 +161,37 @@ impl Hash for ChannelHandle {
 }
 
 impl crate::Client {
+    /// Creates a user handle without sending an IRC command.
+    /// # Errors
+    /// Returns [`crate::InvalidInput`] when name rules are unknown or reject the nickname.
+    pub fn query(&self, nick: impl crate::AsNick) -> Result<UserHandle, crate::InvalidInput> {
+        let parts = crate::AsNick::__parts(&nick).into_owned();
+        let text = self
+            .resolve(crate::target::Role::Nick("query: nick"), parts)
+            .map_err(|error| match error {
+                crate::Error::InvalidInput(error) => error,
+                crate::Error::TargetGone => crate::InvalidInput::ForeignReference,
+                _ => unreachable!("local nickname resolution only returns input errors"),
+            })?;
+        let state = self.state();
+        let nick = state
+            .known_name_rules()
+            .ok_or(crate::InvalidInput::NameRulesUnknown)?
+            .nick(text);
+        let account = state
+            .user(&nick)
+            .map_or(crate::Account::Unknown, |user| user.account().clone());
+        let proof = state
+            .capture_recipient(&nick, account.clone())
+            .and_then(|recipient| {
+                state
+                    .core
+                    .__prove_event_user(recipient.__token(), nick.clone(), account.clone())
+                    .ok()
+            });
+        Ok(UserHandle::new(self, nick, proof))
+    }
+
     /// Creates a channel handle without sending an IRC command.
     /// # Errors
     /// Returns [`crate::InvalidInput`] when name rules are unknown or reject the channel.
@@ -136,15 +250,17 @@ mod tests {
     use papo_core::{Config, Session};
 
     #[test]
-    fn channel_handle_clones_keep_the_same_identity() {
+    fn query_and_channel_send_nothing() {
         let mut session = Session::new(Config::default().nick("papo"));
         session.handle_line(
             crate::rt::now_mono(),
             b":ergo.test 005 papo CASEMAPPING=rfc1459 CHANTYPES=# :are supported",
         );
         let (client, mut commands) = crate::driver::test_support::client_with_commands(&session);
+        let user = client.query("alice").unwrap();
         let handle = client.channel("#release").unwrap();
 
+        assert_eq!(user.nick(), "alice");
         assert_eq!(handle, handle.clone());
         assert_eq!(handle.name(), "#release");
         assert!(commands.try_recv().is_err());
