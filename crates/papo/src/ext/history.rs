@@ -806,7 +806,10 @@ pub enum HistoryReason {
 /// ```
 /// # fn oldest(page: &papo::HistoryPage) {
 /// let oldest = page.chat_messages().min_by_key(|message| {
-///     message.server_time.unwrap_or(message.received_at)
+///     message
+///         .server_time
+///         .map(papo::ServerTime::to_system_time)
+///         .unwrap_or(message.received_at)
 /// });
 /// # let _ = oldest;
 /// # }
