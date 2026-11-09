@@ -38,6 +38,23 @@ fn peer_key_eq_and_hash_ignore_proof_upgrade() {
 }
 
 #[test]
+fn peer_key_round_trips_scope_nick_and_proof() {
+    let keys = [
+        parse(
+            "server=bouncer.example;bouncer-login=emily%40example;netid=libera;upstream=irc.libera.chat;nick-casemap=rfc1459;nick=%5Bemily%5D;proof=account;account-casemap=rfc1459;account=emily;id=account-42",
+        ),
+        parse("connection=Origin%2842%29;nick-casemap=ascii;nick=guest-4821;proof=unverified"),
+    ];
+
+    for key in keys {
+        let encoded = key.to_string();
+        let decoded = encoded.parse::<PeerKey>().unwrap();
+        assert_eq!(decoded.to_string(), encoded);
+        assert_eq!(decoded.is_verified(), key.is_verified());
+    }
+}
+
+#[test]
 fn peer_key_changes_for_network_or_folded_nick() {
     let alice = network_key("irc.example", "Alice", "proof=unverified");
     let folded_alice = network_key("irc.example", "alice", "proof=unverified");

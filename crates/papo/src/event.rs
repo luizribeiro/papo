@@ -5242,7 +5242,9 @@ mod tests {
         let actor = &event.as_message().unwrap().actor;
         assert_eq!(
             actor.peer_key().and_then(crate::PeerKey::as_verified_str),
-            Some("papo-pin:1;server=irc.example;casemap=rfc1459;account=fresh-account")
+            Some(
+                "papo-peer:1;server=irc.example;nick-casemap=rfc1459;nick=alice;proof=account;account-casemap=rfc1459;account=fresh-account"
+            )
         );
     }
 
@@ -5655,7 +5657,9 @@ mod tests {
         changed.actor.set_peer_key(pin);
         assert_eq!(
             changed.peer_key().and_then(crate::PeerKey::as_verified_str),
-            Some("papo-pin:1;server=irc.example;casemap=rfc1459;account=emily-account")
+            Some(
+                "papo-peer:1;server=irc.example;nick-casemap=rfc1459;nick=emily;proof=account;account-casemap=rfc1459;account=emily-account"
+            )
         );
     }
 

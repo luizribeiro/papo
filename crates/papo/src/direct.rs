@@ -106,7 +106,7 @@ impl DirectRef {
         &self.0.recipient
     }
 
-    /// Returns the current identity pin for this direct conversation.
+    /// Returns the current saved key for this direct conversation.
     ///
     /// A Continuity pin captured before account proof upgrades to an Account pin once papo proves
     /// the account for the same uninterrupted user. Nicknames remain the conversation boundary
@@ -992,10 +992,8 @@ mod tests {
         let alice_name_pin = alice.peer_key().clone();
         let bob_name_pin = bob.peer_key().clone();
         let carol_name_pin = carol.peer_key().clone();
-        assert_eq!(
-            alice_name_pin.as_verified_str(),
-            Some("papo-pin:1;server=irc.example;casemap=rfc1459;account=alice-account")
-        );
+        let name_encoding = "papo-peer:1;server=irc.example;nick-casemap=rfc1459;nick=alice;proof=account;account-casemap=rfc1459;account=alice-account";
+        assert_eq!(alice_name_pin.as_verified_str(), Some(name_encoding));
         assert!(matches!(
             alice_name_pin.check(alice.peer_key()),
             crate::PeerKeyCheck::Match
@@ -1010,7 +1008,7 @@ mod tests {
         assert_eq!(
             alice_id_pin.as_verified_str(),
             Some(
-                "papo-pin:1;server=irc.example;casemap=rfc1459;account=alice-account;id=AAAAAAAAB"
+                "papo-peer:1;server=irc.example;nick-casemap=rfc1459;nick=alice;proof=account;account-casemap=rfc1459;account=alice-account;id=AAAAAAAAB"
             )
         );
         assert!(matches!(
@@ -1077,7 +1075,7 @@ mod tests {
             crate::peer_key::PeerKey::historical(
                 None,
                 &Casemapping::Rfc1459.nick("guest-4821"),
-                &Account::LoggedOut,
+                &Account::LoggedOut
             )
             .is_none()
         );
@@ -1093,13 +1091,11 @@ mod tests {
         )
         .unwrap();
         let encoded = key.as_verified_str().unwrap();
-        let parsed = "papo-peer:1;server=irc.example%3A%F0%9F%8C%90;nick-casemap=rfc1459;nick=alice%7Bops%7D;proof=account;account-casemap=rfc1459;account=alice%7Bops%7D"
-            .parse::<crate::peer_key::PeerKey>()
-            .unwrap();
+        let parsed = encoded.parse::<crate::peer_key::PeerKey>().unwrap();
 
         assert_eq!(
             encoded,
-            "papo-pin:1;server=irc.example%3A%F0%9F%8C%90;casemap=rfc1459;account=alice%7Bops%7D"
+            "papo-peer:1;server=irc.example%3A%F0%9F%8C%90;nick-casemap=rfc1459;nick=alice%7Bops%7D;proof=account;account-casemap=rfc1459;account=alice%7Bops%7D"
         );
         assert!(matches!(key.check(&parsed), crate::PeerKeyCheck::Match));
         assert_eq!(parsed.as_verified_str(), Some(encoded));
@@ -1112,7 +1108,9 @@ mod tests {
             .unwrap();
         assert_eq!(
             key.as_verified_str(),
-            Some("papo-pin:1;server=irc.example;casemap=rfc1459;account=alice%7Bops%7D")
+            Some(
+                "papo-peer:1;server=irc.example;nick-casemap=rfc1459;nick=alice%7Bops%7D;proof=account;account-casemap=rfc1459;account=alice%7Bops%7D"
+            )
         );
     }
 
@@ -1123,18 +1121,19 @@ mod tests {
         for value in [
             "",
             "papo-peer-v1:rfc1459:4:Ergoalice",
-            "papo-pin:2;server=irc.example;casemap=rfc1459;account=alice",
-            "papo-pin:1;server=irc.example;account=alice;casemap=rfc1459",
-            "papo-pin:1;server=irc.example;casemap=unknown;account=alice",
-            "papo-pin:1;server=;casemap=rfc1459;account=alice",
-            "papo-pin:1;server=irc.example;casemap=rfc1459;account=",
-            "papo-pin:1;server=irc.example;casemap=rfc1459;account=ali%GGce",
-            "papo-pin:1;server=irc.example;casemap=rfc1459;account=alice;id=",
-            "papo-pin:1;server=irc.example;netid=libera;casemap=rfc1459;account=alice",
-            "papo-pin:1;server=irc.example;bouncer-login=;netid=libera;upstream=irc.libera.chat;casemap=rfc1459;account=alice",
-            "papo-pin:1;server=irc.example;bouncer-login=alice;netid=;upstream=irc.libera.chat;casemap=rfc1459;account=alice",
-            "papo-pin:1;server=irc.example;bouncer-login=alice;netid=libera;upstream=;casemap=rfc1459;account=alice",
-            "papo-pin:1;server=irc.example;casemap=rfc1459;account=alice;extra=value",
+            "papo-peer:2;server=irc.example;nick-casemap=rfc1459;nick=alice;proof=unverified",
+            "papo-peer:1;server=irc.example;nick=alice;nick-casemap=rfc1459;proof=unverified",
+            "papo-peer:1;server=irc.example;nick-casemap=unknown;nick=alice;proof=unverified",
+            "papo-peer:1;server=;nick-casemap=rfc1459;nick=alice;proof=unverified",
+            "papo-peer:1;connection=;nick-casemap=rfc1459;nick=alice;proof=unverified",
+            "papo-peer:1;server=irc.example;nick-casemap=rfc1459;nick=;proof=unverified",
+            "papo-peer:1;server=irc.example;nick-casemap=rfc1459;nick=ali%GGce;proof=unverified",
+            "papo-peer:1;server=irc.example;nick-casemap=rfc1459;nick=alice;proof=account;account-casemap=rfc1459;account=alice;id=",
+            "papo-peer:1;server=irc.example;netid=libera;nick-casemap=rfc1459;nick=alice;proof=unverified",
+            "papo-peer:1;server=irc.example;bouncer-login=;netid=libera;upstream=irc.libera.chat;nick-casemap=rfc1459;nick=alice;proof=unverified",
+            "papo-peer:1;server=irc.example;bouncer-login=alice;netid=;upstream=irc.libera.chat;nick-casemap=rfc1459;nick=alice;proof=unverified",
+            "papo-peer:1;server=irc.example;bouncer-login=alice;netid=libera;upstream=;nick-casemap=rfc1459;nick=alice;proof=unverified",
+            "papo-peer:1;server=irc.example;nick-casemap=rfc1459;nick=alice;proof=unverified;extra=value",
         ] {
             assert!(
                 matches!(value.parse::<PeerKey>(), Err(InvalidPeerKey)),

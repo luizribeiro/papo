@@ -6,27 +6,10 @@ use super::{
     PeerThread,
 };
 
-const PREFIX: &str = "papo-pin:1;";
+const PREFIX: &str = "papo-peer:1;";
 
 #[cfg(test)]
 mod tests;
-
-pub(super) fn encode(
-    scope: &PeerScope,
-    casemapping: crate::Casemapping,
-    account: &str,
-    id: Option<&str>,
-) -> AccountPin {
-    let mut pin = AccountPin {
-        scope: scope.clone(),
-        casemapping,
-        account: account.to_owned(),
-        id: id.map(str::to_owned),
-        encoded: String::new(),
-    };
-    pin.encoded = render(&pin);
-    pin
-}
 
 pub(super) fn parse(value: &str) -> Result<AccountPin, InvalidPeerKey> {
     value.strip_prefix(PREFIX).ok_or(InvalidPeerKey)?;
@@ -152,7 +135,7 @@ fn parse_fields(value: &str) -> Result<AccountPin, InvalidPeerKey> {
         id: id.cloned(),
         encoded: String::new(),
     };
-    pin.encoded = render(&pin);
+    pin.encoded = render_legacy(&pin);
     Ok(pin)
 }
 
@@ -212,7 +195,7 @@ fn parse_account(
     })
 }
 
-fn render(pin: &AccountPin) -> String {
+fn render_legacy(pin: &AccountPin) -> String {
     use std::fmt::Write as _;
     let mut encoded = format!("{PREFIX}server={}", percent_encode(&pin.scope.server));
     if let Some(bouncer) = &pin.scope.bouncer {
@@ -238,19 +221,9 @@ fn render(pin: &AccountPin) -> String {
     encoded
 }
 
-#[expect(dead_code, reason = "used when peer keys switch formats")]
-pub(super) fn render_peer(thread: &PeerThread, proof: &PeerProof) -> String {
+pub(super) fn render(thread: &PeerThread, proof: &PeerProof) -> String {
     use std::fmt::Write as _;
-    if let (KeyScope::Network(scope), PeerProof::Account(account, _)) = (&thread.scope, proof) {
-        return encode(
-            scope,
-            account.casemapping,
-            &account.account,
-            account.id.as_deref(),
-        )
-        .encoded;
-    }
-    let mut encoded = String::from("papo-peer:1;");
+    let mut encoded = String::from(PREFIX);
     match &thread.scope {
         KeyScope::Network(scope) => {
             write!(encoded, "server={}", percent_encode(&scope.server))

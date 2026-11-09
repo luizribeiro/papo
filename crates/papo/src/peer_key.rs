@@ -233,7 +233,7 @@ impl PeerKey {
     }
 
     fn new(thread: PeerThread, proof: PeerProof) -> Self {
-        let encoded = encoding::render_peer(&thread, &proof);
+        let encoded = encoding::render(&thread, &proof);
         Self {
             thread,
             proof,

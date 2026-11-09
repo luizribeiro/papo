@@ -1400,7 +1400,9 @@ mod tests {
                 .actor
                 .peer_key()
                 .and_then(crate::PeerKey::as_verified_str),
-            Some("papo-pin:1;server=irc.example;casemap=rfc1459;account=alice")
+            Some(
+                "papo-peer:1;server=irc.example;nick-casemap=rfc1459;nick=alice;proof=account;account-casemap=rfc1459;account=alice"
+            )
         );
     }
 
