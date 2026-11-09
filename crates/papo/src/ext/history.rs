@@ -42,6 +42,18 @@ pub(crate) fn history_item(
                 received_at,
             )
         }
+        papo_core::HistoryItem::Incomplete(item) => {
+            let authorship = crate::Authorship::from_core(item.authorship);
+            let raw = item.line.clone();
+            let event = crate::event_impl::historical_message_event(
+                item.line,
+                authorship,
+                history_conversation,
+                client,
+                received_at,
+            );
+            crate::event_impl::mark_incomplete(event).unwrap_or_else(|| other(raw, received_at))
+        }
         papo_core::HistoryItem::Reacted(item) => typed_or_raw(&item.line, received_at, |message| {
             reaction(
                 message,
@@ -747,10 +759,11 @@ impl HistoryPage {
         crate::message_ref::conversation_origin(&self.conversation)
     }
 
-    /// Iterates over `PRIVMSG` chat messages, including own messages, in item order.
+    /// Iterates over complete `PRIVMSG` chat messages, including own messages, in item order.
     ///
     /// A user interface should render [`HistoryPage::items`] so notices and activity are not
-    /// dropped. This iterator remains in server delivery order.
+    /// dropped. Incomplete multiline items are available only through `items`. This iterator
+    /// remains in server delivery order.
     pub fn chat_messages(&self) -> impl Iterator<Item = &Message> {
         self.items.iter().filter_map(|item| match item {
             Event::Message(message) => Some(message),
@@ -1325,6 +1338,30 @@ mod tests {
             if id == "RfcBTzyxY120004"));
         assert!(matches!(cursor.after, Some(MsgRef::Msgid(id))
             if id == "RfcBTzyxY120009"));
+    }
+
+    #[test]
+    fn incomplete_history_item_stays_out_of_complete_chat_messages() {
+        let page = HistoryPage {
+            conversation: crate::Conversation::Channel(Casemapping::default().channel("#papo")),
+            items: vec![history_item(
+                papo_core::HistoryItem::Incomplete(core_item(
+                    ":alice!~a@cloak.example PRIVMSG #papo :unfinished deployment",
+                )),
+                None,
+                &crate::Client::disconnected_for_test(),
+                UNIX_EPOCH,
+            )],
+            reason: HistoryReason::Replay,
+            end: false,
+        };
+
+        assert!(matches!(
+            page.items.as_slice(),
+            [PageEvent::Incomplete(crate::Incomplete::Message(message))]
+                if message.text == "unfinished deployment"
+        ));
+        assert_eq!(page.chat_messages().count(), 0);
     }
 
     #[test]

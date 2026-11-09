@@ -70,6 +70,9 @@ identifies the new epoch, and `Client::is_current` reports whether a snapshot be
 `papo-bot` command parsing now takes the event snapshot, preventing bot filtering and mention
 matching from observing a later event.
 
+Cut-off `draft/multiline` messages and notices now arrive as `Event::Incomplete`; complete
+`Event::Message` and `Event::Notice` values always include the batch's closing proof.
+
 ### Migration from the 2026-10-24 API
 
 This section covers breaking changes since `46c832d`. Papo had not been released at that point,
