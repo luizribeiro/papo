@@ -1,4 +1,7 @@
-use super::{AccountPin, AccountProof, BouncerScope, InvalidPeerKey, KeyScope, PeerScope};
+use super::{
+    AccountPin, AccountProof, BouncerScope, InvalidPeerKey, KeyScope, PeerProof, PeerScope,
+    PeerThread,
+};
 
 const PREFIX: &str = "papo-pin:1;";
 
@@ -25,6 +28,65 @@ pub(super) fn encode(
 pub(super) fn parse(value: &str) -> Result<AccountPin, InvalidPeerKey> {
     value.strip_prefix(PREFIX).ok_or(InvalidPeerKey)?;
     parse_fields(value)
+}
+
+#[expect(dead_code, reason = "used when peer keys switch formats")]
+pub(super) fn parse_peer(value: &str) -> Result<(PeerThread, PeerProof), InvalidPeerKey> {
+    let value = value.strip_prefix("papo-peer:1;").ok_or(InvalidPeerKey)?;
+    let fields = value
+        .split(';')
+        .map(|field| {
+            let (name, value) = field.split_once('=').ok_or(InvalidPeerKey)?;
+            Ok((name, percent_decode(value)?))
+        })
+        .collect::<Result<Vec<_>, InvalidPeerKey>>()?;
+    let names = fields.iter().map(|field| field.0).collect::<Vec<_>>();
+    let (scope, offset) = parse_scope(&fields, &names)?;
+    let remaining = &names[offset..];
+    let proof = match remaining {
+        ["nick-casemap", "nick", "proof"] if fields[offset + 2].1 == "unverified" => {
+            PeerProof::Unverified(None)
+        }
+        [
+            "nick-casemap",
+            "nick",
+            "proof",
+            "account-casemap",
+            "account",
+        ] if fields[offset + 2].1 == "account" => {
+            PeerProof::Account(Box::new(parse_account(&fields, offset + 3, false)?), None)
+        }
+        [
+            "nick-casemap",
+            "nick",
+            "proof",
+            "account-casemap",
+            "account",
+            "id",
+        ] if fields[offset + 2].1 == "account" => {
+            PeerProof::Account(Box::new(parse_account(&fields, offset + 3, true)?), None)
+        }
+        _ => return Err(InvalidPeerKey),
+    };
+    if matches!(scope, KeyScope::Connection(_)) && matches!(proof, PeerProof::Account(_, _)) {
+        return Err(InvalidPeerKey);
+    }
+    let casemapping = fields[offset]
+        .1
+        .parse::<crate::Casemapping>()
+        .map_err(|_| InvalidPeerKey)?;
+    let nick = casemapping.nick(&fields[offset + 1].1);
+    if nick.key().is_empty() {
+        return Err(InvalidPeerKey);
+    }
+    Ok((
+        PeerThread {
+            scope,
+            casemapping,
+            nick: nick.key().to_owned(),
+        },
+        proof,
+    ))
 }
 
 fn parse_fields(value: &str) -> Result<AccountPin, InvalidPeerKey> {
@@ -169,6 +231,56 @@ fn render(pin: &AccountPin) -> String {
     .expect("writing to a string cannot fail");
     if let Some(id) = &pin.id {
         write!(encoded, ";id={}", percent_encode(id)).expect("writing to a string cannot fail");
+    }
+    encoded
+}
+
+#[expect(dead_code, reason = "used when peer keys switch formats")]
+pub(super) fn render_peer(thread: &PeerThread, proof: &PeerProof) -> String {
+    use std::fmt::Write as _;
+    let mut encoded = String::from("papo-peer:1;");
+    match &thread.scope {
+        KeyScope::Network(scope) => {
+            write!(encoded, "server={}", percent_encode(&scope.server))
+                .expect("writing to a string cannot fail");
+            if let Some(bouncer) = &scope.bouncer {
+                write!(
+                    encoded,
+                    ";bouncer-login={};netid={};upstream={}",
+                    percent_encode(&bouncer.login),
+                    percent_encode(&bouncer.network),
+                    percent_encode(&bouncer.upstream)
+                )
+                .expect("writing to a string cannot fail");
+            }
+        }
+        KeyScope::Connection(connection) => {
+            write!(encoded, "connection={}", percent_encode(connection))
+                .expect("writing to a string cannot fail");
+        }
+    }
+    write!(
+        encoded,
+        ";nick-casemap={};nick={}",
+        thread.casemapping.as_str(),
+        percent_encode(&thread.nick)
+    )
+    .expect("writing to a string cannot fail");
+    match proof {
+        PeerProof::Unverified(_) => encoded.push_str(";proof=unverified"),
+        PeerProof::Account(account, _) => {
+            write!(
+                encoded,
+                ";proof=account;account-casemap={};account={}",
+                account.casemapping.as_str(),
+                percent_encode(&account.account)
+            )
+            .expect("writing to a string cannot fail");
+            if let Some(id) = &account.id {
+                write!(encoded, ";id={}", percent_encode(id))
+                    .expect("writing to a string cannot fail");
+            }
+        }
     }
     encoded
 }

@@ -35,7 +35,6 @@ pub(super) enum KeyScope {
 }
 
 #[derive(Clone, Debug)]
-#[expect(dead_code, reason = "used by the peer-key migration")]
 pub(super) struct PeerThread {
     scope: KeyScope,
     casemapping: crate::Casemapping,
@@ -50,7 +49,6 @@ pub(super) struct AccountProof {
 }
 
 #[derive(Clone, Eq, PartialEq)]
-#[expect(dead_code, reason = "used by the peer-key migration")]
 enum PeerProof {
     Account(Box<AccountProof>, Option<papo_core::PeerToken>),
     Unverified(Option<papo_core::PeerToken>),
