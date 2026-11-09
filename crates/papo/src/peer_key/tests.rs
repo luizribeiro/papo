@@ -1,6 +1,9 @@
 use std::{collections::hash_map::DefaultHasher, hash::Hash as _, hash::Hasher as _};
 
-use super::{PeerKey, PeerKeyCheck, PeerKeyMismatch};
+use super::{PeerKey, PeerKeyCheck, PeerKeyMismatch, PeerProof, PeerScope};
+
+use crate::{Account, Casemapping};
+use papo_core::{Config, Session};
 
 fn parse(fields: &str) -> PeerKey {
     format!("papo-peer:1;{fields}").parse().unwrap()
@@ -16,6 +19,17 @@ fn hash(key: &PeerKey) -> u64 {
     let mut hasher = DefaultHasher::new();
     key.hash(&mut hasher);
     hasher.finish()
+}
+
+fn joined_alice() -> Session {
+    let now = crate::rt::now_mono();
+    let mut session = Session::new(Config::default().nick("papo"));
+    session.handle_line(now, b":papo!papo@localhost JOIN #release");
+    session.handle_line(
+        now,
+        b":[Alice]!alice@staff.ergo.chat JOIN #release * :Alice Example",
+    );
+    session
 }
 
 #[test]
@@ -132,5 +146,105 @@ fn account_proof_checks_every_upgrade_and_mismatch() {
     assert!(matches!(
         identified.check(&replacement),
         PeerKeyCheck::Mismatch(PeerKeyMismatch::DifferentAccount)
+    ));
+}
+
+#[test]
+fn account_proof_does_not_retain_an_unknown_continuity_token() {
+    let session = Session::new(Config::default().nick("papo"));
+    let nick = Casemapping::Rfc1459.nick("[Alice]");
+    let account = Account::LoggedIn(Casemapping::Rfc1459.account("alice"));
+    let key = PeerKey::live(
+        Some(&PeerScope::server("irc.ergo.chat")),
+        &nick,
+        &account,
+        None,
+        session.state().__peer_token_for("[Alice]"),
+    )
+    .unwrap();
+
+    assert!(matches!(key.proof, PeerProof::Account(_, None)));
+}
+
+#[test]
+fn mismatched_threads_need_durable_proof_on_both_sides() {
+    let account = network_key(
+        "irc.ergo.chat",
+        "%5BAlice%5D",
+        "proof=account;account-casemap=rfc1459;account=alice",
+    );
+    let continuity = network_key("irc.ergo.chat", "bob", "proof=unverified");
+
+    assert!(matches!(
+        account.check(&continuity),
+        PeerKeyCheck::Mismatch(PeerKeyMismatch::CannotVerify)
+    ));
+}
+
+#[test]
+fn stale_continuity_does_not_match_a_reused_nickname() {
+    let now = crate::rt::now_mono();
+    let mut session = joined_alice();
+    let scope = PeerScope::server("irc.ergo.chat");
+    let nick = Casemapping::Rfc1459.nick("[Alice]");
+    let stored = PeerKey::live(
+        Some(&scope),
+        &nick,
+        &Account::Unknown,
+        None,
+        session.state().__peer_token_for("[Alice]"),
+    )
+    .unwrap();
+    session.handle_line(now, b":[Alice]!alice@staff.ergo.chat QUIT :Changing hosts");
+    session.handle_line(
+        now,
+        b":[Alice]!stranger@users.ergo.chat JOIN #release * :Mallory Example",
+    );
+    let current = PeerKey::live(
+        Some(&scope),
+        &nick,
+        &Account::Unknown,
+        None,
+        session.state().__peer_token_for("[Alice]"),
+    )
+    .unwrap();
+
+    assert!(matches!(
+        stored.check(&current),
+        PeerKeyCheck::Mismatch(PeerKeyMismatch::CannotVerify)
+    ));
+}
+
+#[test]
+fn stale_continuity_does_not_upgrade_a_strangers_account() {
+    let now = crate::rt::now_mono();
+    let mut session = joined_alice();
+    let scope = PeerScope::server("irc.ergo.chat");
+    let nick = Casemapping::Rfc1459.nick("[Alice]");
+    let stored = PeerKey::live(
+        Some(&scope),
+        &nick,
+        &Account::Unknown,
+        None,
+        session.state().__peer_token_for("[Alice]"),
+    )
+    .unwrap();
+    session.handle_line(now, b":[Alice]!alice@staff.ergo.chat QUIT :Changing hosts");
+    session.handle_line(
+        now,
+        b":[Alice]!stranger@users.ergo.chat JOIN #release mallory :Mallory Example",
+    );
+    let current = PeerKey::live(
+        Some(&scope),
+        &nick,
+        &Account::LoggedIn(Casemapping::Rfc1459.account("mallory")),
+        None,
+        session.state().__peer_token_for("[Alice]"),
+    )
+    .unwrap();
+
+    assert!(matches!(
+        stored.check(&current),
+        PeerKeyCheck::Mismatch(PeerKeyMismatch::CannotVerify)
     ));
 }
