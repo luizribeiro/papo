@@ -455,6 +455,14 @@ impl Client {
         argument: &'static str,
         parts: crate::target::sealed::Parts<'static>,
     ) -> Result<ResolvedSend, Error> {
+        if let Some(handle) = parts.user.as_ref() {
+            let proven = crate::identity::prove(self, handle).await?;
+            return Ok(ResolvedSend {
+                text: proven.nick.to_string(),
+                guard: Some(papo_core::TargetGuard::Proven(proven.core)),
+                _lease: None,
+            });
+        }
         let recipient_input = parts.recipient.clone();
         let snapshot = self.state();
         let mut recipient = recipient_input

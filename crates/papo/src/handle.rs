@@ -16,6 +16,7 @@ pub struct UserHandle(Arc<UserInner>);
 struct UserInner {
     identity: UserIdentity,
     nick: crate::Nick,
+    account: crate::Account,
     proof: OnceLock<papo_core::Proven>,
     state: Arc<RwLock<Arc<crate::State>>>,
 }
@@ -24,6 +25,7 @@ impl UserHandle {
     pub(crate) fn new(
         client: &crate::Client,
         nick: crate::Nick,
+        account: crate::Account,
         proof: Option<papo_core::Proven>,
     ) -> Self {
         let identity = proof
@@ -40,6 +42,7 @@ impl UserHandle {
         Self(Arc::new(UserInner {
             identity,
             nick,
+            account,
             proof: stored,
             state: Arc::clone(&client.state),
         }))
@@ -47,6 +50,14 @@ impl UserHandle {
 
     pub(crate) fn proof(&self) -> Option<&papo_core::Proven> {
         self.0.proof.get()
+    }
+
+    pub(crate) fn remember(&self, proof: papo_core::Proven) {
+        _ = self.0.proof.set(proof);
+    }
+
+    pub(crate) fn account(&self) -> &crate::Account {
+        &self.0.account
     }
 
     /// Returns the current nickname, or the last known nickname after departure.
@@ -189,7 +200,7 @@ impl crate::Client {
                     .__prove_event_user(recipient.__token(), nick.clone(), account.clone())
                     .ok()
             });
-        Ok(UserHandle::new(self, nick, proof))
+        Ok(UserHandle::new(self, nick, account, proof))
     }
 
     /// Creates a channel handle without sending an IRC command.

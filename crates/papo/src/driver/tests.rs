@@ -5052,6 +5052,33 @@ async fn join_returns_joined_channel_handle() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn query_first_send_uses_who() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    let alice = client.query("alice").unwrap();
+
+    let sending = tokio::spawn({
+        let client = client.clone();
+        async move { client.privmsg(alice, "release approved").await }
+    });
+    client_line(&mut server, b"WHO alice %na\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test 354 papo-driver alice alice-account\r\n:ergo.test 315 papo-driver alice :End of WHO list\r\n",
+    )
+    .await;
+    client_line(&mut server, b"PRIVMSG alice :release approved\r\n").await;
+    within(sending).await.unwrap().unwrap();
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn role_errors_identify_the_invalid_argument() {
     let client = crate::Client::disconnected_for_test();
 

@@ -30,6 +30,9 @@ impl Session {
         if !row_matches {
             return Err(ProofFailure::MissingEvidence);
         }
+        if self.state.user(&nick).is_none() {
+            self.state.track_direct(nick.as_str(), None, None);
+        }
         let current_account = self
             .state
             .user(&nick)

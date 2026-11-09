@@ -179,6 +179,12 @@ pub(crate) enum Command {
         account: crate::Account,
         result: oneshot::Sender<Result<papo_core::RecipientGuard, Error>>,
     },
+    ProveUser {
+        nick: crate::Nick,
+        account: crate::Account,
+        lines: Vec<Line>,
+        result: oneshot::Sender<Result<papo_core::Proven, Error>>,
+    },
     DirectRelease {
         recipient: papo_core::RecipientGuard,
     },
@@ -1267,6 +1273,13 @@ where
                         .ok_or(Error::TargetGone);
                     publish_session_state(events, session);
                     _ = result.send(recipient);
+                }
+                Some(Command::ProveUser { nick, account, lines, result }) => {
+                    let proof = session
+                        .__prove_who_user(nick, account, &lines)
+                        .map_err(crate::identity::map_failure);
+                    publish_session_state(events, session);
+                    _ = result.send(proof);
                 }
                 Some(Command::DirectRelease { recipient }) => {
                     session.__direct_release(&recipient);

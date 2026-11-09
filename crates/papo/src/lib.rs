@@ -276,6 +276,7 @@ mod event_impl;
 mod ext;
 pub mod fail;
 mod handle;
+mod identity;
 #[cfg(not(browser))]
 mod io_compat;
 #[path = "isupport.rs"]
