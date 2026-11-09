@@ -2,7 +2,7 @@
 
 use std::time::Instant;
 
-use papo_core::{Account, Config, RecipientGuard, RecipientStatus, Session};
+use papo_core::{Account, Config, RecipientStatus, Session};
 
 fn replay(session: &mut Session, trace: &str) {
     let now = Instant::now();
@@ -14,11 +14,10 @@ fn replay(session: &mut Session, trace: &str) {
             let token = session.state().__peer_token_for("alice");
             assert!(token.__is_known());
             original = Some(token);
-            guard = Some(RecipientGuard::__new(
-                session.state(),
+            guard = session.state().__capture_recipient(
                 session.state().casemapping().nick("alice"),
                 Account::Unknown,
-            ));
+            );
             continue;
         }
         let Some(line) = raw.strip_prefix("S: ") else {

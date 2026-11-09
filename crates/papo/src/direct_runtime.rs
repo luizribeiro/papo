@@ -227,15 +227,11 @@ mod tests {
 
     #[tokio::test]
     async fn dropping_an_acquisition_releases_the_exact_recipient() {
-        let session = Session::new(Config::default());
+        let mut session = Session::new(Config::default());
         let (commands, mut receiver) = tokio::sync::mpsc::channel(1);
         let mut client = client(&session);
         client.commands = commands;
-        let recipient = papo_core::RecipientGuard::__from_parts(
-            Casemapping::default().nick("alice"),
-            Account::LoggedOut,
-            papo_core::ReplyToken::__unknown(crate::Origin::NONE),
-        );
+        let recipient = session.__direct_acquire("alice", None, None, Account::LoggedOut);
 
         drop(Acquired::new(
             recipient.clone(),

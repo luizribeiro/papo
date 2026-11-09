@@ -3177,18 +3177,6 @@ impl PeerToken {
     }
 }
 
-impl ReplyToken {
-    /// Builds an identity proof that requires external verification before use.
-    #[doc(hidden)]
-    #[must_use]
-    pub const fn __unknown(origin: papo_proto::Origin) -> Self {
-        Self {
-            origin,
-            identity: None,
-        }
-    }
-}
-
 /// Captured proof of a private recipient's identity.
 #[doc(hidden)]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -3240,20 +3228,6 @@ impl ChannelGuard {
 }
 
 impl RecipientGuard {
-    /// Captures the current identity at `nick`.
-    #[doc(hidden)]
-    #[must_use]
-    pub fn __new(state: &State, nick: Nick, account: Account) -> Self {
-        Self::new(state, nick, account)
-    }
-
-    /// Builds a guard from identity proof captured with a received line.
-    #[doc(hidden)]
-    #[must_use]
-    pub const fn __from_parts(nick: Nick, account: Account, token: ReplyToken) -> Self {
-        Self::from_parts(nick, account, token)
-    }
-
     pub(crate) fn new(state: &State, nick: Nick, account: Account) -> Self {
         let token = state.__reply_token_for(nick.as_str());
         Self {
