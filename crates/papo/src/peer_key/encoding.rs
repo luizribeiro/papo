@@ -2,6 +2,9 @@ use super::{AccountPin, BouncerScope, InvalidPeerKey, PeerScope};
 
 const PREFIX: &str = "papo-pin:1;";
 
+#[cfg(test)]
+mod tests;
+
 pub(super) fn encode(
     scope: &PeerScope,
     casemapping: crate::Casemapping,
@@ -159,118 +162,5 @@ const fn hex(byte: u8) -> Option<u8> {
         b'a'..=b'f' => Some(byte - b'a' + 10),
         b'A'..=b'F' => Some(byte - b'A' + 10),
         _ => None,
-    }
-}
-
-mod tests {
-    #[test]
-    fn percent_encoding_round_trips_utf8_and_delimiters() {
-        use super::{percent_decode, percent_encode};
-
-        let encoded = percent_encode("josé;net=id%");
-        assert_eq!(encoded, "jos%C3%A9%3Bnet%3Did%25");
-        assert_eq!(percent_decode(&encoded).as_deref(), Ok("josé;net=id%"));
-        assert_eq!(percent_decode("%3b").as_deref(), Ok(";"));
-        assert_eq!(percent_decode("%3f").as_deref(), Ok("?"));
-    }
-
-    #[test]
-    fn malformed_percent_encoding_is_rejected() {
-        use super::{InvalidPeerKey, percent_decode};
-
-        for value in ["%", "%0", "%GG", "%FF"] {
-            assert_eq!(percent_decode(value), Err(InvalidPeerKey));
-        }
-    }
-
-    #[test]
-    fn account_ids_control_pin_comparison() {
-        use crate::{PeerKey, PeerKeyCheck, PeerKeyMismatch};
-
-        let pin = |fields: &str| {
-            format!("papo-pin:1;server=irc.example;casemap=rfc1459;{fields}")
-                .parse::<PeerKey>()
-                .unwrap()
-        };
-        let name_only = pin("account=alice");
-        let identified = pin("account=alice;id=account-42");
-        assert!(matches!(
-            name_only.check(&identified),
-            PeerKeyCheck::Upgrade(pin) if pin.as_verified_str() == identified.as_verified_str()
-        ));
-
-        let renamed = pin("account=alice_away;id=account-42");
-        assert!(matches!(identified.check(&renamed), PeerKeyCheck::Match));
-
-        let replacement = pin("account=alice;id=account-99");
-        assert!(matches!(
-            identified.check(&replacement),
-            PeerKeyCheck::Mismatch(PeerKeyMismatch::DifferentAccount)
-        ));
-        assert!(matches!(
-            identified.check(&name_only),
-            PeerKeyCheck::Mismatch(PeerKeyMismatch::CannotVerify)
-        ));
-
-        for current in [
-            pin("account=bob;id=account-42"),
-            "papo-pin:1;server=irc.example;casemap=ascii;account=alice;id=account-42"
-                .parse()
-                .unwrap(),
-        ] {
-            assert!(matches!(
-                name_only.check(&current),
-                PeerKeyCheck::Mismatch(PeerKeyMismatch::DifferentAccount)
-            ));
-        }
-        for current in [
-            pin("account=bob"),
-            "papo-pin:1;server=irc.example;casemap=ascii;account=alice"
-                .parse()
-                .unwrap(),
-        ] {
-            assert!(matches!(
-                name_only.check(&current),
-                PeerKeyCheck::Mismatch(PeerKeyMismatch::DifferentAccount)
-            ));
-        }
-    }
-
-    #[test]
-    fn peer_key_errors_and_debug_text_are_specific_and_redacted() {
-        use crate::{PeerKey, PeerKeyMismatch, peer_key::PeerPinMismatch};
-
-        let invalid = "not-a-pin".parse::<PeerKey>().unwrap_err();
-        assert_eq!(invalid.to_string(), "invalid persisted peer key");
-        let identified = "papo-pin:1;server=irc.example;casemap=rfc1459;account=alice"
-            .parse::<PeerKey>()
-            .unwrap();
-        assert_eq!(format!("{identified:?}"), "PeerKey { verified: true, .. }");
-        assert_eq!(
-            PeerPinMismatch::new(PeerKeyMismatch::DifferentAccount, identified.clone()).to_string(),
-            "the peer account changed"
-        );
-        assert_eq!(
-            PeerPinMismatch::new(PeerKeyMismatch::CannotVerify, identified).to_string(),
-            "the current peer identity cannot be verified"
-        );
-    }
-
-    #[test]
-    fn bouncer_fields_round_trip_in_fixed_order() {
-        let value = "papo-pin:1;server=bouncer.example;bouncer-login=alice%40example;netid=libera;upstream=irc.libera.chat;casemap=rfc1459;account=alice";
-        let pin = value.parse::<crate::PeerKey>().unwrap();
-        assert_eq!(pin.as_verified_str(), Some(value));
-    }
-
-    #[test]
-    fn parsed_server_hosts_use_tls_normalization() {
-        let pin = "papo-pin:1;server=IRC.EXAMPLE.;casemap=rfc1459;account=alice"
-            .parse::<crate::PeerKey>()
-            .unwrap();
-        assert_eq!(
-            pin.as_verified_str(),
-            Some("papo-pin:1;server=irc.example;casemap=rfc1459;account=alice")
-        );
     }
 }
