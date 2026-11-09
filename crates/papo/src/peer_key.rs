@@ -1,4 +1,8 @@
-use std::{fmt, str::FromStr};
+use std::{
+    fmt,
+    hash::{Hash, Hasher},
+    str::FromStr,
+};
 
 mod encoding;
 
@@ -22,6 +26,36 @@ impl PeerScope {
             bouncer: None,
         }
     }
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[expect(dead_code, reason = "used by the peer-key migration")]
+pub(super) enum KeyScope {
+    Network(PeerScope),
+    Connection(String),
+}
+
+#[derive(Clone, Debug)]
+#[expect(dead_code, reason = "used by the peer-key migration")]
+pub(super) struct PeerThread {
+    scope: KeyScope,
+    casemapping: crate::Casemapping,
+    nick: String,
+}
+
+#[derive(Clone, Eq, PartialEq)]
+#[expect(dead_code, reason = "used by the peer-key migration")]
+pub(super) struct AccountProof {
+    casemapping: crate::Casemapping,
+    account: String,
+    id: Option<String>,
+}
+
+#[derive(Clone, Eq, PartialEq)]
+#[expect(dead_code, reason = "used by the peer-key migration")]
+enum PeerProof {
+    Account(Box<AccountProof>, Option<papo_core::PeerToken>),
+    Unverified(Option<papo_core::PeerToken>),
 }
 
 /// An identity pin for a nickname-addressed direct conversation.
@@ -259,6 +293,35 @@ impl PeerKey {
             PeerIdentity::Account(pin, _) => Some(&pin.encoded),
             PeerIdentity::Continuity(_) => None,
         }
+    }
+}
+
+impl PeerThread {
+    #[expect(dead_code, reason = "used by the peer-key migration")]
+    fn new(scope: Option<&PeerScope>, nick: &crate::Nick) -> Self {
+        let scope = scope.map_or_else(
+            || KeyScope::Connection(format!("{:?}", nick.origin())),
+            |scope| KeyScope::Network(scope.clone()),
+        );
+        Self {
+            scope,
+            casemapping: nick.casemapping(),
+            nick: nick.key().to_owned(),
+        }
+    }
+}
+
+impl PartialEq for PeerThread {
+    fn eq(&self, other: &Self) -> bool {
+        self.scope == other.scope && self.nick == other.nick
+    }
+}
+
+impl Eq for PeerThread {}
+
+impl Hash for PeerThread {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        (&self.scope, &self.nick).hash(state);
     }
 }
 
