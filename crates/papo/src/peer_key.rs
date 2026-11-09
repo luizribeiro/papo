@@ -119,22 +119,6 @@ pub struct PeerKey {
     encoded: String,
 }
 
-#[derive(Clone, Eq, Hash, PartialEq)]
-#[expect(dead_code, reason = "retained until the legacy codec is removed")]
-enum PeerIdentity {
-    Account(Box<AccountPin>, Option<papo_core::PeerToken>),
-    Continuity(papo_core::PeerToken),
-}
-
-#[derive(Clone, Eq, Hash, PartialEq)]
-struct AccountPin {
-    scope: PeerScope,
-    casemapping: crate::Casemapping,
-    account: String,
-    id: Option<String>,
-    encoded: String,
-}
-
 #[derive(Clone, Debug)]
 /// Result of checking a stored peer pin against the current pin.
 pub enum PeerKeyCheck {
@@ -363,7 +347,7 @@ impl FromStr for PeerKey {
     type Err = InvalidPeerKey;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
-        let (thread, proof) = encoding::parse_peer(value)?;
+        let (thread, proof) = encoding::parse(value)?;
         Ok(Self::new(thread, proof))
     }
 }

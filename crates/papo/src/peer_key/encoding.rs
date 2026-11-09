@@ -1,9 +1,5 @@
-#![expect(dead_code, reason = "legacy codec")]
-#![allow(unfulfilled_lint_expectations)]
-
 use super::{
-    AccountPin, AccountProof, BouncerScope, InvalidPeerKey, KeyScope, PeerProof, PeerScope,
-    PeerThread,
+    AccountProof, BouncerScope, InvalidPeerKey, KeyScope, PeerProof, PeerScope, PeerThread,
 };
 
 const PREFIX: &str = "papo-peer:1;";
@@ -11,14 +7,8 @@ const PREFIX: &str = "papo-peer:1;";
 #[cfg(test)]
 mod tests;
 
-pub(super) fn parse(value: &str) -> Result<AccountPin, InvalidPeerKey> {
-    value.strip_prefix(PREFIX).ok_or(InvalidPeerKey)?;
-    parse_fields(value)
-}
-
-#[expect(dead_code, reason = "used when peer keys switch formats")]
-pub(super) fn parse_peer(value: &str) -> Result<(PeerThread, PeerProof), InvalidPeerKey> {
-    let value = value.strip_prefix("papo-peer:1;").ok_or(InvalidPeerKey)?;
+pub(super) fn parse(value: &str) -> Result<(PeerThread, PeerProof), InvalidPeerKey> {
+    let value = value.strip_prefix(PREFIX).ok_or(InvalidPeerKey)?;
     let fields = value
         .split(';')
         .map(|field| {
@@ -75,71 +65,6 @@ pub(super) fn parse_peer(value: &str) -> Result<(PeerThread, PeerProof), Invalid
     ))
 }
 
-fn parse_fields(value: &str) -> Result<AccountPin, InvalidPeerKey> {
-    let fields = value[PREFIX.len()..]
-        .split(';')
-        .map(|field| {
-            let (name, value) = field.split_once('=').ok_or(InvalidPeerKey)?;
-            Ok((name, percent_decode(value)?))
-        })
-        .collect::<Result<Vec<_>, InvalidPeerKey>>()?;
-    let names = fields.iter().map(|field| field.0).collect::<Vec<_>>();
-    let (scope, account_offset) = match names.as_slice() {
-        ["server", "casemap", "account"] | ["server", "casemap", "account", "id"] => (
-            PeerScope::server(&crate::sts::normalize_host(&fields[0].1)),
-            1,
-        ),
-        [
-            "server",
-            "bouncer-login",
-            "netid",
-            "upstream",
-            "casemap",
-            "account",
-        ]
-        | [
-            "server",
-            "bouncer-login",
-            "netid",
-            "upstream",
-            "casemap",
-            "account",
-            "id",
-        ] => (
-            bouncer_scope(&fields[0].1, &fields[1].1, &fields[2].1, &fields[3].1),
-            4,
-        ),
-        _ => return Err(InvalidPeerKey),
-    };
-    let casemap = &fields[account_offset].1;
-    let account = &fields[account_offset + 1].1;
-    let id = fields.get(account_offset + 2).map(|field| &field.1);
-    if scope.server.is_empty()
-        || scope.bouncer.as_ref().is_some_and(|scope| {
-            scope.login.is_empty() || scope.network.is_empty() || scope.upstream.is_empty()
-        })
-        || account.is_empty()
-        || id.is_some_and(String::is_empty)
-    {
-        return Err(InvalidPeerKey);
-    }
-    let casemapping = casemap
-        .parse::<crate::Casemapping>()
-        .map_err(|_| InvalidPeerKey)?;
-    let account = casemapping.account(account);
-    account.check().map_err(|_| InvalidPeerKey)?;
-    let mut pin = AccountPin {
-        scope,
-        casemapping,
-        account: account.key().to_owned(),
-        id: id.cloned(),
-        encoded: String::new(),
-    };
-    pin.encoded = render_legacy(&pin);
-    Ok(pin)
-}
-
-#[expect(dead_code, reason = "used by the peer-key parser")]
 fn parse_scope(
     fields: &[(&str, String)],
     names: &[&str],
@@ -172,7 +97,6 @@ fn parse_scope(
     Ok((KeyScope::Network(PeerScope { server, bouncer }), offset))
 }
 
-#[expect(dead_code, reason = "used by the peer-key parser")]
 fn parse_account(
     fields: &[(&str, String)],
     offset: usize,
@@ -193,32 +117,6 @@ fn parse_account(
         account: account.key().to_owned(),
         id,
     })
-}
-
-fn render_legacy(pin: &AccountPin) -> String {
-    use std::fmt::Write as _;
-    let mut encoded = format!("{PREFIX}server={}", percent_encode(&pin.scope.server));
-    if let Some(bouncer) = &pin.scope.bouncer {
-        write!(
-            encoded,
-            ";bouncer-login={};netid={};upstream={}",
-            percent_encode(&bouncer.login),
-            percent_encode(&bouncer.network),
-            percent_encode(&bouncer.upstream)
-        )
-        .expect("writing to a string cannot fail");
-    }
-    write!(
-        encoded,
-        ";casemap={};account={}",
-        pin.casemapping.as_str(),
-        percent_encode(&pin.account)
-    )
-    .expect("writing to a string cannot fail");
-    if let Some(id) = &pin.id {
-        write!(encoded, ";id={}", percent_encode(id)).expect("writing to a string cannot fail");
-    }
-    encoded
 }
 
 pub(super) fn render(thread: &PeerThread, proof: &PeerProof) -> String {
@@ -268,17 +166,6 @@ pub(super) fn render(thread: &PeerThread, proof: &PeerProof) -> String {
         }
     }
     encoded
-}
-
-fn bouncer_scope(server: &str, login: &str, network: &str, upstream: &str) -> PeerScope {
-    PeerScope {
-        server: crate::sts::normalize_host(server),
-        bouncer: Some(BouncerScope {
-            login: login.to_owned(),
-            network: network.to_owned(),
-            upstream: crate::sts::normalize_host(upstream),
-        }),
-    }
 }
 
 fn percent_encode(value: &str) -> String {
