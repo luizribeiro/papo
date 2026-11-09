@@ -2,7 +2,6 @@ pub mod papo
 pub use papo::Account
 pub use papo::AccountName
 pub use papo::AsAccount
-pub use papo::AsChannel
 pub use papo::Away
 pub use papo::BatchId
 pub use papo::BatchType
@@ -3654,6 +3653,14 @@ impl papo::AsCap for alloc::string::String
 impl papo::AsCap for papo_core::cap::Cap
 impl papo::AsCap for str
 impl<T: papo::AsCap + ?core::marker::Sized> papo::AsCap for &T
+pub trait papo::AsChannel: papo::target::sealed::Sealed
+impl papo::AsChannel for alloc::borrow::Cow<'_, str>
+impl papo::AsChannel for alloc::boxed::Box<str>
+impl papo::AsChannel for alloc::rcs::arc::Arc<str>
+impl papo::AsChannel for alloc::string::String
+impl papo::AsChannel for papo::ChannelName
+impl papo::AsChannel for str
+impl<T: papo::AsChannel + ?core::marker::Sized> papo::AsChannel for &T
 pub trait papo::AsConversation: papo::target::sealed::Sealed
 impl papo::AsConversation for alloc::borrow::Cow<'_, str>
 impl papo::AsConversation for alloc::boxed::Box<str>
@@ -3778,14 +3785,6 @@ impl papo::AsAccount for alloc::string::String
 impl papo::AsAccount for papo::AccountName
 impl papo::AsAccount for str
 impl<T: papo::AsAccount + ?core::marker::Sized> papo::AsAccount for &T
-pub trait papo::AsChannel: papo::name_argument::Sealed
-impl papo::AsChannel for alloc::borrow::Cow<'_, str>
-impl papo::AsChannel for alloc::boxed::Box<str>
-impl papo::AsChannel for alloc::rcs::arc::Arc<str>
-impl papo::AsChannel for alloc::string::String
-impl papo::AsChannel for papo::ChannelName
-impl papo::AsChannel for str
-impl<T: papo::AsChannel + ?core::marker::Sized> papo::AsChannel for &T
 #[non_exhaustive] pub enum papo::Away
 #[non_exhaustive] pub papo::Away::Away
 pub papo::Away::Away::message: core::option::Option<alloc::string::String>
@@ -3996,7 +3995,7 @@ impl core::fmt::Display for papo::ChannelName
 pub fn papo::ChannelName::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::hash::Hash for papo::ChannelName
 pub fn papo::ChannelName::hash<H: core::hash::Hasher>(&self, &mut H)
-impl papo::AsChannel for papo::ChannelName
+impl papo_proto::AsChannel for papo::ChannelName
 impl core::marker::Freeze for papo::ChannelName
 impl core::marker::Send for papo::ChannelName
 impl core::marker::Sync for papo::ChannelName

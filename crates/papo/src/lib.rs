@@ -380,15 +380,15 @@ pub use papo_proto::Prefix;
 pub use papo_proto::Source as LineSource;
 #[doc(inline)]
 pub use papo_proto::{
-    AccountName, AsAccount, AsChannel, BatchId, BatchType, BuildError, Casemapping, ChannelName,
-    Color, FormatBuilder, InvalidIdentifier, Line, LineRef, Mask, MessageId, MetadataKey, Nick,
-    Origin, Param, ServerName, Span, Style, Typing, UnknownCasemapping, WireLine, strip_formatting,
+    AccountName, AsAccount, BatchId, BatchType, BuildError, Casemapping, ChannelName, Color,
+    FormatBuilder, InvalidIdentifier, Line, LineRef, Mask, MessageId, MetadataKey, Nick, Origin,
+    Param, ServerName, Span, Style, Typing, UnknownCasemapping, WireLine, strip_formatting,
 };
 pub use peer_key::{InvalidPeerKey, PeerKey, PeerKeyCheck, PeerKeyMismatch, PeerPinMismatch};
 pub use reconnect::Reconnect;
 pub use requests::{ListEntry, ListRequest, WhoEntry, Whois, WhoisChannel};
 pub use state::{Channel, ModeListEntry, ReadMarker, State};
-pub use target::{AsCap, AsConversation, AsMask, AsNick, Target};
+pub use target::{AsCap, AsChannel, AsConversation, AsMask, AsNick, Target};
 pub use token::{Command, ReplyCode};
 #[doc(inline)]
 #[cfg(tls)]

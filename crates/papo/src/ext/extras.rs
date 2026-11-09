@@ -21,7 +21,7 @@ impl std::fmt::Debug for RenameChannel {
 impl RenameChannel {
     /// Sets the destination channel name.
     pub fn to(mut self, channel: impl crate::AsChannel) -> Self {
-        self.new = Some(crate::AsChannel::__parts(&channel).into_owned().into());
+        self.new = Some(crate::AsChannel::__parts(&channel).into_owned());
         self
     }
 
@@ -60,7 +60,7 @@ impl Client {
     /// [`crate::Refusal::Other`]. It can also return [`crate::Error::InvalidInput`],
     /// [`crate::Error::TooManyPendingRequests`], [`crate::Error::Timeout`], or [`crate::Error::Disconnected`].
     pub fn rename_channel(&self, old: impl crate::AsChannel) -> RenameChannel {
-        let old = crate::AsChannel::__parts(&old).into_owned().into();
+        let old = crate::AsChannel::__parts(&old).into_owned();
         RenameChannel {
             client: self.clone(),
             old,

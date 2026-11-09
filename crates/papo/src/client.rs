@@ -271,7 +271,7 @@ impl SendMessage {
 
     /// Supplies channel context for a private message.
     pub fn channel_context(mut self, channel: impl crate::AsChannel) -> Self {
-        self.channel_context = Some(crate::AsChannel::__parts(&channel).into_owned().into());
+        self.channel_context = Some(crate::AsChannel::__parts(&channel).into_owned());
         self
     }
 
@@ -1376,7 +1376,7 @@ impl Client {
     pub fn join(&self, channel: impl crate::AsChannel) -> JoinChannel {
         JoinChannel {
             client: self.clone(),
-            channel: crate::AsChannel::__parts(&channel).into_owned().into(),
+            channel: crate::AsChannel::__parts(&channel).into_owned(),
             key: None,
         }
     }
@@ -1528,7 +1528,7 @@ impl Client {
     pub fn kickban(&self, channel: impl crate::AsChannel) -> Kickban {
         Kickban {
             client: self.clone(),
-            channel: crate::AsChannel::__parts(&channel).into_owned().into(),
+            channel: crate::AsChannel::__parts(&channel).into_owned(),
             nick: None,
             ban: None,
             reason: String::new(),
@@ -1832,7 +1832,7 @@ impl Client {
         topic: impl Into<String>,
     ) -> crate::RequestFuture<()> {
         self.change_topic(
-            crate::AsChannel::__parts(&channel).into_owned().into(),
+            crate::AsChannel::__parts(&channel).into_owned(),
             topic.into(),
             false,
         )
@@ -1845,7 +1845,7 @@ impl Client {
     /// Returns the same errors as [`Client::set_topic`].
     pub fn clear_topic(&self, channel: impl crate::AsChannel) -> crate::RequestFuture<()> {
         self.change_topic(
-            crate::AsChannel::__parts(&channel).into_owned().into(),
+            crate::AsChannel::__parts(&channel).into_owned(),
             String::new(),
             true,
         )

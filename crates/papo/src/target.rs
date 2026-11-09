@@ -14,6 +14,10 @@ pub(crate) mod sealed {
     }
 
     impl Parts<'_> {
+        pub(crate) fn text(&self) -> &str {
+            &self.text
+        }
+
         pub(crate) fn into_owned(self) -> Parts<'static> {
             Parts {
                 text: Cow::Owned(self.text.into_owned()),
@@ -82,6 +86,16 @@ pub trait AsNick: sealed::Sealed {
     fn __parts(&self) -> sealed::Parts<'_>;
 }
 
+/// A channel accepted by channel-oriented operations.
+///
+/// Text identifies the channel currently using that name. Live channel handles retain the
+/// channel lifecycle captured by the client.
+pub trait AsChannel: sealed::Sealed {
+    /// Returns the channel and its safety metadata.
+    #[doc(hidden)]
+    fn __parts(&self) -> sealed::Parts<'_>;
+}
+
 /// A channel or private-conversation argument.
 ///
 /// Text is interpreted using the receiving client's current `ISUPPORT` rules. Status-prefixed
@@ -133,6 +147,12 @@ macro_rules! text_roles {
             }
 
             impl AsNick for $ty {
+                fn __parts(&self) -> sealed::Parts<'_> {
+                    text_parts(self.as_ref())
+                }
+            }
+
+            impl AsChannel for $ty {
                 fn __parts(&self) -> sealed::Parts<'_> {
                     text_parts(self.as_ref())
                 }
@@ -192,6 +212,12 @@ impl AsMask for crate::Nick {
 }
 
 impl sealed::Sealed for crate::ChannelName {}
+
+impl AsChannel for crate::ChannelName {
+    fn __parts(&self) -> sealed::Parts<'_> {
+        name_parts(self.as_str(), self.origin())
+    }
+}
 
 impl Target for crate::ChannelName {
     fn __parts(&self) -> sealed::Parts<'_> {
@@ -253,6 +279,7 @@ macro_rules! reference_role {
 
 reference_role!(Target);
 reference_role!(AsNick);
+reference_role!(AsChannel);
 reference_role!(AsConversation);
 reference_role!(AsMask);
 

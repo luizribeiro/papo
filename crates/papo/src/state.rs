@@ -520,7 +520,17 @@ impl State {
     /// A typed channel produced by another [`crate::Client`] returns `None`.
     #[must_use]
     pub fn channel(&self, name: impl crate::AsChannel) -> Option<&Channel> {
-        let channel = self.core.channel(name)?;
+        let parts = crate::AsChannel::__parts(&name);
+        if parts.origin != crate::Origin::NONE && parts.origin != self.nick().origin() {
+            return None;
+        }
+        let current = parts
+            .channel
+            .as_deref()
+            .and_then(|guard| self.resolve_channel(guard));
+        let channel = self
+            .core
+            .channel(current.as_ref().map_or(parts.text(), |name| name.as_str()))?;
         self.channels
             .iter()
             .find(|candidate| candidate.name() == channel.name())
