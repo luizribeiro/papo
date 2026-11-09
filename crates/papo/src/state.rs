@@ -200,6 +200,13 @@ pub struct State {
 }
 
 impl State {
+    pub(crate) fn latest_server_time(&self, target: &str) -> Option<std::time::SystemTime> {
+        self.core.latest_server_time(target)
+    }
+
+    pub(crate) fn same_name(&self, left: &str, right: &str) -> bool {
+        self.core.names_equal(left, right)
+    }
     /// Returns the connection epoch represented by this snapshot.
     #[must_use]
     pub fn connection_epoch(&self) -> crate::ConnectionEpoch {

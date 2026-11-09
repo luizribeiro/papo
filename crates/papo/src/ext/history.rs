@@ -59,6 +59,65 @@ impl MarkReadRequest {
     }
 }
 
+impl IntoFuture for MarkReadRequest {
+    type Output = Result<MarkReadOutcome, Error>;
+    type IntoFuture = crate::RequestFuture<MarkReadOutcome>;
+
+    fn into_future(self) -> Self::IntoFuture {
+        crate::RequestFuture::new(async move {
+            let target = self.client.resolve(
+                crate::target::Role::Conversation("mark_read: conversation"),
+                self.target,
+            )?;
+            let latest = if let Some(message) = self.message {
+                let server_time = message
+                    .server_time()
+                    .ok_or(crate::InvalidInput::NoServerTime)?;
+                let conversation = message
+                    .conversation()
+                    .ok_or(crate::InvalidInput::WrongConversation)?;
+                let message_target = self.client.resolve(
+                    crate::target::Role::Conversation("mark_read: message"),
+                    crate::AsConversation::__parts(conversation),
+                )?;
+                if !self.client.state().same_name(&target, &message_target) {
+                    return Err(crate::InvalidInput::WrongConversation.into());
+                }
+                server_time
+            } else {
+                self.client
+                    .state()
+                    .latest_server_time(&target)
+                    .ok_or(crate::InvalidInput::NoServerTime)?
+            };
+            let previous = read_marker_time(self.client.state().read_marker(&target));
+            let (result, receiver) = oneshot::channel();
+            self.client
+                .commands
+                .send(Command::MarkRead {
+                    target: target.clone(),
+                    time: latest,
+                    result,
+                })
+                .await
+                .map_err(|_| Error::connection_lost())?;
+            let response = receiver.await.map_err(|_| Error::connection_lost())??;
+            crate::requests::empty(&response)?;
+            let stored = read_marker_time(self.client.state().read_marker(&target))
+                .ok_or(Error::Unconfirmed)?;
+            if stored > latest {
+                Ok(MarkReadOutcome::BehindLatest { stored, latest })
+            } else if stored < latest {
+                Err(Error::Unconfirmed)
+            } else if previous.is_some_and(|previous| previous >= latest) {
+                Ok(MarkReadOutcome::Unchanged { stored })
+            } else {
+                Ok(MarkReadOutcome::Advanced(stored))
+            }
+        })
+    }
+}
+
 fn other(line: Line, received_at: SystemTime) -> Event {
     crate::event_impl::unparsed_from_line(line, received_at)
 }

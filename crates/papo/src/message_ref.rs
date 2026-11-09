@@ -305,6 +305,13 @@ impl MessageRef {
         &self.msgids
     }
 
+    pub(crate) fn conversation(&self) -> Option<&Conversation> {
+        self.conversation.as_ref()
+    }
+
+    pub(crate) const fn server_time(&self) -> Option<std::time::SystemTime> {
+        self.server_time
+    }
 }
 
 impl fmt::Display for MessageRef {

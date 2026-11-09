@@ -1796,6 +1796,12 @@ impl State {
         self.latest_server_times.get(target.as_ref()).copied()
     }
 
+    #[doc(hidden)]
+    #[must_use]
+    pub fn names_equal(&self, left: &str, right: &str) -> bool {
+        crate::names_equal(self.casemapping, left, right)
+    }
+
     /// Returns the newest live message remembered for a conversation.
     #[must_use]
     pub fn last_seen(&self, target: impl AsRef<str>) -> Option<&LastSeen> {

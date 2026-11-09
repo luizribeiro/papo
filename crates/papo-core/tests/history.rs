@@ -859,6 +859,14 @@ fn remembers_live_messages_and_tracks_history_server_times_monotonically() {
 }
 
 #[test]
+fn state_compares_names_with_the_negotiated_casemapping() {
+    let session = Session::new(Config::default());
+
+    assert!(session.state().names_equal("#PAPO", "#papo"));
+    assert!(!session.state().names_equal("#papo", "#other"));
+}
+
+#[test]
 fn bounds_latest_server_times_like_read_markers() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().max_read_markers(2));
