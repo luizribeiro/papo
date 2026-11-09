@@ -103,6 +103,144 @@ fn disconnect_delivers_the_received_multiline_members_as_incomplete() {
 }
 
 #[test]
+fn reconnect_delivers_a_cut_off_multiline_notice_before_resetting() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    session.handle_connected(now);
+    while session.poll_event().is_some() {}
+    for line in [
+        ":NickServ!service@services BATCH +notice draft/multiline papo",
+        "@batch=notice :NickServ!service@services NOTICE papo :Account verification",
+        "@batch=notice;draft/multiline-concat :NickServ!service@services NOTICE papo : is pending",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+
+    session.handle_connected(now + Duration::from_secs(1));
+
+    let notice = incomplete(&mut session);
+    assert!(notice.as_ref().command_is("NOTICE"));
+    assert_eq!(
+        notice.as_ref().param(1),
+        Some("Account verification is pending")
+    );
+}
+
+#[test]
+fn multiline_line_bound_delivers_one_incomplete_message() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().max_batch_lines(2));
+    session.handle_line(now, b":alice!~a@cloak BATCH +m draft/multiline #papo");
+    for text in [
+        "release started",
+        "database migrated",
+        "services restarting",
+    ] {
+        session.handle_line(
+            now,
+            format!("@batch=m :alice!~a@cloak PRIVMSG #papo :{text}").as_bytes(),
+        );
+    }
+
+    assert_eq!(
+        incomplete(&mut session).as_ref().param(1),
+        Some("release started\ndatabase migrated\nservices restarting")
+    );
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::BatchAbandoned {
+            reason: BatchAbandonReason::LineLimit,
+            ..
+        })
+    ));
+    assert_eq!(session.poll_event(), None);
+}
+
+#[test]
+fn refused_multiline_batch_members_remain_incomplete() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().max_open_batches(0));
+    session.handle_line(now, b":alice!~a@cloak BATCH +m draft/multiline #papo");
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::BatchAbandoned {
+            reason: BatchAbandonReason::OpenBatchLimit,
+            ..
+        })
+    ));
+
+    session.handle_line(
+        now,
+        b"@batch=m :alice!~a@cloak PRIVMSG #papo :fragment after refused opener",
+    );
+
+    assert_eq!(
+        incomplete(&mut session).as_ref().param(1),
+        Some("fragment after refused opener")
+    );
+    assert_eq!(session.poll_event(), None);
+}
+
+#[test]
+fn multiline_timeout_delivers_one_incomplete_message() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().batch_timeout(Duration::from_secs(2)));
+    session.handle_line(now, b":alice!~a@cloak BATCH +m draft/multiline #papo");
+    session.handle_line(
+        now,
+        b"@batch=m :alice!~a@cloak PRIVMSG #papo :server forgot the closing batch line",
+    );
+
+    session.handle_timeout(now + Duration::from_secs(2));
+
+    assert_eq!(
+        incomplete(&mut session).as_ref().param(1),
+        Some("server forgot the closing batch line")
+    );
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::BatchAbandoned {
+            reason: BatchAbandonReason::Timeout,
+            ..
+        })
+    ));
+}
+
+#[test]
+fn cut_off_multiline_history_is_an_incomplete_history_item() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().max_batch_lines(2));
+    for line in [
+        ":ergo.test BATCH +history chathistory #papo",
+        "@batch=history;msgid=rd7sHq2kzT4;time=2026-10-29T21:14:07.603Z :ergo.test BATCH +multiline draft/multiline #papo",
+        "@batch=multiline :alice!~a@cloak PRIVMSG #papo :missed deployment",
+        "@batch=multiline :alice!~a@cloak PRIVMSG #papo :still in progress",
+        "@batch=multiline :alice!~a@cloak PRIVMSG #papo :health checks pending",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+
+    let Some(Event::History { items, end, .. }) = session.poll_event() else {
+        panic!("expected an incomplete replay page")
+    };
+    let [HistoryItem::Incomplete(message)] = items.as_slice() else {
+        panic!("expected one incomplete history item: {items:?}")
+    };
+    assert!(!end);
+    assert_eq!(
+        message.line.as_ref().param(1),
+        Some("missed deployment\nstill in progress\nhealth checks pending")
+    );
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::BatchAbandoned {
+            reason: BatchAbandonReason::LineLimit,
+            ..
+        })
+    ));
+}
+
+#[test]
 fn multiline_classification_survives_a_nick_change_before_polling() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().nick("papo-driver"));
