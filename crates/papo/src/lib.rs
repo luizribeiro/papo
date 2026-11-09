@@ -320,7 +320,9 @@ pub use address::{Endpoint, EndpointKind, IntoEndpoint, InvalidInput};
 pub use builder::Builder;
 #[cfg(not(browser))]
 pub use builder::StreamSecurity;
-pub use client::{Client, Fallback, JoinChannel, Kickban, SendMessage, Sent, SentOutcome};
+pub use client::{
+    Client, ConfirmedLines, Fallback, JoinChannel, Kickban, SendMessage, Sent, SentOutcome,
+};
 pub use direct::DirectRef;
 pub use direct_to::DirectSource;
 pub use driver::{Driver, Events};

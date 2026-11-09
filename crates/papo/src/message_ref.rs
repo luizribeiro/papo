@@ -648,10 +648,11 @@ mod tests {
                 "@#ops".into(),
             ),
             outcome: crate::SentOutcome::Confirmed {
-                lines: vec![
+                lines: crate::ConfirmedLines::new(vec![
                     ("RfcBTzyxY120005".into(), "deploy complete".into()),
                     ("RfcBTzyxY120006".into(), "deploy verified".into()),
-                ],
+                ])
+                .unwrap(),
                 server_time: Some(SystemTime::UNIX_EPOCH),
             },
             fallbacks: Vec::new(),

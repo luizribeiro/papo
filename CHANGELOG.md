@@ -327,6 +327,8 @@ visibility fields.
 
 Sent-message confirmation is explicit and retains every logical line's exact text:
 
+`SentOutcome::Confirmed::lines` is now a non-empty `ConfirmedLines` collection.
+
 ```rust,ignore
 // Before
 if let Some(id) = sent.msgid { /* first line only */ }
@@ -335,7 +337,7 @@ for id in sent.line_msgids { /* text unavailable */ }
 // After
 match &sent.outcome {
     SentOutcome::Confirmed { lines, server_time, .. } => {
-        for (id, text) in lines { /* store the confirmed line */ }
+        for (id, text) in lines.as_slice() { /* store the confirmed line */ }
     }
     SentOutcome::Unconfirmed => { /* no usable message IDs */ }
     _ => {}

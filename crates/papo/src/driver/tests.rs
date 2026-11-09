@@ -7329,13 +7329,29 @@ async fn chat_text_preserves_an_automatically_split_multiline_batch() {
     assert_eq!(
         sent.outcome(),
         &crate::SentOutcome::Confirmed {
-            lines: vec![(crate::MessageId::from("RfcBTzyxY120004"), text,)],
+            lines: crate::ConfirmedLines::new(vec![(
+                crate::MessageId::from("RfcBTzyxY120004"),
+                text,
+            )])
+            .unwrap(),
             server_time: None,
         }
     );
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[test]
+fn confirmed_lines_reject_empty_input_and_expose_the_first_line() {
+    assert!(crate::ConfirmedLines::new(Vec::new()).is_none());
+    let lines = crate::ConfirmedLines::new(vec![(
+        crate::MessageId::from("RfcBTzyxY120004"),
+        "deployment complete".into(),
+    )])
+    .unwrap();
+
+    assert_eq!(lines.first(), &lines.as_slice()[0]);
 }
 
 #[tokio::test(flavor = "current_thread")]
@@ -7555,7 +7571,7 @@ async fn chat_text_returns_metadata_from_every_labelled_echo() {
         panic!("labelled echo should confirm the message")
     };
     assert_eq!(
-        lines,
+        lines.as_slice(),
         &[(
             crate::MessageId::from("RfcBTzyxY120004"),
             "hello everyone".into()
@@ -7595,7 +7611,7 @@ async fn chat_text_returns_metadata_from_every_labelled_echo() {
     };
     assert_eq!(server_time, &None);
     assert_eq!(
-        lines,
+        lines.as_slice(),
         &[
             (crate::MessageId::from("RfcBTzyxY120005"), "a".repeat(414)),
             (crate::MessageId::from("RfcBTzyxY120006"), "a".repeat(186)),
@@ -8224,13 +8240,16 @@ async fn redacting_a_multiline_send_stops_at_the_first_refusal() {
         conversation,
         status: None,
         outcome: crate::SentOutcome::Confirmed {
-            lines: [
-                ("RfcBTzyxY120004", "first deployment line"),
-                ("RfcBTzyxY120005", "second deployment line"),
-                ("RfcBTzyxY120006", "third deployment line"),
-            ]
-            .map(|(id, text)| (crate::MessageId::from(id), text.into()))
-            .into(),
+            lines: crate::ConfirmedLines::new(
+                [
+                    ("RfcBTzyxY120004", "first deployment line"),
+                    ("RfcBTzyxY120005", "second deployment line"),
+                    ("RfcBTzyxY120006", "third deployment line"),
+                ]
+                .map(|(id, text)| (crate::MessageId::from(id), text.into()))
+                .into(),
+            )
+            .unwrap(),
             server_time: None,
         },
         fallbacks: Vec::new(),

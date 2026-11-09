@@ -81,7 +81,7 @@ pub enum SentOutcome {
         ///
         /// Segments in one `draft/multiline` batch form one logical line. For long messages, papo
         /// uses multiline concatenation so length-based splits do not introduce line breaks.
-        lines: Vec<(crate::MessageId, String)>,
+        lines: ConfirmedLines,
         /// Server time from the first labelled echo that supplied one.
         server_time: Option<SystemTime>,
     },
@@ -91,6 +91,30 @@ pub enum SentOutcome {
     /// resolves after its last wire line is written, so it cannot be used for reactions or
     /// redaction.
     Unconfirmed,
+}
+
+/// The non-empty logical lines in a confirmed send.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ConfirmedLines {
+    lines: Vec<(crate::MessageId, String)>,
+}
+
+impl ConfirmedLines {
+    pub(crate) fn new(lines: Vec<(crate::MessageId, String)>) -> Option<Self> {
+        (!lines.is_empty()).then_some(Self { lines })
+    }
+
+    /// Returns the first confirmed line.
+    #[must_use]
+    pub fn first(&self) -> &(crate::MessageId, String) {
+        &self.lines[0]
+    }
+
+    /// Returns every confirmed line in send order.
+    #[must_use]
+    pub fn as_slice(&self) -> &[(crate::MessageId, String)] {
+        &self.lines
+    }
 }
 
 /// A compatibility fallback applied to an outgoing chat message.
@@ -403,15 +427,16 @@ impl Sent {
             .map(|sent| crate::MessageId::from(sent.msgid.clone()))
             .collect::<Vec<_>>();
         let confirmed = confirmations.len() == texts.len();
+        let lines = ConfirmedLines::new(msgids.iter().cloned().zip(texts).collect());
         let outcome = if confirmed {
-            SentOutcome::Confirmed {
-                lines: msgids.iter().cloned().zip(texts).collect(),
+            lines.map_or(SentOutcome::Unconfirmed, |lines| SentOutcome::Confirmed {
+                lines,
                 server_time,
-            }
+            })
         } else {
             SentOutcome::Unconfirmed
         };
-        if confirmed {
+        if matches!(outcome, SentOutcome::Confirmed { .. }) {
             receipt.set_reference(msgids, None);
         }
         Self {
