@@ -1093,7 +1093,9 @@ mod tests {
         )
         .unwrap();
         let encoded = key.as_verified_str().unwrap();
-        let parsed = encoded.parse::<crate::peer_key::PeerKey>().unwrap();
+        let parsed = "papo-peer:1;server=irc.example%3A%F0%9F%8C%90;nick-casemap=rfc1459;nick=alice%7Bops%7D;proof=account;account-casemap=rfc1459;account=alice%7Bops%7D"
+            .parse::<crate::peer_key::PeerKey>()
+            .unwrap();
 
         assert_eq!(
             encoded,
@@ -1105,7 +1107,7 @@ mod tests {
 
     #[test]
     fn persisted_peer_accounts_are_canonicalized() {
-        let key = "papo-pin:1;server=irc.example;casemap=rfc1459;account=Alice%5BOps%5D"
+        let key = "papo-peer:1;server=irc.example;nick-casemap=rfc1459;nick=Alice%5BOps%5D;proof=account;account-casemap=rfc1459;account=Alice%5BOps%5D"
             .parse::<crate::peer_key::PeerKey>()
             .unwrap();
         assert_eq!(

@@ -3033,7 +3033,7 @@ impl core::marker::Unpin for papo::Oper
 impl core::marker::UnsafeUnpin for papo::Oper
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Oper
 impl core::panic::unwind_safe::UnwindSafe for papo::Oper
-pub struct papo::PeerKey(_)
+pub struct papo::PeerKey
 impl papo::PeerKey
 pub fn papo::PeerKey::as_verified_str(&self) -> core::option::Option<&str>
 pub fn papo::PeerKey::check(&self, &Self) -> papo::PeerKeyCheck

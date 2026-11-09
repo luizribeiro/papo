@@ -111,9 +111,14 @@ enum PeerProof {
 /// }
 /// ```
 #[derive(Clone)]
-pub struct PeerKey(PeerIdentity);
+pub struct PeerKey {
+    thread: PeerThread,
+    proof: PeerProof,
+    encoded: String,
+}
 
 #[derive(Clone, Eq, Hash, PartialEq)]
+#[expect(dead_code, reason = "retained until the legacy codec is removed")]
 enum PeerIdentity {
     Account(Box<AccountPin>, Option<papo_core::PeerToken>),
     Continuity(papo_core::PeerToken),
@@ -183,65 +188,55 @@ pub struct InvalidPeerKey;
 impl PeerKey {
     pub(crate) fn live(
         scope: Option<&PeerScope>,
-        _nick: &crate::Nick,
+        nick: &crate::Nick,
         account: &crate::Account,
         account_id: Option<&str>,
         token: papo_core::PeerToken,
     ) -> Option<Self> {
-        Self::new(
-            scope,
-            account,
-            account_id,
-            token.__is_known().then_some(token),
-        )
+        let thread = PeerThread::new(scope, nick);
+        let proof = match (scope, account) {
+            (Some(_), crate::Account::LoggedIn(account)) => PeerProof::Account(
+                Box::new(AccountProof {
+                    casemapping: account.casemapping(),
+                    account: account.key().to_owned(),
+                    id: account_id.map(str::to_owned),
+                }),
+                token.__is_known().then_some(token),
+            ),
+            _ if token.__is_known() => PeerProof::Unverified(Some(token)),
+            _ => return None,
+        };
+        Some(Self::new(thread, proof))
     }
 
     pub(crate) fn historical(
         scope: Option<&PeerScope>,
-        _nick: &crate::Nick,
+        nick: &crate::Nick,
         account: &crate::Account,
     ) -> Option<Self> {
-        match (scope, account) {
-            (Some(scope), crate::Account::LoggedIn(account)) => Some(Self::verified(
-                scope,
-                account.casemapping(),
-                account.key(),
+        let (Some(scope), crate::Account::LoggedIn(account)) = (scope, account) else {
+            return None;
+        };
+        Some(Self::new(
+            PeerThread::new(Some(scope), nick),
+            PeerProof::Account(
+                Box::new(AccountProof {
+                    casemapping: account.casemapping(),
+                    account: account.key().to_owned(),
+                    id: None,
+                }),
                 None,
-                None,
-            )),
-            _ => None,
-        }
-    }
-
-    fn new(
-        scope: Option<&PeerScope>,
-        account: &crate::Account,
-        account_id: Option<&str>,
-        tracked: Option<papo_core::PeerToken>,
-    ) -> Option<Self> {
-        if let (Some(scope), crate::Account::LoggedIn(account)) = (scope, account) {
-            return Some(Self::verified(
-                scope,
-                account.casemapping(),
-                account.key(),
-                account_id,
-                tracked,
-            ));
-        }
-        tracked.map(|token| Self(PeerIdentity::Continuity(token)))
-    }
-
-    fn verified(
-        scope: &PeerScope,
-        casemapping: crate::Casemapping,
-        account: &str,
-        account_id: Option<&str>,
-        continuity: Option<papo_core::PeerToken>,
-    ) -> Self {
-        Self(PeerIdentity::Account(
-            Box::new(encoding::encode(scope, casemapping, account, account_id)),
-            continuity,
+            ),
         ))
+    }
+
+    fn new(thread: PeerThread, proof: PeerProof) -> Self {
+        let encoded = encoding::render_peer(&thread, &proof);
+        Self {
+            thread,
+            proof,
+            encoded,
+        }
     }
 
     /// Checks this stored pin against the current pin for the same nickname thread.
@@ -255,33 +250,35 @@ impl PeerKey {
     /// any `IRCv3` specification. On other servers Account pins hold the account name only.
     #[must_use]
     pub fn check(&self, current_key: &Self) -> PeerKeyCheck {
-        match (&self.0, &current_key.0) {
-            (PeerIdentity::Continuity(stored), PeerIdentity::Continuity(current)) => {
-                if stored == current {
-                    PeerKeyCheck::Match
-                } else {
-                    PeerKeyCheck::Mismatch(PeerKeyMismatch::CannotVerify)
-                }
+        if self.thread.scope != current_key.thread.scope {
+            return if self.is_verified() && current_key.is_verified() {
+                PeerKeyCheck::Mismatch(PeerKeyMismatch::DifferentAccount)
+            } else {
+                PeerKeyCheck::Mismatch(PeerKeyMismatch::CannotVerify)
+            };
+        }
+        match (&self.proof, &current_key.proof) {
+            (PeerProof::Unverified(Some(stored)), PeerProof::Unverified(Some(current)))
+                if stored == current =>
+            {
+                PeerKeyCheck::Match
             }
-            (PeerIdentity::Account(stored, _), PeerIdentity::Account(current, _)) => {
+            (PeerProof::Account(stored, _), PeerProof::Account(current, _)) => {
                 check_accounts(stored, current, current_key)
             }
-            (PeerIdentity::Continuity(stored), PeerIdentity::Account(_, Some(current)))
+            (PeerProof::Unverified(Some(stored)), PeerProof::Account(_, Some(current)))
                 if stored == current =>
             {
                 PeerKeyCheck::Upgrade(current_key.clone())
             }
-            (PeerIdentity::Account(_, _), PeerIdentity::Continuity(_))
-            | (PeerIdentity::Continuity(_), PeerIdentity::Account(_, _)) => {
-                PeerKeyCheck::Mismatch(PeerKeyMismatch::CannotVerify)
-            }
+            _ => PeerKeyCheck::Mismatch(PeerKeyMismatch::CannotVerify),
         }
     }
 
     /// Reports whether this is a durable Account pin at a TLS-authenticated server scope.
     #[must_use]
     pub const fn is_verified(&self) -> bool {
-        matches!(self.0, PeerIdentity::Account(_, _))
+        matches!(self.proof, PeerProof::Account(_, _))
     }
 
     /// Returns the stable representation of a verified pin.
@@ -290,15 +287,11 @@ impl PeerKey {
     /// A returned value round-trips through [`str::parse`](FromStr::from_str).
     #[must_use]
     pub fn as_verified_str(&self) -> Option<&str> {
-        match &self.0 {
-            PeerIdentity::Account(pin, _) => Some(&pin.encoded),
-            PeerIdentity::Continuity(_) => None,
-        }
+        self.is_verified().then_some(&self.encoded)
     }
 }
 
 impl PeerThread {
-    #[expect(dead_code, reason = "used by the peer-key migration")]
     fn new(scope: Option<&PeerScope>, nick: &crate::Nick) -> Self {
         let scope = scope.map_or_else(
             || KeyScope::Connection(format!("{:?}", nick.origin())),
@@ -327,13 +320,10 @@ impl Hash for PeerThread {
 }
 
 fn check_accounts(
-    stored: &AccountPin,
-    current: &AccountPin,
+    stored: &AccountProof,
+    current: &AccountProof,
     current_key: &PeerKey,
 ) -> PeerKeyCheck {
-    if stored.scope != current.scope {
-        return PeerKeyCheck::Mismatch(PeerKeyMismatch::DifferentAccount);
-    }
     match (&stored.id, &current.id) {
         (Some(stored), Some(current)) if stored == current => PeerKeyCheck::Match,
         (None, Some(_))
@@ -357,7 +347,8 @@ impl FromStr for PeerKey {
     type Err = InvalidPeerKey;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
-        encoding::parse(value).map(|pin| Self(PeerIdentity::Account(Box::new(pin), None)))
+        let (thread, proof) = encoding::parse_peer(value)?;
+        Ok(Self::new(thread, proof))
     }
 }
 

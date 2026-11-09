@@ -1,3 +1,4 @@
+#![expect(dead_code, reason = "legacy codec")]
 #![allow(unfulfilled_lint_expectations)]
 
 use super::{
@@ -240,6 +241,15 @@ fn render(pin: &AccountPin) -> String {
 #[expect(dead_code, reason = "used when peer keys switch formats")]
 pub(super) fn render_peer(thread: &PeerThread, proof: &PeerProof) -> String {
     use std::fmt::Write as _;
+    if let (KeyScope::Network(scope), PeerProof::Account(account, _)) = (&thread.scope, proof) {
+        return encode(
+            scope,
+            account.casemapping,
+            &account.account,
+            account.id.as_deref(),
+        )
+        .encoded;
+    }
     let mut encoded = String::from("papo-peer:1;");
     match &thread.scope {
         KeyScope::Network(scope) => {
