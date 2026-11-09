@@ -403,19 +403,40 @@ async fn event_playback(s: Scenario) -> papo_testing::Result<()> {
     covers = ["draft.read-marker.set-get", "draft.read-marker.monotonic"]
 )]
 async fn draft_read_marker(s: Scenario) -> papo_testing::Result<()> {
-    let alice = s.connect("alice").await?;
+    let writer = s.connect("writer").await?;
+    let mut alice = s.connect("alice").await?;
     let channel = s.channel_name();
+    writer.join(&channel).await?;
     alice.join(&channel).await?;
-    let time = read_marker_time();
-    assert_eq!(alice.mark_read(&channel, time).await?, Some(time));
+    writer
+        .privmsg(&channel, "older read-marker message")
+        .await?;
+    let older = alice.wait_for(Event::as_message).await?;
+    let older_time = older.server_time.expect("read markers require server time");
+    let older_ref = older.return_address();
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    writer
+        .privmsg(&channel, "newest read-marker message")
+        .await?;
+    let newest = alice.wait_for(Event::as_message).await?;
+    let time = newest
+        .server_time
+        .expect("read markers require server time");
+    assert_eq!(
+        alice.mark_read(&channel).await?,
+        papo::MarkReadOutcome::Advanced(time)
+    );
     assert_eq!(
         alice.snapshot().read_marker(&channel),
         Some(papo::ReadMarker::ReadUntil(time))
     );
     assert_eq!(alice.fetch_read_marker(&channel).await?, Some(time));
 
-    let older = time - Duration::from_secs(60);
-    assert_eq!(alice.mark_read(&channel, older).await?, Some(time));
+    assert!(matches!(
+        alice.mark_read(&channel).up_to(&older_ref).await?,
+        papo::MarkReadOutcome::BehindLatest { stored, latest, .. }
+            if stored == time && latest == older_time
+    ));
     assert_eq!(
         alice.snapshot().read_marker(&channel),
         Some(papo::ReadMarker::ReadUntil(time))
@@ -431,8 +452,10 @@ async fn draft_read_marker(s: Scenario) -> papo_testing::Result<()> {
 )]
 async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
     let (mut alice, account) = s.connect_as_account_with_key("alice").await?;
+    let writer = s.connect("writer").await?;
     let channel = s.channel_name();
     alice.join(&channel).await?;
+    writer.join(&channel).await?;
     let initial = alice.wait_for(Event::as_read_marker_changed).await?;
     assert_eq!(
         conversation_name(&initial.conversation),
@@ -444,8 +467,12 @@ async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
         Some(papo::ReadMarker::Unset)
     );
 
-    let time = read_marker_time();
-    alice.mark_read(&channel, time).await?;
+    writer.privmsg(&channel, "read-marker sync point").await?;
+    let message = alice.wait_for(Event::as_message).await?;
+    let time = message
+        .server_time
+        .expect("read markers require server time");
+    alice.mark_read(&channel).await?;
     let stored = alice.wait_for(Event::as_read_marker_changed).await?;
     assert_eq!(
         conversation_name(&stored.conversation),

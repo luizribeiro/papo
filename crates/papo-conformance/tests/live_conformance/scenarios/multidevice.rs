@@ -1,5 +1,3 @@
-use std::time::{Duration, SystemTime};
-
 use papo::{Authorship, Away, Error, Event, Refusal};
 use papo_conformance_macros::scenario;
 
@@ -131,14 +129,23 @@ async fn multidevice_read_marker_fanout(s: Scenario) -> papo_testing::Result<()>
     if !has_account_sessions() {
         return s.skip("the selected profile does not support concurrent account sessions");
     }
-    let (desktop, account) = s.connect_as_account_with_key("alice").await?;
+    let (mut desktop, account) = s.connect_as_account_with_key("alice").await?;
     let channel = s.channel_name();
     desktop.join(&channel).await?;
     let mut phone = s.connect_account_session("alice-phone", account).await?;
     wait_for_channel(&mut phone, &channel).await?;
 
-    let time = SystemTime::UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000);
-    assert_eq!(desktop.mark_read(&channel, time).await?, Some(time));
+    phone
+        .privmsg(&channel, "multi-device read-marker point")
+        .await?;
+    let message = desktop.wait_for(Event::as_message).await?;
+    let time = message
+        .server_time
+        .expect("read markers require server time");
+    assert_eq!(
+        desktop.mark_read(&channel).await?,
+        papo::MarkReadOutcome::Advanced(time)
+    );
     let marker = phone
         .wait_for(|event| {
             event.as_read_marker_changed().filter(|marker| {
