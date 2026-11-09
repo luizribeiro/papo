@@ -1,6 +1,6 @@
 use std::{collections::hash_map::DefaultHasher, hash::Hash as _, hash::Hasher as _};
 
-use super::PeerKey;
+use super::{PeerKey, PeerKeyCheck, PeerKeyMismatch};
 
 fn parse(fields: &str) -> PeerKey {
     format!("papo-peer:1;{fields}").parse().unwrap()
@@ -79,4 +79,58 @@ fn peer_key_proof_is_not_constructible() {
     ] {
         assert!(format!("papo-peer:1;{fields}").parse::<PeerKey>().is_err());
     }
+}
+
+#[test]
+fn account_proof_checks_every_upgrade_and_mismatch() {
+    let name = network_key(
+        "irc.example",
+        "alice",
+        "proof=account;account-casemap=rfc1459;account=alice",
+    );
+    let identified = network_key(
+        "irc.example",
+        "alice",
+        "proof=account;account-casemap=rfc1459;account=alice;id=account-42",
+    );
+    assert!(matches!(name.check(&name), PeerKeyCheck::Match));
+    assert!(matches!(
+        name.check(&identified),
+        PeerKeyCheck::Upgrade(key) if key.to_string() == identified.to_string()
+    ));
+    assert!(matches!(
+        identified.check(&name),
+        PeerKeyCheck::Mismatch(PeerKeyMismatch::CannotVerify)
+    ));
+    for current in [
+        network_key(
+            "irc.example",
+            "alice",
+            "proof=account;account-casemap=rfc1459;account=bob",
+        ),
+        network_key(
+            "irc.example",
+            "alice",
+            "proof=account;account-casemap=ascii;account=alice",
+        ),
+        network_key(
+            "irc.example",
+            "bob",
+            "proof=account;account-casemap=rfc1459;account=alice",
+        ),
+    ] {
+        assert!(matches!(
+            name.check(&current),
+            PeerKeyCheck::Mismatch(PeerKeyMismatch::DifferentAccount)
+        ));
+    }
+    let replacement = network_key(
+        "irc.example",
+        "alice",
+        "proof=account;account-casemap=rfc1459;account=alice;id=account-99",
+    );
+    assert!(matches!(
+        identified.check(&replacement),
+        PeerKeyCheck::Mismatch(PeerKeyMismatch::DifferentAccount)
+    ));
 }
