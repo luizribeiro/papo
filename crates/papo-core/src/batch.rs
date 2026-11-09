@@ -1216,6 +1216,29 @@ mod tests {
     }
 
     #[test]
+    fn placeholder_removal_shifts_only_later_incomplete_indices() {
+        let mut batches = Batches::new(&Config::default());
+        for line in [
+            ":ergo.test BATCH +history chathistory #papo",
+            "@batch=history :alice!~alice@users.example PRIVMSG #papo :release queued",
+            "@batch=history :alice!~alice@users.example PRIVMSG #papo :release started",
+            "@batch=history :ergo.test BATCH +deploy draft/multiline #papo",
+            "@batch=history :alice!~alice@users.example PRIVMSG #papo :release complete",
+        ] {
+            assert_eq!(handle(&mut batches, line), (false, None));
+        }
+        let history = batches.open.get_mut("history").unwrap();
+        assert_eq!(history.messages.len(), 4);
+        history.incomplete = vec![1, 2, 3];
+
+        batches.replace_multiline_placeholders("deploy", &["history".to_owned()], &[], false);
+
+        let history = &batches.open["history"];
+        assert_eq!(history.messages.len(), 3);
+        assert_eq!(history.incomplete, [1, 2, 2]);
+    }
+
+    #[test]
     fn completed_child_byte_budget_accepts_the_boundary_and_rejects_one_over() {
         let byte_budget = 4 * 1024;
         for (total, abandoned) in [(byte_budget, false), (byte_budget + 1, true)] {
