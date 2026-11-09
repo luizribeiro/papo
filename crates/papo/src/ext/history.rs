@@ -1239,45 +1239,23 @@ impl Client {
         })
     }
 
-    /// Sets the server read marker for a conversation.
-    ///
-    /// Pass [`crate::time::now`] to mark the conversation read through the current time.
+    /// Marks everything seen in a conversation as read using its newest server timestamp.
     ///
     /// # Errors
     ///
     /// Returns [`Error::Unsupported`] for [`crate::Feature::ReadMarkers`] with reason
     /// [`crate::UnsupportedReason::NotOffered`] or
-    /// [`crate::UnsupportedReason::DisabledByClient`]. An unencodable timestamp returns
-    /// [`Error::InvalidInput`]; a refusal returns [`Error::Server`] with
+    /// [`crate::UnsupportedReason::DisabledByClient`]. If no timestamped line has been seen,
+    /// awaiting returns [`crate::InvalidInput::NoServerTime`]. A refusal returns [`Error::Server`] with
     /// [`crate::Refusal::Other`]. It returns [`Error::StateLimit`] before sending when a new target
     /// would exceed the configured read-marker bound. It can also return
     /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
-    pub fn mark_read(
-        &self,
-        target: impl crate::AsConversation,
-        time: SystemTime,
-    ) -> crate::RequestFuture<Option<SystemTime>> {
-        let client = self.clone();
-        let target = crate::AsConversation::__parts(&target).into_owned();
-        crate::RequestFuture::new(async move {
-            let target = client.resolve(
-                crate::target::Role::Conversation("mark_read: conversation"),
-                target,
-            )?;
-            let (result, receiver) = oneshot::channel();
-            client
-                .commands
-                .send(Command::MarkRead {
-                    target: target.clone(),
-                    time,
-                    result,
-                })
-                .await
-                .map_err(|_| Error::connection_lost())?;
-            let response = receiver.await.map_err(|_| Error::connection_lost())??;
-            crate::requests::empty(&response)?;
-            Ok(read_marker_time(client.state().read_marker(&target)))
-        })
+    pub fn mark_read(&self, target: impl crate::AsConversation) -> MarkReadRequest {
+        MarkReadRequest {
+            client: self.clone(),
+            target: crate::AsConversation::__parts(&target).into_owned(),
+            message: None,
+        }
     }
 
     /// Queries the server read marker for a conversation.

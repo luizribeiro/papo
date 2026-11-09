@@ -73,7 +73,7 @@ async fn arbitrary_bouncer_and_history_input_is_rejected_or_valid() {
             ))
         })
         .await;
-        check_action(|client| action(client.mark_read(first.clone(), UNIX_EPOCH))).await;
+        check_action(|client| action(client.mark_read(first.clone()))).await;
         check_action(|client| action(client.fetch_read_marker(first.clone()))).await;
     }
     check_action(|client| action(client.bouncer().networks())).await;
