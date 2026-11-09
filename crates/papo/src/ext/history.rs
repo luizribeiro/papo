@@ -2693,6 +2693,88 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
+    async fn mark_read_accepts_a_timestamped_typing_reference() {
+        let caps = [
+            "draft/read-marker",
+            "labeled-response",
+            "message-tags",
+            "server-time",
+        ];
+        let (mut server, client, mut events, driver) = scripted(config().wanted_caps(caps));
+        let task = tokio::spawn(driver);
+        complete_connect_caps(&mut server, &mut events, &caps.join(" "), &caps.join(" ")).await;
+        server_line(
+            &mut server,
+            b"@time=2025-10-15T11:55:46.000Z;+typing=active :alice!a@host TAGMSG #papo\r\n",
+        )
+        .await;
+        let reference = match next_event(&mut events).await {
+            Some(Event::TypingChanged(change)) => change.return_address(),
+            other => panic!("expected typing change, got {other:?}"),
+        };
+
+        let request_client = client.clone();
+        let request =
+            tokio::spawn(async move { request_client.mark_read("#papo").up_to(&reference).await });
+        client_line(
+            &mut server,
+            b"@label=0 MARKREAD #papo timestamp=2025-10-15T11:55:46.000Z\r\n",
+        )
+        .await;
+        server_line(
+            &mut server,
+            b"@label=0 :ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:46.000Z\r\n",
+        )
+        .await;
+        assert_eq!(
+            within(request).await.unwrap().unwrap(),
+            MarkReadOutcome::Advanced(UNIX_EPOCH + Duration::from_secs(1_760_529_346))
+        );
+        abort_task(task).await;
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn mark_read_accepts_a_timestamped_sent_reference() {
+        let caps = [
+            "draft/read-marker",
+            "echo-message",
+            "labeled-response",
+            "server-time",
+        ];
+        let (mut server, client, mut events, driver) = scripted(config().wanted_caps(caps));
+        let task = tokio::spawn(driver);
+        complete_connect_caps(&mut server, &mut events, &caps.join(" "), &caps.join(" ")).await;
+        let sender = client.clone();
+        let sent = tokio::spawn(async move { sender.privmsg("#papo", "review complete").await });
+        client_line(&mut server, b"@label=0 PRIVMSG #papo :review complete\r\n").await;
+        server_line(
+            &mut server,
+            b"@label=0;time=2025-10-15T11:55:47.000Z;msgid=SentMarker :papo-driver!p@host PRIVMSG #papo :review complete\r\n",
+        )
+        .await;
+        let reference = within(sent).await.unwrap().unwrap().return_address();
+
+        let request_client = client.clone();
+        let request =
+            tokio::spawn(async move { request_client.mark_read("#papo").up_to(&reference).await });
+        client_line(
+            &mut server,
+            b"@label=1 MARKREAD #papo timestamp=2025-10-15T11:55:47.000Z\r\n",
+        )
+        .await;
+        server_line(
+            &mut server,
+            b"@label=1 :ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:47.000Z\r\n",
+        )
+        .await;
+        assert_eq!(
+            within(request).await.unwrap().unwrap(),
+            MarkReadOutcome::Advanced(UNIX_EPOCH + Duration::from_secs(1_760_529_347))
+        );
+        abort_task(task).await;
+    }
+
+    #[tokio::test(flavor = "current_thread")]
     async fn read_marker_queries_update_and_return_cached_state() {
         let config = config().wanted_caps(["draft/read-marker", "labeled-response"]);
         let (mut server, client, mut events, driver) = scripted(config);
