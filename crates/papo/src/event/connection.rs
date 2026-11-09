@@ -35,7 +35,7 @@ impl ConnectPhase {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Connecting {
-    /// One-based attempt number since the last stable connection.
+    /// One-based attempt number since the last [`crate::Event::Connected`].
     pub attempt: usize,
     /// Work currently in progress.
     pub phase: ConnectPhase,

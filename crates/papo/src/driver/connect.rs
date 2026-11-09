@@ -14,8 +14,8 @@ use tokio::sync::mpsc;
 
 use super::{
     BackoffEntropy, BoxConnection, Command, ConnectFuture, ConnectWait, ConnectionEnd,
-    ConnectionPlan, Connector, EventSink, PendingEvents, PostConnect, STABLE_CONNECTION,
-    StsActions, enqueue_event, finish, now, run_connection,
+    ConnectionPlan, Connector, EventSink, PendingEvents, PostConnect, StsActions, enqueue_event,
+    finish, now, run_connection,
 };
 #[cfg(sockets)]
 use crate::address::Protocol;
@@ -139,6 +139,7 @@ pub(super) async fn run_plan(
             connect_timeout,
             reconnect,
             attempts,
+            registered,
             entropy.as_mut(),
             &mut last_disconnect,
         )
@@ -175,6 +176,7 @@ pub(super) async fn run_plan(
         .await;
         if end.registered_at.is_some() {
             defaults.disconnected_at = Some(crate::rt::now_wall());
+            attempts = 0;
         }
         sts_store = end
             .sts_store
@@ -223,7 +225,7 @@ pub(super) async fn run_plan(
         let reconnect_in = if upgrade_port.is_some() || reconnect_now {
             Duration::ZERO
         } else {
-            retry_delay(reconnect, attempts, refused, entropy.as_mut())
+            retry_delay(reconnect, attempts, registered, refused, entropy.as_mut())
         };
         let disconnected =
             super::disconnected_event(&end.error, attempts.saturating_add(1), Some(reconnect_in));
@@ -367,12 +369,6 @@ fn triage_connection_end(
     if is_fatal_failure(&end.error, end.close_kind) {
         return ControlFlow::Break((end, true));
     }
-    if end
-        .registered_at
-        .is_some_and(|at| now().saturating_duration_since(at) >= STABLE_CONNECTION)
-    {
-        *attempts = 0;
-    }
     if !reconnect.permits(*attempts) {
         return ControlFlow::Break((end, true));
     }
@@ -399,6 +395,7 @@ async fn connect_or_wait(
     connect_timeout: Duration,
     reconnect: Reconnect,
     attempts: usize,
+    after_connected: bool,
     entropy: &mut (dyn FnMut() -> u64 + Send),
     last_disconnect: &mut Option<crate::DisconnectCause>,
 ) -> ConnectionAttempt {
@@ -434,7 +431,7 @@ async fn connect_or_wait(
     {
         return ConnectionAttempt::Failed(error);
     }
-    let reconnect_in = retry_delay(reconnect, attempts, false, entropy);
+    let reconnect_in = retry_delay(reconnect, attempts, after_connected, false, entropy);
     let disconnected =
         super::disconnected_event(&error, attempts.saturating_add(1), Some(reconnect_in));
     *last_disconnect = Some(disconnected.cause.clone());
@@ -694,10 +691,12 @@ async fn wait_before_retry(
 fn retry_delay(
     reconnect: Reconnect,
     attempts: usize,
+    after_connected: bool,
     refused: bool,
     entropy: &mut (dyn FnMut() -> u64 + Send),
 ) -> Duration {
-    let retry = u32::try_from(attempts.saturating_sub(1)).unwrap_or(u32::MAX);
+    let retry =
+        u32::try_from(attempts.saturating_sub(usize::from(!after_connected))).unwrap_or(u32::MAX);
     if refused {
         reconnect.refused(retry, entropy())
     } else {
@@ -840,13 +839,14 @@ mod tests {
         assert!(!retry_was_refused(&transport_after_welcome));
         assert!(!retry_was_refused(&transport_before_welcome));
         assert_eq!(
-            retry_delay(reconnect, 1, retry_was_refused(&refusal), &mut || 0),
+            retry_delay(reconnect, 1, false, retry_was_refused(&refusal), &mut || 0,),
             Duration::from_secs(47)
         );
         assert_eq!(
             retry_delay(
                 reconnect,
                 1,
+                false,
                 retry_was_refused(&transport_after_welcome),
                 &mut || 0,
             ),

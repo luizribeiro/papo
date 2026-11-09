@@ -328,6 +328,39 @@ mod tests {
     }
 
     #[tokio::test(start_paused = true)]
+    async fn disconnects_number_the_next_attempt_and_reset_after_connected() {
+        let (_client, mut events, mut wire) = wire(
+            papo::Client::builder("irc://offline.test", "papo-wire")
+                .rate_limit(papo::RateLimit::unlimited())
+                .reconnect(
+                    papo::Reconnect::exponential()
+                        .initial_delay(Duration::from_secs(10))
+                        .max_delay(Duration::from_secs(10))
+                        .max_attempts(2),
+                ),
+        );
+        wire.register(&[]).await;
+        _ = next_connected(&mut events).await;
+
+        wire.close().await;
+        let first = next_disconnected(&mut events).await;
+        assert_eq!(first.attempt, 1);
+        tokio::time::advance(first.reconnect_in.unwrap()).await;
+
+        assert_eq!(wire.next_sent().await, "CAP LS 302");
+        wire.close().await;
+        let second = next_disconnected(&mut events).await;
+        assert_eq!(second.attempt, 2);
+        tokio::time::advance(second.reconnect_in.unwrap()).await;
+
+        assert_eq!(wire.next_sent().await, "CAP LS 302");
+        wire.close().await;
+        let stopped = next_disconnected(&mut events).await;
+        assert_eq!(stopped.attempt, 3);
+        assert_eq!(stopped.reconnect_in, None);
+    }
+
+    #[tokio::test(start_paused = true)]
     async fn request_timeout_uses_the_paused_clock() {
         let (client, _events, mut wire) = wire(
             papo::Client::builder("irc://offline.test", "papo-wire")

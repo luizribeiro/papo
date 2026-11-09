@@ -33,7 +33,7 @@ impl Reconnect {
         Self {
             initial_delay: Duration::ZERO,
             max_delay: Duration::ZERO,
-            max_attempts: Some(1),
+            max_attempts: Some(0),
             refused_delay: Duration::from_secs(60),
         }
     }
@@ -63,7 +63,10 @@ impl Reconnect {
         self
     }
 
-    /// Limits the total number of connection attempts, including the first.
+    /// Limits consecutive connection attempts before the next successful connection.
+    ///
+    /// The initial connection counts as attempt one. After [`crate::Event::Connected`], the next
+    /// reconnect is attempt one.
     #[must_use]
     pub const fn max_attempts(mut self, attempts: usize) -> Self {
         self.max_attempts = Some(attempts);
@@ -165,7 +168,7 @@ mod tests {
     #[test]
     fn never_policy_refuses_a_second_attempt() {
         let policy = Reconnect::never();
-        assert!(policy.permits(0));
+        assert!(!policy.permits(0));
         assert!(!policy.permits(1));
     }
 }
