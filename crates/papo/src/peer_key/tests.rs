@@ -1,6 +1,6 @@
 use std::{collections::hash_map::DefaultHasher, hash::Hash as _, hash::Hasher as _};
 
-use super::{PeerKey, PeerKeyCheck, PeerKeyMismatch, PeerProof, PeerScope};
+use super::{NotSamePerson, PeerKey, PeerKeyCheck, PeerKeyMismatch, PeerProof, PeerScope};
 
 use crate::{Account, Casemapping};
 use papo_core::{Config, Session};
@@ -66,6 +66,17 @@ fn peer_key_round_trips_scope_nick_and_proof() {
         assert_eq!(decoded.to_string(), encoded);
         assert_eq!(decoded.is_verified(), key.is_verified());
     }
+}
+
+#[test]
+fn not_same_person_explains_the_nickname_handoff() {
+    let current = network_key("irc.example", "alice", "proof=unverified");
+    let mismatch = NotSamePerson::new(PeerKeyMismatch::CannotVerify, current);
+
+    assert_eq!(
+        mismatch.to_string(),
+        "the current nickname holder is not the saved person"
+    );
 }
 
 #[test]
