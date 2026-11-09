@@ -365,6 +365,50 @@ pub struct Notice {
     pub(crate) receipt: crate::message_ref::Receipt,
 }
 
+/// A message or notice reconstructed from a `draft/multiline` batch that ended early.
+/// Applications may show its text as an explicitly incomplete item. They must not treat it as a
+/// mention, command, or reply target: later lines that could change its meaning never arrived.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum Incomplete {
+    /// A partial user message.
+    Message(Message),
+    /// A partial user notice.
+    Notice(Notice),
+}
+
+impl Incomplete {
+    /// Returns the message when this is [`Self::Message`].
+    #[must_use]
+    pub const fn as_message(&self) -> Option<&Message> {
+        if let Self::Message(message) = self {
+            Some(message)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the notice when this is [`Self::Notice`].
+    #[must_use]
+    pub const fn as_notice(&self) -> Option<&Notice> {
+        if let Self::Notice(notice) = self {
+            Some(notice)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the conversation captured from the received lines.
+    /// See [`Conversation`] for status-prefixed line guidance.
+    #[must_use]
+    pub fn conversation(&self) -> &Conversation {
+        match self {
+            Self::Message(message) => message.conversation(),
+            Self::Notice(notice) => &notice.conversation,
+        }
+    }
+}
+
 /// A notice or broadcast sent by a server or to a server-wide audience.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]

@@ -1786,6 +1786,28 @@ impl core::marker::Unpin for papo::HistoryReason
 impl core::marker::UnsafeUnpin for papo::HistoryReason
 impl core::panic::unwind_safe::RefUnwindSafe for papo::HistoryReason
 impl core::panic::unwind_safe::UnwindSafe for papo::HistoryReason
+#[non_exhaustive] pub enum papo::Incomplete
+pub papo::Incomplete::Message(papo::Message)
+pub papo::Incomplete::Notice(papo::event::Notice)
+impl papo::Incomplete
+pub const fn papo::Incomplete::as_message(&self) -> core::option::Option<&papo::Message>
+pub const fn papo::Incomplete::as_notice(&self) -> core::option::Option<&papo::event::Notice>
+pub fn papo::Incomplete::conversation(&self) -> &papo::Conversation
+impl core::clone::Clone for papo::Incomplete
+pub fn papo::Incomplete::clone(&self) -> Self
+impl core::cmp::Eq for papo::Incomplete
+impl core::cmp::PartialEq for papo::Incomplete
+pub fn papo::Incomplete::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::Incomplete
+pub fn papo::Incomplete::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::Incomplete
+impl core::marker::Freeze for papo::Incomplete
+impl core::marker::Send for papo::Incomplete
+impl core::marker::Sync for papo::Incomplete
+impl core::marker::Unpin for papo::Incomplete
+impl core::marker::UnsafeUnpin for papo::Incomplete
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Incomplete
+impl core::panic::unwind_safe::UnwindSafe for papo::Incomplete
 #[non_exhaustive] pub enum papo::InvalidInput
 pub papo::InvalidInput::AccountNameMustMatchNick
 pub papo::InvalidInput::CustomStreamNotReusable

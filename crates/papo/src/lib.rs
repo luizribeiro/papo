@@ -330,7 +330,7 @@ pub use error::{
     ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, ServerError,
 };
 pub use event_impl::{
-    Authorship, Event, Message, MessageKind, Oper, Source, Tags, TagsIter, UserSource,
+    Authorship, Event, Incomplete, Message, MessageKind, Oper, Source, Tags, TagsIter, UserSource,
 };
 pub use ext::accounts::{AccountCreation, NewAccount};
 pub use ext::extras::RenameChannel;
