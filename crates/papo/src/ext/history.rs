@@ -1313,7 +1313,7 @@ mod tests {
     };
     use papo_proto::{Casemapping, Line, LineRef};
 
-    use crate::Event as PageEvent;
+    use crate::{Event as PageEvent, MarkReadOutcome};
 
     use super::{
         HistoryPage, HistoryReason, HistoryReference, RecentConversation, history_item, reaction,
@@ -2538,22 +2538,22 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
-    async fn mark_read_sets_a_millisecond_server_timestamp() {
+    #[allow(clippy::too_many_lines)]
+    async fn mark_read_ignores_local_clock_and_reports_typed_outcomes() {
         let config = config().wanted_caps(["draft/read-marker", "labeled-response"]);
         let (mut server, client, mut events, driver) = scripted(config);
         let task = tokio::spawn(driver);
         complete_connect_read_marker(&mut server, &mut events).await;
-        let time = UNIX_EPOCH + Duration::new(1_760_529_342, 123_999_999);
         assert!(matches!(
-            client.mark_read("@#papo", time).await,
+            client.mark_read("@#papo").await,
             Err(Error::InvalidInput(_))
         ));
         assert!(matches!(
-            client.mark_read("*", time).await,
+            client.mark_read("*").await,
             Err(Error::InvalidInput(_))
         ));
         assert!(matches!(
-            client.mark_read("$opers", time).await,
+            client.mark_read("$opers").await,
             Err(Error::InvalidInput(_))
         ));
         assert_eq!(client.state().read_marker("#papo"), None);
@@ -2564,7 +2564,18 @@ mod tests {
                 .expect("server advertised CASEMAPPING")
                 .channel("#papo"),
         );
-        let request = tokio::spawn(async move { client.mark_read(channel, time).await });
+        server_line(
+            &mut server,
+            b"@time=2025-10-15T11:55:42.123Z;msgid=Newest :alice!a@host PRIVMSG #papo :seen\r\n",
+        )
+        .await;
+        let message = loop {
+            if let Some(Event::Message(message)) = next_event(&mut events).await {
+                break message.return_address();
+            }
+        };
+        let request_client = client.clone();
+        let request = tokio::spawn(async move { request_client.mark_read(channel).await });
         client_line(
             &mut server,
             b"@label=0 MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z\r\n",
@@ -2577,11 +2588,107 @@ mod tests {
         .await;
         assert_eq!(
             within(request).await.unwrap().unwrap(),
-            Some(UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000))
+            MarkReadOutcome::Advanced(UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000))
         );
         assert!(
             matches!(next_event(&mut events).await, Some(Event::ReadMarkerChanged(marker)) if matches!(&marker.conversation, crate::Conversation::Channel(channel) if channel == "#papo"))
         );
+
+        let request_client = client.clone();
+        let unchanged = tokio::spawn(async move { request_client.mark_read("#PAPO").await });
+        client_line(
+            &mut server,
+            b"@label=1 MARKREAD #PAPO timestamp=2025-10-15T11:55:42.123Z\r\n",
+        )
+        .await;
+        server_line(
+            &mut server,
+            b"@label=1 :ergo.test MARKREAD #PAPO timestamp=2025-10-15T11:55:42.123Z\r\n",
+        )
+        .await;
+        assert_eq!(
+            within(unchanged).await.unwrap().unwrap(),
+            MarkReadOutcome::Unchanged {
+                stored: UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000),
+            }
+        );
+
+        server_line(
+            &mut server,
+            b":ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:43.000Z\r\n",
+        )
+        .await;
+        assert!(matches!(
+            next_event(&mut events).await,
+            Some(Event::ReadMarkerChanged(_))
+        ));
+        let request_client = client.clone();
+        let behind =
+            tokio::spawn(async move { request_client.mark_read("#papo").up_to(&message).await });
+        client_line(
+            &mut server,
+            b"@label=2 MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z\r\n",
+        )
+        .await;
+        server_line(
+            &mut server,
+            b"@label=2 :ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:43.000Z\r\n",
+        )
+        .await;
+        assert_eq!(
+            within(behind).await.unwrap().unwrap(),
+            MarkReadOutcome::BehindLatest {
+                stored: UNIX_EPOCH + Duration::from_secs(1_760_529_343),
+                latest: UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000),
+            }
+        );
+        server_line(
+            &mut server,
+            b"@time=2025-10-15T11:55:44.000Z;msgid=Foreign :bob!b@host PRIVMSG #other :elsewhere\r\n",
+        )
+        .await;
+        let foreign = loop {
+            if let Some(Event::Message(message)) = next_event(&mut events).await {
+                break message.return_address();
+            }
+        };
+        assert!(matches!(
+            client.mark_read("#papo").up_to(&foreign).await,
+            Err(Error::InvalidInput(crate::InvalidInput::WrongConversation))
+        ));
+        assert!(matches!(
+            client.mark_read("#empty").await,
+            Err(Error::InvalidInput(crate::InvalidInput::NoServerTime))
+        ));
+        server_line(
+            &mut server,
+            b"@time=2025-10-15T11:55:45.001Z;msgid=Boundary :carol!c@host PRIVMSG #boundary :reviewed\r\n",
+        )
+        .await;
+        let boundary = loop {
+            if let Some(Event::Message(message)) = next_event(&mut events).await {
+                break message.return_address();
+            }
+        };
+        let request_client = client.clone();
+        let unconfirmed =
+            tokio::spawn(
+                async move { request_client.mark_read("#boundary").up_to(&boundary).await },
+            );
+        client_line(
+            &mut server,
+            b"@label=3 MARKREAD #boundary timestamp=2025-10-15T11:55:45.001Z\r\n",
+        )
+        .await;
+        server_line(
+            &mut server,
+            b"@label=3 :ergo.test MARKREAD #boundary timestamp=2025-10-15T11:55:45.000Z\r\n",
+        )
+        .await;
+        assert!(matches!(
+            within(unconfirmed).await.unwrap(),
+            Err(Error::Unconfirmed)
+        ));
         abort_task(task).await;
     }
 
