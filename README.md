@@ -44,14 +44,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 We put a lot of effort into making papo hard to misuse. Not just by someone hostile, but also accidental misuse and footguns. One rule we had is that nothing should fall to documentation if it's a pitfall. We should always prefer structural fixes.
 
-**Messages go to the right person.** We wanted to make sure we don't have any holes that could cause messages to be sent to the wrong person. On IRC that happens when someone leaves and someone else takes their nick. So you don't send to a bare nick. Either you reply to a message you got, with `client.reply(&message, "pong")`, which threads the reply and answers where the message came from (a line sent to `@#ops` gets its answer in `@#ops`), or you create a direct ref:
+**Messages go to the right person.** We wanted to make sure we don't have any holes that could cause messages to be sent to the wrong person. On IRC that happens when someone leaves and someone else takes their nick. So you don't send to a bare nick. Either you reply to a message you got, with `client.reply(&message, "pong")`, which threads the reply and answers where the message came from (a line sent to `@#ops` gets its answer in `@#ops`), or you create a user handle:
 
 ```rust
-let alice = client.direct("alice").await?;
+let alice = client.query("alice")?;
 client.privmsg(&alice, "deploy finished").await?;
 ```
 
-It follows alice through nick changes, and if someone else takes her nick the send fails with `Error::TargetGone`. We centralized these checks so they are not sprinkled everywhere, which felt brittle, and the target gets checked again right when the line is written. papo refuses instead of sending it to someone else. The escape hatch is `send_raw`, but no one should ever be passing a plain string into it, so it takes a `Line`.
+Creating the handle sends nothing. Its first guarded use proves who holds the nick, it follows alice through nick changes, and if someone else takes her nick the send fails with `Error::TargetGone`. Save `alice.key()` when a conversation must survive a restart, then use `client.open(&key)` to prove the current holder before reopening it. We centralized these checks so they are not sprinkled everywhere, which felt brittle, and the target gets checked again right when the line is written. papo refuses instead of sending it to someone else. The escape hatch is `send_raw`, but no one should ever be passing a plain string into it, so it takes a `Line`.
 
 **Types everywhere.** The APIs have types everywhere to prevent mistakes like putting the channel in place of the nick or whatever. Swap a `ChannelName` and a `Nick` in `client.kick(channel, nick, reason)` and it doesn't compile. The only way around it is constructing your own recipient with "#foo", "bar", etc, and then it only gets caught at runtime.
 

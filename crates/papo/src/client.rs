@@ -892,7 +892,7 @@ impl Client {
         receiver.await.map_err(|_| Error::connection_lost())?
     }
 
-    /// Sends a message to a channel or guarded [`crate::DirectRef`].
+    /// Sends a message to a channel or guarded [`crate::UserHandle`].
     ///
     /// With `echo-message` and `labeled-response`, the future resolves with the server's copy,
     /// which is not also emitted as an event. Applications that log every message must log their
@@ -908,7 +908,7 @@ impl Client {
     /// # }
     /// ```
     ///
-    /// A typed nickname is not a message target; capture a [`crate::DirectRef`] first:
+    /// A typed nickname is not a message target; create a [`crate::UserHandle`] first:
     ///
     /// ```compile_fail
     /// # fn unguarded(client: &papo::Client, nick: &papo::Nick) {
@@ -1364,7 +1364,7 @@ impl Client {
         })
     }
 
-    /// Joins a channel and waits for its topic and member list to synchronize.
+    /// Joins a channel and returns its handle after the topic and member list synchronize.
     ///
     /// # Errors
     ///

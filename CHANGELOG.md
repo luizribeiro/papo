@@ -44,6 +44,16 @@ and `HistoryPage::end` reports whether older messages after that cursor may have
 
 `Feature::from_name` resolves exact stable feature names back to their typed values.
 
+`Client::query` and `Client::channel` create connection-bound user and channel handles without sending an IRC command.
+
+The first guarded use of a `UserHandle` proves its identity with WHO, follows nickname changes, and refuses foreign or departed identities before writing the target command.
+
+`UserHandle::key` captures a persistable peer key, and `Client::open` returns `NotSamePerson` with the current key when a saved identity does not match.
+
+`Client::join` now resolves to the synchronized `ChannelHandle` for the joined channel.
+
+`UserHandle` and `ChannelHandle` are accepted directly by their applicable sealed argument roles, including message targets and conversations.
+
 `PeerKey` is now the persistable network-and-nickname thread key; equality and hashing ignore private proof upgrades, and its display form preserves verified or explicitly unverified proof state.
 
 `Client::mark_read(conversation)` now uses the newest server time papo observed, supports

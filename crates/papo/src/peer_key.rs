@@ -100,14 +100,14 @@ enum PeerProof {
 ///
 /// async fn open(
 ///     client: &papo::Client,
-///     nick: &papo::Nick,
 ///     stored: &papo::PeerKey,
-/// ) -> Result<papo::DirectRef, papo::Error> {
-///     match client.direct_pinned(nick, stored).await {
+/// ) -> Result<papo::UserHandle, papo::Error> {
+///     match client.open(stored).await {
 ///         Ok(peer) => Ok(peer),
-///         Err(papo::Error::PeerPinMismatch(mismatch)) => {
+///         Err(papo::Error::NotSamePerson(mismatch)) => {
 ///             warn(mismatch.reason(), mismatch.current_key());
-///             client.direct(nick).await // only after the user approves replacement
+///             let approved = mismatch.current_key().clone();
+///             client.open(&approved).await // only after the user approves replacement
 ///         }
 ///         Err(error) => Err(error),
 ///     }
