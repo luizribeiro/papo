@@ -7199,6 +7199,97 @@ async fn rejected_monitor_entry_fails_the_pending_direct_request() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn direct_to_own_line_needs_no_shared_channel_or_monitor() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let task = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":papo-driver!papo@localhost PRIVMSG alice :release note\r\n",
+    )
+    .await;
+    let message = next_message(&mut events).await;
+
+    let direct = within(client.direct_to(&message)).await.unwrap();
+    assert_eq!(direct.nick(), "papo-driver");
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), server.read_u8())
+            .await
+            .is_err()
+    );
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn direct_to_refuses_a_proven_actor_from_another_client() {
+    let mut source_config = config();
+    source_config.origin = crate::Origin::__new(73);
+    let (mut source_server, _source_client, mut source_events, source_driver) =
+        scripted(source_config);
+    let source_task = tokio::spawn(source_driver);
+    complete_connect(&mut source_server, &mut source_events).await;
+    server_line(
+        &mut source_server,
+        b":papo-driver!papo@localhost JOIN #source\r\n:alice!alice@source.example JOIN #source\r\n:alice!alice@source.example PRIVMSG papo-driver :source credentials\r\n",
+    )
+    .await;
+    for _ in 0..2 {
+        assert!(matches!(
+            next_active_event(&mut source_events).await,
+            Event::Joined(_)
+        ));
+    }
+    let source_message = next_message(&mut source_events).await;
+
+    let mut destination_config = config();
+    destination_config.origin = crate::Origin::__new(91);
+    let (mut destination_server, destination_client, mut destination_events, destination_driver) =
+        scripted(destination_config);
+    let destination_task = tokio::spawn(destination_driver);
+    complete_connect(&mut destination_server, &mut destination_events).await;
+    server_line(
+        &mut destination_server,
+        b":papo-driver!papo@localhost JOIN #destination\r\n:alice!mallory@destination.example JOIN #destination\r\n",
+    )
+    .await;
+    for _ in 0..2 {
+        assert!(matches!(
+            next_active_event(&mut destination_events).await,
+            Event::Joined(_)
+        ));
+    }
+
+    match within(destination_client.direct_to(&source_message)).await {
+        Err(Error::TargetGone) => {}
+        Ok(direct) => {
+            within(destination_client.privmsg(&direct, "source credentials"))
+                .await
+                .unwrap();
+            client_line(
+                &mut destination_server,
+                b"PRIVMSG alice :source credentials\r\n",
+            )
+            .await;
+            panic!("a foreign event addressed the destination client's Alice");
+        }
+        Err(error) => panic!("unexpected foreign-event error: {error}"),
+    }
+
+    within(source_server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(source_task).await.unwrap(),
+        Err(disconnected!())
+    ));
+    within(destination_server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(destination_task).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn monitor_presence_confirms_the_matching_direct_source_lease() {
     async fn confirmed_by(reply: &'static [u8]) {
         let (mut server, client, mut events, driver) = scripted(config());

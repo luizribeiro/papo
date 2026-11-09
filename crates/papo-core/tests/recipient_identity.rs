@@ -137,8 +137,10 @@ fn event_proof_requires_a_concrete_identity() {
         now + Duration::from_millis(1),
         ":alice!~alice@cloak.example JOIN #review alice-account :Alice Example",
     );
+    let token = session.state().__reply_token();
+    assert!(!token.__is_known());
     let result = session.state().__prove_event_user(
-        session.state().__reply_token(),
+        token,
         session.state().casemapping().nick("alice"),
         Account::LoggedIn(session.state().casemapping().account("alice-account")),
     );
@@ -150,6 +152,7 @@ fn event_proof_adapters_preserve_a_concrete_recipient() {
     let now = Instant::now();
     let mut session = session_with_origin(73);
     let token = alice_event(&mut session, now);
+    assert!(token.__is_known());
     let nick = Origin::__new(73).__nick(session.state().casemapping(), "alice");
     let account = Account::LoggedIn(
         Origin::__new(73).__account(session.state().casemapping(), "alice-account"),

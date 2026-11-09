@@ -545,9 +545,7 @@ impl Client {
         }
         if let Some(recipient) = parts.recipient.as_ref() {
             let resolved = recipient.to_core(&state);
-            if resolved.is_none()
-                && (recipient.has_proof() || matches!(role, crate::target::Role::Nick(_)))
-            {
+            if resolved.is_none() && matches!(role, crate::target::Role::Nick(_)) {
                 return Err(Error::TargetGone);
             }
             match resolved
