@@ -275,6 +275,7 @@ mod error;
 mod event_impl;
 mod ext;
 pub mod fail;
+mod handle;
 #[cfg(not(browser))]
 mod io_compat;
 #[path = "isupport.rs"]
@@ -346,6 +347,7 @@ pub use ext::{
     persistence::Persistence,
     webpush::{PushKeys, RegisterOutcome, WebPush},
 };
+pub use handle::ChannelHandle;
 pub use isupport_impl::Isupport;
 pub use message_ref::{MessageRef, NoticeRef};
 pub use mode::{BanTarget, Extban, KickbanOutcome, ModesApplied, SetModes};

@@ -3224,6 +3224,12 @@ impl PartialEq for ChannelGuard {
 
 impl Eq for ChannelGuard {}
 
+impl std::hash::Hash for ChannelGuard {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        (&self.origin, &self.channel, self.epoch, self.created_at).hash(state);
+    }
+}
+
 /// Identity proof attached to an outbound target.
 #[doc(hidden)]
 #[derive(Clone, Debug, Eq, PartialEq)]

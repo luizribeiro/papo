@@ -2181,6 +2181,27 @@ impl core::marker::Unpin for papo::Channel
 impl core::marker::UnsafeUnpin for papo::Channel
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Channel
 impl core::panic::unwind_safe::UnwindSafe for papo::Channel
+pub struct papo::ChannelHandle(_)
+impl papo::ChannelHandle
+pub fn papo::ChannelHandle::name(&self) -> papo::ChannelName
+pub const fn papo::ChannelHandle::status(&self) -> core::option::Option<papo::Prefix>
+impl core::clone::Clone for papo::ChannelHandle
+pub fn papo::ChannelHandle::clone(&self) -> Self
+impl core::cmp::Eq for papo::ChannelHandle
+impl core::cmp::PartialEq for papo::ChannelHandle
+pub fn papo::ChannelHandle::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::ChannelHandle
+pub fn papo::ChannelHandle::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::ChannelHandle
+pub fn papo::ChannelHandle::hash<H: core::hash::Hasher>(&self, &mut H)
+impl papo::AsChannel for papo::ChannelHandle
+impl core::marker::Freeze for papo::ChannelHandle
+impl core::marker::Send for papo::ChannelHandle
+impl core::marker::Sync for papo::ChannelHandle
+impl core::marker::Unpin for papo::ChannelHandle
+impl core::marker::UnsafeUnpin for papo::ChannelHandle
+impl core::panic::unwind_safe::RefUnwindSafe for papo::ChannelHandle
+impl core::panic::unwind_safe::UnwindSafe for papo::ChannelHandle
 pub struct papo::Client
 impl papo::Client
 pub fn papo::Client::action(&self, impl papo::Target, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
@@ -2219,6 +2240,8 @@ pub fn papo::Client::typing(&self, impl papo::Target, papo::Typing) -> papo::Req
 pub fn papo::Client::unreact(&self, impl core::convert::Into<papo::MessageRef>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::who(&self, impl papo::AsMask) -> papo::RequestFuture<alloc::vec::Vec<papo::WhoEntry>>
 pub fn papo::Client::whois(&self, impl papo::AsNick) -> papo::RequestFuture<papo::Whois>
+impl papo::Client
+pub fn papo::Client::channel(&self, impl papo::AsChannel) -> core::result::Result<papo::ChannelHandle, papo::InvalidInput>
 impl papo::Client
 pub fn papo::Client::create_account(&self, papo::NewAccount) -> papo::RequestFuture<papo::AccountCreation>
 pub fn papo::Client::verify_account(&self, impl papo::AsAccount, papo::Secret) -> papo::RequestFuture<papo::AccountCreation>
@@ -3478,6 +3501,7 @@ impl papo::AsChannel for alloc::borrow::Cow<'_, str>
 impl papo::AsChannel for alloc::boxed::Box<str>
 impl papo::AsChannel for alloc::rcs::arc::Arc<str>
 impl papo::AsChannel for alloc::string::String
+impl papo::AsChannel for papo::ChannelHandle
 impl papo::AsChannel for papo::ChannelName
 impl papo::AsChannel for str
 impl<T: papo::AsChannel + ?core::marker::Sized> papo::AsChannel for &T
