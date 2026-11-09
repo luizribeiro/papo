@@ -1424,7 +1424,10 @@ where
                     result.fail(error);
                 }
             }
-            event::CoreEvent::Incomplete(line) => {
+            event::CoreEvent::Line(line) => {
+                let Some(line) = line.into_incomplete() else {
+                    continue;
+                };
                 let event = crate::event_impl::incoming_from_core(
                     line,
                     session.state().nick().origin(),
@@ -1633,12 +1636,8 @@ where
                 events.receiver.finish_connecting();
                 registration.succeeded();
             }
-            line @ (event::CoreEvent::Line(_) | event::CoreEvent::Incomplete(_)) => {
-                let (message, incomplete) = match line {
-                    event::CoreEvent::Line(message) => (message, false),
-                    event::CoreEvent::Incomplete(message) => (message, true),
-                    _ => unreachable!(),
-                };
+            event::CoreEvent::Line(line) => {
+                let (message, incomplete) = line.into_parts();
                 drop_bad_rejoin_key(session, defaults, &message.as_ref());
                 let mut event = crate::event_impl::incoming_from_core(
                     message,

@@ -2017,8 +2017,7 @@ impl Event {
 pub(crate) enum CoreEvent {
     Forward(Event),
     Connected(Welcome),
-    Line(papo_core::ReceivedLine),
-    Incomplete(papo_core::ReceivedLine),
+    Line(CoreLine),
     Response(Response),
     RequestUntracked(RequestId),
     RequestTimedOut(RequestId),
@@ -2047,6 +2046,27 @@ pub(crate) enum CoreEvent {
         unsupported: papo_core::Unsupported,
     },
     Unknown,
+}
+
+pub(crate) enum CoreLine {
+    Complete(papo_core::ReceivedLine),
+    Incomplete(papo_core::ReceivedLine),
+}
+
+impl CoreLine {
+    pub(crate) fn into_parts(self) -> (papo_core::ReceivedLine, bool) {
+        match self {
+            Self::Complete(line) => (line, false),
+            Self::Incomplete(line) => (line, true),
+        }
+    }
+
+    pub(crate) fn into_incomplete(self) -> Option<papo_core::ReceivedLine> {
+        match self {
+            Self::Complete(_) => None,
+            Self::Incomplete(line) => Some(line),
+        }
+    }
 }
 
 // Keeping the exhaustive forwarding table together makes omissions visible when core grows.
@@ -2132,11 +2152,13 @@ pub(crate) fn from_core_with_receipt(
             if message.as_ref().command_is("001") {
                 return CoreEvent::Unknown;
             }
-            return CoreEvent::Line(message);
+            return CoreEvent::Line(CoreLine::Complete(message));
         }
-        papo_core::Event::MultilineMessage(message) => return CoreEvent::Line(message.message),
+        papo_core::Event::MultilineMessage(message) => {
+            return CoreEvent::Line(CoreLine::Complete(message.message));
+        }
         papo_core::Event::Incomplete(message) => {
-            return CoreEvent::Incomplete(message.message);
+            return CoreEvent::Line(CoreLine::Incomplete(message.message));
         }
         papo_core::Event::TypingChanged(change) => {
             let return_address = change.return_address();
@@ -3132,7 +3154,7 @@ mod tests {
             UNIX_EPOCH,
         ) {
             CoreEvent::Forward(event) => event,
-            CoreEvent::Line(line) => super::incoming_from_core(
+            CoreEvent::Line(super::CoreLine::Complete(line)) => super::incoming_from_core(
                 line,
                 crate::Origin::NONE,
                 session.isupport(),
@@ -4194,7 +4216,7 @@ mod tests {
                 received_at,
             ) {
                 CoreEvent::Forward(event) => event,
-                CoreEvent::Line(line) => super::incoming_from_core(
+                CoreEvent::Line(super::CoreLine::Complete(line)) => super::incoming_from_core(
                     line,
                     crate::Origin::NONE,
                     session.isupport(),
@@ -4296,7 +4318,7 @@ mod tests {
                 UNIX_EPOCH,
             ) {
                 CoreEvent::Forward(event) => event,
-                CoreEvent::Line(line) => super::incoming_from_core(
+                CoreEvent::Line(super::CoreLine::Complete(line)) => super::incoming_from_core(
                     line,
                     crate::Origin::NONE,
                     session.isupport(),
@@ -4701,7 +4723,7 @@ mod tests {
     }
 
     fn mapped_message_event(event: papo_core::Event) -> Event {
-        let CoreEvent::Line(message) = from_core(event) else {
+        let CoreEvent::Line(super::CoreLine::Complete(message)) = from_core(event) else {
             panic!("message was not mapped")
         };
         super::incoming_from_core(
@@ -4722,10 +4744,8 @@ mod tests {
         let Some(core) = session.poll_event() else {
             panic!("expected batch fallback")
         };
-        let mapped = from_core(core);
-        let (line, incomplete) = match mapped {
-            CoreEvent::Line(line) => (line, false),
-            CoreEvent::Incomplete(line) => (line, true),
+        let (line, incomplete) = match from_core(core) {
+            CoreEvent::Line(line) => line.into_parts(),
             _ => panic!("{kind} fallback was not a message line"),
         };
         let event = super::incoming_from_core(
@@ -4777,7 +4797,8 @@ mod tests {
         session.handle_line(now, b"BATCH -m");
         assert!(matches!(
             from_core(session.poll_event().unwrap()),
-            CoreEvent::Line(message) if message.as_ref().param(1) == Some("first\nsecond")
+            CoreEvent::Line(super::CoreLine::Complete(message))
+                if message.as_ref().param(1) == Some("first\nsecond")
         ));
     }
 

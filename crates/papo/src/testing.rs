@@ -41,16 +41,7 @@ pub fn exercise_session_mapping(input: &[u8], mut observe: impl FnMut(crate::Eve
         match mapped {
             crate::event_impl::CoreEvent::Forward(event) => observe(event),
             crate::event_impl::CoreEvent::Line(line) => {
-                observe(crate::event_impl::incoming_from_core(
-                    line,
-                    crate::Origin::NONE,
-                    session.isupport(),
-                    false,
-                    false,
-                    SystemTime::UNIX_EPOCH,
-                ));
-            }
-            crate::event_impl::CoreEvent::Incomplete(line) => {
+                let (line, incomplete) = line.into_parts();
                 let event = crate::event_impl::incoming_from_core(
                     line,
                     crate::Origin::NONE,
@@ -59,7 +50,11 @@ pub fn exercise_session_mapping(input: &[u8], mut observe: impl FnMut(crate::Eve
                     false,
                     SystemTime::UNIX_EPOCH,
                 );
-                if let Some(event) = crate::event_impl::mark_incomplete(event) {
+                if incomplete {
+                    if let Some(event) = crate::event_impl::mark_incomplete(event) {
+                        observe(event);
+                    }
+                } else {
                     observe(event);
                 }
             }
@@ -303,6 +298,8 @@ pub fn state(nick: impl Into<String>, connected: bool) -> State {
 
 #[cfg(all(test, not(browser)))]
 mod tests {
+    use std::fmt::Write as _;
+
     use super::{
         connected, exercise_session_mapping, exercise_session_mapping_invariants, joined, message,
         set_message_account, set_message_actor, set_message_id, state, user_source,
@@ -322,6 +319,30 @@ mod tests {
         assert_eq!(message.actor.nick(), "alice");
         assert_eq!(message.text, "release ready");
         assert_eq!(message.return_address(), "alice");
+    }
+
+    #[test]
+    fn session_mapping_preserves_a_refused_multiline_fragment() {
+        let mut input = String::new();
+        for index in 0..=64 {
+            writeln!(
+                input,
+                ":ergo.test BATCH +deploy-{index} draft/multiline #papo\r"
+            )
+            .unwrap();
+        }
+        input.push_str(
+            "@batch=deploy-64 :alice!~alice@users.example PRIVMSG #papo :release still deploying\r\n",
+        );
+        let mut text = None;
+
+        exercise_session_mapping(input.as_bytes(), |event| {
+            if let crate::Event::Incomplete(crate::Incomplete::Message(message)) = event {
+                text = Some(message.text);
+            }
+        });
+
+        assert_eq!(text.as_deref(), Some("release still deploying"));
     }
 
     #[test]
