@@ -49,6 +49,9 @@ for that user stay equal across account discovery and nickname changes; differen
 unequal even on the same account or after a departed user's nickname is reused. Handles are per
 connection, so after a reconnect a new handle does not equal an old one.
 
+Person-targeted core writes now require opaque proof minted from session state and recheck that
+proof at the final wire write; recipient guards can no longer be assembled by downstream code.
+
 `PeerKey` pins an identity to a nickname-addressed direct thread. Account pins use a readable,
 versioned persisted form scoped by a TLS-authenticated server, or by the complete authenticated
 bouncer and TLS-upstream scope. Continuity pins are unverified and connection-local. Applications

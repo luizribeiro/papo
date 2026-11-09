@@ -1,3 +1,10 @@
+mod person;
+mod proof;
+mod who;
+
+pub use person::PersonCommand;
+pub use proof::{ProofFailure, Proven};
+
 use papo_proto::{Command, LineRef, Source};
 
 use crate::Session;

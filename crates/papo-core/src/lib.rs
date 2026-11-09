@@ -197,6 +197,8 @@ use caps::Caps;
 pub use features::{Feature, Unsupported, UnsupportedReason};
 use framing::Framer;
 pub use history::{HistoryQuery, LastSeen, MsgRef, ReadMarker};
+#[doc(hidden)]
+pub use identity::{PersonCommand, ProofFailure, Proven};
 use isupport::IsupportState;
 use keepalive::Keepalive;
 use labels::encode_label;
@@ -3149,6 +3151,15 @@ pub struct ReplyToken {
     identity: Option<ReplyIdentity>,
 }
 
+impl ReplyToken {
+    /// Reports whether a received line carried proof of a concrete IRC user.
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __is_known(self) -> bool {
+        self.identity.is_some()
+    }
+}
+
 /// Opaque identity of one peer while the session can prove continuity.
 #[doc(hidden)]
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -3213,6 +3224,8 @@ impl Eq for ChannelGuard {}
 pub enum TargetGuard {
     /// A private recipient identity.
     Recipient(RecipientGuard),
+    /// A person or current nickname validated by session state.
+    Proven(Proven),
     /// A joined channel identity.
     Channel(ChannelGuard),
 }
@@ -3231,6 +3244,17 @@ impl RecipientGuard {
     #[doc(hidden)]
     #[must_use]
     pub fn __new(state: &State, nick: Nick, account: Account) -> Self {
+        Self::new(state, nick, account)
+    }
+
+    /// Builds a guard from identity proof captured with a received line.
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __from_parts(nick: Nick, account: Account, token: ReplyToken) -> Self {
+        Self::from_parts(nick, account, token)
+    }
+
+    pub(crate) fn new(state: &State, nick: Nick, account: Account) -> Self {
         let token = state.__reply_token_for(nick.as_str());
         Self {
             nick,
@@ -3239,10 +3263,7 @@ impl RecipientGuard {
         }
     }
 
-    /// Builds a guard from identity proof captured with a received line.
-    #[doc(hidden)]
-    #[must_use]
-    pub const fn __from_parts(nick: Nick, account: Account, token: ReplyToken) -> Self {
+    pub(crate) const fn from_parts(nick: Nick, account: Account, token: ReplyToken) -> Self {
         Self {
             nick,
             account,
@@ -4261,6 +4282,49 @@ impl Session {
         )
     }
 
+    /// Queues text to a person target that was validated by session state.
+    ///
+    /// The opaque proof is resolved again immediately before every wire write. It cannot be
+    /// substituted with a nickname or a guard assembled outside this crate.
+    ///
+    /// ```compile_fail
+    /// # use std::time::Instant;
+    /// # use papo_core::{Config, Session, TextKind};
+    /// # use papo_proto::Casemapping;
+    /// fn person_writer_requires_proven() {
+    ///     let mut session = Session::new(Config::default());
+    ///     let nick = Casemapping::default().nick("alice");
+    ///     let _ = session.send_person_text_detailed(
+    ///         Instant::now(), nick, TextKind::Privmsg, "release approved", &[],
+    ///     );
+    /// }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns [`RequestError::EmptyText`] when `text` has no nonempty lines, or the validation
+    /// and pending-request errors documented by [`Session::request`].
+    #[doc(hidden)]
+    pub fn send_person_text_detailed(
+        &mut self,
+        now: Instant,
+        proof: Proven,
+        kind: TextKind,
+        text: &str,
+        tags: &[(&str, &str)],
+    ) -> Result<SendTextResult, RequestError> {
+        let target = proof.captured_nick().to_string();
+        self.send_composed_text(
+            now,
+            kind,
+            &target,
+            text,
+            tags,
+            false,
+            Some(TargetGuard::Proven(proof)),
+        )
+    }
+
     /// Queues text whose target must still match at transmission time.
     #[doc(hidden)]
     pub fn send_target_guarded_text_detailed(
@@ -4556,6 +4620,34 @@ impl Session {
         recipient: Option<RecipientGuard>,
     ) -> Result<RequestId, RequestError> {
         self.request_target_guarded_silent(now, message, recipient.map(TargetGuard::Recipient))
+    }
+
+    /// Queues a request whose person target is filled from validated proof.
+    ///
+    /// # Errors
+    ///
+    /// Returns the request and line-building errors documented by [`Session::request`].
+    #[doc(hidden)]
+    pub fn request_person(
+        &mut self,
+        now: Instant,
+        proof: Proven,
+        command: PersonCommand,
+    ) -> Result<RequestId, RequestError> {
+        let target = proof.captured_nick().clone();
+        let message = command.with_target(&target);
+        self.require_feature(Feature::LabeledResponse)?;
+        let feature = requested_message_feature(&message.as_ref());
+        if let Some(feature) = feature {
+            self.require_feature(feature)?;
+        }
+        self.queue_guarded_request(
+            now,
+            message,
+            Some(feature.unwrap_or(Feature::LabeledResponse)),
+            true,
+            Some(TargetGuard::Proven(proof)),
+        )
     }
 
     /// Queues a silent request guarded by its target identity.
@@ -4934,7 +5026,7 @@ impl Session {
             .state
             .user(nick)
             .map_or(Account::Unknown, |user| user.account().clone());
-        let recipient = RecipientGuard::__new(
+        let recipient = RecipientGuard::new(
             &self.state,
             self.state.casemapping().nick(nick),
             account.clone(),
@@ -4954,7 +5046,7 @@ impl Session {
             .user(nick)
             .map_or(Account::Unknown, |user| user.account().clone());
         let recipient =
-            RecipientGuard::__new(&self.state, self.state.casemapping().nick(nick), account);
+            RecipientGuard::new(&self.state, self.state.casemapping().nick(nick), account);
         self.monitor
             .refresh_direct_identity(nick, recipient.__token());
         recipient
@@ -4970,7 +5062,7 @@ impl Session {
         self.state.prove_direct(recipient, account.clone())?;
         self.state_generation = self.state_generation.wrapping_add(1);
         let nick = recipient.__nick();
-        let recipient = RecipientGuard::__new(&self.state, nick.clone(), account);
+        let recipient = RecipientGuard::new(&self.state, nick.clone(), account);
         self.monitor
             .refresh_direct_identity(nick.as_str(), recipient.__token());
         Some(recipient)
@@ -5112,6 +5204,13 @@ impl Session {
                     return None;
                 };
                 (nick != *recipient.__nick()).then(|| (None, nick.to_string()))
+            }
+            Some(TargetGuard::Proven(proof)) => {
+                let Ok(nick) = self.state.__resolve_proven(proof) else {
+                    self.recipient_gone(queued.token, queued.request);
+                    return None;
+                };
+                (nick != *proof.captured_nick()).then(|| (None, nick.to_string()))
             }
             Some(TargetGuard::Channel(channel)) => {
                 let Some(current) = self.state.__resolve_channel(channel) else {

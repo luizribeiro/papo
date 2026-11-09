@@ -250,6 +250,9 @@ impl State {
             Some(papo_core::TargetGuard::Recipient(recipient)) => {
                 receipt = receipt.with_recipient(Some(recipient));
             }
+            Some(papo_core::TargetGuard::Proven(proof)) => {
+                receipt = receipt.with_recipient(proof.__recipient());
+            }
             Some(papo_core::TargetGuard::Channel(channel)) => {
                 receipt.set_channel(Some(channel.clone()));
             }
