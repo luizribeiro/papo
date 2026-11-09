@@ -453,10 +453,7 @@ async fn cross_client_values_never_reach_either_wire() {
     };
     assert!(is_foreign(&first.privmsg(channel, "acknowledged").await));
     assert!(is_foreign(
-        &first
-            .history("#papo")
-            .before(page.newest_reference().unwrap())
-            .await
+        &first.history("#papo").before(page.cursor().unwrap()).await
     ));
     assert!(
         tokio::time::timeout(Duration::from_millis(10), first_wire.next_sent())

@@ -693,14 +693,14 @@ pub enum HistoryReason {
 /// When `server_time` is missing, `received_at` provides a local fallback; the message's true
 /// historical position is unknown.
 ///
-/// Page bounds can be reused as paging cursors:
+/// A page cursor can be reused to continue in either direction:
 ///
 /// ```no_run
 /// # async fn show_bounds(client: &papo::Client) -> Result<(), papo::Error> {
 /// let page = client.history("#papo").latest().await?;
-/// if let (Some(oldest), Some(newest)) = (page.oldest_reference(), page.newest_reference()) {
-///     let previous = client.history("#papo").before(oldest).await?;
-///     let following = client.history("#papo").after(newest).await?;
+/// if let Some(cursor) = page.cursor() {
+///     let previous = client.history("#papo").before(cursor.clone()).await?;
+///     let following = client.history("#papo").after(cursor).await?;
 ///     println!("{} previous items; {} following items", previous.items.len(), following.items.len());
 /// }
 /// # Ok(())
@@ -758,30 +758,21 @@ impl HistoryPage {
         })
     }
 
-    /// Returns a paging cursor for the oldest end of this page, not the message itself.
+    /// Returns a cursor that continues from either edge of this page.
     ///
-    /// This uses the first delivered item. If the server does not follow the recommended
-    /// oldest-to-newest order, the cursor likewise refers to the first rather than necessarily
-    /// chronologically oldest item.
+    /// [`History::before`] continues from the first delivered item. [`History::after`] and
+    /// [`History::latest_after`] continue from the last. If the server does not follow the
+    /// recommended oldest-to-newest order, those items are not necessarily chronological edges.
     #[must_use]
-    pub fn oldest_reference(&self) -> Option<HistoryReference> {
+    pub fn cursor(&self) -> Option<HistoryReference> {
         let origin = crate::message_ref::conversation_origin(&self.conversation);
-        self.items
-            .first()
-            .and_then(|event| event_reference(event, origin))
-    }
-
-    /// Returns a paging cursor for the newest end of this page, not the message itself.
-    ///
-    /// This uses the last delivered item. If the server does not follow the recommended
-    /// oldest-to-newest order, the cursor likewise refers to the last rather than necessarily
-    /// chronologically newest item.
-    #[must_use]
-    pub fn newest_reference(&self) -> Option<HistoryReference> {
-        let origin = crate::message_ref::conversation_origin(&self.conversation);
-        self.items
-            .last()
-            .and_then(|event| event_reference(event, origin))
+        let value = event_reference(self.items.first()?)?;
+        let after = event_reference(self.items.last()?)?;
+        Some(HistoryReference {
+            after: (after != value).then_some(after),
+            value,
+            origin: (origin != crate::Origin::NONE).then_some(origin),
+        })
     }
 }
 
@@ -793,20 +784,10 @@ impl RecentConversation {
     }
 }
 
-fn event_reference(event: &Event, origin: crate::Origin) -> Option<HistoryReference> {
-    let origin = (origin != crate::Origin::NONE).then_some(origin);
+fn event_reference(event: &Event) -> Option<MsgRef> {
     event.msgid().map_or_else(
-        || {
-            event
-                .server_time()
-                .map(|time| HistoryReference::new(MsgRef::Timestamp(time), origin))
-        },
-        |msgid| {
-            Some(HistoryReference::new(
-                MsgRef::Msgid(msgid.to_string()),
-                origin,
-            ))
-        },
+        || event.server_time().map(MsgRef::Timestamp),
+        |msgid| Some(MsgRef::Msgid(msgid.to_string())),
     )
 }
 
@@ -845,38 +826,40 @@ impl History {
     /// `reference` and the page; check [`HistoryPage::end`] to learn whether the page is complete.
     /// Unlike [`History::after`], this returns the newest page after the reference.
     pub fn latest_after(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
-        self.reference_query(reference, |target, after, limit| {
+        self.reference_query(reference, CursorEdge::After, |target, after, limit| {
             HistoryQuery::__latest(target, Some(after), limit)
         })
     }
 
     /// Requests messages immediately before `reference`.
     pub fn before(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
-        self.reference_query(reference, HistoryQuery::__before)
+        self.reference_query(reference, CursorEdge::Before, HistoryQuery::__before)
     }
 
     /// Requests the oldest messages strictly after `reference`, at most the requested limit.
     ///
     /// Unlike [`History::latest_after`], this returns the oldest page after the reference.
     pub fn after(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
-        self.reference_query(reference, HistoryQuery::__after)
+        self.reference_query(reference, CursorEdge::After, HistoryQuery::__after)
     }
 
     /// Requests messages surrounding `reference`.
     pub fn around(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
-        self.reference_query(reference, HistoryQuery::__around)
+        self.reference_query(reference, CursorEdge::After, HistoryQuery::__around)
     }
 
     fn reference_query(
         self,
         reference: impl Into<HistoryReference>,
+        edge: CursorEdge,
         build: impl FnOnce(String, MsgRef, usize) -> HistoryQuery,
     ) -> HistoryRequest {
         let reference = reference.into();
-        let value = reference.value;
+        let origin = reference.origin;
+        let value = reference.edge(edge);
         let query = self
             .target
-            .and_then(|target| resolve_reference(&self.client, target, reference.origin))
+            .and_then(|target| resolve_reference(&self.client, target, origin))
             .map(|target| build(target, value, DEFAULT_HISTORY_LIMIT));
         HistoryRequest {
             client: self.client,
@@ -897,7 +880,9 @@ impl History {
             .and_then(|target| resolve_reference(&self.client, target, start.origin))
             .and_then(|target| resolve_reference(&self.client, target, end.origin))
             .map(|target| {
-                HistoryQuery::__between(target, start.value, end.value, DEFAULT_HISTORY_LIMIT)
+                let start = start.edge(CursorEdge::After);
+                let end = end.edge(CursorEdge::Before);
+                HistoryQuery::__between(target, start, end, DEFAULT_HISTORY_LIMIT)
             });
         HistoryRequest {
             client: self.client,
@@ -922,18 +907,38 @@ fn resolve_reference(
     )
 }
 
-/// A message identifier or timestamp accepted as an exclusive history bound.
+/// An exclusive position used to continue a history request.
 ///
-/// Timestamp references are exclusive and can skip other lines carrying the same timestamp.
+/// A cursor from [`HistoryPage::cursor`] retains both page edges. Cursors made from a message ID
+/// or timestamp use that position for both directions. Timestamp cursors can skip other lines
+/// carrying the same timestamp.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HistoryReference {
     value: MsgRef,
+    after: Option<MsgRef>,
     origin: Option<crate::Origin>,
+}
+
+#[derive(Clone, Copy)]
+enum CursorEdge {
+    Before,
+    After,
 }
 
 impl HistoryReference {
     fn new(value: MsgRef, origin: Option<crate::Origin>) -> Self {
-        Self { value, origin }
+        Self {
+            value,
+            after: None,
+            origin,
+        }
+    }
+
+    fn edge(self, edge: CursorEdge) -> MsgRef {
+        match edge {
+            CursorEdge::Before => self.value,
+            CursorEdge::After => self.after.unwrap_or(self.value),
+        }
     }
 }
 
@@ -1293,10 +1298,16 @@ mod tests {
         assert!(
             matches!(HistoryReference::from(UNIX_EPOCH).value, MsgRef::Timestamp(time) if time == UNIX_EPOCH)
         );
-        let event = historical_message(
+        let oldest = historical_message(
             Line::privmsg("#papo", "earlier")
                 .with_source("emily!~emily@localhost")
                 .with_tag("msgid", "RfcBTzyxY120004"),
+            UNIX_EPOCH,
+        );
+        let newest = historical_message(
+            Line::privmsg("#papo", "later")
+                .with_source("emily!~emily@localhost")
+                .with_tag("msgid", "RfcBTzyxY120009"),
             UNIX_EPOCH,
         );
         let origin = crate::Origin::__new(73);
@@ -1304,14 +1315,16 @@ mod tests {
             conversation: crate::Conversation::Channel(
                 origin.__channel(Casemapping::default(), "#papo"),
             ),
-            items: vec![Event::Message(event)],
+            items: vec![Event::Message(oldest), Event::Message(newest)],
             reason: HistoryReason::Requested,
             end: false,
         };
-        let reference = page.oldest_reference().unwrap();
-        assert_eq!(reference.origin, Some(origin));
-        assert!(matches!(reference.value, MsgRef::Msgid(id)
+        let cursor = page.cursor().unwrap();
+        assert_eq!(cursor.origin, Some(origin));
+        assert!(matches!(cursor.value, MsgRef::Msgid(id)
             if id == "RfcBTzyxY120004"));
+        assert!(matches!(cursor.after, Some(MsgRef::Msgid(id))
+            if id == "RfcBTzyxY120009"));
     }
 
     #[test]
@@ -1465,14 +1478,7 @@ mod tests {
             reason: HistoryReason::Requested,
             end: false,
         };
-        assert_eq!(
-            page.oldest_reference(),
-            Some(HistoryReference::from(UNIX_EPOCH))
-        );
-        assert_eq!(
-            page.newest_reference(),
-            Some(HistoryReference::from(UNIX_EPOCH))
-        );
+        assert_eq!(page.cursor(), Some(HistoryReference::from(UNIX_EPOCH)));
     }
 
     #[test]
@@ -1490,8 +1496,7 @@ mod tests {
             end: false,
         };
 
-        assert_eq!(page.oldest_reference(), None);
-        assert_eq!(page.newest_reference(), None);
+        assert_eq!(page.cursor(), None);
     }
 
     #[test]
@@ -1585,10 +1590,10 @@ mod tests {
             reason: HistoryReason::Requested,
             end: false,
         };
-        let reference = page.oldest_reference().unwrap();
-        assert!(matches!(&reference.value, MsgRef::Timestamp(time) if *time == server_time));
+        let cursor = page.cursor().unwrap();
+        assert!(matches!(&cursor.value, MsgRef::Timestamp(time) if *time == server_time));
         assert!(matches!(
-            client.history("#papo").before(reference).query,
+            client.history("#papo").before(cursor).query,
             Ok(HistoryQuery::Before {
                 before: MsgRef::Timestamp(time),
                 ..

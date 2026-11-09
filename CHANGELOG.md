@@ -40,6 +40,7 @@ server-proof verification; failed or aborted exchanges discard the pending accou
 
 `History::latest_after` retrieves the newest history page after a saved message ID or timestamp,
 and `HistoryPage::end` reports whether older messages after that cursor may have been omitted.
+`HistoryPage::cursor` now provides one `HistoryReference` for continuing from either page edge.
 
 `DirectRef` equality and hashing now identify only the tracked IRC user on one connection. Handles
 for that user stay equal across account discovery and nickname changes; different users remain
