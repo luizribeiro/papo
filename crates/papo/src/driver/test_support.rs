@@ -8,7 +8,7 @@ pub(crate) use std::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
     },
     task::{Context, Poll},
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{Duration, SystemTime},
 };
 
 pub(crate) use papo_core::{Config, Decoding, Sasl, Session, sts::ConnectionSecurity};

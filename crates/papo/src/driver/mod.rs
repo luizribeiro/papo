@@ -29,7 +29,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
     },
     task,
-    time::{Duration, SystemTime},
+    time::Duration,
 };
 use web_time::Instant;
 
@@ -151,7 +151,7 @@ pub(crate) enum Command {
     },
     MarkRead {
         target: String,
-        time: SystemTime,
+        time: crate::ServerTime,
         result: oneshot::Sender<Result<Response, Error>>,
     },
     ReadMarker {

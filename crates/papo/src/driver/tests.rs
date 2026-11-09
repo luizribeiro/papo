@@ -28,7 +28,7 @@ fn prefix_symbols(prefixes: &[crate::Prefix]) -> Vec<char> {
 fn assert_join_burst_channel(channel: &crate::Channel) {
     assert_eq!(
         channel.topic_set_at(),
-        Some(UNIX_EPOCH + Duration::from_secs(1_793_099_900))
+        Some(crate::ServerTime::from_stored_millis(1_793_099_900_000).unwrap())
     );
     let mut modes = channel.modes().collect::<Vec<_>>();
     modes.sort_unstable_by_key(|(mode, _)| *mode);
@@ -46,7 +46,7 @@ fn assert_join_burst_channel(channel: &crate::Channel) {
     );
     assert_eq!(
         channel.created_at(),
-        Some(UNIX_EPOCH + Duration::from_secs(1_793_098_801))
+        Some(crate::ServerTime::from_stored_millis(1_793_098_801_000).unwrap())
     );
 }
 
@@ -485,7 +485,7 @@ async fn message_fields_use_captured_session_facts() {
     );
     assert_eq!(
         message.server_time,
-        Some(UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000))
+        Some(crate::ServerTime::from_stored_millis(1_770_091_506_789).unwrap())
     );
 
     server_line(&mut server, b":emily!~e@localhost NOTICE papo-driver :maintenance soon\r\n:emily!~e@localhost PRIVMSG #papo :\x01ACTION deploys \x02bold\x02 and \x1ditalic\x1d then \x02\x1dboth\x0f in \x0304red and \x04FF0000hex\x01\r\n:dan!~d@cloak PRIVMSG #papo :\x01ACTION tests a split message\r\n:emily!~e@localhost PRIVMSG papo-driver :\x01VERSION\x01\r\n:dan!~d@cloak PRIVMSG papo-driver :\x01PING 1731513600\x01\r\n:soju.example NOTICE papo-driver :\x01VERSION soju 0.8.2\x01\r\n").await;
@@ -7956,7 +7956,7 @@ async fn chat_text_returns_metadata_from_every_labelled_echo() {
     assert_eq!(sent.status, None);
     assert_eq!(
         *server_time,
-        Some(UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000))
+        Some(crate::ServerTime::from_stored_millis(1_770_091_506_789).unwrap())
     );
 
     let sender = client.clone();
@@ -9512,7 +9512,7 @@ async fn pending_read_marker_request_enables_read_ahead() {
     .await;
     assert_eq!(
         within(marker).await.unwrap().unwrap(),
-        Some(SystemTime::UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000))
+        Some(crate::ServerTime::from_stored_millis(1_760_529_342_123).unwrap())
     );
 
     abort_task(driver).await;
@@ -9663,11 +9663,11 @@ async fn overflow_reports_message_gaps_for_each_conversation() {
         assert_eq!(gap.last_msgid.as_deref(), Some(last));
         assert_eq!(
             gap.first_server_time,
-            Some(SystemTime::UNIX_EPOCH + Duration::from_secs(first_time))
+            Some(crate::ServerTime::from_stored_millis(first_time * 1_000).unwrap())
         );
         assert_eq!(
             gap.last_server_time,
-            Some(SystemTime::UNIX_EPOCH + Duration::from_secs(last_time))
+            Some(crate::ServerTime::from_stored_millis(last_time * 1_000).unwrap())
         );
     }
     assert_eq!(next_message(&mut events).await.text, "deployment three");

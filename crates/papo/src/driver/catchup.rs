@@ -1,7 +1,6 @@
 use std::{
     collections::{BTreeMap, HashSet},
     sync::Arc,
-    time::SystemTime,
 };
 
 use super::{EventSink, PostConnect, now};
@@ -17,7 +16,7 @@ pub(super) struct Catchup {
 #[derive(Clone, Debug)]
 pub(super) struct CatchupCursor {
     msgid: Option<String>,
-    time: SystemTime,
+    time: crate::ServerTime,
 }
 
 pub(super) fn remember_live_event<'a>(
@@ -196,7 +195,16 @@ pub(super) fn begin_catchup(
             let Some(disconnected_at) = defaults.disconnected_at else {
                 continue;
             };
-            papo_core::MsgRef::Timestamp(disconnected_at)
+            let Ok(duration) = disconnected_at.duration_since(std::time::UNIX_EPOCH) else {
+                continue;
+            };
+            let Ok(millis) = i64::try_from(duration.as_millis()) else {
+                continue;
+            };
+            let Ok(time) = crate::ServerTime::from_stored_millis(millis) else {
+                continue;
+            };
+            papo_core::MsgRef::Timestamp(time)
         } else {
             continue;
         };
