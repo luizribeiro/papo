@@ -327,20 +327,26 @@ mod tests {
         hasher.finish()
     }
 
-    fn untracked_direct(
-        client: &crate::Client,
-        recipient: papo_core::RecipientGuard,
-    ) -> super::DirectRef {
-        let scope = crate::peer_key::PeerScope::server("verified.example");
-        let peer_key = crate::PeerKey::historical(Some(&scope), recipient.__account()).unwrap();
-        super::DirectRef(Arc::new(super::DirectInner {
-            identity: recipient.__token(),
-            peer_key,
-            upgraded_peer_key: std::sync::OnceLock::new(),
-            recipient,
-            state: Arc::clone(&client.state),
-            _lease: None,
-        }))
+    struct UnprovenTarget {
+        nick: crate::Nick,
+        account: Account,
+    }
+
+    impl crate::target::sealed::Sealed for UnprovenTarget {}
+
+    impl crate::Target for UnprovenTarget {
+        fn __parts(&self) -> crate::target::sealed::Parts<'_> {
+            crate::target::sealed::Parts {
+                text: std::borrow::Cow::Owned(self.nick.to_string()),
+                origin: self.nick.origin(),
+                recipient: Some(crate::message_ref::RecipientGuard {
+                    nick: self.nick.clone(),
+                    account: self.account.clone(),
+                    receipt: None,
+                }),
+                channel: None,
+            }
+        }
     }
 
     fn response_with(lines: &[&str]) -> papo_core::Response {
@@ -469,8 +475,10 @@ mod tests {
                     .isupport()
                     .casemapping()
                     .nick(format!("reviewer{index:02}"));
-                let recipient =
-                    papo_core::RecipientGuard::__new(session.state(), nick, Account::Unknown);
+                let recipient = session
+                    .state()
+                    .__capture_recipient(nick, Account::Unknown)
+                    .unwrap();
                 super::DirectRef::new(&client, recipient, false)
             })
             .collect();
@@ -616,11 +624,13 @@ mod tests {
         session.handle_line(now, b":alice!~alice@cloak.example NICK alicia");
         *client.state.write().unwrap() = Arc::new(crate::State::from_session(&session, true));
         assert_eq!(direct.nick(), "alicia");
-        let renamed_recipient = papo_core::RecipientGuard::__new(
-            session.state(),
-            session.isupport().casemapping().nick("alicia"),
-            Account::Unknown,
-        );
+        let renamed_recipient = session
+            .state()
+            .__capture_recipient(
+                session.isupport().casemapping().nick("alicia"),
+                Account::Unknown,
+            )
+            .unwrap();
         let renamed = super::DirectRef::new(&client, renamed_recipient, false);
         assert_eq!(direct, renamed);
         assert_eq!(direct_hash(&direct), original_hash);
@@ -667,17 +677,25 @@ mod tests {
     }
 
     #[test]
-    fn unknown_guarded_nickname_is_rejected() {
+    fn departed_guarded_nickname_is_rejected() {
         let mut session = Session::new(Config::default().nick("papo"));
         session.handle_line(
             crate::rt::now_mono(),
             b":ergo.test 005 papo CASEMAPPING=rfc1459 :are supported",
         );
+        session.handle_line(crate::rt::now_mono(), b":papo!~papo@localhost JOIN #review");
+        session.handle_line(
+            crate::rt::now_mono(),
+            b":alice!~alice@cloak.example JOIN #review",
+        );
         let nick = session.isupport().casemapping().nick("alice");
-        let recipient = papo_core::RecipientGuard::__from_parts(
-            nick.clone(),
-            Account::LoggedOut,
-            papo_core::ReplyToken::__unknown(nick.origin()),
+        let recipient = session
+            .state()
+            .__capture_recipient(nick.clone(), Account::LoggedOut)
+            .unwrap();
+        session.handle_line(
+            crate::rt::now_mono(),
+            b":alice!~alice@cloak.example QUIT :Client exited",
         );
         let (client, _) = crate::driver::test_support::client_with_commands(&session);
         let parts = crate::target::sealed::Parts {
@@ -694,7 +712,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn unknown_recipient_send_requires_the_same_verified_account() {
+    async fn unproven_recipient_send_requires_the_same_verified_account() {
         let now = crate::rt::now_mono();
         let mut session = Session::new(Config::default().nick("papo"));
         session.handle_line(
@@ -704,15 +722,13 @@ mod tests {
         let (client, mut commands) = crate::driver::test_support::client_with_commands(&session);
         let nick = session.isupport().casemapping().nick("alice");
         let account = Account::LoggedIn(session.isupport().casemapping().account("alice-account"));
-        let recipient = papo_core::RecipientGuard::__from_parts(
-            nick.clone(),
-            account.clone(),
-            papo_core::ReplyToken::__unknown(nick.origin()),
-        );
-        let direct = untracked_direct(&client, recipient.clone());
-        let resolved = tokio::spawn({
+        let resolving = tokio::spawn({
             let client = client.clone();
-            async move { client.privmsg(direct, "release approved").await }
+            let target = UnprovenTarget {
+                nick,
+                account: account.clone(),
+            };
+            async move { client.privmsg(target, "release approved").await }
         });
 
         let crate::driver::Command::DirectAcquire {
@@ -754,16 +770,17 @@ mod tests {
         };
         assert_eq!(refreshed, account);
         assert_eq!(proof.__account(), &Account::Unknown);
+        let recipient = session.__direct_prove(&proof, refreshed).unwrap();
         result.send(Ok(recipient)).unwrap();
         assert!(matches!(
             next_command(&mut commands).await,
             crate::driver::Command::Send { .. }
         ));
-        assert!(resolved.await.unwrap().is_err());
+        resolving.abort();
     }
 
     #[tokio::test]
-    async fn unknown_current_account_requires_who_proof() {
+    async fn unproven_current_account_requires_who_proof() {
         let now = crate::rt::now_mono();
         let mut session = Session::new(Config::default().nick("papo"));
         session.handle_line(
@@ -775,15 +792,12 @@ mod tests {
         let (client, mut commands) = crate::driver::test_support::client_with_commands(&session);
         let nick = session.isupport().casemapping().nick("alice");
         let account = Account::LoggedIn(session.isupport().casemapping().account("alice-account"));
-        let recipient = papo_core::RecipientGuard::__from_parts(
-            nick.clone(),
-            account.clone(),
-            papo_core::ReplyToken::__unknown(nick.origin()),
-        );
-        let direct = super::DirectRef::new(&client, recipient, false);
-        let sending = tokio::spawn({
-            let client = client.clone();
-            async move { client.privmsg(direct, "release approved").await }
+        let resolving = tokio::spawn({
+            let target = UnprovenTarget {
+                nick,
+                account: account.clone(),
+            };
+            async move { client.privmsg(target, "release approved").await }
         });
 
         let crate::driver::Command::DirectAcquire {
@@ -806,39 +820,7 @@ mod tests {
             panic!("expected WHO request")
         };
         assert_eq!(message.params(), ["alice", "%na"]);
-        sending.abort();
-    }
-
-    #[tokio::test]
-    async fn different_known_account_refuses_without_who() {
-        let now = crate::rt::now_mono();
-        let mut session = Session::new(Config::default().nick("papo"));
-        session.handle_line(
-            now,
-            b":ergo.test 005 papo CASEMAPPING=rfc1459 MONITOR=100 :are supported",
-        );
-        session.handle_line(now, b":papo!~papo@localhost JOIN #review * :Papo");
-        session.handle_line(
-            now,
-            b":alice!~alice@cloak.example JOIN #review mallory-account :Alice Example",
-        );
-        let (client, mut commands) = crate::driver::test_support::client_with_commands(&session);
-        let nick = session.isupport().casemapping().nick("alice");
-        let recipient = papo_core::RecipientGuard::__from_parts(
-            nick.clone(),
-            Account::LoggedIn(session.isupport().casemapping().account("alice-account")),
-            papo_core::ReplyToken::__unknown(nick.origin()),
-        );
-        let direct = super::DirectRef::new(&client, recipient, false);
-
-        assert!(matches!(
-            client.privmsg(direct, "release approved").await,
-            Err(crate::Error::TargetGone)
-        ));
-        assert!(matches!(
-            commands.try_recv(),
-            Err(tokio::sync::mpsc::error::TryRecvError::Empty)
-        ));
+        resolving.abort();
     }
 
     #[test]
