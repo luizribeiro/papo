@@ -5132,6 +5132,79 @@ async fn query_first_send_uses_who() {
     ));
 }
 
+fn account_handle(client: &Client, nick: &str, account: &str) -> crate::UserHandle {
+    let state = client.state();
+    let rules = state.known_name_rules().unwrap();
+    let nick = rules.nick(nick);
+    let account = crate::Account::LoggedIn(rules.account(account));
+    crate::UserHandle::new(client, nick, account, None)
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn account_handle_remembers_a_successful_proof() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    let alice = account_handle(&client, "alice", "alice-account");
+
+    let sending = tokio::spawn({
+        let client = client.clone();
+        let alice = alice.clone();
+        async move { client.privmsg(alice, "release approved").await }
+    });
+    client_line(&mut server, b"WHO alice %na\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test 354 papo-driver alice alice-account\r\n:ergo.test 315 papo-driver alice :End of WHO list\r\n",
+    )
+    .await;
+    client_line(&mut server, b"PRIVMSG alice :release approved\r\n").await;
+    within(sending).await.unwrap().unwrap();
+
+    within(client.privmsg(alice, "release deployed"))
+        .await
+        .unwrap();
+    client_line(&mut server, b"PRIVMSG alice :release deployed\r\n").await;
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn account_handle_refuses_a_replacement_nickname_holder() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    let alice = account_handle(&client, "alice", "alice-account");
+
+    let sending =
+        tokio::spawn(async move { client.privmsg(alice, "confidential release notes").await });
+    client_line(&mut server, b"WHO alice %na\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test 354 papo-driver alice mallory-account\r\n:ergo.test 315 papo-driver alice :End of WHO list\r\n",
+    )
+    .await;
+    assert!(matches!(
+        within(sending).await.unwrap(),
+        Err(Error::TargetGone)
+    ));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), server.read_u8())
+            .await
+            .is_err()
+    );
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
 #[tokio::test(flavor = "current_thread")]
 async fn empty_who_refuses_without_target_command() {
     let (mut server, client, mut events, driver) = scripted(config());
