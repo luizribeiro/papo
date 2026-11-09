@@ -2,7 +2,8 @@
 
 use std::time::{Duration, Instant};
 
-use papo_core::{Account, Config, PeerToken, ProofFailure, RecipientStatus, Session};
+use papo_core::{Account, Config, Event, PeerToken, ProofFailure, RecipientStatus, Session};
+use papo_proto::{Line, Origin};
 
 fn server(session: &mut Session, now: Instant, line: &str) {
     session.handle_line(now, line.as_bytes());
@@ -10,6 +11,32 @@ fn server(session: &mut Session, now: Instant, line: &str) {
 
 fn peer(session: &Session, nick: &str) -> PeerToken {
     session.state().__peer_token_for(nick)
+}
+
+fn session_with_origin(origin: u64) -> Session {
+    let mut config = Config::default().nick("papo");
+    config.origin = Origin::__new(origin);
+    Session::new(config)
+}
+
+fn alice_event(session: &mut Session, now: Instant) -> papo_core::ReplyToken {
+    server(session, now, ":papo!~papo@localhost JOIN #review");
+    server(
+        session,
+        now + Duration::from_millis(1),
+        ":alice!~alice@cloak.example JOIN #review alice-account :Alice Example",
+    );
+    server(
+        session,
+        now + Duration::from_millis(2),
+        "@msgid=ErgoProof1;account=alice-account :alice!~alice@cloak.example PRIVMSG #review :release approved",
+    );
+    std::iter::from_fn(|| session.poll_event())
+        .find_map(|event| match event {
+            Event::Line(line) if line.as_ref().command_is("PRIVMSG") => Some(line.__reply_token()),
+            _ => None,
+        })
+        .expect("Ergo message event carries a reply token")
 }
 
 #[test]
@@ -116,4 +143,83 @@ fn event_proof_requires_a_concrete_identity() {
         Account::LoggedIn(session.state().casemapping().account("alice-account")),
     );
     assert_eq!(result.unwrap_err(), ProofFailure::MissingEvidence);
+}
+
+#[test]
+fn event_proof_adapters_preserve_a_concrete_recipient() {
+    let now = Instant::now();
+    let mut session = session_with_origin(73);
+    let token = alice_event(&mut session, now);
+    let nick = Origin::__new(73).__nick(session.state().casemapping(), "alice");
+    let account = Account::LoggedIn(
+        Origin::__new(73).__account(session.state().casemapping(), "alice-account"),
+    );
+
+    let proof = session
+        .__prove_event_user(token, nick.clone(), account.clone())
+        .expect("the event proves Alice's identity");
+    assert!(proof.__recipient().is_some());
+    assert!(
+        session
+            .state()
+            .__recipient_from_event(token, nick, account)
+            .is_some()
+    );
+}
+
+#[test]
+fn event_proof_rejects_a_foreign_nickname_with_a_local_token() {
+    let now = Instant::now();
+    let mut session = session_with_origin(73);
+    let token = alice_event(&mut session, now);
+    let foreign_nick = Origin::__new(91).__nick(session.state().casemapping(), "alice");
+    let account = Account::LoggedIn(
+        Origin::__new(73).__account(session.state().casemapping(), "alice-account"),
+    );
+
+    assert_eq!(
+        session
+            .state()
+            .__prove_event_user(token, foreign_nick, account)
+            .unwrap_err(),
+        ProofFailure::ForeignReference
+    );
+}
+
+#[test]
+fn who_proof_rejects_a_foreign_nickname() {
+    let now = Instant::now();
+    let mut session = session_with_origin(73);
+    _ = alice_event(&mut session, now);
+    let foreign_nick = Origin::__new(91).__nick(session.state().casemapping(), "alice");
+    let account = Account::LoggedIn(
+        Origin::__new(73).__account(session.state().casemapping(), "alice-account"),
+    );
+    let row = Line::new("354").with_params(["papo", "alice", "alice-account"]);
+
+    assert_eq!(
+        session
+            .__prove_who_user(foreign_nick, account, &[row])
+            .unwrap_err(),
+        ProofFailure::ForeignReference
+    );
+}
+
+#[test]
+fn who_proof_rejects_another_users_row() {
+    let now = Instant::now();
+    let mut session = session_with_origin(73);
+    _ = alice_event(&mut session, now);
+    let nick = Origin::__new(73).__nick(session.state().casemapping(), "alice");
+    let account = Account::LoggedIn(
+        Origin::__new(73).__account(session.state().casemapping(), "alice-account"),
+    );
+    let mallory_row = Line::new("354").with_params(["papo", "mallory", "alice-account"]);
+
+    assert_eq!(
+        session
+            .__prove_who_user(nick, account, &[mallory_row])
+            .unwrap_err(),
+        ProofFailure::MissingEvidence
+    );
 }
