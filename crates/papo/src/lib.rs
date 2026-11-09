@@ -362,8 +362,8 @@ pub use papo_core::Secret;
 pub use papo_core::cap::__is_known as __is_known_cap;
 #[doc(inline)]
 pub use papo_core::{
-    Account, Away, Cap, Capabilities, ConnectionEpoch, Conversation, Feature, Member, MetadataView,
-    ModeAction, ModeArg, ModeChange, ModeValue, Rank, User,
+    Account, Away, Cap, Capabilities, ConnectionEpoch, Conversation, Feature, InvalidServerTime,
+    Member, MetadataView, ModeAction, ModeArg, ModeChange, ModeValue, Rank, ServerTime, User,
 };
 #[cfg(feature = "unstable")]
 pub use papo_core::{

@@ -4,7 +4,7 @@ use std::{
         Arc, RwLock,
         atomic::{AtomicU64, Ordering},
     },
-    time::{Duration, SystemTime},
+    time::Duration,
 };
 
 use papo_core::{Response, ResponseMatcher, TextKind};
@@ -12,7 +12,7 @@ use papo_proto::{Ctcp, Typing, time};
 use tokio::sync::{mpsc, oneshot};
 
 use crate::{
-    Error, Feature, InvalidInput, Line, Unsupported, UnsupportedReason,
+    Error, Feature, InvalidInput, Line, ServerTime, Unsupported, UnsupportedReason,
     driver::{Command, CoreRequest},
     event_impl,
     state::State,
@@ -83,7 +83,7 @@ pub enum SentOutcome {
         /// uses multiline concatenation so length-based splits do not introduce line breaks.
         lines: ConfirmedLines,
         /// Server time from the first labelled echo that supplied one.
-        server_time: Option<SystemTime>,
+        server_time: Option<ServerTime>,
     },
     /// The server did not confirm the message with echoes and identifiers.
     ///

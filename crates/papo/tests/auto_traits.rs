@@ -1,6 +1,6 @@
 //! Compile-time guards for the thread-safety contracts of public types and futures.
 
-use std::{future::IntoFuture, sync::Arc, time::SystemTime};
+use std::{future::IntoFuture, sync::Arc};
 
 use futures_core::Stream;
 use papo::{
@@ -117,7 +117,8 @@ fn request_futures_are_send() {
 
 fn assert_extension_futures_are_send(client: &Client, mapping: papo::Casemapping) {
     assert_send_static(client.history("#papo").latest().limit(10).into_future());
-    assert_send_static(client.recent_conversations(SystemTime::UNIX_EPOCH, SystemTime::now()));
+    let server_time = papo::ServerTime::from_stored_millis(0).unwrap();
+    assert_send_static(client.recent_conversations(server_time, server_time));
     assert_send_static(client.mark_read("#papo").into_future());
     assert_send_static(client.fetch_read_marker("#papo"));
     assert_send_static(

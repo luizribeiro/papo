@@ -5,7 +5,7 @@ use papo_proto::{ModeChanges, Reaction};
 use tokio::sync::oneshot;
 
 use crate::{
-    Client, Error, Event, Line, Message,
+    Client, Error, Event, Line, Message, ServerTime,
     driver::Command,
     event::{
         Kicked, ModeChanged, NickChanged, Parted, Quit, Reacted, Redacted, TagMsg, TopicChanged,
@@ -17,20 +17,20 @@ use crate::{
 #[non_exhaustive]
 pub enum MarkReadOutcome {
     /// The marker advanced to this server timestamp.
-    Advanced(SystemTime),
+    Advanced(ServerTime),
     /// The marker was already at or beyond the requested timestamp.
     #[non_exhaustive]
     Unchanged {
         /// The marker retained by the server.
-        stored: SystemTime,
+        stored: ServerTime,
     },
     /// The server retained a marker newer than the newest line known to this client.
     #[non_exhaustive]
     BehindLatest {
         /// The marker retained by the server.
-        stored: SystemTime,
+        stored: ServerTime,
         /// The newest line this client asked to mark as read.
-        latest: SystemTime,
+        latest: ServerTime,
     },
 }
 
@@ -859,7 +859,7 @@ pub struct RecentConversation {
     /// Conversation with available history.
     pub conversation: crate::Conversation,
     /// Server timestamp of the newest available entry.
-    pub latest_server_time: SystemTime,
+    pub latest_server_time: ServerTime,
 }
 
 impl HistoryPage {
@@ -962,6 +962,13 @@ impl History {
     /// Requests the oldest messages strictly after `reference`, at most the requested limit.
     ///
     /// Unlike [`History::latest_after`], this returns the oldest page after the reference.
+    /// A receipt time from this device's clock cannot be used as a server cursor:
+    ///
+    /// ```compile_fail
+    /// # fn request(client: &papo::Client, message: &papo::Message) {
+    /// let _ = client.history(&message.conversation()).after(message.received_at);
+    /// # }
+    /// ```
     pub fn after(self, reference: impl Into<HistoryReference>) -> HistoryRequest {
         self.reference_query(reference, CursorEdge::After, HistoryQuery::__after)
     }
@@ -1078,8 +1085,8 @@ impl From<&crate::MessageId> for HistoryReference {
     }
 }
 
-impl From<SystemTime> for HistoryReference {
-    fn from(value: SystemTime) -> Self {
+impl From<ServerTime> for HistoryReference {
+    fn from(value: ServerTime) -> Self {
         Self::new(MsgRef::Timestamp(value), None)
     }
 }
@@ -1206,8 +1213,6 @@ impl Client {
     /// Lists conversations that received messages during an inclusive time range.
     ///
     /// This sends the `IRCv3` [`CHATHISTORY TARGETS`] query.
-    /// Pass [`crate::time::now`] as `until` to include conversations through the current time.
-    ///
     /// # Errors
     ///
     /// Returns [`Error::Unsupported`] for [`crate::Feature::History`] with reason
@@ -1219,8 +1224,8 @@ impl Client {
     /// [`CHATHISTORY TARGETS`]: https://ircv3.net/specs/extensions/chathistory#targets
     pub fn recent_conversations(
         &self,
-        since: SystemTime,
-        until: SystemTime,
+        since: ServerTime,
+        until: ServerTime,
     ) -> crate::RequestFuture<Vec<RecentConversation>> {
         let client = self.clone();
         crate::RequestFuture::new(async move {
@@ -1278,7 +1283,7 @@ impl Client {
     pub fn fetch_read_marker(
         &self,
         target: impl crate::AsConversation,
-    ) -> crate::RequestFuture<Option<SystemTime>> {
+    ) -> crate::RequestFuture<Option<ServerTime>> {
         let client = self.clone();
         let target = crate::AsConversation::__parts(&target).into_owned();
         crate::RequestFuture::new(async move {
@@ -1302,7 +1307,7 @@ impl Client {
     }
 }
 
-fn read_marker_time(marker: Option<crate::ReadMarker>) -> Option<SystemTime> {
+fn read_marker_time(marker: Option<crate::ReadMarker>) -> Option<ServerTime> {
     match marker {
         Some(crate::ReadMarker::ReadUntil(time)) => Some(time),
         Some(crate::ReadMarker::Unset) | None => None,
@@ -1319,6 +1324,10 @@ mod tests {
         sts::ConnectionSecurity,
     };
     use papo_proto::{Casemapping, Line, LineRef};
+
+    fn server_time(seconds: i64, millis: i64) -> crate::ServerTime {
+        crate::ServerTime::from_stored_millis(seconds * 1_000 + millis).unwrap()
+    }
 
     use crate::{Event as PageEvent, MarkReadOutcome};
 
@@ -1413,7 +1422,7 @@ mod tests {
             matches!(HistoryReference::from(crate::MessageId::from("2Zl7JeYG6I8fG9q1lJ55BQ")).value, MsgRef::Msgid(id) if id == "2Zl7JeYG6I8fG9q1lJ55BQ")
         );
         assert!(
-            matches!(HistoryReference::from(UNIX_EPOCH).value, MsgRef::Timestamp(time) if time == UNIX_EPOCH)
+            matches!(HistoryReference::from(server_time(0, 0)).value, MsgRef::Timestamp(time) if time == server_time(0, 0))
         );
         let oldest = historical_message(
             Line::privmsg("#papo", "earlier")
@@ -1593,7 +1602,7 @@ mod tests {
                     .expect("server advertised CASEMAPPING")
                     .nick("emily"),
             ),
-            latest_server_time: UNIX_EPOCH,
+            latest_server_time: server_time(0, 0),
         };
 
         assert_eq!(page.origin(), first.origin());
@@ -1621,7 +1630,10 @@ mod tests {
             reason: HistoryReason::Requested,
             end: false,
         };
-        assert_eq!(page.cursor(), Some(HistoryReference::from(UNIX_EPOCH)));
+        assert_eq!(
+            page.cursor(),
+            Some(HistoryReference::from(server_time(0, 0)))
+        );
     }
 
     #[test]
@@ -2072,9 +2084,7 @@ mod tests {
             before.query,
             Ok(HistoryQuery::Before { limit: 100, .. })
         ));
-        let after = client
-            .history("#papo")
-            .after(UNIX_EPOCH + Duration::from_secs(42));
+        let after = client.history("#papo").after(server_time(42, 0));
         assert!(matches!(
             after.query,
             Ok(HistoryQuery::After { limit: 100, .. })
@@ -2360,7 +2370,7 @@ mod tests {
             async move {
                 client
                     .history("#papo")
-                    .latest_after(UNIX_EPOCH + Duration::from_secs(42))
+                    .latest_after(server_time(42, 0))
                     .limit(54)
                     .await
             }
@@ -2428,7 +2438,7 @@ mod tests {
             async move {
                 client
                     .history("#papo")
-                    .after(UNIX_EPOCH + Duration::from_secs(42))
+                    .after(server_time(42, 0))
                     .limit(51)
                     .await
             }
@@ -2519,10 +2529,7 @@ mod tests {
             .channel("#papo");
         let request = tokio::spawn(async move {
             client
-                .recent_conversations(
-                    UNIX_EPOCH + Duration::from_secs(42),
-                    UNIX_EPOCH + Duration::from_secs(84),
-                )
+                .recent_conversations(server_time(42, 0), server_time(84, 0))
                 .await
         });
         client_line(
@@ -2537,10 +2544,7 @@ mod tests {
             targets[0].conversation,
             crate::Conversation::Channel(channel)
         );
-        assert_eq!(
-            targets[0].latest_server_time,
-            UNIX_EPOCH + Duration::from_hours(497_796)
-        );
+        assert_eq!(targets[0].latest_server_time, server_time(1_792_065_600, 0));
         abort_task(task).await;
     }
 
@@ -2595,7 +2599,7 @@ mod tests {
         .await;
         assert_eq!(
             within(request).await.unwrap().unwrap(),
-            MarkReadOutcome::Advanced(UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000))
+            MarkReadOutcome::Advanced(server_time(1_760_529_342, 123))
         );
         assert!(
             matches!(next_event(&mut events).await, Some(Event::ReadMarkerChanged(marker)) if matches!(&marker.conversation, crate::Conversation::Channel(channel) if channel == "#papo"))
@@ -2616,7 +2620,7 @@ mod tests {
         assert_eq!(
             within(unchanged).await.unwrap().unwrap(),
             MarkReadOutcome::Unchanged {
-                stored: UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000),
+                stored: server_time(1_760_529_342, 123),
             }
         );
 
@@ -2645,8 +2649,8 @@ mod tests {
         assert_eq!(
             within(behind).await.unwrap().unwrap(),
             MarkReadOutcome::BehindLatest {
-                stored: UNIX_EPOCH + Duration::from_secs(1_760_529_343),
-                latest: UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000),
+                stored: server_time(1_760_529_343, 0),
+                latest: server_time(1_760_529_342, 123),
             }
         );
         server_line(
@@ -2735,7 +2739,7 @@ mod tests {
         .await;
         assert_eq!(
             within(request).await.unwrap().unwrap(),
-            MarkReadOutcome::Advanced(UNIX_EPOCH + Duration::from_secs(1_760_529_346))
+            MarkReadOutcome::Advanced(server_time(1_760_529_346, 0))
         );
         abort_task(task).await;
     }
@@ -2776,7 +2780,7 @@ mod tests {
         .await;
         assert_eq!(
             within(request).await.unwrap().unwrap(),
-            MarkReadOutcome::Advanced(UNIX_EPOCH + Duration::from_secs(1_760_529_347))
+            MarkReadOutcome::Advanced(server_time(1_760_529_347, 0))
         );
         abort_task(task).await;
     }
@@ -2832,7 +2836,7 @@ mod tests {
             b"@label=1 :ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z\r\n",
         )
         .await;
-        let expected = UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000);
+        let expected = server_time(1_760_529_342, 123);
         assert_eq!(within(request).await.unwrap().unwrap(), Some(expected));
         assert_eq!(
             client.state().read_marker("#PAPO"),

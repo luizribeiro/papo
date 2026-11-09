@@ -186,7 +186,7 @@ impl Receipt {
 pub(crate) trait ReplyReference {
     fn receipt(&self) -> &Receipt;
     fn conversation(&self) -> &Conversation;
-    fn server_time(&self) -> Option<std::time::SystemTime>;
+    fn server_time(&self) -> Option<crate::ServerTime>;
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -248,7 +248,7 @@ pub struct MessageRef {
     recipient: Option<RecipientGuard>,
     channel: Option<Box<papo_core::ChannelGuard>>,
     conversation: Option<Conversation>,
-    server_time: Option<std::time::SystemTime>,
+    server_time: Option<crate::ServerTime>,
 }
 
 impl PartialEq for MessageRef {
@@ -309,7 +309,7 @@ impl MessageRef {
         self.conversation.as_ref()
     }
 
-    pub(crate) const fn server_time(&self) -> Option<std::time::SystemTime> {
+    pub(crate) const fn server_time(&self) -> Option<crate::ServerTime> {
         self.server_time
     }
 }
@@ -423,7 +423,7 @@ macro_rules! reply_reference {
                     &self.conversation
                 }
 
-                fn server_time(&self) -> Option<std::time::SystemTime> {
+                fn server_time(&self) -> Option<crate::ServerTime> {
                     self.server_time
                 }
             }
@@ -442,7 +442,7 @@ impl ReplyReference for TypingChanged {
         &self.conversation
     }
 
-    fn server_time(&self) -> Option<std::time::SystemTime> {
+    fn server_time(&self) -> Option<crate::ServerTime> {
         self.server_time
     }
 }
@@ -456,7 +456,7 @@ impl ReplyReference for Message {
         &self.conversation
     }
 
-    fn server_time(&self) -> Option<std::time::SystemTime> {
+    fn server_time(&self) -> Option<crate::ServerTime> {
         self.server_time
     }
 }
@@ -470,7 +470,7 @@ impl ReplyReference for Sent {
         &self.conversation
     }
 
-    fn server_time(&self) -> Option<std::time::SystemTime> {
+    fn server_time(&self) -> Option<crate::ServerTime> {
         match &self.outcome {
             crate::SentOutcome::Confirmed { server_time, .. } => *server_time,
             crate::SentOutcome::Unconfirmed => None,
@@ -614,8 +614,6 @@ pub(crate) fn stamp_conversation(
 
 #[cfg(test)]
 mod tests {
-    use std::time::{Duration, SystemTime};
-
     use papo_core::{Config, Session};
 
     use super::*;
@@ -645,11 +643,11 @@ mod tests {
             recipient: Some(RecipientGuard::from_core(&recipient)),
             channel: Some(Box::new(channel)),
             conversation: Some(Conversation::Channel(origin.__channel(mapping, "#ops"))),
-            server_time: Some(SystemTime::UNIX_EPOCH + Duration::from_secs(42)),
+            server_time: Some(crate::ServerTime::from_stored_millis(42_000).unwrap()),
         };
         let mut metadata_only = base.clone();
         metadata_only.conversation = Some(Conversation::Private(origin.__nick(mapping, "bob")));
-        metadata_only.server_time = Some(SystemTime::UNIX_EPOCH + Duration::from_secs(84));
+        metadata_only.server_time = Some(crate::ServerTime::from_stored_millis(84_000).unwrap());
         assert_eq!(base, metadata_only);
 
         let mut address = base.clone();
@@ -790,7 +788,7 @@ mod tests {
                     ("RfcBTzyxY120006".into(), "deploy verified".into()),
                 ])
                 .unwrap(),
-                server_time: Some(SystemTime::UNIX_EPOCH),
+                server_time: Some(crate::ServerTime::from_stored_millis(0).unwrap()),
             },
             fallbacks: Vec::new(),
         };

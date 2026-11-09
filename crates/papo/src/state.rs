@@ -13,7 +13,7 @@ pub enum ReadMarker {
     /// The server reports no marker (`*`).
     Unset,
     /// Messages through this server time have been read.
-    ReadUntil(std::time::SystemTime),
+    ReadUntil(crate::ServerTime),
 }
 
 /// One entry reported for a channel list mode.
@@ -24,7 +24,7 @@ pub struct ModeListEntry {
     pub mask: Mask,
     actor: Option<crate::Source>,
     /// Time at which the entry was set, when reported and valid.
-    pub set_at: Option<std::time::SystemTime>,
+    pub set_at: Option<crate::ServerTime>,
 }
 
 impl ModeListEntry {
@@ -109,7 +109,7 @@ impl Channel {
 
     /// Returns when the current topic was set.
     #[must_use]
-    pub const fn topic_set_at(&self) -> Option<std::time::SystemTime> {
+    pub const fn topic_set_at(&self) -> Option<crate::ServerTime> {
         self.inner.topic_set_at()
     }
 
@@ -141,7 +141,7 @@ impl Channel {
 
     /// Returns the channel creation time.
     #[must_use]
-    pub const fn created_at(&self) -> Option<std::time::SystemTime> {
+    pub const fn created_at(&self) -> Option<crate::ServerTime> {
         self.inner.created_at()
     }
 
@@ -200,7 +200,7 @@ pub struct State {
 }
 
 impl State {
-    pub(crate) fn latest_server_time(&self, target: &str) -> Option<std::time::SystemTime> {
+    pub(crate) fn latest_server_time(&self, target: &str) -> Option<crate::ServerTime> {
         self.core.latest_server_time(target)
     }
 
