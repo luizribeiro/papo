@@ -1844,6 +1844,7 @@ pub papo::InvalidInput::ManagedCapability(papo_core::cap::Cap)
 pub papo::InvalidInput::MetadataValueTooLong::actual: usize
 pub papo::InvalidInput::MetadataValueTooLong::maximum: usize
 pub papo::InvalidInput::NameRulesUnknown
+pub papo::InvalidInput::NoServerTime
 pub papo::InvalidInput::RateLimit(papo::InvalidRateLimit)
 #[non_exhaustive] pub papo::InvalidInput::Reaction
 pub papo::InvalidInput::Reaction::actual: usize
@@ -1856,6 +1857,7 @@ pub papo::InvalidInput::UnstableCapability(papo_core::cap::Cap)
 pub papo::InvalidInput::UnusableMessageReference
 pub papo::InvalidInput::Url(papo::InvalidUrl)
 pub papo::InvalidInput::WireMessage(papo::BuildError)
+pub papo::InvalidInput::WrongConversation
 pub papo::InvalidInput::ZeroEventCapacity
 impl core::clone::Clone for papo::InvalidInput
 pub fn papo::InvalidInput::clone(&self) -> Self
@@ -1884,6 +1886,29 @@ impl core::marker::Unpin for papo::InvalidInput
 impl core::marker::UnsafeUnpin for papo::InvalidInput
 impl core::panic::unwind_safe::RefUnwindSafe for papo::InvalidInput
 impl core::panic::unwind_safe::UnwindSafe for papo::InvalidInput
+#[non_exhaustive] pub enum papo::MarkReadOutcome
+pub papo::MarkReadOutcome::Advanced(std::time::SystemTime)
+#[non_exhaustive] pub papo::MarkReadOutcome::BehindLatest
+pub papo::MarkReadOutcome::BehindLatest::latest: std::time::SystemTime
+pub papo::MarkReadOutcome::BehindLatest::stored: std::time::SystemTime
+#[non_exhaustive] pub papo::MarkReadOutcome::Unchanged
+pub papo::MarkReadOutcome::Unchanged::stored: std::time::SystemTime
+impl core::clone::Clone for papo::MarkReadOutcome
+pub fn papo::MarkReadOutcome::clone(&self) -> Self
+impl core::cmp::Eq for papo::MarkReadOutcome
+impl core::cmp::PartialEq for papo::MarkReadOutcome
+pub fn papo::MarkReadOutcome::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::MarkReadOutcome
+pub fn papo::MarkReadOutcome::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo::MarkReadOutcome
+impl core::marker::StructuralPartialEq for papo::MarkReadOutcome
+impl core::marker::Freeze for papo::MarkReadOutcome
+impl core::marker::Send for papo::MarkReadOutcome
+impl core::marker::Sync for papo::MarkReadOutcome
+impl core::marker::Unpin for papo::MarkReadOutcome
+impl core::marker::UnsafeUnpin for papo::MarkReadOutcome
+impl core::panic::unwind_safe::RefUnwindSafe for papo::MarkReadOutcome
+impl core::panic::unwind_safe::UnwindSafe for papo::MarkReadOutcome
 #[non_exhaustive] pub enum papo::MessageKind
 pub papo::MessageKind::Action
 pub papo::MessageKind::Text
@@ -2313,7 +2338,7 @@ pub fn papo::Client::direct_to(&self, &impl papo::DirectSource) -> papo::Request
 impl papo::Client
 pub fn papo::Client::fetch_read_marker(&self, impl papo::AsConversation) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>
 pub fn papo::Client::history(&self, impl papo::AsConversation) -> papo::History
-pub fn papo::Client::mark_read(&self, impl papo::AsConversation, std::time::SystemTime) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>
+pub fn papo::Client::mark_read(&self, impl papo::AsConversation) -> papo::MarkReadRequest
 pub fn papo::Client::recent_conversations(&self, std::time::SystemTime, std::time::SystemTime) -> papo::RequestFuture<alloc::vec::Vec<papo::RecentConversation>>
 impl papo::Client
 pub fn papo::Client::list_modes(&self, impl papo::AsChannel, papo::ListMode) -> papo::RequestFuture<alloc::vec::Vec<papo::ModeListEntry>>
@@ -2788,6 +2813,22 @@ impl core::marker::Unpin for papo::ListRequest
 impl core::marker::UnsafeUnpin for papo::ListRequest
 impl core::panic::unwind_safe::RefUnwindSafe for papo::ListRequest
 impl core::panic::unwind_safe::UnwindSafe for papo::ListRequest
+pub struct papo::MarkReadRequest
+impl papo::MarkReadRequest
+pub fn papo::MarkReadRequest::up_to(self, &papo::MessageRef) -> Self
+impl core::fmt::Debug for papo::MarkReadRequest
+pub fn papo::MarkReadRequest::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::future::into_future::IntoFuture for papo::MarkReadRequest
+pub type papo::MarkReadRequest::IntoFuture = papo::RequestFuture<papo::MarkReadOutcome>
+pub type papo::MarkReadRequest::Output = core::result::Result<papo::MarkReadOutcome, papo::Error>
+pub fn papo::MarkReadRequest::into_future(self) -> Self::IntoFuture
+impl core::marker::Freeze for papo::MarkReadRequest
+impl core::marker::Send for papo::MarkReadRequest
+impl core::marker::Sync for papo::MarkReadRequest
+impl core::marker::Unpin for papo::MarkReadRequest
+impl core::marker::UnsafeUnpin for papo::MarkReadRequest
+impl core::panic::unwind_safe::RefUnwindSafe for papo::MarkReadRequest
+impl core::panic::unwind_safe::UnwindSafe for papo::MarkReadRequest
 #[non_exhaustive] pub struct papo::Message
 pub papo::Message::actor: papo::UserSource
 pub papo::Message::authorship: papo::Authorship
@@ -2843,7 +2884,6 @@ impl core::fmt::Debug for papo::MessageRef
 pub fn papo::MessageRef::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo::MessageRef
 pub fn papo::MessageRef::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::MessageRef
 impl papo::Target for papo::MessageRef
 impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(&alloc::string::String, I)> for papo::MessageRef
 pub fn papo::MessageRef::from((&alloc::string::String, I)) -> Self
