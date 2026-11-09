@@ -35,10 +35,11 @@ impl ServerTime {
     ///
     /// Returns [`InvalidServerTime`] when the value is outside years `0000..=9999`.
     pub fn from_stored_millis(millis: i64) -> Result<Self, InvalidServerTime> {
-        format_millis(millis)
-            .is_some()
-            .then_some(Self(millis))
-            .ok_or(InvalidServerTime)
+        if (-62_167_219_200_000..=253_402_300_799_999).contains(&millis) {
+            Ok(Self(millis))
+        } else {
+            Err(InvalidServerTime)
+        }
     }
 
     /// Returns milliseconds since the Unix epoch.

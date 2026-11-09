@@ -113,6 +113,14 @@ fn stored_forms_round_trip_before_epoch_and_at_bounds() {
 }
 
 #[test]
+fn stored_millis_enforce_literal_year_bounds() {
+    assert!(ServerTime::from_stored_millis(-62_167_219_200_000).is_ok());
+    assert!(ServerTime::from_stored_millis(-62_167_219_200_001).is_err());
+    assert!(ServerTime::from_stored_millis(253_402_300_799_999).is_ok());
+    assert!(ServerTime::from_stored_millis(253_402_300_800_000).is_err());
+}
+
+#[test]
 fn converts_server_times_to_exact_system_times() {
     let ergo = LineRef::parse(
         "@time=2024-01-02T03:04:05.678Z;msgid=GmU2V7xM :alice!~alice@cloak PRIVMSG #papo :hello",
