@@ -1,4 +1,4 @@
-use super::{AccountPin, BouncerScope, InvalidPeerKey, PeerScope};
+use super::{AccountPin, AccountProof, BouncerScope, InvalidPeerKey, KeyScope, PeerScope};
 
 const PREFIX: &str = "papo-pin:1;";
 
@@ -89,6 +89,62 @@ fn parse_fields(value: &str) -> Result<AccountPin, InvalidPeerKey> {
     };
     pin.encoded = render(&pin);
     Ok(pin)
+}
+
+#[expect(dead_code, reason = "used by the peer-key parser")]
+fn parse_scope(
+    fields: &[(&str, String)],
+    names: &[&str],
+) -> Result<(KeyScope, usize), InvalidPeerKey> {
+    if names.first() == Some(&"connection") {
+        let connection = &fields[0].1;
+        return (!connection.is_empty())
+            .then(|| (KeyScope::Connection(connection.clone()), 1))
+            .ok_or(InvalidPeerKey);
+    }
+    let bouncer =
+        names.get(..4) == Some(["server", "bouncer-login", "netid", "upstream"].as_slice());
+    let offset = if bouncer { 4 } else { 1 };
+    if names.first() != Some(&"server") || names.len() <= offset {
+        return Err(InvalidPeerKey);
+    }
+    let server = crate::sts::normalize_host(&fields[0].1);
+    let bouncer = bouncer.then(|| BouncerScope {
+        login: fields[1].1.clone(),
+        network: fields[2].1.clone(),
+        upstream: crate::sts::normalize_host(&fields[3].1),
+    });
+    if server.is_empty()
+        || bouncer.as_ref().is_some_and(|scope| {
+            scope.login.is_empty() || scope.network.is_empty() || scope.upstream.is_empty()
+        })
+    {
+        return Err(InvalidPeerKey);
+    }
+    Ok((KeyScope::Network(PeerScope { server, bouncer }), offset))
+}
+
+#[expect(dead_code, reason = "used by the peer-key parser")]
+fn parse_account(
+    fields: &[(&str, String)],
+    offset: usize,
+    has_id: bool,
+) -> Result<AccountProof, InvalidPeerKey> {
+    let casemapping = fields[offset]
+        .1
+        .parse::<crate::Casemapping>()
+        .map_err(|_| InvalidPeerKey)?;
+    let account = casemapping.account(&fields[offset + 1].1);
+    account.check().map_err(|_| InvalidPeerKey)?;
+    let id = has_id.then(|| fields[offset + 2].1.clone());
+    if id.as_ref().is_some_and(String::is_empty) {
+        return Err(InvalidPeerKey);
+    }
+    Ok(AccountProof {
+        casemapping,
+        account: account.key().to_owned(),
+        id,
+    })
 }
 
 fn render(pin: &AccountPin) -> String {

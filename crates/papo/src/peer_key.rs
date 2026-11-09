@@ -29,7 +29,6 @@ impl PeerScope {
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-#[expect(dead_code, reason = "used by the peer-key migration")]
 pub(super) enum KeyScope {
     Network(PeerScope),
     Connection(String),
@@ -44,7 +43,6 @@ pub(super) struct PeerThread {
 }
 
 #[derive(Clone, Eq, PartialEq)]
-#[expect(dead_code, reason = "used by the peer-key migration")]
 pub(super) struct AccountProof {
     casemapping: crate::Casemapping,
     account: String,
