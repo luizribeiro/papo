@@ -185,6 +185,8 @@ impl Receipt {
 
 pub(crate) trait ReplyReference {
     fn receipt(&self) -> &Receipt;
+    fn conversation(&self) -> &Conversation;
+    fn server_time(&self) -> Option<std::time::SystemTime>;
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -232,7 +234,12 @@ impl RecipientGuard {
 /// Some lines, including typing notifications, have no server message identifier. Their references
 /// remain valid send destinations, but [`crate::Client::react`], [`crate::Client::unreact`], and
 /// [`crate::Client::redact`] return [`crate::InvalidInput::UnusableMessageReference`].
-#[derive(Clone, Debug, Eq, PartialEq)]
+///
+/// Equality compares the exact address, server message identifiers, originating client, channel
+/// context, private-recipient guard, and channel guard. The attached conversation and server time
+/// do not participate: they are read-marker metadata, not part of the routing or message identity
+/// represented by a reference.
+#[derive(Clone, Debug)]
 pub struct MessageRef {
     address: String,
     msgids: Vec<MessageId>,
@@ -240,7 +247,22 @@ pub struct MessageRef {
     channel_context: Option<ChannelName>,
     recipient: Option<RecipientGuard>,
     channel: Option<Box<papo_core::ChannelGuard>>,
+    conversation: Option<Conversation>,
+    server_time: Option<std::time::SystemTime>,
 }
+
+impl PartialEq for MessageRef {
+    fn eq(&self, other: &Self) -> bool {
+        self.address == other.address
+            && self.msgids == other.msgids
+            && self.origin == other.origin
+            && self.channel_context == other.channel_context
+            && self.recipient == other.recipient
+            && self.channel == other.channel
+    }
+}
+
+impl Eq for MessageRef {}
 
 impl MessageRef {
     pub(crate) fn new(
@@ -258,6 +280,8 @@ impl MessageRef {
             channel_context,
             recipient,
             channel,
+            conversation: None,
+            server_time: None,
         }
     }
 
@@ -280,6 +304,7 @@ impl MessageRef {
     pub(crate) fn msgids(&self) -> &[MessageId] {
         &self.msgids
     }
+
 }
 
 impl fmt::Display for MessageRef {
@@ -384,6 +409,14 @@ macro_rules! reply_reference {
                 fn receipt(&self) -> &Receipt {
                     &self.receipt
                 }
+
+                fn conversation(&self) -> &Conversation {
+                    &self.conversation
+                }
+
+                fn server_time(&self) -> Option<std::time::SystemTime> {
+                    self.server_time
+                }
             }
         )+
     };
@@ -395,11 +428,27 @@ impl ReplyReference for TypingChanged {
     fn receipt(&self) -> &Receipt {
         &self.receipt
     }
+
+    fn conversation(&self) -> &Conversation {
+        &self.conversation
+    }
+
+    fn server_time(&self) -> Option<std::time::SystemTime> {
+        self.server_time
+    }
 }
 
 impl ReplyReference for Message {
     fn receipt(&self) -> &Receipt {
         &self.receipt
+    }
+
+    fn conversation(&self) -> &Conversation {
+        &self.conversation
+    }
+
+    fn server_time(&self) -> Option<std::time::SystemTime> {
+        self.server_time
     }
 }
 
@@ -407,12 +456,26 @@ impl ReplyReference for Sent {
     fn receipt(&self) -> &Receipt {
         &self.receipt
     }
+
+    fn conversation(&self) -> &Conversation {
+        &self.conversation
+    }
+
+    fn server_time(&self) -> Option<std::time::SystemTime> {
+        match &self.outcome {
+            crate::SentOutcome::Confirmed { server_time, .. } => *server_time,
+            crate::SentOutcome::Unconfirmed => None,
+        }
+    }
 }
 
 /// Preserves a received or sent message's return address and identifiers.
 impl<T: ReplyReference + ?Sized> From<&T> for MessageRef {
     fn from(line: &T) -> Self {
-        line.receipt().reference()
+        let mut reference = line.receipt().reference();
+        reference.conversation = Some(line.conversation().clone());
+        reference.server_time = line.server_time();
+        reference
     }
 }
 
@@ -542,11 +605,67 @@ pub(crate) fn stamp_conversation(
 
 #[cfg(test)]
 mod tests {
-    use std::time::SystemTime;
+    use std::time::{Duration, SystemTime};
 
     use papo_core::{Config, Session};
 
     use super::*;
+
+    #[test]
+    fn reference_equality_compares_identity_fields_but_not_read_marker_metadata() {
+        let mapping = crate::Casemapping::default();
+        let origin = crate::Origin::__new(73);
+        let mut session = Session::new(Config::default().nick("papo"));
+        session.handle_line(crate::rt::now_mono(), b":papo!p@localhost JOIN #ops");
+        session.handle_line(crate::rt::now_mono(), b":alice!a@localhost JOIN #ops");
+        let channel = session
+            .state()
+            .__channel_guard(session.state().channel("#ops").unwrap().name());
+        let recipient = session
+            .state()
+            .__capture_recipient(
+                session.isupport().casemapping().nick("alice"),
+                Account::Unknown,
+            )
+            .unwrap();
+        let base = MessageRef {
+            address: "@#ops".into(),
+            msgids: vec!["RfcBTzyxY120004".into()],
+            origin,
+            channel_context: Some(origin.__channel(mapping, "#context")),
+            recipient: Some(RecipientGuard::from_core(&recipient)),
+            channel: Some(Box::new(channel)),
+            conversation: Some(Conversation::Channel(origin.__channel(mapping, "#ops"))),
+            server_time: Some(SystemTime::UNIX_EPOCH + Duration::from_secs(42)),
+        };
+        let mut metadata_only = base.clone();
+        metadata_only.conversation = Some(Conversation::Private(origin.__nick(mapping, "bob")));
+        metadata_only.server_time = Some(SystemTime::UNIX_EPOCH + Duration::from_secs(84));
+        assert_eq!(base, metadata_only);
+
+        let mut address = base.clone();
+        address.address = "#ops".into();
+        let mut msgids = base.clone();
+        msgids.msgids = vec!["RfcBTzyxY120005".into()];
+        let mut other_origin = base.clone();
+        other_origin.origin = crate::Origin::__new(74);
+        let mut channel_context = base.clone();
+        channel_context.channel_context = None;
+        let mut recipient = base.clone();
+        recipient.recipient = None;
+        let mut channel = base.clone();
+        channel.channel = None;
+        for (field, different) in [
+            ("address", address),
+            ("message identifiers", msgids),
+            ("origin", other_origin),
+            ("channel context", channel_context),
+            ("recipient guard", recipient),
+            ("channel guard", channel),
+        ] {
+            assert_ne!(base, different, "{field}");
+        }
+    }
 
     #[test]
     fn received_reference_text_matches_each_return_address() {
