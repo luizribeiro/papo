@@ -1544,6 +1544,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::EndpointKind
 pub papo::Error::AlreadyConnected
 pub papo::Error::Connect(papo::ConnectError)
 pub papo::Error::Disconnected(papo::Disconnected)
+pub papo::Error::ForeignReference(papo::ForeignReference)
 pub papo::Error::Interrupted(papo::Disconnected)
 pub papo::Error::InvalidInput(papo::InvalidInput)
 #[non_exhaustive] pub papo::Error::MonitorFull
@@ -1563,6 +1564,8 @@ impl core::clone::Clone for papo::Error
 pub fn papo::Error::clone(&self) -> Self
 impl core::convert::From<papo::ConnectError> for papo::Error
 pub fn papo::Error::from(papo::ConnectError) -> Self
+impl core::convert::From<papo::ForeignReference> for papo::Error
+pub fn papo::Error::from(papo::ForeignReference) -> Self
 impl core::convert::From<papo::InvalidInput> for papo::Error
 pub fn papo::Error::from(papo::InvalidInput) -> Self
 impl core::convert::From<papo::ServerError> for papo::Error
@@ -2599,6 +2602,30 @@ impl core::marker::Unpin for papo::Extban
 impl core::marker::UnsafeUnpin for papo::Extban
 impl core::panic::unwind_safe::RefUnwindSafe for papo::Extban
 impl core::panic::unwind_safe::UnwindSafe for papo::Extban
+pub struct papo::ForeignReference
+impl core::clone::Clone for papo::ForeignReference
+pub fn papo::ForeignReference::clone(&self) -> Self
+impl core::cmp::Eq for papo::ForeignReference
+impl core::cmp::PartialEq for papo::ForeignReference
+pub fn papo::ForeignReference::eq(&self, &Self) -> bool
+impl core::convert::From<papo::ForeignReference> for papo::Error
+pub fn papo::Error::from(papo::ForeignReference) -> Self
+impl core::error::Error for papo::ForeignReference
+impl core::fmt::Debug for papo::ForeignReference
+pub fn papo::ForeignReference::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo::ForeignReference
+pub fn papo::ForeignReference::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::ForeignReference
+pub fn papo::ForeignReference::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for papo::ForeignReference
+impl core::marker::StructuralPartialEq for papo::ForeignReference
+impl core::marker::Freeze for papo::ForeignReference
+impl core::marker::Send for papo::ForeignReference
+impl core::marker::Sync for papo::ForeignReference
+impl core::marker::Unpin for papo::ForeignReference
+impl core::marker::UnsafeUnpin for papo::ForeignReference
+impl core::panic::unwind_safe::RefUnwindSafe for papo::ForeignReference
+impl core::panic::unwind_safe::UnwindSafe for papo::ForeignReference
 pub struct papo::History
 impl papo::History
 pub fn papo::History::after(self, impl core::convert::Into<papo::HistoryReference>) -> papo::HistoryRequest

@@ -347,4 +347,28 @@ mod tests {
         assert_eq!(handle.name(), "#release");
         assert!(commands.try_recv().is_err());
     }
+
+    #[tokio::test]
+    async fn foreign_user_handle_fails_before_who() {
+        let mut source = Config::default().nick("papo");
+        source.origin = crate::Origin::__new(73);
+        let mut source = Session::new(source);
+        source.handle_line(
+            crate::rt::now_mono(),
+            b":ergo.test 005 papo CASEMAPPING=rfc1459 :are supported",
+        );
+        let (source, _) = crate::driver::test_support::client_with_commands(&source);
+        let alice = source.query("alice").unwrap();
+
+        let mut destination = Config::default().nick("papo");
+        destination.origin = crate::Origin::__new(91);
+        let destination = Session::new(destination);
+        let (destination, mut commands) =
+            crate::driver::test_support::client_with_commands(&destination);
+        assert!(matches!(
+            destination.privmsg(alice, "release approved").await,
+            Err(crate::Error::ForeignReference(_))
+        ));
+        assert!(commands.try_recv().is_err());
+    }
 }

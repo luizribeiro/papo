@@ -329,7 +329,8 @@ pub use direct::DirectRef;
 pub use direct_to::DirectSource;
 pub use driver::{Driver, Events};
 pub use error::{
-    ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, ServerError,
+    ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, ForeignReference,
+    ServerError,
 };
 pub use event_impl::{
     Authorship, Event, Incomplete, Message, MessageKind, Oper, Source, Tags, TagsIter, UserSource,

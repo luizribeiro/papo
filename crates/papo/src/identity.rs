@@ -29,6 +29,9 @@ pub(crate) async fn prove(
     client: &crate::Client,
     handle: &crate::UserHandle,
 ) -> Result<ProvenUser, crate::Error> {
+    if handle.nick().origin() != client.origin() {
+        return Err(crate::ForeignReference.into());
+    }
     if let Some(proof) = handle.proof() {
         let nick = client
             .state()
@@ -74,7 +77,7 @@ pub(crate) async fn prove(
 
 pub(crate) fn map_failure(failure: papo_core::ProofFailure) -> crate::Error {
     match failure {
-        papo_core::ProofFailure::ForeignReference => crate::InvalidInput::ForeignReference.into(),
+        papo_core::ProofFailure::ForeignReference => crate::ForeignReference.into(),
         papo_core::ProofFailure::MissingEvidence | papo_core::ProofFailure::IdentityChanged => {
             crate::Error::TargetGone
         }
