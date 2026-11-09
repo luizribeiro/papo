@@ -12,6 +12,53 @@ use crate::{
     },
 };
 
+/// Result of moving a conversation's server-side read marker.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum MarkReadOutcome {
+    /// The marker advanced to this server timestamp.
+    Advanced(SystemTime),
+    /// The marker was already at or beyond the requested timestamp.
+    #[non_exhaustive]
+    Unchanged {
+        /// The marker retained by the server.
+        stored: SystemTime,
+    },
+    /// The server retained a marker newer than the newest line known to this client.
+    #[non_exhaustive]
+    BehindLatest {
+        /// The marker retained by the server.
+        stored: SystemTime,
+        /// The newest line this client asked to mark as read.
+        latest: SystemTime,
+    },
+}
+
+/// Builds a request to move a conversation's read marker using server time.
+#[must_use = "requests do nothing unless awaited"]
+pub struct MarkReadRequest {
+    client: Client,
+    target: crate::target::sealed::Parts<'static>,
+    message: Option<crate::MessageRef>,
+}
+
+impl std::fmt::Debug for MarkReadRequest {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        crate::opaque_debug("MarkReadRequest", formatter)
+    }
+}
+
+impl MarkReadRequest {
+    /// Marks the conversation read through this received message's server timestamp.
+    ///
+    /// Awaiting returns [`crate::InvalidInput::WrongConversation`] if the message belongs to a
+    /// different conversation, and [`crate::InvalidInput::NoServerTime`] if it has no server time.
+    pub fn up_to(mut self, message: &crate::MessageRef) -> Self {
+        self.message = Some(message.clone());
+        self
+    }
+}
+
 fn other(line: Line, received_at: SystemTime) -> Event {
     crate::event_impl::unparsed_from_line(line, received_at)
 }
@@ -1237,6 +1284,19 @@ mod tests {
 
     fn name_rules(state: &crate::State) -> crate::NameRules<'_> {
         state.name_rules().expect("server advertised CASEMAPPING")
+    }
+
+    #[test]
+    fn mark_read_request_debug_is_opaque() {
+        let secret = "unique-read-marker-target-8462";
+        let request = super::MarkReadRequest {
+            client: crate::Client::disconnected_for_test(),
+            target: crate::AsConversation::__parts(&secret).into_owned(),
+            message: None,
+        };
+
+        assert_eq!(format!("{request:?}"), "MarkReadRequest { .. }");
+        assert!(!format!("{request:?}").contains(secret));
     }
 
     fn core_item(message: &str) -> HistoryLine {

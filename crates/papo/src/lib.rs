@@ -335,7 +335,8 @@ pub use event_impl::{
 pub use ext::accounts::{AccountCreation, NewAccount};
 pub use ext::extras::RenameChannel;
 pub use ext::history::{
-    History, HistoryPage, HistoryReason, HistoryReference, HistoryRequest, RecentConversation,
+    History, HistoryPage, HistoryReason, HistoryReference, HistoryRequest, MarkReadOutcome,
+    MarkReadRequest, RecentConversation,
 };
 pub use ext::metadata::Metadata;
 pub use ext::monitor::Monitor;
