@@ -44,6 +44,8 @@ and `HistoryPage::end` reports whether older messages after that cursor may have
 
 `Feature::from_name` resolves exact stable feature names back to their typed values.
 
+`PeerKey` is now the persistable network-and-nickname thread key; equality and hashing ignore private proof upgrades, and its display form preserves verified or explicitly unverified proof state.
+
 `DirectRef` equality and hashing now identify only the tracked IRC user on one connection. Handles
 for that user stay equal across account discovery and nickname changes; different users remain
 unequal even on the same account or after a departed user's nickname is reused. Handles are per

@@ -56,41 +56,42 @@ enum PeerProof {
     Unverified(Option<papo_core::PeerToken>),
 }
 
-/// An identity pin for a nickname-addressed direct conversation.
+/// A saved key for a nickname-addressed direct conversation.
 ///
-/// An Account pin is the security boundary as far as its TLS-authenticated server is trusted. It
+/// An Account proof is the security boundary as far as its TLS-authenticated server is trusted. It
 /// identifies a server-asserted account after `005` established the casemapping, not a person:
 /// account names can be transferred, compromised, dropped, and re-registered. Through a bouncer,
 /// the authenticated bouncer host, bouncer login, network ID, and TLS upstream host all form the
-/// scope. Account pins are persistable and can survive reconnects and process restarts.
+/// scope. Account proofs can survive reconnects and process restarts.
 ///
-/// A Continuity pin is best-effort evidence that papo has observed one IRC user without a break on
-/// this connection. It depends on papo seeing departures and must be presented as unverified. It
-/// cannot be persisted, changes after lost continuity, and is unavailable when papo can prove
-/// nothing. A bouncer upstream disconnect ends continuity for that network even though the
-/// downstream connection remains open; a duplicate self-JOIN resync is treated the same way.
-/// Detecting these transitions relies on soju's `BOUNCER_NETID`, `BouncerServ` notice, and
-/// `BOUNCER NETWORK` line, none of which is part of any `IRCv3` specification.
-/// This can require applications to confirm a peer again after a harmless upstream reconnect.
+/// Continuity proof is best-effort evidence that papo has observed one IRC user without a break on
+/// this connection. It depends on papo seeing departures and must be presented as unverified. The
+/// proof cannot be persisted, changes after lost continuity, and is unavailable when papo can
+/// prove nothing. Its display form retains the thread with explicit unverified proof. A bouncer
+/// upstream disconnect ends continuity for that network even though the downstream connection
+/// remains open; a duplicate self-JOIN resync is treated the same way. Detecting these transitions
+/// relies on soju's `BOUNCER_NETID`, `BouncerServ` notice, and `BOUNCER NETWORK` line, none of which
+/// is part of any `IRCv3` specification. This can require applications to confirm a peer again
+/// after a harmless upstream reconnect.
 ///
 /// Native and WASI `ircs://` and `wss://` connections, and browser `wss://` connections, can
-/// produce durable Account pins. Plaintext, browser `ws://`, and caller-supplied streams produce
-/// only Continuity pins. The authenticated scope is the normalized hostname, without its port:
-/// changing hostnames makes an old Account pin [`PeerKeyMismatch::DifferentAccount`], or
+/// produce durable Account proofs. Plaintext, browser `ws://`, and caller-supplied streams produce
+/// only Continuity proofs. The authenticated scope is the normalized hostname, without its port:
+/// changing hostnames makes an old key [`PeerKeyMismatch::DifferentAccount`], or
 /// [`PeerKeyMismatch::CannotVerify`] when the new connection has only Continuity. Applications
-/// should migrate stored pins to a new hostname only as an explicit trust decision.
+/// should migrate stored keys to a new hostname only as an explicit trust decision.
 ///
-/// Pins do not key conversations. Store one beside the folded [`crate::Nick::key`] for each thread;
-/// two nicknames logged into one account remain different threads. Use [`Self::check`], never raw
-/// equality, and treat an [`InvalidPeerKey`] while loading storage as identity that cannot be
-/// verified.
+/// Equality and hashing use only the scope and folded [`crate::Nick::key`]. They deliberately
+/// ignore proof, so upgrading proof does not move an application thread. Use [`Self::check`]
+/// before trusting the current holder, and treat an [`InvalidPeerKey`] while loading storage as an
+/// identity that cannot be verified.
 ///
 /// ```no_run
 /// fn inspect_incoming(stored: &papo::PeerKey, sender: &papo::UserSource) {
 ///     let Some(current) = sender.peer_key() else { return };
 ///     match stored.check(current) {
 ///         papo::PeerKeyCheck::Match => {}
-///         papo::PeerKeyCheck::Upgrade(pin) => persist(pin),
+///         papo::PeerKeyCheck::Upgrade(key) => persist(key),
 ///         papo::PeerKeyCheck::Mismatch(reason) => warn(reason, current),
 ///     }
 /// }
@@ -112,6 +113,12 @@ enum PeerProof {
 ///     }
 /// }
 /// ```
+///
+/// Proof fields are private and cannot be constructed by applications:
+///
+/// ```compile_fail
+/// let key = papo::PeerKey { proof: () };
+/// ```
 #[derive(Clone)]
 pub struct PeerKey {
     thread: PeerThread,
@@ -120,26 +127,26 @@ pub struct PeerKey {
 }
 
 #[derive(Clone, Debug)]
-/// Result of checking a stored peer pin against the current pin.
+/// Result of checking a stored peer key against the current key.
 pub enum PeerKeyCheck {
-    /// The pins identify the same account or observed user continuity.
+    /// The keys identify the same account or observed user continuity.
     Match,
-    /// The current pin adds durable account proof or an immutable account ID.
+    /// The current key adds durable account proof or an immutable account ID.
     Upgrade(PeerKey),
-    /// The pins cannot be accepted without user confirmation.
+    /// The keys cannot be accepted without user confirmation.
     Mismatch(PeerKeyMismatch),
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-/// Exhaustive reason that a stored peer pin does not match the current pin.
+/// Exhaustive reason that a stored peer key does not match the current key.
 pub enum PeerKeyMismatch {
-    /// Both pins are durable but identify different accounts or authenticated scopes.
+    /// Both keys are durable but identify different accounts or authenticated scopes.
     DifferentAccount,
     /// At least one side lacks enough durable proof to verify the identity.
     CannotVerify,
 }
 
-/// A stored peer pin that did not authorize opening the current identity.
+/// A stored peer key that did not authorize opening the current identity.
 #[derive(Clone, Debug)]
 pub struct PeerPinMismatch {
     reason: PeerKeyMismatch,
@@ -160,7 +167,7 @@ impl PeerPinMismatch {
         self.reason
     }
 
-    /// Returns the current pin for an explicit user-approved replacement.
+    /// Returns the current key for an explicit user-approved replacement.
     #[must_use]
     pub const fn current_key(&self) -> &PeerKey {
         &self.current
@@ -225,15 +232,7 @@ impl PeerKey {
         }
     }
 
-    /// Checks this stored pin against the current pin for the same nickname thread.
-    ///
-    /// A Continuity pin returns [`PeerKeyCheck::Upgrade`] when the current Account pin belongs to
-    /// the same uninterrupted user. A stored Account pin without an immutable account ID also
-    /// upgrades once the server supplies that ID. Applications must replace the stored pin with the
-    /// upgraded pin.
-    ///
-    /// Account IDs come from `InspIRCd`'s `inspircd.org/account-id` message tag, which is not part of
-    /// any `IRCv3` specification. On other servers Account pins hold the account name only.
+    /// Checks this stored key against the current key for the same nickname thread.
     #[must_use]
     pub fn check(&self, current_key: &Self) -> PeerKeyCheck {
         if self.thread != current_key.thread {
@@ -261,16 +260,13 @@ impl PeerKey {
         }
     }
 
-    /// Reports whether this is a durable Account pin at a TLS-authenticated server scope.
+    /// Reports whether this key has durable account proof at a TLS-authenticated scope.
     #[must_use]
     pub const fn is_verified(&self) -> bool {
         matches!(self.proof, PeerProof::Account(_, _))
     }
 
-    /// Returns the stable representation of a verified pin.
-    ///
-    /// Continuity pins return `None` so they cannot accidentally be stored as durable identities.
-    /// A returned value round-trips through [`str::parse`](FromStr::from_str).
+    /// Returns the stable representation when this key has durable account proof.
     #[must_use]
     pub fn as_verified_str(&self) -> Option<&str> {
         self.is_verified().then_some(&self.encoded)
