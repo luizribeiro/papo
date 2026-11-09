@@ -1,4 +1,4 @@
-use super::{InvalidPeerKey, percent_decode, percent_encode};
+use super::{InvalidPeerKey, parse, percent_decode, percent_encode};
 
 #[test]
 fn percent_encoding_round_trips_utf8_and_delimiters() {
@@ -11,5 +11,34 @@ fn percent_encoding_round_trips_utf8_and_delimiters() {
 fn malformed_percent_encoding_is_rejected() {
     for value in ["%", "%0", "%GG", "%FF"] {
         assert_eq!(percent_decode(value), Err(InvalidPeerKey));
+    }
+}
+
+#[test]
+fn proof_kind_must_match_the_proof_fields() {
+    for fields in [
+        "server=irc.ergo.chat;nick-casemap=rfc1459;nick=%5BAlice%5D;proof=account",
+        "server=irc.ergo.chat;nick-casemap=rfc1459;nick=%5BAlice%5D;proof=unverified;account-casemap=rfc1459;account=alice",
+        "server=irc.ergo.chat;nick-casemap=rfc1459;nick=%5BAlice%5D;proof=continuity;account-casemap=rfc1459;account=alice;id=ergo-account-42",
+    ] {
+        assert!(matches!(
+            parse(&format!("papo-peer:1;{fields}")),
+            Err(InvalidPeerKey)
+        ));
+    }
+}
+
+#[test]
+fn every_bouncer_scope_part_is_required() {
+    for scope in [
+        "server=;bouncer-login=alice%40example;netid=libera;upstream=irc.libera.chat",
+        "server=bouncer.example;bouncer-login=;netid=libera;upstream=irc.libera.chat",
+        "server=bouncer.example;bouncer-login=alice%40example;netid=;upstream=irc.libera.chat",
+        "server=bouncer.example;bouncer-login=alice%40example;netid=libera;upstream=",
+    ] {
+        let encoded = format!(
+            "papo-peer:1;{scope};nick-casemap=rfc1459;nick=%5BAlice%5D;proof=account;account-casemap=rfc1459;account=alice"
+        );
+        assert!(matches!(parse(&encoded), Err(InvalidPeerKey)));
     }
 }
