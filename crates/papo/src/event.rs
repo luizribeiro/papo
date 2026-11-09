@@ -1528,6 +1528,11 @@ pub enum Event {
     Message(Message),
     /// An incoming `NOTICE` from a user.
     Notice(Notice),
+    /// A message or notice whose `draft/multiline` batch ended before its closing line.
+    ///
+    /// The text is safe to display as incomplete, but must not be interpreted as a mention,
+    /// command, or reply target. Ignoring this variant preserves the former drop behavior.
+    Incomplete(Incomplete),
     /// A server notice, broadcast, `*` message, or `WALLOPS`.
     ServerNotice(ServerNotice),
     /// An incoming Client-to-Client Protocol query.
@@ -1635,6 +1640,7 @@ pub(crate) struct OverflowClass<'a> {
 variant_accessors! { Event;
     (Message, as_message, Message),
     (Notice, as_notice, Notice),
+    (Incomplete, as_incomplete, Incomplete),
     (ServerNotice, as_server_notice, ServerNotice),
     (CtcpQuery, as_ctcp_query, CtcpQuery),
     (CtcpReply, as_ctcp_reply, CtcpReply),
@@ -1691,6 +1697,7 @@ impl Event {
         match self {
             Self::Message(event) => Some(event.conversation.clone()),
             Self::Notice(event) => Some(event.conversation.clone()),
+            Self::Incomplete(event) => Some(event.conversation().clone()),
             Self::ServerNotice(event) => match &event.to {
                 Audience::Channel(channel) => Some(Conversation::Channel(channel.clone())),
                 Audience::Me | Audience::Broadcast(_) => None,
@@ -1751,6 +1758,7 @@ impl Event {
         let (priority, conversation) = match self {
             Self::Message(event) => (OverflowPriority::Message, Some(&event.conversation)),
             Self::Notice(event) => (OverflowPriority::Message, Some(&event.conversation)),
+            Self::Incomplete(event) => (OverflowPriority::Message, Some(event.conversation())),
             Self::CtcpQuery(event) => (OverflowPriority::Message, Some(&event.conversation)),
             Self::CtcpReply(event) => (OverflowPriority::Message, Some(&event.conversation)),
             Self::TagMsg(event) => (OverflowPriority::Message, Some(&event.conversation)),
@@ -1791,8 +1799,12 @@ impl Event {
     #[must_use]
     pub fn msgid(&self) -> Option<&MessageId> {
         match self {
-            Self::Message(event) => event.msgid.as_ref(),
-            Self::Notice(event) => event.msgid.as_ref(),
+            Self::Message(event) | Self::Incomplete(Incomplete::Message(event)) => {
+                event.msgid.as_ref()
+            }
+            Self::Notice(event) | Self::Incomplete(Incomplete::Notice(event)) => {
+                event.msgid.as_ref()
+            }
             Self::ServerNotice(event) => event.msgid.as_ref(),
             Self::CtcpQuery(event) => event.msgid.as_ref(),
             Self::CtcpReply(event) => event.msgid.as_ref(),
@@ -1822,8 +1834,10 @@ impl Event {
     #[must_use]
     pub fn server_time(&self) -> Option<SystemTime> {
         match self {
-            Self::Message(event) => event.server_time,
-            Self::Notice(event) => event.server_time,
+            Self::Message(event) | Self::Incomplete(Incomplete::Message(event)) => {
+                event.server_time
+            }
+            Self::Notice(event) | Self::Incomplete(Incomplete::Notice(event)) => event.server_time,
             Self::ServerNotice(event) => event.server_time,
             Self::CtcpQuery(event) => event.server_time,
             Self::CtcpReply(event) => event.server_time,
@@ -1855,8 +1869,12 @@ impl Event {
     #[must_use]
     pub fn received_at(&self) -> Option<SystemTime> {
         match self {
-            Self::Message(event) => Some(event.received_at),
-            Self::Notice(event) => Some(event.received_at),
+            Self::Message(event) | Self::Incomplete(Incomplete::Message(event)) => {
+                Some(event.received_at)
+            }
+            Self::Notice(event) | Self::Incomplete(Incomplete::Notice(event)) => {
+                Some(event.received_at)
+            }
             Self::ServerNotice(event) => Some(event.received_at),
             Self::CtcpQuery(event) => Some(event.received_at),
             Self::CtcpReply(event) => Some(event.received_at),
@@ -1936,8 +1954,12 @@ pub(crate) fn attach_historical_peer_key(event: &mut Event, state: &crate::State
 
 fn private_actor_mut(event: &mut Event) -> Option<&mut UserSource> {
     match event {
-        Event::Message(event) => Some(&mut event.actor),
-        Event::Notice(event) => Some(&mut event.actor),
+        Event::Message(event) | Event::Incomplete(Incomplete::Message(event)) => {
+            Some(&mut event.actor)
+        }
+        Event::Notice(event) | Event::Incomplete(Incomplete::Notice(event)) => {
+            Some(&mut event.actor)
+        }
         Event::CtcpQuery(event) => Some(&mut event.actor),
         Event::CtcpReply(event) => Some(&mut event.actor),
         Event::TagMsg(event) => Some(&mut event.actor),
@@ -2786,10 +2808,10 @@ mod tests {
 
     use super::{
         Audience, Authorship, Broadcast, BroadcastCtcp, BroadcastTagMsg, Conversation, CoreEvent,
-        Event, Message as ChatMessage, MessageId, MessageKind, MetadataChanged, ModeAction,
-        ModeArg, ModeChange, ServerNoticeKind, Source, StandardReplyKind, Tags, UserSource,
-        Warning, ctcp_parts, from_core as from_core_with_mapping, historical_message_event,
-        message_event_from_line, with_channel_guard,
+        Event, Incomplete, Message as ChatMessage, MessageId, MessageKind, MetadataChanged,
+        ModeAction, ModeArg, ModeChange, ServerNoticeKind, Source, StandardReplyKind, Tags,
+        UserSource, Warning, ctcp_parts, from_core as from_core_with_mapping,
+        historical_message_event, message_event_from_line, with_channel_guard,
     };
     use crate::{Subject, Visibility};
     use papo_core::{
@@ -3107,6 +3129,60 @@ mod tests {
                 UNIX_EPOCH,
             ),
             _ => panic!("line did not produce a public event"),
+        }
+    }
+
+    #[test]
+    fn incomplete_messages_and_notices_keep_display_metadata() {
+        let now = Instant::now();
+        let cases = [
+            (
+                "Message",
+                "@msgid=RfcBTzyxY120301;time=2026-02-03T04:05:06.789Z :alice!~a@cloak.example PRIVMSG #review :deployment in progress",
+            ),
+            (
+                "Notice",
+                "@msgid=RfcBTzyxY120302;time=2026-02-03T04:05:06.789Z :alice!~a@cloak.example NOTICE #review :maintenance in progress",
+            ),
+        ];
+
+        for (expected, line) in cases {
+            let event = match mapped_live_event(line, now) {
+                Event::Message(message) => Event::Incomplete(Incomplete::Message(message)),
+                Event::Notice(notice) => Event::Incomplete(Incomplete::Notice(notice)),
+                other => panic!("unexpected mapped event: {other:?}"),
+            };
+            let Event::Incomplete(incomplete) = &event else {
+                panic!("expected incomplete {expected}")
+            };
+            match (expected, incomplete) {
+                ("Message", Incomplete::Message(message)) => {
+                    assert_eq!(message.text, "deployment in progress");
+                    assert!(incomplete.as_message().is_some());
+                    assert!(incomplete.as_notice().is_none());
+                }
+                ("Notice", Incomplete::Notice(notice)) => {
+                    assert_eq!(notice.text, "maintenance in progress");
+                    assert!(incomplete.as_notice().is_some());
+                    assert!(incomplete.as_message().is_none());
+                }
+                _ => panic!("wrong incomplete variant: {incomplete:?}"),
+            }
+            assert_eq!(
+                event
+                    .conversation()
+                    .map(|conversation| conversation.to_string()),
+                Some("#review".to_owned())
+            );
+            assert!(event.msgid().is_some());
+            assert!(event.server_time().is_some());
+            assert_eq!(event.received_at(), Some(UNIX_EPOCH));
+            let class = event.overflow_class();
+            assert_eq!(class.priority, super::OverflowPriority::Message);
+            assert_eq!(
+                class.conversation.map(ToString::to_string).as_deref(),
+                Some("#review")
+            );
         }
     }
 

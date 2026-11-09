@@ -1604,6 +1604,7 @@ pub papo::Event::Disconnected(papo::Disconnected)
 pub papo::Event::FeaturesChanged(papo::event::FeaturesChanged)
 pub papo::Event::History(papo::HistoryPage)
 pub papo::Event::HostChanged(papo::event::HostChanged)
+pub papo::Event::Incomplete(papo::Incomplete)
 pub papo::Event::Invited(papo::event::Invited)
 pub papo::Event::Joined(papo::event::Joined)
 pub papo::Event::Kicked(papo::event::Kicked)
@@ -1670,6 +1671,8 @@ impl papo::Event
 pub const fn papo::Event::as_history(&self) -> core::option::Option<&papo::HistoryPage>
 impl papo::Event
 pub const fn papo::Event::as_host_changed(&self) -> core::option::Option<&papo::event::HostChanged>
+impl papo::Event
+pub const fn papo::Event::as_incomplete(&self) -> core::option::Option<&papo::Incomplete>
 impl papo::Event
 pub const fn papo::Event::as_invited(&self) -> core::option::Option<&papo::event::Invited>
 impl papo::Event
