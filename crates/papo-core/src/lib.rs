@@ -2082,6 +2082,8 @@ impl std::ops::Deref for HistoryLine {
 pub enum HistoryItem {
     /// A `PRIVMSG` or `NOTICE`.
     Message(HistoryLine),
+    /// A `PRIVMSG` or `NOTICE` reconstructed from a cut-off multiline batch.
+    Incomplete(HistoryLine),
     /// A reaction or unreaction carried by `TAGMSG`.
     Reacted(HistoryLine),
     /// A `REDACT` command.
@@ -2128,6 +2130,7 @@ impl HistoryItem {
     fn line_mut(&mut self) -> &mut HistoryLine {
         match self {
             Self::Message(line)
+            | Self::Incomplete(line)
             | Self::Reacted(line)
             | Self::Redacted(line)
             | Self::TagMsg(line)
@@ -2144,6 +2147,7 @@ impl HistoryItem {
 
     history_item_accessors! {
         (Message, as_message),
+        (Incomplete, as_incomplete),
         (Reacted, as_reacted),
         (Redacted, as_redacted),
         (TagMsg, as_tag_msg),
@@ -2157,7 +2161,7 @@ impl HistoryItem {
         (Other, as_other),
     }
 
-    /// Returns the chat message, or `None` for a replayed activity item.
+    /// Returns the complete chat message, or `None` for an incomplete or activity item.
     #[must_use]
     pub fn into_message(self) -> Option<HistoryLine> {
         match self {
@@ -2171,6 +2175,7 @@ impl HistoryItem {
     pub fn into_line(self) -> HistoryLine {
         match self {
             Self::Message(message)
+            | Self::Incomplete(message)
             | Self::Reacted(message)
             | Self::Redacted(message)
             | Self::TagMsg(message)
@@ -2205,7 +2210,7 @@ pub struct HistoryPage {
 }
 
 impl HistoryPage {
-    /// Iterates over chat messages in item order, excluding replayed activity items.
+    /// Iterates over complete chat messages in item order, excluding incomplete and activity items.
     ///
     /// This is normally oldest to newest, but remains server delivery order if the server does
     /// not follow the `IRCv3` recommendation.
@@ -2220,6 +2225,13 @@ pub type ResponseHistory = HistoryPage;
 /// A completed `IRCv3` multiline message.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MultilineMessage {
+    /// The reconstructed `PRIVMSG` or `NOTICE`.
+    pub message: ReceivedLine,
+}
+
+/// A cut-off `IRCv3` multiline message reconstructed from the members received so far.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct IncompleteMultiline {
     /// The reconstructed `PRIVMSG` or `NOTICE`.
     pub message: ReceivedLine,
 }

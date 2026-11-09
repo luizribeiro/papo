@@ -772,6 +772,7 @@ impl core::marker::UnsafeUnpin for papo_core::Feature
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::Feature
 impl core::panic::unwind_safe::UnwindSafe for papo_core::Feature
 #[non_exhaustive] pub enum papo_core::HistoryItem
+pub papo_core::HistoryItem::Incomplete(papo_core::HistoryLine)
 pub papo_core::HistoryItem::Joined(papo_core::HistoryLine)
 pub papo_core::HistoryItem::Kicked(papo_core::HistoryLine)
 pub papo_core::HistoryItem::Message(papo_core::HistoryLine)
@@ -785,6 +786,7 @@ pub papo_core::HistoryItem::Redacted(papo_core::HistoryLine)
 pub papo_core::HistoryItem::TagMsg(papo_core::HistoryLine)
 pub papo_core::HistoryItem::TopicChanged(papo_core::HistoryLine)
 impl papo_core::HistoryItem
+pub const fn papo_core::HistoryItem::as_incomplete(&self) -> core::option::Option<&papo_core::HistoryLine>
 pub const fn papo_core::HistoryItem::as_joined(&self) -> core::option::Option<&papo_core::HistoryLine>
 pub const fn papo_core::HistoryItem::as_kicked(&self) -> core::option::Option<&papo_core::HistoryLine>
 pub const fn papo_core::HistoryItem::as_message(&self) -> core::option::Option<&papo_core::HistoryLine>
@@ -1764,6 +1766,23 @@ impl core::marker::Unpin for papo_core::HistoryPage
 impl core::marker::UnsafeUnpin for papo_core::HistoryPage
 impl core::panic::unwind_safe::RefUnwindSafe for papo_core::HistoryPage
 impl core::panic::unwind_safe::UnwindSafe for papo_core::HistoryPage
+pub struct papo_core::IncompleteMultiline
+pub papo_core::IncompleteMultiline::message: papo_core::ReceivedLine
+impl core::clone::Clone for papo_core::IncompleteMultiline
+pub fn papo_core::IncompleteMultiline::clone(&self) -> Self
+impl core::cmp::Eq for papo_core::IncompleteMultiline
+impl core::cmp::PartialEq for papo_core::IncompleteMultiline
+pub fn papo_core::IncompleteMultiline::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo_core::IncompleteMultiline
+pub fn papo_core::IncompleteMultiline::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo_core::IncompleteMultiline
+impl core::marker::Freeze for papo_core::IncompleteMultiline
+impl core::marker::Send for papo_core::IncompleteMultiline
+impl core::marker::Sync for papo_core::IncompleteMultiline
+impl core::marker::Unpin for papo_core::IncompleteMultiline
+impl core::marker::UnsafeUnpin for papo_core::IncompleteMultiline
+impl core::panic::unwind_safe::RefUnwindSafe for papo_core::IncompleteMultiline
+impl core::panic::unwind_safe::UnwindSafe for papo_core::IncompleteMultiline
 pub struct papo_core::LastSeen
 pub papo_core::LastSeen::msgid: alloc::string::String
 pub papo_core::LastSeen::server_time: std::time::SystemTime
