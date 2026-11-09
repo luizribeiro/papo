@@ -5079,6 +5079,37 @@ async fn query_first_send_uses_who() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn empty_who_refuses_without_target_command() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    let alice = client.query("alice").unwrap();
+
+    let sending = tokio::spawn(async move { client.privmsg(alice, "release approved").await });
+    client_line(&mut server, b"WHO alice %na\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test 315 papo-driver alice :End of WHO list\r\n",
+    )
+    .await;
+
+    assert!(matches!(
+        within(sending).await.unwrap(),
+        Err(Error::TargetGone)
+    ));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), server.read_u8())
+            .await
+            .is_err()
+    );
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn role_errors_identify_the_invalid_argument() {
     let client = crate::Client::disconnected_for_test();
 
