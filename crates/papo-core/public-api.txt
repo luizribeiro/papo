@@ -558,6 +558,7 @@ pub papo_core::Event::HostChanged::envelope: papo_core::LineEnvelope
 pub papo_core::Event::HostChanged::host: alloc::string::String
 pub papo_core::Event::HostChanged::nick: papo::Nick
 pub papo_core::Event::HostChanged::username: alloc::string::String
+pub papo_core::Event::Incomplete(papo_core::IncompleteMultiline)
 #[non_exhaustive] pub papo_core::Event::Invited
 pub papo_core::Event::Invited::actor: alloc::string::String
 pub papo_core::Event::Invited::authorship: papo_core::Authorship

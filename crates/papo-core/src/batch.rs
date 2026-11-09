@@ -100,6 +100,7 @@ pub(crate) enum BatchEvent {
         batch_type: Option<String>,
     },
     Multiline(Line),
+    Incomplete(Line),
     Metadata {
         kind: String,
         messages: Vec<Line>,
@@ -122,10 +123,18 @@ impl Batches {
         }
     }
 
-    pub(crate) fn reset(&mut self) {
+    pub(crate) fn reset(&mut self) -> Vec<BatchEvent> {
+        let incomplete = self
+            .open
+            .values()
+            .filter(|batch| batch.kind == cap::MULTILINE.as_str())
+            .filter_map(multiline)
+            .map(BatchEvent::Incomplete)
+            .collect();
         self.open.clear();
         self.abandoned.clear();
         self.buffered_bytes = 0;
+        incomplete
     }
 
     pub(crate) fn handle(
@@ -758,7 +767,7 @@ fn complete(batch: &mut OpenBatch, reference: &str) -> Vec<BatchEvent> {
         .collect()
 }
 
-fn multiline(batch: &mut OpenBatch) -> Option<Line> {
+fn multiline(batch: &OpenBatch) -> Option<Line> {
     let first = batch.messages.first()?.as_ref();
     let command = first.raw_command();
     let source = first.raw_source();
@@ -837,7 +846,9 @@ fn collect_messages(event: BatchEvent, messages: &mut Vec<Line>) {
         }
         BatchEvent::Netsplit { quits, .. } => messages.extend(quits),
         BatchEvent::Netjoin { joins, .. } => messages.extend(joins),
-        BatchEvent::Line { line, .. } | BatchEvent::Multiline(line) => {
+        BatchEvent::Line { line, .. }
+        | BatchEvent::Multiline(line)
+        | BatchEvent::Incomplete(line) => {
             messages.push(line);
         }
         BatchEvent::HistoryTargets(_) | BatchEvent::Abandoned { .. } => {}

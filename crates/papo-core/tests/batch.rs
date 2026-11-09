@@ -14,6 +14,13 @@ fn line(session: &mut Session) -> papo_core::ReceivedLine {
     line
 }
 
+fn incomplete(session: &mut Session) -> papo_core::ReceivedLine {
+    let Some(Event::Incomplete(incomplete)) = session.poll_event() else {
+        panic!("expected an incomplete multiline event")
+    };
+    incomplete.message
+}
+
 fn retained_bytes(message: &LineRef<'_>) -> usize {
     std::mem::size_of::<Line>()
         + message
@@ -71,6 +78,28 @@ fn recorded_ergo_multiline_batch_joins_text_and_metadata() {
         message.tag("time").as_deref(),
         Some("2026-10-15T12:00:01.000Z")
     );
+}
+
+#[test]
+fn disconnect_delivers_the_received_multiline_members_as_incomplete() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default());
+    for line in [
+        "@msgid=RKi9Cw;time=2026-10-15T12:00:01.000Z :alice!~a@cloak BATCH +m draft/multiline #papo",
+        "@batch=m :alice!~a@cloak PRIVMSG #papo :deploying release",
+        "@batch=m :alice!~a@cloak PRIVMSG #papo :waiting for health checks",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+
+    session.handle_disconnected(now);
+
+    let message = incomplete(&mut session);
+    assert_eq!(
+        message.as_ref().param(1),
+        Some("deploying release\nwaiting for health checks")
+    );
+    assert_eq!(message.as_ref().tag("msgid").as_deref(), Some("RKi9Cw"));
 }
 
 #[test]

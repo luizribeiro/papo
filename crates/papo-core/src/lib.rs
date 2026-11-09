@@ -2534,6 +2534,8 @@ pub enum Event {
     Line(ReceivedLine),
     /// A completed `draft/multiline` batch.
     MultilineMessage(MultilineMessage),
+    /// A `draft/multiline` batch that ended before its closing line arrived.
+    Incomplete(IncompleteMultiline),
     /// A received tag-only message.
     TagMessage(TagMessage),
     /// A user's typing state changed.
@@ -3889,7 +3891,10 @@ impl Session {
             );
             return;
         }
-        self.batches.reset();
+        let incomplete = self.batches.reset();
+        for event in incomplete {
+            self.dispatch_batch_event(now, event);
+        }
         self.ctcp_rate_limit.reset(now);
         self.ctcp_sources.clear();
         self.requests.clear();
@@ -4089,10 +4094,13 @@ impl Session {
     }
 
     /// Marks the transport as disconnected and drops per-connection state.
-    pub fn handle_disconnected(&mut self, _now: Instant) {
+    pub fn handle_disconnected(&mut self, now: Instant) {
         self.framer.close();
         self.outbox.reset_connection(false);
-        self.batches.reset();
+        let incomplete = self.batches.reset();
+        for event in incomplete {
+            self.dispatch_batch_event(now, event);
+        }
         let mut labelled = BTreeMap::new();
         for (_, request) in std::mem::take(&mut self.requests) {
             self.unlabelled_requests
@@ -5172,6 +5180,9 @@ impl Session {
             Event::MultilineMessage(multiline) => {
                 self.mark_channel_key(&mut multiline.message.line);
             }
+            Event::Incomplete(incomplete) => {
+                self.mark_channel_key(&mut incomplete.message.line);
+            }
             Event::Response(response) => {
                 for line in &mut response.lines {
                     self.mark_channel_key(line);
@@ -6086,6 +6097,11 @@ impl Session {
                 let message = self.received_line(message, None);
                 self.outbox
                     .event(Event::MultilineMessage(MultilineMessage { message }));
+            }
+            BatchEvent::Incomplete(message) => {
+                let message = self.received_line(message, None);
+                self.outbox
+                    .event(Event::Incomplete(IncompleteMultiline { message }));
             }
             BatchEvent::Metadata { kind, messages } => {
                 if kind == "metadata-subs" {
