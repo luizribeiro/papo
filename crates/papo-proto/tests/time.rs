@@ -1,6 +1,8 @@
 //! Boundary coverage for `IRCv3` server-time timestamps.
 
-use papo_proto::{ServerTime, time};
+use std::time::{Duration, UNIX_EPOCH};
+
+use papo_proto::{LineRef, ServerTime, time};
 use proptest::prelude::*;
 
 #[test]
@@ -106,6 +108,37 @@ fn stored_forms_round_trip_before_epoch_and_at_bounds() {
             )
             .is_err(),
             input.starts_with("0000")
+        );
+    }
+}
+
+#[test]
+fn converts_server_times_to_exact_system_times() {
+    let ergo = LineRef::parse(
+        "@time=2024-01-02T03:04:05.678Z;msgid=GmU2V7xM :alice!~alice@cloak PRIVMSG #papo :hello",
+    )
+    .unwrap();
+    let ergo_time = ergo.tag("time").unwrap();
+
+    for (input, expected) in [
+        (
+            ergo_time.as_ref(),
+            UNIX_EPOCH + Duration::new(1_704_164_645, 678_000_000),
+        ),
+        ("1970-01-01T00:00:00.000Z", UNIX_EPOCH),
+        (
+            "1969-12-31T23:59:59.999Z",
+            UNIX_EPOCH - Duration::from_millis(1),
+        ),
+        (
+            "9999-12-31T23:59:59.999Z",
+            UNIX_EPOCH + Duration::new(253_402_300_799, 999_000_000),
+        ),
+    ] {
+        assert_eq!(
+            ServerTime::from_stored(input).unwrap().to_system_time(),
+            expected,
+            "{input}"
         );
     }
 }
