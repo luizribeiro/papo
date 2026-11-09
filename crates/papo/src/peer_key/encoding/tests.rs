@@ -42,3 +42,13 @@ fn every_bouncer_scope_part_is_required() {
         assert!(matches!(parse(&encoded), Err(InvalidPeerKey)));
     }
 }
+
+#[test]
+fn network_scope_requires_its_name_and_following_fields() {
+    for encoded in [
+        "papo-peer:1;host=irc.ergo.chat;nick-casemap=rfc1459;nick=%5BAlice%5D;proof=unverified",
+        "papo-peer:1;server=irc.ergo.chat",
+    ] {
+        assert!(matches!(parse(encoded), Err(InvalidPeerKey)));
+    }
+}
