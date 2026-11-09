@@ -490,6 +490,9 @@ pub enum Error {
     /// The current peer identity does not match the stored pin.
     #[error(transparent)]
     PeerPinMismatch(crate::PeerPinMismatch),
+    /// The current nickname holder does not match a saved peer key.
+    #[error(transparent)]
+    NotSamePerson(crate::NotSamePerson),
     /// The server's MONITOR list has no room for another guarded direct recipient.
     #[error("the server's MONITOR list is full at {limit} entries")]
     #[non_exhaustive]

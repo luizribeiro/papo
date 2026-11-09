@@ -153,6 +153,34 @@ pub struct PeerPinMismatch {
     current: Box<PeerKey>,
 }
 
+/// A stored peer key that does not authorize the current nickname holder.
+#[derive(Clone, Debug)]
+pub struct NotSamePerson {
+    reason: PeerKeyMismatch,
+    current: Box<PeerKey>,
+}
+
+impl NotSamePerson {
+    pub(crate) fn new(reason: PeerKeyMismatch, current: PeerKey) -> Self {
+        Self {
+            reason,
+            current: Box::new(current),
+        }
+    }
+
+    /// Returns why the current identity could not be accepted.
+    #[must_use]
+    pub const fn reason(&self) -> PeerKeyMismatch {
+        self.reason
+    }
+
+    /// Returns the current key for an explicit user-approved replacement.
+    #[must_use]
+    pub const fn current_key(&self) -> &PeerKey {
+        &self.current
+    }
+}
+
 impl PeerPinMismatch {
     pub(crate) fn new(reason: PeerKeyMismatch, current: PeerKey) -> Self {
         Self {
@@ -179,6 +207,14 @@ impl PeerPinMismatch {
 pub struct InvalidPeerKey;
 
 impl PeerKey {
+    pub(crate) fn unverified(scope: Option<&PeerScope>, nick: &crate::Nick) -> Self {
+        Self::new(PeerThread::new(scope, nick), PeerProof::Unverified(None))
+    }
+
+    pub(crate) fn nick(&self, origin: crate::Origin) -> crate::Nick {
+        origin.__nick(self.thread.casemapping, self.thread.nick.clone())
+    }
+
     pub(crate) fn live(
         scope: Option<&PeerScope>,
         nick: &crate::Nick,
@@ -380,6 +416,14 @@ impl fmt::Display for PeerPinMismatch {
     }
 }
 
+impl fmt::Display for NotSamePerson {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("the current nickname holder is not the saved person")
+    }
+}
+
 impl std::error::Error for InvalidPeerKey {}
+
+impl std::error::Error for NotSamePerson {}
 
 impl std::error::Error for PeerPinMismatch {}

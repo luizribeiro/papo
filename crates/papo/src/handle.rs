@@ -72,6 +72,28 @@ impl UserHandle {
             .and_then(|proof| state.core.__resolve_proven(proof).ok())
             .unwrap_or_else(|| self.0.nick.clone())
     }
+
+    /// Captures the current saved key for this direct conversation.
+    #[must_use]
+    pub fn key(&self) -> crate::PeerKey {
+        let nick = self.nick();
+        let state = self
+            .0
+            .state
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let account = state
+            .user(&nick)
+            .map_or(&self.0.account, crate::User::account);
+        crate::PeerKey::live(
+            state.peer_scope().as_ref(),
+            &nick,
+            account,
+            state.peer_account_id(&nick, account),
+            state.peer_token(&nick),
+        )
+        .unwrap_or_else(|| crate::PeerKey::unverified(state.peer_scope().as_ref(), &nick))
+    }
 }
 
 impl std::fmt::Debug for UserHandle {
@@ -172,6 +194,23 @@ impl Hash for ChannelHandle {
 }
 
 impl crate::Client {
+    /// Opens the current nickname holder only when it matches a saved peer key.
+    pub fn open(&self, key: &crate::PeerKey) -> crate::RequestFuture<UserHandle> {
+        let client = self.clone();
+        let stored = key.clone();
+        crate::RequestFuture::new(async move {
+            let handle = client.query(stored.nick(client.origin()))?;
+            _ = crate::identity::prove(&client, &handle).await?;
+            let current = handle.key();
+            match stored.check(&current) {
+                crate::PeerKeyCheck::Match | crate::PeerKeyCheck::Upgrade(_) => Ok(handle),
+                crate::PeerKeyCheck::Mismatch(reason) => Err(crate::Error::NotSamePerson(
+                    crate::NotSamePerson::new(reason, current),
+                )),
+            }
+        })
+    }
+
     /// Creates a user handle without sending an IRC command.
     /// # Errors
     /// Returns [`crate::InvalidInput`] when name rules are unknown or reject the nickname.
