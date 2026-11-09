@@ -6,7 +6,7 @@ mod support;
 use support::within;
 
 use papo::{Client, Endpoint, Event, Feature, Message as ChatMessage};
-use papo_test_server::{from_env, unique};
+use papo_test_server::{OPER_NAME, OPER_PASSWORD, from_env, unique};
 
 #[tokio::test(flavor = "current_thread")]
 async fn pages_messages_by_id_and_round_trips_a_read_marker() {
@@ -151,6 +151,74 @@ async fn latest_after_returns_the_newest_page_and_reports_a_gap() {
         );
         assert!(complete.end);
         client.quit("latest history test complete").await.unwrap();
+    })
+    .await;
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn cursor_pages_every_message_once() {
+    within(async {
+        let server = from_env();
+        let channel = format!("#{}", unique("papo-history-cursor"));
+        let nick = unique("papo-history-cursor");
+        let (client, mut events) = Client::builder(
+            Endpoint::plaintext(
+                server.plaintext_addr().ip().to_string(),
+                server.plaintext_addr().port(),
+            )
+            .unwrap(),
+            support::nick(&nick),
+        )
+        .disable(Feature::EventPlayback)
+        .disable(Feature::Multiline)
+        .rate_limit(papo::RateLimit::unlimited())
+        .allow_insecure_auth(true)
+        .autojoin([&channel])
+        .connect()
+        .await
+        .unwrap();
+        wait_synced(&mut events, &channel).await;
+        client
+            .oper(OPER_NAME, papo::Secret::new(OPER_PASSWORD))
+            .await
+            .unwrap();
+
+        let expected = (1..=250)
+            .map(|number| format!("history cursor entry {number:03}"))
+            .collect::<Vec<_>>();
+        let mut sends = tokio::task::JoinSet::new();
+        for text in &expected {
+            let client = client.clone();
+            let line = papo::Line::privmsg(&channel, text);
+            sends.spawn(async move { client.send_raw(line).await });
+        }
+        while let Some(sent) = sends.join_next().await {
+            sent.unwrap().unwrap();
+        }
+
+        let mut pages = Vec::new();
+        let mut page = client.history(&channel).latest().limit(100).await.unwrap();
+        loop {
+            pages.push(
+                page.chat_messages()
+                    .filter(|message| message.text.starts_with("history cursor entry "))
+                    .map(|message| message.text.clone())
+                    .collect::<Vec<_>>(),
+            );
+            if page.end {
+                break;
+            }
+            page = client
+                .history(&channel)
+                .before(page.cursor().expect("a nonempty page has a cursor"))
+                .limit(100)
+                .await
+                .unwrap();
+        }
+        let mut actual = pages.into_iter().flatten().collect::<Vec<_>>();
+        actual.sort();
+        assert_eq!(actual, expected);
+        client.quit("cursor history test complete").await.unwrap();
     })
     .await;
 }

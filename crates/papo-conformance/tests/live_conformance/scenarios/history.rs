@@ -1,6 +1,6 @@
 use std::time::{Duration, SystemTime};
 
-use papo::{Account, Authorship, Client, Endpoint, Error, Event, MessageId, Sasl, Sent};
+use papo::{Account, Authorship, Client, Endpoint, Error, Event, Sasl, Sent};
 use papo_conformance_macros::scenario;
 
 use crate::scenarios::support::{confirmed_line, conversation_name};
@@ -199,17 +199,6 @@ async fn chathistory_paging(s: Scenario) -> papo_testing::Result<()> {
     covers = ["draft.chathistory.end-pagination"]
 )]
 async fn terminal_history_page(s: Scenario) -> papo_testing::Result<()> {
-    #[derive(Clone, Copy)]
-    enum ReferenceType {
-        Id,
-        Time,
-    }
-
-    enum Cursor {
-        Id(String),
-        Time(SystemTime),
-    }
-
     let alice = s.connect("alice").await?;
     let channel = alice
         .snapshot()
@@ -223,36 +212,15 @@ async fn terminal_history_page(s: Scenario) -> papo_testing::Result<()> {
     for text in &texts {
         alice.privmsg(&channel, text).await?;
     }
-    let Some(reference_type) = alice
-        .snapshot()
-        .isupport()
-        .msgreftypes()
-        .into_iter()
-        .find_map(|kind| match kind {
-            "msgid" => Some(ReferenceType::Id),
-            "timestamp" => Some(ReferenceType::Time),
-            _ => None,
-        })
-    else {
-        return s.skip("server advertises no supported history reference type");
-    };
-
     let mut cursor = None;
     let mut remaining = texts.len();
     loop {
         let page = match cursor {
             None => alice.history(channel.as_str()).latest().limit(10).await?,
-            Some(Cursor::Id(ref id)) => {
+            Some(cursor) => {
                 alice
                     .history(channel.as_str())
-                    .before(MessageId::from(id.clone()))
-                    .limit(10)
-                    .await?
-            }
-            Some(Cursor::Time(time)) => {
-                alice
-                    .history(channel.as_str())
-                    .before(time)
+                    .before(cursor)
                     .limit(10)
                     .await?
             }
@@ -272,19 +240,7 @@ async fn terminal_history_page(s: Scenario) -> papo_testing::Result<()> {
             break;
         }
         assert!(!messages.is_empty(), "an empty page must report the end");
-        let oldest = messages.first().expect("nonempty page");
-        cursor = Some(match reference_type {
-            ReferenceType::Id => Cursor::Id(
-                oldest
-                    .msgid()
-                    .expect("msgid history references require message IDs")
-                    .as_ref()
-                    .to_owned(),
-            ),
-            ReferenceType::Time => {
-                Cursor::Time(oldest.server_time.expect("history has server time"))
-            }
-        });
+        cursor = Some(page.cursor().expect("a nonempty history page has a cursor"));
         remaining = start;
     }
     Ok(())

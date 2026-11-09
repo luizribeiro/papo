@@ -1967,6 +1967,32 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn page_cursor_selects_the_requested_edge() {
+        let client = crate::Client::disconnected_for_test();
+        let cursor = HistoryReference {
+            value: MsgRef::Msgid("RfcBTzyxY120004".into()),
+            after: Some(MsgRef::Msgid("RfcBTzyxY120009".into())),
+            origin: None,
+        };
+
+        assert!(matches!(
+            client.history("#papo").before(cursor.clone()).query,
+            Ok(HistoryQuery::Before { before: MsgRef::Msgid(id), .. })
+                if id == "RfcBTzyxY120004"
+        ));
+        assert!(matches!(
+            client.history("#papo").after(cursor.clone()).query,
+            Ok(HistoryQuery::After { after: MsgRef::Msgid(id), .. })
+                if id == "RfcBTzyxY120009"
+        ));
+        assert!(matches!(
+            client.history("#papo").latest_after(cursor).query,
+            Ok(HistoryQuery::Latest { after: Some(MsgRef::Msgid(id)), .. })
+                if id == "RfcBTzyxY120009"
+        ));
+    }
+
     #[tokio::test(flavor = "current_thread")]
     async fn history_page_revalidates_target_against_current_server_rules() {
         let config = config().wanted_caps([
