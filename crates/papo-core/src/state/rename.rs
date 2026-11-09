@@ -109,6 +109,11 @@ impl State {
             self.read_markers.insert(new_key.clone(), marker);
         }
         self.read_marker_order.replace(&old_key, new_key.clone());
+        if let Some(time) = self.latest_server_times.remove(&old_key) {
+            self.latest_server_times.insert(new_key.clone(), time);
+        }
+        self.latest_server_time_order
+            .replace(&old_key, new_key.clone());
         if let Some(mut seen) = self.last_seen.remove(&old_key) {
             seen.target = new_channel.to_string();
             self.last_seen.insert(new_key.clone(), seen);

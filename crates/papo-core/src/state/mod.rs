@@ -72,6 +72,8 @@ pub struct State {
     who_on_join: WhoOnJoin,
     read_markers: HashMap<NameKey<String>, ReadMarker>,
     read_marker_order: BoundedCollection<NameKey<String>>,
+    latest_server_times: HashMap<NameKey<String>, SystemTime>,
+    latest_server_time_order: BoundedCollection<NameKey<String>>,
     last_seen: HashMap<NameKey<String>, LastSeen>,
     last_seen_order: VecDeque<String>,
     rejoin_creation_times: HashMap<NameKey<String>, SystemTime>,
@@ -135,6 +137,8 @@ impl Clone for State {
             who_on_join: self.who_on_join,
             read_markers: self.read_markers.clone(),
             read_marker_order: self.read_marker_order.clone(),
+            latest_server_times: self.latest_server_times.clone(),
+            latest_server_time_order: self.latest_server_time_order.clone(),
             last_seen: self.last_seen.clone(),
             last_seen_order: self.last_seen_order.clone(),
             rejoin_creation_times: self.rejoin_creation_times.clone(),
@@ -469,6 +473,8 @@ impl State {
             who_on_join: config.who_on_join,
             read_markers: HashMap::new(),
             read_marker_order: BoundedCollection::new(config.max_read_markers),
+            latest_server_times: HashMap::new(),
+            latest_server_time_order: BoundedCollection::new(config.max_read_markers),
             last_seen: HashMap::new(),
             last_seen_order: VecDeque::new(),
             rejoin_creation_times: HashMap::new(),
@@ -594,6 +600,11 @@ impl State {
     pub(crate) fn reset(&mut self, config: &Config, casemapping: Casemapping, isupport: &Isupport) {
         let last_seen = std::mem::take(&mut self.last_seen);
         let last_seen_order = std::mem::take(&mut self.last_seen_order);
+        let latest_server_times = std::mem::take(&mut self.latest_server_times);
+        let latest_server_time_order = std::mem::replace(
+            &mut self.latest_server_time_order,
+            BoundedCollection::new(config.max_read_markers),
+        );
         let mut rejoin_creation_times = std::mem::take(&mut self.rejoin_creation_times);
         for channel in self.channels.values() {
             if let Some(created_at) = channel.created_at {
@@ -620,6 +631,18 @@ impl State {
             );
         }
         self.last_seen_order = last_seen_order;
+        self.latest_server_times = latest_server_times
+            .into_iter()
+            .map(|(target, time)| (NameKey::new(target.original(), casemapping), time))
+            .collect();
+        self.latest_server_time_order = BoundedCollection::new(config.max_read_markers);
+        for old in latest_server_time_order.into_vec() {
+            let key = NameKey::new(old.original(), casemapping);
+            if self.latest_server_times.contains_key(&key) {
+                let evicted = self.latest_server_time_order.push_evict_oldest(key);
+                debug_assert!(evicted.is_none());
+            }
+        }
         self.rejoin_creation_times = rejoin_creation_times
             .into_iter()
             .map(|(channel, created_at)| {
@@ -1039,6 +1062,7 @@ impl State {
             return Handled::Yes;
         }
         self.remember_last_seen(message, own_nick);
+        self.remember_server_time(message, own_nick, isupport);
         if enabled_caps.contains_key(&cap::READ_MARKER) && self.handle_read_marker(message, outbox)
         {
             return Handled::Yes;
@@ -1556,6 +1580,20 @@ impl State {
             let evicted = self.read_marker_order.push_evict_oldest(key);
             debug_assert!(evicted.is_none());
         }
+        let mut latest_server_times: HashMap<NameKey<String>, SystemTime> = HashMap::new();
+        for (target, time) in std::mem::take(&mut self.latest_server_times) {
+            latest_server_times
+                .entry(NameKey::new(target.original(), mapping))
+                .and_modify(|stored| *stored = (*stored).max(time))
+                .or_insert(time);
+        }
+        self.latest_server_times = latest_server_times;
+        self.latest_server_time_order =
+            BoundedCollection::new(self.latest_server_time_order.limit());
+        for key in self.latest_server_times.keys().cloned() {
+            let evicted = self.latest_server_time_order.push_evict_oldest(key);
+            debug_assert!(evicted.is_none());
+        }
         let mut last_seen = HashMap::new();
         for seen in std::mem::take(&mut self.last_seen).into_values() {
             last_seen.insert(NameKey::new(&seen.target, mapping), seen);
@@ -1748,6 +1786,14 @@ impl State {
     pub fn read_marker(&self, target: impl AsRef<str>) -> Option<&ReadMarker> {
         let target = self.casemapping.fold(target.as_ref());
         self.read_markers.get(target.as_ref())
+    }
+
+    /// Returns the newest server time observed for a conversation.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn latest_server_time(&self, target: impl AsRef<str>) -> Option<SystemTime> {
+        let target = self.casemapping.fold(target.as_ref());
+        self.latest_server_times.get(target.as_ref()).copied()
     }
 
     /// Returns the newest live message remembered for a conversation.

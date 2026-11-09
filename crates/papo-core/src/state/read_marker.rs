@@ -4,6 +4,57 @@ use super::{
 };
 
 impl State {
+    pub(super) fn remember_server_time(
+        &mut self,
+        message: &LineRef<'_>,
+        own_nick: &str,
+        isupport: &papo_proto::Isupport,
+    ) {
+        let Some(server_time) = message.tag("time").and_then(|value| time::parse(&value)) else {
+            return;
+        };
+        let Ok((_, target)) = crate::conversation::classify_line_with_names(
+            message,
+            own_nick,
+            isupport,
+            self.casemapping,
+        ) else {
+            return;
+        };
+        let Some(conversation) = target.into_conversation() else {
+            return;
+        };
+        let target = match conversation {
+            crate::Conversation::Channel(channel) => channel.to_string(),
+            crate::Conversation::Private(nick) => nick.to_string(),
+        };
+        self.remember_server_time_for(&target, server_time);
+    }
+
+    pub(crate) fn remember_server_time_for(
+        &mut self,
+        target: &str,
+        server_time: std::time::SystemTime,
+    ) {
+        let key = NameKey::new(target, self.casemapping);
+        if self
+            .latest_server_times
+            .get(&key)
+            .is_some_and(|stored| *stored >= server_time)
+        {
+            return;
+        }
+        if !self.latest_server_times.contains_key(&key)
+            && let Some(evicted) = self.latest_server_time_order.push_evict_oldest(key.clone())
+        {
+            self.latest_server_times.remove(&evicted);
+            if evicted == key {
+                return;
+            }
+        }
+        self.latest_server_times.insert(key, server_time);
+    }
+
     pub(super) fn handle_read_marker(
         &mut self,
         message: &LineRef<'_>,

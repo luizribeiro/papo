@@ -835,6 +835,49 @@ fn remembers_live_messages_but_not_history_pages() {
 }
 
 #[test]
+fn bounds_latest_server_times_like_read_markers() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().max_read_markers(2));
+    for (target, second) in [("#one", 41), ("#two", 42), ("#three", 43)] {
+        session.handle_line(
+            now,
+            format!("@time=2025-10-15T11:55:{second}.000Z :alice!a@host PRIVMSG {target} :seen")
+                .as_bytes(),
+        );
+    }
+    assert_eq!(session.state().latest_server_time("#one"), None);
+    assert!(session.state().latest_server_time("#two").is_some());
+    assert!(session.state().latest_server_time("#three").is_some());
+}
+
+#[test]
+fn refolds_latest_server_times_when_casemapping_changes() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().nick("papo"));
+    session.handle_line(now, b":ergo.test 005 papo CASEMAPPING=ascii :are supported");
+    session.handle_line(
+        now,
+        b"@time=2025-10-15T11:55:42.000Z :alice!a@host PRIVMSG #room[ :older",
+    );
+    session.handle_line(
+        now,
+        b"@time=2025-10-15T11:55:43.000Z :alice!a@host PRIVMSG #room{ :newer",
+    );
+    session.handle_line(
+        now,
+        b":ergo.test 005 papo CASEMAPPING=rfc1459 :are supported",
+    );
+    assert_eq!(
+        session.state().latest_server_time("#ROOM["),
+        Some(UNIX_EPOCH + Duration::from_secs(1_760_529_343))
+    );
+    assert_eq!(
+        session.state().latest_server_time("#room{"),
+        Some(UNIX_EPOCH + Duration::from_secs(1_760_529_343))
+    );
+}
+
+#[test]
 fn bounds_last_seen_to_one_thousand_recent_targets() {
     let now = Instant::now();
     let mut session = Session::new(Config::default());
