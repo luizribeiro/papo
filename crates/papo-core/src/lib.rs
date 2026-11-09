@@ -5180,9 +5180,6 @@ impl Session {
             Event::MultilineMessage(multiline) => {
                 self.mark_channel_key(&mut multiline.message.line);
             }
-            Event::Incomplete(incomplete) => {
-                self.mark_channel_key(&mut incomplete.message.line);
-            }
             Event::Response(response) => {
                 for line in &mut response.lines {
                     self.mark_channel_key(line);
