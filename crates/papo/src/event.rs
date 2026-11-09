@@ -12,7 +12,7 @@ use papo_proto::{
     Prefix, strip_formatting, time,
 };
 
-use crate::{Client, Disconnected, ModeAction, ModeArg, ModeChange};
+use crate::{Client, Disconnected, ModeAction, ModeArg, ModeChange, ServerTime};
 
 pub(crate) const fn can_prove_non_bot(message_tags: bool, bot_mode: bool) -> bool {
     message_tags && bot_mode
@@ -120,8 +120,8 @@ pub struct CtcpQuery {
     ///
     /// This also accepts ZNC's `znc.in/server-time-iso` tag, which is not part of any `IRCv3`
     /// specification.
-    pub server_time: Option<SystemTime>,
-    /// Time at which the line was received.
+    pub server_time: Option<ServerTime>,
+    /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// All message tags in wire order.
     pub tags: Tags,
@@ -154,8 +154,8 @@ pub struct CtcpReply {
     ///
     /// This also accepts ZNC's `znc.in/server-time-iso` tag, which is not part of any `IRCv3`
     /// specification.
-    pub server_time: Option<SystemTime>,
-    /// Time at which the line was received.
+    pub server_time: Option<ServerTime>,
+    /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// All message tags in wire order.
     pub tags: Tags,
@@ -301,8 +301,8 @@ pub struct Message {
     ///
     /// This also accepts ZNC's `znc.in/server-time-iso` tag, which is not part of any `IRCv3`
     /// specification.
-    pub server_time: Option<SystemTime>,
-    /// Time at which the line was received.
+    pub server_time: Option<ServerTime>,
+    /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The identifier referenced by a reply tag.
     pub in_reply_to: Option<MessageId>,
@@ -347,8 +347,8 @@ pub struct Notice {
     ///
     /// This also accepts ZNC's `znc.in/server-time-iso` tag, which is not part of any `IRCv3`
     /// specification.
-    pub server_time: Option<SystemTime>,
-    /// Time at which the line was received.
+    pub server_time: Option<ServerTime>,
+    /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The identifier referenced by a reply tag.
     pub in_reply_to: Option<MessageId>,
@@ -438,8 +438,8 @@ pub struct ServerNotice {
     ///
     /// This also accepts ZNC's `znc.in/server-time-iso` tag, which is not part of any `IRCv3`
     /// specification.
-    pub server_time: Option<SystemTime>,
-    /// Time at which the line was received.
+    pub server_time: Option<ServerTime>,
+    /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// All message tags in wire order.
     pub tags: Tags,
@@ -458,8 +458,8 @@ pub struct Unparsed {
     ///
     /// This also accepts ZNC's `znc.in/server-time-iso` tag, which is not part of any `IRCv3`
     /// specification.
-    pub server_time: Option<SystemTime>,
-    /// Time at which the line was received.
+    pub server_time: Option<ServerTime>,
+    /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
 }
 
@@ -478,7 +478,7 @@ struct MessageMetadata {
     status: Option<Prefix>,
     receipt: crate::message_ref::Receipt,
     msgid: Option<MessageId>,
-    server_time: Option<SystemTime>,
+    server_time: Option<ServerTime>,
     received_at: SystemTime,
     reply_to: Option<MessageId>,
     #[cfg(feature = "unstable")]
@@ -1368,7 +1368,7 @@ fn account_from_tag(
 
 pub(crate) struct EventEnvelope {
     pub(crate) msgid: Option<MessageId>,
-    pub(crate) server_time: Option<SystemTime>,
+    pub(crate) server_time: Option<ServerTime>,
     pub(crate) received_at: SystemTime,
     pub(crate) account: Account,
     pub(crate) bot: bool,
@@ -1843,7 +1843,7 @@ impl Event {
     /// This also accepts ZNC's `znc.in/server-time-iso` tag, which is not part of any `IRCv3`
     /// specification.
     #[must_use]
-    pub fn server_time(&self) -> Option<SystemTime> {
+    pub fn server_time(&self) -> Option<ServerTime> {
         match self {
             Self::Message(event) | Self::Incomplete(Incomplete::Message(event)) => {
                 event.server_time
@@ -1876,7 +1876,7 @@ impl Event {
         }
     }
 
-    /// Returns when the event's line was received, when it has a timestamped payload.
+    /// Returns when this device's clock observed the event line, when timestamped.
     #[must_use]
     pub fn received_at(&self) -> Option<SystemTime> {
         match self {
@@ -1987,7 +1987,7 @@ fn private_actor_mut(event: &mut Event) -> Option<&mut UserSource> {
     }
 }
 
-fn tagged_from_tags(tags: &Tags) -> Option<SystemTime> {
+fn tagged_from_tags(tags: &Tags) -> Option<ServerTime> {
     // NONSTANDARD(znc): ZNC uses its legacy tag instead of IRCv3 `time`, so tag-only events keep
     // their original timestamps.
     tags.get("time")
@@ -2920,7 +2920,7 @@ mod tests {
     fn assert_event_times(
         event: &Event,
         expected_variant: &str,
-        server_time: SystemTime,
+        server_time: crate::ServerTime,
         received_at: SystemTime,
     ) {
         assert_eq!(event.server_time(), Some(server_time), "{expected_variant}");
@@ -3169,6 +3169,22 @@ mod tests {
                 UNIX_EPOCH,
             ),
             _ => panic!("line did not produce a public event"),
+        }
+    }
+
+    #[test]
+    fn ergo_and_soju_wire_times_round_trip_through_stored_forms() {
+        for line in [
+            "@time=2026-11-08T19:55:04.123Z :alice!a@cloak PRIVMSG #papo :from Ergo",
+            "@time=2026-11-08T19:55:04.123Z :bob!b@soju NOTICE #papo :from soju",
+        ] {
+            let parsed = mapped_live_event(line, Instant::now())
+                .server_time()
+                .unwrap();
+            let text = parsed.to_string();
+            assert_eq!(text, "2026-11-08T19:55:04.123Z");
+            assert_eq!(text.parse::<crate::ServerTime>(), Ok(parsed));
+            assert_eq!(crate::ServerTime::from_stored(&text), Ok(parsed));
         }
     }
 
@@ -4103,7 +4119,7 @@ mod tests {
         );
         assert_eq!(
             tagged.server_time,
-            Some(UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000))
+            Some(crate::ServerTime::from_stored_millis(1_770_091_506_789).unwrap())
         );
         assert!(matches!(&tagged.conversation, Conversation::Channel(name) if name == "#papo"));
         assert_eq!(tagged.msgid.as_deref(), Some("RfcBTzyxY120004"));
@@ -4208,7 +4224,7 @@ mod tests {
     #[test]
     fn event_metadata_survives_live_line_conversion() {
         let received_at = UNIX_EPOCH + Duration::from_secs(42);
-        let server_time = UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000);
+        let server_time = crate::ServerTime::from_stored_millis(1_770_091_506_789).unwrap();
         let convert = |line: &str| {
             let mut session = Session::new(Config::default().nick("papo"));
             session.handle_line(Instant::now(), line.as_bytes());
@@ -4373,7 +4389,7 @@ mod tests {
     #[test]
     fn derived_event_times_follow_the_trigger_without_sharing_its_msgid() {
         let received_at = UNIX_EPOCH + Duration::from_secs(42);
-        let server_time = UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000);
+        let server_time = crate::ServerTime::from_stored_millis(1_770_091_506_789).unwrap();
         let cases = [
             (
                 "AccountChanged",
@@ -5743,7 +5759,7 @@ mod tests {
             Event::RealnameChanged(changed)
                 if changed.actor.nick() == "emily"
                     && changed.new == "Emily Smith"
-                    && changed.server_time == Some(UNIX_EPOCH + Duration::from_secs(42))
+                    && changed.server_time == Some(crate::ServerTime::from_stored_millis(42_000).unwrap())
                     && changed.received_at == UNIX_EPOCH
         ));
     }
@@ -6053,8 +6069,8 @@ mod tests {
     #[test]
     #[allow(clippy::duration_suboptimal_units)]
     fn maps_recreated_channel_warning() {
-        let previous = UNIX_EPOCH + Duration::from_secs(1_793_098_800);
-        let created = UNIX_EPOCH + Duration::from_secs(1_793_099_900);
+        let previous = crate::ServerTime::from_stored_millis(1_793_098_800_000).unwrap();
+        let created = crate::ServerTime::from_stored_millis(1_793_099_900_000).unwrap();
         assert!(matches!(
             forwarded(papo_core::Event::__channel_recreated(
                 Casemapping::default().channel("#release"),
@@ -6115,7 +6131,7 @@ mod tests {
     fn keeps_history_targets_internal() {
         let targets = vec![(
             Conversation::Channel(Casemapping::Rfc1459.channel("#papo")),
-            UNIX_EPOCH + Duration::from_secs(42),
+            crate::ServerTime::from_stored_millis(42_000).unwrap(),
         )];
         assert!(matches!(
             from_core(papo_core::Event::HistoryTargets(targets)),
@@ -6129,7 +6145,7 @@ mod tests {
             conversation: papo_core::Conversation::Channel(
                 papo_proto::Casemapping::Rfc1459.channel("#papo"),
             ),
-            read_until: Some(UNIX_EPOCH + Duration::from_secs(42)),
+            read_until: Some(crate::ServerTime::from_stored_millis(42_000).unwrap()),
         };
         assert!(matches!(
             forwarded(papo_core::Event::ReadMarkerChanged(marker.clone())),
