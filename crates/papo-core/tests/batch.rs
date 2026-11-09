@@ -157,6 +157,28 @@ fn multiline_line_bound_delivers_one_incomplete_message() {
 }
 
 #[test]
+fn malformed_multiline_abandonment_does_not_release_members_live() {
+    let now = Instant::now();
+    let mut session = Session::new(Config::default().max_batch_lines(1));
+    for line in [
+        ":alice!~a@cloak BATCH +deploy draft/multiline #papo",
+        "@batch=deploy :alice!~a@cloak PRIVMSG #papo :release started",
+        "@batch=deploy :alice!~a@cloak NOTICE #papo :health checks pending",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+
+    assert!(matches!(
+        session.poll_event(),
+        Some(Event::BatchAbandoned {
+            reason: BatchAbandonReason::LineLimit,
+            ..
+        })
+    ));
+    assert_eq!(session.poll_event(), None);
+}
+
+#[test]
 fn refused_multiline_batch_members_remain_incomplete() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().max_open_batches(0));
