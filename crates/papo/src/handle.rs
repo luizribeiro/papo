@@ -119,6 +119,18 @@ impl crate::AsChannel for ChannelHandle {
     }
 }
 
+impl crate::Target for ChannelHandle {
+    fn __parts(&self) -> crate::target::sealed::Parts<'_> {
+        <Self as crate::AsChannel>::__parts(self)
+    }
+}
+
+impl crate::AsConversation for ChannelHandle {
+    fn __parts(&self) -> crate::target::sealed::Parts<'_> {
+        <Self as crate::AsChannel>::__parts(self)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use papo_core::{Config, Session};

@@ -221,8 +221,8 @@ impl Kickban {
 }
 
 impl IntoFuture for JoinChannel {
-    type Output = Result<(), Error>;
-    type IntoFuture = crate::RequestFuture<()>;
+    type Output = Result<crate::ChannelHandle, Error>;
+    type IntoFuture = crate::RequestFuture<crate::ChannelHandle>;
 
     fn into_future(self) -> Self::IntoFuture {
         crate::RequestFuture::new(async move {
@@ -1385,7 +1385,7 @@ impl Client {
         &self,
         channel: crate::ChannelName,
         key: Option<crate::Secret>,
-    ) -> Result<(), Error> {
+    ) -> Result<crate::ChannelHandle, Error> {
         channel
             .check(self.state().isupport().inner())
             .map_err(|reason| InvalidInput::invalid_name(channel.to_string(), reason))?;
@@ -1420,7 +1420,7 @@ impl Client {
                 .map_err(|_| Error::connection_lost())?;
             receiver.await.map_err(|_| Error::connection_lost())??;
         }
-        Ok(())
+        Ok(crate::ChannelHandle::new(self, channel, true))
     }
 
     /// Leaves a channel.

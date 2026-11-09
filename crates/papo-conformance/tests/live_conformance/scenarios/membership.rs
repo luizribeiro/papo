@@ -763,7 +763,7 @@ async fn invite_rules(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(invited.subject, carol_nick);
     assert_eq!(invited.subject_authorship, papo::Authorship::Own);
     match carol.join(&channel).await {
-        Ok(()) => {
+        Ok(_) => {
             let joined = alice
                 .wait_for(|event| {
                     event

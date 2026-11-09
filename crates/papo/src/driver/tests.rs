@@ -5024,6 +5024,34 @@ async fn join_rejects_an_invalid_channel_name_before_queueing() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn join_returns_joined_channel_handle() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+
+    let joining = tokio::spawn({
+        let client = client.clone();
+        async move { client.join("#review").await }
+    });
+    client_line(&mut server, b"JOIN #review\r\n").await;
+    server_line(
+        &mut server,
+        b":papo-driver!papo@localhost JOIN #review * :Papo Client\r\n:ergo.test 353 papo-driver = #review :@papo-driver alice\r\n:ergo.test 366 papo-driver #review :End of /NAMES list\r\n",
+    )
+    .await;
+
+    let channel = within(joining).await.unwrap().unwrap();
+    assert_eq!(channel.name(), "#review");
+    assert_eq!(client.channel(&channel).unwrap(), channel);
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn role_errors_identify_the_invalid_argument() {
     let client = crate::Client::disconnected_for_test();
 

@@ -2195,6 +2195,8 @@ pub fn papo::ChannelHandle::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::f
 impl core::hash::Hash for papo::ChannelHandle
 pub fn papo::ChannelHandle::hash<H: core::hash::Hasher>(&self, &mut H)
 impl papo::AsChannel for papo::ChannelHandle
+impl papo::AsConversation for papo::ChannelHandle
+impl papo::Target for papo::ChannelHandle
 impl core::marker::Freeze for papo::ChannelHandle
 impl core::marker::Send for papo::ChannelHandle
 impl core::marker::Sync for papo::ChannelHandle
@@ -2646,8 +2648,8 @@ pub fn papo::JoinChannel::key(self, papo::Secret) -> Self
 impl core::fmt::Debug for papo::JoinChannel
 pub fn papo::JoinChannel::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::future::into_future::IntoFuture for papo::JoinChannel
-pub type papo::JoinChannel::IntoFuture = papo::RequestFuture<()>
-pub type papo::JoinChannel::Output = core::result::Result<(), papo::Error>
+pub type papo::JoinChannel::IntoFuture = papo::RequestFuture<papo::ChannelHandle>
+pub type papo::JoinChannel::Output = core::result::Result<papo::ChannelHandle, papo::Error>
 pub fn papo::JoinChannel::into_future(self) -> Self::IntoFuture
 impl core::marker::Freeze for papo::JoinChannel
 impl core::marker::Send for papo::JoinChannel
@@ -3510,6 +3512,7 @@ impl papo::AsConversation for alloc::borrow::Cow<'_, str>
 impl papo::AsConversation for alloc::boxed::Box<str>
 impl papo::AsConversation for alloc::rcs::arc::Arc<str>
 impl papo::AsConversation for alloc::string::String
+impl papo::AsConversation for papo::ChannelHandle
 impl papo::AsConversation for papo::Conversation
 impl papo::AsConversation for papo::ChannelName
 impl papo::AsConversation for papo::Nick
@@ -3555,6 +3558,7 @@ impl papo::Target for alloc::borrow::Cow<'_, str>
 impl papo::Target for alloc::boxed::Box<str>
 impl papo::Target for alloc::rcs::arc::Arc<str>
 impl papo::Target for alloc::string::String
+impl papo::Target for papo::ChannelHandle
 impl papo::Target for papo::DirectRef
 impl papo::Target for papo::MessageRef
 impl papo::Target for papo::NoticeRef
