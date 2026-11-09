@@ -640,6 +640,40 @@ impl Client {
         })
     }
 
+    /// Pauses automatic reconnect attempts without dropping a live connection.
+    ///
+    /// If the connection drops while paused, no attempt starts until [`Self::resume_reconnect`].
+    /// Calling this while already paused succeeds without changing anything.
+    pub fn pause_reconnect(&self) -> crate::RequestFuture<()> {
+        let client = self.clone();
+        crate::RequestFuture::new(async move {
+            let (result, receiver) = oneshot::channel();
+            client
+                .commands
+                .send(Command::PauseReconnect { result })
+                .await
+                .map_err(|_| Error::connection_lost())?;
+            receiver.await.map_err(|_| Error::connection_lost())?
+        })
+    }
+
+    /// Resumes automatic reconnect attempts and retries a disconnected connection immediately.
+    ///
+    /// Calling this while retries are already active succeeds without changing the current
+    /// connection or backoff.
+    pub fn resume_reconnect(&self) -> crate::RequestFuture<()> {
+        let client = self.clone();
+        crate::RequestFuture::new(async move {
+            let (result, receiver) = oneshot::channel();
+            client
+                .commands
+                .send(Command::ResumeReconnect { result })
+                .await
+                .map_err(|_| Error::connection_lost())?;
+            receiver.await.map_err(|_| Error::connection_lost())?
+        })
+    }
+
     /// Queues one IRC protocol line for transmission without typed target guards.
     ///
     /// The future resolves only after the entire line has been written.

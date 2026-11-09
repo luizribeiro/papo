@@ -14,8 +14,8 @@ use tokio::sync::mpsc;
 
 use super::{
     BackoffEntropy, BoxConnection, Command, ConnectFuture, ConnectWait, ConnectionEnd,
-    ConnectionPlan, Connector, EventSink, PendingEvents, PostConnect, StsActions, enqueue_event,
-    finish, now, run_connection,
+    ConnectionPlan, Connector, EventSink, PendingEvents, PostConnect, ReconnectControl, StsActions,
+    enqueue_event, finish, now, run_connection,
 };
 #[cfg(sockets)]
 use crate::address::Protocol;
@@ -102,6 +102,7 @@ pub(super) async fn run_plan(
     };
     let mut attempts = 0_usize;
     let mut registered = false;
+    let mut reconnect_control = ReconnectControl::default();
     let mut pending_events = VecDeque::new();
     let mut sts_required = false;
     let mut last_sts_upgrade = None;
@@ -134,6 +135,7 @@ pub(super) async fn run_plan(
             &events,
             &mut pending_events,
             &mut defaults,
+            &mut reconnect_control,
             registration.0.is_some(),
             sts_required,
             connect_timeout,
@@ -167,6 +169,7 @@ pub(super) async fn run_plan(
             &events,
             &mut registration,
             &mut defaults,
+            &mut reconnect_control,
             &mut registered,
             attempts,
             &plan,
@@ -233,7 +236,14 @@ pub(super) async fn run_plan(
         if upgrade_port.is_some() {
             continue;
         }
-        if !wait_before_retry(&mut commands, &mut defaults, disconnected).await {
+        if !wait_before_retry(
+            &mut commands,
+            &mut defaults,
+            &mut reconnect_control,
+            disconnected,
+        )
+        .await
+        {
             finish_requested(events, pending_events, attempts.saturating_add(1));
             return Ok(());
         }
@@ -289,6 +299,7 @@ pub(super) async fn run_planned_connection(
     events: &EventSink,
     registration: &mut ConnectWait,
     defaults: &mut PostConnect,
+    reconnect_control: &mut ReconnectControl,
     registered: &mut bool,
     attempt: usize,
     plan: &ConnectionPlan,
@@ -308,6 +319,7 @@ pub(super) async fn run_planned_connection(
         events,
         registration,
         defaults,
+        reconnect_control,
         registered,
         attempt,
         Some(Connection {
@@ -385,6 +397,7 @@ async fn connect_or_wait(
     events: &EventSink,
     pending_events: &mut PendingEvents,
     defaults: &mut PostConnect,
+    reconnect_control: &mut ReconnectControl,
     fail_fast: bool,
     sts_required: bool,
     connect_timeout: Duration,
@@ -401,6 +414,7 @@ async fn connect_or_wait(
         events,
         pending_events,
         defaults,
+        reconnect_control,
         last_disconnect.as_ref(),
         connect_timeout,
         attempts,
@@ -435,7 +449,7 @@ async fn connect_or_wait(
         pending_events,
         Event::Disconnected(disconnected.clone()),
     );
-    if wait_before_retry(commands, defaults, disconnected).await {
+    if wait_before_retry(commands, defaults, reconnect_control, disconnected).await {
         ConnectionAttempt::Retry
     } else {
         ConnectionAttempt::Stop
@@ -603,6 +617,7 @@ async fn connect_while_disconnected(
     events: &EventSink,
     pending_events: &mut PendingEvents,
     defaults: &mut PostConnect,
+    reconnect_control: &mut ReconnectControl,
     last_cause: Option<&crate::DisconnectCause>,
     timeout: Duration,
     attempt: usize,
@@ -646,7 +661,12 @@ async fn connect_while_disconnected(
             }
             command = commands.recv() => {
                 if matches!(
-                    handle_disconnected_command(command, &disconnected, defaults),
+                    handle_disconnected_command(
+                        command,
+                        &disconnected,
+                        defaults,
+                        reconnect_control,
+                    ),
                     DisconnectedAction::Stop
                 ) {
                     return DisconnectedWait::Stop;
@@ -659,6 +679,7 @@ async fn connect_while_disconnected(
 async fn wait_before_retry(
     commands: &mut mpsc::Receiver<Command>,
     defaults: &mut PostConnect,
+    reconnect_control: &mut ReconnectControl,
     disconnected: crate::Disconnected,
 ) -> bool {
     let deadline = papo_core::deadline(now(), disconnected.reconnect_in.unwrap_or_default());
@@ -679,13 +700,14 @@ async fn wait_before_retry(
                     command,
                     &current,
                     defaults,
+                    reconnect_control,
                 ) {
                     DisconnectedAction::Wait => {}
                     DisconnectedAction::Retry => return true,
                     DisconnectedAction::Stop => return false,
                 }
             }
-            () = &mut sleep => return true,
+            () = &mut sleep, if !reconnect_control.paused => return true,
         }
     }
 }
@@ -722,6 +744,7 @@ fn handle_disconnected_command(
     command: Option<Command>,
     disconnected: &crate::Disconnected,
     defaults: &mut PostConnect,
+    reconnect_control: &mut ReconnectControl,
 ) -> DisconnectedAction {
     match command {
         Some(Command::Composite { task }) => {
@@ -773,6 +796,20 @@ fn handle_disconnected_command(
         Some(Command::Reconnect { result }) => {
             _ = result.send(Ok(()));
             DisconnectedAction::Retry
+        }
+        Some(Command::PauseReconnect { result }) => {
+            reconnect_control.paused = true;
+            _ = result.send(Ok(()));
+            DisconnectedAction::Wait
+        }
+        Some(Command::ResumeReconnect { result }) => {
+            let was_paused = std::mem::replace(&mut reconnect_control.paused, false);
+            _ = result.send(Ok(()));
+            if was_paused {
+                DisconnectedAction::Retry
+            } else {
+                DisconnectedAction::Wait
+            }
         }
         Some(Command::DirectAcquire { result, .. }) => {
             _ = result.send(Err(Error::disconnected(disconnected.clone())));

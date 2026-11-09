@@ -2255,6 +2255,7 @@ pub fn papo::Client::notice(&self, impl papo::Target, impl core::convert::Into<a
 pub fn papo::Client::oper(&self, impl core::convert::Into<alloc::string::String>, papo::Secret) -> papo::RequestFuture<()>
 pub const fn papo::Client::origin(&self) -> papo::Origin
 pub fn papo::Client::part(&self, impl papo::AsChannel, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
+pub fn papo::Client::pause_reconnect(&self) -> papo::RequestFuture<()>
 pub fn papo::Client::ping(&self) -> papo::RequestFuture<core::time::Duration>
 pub fn papo::Client::privmsg(&self, impl papo::Target, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub fn papo::Client::quit(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
@@ -2263,6 +2264,7 @@ pub fn papo::Client::reconnect(&self) -> papo::RequestFuture<()>
 pub fn papo::Client::redact(&self, impl core::convert::Into<papo::MessageRef>, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::reply(&self, impl core::convert::Into<papo::MessageRef>, impl core::convert::Into<alloc::string::String>) -> papo::SendMessage
 pub fn papo::Client::request_raw(&self, papo::Line) -> papo::RequestFuture<alloc::vec::Vec<papo::Line>>
+pub fn papo::Client::resume_reconnect(&self) -> papo::RequestFuture<()>
 pub fn papo::Client::send_raw(&self, papo::Line) -> papo::RequestFuture<()>
 pub fn papo::Client::set_away(&self, impl core::convert::Into<alloc::string::String>) -> papo::RequestFuture<()>
 pub fn papo::Client::set_nick(&self, impl papo::AsNick) -> papo::RequestFuture<()>

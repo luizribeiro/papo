@@ -24,6 +24,8 @@ fn public_browser_values_and_actions_remain_send() {
     let (client, _, driver) = Client::builder(env!("PAPO_BROWSER_WS"), "papo-client")
         .build();
     assert_send_value(client.reconnect());
+    assert_send_value(client.pause_reconnect());
+    assert_send_value(client.resume_reconnect());
     drop(driver);
 }
 

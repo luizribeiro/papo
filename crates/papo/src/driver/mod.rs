@@ -208,6 +208,12 @@ pub(crate) enum Command {
     Reconnect {
         result: oneshot::Sender<Result<(), Error>>,
     },
+    PauseReconnect {
+        result: oneshot::Sender<Result<(), Error>>,
+    },
+    ResumeReconnect {
+        result: oneshot::Sender<Result<(), Error>>,
+    },
     Quit {
         message: Line,
         result: oneshot::Sender<Result<(), Error>>,
@@ -847,6 +853,7 @@ where
     S: AsyncRead + AsyncWrite + Unpin,
 {
     let mut registered = false;
+    let mut reconnect_control = ReconnectControl::default();
     let mut end = run_connection(
         stream,
         &mut session,
@@ -854,6 +861,7 @@ where
         &events,
         &mut registration,
         &mut defaults,
+        &mut reconnect_control,
         &mut registered,
         1,
         None,
@@ -882,6 +890,11 @@ struct ConnectionEnd {
     sts: StsActions,
     sts_store: Option<Arc<dyn StsStore>>,
     pending_events: PendingEvents,
+}
+
+#[derive(Default)]
+struct ReconnectControl {
+    paused: bool,
 }
 
 #[derive(Default)]
@@ -932,6 +945,7 @@ async fn run_connection<S>(
     events: &EventSink,
     registration: &mut ConnectWait,
     defaults: &mut PostConnect,
+    reconnect_control: &mut ReconnectControl,
     registered: &mut bool,
     attempt: usize,
     connection: Option<Connection>,
@@ -1345,6 +1359,14 @@ where
                 }
                 Some(Command::Reconnect { result }) => {
                     _ = result.send(Err(Error::AlreadyConnected));
+                }
+                Some(Command::PauseReconnect { result }) => {
+                    reconnect_control.paused = true;
+                    _ = result.send(Ok(()));
+                }
+                Some(Command::ResumeReconnect { result }) => {
+                    reconnect_control.paused = false;
+                    _ = result.send(Ok(()));
                 }
                 Some(Command::Quit { message, result }) => {
                     request_quit(session, &mut quit, message, Some(result));

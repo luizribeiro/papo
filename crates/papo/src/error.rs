@@ -393,10 +393,11 @@ pub struct Disconnected {
     /// When [`Self::reconnect_in`] is `None`, this is the attempt that would have been made if
     /// reconnecting had remained allowed.
     pub attempt: usize,
-    /// Delay before the next connection attempt.
+    /// Policy delay before the next connection attempt.
     ///
     /// `None` means papo stopped because the cause was fatal, reconnecting was disabled or
-    /// exhausted, or the client requested a quit.
+    /// exhausted, or the client requested a quit. [`crate::Client::pause_reconnect`] can postpone
+    /// a `Some` delay until retries are resumed.
     pub reconnect_in: Option<Duration>,
 }
 
@@ -415,7 +416,7 @@ impl Disconnected {
         }
     }
 
-    /// Whether another connection attempt is scheduled.
+    /// Whether the reconnect policy allows another connection attempt.
     #[must_use]
     pub const fn is_reconnecting(&self) -> bool {
         self.reconnect_in.is_some()

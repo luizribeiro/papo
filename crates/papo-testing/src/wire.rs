@@ -365,6 +365,58 @@ mod tests {
     }
 
     #[tokio::test(start_paused = true)]
+    async fn pause_and_resume_control_automatic_retries_without_dropping_live_connections() {
+        let (client, mut events, mut wire) = wire(
+            papo::Client::builder("irc://offline.test", "papo-wire")
+                .rate_limit(papo::RateLimit::unlimited())
+                .reconnect(
+                    papo::Reconnect::exponential()
+                        .initial_delay(Duration::from_secs(10))
+                        .max_delay(Duration::from_secs(10)),
+                ),
+        );
+        wire.register(&[]).await;
+        _ = next_connected(&mut events).await;
+
+        wire.close().await;
+        let first = next_disconnected(&mut events).await;
+        tokio::time::advance(first.reconnect_in.unwrap() / 2).await;
+        client.pause_reconnect().await.unwrap();
+        client.pause_reconnect().await.unwrap();
+        tokio::time::advance(Duration::from_secs(20)).await;
+        assert!(
+            tokio::time::timeout(Duration::from_millis(1), wire.next_sent())
+                .await
+                .is_err()
+        );
+
+        client.resume_reconnect().await.unwrap();
+        wire.register(&[]).await;
+        assert!(next_connected(&mut events).await.reconnected);
+
+        client.pause_reconnect().await.unwrap();
+        client.pause_reconnect().await.unwrap();
+        wire.server("PING :mobile-background-check").await;
+        assert_eq!(wire.next_sent().await, "PONG mobile-background-check");
+
+        wire.close().await;
+        let paused = next_disconnected(&mut events).await;
+        tokio::time::advance(paused.reconnect_in.unwrap() + Duration::from_secs(1)).await;
+        assert!(
+            tokio::time::timeout(Duration::from_millis(1), wire.next_sent())
+                .await
+                .is_err()
+        );
+        client.pause_reconnect().await.unwrap();
+
+        client.resume_reconnect().await.unwrap();
+        wire.register(&[]).await;
+        assert!(next_connected(&mut events).await.reconnected);
+        client.resume_reconnect().await.unwrap();
+        client.resume_reconnect().await.unwrap();
+    }
+
+    #[tokio::test(start_paused = true)]
     async fn request_timeout_uses_the_paused_clock() {
         let (client, _events, mut wire) = wire(
             papo::Client::builder("irc://offline.test", "papo-wire")

@@ -77,6 +77,8 @@ fn request_futures_are_send() {
     );
     assert_send_static(client.request_raw(Line::new("MOTD")));
     assert_send_static(client.reconnect());
+    assert_send_static(client.pause_reconnect());
+    assert_send_static(client.resume_reconnect());
     assert_send_static(
         client
             .privmsg("#papo", "hello from the trait test")

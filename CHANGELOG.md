@@ -24,6 +24,9 @@ event.
 `Client::reconnect` now returns `Error::AlreadyConnected` without disturbing a live connection;
 while disconnected, it still skips the current backoff and retries immediately.
 
+`Client::pause_reconnect` stops automatic retries without dropping a live connection, and
+`Client::resume_reconnect` resumes a paused client with an immediate retry.
+
 Requests that would grow a full bounded state store now fail locally with `Error::StateLimit`
 before sending, while updates to entries already tracked at the limit remain available.
 
