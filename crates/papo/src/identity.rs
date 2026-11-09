@@ -3,28 +3,6 @@ pub(crate) struct ProvenUser {
     pub(crate) nick: crate::Nick,
 }
 
-pub(crate) fn from_event(
-    client: &crate::Client,
-    recipient: crate::message_ref::RecipientGuard,
-) -> Option<crate::UserHandle> {
-    let state = client.state();
-    let core = recipient.to_core(&state)?;
-    let proof = state
-        .core
-        .__prove_event_user(
-            core.__token(),
-            recipient.nick.clone(),
-            recipient.account.clone(),
-        )
-        .ok()?;
-    Some(crate::UserHandle::new(
-        client,
-        recipient.nick,
-        recipient.account,
-        Some(proof),
-    ))
-}
-
 pub(crate) async fn prove(
     client: &crate::Client,
     handle: &crate::UserHandle,

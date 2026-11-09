@@ -50,7 +50,6 @@ impl crate::Client {
             let recipient = recipient.ok_or_else(|| {
                 crate::InvalidInput::InvalidRequest("event actor is not a user".into())
             })?;
-            let event_handle = crate::identity::from_event(&client, recipient.clone());
             let proven = recipient.has_proof();
             let nick = recipient.nick.to_string();
             let expected = recipient.account.clone();
@@ -71,15 +70,11 @@ impl crate::Client {
                 .user(&nick)
                 .is_some_and(|user| user.nick() == snapshot.nick() || user.channels().len() != 0);
             if shared
-                && let Some(recipient) = event_handle
-                    .as_ref()
-                    .and_then(crate::UserHandle::recipient)
-                    .or(core)
-                    .or_else(|| {
-                        snapshot.user(&nick).and_then(|user| {
-                            snapshot.capture_recipient(user.nick(), expected.clone())
-                        })
-                    })
+                && let Some(recipient) = core.or_else(|| {
+                    snapshot
+                        .user(&nick)
+                        .and_then(|user| snapshot.capture_recipient(user.nick(), expected.clone()))
+                })
             {
                 return Ok(DirectRef::new(&client, recipient, false));
             }

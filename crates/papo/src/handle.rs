@@ -60,10 +60,6 @@ impl UserHandle {
         &self.0.account
     }
 
-    pub(crate) fn recipient(&self) -> Option<papo_core::RecipientGuard> {
-        self.proof()?.__recipient().cloned()
-    }
-
     /// Returns the current nickname, or the last known nickname after departure.
     #[must_use]
     pub fn nick(&self) -> crate::Nick {
