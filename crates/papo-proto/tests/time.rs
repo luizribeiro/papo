@@ -1,8 +1,6 @@
 //! Boundary coverage for `IRCv3` server-time timestamps.
 
-use std::time::{Duration, UNIX_EPOCH};
-
-use papo_proto::time;
+use papo_proto::{ServerTime, time};
 use proptest::prelude::*;
 
 #[test]
@@ -17,13 +15,13 @@ fn parses_fixed_utc_server_times() {
     ] {
         assert_eq!(
             time::parse(input),
-            Some(UNIX_EPOCH + Duration::new(seconds, nanos)),
+            Some(ServerTime::from_stored_millis(seconds * 1_000 + nanos / 1_000_000).unwrap()),
             "{input}"
         );
     }
     assert_eq!(
         time::parse("2016-12-31T23:59:60Z"),
-        Some(UNIX_EPOCH + Duration::new(1_483_228_799, 999_999_999))
+        Some(ServerTime::from_stored_millis(1_483_228_799_999).unwrap())
     );
 }
 
@@ -62,7 +60,7 @@ fn accepts_the_last_day_of_thirty_day_months() {
     ] {
         assert_eq!(
             time::parse(input),
-            Some(UNIX_EPOCH + Duration::from_secs(seconds)),
+            Some(ServerTime::from_stored_millis(seconds * 1_000).unwrap()),
             "{input}"
         );
     }
@@ -78,27 +76,57 @@ fn edge_dates_round_trip_at_millisecond_precision() {
         "9999-12-31T23:59:59.999Z",
     ] {
         let parsed = time::parse(input).unwrap();
-        assert_eq!(time::format(parsed).as_deref(), Some(input), "{input}");
+        assert_eq!(parsed.to_string(), input, "{input}");
+        assert_eq!(ServerTime::from_stored(input), Ok(parsed), "{input}");
+        assert_eq!(
+            ServerTime::from_stored_millis(parsed.as_millis()),
+            Ok(parsed),
+            "{input}"
+        );
+    }
+}
+
+#[test]
+fn stored_forms_round_trip_before_epoch_and_at_bounds() {
+    for input in [
+        "0000-01-01T00:00:00.000Z",
+        "1969-12-31T23:59:59.999Z",
+        "9999-12-31T23:59:59.999Z",
+    ] {
+        let parsed: ServerTime = input.parse().unwrap();
+        assert_eq!(parsed.to_string(), input);
+        assert_eq!(ServerTime::from_stored(input), Ok(parsed));
+        assert_eq!(
+            ServerTime::from_stored_millis(parsed.as_millis()),
+            Ok(parsed)
+        );
+        assert_eq!(
+            ServerTime::from_stored_millis(
+                parsed.as_millis() - i64::from(input.starts_with("0000"))
+            )
+            .is_err(),
+            input.starts_with("0000")
+        );
     }
 }
 
 #[test]
 fn formats_times_before_the_unix_epoch() {
     assert_eq!(
-        time::format(UNIX_EPOCH - Duration::from_millis(1)).as_deref(),
-        Some("1969-12-31T23:59:59.999Z")
+        time::format(ServerTime::from_stored_millis(-1).unwrap()),
+        "1969-12-31T23:59:59.999Z"
     );
     assert_eq!(
-        time::format(UNIX_EPOCH - Duration::from_hours(24 * 365)).as_deref(),
-        Some("1969-01-01T00:00:00.000Z")
+        time::format(ServerTime::from_stored("1969-01-01T00:00:00.000Z").unwrap()),
+        "1969-01-01T00:00:00.000Z"
     );
 }
 
 proptest! {
     #[test]
     fn millisecond_aligned_times_round_trip(millis in 0_u64..=253_402_300_799_999) {
-        let timestamp = UNIX_EPOCH + Duration::from_millis(millis);
-        let formatted = time::format(timestamp).unwrap();
+        let timestamp = ServerTime::from_stored_millis(i64::try_from(millis).unwrap()).unwrap();
+        let formatted = timestamp.to_string();
         prop_assert_eq!(time::parse(&formatted), Some(timestamp));
     }
 }

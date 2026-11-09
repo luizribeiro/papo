@@ -82,15 +82,8 @@ impl std::error::Error for InvalidServerTime {}
 
 /// Parses a fixed-width UTC timestamp with up to nanosecond precision.
 #[must_use]
-pub fn parse(value: &str) -> Option<SystemTime> {
-    let (seconds, nanos) = parse_parts(value)?;
-    if seconds >= 0 {
-        UNIX_EPOCH.checked_add(Duration::new(u64::try_from(seconds).ok()?, nanos))
-    } else {
-        UNIX_EPOCH
-            .checked_sub(Duration::from_secs(seconds.unsigned_abs()))?
-            .checked_add(Duration::from_nanos(u64::from(nanos)))
-    }
+pub fn parse(value: &str) -> Option<ServerTime> {
+    parse_millis(value).map(ServerTime)
 }
 
 fn parse_millis(value: &str) -> Option<i64> {
@@ -152,15 +145,10 @@ fn parse_parts(value: &str) -> Option<(i64, u32)> {
     Some((seconds, nanos))
 }
 
-/// Formats a UTC timestamp at millisecond precision.
+/// Formats a server timestamp as RFC 3339 at millisecond precision.
 #[must_use]
-pub fn format(time: SystemTime) -> Option<String> {
-    let millis = match time.duration_since(UNIX_EPOCH) {
-        Ok(duration) => i128::try_from(duration.as_millis()),
-        Err(error) => i128::try_from(error.duration().as_millis()).map(|value| -value),
-    }
-    .ok()?;
-    format_millis(i64::try_from(millis).ok()?)
+pub fn format(time: ServerTime) -> String {
+    time.to_string()
 }
 
 fn format_millis(millis: i64) -> Option<String> {
@@ -199,17 +187,12 @@ fn decimal(bytes: &[u8]) -> Option<i64> {
 
 #[cfg(test)]
 mod tests {
-    use std::time::{Duration, UNIX_EPOCH};
+    use super::ServerTime;
 
     #[test]
     fn parses_and_formats_millisecond_precision() {
-        let time = UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000);
+        let time = ServerTime::from_stored_millis(1_770_091_506_789).unwrap();
         assert_eq!(super::parse("2026-02-03T04:05:06.789Z"), Some(time));
-        assert_eq!(
-            super::format(time).as_deref(),
-            Some("2026-02-03T04:05:06.789Z")
-        );
-        let stored = super::ServerTime::from_stored("2026-02-03T04:05:06.789Z").unwrap();
-        assert_eq!(stored.to_system_time(), time);
+        assert_eq!(time.to_string(), "2026-02-03T04:05:06.789Z");
     }
 }
