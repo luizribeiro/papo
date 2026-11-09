@@ -10,15 +10,14 @@ pub(crate) mod rename;
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque},
     sync::Arc,
-    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use papo_proto::{
     Account as AccountNotify, AccountName, AsChannel, AsNick, Away as AwayNotify, Casemapping,
     ChannelName, Chghost, Command, Isupport, Join, LineRef, Mask, MetadataKey,
     ModeChange as ProtoModeChange, ModeChanges, ModeKind, NamesEntry, Nick, Numeric, Origin,
-    Prefix, Rank, Setname, Source as ProtoSource, WhoxFlags, WhoxPresence, WhoxReply, parse_353,
-    time,
+    Prefix, Rank, ServerTime, Setname, Source as ProtoSource, WhoxFlags, WhoxPresence, WhoxReply,
+    parse_353, time,
 };
 
 #[cfg(test)]
@@ -72,11 +71,11 @@ pub struct State {
     who_on_join: WhoOnJoin,
     read_markers: HashMap<NameKey<String>, ReadMarker>,
     read_marker_order: BoundedCollection<NameKey<String>>,
-    latest_server_times: HashMap<NameKey<String>, SystemTime>,
+    latest_server_times: HashMap<NameKey<String>, ServerTime>,
     latest_server_time_order: BoundedCollection<NameKey<String>>,
     last_seen: HashMap<NameKey<String>, LastSeen>,
     last_seen_order: VecDeque<String>,
-    rejoin_creation_times: HashMap<NameKey<String>, SystemTime>,
+    rejoin_creation_times: HashMap<NameKey<String>, ServerTime>,
     reply_epoch: u64,
     channel_epoch: u64,
     departure_sequence: u64,
@@ -192,11 +191,11 @@ pub struct Channel {
     modes: HashMap<char, Option<String>>,
     key: Option<Secret>,
     lists: HashMap<ListMode, Vec<ModeListEntry>>,
-    created_at: Option<SystemTime>,
+    created_at: Option<ServerTime>,
     epoch: u64,
     topic: Option<String>,
     topic_set_by: Option<Source>,
-    topic_set_at: Option<SystemTime>,
+    topic_set_at: Option<ServerTime>,
     names_reply_seen: bool,
     synced: bool,
     prefix_order: Arc<[Prefix]>,
@@ -1580,7 +1579,7 @@ impl State {
             let evicted = self.read_marker_order.push_evict_oldest(key);
             debug_assert!(evicted.is_none());
         }
-        let mut latest_server_times: HashMap<NameKey<String>, SystemTime> = HashMap::new();
+        let mut latest_server_times: HashMap<NameKey<String>, ServerTime> = HashMap::new();
         for (target, time) in std::mem::take(&mut self.latest_server_times) {
             latest_server_times
                 .entry(NameKey::new(target.original(), mapping))
@@ -1791,7 +1790,7 @@ impl State {
     /// Returns the newest server time observed for a conversation.
     #[doc(hidden)]
     #[must_use]
-    pub fn latest_server_time(&self, target: impl AsRef<str>) -> Option<SystemTime> {
+    pub fn latest_server_time(&self, target: impl AsRef<str>) -> Option<ServerTime> {
         let target = self.casemapping.fold(target.as_ref());
         self.latest_server_times.get(target.as_ref()).copied()
     }
@@ -2014,7 +2013,7 @@ impl Channel {
 
     /// Returns when the current topic was set.
     #[must_use]
-    pub const fn topic_set_at(&self) -> Option<SystemTime> {
+    pub const fn topic_set_at(&self) -> Option<ServerTime> {
         self.topic_set_at
     }
 
@@ -2063,7 +2062,7 @@ impl Channel {
 
     /// Returns the channel creation time.
     #[must_use]
-    pub const fn created_at(&self) -> Option<SystemTime> {
+    pub const fn created_at(&self) -> Option<ServerTime> {
         self.created_at
     }
 
@@ -2240,11 +2239,12 @@ impl Account {
     }
 }
 
-fn parse_unix_seconds(value: &str) -> Option<SystemTime> {
+fn parse_unix_seconds(value: &str) -> Option<ServerTime> {
     value
-        .parse()
-        .ok()
-        .and_then(|seconds| UNIX_EPOCH.checked_add(Duration::from_secs(seconds)))
+        .parse::<i64>()
+        .ok()?
+        .checked_mul(1_000)
+        .and_then(|millis| ServerTime::from_stored_millis(millis).ok())
 }
 
 fn same_list_entry(a: &Mask, b: &Mask, isupport: &Isupport) -> bool {

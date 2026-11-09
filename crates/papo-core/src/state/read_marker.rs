@@ -34,7 +34,7 @@ impl State {
     pub(crate) fn remember_server_time_for(
         &mut self,
         target: &str,
-        server_time: std::time::SystemTime,
+        server_time: papo_proto::ServerTime,
     ) {
         let key = NameKey::new(target, self.casemapping);
         if self

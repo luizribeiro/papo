@@ -32,7 +32,7 @@ pub struct TypingChanged {
     /// Valid server time on the line that caused the change, when supplied.
     ///
     /// This is `None` when a local typing deadline caused the change.
-    pub server_time: Option<std::time::SystemTime>,
+    pub server_time: Option<papo_proto::ServerTime>,
     /// The user prefix associated with the typing state.
     pub actor: String,
     /// Whether the user is this session's user.
@@ -621,7 +621,7 @@ fn refold_conversation(conversation: &Conversation, mapping: crate::Names) -> Co
 fn stopped(
     deadline: Deadline,
     reason: TypingReason,
-    server_time: Option<std::time::SystemTime>,
+    server_time: Option<papo_proto::ServerTime>,
 ) -> TypingChanged {
     TypingChanged {
         server_time,

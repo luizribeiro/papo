@@ -72,14 +72,14 @@ pub(crate) enum BatchEvent {
         messages: Vec<Line>,
         batch_type: String,
         history: Option<(String, Vec<HistoryItem>, bool)>,
-        history_targets: Option<Vec<(String, std::time::SystemTime)>>,
+        history_targets: Option<Vec<(String, papo_proto::ServerTime)>>,
     },
     History {
         target: String,
         items: Vec<HistoryItem>,
         end: bool,
     },
-    HistoryTargets(Vec<(String, std::time::SystemTime)>),
+    HistoryTargets(Vec<(String, papo_proto::ServerTime)>),
     Netsplit {
         reference: String,
         servers: [String; 2],

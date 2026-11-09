@@ -1,7 +1,6 @@
-use std::time::SystemTime;
 use web_time::Instant;
 
-use papo_proto::{LimitValue, Line, time};
+use papo_proto::{LimitValue, Line, ServerTime};
 
 use crate::{Conversation, Feature, RequestError, RequestId, Session, state::StateGrowth};
 
@@ -14,7 +13,7 @@ pub enum MsgRef {
     /// A network-unique message identifier.
     Msgid(String),
     /// A UTC server timestamp.
-    Timestamp(SystemTime),
+    Timestamp(ServerTime),
     /// The open-ended `*` reference accepted by `LATEST`.
     Any,
 }
@@ -25,7 +24,7 @@ pub struct ReadMarker {
     /// Conversation to which the marker applies.
     pub conversation: Conversation,
     /// Marker time, or `None` when the server reports `*`.
-    pub read_until: Option<SystemTime>,
+    pub read_until: Option<ServerTime>,
 }
 
 /// The newest live message remembered for one conversation.
@@ -36,7 +35,7 @@ pub struct LastSeen {
     /// Network-unique message identifier.
     pub msgid: String,
     /// Server-assigned message time.
-    pub server_time: SystemTime,
+    pub server_time: ServerTime,
 }
 
 /// A history query supported by `CHATHISTORY`.
@@ -99,9 +98,9 @@ pub enum HistoryQuery {
     #[non_exhaustive]
     Targets {
         /// Inclusive beginning of the search range.
-        from: SystemTime,
+        from: ServerTime,
         /// Inclusive end of the search range.
-        to: SystemTime,
+        to: ServerTime,
         /// Maximum number of returned targets.
         limit: usize,
     },
@@ -154,16 +153,13 @@ impl Session {
         &mut self,
         now: Instant,
         target: &str,
-        read_until: SystemTime,
+        read_until: ServerTime,
     ) -> Result<RequestId, RequestError> {
         self.require_feature(Feature::ReadMarkers)?;
         self.validate_target(target)?;
         let line = Line::new("MARKREAD")
             .param(target.to_owned())
-            .param(format!(
-                "timestamp={}",
-                time::format(read_until).ok_or(RequestError::InvalidMessageReference)?
-            ));
+            .param(format!("timestamp={}", read_until));
         self.ensure_state_capacity(StateGrowth::ReadMarker(target))?;
         self.request_for_feature(now, line, Feature::ReadMarkers)
     }
@@ -239,7 +235,7 @@ impl HistoryQuery {
 
     #[doc(hidden)]
     #[must_use]
-    pub fn __targets(from: SystemTime, to: SystemTime, limit: usize) -> Self {
+    pub fn __targets(from: ServerTime, to: ServerTime, limit: usize) -> Self {
         Self::Targets { from, to, limit }
     }
 
@@ -284,16 +280,7 @@ impl HistoryQuery {
             } => ("BETWEEN", vec![target, bound(start)?, bound(end)?]),
             Self::Targets { from, to, .. } => (
                 "TARGETS",
-                vec![
-                    format!(
-                        "timestamp={}",
-                        time::format(from).ok_or(RequestError::InvalidMessageReference)?
-                    ),
-                    format!(
-                        "timestamp={}",
-                        time::format(to).ok_or(RequestError::InvalidMessageReference)?
-                    ),
-                ],
+                vec![format!("timestamp={}", from), format!("timestamp={}", to)],
             ),
         };
         params.insert(0, command.to_owned());
@@ -385,10 +372,9 @@ fn fallback_reference(
 fn encode_reference(reference: MsgRef, supported: &[&str]) -> Result<String, RequestError> {
     match reference {
         MsgRef::Msgid(value) if supported.contains(&"msgid") => Ok(format!("msgid={value}")),
-        MsgRef::Timestamp(value) if supported.contains(&"timestamp") => Ok(format!(
-            "timestamp={}",
-            time::format(value).ok_or(RequestError::InvalidMessageReference)?
-        )),
+        MsgRef::Timestamp(value) if supported.contains(&"timestamp") => {
+            Ok(format!("timestamp={}", value))
+        }
         MsgRef::Any => Ok("*".to_owned()),
         MsgRef::Msgid(_) | MsgRef::Timestamp(_) => Err(RequestError::InvalidMessageReference),
     }
@@ -397,14 +383,14 @@ fn encode_reference(reference: MsgRef, supported: &[&str]) -> Result<String, Req
 #[cfg(test)]
 mod tests {
     use super::{HistoryQuery, MsgRef};
-    use std::time::{Duration, UNIX_EPOCH};
+    use papo_proto::ServerTime;
 
     #[test]
     fn encodes_latest_timestamp_at_millisecond_precision() {
         let params = HistoryQuery::Latest {
             target: "#papo".into(),
             after: Some(MsgRef::Timestamp(
-                UNIX_EPOCH + Duration::new(1_760_529_342, 123_999_999),
+                ServerTime::from_stored("2025-10-15T11:55:42.123Z").unwrap(),
             )),
             limit: 50,
         }
@@ -424,8 +410,8 @@ mod tests {
     #[test]
     fn encodes_target_bounds_as_timestamp_references() {
         let params = HistoryQuery::Targets {
-            from: UNIX_EPOCH + Duration::new(1_760_529_342, 123_999_999),
-            to: UNIX_EPOCH + Duration::new(1_760_529_402, 987_999_999),
+            from: ServerTime::from_stored("2025-10-15T11:55:42.123Z").unwrap(),
+            to: ServerTime::from_stored("2025-10-15T11:56:42.987Z").unwrap(),
             limit: 50,
         }
         .into_params(50, &["timestamp"])

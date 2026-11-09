@@ -173,7 +173,9 @@ mod welcome;
 #[cfg(feature = "unstable")]
 include!("unstable/persistence_types.rs");
 
-pub use papo_proto::{BatchId, BatchType, Prefix, Rank, Secret, WireLine};
+pub use papo_proto::{
+    BatchId, BatchType, InvalidServerTime, Prefix, Rank, Secret, ServerTime, WireLine,
+};
 pub use server_url::InvalidUrl;
 pub use source::Source;
 
@@ -1294,7 +1296,7 @@ pub struct ModeListEntry {
     /// Actor that set the entry, when reported.
     actor: Option<Source>,
     /// Time at which the entry was set, when reported and valid.
-    pub set_at: Option<std::time::SystemTime>,
+    pub set_at: Option<papo_proto::ServerTime>,
 }
 
 impl ModeListEntry {
@@ -1803,7 +1805,7 @@ pub struct Response {
     /// A typed history page nested in this response, when present.
     pub history: Option<HistoryPage>,
     /// Targets nested in a completed `CHATHISTORY TARGETS` response.
-    pub history_targets: Option<Vec<(Conversation, std::time::SystemTime)>>,
+    pub history_targets: Option<Vec<(Conversation, papo_proto::ServerTime)>>,
     /// Channels parsed from `RPL_WHOISCHANNELS` using the current `PREFIX` token.
     pub whois_channels: Vec<WhoisChannel>,
     /// Parsed channel list-mode entries, when this completed such a request.
@@ -1989,7 +1991,7 @@ pub struct HistoryLine {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct LineEnvelope {
     msgid: Option<String>,
-    server_time: Option<std::time::SystemTime>,
+    server_time: Option<papo_proto::ServerTime>,
     account: Option<String>,
     account_known: bool,
     bot: bool,
@@ -2037,7 +2039,7 @@ impl LineEnvelope {
 
     /// Returns the valid server timestamp, when supplied.
     #[must_use]
-    pub const fn server_time(&self) -> Option<std::time::SystemTime> {
+    pub const fn server_time(&self) -> Option<papo_proto::ServerTime> {
         self.server_time
     }
 
@@ -2688,7 +2690,7 @@ pub enum Event {
         end: bool,
     },
     /// Targets that received messages during a requested time range.
-    HistoryTargets(Vec<(Conversation, std::time::SystemTime)>),
+    HistoryTargets(Vec<(Conversation, papo_proto::ServerTime)>),
     /// A conversation's read marker advanced or was first reported.
     ReadMarkerChanged(ReadMarker),
     /// A server batch exceeded a retention bound or deadline.
@@ -2754,9 +2756,9 @@ pub enum Event {
         /// The channel that was rejoined.
         channel: ChannelName,
         /// Creation time observed before reconnecting.
-        previous_created_at: std::time::SystemTime,
+        previous_created_at: papo_proto::ServerTime,
         /// Creation time reported after rejoining.
-        created_at: std::time::SystemTime,
+        created_at: papo_proto::ServerTime,
     },
     /// The server advertised RFC 8265 name matching, but this build cannot apply it.
     Utf8CasemappingUnsupported,
@@ -2978,7 +2980,7 @@ pub enum Event {
     #[non_exhaustive]
     RealnameChanged {
         /// Valid server time on the line that caused the change, when supplied.
-        server_time: Option<std::time::SystemTime>,
+        server_time: Option<papo_proto::ServerTime>,
         /// Identity and time facts from the line.
         envelope: LineEnvelope,
         /// The affected user's prefix.
@@ -3043,7 +3045,7 @@ hidden_event_constructors! {
     __malformed(line: Vec<u8>) => Malformed;
     __features_changed(added: Vec<Feature>, removed: Vec<Feature>) => FeaturesChanged;
     __casemapping_changed(old: Casemapping, new: Casemapping) => CasemappingChanged;
-    __channel_recreated(channel: ChannelName, previous_created_at: std::time::SystemTime, created_at: std::time::SystemTime) => ChannelRecreated;
+    __channel_recreated(channel: ChannelName, previous_created_at: papo_proto::ServerTime, created_at: papo_proto::ServerTime) => ChannelRecreated;
     __joined(envelope: LineEnvelope, actor: String, realname: Option<String>, channel: ChannelName, nick: Nick, authorship: Authorship, netjoin: Option<SplitServers>) => Joined;
     __account_created(account: AccountName, logged_in: bool) => AccountCreated;
     __verification_required(account: AccountName, message: String) => VerificationRequired;
@@ -3057,7 +3059,7 @@ hidden_event_constructors! {
     __account_changed(envelope: LineEnvelope, actor: String, nick: Nick, account: Account, authorship: Authorship) => AccountChanged;
     __away_changed(envelope: LineEnvelope, actor: String, nick: Nick, away: Away, authorship: Authorship) => AwayChanged;
     __host_changed(envelope: LineEnvelope, actor: String, nick: Nick, username: String, host: String, authorship: Authorship) => HostChanged;
-    __realname_changed(server_time: Option<std::time::SystemTime>, envelope: LineEnvelope, actor: String, nick: Nick, realname: String, authorship: Authorship) => RealnameChanged;
+    __realname_changed(server_time: Option<papo_proto::ServerTime>, envelope: LineEnvelope, actor: String, nick: Nick, realname: String, authorship: Authorship) => RealnameChanged;
     __mode_changed(envelope: LineEnvelope, subject: Subject, actor: Source, authorship: Authorship, subject_authorship: Authorship, own_nick: Option<Nick>, changes: Vec<ModeChange>) => ModeChanged;
     __topic_changed(envelope: LineEnvelope, channel: ChannelName, topic: Option<String>, actor: Source, authorship: Authorship) => TopicChanged;
     __state_limit_reached(limit: StateLimit) => StateLimitReached;
@@ -3211,7 +3213,7 @@ pub struct ChannelGuard {
     origin: papo_proto::Origin,
     channel: ChannelName,
     epoch: Option<u64>,
-    created_at: Option<std::time::SystemTime>,
+    created_at: Option<papo_proto::ServerTime>,
     pending_join: Option<std::sync::Weak<()>>,
 }
 
@@ -6320,11 +6322,9 @@ impl Session {
                         .map(|actor| Source::from_prefix_with_names(actor, mapping)),
                     set_at: line
                         .param(4 + offset)
-                        .and_then(|value| value.parse().ok())
-                        .and_then(|seconds| {
-                            std::time::UNIX_EPOCH
-                                .checked_add(std::time::Duration::from_secs(seconds))
-                        }),
+                        .and_then(|value| value.parse::<i64>().ok())
+                        .and_then(|seconds| seconds.checked_mul(1_000))
+                        .and_then(|millis| papo_proto::ServerTime::from_stored_millis(millis).ok()),
                 })
             })
             .collect();
@@ -6345,8 +6345,8 @@ impl Session {
 
     fn history_targets(
         &self,
-        targets: Vec<(String, std::time::SystemTime)>,
-    ) -> Vec<(Conversation, std::time::SystemTime)> {
+        targets: Vec<(String, papo_proto::ServerTime)>,
+    ) -> Vec<(Conversation, papo_proto::ServerTime)> {
         targets
             .into_iter()
             .filter_map(|(target, latest)| Some((self.history_conversation(&target)?, latest)))
