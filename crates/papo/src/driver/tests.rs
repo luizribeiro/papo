@@ -5052,6 +5052,60 @@ async fn join_returns_joined_channel_handle() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn joined_channel_handle_sends_only_during_its_membership() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+
+    let joining = tokio::spawn({
+        let client = client.clone();
+        async move { client.join("#review").await }
+    });
+    client_line(&mut server, b"JOIN #review\r\n").await;
+    server_line(
+        &mut server,
+        b":papo-driver!papo@localhost JOIN #review * :Papo Client\r\n:ergo.test 353 papo-driver = #review :@papo-driver alice\r\n:ergo.test 366 papo-driver #review :End of /NAMES list\r\n",
+    )
+    .await;
+    let channel = within(joining).await.unwrap().unwrap();
+    client_line(&mut server, b"MODE #review\r\n").await;
+    client_line(&mut server, b"WHO #review\r\n").await;
+
+    within(client.privmsg(&channel, "release approved"))
+        .await
+        .unwrap();
+    client_line(&mut server, b"PRIVMSG #review :release approved\r\n").await;
+
+    let parting = tokio::spawn({
+        let client = client.clone();
+        async move { client.part("#review", "review complete").await }
+    });
+    client_line(&mut server, b"PART #review :review complete\r\n").await;
+    server_line(
+        &mut server,
+        b":papo-driver!papo@localhost PART #review :review complete\r\n",
+    )
+    .await;
+    within(parting).await.unwrap().unwrap();
+
+    assert!(matches!(
+        within(client.privmsg(&channel, "stale release approval")).await,
+        Err(Error::TargetGone)
+    ));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), server.read_u8())
+            .await
+            .is_err()
+    );
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn query_first_send_uses_who() {
     let (mut server, client, mut events, driver) = scripted(config());
     let driver = tokio::spawn(driver);
