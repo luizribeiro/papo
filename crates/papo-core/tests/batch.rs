@@ -1,6 +1,6 @@
 //! Transcript coverage for `IRCv3` batch routing.
 
-use std::time::{Duration, Instant, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 
 use papo_core::{
     Authorship, BatchAbandonReason, Config, Conversation, Event, HistoryItem, RateLimit, Session,
@@ -96,7 +96,7 @@ fn disconnect_delivers_the_received_multiline_members_as_incomplete() {
 
     assert_eq!(
         session.state().latest_server_time("#PAPO"),
-        Some(UNIX_EPOCH + Duration::from_secs(1_792_065_601))
+        Some(papo_proto::ServerTime::from_stored_millis(1_792_065_601_000).unwrap())
     );
     let message = incomplete(&mut session);
     assert_eq!(
@@ -266,7 +266,7 @@ fn cut_off_multiline_history_is_an_incomplete_history_item() {
     );
     assert_eq!(
         session.state().latest_server_time("#PAPO"),
-        Some(UNIX_EPOCH + Duration::new(1_793_308_447, 603_000_000))
+        Some(papo_proto::ServerTime::from_stored_millis(1_793_308_447_603).unwrap())
     );
     assert!(matches!(
         session.poll_event(),

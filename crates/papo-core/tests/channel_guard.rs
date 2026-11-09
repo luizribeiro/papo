@@ -1,6 +1,6 @@
 //! Transcript coverage for receipt-derived channel identity.
 
-use std::time::{Duration, Instant, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 
 use papo_core::{
     ChannelGuard, Config, Event, RateLimit, RequestId, Session, TargetGuard, TextKind,
@@ -581,11 +581,11 @@ fn reconnect_reports_a_recreated_channel_without_refusing_the_rejoin() {
     assert_eq!(recreated[0].0, "#release");
     assert_eq!(
         recreated[0].1,
-        UNIX_EPOCH + Duration::from_secs(1_793_098_800)
+        papo_proto::ServerTime::from_stored_millis(1_793_098_800_000).unwrap()
     );
     assert_eq!(
         recreated[0].2,
-        UNIX_EPOCH + Duration::from_secs(1_793_099_900)
+        papo_proto::ServerTime::from_stored_millis(1_793_099_900_000).unwrap()
     );
     assert!(session.state().channel("#release").is_some());
 }

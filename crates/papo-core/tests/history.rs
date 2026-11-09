@@ -2,13 +2,17 @@
 
 mod support;
 
-use std::time::{Duration, Instant, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 
 use papo_core::{
     Config, Conversation, Event, Feature, HistoryItem, HistoryQuery, MsgRef, RateLimit, Refusal,
     RequestError, Session, StateLimit, UnsupportedReason,
 };
 use support::{Transcript, unsupported_because, unsupported_error};
+
+fn server_time(seconds: i64, millis: i64) -> papo_proto::ServerTime {
+    papo_proto::ServerTime::from_stored_millis(seconds * 1_000 + millis).unwrap()
+}
 
 fn history_session(isupport: &str) -> (Session, Instant) {
     let now = Instant::now();
@@ -95,7 +99,7 @@ fn uses_timestamps_when_they_are_the_only_reference_type() {
             now,
             HistoryQuery::__after(
                 "#papo".into(),
-                MsgRef::Timestamp(UNIX_EPOCH + Duration::new(1_760_529_342, 123_999_999)),
+                MsgRef::Timestamp(server_time(1_760_529_342, 123)),
                 50,
             ),
         )
@@ -168,7 +172,7 @@ fn honors_each_advertised_reference_type() {
             now,
             HistoryQuery::__after(
                 "#papo".into(),
-                MsgRef::Timestamp(UNIX_EPOCH + Duration::from_secs(1_760_529_342)),
+                MsgRef::Timestamp(server_time(1_760_529_342, 0)),
                 25
             )
         ),
@@ -195,7 +199,7 @@ fn allows_both_reference_types_when_msgreftypes_is_absent() {
             now,
             HistoryQuery::__after(
                 "#papo".into(),
-                MsgRef::Timestamp(UNIX_EPOCH + Duration::from_secs(1_760_529_342)),
+                MsgRef::Timestamp(server_time(1_760_529_342, 0)),
                 50,
             ),
         )
@@ -429,8 +433,8 @@ fn reports_targets_with_parsed_server_times() {
         .chathistory(
             now,
             HistoryQuery::__targets(
-                UNIX_EPOCH + Duration::from_secs(1_760_529_301),
-                UNIX_EPOCH + Duration::from_secs(1_760_529_401),
+                server_time(1_760_529_301, 0),
+                server_time(1_760_529_401, 0),
                 20,
             ),
         )
@@ -454,10 +458,7 @@ fn reports_targets_with_parsed_server_times() {
     let targets = response.history_targets.unwrap();
     assert_eq!(targets.len(), 2);
     assert!(matches!(&targets[0].0, Conversation::Channel(channel) if channel == "#papo"));
-    assert_eq!(
-        targets[0].1,
-        UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000)
-    );
+    assert_eq!(targets[0].1, server_time(1_760_529_342, 123));
     assert!(matches!(&targets[1].0, Conversation::Private(nick) if nick == "Alice"));
     assert_eq!(session.poll_event(), None);
 }
@@ -466,11 +467,7 @@ fn reports_targets_with_parsed_server_times() {
 fn sends_read_marker_set_and_query_commands() {
     let (mut session, now) = read_marker_session();
     session
-        .mark_read(
-            now,
-            "#papo",
-            UNIX_EPOCH + Duration::new(1_760_529_342, 123_999_999),
-        )
+        .mark_read(now, "#papo", server_time(1_760_529_342, 123))
         .unwrap();
     assert_eq!(
         transmitted(&mut session),
@@ -483,7 +480,7 @@ fn sends_read_marker_set_and_query_commands() {
 #[test]
 fn mark_read_refuses_new_targets_when_the_marker_store_is_full() {
     let (mut below, now) = read_marker_session_with(Config::default().max_read_markers(1));
-    below.mark_read(now, "#papo", UNIX_EPOCH).unwrap();
+    below.mark_read(now, "#papo", server_time(0, 0)).unwrap();
     assert_eq!(
         transmitted(&mut below),
         "@label=0 MARKREAD #papo timestamp=1970-01-01T00:00:00.000Z"
@@ -495,18 +492,14 @@ fn mark_read_refuses_new_targets_when_the_marker_store_is_full() {
         b":ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z",
     );
     while full.poll_event().is_some() {}
-    full.mark_read(
-        now,
-        "#papo",
-        UNIX_EPOCH + Duration::from_secs(1_760_529_343),
-    )
-    .unwrap();
+    full.mark_read(now, "#papo", server_time(1_760_529_343, 0))
+        .unwrap();
     assert_eq!(
         transmitted(&mut full),
         "@label=0 MARKREAD #papo timestamp=2025-10-15T11:55:43.000Z"
     );
     assert_eq!(
-        full.mark_read(now, "#operations", UNIX_EPOCH),
+        full.mark_read(now, "#operations", server_time(0, 0)),
         Err(RequestError::StateLimit(StateLimit::ReadMarkers))
     );
     assert_eq!(full.poll_transmit(), None);
@@ -542,7 +535,9 @@ fn mark_read_honors_a_configured_limit_greater_than_one() {
     );
     while session.poll_event().is_some() {}
 
-    session.mark_read(now, "#operations", UNIX_EPOCH).unwrap();
+    session
+        .mark_read(now, "#operations", server_time(0, 0))
+        .unwrap();
     assert_eq!(
         transmitted(&mut session),
         "@label=0 MARKREAD #operations timestamp=1970-01-01T00:00:00.000Z"
@@ -561,7 +556,7 @@ fn rejects_multiple_history_targets_without_queueing() {
 
     let (mut markers, now) = read_marker_session();
     assert_eq!(
-        markers.mark_read(now, "#papo,alice", UNIX_EPOCH),
+        markers.mark_read(now, "#papo,alice", server_time(0, 0)),
         Err(invalid.clone())
     );
     assert_eq!(markers.read_marker(now, "#papo,alice"), Err(invalid));
@@ -634,7 +629,7 @@ fn rejects_explicitly_disabled_history_features_before_transmitting() {
                 ))
             );
             assert_eq!(
-                session.mark_read(now, "#papo", UNIX_EPOCH),
+                session.mark_read(now, "#papo", server_time(0, 0)),
                 Err(unsupported_because(
                     Feature::ReadMarkers,
                     UnsupportedReason::DisabledByClient,
@@ -655,10 +650,7 @@ fn tracks_read_markers_monotonically_through_join_bursts() {
         panic!("expected read marker")
     };
     assert!(matches!(&marker.conversation, Conversation::Channel(channel) if channel == "#papo"));
-    assert_eq!(
-        marker.read_until,
-        Some(UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000))
-    );
+    assert_eq!(marker.read_until, Some(server_time(1_760_529_342, 123)));
     for line in [
         ":ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z",
         ":ergo.test MARKREAD #papo timestamp=2025-10-15T11:55:41.999Z",
@@ -681,10 +673,7 @@ fn tracks_read_markers_monotonically_through_join_bursts() {
     let Some(Event::ReadMarkerChanged(newer)) = session.poll_event() else {
         panic!("expected newer read marker")
     };
-    assert_eq!(
-        newer.read_until,
-        Some(UNIX_EPOCH + Duration::from_secs(1_760_529_343))
-    );
+    assert_eq!(newer.read_until, Some(server_time(1_760_529_343, 0)));
 
     session.handle_line(now, b":papo!~papo@localhost JOIN #joined * :Papo Client");
     assert!(matches!(session.poll_event(), Some(Event::Joined { .. })));
@@ -791,13 +780,10 @@ fn remembers_live_messages_and_tracks_history_server_times_monotonically() {
     );
     let seen = session.state().last_seen("#PAPO").unwrap();
     assert_eq!(seen.msgid, "RKi9Cw");
-    assert_eq!(
-        seen.server_time,
-        UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000)
-    );
+    assert_eq!(seen.server_time, server_time(1_760_529_342, 123));
     assert_eq!(
         session.state().latest_server_time("#PAPO"),
-        Some(UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000))
+        Some(server_time(1_760_529_342, 123))
     );
 
     for line in [
@@ -812,7 +798,7 @@ fn remembers_live_messages_and_tracks_history_server_times_monotonically() {
     assert_eq!(session.state().last_seen("#papo").unwrap().msgid, "RKi9Cw");
     assert_eq!(
         session.state().latest_server_time("#papo"),
-        Some(UNIX_EPOCH + Duration::from_secs(1_760_529_343))
+        Some(server_time(1_760_529_343, 0))
     );
 
     session.handle_line(
@@ -830,7 +816,7 @@ fn remembers_live_messages_and_tracks_history_server_times_monotonically() {
     );
     assert_eq!(
         session.state().latest_server_time("#papo"),
-        Some(UNIX_EPOCH + Duration::from_secs(1_760_529_344))
+        Some(server_time(1_760_529_344, 0))
     );
 
     for line in [
@@ -842,7 +828,7 @@ fn remembers_live_messages_and_tracks_history_server_times_monotonically() {
     }
     assert_eq!(
         session.state().latest_server_time("#papo"),
-        Some(UNIX_EPOCH + Duration::from_secs(1_760_529_344))
+        Some(server_time(1_760_529_344, 0))
     );
 
     session.handle_disconnected(now);
@@ -901,11 +887,11 @@ fn refolds_latest_server_times_when_casemapping_changes() {
     );
     assert_eq!(
         session.state().latest_server_time("#ROOM["),
-        Some(UNIX_EPOCH + Duration::from_secs(1_760_529_343))
+        Some(server_time(1_760_529_343, 0))
     );
     assert_eq!(
         session.state().latest_server_time("#room{"),
-        Some(UNIX_EPOCH + Duration::from_secs(1_760_529_343))
+        Some(server_time(1_760_529_343, 0))
     );
 }
 

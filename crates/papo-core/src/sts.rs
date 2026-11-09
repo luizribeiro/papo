@@ -151,7 +151,7 @@ pub struct StsPolicy {
     pub port: u16,
     /// Whether `port` was learned over a WebSocket rather than TCP.
     pub websocket: bool,
-    /// The wall-clock time at which this policy stops requiring TLS.
+    /// The time on this device's clock at which this policy stops requiring TLS.
     pub expires_at: SystemTime,
     /// The duration used to refresh expiry when a connection closes.
     pub duration: Duration,
@@ -197,7 +197,15 @@ impl StsPolicy {
         self
     }
 
-    /// Reports whether this policy still requires TLS at `now`.
+    /// Reports whether this policy still requires TLS at `now` on this device's clock.
+    ///
+    /// A server-clock value cannot be used here:
+    ///
+    /// ```compile_fail
+    /// # fn active(policy: &papo_core::sts::StsPolicy, server_time: papo_proto::ServerTime) {
+    /// let _ = policy.is_active_at(server_time);
+    /// # }
+    /// ```
     #[must_use]
     pub fn is_active_at(&self, now: SystemTime) -> bool {
         now < self.expires_at

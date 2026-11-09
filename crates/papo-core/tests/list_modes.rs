@@ -1,6 +1,6 @@
 //! Transcript coverage for channel list-mode requests.
 
-use std::time::{Duration, Instant, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 
 use papo_core::{
     Config, Event, ListMode, RequestError, RequestId, ResponseMatcher, Session, StateLimit,
@@ -69,7 +69,7 @@ fn each_list_mode_waits_for_its_end_numeric() {
         assert_eq!(entries[0].actor().unwrap().to_string(), "oper");
         assert_eq!(
             entries[0].set_at,
-            UNIX_EPOCH.checked_add(Duration::from_hours(489_180))
+            papo_proto::ServerTime::from_stored_millis(1_761_048_000_000).ok()
         );
         assert_eq!(
             session.state().channel("#papo").unwrap().list(mode),

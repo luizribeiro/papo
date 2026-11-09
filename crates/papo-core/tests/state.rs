@@ -4,7 +4,7 @@ mod support;
 
 use std::{
     cell::Cell,
-    time::{Duration, Instant, UNIX_EPOCH},
+    time::{Duration, Instant},
 };
 
 use papo_core::{
@@ -1148,7 +1148,7 @@ fn setname_updates_other_and_own_realnames() {
         .server(":emily!em@127.0.0.1 JOIN #papo emily :Emily Garcia")
     .server(":dan!~dan@cloak.example JOIN #papo dan :Daniel Garcia")
     .server("@time=2026-02-03T04:05:06.789Z :dan!~dan@cloak.example SETNAME :Dan Garcia")
-    .event_until(|event| matches!(event, Event::RealnameChanged { server_time, envelope, actor, nick, realname, .. } if *server_time == Some(UNIX_EPOCH + Duration::new(1_770_091_506, 789_000_000)) && envelope.server_time() == *server_time && actor == "dan!~dan@cloak.example" && nick == "dan" && realname == "Dan Garcia"))
+    .event_until(|event| matches!(event, Event::RealnameChanged { server_time, envelope, actor, nick, realname, .. } if *server_time == Some(papo_proto::ServerTime::from_stored_millis(1_770_091_506_789).unwrap()) && envelope.server_time() == *server_time && actor == "dan!~dan@cloak.example" && nick == "dan" && realname == "Dan Garcia"))
     .server(":emily!em@127.0.0.1 SETNAME :Emily Smith")
     .event(|event| matches!(event, Event::RealnameChanged { nick, realname, .. } if nick == "emily" && realname == "Emily Smith"))
         .inspect(|session| {
@@ -1555,7 +1555,7 @@ fn tracks_the_channel_join_burst_and_live_mode_changes() {
             );
             assert_eq!(
                 channel.created_at(),
-                Some(UNIX_EPOCH + Duration::from_secs(1_723_501_539))
+                Some(papo_proto::ServerTime::from_stored_millis(1_723_501_539_000).unwrap())
             );
             assert_eq!(channel.topic(), Some("Welcome to the papo channel"));
             assert!(
@@ -1566,7 +1566,7 @@ fn tracks_the_channel_join_burst_and_live_mode_changes() {
             );
             assert_eq!(
                 channel.topic_set_at(),
-                Some(UNIX_EPOCH + Duration::from_secs(1_723_501_612))
+                Some(papo_proto::ServerTime::from_stored_millis(1_723_501_612_000).unwrap())
             );
         })
         .no_event()
@@ -1984,7 +1984,10 @@ fn another_capability_waits_for_end_of_names_before_syncing() {
             assert_eq!(channel.mode('n'), Some(ModeValue::Set));
             assert_eq!(channel.mode('k'), Some(ModeValue::Set));
             assert_eq!(channel.key().map(Secret::expose), Some("secret"));
-            assert_eq!(channel.created_at(), Some(UNIX_EPOCH + Duration::from_secs(1_760_529_342)));
+            assert_eq!(
+                channel.created_at(),
+                Some(papo_proto::ServerTime::from_stored_millis(1_760_529_342_000).unwrap())
+            );
         })
         .no_event();
 }
