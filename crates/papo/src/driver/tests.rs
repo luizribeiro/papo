@@ -5142,6 +5142,38 @@ async fn open_rejects_stranger_with_current_key() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn event_handle_skips_who() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":papo-driver!papo@localhost JOIN #review * :Papo Client\r\n:alice!~alice@cloak.example JOIN #review alice-account :Alice\r\n",
+    )
+    .await;
+    _ = next_event(&mut events).await;
+    _ = next_event(&mut events).await;
+    server_line(
+        &mut server,
+        b"@account=alice-account :alice!~alice@cloak.example PRIVMSG #review :review complete\r\n",
+    )
+    .await;
+    let message = next_message(&mut events).await;
+    let recipient = message.receipt.actor_recipient().unwrap();
+    let alice = crate::identity::from_event(&client, recipient).unwrap();
+
+    let sending = tokio::spawn(async move { client.privmsg(alice, "release approved").await });
+    client_line(&mut server, b"PRIVMSG alice :release approved\r\n").await;
+    within(sending).await.unwrap().unwrap();
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(
+        within(driver).await.unwrap(),
+        Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn role_errors_identify_the_invalid_argument() {
     let client = crate::Client::disconnected_for_test();
 
