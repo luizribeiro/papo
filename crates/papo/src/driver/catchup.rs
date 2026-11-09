@@ -191,20 +191,6 @@ pub(super) fn begin_catchup(
                     .map(|seen| papo_core::MsgRef::Msgid(seen.msgid.clone()))
             }) {
             reference
-        } else if supports_timestamp {
-            let Some(disconnected_at) = defaults.disconnected_at else {
-                continue;
-            };
-            let Ok(duration) = disconnected_at.duration_since(std::time::UNIX_EPOCH) else {
-                continue;
-            };
-            let Ok(millis) = i64::try_from(duration.as_millis()) else {
-                continue;
-            };
-            let Ok(time) = crate::ServerTime::from_stored_millis(millis) else {
-                continue;
-            };
-            papo_core::MsgRef::Timestamp(time)
         } else {
             continue;
         };
@@ -550,11 +536,26 @@ mod tests {
     fn reconnect_history_setting_controls_catchup() {
         for (enabled, expected_request) in [(false, false), (true, true)] {
             let mut session = registered_history_session();
+            session.handle_bytes(
+                std::time::Instant::now(),
+                b"@time=2026-11-08T19:55:04.123Z;msgid=RfcBTzyxY120004 :alice!a@cloak PRIVMSG #papo :checkpoint\r\n",
+            );
+            while session.poll_event().is_some() {}
             let mut catchups = BTreeMap::new();
             super::begin_catchup(&mut session, &reconnect_defaults(enabled), &mut catchups);
 
             assert_eq!(catchups.len(), usize::from(expected_request));
             assert_eq!(session.poll_transmit().is_some(), expected_request);
         }
+    }
+
+    #[test]
+    fn reconnect_never_uses_the_device_disconnect_time_as_a_server_cursor() {
+        let mut session = registered_history_session();
+        let mut catchups = BTreeMap::new();
+        super::begin_catchup(&mut session, &reconnect_defaults(true), &mut catchups);
+
+        assert!(catchups.is_empty());
+        assert!(session.poll_transmit().is_none());
     }
 }
