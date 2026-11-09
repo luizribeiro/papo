@@ -589,6 +589,12 @@ enum DisconnectedWait {
     Stop,
 }
 
+enum DisconnectedAction {
+    Wait,
+    Retry,
+    Stop,
+}
+
 #[allow(clippy::too_many_arguments)]
 async fn connect_while_disconnected(
     mut connection: ConnectFuture,
@@ -639,7 +645,10 @@ async fn connect_while_disconnected(
                 ))));
             }
             command = commands.recv() => {
-                if !handle_disconnected_command(command, &disconnected, defaults) {
+                if matches!(
+                    handle_disconnected_command(command, &disconnected, defaults),
+                    DisconnectedAction::Stop
+                ) {
                     return DisconnectedWait::Stop;
                 }
             }
@@ -657,27 +666,26 @@ async fn wait_before_retry(
     tokio::pin!(sleep);
     loop {
         tokio::select! {
-            () = &mut sleep => return true,
+            biased;
             command = commands.recv() => {
-                match command {
-                    Some(Command::Reconnect { result }) => {
-                        _ = result.send(Ok(()));
-                        return true;
-                    }
-                    command => {
-                        let current = crate::Disconnected::new(
-                            disconnected.cause.clone(),
-                            disconnected.attempt,
-                            Some(deadline.map_or(Duration::MAX, |deadline| {
-                                deadline.saturating_duration_since(now())
-                            })),
-                        );
-                        if !handle_disconnected_command(command, &current, defaults) {
-                            return false;
-                        }
-                    }
+                let current = crate::Disconnected::new(
+                    disconnected.cause.clone(),
+                    disconnected.attempt,
+                    Some(deadline.map_or(Duration::MAX, |deadline| {
+                        deadline.saturating_duration_since(now())
+                    })),
+                );
+                match handle_disconnected_command(
+                    command,
+                    &current,
+                    defaults,
+                ) {
+                    DisconnectedAction::Wait => {}
+                    DisconnectedAction::Retry => return true,
+                    DisconnectedAction::Stop => return false,
                 }
             }
+            () = &mut sleep => return true,
         }
     }
 }
@@ -714,11 +722,11 @@ fn handle_disconnected_command(
     command: Option<Command>,
     disconnected: &crate::Disconnected,
     defaults: &mut PostConnect,
-) -> bool {
+) -> DisconnectedAction {
     match command {
         Some(Command::Composite { task }) => {
             _ = crate::rt::spawn(task);
-            true
+            DisconnectedAction::Wait
         }
         Some(
             Command::Request { result, .. }
@@ -729,7 +737,7 @@ fn handle_disconnected_command(
             | Command::ReadMarker { result, .. },
         ) => {
             _ = result.send(Err(Error::disconnected(disconnected.clone())));
-            true
+            DisconnectedAction::Wait
         }
         Some(Command::Part {
             channel, result, ..
@@ -745,11 +753,11 @@ fn handle_disconnected_command(
                 defaults.parted_while_disconnected.push(channel);
             }
             _ = result.send(Err(Error::disconnected(disconnected.clone())));
-            true
+            DisconnectedAction::Wait
         }
         Some(Command::SendText { result, .. }) => {
             _ = result.send(Err(Error::disconnected(disconnected.clone())));
-            true
+            DisconnectedAction::Wait
         }
         Some(
             Command::Send { result, .. }
@@ -760,26 +768,26 @@ fn handle_disconnected_command(
             | Command::MonitorClear { result },
         ) => {
             _ = result.send(Err(Error::disconnected(disconnected.clone())));
-            true
+            DisconnectedAction::Wait
         }
         Some(Command::Reconnect { result }) => {
             _ = result.send(Ok(()));
-            true
+            DisconnectedAction::Retry
         }
         Some(Command::DirectAcquire { result, .. }) => {
             _ = result.send(Err(Error::disconnected(disconnected.clone())));
-            true
+            DisconnectedAction::Wait
         }
         Some(Command::DirectProve { result, .. }) => {
             _ = result.send(Err(Error::disconnected(disconnected.clone())));
-            true
+            DisconnectedAction::Wait
         }
-        Some(Command::DirectRelease { .. }) => true,
+        Some(Command::DirectRelease { .. }) => DisconnectedAction::Wait,
         Some(Command::Quit { result, .. }) => {
             _ = result.send(Ok(()));
-            false
+            DisconnectedAction::Stop
         }
-        None => false,
+        None => DisconnectedAction::Stop,
     }
 }
 
