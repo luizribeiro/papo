@@ -33,7 +33,11 @@ async fn equal_account_pins_do_not_merge_nickname_threads() {
 
     assert_ne!(desktop, phone);
     assert_ne!(desktop.nick().key(), phone.nick().key());
-    assert_match(desktop.peer_key(), phone.peer_key());
+    assert_mismatch(
+        desktop.peer_key(),
+        phone.peer_key(),
+        papo::PeerKeyMismatch::DifferentAccount,
+    );
     assert!(desktop.peer_key().is_verified());
 }
 

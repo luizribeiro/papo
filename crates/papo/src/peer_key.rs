@@ -250,7 +250,7 @@ impl PeerKey {
     /// any `IRCv3` specification. On other servers Account pins hold the account name only.
     #[must_use]
     pub fn check(&self, current_key: &Self) -> PeerKeyCheck {
-        if self.thread.scope != current_key.thread.scope {
+        if self.thread != current_key.thread {
             return if self.is_verified() && current_key.is_verified() {
                 PeerKeyCheck::Mismatch(PeerKeyMismatch::DifferentAccount)
             } else {

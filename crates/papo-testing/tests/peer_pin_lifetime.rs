@@ -70,7 +70,7 @@ async fn verified_pins_survive_reconnect_while_session_pins_do_not() {
 }
 
 #[tokio::test]
-async fn session_pins_follow_renames_and_expire_on_reuse_and_logout() {
+async fn session_keys_change_on_rename_and_expire_on_reuse_and_logout() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("ircs://verified.example", "papo")
             .rate_limit(papo::RateLimit::unlimited())
@@ -96,10 +96,18 @@ async fn session_pins_follow_renames_and_expire_on_reuse_and_logout() {
     };
     assert_eq!(changed.actor.nick(), "bob");
     assert_eq!(changed.new, "robert");
-    assert_match(&bob_pin, changed.peer_key().unwrap());
+    assert_mismatch(
+        &bob_pin,
+        changed.peer_key().unwrap(),
+        papo::PeerKeyMismatch::CannotVerify,
+    );
     let renamed = client.direct("robert").await.unwrap();
     assert_ne!(renamed.nick().key(), bob_thread);
-    assert_match(&bob_pin, renamed.peer_key());
+    assert_mismatch(
+        &bob_pin,
+        renamed.peer_key(),
+        papo::PeerKeyMismatch::CannotVerify,
+    );
 
     wire.server(":robert!~bob@users.example QUIT :Client exited")
         .await;
