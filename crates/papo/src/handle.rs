@@ -324,7 +324,7 @@ impl crate::AsConversation for ChannelHandle {
 
 #[cfg(all(test, not(browser)))]
 mod tests {
-    use std::collections::HashSet;
+    use std::{collections::HashSet, sync::Arc};
 
     use papo_core::{Config, Session};
 
@@ -408,6 +408,62 @@ mod tests {
             assert_eq!(left == right, equal);
         }
         assert_eq!(HashSet::from([release, same_release, operations]).len(), 2);
+    }
+
+    #[test]
+    fn handle_factories_preserve_invalid_name_errors() {
+        let client = client_with_joined_users();
+
+        assert!(matches!(
+            client.query("#release"),
+            Err(crate::InvalidInput::InvalidName {
+                argument: "query: nick",
+                name,
+                reason: crate::InvalidIdentifier::InvalidPrefix('#'),
+            }) if name == "#release"
+        ));
+        assert!(matches!(
+            client.channel("release"),
+            Err(crate::InvalidInput::InvalidName {
+                argument: "channel: channel",
+                name,
+                reason: crate::InvalidIdentifier::InvalidPrefix('r'),
+            }) if name == "release"
+        ));
+    }
+
+    #[test]
+    fn handle_factories_type_expired_references() {
+        let now = crate::rt::now_mono();
+        let mut session = Session::new(Config::default().nick("papo"));
+        for line in [
+            b":ergo.test 005 papo CASEMAPPING=rfc1459 CHANTYPES=# :are supported".as_slice(),
+            b":papo!papo@localhost JOIN #release * :Papo Client".as_slice(),
+            b":alice!alice@staff.ergo.chat JOIN #release * :Alice Example".as_slice(),
+        ] {
+            session.handle_line(now, line);
+        }
+        let alice = session.isupport().casemapping().nick("alice");
+        let recipient = session
+            .state()
+            .__capture_recipient(alice, crate::Account::Unknown)
+            .unwrap();
+        let (client, _) = crate::driver::test_support::client_with_commands(&session);
+        let direct = crate::DirectRef::new(&client, recipient, false);
+        let channel = client.channel("#release").unwrap();
+
+        session.handle_line(now, b":alice!alice@staff.ergo.chat QUIT :Client exited");
+        session.handle_line(now, b":papo!papo@localhost PART #release :Review complete");
+        *client.state.write().unwrap() = Arc::new(crate::State::from_session(&session, true));
+
+        assert!(matches!(
+            client.query(&direct),
+            Err(crate::InvalidInput::ForeignReference)
+        ));
+        assert!(matches!(
+            client.channel(&channel),
+            Err(crate::InvalidInput::ForeignReference)
+        ));
     }
 
     #[tokio::test]
