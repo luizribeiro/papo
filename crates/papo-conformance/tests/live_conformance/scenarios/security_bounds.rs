@@ -268,9 +268,8 @@ async fn confirmed_runtime_away_survives_reconnect(_s: Scenario) -> papo_testing
         .await;
     away.await.unwrap()?;
 
-    client.reconnect().await?;
-    _ = next_disconnect(&mut events).await;
     wire.close().await;
+    _ = next_disconnect(&mut events).await;
     wire.register(&[]).await;
     connected(&mut events).await;
     assert_eq!(wire.next_sent().await, "AWAY :reviewing audit logs");
@@ -301,9 +300,8 @@ async fn repeated_catchup_page_stops_after_two_requests(_s: Scenario) -> papo_te
         .await;
     while !matches!(next_active_event(&mut events).await, Event::Message(_)) {}
 
-    client.reconnect().await?;
-    _ = next_disconnect(&mut events).await;
     wire.close().await;
+    _ = next_disconnect(&mut events).await;
     wire.register(&caps).await;
     connected(&mut events).await;
     assert_eq!(wire.next_sent().await, "@label=1 JOIN #papo");

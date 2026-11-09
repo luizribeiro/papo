@@ -339,7 +339,9 @@ async fn account_registration_once(s: Scenario) -> papo_testing::Result<()> {
         AccountCreation::Created { .. }
     ));
 
-    alice.reconnect().await?;
+    alice
+        .send_raw(papo::Line::new("QUIT").param("checking one-time registration"))
+        .await?;
     alice.wait_for(Event::as_disconnected).await?;
     alice
         .wait_for(|event| match event {

@@ -1021,12 +1021,6 @@ mod tests {
         peer.abort();
     }
 
-    macro_rules! disconnected {
-        () => {
-            Error::Disconnected(_)
-        };
-    }
-
     struct ObservedStream {
         inner: crate::driver::test_support::TokioIo<tokio::io::DuplexStream>,
         lifecycle: Arc<AtomicUsize>,
@@ -2028,7 +2022,10 @@ mod tests {
             next_event(&mut events).await,
             Some(crate::Event::Connected(_))
         ));
-        assert!(matches!(client.reconnect().await, Err(disconnected!())));
+        assert!(matches!(
+            client.reconnect().await,
+            Err(crate::Error::AlreadyConnected)
+        ));
         let quitting = tokio::spawn({
             let client = client.clone();
             async move { client.quit("").await }

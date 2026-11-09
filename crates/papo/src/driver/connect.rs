@@ -220,9 +220,8 @@ pub(super) async fn run_plan(
             base_plan.address = upgraded;
             sts_required = true;
         }
-        let reconnect_now = end.reconnect_now;
         let refused = retry_was_refused(&end);
-        let reconnect_in = if upgrade_port.is_some() || reconnect_now {
+        let reconnect_in = if upgrade_port.is_some() {
             Duration::ZERO
         } else {
             retry_delay(reconnect, attempts, registered, refused, entropy.as_mut())
@@ -231,7 +230,7 @@ pub(super) async fn run_plan(
             super::disconnected_event(&end.error, attempts.saturating_add(1), Some(reconnect_in));
         last_disconnect = Some(disconnected.cause.clone());
         pending_events = enqueue_retry_event(&events, end, disconnected.clone());
-        if upgrade_port.is_some() || reconnect_now {
+        if upgrade_port.is_some() {
             continue;
         }
         if !wait_before_retry(&mut commands, &mut defaults, disconnected).await {
@@ -320,7 +319,6 @@ pub(super) async fn run_planned_connection(
         plan.address.port,
         plan.address.is_websocket(),
         pending_events,
-        true,
     )
     .await
 }
@@ -343,9 +341,6 @@ fn triage_connection_end(
 ) -> ControlFlow<(ConnectionEnd, bool), (ConnectionEnd, Option<u16>)> {
     if end.quit.is_some() {
         return ControlFlow::Break((end, false));
-    }
-    if end.reconnect_now {
-        return ControlFlow::Continue((end, None));
     }
     if end.registered_at.is_some() {
         *last_sts_upgrade = None;
@@ -487,7 +482,6 @@ fn finish_connection_failure(
             sts: StsActions::default(),
             sts_store: None,
             pending_events: VecDeque::new(),
-            reconnect_now: false,
         },
         attempt,
     )
@@ -807,7 +801,6 @@ mod tests {
             sts: StsActions::default(),
             sts_store: None,
             pending_events: VecDeque::new(),
-            reconnect_now: false,
         }
     }
 

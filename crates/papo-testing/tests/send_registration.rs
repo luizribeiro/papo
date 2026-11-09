@@ -59,16 +59,26 @@ async fn send_before_welcome_fails_if_registration_disconnects() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn explicit_reconnect_preserves_sends_queued_for_the_new_connection() {
+async fn automatic_reconnect_preserves_sends_queued_for_the_new_connection() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo-wire")
             .rate_limit(papo::RateLimit::unlimited())
-            .reconnect(Reconnect::never()),
+            .reconnect(
+                Reconnect::exponential()
+                    .initial_delay(Duration::ZERO)
+                    .max_delay(Duration::ZERO),
+            ),
     );
     wire.register(&[]).await;
     connected(&mut events).await;
 
-    client.reconnect().await.unwrap();
+    wire.close().await;
+    assert_eq!(
+        disconnected(&mut events).await.reconnect_in,
+        Some(Duration::ZERO)
+    );
+    assert!(!client.snapshot().is_connected());
+
     let first = tokio::spawn({
         let client = client.clone();
         async move {
@@ -88,12 +98,6 @@ async fn explicit_reconnect_preserves_sends_queued_for_the_new_connection() {
     });
     tokio::task::yield_now().await;
 
-    assert_eq!(
-        disconnected(&mut events).await.reconnect_in,
-        Some(Duration::ZERO)
-    );
-    wire.close().await;
-    assert!(!client.snapshot().is_connected());
     assert_eq!(wire.next_sent().await, "CAP LS 302");
     assert_eq!(wire.next_sent().await, "NICK papo-wire");
     assert_eq!(wire.next_sent().await, "USER papo-wire 0 * papo-wire");

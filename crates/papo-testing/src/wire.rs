@@ -242,7 +242,7 @@ mod tests {
 
     #[tokio::test(start_paused = true)]
     async fn exchanges_complete_irc_lines() {
-        let (_client, mut events, mut wire) = wire(
+        let (client, mut events, mut wire) = wire(
             papo::Client::builder("irc://offline.test", "papo-wire")
                 .reconnect(papo::Reconnect::never()),
         );
@@ -254,6 +254,10 @@ mod tests {
         wire.server(":offline.test 001 papo-wire :Welcome to ErgoTest")
             .await;
         _ = next_connected(&mut events).await;
+        assert!(matches!(
+            client.reconnect().await,
+            Err(papo::Error::AlreadyConnected)
+        ));
         wire.server("PING :ergo.example/12345").await;
         assert_eq!(wire.next_sent().await, "PONG ergo.example/12345");
     }

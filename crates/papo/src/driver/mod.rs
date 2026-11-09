@@ -861,7 +861,6 @@ where
         0,
         false,
         VecDeque::new(),
-        false,
     )
     .await;
     if registration.0.is_some() {
@@ -883,7 +882,6 @@ struct ConnectionEnd {
     sts: StsActions,
     sts_store: Option<Arc<dyn StsStore>>,
     pending_events: PendingEvents,
-    reconnect_now: bool,
 }
 
 #[derive(Default)]
@@ -941,7 +939,6 @@ async fn run_connection<S>(
     sts_port: u16,
     sts_websocket: bool,
     mut pending_events: PendingEvents,
-    reconnectable: bool,
 ) -> ConnectionEnd
 where
     S: AsyncRead + AsyncWrite + Unpin,
@@ -964,7 +961,6 @@ where
     let mut resolved_sent = VecDeque::new();
     let mut registered_at = None;
     let mut sts = StsActions::default();
-    let mut reconnect_now = false;
     let mut buffer = [0; 4096];
     let mut pending_write = None;
     let mut drain_after_timeout = false;
@@ -1348,17 +1344,7 @@ where
                     }
                 }
                 Some(Command::Reconnect { result }) => {
-                    if reconnectable {
-                        _ = result.send(Ok(()));
-                        reconnect_now = true;
-                        break (
-                            "reconnect requested".to_owned(),
-                            Error::disconnected_requested(),
-                            None,
-                            false,
-                        );
-                    }
-                    _ = result.send(Err(Error::connection_lost()));
+                    _ = result.send(Err(Error::AlreadyConnected));
                 }
                 Some(Command::Quit { message, result }) => {
                     request_quit(session, &mut quit, message, Some(result));
@@ -1446,7 +1432,6 @@ where
         sts,
         sts_store,
         pending_events,
-        reconnect_now,
     }
 }
 

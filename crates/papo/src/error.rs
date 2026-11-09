@@ -459,6 +459,9 @@ pub enum Error {
     /// The connection already has 256 requests awaiting replies.
     #[error("too many IRC requests are awaiting replies")]
     TooManyPendingRequests,
+    /// The requested reconnect was refused because the client is already connected.
+    #[error("the IRC client is already connected")]
+    AlreadyConnected,
     /// The operation was not written because the connection ended.
     #[error(transparent)]
     Disconnected(Disconnected),
@@ -599,16 +602,6 @@ impl Error {
             }
             _ => Self::disconnected_protocol(message),
         }
-    }
-
-    pub(crate) const fn disconnected_requested() -> Self {
-        Self::Disconnected(Disconnected::new(
-            DisconnectCause::Requested {
-                quit_unacknowledged: false,
-            },
-            1,
-            None,
-        ))
     }
 
     pub(crate) fn build(error: papo_proto::BuildError) -> Self {

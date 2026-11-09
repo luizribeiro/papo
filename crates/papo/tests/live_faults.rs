@@ -38,7 +38,10 @@ async fn stale_credentials_end_reconnect_with_a_connect_cause() {
         server
             .change_account_password(&account, first, replacement)
             .unwrap();
-        client.reconnect().await.unwrap();
+        client
+            .send_raw(Line::new("QUIT").param("refreshing account credentials"))
+            .await
+            .unwrap();
         let disconnected = wait_for(&mut events, |event| {
             matches!(
                 event,

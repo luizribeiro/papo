@@ -21,6 +21,9 @@ as disconnected if registration ends first, and `State::is_connected` remains fa
 `None` because reconnecting stopped. Attempt numbering and backoff reset after every `Connected`
 event.
 
+`Client::reconnect` now returns `Error::AlreadyConnected` without disturbing a live connection;
+while disconnected, it still skips the current backoff and retries immediately.
+
 Requests that would grow a full bounded state store now fail locally with `Error::StateLimit`
 before sending, while updates to entries already tracked at the limit remain available.
 

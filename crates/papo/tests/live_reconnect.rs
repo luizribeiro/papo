@@ -94,14 +94,17 @@ async fn reconnect_and_rejoin(
     nick: &str,
     channel: &str,
 ) {
-    client.reconnect().await.unwrap();
-    wait_for(events, "explicit disconnect", |event| {
+    client
+        .send_raw(papo::Line::new("QUIT").param("testing reconnect recovery"))
+        .await
+        .unwrap();
+    wait_for(events, "server disconnect", |event| {
         matches!(event, Event::Disconnected(_))
     })
     .await;
     wait_for(
         events,
-        "explicit reconnection",
+        "automatic reconnection",
         |event| matches!(event, Event::Connected(connected) if connected.reconnected),
     )
     .await;

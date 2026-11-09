@@ -2094,7 +2094,9 @@ async fn current_state_requires_the_client_origin_and_connection_epoch() {
         super::DEFAULT_CHANNEL_CAPACITY,
         None,
         super::PostConnect::default(),
-        Reconnect::never(),
+        Reconnect::exponential()
+            .initial_delay(Duration::ZERO)
+            .max_delay(Duration::ZERO),
         Box::new(papo_core::sts::MemoryStsStore::new()),
         connector,
     );
@@ -2118,7 +2120,7 @@ async fn current_state_requires_the_client_origin_and_connection_epoch() {
         Err(disconnected!())
     ));
 
-    within(client.reconnect()).await.unwrap();
+    within(first_server.shutdown()).await.unwrap();
     assert!(matches!(
         next_event(&mut events).await,
         Some(Event::Disconnected(_))
@@ -2136,73 +2138,29 @@ async fn current_state_requires_the_client_origin_and_connection_epoch() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
-async fn explicit_reconnect_redials_without_backoff() {
-    let (first_stream, mut first_server) = tokio::io::duplex(4096);
-    let (second_stream, mut second_server) = tokio::io::duplex(4096);
-    let streams = Arc::new(Mutex::new(VecDeque::from([
-        Box::new(first_stream) as super::BoxConnection,
-        Box::new(second_stream) as super::BoxConnection,
-    ])));
-    let connection_times = Arc::new(Mutex::new(Vec::new()));
-    let connector: super::Connector = Arc::new({
-        let connection_times = Arc::clone(&connection_times);
-        move |_, _| {
-            connection_times
-                .lock()
-                .unwrap()
-                .push(tokio::time::Instant::now());
-            let stream = streams.lock().unwrap().pop_front().unwrap();
-            Box::pin(async move { Ok(stream) })
+async fn reconnect_on_a_live_connection_is_typed_and_keeps_the_transport() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let driver = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+
+    assert!(matches!(
+        client.reconnect().await,
+        Err(Error::AlreadyConnected)
+    ));
+    let send = tokio::spawn({
+        let client = client.clone();
+        async move {
+            client
+                .send_raw(Line::new("PING").param("still-connected"))
+                .await
         }
     });
-    let (client, mut events, driver) = Driver::with_connector_and_entropy(
-        Ok(ConnectionPlan {
-            address: "irc://irc.example.net".parse().unwrap(),
-            tls: TlsConfig::default(),
-        }),
-        Session::new(config()),
-        super::DEFAULT_CHANNEL_CAPACITY,
-        None,
-        super::PostConnect::default(),
-        Reconnect::never(),
-        Box::new(papo_core::sts::MemoryStsStore::new()),
-        connector,
-        Box::new(|| 0),
-    );
-    let driver = tokio::spawn(driver);
-    complete_connect(&mut first_server, &mut events).await;
-
-    let reconnect_requested_at = tokio::time::Instant::now();
-    within(client.reconnect()).await.unwrap();
-    assert!(matches!(
-        next_event(&mut events).await,
-        Some(Event::Disconnected(crate::Disconnected {
-            reconnect_in: Some(Duration::ZERO),
-            ..
-        }))
-    ));
-    welcome_burst(&mut second_server).await;
-    {
-        let connection_times = connection_times.lock().unwrap();
-        assert_eq!(connection_times.len(), 2);
-        assert!(
-            connection_times[1].duration_since(reconnect_requested_at) < Duration::from_millis(800)
-        );
-    }
-    server_line(&mut second_server, b":ergo.test CAP * LS :\r\n").await;
-    client_line(&mut second_server, b"CAP END\r\n").await;
-    server_line(
-        &mut second_server,
-        b":ergo.test 001 papo-driver :Welcome back\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
-    )
-    .await;
-    assert!(
-        matches!(next_active_event(&mut events).await, Event::Connected(connected) if connected.reconnected)
-    );
+    client_line(&mut server, b"PING still-connected\r\n").await;
+    within(send).await.unwrap().unwrap();
 
     let quit = tokio::spawn(async move { client.quit("").await });
-    client_line(&mut second_server, b"QUIT\r\n").await;
-    within(second_server.shutdown()).await.unwrap();
+    client_line(&mut server, b"QUIT\r\n").await;
+    within(server.shutdown()).await.unwrap();
     within(quit).await.unwrap().unwrap();
     within(driver).await.unwrap().unwrap();
 }

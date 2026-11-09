@@ -612,10 +612,9 @@ impl Client {
             None => Ok(()),
         }
     }
-    /// Disconnects the current transport and starts a new connection immediately.
+    /// Retries a disconnected connection immediately without waiting for its backoff.
     ///
-    /// This skips any reconnect backoff. A builder configured with
-    /// [`crate::Builder::stream`] cannot create another custom stream.
+    /// This never drops a live connection.
     ///
     /// ```no_run
     /// # async fn resume(client: &papo::Client) -> Result<(), papo::Error> {
@@ -626,7 +625,8 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::Disconnected`] for a custom stream or after the driver stops.
+    /// Returns [`Error::AlreadyConnected`] while connected, or [`Error::Disconnected`] after the
+    /// driver stops.
     pub fn reconnect(&self) -> crate::RequestFuture<()> {
         let client = self.clone();
         crate::RequestFuture::new(async move {

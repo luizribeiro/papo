@@ -31,7 +31,9 @@ async fn reconnect_follows_channel_rename(s: Scenario) -> papo_testing::Result<(
         .rename_channel(&old, &renamed, "archive the project")
         .await?;
     alice.wait_for(Event::as_channel_renamed).await?;
-    alice.reconnect().await?;
+    alice
+        .send_raw(papo::Line::new("QUIT").param("checking renamed channel rejoin"))
+        .await?;
     alice.wait_for(Event::as_disconnected).await?;
     alice.wait_for(Event::as_connected).await?;
     let joined = alice
@@ -84,7 +86,9 @@ async fn parted_rejoin_is_not_restored(s: Scenario) -> papo_testing::Result<()> 
         })
         .await?;
 
-    alice.reconnect().await?;
+    alice
+        .send_raw(papo::Line::new("QUIT").param("checking parted channel state"))
+        .await?;
     alice.wait_for(Event::as_disconnected).await?;
     alice.wait_for(Event::as_connected).await?;
     assert!(alice.snapshot().channel(&channel).is_none());

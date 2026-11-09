@@ -4,9 +4,8 @@ use std::time::Duration;
 ///
 /// papo deliberately stops for a fixed set of permanent connection failures
 /// that is stricter than the policies used by some IRC libraries. This safety
-/// policy is not configurable. An application may call [`Client::reconnect`](crate::Client::reconnect)
-/// after the final [`Event::Disconnected`](crate::Event::Disconnected) if it
-/// has outside evidence that another attempt is appropriate.
+/// policy is not configurable. During a reconnect backoff, an application may call
+/// [`Client::reconnect`](crate::Client::reconnect) to retry immediately.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Reconnect {
     initial_delay: Duration,

@@ -1542,6 +1542,7 @@ impl core::marker::UnsafeUnpin for papo::EndpointKind
 impl core::panic::unwind_safe::RefUnwindSafe for papo::EndpointKind
 impl core::panic::unwind_safe::UnwindSafe for papo::EndpointKind
 #[non_exhaustive] pub enum papo::Error
+pub papo::Error::AlreadyConnected
 pub papo::Error::Connect(papo::ConnectError)
 pub papo::Error::Disconnected(papo::Disconnected)
 pub papo::Error::Interrupted(papo::Disconnected)
