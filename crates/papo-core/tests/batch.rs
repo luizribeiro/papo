@@ -149,8 +149,10 @@ fn multiline_over_advertised_max_bytes_is_released() {
         format!("@batch=m :alice PRIVMSG #papo :{second}").as_bytes(),
     );
 
-    assert_eq!(line(&mut session).as_ref().param(1), Some(first.as_str()));
-    assert_eq!(line(&mut session).as_ref().param(1), Some(second.as_str()));
+    assert_eq!(
+        incomplete(&mut session).as_ref().param(1),
+        Some(format!("{first}\n{second}").as_str())
+    );
     assert!(matches!(
         session.poll_event(),
         Some(Event::BatchAbandoned { reference, batch_type, reason, .. })
@@ -247,9 +249,10 @@ fn multiline_accepts_the_line_limit_and_abandons_one_over() {
             format!("@batch=m :alice PRIVMSG #papo :{text}").as_bytes(),
         );
     }
-    for expected in ["one", "two", "three"] {
-        assert_eq!(line(&mut over).as_ref().param(1), Some(expected));
-    }
+    assert_eq!(
+        incomplete(&mut over).as_ref().param(1),
+        Some("one\ntwo\nthree")
+    );
     assert!(matches!(
         over.poll_event(),
         Some(Event::BatchAbandoned { reason, .. })
@@ -655,7 +658,7 @@ fn nested_multiline_history_handles_empty_unclosed_and_bounded_children() {
         unclosed.poll_event(),
         Some(Event::History { items, end: false, .. })
             if items.len() == 1
-                && items[0].as_message().unwrap().line.as_ref().param(1) == Some("unfinished")
+                && items[0].as_incomplete().unwrap().line.as_ref().param(1) == Some("unfinished")
     ));
 
     let mut over_lines = Session::new(Config::default().max_batch_lines(1));
@@ -694,7 +697,8 @@ fn nested_multiline_history_handles_empty_unclosed_and_bounded_children() {
     over_bytes.handle_line(now, b"BATCH -h");
     assert!(matches!(
         over_bytes.poll_event(),
-        Some(Event::History { items, .. }) if items.len() == 2
+        Some(Event::History { items, .. })
+            if matches!(items.as_slice(), [HistoryItem::Incomplete(_)])
     ));
 }
 

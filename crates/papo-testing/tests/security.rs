@@ -2107,7 +2107,7 @@ async fn late_labeled_reply_is_delivered_as_a_live_message() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn oversized_multiline_fragments_are_live_messages() {
+async fn oversized_multiline_is_delivered_as_incomplete() {
     let (_client, mut events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo-wire")
             .rate_limit(papo::RateLimit::unlimited())
@@ -2137,10 +2137,12 @@ async fn oversized_multiline_fragments_are_live_messages() {
     ))
     .await;
 
-    for expected in [&first, &second] {
-        assert!(matches!(events.next().await.map(|(event, _)| event),
-            Some(papo::Event::Message(message)) if message.text == *expected));
-    }
+    let expected = format!("{first}\n{second}");
+    assert!(matches!(
+        events.next().await.map(|(event, _)| event),
+        Some(papo::Event::Incomplete(papo::Incomplete::Message(message)))
+            if message.text == expected
+    ));
     assert!(matches!(
         events.next().await.map(|(event, _)| event),
         Some(papo::Event::Warning(papo::event::Warning::BatchAbandoned {

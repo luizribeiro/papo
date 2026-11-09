@@ -342,6 +342,12 @@ impl Batches {
                 self.abandoned.iter().rev().find_map(|(stored, kind)| {
                     (stored == reference.as_ref()).then(|| kind.clone())
                 });
+            if batch_type.as_deref() == Some(cap::MULTILINE.as_str())
+                && matches!(message.command(), Command::Privmsg | Command::Notice)
+                && message.param(1).is_some()
+            {
+                return BatchAction::Complete(vec![BatchEvent::Incomplete(message.to_owned())]);
+            }
             return BatchAction::Complete(vec![BatchEvent::Line {
                 line: message.to_owned(),
                 batch_type,
@@ -458,6 +464,18 @@ impl Batches {
             .min()
     }
 
+    fn incomplete_multilines(&self, references: &[String]) -> BTreeMap<String, Line> {
+        references
+            .iter()
+            .filter_map(|candidate| {
+                let batch = &self.open[candidate];
+                (batch.kind == cap::MULTILINE.as_str())
+                    .then(|| multiline(batch).map(|line| (candidate.clone(), line)))
+                    .flatten()
+            })
+            .collect()
+    }
+
     fn abandon(&mut self, reference: &str, reason: BatchAbandonReason) -> Vec<BatchEvent> {
         let references: Vec<_> = self
             .open
@@ -480,6 +498,7 @@ impl Batches {
         for (candidate, kind) in &types {
             self.remember_abandoned(candidate, kind);
         }
+        let incomplete = self.incomplete_multilines(&references);
         let multiline_replacements: Vec<_> = references
             .iter()
             .filter_map(|candidate| {
@@ -489,21 +508,39 @@ impl Batches {
                         (
                             candidate.clone(),
                             batch.multiline_collectors.clone(),
-                            batch.messages.clone(),
+                            incomplete
+                                .get(candidate)
+                                .cloned()
+                                .into_iter()
+                                .collect::<Vec<_>>(),
                         )
                     })
             })
             .collect();
         let mut absorbed_multiline = HashSet::new();
         for (candidate, collectors, messages) in multiline_replacements {
-            self.replace_multiline_placeholders(&candidate, &collectors, &messages, false);
+            self.replace_multiline_placeholders(&candidate, &collectors, &messages, true);
             absorbed_multiline.insert(candidate);
         }
         let mut messages = Vec::new();
+        let mut history_incomplete = Vec::new();
+        let mut incomplete_events = Vec::new();
         for candidate in references {
             let batch = self.open.remove(&candidate).expect("selected open batch");
             self.buffered_bytes = self.buffered_bytes.saturating_sub(batch.buffered_bytes);
-            if !absorbed_multiline.contains(&candidate) {
+            history_incomplete.extend(
+                batch
+                    .incomplete
+                    .iter()
+                    .filter_map(|index| batch.messages.get(*index).cloned()),
+            );
+            if let Some(line) = incomplete.get(&candidate) {
+                if !absorbed_multiline.contains(&candidate) {
+                    incomplete_events.push(BatchEvent::Incomplete(line.clone()));
+                }
+            } else if batch.kind != cap::MULTILINE.as_str()
+                && !absorbed_multiline.contains(&candidate)
+            {
                 messages.extend(batch.messages);
             }
             for event in batch.completed {
@@ -511,23 +548,24 @@ impl Batches {
             }
         }
         let mut events = if let Some(target) = history_target {
+            history_incomplete.extend(incomplete.values().cloned());
             vec![BatchEvent::History {
                 target,
-                items: history_items(messages),
+                items: history_items_with_incomplete(messages, history_incomplete),
                 end: false,
             }]
         } else {
-            messages
-                .into_iter()
-                .map(|line| BatchEvent::Line {
+            incomplete_events.extend(messages.into_iter().map(|line| {
+                BatchEvent::Line {
                     batch_type: line
                         .as_ref()
                         .tag("batch")
                         .and_then(|reference| types.get(reference.as_ref()))
                         .cloned(),
                     line,
-                })
-                .collect()
+                }
+            }));
+            incomplete_events
         };
         events.push(BatchEvent::Abandoned {
             reference: reference.to_owned(),
@@ -853,6 +891,26 @@ fn collect_messages(event: BatchEvent, messages: &mut Vec<Line>) {
         }
         BatchEvent::HistoryTargets(_) | BatchEvent::Abandoned { .. } => {}
     }
+}
+
+fn history_items_with_incomplete(
+    messages: Vec<Line>,
+    mut incomplete: Vec<Line>,
+) -> Vec<HistoryItem> {
+    history_items(messages)
+        .into_iter()
+        .map(|item| {
+            let HistoryItem::Message(line) = item else {
+                return item;
+            };
+            if let Some(index) = incomplete.iter().position(|partial| partial == &line.line) {
+                incomplete.remove(index);
+                HistoryItem::Incomplete(line)
+            } else {
+                HistoryItem::Message(line)
+            }
+        })
+        .collect()
 }
 
 fn history_items_with_indices(messages: Vec<Line>, incomplete: &[usize]) -> Vec<HistoryItem> {

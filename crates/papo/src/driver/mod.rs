@@ -1611,7 +1611,12 @@ where
                 events.receiver.finish_connecting();
                 registration.succeeded();
             }
-            event::CoreEvent::Line(message) => {
+            line @ (event::CoreEvent::Line(_) | event::CoreEvent::Incomplete(_)) => {
+                let (message, incomplete) = match line {
+                    event::CoreEvent::Line(message) => (message, false),
+                    event::CoreEvent::Incomplete(message) => (message, true),
+                    _ => unreachable!(),
+                };
                 drop_bad_rejoin_key(session, defaults, &message.as_ref());
                 let mut event = crate::event_impl::incoming_from_core(
                     message,
@@ -1621,6 +1626,12 @@ where
                     can_prove_non_bot(session),
                     crate::rt::now_wall(),
                 );
+                if incomplete {
+                    let Some(marked) = crate::event_impl::mark_incomplete(event) else {
+                        continue;
+                    };
+                    event = marked;
+                }
                 let state = events
                     .state
                     .read()

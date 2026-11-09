@@ -177,7 +177,7 @@
 "security::late_labeled_reply_is_delivered_as_a_live_message" = [
   "regression.labeled-response.late-live",
 ]
-"security::oversized_multiline_fragments_are_live_messages" = [
+"security::oversized_multiline_is_delivered_as_incomplete" = [
   "regression.multiline.oversized-live",
 ]
 "security::plain_text_rejects_ctcp_delimiters" = [

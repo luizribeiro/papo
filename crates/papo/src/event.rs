@@ -709,6 +709,14 @@ pub(crate) fn incoming_from_core(
     )
 }
 
+pub(crate) fn mark_incomplete(event: Event) -> Option<Event> {
+    match event {
+        Event::Message(message) => Some(Event::Incomplete(Incomplete::Message(message))),
+        Event::Notice(notice) => Some(Event::Incomplete(Incomplete::Notice(notice))),
+        _ => None,
+    }
+}
+
 fn with_channel_guard(mut event: Event, channel: Option<papo_core::ChannelGuard>) -> Event {
     let receipt = match &mut event {
         Event::CtcpQuery(event) => &mut event.receipt,
@@ -2010,6 +2018,7 @@ pub(crate) enum CoreEvent {
     Forward(Event),
     Connected(Welcome),
     Line(papo_core::ReceivedLine),
+    Incomplete(papo_core::ReceivedLine),
     Response(Response),
     RequestUntracked(RequestId),
     RequestTimedOut(RequestId),
@@ -2126,6 +2135,9 @@ pub(crate) fn from_core_with_receipt(
             return CoreEvent::Line(message);
         }
         papo_core::Event::MultilineMessage(message) => return CoreEvent::Line(message.message),
+        papo_core::Event::Incomplete(message) => {
+            return CoreEvent::Incomplete(message.message);
+        }
         papo_core::Event::TypingChanged(change) => {
             let return_address = change.return_address();
             let reply_token = conversation_reply_token(reply_state, &change.conversation);
@@ -5120,7 +5132,7 @@ mod tests {
             ));
         }
 
-        for kind in ["draft/multiline", "netsplit", "netjoin"] {
+        for kind in ["netsplit", "netjoin"] {
             let Event::Notice(live) = batched_event(kind, "NOTICE papo :live batch") else {
                 panic!("expected live fallback notice")
             };
