@@ -324,7 +324,11 @@ impl crate::AsConversation for ChannelHandle {
 
 #[cfg(all(test, not(browser)))]
 mod tests {
-    use std::{collections::HashSet, sync::Arc};
+    use std::{
+        collections::{HashSet, hash_map::DefaultHasher},
+        hash::{Hash, Hasher},
+        sync::Arc,
+    };
 
     use papo_core::{Config, Session};
 
@@ -341,6 +345,12 @@ mod tests {
             session.handle_line(now, line);
         }
         crate::driver::test_support::client_with_commands(&session).0
+    }
+
+    fn handle_hash(value: &impl Hash) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        value.hash(&mut hasher);
+        hasher.finish()
     }
 
     #[test]
@@ -395,6 +405,8 @@ mod tests {
         ] {
             assert_eq!(left == right, equal);
         }
+        assert_eq!(handle_hash(&alice), handle_hash(&same_alice));
+        assert_ne!(handle_hash(&alice), handle_hash(&bob));
         assert_eq!(HashSet::from([alice, same_alice, bob]).len(), 2);
 
         let release = client.channel("#release").unwrap();
@@ -407,6 +419,8 @@ mod tests {
         ] {
             assert_eq!(left == right, equal);
         }
+        assert_eq!(handle_hash(&release), handle_hash(&same_release));
+        assert_ne!(handle_hash(&release), handle_hash(&operations));
         assert_eq!(HashSet::from([release, same_release, operations]).len(), 2);
     }
 
