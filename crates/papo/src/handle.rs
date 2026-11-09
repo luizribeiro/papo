@@ -328,7 +328,24 @@ impl crate::AsConversation for ChannelHandle {
 
 #[cfg(all(test, not(browser)))]
 mod tests {
+    use std::collections::HashSet;
+
     use papo_core::{Config, Session};
+
+    fn client_with_joined_users() -> crate::Client {
+        let now = crate::rt::now_mono();
+        let mut session = Session::new(Config::default().nick("papo"));
+        for line in [
+            b":ergo.test 005 papo CASEMAPPING=rfc1459 CHANTYPES=# :are supported".as_slice(),
+            b":papo!papo@localhost JOIN #release * :Papo Client".as_slice(),
+            b":papo!papo@localhost JOIN #operations * :Papo Client".as_slice(),
+            b":Alice!alice@staff.ergo.chat JOIN #release alice-account :Alice Example".as_slice(),
+            b":bob!bob@users.ergo.chat JOIN #release bob-account :Bob Example".as_slice(),
+        ] {
+            session.handle_line(now, line);
+        }
+        crate::driver::test_support::client_with_commands(&session).0
+    }
 
     #[test]
     fn query_and_channel_send_nothing() {
@@ -346,6 +363,55 @@ mod tests {
         assert_eq!(handle, handle.clone());
         assert_eq!(handle.name(), "#release");
         assert!(commands.try_recv().is_err());
+    }
+
+    #[test]
+    fn handles_debug_only_their_current_names() {
+        let client = client_with_joined_users();
+        let alice = client.query("Alice").unwrap();
+        let release = client.channel("#release").unwrap();
+
+        assert!(alice.proof().is_some());
+        assert_eq!(
+            format!("{alice:?}"),
+            format!("UserHandle {{ nick: {:?}, .. }}", alice.nick())
+        );
+        assert_eq!(
+            format!("{release:?}"),
+            format!("ChannelHandle {{ name: {:?}, .. }}", release.name())
+        );
+        for debug in [format!("{alice:?}"), format!("{release:?}")] {
+            assert!(!debug.contains("alice-account"));
+            assert!(!debug.contains("proof"));
+        }
+    }
+
+    #[test]
+    fn handles_compare_and_hash_by_identity() {
+        let client = client_with_joined_users();
+        let alice = client.query("Alice").unwrap();
+        let same_alice = client.query("alice").unwrap();
+        let bob = client.query("bob").unwrap();
+        for (left, right, equal) in [
+            (&alice, &same_alice, true),
+            (&alice, &bob, false),
+            (&bob, &bob, true),
+        ] {
+            assert_eq!(left == right, equal);
+        }
+        assert_eq!(HashSet::from([alice, same_alice, bob]).len(), 2);
+
+        let release = client.channel("#release").unwrap();
+        let same_release = client.channel("#release").unwrap();
+        let operations = client.channel("#operations").unwrap();
+        for (left, right, equal) in [
+            (&release, &same_release, true),
+            (&release, &operations, false),
+            (&operations, &operations, true),
+        ] {
+            assert_eq!(left == right, equal);
+        }
+        assert_eq!(HashSet::from([release, same_release, operations]).len(), 2);
     }
 
     #[tokio::test]
