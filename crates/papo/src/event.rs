@@ -4722,17 +4722,25 @@ mod tests {
         let Some(core) = session.poll_event() else {
             panic!("expected batch fallback")
         };
-        let CoreEvent::Line(line) = from_core(core) else {
-            panic!("batch fallback was not a line")
+        let mapped = from_core(core);
+        let (line, incomplete) = match mapped {
+            CoreEvent::Line(line) => (line, false),
+            CoreEvent::Incomplete(line) => (line, true),
+            _ => panic!("{kind} fallback was not a message line"),
         };
-        super::incoming_from_core(
+        let event = super::incoming_from_core(
             line,
             crate::Origin::NONE,
             &Isupport::default(),
             false,
             false,
             UNIX_EPOCH,
-        )
+        );
+        if incomplete {
+            super::mark_incomplete(event).unwrap()
+        } else {
+            event
+        }
     }
 
     fn labelled_session(now: Instant, config: Config) -> Session {
@@ -5131,6 +5139,13 @@ mod tests {
                 Event::Other(line) if line.as_ref().command_is("PRIVMSG")
             ));
         }
+
+        let Event::Incomplete(Incomplete::Notice(partial)) =
+            batched_event("draft/multiline", "NOTICE #papo :partial batch")
+        else {
+            panic!("expected incomplete multiline notice")
+        };
+        assert_eq!(partial.text, "partial batch");
 
         for kind in ["netsplit", "netjoin"] {
             let Event::Notice(live) = batched_event(kind, "NOTICE papo :live batch") else {

@@ -1412,16 +1412,38 @@ where
             crate::rt::now_wall(),
             Some(session.state()),
         );
-        if let event::CoreEvent::RequestAborted { id, transmitted } = core_event {
-            join_keys.remove(&id);
-            if let Some(result) = requests.remove(&id) {
-                let error = if transmitted {
-                    Error::Interrupted(disconnected.clone())
-                } else {
-                    Error::disconnected(disconnected.clone())
-                };
-                result.fail(error);
+        match core_event {
+            event::CoreEvent::RequestAborted { id, transmitted } => {
+                join_keys.remove(&id);
+                if let Some(result) = requests.remove(&id) {
+                    let error = if transmitted {
+                        Error::Interrupted(disconnected.clone())
+                    } else {
+                        Error::disconnected(disconnected.clone())
+                    };
+                    result.fail(error);
+                }
             }
+            event::CoreEvent::Incomplete(line) => {
+                let event = crate::event_impl::incoming_from_core(
+                    line,
+                    session.state().nick().origin(),
+                    session.isupport(),
+                    session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
+                    can_prove_non_bot(session),
+                    crate::rt::now_wall(),
+                );
+                if let Some(mut event) = crate::event_impl::mark_incomplete(event) {
+                    let state = events
+                        .state
+                        .read()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner);
+                    crate::event_impl::attach_live_peer_key(&mut event, &state);
+                    drop(state);
+                    enqueue_event(events, &mut pending_events, event);
+                }
+            }
+            _ => {}
         }
     }
     for (_, result) in transmits {
