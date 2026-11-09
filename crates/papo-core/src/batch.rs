@@ -31,6 +31,7 @@ struct OpenBatch {
     params: Vec<String>,
     end: bool,
     messages: Vec<Line>,
+    incomplete: Vec<usize>,
     completed: Vec<BatchEvent>,
     multiline_collectors: Vec<String>,
     lines: usize,
@@ -201,6 +202,7 @@ impl Batches {
                     .tags()
                     .any(|(key, _)| key == "draft/chathistory-end"),
                 messages: Vec::new(),
+                incomplete: Vec::new(),
                 completed: Vec::new(),
                 multiline_collectors: multiline_collectors.clone(),
                 lines: 0,
@@ -261,6 +263,7 @@ impl Batches {
                 reference,
                 &batch.multiline_collectors,
                 &replacement,
+                false,
             );
         }
         if let Some(label) = batch.label.take() {
@@ -484,7 +487,7 @@ impl Batches {
             .collect();
         let mut absorbed_multiline = HashSet::new();
         for (candidate, collectors, messages) in multiline_replacements {
-            self.replace_multiline_placeholders(&candidate, &collectors, &messages);
+            self.replace_multiline_placeholders(&candidate, &collectors, &messages, false);
             absorbed_multiline.insert(candidate);
         }
         let mut messages = Vec::new();
@@ -565,6 +568,7 @@ impl Batches {
         reference: &str,
         collectors: &[String],
         replacement: &[Line],
+        incomplete: bool,
     ) {
         let opening = format!("+{reference}");
         for collector in collectors {
@@ -582,9 +586,18 @@ impl Batches {
                 .iter()
                 .map(|message| retained_bytes(&message.as_ref()))
                 .sum::<usize>();
+            let replacement_len = replacement.len();
             batch
                 .messages
                 .splice(index..=index, replacement.iter().cloned());
+            for stored in &mut batch.incomplete {
+                if *stored > index {
+                    *stored = stored.saturating_sub(1).saturating_add(replacement_len);
+                }
+            }
+            if incomplete {
+                batch.incomplete.extend(index..index + replacement_len);
+            }
             if replacement_bytes >= previous {
                 let added = replacement_bytes - previous;
                 batch.buffered_bytes = batch.buffered_bytes.saturating_add(added);
@@ -710,7 +723,10 @@ fn complete(batch: &mut OpenBatch, reference: &str) -> Vec<BatchEvent> {
         "netsplit" => "QUIT",
         "netjoin" => "JOIN",
         _ => {
-            let items = history_items(std::mem::take(&mut batch.messages));
+            let items = history_items_with_indices(
+                std::mem::take(&mut batch.messages),
+                &std::mem::take(&mut batch.incomplete),
+            );
             return vec![BatchEvent::History {
                 target: batch.params.first().cloned().unwrap_or_default(),
                 end: batch.end || items.is_empty(),
@@ -826,6 +842,34 @@ fn collect_messages(event: BatchEvent, messages: &mut Vec<Line>) {
         }
         BatchEvent::HistoryTargets(_) | BatchEvent::Abandoned { .. } => {}
     }
+}
+
+fn history_items_with_indices(messages: Vec<Line>, incomplete: &[usize]) -> Vec<HistoryItem> {
+    let mut msgids = HashSet::new();
+    messages
+        .into_iter()
+        .enumerate()
+        .filter_map(|(index, message)| {
+            let parsed = message.as_ref();
+            let msgid = parsed.tag("msgid").map(std::borrow::Cow::into_owned);
+            let context = parsed
+                .tags()
+                .any(|(key, _)| key == "draft/chathistory-context");
+            msgid.is_none_or(|msgid| msgids.insert(msgid)).then(|| {
+                let item = HistoryLine {
+                    line: message,
+                    context,
+                    authorship: crate::Authorship::Unknown,
+                    subject_authorship: crate::Authorship::Unknown,
+                };
+                if incomplete.contains(&index) {
+                    HistoryItem::Incomplete(item)
+                } else {
+                    classify_history_item(item)
+                }
+            })
+        })
+        .collect()
 }
 
 fn history_items(messages: Vec<Line>) -> Vec<HistoryItem> {
