@@ -180,6 +180,7 @@ const INTERNAL_REEXPORTS: &[(&str, &str)] = &[
     ("papo_proto::LineRef", "papo::LineRef"),
     ("papo_proto::Param", "papo::Param"),
     ("papo_proto::Source", "papo::LineSource"),
+    ("papo_proto::time::ServerTime", "papo::ServerTime"),
     ("papo_proto::WireLine", "papo::WireLine"),
 ];
 

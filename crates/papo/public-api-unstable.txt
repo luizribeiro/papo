@@ -19,6 +19,7 @@ pub use papo::Feature
 pub use papo::FormatBuilder
 pub use papo::InvalidIdentifier
 pub use papo::InvalidRateLimit
+pub use papo::InvalidServerTime
 pub use papo::InvalidUrl
 pub use papo::Line
 pub use papo::LineRef
@@ -48,6 +49,7 @@ pub use papo::Refusal
 pub use papo::Sasl
 pub use papo::Secret
 pub use papo::ServerName
+pub use papo::ServerTime
 pub use papo::Span
 pub use papo::StateLimit
 pub use papo::Style
@@ -243,8 +245,8 @@ pub papo::event::Warning::BatchAbandoned::id: papo::BatchId
 pub papo::event::Warning::BatchAbandoned::reason: papo::BatchAbandonReason
 #[non_exhaustive] pub papo::event::Warning::ChannelRecreated
 pub papo::event::Warning::ChannelRecreated::channel: papo::ChannelName
-pub papo::event::Warning::ChannelRecreated::created_at: std::time::SystemTime
-pub papo::event::Warning::ChannelRecreated::previous_created_at: std::time::SystemTime
+pub papo::event::Warning::ChannelRecreated::created_at: papo_proto::time::ServerTime
+pub papo::event::Warning::ChannelRecreated::previous_created_at: papo_proto::time::ServerTime
 #[non_exhaustive] pub papo::event::Warning::Malformed
 pub papo::event::Warning::Malformed::line: alloc::vec::Vec<u8>
 #[non_exhaustive] pub papo::event::Warning::MonitorListFull
@@ -276,7 +278,7 @@ pub papo::event::AccountChanged::actor: papo::UserSource
 pub papo::event::AccountChanged::authorship: papo::Authorship
 pub papo::event::AccountChanged::new: papo::Account
 pub papo::event::AccountChanged::received_at: std::time::SystemTime
-pub papo::event::AccountChanged::server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::AccountChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl core::clone::Clone for papo::event::AccountChanged
 pub fn papo::event::AccountChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::AccountChanged
@@ -315,7 +317,7 @@ pub papo::event::AwayChanged::actor: papo::UserSource
 pub papo::event::AwayChanged::authorship: papo::Authorship
 pub papo::event::AwayChanged::new: papo::Away
 pub papo::event::AwayChanged::received_at: std::time::SystemTime
-pub papo::event::AwayChanged::server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::AwayChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl core::clone::Clone for papo::event::AwayChanged
 pub fn papo::event::AwayChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::AwayChanged
@@ -356,7 +358,7 @@ pub papo::event::BroadcastCtcp::command: papo::Command
 pub papo::event::BroadcastCtcp::msgid: core::option::Option<papo::MessageId>
 pub papo::event::BroadcastCtcp::params: core::option::Option<alloc::string::String>
 pub papo::event::BroadcastCtcp::received_at: std::time::SystemTime
-pub papo::event::BroadcastCtcp::server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::BroadcastCtcp::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::event::BroadcastCtcp::tags: papo::Tags
 pub papo::event::BroadcastCtcp::to: papo::event::Broadcast
 impl papo::event::BroadcastCtcp
@@ -446,7 +448,7 @@ pub papo::event::ChannelRenamed::new: papo::ChannelName
 pub papo::event::ChannelRenamed::old: papo::ChannelName
 pub papo::event::ChannelRenamed::reason: core::option::Option<alloc::string::String>
 pub papo::event::ChannelRenamed::received_at: std::time::SystemTime
-pub papo::event::ChannelRenamed::server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::ChannelRenamed::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl core::clone::Clone for papo::event::ChannelRenamed
 pub fn papo::event::ChannelRenamed::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::ChannelRenamed
@@ -525,7 +527,7 @@ pub papo::event::CtcpQuery::authorship: papo::Authorship
 pub papo::event::CtcpQuery::command: papo::Command
 pub papo::event::CtcpQuery::params: core::option::Option<alloc::string::String>
 pub papo::event::CtcpQuery::received_at: std::time::SystemTime
-pub papo::event::CtcpQuery::server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::CtcpQuery::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::event::CtcpQuery::tags: papo::Tags
 impl papo::event::CtcpQuery
 pub const fn papo::event::CtcpQuery::conversation(&self) -> &papo::Conversation
@@ -557,7 +559,7 @@ pub papo::event::CtcpReply::authorship: papo::Authorship
 pub papo::event::CtcpReply::command: papo::Command
 pub papo::event::CtcpReply::params: core::option::Option<alloc::string::String>
 pub papo::event::CtcpReply::received_at: std::time::SystemTime
-pub papo::event::CtcpReply::server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::CtcpReply::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::event::CtcpReply::tags: papo::Tags
 impl papo::event::CtcpReply
 pub const fn papo::event::CtcpReply::conversation(&self) -> &papo::Conversation
@@ -607,7 +609,7 @@ pub papo::event::HostChanged::authorship: papo::Authorship
 pub papo::event::HostChanged::new_host: alloc::string::String
 pub papo::event::HostChanged::new_username: alloc::string::String
 pub papo::event::HostChanged::received_at: std::time::SystemTime
-pub papo::event::HostChanged::server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::HostChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl core::clone::Clone for papo::event::HostChanged
 pub fn papo::event::HostChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::HostChanged
@@ -629,7 +631,7 @@ pub papo::event::Invited::authorship: papo::Authorship
 pub papo::event::Invited::channel: papo::ChannelName
 pub papo::event::Invited::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Invited::received_at: std::time::SystemTime
-pub papo::event::Invited::server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::Invited::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::event::Invited::subject: papo::Nick
 pub papo::event::Invited::subject_authorship: papo::Authorship
 impl core::clone::Clone for papo::event::Invited
@@ -656,7 +658,7 @@ pub papo::event::Joined::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Joined::netjoin: core::option::Option<papo::event::SplitServers>
 pub papo::event::Joined::realname: core::option::Option<alloc::string::String>
 pub papo::event::Joined::received_at: std::time::SystemTime
-pub papo::event::Joined::server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::Joined::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl core::clone::Clone for papo::event::Joined
 pub fn papo::event::Joined::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Joined
@@ -679,7 +681,7 @@ pub papo::event::Kicked::channel: papo::ChannelName
 pub papo::event::Kicked::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Kicked::reason: core::option::Option<alloc::string::String>
 pub papo::event::Kicked::received_at: std::time::SystemTime
-pub papo::event::Kicked::server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::Kicked::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::event::Kicked::subject: papo::Nick
 pub papo::event::Kicked::subject_authorship: papo::Authorship
 impl core::clone::Clone for papo::event::Kicked
@@ -736,9 +738,9 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::MembersRefreshed
 pub papo::event::MessageGap::conversation: papo::Conversation
 pub papo::event::MessageGap::dropped: u64
 pub papo::event::MessageGap::first_msgid: core::option::Option<papo::MessageId>
-pub papo::event::MessageGap::first_server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::MessageGap::first_server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::event::MessageGap::last_msgid: core::option::Option<papo::MessageId>
-pub papo::event::MessageGap::last_server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::MessageGap::last_server_time: core::option::Option<papo_proto::time::ServerTime>
 impl core::clone::Clone for papo::event::MessageGap
 pub fn papo::event::MessageGap::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::MessageGap
@@ -779,7 +781,7 @@ pub papo::event::ModeChanged::authorship: papo::Authorship
 pub papo::event::ModeChanged::changes: alloc::vec::Vec<papo::ModeChange>
 pub papo::event::ModeChanged::msgid: core::option::Option<papo::MessageId>
 pub papo::event::ModeChanged::received_at: std::time::SystemTime
-pub papo::event::ModeChanged::server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::ModeChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::event::ModeChanged::subject: papo::Subject
 impl papo::event::ModeChanged
 pub fn papo::event::ModeChanged::about(&self, &papo::ModeChange) -> papo::Authorship
@@ -857,7 +859,7 @@ pub papo::event::NickChanged::channels: alloc::vec::Vec<papo::ChannelName>
 pub papo::event::NickChanged::msgid: core::option::Option<papo::MessageId>
 pub papo::event::NickChanged::new: papo::Nick
 pub papo::event::NickChanged::received_at: std::time::SystemTime
-pub papo::event::NickChanged::server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::NickChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl papo::event::NickChanged
 pub fn papo::event::NickChanged::peer_key(&self) -> core::option::Option<&papo::PeerKey>
 impl core::clone::Clone for papo::event::NickChanged
@@ -886,7 +888,7 @@ pub papo::event::Notice::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Notice::raw_text: alloc::string::String
 pub papo::event::Notice::received_at: std::time::SystemTime
 pub papo::event::Notice::relayed_by: core::option::Option<papo::Nick>
-pub papo::event::Notice::server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::Notice::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::event::Notice::status: core::option::Option<papo::Prefix>
 pub papo::event::Notice::tags: papo::Tags
 pub papo::event::Notice::text: alloc::string::String
@@ -917,7 +919,7 @@ pub papo::event::Parted::channel: papo::ChannelName
 pub papo::event::Parted::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Parted::reason: core::option::Option<alloc::string::String>
 pub papo::event::Parted::received_at: std::time::SystemTime
-pub papo::event::Parted::server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::Parted::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl core::clone::Clone for papo::event::Parted
 pub fn papo::event::Parted::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Parted
@@ -941,7 +943,7 @@ pub papo::event::Quit::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Quit::netsplit: core::option::Option<papo::event::SplitServers>
 pub papo::event::Quit::reason: core::option::Option<alloc::string::String>
 pub papo::event::Quit::received_at: std::time::SystemTime
-pub papo::event::Quit::server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::Quit::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl core::clone::Clone for papo::event::Quit
 pub fn papo::event::Quit::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Quit
@@ -964,7 +966,7 @@ pub papo::event::Reacted::authorship: papo::Authorship
 pub papo::event::Reacted::reaction: alloc::string::String
 pub papo::event::Reacted::reacts_to: papo::MessageId
 pub papo::event::Reacted::received_at: std::time::SystemTime
-pub papo::event::Reacted::server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::Reacted::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl papo::event::Reacted
 pub const fn papo::event::Reacted::conversation(&self) -> &papo::Conversation
 pub const fn papo::event::Reacted::msgid(&self) -> core::option::Option<&papo::MessageId>
@@ -991,7 +993,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Reacted
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Reacted
 #[non_exhaustive] pub struct papo::event::ReadMarkerChanged
 pub papo::event::ReadMarkerChanged::conversation: papo::Conversation
-pub papo::event::ReadMarkerChanged::read_until: core::option::Option<std::time::SystemTime>
+pub papo::event::ReadMarkerChanged::read_until: core::option::Option<papo_proto::time::ServerTime>
 impl papo::event::ReadMarkerChanged
 pub fn papo::event::ReadMarkerChanged::origin(&self) -> papo::Origin
 impl core::clone::Clone for papo::event::ReadMarkerChanged
@@ -1014,7 +1016,7 @@ pub papo::event::RealnameChanged::actor: papo::UserSource
 pub papo::event::RealnameChanged::authorship: papo::Authorship
 pub papo::event::RealnameChanged::new: alloc::string::String
 pub papo::event::RealnameChanged::received_at: std::time::SystemTime
-pub papo::event::RealnameChanged::server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::RealnameChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl core::clone::Clone for papo::event::RealnameChanged
 pub fn papo::event::RealnameChanged::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::RealnameChanged
@@ -1036,7 +1038,7 @@ pub papo::event::Redacted::authorship: papo::Authorship
 pub papo::event::Redacted::reason: core::option::Option<alloc::string::String>
 pub papo::event::Redacted::received_at: std::time::SystemTime
 pub papo::event::Redacted::redacts: papo::MessageId
-pub papo::event::Redacted::server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::Redacted::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl papo::event::Redacted
 pub const fn papo::event::Redacted::conversation(&self) -> &papo::Conversation
 pub const fn papo::event::Redacted::msgid(&self) -> core::option::Option<&papo::MessageId>
@@ -1068,7 +1070,7 @@ pub papo::event::ServerNotice::kind: papo::event::ServerNoticeKind
 pub papo::event::ServerNotice::msgid: core::option::Option<papo::MessageId>
 pub papo::event::ServerNotice::raw_text: alloc::string::String
 pub papo::event::ServerNotice::received_at: std::time::SystemTime
-pub papo::event::ServerNotice::server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::ServerNotice::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::event::ServerNotice::status: core::option::Option<papo::Prefix>
 pub papo::event::ServerNotice::tags: papo::Tags
 pub papo::event::ServerNotice::text: alloc::string::String
@@ -1135,7 +1137,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::StandardReply
 pub papo::event::TagMsg::actor: papo::UserSource
 pub papo::event::TagMsg::authorship: papo::Authorship
 pub papo::event::TagMsg::received_at: std::time::SystemTime
-pub papo::event::TagMsg::server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::TagMsg::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::event::TagMsg::tags: papo::Tags
 impl papo::event::TagMsg
 pub const fn papo::event::TagMsg::conversation(&self) -> &papo::Conversation
@@ -1167,7 +1169,7 @@ pub papo::event::TopicChanged::authorship: papo::Authorship
 pub papo::event::TopicChanged::channel: papo::ChannelName
 pub papo::event::TopicChanged::msgid: core::option::Option<papo::MessageId>
 pub papo::event::TopicChanged::received_at: std::time::SystemTime
-pub papo::event::TopicChanged::server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::TopicChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::event::TopicChanged::topic: core::option::Option<alloc::string::String>
 impl core::clone::Clone for papo::event::TopicChanged
 pub fn papo::event::TopicChanged::clone(&self) -> Self
@@ -1190,7 +1192,7 @@ pub papo::event::TypingChanged::authorship: papo::Authorship
 pub papo::event::TypingChanged::conversation: papo::Conversation
 pub papo::event::TypingChanged::reason: papo::event::TypingReason
 pub papo::event::TypingChanged::received_at: std::time::SystemTime
-pub papo::event::TypingChanged::server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::TypingChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::event::TypingChanged::state: papo::Typing
 pub papo::event::TypingChanged::status: core::option::Option<papo::Prefix>
 impl papo::event::TypingChanged
@@ -1217,7 +1219,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::TypingChanged
 pub papo::event::Unparsed::line: papo::Line
 pub papo::event::Unparsed::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Unparsed::received_at: std::time::SystemTime
-pub papo::event::Unparsed::server_time: core::option::Option<std::time::SystemTime>
+pub papo::event::Unparsed::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl core::clone::Clone for papo::event::Unparsed
 pub fn papo::event::Unparsed::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::Unparsed
@@ -1732,7 +1734,7 @@ impl papo::Event
 pub fn papo::Event::conversation(&self) -> core::option::Option<papo::Conversation>
 pub fn papo::Event::msgid(&self) -> core::option::Option<&papo::MessageId>
 pub fn papo::Event::received_at(&self) -> core::option::Option<std::time::SystemTime>
-pub fn papo::Event::server_time(&self) -> core::option::Option<std::time::SystemTime>
+pub fn papo::Event::server_time(&self) -> core::option::Option<papo_proto::time::ServerTime>
 impl core::clone::Clone for papo::Event
 pub fn papo::Event::clone(&self) -> Self
 impl core::cmp::Eq for papo::Event
@@ -1890,12 +1892,12 @@ impl core::marker::UnsafeUnpin for papo::InvalidInput
 impl core::panic::unwind_safe::RefUnwindSafe for papo::InvalidInput
 impl core::panic::unwind_safe::UnwindSafe for papo::InvalidInput
 #[non_exhaustive] pub enum papo::MarkReadOutcome
-pub papo::MarkReadOutcome::Advanced(std::time::SystemTime)
+pub papo::MarkReadOutcome::Advanced(papo_proto::time::ServerTime)
 #[non_exhaustive] pub papo::MarkReadOutcome::BehindLatest
-pub papo::MarkReadOutcome::BehindLatest::latest: std::time::SystemTime
-pub papo::MarkReadOutcome::BehindLatest::stored: std::time::SystemTime
+pub papo::MarkReadOutcome::BehindLatest::latest: papo_proto::time::ServerTime
+pub papo::MarkReadOutcome::BehindLatest::stored: papo_proto::time::ServerTime
 #[non_exhaustive] pub papo::MarkReadOutcome::Unchanged
-pub papo::MarkReadOutcome::Unchanged::stored: std::time::SystemTime
+pub papo::MarkReadOutcome::Unchanged::stored: papo_proto::time::ServerTime
 impl core::clone::Clone for papo::MarkReadOutcome
 pub fn papo::MarkReadOutcome::clone(&self) -> Self
 impl core::cmp::Eq for papo::MarkReadOutcome
@@ -1990,7 +1992,7 @@ impl core::marker::UnsafeUnpin for papo::PeerKeyMismatch
 impl core::panic::unwind_safe::RefUnwindSafe for papo::PeerKeyMismatch
 impl core::panic::unwind_safe::UnwindSafe for papo::PeerKeyMismatch
 #[non_exhaustive] pub enum papo::ReadMarker
-pub papo::ReadMarker::ReadUntil(std::time::SystemTime)
+pub papo::ReadMarker::ReadUntil(papo_proto::time::ServerTime)
 pub papo::ReadMarker::Unset
 impl core::clone::Clone for papo::ReadMarker
 pub fn papo::ReadMarker::clone(&self) -> Self
@@ -2011,7 +2013,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::ReadMarker
 #[non_exhaustive] pub enum papo::SentOutcome
 #[non_exhaustive] pub papo::SentOutcome::Confirmed
 pub papo::SentOutcome::Confirmed::lines: papo::ConfirmedLines
-pub papo::SentOutcome::Confirmed::server_time: core::option::Option<std::time::SystemTime>
+pub papo::SentOutcome::Confirmed::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::SentOutcome::Unconfirmed
 impl core::clone::Clone for papo::SentOutcome
 pub fn papo::SentOutcome::clone(&self) -> Self
@@ -2263,7 +2265,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::ChangeNetwork
 impl core::panic::unwind_safe::UnwindSafe for papo::ChangeNetwork
 pub struct papo::Channel
 impl papo::Channel
-pub const fn papo::Channel::created_at(&self) -> core::option::Option<std::time::SystemTime>
+pub const fn papo::Channel::created_at(&self) -> core::option::Option<papo_proto::time::ServerTime>
 pub const fn papo::Channel::is_synced(&self) -> bool
 pub const fn papo::Channel::key(&self) -> core::option::Option<&papo::Secret>
 pub fn papo::Channel::list(&self, papo::ListMode) -> core::option::Option<&[papo::ModeListEntry]>
@@ -2273,7 +2275,7 @@ pub fn papo::Channel::mode(&self, char) -> core::option::Option<papo::ModeValue<
 pub fn papo::Channel::modes(&self) -> impl core::iter::traits::iterator::Iterator<Item = (char, papo::ModeValue<'_>)>
 pub fn papo::Channel::name(&self) -> &papo::ChannelName
 pub fn papo::Channel::topic(&self) -> core::option::Option<&str>
-pub const fn papo::Channel::topic_set_at(&self) -> core::option::Option<std::time::SystemTime>
+pub const fn papo::Channel::topic_set_at(&self) -> core::option::Option<papo_proto::time::ServerTime>
 pub const fn papo::Channel::topic_set_by(&self) -> core::option::Option<&papo::Source>
 impl core::clone::Clone for papo::Channel
 pub fn papo::Channel::clone(&self) -> Self
@@ -2366,10 +2368,10 @@ pub fn papo::Client::direct_pinned(&self, impl papo::AsNick, &papo::PeerKey) -> 
 impl papo::Client
 pub fn papo::Client::direct_to(&self, &impl papo::DirectSource) -> papo::RequestFuture<papo::DirectRef>
 impl papo::Client
-pub fn papo::Client::fetch_read_marker(&self, impl papo::AsConversation) -> papo::RequestFuture<core::option::Option<std::time::SystemTime>>
+pub fn papo::Client::fetch_read_marker(&self, impl papo::AsConversation) -> papo::RequestFuture<core::option::Option<papo_proto::time::ServerTime>>
 pub fn papo::Client::history(&self, impl papo::AsConversation) -> papo::History
 pub fn papo::Client::mark_read(&self, impl papo::AsConversation) -> papo::MarkReadRequest
-pub fn papo::Client::recent_conversations(&self, std::time::SystemTime, std::time::SystemTime) -> papo::RequestFuture<alloc::vec::Vec<papo::RecentConversation>>
+pub fn papo::Client::recent_conversations(&self, papo_proto::time::ServerTime, papo_proto::time::ServerTime) -> papo::RequestFuture<alloc::vec::Vec<papo::RecentConversation>>
 impl papo::Client
 pub fn papo::Client::list_modes(&self, impl papo::AsChannel, papo::ListMode) -> papo::RequestFuture<alloc::vec::Vec<papo::ModeListEntry>>
 pub fn papo::Client::mode(&self, impl papo::AsConversation) -> papo::SetModes
@@ -2677,8 +2679,8 @@ impl core::convert::From<&papo::MessageId> for papo::HistoryReference
 pub fn papo::HistoryReference::from(&papo::MessageId) -> Self
 impl core::convert::From<papo::MessageId> for papo::HistoryReference
 pub fn papo::HistoryReference::from(papo::MessageId) -> Self
-impl core::convert::From<std::time::SystemTime> for papo::HistoryReference
-pub fn papo::HistoryReference::from(std::time::SystemTime) -> Self
+impl core::convert::From<papo_proto::time::ServerTime> for papo::HistoryReference
+pub fn papo::HistoryReference::from(papo_proto::time::ServerTime) -> Self
 impl core::fmt::Debug for papo::HistoryReference
 pub fn papo::HistoryReference::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::marker::StructuralPartialEq for papo::HistoryReference
@@ -2891,7 +2893,7 @@ pub papo::Message::kind: papo::MessageKind
 pub papo::Message::raw_text: alloc::string::String
 pub papo::Message::received_at: std::time::SystemTime
 pub papo::Message::relayed_by: core::option::Option<papo::Nick>
-pub papo::Message::server_time: core::option::Option<std::time::SystemTime>
+pub papo::Message::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo::Message::tags: papo::Tags
 pub papo::Message::text: alloc::string::String
 impl papo::Message
@@ -2990,7 +2992,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::Metadata
 impl core::panic::unwind_safe::UnwindSafe for papo::Metadata
 #[non_exhaustive] pub struct papo::ModeListEntry
 pub papo::ModeListEntry::mask: papo::Mask
-pub papo::ModeListEntry::set_at: core::option::Option<std::time::SystemTime>
+pub papo::ModeListEntry::set_at: core::option::Option<papo_proto::time::ServerTime>
 impl papo::ModeListEntry
 pub const fn papo::ModeListEntry::actor(&self) -> core::option::Option<&papo::Source>
 impl core::clone::Clone for papo::ModeListEntry
@@ -3240,7 +3242,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::PushKeys
 impl core::panic::unwind_safe::UnwindSafe for papo::PushKeys
 #[non_exhaustive] pub struct papo::RecentConversation
 pub papo::RecentConversation::conversation: papo::Conversation
-pub papo::RecentConversation::latest_server_time: std::time::SystemTime
+pub papo::RecentConversation::latest_server_time: papo_proto::time::ServerTime
 impl papo::RecentConversation
 pub fn papo::RecentConversation::origin(&self) -> papo::Origin
 impl core::clone::Clone for papo::RecentConversation
@@ -4362,6 +4364,26 @@ impl core::marker::Unpin for papo::InvalidRateLimit
 impl core::marker::UnsafeUnpin for papo::InvalidRateLimit
 impl core::panic::unwind_safe::RefUnwindSafe for papo::InvalidRateLimit
 impl core::panic::unwind_safe::UnwindSafe for papo::InvalidRateLimit
+pub struct papo::InvalidServerTime
+impl core::clone::Clone for papo::InvalidServerTime
+pub fn papo::InvalidServerTime::clone(&self) -> Self
+impl core::cmp::Eq for papo::InvalidServerTime
+impl core::cmp::PartialEq for papo::InvalidServerTime
+pub fn papo::InvalidServerTime::eq(&self, &Self) -> bool
+impl core::error::Error for papo::InvalidServerTime
+impl core::fmt::Debug for papo::InvalidServerTime
+pub fn papo::InvalidServerTime::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo::InvalidServerTime
+pub fn papo::InvalidServerTime::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo::InvalidServerTime
+impl core::marker::StructuralPartialEq for papo::InvalidServerTime
+impl core::marker::Freeze for papo::InvalidServerTime
+impl core::marker::Send for papo::InvalidServerTime
+impl core::marker::Sync for papo::InvalidServerTime
+impl core::marker::Unpin for papo::InvalidServerTime
+impl core::marker::UnsafeUnpin for papo::InvalidServerTime
+impl core::panic::unwind_safe::RefUnwindSafe for papo::InvalidServerTime
+impl core::panic::unwind_safe::UnwindSafe for papo::InvalidServerTime
 #[non_exhaustive] pub enum papo::InvalidUrl
 pub papo::InvalidUrl::ControlCharacter
 pub papo::InvalidUrl::Empty
@@ -5158,6 +5180,30 @@ pub fn papo::ServerName::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt:
 impl core::hash::Hash for papo::ServerName
 pub fn papo::ServerName::hash<H: core::hash::Hasher>(&self, &mut H)
 impl core::ops::deref::Deref for papo::ServerName
+pub struct papo::ServerTime(_)
+impl papo::ServerTime
+pub const fn papo::ServerTime::as_millis(self) -> i64
+pub fn papo::ServerTime::from_stored(&str) -> core::result::Result<Self, papo::InvalidServerTime>
+pub fn papo::ServerTime::from_stored_millis(i64) -> core::result::Result<Self, papo::InvalidServerTime>
+pub fn papo::ServerTime::to_system_time(self) -> std::time::SystemTime
+impl core::clone::Clone for papo::ServerTime
+pub fn papo::ServerTime::clone(&self) -> Self
+impl core::cmp::Eq for papo::ServerTime
+impl core::cmp::Ord for papo::ServerTime
+pub fn papo::ServerTime::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for papo::ServerTime
+pub fn papo::ServerTime::eq(&self, &Self) -> bool
+impl core::cmp::PartialOrd for papo::ServerTime
+pub fn papo::ServerTime::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for papo::ServerTime
+pub fn papo::ServerTime::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo::ServerTime
+pub fn papo::ServerTime::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::ServerTime
+pub fn papo::ServerTime::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for papo::ServerTime
+impl core::marker::StructuralPartialEq for papo::ServerTime
+impl core::str::traits::FromStr for papo::ServerTime
 #[non_exhaustive] pub struct papo::Span<'a>
 pub papo::Span::style: papo::Style
 pub papo::Span::text: &'a str

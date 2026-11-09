@@ -98,7 +98,9 @@ END {
   preferred["papo::Away"] = "papo_core::Away"
   preferred["papo::Cap"] = "papo_core::Cap"
   preferred["papo::InvalidUrl"] = "papo_core::InvalidUrl"
+  preferred["papo::InvalidServerTime"] = "papo_proto::time::InvalidServerTime"
   preferred["papo::ModeChange"] = "papo_core::ModeChange"
+  preferred["papo::ServerTime"] = "papo_proto::time::ServerTime"
 
   for (name in target_for) {
     target = target_for[name]

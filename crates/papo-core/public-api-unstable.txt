@@ -1,11 +1,13 @@
 pub mod papo_core
 pub use papo_core::BatchId
 pub use papo_core::BatchType
+pub use papo_core::InvalidServerTime
 pub use papo_core::InvalidUrl
 pub use papo_core::ModeAction
 pub use papo_core::Prefix
 pub use papo_core::Rank
 pub use papo_core::Secret
+pub use papo_core::ServerTime
 pub use papo_core::WireLine
 pub mod papo_core::cap
 pub enum papo_core::cap::Request
@@ -537,8 +539,8 @@ pub papo_core::Event::CasemappingChanged::new: papo::Casemapping
 pub papo_core::Event::CasemappingChanged::old: papo::Casemapping
 #[non_exhaustive] pub papo_core::Event::ChannelRecreated
 pub papo_core::Event::ChannelRecreated::channel: papo::ChannelName
-pub papo_core::Event::ChannelRecreated::created_at: std::time::SystemTime
-pub papo_core::Event::ChannelRecreated::previous_created_at: std::time::SystemTime
+pub papo_core::Event::ChannelRecreated::created_at: papo_proto::time::ServerTime
+pub papo_core::Event::ChannelRecreated::previous_created_at: papo_proto::time::ServerTime
 #[non_exhaustive] pub papo_core::Event::ChannelRenamed
 pub papo_core::Event::ChannelRenamed::actor: alloc::string::String
 pub papo_core::Event::ChannelRenamed::authorship: papo_core::Authorship
@@ -559,7 +561,7 @@ pub papo_core::Event::FeaturesChanged::removed: alloc::vec::Vec<papo_core::Featu
 pub papo_core::Event::History::conversation: papo::Conversation
 pub papo_core::Event::History::end: bool
 pub papo_core::Event::History::items: alloc::vec::Vec<papo_core::HistoryItem>
-pub papo_core::Event::HistoryTargets(alloc::vec::Vec<(papo::Conversation, std::time::SystemTime)>)
+pub papo_core::Event::HistoryTargets(alloc::vec::Vec<(papo::Conversation, papo_proto::time::ServerTime)>)
 #[non_exhaustive] pub papo_core::Event::HostChanged
 pub papo_core::Event::HostChanged::actor: alloc::string::String
 pub papo_core::Event::HostChanged::authorship: papo_core::Authorship
@@ -653,7 +655,7 @@ pub papo_core::Event::RealnameChanged::authorship: papo_core::Authorship
 pub papo_core::Event::RealnameChanged::envelope: papo_core::LineEnvelope
 pub papo_core::Event::RealnameChanged::nick: papo::Nick
 pub papo_core::Event::RealnameChanged::realname: alloc::string::String
-pub papo_core::Event::RealnameChanged::server_time: core::option::Option<std::time::SystemTime>
+pub papo_core::Event::RealnameChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo_core::Event::Redacted(papo_core::Redacted)
 #[non_exhaustive] pub papo_core::Event::RequestAborted
 pub papo_core::Event::RequestAborted::id: papo_core::RequestId
@@ -840,9 +842,9 @@ pub papo_core::HistoryQuery::Latest::after: core::option::Option<papo_core::MsgR
 pub papo_core::HistoryQuery::Latest::limit: usize
 pub papo_core::HistoryQuery::Latest::target: alloc::string::String
 #[non_exhaustive] pub papo_core::HistoryQuery::Targets
-pub papo_core::HistoryQuery::Targets::from: std::time::SystemTime
+pub papo_core::HistoryQuery::Targets::from: papo_proto::time::ServerTime
 pub papo_core::HistoryQuery::Targets::limit: usize
-pub papo_core::HistoryQuery::Targets::to: std::time::SystemTime
+pub papo_core::HistoryQuery::Targets::to: papo_proto::time::ServerTime
 impl core::clone::Clone for papo_core::HistoryQuery
 pub fn papo_core::HistoryQuery::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::HistoryQuery
@@ -985,7 +987,7 @@ impl<'a> core::panic::unwind_safe::UnwindSafe for papo_core::ModeValue<'a>
 #[non_exhaustive] pub enum papo_core::MsgRef
 pub papo_core::MsgRef::Any
 pub papo_core::MsgRef::Msgid(alloc::string::String)
-pub papo_core::MsgRef::Timestamp(std::time::SystemTime)
+pub papo_core::MsgRef::Timestamp(papo_proto::time::ServerTime)
 impl core::clone::Clone for papo_core::MsgRef
 pub fn papo_core::MsgRef::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::MsgRef
@@ -1542,7 +1544,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::cap::Cap
 impl core::panic::unwind_safe::UnwindSafe for papo_core::cap::Cap
 pub struct papo_core::Channel
 impl papo_core::Channel
-pub const fn papo_core::Channel::created_at(&self) -> core::option::Option<std::time::SystemTime>
+pub const fn papo_core::Channel::created_at(&self) -> core::option::Option<papo_proto::time::ServerTime>
 pub const fn papo_core::Channel::is_synced(&self) -> bool
 pub const fn papo_core::Channel::key(&self) -> core::option::Option<&papo::Secret>
 pub fn papo_core::Channel::list(&self, papo_core::ListMode) -> core::option::Option<&[papo_core::ModeListEntry]>
@@ -1552,7 +1554,7 @@ pub fn papo_core::Channel::mode(&self, char) -> core::option::Option<papo_core::
 pub fn papo_core::Channel::modes(&self) -> impl core::iter::traits::iterator::Iterator<Item = (char, papo_core::ModeValue<'_>)>
 pub fn papo_core::Channel::name(&self) -> &papo::ChannelName
 pub fn papo_core::Channel::topic(&self) -> core::option::Option<&str>
-pub const fn papo_core::Channel::topic_set_at(&self) -> core::option::Option<std::time::SystemTime>
+pub const fn papo_core::Channel::topic_set_at(&self) -> core::option::Option<papo_proto::time::ServerTime>
 pub const fn papo_core::Channel::topic_set_by(&self) -> core::option::Option<&papo_core::Source>
 impl core::clone::Clone for papo_core::Channel
 pub fn papo_core::Channel::clone(&self) -> Self
@@ -1786,7 +1788,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::IncompleteMultiline
 impl core::panic::unwind_safe::UnwindSafe for papo_core::IncompleteMultiline
 pub struct papo_core::LastSeen
 pub papo_core::LastSeen::msgid: alloc::string::String
-pub papo_core::LastSeen::server_time: std::time::SystemTime
+pub papo_core::LastSeen::server_time: papo_proto::time::ServerTime
 pub papo_core::LastSeen::target: alloc::string::String
 impl core::clone::Clone for papo_core::LastSeen
 pub fn papo_core::LastSeen::clone(&self) -> Self
@@ -1809,7 +1811,7 @@ pub fn papo_core::LineEnvelope::account(&self) -> core::option::Option<&str>
 pub const fn papo_core::LineEnvelope::bot(&self) -> bool
 pub fn papo_core::LineEnvelope::msgid(&self) -> core::option::Option<&str>
 pub fn papo_core::LineEnvelope::oper(&self) -> core::option::Option<core::option::Option<&str>>
-pub const fn papo_core::LineEnvelope::server_time(&self) -> core::option::Option<std::time::SystemTime>
+pub const fn papo_core::LineEnvelope::server_time(&self) -> core::option::Option<papo_proto::time::ServerTime>
 impl core::clone::Clone for papo_core::LineEnvelope
 pub fn papo_core::LineEnvelope::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::LineEnvelope
@@ -1926,7 +1928,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::ModeChange
 impl core::panic::unwind_safe::UnwindSafe for papo_core::ModeChange
 #[non_exhaustive] pub struct papo_core::ModeListEntry
 pub papo_core::ModeListEntry::mask: papo::Mask
-pub papo_core::ModeListEntry::set_at: core::option::Option<std::time::SystemTime>
+pub papo_core::ModeListEntry::set_at: core::option::Option<papo_proto::time::ServerTime>
 impl papo_core::ModeListEntry
 pub const fn papo_core::ModeListEntry::actor(&self) -> core::option::Option<&papo_core::Source>
 impl core::clone::Clone for papo_core::ModeListEntry
@@ -2050,7 +2052,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::RateLimit
 impl core::panic::unwind_safe::UnwindSafe for papo_core::RateLimit
 pub struct papo_core::ReadMarker
 pub papo_core::ReadMarker::conversation: papo::Conversation
-pub papo_core::ReadMarker::read_until: core::option::Option<std::time::SystemTime>
+pub papo_core::ReadMarker::read_until: core::option::Option<papo_proto::time::ServerTime>
 impl core::clone::Clone for papo_core::ReadMarker
 pub fn papo_core::ReadMarker::clone(&self) -> Self
 impl core::cmp::Eq for papo_core::ReadMarker
@@ -2140,7 +2142,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo_core::RequestId
 impl core::panic::unwind_safe::UnwindSafe for papo_core::RequestId
 pub struct papo_core::Response
 pub papo_core::Response::history: core::option::Option<papo_core::HistoryPage>
-pub papo_core::Response::history_targets: core::option::Option<alloc::vec::Vec<(papo::Conversation, std::time::SystemTime)>>
+pub papo_core::Response::history_targets: core::option::Option<alloc::vec::Vec<(papo::Conversation, papo_proto::time::ServerTime)>>
 pub papo_core::Response::id: papo_core::RequestId
 pub papo_core::Response::lines: alloc::vec::Vec<papo::Line>
 pub papo_core::Response::mode_list: core::option::Option<alloc::vec::Vec<papo_core::ModeListEntry>>
@@ -2253,7 +2255,7 @@ pub fn papo_core::Session::bouncer_networks(&mut self, std::time::Instant) -> co
 pub fn papo_core::Session::bouncer_remove(&mut self, std::time::Instant, &papo_core::NetworkId) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
 impl papo_core::Session
 pub fn papo_core::Session::chathistory(&mut self, std::time::Instant, papo_core::HistoryQuery) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
-pub fn papo_core::Session::mark_read(&mut self, std::time::Instant, &str, std::time::SystemTime) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
+pub fn papo_core::Session::mark_read(&mut self, std::time::Instant, &str, papo_proto::time::ServerTime) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
 pub fn papo_core::Session::read_marker(&mut self, std::time::Instant, &str) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
 impl papo_core::Session
 pub fn papo_core::Session::metadata(&mut self, std::time::Instant, papo_core::MetadataCommand) -> core::result::Result<papo_core::RequestId, papo_core::RequestError>
@@ -2422,7 +2424,7 @@ pub papo_core::TypingChanged::actor: alloc::string::String
 pub papo_core::TypingChanged::authorship: papo_core::Authorship
 pub papo_core::TypingChanged::conversation: papo::Conversation
 pub papo_core::TypingChanged::reason: papo_core::TypingReason
-pub papo_core::TypingChanged::server_time: core::option::Option<std::time::SystemTime>
+pub papo_core::TypingChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
 pub papo_core::TypingChanged::state: papo::Typing
 pub papo_core::TypingChanged::status: core::option::Option<papo::isupport::Prefix>
 impl papo_core::TypingChanged

@@ -1,4 +1,4 @@
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 
 use papo::{Account, Authorship, Client, Endpoint, Error, Event, Sasl, Sent};
 use papo_conformance_macros::scenario;
@@ -6,8 +6,8 @@ use papo_conformance_macros::scenario;
 use crate::scenarios::support::{confirmed_line, conversation_name};
 use crate::{Peer, Scenario};
 
-fn read_marker_time() -> SystemTime {
-    SystemTime::UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000)
+fn read_marker_time() -> papo::ServerTime {
+    papo::ServerTime::from_stored_millis(1_760_529_342_123).unwrap()
 }
 
 async fn history_peers(
@@ -278,8 +278,8 @@ async fn chathistory_targets(s: Scenario) -> papo_testing::Result<()> {
 
     let targets = alice
         .recent_conversations(
-            time - Duration::from_secs(60),
-            time + Duration::from_secs(60),
+            papo::ServerTime::from_stored_millis(time.as_millis() - 60_000).unwrap(),
+            papo::ServerTime::from_stored_millis(time.as_millis() + 60_000).unwrap(),
         )
         .await?;
     let target = targets
@@ -345,8 +345,8 @@ async fn soju_server_notice_history(s: Scenario) -> papo_testing::Result<()> {
     assert!(page.end);
     let targets = alice
         .recent_conversations(
-            SystemTime::UNIX_EPOCH,
-            SystemTime::now() + Duration::from_secs(60),
+            papo::ServerTime::from_stored("0000-01-01T00:00:00.000Z").unwrap(),
+            papo::ServerTime::from_stored("9999-12-31T23:59:59.999Z").unwrap(),
         )
         .await?;
     let bouncer = alice
@@ -517,11 +517,6 @@ async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
 mod tests {
     #[test]
     fn read_marker_fixture_has_the_expected_unix_time() {
-        assert_eq!(
-            super::read_marker_time()
-                .duration_since(std::time::SystemTime::UNIX_EPOCH)
-                .unwrap(),
-            std::time::Duration::new(1_760_529_342, 123_000_000)
-        );
+        assert_eq!(super::read_marker_time().as_millis(), 1_760_529_342_123);
     }
 }

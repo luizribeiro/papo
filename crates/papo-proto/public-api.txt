@@ -53,8 +53,8 @@ impl core::marker::Unpin for papo_proto::time::ServerTime
 impl core::marker::UnsafeUnpin for papo_proto::time::ServerTime
 impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::time::ServerTime
 impl core::panic::unwind_safe::UnwindSafe for papo_proto::time::ServerTime
-pub fn papo_proto::time::format(std::time::SystemTime) -> core::option::Option<alloc::string::String>
-pub fn papo_proto::time::parse(&str) -> core::option::Option<std::time::SystemTime>
+pub fn papo_proto::time::format(papo_proto::time::ServerTime) -> alloc::string::String
+pub fn papo_proto::time::parse(&str) -> core::option::Option<papo_proto::time::ServerTime>
 pub enum papo_proto::Advertised<'a>
 pub papo_proto::Advertised::Absent
 pub papo_proto::Advertised::Bare

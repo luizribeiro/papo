@@ -63,12 +63,12 @@ impl MessageBuilder {
         self
     }
 
-    /// Sets local and optional server timestamps.
+    /// Sets the local receipt time and optional server-clock time.
     #[must_use]
     pub const fn timestamps(
         mut self,
         received_at: SystemTime,
-        server_time: Option<SystemTime>,
+        server_time: Option<papo::ServerTime>,
     ) -> Self {
         self.message.server_time = server_time;
         self.message.received_at = received_at;

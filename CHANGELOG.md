@@ -60,6 +60,9 @@ The first guarded use of a `UserHandle` proves its identity with WHO, follows ni
 `.up_to(&message)`, counts incomplete multiline events only for the implicit newest boundary, and
 returns `MarkReadOutcome` instead of accepting a local clock value.
 
+Server-clock values now use `ServerTime`, preventing device receipt times from being used as
+history cursors, read markers, or other values sent back to the server.
+
 `DirectRef` equality and hashing now identify only the tracked IRC user on one connection. Handles
 for that user stay equal across account discovery and nickname changes; different users remain
 unequal even on the same account or after a departed user's nickname is reused. Handles are per

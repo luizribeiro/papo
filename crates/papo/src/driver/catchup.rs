@@ -184,14 +184,13 @@ pub(super) fn begin_catchup(
             seen.as_ref()
                 .is_none_or(|seen| cursor.time >= seen.server_time)
         });
-        let after = if let Some(reference) = cursor
+        let Some(after) = cursor
             .and_then(|cursor| cursor.reference(supports_timestamp))
             .or_else(|| {
                 seen.as_ref()
                     .map(|seen| papo_core::MsgRef::Msgid(seen.msgid.clone()))
-            }) {
-            reference
-        } else {
+            })
+        else {
             continue;
         };
         let query = HistoryQuery::__after(channel.channel.clone(), after, 100);

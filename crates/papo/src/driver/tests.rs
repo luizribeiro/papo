@@ -2216,6 +2216,11 @@ async fn reconnect_history_pages_stop_at_the_target_limit() {
         next_event(&mut events).await,
         Some(Event::Message(_))
     ));
+    server_line(&mut first_server, b"@time=2026-10-15T12:00:01.000Z;msgid=RfcBTzyxY120001 :emily!~e@localhost PRIVMSG #rust :before disconnect\r\n").await;
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Message(_))
+    ));
     within(first_server.shutdown()).await.unwrap();
     assert!(matches!(
         next_event(&mut events).await,
@@ -2254,17 +2259,19 @@ async fn reconnect_history_pages_stop_at_the_target_limit() {
         b"@label=4 CHATHISTORY AFTER #papo msgid=RfcBTzyxY120000 100\r\n",
     )
     .await;
-    let mut timestamp_request = Vec::new();
+    let mut rust_request = Vec::new();
     loop {
         let byte = within(second_server.read_u8()).await.unwrap();
-        timestamp_request.push(byte);
+        rust_request.push(byte);
         if byte == b'\n' {
             break;
         }
     }
-    let timestamp_request = String::from_utf8(timestamp_request).unwrap();
-    assert!(timestamp_request.starts_with("@label=5 CHATHISTORY AFTER #rust timestamp="));
-    assert!(timestamp_request.ends_with(" 100\r\n"));
+    let rust_request = String::from_utf8(rust_request).unwrap();
+    assert_eq!(
+        rust_request,
+        "@label=5 CHATHISTORY AFTER #rust msgid=RfcBTzyxY120001 100\r\n"
+    );
     server_line(&mut second_server, b":ergo.test BATCH +playback chathistory #papo\r\n@batch=playback;time=2026-10-15T12:00:30.000Z;msgid=RfcBTzyxY12PLAY :carol!~c@localhost PRIVMSG #papo :server playback\r\n:ergo.test BATCH -playback\r\n").await;
     let Some(Event::History(replay)) = next_event(&mut events).await else {
         panic!("expected server-initiated replay")
@@ -2494,6 +2501,10 @@ fn persistence_gates_rejoin_and_history_fetch() {
         );
         session.handle_bytes(now, if effective { b"ON\r\n" } else { b"OFF\r\n" });
         session.handle_line(now, b":ergo.test 001 papo-driver :Welcome to ErgoTest");
+        session.handle_line(
+            now,
+            b"@time=2026-11-08T19:55:04.123Z;msgid=RfcBTzyxY120004 :alice!a@cloak PRIVMSG #papo :checkpoint",
+        );
         while session.poll_event().is_some() {}
         assert_eq!(!super::server_restores_channels(&session), expected_request);
         while session.poll_transmit().is_some() {}

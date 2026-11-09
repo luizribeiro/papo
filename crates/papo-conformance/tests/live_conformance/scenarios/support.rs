@@ -8,7 +8,7 @@ pub(super) const PASSWORD: &str = "q7Hx-2mZp_9vLcT4wRfB";
 
 pub(super) fn confirmed_line(
     sent: &papo::Sent,
-) -> (&papo::MessageId, &str, Option<std::time::SystemTime>) {
+) -> (&papo::MessageId, &str, Option<papo::ServerTime>) {
     let papo::SentOutcome::Confirmed {
         lines, server_time, ..
     } = sent.outcome()
@@ -23,9 +23,9 @@ pub(super) fn confirmed_line(
 
 pub(super) fn assert_delivery_tags(
     received_id: Option<&papo::MessageId>,
-    received_time: Option<std::time::SystemTime>,
+    received_time: Option<papo::ServerTime>,
     sent_id: &papo::MessageId,
-    sent_time: Option<std::time::SystemTime>,
+    sent_time: Option<papo::ServerTime>,
     profile: DeploymentProfile,
 ) {
     assert_eq!(received_id, Some(sent_id));
@@ -186,8 +186,6 @@ pub(super) async fn wait_for_channel(peer: &mut Peer, channel: &str) -> papo_tes
 }
 
 mod tests {
-    use std::time::{Duration, UNIX_EPOCH};
-
     use papo::MessageId;
     use papo_test_server::DeploymentProfile;
 
@@ -198,9 +196,9 @@ mod tests {
         let id = MessageId::from("RfcBTzyxY120004");
         assert_delivery_tags(
             Some(&id),
-            Some(UNIX_EPOCH + Duration::from_millis(1_793_591_285_984)),
+            Some(papo::ServerTime::from_stored_millis(1_793_591_285_984).unwrap()),
             &id,
-            Some(UNIX_EPOCH + Duration::from_millis(1_793_591_285_985)),
+            Some(papo::ServerTime::from_stored_millis(1_793_591_285_985).unwrap()),
             DeploymentProfile::Solanum,
         );
     }
@@ -211,9 +209,9 @@ mod tests {
         let id = MessageId::from("RfcBTzyxY120005");
         assert_delivery_tags(
             Some(&id),
-            Some(UNIX_EPOCH + Duration::from_millis(1_793_591_285_984)),
+            Some(papo::ServerTime::from_stored_millis(1_793_591_285_984).unwrap()),
             &id,
-            Some(UNIX_EPOCH + Duration::from_millis(1_793_591_285_985)),
+            Some(papo::ServerTime::from_stored_millis(1_793_591_285_985).unwrap()),
             DeploymentProfile::ErgoDefault,
         );
     }

@@ -159,7 +159,7 @@ impl Session {
         self.validate_target(target)?;
         let line = Line::new("MARKREAD")
             .param(target.to_owned())
-            .param(format!("timestamp={}", read_until));
+            .param(format!("timestamp={read_until}"));
         self.ensure_state_capacity(StateGrowth::ReadMarker(target))?;
         self.request_for_feature(now, line, Feature::ReadMarkers)
     }
@@ -373,7 +373,7 @@ fn encode_reference(reference: MsgRef, supported: &[&str]) -> Result<String, Req
     match reference {
         MsgRef::Msgid(value) if supported.contains(&"msgid") => Ok(format!("msgid={value}")),
         MsgRef::Timestamp(value) if supported.contains(&"timestamp") => {
-            Ok(format!("timestamp={}", value))
+            Ok(format!("timestamp={value}"))
         }
         MsgRef::Any => Ok("*".to_owned()),
         MsgRef::Msgid(_) | MsgRef::Timestamp(_) => Err(RequestError::InvalidMessageReference),

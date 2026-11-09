@@ -1,6 +1,6 @@
 //! Print unread channel history and advance its read marker.
 
-use std::{env, error::Error, time::UNIX_EPOCH};
+use std::{env, error::Error};
 
 use papo::{Client, Event, Sasl, Secret};
 
@@ -33,11 +33,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
 }
 
 async fn catch_up(client: &Client, channel: &str) -> Result<(), papo::Error> {
-    let marker = client
-        .fetch_read_marker(channel)
-        .await?
-        .unwrap_or(UNIX_EPOCH);
-    let history = client.history(channel).after(marker).limit(100).await?;
+    let history = match client.fetch_read_marker(channel).await? {
+        Some(marker) => client.history(channel).after(marker),
+        None => client.history(channel).latest(),
+    }
+    .limit(100)
+    .await?;
     let mut newest = None;
     for message in history.chat_messages() {
         println!("{channel} {}", message.text);
