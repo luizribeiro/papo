@@ -1026,6 +1026,7 @@ fn resolve_reference(
             origin: origin.unwrap_or(crate::Origin::NONE),
             recipient: None,
             channel: None,
+            user: None,
         },
     )
 }

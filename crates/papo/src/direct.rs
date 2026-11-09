@@ -226,6 +226,7 @@ impl crate::Target for DirectRef {
                 &self.0.recipient,
             )),
             channel: None,
+            user: None,
         }
     }
 }
@@ -351,6 +352,7 @@ mod tests {
                     validated: None,
                 }),
                 channel: None,
+                user: None,
             }
         }
     }
@@ -652,6 +654,7 @@ mod tests {
             origin: channel.origin(),
             recipient: None,
             channel: Some(Box::new(channel_guard)),
+            user: None,
         };
         assert_eq!(
             client
@@ -664,6 +667,7 @@ mod tests {
             origin: recipient.__nick().origin(),
             recipient: Some(crate::message_ref::RecipientGuard::from_core(&recipient)),
             channel: None,
+            user: None,
         };
         assert_eq!(
             client
@@ -713,6 +717,7 @@ mod tests {
             origin: nick.origin(),
             recipient: Some(crate::message_ref::RecipientGuard::from_core(&recipient)),
             channel: None,
+            user: None,
         };
 
         assert!(matches!(

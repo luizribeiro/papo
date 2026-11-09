@@ -347,6 +347,7 @@ impl crate::Target for MessageRef {
             origin: self.origin,
             recipient: self.recipient.clone(),
             channel: self.channel.clone(),
+            user: None,
         }
     }
 }
@@ -398,6 +399,7 @@ impl crate::Target for NoticeRef {
             origin: self.origin,
             recipient: self.recipient.clone(),
             channel: self.channel.clone(),
+            user: None,
         }
     }
 }

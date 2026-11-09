@@ -11,6 +11,7 @@ pub(crate) mod sealed {
         pub(crate) origin: crate::Origin,
         pub(crate) recipient: Option<crate::message_ref::RecipientGuard>,
         pub(crate) channel: Option<Box<papo_core::ChannelGuard>>,
+        pub(crate) user: Option<crate::UserHandle>,
     }
 
     impl Parts<'_> {
@@ -24,6 +25,7 @@ pub(crate) mod sealed {
                 origin: self.origin,
                 recipient: self.recipient,
                 channel: self.channel,
+                user: self.user,
             }
         }
     }
@@ -35,6 +37,7 @@ pub(crate) mod sealed {
                 origin: parts.origin(),
                 recipient: None,
                 channel: None,
+                user: None,
             }
         }
     }
@@ -132,6 +135,7 @@ fn text_parts(text: &str) -> sealed::Parts<'_> {
         origin: crate::Origin::NONE,
         recipient: None,
         channel: None,
+        user: None,
     }
 }
 
@@ -188,6 +192,7 @@ fn name_parts(text: &str, origin: crate::Origin) -> sealed::Parts<'_> {
         origin,
         recipient: None,
         channel: None,
+        user: None,
     }
 }
 

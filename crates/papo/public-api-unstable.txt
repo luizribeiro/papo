@@ -3549,6 +3549,9 @@ impl core::fmt::Debug for papo::UserHandle
 pub fn papo::UserHandle::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::hash::Hash for papo::UserHandle
 pub fn papo::UserHandle::hash<H: core::hash::Hasher>(&self, &mut H)
+impl papo::AsConversation for papo::UserHandle
+impl papo::AsNick for papo::UserHandle
+impl papo::Target for papo::UserHandle
 impl core::marker::Freeze for papo::UserHandle
 impl core::marker::Send for papo::UserHandle
 impl core::marker::Sync for papo::UserHandle
@@ -3713,6 +3716,7 @@ impl papo::AsConversation for alloc::boxed::Box<str>
 impl papo::AsConversation for alloc::rcs::arc::Arc<str>
 impl papo::AsConversation for alloc::string::String
 impl papo::AsConversation for papo::ChannelHandle
+impl papo::AsConversation for papo::UserHandle
 impl papo::AsConversation for papo::Conversation
 impl papo::AsConversation for papo::ChannelName
 impl papo::AsConversation for papo::Nick
@@ -3734,6 +3738,7 @@ impl papo::AsNick for alloc::boxed::Box<str>
 impl papo::AsNick for alloc::rcs::arc::Arc<str>
 impl papo::AsNick for alloc::string::String
 impl papo::AsNick for papo::DirectRef
+impl papo::AsNick for papo::UserHandle
 impl papo::AsNick for papo::Nick
 impl papo::AsNick for str
 impl<T: papo::AsNick + ?core::marker::Sized> papo::AsNick for &T
@@ -3762,6 +3767,7 @@ impl papo::Target for papo::ChannelHandle
 impl papo::Target for papo::DirectRef
 impl papo::Target for papo::MessageRef
 impl papo::Target for papo::NoticeRef
+impl papo::Target for papo::UserHandle
 impl papo::Target for papo::ChannelName
 impl papo::Target for str
 impl<T: papo::Target + ?core::marker::Sized> papo::Target for &T

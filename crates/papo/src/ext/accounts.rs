@@ -96,6 +96,7 @@ impl Client {
                             origin,
                             recipient: None,
                             channel: None,
+                            user: None,
                         },
                     )
                 })

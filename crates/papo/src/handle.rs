@@ -229,7 +229,34 @@ impl crate::AsChannel for ChannelHandle {
             origin: self.0.channel.origin(),
             recipient: None,
             channel: self.guard().cloned().map(Box::new),
+            user: None,
         }
+    }
+}
+
+impl crate::target::sealed::Sealed for UserHandle {}
+
+impl crate::Target for UserHandle {
+    fn __parts(&self) -> crate::target::sealed::Parts<'_> {
+        crate::target::sealed::Parts {
+            text: std::borrow::Cow::Owned(self.nick().to_string()),
+            origin: self.0.nick.origin(),
+            recipient: None,
+            channel: None,
+            user: Some(self.clone()),
+        }
+    }
+}
+
+impl crate::AsNick for UserHandle {
+    fn __parts(&self) -> crate::target::sealed::Parts<'_> {
+        <Self as crate::Target>::__parts(self)
+    }
+}
+
+impl crate::AsConversation for UserHandle {
+    fn __parts(&self) -> crate::target::sealed::Parts<'_> {
+        <Self as crate::Target>::__parts(self)
     }
 }
 
@@ -261,6 +288,7 @@ mod tests {
         let handle = client.channel("#release").unwrap();
 
         assert_eq!(user.nick(), "alice");
+        assert_eq!(crate::Target::__parts(&user).user.as_ref(), Some(&user));
         assert_eq!(handle, handle.clone());
         assert_eq!(handle.name(), "#release");
         assert!(commands.try_recv().is_err());

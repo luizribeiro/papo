@@ -779,6 +779,7 @@ impl Client {
             origin: crate::message_ref::conversation_origin(query.conversation()),
             recipient: Some(crate::message_ref::actor_recipient(query)),
             channel: None,
+            user: None,
         };
         let text = text.into();
         let command = query.command.clone();
