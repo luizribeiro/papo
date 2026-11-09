@@ -151,6 +151,28 @@ fn uses_timestamps_when_they_are_the_only_reference_type() {
 }
 
 #[test]
+fn falls_back_to_timestamp_when_msgid_references_are_not_supported() {
+    let (mut session, now) = history_session("CHATHISTORY=1000 MSGREFTYPES=timestamp");
+    session.handle_line(
+        now,
+        b"@time=2024-07-18T21:32:11.456Z;msgid=GmU2V7xM :alice!~alice@cloak PRIVMSG #papo :deploy complete",
+    );
+    session
+        .chathistory(
+            now,
+            HistoryQuery::__before("#papo".into(), MsgRef::Msgid("GmU2V7xM".into()), 25),
+        )
+        .unwrap();
+
+    let request = transmitted(&mut session);
+    assert_eq!(
+        request,
+        "@label=0 CHATHISTORY BEFORE #papo timestamp=2024-07-18T21:32:11.456Z 25"
+    );
+    assert!(!request.contains("msgid="));
+}
+
+#[test]
 fn honors_each_advertised_reference_type() {
     let (mut session, now) = history_session("CHATHISTORY=1000 MSGREFTYPES=msgid");
     session
