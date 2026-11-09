@@ -368,6 +368,9 @@ pub struct Notice {
 /// A message or notice reconstructed from a `draft/multiline` batch that ended early.
 /// Applications may show its text as an explicitly incomplete item. They must not treat it as a
 /// mention, command, or reply target: later lines that could change its meaning never arrived.
+/// It therefore has no return address or [`crate::MessageRef`], including for selecting an
+/// explicit [`crate::MarkReadRequest::up_to`] boundary. Its server time still contributes to the
+/// conversation boundary used by [`crate::Client::mark_read`] without `up_to`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Incomplete {

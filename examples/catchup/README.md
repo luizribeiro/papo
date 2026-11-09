@@ -1,7 +1,8 @@
 # Catchup
 
 This example logs in, prints up to 100 unread messages for one channel, and advances the account's
-read marker to the last message it printed. It then awaits `Client::quit` before exiting. The
+read marker to the last message it printed using that message's server time. It never uses the
+local clock. It then awaits `Client::quit` before exiting. The
 channel comes from `IRC_CHANNEL` and defaults to `#papo`; `IRC_NICK` defaults to `papo-catchup`.
 If history or read-marker handling fails, it prints `could not catch up: …` and still quits.
 

@@ -41,10 +41,10 @@ async fn catch_up(client: &Client, channel: &str) -> Result<(), papo::Error> {
     let mut newest = None;
     for message in history.chat_messages() {
         println!("{channel} {}", message.text);
-        newest = message.server_time;
+        newest = Some(message.return_address());
     }
-    if let Some(time) = newest {
-        client.mark_read(channel, time).await?;
+    if let Some(message) = newest {
+        client.mark_read(channel).up_to(&message).await?;
     }
     Ok(())
 }

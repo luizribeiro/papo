@@ -51,6 +51,10 @@ impl std::fmt::Debug for MarkReadRequest {
 impl MarkReadRequest {
     /// Marks the conversation read through this received message's server timestamp.
     ///
+    /// Incomplete multiline events deliberately have no message reference and cannot be selected
+    /// explicitly. Their server time is still included when marking the whole conversation read
+    /// with [`Client::mark_read`] without `up_to`.
+    ///
     /// Awaiting returns [`crate::InvalidInput::WrongConversation`] if the message belongs to a
     /// different conversation, and [`crate::InvalidInput::NoServerTime`] if it has no server time.
     pub fn up_to(mut self, message: &crate::MessageRef) -> Self {
@@ -1240,6 +1244,8 @@ impl Client {
     }
 
     /// Marks everything seen in a conversation as read using its newest server timestamp.
+    /// This includes an incomplete multiline event, even though that event has no message
+    /// reference and cannot be selected with [`MarkReadRequest::up_to`].
     ///
     /// # Errors
     ///

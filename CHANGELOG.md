@@ -46,6 +46,10 @@ and `HistoryPage::end` reports whether older messages after that cursor may have
 
 `PeerKey` is now the persistable network-and-nickname thread key; equality and hashing ignore private proof upgrades, and its display form preserves verified or explicitly unverified proof state.
 
+`Client::mark_read(conversation)` now uses the newest server time papo observed, supports
+`.up_to(&message)`, counts incomplete multiline events only for the implicit newest boundary, and
+returns `MarkReadOutcome` instead of accepting a local clock value.
+
 `DirectRef` equality and hashing now identify only the tracked IRC user on one connection. Handles
 for that user stay equal across account discovery and nickname changes; different users remain
 unequal even on the same account or after a departed user's nickname is reused. Handles are per
