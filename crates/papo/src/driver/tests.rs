@@ -5134,7 +5134,9 @@ async fn every_name_taking_method_returns_invalid_name() {
     ];
 
     let state = client.state();
-    let recipient = state.capture_recipient(state.nick(), state.account().clone());
+    let recipient = state
+        .capture_recipient(state.nick(), state.account().clone())
+        .unwrap();
     let direct = crate::DirectRef::new(&client, recipient, false);
     for (method, argument, bad) in cases {
         let result = match method {

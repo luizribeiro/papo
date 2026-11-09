@@ -309,8 +309,8 @@ impl State {
         &self,
         nick: &Nick,
         account: Account,
-    ) -> papo_core::RecipientGuard {
-        papo_core::RecipientGuard::__new(&self.core, nick.clone(), account)
+    ) -> Option<papo_core::RecipientGuard> {
+        self.core.__capture_recipient(nick.clone(), account)
     }
 
     pub(crate) fn peer_token(&self, nick: &Nick) -> papo_core::PeerToken {

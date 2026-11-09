@@ -917,7 +917,9 @@ mod tests {
             .expect("server advertised CASEMAPPING")
             .channel("#papo");
         let state = first.state();
-        let recipient = state.capture_recipient(state.nick(), state.account().clone());
+        let recipient = state
+            .capture_recipient(state.nick(), state.account().clone())
+            .unwrap();
         let direct = crate::DirectRef::new(&first, recipient, false);
 
         assert!(matches!(

@@ -455,10 +455,18 @@ impl Client {
         argument: &'static str,
         parts: crate::target::sealed::Parts<'static>,
     ) -> Result<ResolvedSend, Error> {
-        let mut recipient = parts
-            .recipient
+        let recipient_input = parts.recipient.clone();
+        let snapshot = self.state();
+        let mut recipient = recipient_input
             .as_ref()
-            .map(crate::message_ref::RecipientGuard::to_core);
+            .and_then(|recipient| recipient.to_core(&snapshot));
+        if recipient.is_none()
+            && recipient_input
+                .as_ref()
+                .is_some_and(crate::message_ref::RecipientGuard::has_proof)
+        {
+            return Err(Error::TargetGone);
+        }
         let channel = parts.channel.as_deref().cloned();
         let mut lease = None;
         let mut text = self.resolve(crate::target::Role::Send(argument), parts)?;
@@ -484,6 +492,24 @@ impl Client {
                     recipient = Some(refreshed);
                 }
             }
+        } else if let Some(unproven) = recipient_input {
+            let expected = unproven.account;
+            crate::direct_runtime::require_monitor_slot(&self.state(), &text)?;
+            let acquired = crate::direct_runtime::acquire(self, text.clone()).await?;
+            let (acquired, actual) =
+                crate::direct_runtime::prove(self, text.clone(), acquired).await?;
+            if matches!(expected, crate::Account::LoggedIn(_))
+                && !matches!(
+                    (&expected, &actual),
+                    (crate::Account::LoggedIn(left), crate::Account::LoggedIn(right))
+                        if left == right
+                )
+            {
+                return Err(Error::TargetGone);
+            }
+            let (refreshed, acquired_lease) = acquired.into_parts();
+            lease = Some(acquired_lease);
+            recipient = Some(refreshed);
         }
         Ok(ResolvedSend {
             text,
@@ -518,21 +544,30 @@ impl Client {
             }
         }
         if let Some(recipient) = parts.recipient.as_ref() {
-            match state.resolve_recipient(&recipient.to_core()) {
-                papo_core::RecipientStatus::Current(nick) => {
+            let resolved = recipient.to_core(&state);
+            if resolved.is_none()
+                && (recipient.has_proof() || matches!(role, crate::target::Role::Nick(_)))
+            {
+                return Err(Error::TargetGone);
+            }
+            match resolved
+                .as_ref()
+                .map(|recipient| state.resolve_recipient(recipient))
+            {
+                Some(papo_core::RecipientStatus::Current(nick)) => {
                     if matches!(role, crate::target::Role::Nick(_)) {
                         text = nick.to_string();
                     }
                 }
-                papo_core::RecipientStatus::Gone => {
+                Some(papo_core::RecipientStatus::Gone) => {
                     return Err(Error::TargetGone);
                 }
-                papo_core::RecipientStatus::Unknown
+                Some(papo_core::RecipientStatus::Unknown)
                     if matches!(role, crate::target::Role::Nick(_)) =>
                 {
                     return Err(Error::TargetGone);
                 }
-                papo_core::RecipientStatus::Unknown => {}
+                Some(papo_core::RecipientStatus::Unknown) | None => {}
             }
         }
         let result = match role {

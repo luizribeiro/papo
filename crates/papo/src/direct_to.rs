@@ -50,34 +50,44 @@ impl crate::Client {
             let recipient = recipient.ok_or_else(|| {
                 crate::InvalidInput::InvalidRequest("event actor is not a user".into())
             })?;
-            let proven = recipient.receipt.is_some();
-            let recipient = recipient.to_core();
-            let nick = recipient.__nick().to_string();
+            let proven = recipient.has_proof();
+            let nick = recipient.nick.to_string();
+            let expected = recipient.account.clone();
             let snapshot = client.state();
-            if proven
-                && matches!(
-                    snapshot.resolve_recipient(&recipient),
+            let core = recipient.to_core(&snapshot);
+            if proven && core.is_none() {
+                return Err(crate::Error::TargetGone);
+            }
+            if core.as_ref().is_some_and(|recipient| {
+                matches!(
+                    snapshot.resolve_recipient(recipient),
                     papo_core::RecipientStatus::Gone
                 )
-            {
+            }) {
                 return Err(crate::Error::TargetGone);
             }
             let shared = snapshot
                 .user(&nick)
                 .is_some_and(|user| user.nick() == snapshot.nick() || user.channels().len() != 0);
-            if shared {
+            if shared
+                && let Some(recipient) = core.or_else(|| {
+                    snapshot
+                        .user(&nick)
+                        .and_then(|user| snapshot.capture_recipient(user.nick(), expected.clone()))
+                })
+            {
                 return Ok(DirectRef::new(&client, recipient, false));
             }
             crate::direct_runtime::require_monitor_slot(&snapshot, &nick)?;
             drop(snapshot);
             let acquired = crate::direct_runtime::acquire(&client, nick.clone()).await?;
-            if !matches!(recipient.__account(), crate::Account::LoggedIn(_)) {
+            if !matches!(expected, crate::Account::LoggedIn(_)) {
                 let acquired = acquired.confirmed().await?;
                 return Ok(DirectRef::acquired(&client, acquired));
             }
             let (acquired, actual) = crate::direct_runtime::prove(&client, nick, acquired).await?;
             if !matches!(
-                (recipient.__account(), &actual),
+                (&expected, &actual),
                 (crate::Account::LoggedIn(expected), crate::Account::LoggedIn(actual))
                     if expected == actual
             ) {

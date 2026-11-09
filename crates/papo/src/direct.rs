@@ -135,8 +135,7 @@ impl DirectRef {
         };
         if state
             .capture_recipient(&nick, crate::Account::Unknown)
-            .__token()
-            != self.0.identity
+            .is_none_or(|recipient| recipient.__token() != self.0.identity)
         {
             return;
         }
@@ -266,7 +265,11 @@ impl crate::Client {
             if let Some(user) = snapshot.user(&nick)
                 && (user.nick() == snapshot.nick() || user.channels().len() != 0)
             {
-                let recipient = snapshot.capture_recipient(user.nick(), user.account().clone());
+                let Some(recipient) =
+                    snapshot.capture_recipient(user.nick(), user.account().clone())
+                else {
+                    return Err(crate::Error::TargetGone);
+                };
                 return Ok(DirectRef::new(&client, recipient, false));
             }
             crate::direct_runtime::require_monitor_slot(&snapshot, &nick)?;
@@ -343,6 +346,7 @@ mod tests {
                     nick: self.nick.clone(),
                     account: self.account.clone(),
                     receipt: None,
+                    validated: None,
                 }),
                 channel: None,
             }
@@ -394,11 +398,12 @@ mod tests {
     #[test]
     fn dropping_a_monitor_lease_releases_its_recipient() {
         let (commands, mut receiver) = tokio::sync::mpsc::channel(1);
-        let nick = Casemapping::default().nick("alice");
-        let recipient = papo_core::RecipientGuard::__from_parts(
-            nick,
+        let mut session = Session::new(Config::default());
+        let recipient = session.__direct_acquire(
+            "alice",
+            None,
+            None,
             Account::LoggedIn(Casemapping::default().account("alice-account")),
-            papo_core::ReplyToken::__unknown(crate::Origin::NONE),
         );
         drop(super::MonitorLease {
             recipient: recipient.clone(),
@@ -421,11 +426,14 @@ mod tests {
         };
         let account = Account::LoggedIn(session.isupport().casemapping().account("alice-account"));
         let desktop = prove(&mut session, "alice", account.clone());
-        let desktop_unverified = papo_core::RecipientGuard::__from_parts(
-            desktop.__nick().clone(),
-            Account::Unknown,
-            desktop.__token(),
-        );
+        let desktop_unverified = session
+            .state()
+            .__recipient_from_event(
+                desktop.__token(),
+                desktop.__nick().clone(),
+                Account::Unknown,
+            )
+            .unwrap();
         let phone = prove(&mut session, "alice-phone", account);
         let mallory_account =
             Account::LoggedIn(session.isupport().casemapping().account("mallory-account"));

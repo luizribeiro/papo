@@ -116,6 +116,7 @@ impl Receipt {
             nick: nick.clone(),
             account: self.identity.actor_account.clone(),
             receipt: self.identity.token,
+            validated: None,
         })
     }
 
@@ -152,6 +153,7 @@ impl Receipt {
             nick: actor.nick().clone(),
             account: actor.account().clone(),
             receipt: self.identity.actor_token,
+            validated: None,
         })
     }
 
@@ -190,16 +192,22 @@ pub(crate) struct RecipientGuard {
     pub(crate) nick: Nick,
     pub(crate) account: Account,
     pub(crate) receipt: Option<papo_core::ReplyToken>,
+    pub(crate) validated: Option<Box<papo_core::RecipientGuard>>,
 }
 
 impl RecipientGuard {
-    pub(crate) fn to_core(&self) -> papo_core::RecipientGuard {
-        papo_core::RecipientGuard::__from_parts(
-            self.nick.clone(),
-            self.account.clone(),
-            self.receipt
-                .unwrap_or_else(|| papo_core::ReplyToken::__unknown(self.nick.origin())),
-        )
+    pub(crate) fn has_proof(&self) -> bool {
+        self.receipt.is_some_and(papo_core::ReplyToken::__is_known)
+    }
+
+    pub(crate) fn to_core(&self, state: &crate::State) -> Option<papo_core::RecipientGuard> {
+        self.validated.as_deref().cloned().or_else(|| {
+            state.core.__recipient_from_event(
+                self.receipt?,
+                self.nick.clone(),
+                self.account.clone(),
+            )
+        })
     }
 
     pub(crate) fn from_core(guard: &papo_core::RecipientGuard) -> Self {
@@ -207,6 +215,7 @@ impl RecipientGuard {
             nick: guard.__nick().clone(),
             account: guard.__account().clone(),
             receipt: Some(guard.__token()),
+            validated: Some(Box::new(guard.clone())),
         }
     }
 }
