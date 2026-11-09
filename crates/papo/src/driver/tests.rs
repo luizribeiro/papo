@@ -5131,6 +5131,7 @@ async fn open_rejects_stranger_with_current_key() {
     let Error::NotSamePerson(mismatch) = within(opening).await.unwrap().unwrap_err() else {
         panic!("open accepted a nickname handoff")
     };
+    assert_eq!(mismatch, mismatch.clone());
     assert_eq!(mismatch.reason(), crate::PeerKeyMismatch::CannotVerify);
     assert_eq!(mismatch.current_key(), &stored);
 

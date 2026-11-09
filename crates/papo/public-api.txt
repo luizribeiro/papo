@@ -2977,11 +2977,15 @@ pub const fn papo::NotSamePerson::current_key(&self) -> &papo::PeerKey
 pub const fn papo::NotSamePerson::reason(&self) -> papo::PeerKeyMismatch
 impl core::clone::Clone for papo::NotSamePerson
 pub fn papo::NotSamePerson::clone(&self) -> Self
+impl core::cmp::Eq for papo::NotSamePerson
+impl core::cmp::PartialEq for papo::NotSamePerson
+pub fn papo::NotSamePerson::eq(&self, &Self) -> bool
 impl core::error::Error for papo::NotSamePerson
 impl core::fmt::Debug for papo::NotSamePerson
 pub fn papo::NotSamePerson::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::fmt::Display for papo::NotSamePerson
 pub fn papo::NotSamePerson::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::StructuralPartialEq for papo::NotSamePerson
 impl core::marker::Freeze for papo::NotSamePerson
 impl core::marker::Send for papo::NotSamePerson
 impl core::marker::Sync for papo::NotSamePerson

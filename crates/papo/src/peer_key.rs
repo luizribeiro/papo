@@ -154,7 +154,7 @@ pub struct PeerPinMismatch {
 }
 
 /// A stored peer key that does not authorize the current nickname holder.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NotSamePerson {
     reason: PeerKeyMismatch,
     current: Box<PeerKey>,
