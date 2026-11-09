@@ -1,4 +1,4 @@
-use std::time::SystemTime;
+use crate::ServerTime;
 
 use crate::{Capabilities, Casemapping, Conversation, Feature, MessageId, Nick};
 
@@ -89,9 +89,9 @@ pub struct MessageGap {
     /// Last available message identifier among the discarded events.
     pub last_msgid: Option<MessageId>,
     /// First available server timestamp among the discarded events.
-    pub first_server_time: Option<SystemTime>,
+    pub first_server_time: Option<ServerTime>,
     /// Last available server timestamp among the discarded events.
-    pub last_server_time: Option<SystemTime>,
+    pub last_server_time: Option<ServerTime>,
     /// Number of message-like events discarded from this conversation.
     pub dropped: u64,
 }

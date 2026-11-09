@@ -1,5 +1,7 @@
 use std::time::SystemTime;
 
+use crate::ServerTime;
+
 use crate::{Authorship, ChannelName, MessageId, Nick, Subject};
 
 use super::{Source, UserSource};
@@ -11,8 +13,8 @@ pub struct Joined {
     /// The server-assigned identifier of the join line, when supplied.
     pub msgid: Option<MessageId>,
     /// Valid server time, when supplied.
-    pub server_time: Option<SystemTime>,
-    /// Time at which the line was received.
+    pub server_time: Option<ServerTime>,
+    /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The joining user's real name, when supplied by the server.
     pub realname: Option<String>,
@@ -49,8 +51,8 @@ pub struct Parted {
     /// The server-assigned identifier of the part line, when supplied.
     pub msgid: Option<MessageId>,
     /// Valid server time, when supplied.
-    pub server_time: Option<SystemTime>,
-    /// Time at which the line was received.
+    pub server_time: Option<ServerTime>,
+    /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The departing user.
     pub actor: UserSource,
@@ -69,8 +71,8 @@ pub struct Kicked {
     /// The server-assigned identifier of the kick line, when supplied.
     pub msgid: Option<MessageId>,
     /// Valid server time, when supplied.
-    pub server_time: Option<SystemTime>,
-    /// Time at which the line was received.
+    pub server_time: Option<ServerTime>,
+    /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The affected channel. See [`crate::Conversation`] for status-prefixed line guidance.
     pub channel: ChannelName,
@@ -93,8 +95,8 @@ pub struct Invited {
     /// The server-assigned identifier of the invitation line, when supplied.
     pub msgid: Option<MessageId>,
     /// Valid server time, when supplied.
-    pub server_time: Option<SystemTime>,
-    /// Time at which the line was received.
+    pub server_time: Option<ServerTime>,
+    /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The invited channel. See [`crate::Conversation`] for status-prefixed line guidance.
     pub channel: ChannelName,
@@ -116,8 +118,8 @@ pub struct TopicChanged {
     /// The server-assigned identifier of the topic line, when supplied.
     pub msgid: Option<MessageId>,
     /// Valid server time, when supplied.
-    pub server_time: Option<SystemTime>,
-    /// Time at which the line was received.
+    pub server_time: Option<ServerTime>,
+    /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The affected channel. See [`crate::Conversation`] for status-prefixed line guidance.
     pub channel: ChannelName,
@@ -136,8 +138,8 @@ pub struct ModeChanged {
     /// The server-assigned identifier of the mode line, when supplied.
     pub msgid: Option<MessageId>,
     /// Valid server time, when supplied.
-    pub server_time: Option<SystemTime>,
-    /// Time at which the line was received.
+    pub server_time: Option<ServerTime>,
+    /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The user or channel whose modes changed.
     pub subject: Subject,
@@ -176,8 +178,8 @@ pub struct ChannelRenamed {
     /// The server-assigned identifier of the rename line, when supplied.
     pub msgid: Option<MessageId>,
     /// Valid server time, when supplied.
-    pub server_time: Option<SystemTime>,
-    /// Time at which the line was received.
+    pub server_time: Option<ServerTime>,
+    /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The previous channel name.
     pub old: ChannelName,

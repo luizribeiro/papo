@@ -1,5 +1,7 @@
 use std::time::SystemTime;
 
+use crate::ServerTime;
+
 use crate::{Account, Authorship, Away, BatchId, ChannelName, MessageId, Nick, ServerName};
 
 use super::UserSource;
@@ -11,8 +13,8 @@ pub struct Quit {
     /// The server-assigned identifier of the quit line, when supplied.
     pub msgid: Option<MessageId>,
     /// Valid server time, when supplied.
-    pub server_time: Option<SystemTime>,
-    /// Time at which the line was received.
+    pub server_time: Option<ServerTime>,
+    /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The disconnected user.
     pub actor: UserSource,
@@ -33,8 +35,8 @@ pub struct NickChanged {
     /// The server-assigned identifier of the nick line, when supplied.
     pub msgid: Option<MessageId>,
     /// Valid server time, when supplied.
-    pub server_time: Option<SystemTime>,
-    /// Time at which the line was received.
+    pub server_time: Option<ServerTime>,
+    /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The renamed user before the change.
     pub actor: UserSource,
@@ -65,8 +67,8 @@ impl NickChanged {
 #[non_exhaustive]
 pub struct AwayChanged {
     /// Valid server time on the line that caused the change, when supplied.
-    pub server_time: Option<SystemTime>,
-    /// Time at which the triggering line was received.
+    pub server_time: Option<ServerTime>,
+    /// Time at which the triggering line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The affected user.
     pub actor: UserSource,
@@ -84,8 +86,8 @@ pub struct AwayChanged {
 #[non_exhaustive]
 pub struct AccountChanged {
     /// Valid server time on the line that caused the change, when supplied.
-    pub server_time: Option<SystemTime>,
-    /// Time at which the triggering line was received.
+    pub server_time: Option<ServerTime>,
+    /// Time at which the triggering line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The affected user.
     pub actor: UserSource,
@@ -105,8 +107,8 @@ pub struct AccountChanged {
 #[non_exhaustive]
 pub struct HostChanged {
     /// Valid server time on the line that caused the change, when supplied.
-    pub server_time: Option<SystemTime>,
-    /// Time at which the triggering line was received.
+    pub server_time: Option<ServerTime>,
+    /// Time at which the triggering line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The affected user.
     pub actor: UserSource,
@@ -123,8 +125,8 @@ pub struct HostChanged {
 #[non_exhaustive]
 pub struct RealnameChanged {
     /// Valid server time on the line that caused the change, when supplied.
-    pub server_time: Option<SystemTime>,
-    /// Time at which the triggering line was received.
+    pub server_time: Option<ServerTime>,
+    /// Time at which the triggering line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The affected user.
     pub actor: UserSource,

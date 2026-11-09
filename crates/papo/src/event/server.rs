@@ -68,9 +68,9 @@ pub enum Warning {
         /// The channel that was rejoined.
         channel: crate::ChannelName,
         /// Creation time observed before reconnecting.
-        previous_created_at: std::time::SystemTime,
+        previous_created_at: crate::ServerTime,
         /// Creation time reported after rejoining.
-        created_at: std::time::SystemTime,
+        created_at: crate::ServerTime,
     },
     /// The server uses RFC 8265 name matching, but this build lacks the `precis` feature.
     Utf8CasemappingUnsupported,
@@ -150,8 +150,8 @@ mod tests {
             },
             Warning::ChannelRecreated {
                 channel: crate::Casemapping::default().channel("#release"),
-                previous_created_at: std::time::UNIX_EPOCH,
-                created_at: std::time::UNIX_EPOCH + std::time::Duration::from_secs(1),
+                previous_created_at: crate::ServerTime::from_stored_millis(0).unwrap(),
+                created_at: crate::ServerTime::from_stored_millis(1_000).unwrap(),
             },
             Warning::Utf8CasemappingUnsupported,
             Warning::StateLimitReached {

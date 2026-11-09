@@ -1,5 +1,7 @@
 use std::time::SystemTime;
 
+use crate::ServerTime;
+
 use crate::{Conversation, Mask, MessageId, Prefix, Typing};
 
 use super::{Authorship, Source, Tags, TypingReason, UserSource};
@@ -31,8 +33,8 @@ pub struct BroadcastCtcp {
     /// The server-assigned message identifier, when supplied.
     pub msgid: Option<MessageId>,
     /// Valid server time, when supplied.
-    pub server_time: Option<SystemTime>,
-    /// Time at which the line was received.
+    pub server_time: Option<ServerTime>,
+    /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// All message tags in wire order.
     pub tags: Tags,
@@ -51,7 +53,7 @@ pub struct BroadcastTagMsg {
     /// Tags in wire order with last-wins lookup.
     pub tags: Tags,
     pub(crate) msgid: Option<MessageId>,
-    /// Time at which the line was received.
+    /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
 }
 
@@ -103,8 +105,8 @@ pub struct Reacted {
     /// The server-assigned identifier of the reaction line, when supplied.
     pub(crate) msgid: Option<MessageId>,
     /// Valid server time, when supplied.
-    pub server_time: Option<SystemTime>,
-    /// Time at which the line was received.
+    pub server_time: Option<ServerTime>,
+    /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The user that changed the reaction.
     pub actor: UserSource,
@@ -136,8 +138,8 @@ pub struct Redacted {
     /// The server-assigned identifier of the redaction line, when supplied.
     pub(crate) msgid: Option<MessageId>,
     /// Valid server time, when supplied.
-    pub server_time: Option<SystemTime>,
-    /// Time at which the line was received.
+    pub server_time: Option<ServerTime>,
+    /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The user or server that removed the message.
     pub actor: Source,
@@ -168,8 +170,8 @@ pub struct TypingChanged {
     /// Valid server time on the triggering line, when supplied.
     ///
     /// This is `None` when a local typing deadline caused the change.
-    pub server_time: Option<SystemTime>,
-    /// Time at which the triggering line was received, or when a local timeout was observed.
+    pub server_time: Option<ServerTime>,
+    /// Time from this device's clock at which the line was received or a local timeout was observed.
     pub received_at: SystemTime,
     /// The user or server that sent the notification.
     pub actor: UserSource,
@@ -197,8 +199,8 @@ pub struct TagMsg {
     /// The server-assigned identifier of the tag-only line, when supplied.
     pub(crate) msgid: Option<MessageId>,
     /// Valid server time, when supplied.
-    pub server_time: Option<SystemTime>,
-    /// Time at which the line was received.
+    pub server_time: Option<ServerTime>,
+    /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The user or server that sent the message.
     pub actor: UserSource,
@@ -312,7 +314,7 @@ pub struct ReadMarkerChanged {
     /// See [`Conversation`] for status-prefixed line guidance.
     pub conversation: Conversation,
     /// The marker time, or `None` when the server reports `*`.
-    pub read_until: Option<SystemTime>,
+    pub read_until: Option<ServerTime>,
 }
 
 /// Severity of an `IRCv3` standard reply.
