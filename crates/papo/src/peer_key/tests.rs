@@ -167,6 +167,23 @@ fn account_proof_does_not_retain_an_unknown_continuity_token() {
 }
 
 #[test]
+fn unknown_continuity_has_no_live_peer_key() {
+    let session = Session::new(Config::default().nick("papo"));
+    let nick = Casemapping::Rfc1459.nick("[Alice]");
+
+    assert!(
+        PeerKey::live(
+            Some(&PeerScope::server("irc.ergo.chat")),
+            &nick,
+            &Account::Unknown,
+            None,
+            session.state().__peer_token_for("[Alice]"),
+        )
+        .is_none()
+    );
+}
+
+#[test]
 fn mismatched_threads_need_durable_proof_on_both_sides() {
     let account = network_key(
         "irc.ergo.chat",
