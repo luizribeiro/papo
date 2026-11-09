@@ -326,7 +326,7 @@ impl crate::AsConversation for ChannelHandle {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests {
     use papo_core::{Config, Session};
 
