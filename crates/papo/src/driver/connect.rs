@@ -147,11 +147,16 @@ pub(super) async fn run_plan(
             ConnectionAttempt::Connected(stream) => stream,
             ConnectionAttempt::Retry => continue,
             ConnectionAttempt::Stop => {
-                finish_requested(events, pending_events);
+                finish_requested(events, pending_events, attempts.saturating_add(1));
                 return Ok(());
             }
             ConnectionAttempt::Failed(error) => {
-                return finish_connection_failure(events, &mut registration, error);
+                return finish_connection_failure(
+                    events,
+                    &mut registration,
+                    error,
+                    attempts.saturating_add(1),
+                );
             }
         };
         let mut end = run_planned_connection(
@@ -191,7 +196,7 @@ pub(super) async fn run_plan(
                     registration.failed(error.clone());
                     end.error = error;
                 }
-                return finish(events, end, false);
+                return finish(events, end, attempts.saturating_add(1));
             }
             ControlFlow::Continue(retry) => retry,
         };
@@ -203,7 +208,12 @@ pub(super) async fn run_plan(
                     crate::ConnectErrorKind::HandshakeFailed,
                     "the server requested a TLS upgrade that this build cannot open",
                 ));
-                return finish_connection_failure(events, &mut registration, error);
+                return finish_connection_failure(
+                    events,
+                    &mut registration,
+                    error,
+                    attempts.saturating_add(1),
+                );
             }
             base_plan.address = upgraded;
             sts_required = true;
@@ -215,26 +225,28 @@ pub(super) async fn run_plan(
         } else {
             retry_delay(reconnect, attempts, refused, entropy.as_mut())
         };
-        let disconnected = super::disconnected_event(&end.error, Some(reconnect_in));
+        let disconnected =
+            super::disconnected_event(&end.error, attempts.saturating_add(1), Some(reconnect_in));
         last_disconnect = Some(disconnected.cause.clone());
         pending_events = enqueue_retry_event(&events, end, disconnected.clone());
         if upgrade_port.is_some() || reconnect_now {
             continue;
         }
         if !wait_before_retry(&mut commands, &mut defaults, disconnected).await {
-            finish_requested(events, pending_events);
+            finish_requested(events, pending_events, attempts.saturating_add(1));
             return Ok(());
         }
     }
 }
 
-fn finish_requested(events: EventSink, mut pending_events: PendingEvents) {
+fn finish_requested(events: EventSink, mut pending_events: PendingEvents, attempt: usize) {
     pending_events.push_back(super::event_item(
         &events,
         Event::Disconnected(crate::Disconnected::new(
             crate::DisconnectCause::Requested {
                 quit_unacknowledged: false,
             },
+            attempt,
             None,
         )),
     ));
@@ -423,7 +435,8 @@ async fn connect_or_wait(
         return ConnectionAttempt::Failed(error);
     }
     let reconnect_in = retry_delay(reconnect, attempts, false, entropy);
-    let disconnected = super::disconnected_event(&error, Some(reconnect_in));
+    let disconnected =
+        super::disconnected_event(&error, attempts.saturating_add(1), Some(reconnect_in));
     *last_disconnect = Some(disconnected.cause.clone());
     enqueue_event(
         events,
@@ -452,10 +465,11 @@ fn finish_connection_failure(
     events: EventSink,
     registration: &mut ConnectWait,
     error: Error,
+    attempt: usize,
 ) -> Result<(), Error> {
     let reason = error.to_string();
     if registration.0.is_some() {
-        let disconnected = super::disconnected_event(&error, None);
+        let disconnected = super::disconnected_event(&error, attempt, None);
         registration.failed(error);
         let pending = VecDeque::from([super::event_item(
             &events,
@@ -478,7 +492,7 @@ fn finish_connection_failure(
             pending_events: VecDeque::new(),
             reconnect_now: false,
         },
-        false,
+        attempt,
     )
 }
 
@@ -600,6 +614,7 @@ async fn connect_while_disconnected(
         last_cause.cloned().unwrap_or_else(|| {
             crate::DisconnectCause::connection_lost("transport ended unexpectedly")
         }),
+        attempt,
         None,
     );
     let timeout = super::wait_until(papo_core::deadline(now(), timeout));
@@ -661,6 +676,7 @@ async fn wait_before_retry(
                     command => {
                         let current = crate::Disconnected::new(
                             disconnected.cause.clone(),
+                            disconnected.attempt,
                             Some(deadline.map_or(Duration::MAX, |deadline| {
                                 deadline.saturating_duration_since(now())
                             })),

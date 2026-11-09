@@ -388,6 +388,11 @@ impl fmt::Display for DisconnectCause {
 pub struct Disconnected {
     /// Why the connection ended.
     pub cause: DisconnectCause,
+    /// One-based number of the next connection attempt since the last [`crate::Event::Connected`].
+    ///
+    /// When [`Self::reconnect_in`] is `None`, this is the attempt that would have been made if
+    /// reconnecting had remained allowed.
+    pub attempt: usize,
     /// Delay before the next connection attempt.
     ///
     /// `None` means papo stopped because the cause was fatal, reconnecting was disabled or
@@ -396,11 +401,16 @@ pub struct Disconnected {
 }
 
 impl Disconnected {
-    /// Creates a disconnected-operation description.
+    /// Creates details for a connection that ended before `attempt`.
     #[must_use]
-    pub const fn new(cause: DisconnectCause, reconnect_in: Option<Duration>) -> Self {
+    pub const fn new(
+        cause: DisconnectCause,
+        attempt: usize,
+        reconnect_in: Option<Duration>,
+    ) -> Self {
         Self {
             cause,
+            attempt,
             reconnect_in,
         }
     }
@@ -544,6 +554,7 @@ impl Error {
     pub(crate) fn connection_lost_with(message: impl Into<String>) -> Self {
         Self::disconnected(Disconnected::new(
             DisconnectCause::connection_lost(message),
+            1,
             None,
         ))
     }
@@ -553,6 +564,7 @@ impl Error {
             DisconnectCause::Protocol {
                 message: message.into(),
             },
+            1,
             None,
         ))
     }
@@ -577,11 +589,13 @@ impl Error {
             return Self::Connect(ConnectError::login(kind, message));
         }
         match kind {
-            papo_core::CloseKind::ServerError => {
-                Self::Disconnected(Disconnected::new(DisconnectCause::Server { message }, None))
-            }
+            papo_core::CloseKind::ServerError => Self::Disconnected(Disconnected::new(
+                DisconnectCause::Server { message },
+                1,
+                None,
+            )),
             papo_core::CloseKind::PingTimeout => {
-                Self::Disconnected(Disconnected::new(DisconnectCause::PingTimeout, None))
+                Self::Disconnected(Disconnected::new(DisconnectCause::PingTimeout, 1, None))
             }
             _ => Self::disconnected_protocol(message),
         }
@@ -592,6 +606,7 @@ impl Error {
             DisconnectCause::Requested {
                 quit_unacknowledged: false,
             },
+            1,
             None,
         ))
     }
@@ -659,9 +674,11 @@ mod tests {
             cause: DisconnectCause::Server {
                 message: "Closing Link: maintenance".into(),
             },
+            attempt: 4,
             reconnect_in: Some(Duration::from_secs(8)),
         };
         assert!(disconnected.to_string().contains("maintenance"));
+        assert_eq!(disconnected.attempt, 4);
         assert_eq!(disconnected.reconnect_in, Some(Duration::from_secs(8)));
     }
 
@@ -953,8 +970,11 @@ mod tests {
             ),
         ] {
             let diagnostic = error.to_string();
-            let disconnected =
-                Disconnected::new(DisconnectCause::connection_lost(diagnostic.clone()), None);
+            let disconnected = Disconnected::new(
+                DisconnectCause::connection_lost(diagnostic.clone()),
+                1,
+                None,
+            );
             assert_no_repetition(&disconnected);
             assert_eq!(sources(&disconnected), Vec::<String>::new());
         }
@@ -972,7 +992,7 @@ mod tests {
         );
         assert_no_repetition(&cause);
 
-        let disconnected = Disconnected::new(cause, None);
+        let disconnected = Disconnected::new(cause, 1, None);
         assert_eq!(
             sources(&disconnected),
             ["irc.example.net:6697 refused the connection"]
@@ -1002,6 +1022,7 @@ mod tests {
             Error::Disconnected(Disconnected {
                 cause: DisconnectCause::PingTimeout,
                 reconnect_in: None,
+                ..
             })
         ));
     }
@@ -1198,6 +1219,7 @@ mod tests {
             DisconnectCause::Protocol {
                 message: "connection reset by peer".into(),
             },
+            1,
             None,
         ));
         assert_eq!(
@@ -1227,6 +1249,7 @@ mod tests {
                 DisconnectCause::ConnectionLost {
                     message: "connection reset by peer".into(),
                 },
+                1,
                 None,
             ))
             .to_string(),
@@ -1238,6 +1261,7 @@ mod tests {
                 DisconnectCause::Server {
                     message: "maintenance restart".into(),
                 },
+                1,
                 None,
             ))
             .to_string(),

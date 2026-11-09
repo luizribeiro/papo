@@ -68,10 +68,18 @@ impl ErrorBuilder {
         Self(Error::Timeout)
     }
 
-    /// Starts a disconnect error with an optional retry delay.
+    /// Starts a disconnect error for the numbered next attempt and optional retry delay.
     #[must_use]
-    pub const fn disconnected(cause: DisconnectCause, reconnect_in: Option<Duration>) -> Self {
-        Self(Error::Disconnected(Disconnected::new(cause, reconnect_in)))
+    pub const fn disconnected(
+        cause: DisconnectCause,
+        attempt: usize,
+        reconnect_in: Option<Duration>,
+    ) -> Self {
+        Self(Error::Disconnected(Disconnected::new(
+            cause,
+            attempt,
+            reconnect_in,
+        )))
     }
 
     /// Starts a numeric server-refusal error.
@@ -114,7 +122,7 @@ mod tests {
 
         assert!(matches!(ErrorBuilder::timeout().build(), Error::Timeout));
         assert!(matches!(
-            ErrorBuilder::disconnected(DisconnectCause::PingTimeout, None).build(),
+            ErrorBuilder::disconnected(DisconnectCause::PingTimeout, 1, None).build(),
             Error::Disconnected(disconnected)
                 if disconnected.cause == DisconnectCause::PingTimeout
         ));

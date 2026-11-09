@@ -17,6 +17,9 @@ versioning guarantees.
 User sends queued during initial registration or reconnection now wait for numeric 001. They fail
 as disconnected if registration ends first, and `State::is_connected` remains false until 001.
 
+`Disconnected::attempt` reports the one-based next connection attempt even when `reconnect_in` is
+`None` because reconnecting stopped.
+
 Requests that would grow a full bounded state store now fail locally with `Error::StateLimit`
 before sending, while updates to entries already tracked at the limit remain available.
 

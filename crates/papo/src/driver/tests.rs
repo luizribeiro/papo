@@ -1344,6 +1344,7 @@ async fn connection_failures_retry_up_to_the_configured_limit() {
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: Some(reconnect_in),
+        ..
         })) if error.kind() == crate::ConnectErrorKind::Refused
             && reconnect_in == Duration::from_millis(800)
     ));
@@ -1352,6 +1353,7 @@ async fn connection_failures_retry_up_to_the_configured_limit() {
         Err(Error::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: Some(reconnect_in),
+        ..
         })) if error.kind() == crate::ConnectErrorKind::Refused
             && reconnect_in == Duration::from_millis(800)
     ));
@@ -1361,6 +1363,7 @@ async fn connection_failures_retry_up_to_the_configured_limit() {
         Err(Error::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: Some(reconnect_in),
+        ..
         })) if error.kind() == crate::ConnectErrorKind::Refused
             && reconnect_in == Duration::from_millis(500)
     ));
@@ -1370,6 +1373,7 @@ async fn connection_failures_retry_up_to_the_configured_limit() {
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: None,
+        ..
         })) if error.kind() == crate::ConnectErrorKind::Refused
     ));
     assert!(matches!(
@@ -1579,6 +1583,7 @@ async fn registration_connection_loss_is_a_connect_error() {
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: None,
+        ..
         })) if error.kind() == crate::ConnectErrorKind::Server
     ));
     assert!(matches!(
@@ -2876,6 +2881,7 @@ async fn quit_while_disconnected_stops_without_another_attempt() {
                 quit_unacknowledged: false,
             },
             reconnect_in: None,
+            ..
         }))
     ));
     assert!(next_event(&mut events).await.is_none());
@@ -3308,6 +3314,7 @@ async fn transport_failure_under_stored_sts_retries() {
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: Some(reconnect_in),
+        ..
         })) if error.kind() == crate::ConnectErrorKind::Refused
             && reconnect_in == Duration::from_millis(800)
     ));
@@ -3334,6 +3341,7 @@ async fn eof_emits_disconnected_and_returns_an_error() {
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::ConnectionLost { .. },
             reconnect_in: None,
+            ..
         }))
     ));
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
@@ -3350,6 +3358,7 @@ async fn shutdown_error_does_not_replace_eof() {
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::ConnectionLost { .. },
             reconnect_in: None,
+            ..
         }))
     ));
     assert!(matches!(
@@ -3395,6 +3404,7 @@ async fn overlong_line_becomes_a_terminal_disconnect() {
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Protocol { message },
             reconnect_in: None,
+        ..
         })) if message == "incoming IRC line exceeds 8703 bytes"
     ));
     assert!(matches!(
@@ -3671,6 +3681,7 @@ async fn live_ban_after_welcome_does_not_reconnect() {
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: None,
+        ..
         })) if error.kind() == crate::ConnectErrorKind::Banned
     ));
     assert!(matches!(
@@ -3826,6 +3837,7 @@ async fn assert_pre_welcome_refusal_backoff(line: Option<&'static [u8]>, expecte
             Some(Event::Disconnected(crate::Disconnected {
                 cause: crate::DisconnectCause::Connect(ref error),
                 reconnect_in: Some(actual),
+            ..
             })) if error.kind() == crate::ConnectErrorKind::Server
                 && error.to_string() == expected
                 && std::error::Error::source(error).is_none()
@@ -4012,6 +4024,7 @@ async fn nick_candidates_exhaustion_retries_at_the_refusal_minimum() {
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: Some(delay),
+        ..
         })) if error.kind() == crate::ConnectErrorKind::Server
             && delay == Duration::from_secs(47)
     ));
@@ -4039,6 +4052,7 @@ async fn unavailable_required_sasl_retries_at_the_refusal_minimum() {
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: Some(delay),
+        ..
         })) if error.kind() == crate::ConnectErrorKind::SaslUnavailable
             && std::error::Error::source(&error)
                 .is_some_and(|source| source.to_string().contains("did not advertise"))
@@ -4076,6 +4090,7 @@ async fn timed_out_required_sasl_retries_at_the_refusal_minimum() {
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: Some(delay),
+        ..
         })) if error.kind() == crate::ConnectErrorKind::SaslUnavailable
             && std::error::Error::source(&error)
                 .is_some_and(|source| source.to_string().contains("timed out"))
@@ -4144,6 +4159,7 @@ async fn required_sasl_failure_does_not_reconnect() {
         crate::Disconnected {
             cause: crate::DisconnectCause::Connect(error),
             reconnect_in: None,
+        ..
         } if error.kind() == crate::ConnectErrorKind::Sasl
     ));
     assert!(disconnected.to_string().contains("SASL"));
@@ -4167,7 +4183,7 @@ fn certificate_verification_failure_is_fatal() {
     );
     assert!(super::connect::is_fatal_failure(&error, None));
     let Event::Disconnected(disconnected) =
-        Event::Disconnected(super::disconnected_event(&error, None))
+        Event::Disconnected(super::disconnected_event(&error, 1, None))
     else {
         unreachable!()
     };
@@ -4507,6 +4523,7 @@ async fn plaintext_sts_forwards_upgrade_and_closes() {
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Protocol { message },
             reconnect_in: None,
+        ..
         })) if message == "sts upgrade"
     ));
     assert!(matches!(
@@ -4961,6 +4978,7 @@ async fn queued_raw_send_preserves_the_server_disconnect_cause() {
         Err(Error::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Server { message },
             reconnect_in: None,
+        ..
         })) if message == "Closing Link: papo-driver (Server maintenance)"
     ));
     assert!(matches!(
@@ -5340,6 +5358,7 @@ async fn structured_requests_resolve_fail_and_abort() {
         Err(Error::Interrupted(crate::Disconnected {
             cause: crate::DisconnectCause::ConnectionLost { .. },
             reconnect_in: None,
+            ..
         }))
     ));
     assert!(matches!(
@@ -7676,6 +7695,7 @@ async fn written_labelled_privmsg_is_interrupted_by_the_server_disconnect() {
         Err(Error::Interrupted(crate::Disconnected {
             cause: crate::DisconnectCause::Server { message },
             reconnect_in: None,
+        ..
         })) if message == "Closing Link: papo-driver (Server maintenance)"
     ));
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
@@ -8736,6 +8756,7 @@ async fn quit_resolves_when_the_server_closed_first() {
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::ConnectionLost { .. },
             reconnect_in: None,
+            ..
         }))
     ));
 }
@@ -8768,6 +8789,7 @@ async fn quit_resolves_after_io_failure_and_reports_its_cause() {
                 quit_unacknowledged: false,
             },
             reconnect_in: None,
+            ..
         }))
     ));
 }
@@ -8793,6 +8815,7 @@ async fn quit_times_out_after_ten_seconds() {
                 quit_unacknowledged: true,
             },
             reconnect_in: None,
+            ..
         }))
     ));
 }
@@ -9180,6 +9203,7 @@ async fn disconnect_follows_the_retained_event_after_lag() {
         Err(Error::Interrupted(crate::Disconnected {
             cause: crate::DisconnectCause::Server { .. },
             reconnect_in: None,
+            ..
         }))
     ));
     assert!(matches!(
@@ -9206,6 +9230,7 @@ async fn disconnect_follows_the_retained_event_after_lag() {
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::Server { message },
             reconnect_in: None,
+        ..
         })) if message == "Closing Link: papo-driver (Server shutdown)"
     ));
 }
@@ -9500,6 +9525,7 @@ async fn session_deadline_sends_keepalive_ping() {
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::PingTimeout,
             reconnect_in: None,
+            ..
         }))
     ));
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
@@ -9522,6 +9548,7 @@ async fn ping_timeout_after_welcome_retries_normally() {
         Some(Event::Disconnected(crate::Disconnected {
             cause: crate::DisconnectCause::PingTimeout,
             reconnect_in: Some(delay),
+        ..
         })) if delay == Duration::from_millis(800)
     ));
     tokio::time::advance(Duration::from_millis(799)).await;
