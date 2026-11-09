@@ -144,6 +144,12 @@ fn converts_server_times_to_exact_system_times() {
 }
 
 #[test]
+fn invalid_server_time_message_is_stable_and_safe() {
+    let error = ServerTime::from_stored("2024-13-02T03:04:05.678Z").unwrap_err();
+    assert_eq!(error.to_string(), "invalid IRCv3 server timestamp");
+}
+
+#[test]
 fn formats_times_before_the_unix_epoch() {
     assert_eq!(
         time::format(ServerTime::from_stored_millis(-1).unwrap()),
