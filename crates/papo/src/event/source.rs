@@ -285,7 +285,8 @@ mod tests {
 
         let mut pinned = source.clone();
         let scope = crate::peer_key::PeerScope::server("irc.example");
-        let pin = crate::PeerKey::historical(Some(&scope), pinned.account()).unwrap();
+        let pin =
+            crate::PeerKey::historical(Some(&scope), pinned.nick(), pinned.account()).unwrap();
         pinned.set_peer_key(pin);
         assert_eq!(pinned, source);
 

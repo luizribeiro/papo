@@ -183,6 +183,7 @@ pub struct InvalidPeerKey;
 impl PeerKey {
     pub(crate) fn live(
         scope: Option<&PeerScope>,
+        _nick: &crate::Nick,
         account: &crate::Account,
         account_id: Option<&str>,
         token: papo_core::PeerToken,
@@ -195,7 +196,11 @@ impl PeerKey {
         )
     }
 
-    pub(crate) fn historical(scope: Option<&PeerScope>, account: &crate::Account) -> Option<Self> {
+    pub(crate) fn historical(
+        scope: Option<&PeerScope>,
+        _nick: &crate::Nick,
+        account: &crate::Account,
+    ) -> Option<Self> {
         match (scope, account) {
             (Some(scope), crate::Account::LoggedIn(account)) => Some(Self::verified(
                 scope,

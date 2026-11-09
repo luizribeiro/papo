@@ -1938,6 +1938,7 @@ fn attach_actor_peer_key(actor: &mut UserSource, nick: &Nick, state: &crate::Sta
     let scope = state.peer_scope();
     let peer_key = crate::peer_key::PeerKey::live(
         scope.as_ref(),
+        nick,
         &account,
         state.peer_account_id(nick, &account),
         state.peer_token(nick),
@@ -1955,7 +1956,9 @@ pub(crate) fn attach_historical_peer_key(event: &mut Event, state: &crate::State
         return;
     };
     let scope = state.peer_scope();
-    if let Some(peer_key) = crate::peer_key::PeerKey::historical(scope.as_ref(), actor.account()) {
+    if let Some(peer_key) =
+        crate::peer_key::PeerKey::historical(scope.as_ref(), actor.nick(), actor.account())
+    {
         actor.set_peer_key(peer_key);
     }
 }
@@ -5646,7 +5649,9 @@ mod tests {
             Casemapping::default().account("emily-account"),
         ));
         let scope = crate::peer_key::PeerScope::server("irc.example");
-        let pin = crate::PeerKey::historical(Some(&scope), changed.actor.account()).unwrap();
+        let pin =
+            crate::PeerKey::historical(Some(&scope), changed.actor.nick(), changed.actor.account())
+                .unwrap();
         changed.actor.set_peer_key(pin);
         assert_eq!(
             changed.peer_key().and_then(crate::PeerKey::as_verified_str),

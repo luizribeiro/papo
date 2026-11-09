@@ -1,3 +1,5 @@
+#![allow(unfulfilled_lint_expectations)]
+
 use super::{
     AccountPin, AccountProof, BouncerScope, InvalidPeerKey, KeyScope, PeerProof, PeerScope,
     PeerThread,

@@ -86,6 +86,7 @@ impl DirectRef {
         let scope = state.peer_scope();
         let peer_key = crate::peer_key::PeerKey::live(
             scope.as_ref(),
+            recipient.__nick(),
             recipient.__account(),
             state.peer_account_id(recipient.__nick(), recipient.__account()),
             state.peer_token(recipient.__nick()),
@@ -142,6 +143,7 @@ impl DirectRef {
         let scope = state.peer_scope();
         let Some(current) = crate::peer_key::PeerKey::live(
             scope.as_ref(),
+            &nick,
             user.account(),
             state.peer_account_id(&nick, user.account()),
             state.peer_token(&nick),
@@ -834,18 +836,22 @@ mod tests {
     #[test]
     fn peer_keys_compare_by_scope_and_canonical_account() {
         let account = Account::LoggedIn(Casemapping::Rfc1459.account("Alice[Ops]"));
+        let nick = Casemapping::Rfc1459.nick("Alice");
         let first = crate::peer_key::PeerKey::historical(
             Some(&crate::peer_key::PeerScope::server("irc.example")),
+            &nick,
             &account,
         )
         .unwrap();
         let same = crate::peer_key::PeerKey::historical(
             Some(&crate::peer_key::PeerScope::server("irc.example")),
+            &nick,
             &account,
         )
         .unwrap();
         let other = crate::peer_key::PeerKey::historical(
             Some(&crate::peer_key::PeerScope::server("chat.example")),
+            &nick,
             &account,
         )
         .unwrap();
@@ -868,6 +874,7 @@ mod tests {
         let unknown = Account::Unknown;
         let alice = crate::PeerKey::live(
             None,
+            &Casemapping::Rfc1459.nick("alice"),
             &unknown,
             None,
             session.state().__peer_token_for("alice"),
@@ -875,6 +882,7 @@ mod tests {
         .unwrap();
         let same_alice = crate::PeerKey::live(
             None,
+            &Casemapping::Rfc1459.nick("alice"),
             &unknown,
             None,
             session.state().__peer_token_for("alice"),
@@ -882,6 +890,7 @@ mod tests {
         .unwrap();
         let bob = crate::PeerKey::live(
             None,
+            &Casemapping::Rfc1459.nick("bob"),
             &unknown,
             None,
             session.state().__peer_token_for("bob"),
@@ -1064,7 +1073,14 @@ mod tests {
 
     #[test]
     fn unverified_history_has_no_peer_key() {
-        assert!(crate::peer_key::PeerKey::historical(None, &Account::LoggedOut).is_none());
+        assert!(
+            crate::peer_key::PeerKey::historical(
+                None,
+                &Casemapping::Rfc1459.nick("guest-4821"),
+                &Account::LoggedOut,
+            )
+            .is_none()
+        );
     }
 
     #[test]
@@ -1072,6 +1088,7 @@ mod tests {
         let account = Account::LoggedIn(Casemapping::Rfc1459.account("Alice[Ops]"));
         let key = crate::peer_key::PeerKey::historical(
             Some(&crate::peer_key::PeerScope::server("irc.example:🌐")),
+            &Casemapping::Rfc1459.nick("Alice[Ops]"),
             &account,
         )
         .unwrap();
