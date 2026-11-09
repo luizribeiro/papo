@@ -42,6 +42,8 @@ server-proof verification; failed or aborted exchanges discard the pending accou
 and `HistoryPage::end` reports whether older messages after that cursor may have been omitted.
 `HistoryPage::cursor` now provides one `HistoryReference` for continuing from either page edge.
 
+`Feature::from_name` resolves exact stable feature names back to their typed values.
+
 `DirectRef` equality and hashing now identify only the tracked IRC user on one connection. Handles
 for that user stay equal across account discovery and nickname changes; different users remain
 unequal even on the same account or after a departed user's nickname is reused. Handles are per

@@ -745,6 +745,7 @@ pub papo_core::Feature::UserhostInNames
 pub papo_core::Feature::WebPush
 pub papo_core::Feature::WhoAmI
 impl papo_core::Feature
+pub fn papo_core::Feature::from_name(&str) -> core::option::Option<Self>
 pub fn papo_core::Feature::name(self) -> &'static str
 impl core::clone::Clone for papo_core::Feature
 pub fn papo_core::Feature::clone(&self) -> Self

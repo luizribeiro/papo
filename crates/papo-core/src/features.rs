@@ -138,6 +138,15 @@ macro_rules! feature_enum {
                 }
             }
 
+            /// Returns the feature with the exact stable human-readable `name`.
+            #[must_use]
+            pub fn from_name(name: &str) -> Option<Self> {
+                Self::ALL
+                    .iter()
+                    .copied()
+                    .find(|feature| feature.name() == name)
+            }
+
             #[doc(hidden)]
             #[must_use]
             pub fn __variant_name(self) -> &'static str {

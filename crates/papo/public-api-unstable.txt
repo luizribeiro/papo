@@ -4074,6 +4074,7 @@ pub papo::Feature::UserhostInNames
 pub papo::Feature::WebPush
 pub papo::Feature::WhoAmI
 impl papo::Feature
+pub fn papo::Feature::from_name(&str) -> core::option::Option<Self>
 pub fn papo::Feature::name(self) -> &'static str
 impl core::clone::Clone for papo::Feature
 pub fn papo::Feature::clone(&self) -> Self

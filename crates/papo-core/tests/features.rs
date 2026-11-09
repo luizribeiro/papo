@@ -287,6 +287,70 @@ fn feature_names_support_display_and_hashing() {
 }
 
 #[test]
+fn every_feature_name_round_trips() {
+    let cases = [
+        (Feature::CapabilityNotifications, "capability notifications"),
+        (Feature::MessageTags, "client-only message tags"),
+        (Feature::ServerTime, "server timestamps"),
+        (Feature::Batches, "message batches"),
+        (Feature::EventPlayback, "event playback"),
+        (Feature::EchoMessages, "message echoes"),
+        (Feature::Replies, "replies"),
+        (Feature::Reactions, "reactions"),
+        (Feature::Typing, "typing notifications"),
+        (Feature::Redaction, "draft/message-redaction"),
+        (Feature::Multiline, "multiline messages"),
+        (Feature::History, "chathistory"),
+        (Feature::ReadMarkers, "read-marker"),
+        (Feature::Metadata, "metadata"),
+        (Feature::Monitor, "monitoring"),
+        (Feature::SetName, "real-name changes"),
+        (Feature::BotMode, "bot mode"),
+        (Feature::AccountCreation, "account creation"),
+        (Feature::Bouncer, "bouncer networks"),
+        (Feature::Persistence, "persistence"),
+        (Feature::WebPush, "webpush"),
+        (Feature::ChannelRename, "channel rename"),
+        (Feature::Relay, "relaymsg"),
+        (Feature::LabeledResponse, "labeled-response"),
+        (Feature::Sasl, "SASL authentication"),
+        (Feature::AwayTracking, "away tracking"),
+        (Feature::AccountTracking, "account tracking"),
+        (Feature::ExtendedJoin, "extended join details"),
+        (Feature::MultiPrefix, "complete membership prefixes"),
+        (
+            Feature::UserhostInNames,
+            "user and host fields in names replies",
+        ),
+        (Feature::HostTracking, "host tracking"),
+        (Feature::InviteTracking, "invite tracking"),
+        (Feature::ExtendedMonitor, "extended monitor replies"),
+        (Feature::StandardReplies, "structured replies"),
+        (Feature::OperatorTags, "operator tags"),
+        (Feature::PreAway, "registration-time away state"),
+        (
+            Feature::NoImplicitNames,
+            "suppression of implicit names replies",
+        ),
+        (Feature::WhoAmI, "connection identity discovery"),
+        (Feature::ExtendedIsupport, "extended ISUPPORT discovery"),
+        (Feature::Halfop, "half-operator privileges"),
+        (Feature::Excepts, "ban exceptions"),
+        (Feature::Invex, "invite exceptions"),
+        (Feature::Quiet, "quiet list"),
+        (Feature::AccountExtban, "account extended bans"),
+    ];
+
+    assert_eq!(cases.len(), Feature::ALL.len());
+    for (feature, name) in cases {
+        assert_eq!(feature.name(), name);
+        assert_eq!(Feature::from_name(name), Some(feature));
+    }
+    assert_eq!(Feature::from_name(""), None);
+    assert_eq!(Feature::from_name("Reactions"), None);
+}
+
+#[test]
 fn recognizes_one_disabled_capability_when_it_is_offered() {
     let session = session_with(
         Config::default()
