@@ -1,10 +1,106 @@
 //! Parsing and formatting for `IRCv3` server-time timestamps.
 
+use std::fmt;
+use std::str::FromStr;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+/// A millisecond-precision timestamp from an IRC server's clock.
+///
+/// This is intentionally distinct from [`SystemTime`], which applications use for this device's
+/// clock. It can be converted to `SystemTime` for display or arithmetic, but the two clock domains
+/// cannot accidentally be mixed in APIs that require a server timestamp.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct ServerTime(i64);
+
+/// A timestamp that is not a valid fixed-width `IRCv3` server-time value.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct InvalidServerTime;
+
+impl ServerTime {
+    /// Restores a timestamp that originally came from this server.
+    ///
+    /// `value` must use the RFC 3339 form used by the `IRCv3` `time` tag. Precision finer than a
+    /// millisecond is truncated because [`ServerTime`] has millisecond precision.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidServerTime`] when `value` is malformed or outside years `0000..=9999`.
+    pub fn from_stored(value: &str) -> Result<Self, InvalidServerTime> {
+        value.parse()
+    }
+
+    /// Restores milliseconds since the Unix epoch that originally came from this server.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`InvalidServerTime`] when the value is outside years `0000..=9999`.
+    pub fn from_stored_millis(millis: i64) -> Result<Self, InvalidServerTime> {
+        format_millis(millis)
+            .is_some()
+            .then_some(Self(millis))
+            .ok_or(InvalidServerTime)
+    }
+
+    /// Returns milliseconds since the Unix epoch.
+    #[must_use]
+    pub const fn as_millis(self) -> i64 {
+        self.0
+    }
+
+    /// Converts this server-clock value for display or explicit arithmetic.
+    #[must_use]
+    pub fn to_system_time(self) -> SystemTime {
+        if self.0 >= 0 {
+            UNIX_EPOCH + Duration::from_millis(self.0.unsigned_abs())
+        } else {
+            UNIX_EPOCH - Duration::from_millis(self.0.unsigned_abs())
+        }
+    }
+}
+
+impl fmt::Display for ServerTime {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&format_millis(self.0).expect("ServerTime invariant"))
+    }
+}
+
+impl FromStr for ServerTime {
+    type Err = InvalidServerTime;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        parse_millis(value).map(Self).ok_or(InvalidServerTime)
+    }
+}
+
+impl fmt::Display for InvalidServerTime {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("invalid IRCv3 server timestamp")
+    }
+}
+
+impl std::error::Error for InvalidServerTime {}
 
 /// Parses a fixed-width UTC timestamp with up to nanosecond precision.
 #[must_use]
 pub fn parse(value: &str) -> Option<SystemTime> {
+    let (seconds, nanos) = parse_parts(value)?;
+    if seconds >= 0 {
+        UNIX_EPOCH.checked_add(Duration::new(u64::try_from(seconds).ok()?, nanos))
+    } else {
+        UNIX_EPOCH
+            .checked_sub(Duration::from_secs(seconds.unsigned_abs()))?
+            .checked_add(Duration::from_nanos(u64::from(nanos)))
+    }
+}
+
+fn parse_millis(value: &str) -> Option<i64> {
+    let (seconds, nanos) = parse_parts(value)?;
+    seconds
+        .checked_mul(1_000)?
+        .checked_add(i64::from(nanos / 1_000_000))
+}
+
+fn parse_parts(value: &str) -> Option<(i64, u32)> {
     let bytes = value.as_bytes();
     if !value.is_ascii()
         || !(bytes.len() == 20 || (22..=30).contains(&bytes.len()))
@@ -53,13 +149,7 @@ pub fn parse(value: &str) -> Option<SystemTime> {
         + day_of_year
         - 719_468;
     let seconds = days * 86_400 + hour * 3_600 + minute * 60 + second.min(59);
-    if seconds >= 0 {
-        UNIX_EPOCH.checked_add(Duration::new(u64::try_from(seconds).ok()?, nanos))
-    } else {
-        UNIX_EPOCH
-            .checked_sub(Duration::from_secs(seconds.unsigned_abs()))?
-            .checked_add(Duration::from_nanos(u64::from(nanos)))
-    }
+    Some((seconds, nanos))
 }
 
 /// Formats a UTC timestamp at millisecond precision.
@@ -70,6 +160,10 @@ pub fn format(time: SystemTime) -> Option<String> {
         Err(error) => i128::try_from(error.duration().as_millis()).map(|value| -value),
     }
     .ok()?;
+    format_millis(i64::try_from(millis).ok()?)
+}
+
+fn format_millis(millis: i64) -> Option<String> {
     let seconds = millis.div_euclid(1_000);
     let days = seconds.div_euclid(86_400) + 719_468;
     let era = days.div_euclid(146_097);
@@ -82,7 +176,7 @@ pub fn format(time: SystemTime) -> Option<String> {
     let shifted_month = (5 * day_of_year + 2) / 153;
     let day = day_of_year - (153 * shifted_month + 2) / 5 + 1;
     let month = shifted_month + if shifted_month < 10 { 3 } else { -9 };
-    year += i128::from(month <= 2);
+    year += i64::from(month <= 2);
     if !(0..=9_999).contains(&year) {
         return None;
     }
@@ -115,5 +209,7 @@ mod tests {
             super::format(time).as_deref(),
             Some("2026-02-03T04:05:06.789Z")
         );
+        let stored = super::ServerTime::from_stored("2026-02-03T04:05:06.789Z").unwrap();
+        assert_eq!(stored.to_system_time(), time);
     }
 }

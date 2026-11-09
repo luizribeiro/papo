@@ -1,5 +1,58 @@
 pub mod papo_proto
 pub mod papo_proto::time
+pub struct papo_proto::time::InvalidServerTime
+impl core::clone::Clone for papo_proto::time::InvalidServerTime
+pub fn papo_proto::time::InvalidServerTime::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::time::InvalidServerTime
+impl core::cmp::PartialEq for papo_proto::time::InvalidServerTime
+pub fn papo_proto::time::InvalidServerTime::eq(&self, &Self) -> bool
+impl core::error::Error for papo_proto::time::InvalidServerTime
+impl core::fmt::Debug for papo_proto::time::InvalidServerTime
+pub fn papo_proto::time::InvalidServerTime::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo_proto::time::InvalidServerTime
+pub fn papo_proto::time::InvalidServerTime::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo_proto::time::InvalidServerTime
+impl core::marker::StructuralPartialEq for papo_proto::time::InvalidServerTime
+impl core::marker::Freeze for papo_proto::time::InvalidServerTime
+impl core::marker::Send for papo_proto::time::InvalidServerTime
+impl core::marker::Sync for papo_proto::time::InvalidServerTime
+impl core::marker::Unpin for papo_proto::time::InvalidServerTime
+impl core::marker::UnsafeUnpin for papo_proto::time::InvalidServerTime
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::time::InvalidServerTime
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::time::InvalidServerTime
+pub struct papo_proto::time::ServerTime(_)
+impl papo_proto::time::ServerTime
+pub const fn papo_proto::time::ServerTime::as_millis(self) -> i64
+pub fn papo_proto::time::ServerTime::from_stored(&str) -> core::result::Result<Self, papo_proto::time::InvalidServerTime>
+pub fn papo_proto::time::ServerTime::from_stored_millis(i64) -> core::result::Result<Self, papo_proto::time::InvalidServerTime>
+pub fn papo_proto::time::ServerTime::to_system_time(self) -> std::time::SystemTime
+impl core::clone::Clone for papo_proto::time::ServerTime
+pub fn papo_proto::time::ServerTime::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::time::ServerTime
+impl core::cmp::Ord for papo_proto::time::ServerTime
+pub fn papo_proto::time::ServerTime::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for papo_proto::time::ServerTime
+pub fn papo_proto::time::ServerTime::eq(&self, &Self) -> bool
+impl core::cmp::PartialOrd for papo_proto::time::ServerTime
+pub fn papo_proto::time::ServerTime::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for papo_proto::time::ServerTime
+pub fn papo_proto::time::ServerTime::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo_proto::time::ServerTime
+pub fn papo_proto::time::ServerTime::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_proto::time::ServerTime
+pub fn papo_proto::time::ServerTime::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for papo_proto::time::ServerTime
+impl core::marker::StructuralPartialEq for papo_proto::time::ServerTime
+impl core::str::traits::FromStr for papo_proto::time::ServerTime
+pub type papo_proto::time::ServerTime::Err = papo_proto::time::InvalidServerTime
+pub fn papo_proto::time::ServerTime::from_str(&str) -> core::result::Result<Self, Self::Err>
+impl core::marker::Freeze for papo_proto::time::ServerTime
+impl core::marker::Send for papo_proto::time::ServerTime
+impl core::marker::Sync for papo_proto::time::ServerTime
+impl core::marker::Unpin for papo_proto::time::ServerTime
+impl core::marker::UnsafeUnpin for papo_proto::time::ServerTime
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::time::ServerTime
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::time::ServerTime
 pub fn papo_proto::time::format(std::time::SystemTime) -> core::option::Option<alloc::string::String>
 pub fn papo_proto::time::parse(&str) -> core::option::Option<std::time::SystemTime>
 pub enum papo_proto::Advertised<'a>
@@ -907,6 +960,26 @@ impl<'a> core::marker::Unpin for papo_proto::Formatted<'a>
 impl<'a> core::marker::UnsafeUnpin for papo_proto::Formatted<'a>
 impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo_proto::Formatted<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo_proto::Formatted<'a>
+pub struct papo_proto::InvalidServerTime
+impl core::clone::Clone for papo_proto::time::InvalidServerTime
+pub fn papo_proto::time::InvalidServerTime::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::time::InvalidServerTime
+impl core::cmp::PartialEq for papo_proto::time::InvalidServerTime
+pub fn papo_proto::time::InvalidServerTime::eq(&self, &Self) -> bool
+impl core::error::Error for papo_proto::time::InvalidServerTime
+impl core::fmt::Debug for papo_proto::time::InvalidServerTime
+pub fn papo_proto::time::InvalidServerTime::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo_proto::time::InvalidServerTime
+pub fn papo_proto::time::InvalidServerTime::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Copy for papo_proto::time::InvalidServerTime
+impl core::marker::StructuralPartialEq for papo_proto::time::InvalidServerTime
+impl core::marker::Freeze for papo_proto::time::InvalidServerTime
+impl core::marker::Send for papo_proto::time::InvalidServerTime
+impl core::marker::Sync for papo_proto::time::InvalidServerTime
+impl core::marker::Unpin for papo_proto::time::InvalidServerTime
+impl core::marker::UnsafeUnpin for papo_proto::time::InvalidServerTime
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::time::InvalidServerTime
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::time::InvalidServerTime
 pub struct papo_proto::Isupport
 impl papo_proto::Isupport
 pub fn papo_proto::Isupport::account_required(&self) -> bool
@@ -1702,6 +1775,39 @@ impl core::marker::Unpin for papo_proto::ServerName
 impl core::marker::UnsafeUnpin for papo_proto::ServerName
 impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::ServerName
 impl core::panic::unwind_safe::UnwindSafe for papo_proto::ServerName
+pub struct papo_proto::ServerTime(_)
+impl papo_proto::time::ServerTime
+pub const fn papo_proto::time::ServerTime::as_millis(self) -> i64
+pub fn papo_proto::time::ServerTime::from_stored(&str) -> core::result::Result<Self, papo_proto::time::InvalidServerTime>
+pub fn papo_proto::time::ServerTime::from_stored_millis(i64) -> core::result::Result<Self, papo_proto::time::InvalidServerTime>
+pub fn papo_proto::time::ServerTime::to_system_time(self) -> std::time::SystemTime
+impl core::clone::Clone for papo_proto::time::ServerTime
+pub fn papo_proto::time::ServerTime::clone(&self) -> Self
+impl core::cmp::Eq for papo_proto::time::ServerTime
+impl core::cmp::Ord for papo_proto::time::ServerTime
+pub fn papo_proto::time::ServerTime::cmp(&self, &Self) -> core::cmp::Ordering
+impl core::cmp::PartialEq for papo_proto::time::ServerTime
+pub fn papo_proto::time::ServerTime::eq(&self, &Self) -> bool
+impl core::cmp::PartialOrd for papo_proto::time::ServerTime
+pub fn papo_proto::time::ServerTime::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
+impl core::fmt::Debug for papo_proto::time::ServerTime
+pub fn papo_proto::time::ServerTime::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo_proto::time::ServerTime
+pub fn papo_proto::time::ServerTime::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo_proto::time::ServerTime
+pub fn papo_proto::time::ServerTime::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for papo_proto::time::ServerTime
+impl core::marker::StructuralPartialEq for papo_proto::time::ServerTime
+impl core::str::traits::FromStr for papo_proto::time::ServerTime
+pub type papo_proto::time::ServerTime::Err = papo_proto::time::InvalidServerTime
+pub fn papo_proto::time::ServerTime::from_str(&str) -> core::result::Result<Self, Self::Err>
+impl core::marker::Freeze for papo_proto::time::ServerTime
+impl core::marker::Send for papo_proto::time::ServerTime
+impl core::marker::Sync for papo_proto::time::ServerTime
+impl core::marker::Unpin for papo_proto::time::ServerTime
+impl core::marker::UnsafeUnpin for papo_proto::time::ServerTime
+impl core::panic::unwind_safe::RefUnwindSafe for papo_proto::time::ServerTime
+impl core::panic::unwind_safe::UnwindSafe for papo_proto::time::ServerTime
 pub struct papo_proto::Setname<'a>
 pub papo_proto::Setname::realname: &'a str
 impl<'a> papo_proto::Setname<'a>

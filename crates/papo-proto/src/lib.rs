@@ -62,5 +62,6 @@ pub use secret::Secret;
 pub use server_name::ServerName;
 pub use source::Source;
 pub use text::{Segment, SegmentBoundary, split_text};
+pub use time::{InvalidServerTime, ServerTime};
 pub use views::{Account, Away, Chghost, Join, Setname, StandardReply, StandardReplyKind};
 pub use whox::{WhoxFlags, WhoxPresence, WhoxReply};
