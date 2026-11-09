@@ -426,4 +426,16 @@ mod tests {
             ]
         );
     }
+
+    #[test]
+    fn rejects_msgid_when_only_timestamp_references_are_supported() {
+        let result = HistoryQuery::Before {
+            target: "#papo".into(),
+            before: MsgRef::Msgid("GmU2V7xM".into()),
+            limit: 50,
+        }
+        .into_params(50, &["timestamp"]);
+
+        assert_eq!(result, Err(crate::RequestError::InvalidMessageReference));
+    }
 }
