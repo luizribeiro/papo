@@ -6707,6 +6707,11 @@ mod stable_build_tests;
 
 #[cfg(test)]
 mod tests {
+    use std::{
+        collections::hash_map::DefaultHasher,
+        hash::{Hash as _, Hasher as _},
+    };
+
     use papo_proto::{Casemapping, Line, LineRef};
 
     use super::{
@@ -6955,6 +6960,28 @@ mod tests {
         );
 
         assert_eq!(super::state::clone_count(), 0);
+    }
+
+    #[test]
+    fn channel_guards_hash_by_membership_identity() {
+        let now = std::time::Instant::now();
+        let mut session = Session::new(Config::default().nick("papo"));
+        session.handle_line(now, b":papo!papo@localhost JOIN #release");
+        session.handle_line(now, b":papo!papo@localhost JOIN #operations");
+        let release = session
+            .state()
+            .__channel_guard(session.state().channel("#release").unwrap().name());
+        let operations = session
+            .state()
+            .__channel_guard(session.state().channel("#operations").unwrap().name());
+        let hash = |guard: &super::ChannelGuard| {
+            let mut hasher = DefaultHasher::new();
+            guard.hash(&mut hasher);
+            hasher.finish()
+        };
+
+        assert_eq!(hash(&release), hash(&release.clone()));
+        assert_ne!(hash(&release), hash(&operations));
     }
 
     #[test]
