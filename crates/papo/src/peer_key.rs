@@ -5,6 +5,8 @@ use std::{
 };
 
 mod encoding;
+#[cfg(test)]
+mod tests;
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub(crate) struct PeerScope {
@@ -343,6 +345,20 @@ fn check_accounts(
     }
 }
 
+impl PartialEq for PeerKey {
+    fn eq(&self, other: &Self) -> bool {
+        self.thread == other.thread
+    }
+}
+
+impl Eq for PeerKey {}
+
+impl Hash for PeerKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.thread.hash(state);
+    }
+}
+
 impl FromStr for PeerKey {
     type Err = InvalidPeerKey;
 
@@ -358,6 +374,12 @@ impl fmt::Debug for PeerKey {
             .debug_struct("PeerKey")
             .field("verified", &self.is_verified())
             .finish_non_exhaustive()
+    }
+}
+
+impl fmt::Display for PeerKey {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.encoded)
     }
 }
 
