@@ -3306,6 +3306,40 @@ async fn eof_emits_disconnected_and_returns_an_error() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn eof_delivers_a_cut_off_multiline_before_disconnect() {
+    let settings = config().wanted_caps(["batch", "draft/multiline"]);
+    let (mut server, _client, mut events, driver) = scripted(settings);
+    let task = tokio::spawn(driver);
+    complete_connect_caps(
+        &mut server,
+        &mut events,
+        "batch draft/multiline=max-bytes=4096,max-lines=100",
+        "batch draft/multiline",
+    )
+    .await;
+    server_line(
+        &mut server,
+        b"@msgid=RKi9Cw;time=2026-10-15T12:00:01.000Z :alice!~a@cloak BATCH +deploy draft/multiline #papo\r\n\
+          @batch=deploy :alice!~a@cloak PRIVMSG #papo :deploying release\r\n\
+          @batch=deploy :alice!~a@cloak PRIVMSG #papo :waiting for health checks\r\n",
+    )
+    .await;
+    within(server.shutdown()).await.unwrap();
+
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Incomplete(crate::Incomplete::Message(message)))
+            if message.text == "deploying release\nwaiting for health checks"
+                && message.conversation() == "#papo"
+    ));
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Disconnected(_))
+    ));
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn shutdown_error_does_not_replace_eof() {
     let (mut server, _client, mut events, driver) = scripted_with_failures(false);
     let driver = tokio::spawn(driver);
