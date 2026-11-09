@@ -2129,6 +2129,24 @@ macro_rules! history_item_accessors {
 }
 
 impl HistoryItem {
+    fn line(&self) -> &HistoryLine {
+        match self {
+            Self::Message(line)
+            | Self::Incomplete(line)
+            | Self::Reacted(line)
+            | Self::Redacted(line)
+            | Self::TagMsg(line)
+            | Self::Joined(line)
+            | Self::Parted(line)
+            | Self::Quit(line)
+            | Self::Kicked(line)
+            | Self::NickChanged(line)
+            | Self::TopicChanged(line)
+            | Self::ModeChanged(line)
+            | Self::Other(line) => line,
+        }
+    }
+
     fn line_mut(&mut self) -> &mut HistoryLine {
         match self {
             Self::Message(line)
@@ -6086,6 +6104,7 @@ impl Session {
                 end,
             } => {
                 if let Some(conversation) = self.history_conversation(&target) {
+                    self.remember_history_server_time(&target, &items);
                     self.mark_history_authorship(&mut items);
                     self.outbox.event(Event::History {
                         conversation,
@@ -6169,6 +6188,12 @@ impl Session {
                     .event(Event::MultilineMessage(MultilineMessage { message }));
             }
             BatchEvent::Incomplete(message) => {
+                let own_nick = self.nick().to_owned();
+                self.state.remember_server_time(
+                    &message.as_ref(),
+                    &own_nick,
+                    self.isupport.value(),
+                );
                 let message = self.received_line(message, None);
                 self.outbox
                     .event(Event::Incomplete(IncompleteMultiline { message }));
@@ -6209,6 +6234,17 @@ impl Session {
                 Conversation::Channel(_) | Conversation::Private(_)
             ))
         .then_some(conversation)
+    }
+
+    fn remember_history_server_time(&mut self, target: &str, items: &[HistoryItem]) {
+        if let Some(latest) = items
+            .iter()
+            .filter_map(|item| item.line().as_ref().tag("time"))
+            .filter_map(|value| papo_proto::time::parse(&value))
+            .max()
+        {
+            self.state.remember_server_time_for(target, latest);
+        }
     }
 
     fn mark_history_authorship(&self, items: &mut [HistoryItem]) {
@@ -6380,6 +6416,9 @@ impl Session {
         }
         if !emit_events {
             self.outbox.events.truncate(queued_events);
+        }
+        if let Some((target, items, _)) = &history {
+            self.remember_history_server_time(target, items);
         }
         if let Some((_, items, _)) = &mut history {
             self.mark_history_authorship(items);

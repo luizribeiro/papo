@@ -782,7 +782,7 @@ fn markread_failures_remain_standard_replies() {
 }
 
 #[test]
-fn remembers_live_messages_but_not_history_pages() {
+fn remembers_live_messages_and_tracks_history_server_times_monotonically() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().nick("papo"));
     session.handle_line(
@@ -795,6 +795,10 @@ fn remembers_live_messages_but_not_history_pages() {
         seen.server_time,
         UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000)
     );
+    assert_eq!(
+        session.state().latest_server_time("#PAPO"),
+        Some(UNIX_EPOCH + Duration::new(1_760_529_342, 123_000_000))
+    );
 
     for line in [
         ":ergo.test BATCH +history chathistory #papo",
@@ -806,6 +810,10 @@ fn remembers_live_messages_but_not_history_pages() {
     assert!(matches!(session.poll_event(), Some(Event::Line(_))));
     assert!(matches!(session.poll_event(), Some(Event::History { .. })));
     assert_eq!(session.state().last_seen("#papo").unwrap().msgid, "RKi9Cw");
+    assert_eq!(
+        session.state().latest_server_time("#papo"),
+        Some(UNIX_EPOCH + Duration::from_secs(1_760_529_343))
+    );
 
     session.handle_line(
         now,
@@ -819,6 +827,22 @@ fn remembers_live_messages_but_not_history_pages() {
     assert_eq!(
         session.state().last_seen("#papo").unwrap().msgid,
         "NewerErgoMessage"
+    );
+    assert_eq!(
+        session.state().latest_server_time("#papo"),
+        Some(UNIX_EPOCH + Duration::from_secs(1_760_529_344))
+    );
+
+    for line in [
+        ":ergo.test BATCH +older chathistory #papo",
+        "@batch=older;time=2025-10-15T11:55:40.000Z;msgid=OlderHistory :eve!~e@cloak PRIVMSG #papo :old page",
+        ":ergo.test BATCH -older",
+    ] {
+        session.handle_line(now, line.as_bytes());
+    }
+    assert_eq!(
+        session.state().latest_server_time("#papo"),
+        Some(UNIX_EPOCH + Duration::from_secs(1_760_529_344))
     );
 
     session.handle_disconnected(now);

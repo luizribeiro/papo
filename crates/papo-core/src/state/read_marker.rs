@@ -4,7 +4,7 @@ use super::{
 };
 
 impl State {
-    pub(super) fn remember_server_time(
+    pub(crate) fn remember_server_time(
         &mut self,
         message: &LineRef<'_>,
         own_nick: &str,

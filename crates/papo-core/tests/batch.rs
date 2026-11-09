@@ -1,6 +1,6 @@
 //! Transcript coverage for `IRCv3` batch routing.
 
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, UNIX_EPOCH};
 
 use papo_core::{
     Authorship, BatchAbandonReason, Config, Conversation, Event, HistoryItem, RateLimit, Session,
@@ -94,6 +94,10 @@ fn disconnect_delivers_the_received_multiline_members_as_incomplete() {
 
     session.handle_disconnected(now);
 
+    assert_eq!(
+        session.state().latest_server_time("#PAPO"),
+        Some(UNIX_EPOCH + Duration::from_secs(1_792_065_601))
+    );
     let message = incomplete(&mut session);
     assert_eq!(
         message.as_ref().param(1),
@@ -231,13 +235,15 @@ fn multiline_timeout_delivers_one_incomplete_message() {
 #[test]
 fn cut_off_multiline_history_is_an_incomplete_history_item() {
     let now = Instant::now();
-    let mut session = Session::new(Config::default().max_batch_lines(2));
+    let mut session = Session::new(Config::default().max_batch_lines(3));
     for line in [
         ":ergo.test BATCH +history chathistory #papo",
+        "@batch=history;msgid=Q8F3dK6p;time=2026-10-29T21:14:06.100Z :bob!~b@cloak PRIVMSG #papo :deployment started",
         "@batch=history;msgid=rd7sHq2kzT4;time=2026-10-29T21:14:07.603Z :ergo.test BATCH +multiline draft/multiline #papo",
         "@batch=multiline :alice!~a@cloak PRIVMSG #papo :missed deployment",
         "@batch=multiline :alice!~a@cloak PRIVMSG #papo :still in progress",
         "@batch=multiline :alice!~a@cloak PRIVMSG #papo :health checks pending",
+        "@batch=multiline :alice!~a@cloak PRIVMSG #papo :rollout paused",
     ] {
         session.handle_line(now, line.as_bytes());
     }
@@ -245,13 +251,22 @@ fn cut_off_multiline_history_is_an_incomplete_history_item() {
     let Some(Event::History { items, end, .. }) = session.poll_event() else {
         panic!("expected an incomplete replay page")
     };
-    let [HistoryItem::Incomplete(message)] = items.as_slice() else {
-        panic!("expected one incomplete history item: {items:?}")
+    let [
+        HistoryItem::Message(older),
+        HistoryItem::Incomplete(message),
+    ] = items.as_slice()
+    else {
+        panic!("expected an older message and one incomplete history item: {items:?}")
     };
     assert!(!end);
+    assert_eq!(older.line.as_ref().param(1), Some("deployment started"));
     assert_eq!(
         message.line.as_ref().param(1),
         Some("missed deployment\nstill in progress\nhealth checks pending")
+    );
+    assert_eq!(
+        session.state().latest_server_time("#PAPO"),
+        Some(UNIX_EPOCH + Duration::new(1_793_308_447, 603_000_000))
     );
     assert!(matches!(
         session.poll_event(),
