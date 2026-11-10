@@ -938,6 +938,42 @@ mod name_tests {
     }
 
     #[test]
+    fn channel_lookup_accepts_local_names_and_refuses_foreign_or_stale_handles() {
+        let local = crate::Origin::__new(73);
+        let mut config = Config::default().nick("papo");
+        config.origin = local;
+        let mut session = Session::new(config);
+        let now = crate::rt::now_mono();
+        session.handle_line(now, b":papo!p@localhost JOIN #review");
+        let channel = session.state().channel("#review").unwrap().name().clone();
+        let guard = session.state().__channel_guard(&channel);
+        let joined = State::from_session(&session, true);
+
+        assert_eq!(
+            joined.channel("#REVIEW").unwrap().unwrap().name(),
+            "#review"
+        );
+        assert_eq!(
+            joined
+                .channel(local.__channel(joined.casemapping(), "#review"))
+                .unwrap()
+                .unwrap()
+                .name(),
+            "#review"
+        );
+        let foreign = crate::Origin::__new(91).__channel(joined.casemapping(), "#review");
+        assert!(matches!(
+            joined.channel(foreign),
+            Err(crate::ForeignReference)
+        ));
+
+        session.handle_line(now, b":papo!p@localhost PART #review :Review complete");
+        let parted = State::from_session(&session, true);
+        let stale = crate::ChannelHandle::from_parts(channel, None, Some(guard), None);
+        assert!(parted.channel(stale).unwrap().is_none());
+    }
+
+    #[test]
     fn builds_every_name_with_snapshot_rules() {
         let session = Session::new(
             Config::default()
