@@ -43,7 +43,7 @@ async fn high_level_client_uses_the_browser_websocket() {
         .await
         .unwrap();
     wait_for(&mut events, |event| {
-        matches!(event, ClientEvent::ChannelSynced(synced) if synced.channel.as_str() == channel)
+        matches!(event, ClientEvent::ChannelSynced(synced) if synced.channel.name().as_str() == channel)
     })
     .await;
 
@@ -54,7 +54,7 @@ async fn high_level_client_uses_the_browser_websocket() {
         .await
         .unwrap();
     wait_for(&mut peer_events, |event| {
-        matches!(event, ClientEvent::ChannelSynced(synced) if synced.channel.as_str() == channel)
+        matches!(event, ClientEvent::ChannelSynced(synced) if synced.channel.name().as_str() == channel)
     })
     .await;
 
