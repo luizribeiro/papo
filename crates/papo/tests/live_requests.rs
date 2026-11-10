@@ -41,7 +41,7 @@ async fn typed_requests_round_trip_against_ergo() {
         assert_eq!(
             client
                 .snapshot()
-                .channel(&channel)
+                .__channel_local(&channel)
                 .unwrap()
                 .members()
                 .count(),
@@ -62,7 +62,7 @@ async fn typed_requests_round_trip_against_ergo() {
             .await
             .unwrap();
         assert_eq!(
-            client.snapshot().channel(&channel).unwrap().topic(),
+            client.snapshot().__channel_local(&channel).unwrap().topic(),
             Some("Typed requests on Ergo")
         );
         assert!(client.list().await.unwrap().iter().any(|entry| {

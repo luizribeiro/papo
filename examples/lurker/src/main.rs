@@ -19,7 +19,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         match event {
             Event::ChannelSynced(synced) => {
                 let state = client.snapshot();
-                let Some(channel) = state.channel(&synced.channel) else {
+                let Some(channel) = state.__channel_local(&synced.channel) else {
                     continue;
                 };
                 let mut members = channel
