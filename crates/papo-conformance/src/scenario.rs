@@ -336,23 +336,48 @@ mod tests {
         let mut peer = Peer::new(client, events);
         peer.wait_for(Event::as_connected).await.unwrap();
 
-        wire.server(
-            ":BouncerServ!service@BouncerServ NOTICE papo-fixture :connected to alice-1469-266",
-        )
-        .await;
-        wire.server(
-            ":BouncerServ!BouncerServ@BouncerServ NOTICE papo-fixture :connected to another-network",
-        )
-        .await;
-        wire.server(
-            ":BouncerServ!BouncerServ@BouncerServ NOTICE papo-fixture :connected to alice-1469-266",
-        )
-        .await;
-
-        let notice = peer
-            .wait_for(|event| soju_connected_network(event, "alice-1469-266"))
-            .await
-            .unwrap();
-        assert_eq!(notice.raw_text, "connected to alice-1469-266");
+        for (case, line, accepted) in [
+            (
+                "wrong service nick",
+                ":OtherServ!BouncerServ@BouncerServ NOTICE papo-fixture :connected to alice-1469-266",
+                false,
+            ),
+            (
+                "wrong service username",
+                ":BouncerServ!service@BouncerServ NOTICE papo-fixture :connected to alice-1469-266",
+                false,
+            ),
+            (
+                "wrong service host",
+                ":BouncerServ!BouncerServ@soju.example NOTICE papo-fixture :connected to alice-1469-266",
+                false,
+            ),
+            (
+                "wrong network",
+                ":BouncerServ!BouncerServ@BouncerServ NOTICE papo-fixture :connected to another-network",
+                false,
+            ),
+            (
+                "not authenticated",
+                ":BouncerServ!BouncerServ@BouncerServ NOTICE papo-fixture :not authenticated",
+                false,
+            ),
+            (
+                "authenticated network attachment",
+                ":BouncerServ!BouncerServ@BouncerServ NOTICE papo-fixture :connected to alice-1469-266",
+                true,
+            ),
+        ] {
+            wire.server(line).await;
+            let event = peer
+                .wait_for(|event| event.as_notice().map(|_| event))
+                .await
+                .unwrap();
+            assert_eq!(
+                soju_connected_network(&event, "alice-1469-266").is_some(),
+                accepted,
+                "{case}: {line}",
+            );
+        }
     }
 }
