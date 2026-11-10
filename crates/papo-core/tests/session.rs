@@ -169,9 +169,12 @@ fn state_generation_changes_only_with_snapshot_state() {
 fn remembered_messages_require_both_msgid_and_server_time() {
     let now = Instant::now();
     let mut session = Session::new(Config::default().nick("emily"));
+    session.handle_line(
+        now,
+        b":alice!~alice@staff.example PRIVMSG emily :review is ready",
+    );
     let generation = session.state_generation();
     for line in [
-        ":alice!~alice@staff.example PRIVMSG emily :review is ready",
         "@msgid=RfcBTzyxY120004 :alice!~alice@staff.example PRIVMSG emily :review is ready",
         "@time=2026-10-15T12:00:00.000Z :alice!~alice@staff.example PRIVMSG emily :review is ready",
     ] {

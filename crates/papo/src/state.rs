@@ -861,7 +861,7 @@ mod name_tests {
     }
 
     #[test]
-    fn typing_transition_reuses_the_core_snapshot() {
+    fn typing_transition_updates_user_and_typing_snapshots() {
         let now = crate::rt::now_mono();
         let mut session = Session::new(Config::default().casemapping(Casemapping::default()));
         let initial = State::from_session(&session, false);
@@ -872,8 +872,9 @@ mod name_tests {
         );
         let changed = State::from_session_reusing(&session, false, &initial);
 
-        assert!(Arc::ptr_eq(&initial.core, &changed.core));
+        assert!(!Arc::ptr_eq(&initial.core, &changed.core));
         assert!(!Arc::ptr_eq(&initial.typing, &changed.typing));
+        assert_eq!(changed.user("alice").unwrap().host(), Some("cloak.example"));
         let conversation = name_rules(&changed).target("#papo").unwrap().1;
         assert_eq!(changed.typing(&conversation).count(), 1);
         assert_eq!(changed.typing("#PAPO").count(), 1);

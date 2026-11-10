@@ -74,12 +74,77 @@ impl State {
         message: &LineRef<'_>,
         own_nick: &str,
         isupport: &Isupport,
+        enabled_caps: &crate::Capabilities,
         outbox: &mut Outbox,
     ) -> crate::Names {
         let mapping = isupport.casemapping();
         self.update_casemapping(mapping);
+        self.track_message_user(message, isupport, enabled_caps);
         self.apply_message_metadata(message, own_nick, outbox);
         self.casemapping
+    }
+
+    fn track_message_user(
+        &mut self,
+        message: &LineRef<'_>,
+        isupport: &Isupport,
+        enabled_caps: &crate::Capabilities,
+    ) {
+        if !matches!(
+            message.command(),
+            Command::Privmsg | Command::Notice | Command::Tagmsg | Command::Redact
+        ) || !message
+            .param(0)
+            .is_some_and(|target| isupport.is_channel(target))
+        {
+            return;
+        }
+        let Some(ProtoSource::User {
+            nick,
+            username,
+            host,
+            ..
+        }) = message.source()
+        else {
+            return;
+        };
+        let key = NameKey::new(nick, self.casemapping);
+        let mut changed = false;
+        if !self.users.contains_key(&key) {
+            let user = self.new_user(nick, username, host);
+            self.users.insert(key.clone(), user);
+            changed = true;
+        }
+        let message_tags = enabled_caps.contains_key(&crate::cap::MESSAGE_TAGS);
+        if let Some(user) = self.users.get_mut(&key) {
+            let old_username = user.username.clone();
+            let old_host = user.host.clone();
+            let old_is_bot = user.is_bot;
+            user.update_userhost(username, host);
+            if changed && let Some(account) = message.tag("account") {
+                user.update_account(Account::LoggedIn(
+                    self.casemapping.account(account.as_ref()),
+                ));
+            }
+            if message_tags && isupport.bot_mode().is_some() {
+                user.is_bot = Some(message.tags().any(|(name, _)| name == "bot"));
+            }
+            changed |=
+                old_username != user.username || old_host != user.host || old_is_bot != user.is_bot;
+        }
+        self.message_users.retain(|known| known != &key);
+        self.message_users.push_back(key);
+        if self.message_users.len() > super::MAX_MESSAGE_USERS
+            && let Some(evicted) = self.message_users.pop_front()
+            && self.users.get(&evicted).is_some_and(|user| {
+                user.nick != self.nick && !user.monitored && user.channels.is_empty()
+            })
+        {
+            changed |= self.users.remove(&evicted).is_some();
+        }
+        if changed {
+            self.mark_changed();
+        }
     }
 
     fn handle_account(&mut self, message: &LineRef<'_>, outbox: &mut Outbox) -> Option<Handled> {

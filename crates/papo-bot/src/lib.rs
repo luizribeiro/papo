@@ -820,7 +820,7 @@ mod tests {
         }
 
         let config = BotConfig::new("!");
-        assert!(client.snapshot().user("weatherbot").is_none());
+        assert!(client.snapshot().user("weatherbot").is_some());
         assert_eq!(messages[0].actor.is_bot(), Some(true));
         assert!(
             config

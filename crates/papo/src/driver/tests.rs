@@ -8018,8 +8018,8 @@ async fn chat_text_returns_metadata_from_every_labelled_echo() {
     let split = tokio::spawn(async move { sender.notice("#papo", "a".repeat(600)).await });
     let lines = format!(
         "@label=1 NOTICE #papo {}\r\n@label=1-1 NOTICE #papo {}\r\n",
-        "a".repeat(414),
-        "a".repeat(186)
+        "a".repeat(468),
+        "a".repeat(132)
     );
     client_line(&mut server, lines.as_bytes()).await;
     server_line(
@@ -8041,8 +8041,8 @@ async fn chat_text_returns_metadata_from_every_labelled_echo() {
     assert_eq!(
         lines.as_slice(),
         &[
-            (crate::MessageId::from("RfcBTzyxY120005"), "a".repeat(414)),
-            (crate::MessageId::from("RfcBTzyxY120006"), "a".repeat(186)),
+            (crate::MessageId::from("RfcBTzyxY120005"), "a".repeat(468)),
+            (crate::MessageId::from("RfcBTzyxY120006"), "a".repeat(132)),
         ]
     );
     let sender = client.clone();

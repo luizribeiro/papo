@@ -39,6 +39,7 @@ const WHOX_FIELDS: &str = "%tcuhnfar,152";
 const WHOX_TOKEN: &str = "152";
 const MAX_LAST_SEEN_TARGETS: usize = 1_000;
 const MAX_DEPARTED_IDENTITIES: usize = 1_000;
+const MAX_MESSAGE_USERS: usize = 1_000;
 
 #[derive(Clone, Copy)]
 pub(crate) enum StateGrowth<'a> {
@@ -1045,7 +1046,7 @@ impl State {
         own_away_message: Option<&str>,
         outbox: &mut Outbox,
     ) -> Handled {
-        let mapping = self.prepare_message(message, own_nick, isupport, outbox);
+        let mapping = self.prepare_message(message, own_nick, isupport, enabled_caps, outbox);
         if self.handle_metadata(
             message,
             metadata.max_keys,
@@ -2285,7 +2286,7 @@ fn canonical_list_mask(mask: &Mask) -> Mask {
 
 #[cfg(test)]
 mod metadata_tests {
-    use papo_proto::{Isupport, LineRef};
+    use papo_proto::{Isupport, Line, LineRef};
 
     use super::{Arc, Channel, MetadataContext, NameKey, State};
     use crate::{Authorship, Capabilities, Config, Event, ListMode, Outbox, StateLimit};
@@ -2304,6 +2305,36 @@ mod metadata_tests {
 
         assert_eq!(warnings, [1_000]);
         assert_eq!(entries.as_slice().len(), 1_000);
+    }
+
+    #[test]
+    fn message_actor_state_stops_at_literal_1000() {
+        let mut state = State::new(&Config::default().nick("papo"));
+        let mut outbox = Outbox::default();
+        for index in 0..=1_000 {
+            let line = Line::privmsg("#release", "deployment status")
+                .with_source(format!("reviewer{index:04}!review@users.example"));
+            state.handle_message(
+                &line.as_ref(),
+                None,
+                "papo",
+                &Isupport::default(),
+                &Capabilities::default(),
+                false,
+                MetadataContext {
+                    max_keys: 100,
+                    subscription_batch: false,
+                },
+                None,
+                &mut outbox,
+            );
+            outbox.events.clear();
+        }
+
+        assert_eq!(state.users.len(), 1_001);
+        assert!(state.user("reviewer0000").is_none());
+        assert!(state.user("reviewer0001").is_some());
+        assert!(state.user("reviewer1000").is_some());
     }
 
     #[test]
