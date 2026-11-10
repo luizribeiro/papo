@@ -96,6 +96,10 @@ fn test_channel(value: &str) -> crate::ChannelName {
     crate::Casemapping::default().channel(value)
 }
 
+fn test_channel_handle(value: &str) -> crate::ChannelName {
+    test_channel(value)
+}
+
 fn test_mask(value: &str) -> crate::Mask {
     crate::Casemapping::default().mask(value)
 }
@@ -1748,7 +1752,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
             realname: None,
-            channel: test_channel("#papo"),
+            channel: test_channel_handle("#papo"),
             actor: crate::__testing::user_source(test_nick("papo-driver"), None, None),
             authorship: crate::Authorship::Own,
             netjoin: None,
@@ -1762,7 +1766,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
             realname: None,
-            channel: test_channel("#visitors"),
+            channel: test_channel_handle("#visitors"),
             actor: crate::__testing::user_source(test_nick("alice"), None, None),
             authorship: crate::Authorship::Other,
             netjoin: None,
@@ -1778,7 +1782,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
             actor: crate::__testing::user_source(test_nick("alice"), None, None),
-            channel: test_channel("#staff"),
+            channel: test_channel_handle("#staff"),
             reason: Some("lunch".into()),
             authorship: crate::Authorship::Other,
         }),
@@ -1790,7 +1794,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             msgid: None,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
-            channel: test_channel("#staff"),
+            channel: test_channel_handle("#staff"),
             subject: test_nick("alice"),
             actor: crate::Source::from_proto(
                 papo_proto::Source::__user("chanserv", None, None),
@@ -1811,7 +1815,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
             actor: crate::__testing::user_source(test_nick("papo-driver"), None, None),
-            channel: test_channel("#Papo"),
+            channel: test_channel_handle("#Papo"),
             reason: None,
             authorship: crate::Authorship::Own,
         }),
@@ -1824,7 +1828,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             msgid: None,
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
-            channel: test_channel("#staff"),
+            channel: test_channel_handle("#staff"),
             subject: test_nick("papo-driver"),
             actor: crate::Source::from_proto(
                 papo_proto::Source::__user("chanserv", None, None),
@@ -1898,7 +1902,7 @@ fn rejoin_set_stops_at_ten_thousand_channels() {
         server_time: None,
         received_at: SystemTime::UNIX_EPOCH,
         realname: None,
-        channel: test_channel("#overflow"),
+        channel: test_channel_handle("#overflow"),
         actor: crate::__testing::user_source(test_nick("papo-driver"), None, None),
         authorship: crate::Authorship::Own,
         netjoin: None,
@@ -2694,7 +2698,7 @@ async fn restored_offline_part_is_not_rejoined_after_an_interrupted_part() {
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 #[allow(clippy::too_many_lines)]
-async fn channel_renames_change_the_rejoin_target_and_survive_a_part() {
+async fn channel_handle_follows_rename() {
     let (first_stream, mut first_server) = tokio::io::duplex(4096);
     let (second_stream, mut second_server) = tokio::io::duplex(4096);
     let (third_stream, mut third_server) = tokio::io::duplex(4096);

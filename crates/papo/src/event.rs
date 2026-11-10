@@ -2885,6 +2885,18 @@ mod tests {
         )
     }
 
+    fn map_conversation(
+        value: papo_core::Conversation,
+        _status: Option<crate::Prefix>,
+        _origin: crate::Origin,
+    ) -> Conversation {
+        value
+    }
+
+    fn channel(value: crate::ChannelName) -> crate::ChannelName {
+        value
+    }
+
     #[tokio::test(flavor = "current_thread")]
     async fn credential_refusals_produce_typed_request_and_transmit_errors() {
         use crate::driver::test_support::{complete_connect_labelled, config, scripted, within};
@@ -3137,8 +3149,9 @@ mod tests {
         let (status, conversation) =
             papo_core::classify_conversation(&message.as_ref(), nick, isupport).unwrap_or((
                 None,
-                Conversation::Private(isupport.casemapping().nick(nick)),
+                papo_core::Conversation::Private(isupport.casemapping().nick(nick)),
             ));
+        let conversation = map_conversation(conversation, status, crate::Origin::NONE);
         message_event_from_line(
             message,
             None,
@@ -3486,7 +3499,11 @@ mod tests {
             (
                 "channel",
                 Line::privmsg("#papo", "hello").with_source("emily!~e@localhost"),
-                Conversation::Channel(origin.__channel(mapping, "#papo")),
+                map_conversation(
+                    papo_core::Conversation::Channel(origin.__channel(mapping, "#papo")),
+                    None,
+                    origin,
+                ),
             ),
             (
                 "private",
@@ -3758,6 +3775,7 @@ mod tests {
             isupport.apply_tokens(["CHANTYPES=#", "STATUSMSG=@+"]);
             let (status, conversation) =
                 papo_core::classify_conversation(&line.as_ref(), "papo", &isupport).unwrap();
+            let conversation = map_conversation(conversation, status, crate::Origin::NONE);
             message_event_from_line(
                 line,
                 None,
@@ -3822,6 +3840,7 @@ mod tests {
                 .to_owned();
         let (status, conversation) =
             papo_core::classify_conversation(&notice.as_ref(), "papo", &isupport).unwrap();
+        let conversation = map_conversation(conversation, status, crate::Origin::NONE);
         assert!(
             super::Notice::from_line(
                 notice,
@@ -4052,7 +4071,7 @@ mod tests {
     fn return_address_falls_back_to_the_classified_conversation() {
         let mapping = crate::Casemapping::default();
         let incomplete = Line::new("PRIVMSG");
-        let channel = Conversation::Channel(mapping.channel("#papo"));
+        let channel = Conversation::Channel(channel(mapping.channel("#papo")));
         assert_eq!(
             super::return_address(&incomplete.as_ref(), &channel),
             "#papo"
@@ -4970,7 +4989,11 @@ mod tests {
             forwarded(papo_core::Event::Redacted(redacted.clone())),
             Event::Redacted(mapped)
                 if matches!(mapped.actor, Source::User(ref user) if user.nick() == "alice")
-                    && mapped.conversation == redacted.conversation
+                    && mapped.conversation == map_conversation(
+                        redacted.conversation.clone(),
+                        redacted.status,
+                        crate::Origin::NONE,
+                    )
                     && mapped.status == redacted.status
                     && mapped.return_address() == "@#ops"
                     && mapped.redacts.as_ref() == redacted.msgid
@@ -6157,7 +6180,11 @@ mod tests {
         assert!(matches!(
             forwarded(papo_core::Event::ReadMarkerChanged(marker.clone())),
             Event::ReadMarkerChanged(mapped)
-                if mapped.conversation == marker.conversation
+                if mapped.conversation == map_conversation(
+                    marker.conversation.clone(),
+                    None,
+                    crate::Origin::NONE,
+                )
                     && mapped.read_until == marker.read_until
         ));
     }
