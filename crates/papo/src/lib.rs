@@ -291,7 +291,6 @@ mod action;
 mod address;
 mod builder;
 mod client;
-#[allow(dead_code)]
 mod conversation;
 mod direct;
 mod direct_runtime;
@@ -353,10 +352,7 @@ pub use builder::StreamSecurity;
 pub use client::{
     Client, ConfirmedLines, Fallback, JoinChannel, Kickban, SendMessage, Sent, SentOutcome,
 };
-#[doc(hidden)]
-pub use conversation::Conversation as HandleConversation;
 pub use conversation::Conversation;
-pub(crate) use conversation::Conversation as PublicConversation;
 pub use direct::DirectRef;
 pub use direct_to::DirectSource;
 pub use driver::{Driver, Events};
