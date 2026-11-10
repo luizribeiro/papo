@@ -290,6 +290,8 @@ mod action;
 mod address;
 mod builder;
 mod client;
+#[allow(dead_code)]
+mod conversation;
 mod direct;
 mod direct_runtime;
 mod direct_to;
