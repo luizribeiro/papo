@@ -105,19 +105,16 @@ pub(super) fn advance_catchup(
         origin: session.state().nick().origin(),
         network_builder: None,
     };
-    let guard = match &core_conversation {
-        papo_core::Conversation::Channel(channel) => {
-            Some(client.state().core.__channel_guard(channel))
-        }
-        _ => None,
+    let conversation = {
+        let state = client.state();
+        crate::Conversation::from_core_with_state(
+            core_conversation,
+            None,
+            client.origin(),
+            &client.state,
+            &state,
+        )
     };
-    let conversation = crate::Conversation::from_core(
-        core_conversation,
-        None,
-        client.origin(),
-        Some(&client.state),
-        guard,
-    );
     let items = catchup
         .items
         .into_iter()

@@ -456,6 +456,7 @@ async fn connecting_phase_overflow_reports_one_lag_episode() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+#[allow(clippy::too_many_lines)]
 async fn message_fields_use_captured_session_facts() {
     let (mut server, _client, mut events, driver) = scripted(config().max_batch_lines(0));
     let task = tokio::spawn(driver);
@@ -464,6 +465,15 @@ async fn message_fields_use_captured_session_facts() {
     client_line(&mut server, b"CAP END\r\n").await;
     server_line(&mut server, b":ergo.test 005 papo-driver CHANTYPES=# CASEMAPPING=rfc1459 :are supported\r\n:ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n").await;
     assert_connected(&mut events).await;
+    server_line(
+        &mut server,
+        b":papo-driver!papo@localhost JOIN #papo * :Papo Driver\r\n",
+    )
+    .await;
+    let Some(Event::Joined(joined)) = next_event(&mut events).await else {
+        panic!("expected own join")
+    };
+    let channel = joined.channel;
 
     server_line(&mut server, b"@time=2026-02-03T04:05:06.789Z;msgid=RfcBTzyxY120004;account=emily;bot;+draft/reply=RfcBTzyxY120003 :emily!~e@localhost PRIVMSG #papo :hello \x02from Ergo\x02\r\n").await;
     let message = next_message(&mut events).await;
@@ -544,6 +554,7 @@ async fn message_fields_use_captured_session_facts() {
         panic!("expected partial history page")
     };
     assert_eq!(page.reason, crate::HistoryReason::Replay);
+    assert_eq!(page.conversation, crate::Conversation::Channel(channel));
     assert!(!page.end);
     assert_eq!(page.chat_messages().next().unwrap().text, "earlier");
     assert!(matches!(
@@ -2358,6 +2369,7 @@ async fn reconnect_history_pages_stop_at_the_target_limit() {
 }
 
 #[tokio::test(flavor = "current_thread", start_paused = true)]
+#[allow(clippy::too_many_lines)]
 async fn reconnect_history_advances_past_the_previous_catchup() {
     let (first_stream, mut first_server) = tokio::io::duplex(4096);
     let (second_stream, mut second_server) = tokio::io::duplex(4096);
@@ -2414,6 +2426,14 @@ async fn reconnect_history_advances_past_the_previous_catchup() {
 
     complete_connect_history(&mut second_server, &mut events).await;
     client_line(&mut second_server, b"@label=1 JOIN #papo\r\n").await;
+    server_line(
+        &mut second_server,
+        b":papo-driver!papo@localhost JOIN #papo * :Papo Driver\r\n",
+    )
+    .await;
+    let Some(Event::Joined(joined)) = next_event(&mut events).await else {
+        panic!("expected rejoin")
+    };
     client_line(
         &mut second_server,
         b"@label=2 CHATHISTORY AFTER #papo msgid=RfcBTzyxY120000 100\r\n",
@@ -2429,6 +2449,10 @@ async fn reconnect_history_advances_past_the_previous_catchup() {
     let Some(Event::History(history)) = next_event(&mut events).await else {
         panic!("expected first catch-up")
     };
+    assert_eq!(
+        history.conversation,
+        crate::Conversation::Channel(joined.channel)
+    );
     assert_eq!(
         history
             .chat_messages()

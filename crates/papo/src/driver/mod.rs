@@ -1700,19 +1700,16 @@ where
                     origin: session.state().nick().origin(),
                     network_builder: None,
                 };
-                let guard = match &conversation {
-                    papo_core::Conversation::Channel(channel) => {
-                        Some(client.state().core.__channel_guard(channel))
-                    }
-                    _ => None,
+                let conversation = {
+                    let state = client.state();
+                    crate::Conversation::from_core_with_state(
+                        conversation,
+                        None,
+                        client.origin(),
+                        &client.state,
+                        &state,
+                    )
                 };
-                let conversation = crate::Conversation::from_core(
-                    conversation,
-                    None,
-                    client.origin(),
-                    Some(&client.state),
-                    guard,
-                );
                 let items = items
                     .into_iter()
                     .map(|item| {
