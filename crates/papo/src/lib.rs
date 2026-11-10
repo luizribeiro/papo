@@ -57,6 +57,15 @@
 //! | `tls-aws-lc` | TLS through rustls with the AWS-LC provider | Native and WASI |
 //! | `unstable` | Experimental extension APIs outside semantic-versioning guarantees | All targets |
 //!
+//! Feature selection does not change how endpoint URLs are represented:
+//!
+//! ```
+//! use papo::{Endpoint, EndpointKind};
+//!
+//! let endpoint: Endpoint = "wss://irc.example.net/socket".parse().unwrap();
+//! assert_eq!(endpoint.kind(), EndpointKind::SecureWebSocket);
+//! ```
+//!
 //! If both TLS provider features are enabled, ring is used.
 //!
 //! Ratified `IRCv3` specifications and drafts published on ircv3.net are stable; open proposals and
@@ -129,6 +138,22 @@
 //! the driver to send `QUIT`, but `Drop` cannot await delivery or acknowledgement. Applications
 //! should call [`Client::quit`] explicitly when they choose to shut down, then keep reading events
 //! until the stream ends.
+//!
+//! ```no_run
+//! use papo::Client;
+//!
+//! #[tokio::main(flavor = "current_thread")]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let (client, mut events) =
+//!         Client::builder("ircs://irc.example.net", "papo-example")
+//!             .connect()
+//!             .await?;
+//!
+//!     client.quit("shutting down").await?;
+//!     while events.next().await.is_some() {}
+//!     Ok(())
+//! }
+//! ```
 //!
 //! Dropping a [`RequestFuture`] does not cancel work that has reached the driver. In particular,
 //! multi-step actions continue through their remaining protocol commands. Dropping the driver
