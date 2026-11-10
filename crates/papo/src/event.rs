@@ -1445,16 +1445,13 @@ pub(crate) fn joined_from_line(
     let envelope =
         line_envelope_with_account_tag(line, casemapping, origin, account_tag_enabled, received_at)
             .with_account(account);
-    let Source::User(actor) = source::from_line(
+    let actor = source::user_source_from_line(
         source::LinePrefix::Raw(line.raw_source()?),
         &envelope,
         casemapping,
         origin,
         prove_not_bot,
-    )?
-    else {
-        return None;
-    };
+    )?;
     Some(Joined {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
