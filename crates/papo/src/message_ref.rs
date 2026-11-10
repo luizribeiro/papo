@@ -665,15 +665,7 @@ pub(crate) fn stamp_conversation(
     conversation: Conversation,
     origin: crate::Origin,
 ) -> Conversation {
-    match conversation {
-        Conversation::Channel(channel) => {
-            Conversation::Channel(origin.__channel(channel.casemapping(), channel.into_string()))
-        }
-        Conversation::Private(nick) => {
-            Conversation::Private(origin.__nick(nick.casemapping(), nick.into_string()))
-        }
-        conversation => conversation,
-    }
+    crate::conversation::public_from_core(conversation, None, origin, None, None)
 }
 
 #[cfg(test)]

@@ -384,6 +384,7 @@ pub use isupport_impl::Isupport;
 pub use message_ref::{MessageRef, NoticeRef};
 pub use mode::{BanTarget, Extban, KickbanOutcome, ModesApplied, SetModes};
 pub use name_rules::{NameCheck, NameRules};
+pub(crate) use papo_core::Conversation as PublicConversation;
 #[doc(inline)]
 pub use papo_core::InvalidUrl;
 #[doc(inline)]

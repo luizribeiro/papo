@@ -39,6 +39,24 @@ impl Conversation {
     }
 }
 
+pub(crate) fn public_from_core(
+    value: papo_core::Conversation,
+    _status: Option<crate::Prefix>,
+    origin: crate::Origin,
+    _state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
+    _guard: Option<papo_core::ChannelGuard>,
+) -> crate::PublicConversation {
+    match value {
+        papo_core::Conversation::Channel(channel) => crate::PublicConversation::Channel(
+            origin.__channel(channel.casemapping(), channel.into_string()),
+        ),
+        papo_core::Conversation::Private(nick) => crate::PublicConversation::Private(
+            origin.__nick(nick.casemapping(), nick.into_string()),
+        ),
+        _ => unreachable!("core conversations have channel and private variants"),
+    }
+}
+
 impl fmt::Display for Conversation {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

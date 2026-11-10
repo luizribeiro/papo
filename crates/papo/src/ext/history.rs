@@ -147,12 +147,12 @@ fn other(line: Line, received_at: SystemTime) -> Event {
 
 fn conversation_from_core(
     conversation: papo_core::Conversation,
-    _status: Option<crate::Prefix>,
+    status: Option<crate::Prefix>,
     origin: crate::Origin,
-    _state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
-    _guard: Option<papo_core::ChannelGuard>,
+    state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
+    guard: Option<papo_core::ChannelGuard>,
 ) -> crate::Conversation {
-    crate::message_ref::stamp_conversation(conversation, origin)
+    crate::conversation::public_from_core(conversation, status, origin, state, guard)
 }
 
 #[allow(clippy::too_many_lines)]
