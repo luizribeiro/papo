@@ -352,6 +352,8 @@ pub use builder::StreamSecurity;
 pub use client::{
     Client, ConfirmedLines, Fallback, JoinChannel, Kickban, SendMessage, Sent, SentOutcome,
 };
+#[doc(hidden)]
+pub use conversation::Conversation as HandleConversation;
 pub use direct::DirectRef;
 pub use direct_to::DirectSource;
 pub use driver::{Driver, Events};
