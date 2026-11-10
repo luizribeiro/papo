@@ -34,7 +34,7 @@ pub(super) fn remember_live_event<'a>(
 }
 
 fn event_applies_to_channel(event: &Event, target: &str) -> bool {
-    if matches!(event.conversation(), Some(crate::Conversation::Channel(channel)) if channel == target)
+    if matches!(event.conversation(), Some(crate::PublicConversation::Channel(channel)) if channel == target)
     {
         return true;
     }
@@ -286,7 +286,7 @@ mod tests {
             Some("~e".into()),
             Some("cloak.example".into()),
         );
-        let conversation = crate::Conversation::Channel(mapping.channel("#papo"));
+        let conversation = crate::PublicConversation::Channel(mapping.channel("#papo"));
         let receipt = crate::message_ref::Receipt::new(
             crate::Source::User(actor.clone()),
             crate::Authorship::Other,

@@ -191,7 +191,7 @@ pub(crate) enum Command {
     SendText {
         kind: TextKind,
         target: String,
-        conversation: crate::Conversation,
+        conversation: crate::PublicConversation,
         status: Option<crate::Prefix>,
         receipt: crate::message_ref::Receipt,
         text: String,
@@ -232,7 +232,7 @@ enum PendingRequest {
         channel: crate::ChannelName,
     },
     Text {
-        conversation: crate::Conversation,
+        conversation: crate::PublicConversation,
         status: Option<crate::Prefix>,
         receipt: crate::message_ref::Receipt,
         fallbacks: Vec<crate::Fallback>,
@@ -316,7 +316,7 @@ impl PendingRequest {
 enum PendingTransmit {
     Empty(oneshot::Sender<Result<(), Error>>),
     Text {
-        conversation: crate::Conversation,
+        conversation: crate::PublicConversation,
         status: Option<crate::Prefix>,
         receipt: crate::message_ref::Receipt,
         fallbacks: Vec<crate::Fallback>,

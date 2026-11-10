@@ -57,11 +57,11 @@ pub struct Client {
 pub struct Sent {
     /// IRC conversation to which the message was sent.
     ///
-    /// See [`crate::Conversation`] for status-prefixed line guidance.
-    pub conversation: crate::Conversation,
+    /// See [`crate::PublicConversation`] for status-prefixed line guidance.
+    pub conversation: crate::PublicConversation,
     /// The lowest-ranked `STATUSMSG` prefix on the wire address.
     ///
-    /// See [`crate::Conversation`] for status-prefixed line guidance.
+    /// See [`crate::PublicConversation`] for status-prefixed line guidance.
     pub status: Option<crate::Prefix>,
     pub(crate) receipt: crate::message_ref::Receipt,
     /// Whether the server confirmed the message, with its assigned metadata when it did.
@@ -263,7 +263,7 @@ impl SendMessage {
     /// Marks this message as a reply to `message` when replies are available.
     ///
     /// The referenced identifier does not constrain the target's audience. See
-    /// [`crate::Conversation`] for status-prefixed line guidance.
+    /// [`crate::PublicConversation`] for status-prefixed line guidance.
     pub fn reply_to(mut self, message: impl Into<crate::MessageId>) -> Self {
         self.reply_to = Some(message.into());
         self
@@ -390,14 +390,14 @@ impl Sent {
 
     /// Returns the address that reaches the recipients of the sent message.
     ///
-    /// See [`crate::Conversation`] for status-prefixed line guidance.
+    /// See [`crate::PublicConversation`] for status-prefixed line guidance.
     #[must_use]
     pub fn return_address(&self) -> crate::MessageRef {
         crate::MessageRef::from(self)
     }
 
     pub(crate) fn unconfirmed(
-        conversation: crate::Conversation,
+        conversation: crate::PublicConversation,
         status: Option<crate::Prefix>,
         receipt: crate::message_ref::Receipt,
         fallbacks: Vec<Fallback>,
@@ -414,7 +414,7 @@ impl Sent {
     pub(crate) fn from_confirmations(
         confirmations: &[papo_core::SentInfo],
         texts: Vec<String>,
-        conversation: crate::Conversation,
+        conversation: crate::PublicConversation,
         status: Option<crate::Prefix>,
         mut receipt: crate::message_ref::Receipt,
         fallbacks: Vec<Fallback>,
@@ -579,7 +579,7 @@ impl Client {
         let result = match role {
             crate::target::Role::Send(_) => {
                 state.parse_target_inner(&text).and_then(|(_, target)| {
-                    if matches!(target, crate::Conversation::Channel(_))
+                    if matches!(target, crate::PublicConversation::Channel(_))
                         || parts.recipient.is_some()
                     {
                         Ok(())
@@ -768,7 +768,7 @@ impl Client {
     /// An empty `text` sends the command without parameters, such as `\x01PING\x01`.
     /// A [`crate::event::CtcpReply`] cannot be passed to this method.
     /// Status-prefixed channel queries are answered privately to their actor; see
-    /// [`crate::Conversation`] for the distinction between a conversation and a return address.
+    /// [`crate::PublicConversation`] for the distinction between a conversation and a return address.
     /// Queries authored by this client's user are allowed so sibling devices can answer one
     /// another; the actor identity guard still refuses a reply after the nickname changes hands.
     ///
@@ -991,7 +991,7 @@ impl Client {
     /// Sends a private message threaded as a reply to `message` when supported.
     ///
     /// Passing the received line or [`Sent`] preserves its return address. See
-    /// [`crate::Conversation`] for status-prefixed line guidance.
+    /// [`crate::PublicConversation`] for status-prefixed line guidance.
     /// A notice is not a reply input:
     ///
     /// ```compile_fail
@@ -1031,7 +1031,7 @@ impl Client {
     /// A reaction is usually an emoji but may be any nonempty text. Reactions are compared
     /// exactly, without case folding or Unicode normalization.
     /// Passing the received line or [`Sent`] preserves its return address; see
-    /// [`crate::Conversation`] for status-prefixed line guidance.
+    /// [`crate::PublicConversation`] for status-prefixed line guidance.
     ///
     /// # Errors
     ///
@@ -1054,7 +1054,7 @@ impl Client {
     ///
     /// `emoji` must exactly match the added reaction; papo performs no Unicode normalization.
     /// Passing the received line or [`Sent`] preserves its return address; see
-    /// [`crate::Conversation`] for status-prefixed line guidance.
+    /// [`crate::PublicConversation`] for status-prefixed line guidance.
     ///
     /// # Errors
     ///
@@ -1164,7 +1164,7 @@ impl Client {
     /// Redacts a message from a conversation's history.
     ///
     /// Passing the received line or [`Sent`] preserves its return address. See
-    /// [`crate::Conversation`] for status-prefixed line guidance.
+    /// [`crate::PublicConversation`] for status-prefixed line guidance.
     /// A sent message split across multiple lines is redacted in send order. Redaction stops at
     /// the first error, and any earlier lines remain redacted.
     /// An empty `reason` means no reason.

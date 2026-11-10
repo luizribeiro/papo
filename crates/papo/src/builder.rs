@@ -933,7 +933,7 @@ mod tests {
             "release ready",
             true,
         );
-        private.conversation = crate::Conversation::Private(
+        private.conversation = crate::PublicConversation::Private(
             first
                 .state()
                 .name_rules()
@@ -955,7 +955,7 @@ mod tests {
             ))
         ));
 
-        let conversation = crate::Conversation::Private(
+        let conversation = crate::PublicConversation::Private(
             first
                 .state()
                 .name_rules()

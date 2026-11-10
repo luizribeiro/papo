@@ -184,9 +184,9 @@ pub fn message(
         let other = actor
             .as_ref()
             .map_or(target.as_str(), |actor| actor.nick().as_str());
-        crate::Conversation::Private(crate::Casemapping::default().nick(other))
+        crate::PublicConversation::Private(crate::Casemapping::default().nick(other))
     } else {
-        crate::Conversation::Channel(crate::Casemapping::default().channel(&target))
+        crate::PublicConversation::Channel(crate::Casemapping::default().channel(&target))
     };
     let return_address = conversation.to_string();
     let actor = actor
@@ -234,8 +234,8 @@ pub fn set_message_id(message: &mut Message, id: crate::MessageId) {
 
 /// Sets the actor and matching private conversation on a test message.
 pub fn set_message_actor(message: &mut Message, actor: crate::UserSource) {
-    if matches!(message.conversation, crate::Conversation::Private(_)) {
-        message.conversation = crate::Conversation::Private(actor.nick().clone());
+    if matches!(message.conversation, crate::PublicConversation::Private(_)) {
+        message.conversation = crate::PublicConversation::Private(actor.nick().clone());
     }
     message.actor = actor;
     message.receipt.update_actor(
@@ -425,14 +425,14 @@ mod tests {
         let channel = message(Some(source.clone()), "#papo", "release ready", false);
         assert!(matches!(
             &channel.conversation,
-            crate::Conversation::Channel(_)
+            crate::PublicConversation::Channel(_)
         ));
         assert_eq!(channel.return_address(), "#papo");
 
         let private = message(Some(source), "papo", "hello from alice", true);
         assert!(matches!(
             &private.conversation,
-            crate::Conversation::Private(_)
+            crate::PublicConversation::Private(_)
         ));
         assert_eq!(private.return_address(), "alice");
         assert_eq!(private.raw_text, "hello from alice");

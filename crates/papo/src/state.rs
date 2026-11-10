@@ -58,7 +58,7 @@ pub(crate) fn mode_list_from_core(
 
 /// State known about a joined channel.
 ///
-/// A channel is a conversation without a status prefix. See [`crate::Conversation`] for the
+/// A channel is a conversation without a status prefix. See [`crate::PublicConversation`] for the
 /// distinction between a conversation and an ops-only return address.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Channel {
@@ -215,27 +215,29 @@ impl State {
 
     pub(crate) fn reply_token(
         &self,
-        conversation: &crate::Conversation,
+        conversation: &crate::PublicConversation,
     ) -> Option<papo_core::ReplyToken> {
         match conversation {
-            crate::Conversation::Private(nick) => Some(self.core.__reply_token_for(nick.as_str())),
+            crate::PublicConversation::Private(nick) => {
+                Some(self.core.__reply_token_for(nick.as_str()))
+            }
             _ => None,
         }
     }
 
     pub(crate) fn channel_guard(
         &self,
-        conversation: &crate::Conversation,
+        conversation: &crate::PublicConversation,
     ) -> Option<papo_core::ChannelGuard> {
         match conversation {
-            crate::Conversation::Channel(channel) => Some(self.core.__channel_guard(channel)),
+            crate::PublicConversation::Channel(channel) => Some(self.core.__channel_guard(channel)),
             _ => None,
         }
     }
 
     pub(crate) fn sent_receipt(
         &self,
-        conversation: &crate::Conversation,
+        conversation: &crate::PublicConversation,
         address: String,
         guard: Option<&papo_core::TargetGuard>,
     ) -> crate::message_ref::Receipt {
@@ -353,14 +355,14 @@ impl State {
     pub(crate) fn parse_target_inner(
         &self,
         target: impl AsRef<str>,
-    ) -> Result<(Option<crate::Prefix>, crate::Conversation), crate::InvalidIdentifier> {
+    ) -> Result<(Option<crate::Prefix>, crate::PublicConversation), crate::InvalidIdentifier> {
         self.core.parse_target(target)
     }
 
     pub(crate) fn conversation_inner(
         &self,
         text: impl AsRef<str>,
-    ) -> Result<crate::Conversation, crate::InvalidIdentifier> {
+    ) -> Result<crate::PublicConversation, crate::InvalidIdentifier> {
         self.core.conversation(text)
     }
 
