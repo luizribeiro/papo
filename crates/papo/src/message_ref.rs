@@ -653,6 +653,10 @@ mod tests {
         crate::ChannelHandle::from_parts(value, None, None, None)
     }
 
+    fn channel_conversation(value: crate::ChannelName) -> Conversation {
+        Conversation::Channel(value)
+    }
+
     #[test]
     fn reference_equality_compares_identity_fields_but_not_read_marker_metadata() {
         let mapping = crate::Casemapping::default();
@@ -674,7 +678,7 @@ mod tests {
             channel_context: Some(channel_handle(origin.__channel(mapping, "#context"))),
             recipient: Some(RecipientGuard::from_core(&recipient)),
             channel: Some(channel_handle(origin.__channel(mapping, "#ops"))),
-            conversation: Some(Conversation::Channel(origin.__channel(mapping, "#ops"))),
+            conversation: Some(channel_conversation(origin.__channel(mapping, "#ops"))),
             server_time: Some(crate::ServerTime::from_stored_millis(42_000).unwrap()),
         };
         let mut metadata_only = base.clone();
@@ -754,7 +758,7 @@ mod tests {
         let receipt = Receipt::new(
             crate::Source::User(actor),
             Authorship::Other,
-            &Conversation::Channel(mapping.channel("#ops")),
+            &channel_conversation(mapping.channel("#ops")),
             None,
             "@#ops".into(),
         );
@@ -782,7 +786,7 @@ mod tests {
             "deploy complete",
             false,
         );
-        received.conversation = Conversation::Channel(origin.__channel(mapping, "#ops"));
+        received.conversation = channel_conversation(origin.__channel(mapping, "#ops"));
         received.status = Some(crate::Prefix::__new('o', '@'));
         received.receipt = Receipt::new(
             crate::Source::User(received.actor.clone()),
@@ -801,7 +805,7 @@ mod tests {
         assert_eq!(reference.origin(), origin);
 
         let mut sent = Sent {
-            conversation: Conversation::Channel(origin.__channel(mapping, "#ops")),
+            conversation: channel_conversation(origin.__channel(mapping, "#ops")),
             status: Some(crate::Prefix::__new('o', '@')),
             receipt: Receipt::new(
                 crate::Source::User(crate::__testing::user_source(
@@ -810,7 +814,7 @@ mod tests {
                     None,
                 )),
                 Authorship::Own,
-                &Conversation::Channel(origin.__channel(mapping, "#ops")),
+                &channel_conversation(origin.__channel(mapping, "#ops")),
                 None,
                 "@#ops".into(),
             ),
@@ -881,7 +885,7 @@ mod tests {
     #[test]
     fn actor_updates_clear_channel_guards_only_for_private_conversations() {
         let mapping = crate::Casemapping::default();
-        let channel = Conversation::Channel(mapping.channel("#ops"));
+        let channel = channel_conversation(mapping.channel("#ops"));
         let mut session = Session::new(Config::default().nick("papo"));
         session.handle_line(crate::rt::now_mono(), b":papo!p@localhost JOIN #ops");
         let guard = session
