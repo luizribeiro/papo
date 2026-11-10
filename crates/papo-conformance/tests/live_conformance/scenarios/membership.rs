@@ -119,7 +119,7 @@ async fn extended_join(s: Scenario) -> papo_testing::Result<()> {
     assert!(matches!(observed.account(), Account::LoggedIn(name) if name == account.as_str()));
     assert!(
         bob_state
-            .channel(&channel)
+            .__channel_local(&channel)
             .unwrap()
             .member(alice_nick.as_str())
             .is_some()
@@ -165,7 +165,7 @@ async fn userhost_in_names(s: Scenario) -> papo_testing::Result<()> {
     assert!(observed.host().is_some_and(|host| !host.is_empty()));
     assert!(
         bob_state
-            .channel(&channel)
+            .__channel_local(&channel)
             .unwrap()
             .member(alice_nick.as_str())
             .is_some()
@@ -502,7 +502,7 @@ async fn partially_invalid_join(s: Scenario) -> papo_testing::Result<()> {
     let state = alice.snapshot();
     assert!(
         state
-            .channel(&channel)
+            .__channel_local(&channel)
             .is_some_and(papo::Channel::is_synced)
     );
     assert!(state.__channel_local(&invalid).is_none());

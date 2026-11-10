@@ -498,7 +498,7 @@ pub(crate) async fn assert_join_waits_for_sync(server: &mut DuplexStream, client
     server_line(server, b":ergo.test 332 papo-driver #papo :Ergonomic IRC\r\n:ergo.test 353 papo-driver = #papo :@papo-driver alice\r\n:ergo.test 366 papo-driver #papo :End of /NAMES list\r\n").await;
     within(join).await.unwrap().unwrap();
     let state = client.state();
-    let joined = state.channel("#papo").unwrap();
+    let joined = state.channel_local("#papo").unwrap();
     assert_eq!(joined.topic(), Some("Ergonomic IRC"));
     assert_eq!(joined.members().count(), 2);
     client_line(server, b"MODE #papo\r\n").await;
@@ -533,7 +533,7 @@ pub(crate) async fn assert_channel_requests(server: &mut DuplexStream, client: &
     .await;
     within(set).await.unwrap().unwrap();
     assert_eq!(
-        client.state().channel("#papo").unwrap().topic(),
+        client.state().channel_local("#papo").unwrap().topic(),
         Some("Requests in Rust")
     );
 

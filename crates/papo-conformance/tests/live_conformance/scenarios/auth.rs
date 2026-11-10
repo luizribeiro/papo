@@ -276,7 +276,7 @@ async fn services(s: Scenario) -> papo_testing::Result<()> {
     alice.join(&channel).await?;
     let state = alice.snapshot();
     let founder = state
-        .channel(&channel)
+        .__channel_local(&channel)
         .unwrap()
         .member(state.nick())
         .unwrap();

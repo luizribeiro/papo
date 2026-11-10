@@ -1411,12 +1411,12 @@ impl Client {
         if let Some(error) = response.error() {
             return Err(Error::server(error));
         }
-        if self.state().channel(&channel).is_none() {
+        if self.state().channel_local(&channel).is_none() {
             return Err(Error::unexpected_reply("JOIN"));
         }
         if !self
             .state()
-            .channel(&channel)
+            .channel_local(&channel)
             .is_some_and(crate::Channel::is_synced)
         {
             let (result, receiver) = oneshot::channel();
@@ -1567,7 +1567,7 @@ impl Client {
             let ban = ban.resolve(&state)?;
             let already_set = crate::mode::tracked_ban(&state, &channel, &ban);
             let target_was_present = state
-                .channel(&channel)
+                .channel_local(&channel)
                 .is_some_and(|joined| joined.member(&resolved_nick).is_some());
             drop(state);
             let commands = client.commands.clone();
@@ -1599,7 +1599,7 @@ impl Client {
                             || crate::mode::tracked_ban(&state, &channel, &ban);
                         let needs_fetch = !confirmed
                             && state
-                                .channel(&channel)
+                                .channel_local(&channel)
                                 .is_none_or(|joined| joined.list(crate::ListMode::Ban).is_none());
                         drop(state);
                         if !confirmed {
@@ -1618,7 +1618,7 @@ impl Client {
                         if target_was_present
                             && client
                                 .state()
-                                .channel(&channel)
+                                .channel_local(&channel)
                                 .is_none_or(|joined| joined.member(&resolved_nick).is_none())
                         {
                             return Ok(crate::KickbanOutcome {

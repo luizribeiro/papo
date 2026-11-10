@@ -129,7 +129,7 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
     let alice_folded_nick = format!("{}{{X}}", base.to_ascii_uppercase());
     let alice_state = alice.snapshot();
     let own_member = alice_state
-        .channel(&chan)
+        .__channel_local(&chan)
         .unwrap()
         .member(alice_folded_nick.as_str())
         .unwrap();

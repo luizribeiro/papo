@@ -17,6 +17,22 @@ fn inspect_event(event: papo::Event) {
     }
 }
 
+#[test]
+fn foreign_channel_lookup_is_typed() {
+    let (first, _, _) = papo::Client::builder("ircs://irc.example.net", "papo")
+        .casemapping(papo::Casemapping::default())
+        .build();
+    let (second, _, _) = papo::Client::builder("ircs://irc.example.net", "papo")
+        .casemapping(papo::Casemapping::default())
+        .build();
+    let channel = first.channel("#release").unwrap();
+
+    assert_eq!(
+        second.snapshot().channel(channel),
+        Err(papo::ForeignReference)
+    );
+}
+
 fn moderate_message(client: &papo::Client, event: papo::Event) {
     let papo::Event::Message(message) = event else {
         return;
@@ -54,7 +70,7 @@ fn everyday_api_is_nameable_from_the_facade() {
         .expect("server advertised CASEMAPPING")
         .channel("#papo");
     let _: &papo::Nick = state.nick();
-    let _: Option<&papo::Channel> = state.channel(&channel);
+    let _: Result<Option<&papo::Channel>, papo::ForeignReference> = state.channel(&channel);
     let _: Option<&papo::User> = state.user("emily");
     let _: papo::ChannelName = state
         .name_rules()

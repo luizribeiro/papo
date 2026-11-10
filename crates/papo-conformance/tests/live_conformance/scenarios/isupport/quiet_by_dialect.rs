@@ -115,7 +115,7 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
     for peer in [&alice, &bob, &carol] {
         let state = peer.snapshot();
         let member = state
-            .channel(&channel)
+            .__channel_local(&channel)
             .unwrap()
             .member(carol_nick.as_str())
             .unwrap();

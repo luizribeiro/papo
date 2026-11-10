@@ -123,7 +123,7 @@ async fn casemapping_ascii(s: Scenario) -> papo_testing::Result<()> {
     assert!(alice.snapshot().__channel_local(&folded).is_none());
     let alice_state = alice.snapshot();
     let found = alice_state
-        .channel(chan.as_str().to_ascii_uppercase())
+        .__channel_local(chan.as_str().to_ascii_uppercase())
         .expect("ascii folding finds the channel by its letter-uppercased name");
     assert_eq!(found.name().as_str(), chan);
     assert!(bob.snapshot().__channel_local(&chan).is_none());

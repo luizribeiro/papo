@@ -304,7 +304,7 @@ async fn multidevice_nick_shared_state(s: Scenario) -> papo_testing::Result<()> 
         let members = peer.snapshot();
         assert!(
             members
-                .channel(&channel)
+                .__channel_local(&channel)
                 .expect("joined channel remains in state")
                 .member(old.as_str())
                 .is_some()

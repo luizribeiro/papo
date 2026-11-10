@@ -63,7 +63,7 @@ async fn statusmsg_peers(s: &Scenario) -> papo_testing::Result<StatusmsgPeers> {
 
         let state = peer.snapshot();
         let member = state
-            .channel(&channel)
+            .__channel_local(&channel)
             .expect("channel is in state")
             .member(bob_nick.as_str())
             .unwrap();
@@ -96,7 +96,7 @@ async fn statusmsg_peers(s: &Scenario) -> papo_testing::Result<StatusmsgPeers> {
 
         let state = peer.snapshot();
         let member = state
-            .channel(&channel)
+            .__channel_local(&channel)
             .expect("channel is in state")
             .member(carol_nick.as_str())
             .unwrap();

@@ -841,7 +841,7 @@ pub(crate) fn tracked_ban(
     ban: &Mask,
 ) -> bool {
     state
-        .channel(channel)
+        .channel_local(channel)
         .and_then(|joined| joined.list(crate::ListMode::Ban))
         .is_some_and(|entries| {
             entries

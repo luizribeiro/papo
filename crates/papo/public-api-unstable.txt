@@ -3492,7 +3492,7 @@ pub const fn papo::State::bouncer_network(&self) -> core::option::Option<&papo::
 pub fn papo::State::bouncer_networks(&self) -> impl core::iter::traits::iterator::Iterator<Item = &papo::BouncerNetwork>
 pub const fn papo::State::caps(&self) -> &papo::Capabilities
 pub fn papo::State::casemapping(&self) -> papo::Casemapping
-pub fn papo::State::channel(&self, impl papo::AsChannel) -> core::option::Option<&papo::Channel>
+pub fn papo::State::channel(&self, impl papo::AsChannel) -> core::result::Result<core::option::Option<&papo::Channel>, papo::ForeignReference>
 pub fn papo::State::channels(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &papo::Channel>
 pub fn papo::State::connection_epoch(&self) -> papo::ConnectionEpoch
 pub fn papo::State::features(&self) -> impl core::iter::traits::iterator::Iterator<Item = papo::Feature> + '_

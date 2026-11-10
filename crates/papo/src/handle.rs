@@ -325,7 +325,7 @@ impl crate::Client {
             self,
             channel.clone(),
             status,
-            state.channel(&channel).is_some(),
+            state.channel_local(&channel).is_some(),
         ))
     }
 }

@@ -442,7 +442,7 @@ async fn multiclient(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     let phone_state = phone.snapshot();
     let attached = phone_state
-        .channel(&channel)
+        .__channel_local(&channel)
         .expect("another account session inherits joined channels");
     assert!(attached.is_synced());
 

@@ -517,14 +517,20 @@ impl State {
 
     /// Returns a joined channel using the server's casemapping.
     ///
-    /// A typed channel produced by another [`crate::Client`] returns `None`.
-    #[must_use]
-    pub fn channel(&self, name: impl crate::AsChannel) -> Option<&Channel> {
+    /// A typed channel produced by another [`crate::Client`] returns an error.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::ForeignReference`] when the channel belongs to another client.
+    pub fn channel(
+        &self,
+        name: impl crate::AsChannel,
+    ) -> Result<Option<&Channel>, crate::ForeignReference> {
         let parts = crate::AsChannel::__parts(&name);
         if parts.origin != crate::Origin::NONE && parts.origin != self.nick().origin() {
-            return None;
+            return Err(crate::ForeignReference);
         }
-        self.channel_parts(&parts)
+        Ok(self.channel_parts(&parts))
     }
 
     pub(crate) fn channel_local(&self, name: impl crate::AsChannel) -> Option<&Channel> {

@@ -364,7 +364,7 @@ async fn draft_channel_rename(s: Scenario) -> papo_testing::Result<()> {
         let snapshot = peer.snapshot();
         assert!(snapshot.__channel_local(&channel).is_none());
         let state = snapshot
-            .channel(&renamed)
+            .__channel_local(&renamed)
             .expect("the renamed channel remains joined");
         assert!(state.is_synced());
     }

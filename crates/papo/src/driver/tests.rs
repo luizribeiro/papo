@@ -1218,7 +1218,7 @@ async fn list_modes_returns_entries_and_updates_joined_channel_state() {
     assert_eq!(
         client
             .state()
-            .channel("#papo")
+            .channel_local("#papo")
             .unwrap()
             .list(crate::ListMode::Ban),
         Some(entries.as_slice())
@@ -6168,7 +6168,7 @@ async fn kickban_stops_when_the_ban_is_unconfirmed_or_the_target_leaves() {
     within(async {
         while client
             .state()
-            .channel("#papo")
+            .channel_local("#papo")
             .is_none_or(|channel| channel.member("carol").is_none())
         {
             tokio::task::yield_now().await;
@@ -6879,7 +6879,12 @@ async fn typed_requests_match_unlabelled_responses() {
     server_line(&mut server, b":papo-driver!papo@localhost JOIN #papo * :Papo Client\r\n:ergo.test 353 papo-driver = #papo :@papo-driver alice\r\n:ergo.test 366 papo-driver #papo :End of /NAMES list\r\n").await;
     within(join).await.unwrap().unwrap();
     assert_eq!(
-        client.state().channel("#papo").unwrap().members().count(),
+        client
+            .state()
+            .channel_local("#papo")
+            .unwrap()
+            .members()
+            .count(),
         2
     );
     client_line(&mut server, b"MODE #papo\r\n").await;
@@ -7154,7 +7159,7 @@ async fn action_confirmation_is_enqueued_after_state_changes() {
 
     assert_eq!(events.receiver.len(), 1);
     assert_eq!(
-        client.state().channel("#papo").unwrap().mode('t'),
+        client.state().channel_local("#papo").unwrap().mode('t'),
         Some(crate::ModeValue::Set)
     );
     assert!(matches!(
@@ -9330,7 +9335,7 @@ async fn quit_publishes_member_removal_while_reading_ahead() {
     assert!(
         client
             .state()
-            .channel("#papo")
+            .channel_local("#papo")
             .unwrap()
             .member("alice")
             .is_some()
@@ -9356,7 +9361,7 @@ async fn quit_publishes_member_removal_while_reading_ahead() {
             assert!(
                 client
                     .state()
-                    .channel("#papo")
+                    .channel_local("#papo")
                     .unwrap()
                     .member("alice")
                     .is_none()
@@ -9730,7 +9735,7 @@ async fn overflow_drops_state_events_before_messages() {
     assert!(
         client
             .state()
-            .channel("#papo")
+            .channel_local("#papo")
             .unwrap()
             .member("alice")
             .is_some()
@@ -9777,7 +9782,7 @@ async fn overflow_with_only_state_events_reports_no_message_gaps() {
     assert!(lagged.gaps.is_empty());
     let state = client.state();
     for nick in ["alice", "bob", "carol", "dan"] {
-        assert!(state.channel("#papo").unwrap().member(nick).is_some());
+        assert!(state.channel_local("#papo").unwrap().member(nick).is_some());
     }
 
     drop(events);
@@ -9936,7 +9941,7 @@ async fn client_reads_owned_state_snapshots() {
         Event::ChannelSynced(_)
     ) {}
     let state = client.state();
-    let channel = state.channel("#papo").unwrap();
+    let channel = state.channel_local("#papo").unwrap();
     assert!(channel.is_synced());
     assert_eq!(
         prefix_symbols(channel.member("EMILY").unwrap().prefixes()),
@@ -9965,7 +9970,7 @@ async fn client_reads_owned_state_snapshots() {
         Some(Event::Parted(_))
     ));
     assert!(!Arc::ptr_eq(&unchanged, &client.state()));
-    assert!(client.state().channel("#papo").is_none());
+    assert!(client.state().channel_local("#papo").is_none());
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
@@ -9995,7 +10000,7 @@ async fn channel_accessors_report_the_join_burst() {
     )
     .await;
     while !matches!(next_active_event(&mut events).await, Event::ServerNotice(_)) {}
-    assert!(!client.state().channel("#review").unwrap().is_synced());
+    assert!(!client.state().channel_local("#review").unwrap().is_synced());
 
     server_line(
         &mut server,
@@ -10006,7 +10011,7 @@ async fn channel_accessors_report_the_join_burst() {
         next_active_event(&mut events).await,
         Event::ChannelSynced(_)
     ) {}
-    assert!(client.state().channel("#review").unwrap().is_synced());
+    assert!(client.state().channel_local("#review").unwrap().is_synced());
     client_line(&mut server, b"MODE #review\r\n").await;
     client_line(&mut server, b"WHO #review\r\n").await;
 
@@ -10030,7 +10035,7 @@ async fn channel_accessors_report_the_join_burst() {
     client_line(&mut server, b"PONG channel-topic\r\n").await;
 
     let state = client.state();
-    let channel = state.channel("#review").unwrap();
+    let channel = state.channel_local("#review").unwrap();
     assert_join_burst_channel(channel);
 
     let same_client = state.name_rules().unwrap().nick("alice");
@@ -10176,7 +10181,7 @@ async fn every_state_change_replaces_the_snapshot() {
         Some(Event::Joined(_))
     ));
     previous = changed_snapshot(&client, &previous, "JOIN");
-    assert!(previous.channel("#papo").is_some());
+    assert!(previous.channel_local("#papo").is_some());
 
     server_line(&mut server, b":ergo.test MODE papo-driver +i\r\n").await;
     assert!(matches!(
@@ -10197,10 +10202,14 @@ async fn every_state_change_replaces_the_snapshot() {
     ));
     previous = changed_snapshot(&client, &previous, "TOPIC");
     assert_eq!(
-        previous.channel("#papo").unwrap().topic(),
+        previous.channel_local("#papo").unwrap().topic(),
         Some("Release planning")
     );
-    let actor: &crate::Source = previous.channel("#papo").unwrap().topic_set_by().unwrap();
+    let actor: &crate::Source = previous
+        .channel_local("#papo")
+        .unwrap()
+        .topic_set_by()
+        .unwrap();
     assert_eq!(
         actor.nick().unwrap(),
         &previous.name_rules().unwrap().nick("emily")
@@ -10287,7 +10296,7 @@ async fn every_state_change_replaces_the_snapshot() {
         Some(Event::Parted(_))
     ));
     let current = changed_snapshot(&client, &previous, "PART");
-    assert!(current.channel("#papo").is_none());
+    assert!(current.channel_local("#papo").is_none());
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
@@ -10427,7 +10436,7 @@ async fn casemapping_change_refolds_the_state_snapshot() {
         Some(Event::Joined(_))
     ));
     let rfc1459 = client.state();
-    assert!(rfc1459.channel("#papo{dev}").is_some());
+    assert!(rfc1459.channel_local("#papo{dev}").is_some());
 
     server_line(
         &mut server,
@@ -10442,8 +10451,8 @@ async fn casemapping_change_refolds_the_state_snapshot() {
     ));
     let ascii = client.state();
     assert!(!Arc::ptr_eq(&rfc1459, &ascii));
-    assert!(ascii.channel("#papo[dev]").is_some());
-    assert!(ascii.channel("#papo{dev}").is_none());
+    assert!(ascii.channel_local("#papo[dev]").is_some());
+    assert!(ascii.channel_local("#papo{dev}").is_none());
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(
