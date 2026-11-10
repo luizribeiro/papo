@@ -397,7 +397,7 @@ pub use state::{Channel, ModeListEntry, ReadMarker, State};
 pub use target::{AsCap, AsChannel, AsConversation, AsMask, AsNick, Target};
 pub use token::{Command, ReplyCode};
 #[doc(inline)]
-#[cfg(tls)]
+#[cfg(all(not(browser), any(feature = "tls-ring", feature = "tls-aws-lc")))]
 pub use transport::{CertificateChain, PrivateKey};
 pub use typing::{Typer, Typers};
 pub use webirc::WebIrc;

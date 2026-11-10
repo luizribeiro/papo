@@ -24,7 +24,7 @@ mod custom_stream;
 mod sockets;
 #[cfg(not(browser))]
 pub use custom_stream::StreamSecurity;
-#[cfg(tls)]
+#[cfg(all(not(browser), any(feature = "tls-ring", feature = "tls-aws-lc")))]
 #[path = "builder/tls.rs"]
 mod tls;
 

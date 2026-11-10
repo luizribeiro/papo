@@ -30,9 +30,9 @@ mod websocket_browser_pure;
 #[cfg(all(test, not(browser)))]
 mod live;
 
-#[cfg(tls)]
+#[cfg(all(not(browser), any(feature = "tls-ring", feature = "tls-aws-lc")))]
 mod tls;
-#[cfg(tls)]
+#[cfg(all(not(browser), any(feature = "tls-ring", feature = "tls-aws-lc")))]
 pub use tls::{CertificateChain, PrivateKey};
 #[cfg(tls)]
 pub(crate) use tls::{ClientCertificate, TlsConfig, TlsRoots};

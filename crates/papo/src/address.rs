@@ -4,7 +4,7 @@ use thiserror::Error;
 
 #[cfg(sockets)]
 mod sockets;
-#[cfg(tls)]
+#[cfg(all(not(browser), any(feature = "tls-ring", feature = "tls-aws-lc")))]
 mod tls;
 
 /// An invalid client configuration value.
