@@ -68,6 +68,16 @@ fn transmitted(session: &mut Session) -> String {
         .to_owned()
 }
 
+fn reconnect_read_marker_without_time(session: &mut Session, now: Instant) {
+    session.handle_connected(now);
+    session.handle_line(now, b"CAP * LS :draft/read-marker labeled-response");
+    session.handle_line(now, b"CAP * ACK :draft/read-marker labeled-response");
+    session.handle_line(now, b":ergo.test 001 papo :Welcome to Ergo");
+    session.handle_line(now, b":ergo.test 422 papo :MOTD File is missing");
+    while session.poll_transmit().is_some() {}
+    while session.poll_event().is_some() {}
+}
+
 #[test]
 fn builds_labelled_latest_and_before_requests() {
     let (mut session, now) = history_session("CHATHISTORY=1000 MSGREFTYPES=msgid,timestamp");
@@ -529,16 +539,7 @@ fn mark_read_rejects_future_server_time_and_estimate_advances_monotonically() {
 #[test]
 fn mark_read_waits_for_the_first_server_time_after_reconnect() {
     let (mut session, now) = read_marker_session();
-    let reconnect = |session: &mut Session| {
-        session.handle_connected(now);
-        session.handle_line(now, b"CAP * LS :draft/read-marker labeled-response");
-        session.handle_line(now, b"CAP * ACK :draft/read-marker labeled-response");
-        session.handle_line(now, b":ergo.test 001 papo :Welcome to Ergo");
-        session.handle_line(now, b":ergo.test 422 papo :MOTD File is missing");
-        while session.poll_transmit().is_some() {}
-        while session.poll_event().is_some() {}
-    };
-    reconnect(&mut session);
+    reconnect_read_marker_without_time(&mut session, now);
     let stored = server_time(1_760_529_342, 0);
     session.mark_read(now, "#papo", stored).unwrap();
     assert_eq!(session.poll_transmit(), None);
@@ -548,6 +549,27 @@ fn mark_read_waits_for_the_first_server_time_after_reconnect() {
     );
     assert!(
         transmitted(&mut session).contains("MARKREAD #papo timestamp=2025-10-15T11:55:42.000Z")
+    );
+}
+
+#[test]
+fn waiting_mark_read_times_out_and_uses_the_pending_bound() {
+    let (mut session, now) = read_marker_session();
+    reconnect_read_marker_without_time(&mut session, now);
+    let stored = server_time(1_760_529_342, 0);
+    let request = session.mark_read(now, "#papo", stored).unwrap();
+    let later = now.checked_add(Duration::from_secs(31)).unwrap();
+    session.handle_timeout(later);
+    assert!(
+        std::iter::from_fn(|| session.poll_event())
+            .any(|event| matches!(event, Event::RequestTimedOut { id, .. } if id == request))
+    );
+    for _ in 0..256 {
+        session.mark_read(later, "#papo", stored).unwrap();
+    }
+    assert_eq!(
+        session.mark_read(later, "#papo", stored),
+        Err(RequestError::PendingLimit)
     );
 }
 
