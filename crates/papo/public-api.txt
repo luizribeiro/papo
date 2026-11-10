@@ -98,7 +98,7 @@ pub use papo::event::BatchAbandonReason
 pub use papo::event::TypingReason
 #[non_exhaustive] pub enum papo::event::Audience
 pub papo::event::Audience::Broadcast(papo::event::Broadcast)
-pub papo::event::Audience::Channel(papo::ChannelName)
+pub papo::event::Audience::Channel(papo::ChannelHandle)
 pub papo::event::Audience::Me
 impl core::clone::Clone for papo::event::Audience
 pub fn papo::event::Audience::clone(&self) -> Self

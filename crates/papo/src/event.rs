@@ -3,7 +3,7 @@
     deny(clippy::expect_used, clippy::indexing_slicing, clippy::unwrap_used)
 )]
 
-use papo_core::{Account, Conversation, RequestId, Response, Welcome, sts::StsAction};
+use papo_core::{Account, RequestId, Response, Welcome, sts::StsAction};
 use std::time::SystemTime;
 
 use papo_proto::Nick;
@@ -12,7 +12,7 @@ use papo_proto::{
     Prefix, strip_formatting, time,
 };
 
-use crate::{Client, Disconnected, ModeAction, ModeArg, ModeChange, ServerTime};
+use crate::{Client, Conversation, Disconnected, ModeAction, ModeArg, ModeChange, ServerTime};
 
 pub(crate) const fn can_prove_non_bot(message_tags: bool, bot_mode: bool) -> bool {
     message_tags && bot_mode
@@ -89,7 +89,7 @@ pub enum Audience {
     /// This client.
     Me,
     /// A channel.
-    Channel(ChannelName),
+    Channel(crate::ChannelHandle),
     /// A server-wide audience.
     Broadcast(Broadcast),
 }
@@ -713,6 +713,7 @@ pub(crate) fn incoming_from_core(
             Event::ServerNotice,
         );
     };
+    let conversation = crate::message_ref::stamp_conversation(conversation, origin);
     with_channel_guard(
         message_event_from_line(
             raw,
@@ -1075,7 +1076,12 @@ impl ServerNotice {
             return Err(raw);
         };
         let to = if let Some(Conversation::Channel(channel)) = conversation {
-            Audience::Channel(channel.clone())
+            Audience::Channel(crate::ChannelHandle::from_parts(
+                channel.clone(),
+                status,
+                None,
+                None,
+            ))
         } else if wallops || message.param(0) == Some("*") {
             Audience::Broadcast(Broadcast::Everyone)
         } else if let Some(target) = message.param(0).filter(|target| target.starts_with('$')) {
@@ -1086,7 +1092,12 @@ impl ServerNotice {
             .param(0)
             .filter(|target| isupport.is_channel(target))
         {
-            Audience::Channel(origin.__channel(isupport.casemapping(), target))
+            Audience::Channel(crate::ChannelHandle::from_parts(
+                origin.__channel(isupport.casemapping(), target),
+                status,
+                None,
+                None,
+            ))
         } else {
             Audience::Me
         };
@@ -1113,9 +1124,11 @@ impl ServerNotice {
             Audience::Channel(channel) => crate::message_ref::Receipt::new(
                 actor.clone(),
                 authorship,
-                &Conversation::Channel(channel.clone()),
+                &Conversation::Channel(channel.name().clone()),
                 reply_token,
-                message.param(0).unwrap_or(channel.as_str()).to_owned(),
+                message
+                    .param(0)
+                    .map_or_else(|| channel.name().to_string(), str::to_owned),
             ),
             Audience::Broadcast(_) | Audience::Me => {
                 crate::message_ref::Receipt::without_recipient(
@@ -1253,22 +1266,18 @@ pub(crate) fn historical_message_event(
         snapshot.casemapping(),
     );
     let reply_token = snapshot.reply_token(&conversation);
-    let channel_guard = snapshot.channel_guard(&conversation);
-    with_channel_guard(
-        message_event_from_line(
-            raw,
-            None,
-            authorship,
-            conversation,
-            status,
-            None,
-            snapshot.isupport().inner(),
-            snapshot.caps().contains_key(&crate::cap::ACCOUNT_TAG),
-            false,
-            received_at,
-            reply_token,
-        ),
-        channel_guard,
+    message_event_from_line(
+        raw,
+        None,
+        authorship,
+        conversation,
+        status,
+        None,
+        snapshot.isupport().inner(),
+        snapshot.caps().contains_key(&crate::cap::ACCOUNT_TAG),
+        false,
+        received_at,
+        reply_token,
     )
 }
 
@@ -1361,7 +1370,9 @@ fn message_metadata(
 
 pub(crate) fn return_address(message: &LineRef<'_>, conversation: &Conversation) -> String {
     match conversation {
-        Conversation::Channel(channel) => message.param(0).unwrap_or(channel.as_str()).to_owned(),
+        Conversation::Channel(channel) => message
+            .param(0)
+            .map_or_else(|| channel.to_string(), str::to_owned),
         Conversation::Private(nick) => nick.to_string(),
         _ => message.param(0).unwrap_or("*").to_owned(),
     }
@@ -1734,7 +1745,7 @@ impl Event {
             Self::Notice(event) => Some(event.conversation.clone()),
             Self::Incomplete(event) => Some(event.conversation().clone()),
             Self::ServerNotice(event) => match &event.to {
-                Audience::Channel(channel) => Some(Conversation::Channel(channel.clone())),
+                Audience::Channel(channel) => Some(Conversation::Channel(channel.name().clone())),
                 Audience::Me | Audience::Broadcast(_) => None,
             },
             Self::CtcpQuery(event) => Some(event.conversation.clone()),
