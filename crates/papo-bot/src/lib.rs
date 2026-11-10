@@ -475,10 +475,9 @@ mod tests {
         papo_testing::nick(Casemapping::Rfc1459, text)
     }
 
-    fn channel(text: impl AsRef<str>) -> papo::ChannelName {
-        papo_testing::channel(Casemapping::Rfc1459, text)
+    fn conversation(text: &str) -> Conversation {
+        MessageBuilder::new(text, "").build().conversation().clone()
     }
-
     fn account(text: impl AsRef<str>) -> AccountName {
         papo_testing::account(Casemapping::Rfc1459, text)
     }
@@ -971,9 +970,9 @@ mod tests {
     #[test]
     fn uses_name_equality_and_literal_window_boundary() {
         let limiter = ReplyRateLimiter::new(2, Duration::from_secs(5)).unwrap();
-        let upper = Conversation::Channel(channel("#Papo"));
-        let lower = Conversation::Channel(channel("#papo"));
-        let elsewhere = Conversation::Channel(channel("#elsewhere"));
+        let upper = conversation("#Papo");
+        let lower = conversation("#papo");
+        let elsewhere = conversation("#elsewhere");
         let start = Instant::now();
 
         assert!(limiter.check_at(&upper, start));
@@ -988,7 +987,7 @@ mod tests {
         let limiter = ReplyRateLimiter::new(2, Duration::from_secs(5)).unwrap();
         let now = Instant::now();
         for index in 0..2048 {
-            let target = Conversation::Channel(channel(format!("#papo-{index}")));
+            let target = conversation(&format!("#papo-{index}"));
             assert_eq!(limiter.check_at(&target, now), index < 1024);
         }
         assert_eq!(limiter.targets.lock().unwrap().len(), 1024);

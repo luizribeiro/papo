@@ -50,7 +50,7 @@ async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
             .await?;
         assert_eq!(
             crate::scenarios::support::conversation_name(message.conversation()),
-            Some(name.as_str())
+            Some(name.clone())
         );
         assert!(!crate::scenarios::support::conversation_is_private(
             message.conversation()
@@ -93,7 +93,7 @@ async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
     ));
     assert_eq!(
         crate::scenarios::support::conversation_name(private.conversation()),
-        Some(bob_nick.as_str())
+        Some(bob_nick.to_string())
     );
     assert_eq!(private.return_address(), bob_nick.as_str());
 

@@ -143,7 +143,7 @@ async fn statusmsg_ops(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert_eq!(
         crate::scenarios::support::conversation_name(received.conversation()),
-        Some(channel.as_str())
+        Some(channel.clone())
     );
     assert_eq!(received.status().map(papo::Prefix::symbol), Some('@'));
     assert_eq!(received.raw_text, "operators only");
@@ -187,7 +187,7 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert_eq!(
         crate::scenarios::support::conversation_name(question.conversation()),
-        Some(channel.as_str())
+        Some(channel.clone())
     );
     assert_eq!(question.status().map(papo::Prefix::symbol), Some('@'));
     for peer in [&mut carol, &mut dave] {
@@ -201,7 +201,7 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     assert_eq!(
         crate::scenarios::support::conversation_name(answer.conversation()),
-        Some(channel.as_str())
+        Some(channel.clone())
     );
     assert_eq!(answer.status().map(papo::Prefix::symbol), Some('@'));
     for peer in [&mut carol, &mut dave] {
@@ -256,11 +256,7 @@ async fn statusmsg_reply_ops(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(leaked.in_reply_to.as_ref(), Some(&question_id));
     }
 
-    let bare_channel = bob
-        .snapshot()
-        .name_rules()
-        .expect("server advertised CASEMAPPING")
-        .channel(&channel);
+    let bare_channel = bob.channel(&channel)?;
     bob.react((&bare_channel, &question_id), "📣").await?;
     for peer in [&mut alice, &mut carol, &mut dave] {
         let leaked = peer

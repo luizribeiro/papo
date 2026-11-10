@@ -40,7 +40,7 @@ async fn multidevice_message_fanout(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(received.authorship, papo::Authorship::Own);
     assert_eq!(
         conversation_name(received.conversation()),
-        Some(channel.as_str())
+        Some(channel.clone())
     );
     assert_eq!(received.return_address(), channel.as_str());
     phone
@@ -149,7 +149,7 @@ async fn multidevice_read_marker_fanout(s: Scenario) -> papo_testing::Result<()>
     let marker = phone
         .wait_for(|event| {
             event.as_read_marker_changed().filter(|marker| {
-                conversation_name(&marker.conversation) == Some(channel.as_str())
+                conversation_name(&marker.conversation) == Some(channel.clone())
                     && marker.read_until == Some(time)
             })
         })
@@ -396,10 +396,7 @@ async fn multidevice_reconnect_catchup(s: Scenario) -> papo_testing::Result<()> 
     let mut reconnected = s.connect_account_session("alice-phone", account).await?;
     let page = reconnected.history(&channel).latest().limit(10).await?;
     assert_eq!(page.reason, papo::HistoryReason::Requested);
-    assert_eq!(
-        conversation_name(&page.conversation),
-        Some(channel.as_str())
-    );
+    assert_eq!(conversation_name(&page.conversation), Some(channel.clone()));
     let own = page
         .items
         .iter()
@@ -449,7 +446,7 @@ async fn multidevice_typing_own_state(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(typing.state, papo::Typing::Active);
     assert_eq!(
         conversation_name(&typing.conversation),
-        Some(channel.as_str())
+        Some(channel.clone())
     );
     assert_eq!(
         phone
@@ -498,7 +495,7 @@ async fn multidevice_dm_fanout_thread(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(message.authorship, papo::Authorship::Other);
         assert_eq!(
             conversation_name(message.conversation()),
-            Some(sender.nick().as_str())
+            Some(sender.nick().to_string())
         );
         assert_eq!(message.return_address(), sender.nick().as_str());
     }
@@ -514,7 +511,7 @@ async fn multidevice_dm_fanout_thread(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(sibling_reply.in_reply_to.as_ref(), Some(id));
     assert_eq!(
         conversation_name(sibling_reply.conversation()),
-        Some(sender.nick().as_str())
+        Some(sender.nick().to_string())
     );
     assert_eq!(sibling_reply.return_address(), sender.nick().as_str());
     let received_reply = sender

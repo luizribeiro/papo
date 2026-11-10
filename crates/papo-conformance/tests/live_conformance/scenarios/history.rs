@@ -39,10 +39,7 @@ async fn draft_chathistory(s: Scenario) -> papo_testing::Result<()> {
     ];
     let (writer, mut reader, channel, sent) = history_peers(&s, &texts).await?;
     let page = reader.history(&channel).latest().limit(10).await?;
-    assert_eq!(
-        conversation_name(&page.conversation),
-        Some(channel.as_str())
-    );
+    assert_eq!(conversation_name(&page.conversation), Some(channel.clone()));
     assert!(page.end);
     let messages = page
         .chat_messages()
@@ -128,10 +125,7 @@ async fn legacy_history(s: Scenario) -> papo_testing::Result<()> {
         .send_raw(papo::Line::new("HISTORY").with_params([channel.as_str(), "10"]))
         .await?;
     let page = reader.wait_for(Event::as_history).await?;
-    assert_eq!(
-        conversation_name(&page.conversation),
-        Some(channel.as_str())
-    );
+    assert_eq!(conversation_name(&page.conversation), Some(channel.clone()));
     page.chat_messages()
         .find(|message| message.text == text)
         .expect("HISTORY replays the stored message");
@@ -286,7 +280,7 @@ async fn chathistory_targets(s: Scenario) -> papo_testing::Result<()> {
         .iter()
         .find(|target| {
             crate::scenarios::support::conversation_name(&target.conversation)
-                == Some(channel.as_str())
+                == Some(channel.clone())
         })
         .expect("the active channel is returned");
     assert_eq!(target.latest_server_time, time);
@@ -459,7 +453,7 @@ async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
     let initial = alice.wait_for(Event::as_read_marker_changed).await?;
     assert_eq!(
         conversation_name(&initial.conversation),
-        Some(channel.as_str())
+        Some(channel.clone())
     );
     assert_eq!(initial.read_until, None);
     assert_eq!(
@@ -476,7 +470,7 @@ async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
     let stored = alice.wait_for(Event::as_read_marker_changed).await?;
     assert_eq!(
         conversation_name(&stored.conversation),
-        Some(channel.as_str())
+        Some(channel.clone())
     );
     assert_eq!(stored.read_until, Some(time));
 
@@ -486,7 +480,7 @@ async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
         .wait_for(|event| {
             if let Some(marker) = event
                 .as_read_marker_changed()
-                .filter(|marker| conversation_name(&marker.conversation) == Some(channel.as_str()))
+                .filter(|marker| conversation_name(&marker.conversation) == Some(channel.clone()))
             {
                 early_marker = Some(marker.clone());
             }
@@ -503,7 +497,7 @@ async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
     };
     assert_eq!(
         conversation_name(&replayed.conversation),
-        Some(channel.as_str())
+        Some(channel.clone())
     );
     assert_eq!(replayed.read_until, Some(time));
     assert_eq!(

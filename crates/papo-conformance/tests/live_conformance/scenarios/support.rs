@@ -63,18 +63,14 @@ pub(super) fn notice_text<'event>(
 }
 
 pub(super) trait ConversationName {
-    fn name(&self) -> Option<&str>;
+    fn name(&self) -> Option<String>;
 
     fn is_private(&self) -> bool;
 }
 
 impl ConversationName for Conversation {
-    fn name(&self) -> Option<&str> {
-        match self {
-            Conversation::Channel(name) => Some(name.as_str()),
-            Conversation::Private(name) => Some(name.as_str()),
-            _ => None,
-        }
+    fn name(&self) -> Option<String> {
+        Some(self.to_string())
     }
 
     fn is_private(&self) -> bool {
@@ -83,7 +79,7 @@ impl ConversationName for Conversation {
 }
 
 impl<T: ConversationName + ?Sized> ConversationName for &T {
-    fn name(&self) -> Option<&str> {
+    fn name(&self) -> Option<String> {
         (*self).name()
     }
 
@@ -92,7 +88,7 @@ impl<T: ConversationName + ?Sized> ConversationName for &T {
     }
 }
 
-pub(super) fn conversation_name(conversation: &impl ConversationName) -> Option<&str> {
+pub(super) fn conversation_name(conversation: &impl ConversationName) -> Option<String> {
     conversation.name()
 }
 

@@ -31,7 +31,7 @@ async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
     );
     assert_eq!(
         crate::scenarios::support::conversation_name(message.conversation()),
-        Some(channel.as_str())
+        Some(channel.clone())
     );
     let (id, sent_text, server_time) = confirmed_line(&sent);
     assert_eq!(sent_text, text);
@@ -176,7 +176,7 @@ async fn away_private_message(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(crate::source_nick(&message.actor), Some(bob_nick.as_str()));
     assert_eq!(
         crate::scenarios::support::conversation_name(message.conversation()),
-        Some(bob_nick.as_str())
+        Some(bob_nick.to_string())
     );
     assert_eq!(message.text, text);
     let (id, sent_text, server_time) = confirmed_line(&sent);
@@ -434,7 +434,7 @@ async fn bot_mode(s: Scenario) -> papo_testing::Result<()> {
     );
     assert_eq!(
         crate::scenarios::support::conversation_name(message.conversation()),
-        Some(channel.as_str())
+        Some(channel.clone())
     );
     assert_eq!(message.text, text);
     assert_eq!(message.actor.is_bot(), Some(true));
