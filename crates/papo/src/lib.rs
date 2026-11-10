@@ -355,6 +355,8 @@ pub use client::{
 };
 #[doc(hidden)]
 pub use conversation::Conversation as HandleConversation;
+pub use conversation::Conversation;
+pub(crate) use conversation::Conversation as PublicConversation;
 pub use direct::DirectRef;
 pub use direct_to::DirectSource;
 pub use driver::{Driver, Events};
@@ -384,7 +386,6 @@ pub use isupport_impl::Isupport;
 pub use message_ref::{MessageRef, NoticeRef};
 pub use mode::{BanTarget, Extban, KickbanOutcome, ModesApplied, SetModes};
 pub use name_rules::{NameCheck, NameRules};
-pub(crate) use papo_core::Conversation as PublicConversation;
 #[doc(inline)]
 pub use papo_core::InvalidUrl;
 #[doc(inline)]
@@ -393,8 +394,8 @@ pub use papo_core::Secret;
 pub use papo_core::cap::__is_known as __is_known_cap;
 #[doc(inline)]
 pub use papo_core::{
-    Account, Away, Cap, Capabilities, ConnectionEpoch, Conversation, Feature, InvalidServerTime,
-    Member, MetadataView, ModeAction, ModeArg, ModeChange, ModeValue, Rank, ServerTime, User,
+    Account, Away, Cap, Capabilities, ConnectionEpoch, Feature, InvalidServerTime, Member,
+    MetadataView, ModeAction, ModeArg, ModeChange, ModeValue, Rank, ServerTime, User,
 };
 #[cfg(feature = "unstable")]
 pub use papo_core::{

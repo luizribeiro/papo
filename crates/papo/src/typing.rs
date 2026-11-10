@@ -1,6 +1,6 @@
 use std::collections::vec_deque;
 
-use crate::{HandleConversation as Conversation, Nick, Prefix};
+use crate::{Conversation, Nick, Prefix};
 
 /// A user currently composing a message in a conversation.
 #[derive(Clone, Debug, Eq, PartialEq)]

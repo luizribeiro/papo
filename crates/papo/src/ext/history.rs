@@ -1408,8 +1408,8 @@ mod tests {
         state.name_rules().expect("server advertised CASEMAPPING")
     }
 
-    fn channel(value: crate::ChannelName) -> crate::ChannelName {
-        value
+    fn channel(value: crate::ChannelName) -> crate::ChannelHandle {
+        crate::ChannelHandle::from_parts(value, None, None, None)
     }
 
     #[test]
@@ -1635,9 +1635,7 @@ mod tests {
                             .expect("server advertised CASEMAPPING")
                             .channel("#papo"),
                     )
-                    .unwrap()
-                    .name()
-                    .clone(),
+                    .unwrap(),
             ),
             crate::PublicConversation::Private(
                 first
@@ -1673,9 +1671,7 @@ mod tests {
                             .expect("server advertised CASEMAPPING")
                             .channel("#papo"),
                     )
-                    .unwrap()
-                    .name()
-                    .clone(),
+                    .unwrap(),
             ),
             items: Vec::new(),
             reason: HistoryReason::Requested,
@@ -2345,9 +2341,7 @@ mod tests {
         let conversation = crate::PublicConversation::Channel(
             client
                 .channel(name_rules(&client.state()).channel("#papo"))
-                .unwrap()
-                .name()
-                .clone(),
+                .unwrap(),
         );
         let request = tokio::spawn(async move { client.history(conversation).latest().await });
         client_line(&mut server, b"@label=0 CHATHISTORY LATEST #papo * 100\r\n").await;
@@ -2643,7 +2637,9 @@ mod tests {
         assert_eq!(targets.len(), 1);
         assert_eq!(
             targets[0].conversation,
-            crate::PublicConversation::Channel(channel)
+            crate::PublicConversation::Channel(crate::ChannelHandle::from_parts(
+                channel, None, None, None,
+            ))
         );
         assert_eq!(targets[0].latest_server_time, server_time(1_792_065_600, 0));
         abort_task(task).await;
@@ -2678,9 +2674,7 @@ mod tests {
                         .expect("server advertised CASEMAPPING")
                         .channel("#papo"),
                 )
-                .unwrap()
-                .name()
-                .clone(),
+                .unwrap(),
         );
         server_line(
             &mut server,
@@ -2942,9 +2936,7 @@ mod tests {
                         .expect("server advertised CASEMAPPING")
                         .channel("#papo"),
                 )
-                .unwrap()
-                .name()
-                .clone(),
+                .unwrap(),
         );
         let request = tokio::spawn({
             let client = client.clone();

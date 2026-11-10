@@ -266,18 +266,6 @@ impl AsConversation for crate::Conversation {
         match self {
             Self::Channel(channel) => AsConversation::__parts(channel),
             Self::Private(nick) => AsConversation::__parts(nick),
-            _ => text_parts("*"),
-        }
-    }
-}
-
-impl sealed::Sealed for crate::HandleConversation {}
-
-impl AsConversation for crate::HandleConversation {
-    fn __parts(&self) -> sealed::Parts<'_> {
-        match self {
-            Self::Channel(channel) => AsConversation::__parts(channel),
-            Self::Private(nick) => AsConversation::__parts(nick),
         }
     }
 }

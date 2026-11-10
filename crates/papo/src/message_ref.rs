@@ -622,10 +622,15 @@ pub(crate) fn conversation_origin(conversation: &Conversation) -> crate::Origin 
 }
 
 pub(crate) fn stamp_conversation(
-    conversation: papo_core::Conversation,
+    conversation: Conversation,
     origin: crate::Origin,
 ) -> Conversation {
-    crate::conversation::public_from_core(conversation, None, origin, None, None)
+    match conversation {
+        Conversation::Channel(channel) => Conversation::Channel(channel),
+        Conversation::Private(nick) => {
+            Conversation::Private(origin.__nick(nick.casemapping(), nick.into_string()))
+        }
+    }
 }
 
 #[cfg(test)]
@@ -639,7 +644,7 @@ mod tests {
     }
 
     fn channel_conversation(value: crate::ChannelName) -> Conversation {
-        Conversation::Channel(value)
+        Conversation::Channel(channel_handle(value))
     }
 
     #[test]

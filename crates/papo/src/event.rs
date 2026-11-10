@@ -716,7 +716,13 @@ pub(crate) fn incoming_from_core(
             Event::ServerNotice,
         );
     };
-    let conversation = crate::message_ref::stamp_conversation(conversation, origin);
+    let conversation = crate::conversation::public_from_core(
+        conversation,
+        status,
+        origin,
+        handle_state,
+        channel_guard.clone(),
+    );
     with_channel_guard(
         message_event_from_line(
             raw,
@@ -1267,7 +1273,17 @@ pub(crate) fn historical_message_event(
     ) else {
         return unparsed_from_line(raw, received_at);
     };
-    let conversation = crate::message_ref::stamp_conversation(conversation, client.origin());
+    let guard = match &conversation {
+        papo_core::Conversation::Channel(channel) => Some(snapshot.core.__channel_guard(channel)),
+        _ => None,
+    };
+    let conversation = crate::conversation::public_from_core(
+        conversation,
+        status,
+        client.origin(),
+        Some(&client.state),
+        guard,
+    );
     let conversation = historical_conversation(
         &raw.as_ref(),
         authorship,
@@ -2976,14 +2992,14 @@ mod tests {
 
     fn map_conversation(
         value: papo_core::Conversation,
-        _status: Option<crate::Prefix>,
-        _origin: crate::Origin,
+        status: Option<crate::Prefix>,
+        origin: crate::Origin,
     ) -> Conversation {
-        value
+        crate::conversation::public_from_core(value, status, origin, None, None)
     }
 
-    fn channel(value: crate::ChannelName) -> crate::ChannelName {
-        value
+    fn channel(value: crate::ChannelName) -> crate::ChannelHandle {
+        crate::ChannelHandle::from_parts(value, None, None, None)
     }
 
     fn channel_handle(value: crate::ChannelName) -> crate::ChannelHandle {

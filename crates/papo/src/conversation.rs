@@ -41,27 +41,18 @@ impl Conversation {
 
 pub(crate) fn public_from_core(
     value: papo_core::Conversation,
-    _status: Option<crate::Prefix>,
+    status: Option<crate::Prefix>,
     origin: crate::Origin,
-    _state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
-    _guard: Option<papo_core::ChannelGuard>,
+    state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
+    guard: Option<papo_core::ChannelGuard>,
 ) -> crate::PublicConversation {
-    match value {
-        papo_core::Conversation::Channel(channel) => crate::PublicConversation::Channel(
-            origin.__channel(channel.casemapping(), channel.into_string()),
-        ),
-        papo_core::Conversation::Private(nick) => crate::PublicConversation::Private(
-            origin.__nick(nick.casemapping(), nick.into_string()),
-        ),
-        _ => unreachable!("core conversations have channel and private variants"),
-    }
+    Conversation::from_core(value, status, origin, state, guard)
 }
 
 pub(crate) fn public_origin(value: &crate::PublicConversation) -> crate::Origin {
     match value {
         crate::PublicConversation::Channel(channel) => channel.origin(),
         crate::PublicConversation::Private(nick) => nick.origin(),
-        _ => crate::Origin::NONE,
     }
 }
 
@@ -73,42 +64,32 @@ pub(crate) fn public_private(value: &crate::PublicConversation) -> Option<&crate
 }
 
 pub(crate) fn public_channel_handle(
-    _value: &crate::PublicConversation,
+    value: &crate::PublicConversation,
 ) -> Option<crate::ChannelHandle> {
-    None
+    match value {
+        crate::PublicConversation::Channel(channel) => Some(channel.clone()),
+        crate::PublicConversation::Private(_) => None,
+    }
 }
 
 pub(crate) fn public_channel_name(value: &crate::PublicConversation) -> Option<crate::ChannelName> {
     match value {
-        crate::PublicConversation::Channel(channel) => Some(channel.clone()),
-        _ => None,
+        crate::PublicConversation::Channel(channel) => Some(channel.name()),
+        crate::PublicConversation::Private(_) => None,
     }
 }
 
 pub(crate) fn public_channel(channel: &crate::ChannelHandle) -> crate::PublicConversation {
-    crate::PublicConversation::Channel(channel.name())
+    crate::PublicConversation::Channel(channel.clone())
 }
 
 pub(crate) fn public_to_handle(
     value: &crate::PublicConversation,
-    origin: crate::Origin,
-    status: Option<crate::Prefix>,
-    guard: Option<papo_core::ChannelGuard>,
+    _origin: crate::Origin,
+    _status: Option<crate::Prefix>,
+    _guard: Option<papo_core::ChannelGuard>,
 ) -> Conversation {
-    match value {
-        crate::PublicConversation::Channel(channel) => {
-            Conversation::Channel(crate::ChannelHandle::from_parts(
-                origin.__channel(channel.casemapping(), channel.as_str()),
-                status,
-                guard,
-                None,
-            ))
-        }
-        crate::PublicConversation::Private(nick) => {
-            Conversation::Private(origin.__nick(nick.casemapping(), nick.as_str()))
-        }
-        _ => unreachable!("core conversations have channel and private variants"),
-    }
+    value.clone()
 }
 
 impl fmt::Display for Conversation {
