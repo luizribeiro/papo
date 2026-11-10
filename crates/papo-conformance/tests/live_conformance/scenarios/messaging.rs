@@ -38,7 +38,9 @@ async fn fixture_pair_with(
     assert_eq!(joined.authorship, papo::Authorship::Other);
     for peer in [&alice, &bob] {
         let state = peer.snapshot();
-        let members = state.channel(&channel).expect("joined channel is in state");
+        let members = state
+            .__channel_local(&channel)
+            .expect("joined channel is in state");
         assert!(members.is_synced());
         assert!(members.member(alice.nick().as_str()).is_some());
         assert!(members.member(bob.nick().as_str()).is_some());
@@ -476,7 +478,7 @@ async fn own_message_without_echo(s: Scenario) -> papo_testing::Result<()> {
             .is_none()
     );
 
-    if phone.snapshot().channel(&channel).is_none() {
+    if phone.snapshot().__channel_local(&channel).is_none() {
         phone.join(&channel).await?;
     }
     let text = "message from another logged-in session";
@@ -533,7 +535,7 @@ async fn status_message(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(received.msgid(), Some(confirmed_line(&sent).0));
     assert!(
         bob.snapshot()
-            .channel(&channel)
+            .__channel_local(&channel)
             .and_then(|members| members.member(bob.nick()))
             .is_some_and(|member| member
                 .prefixes()
@@ -704,7 +706,7 @@ async fn ctcp_channel_query(s: Scenario) -> papo_testing::Result<()> {
     let (mut alice, mut bob, channel) = fixture_pair(&s).await?;
     if alice
         .snapshot()
-        .channel(&channel)
+        .__channel_local(&channel)
         .is_some_and(|channel| channel.mode('C').is_some())
     {
         return s.skip("the channel has no-CTCP mode set");

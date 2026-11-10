@@ -496,7 +496,7 @@ async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
         })
         .await?;
     assert_eq!(synced.channel.as_str(), channel);
-    assert!(phone.snapshot().channel(&channel).is_some());
+    assert!(phone.snapshot().__channel_local(&channel).is_some());
     let replayed = match early_marker {
         Some(marker) => marker,
         None => phone.wait_for(Event::as_read_marker_changed).await?,

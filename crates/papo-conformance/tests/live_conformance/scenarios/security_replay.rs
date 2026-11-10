@@ -44,8 +44,8 @@ async fn reconnect_follows_channel_rename(s: Scenario) -> papo_testing::Result<(
         })
         .await?;
     assert_eq!(joined.channel.as_str(), renamed);
-    assert!(alice.snapshot().channel(&old).is_none());
-    assert!(alice.snapshot().channel(&renamed).is_some());
+    assert!(alice.snapshot().__channel_local(&old).is_none());
+    assert!(alice.snapshot().__channel_local(&renamed).is_some());
     Ok(())
 }
 
@@ -59,7 +59,7 @@ async fn labelled_rejoin_ack_completes(s: Scenario) -> papo_testing::Result<()> 
     let channel = s.channel_name();
     alice.join(&channel).await?;
     alice.join(&channel).await?;
-    assert!(alice.snapshot().channel(&channel).is_some());
+    assert!(alice.snapshot().__channel_local(&channel).is_some());
     Ok(())
 }
 
@@ -91,7 +91,7 @@ async fn parted_rejoin_is_not_restored(s: Scenario) -> papo_testing::Result<()> 
         .await?;
     alice.wait_for(Event::as_disconnected).await?;
     alice.wait_for(Event::as_connected).await?;
-    assert!(alice.snapshot().channel(&channel).is_none());
+    assert!(alice.snapshot().__channel_local(&channel).is_none());
     alice
         .expect_none(|event| {
             event.as_joined().filter(|joined| {
@@ -131,7 +131,7 @@ async fn abandoned_batch_members_stay_replay_only(_s: Scenario) -> papo_testing:
     wire.server(format!(":offline.test PONG offline.test :{token}"))
         .await;
     ping.await.unwrap()?;
-    assert!(client.snapshot().channel("#private").is_some());
+    assert!(client.snapshot().__channel_local("#private").is_some());
     Ok(())
 }
 
@@ -162,7 +162,7 @@ async fn message_refusal_does_not_fail_part(s: Scenario) -> papo_testing::Result
         .wait_for(|event| event.as_other().filter(|line| line.numeric() == Some(404)))
         .await?;
     assert_eq!(refusal.as_ref().param(1), Some(channel.as_str()));
-    assert!(bob.snapshot().channel(&channel).is_none());
+    assert!(bob.snapshot().__channel_local(&channel).is_none());
     Ok(())
 }
 

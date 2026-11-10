@@ -78,7 +78,7 @@ async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
             }
             other => panic!("expected an invalid-prefix rejection for {name:?}, got {other:?}"),
         }
-        assert!(alice.snapshot().channel(&name).is_none());
+        assert!(alice.snapshot().__channel_local(&name).is_none());
     }
 
     let direct = "a direct message";

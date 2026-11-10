@@ -66,8 +66,13 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
             .channel(&mixed_channel),
         lowercase_channel.as_str()
     );
-    assert!(square.snapshot().channel(&lowercase_channel).is_some());
-    assert!(curly.snapshot().channel(&mixed_channel).is_some());
+    assert!(
+        square
+            .snapshot()
+            .__channel_local(&lowercase_channel)
+            .is_some()
+    );
+    assert!(curly.snapshot().__channel_local(&mixed_channel).is_some());
 
     let base = alice.nick().to_string();
     let alice_nick = format!("{base}[x]");
@@ -105,11 +110,20 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(observed_join.authorship, papo::Authorship::Other);
 
     assert_eq!(
-        bob.snapshot().channel(&folded).unwrap().name().as_str(),
+        bob.snapshot()
+            .__channel_local(&folded)
+            .unwrap()
+            .name()
+            .as_str(),
         chan
     );
     assert_eq!(
-        alice.snapshot().channel(&folded).unwrap().name().as_str(),
+        alice
+            .snapshot()
+            .__channel_local(&folded)
+            .unwrap()
+            .name()
+            .as_str(),
         chan
     );
     let alice_folded_nick = format!("{}{{X}}", base.to_ascii_uppercase());

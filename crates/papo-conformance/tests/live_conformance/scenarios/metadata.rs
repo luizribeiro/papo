@@ -326,9 +326,9 @@ async fn channel_rename_error(s: Scenario) -> papo_testing::Result<()> {
     };
     assert!(error.command().is_some_and(|command| command == "RENAME"));
     assert_eq!(error.code(), "CHANNEL_NAME_IN_USE");
-    assert!(alice.snapshot().channel(&old).is_some());
-    assert!(alice.snapshot().channel(&occupied).is_none());
-    assert!(bob.snapshot().channel(&occupied).is_some());
+    assert!(alice.snapshot().__channel_local(&old).is_some());
+    assert!(alice.snapshot().__channel_local(&occupied).is_none());
+    assert!(bob.snapshot().__channel_local(&occupied).is_some());
     alice.expect_none(Event::as_channel_renamed).await?;
     bob.expect_none(Event::as_channel_renamed).await?;
     Ok(())
@@ -362,7 +362,7 @@ async fn draft_channel_rename(s: Scenario) -> papo_testing::Result<()> {
     }
     for peer in [&alice, &bob] {
         let snapshot = peer.snapshot();
-        assert!(snapshot.channel(&channel).is_none());
+        assert!(snapshot.__channel_local(&channel).is_none());
         let state = snapshot
             .channel(&renamed)
             .expect("the renamed channel remains joined");

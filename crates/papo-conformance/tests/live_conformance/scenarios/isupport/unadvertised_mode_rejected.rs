@@ -32,9 +32,20 @@ async fn unadvertised_mode_rejected(s: Scenario) -> papo_testing::Result<()> {
     alice
         .expect_none(|event| channel_mode(event, &channel))
         .await?;
-    assert_eq!(alice.snapshot().channel(&channel).unwrap().mode('m'), None);
     assert_eq!(
-        alice.snapshot().channel(&channel).unwrap().mode(letter),
+        alice
+            .snapshot()
+            .__channel_local(&channel)
+            .unwrap()
+            .mode('m'),
+        None
+    );
+    assert_eq!(
+        alice
+            .snapshot()
+            .__channel_local(&channel)
+            .unwrap()
+            .mode(letter),
         None
     );
 
@@ -53,7 +64,7 @@ async fn unadvertised_mode_rejected(s: Scenario) -> papo_testing::Result<()> {
     }
     for peer in [&alice, &bob] {
         let state = peer.snapshot();
-        let channel_state = state.channel(&channel).unwrap();
+        let channel_state = state.__channel_local(&channel).unwrap();
         assert_eq!(channel_state.mode('m'), Some(ModeValue::Set));
         assert_eq!(channel_state.mode(letter), None);
     }

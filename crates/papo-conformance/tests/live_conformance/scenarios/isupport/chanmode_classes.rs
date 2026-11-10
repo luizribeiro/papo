@@ -66,7 +66,7 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(no_external.arg, None);
 
         let state = peer.snapshot();
-        let channel_state = state.channel(&channel).unwrap();
+        let channel_state = state.__channel_local(&channel).unwrap();
         assert_eq!(channel_state.mode('k'), Some(ModeValue::Set));
         assert_eq!(channel_state.key().map(papo::Secret::expose), Some(KEY));
         assert_eq!(channel_state.mode('l'), Some(ModeValue::Value(LIMIT)));
@@ -103,7 +103,7 @@ async fn chanmode_classes(s: Scenario) -> papo_testing::Result<()> {
         assert_eq!(limit.arg, None);
 
         let state = peer.snapshot();
-        let channel_state = state.channel(&channel).unwrap();
+        let channel_state = state.__channel_local(&channel).unwrap();
         assert_eq!(channel_state.mode('k'), None);
         assert_eq!(channel_state.mode('l'), None);
     }
