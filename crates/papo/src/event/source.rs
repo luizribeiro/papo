@@ -94,6 +94,22 @@ pub(crate) trait FromMessageActor: Sized {
     fn from_message_actor(actor: UserSource) -> Self;
 }
 
+pub(crate) trait IntoMessageSource {
+    fn into_message_source(self) -> UserSource;
+}
+
+impl IntoMessageSource for UserSource {
+    fn into_message_source(self) -> UserSource {
+        self
+    }
+}
+
+impl IntoMessageSource for crate::UserHandle {
+    fn into_message_source(self) -> UserSource {
+        crate::UserHandle::into_message_source(self)
+    }
+}
+
 impl FromMessageActor for UserSource {
     fn from_message_actor(actor: UserSource) -> Self {
         actor
@@ -102,12 +118,12 @@ impl FromMessageActor for UserSource {
 
 impl FromMessageActor for crate::UserHandle {
     fn from_message_actor(actor: UserSource) -> Self {
-        crate::UserHandle::from_parts(actor.nick, actor.account, None, None)
+        crate::UserHandle::from_message_source(actor)
     }
 }
 
-pub(crate) fn message_actor<T: FromMessageActor>(actor: UserSource) -> T {
-    T::from_message_actor(actor)
+pub(crate) fn message_actor<S: IntoMessageSource, T: FromMessageActor>(actor: S) -> T {
+    T::from_message_actor(actor.into_message_source())
 }
 
 impl PartialEq for UserSource {

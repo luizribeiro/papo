@@ -760,7 +760,9 @@ mod tests {
             Conversation::Channel(channel_handle(origin.__channel(mapping, "#ops")));
         received.status = Some(crate::Prefix::__new('o', '@'));
         received.receipt = Receipt::new(
-            crate::Source::User(received.actor.clone()),
+            crate::Source::User(crate::event_impl::source::message_actor(
+                received.actor.clone(),
+            )),
             received.authorship,
             &received.conversation,
             None,

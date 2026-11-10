@@ -204,7 +204,7 @@ pub fn message(
         return_address,
     );
     Message {
-        actor,
+        actor: crate::event_impl::source::message_actor(actor),
         authorship: Authorship::Other,
         conversation,
         status: None,
@@ -242,7 +242,7 @@ pub fn set_message_actor(message: &mut Message, actor: crate::UserSource) {
     if matches!(message.conversation, crate::Conversation::Private(_)) {
         message.conversation = crate::Conversation::Private(actor.nick().clone());
     }
-    message.actor = actor;
+    message.actor = crate::event_impl::source::message_actor(actor);
     message.receipt.update_actor(
         crate::Source::User(crate::event_impl::source::message_actor(
             message.actor.clone(),

@@ -24,6 +24,7 @@ struct UserInner {
     proof: OnceLock<papo_core::Proven>,
     state: Option<Arc<RwLock<Arc<crate::State>>>>,
     historical: bool,
+    legacy: Option<crate::UserSource>,
 }
 
 #[allow(dead_code)]
@@ -71,7 +72,29 @@ impl UserHandle {
             proof: stored,
             state: state.map(Arc::clone),
             historical,
+            legacy: None,
         }))
+    }
+
+    pub(crate) fn from_message_source(source: crate::UserSource) -> Self {
+        let mut handle =
+            Self::from_parts(source.nick().clone(), source.account().clone(), None, None);
+        Arc::get_mut(&mut handle.0)
+            .expect("a new handle is uniquely owned")
+            .legacy = Some(source);
+        handle
+    }
+
+    pub(crate) fn into_message_source(self) -> crate::UserSource {
+        self.0.legacy.clone().unwrap_or_else(|| {
+            crate::UserSource::from_state(
+                &self.0.nick,
+                None,
+                None,
+                self.0.account.clone(),
+                self.0.nick.origin(),
+            )
+        })
     }
 
     pub(crate) fn from_current_state(
@@ -133,8 +156,51 @@ impl UserHandle {
         _ = self.0.proof.set(proof);
     }
 
-    pub(crate) fn account(&self) -> &crate::Account {
+    /// Returns the account fact captured from the message line.
+    #[must_use]
+    pub fn account(&self) -> &crate::Account {
         &self.0.account
+    }
+
+    pub(crate) fn set_account(&mut self, account: crate::Account) {
+        let mut source = self.0.legacy.clone();
+        if let Some(source) = source.as_mut() {
+            source.set_account(account.clone());
+        }
+        *self = Self::from_parts(self.0.nick.clone(), account, None, None);
+        Arc::get_mut(&mut self.0)
+            .expect("a rebuilt handle is uniquely owned")
+            .legacy = source;
+    }
+
+    /// Returns the username captured from the message line.
+    #[must_use]
+    pub fn username(&self) -> Option<&str> {
+        self.0.legacy.as_ref().and_then(crate::UserSource::username)
+    }
+
+    /// Returns the hostname captured from the message line.
+    #[must_use]
+    pub fn host(&self) -> Option<&str> {
+        self.0.legacy.as_ref().and_then(crate::UserSource::host)
+    }
+
+    /// Returns the bot fact captured from the message line.
+    #[must_use]
+    pub fn is_bot(&self) -> Option<bool> {
+        self.0.legacy.as_ref().and_then(crate::UserSource::is_bot)
+    }
+
+    /// Returns the operator fact captured from the message line.
+    #[must_use]
+    pub fn oper(&self) -> Option<&crate::Oper> {
+        self.0.legacy.as_ref().and_then(crate::UserSource::oper)
+    }
+
+    /// Returns the peer key captured for the message line.
+    #[must_use]
+    pub fn peer_key(&self) -> Option<&crate::PeerKey> {
+        self.0.legacy.as_ref().and_then(crate::UserSource::peer_key)
     }
 
     pub(crate) fn origin(&self) -> crate::Origin {

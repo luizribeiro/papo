@@ -941,7 +941,9 @@ mod tests {
                 .nick("emily"),
         );
         private.receipt = crate::message_ref::Receipt::new(
-            crate::Source::User(private.actor.clone()),
+            crate::Source::User(crate::event_impl::source::message_actor(
+                private.actor.clone(),
+            )),
             private.authorship,
             &private.conversation,
             None,
