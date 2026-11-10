@@ -1,6 +1,7 @@
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use papo_proto::ServerTime;
+use web_time::Instant;
 
 /// Covers ordinary timestamp-to-receipt delay without accepting a value one second ahead.
 const TOLERANCE: Duration = Duration::from_millis(250);
@@ -34,7 +35,8 @@ impl ServerClock {
 #[cfg(test)]
 mod tests {
     use super::ServerClock;
-    use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+    use web_time::Instant;
 
     #[test]
     fn estimate_uses_only_monotonic_elapsed_time_and_tolerance() {
