@@ -1,7 +1,8 @@
 use std::fmt;
 
 use crate::{
-    Account, Authorship, ChannelName, Conversation, Message, MessageId, Nick, Sent, Source,
+    Account, Authorship, ChannelName, Message, MessageId, Nick, PublicConversation as Conversation,
+    Sent, Source,
     event::{CtcpQuery, CtcpReply, Notice, Reacted, Redacted, ServerNotice, TagMsg, TypingChanged},
 };
 
@@ -41,10 +42,7 @@ impl Receipt {
                 .map_or(Account::Unknown, |user| user.account().clone())
         };
         let origin = conversation_origin(conversation);
-        let recipient = match conversation {
-            Conversation::Private(nick) => Some(nick.clone()),
-            _ => None,
-        };
+        let recipient = crate::conversation::public_private(conversation).cloned();
         Self {
             identity: Box::new(ReceiptIdentity {
                 actor,
@@ -53,7 +51,7 @@ impl Receipt {
                 actor_token: token,
                 recipient,
                 recipient_guard: None,
-                channel: None,
+                channel: crate::conversation::public_channel_handle(conversation),
                 msgids: Vec::new(),
                 channel_context: None,
             }),
@@ -195,33 +193,18 @@ fn handle_conversation(
     conversation: &Conversation,
     receipt: &Receipt,
 ) -> crate::HandleConversation {
-    match conversation {
-        Conversation::Channel(channel) => {
-            let status = receipt
-                .identity
-                .channel
-                .as_ref()
-                .and_then(crate::ChannelHandle::status);
-            let guard = receipt
-                .identity
-                .channel
-                .as_ref()
-                .and_then(crate::ChannelHandle::guard)
-                .cloned();
-            crate::HandleConversation::Channel(crate::ChannelHandle::from_parts(
-                receipt
-                    .origin
-                    .__channel(channel.casemapping(), channel.as_str()),
-                status,
-                guard,
-                None,
-            ))
-        }
-        Conversation::Private(nick) => crate::HandleConversation::Private(
-            receipt.origin.__nick(nick.casemapping(), nick.as_str()),
-        ),
-        _ => unreachable!("core conversations have channel and private variants"),
-    }
+    let status = receipt
+        .identity
+        .channel
+        .as_ref()
+        .and_then(crate::ChannelHandle::status);
+    let guard = receipt
+        .identity
+        .channel
+        .as_ref()
+        .and_then(crate::ChannelHandle::guard)
+        .cloned();
+    crate::conversation::public_to_handle(conversation, receipt.origin, status, guard)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -654,11 +637,7 @@ impl<I: Into<MessageId>> From<(&MessageRef, I)> for MessageRef {
 }
 
 pub(crate) fn conversation_origin(conversation: &Conversation) -> crate::Origin {
-    match conversation {
-        Conversation::Channel(channel) => channel.origin(),
-        Conversation::Private(nick) => nick.origin(),
-        _ => crate::Origin::NONE,
-    }
+    crate::conversation::public_origin(conversation)
 }
 
 pub(crate) fn stamp_conversation(

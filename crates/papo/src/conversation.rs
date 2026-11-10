@@ -57,6 +57,49 @@ pub(crate) fn public_from_core(
     }
 }
 
+pub(crate) fn public_origin(value: &crate::PublicConversation) -> crate::Origin {
+    match value {
+        crate::PublicConversation::Channel(channel) => channel.origin(),
+        crate::PublicConversation::Private(nick) => nick.origin(),
+        _ => crate::Origin::NONE,
+    }
+}
+
+pub(crate) fn public_private(value: &crate::PublicConversation) -> Option<&crate::Nick> {
+    match value {
+        crate::PublicConversation::Private(nick) => Some(nick),
+        _ => None,
+    }
+}
+
+pub(crate) fn public_channel_handle(
+    _value: &crate::PublicConversation,
+) -> Option<crate::ChannelHandle> {
+    None
+}
+
+pub(crate) fn public_to_handle(
+    value: &crate::PublicConversation,
+    origin: crate::Origin,
+    status: Option<crate::Prefix>,
+    guard: Option<papo_core::ChannelGuard>,
+) -> Conversation {
+    match value {
+        crate::PublicConversation::Channel(channel) => {
+            Conversation::Channel(crate::ChannelHandle::from_parts(
+                origin.__channel(channel.casemapping(), channel.as_str()),
+                status,
+                guard,
+                None,
+            ))
+        }
+        crate::PublicConversation::Private(nick) => {
+            Conversation::Private(origin.__nick(nick.casemapping(), nick.as_str()))
+        }
+        _ => unreachable!("core conversations have channel and private variants"),
+    }
+}
+
 impl fmt::Display for Conversation {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
