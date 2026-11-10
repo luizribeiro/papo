@@ -2483,7 +2483,7 @@ pub(crate) fn from_core_with_receipt(
         }
         papo_core::Event::ReadMarkerChanged(marker) => {
             Event::ReadMarkerChanged(ReadMarkerChanged {
-                conversation: marker.conversation,
+                conversation: conversation_handle(marker.conversation, None),
                 read_until: marker.read_until,
             })
         }
@@ -3447,8 +3447,10 @@ mod tests {
         let mut session = Session::new(Config::default().nick("papo"));
         session.handle_line(now, b":alice!~alice@cloak.example JOIN #review");
         let mapping = session.isupport().casemapping();
-        let private = Conversation::Private(crate::Origin::NONE.__nick(mapping, "alice"));
-        let channel = Conversation::Channel(crate::Origin::NONE.__channel(mapping, "#review"));
+        let private =
+            papo_core::Conversation::Private(crate::Origin::NONE.__nick(mapping, "alice"));
+        let channel =
+            papo_core::Conversation::Channel(crate::Origin::NONE.__channel(mapping, "#review"));
 
         assert_eq!(
             super::conversation_reply_token(Some(session.state()), &private),
@@ -4286,7 +4288,7 @@ mod tests {
                 line,
                 None,
                 Authorship::Other,
-                Conversation::Channel(isupport.casemapping().channel("#papo")),
+                Conversation::Channel(channel(isupport.casemapping().channel("#papo"))),
                 None,
                 None,
                 &isupport,
@@ -4310,7 +4312,7 @@ mod tests {
             envelope: papo_core::LineEnvelope::default(),
             actor: "emily!e@host".into(),
             authorship: papo_core::Authorship::Other,
-            conversation: Conversation::Channel(isupport.casemapping().channel("#papo")),
+            conversation: papo_core::Conversation::Channel(isupport.casemapping().channel("#papo")),
             status: None,
             return_address: "#papo".into(),
             tags: Vec::new(),
@@ -4664,7 +4666,7 @@ mod tests {
                 line,
                 None,
                 authorship,
-                Conversation::Channel(isupport.casemapping().channel("#papo")),
+                Conversation::Channel(channel(isupport.casemapping().channel("#papo"))),
                 None,
                 None,
                 &isupport,
@@ -6213,13 +6215,14 @@ mod tests {
     #[test]
     fn maps_history() {
         let message = Line::privmsg("#papo", "earlier");
-        let conversation = Conversation::Channel(Casemapping::Rfc1459.channel("#papo"));
+        let core_conversation =
+            papo_core::Conversation::Channel(Casemapping::Rfc1459.channel("#papo"));
         let CoreEvent::History {
             conversation: mapped,
             items,
             end,
         } = from_core(papo_core::Event::__history(
-            conversation.clone(),
+            core_conversation.clone(),
             vec![
                 papo_core::HistoryItem::Message(papo_core::HistoryLine {
                     line: message.clone(),
@@ -6239,7 +6242,7 @@ mod tests {
         else {
             panic!("history was not classified")
         };
-        assert_eq!(mapped, conversation);
+        assert_eq!(mapped, core_conversation);
         assert_eq!(items.len(), 2);
         assert!(matches!(
             &items[0],
@@ -6253,7 +6256,7 @@ mod tests {
     #[test]
     fn keeps_history_targets_internal() {
         let targets = vec![(
-            Conversation::Channel(Casemapping::Rfc1459.channel("#papo")),
+            papo_core::Conversation::Channel(Casemapping::Rfc1459.channel("#papo")),
             crate::ServerTime::from_stored_millis(42_000).unwrap(),
         )];
         assert!(matches!(
