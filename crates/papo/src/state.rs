@@ -58,7 +58,7 @@ pub(crate) fn mode_list_from_core(
 
 /// State known about a joined channel.
 ///
-/// A channel is a conversation without a status prefix. See [`crate::PublicConversation`] for the
+/// A channel is a conversation without a status prefix. See [`crate::Conversation`] for the
 /// distinction between a conversation and an ops-only return address.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Channel {
@@ -178,7 +178,10 @@ impl Channel {
 /// [`crate::Event::Connected`].
 /// ```
 /// fn member_count(state: &papo::State) -> Option<usize> {
-///     state.channel("#papo").map(|channel| channel.members().count())
+///     state
+///         .channel("#papo")
+///         .expect("a plain channel name belongs to this client")
+///         .map(|channel| channel.members().count())
 /// }
 /// ```
 #[derive(Debug)]
@@ -215,15 +218,17 @@ impl State {
 
     pub(crate) fn reply_token(
         &self,
-        conversation: &crate::PublicConversation,
+        conversation: &crate::Conversation,
     ) -> Option<papo_core::ReplyToken> {
-        crate::conversation::public_private(conversation)
-            .map(|nick| self.core.__reply_token_for(nick.as_str()))
+        match conversation {
+            crate::Conversation::Private(nick) => Some(self.core.__reply_token_for(nick.as_str())),
+            _ => None,
+        }
     }
 
     pub(crate) fn sent_receipt(
         &self,
-        conversation: &crate::PublicConversation,
+        conversation: &crate::Conversation,
         address: String,
         guard: Option<&papo_core::TargetGuard>,
     ) -> crate::message_ref::Receipt {
@@ -248,10 +253,7 @@ impl State {
             Some(papo_core::TargetGuard::Proven(proof)) => {
                 receipt = receipt.with_recipient(proof.__recipient());
             }
-            Some(papo_core::TargetGuard::Channel(channel)) => {
-                receipt.set_channel(Some(channel.clone()));
-            }
-            None => {}
+            Some(papo_core::TargetGuard::Channel(_)) | None => {}
         }
         receipt
     }
@@ -636,7 +638,7 @@ impl State {
     fn resolve_conversation(
         &self,
         conversation: impl crate::AsConversation,
-    ) -> Option<crate::HandleConversation> {
+    ) -> Option<crate::Conversation> {
         let parts = crate::AsConversation::__parts(&conversation);
         let origin = self.nick().origin();
         if parts.origin != crate::Origin::NONE && parts.origin != origin {
@@ -647,7 +649,7 @@ impl State {
             papo_core::Conversation::Channel(channel) => Some(self.core.__channel_guard(channel)),
             _ => None,
         };
-        Some(crate::HandleConversation::from_core(
+        Some(crate::Conversation::from_core(
             conversation,
             None,
             origin,

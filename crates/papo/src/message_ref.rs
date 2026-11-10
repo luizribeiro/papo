@@ -1,8 +1,7 @@
 use std::fmt;
 
 use crate::{
-    Account, Authorship, Message, MessageId, Nick, PublicConversation as Conversation, Sent,
-    Source,
+    Account, Authorship, Conversation, Message, MessageId, Nick, Sent, Source,
     event::{CtcpQuery, CtcpReply, Notice, Reacted, Redacted, ServerNotice, TagMsg, TypingChanged},
 };
 
@@ -42,7 +41,10 @@ impl Receipt {
                 .map_or(Account::Unknown, |user| user.account().clone())
         };
         let origin = conversation_origin(conversation);
-        let recipient = crate::conversation::public_private(conversation).cloned();
+        let recipient = match conversation {
+            Conversation::Private(nick) => Some(nick.clone()),
+            _ => None,
+        };
         Self {
             identity: Box::new(ReceiptIdentity {
                 actor,
@@ -51,7 +53,10 @@ impl Receipt {
                 actor_token: token,
                 recipient,
                 recipient_guard: None,
-                channel: crate::conversation::public_channel_handle(conversation),
+                channel: match conversation {
+                    Conversation::Channel(channel) => Some(channel.clone()),
+                    Conversation::Private(_) => None,
+                },
                 msgids: Vec::new(),
                 channel_context: None,
             }),
@@ -123,14 +128,6 @@ impl Receipt {
         self
     }
 
-    pub(crate) fn set_channel(&mut self, channel: Option<papo_core::ChannelGuard>) {
-        if self.identity.channel.is_none() {
-            self.identity.channel = channel.map(|guard| {
-                crate::ChannelHandle::from_parts(guard.__channel().clone(), None, Some(guard), None)
-            });
-        }
-    }
-
     pub(crate) fn set_actor_token(&mut self, token: Option<papo_core::ReplyToken>) {
         self.identity.actor_token = token;
     }
@@ -187,26 +184,8 @@ impl Receipt {
 
 pub(crate) trait ReplyReference {
     fn receipt(&self) -> &Receipt;
-    fn conversation(&self) -> crate::HandleConversation;
+    fn conversation(&self) -> &Conversation;
     fn server_time(&self) -> Option<crate::ServerTime>;
-}
-
-fn handle_conversation(
-    conversation: &Conversation,
-    receipt: &Receipt,
-) -> crate::HandleConversation {
-    let status = receipt
-        .identity
-        .channel
-        .as_ref()
-        .and_then(crate::ChannelHandle::status);
-    let guard = receipt
-        .identity
-        .channel
-        .as_ref()
-        .and_then(crate::ChannelHandle::guard)
-        .cloned();
-    crate::conversation::public_to_handle(conversation, receipt.origin, status, guard)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -267,7 +246,7 @@ pub struct MessageRef {
     channel_context: Option<crate::ChannelHandle>,
     recipient: Option<RecipientGuard>,
     channel: Option<crate::ChannelHandle>,
-    conversation: Option<crate::HandleConversation>,
+    conversation: Option<Conversation>,
     server_time: Option<crate::ServerTime>,
 }
 
@@ -325,7 +304,7 @@ impl MessageRef {
         &self.msgids
     }
 
-    pub(crate) fn conversation(&self) -> Option<&crate::HandleConversation> {
+    pub(crate) fn conversation(&self) -> Option<&Conversation> {
         self.conversation.as_ref()
     }
 
@@ -449,8 +428,8 @@ macro_rules! reply_reference {
                     &self.receipt
                 }
 
-                fn conversation(&self) -> crate::HandleConversation {
-                    handle_conversation(&self.conversation, &self.receipt)
+                fn conversation(&self) -> &Conversation {
+                    &self.conversation
                 }
 
                 fn server_time(&self) -> Option<crate::ServerTime> {
@@ -468,8 +447,8 @@ impl ReplyReference for TypingChanged {
         &self.receipt
     }
 
-    fn conversation(&self) -> crate::HandleConversation {
-        handle_conversation(&self.conversation, &self.receipt)
+    fn conversation(&self) -> &Conversation {
+        &self.conversation
     }
 
     fn server_time(&self) -> Option<crate::ServerTime> {
@@ -482,8 +461,8 @@ impl ReplyReference for Message {
         &self.receipt
     }
 
-    fn conversation(&self) -> crate::HandleConversation {
-        handle_conversation(&self.conversation, &self.receipt)
+    fn conversation(&self) -> &Conversation {
+        &self.conversation
     }
 
     fn server_time(&self) -> Option<crate::ServerTime> {
@@ -496,8 +475,8 @@ impl ReplyReference for Sent {
         &self.receipt
     }
 
-    fn conversation(&self) -> crate::HandleConversation {
-        handle_conversation(&self.conversation, &self.receipt)
+    fn conversation(&self) -> &Conversation {
+        &self.conversation
     }
 
     fn server_time(&self) -> Option<crate::ServerTime> {
@@ -512,7 +491,7 @@ impl ReplyReference for Sent {
 impl<T: ReplyReference + ?Sized> From<&T> for MessageRef {
     fn from(line: &T) -> Self {
         let mut reference = line.receipt().reference();
-        reference.conversation = Some(line.conversation());
+        reference.conversation = Some(line.conversation().clone());
         reference.server_time = line.server_time();
         reference
     }
@@ -618,7 +597,10 @@ impl<I: Into<MessageId>> From<(&MessageRef, I)> for MessageRef {
 }
 
 pub(crate) fn conversation_origin(conversation: &Conversation) -> crate::Origin {
-    crate::conversation::public_origin(conversation)
+    match conversation {
+        Conversation::Channel(channel) => channel.origin(),
+        Conversation::Private(nick) => nick.origin(),
+    }
 }
 
 pub(crate) fn stamp_conversation(
@@ -643,10 +625,6 @@ mod tests {
         crate::ChannelHandle::from_parts(value, None, None, None)
     }
 
-    fn channel_conversation(value: crate::ChannelName) -> Conversation {
-        Conversation::Channel(channel_handle(value))
-    }
-
     #[test]
     fn reference_equality_compares_identity_fields_but_not_read_marker_metadata() {
         let mapping = crate::Casemapping::default();
@@ -668,15 +646,13 @@ mod tests {
             channel_context: Some(channel_handle(origin.__channel(mapping, "#context"))),
             recipient: Some(RecipientGuard::from_core(&recipient)),
             channel: Some(channel_handle(origin.__channel(mapping, "#ops"))),
-            conversation: Some(crate::HandleConversation::Channel(channel_handle(
+            conversation: Some(Conversation::Channel(channel_handle(
                 origin.__channel(mapping, "#ops"),
             ))),
             server_time: Some(crate::ServerTime::from_stored_millis(42_000).unwrap()),
         };
         let mut metadata_only = base.clone();
-        metadata_only.conversation = Some(crate::HandleConversation::Private(
-            origin.__nick(mapping, "bob"),
-        ));
+        metadata_only.conversation = Some(Conversation::Private(origin.__nick(mapping, "bob")));
         metadata_only.server_time = Some(crate::ServerTime::from_stored_millis(84_000).unwrap());
         assert_eq!(base, metadata_only);
 
@@ -752,7 +728,7 @@ mod tests {
         let receipt = Receipt::new(
             crate::Source::User(actor),
             Authorship::Other,
-            &channel_conversation(mapping.channel("#ops")),
+            &Conversation::Channel(channel_handle(mapping.channel("#ops"))),
             None,
             "@#ops".into(),
         );
@@ -780,7 +756,8 @@ mod tests {
             "deploy complete",
             false,
         );
-        received.conversation = channel_conversation(origin.__channel(mapping, "#ops"));
+        received.conversation =
+            Conversation::Channel(channel_handle(origin.__channel(mapping, "#ops")));
         received.status = Some(crate::Prefix::__new('o', '@'));
         received.receipt = Receipt::new(
             crate::Source::User(received.actor.clone()),
@@ -799,7 +776,7 @@ mod tests {
         assert_eq!(reference.origin(), origin);
 
         let mut sent = Sent {
-            conversation: channel_conversation(origin.__channel(mapping, "#ops")),
+            conversation: Conversation::Channel(channel_handle(origin.__channel(mapping, "#ops"))),
             status: Some(crate::Prefix::__new('o', '@')),
             receipt: Receipt::new(
                 crate::Source::User(crate::__testing::user_source(
@@ -808,7 +785,7 @@ mod tests {
                     None,
                 )),
                 Authorship::Own,
-                &channel_conversation(origin.__channel(mapping, "#ops")),
+                &Conversation::Channel(channel_handle(origin.__channel(mapping, "#ops"))),
                 None,
                 "@#ops".into(),
             ),
@@ -879,7 +856,7 @@ mod tests {
     #[test]
     fn actor_updates_clear_channel_guards_only_for_private_conversations() {
         let mapping = crate::Casemapping::default();
-        let channel = channel_conversation(mapping.channel("#ops"));
+        let channel = Conversation::Channel(channel_handle(mapping.channel("#ops")));
         let mut session = Session::new(Config::default().nick("papo"));
         session.handle_line(crate::rt::now_mono(), b":papo!p@localhost JOIN #ops");
         let guard = session
@@ -897,7 +874,12 @@ mod tests {
             None,
             "@#ops".into(),
         );
-        receipt.set_channel(Some(guard));
+        receipt.identity.channel = Some(crate::ChannelHandle::from_parts(
+            mapping.channel("#ops"),
+            None,
+            Some(guard),
+            None,
+        ));
 
         receipt.update_actor(actor.clone(), &channel);
         assert!(receipt.identity.channel.is_some());

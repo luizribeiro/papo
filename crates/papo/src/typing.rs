@@ -89,10 +89,7 @@ impl Typer {
             return_address: crate::MessageRef::new(
                 core.__return_address().to_owned(),
                 Vec::new(),
-                match &conversation {
-                    Conversation::Channel(channel) => channel.origin(),
-                    Conversation::Private(nick) => nick.origin(),
-                },
+                crate::message_ref::conversation_origin(&conversation),
                 None,
                 recipient,
                 channel,
