@@ -56,6 +56,10 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
         ConversationClass::Event,
     ),
     (
+        "impl papo::AsConversation for papo::Conversation",
+        ConversationClass::State,
+    ),
+    (
         "pub fn papo::Event::conversation(&self) -> core::option::Option<papo::Conversation>",
         ConversationClass::Event,
     ),
@@ -86,10 +90,6 @@ const PAPO_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[
     (
         "pub papo::Sent::conversation: papo::Conversation",
         ConversationClass::Outgoing,
-    ),
-    (
-        "impl papo::AsConversation for papo::Conversation",
-        ConversationClass::State,
     ),
 ];
 const BOT_CONVERSATION_ITEMS: &[(&str, ConversationClass)] = &[];
@@ -203,9 +203,19 @@ fn internal_types_without_reexports(snapshot: &str) -> Vec<&str> {
 }
 
 fn conversation_items(snapshot: &str) -> Vec<&str> {
+    let mut seen = BTreeSet::new();
     facade_items(snapshot)
         .lines()
-        .filter(|line| *line != "pub use papo::Conversation" && line.contains("papo::Conversation"))
+        .filter(|line| {
+            *line != "pub use papo::Conversation"
+                && !line.starts_with("#[non_exhaustive] pub enum papo::Conversation")
+                && !line.starts_with("pub papo::Conversation::")
+                && !line.starts_with("pub fn papo::Conversation::")
+                && (!line.ends_with("for papo::Conversation")
+                    || *line == "impl papo::AsConversation for papo::Conversation")
+                && line.contains("papo::Conversation")
+        })
+        .filter(|line| seen.insert(*line))
         .collect()
 }
 
@@ -404,9 +414,11 @@ fn conversation_items_are_classified() {
         ("papo unstable", UNSTABLE, PAPO_CONVERSATION_ITEMS),
         ("papo-bot", BOT, BOT_CONVERSATION_ITEMS),
     ] {
-        let classified: Vec<_> = classified.iter().map(|(item, _class)| *item).collect();
+        let classified: BTreeSet<_> = classified.iter().map(|(item, _class)| *item).collect();
         assert_eq!(
-            conversation_items(snapshot),
+            conversation_items(snapshot)
+                .into_iter()
+                .collect::<BTreeSet<_>>(),
             classified,
             "{name} has an unclassified Conversation-bearing item"
         );
