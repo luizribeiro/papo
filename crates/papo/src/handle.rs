@@ -29,6 +29,10 @@ struct UserInner {
 
 #[allow(dead_code)]
 impl UserHandle {
+    pub(crate) fn from_nick(nick: crate::Nick) -> Self {
+        Self::from_parts(nick, crate::Account::Unknown, None, None)
+    }
+
     pub(crate) fn new(
         client: &crate::Client,
         nick: crate::Nick,
