@@ -232,10 +232,11 @@
 //! # Client-bound values
 //!
 //! Typed names, user and channel handles, message references, and history cursors retain the [`Client`]
-//! that produced them. Passing one to another client returns
-//! [`InvalidInput::ForeignReference`]. Same-named channels from two clients therefore compare
-//! unequal, although each compares equal to the same plain string. Converting a typed name into
-//! a string explicitly discards this protection.
+//! that produced them. Passing one to another client's input returns
+//! [`InvalidInput::ForeignReference`], while local state lookups return [`ForeignReference`].
+//! Same-named channels from two clients therefore compare unequal, although each compares equal
+//! to the same plain string. Converting a typed name into a string explicitly discards this
+//! protection.
 //!
 //! The sealed [`Target`] trait accepts channel text, channel handles, user handles, guarded direct
 //! handles, and return addresses. Nickname text and typed nicknames are refused as message
