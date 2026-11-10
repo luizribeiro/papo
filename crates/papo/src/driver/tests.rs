@@ -2741,14 +2741,24 @@ async fn channel_handle_follows_rename() {
         b":papo-driver!papo@localhost JOIN #staff * :Papo Client\r\n:oper!o@staff RENAME #staff #staff-archive :Archived\r\n",
     )
     .await;
-    assert!(matches!(
-        next_event(&mut events).await,
-        Some(Event::Joined(_))
-    ));
-    assert!(matches!(
-        next_event(&mut events).await,
-        Some(Event::ChannelRenamed(_))
-    ));
+    let Some(Event::Joined(joined)) = next_event(&mut events).await else {
+        panic!("expected join");
+    };
+    let handle = joined.channel;
+    let before = {
+        let mut hash = std::collections::hash_map::DefaultHasher::new();
+        std::hash::Hash::hash(&handle, &mut hash);
+        std::hash::Hasher::finish(&hash)
+    };
+    let Some(Event::ChannelRenamed(renamed)) = next_event(&mut events).await else {
+        panic!("expected channel rename");
+    };
+    assert_eq!(renamed.channel, handle);
+    assert_eq!(handle.name(), "#staff-archive");
+    let mut hash = std::collections::hash_map::DefaultHasher::new();
+    std::hash::Hash::hash(&renamed.channel, &mut hash);
+    assert_eq!(std::hash::Hasher::finish(&hash), before);
+    assert!(client.state().channel(&handle).unwrap().is_some());
     within(first_server.shutdown()).await.unwrap();
     assert!(matches!(
         next_event(&mut events).await,
