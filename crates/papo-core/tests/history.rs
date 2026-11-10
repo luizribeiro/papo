@@ -51,7 +51,10 @@ fn read_marker_session_with(mut config: Config) -> (Session, Instant) {
     session.handle_connected(now);
     session.handle_line(now, b"CAP * LS :draft/read-marker labeled-response");
     session.handle_line(now, b"CAP * ACK :draft/read-marker labeled-response");
-    session.handle_line(now, b":ergo.test 001 papo :Welcome to Ergo");
+    session.handle_line(
+        now,
+        b"@time=2025-10-15T12:00:00.000Z :ergo.test 001 papo :Welcome to Ergo",
+    );
     session.handle_line(now, b":ergo.test 422 papo :MOTD File is missing");
     while session.poll_transmit().is_some() {}
     while session.poll_event().is_some() {}
@@ -502,28 +505,49 @@ fn sends_read_marker_set_and_query_commands() {
 #[test]
 fn mark_read_rejects_future_server_time_and_estimate_advances_monotonically() {
     let (mut session, now) = read_marker_session();
-    let observed = server_time(1_760_529_342, 0);
-    session.handle_line(
-        now,
-        b"@time=2025-10-15T11:55:42.000Z :ergo.test TAGMSG #papo",
-    );
+    let observed = server_time(1_760_529_600, 0);
     session.mark_read(now, "#papo", observed).unwrap();
     assert_eq!(
         transmitted(&mut session),
-        "@label=0 MARKREAD #papo timestamp=2025-10-15T11:55:42.000Z"
+        "@label=0 MARKREAD #papo timestamp=2025-10-15T12:00:00.000Z"
     );
     assert!(matches!(
-        session.mark_read(now, "#papo", server_time(1_760_529_343, 0),),
+        session.mark_read(now, "#papo", server_time(1_760_529_601, 0),),
         Err(RequestError::ServerTimeInFuture { .. })
     ));
 
     let later = now.checked_add(Duration::from_secs(1)).unwrap();
     session
-        .mark_read(later, "#papo", server_time(1_760_529_343, 0))
+        .mark_read(later, "#papo", server_time(1_760_529_601, 0))
         .unwrap();
     assert_eq!(
         transmitted(&mut session),
-        "@label=1 MARKREAD #papo timestamp=2025-10-15T11:55:43.000Z"
+        "@label=1 MARKREAD #papo timestamp=2025-10-15T12:00:01.000Z"
+    );
+}
+
+#[test]
+fn mark_read_waits_for_the_first_server_time_after_reconnect() {
+    let (mut session, now) = read_marker_session();
+    let reconnect = |session: &mut Session| {
+        session.handle_connected(now);
+        session.handle_line(now, b"CAP * LS :draft/read-marker labeled-response");
+        session.handle_line(now, b"CAP * ACK :draft/read-marker labeled-response");
+        session.handle_line(now, b":ergo.test 001 papo :Welcome to Ergo");
+        session.handle_line(now, b":ergo.test 422 papo :MOTD File is missing");
+        while session.poll_transmit().is_some() {}
+        while session.poll_event().is_some() {}
+    };
+    reconnect(&mut session);
+    let stored = server_time(1_760_529_342, 0);
+    session.mark_read(now, "#papo", stored).unwrap();
+    assert_eq!(session.poll_transmit(), None);
+    session.handle_line(
+        now,
+        b"@time=2025-10-15T11:55:42.000Z :ergo.test TAGMSG #papo",
+    );
+    assert!(
+        transmitted(&mut session).contains("MARKREAD #papo timestamp=2025-10-15T11:55:42.000Z")
     );
 }
 

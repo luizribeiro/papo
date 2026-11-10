@@ -377,7 +377,7 @@ impl Session {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn queue_request_with_id(
+    pub(super) fn queue_request_with_id(
         &mut self,
         now: Instant,
         mut message: Line,

@@ -2,7 +2,7 @@ use web_time::Instant;
 
 use papo_proto::{LimitValue, Line, ServerTime};
 
-use crate::{Conversation, Feature, RequestError, RequestId, Session, state::StateGrowth};
+use crate::{Conversation, Event, Feature, RequestError, RequestId, Session, state::StateGrowth};
 
 const LOCAL_HISTORY_LIMIT: usize = 1_000;
 
@@ -107,6 +107,49 @@ pub enum HistoryQuery {
 }
 
 impl Session {
+    pub(super) fn flush_pending_mark_reads(
+        &mut self,
+        now: Instant,
+        clock: super::server_clock::ServerClock,
+    ) {
+        for request in std::mem::take(&mut self.pending_mark_reads) {
+            let estimated_now = clock.estimated_now(now);
+            let result = if crate::deadline(request.started, self.config.request_timeout)
+                .is_some_and(|deadline| now >= deadline)
+            {
+                self.outbox.event(Event::RequestTimedOut { id: request.id });
+                continue;
+            } else if request.read_until > estimated_now {
+                Err(RequestError::ServerTimeInFuture {
+                    requested: request.read_until,
+                    estimated_now,
+                })
+            } else {
+                let line = Line::new("MARKREAD")
+                    .param(request.target)
+                    .param(format!("timestamp={}", request.read_until));
+                self.queue_request_with_id(
+                    now,
+                    line,
+                    Some(Feature::ReadMarkers),
+                    true,
+                    request.id,
+                    None,
+                    true,
+                )
+            };
+            if let Err(error) = result {
+                self.outbox.event(Event::RequestFailed(request.id, error));
+            } else if let Some(stored) = self
+                .requests
+                .values_mut()
+                .find(|stored| stored.id == request.id)
+            {
+                stored.started = Some(request.started);
+            }
+        }
+    }
+
     /// Queues a labelled `CHATHISTORY` request using the server's advertised limits.
     ///
     /// # Errors
@@ -161,10 +204,22 @@ impl Session {
         if let Some(clock) = self.server_clock {
             return self.queue_mark_read(now, target, read_until, clock.estimated_now(now));
         }
-        let line = Line::new("MARKREAD")
-            .param(target.to_owned())
-            .param(format!("timestamp={read_until}"));
-        self.request_for_feature(now, line, Feature::ReadMarkers)
+        if self
+            .requests
+            .len()
+            .saturating_add(self.pending_mark_reads.len())
+            >= super::MAX_PENDING_REQUESTS
+        {
+            return Err(RequestError::PendingLimit);
+        }
+        let id = self.reserve_request_id();
+        self.pending_mark_reads.push_back(super::PendingMarkRead {
+            id,
+            started: now,
+            target: target.to_owned(),
+            read_until,
+        });
+        Ok(id)
     }
 
     fn queue_mark_read(

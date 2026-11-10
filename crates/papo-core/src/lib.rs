@@ -2591,6 +2591,8 @@ pub enum Event {
         /// Identifier assigned to the request.
         id: RequestId,
     },
+    #[doc(hidden)]
+    RequestFailed(RequestId, RequestError),
     /// A labelled request was pending when the connection ended.
     #[non_exhaustive]
     RequestAborted {
@@ -3436,6 +3438,14 @@ struct PendingRequest {
 }
 
 #[derive(Debug)]
+struct PendingMarkRead {
+    id: RequestId,
+    started: Instant,
+    target: String,
+    read_until: ServerTime,
+}
+
+#[derive(Debug)]
 struct SentEcho {
     kind: TextKind,
     target: String,
@@ -3515,6 +3525,7 @@ pub struct Session {
     rate_limit: RateLimiter,
     remembered_casemapping: Casemapping,
     requests: PendingRequests,
+    pending_mark_reads: VecDeque<PendingMarkRead>,
     unlabelled_requests: VecDeque<UnlabelledRequest>,
     next_request_id: u64,
     next_transmit_token: u64,
@@ -3555,6 +3566,7 @@ impl std::fmt::Debug for Session {
             .field("rate_limit", &self.rate_limit)
             .field("remembered_casemapping", &self.remembered_casemapping)
             .field("requests", &self.requests)
+            .field("pending_mark_reads", &self.pending_mark_reads)
             .field("unlabelled_requests", &self.unlabelled_requests)
             .field("next_request_id", &self.next_request_id)
             .field("next_transmit_token", &self.next_transmit_token)
@@ -3885,6 +3897,7 @@ impl Session {
             rate_limit,
             remembered_casemapping,
             requests: BTreeMap::new(),
+            pending_mark_reads: VecDeque::new(),
             unlabelled_requests: VecDeque::new(),
             next_request_id: 0,
             next_transmit_token: 0,
@@ -3936,6 +3949,7 @@ impl Session {
         self.ctcp_rate_limit.reset(now);
         self.ctcp_sources.clear();
         self.requests.clear();
+        self.pending_mark_reads.clear();
         self.unlabelled_requests.clear();
         self.away_messages.clear();
         self.rate_limit.reset(now);
@@ -4012,6 +4026,9 @@ impl Session {
                     .as_ref()
                     .map_or(message, |redacted| redacted.as_ref());
                 self.observe_server_time(now, &message);
+                if let Some(clock) = self.server_clock {
+                    self.flush_pending_mark_reads(now, clock);
+                }
                 let multiline_max_bytes = outgoing::multiline_limits(self.caps.enabled())
                     .map_or(usize::MAX, |limits| limits.max_bytes);
                 match self.batches.handle(
@@ -4063,6 +4080,14 @@ impl Session {
             self.away_messages.remove(&id);
             self.outbox.event(Event::RequestTimedOut { id });
         }
+        self.pending_mark_reads.retain(|request| {
+            let live = crate::deadline(request.started, self.config.request_timeout)
+                .is_none_or(|deadline| now < deadline);
+            if !live {
+                self.outbox.event(Event::RequestTimedOut { id: request.id });
+            }
+            live
+        });
         let pending = std::mem::take(&mut self.unlabelled_requests);
         let mut unlabelled_expired = false;
         for request in pending {
@@ -4158,6 +4183,13 @@ impl Session {
                 transmitted: request.started.is_some(),
             });
         }
+        for request in self.pending_mark_reads.drain(..) {
+            self.outbox.event(Event::RequestAborted {
+                id: request.id,
+                transmitted: false,
+            });
+        }
+        self.server_clock = None;
         self.away_messages.clear();
         self.welcome_state.handle_disconnected();
         self.account_registration.handle_disconnected();
@@ -5349,6 +5381,10 @@ impl Session {
                         .and_then(|started| crate::deadline(started, self.config.request_timeout))
                 })
                 .min(),
+            self.pending_mark_reads
+                .iter()
+                .filter_map(|request| crate::deadline(request.started, self.config.request_timeout))
+                .min(),
         ]
         .into_iter()
         .flatten()
@@ -5437,6 +5473,7 @@ impl Session {
     pub fn __cancel_request(&mut self, id: RequestId) {
         self.requests.retain(|_, pending| pending.id != id);
         self.unlabelled_requests.retain(|pending| pending.id != id);
+        self.pending_mark_reads.retain(|pending| pending.id != id);
         self.away_messages.remove(&id);
     }
 
