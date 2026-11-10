@@ -2842,8 +2842,6 @@ impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(&papo::Direct
 pub fn papo::MessageRef::from((&papo::DirectRef, I)) -> Self
 impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(&papo::MessageRef, I)> for papo::MessageRef
 pub fn papo::MessageRef::from((&papo::MessageRef, I)) -> Self
-impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(&papo::ChannelName, I)> for papo::MessageRef
-pub fn papo::MessageRef::from((&papo::ChannelName, I)) -> Self
 impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(&str, I)> for papo::MessageRef
 pub fn papo::MessageRef::from((&str, I)) -> Self
 impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(alloc::string::String, I)> for papo::MessageRef
@@ -2854,8 +2852,6 @@ impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(papo::DirectR
 pub fn papo::MessageRef::from((papo::DirectRef, I)) -> Self
 impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(papo::MessageRef, I)> for papo::MessageRef
 pub fn papo::MessageRef::from((papo::MessageRef, I)) -> Self
-impl<I: core::convert::Into<papo::MessageId>> core::convert::From<(papo::ChannelName, I)> for papo::MessageRef
-pub fn papo::MessageRef::from((papo::ChannelName, I)) -> Self
 impl<T: ReplyReference + ?core::marker::Sized> core::convert::From<&T> for papo::MessageRef
 pub fn papo::MessageRef::from(&T) -> Self
 impl core::marker::Freeze for papo::MessageRef

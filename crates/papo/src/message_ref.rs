@@ -1,8 +1,8 @@
 use std::fmt;
 
 use crate::{
-    Account, Authorship, ChannelName, Message, MessageId, Nick, PublicConversation as Conversation,
-    Sent, Source,
+    Account, Authorship, Message, MessageId, Nick, PublicConversation as Conversation, Sent,
+    Source,
     event::{CtcpQuery, CtcpReply, Notice, Reacted, Redacted, ServerNotice, TagMsg, TypingChanged},
 };
 
@@ -565,27 +565,6 @@ impl<I: Into<MessageId>> From<(String, I)> for MessageRef {
         )
     }
 }
-
-macro_rules! typed_address_pairs {
-    ($($address:ty),+ $(,)?) => {
-        $(
-            impl<I: Into<MessageId>> From<($address, I)> for MessageRef {
-                fn from((address, msgid): ($address, I)) -> Self {
-                    Self::new(
-                        address.as_str().to_owned(),
-                        vec![msgid.into()],
-                        address.origin(),
-                        None,
-                        None,
-                        None,
-                    )
-                }
-            }
-        )+
-    };
-}
-
-typed_address_pairs!(ChannelName, &ChannelName);
 
 impl<I: Into<MessageId>> From<(crate::ChannelHandle, I)> for MessageRef {
     fn from((channel, msgid): (crate::ChannelHandle, I)) -> Self {
