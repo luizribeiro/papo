@@ -515,24 +515,24 @@ fn sends_read_marker_set_and_query_commands() {
 #[test]
 fn mark_read_rejects_future_server_time_and_estimate_advances_monotonically() {
     let (mut session, now) = read_marker_session();
-    let observed = server_time(1_760_529_600, 0);
-    session.mark_read(now, "#papo", observed).unwrap();
+    let estimated_now = server_time(1_760_529_600, 250);
+    session.mark_read(now, "#papo", estimated_now).unwrap();
     assert_eq!(
         transmitted(&mut session),
-        "@label=0 MARKREAD #papo timestamp=2025-10-15T12:00:00.000Z"
+        "@label=0 MARKREAD #papo timestamp=2025-10-15T12:00:00.250Z"
     );
     assert!(matches!(
-        session.mark_read(now, "#papo", server_time(1_760_529_601, 0),),
+        session.mark_read(now, "#papo", server_time(1_760_529_601, 250),),
         Err(RequestError::ServerTimeInFuture { .. })
     ));
 
     let later = now.checked_add(Duration::from_secs(1)).unwrap();
     session
-        .mark_read(later, "#papo", server_time(1_760_529_601, 0))
+        .mark_read(later, "#papo", server_time(1_760_529_601, 250))
         .unwrap();
     assert_eq!(
         transmitted(&mut session),
-        "@label=1 MARKREAD #papo timestamp=2025-10-15T12:00:01.000Z"
+        "@label=1 MARKREAD #papo timestamp=2025-10-15T12:00:01.250Z"
     );
 }
 
@@ -542,6 +542,9 @@ fn mark_read_waits_for_the_first_server_time_after_reconnect() {
     reconnect_read_marker_without_time(&mut session, now);
     let stored = server_time(1_760_529_342, 0);
     session.mark_read(now, "#papo", stored).unwrap();
+    let future = session
+        .mark_read(now, "#papo", server_time(1_760_529_343, 0))
+        .unwrap();
     assert_eq!(session.poll_transmit(), None);
     session.handle_line(
         now,
@@ -550,6 +553,10 @@ fn mark_read_waits_for_the_first_server_time_after_reconnect() {
     assert!(
         transmitted(&mut session).contains("MARKREAD #papo timestamp=2025-10-15T11:55:42.000Z")
     );
+    assert_eq!(session.poll_transmit(), None);
+    assert!(std::iter::from_fn(|| session.poll_event()).any(|event| {
+        matches!(event, Event::RequestFailed(id, RequestError::ServerTimeInFuture { .. }) if id == future)
+    }));
 }
 
 #[test]
