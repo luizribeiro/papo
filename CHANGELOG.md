@@ -54,6 +54,12 @@ The first guarded use of a `UserHandle` proves its identity with WHO, follows ni
 
 `UserHandle` and `ChannelHandle` are accepted directly by their applicable sealed argument roles, including message targets and conversations.
 
+Channel-bearing events and conversations now expose `ChannelHandle` values, so held channel identities follow `RENAME` without losing the old and new event facts.
+
+`State::channel` now returns `Result<Option<&Channel>, ForeignReference>` to distinguish a channel that is not joined from a handle owned by another client.
+
+Channel message and notice references now retain channel handles; a `STATUSMSG` handle keeps its prefix for replies while channel commands and saved names stay bare.
+
 `PeerKey` is now the persistable network-and-nickname thread key; equality and hashing ignore private proof upgrades, and its display form preserves verified or explicitly unverified proof state.
 
 `Client::mark_read(conversation)` now uses the newest server time papo observed, supports

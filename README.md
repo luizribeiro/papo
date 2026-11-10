@@ -57,6 +57,8 @@ Creating the handle sends nothing. Its first guarded use proves who holds the ni
 
 **Multiple connections.** With bouncers you can have channels with the same name in different networks, same nicknames, etc, and it's easy to mix them up accidentally. Typed values remember which client they came from, so passing one to another client gets you a `ForeignReference` error, and #papo on one network isn't equal to #papo on another. If you're on soju, with the `unstable` feature, `client.bouncer().network(&id)` gives you a builder for a client bound to one of its networks.
 
+Channel events carry `ChannelHandle`, which follows a joined channel across `RENAME`. `handle.name()` is always the bare current name; a handle received for `@#ops` retains `@` only for chat and return-address use.
+
 **No guessing.** Guessing feels bad. Being able to report unknown is a good thing so people don't rely on values that aren't guaranteed. When the server replies to a command, papo matches the reply to the request and hands you a typed result:
 
 ```rust
