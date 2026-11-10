@@ -22,7 +22,7 @@ async fn reconnect_follows_channel_rename(s: Scenario) -> papo_testing::Result<(
     alice
         .wait_for(|event| {
             event.as_joined().filter(|joined| {
-                joined.channel.as_str() == old && joined.authorship == papo::Authorship::Own
+                joined.channel.name().as_str() == old && joined.authorship == papo::Authorship::Own
             })
         })
         .await?;
@@ -39,11 +39,12 @@ async fn reconnect_follows_channel_rename(s: Scenario) -> papo_testing::Result<(
     let joined = alice
         .wait_for(|event| {
             event.as_joined().filter(|joined| {
-                joined.authorship == papo::Authorship::Own && joined.channel.as_str() == renamed
+                joined.authorship == papo::Authorship::Own
+                    && joined.channel.name().as_str() == renamed
             })
         })
         .await?;
-    assert_eq!(joined.channel.as_str(), renamed);
+    assert_eq!(joined.channel.name().as_str(), renamed);
     assert!(alice.snapshot().__channel_local(&old).is_none());
     assert!(alice.snapshot().__channel_local(&renamed).is_some());
     Ok(())
@@ -81,7 +82,8 @@ async fn parted_rejoin_is_not_restored(s: Scenario) -> papo_testing::Result<()> 
     alice
         .wait_for(|event| {
             event.as_parted().filter(|parted| {
-                parted.authorship == papo::Authorship::Own && parted.channel.as_str() == channel
+                parted.authorship == papo::Authorship::Own
+                    && parted.channel.name().as_str() == channel
             })
         })
         .await?;
@@ -95,7 +97,8 @@ async fn parted_rejoin_is_not_restored(s: Scenario) -> papo_testing::Result<()> 
     alice
         .expect_none(|event| {
             event.as_joined().filter(|joined| {
-                joined.authorship == papo::Authorship::Own && joined.channel.as_str() == channel
+                joined.authorship == papo::Authorship::Own
+                    && joined.channel.name().as_str() == channel
             })
         })
         .await?;

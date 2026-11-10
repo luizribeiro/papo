@@ -26,18 +26,18 @@ async fn channellen_limit(s: Scenario) -> papo_testing::Result<()> {
 
     alice.join(&at_limit).await?;
     let self_joined = alice.wait_for(Event::as_joined).await?;
-    assert_eq!(self_joined.channel.as_str(), at_limit);
+    assert_eq!(self_joined.channel.name().as_str(), at_limit);
     assert_eq!(self_joined.actor.nick(), &alice_nick);
     assert_eq!(self_joined.authorship, papo::Authorship::Own);
 
     bob.join(&at_limit).await?;
     let self_joined = bob.wait_for(Event::as_joined).await?;
-    assert_eq!(self_joined.channel.as_str(), at_limit);
+    assert_eq!(self_joined.channel.name().as_str(), at_limit);
     assert_eq!(self_joined.actor.nick(), &bob_nick);
     assert_eq!(self_joined.authorship, papo::Authorship::Own);
 
     let joined = alice.wait_for(Event::as_joined).await?;
-    assert_eq!(joined.channel.as_str(), at_limit);
+    assert_eq!(joined.channel.name().as_str(), at_limit);
     assert_eq!(joined.actor.nick(), bob_nick.as_str());
     assert_eq!(joined.authorship, papo::Authorship::Other);
 

@@ -34,11 +34,12 @@ async fn chantypes_detection(s: Scenario) -> papo_testing::Result<()> {
         let joined = alice
             .wait_for(|event| {
                 event.as_joined().filter(|joined| {
-                    joined.channel.as_str() == name && joined.actor.nick() == bob_nick.as_str()
+                    joined.channel.name().as_str() == name
+                        && joined.actor.nick() == bob_nick.as_str()
                 })
             })
             .await?;
-        assert_eq!(joined.channel.as_str(), name);
+        assert_eq!(joined.channel.name().as_str(), name);
         assert_eq!(joined.actor.nick(), bob_nick.as_str());
         assert_eq!(joined.authorship, papo::Authorship::Other);
 

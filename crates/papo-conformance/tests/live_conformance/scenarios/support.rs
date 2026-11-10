@@ -162,7 +162,7 @@ pub(super) async fn join_seen_by(
                 .filter(|joined| joined.actor.nick() == member_nick.as_str())
         })
         .await?;
-    assert_eq!(joined.channel.as_str(), channel);
+    assert_eq!(joined.channel.name().as_str(), channel);
     assert_eq!(joined.actor.nick(), member_nick.as_str());
     assert_eq!(joined.authorship, papo::Authorship::Other);
     Ok(())
@@ -179,7 +179,7 @@ pub(super) async fn wait_for_channel(peer: &mut Peer, channel: &str) -> papo_tes
     peer.wait_for(|event| {
         event
             .as_channel_synced()
-            .filter(|synced| synced.channel.as_str() == channel)
+            .filter(|synced| synced.channel.name().as_str() == channel)
     })
     .await?;
     Ok(())

@@ -432,7 +432,7 @@ async fn set_topic_for_list(
         .await?;
     peer.wait_for(|event| {
         event.as_topic_changed().filter(|changed| {
-            changed.channel.as_str() == channel && changed.topic.as_deref() == Some(topic)
+            changed.channel.name().as_str() == channel && changed.topic.as_deref() == Some(topic)
         })
     })
     .await?;

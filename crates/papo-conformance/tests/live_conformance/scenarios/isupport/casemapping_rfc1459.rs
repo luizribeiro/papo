@@ -57,7 +57,7 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
                 .filter(|joined| joined.actor.nick().as_str() == curly.nick().as_str())
         })
         .await?;
-    assert_eq!(joined.channel.as_str(), mixed_channel);
+    assert_eq!(joined.channel.name().as_str(), mixed_channel);
     assert_eq!(
         square
             .snapshot()
@@ -97,7 +97,7 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
     alice.join(&chan).await?;
     bob.join(&folded).await?;
     let bob_join = bob.wait_for(Event::as_joined).await?;
-    assert_eq!(bob_join.channel.as_str(), chan);
+    assert_eq!(bob_join.channel.name().as_str(), chan);
     assert_eq!(bob_join.authorship, papo::Authorship::Own);
     let observed_join = alice
         .wait_for(|event| {
@@ -106,7 +106,7 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
                 .filter(|joined| joined.actor.nick().as_str() == bob_nick.as_str())
         })
         .await?;
-    assert_eq!(observed_join.channel.as_str(), chan);
+    assert_eq!(observed_join.channel.name().as_str(), chan);
     assert_eq!(observed_join.authorship, papo::Authorship::Other);
 
     assert_eq!(

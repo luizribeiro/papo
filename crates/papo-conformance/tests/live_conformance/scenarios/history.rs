@@ -388,7 +388,7 @@ async fn event_playback(s: Scenario) -> papo_testing::Result<()> {
             _ => None,
         })
         .expect("history contains the topic change");
-    assert_eq!(topic.channel.as_str(), channel);
+    assert_eq!(topic.channel.name().as_str(), channel);
     assert_eq!(topic.topic.as_deref(), Some("incident response completed"));
     assert_eq!(
         crate::source_nick(&topic.actor),
@@ -492,10 +492,10 @@ async fn read_marker_on_join(s: Scenario) -> papo_testing::Result<()> {
             }
             event
                 .as_channel_synced()
-                .filter(|synced| synced.channel.as_str() == channel)
+                .filter(|synced| synced.channel.name().as_str() == channel)
         })
         .await?;
-    assert_eq!(synced.channel.as_str(), channel);
+    assert_eq!(synced.channel.name().as_str(), channel);
     assert!(phone.snapshot().__channel_local(&channel).is_some());
     let replayed = match early_marker {
         Some(marker) => marker,
