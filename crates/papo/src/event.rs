@@ -12,10 +12,7 @@ use papo_proto::{
     Prefix, strip_formatting, time,
 };
 
-use crate::{
-    Client, Disconnected, ModeAction, ModeArg, ModeChange, PublicConversation as Conversation,
-    ServerTime,
-};
+use crate::{Client, Conversation, Disconnected, ModeAction, ModeArg, ModeChange, ServerTime};
 
 pub(crate) const fn can_prove_non_bot(message_tags: bool, bot_mode: bool) -> bool {
     message_tags && bot_mode
@@ -716,28 +713,25 @@ pub(crate) fn incoming_from_core(
             Event::ServerNotice,
         );
     };
-    let conversation = crate::conversation::public_from_core(
+    let conversation = Conversation::from_core(
         conversation,
         status,
         origin,
         handle_state,
         channel_guard.clone(),
     );
-    with_channel_guard(
-        message_event_from_line(
-            raw,
-            batch_type.as_deref(),
-            authorship,
-            conversation,
-            status,
-            channel_context,
-            isupport,
-            account_tag_enabled,
-            prove_not_bot,
-            received_at,
-            Some(reply_token),
-        ),
-        channel_guard,
+    message_event_from_line(
+        raw,
+        batch_type.as_deref(),
+        authorship,
+        conversation,
+        status,
+        channel_context,
+        isupport,
+        account_tag_enabled,
+        prove_not_bot,
+        received_at,
+        Some(reply_token),
     )
 }
 
@@ -747,23 +741,6 @@ pub(crate) fn mark_incomplete(event: Event) -> Option<Event> {
         Event::Notice(notice) => Some(Event::Incomplete(Incomplete::Notice(notice))),
         _ => None,
     }
-}
-
-fn with_channel_guard(mut event: Event, channel: Option<papo_core::ChannelGuard>) -> Event {
-    let receipt = match &mut event {
-        Event::CtcpQuery(event) => &mut event.receipt,
-        Event::CtcpReply(event) => &mut event.receipt,
-        Event::Message(event) => &mut event.receipt,
-        Event::Notice(event) => &mut event.receipt,
-        Event::ServerNotice(event) => &mut event.receipt,
-        Event::Reacted(event) => &mut event.receipt,
-        Event::Redacted(event) => &mut event.receipt,
-        Event::TagMsg(event) => &mut event.receipt,
-        Event::TypingChanged(event) => &mut event.receipt,
-        _ => return event,
-    };
-    receipt.set_channel(channel);
-    event
 }
 
 impl Message {
@@ -820,13 +797,8 @@ impl Message {
         else {
             return Err(raw);
         };
-        let conversation = crate::conversation::public_from_core(
-            conversation,
-            status,
-            crate::Origin::NONE,
-            None,
-            None,
-        );
+        let conversation =
+            Conversation::from_core(conversation, status, crate::Origin::NONE, None, None);
         Self::new_with_context(
             raw,
             None,
@@ -1091,14 +1063,8 @@ impl ServerNotice {
         let Some(raw_text) = message.param(usize::from(!wallops)) else {
             return Err(raw);
         };
-        let to = if let Some(channel) = conversation
-            .and_then(crate::conversation::public_channel_handle)
-            .or_else(|| {
-                conversation
-                    .and_then(crate::conversation::public_channel_name)
-                    .map(|channel| crate::ChannelHandle::from_parts(channel, status, None, None))
-            }) {
-            Audience::Channel(channel)
+        let to = if let Some(Conversation::Channel(channel)) = conversation {
+            Audience::Channel(channel.clone())
         } else if wallops || message.param(0) == Some("*") {
             Audience::Broadcast(Broadcast::Everyone)
         } else if let Some(target) = message.param(0).filter(|target| target.starts_with('$')) {
@@ -1141,7 +1107,7 @@ impl ServerNotice {
             Audience::Channel(channel) => crate::message_ref::Receipt::new(
                 actor.clone(),
                 authorship,
-                &crate::conversation::public_channel(channel),
+                &Conversation::Channel(channel.clone()),
                 reply_token,
                 message
                     .param(0)
@@ -1277,7 +1243,7 @@ pub(crate) fn historical_message_event(
         papo_core::Conversation::Channel(channel) => Some(snapshot.core.__channel_guard(channel)),
         _ => None,
     };
-    let conversation = crate::conversation::public_from_core(
+    let conversation = Conversation::from_core(
         conversation,
         status,
         client.origin(),
@@ -1346,7 +1312,10 @@ fn message_metadata(
     received_at: SystemTime,
     reply_token: Option<papo_core::ReplyToken>,
 ) -> Option<MessageMetadata> {
-    let origin = crate::conversation::public_origin(&conversation);
+    let origin = match &conversation {
+        Conversation::Channel(channel) => channel.origin(),
+        Conversation::Private(nick) => nick.origin(),
+    };
     let envelope = line_envelope_with_account_tag(
         message,
         isupport.casemapping(),
@@ -1392,14 +1361,11 @@ fn message_metadata(
 }
 
 pub(crate) fn return_address(message: &LineRef<'_>, conversation: &Conversation) -> String {
-    if let Some(channel) = crate::conversation::public_channel_name(conversation) {
-        message
+    match conversation {
+        Conversation::Channel(channel) => message
             .param(0)
-            .map_or_else(|| channel.to_string(), str::to_owned)
-    } else if let Some(nick) = crate::conversation::public_private(conversation) {
-        nick.to_string()
-    } else {
-        message.param(0).unwrap_or("*").to_owned()
+            .map_or_else(|| channel.name().to_string(), str::to_owned),
+        Conversation::Private(nick) => nick.to_string(),
     }
 }
 
@@ -1770,7 +1736,7 @@ impl Event {
             Self::Notice(event) => Some(event.conversation.clone()),
             Self::Incomplete(event) => Some(event.conversation().clone()),
             Self::ServerNotice(event) => match &event.to {
-                Audience::Channel(channel) => Some(crate::conversation::public_channel(channel)),
+                Audience::Channel(channel) => Some(Conversation::Channel(channel.clone())),
                 Audience::Me | Audience::Broadcast(_) => None,
             },
             Self::CtcpQuery(event) => Some(event.conversation.clone()),
@@ -1780,34 +1746,24 @@ impl Event {
             Self::TypingChanged(event) => Some(event.conversation.clone()),
             Self::Redacted(event) => Some(event.conversation.clone()),
             Self::MetadataChanged(event) => match &event.subject {
-                crate::Subject::Channel(channel) => {
-                    Some(crate::conversation::public_channel(channel))
-                }
+                crate::Subject::Channel(channel) => Some(Conversation::Channel(channel.clone())),
                 crate::Subject::User(_) => None,
             },
             Self::History(event) => Some(event.conversation.clone()),
             Self::ReadMarkerChanged(event) => Some(event.conversation.clone()),
-            Self::AutoJoinFailed(event) => {
-                Some(crate::conversation::public_channel(&event.channel))
-            }
-            Self::Joined(event) => Some(crate::conversation::public_channel(&event.channel)),
-            Self::ChannelSynced(event) => Some(crate::conversation::public_channel(&event.channel)),
-            Self::MembersRefreshed(event) => {
-                Some(crate::conversation::public_channel(&event.channel))
-            }
-            Self::Parted(event) => Some(crate::conversation::public_channel(&event.channel)),
-            Self::Kicked(event) => Some(crate::conversation::public_channel(&event.channel)),
-            Self::Invited(event) => Some(crate::conversation::public_channel(&event.channel)),
-            Self::ChannelRenamed(event) => {
-                Some(crate::conversation::public_channel(&event.channel))
-            }
+            Self::AutoJoinFailed(event) => Some(Conversation::Channel(event.channel.clone())),
+            Self::Joined(event) => Some(Conversation::Channel(event.channel.clone())),
+            Self::ChannelSynced(event) => Some(Conversation::Channel(event.channel.clone())),
+            Self::MembersRefreshed(event) => Some(Conversation::Channel(event.channel.clone())),
+            Self::Parted(event) => Some(Conversation::Channel(event.channel.clone())),
+            Self::Kicked(event) => Some(Conversation::Channel(event.channel.clone())),
+            Self::Invited(event) => Some(Conversation::Channel(event.channel.clone())),
+            Self::ChannelRenamed(event) => Some(Conversation::Channel(event.channel.clone())),
             Self::ModeChanged(event) => match &event.subject {
-                crate::Subject::Channel(channel) => {
-                    Some(crate::conversation::public_channel(channel))
-                }
+                crate::Subject::Channel(channel) => Some(Conversation::Channel(channel.clone())),
                 crate::Subject::User(_) => None,
             },
-            Self::TopicChanged(event) => Some(crate::conversation::public_channel(&event.channel)),
+            Self::TopicChanged(event) => Some(Conversation::Channel(event.channel.clone())),
             Self::Connecting(_)
             | Self::Connected(_)
             | Self::Lagged(_)
@@ -2221,30 +2177,23 @@ pub(crate) fn from_core_with_receipt(
     };
     let conversation_handle = |conversation, status| match conversation {
         papo_core::Conversation::Channel(channel) => {
-            crate::conversation::public_channel(&channel_handle(channel, status))
+            Conversation::Channel(channel_handle(channel, status))
         }
-        conversation => {
-            crate::conversation::public_from_core(conversation, status, origin, handle_state, None)
+        papo_core::Conversation::Private(nick) => {
+            Conversation::Private(origin.__nick(nick.casemapping(), nick.into_string()))
         }
+        _ => unreachable!("core conversations have channel and private variants"),
     };
     let user_from_raw =
         |prefix: &str, envelope: &EventEnvelope| match actor_from_raw(prefix, envelope) {
             Some(Source::User(user)) => Some(user),
             Some(Source::Server(_)) | None => None,
         };
-    let guard_receipt = |mut receipt: crate::message_ref::Receipt, conversation: &Conversation| {
-        let guard = reply_state.and_then(|state| {
-            crate::conversation::public_channel_name(conversation).and_then(|channel| {
-                state
-                    .channel(&channel)
-                    .map(|_| state.__channel_guard(&channel))
-            })
-        });
+    let guard_receipt = |mut receipt: crate::message_ref::Receipt, _conversation: &Conversation| {
         let actor_token = receipt.actor_recipient().and_then(|actor| {
             reply_state.map(|state| state.__reply_token_for(actor.nick.as_str()))
         });
         receipt.set_actor_token(actor_token);
-        receipt.set_channel(guard);
         receipt
     };
     CoreEvent::Forward(match event {
@@ -2995,7 +2944,7 @@ mod tests {
         status: Option<crate::Prefix>,
         origin: crate::Origin,
     ) -> Conversation {
-        crate::conversation::public_from_core(value, status, origin, None, None)
+        Conversation::from_core(value, status, origin, None, None)
     }
 
     fn channel(value: crate::ChannelName) -> crate::ChannelHandle {
@@ -4491,7 +4440,7 @@ mod tests {
     }
 
     #[test]
-    fn event_conversation_routes_each_address_shape() {
+    fn all_channel_events_return_handles() {
         let convert = |line: &str| {
             let mut session = Session::new(Config::default().nick("papo"));
             session.handle_line(Instant::now(), line.as_bytes());
@@ -4544,7 +4493,7 @@ mod tests {
             let conversation = convert(line).conversation();
             match (conversation.as_ref(), expected) {
                 (Some(Conversation::Channel(channel)), Some(expected)) => {
-                    assert_eq!(channel.to_string(), expected, "{line}");
+                    assert_eq!(channel.name(), expected, "{line}");
                 }
                 (None, None) => {}
                 _ => panic!("unexpected conversation {conversation:?} for {line}"),
