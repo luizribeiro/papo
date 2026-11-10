@@ -524,6 +524,19 @@ impl State {
         if parts.origin != crate::Origin::NONE && parts.origin != self.nick().origin() {
             return None;
         }
+        self.channel_parts(&parts)
+    }
+
+    pub(crate) fn channel_local(&self, name: impl crate::AsChannel) -> Option<&Channel> {
+        self.channel_parts(&crate::AsChannel::__parts(&name))
+    }
+
+    #[doc(hidden)]
+    pub fn __channel_local(&self, name: impl crate::AsChannel) -> Option<&Channel> {
+        self.channel_local(name)
+    }
+
+    fn channel_parts(&self, parts: &crate::target::sealed::Parts<'_>) -> Option<&Channel> {
         let current = parts
             .channel
             .as_deref()
