@@ -309,7 +309,13 @@ async fn multidevice_nick_shared_state(s: Scenario) -> papo_testing::Result<()> 
                 .member(old.as_str())
                 .is_some()
         );
-        assert!(members.channel(&channel).unwrap().member(&new).is_none());
+        assert!(
+            members
+                .__channel_local(&channel)
+                .unwrap()
+                .member(&new)
+                .is_none()
+        );
     }
     Ok(())
 }
