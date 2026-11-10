@@ -34,7 +34,7 @@ pub(super) fn remember_live_event<'a>(
 }
 
 fn event_applies_to_channel(event: &Event, target: &str) -> bool {
-    if matches!(event.conversation(), Some(crate::PublicConversation::Channel(channel)) if channel == target)
+    if matches!(event.conversation(), Some(crate::Conversation::Channel(channel)) if channel == target)
     {
         return true;
     }
@@ -111,7 +111,7 @@ pub(super) fn advance_catchup(
         }
         _ => None,
     };
-    let conversation = crate::conversation::public_from_core(
+    let conversation = crate::Conversation::from_core(
         core_conversation,
         None,
         client.origin(),
@@ -292,13 +292,12 @@ mod tests {
             Some("~e".into()),
             Some("cloak.example".into()),
         );
-        let conversation = crate::conversation::public_from_core(
-            papo_core::Conversation::Channel(mapping.channel("#papo")),
-            None,
-            crate::Origin::NONE,
+        let conversation = crate::Conversation::Channel(crate::ChannelHandle::from_parts(
+            mapping.channel("#papo"),
             None,
             None,
-        );
+            None,
+        ));
         let receipt = crate::message_ref::Receipt::new(
             crate::Source::User(actor.clone()),
             crate::Authorship::Other,

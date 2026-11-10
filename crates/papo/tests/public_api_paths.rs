@@ -414,11 +414,9 @@ fn conversation_items_are_classified() {
         ("papo unstable", UNSTABLE, PAPO_CONVERSATION_ITEMS),
         ("papo-bot", BOT, BOT_CONVERSATION_ITEMS),
     ] {
-        let classified: BTreeSet<_> = classified.iter().map(|(item, _class)| *item).collect();
+        let classified: Vec<_> = classified.iter().map(|(item, _class)| *item).collect();
         assert_eq!(
-            conversation_items(snapshot)
-                .into_iter()
-                .collect::<BTreeSet<_>>(),
+            conversation_items(snapshot),
             classified,
             "{name} has an unclassified Conversation-bearing item"
         );

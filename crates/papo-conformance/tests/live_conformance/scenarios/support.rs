@@ -70,7 +70,11 @@ pub(super) trait ConversationName {
 
 impl ConversationName for Conversation {
     fn name(&self) -> Option<String> {
-        Some(self.to_string())
+        match self {
+            Conversation::Channel(name) => Some(name.name().into_string()),
+            Conversation::Private(name) => Some(name.to_string()),
+            _ => None,
+        }
     }
 
     fn is_private(&self) -> bool {

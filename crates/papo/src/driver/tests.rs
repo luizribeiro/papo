@@ -471,11 +471,11 @@ async fn message_fields_use_captured_session_facts() {
     assert_eq!(message.text, "hello from Ergo");
     assert_eq!(message.raw_text, "hello \x02from Ergo\x02");
     assert!(
-        matches!(&message.conversation, crate::PublicConversation::Channel(channel) if channel == "#papo")
+        matches!(&message.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
     );
     assert!(!matches!(
         message.conversation,
-        crate::PublicConversation::Private(_)
+        crate::Conversation::Private(_)
     ));
     assert_eq!(message.return_address(), "#papo");
     assert_eq!(message.msgid.as_deref(), Some("RfcBTzyxY120004"));
@@ -498,7 +498,7 @@ async fn message_fields_use_captured_session_facts() {
     assert_eq!(notice.kind, crate::MessageKind::Text);
     assert!(matches!(
         notice.conversation,
-        crate::PublicConversation::Private(_)
+        crate::Conversation::Private(_)
     ));
     let action = next_message(&mut events).await;
     assert_eq!(action.kind, MessageKind::Action);
@@ -656,7 +656,7 @@ async fn multiline_messages_keep_addressing_across_a_nick_change() {
     let private = next_message(&mut events).await;
     assert!(matches!(
         private.conversation,
-        crate::PublicConversation::Private(ref nick) if nick == "bob"
+        crate::Conversation::Private(ref nick) if nick == "bob"
     ));
     assert_eq!(private.return_address(), "bob");
     within(client.reply(&private, "sent securely"))
@@ -2283,7 +2283,7 @@ async fn reconnect_history_pages_stop_at_the_target_limit() {
     };
     assert_eq!(replay.reason, crate::HistoryReason::Replay);
     assert!(
-        matches!(&replay.conversation, crate::PublicConversation::Channel(channel) if channel == "#papo")
+        matches!(&replay.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
     );
     assert_eq!(
         replay.chat_messages().next().unwrap().text,
@@ -2331,7 +2331,7 @@ async fn reconnect_history_pages_stop_at_the_target_limit() {
     };
     assert_eq!(history.reason, crate::HistoryReason::Catchup);
     assert!(
-        matches!(&history.conversation, crate::PublicConversation::Channel(channel) if channel == "#papo")
+        matches!(&history.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
     );
     assert_eq!(history.chat_messages().count(), 1_000);
     assert!(
@@ -7615,7 +7615,7 @@ async fn chat_text_uses_plain_splitting_and_rejects_empty_input() {
         .await
         .unwrap();
     assert!(
-        matches!(sent.conversation, crate::PublicConversation::Channel(ref channel) if channel == "#papo")
+        matches!(sent.conversation, crate::Conversation::Channel(ref channel) if channel == "#papo")
     );
     assert_eq!(sent.status, None);
     assert_eq!(sent.fallbacks, [crate::Fallback::SplitIntoLines]);
@@ -7638,7 +7638,7 @@ async fn chat_text_uses_plain_splitting_and_rejects_empty_input() {
     let sent = client.privmsg("@#ops", "operators only").await.unwrap();
     client_line(&mut server, b"PRIVMSG @#ops :operators only\r\n").await;
     assert!(
-        matches!(sent.conversation, crate::PublicConversation::Channel(ref channel) if channel == "#ops")
+        matches!(sent.conversation, crate::Conversation::Channel(ref channel) if channel == "#ops")
     );
     assert_eq!(sent.status.map(crate::Prefix::symbol), Some('@'));
     let sent = client
@@ -7982,7 +7982,7 @@ async fn chat_text_returns_metadata_from_every_labelled_echo() {
         )]
     );
     assert!(
-        matches!(sent.conversation, crate::PublicConversation::Channel(ref channel) if channel == "#papo")
+        matches!(sent.conversation, crate::Conversation::Channel(ref channel) if channel == "#papo")
     );
     assert_eq!(sent.status, None);
     assert_eq!(
@@ -8630,7 +8630,7 @@ async fn redacting_a_multiline_send_stops_at_the_first_refusal() {
     client_line(&mut server, b"CAP END\r\n").await;
     finish_registration(&mut server).await;
 
-    let conversation = crate::conversation::public_channel(&client.channel("#papo").unwrap());
+    let conversation = crate::Conversation::Channel(client.channel("#papo").unwrap());
     let mut sent = crate::Sent {
         receipt: client
             .state()
@@ -9021,11 +9021,11 @@ fn lagged_message_gap_list_stops_at_32_conversations() {
     assert_eq!(dropped.gaps.len(), 32);
     assert!(matches!(
         &dropped.gaps[0].conversation,
-        crate::PublicConversation::Channel(channel) if channel == "#deployment-0"
+        crate::Conversation::Channel(channel) if channel == "#deployment-0"
     ));
     assert!(matches!(
         &dropped.gaps[31].conversation,
-        crate::PublicConversation::Channel(channel) if channel == "#deployment-31"
+        crate::Conversation::Channel(channel) if channel == "#deployment-31"
     ));
 }
 
@@ -9681,7 +9681,7 @@ async fn overflow_reports_message_gaps_for_each_conversation() {
         ),
     ] {
         assert!(
-            matches!(&gap.conversation, crate::PublicConversation::Channel(channel) if channel == conversation)
+            matches!(&gap.conversation, crate::Conversation::Channel(channel) if channel == conversation)
         );
         assert_eq!(gap.dropped, 2);
         assert_eq!(gap.first_msgid.as_deref(), Some(first));

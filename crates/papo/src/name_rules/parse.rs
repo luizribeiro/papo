@@ -1,5 +1,5 @@
 use super::NameRules;
-use crate::{InvalidInput, Prefix, PublicConversation as Conversation};
+use crate::{Conversation, InvalidInput, Prefix};
 
 impl NameRules<'_> {
     /// Builds a checked private or channel conversation from user input.
@@ -20,13 +20,7 @@ impl NameRules<'_> {
         self.state
             .conversation_inner(text)
             .map(|conversation| {
-                crate::conversation::public_from_core(
-                    conversation,
-                    None,
-                    self.state.nick().origin(),
-                    None,
-                    None,
-                )
+                Conversation::from_core(conversation, None, self.state.nick().origin(), None, None)
             })
             .map_err(|reason| InvalidInput::invalid_name(text, reason))
     }
@@ -52,7 +46,7 @@ impl NameRules<'_> {
             .map(|(status, conversation)| {
                 (
                     status,
-                    crate::conversation::public_from_core(
+                    Conversation::from_core(
                         conversation,
                         status,
                         self.state.nick().origin(),
