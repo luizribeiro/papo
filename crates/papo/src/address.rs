@@ -110,6 +110,15 @@ pub enum InvalidInput {
     /// No server timestamp has been observed for the conversation or message.
     #[error("no server time is known for the conversation")]
     NoServerTime,
+    /// A server time is later than papo's monotonic estimate of the server's current time.
+    #[error("server time {requested} is later than estimated server time {estimated_now}")]
+    #[non_exhaustive]
+    ServerTimeInFuture {
+        /// The rejected timestamp.
+        requested: crate::ServerTime,
+        /// Papo's estimate, including a 250 millisecond tolerance.
+        estimated_now: crate::ServerTime,
+    },
     /// An account operation omitted a required email address.
     #[error("account registration requires an email address")]
     EmailRequired,

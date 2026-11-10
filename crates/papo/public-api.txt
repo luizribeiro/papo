@@ -1806,6 +1806,9 @@ pub papo::InvalidInput::RateLimit(papo::InvalidRateLimit)
 #[non_exhaustive] pub papo::InvalidInput::Reaction
 pub papo::InvalidInput::Reaction::actual: usize
 pub papo::InvalidInput::Reaction::maximum: usize
+#[non_exhaustive] pub papo::InvalidInput::ServerTimeInFuture
+pub papo::InvalidInput::ServerTimeInFuture::estimated_now: papo_proto::time::ServerTime
+pub papo::InvalidInput::ServerTimeInFuture::requested: papo_proto::time::ServerTime
 pub papo::InvalidInput::TlsConfig(alloc::string::String)
 #[non_exhaustive] pub papo::InvalidInput::TooManyMetadataSubscriptions
 pub papo::InvalidInput::TooManyMetadataSubscriptions::actual: usize
@@ -2759,6 +2762,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::ListRequest
 pub struct papo::MarkReadRequest
 impl papo::MarkReadRequest
 pub fn papo::MarkReadRequest::up_to(self, &papo::MessageRef) -> Self
+pub fn papo::MarkReadRequest::up_to_time(self, papo_proto::time::ServerTime) -> Self
 impl core::fmt::Debug for papo::MarkReadRequest
 pub fn papo::MarkReadRequest::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::future::into_future::IntoFuture for papo::MarkReadRequest

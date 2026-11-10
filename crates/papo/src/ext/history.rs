@@ -39,7 +39,13 @@ pub enum MarkReadOutcome {
 pub struct MarkReadRequest {
     client: Client,
     target: crate::target::sealed::Parts<'static>,
-    message: Option<crate::MessageRef>,
+    boundary: MarkReadBoundary,
+}
+
+enum MarkReadBoundary {
+    Latest,
+    Message(Box<crate::MessageRef>),
+    Time(ServerTime),
 }
 
 impl std::fmt::Debug for MarkReadRequest {
@@ -58,7 +64,18 @@ impl MarkReadRequest {
     /// Awaiting returns [`crate::InvalidInput::WrongConversation`] if the message belongs to a
     /// different conversation, and [`crate::InvalidInput::NoServerTime`] if it has no server time.
     pub fn up_to(mut self, message: &crate::MessageRef) -> Self {
-        self.message = Some(message.clone());
+        self.boundary = MarkReadBoundary::Message(Box::new(message.clone()));
+        self
+    }
+
+    /// `t` is a server time (from a message, a push, a stored marker or a MARKREAD reply).
+    ///
+    /// Papo rejects a value later than its estimate of the current server time. The estimate uses
+    /// the newest server time observed on this connection plus monotonic elapsed time and a 250 ms
+    /// tolerance; it never consults the device wall clock. If this connection has not observed a
+    /// server time yet, the request waits for one and can return [`Error::Timeout`] without sending.
+    pub fn up_to_time(mut self, t: ServerTime) -> Self {
+        self.boundary = MarkReadBoundary::Time(t);
         self
     }
 }
@@ -73,7 +90,7 @@ impl IntoFuture for MarkReadRequest {
                 crate::target::Role::Conversation("mark_read: conversation"),
                 self.target,
             )?;
-            let latest = if let Some(message) = self.message {
+            let latest = if let MarkReadBoundary::Message(message) = self.boundary {
                 let server_time = message
                     .server_time()
                     .ok_or(crate::InvalidInput::NoServerTime)?;
@@ -88,6 +105,8 @@ impl IntoFuture for MarkReadRequest {
                     return Err(crate::InvalidInput::WrongConversation.into());
                 }
                 server_time
+            } else if let MarkReadBoundary::Time(time) = self.boundary {
+                time
             } else {
                 self.client
                     .state()
@@ -1269,7 +1288,7 @@ impl Client {
         MarkReadRequest {
             client: self.clone(),
             target: crate::AsConversation::__parts(&target).into_owned(),
-            message: None,
+            boundary: MarkReadBoundary::Latest,
         }
     }
 
@@ -1348,7 +1367,7 @@ mod tests {
         let request = super::MarkReadRequest {
             client: crate::Client::disconnected_for_test(),
             target: crate::AsConversation::__parts(&secret).into_owned(),
-            message: None,
+            boundary: super::MarkReadBoundary::Latest,
         };
 
         assert_eq!(format!("{request:?}"), "MarkReadRequest { .. }");
@@ -2583,13 +2602,27 @@ mod tests {
             b"@time=2025-10-15T11:55:42.123Z;msgid=Newest :alice!a@host PRIVMSG #papo :seen\r\n",
         )
         .await;
-        let message = loop {
-            if let Some(Event::Message(message)) = next_event(&mut events).await {
-                break message.return_address();
+        loop {
+            if let Some(Event::Message(_)) = next_event(&mut events).await {
+                break;
             }
-        };
+        }
+        assert!(matches!(
+            client
+                .mark_read("#papo")
+                .up_to_time(server_time(1_760_529_343, 123))
+                .await,
+            Err(Error::InvalidInput(
+                crate::InvalidInput::ServerTimeInFuture { .. }
+            ))
+        ));
         let request_client = client.clone();
-        let request = tokio::spawn(async move { request_client.mark_read(channel).await });
+        let request = tokio::spawn(async move {
+            request_client
+                .mark_read(channel)
+                .up_to_time(server_time(1_760_529_342, 123))
+                .await
+        });
         client_line(
             &mut server,
             b"@label=0 MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z\r\n",
@@ -2609,7 +2642,12 @@ mod tests {
         );
 
         let request_client = client.clone();
-        let unchanged = tokio::spawn(async move { request_client.mark_read("#PAPO").await });
+        let unchanged = tokio::spawn(async move {
+            request_client
+                .mark_read("#PAPO")
+                .up_to_time(server_time(1_760_529_342, 123))
+                .await
+        });
         client_line(
             &mut server,
             b"@label=1 MARKREAD #PAPO timestamp=2025-10-15T11:55:42.123Z\r\n",
@@ -2637,8 +2675,12 @@ mod tests {
             Some(Event::ReadMarkerChanged(_))
         ));
         let request_client = client.clone();
-        let behind =
-            tokio::spawn(async move { request_client.mark_read("#papo").up_to(&message).await });
+        let behind = tokio::spawn(async move {
+            request_client
+                .mark_read("#papo")
+                .up_to_time(server_time(1_760_529_342, 123))
+                .await
+        });
         client_line(
             &mut server,
             b"@label=2 MARKREAD #papo timestamp=2025-10-15T11:55:42.123Z\r\n",

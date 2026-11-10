@@ -638,6 +638,14 @@ impl Error {
                 Self::InvalidInput(InvalidInput::UnusableMessageReference)
             }
             Request::StateLimit(limit) => Self::StateLimit(limit),
+            Request::ServerTimeInFuture {
+                requested,
+                estimated_now,
+                ..
+            } => Self::InvalidInput(InvalidInput::ServerTimeInFuture {
+                requested,
+                estimated_now,
+            }),
             Request::EmailRequired => Self::InvalidInput(InvalidInput::EmailRequired),
             Request::CustomAccountNameUnsupported => {
                 Self::InvalidInput(InvalidInput::AccountNameMustMatchNick)

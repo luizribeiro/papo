@@ -2027,6 +2027,10 @@ pub(crate) enum CoreEvent {
     Response(Response),
     RequestUntracked(RequestId),
     RequestTimedOut(RequestId),
+    RequestFailed {
+        id: RequestId,
+        error: papo_core::RequestError,
+    },
     RequestAborted {
         id: RequestId,
         transmitted: bool,
@@ -2326,6 +2330,9 @@ pub(crate) fn from_core_with_receipt(
         papo_core::Event::Response(response) => return CoreEvent::Response(response),
         papo_core::Event::RequestUntracked { id, .. } => return CoreEvent::RequestUntracked(id),
         papo_core::Event::RequestTimedOut { id, .. } => return CoreEvent::RequestTimedOut(id),
+        papo_core::Event::RequestFailed(id, error) => {
+            return CoreEvent::RequestFailed { id, error };
+        }
         papo_core::Event::RequestAborted {
             id, transmitted, ..
         } => {

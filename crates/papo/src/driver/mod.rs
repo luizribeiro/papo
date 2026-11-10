@@ -1758,6 +1758,12 @@ where
                     result.fail(Error::Timeout);
                 }
             }
+            event::CoreEvent::RequestFailed { id, error } => {
+                join_keys.remove(&id);
+                if let Some(result) = requests.remove(&id) {
+                    result.fail(Error::request(error));
+                }
+            }
             event::CoreEvent::RequestAborted { id, transmitted } => {
                 join_keys.remove(&id);
                 if let Some(result) = requests.remove(&id) {
