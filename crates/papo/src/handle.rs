@@ -176,6 +176,12 @@ impl ChannelHandle {
             .unwrap_or_else(|| self.0.0.channel.clone())
     }
 
+    #[doc(hidden)]
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        self.0.0.channel.as_str()
+    }
+
     /// Returns the status prefix retained by this chat address.
     #[must_use]
     pub const fn status(&self) -> Option<crate::Prefix> {

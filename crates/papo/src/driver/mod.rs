@@ -1424,6 +1424,7 @@ where
             can_prove_non_bot(session),
             crate::rt::now_wall(),
             Some(session.state()),
+            Some(&events.state),
         );
         match core_event {
             event::CoreEvent::RequestAborted { id, transmitted } => {
@@ -1603,6 +1604,7 @@ where
             can_prove_non_bot(session),
             crate::rt::now_wall(),
             Some(session.state()),
+            Some(&events.state),
         ) {
             event::CoreEvent::Forward(mut event) => {
                 resolve_direct_waiters(session, direct_waiters, &event);
@@ -1614,7 +1616,7 @@ where
                 drop(state);
                 catchup::remember_live_event(catchups.values_mut(), &event);
                 if let Event::ChannelSynced(synced) = &event {
-                    resolve_sync_waiters(session, sync_waiters, synced.channel.as_str());
+                    resolve_sync_waiters(session, sync_waiters, synced.channel.name().as_str());
                 }
                 if !part_restored_channel(session, defaults, &event)? {
                     update_rejoin_channels(session, defaults, &event);
@@ -2028,7 +2030,7 @@ fn update_rejoin_channels(_session: &Session, defaults: &mut PostConnect, event:
             {
                 defaults
                     .channels
-                    .push(Autojoin::new(joined.channel.as_str(), None));
+                    .push(Autojoin::new(joined.channel.name().into_string(), None));
             }
         }
         Event::Parted(parted) if parted.authorship == crate::Authorship::Own => {

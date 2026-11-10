@@ -430,8 +430,8 @@ async fn multiple_joins(s: Scenario) -> papo_testing::Result<()> {
         alice.wait_for(Event::as_parted).await?,
         alice.wait_for(Event::as_parted).await?,
     ];
-    own.sort_unstable_by(|left, right| left.channel.cmp(&right.channel));
-    observed.sort_unstable_by(|left, right| left.channel.cmp(&right.channel));
+    own.sort_unstable_by_key(|item| item.channel.name());
+    observed.sort_unstable_by_key(|item| item.channel.name());
     let mut channels = [&first, &second];
     channels.sort_unstable();
     for ((own, observed), channel) in own.iter().zip(&observed).zip(channels) {
@@ -870,8 +870,8 @@ async fn part_multiple_and_refusal(s: Scenario) -> papo_testing::Result<()> {
         bob.wait_for(Event::as_parted).await?,
         bob.wait_for(Event::as_parted).await?,
     ];
-    own.sort_unstable_by(|left, right| left.channel.cmp(&right.channel));
-    observed.sort_unstable_by(|left, right| left.channel.cmp(&right.channel));
+    own.sort_unstable_by_key(|item| item.channel.name());
+    observed.sort_unstable_by_key(|item| item.channel.name());
     let mut expected = [&first, &second];
     expected.sort_unstable();
     for ((own, observed), channel) in own.iter().zip(&observed).zip(expected) {

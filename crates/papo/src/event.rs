@@ -1443,7 +1443,12 @@ pub(crate) fn joined_from_line(
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         realname: join.realname.map(str::to_owned),
-        channel: origin.__channel(casemapping, join.channel),
+        channel: crate::ChannelHandle::from_parts(
+            origin.__channel(casemapping, join.channel),
+            None,
+            None,
+            None,
+        ),
         actor,
         authorship,
         netjoin: None,
@@ -1726,18 +1731,22 @@ impl Event {
             Self::History(event) => Some(event.conversation.clone()),
             Self::ReadMarkerChanged(event) => Some(event.conversation.clone()),
             Self::AutoJoinFailed(event) => Some(Conversation::Channel(event.channel.clone())),
-            Self::Joined(event) => Some(Conversation::Channel(event.channel.clone())),
-            Self::ChannelSynced(event) => Some(Conversation::Channel(event.channel.clone())),
-            Self::MembersRefreshed(event) => Some(Conversation::Channel(event.channel.clone())),
-            Self::Parted(event) => Some(Conversation::Channel(event.channel.clone())),
-            Self::Kicked(event) => Some(Conversation::Channel(event.channel.clone())),
-            Self::Invited(event) => Some(Conversation::Channel(event.channel.clone())),
-            Self::ChannelRenamed(event) => Some(Conversation::Channel(event.new.clone())),
+            Self::Joined(event) => Some(Conversation::Channel(event.channel.name().clone())),
+            Self::ChannelSynced(event) => Some(Conversation::Channel(event.channel.name().clone())),
+            Self::MembersRefreshed(event) => {
+                Some(Conversation::Channel(event.channel.name().clone()))
+            }
+            Self::Parted(event) => Some(Conversation::Channel(event.channel.name().clone())),
+            Self::Kicked(event) => Some(Conversation::Channel(event.channel.name().clone())),
+            Self::Invited(event) => Some(Conversation::Channel(event.channel.name().clone())),
+            Self::ChannelRenamed(event) => {
+                Some(Conversation::Channel(event.channel.name().clone()))
+            }
             Self::ModeChanged(event) => match &event.subject {
                 crate::Subject::Channel(channel) => Some(Conversation::Channel(channel.clone())),
                 crate::Subject::User(_) => None,
             },
-            Self::TopicChanged(event) => Some(Conversation::Channel(event.channel.clone())),
+            Self::TopicChanged(event) => Some(Conversation::Channel(event.channel.name().clone())),
             Self::Connecting(_)
             | Self::Connected(_)
             | Self::Lagged(_)
@@ -2097,6 +2106,7 @@ pub(crate) fn from_core(
         prove_not_bot,
         received_at,
         None,
+        None,
     )
 }
 
@@ -2119,6 +2129,7 @@ pub(crate) fn from_core_with_receipt(
     prove_not_bot: bool,
     received_at: SystemTime,
     reply_state: Option<&papo_core::State>,
+    handle_state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
 ) -> CoreEvent {
     let map_envelope = |envelope| {
         core_envelope(
@@ -2137,6 +2148,15 @@ pub(crate) fn from_core_with_receipt(
             origin,
             prove_not_bot,
         )
+    };
+    let channel_handle = |channel: ChannelName, status| {
+        let channel = origin.__channel(channel.casemapping(), channel.into_string());
+        let guard = reply_state.and_then(|state| {
+            state
+                .channel(&channel)
+                .map(|_| state.__channel_guard(&channel))
+        });
+        crate::ChannelHandle::from_parts(channel, status, guard, handle_state)
     };
     let user_from_raw =
         |prefix: &str, envelope: &EventEnvelope| match actor_from_raw(prefix, envelope) {
@@ -2482,17 +2502,19 @@ pub(crate) fn from_core_with_receipt(
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 realname,
-                channel,
+                channel: channel_handle(channel, None),
                 actor,
                 authorship: Authorship::from_core(authorship),
                 netjoin: netjoin.map(SplitServers::from_core),
             })
         }
-        papo_core::Event::ChannelSynced { channel, .. } => {
-            Event::ChannelSynced(ChannelSynced { channel })
-        }
+        papo_core::Event::ChannelSynced { channel, .. } => Event::ChannelSynced(ChannelSynced {
+            channel: channel_handle(channel, None),
+        }),
         papo_core::Event::MembersRefreshed { channel, .. } => {
-            Event::MembersRefreshed(MembersRefreshed { channel })
+            Event::MembersRefreshed(MembersRefreshed {
+                channel: channel_handle(channel, None),
+            })
         }
         papo_core::Event::Parted {
             envelope,
@@ -2511,7 +2533,7 @@ pub(crate) fn from_core_with_receipt(
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 actor,
-                channel,
+                channel: channel_handle(channel, None),
                 reason: reason.map(|reason| papo_proto::display_text(&reason).into_owned()),
                 authorship: Authorship::from_core(authorship),
             })
@@ -2540,7 +2562,7 @@ pub(crate) fn from_core_with_receipt(
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
-                channel,
+                channel: channel_handle(channel, None),
                 subject,
                 actor,
                 authorship: Authorship::from_core(authorship),
@@ -2574,7 +2596,7 @@ pub(crate) fn from_core_with_receipt(
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
-                channel,
+                channel: channel_handle(channel, None),
                 subject,
                 actor,
                 authorship: Authorship::from_core(authorship),
@@ -2647,6 +2669,7 @@ pub(crate) fn from_core_with_receipt(
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
+                channel: channel_handle(new.clone(), None),
                 old,
                 new,
                 actor,
@@ -2788,7 +2811,7 @@ pub(crate) fn from_core_with_receipt(
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
-                channel,
+                channel: channel_handle(channel, None),
                 topic: topic.map(|topic| papo_proto::display_text(&topic).into_owned()),
                 actor,
                 authorship: Authorship::from_core(authorship),
@@ -2895,6 +2918,10 @@ mod tests {
 
     fn channel(value: crate::ChannelName) -> crate::ChannelName {
         value
+    }
+
+    fn channel_handle(value: crate::ChannelName) -> crate::ChannelHandle {
+        crate::ChannelHandle::from_parts(value, None, None, None)
     }
 
     #[tokio::test(flavor = "current_thread")]
@@ -3353,6 +3380,7 @@ mod tests {
             false,
             UNIX_EPOCH,
             Some(session.state()),
+            None,
         );
         let CoreEvent::Forward(event) = event else {
             panic!("expected tag message")
@@ -4686,7 +4714,7 @@ mod tests {
             panic!("join was not forwarded");
         };
 
-        assert_eq!(joined.channel.casemapping(), Casemapping::Ascii);
+        assert_eq!(joined.channel.name().casemapping(), Casemapping::Ascii);
         let actor = joined.actor.nick();
         assert_eq!(actor.casemapping(), Casemapping::Ascii);
         assert_eq!(joined.actor.nick().casemapping(), Casemapping::Ascii);
@@ -6206,7 +6234,7 @@ mod tests {
                 server_time: None,
                 received_at: UNIX_EPOCH,
                 realname: None,
-                channel: mapping.channel("#papo"),
+                channel: channel_handle(mapping.channel("#papo")),
                 actor: own_actor.clone(),
                 authorship: Authorship::Own,
                 netjoin: None,
@@ -6216,7 +6244,7 @@ mod tests {
                 server_time: None,
                 received_at: UNIX_EPOCH,
                 actor: own_actor.clone(),
-                channel: mapping.channel("#papo"),
+                channel: channel_handle(mapping.channel("#papo")),
                 reason: None,
                 authorship: Authorship::Own,
             }),
@@ -6224,7 +6252,7 @@ mod tests {
                 msgid: None,
                 server_time: None,
                 received_at: UNIX_EPOCH,
-                channel: mapping.channel("#papo"),
+                channel: channel_handle(mapping.channel("#papo")),
                 subject: mapping.nick("Papo[Bot]"),
                 actor: actor.clone(),
                 authorship: Authorship::Other,
@@ -6235,7 +6263,7 @@ mod tests {
                 msgid: None,
                 server_time: None,
                 received_at: UNIX_EPOCH,
-                channel: mapping.channel("#papo"),
+                channel: channel_handle(mapping.channel("#papo")),
                 subject: mapping.nick("Papo[Bot]"),
                 receipt: Receipt::without_recipient(
                     actor.clone(),
@@ -6261,7 +6289,7 @@ mod tests {
                 server_time: None,
                 received_at: UNIX_EPOCH,
                 realname: None,
-                channel: mapping.channel("#papo"),
+                channel: channel_handle(mapping.channel("#papo")),
                 actor: own_actor,
                 authorship: Authorship::Own,
                 netjoin: Some(super::SplitServers {

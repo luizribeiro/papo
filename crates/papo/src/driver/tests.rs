@@ -96,8 +96,8 @@ fn test_channel(value: &str) -> crate::ChannelName {
     crate::Casemapping::default().channel(value)
 }
 
-fn test_channel_handle(value: &str) -> crate::ChannelName {
-    test_channel(value)
+fn test_channel_handle(value: &str) -> crate::ChannelHandle {
+    crate::ChannelHandle::from_parts(test_channel(value), None, None, None)
 }
 
 fn test_mask(value: &str) -> crate::Mask {
@@ -1731,6 +1731,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             msgid: None,
             server_time: None,
             received_at: std::time::SystemTime::UNIX_EPOCH,
+            channel: test_channel_handle("#systems"),
             old: crate::Origin::__new(73).__channel(crate::Casemapping::default(), "#RUST"),
             new: crate::Origin::__new(73).__channel(crate::Casemapping::default(), "#systems"),
             actor: crate::Source::User(crate::__testing::user_source(

@@ -113,7 +113,7 @@ mod tests {
         let joined = JoinedBuilder::new(mapping.channel("#papo"), mapping.nick("alice"))
             .own(true)
             .build();
-        assert_eq!(joined.channel.as_str(), "#papo");
+        assert_eq!(joined.channel.name().as_str(), "#papo");
         assert_eq!(joined.authorship, papo::Authorship::Own);
 
         let away = AwayChangedBuilder::new(mapping.nick("alice"))

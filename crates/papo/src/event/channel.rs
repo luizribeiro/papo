@@ -2,7 +2,7 @@ use std::time::SystemTime;
 
 use crate::ServerTime;
 
-use crate::{Authorship, ChannelName, MessageId, Nick, Subject};
+use crate::{Authorship, ChannelHandle, ChannelName, MessageId, Nick, Subject};
 
 use super::{Source, UserSource};
 
@@ -19,7 +19,7 @@ pub struct Joined {
     /// The joining user's real name, when supplied by the server.
     pub realname: Option<String>,
     /// The joined channel. See [`crate::Conversation`] for status-prefixed line guidance.
-    pub channel: ChannelName,
+    pub channel: ChannelHandle,
     /// The joining user.
     pub actor: UserSource,
     /// Whether the joining user is this client's user.
@@ -33,7 +33,7 @@ pub struct Joined {
 #[non_exhaustive]
 pub struct ChannelSynced {
     /// The synchronized channel. See [`crate::Conversation`] for status-prefixed line guidance.
-    pub channel: ChannelName,
+    pub channel: ChannelHandle,
 }
 
 /// A channel's member facts were refreshed by a `WHO` sweep.
@@ -41,7 +41,7 @@ pub struct ChannelSynced {
 #[non_exhaustive]
 pub struct MembersRefreshed {
     /// The refreshed channel. See [`crate::Conversation`] for status-prefixed line guidance.
-    pub channel: ChannelName,
+    pub channel: ChannelHandle,
 }
 
 /// A user left a shared channel with `PART`.
@@ -57,7 +57,7 @@ pub struct Parted {
     /// The departing user.
     pub actor: UserSource,
     /// The departed channel. See [`crate::Conversation`] for status-prefixed line guidance.
-    pub channel: ChannelName,
+    pub channel: ChannelHandle,
     /// The optional part reason.
     pub reason: Option<String>,
     /// Whether the departing user is this client's user.
@@ -75,7 +75,7 @@ pub struct Kicked {
     /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The affected channel. See [`crate::Conversation`] for status-prefixed line guidance.
-    pub channel: ChannelName,
+    pub channel: ChannelHandle,
     /// The removed user.
     pub subject: Nick,
     /// The user or server that issued the kick.
@@ -99,7 +99,7 @@ pub struct Invited {
     /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The invited channel. See [`crate::Conversation`] for status-prefixed line guidance.
-    pub channel: ChannelName,
+    pub channel: ChannelHandle,
     /// The invited user.
     pub subject: Nick,
     /// The user or server that sent the invitation.
@@ -122,7 +122,7 @@ pub struct TopicChanged {
     /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The affected channel. See [`crate::Conversation`] for status-prefixed line guidance.
-    pub channel: ChannelName,
+    pub channel: ChannelHandle,
     /// The new topic, or `None` when it was cleared.
     pub topic: Option<String>,
     /// The user or server that changed the topic.
@@ -181,6 +181,9 @@ pub struct ChannelRenamed {
     pub server_time: Option<ServerTime>,
     /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
+    /// The renamed channel lifecycle. See [`crate::Conversation`] for status-prefixed line
+    /// guidance.
+    pub channel: ChannelHandle,
     /// The previous channel name.
     pub old: ChannelName,
     /// The new channel name.

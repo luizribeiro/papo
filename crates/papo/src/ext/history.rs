@@ -567,7 +567,7 @@ fn parted(
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         actor,
-        channel: state.known_name_rules()?.channel(message.param(0)?),
+        channel: client.channel(message.param(0)?).ok()?,
         authorship,
         reason: message
             .param(1)
@@ -652,7 +652,7 @@ fn kicked(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        channel: state.known_name_rules()?.channel(message.param(0)?),
+        channel: client.channel(message.param(0)?).ok()?,
         authorship,
         subject_authorship,
         subject: state.known_name_rules()?.nick(nick),
@@ -726,7 +726,12 @@ fn topic_changed(
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        channel: origin.__channel(mapping, message.param(0)?),
+        channel: crate::ChannelHandle::from_parts(
+            origin.__channel(mapping, message.param(0)?),
+            None,
+            None,
+            None,
+        ),
         topic: message
             .param(1)
             .filter(|topic| !topic.is_empty())
