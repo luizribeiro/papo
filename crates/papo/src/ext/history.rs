@@ -317,16 +317,12 @@ fn historical_tagmsg(
     let (status, conversation) =
         papo_core::classify_conversation(message, state.nick().as_str(), state.isupport().inner())
             .ok()?;
-    let guard = match &conversation {
-        papo_core::Conversation::Channel(channel) => Some(state.core.__channel_guard(channel)),
-        _ => None,
-    };
-    let conversation = crate::Conversation::from_core(
+    let conversation = crate::Conversation::from_core_with_state(
         conversation,
         status,
         client.origin(),
-        Some(&client.state),
-        guard,
+        &client.state,
+        &state,
     );
     let conversation = crate::event_impl::historical_conversation(
         message,
@@ -1230,19 +1226,16 @@ impl Client {
             items,
             end,
         } = page;
-        let guard = match &conversation {
-            papo_core::Conversation::Channel(channel) => {
-                Some(self.state().core.__channel_guard(channel))
-            }
-            _ => None,
+        let conversation = {
+            let state = self.state();
+            crate::Conversation::from_core_with_state(
+                conversation,
+                None,
+                self.origin(),
+                &self.state,
+                &state,
+            )
         };
-        let conversation = crate::Conversation::from_core(
-            conversation,
-            None,
-            self.origin(),
-            Some(&self.state),
-            guard,
-        );
         let items = items
             .into_iter()
             .map(|item| history_item(item, Some(&conversation), self, crate::rt::now_wall()))
@@ -1395,10 +1388,6 @@ mod tests {
     use super::{
         HistoryPage, HistoryReason, HistoryReference, RecentConversation, history_item, reaction,
     };
-
-    fn name_rules(state: &crate::State) -> crate::NameRules<'_> {
-        state.name_rules().expect("server advertised CASEMAPPING")
-    }
 
     fn channel(value: crate::ChannelName) -> crate::ChannelHandle {
         crate::ChannelHandle::from_parts(value, None, None, None)
@@ -2263,7 +2252,6 @@ mod tests {
             next_event(&mut events).await,
             Some(Event::Connected(_))
         ));
-
         let result = within(async { request.await }).await;
         assert!(
             matches!(
@@ -2282,6 +2270,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "current_thread")]
+    #[allow(clippy::too_many_lines)]
     async fn latest_history_resolves_with_history_messages() {
         let config = config().wanted_caps([
             "draft/chathistory",
@@ -2313,6 +2302,15 @@ mod tests {
             next_event(&mut events).await,
             Some(Event::Connected(_))
         ));
+        server_line(
+            &mut server,
+            b":papo-driver!papo@localhost JOIN #papo * :Papo Driver\r\n",
+        )
+        .await;
+        let Some(Event::Joined(joined)) = next_event(&mut events).await else {
+            panic!("expected own join")
+        };
+        let channel = joined.channel;
         assert!(matches!(
             client.history("#papo invalid").latest().await,
             Err(Error::InvalidInput(crate::InvalidInput::InvalidName { name, .. }))
@@ -2330,16 +2328,16 @@ mod tests {
             client.history("$opers").latest().await,
             Err(Error::InvalidInput(_))
         ));
-        let conversation = crate::Conversation::Channel(
-            client
-                .channel(name_rules(&client.state()).channel("#papo"))
-                .unwrap(),
-        );
+        let conversation = crate::Conversation::Channel(channel.clone());
         let request = tokio::spawn(async move { client.history(conversation).latest().await });
         client_line(&mut server, b"@label=0 CHATHISTORY LATEST #papo * 100\r\n").await;
         server_line(&mut server, b"@label=0 :ergo.test BATCH +reply labeled-response\r\n@batch=reply;draft/chathistory-end :ergo.test BATCH +history chathistory #papo\r\n@batch=history;time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120004 :emily!~e@localhost PRIVMSG #papo :earlier\r\n@batch=history;+draft/react=eyes;+reply=RfcBTzyxY120004 :emily!~e@localhost TAGMSG #papo\r\n@batch=history :emily!~e@localhost JOIN #papo emily :Emily Smith\r\n@batch=history :ChanServ!service@services MODE #papo +o alice\r\n@batch=history :OperServ!service@services MODE #papo +b *!*@spammer.example\r\n@batch=history :emily!~e@localhost TAGMSG #papo\r\n@batch=reply :ergo.test BATCH -history\r\n:ergo.test BATCH -reply\r\n").await;
         let page = within(request).await.unwrap().unwrap();
         assert_eq!(page.reason, HistoryReason::Requested);
+        assert_eq!(
+            page.conversation,
+            crate::Conversation::Channel(channel.clone())
+        );
         assert!(page.end);
         assert_eq!(page.items.len(), 6);
         assert!(matches!(page.items[1], Event::Reacted(_)));
@@ -2368,7 +2366,8 @@ mod tests {
                 ..
             }] if mask == "*!*@spammer.example"
         ));
-        assert!(matches!(&page.items[5], Event::TagMsg(_)));
+        assert!(matches!(&page.items[5], Event::TagMsg(tagmsg)
+            if tagmsg.conversation() == &crate::Conversation::Channel(channel)));
         let message = page.chat_messages().next().unwrap();
         assert_eq!(message.text, "earlier");
         assert!(

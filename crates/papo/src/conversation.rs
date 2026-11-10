@@ -15,6 +15,22 @@ pub enum Conversation {
 }
 
 impl Conversation {
+    pub(crate) fn from_core_with_state(
+        value: papo_core::Conversation,
+        status: Option<crate::Prefix>,
+        origin: crate::Origin,
+        state: &std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>,
+        snapshot: &crate::State,
+    ) -> Self {
+        let guard = match &value {
+            papo_core::Conversation::Channel(channel) => {
+                Some(snapshot.core.__channel_guard(channel))
+            }
+            _ => None,
+        };
+        Self::from_core(value, status, origin, Some(state), guard)
+    }
+
     pub(crate) fn from_core(
         value: papo_core::Conversation,
         status: Option<crate::Prefix>,

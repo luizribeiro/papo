@@ -1239,16 +1239,12 @@ pub(crate) fn historical_message_event(
     ) else {
         return unparsed_from_line(raw, received_at);
     };
-    let guard = match &conversation {
-        papo_core::Conversation::Channel(channel) => Some(snapshot.core.__channel_guard(channel)),
-        _ => None,
-    };
-    let conversation = Conversation::from_core(
+    let conversation = Conversation::from_core_with_state(
         conversation,
         status,
         client.origin(),
-        Some(&client.state),
-        guard,
+        &client.state,
+        &snapshot,
     );
     let conversation = historical_conversation(
         &raw.as_ref(),
@@ -5340,6 +5336,30 @@ mod tests {
                 Conversation::Private(ref nick) if nick == "alice"
             ));
         }
+    }
+
+    #[test]
+    fn historical_channel_messages_retain_the_joined_channel_handle() {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().nick("papo"));
+        session.handle_line(
+            now,
+            b":ergo.test 005 papo CASEMAPPING=rfc1459 CHANTYPES=# :are supported",
+        );
+        session.handle_line(now, b":papo!p@localhost JOIN #review * :Papo Driver");
+        let (client, _) = crate::driver::test_support::client_with_commands(&session);
+        let channel = client.channel("#review").unwrap();
+
+        let Event::Message(message) = historical_message_event(
+            Line::privmsg("#review", "release approved").with_source("alice!~a@staff.example"),
+            Authorship::Other,
+            None,
+            &client,
+            UNIX_EPOCH,
+        ) else {
+            panic!("expected a historical message")
+        };
+        assert_eq!(message.conversation, Conversation::Channel(channel));
     }
 
     #[test]
