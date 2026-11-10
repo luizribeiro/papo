@@ -2926,14 +2926,17 @@ pub(crate) fn typed_mode_change(
 
 #[cfg(all(test, not(browser)))]
 mod tests {
-    use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+    use std::{
+        sync::Arc,
+        time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+    };
 
     use super::{
         Audience, Authorship, Broadcast, BroadcastCtcp, BroadcastTagMsg, Conversation, CoreEvent,
         Event, Incomplete, Message as ChatMessage, MessageId, MessageKind, MetadataChanged,
         ModeAction, ModeArg, ModeChange, ServerNoticeKind, Source, StandardReplyKind, Tags,
         UserSource, Warning, ctcp_parts, from_core as from_core_with_mapping,
-        historical_message_event, message_event_from_line, with_channel_guard,
+        historical_message_event, message_event_from_line,
     };
     use crate::{Subject, Visibility};
     use papo_core::{
@@ -3367,8 +3370,10 @@ mod tests {
         let now = Instant::now();
         let mut session = Session::new(Config::default().nick("papo"));
         session.handle_line(now, b":papo!p@localhost JOIN #review");
-        let channel = session.state().channel("#review").unwrap().name();
-        let guard = session.state().__channel_guard(channel);
+        while session.poll_event().is_some() {}
+        let shared = Arc::new(std::sync::RwLock::new(Arc::new(
+            crate::State::from_session(&session, true),
+        )));
         let cases = [
             (
                 "CtcpQuery",
@@ -3409,8 +3414,31 @@ mod tests {
         ];
 
         for (expected, line) in cases {
-            let event = mapped_live_event(line, now);
-            let event = with_channel_guard(event, Some(guard.clone()));
+            session.handle_line(now, line.as_bytes());
+            let core = session.poll_event().expect("line produced an event");
+            *shared.write().unwrap() = Arc::new(crate::State::from_session(&session, true));
+            let event = match super::from_core_with_receipt(
+                core,
+                session.isupport().casemapping(),
+                crate::Origin::NONE,
+                false,
+                false,
+                UNIX_EPOCH,
+                Some(session.state()),
+                Some(&shared),
+            ) {
+                CoreEvent::Forward(event) => event,
+                CoreEvent::Line(super::CoreLine::Complete(line)) => super::incoming_from_core(
+                    line,
+                    crate::Origin::NONE,
+                    session.isupport(),
+                    false,
+                    false,
+                    UNIX_EPOCH,
+                    Some(&shared),
+                ),
+                _ => panic!("line did not produce a public event"),
+            };
             assert!(has_channel_guard(expected, &event), "{expected}");
         }
     }
@@ -4488,8 +4516,8 @@ mod tests {
         for (line, expected) in cases {
             let conversation = convert(line).conversation();
             match (conversation.as_ref(), expected) {
-                (Some(conversation), Some(expected)) => {
-                    assert_eq!(conversation, expected, "{line}");
+                (Some(Conversation::Channel(channel)), Some(expected)) => {
+                    assert_eq!(channel.to_string(), expected, "{line}");
                 }
                 (None, None) => {}
                 _ => panic!("unexpected conversation {conversation:?} for {line}"),
