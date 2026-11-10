@@ -100,10 +100,10 @@ pub(super) fn conversation_is_private(conversation: &impl ConversationName) -> b
     conversation.is_private()
 }
 
-pub(super) fn subject_name(subject: &Subject) -> &str {
+pub(super) fn subject_name(subject: &Subject) -> String {
     match subject {
-        Subject::Channel(channel) => channel.as_str(),
-        Subject::User(nick) => nick.as_str(),
+        Subject::Channel(channel) => channel.name().to_string(),
+        Subject::User(nick) => nick.to_string(),
         _ => panic!("unexpected subject"),
     }
 }

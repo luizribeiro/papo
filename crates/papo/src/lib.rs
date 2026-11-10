@@ -432,11 +432,11 @@ pub use typing::{Typer, Typers};
 pub use webirc::WebIrc;
 
 /// A user or channel acted on by an IRC event.
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 #[non_exhaustive]
 pub enum Subject {
-    /// A channel acted on by the event.
-    Channel(ChannelName),
+    /// A channel acted on by the event. See [`Conversation`] for status-prefixed line guidance.
+    Channel(ChannelHandle),
     /// A user acted on by the event.
     User(Nick),
 }
@@ -451,9 +451,9 @@ impl Subject {
         }
     }
 
-    /// Returns the channel name when this subject is a channel.
+    /// Returns the channel handle when this subject is a channel.
     #[must_use]
-    pub const fn channel(&self) -> Option<&ChannelName> {
+    pub const fn channel(&self) -> Option<&ChannelHandle> {
         match self {
             Self::Channel(channel) => Some(channel),
             Self::User(_) => None,

@@ -2081,24 +2081,20 @@ impl core::marker::UnsafeUnpin for papo::StreamSecurity
 impl core::panic::unwind_safe::RefUnwindSafe for papo::StreamSecurity
 impl core::panic::unwind_safe::UnwindSafe for papo::StreamSecurity
 #[non_exhaustive] pub enum papo::Subject
-pub papo::Subject::Channel(papo::ChannelName)
+pub papo::Subject::Channel(papo::ChannelHandle)
 pub papo::Subject::User(papo::Nick)
 impl papo::Subject
-pub const fn papo::Subject::channel(&self) -> core::option::Option<&papo::ChannelName>
+pub const fn papo::Subject::channel(&self) -> core::option::Option<&papo::ChannelHandle>
 pub const fn papo::Subject::nick(&self) -> core::option::Option<&papo::Nick>
 impl core::clone::Clone for papo::Subject
 pub fn papo::Subject::clone(&self) -> Self
 impl core::cmp::Eq for papo::Subject
-impl core::cmp::Ord for papo::Subject
-pub fn papo::Subject::cmp(&self, &Self) -> core::cmp::Ordering
 impl core::cmp::PartialEq for papo::Subject
 pub fn papo::Subject::eq(&self, &Self) -> bool
 impl core::cmp::PartialEq<&str> for papo::Subject
 pub fn papo::Subject::eq(&self, &&str) -> bool
 impl core::cmp::PartialEq<str> for papo::Subject
 pub fn papo::Subject::eq(&self, &str) -> bool
-impl core::cmp::PartialOrd for papo::Subject
-pub fn papo::Subject::partial_cmp(&self, &Self) -> core::option::Option<core::cmp::Ordering>
 impl core::fmt::Debug for papo::Subject
 pub fn papo::Subject::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::hash::Hash for papo::Subject

@@ -788,7 +788,7 @@ fn mode_changed(
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         subject: if state.isupport().inner().is_channel(message.param(0)?) {
-            crate::Subject::Channel(state.known_name_rules()?.channel(message.param(0)?))
+            crate::Subject::Channel(client.channel(message.param(0)?).ok()?)
         } else {
             crate::Subject::User(state.known_name_rules()?.nick(message.param(0)?))
         },

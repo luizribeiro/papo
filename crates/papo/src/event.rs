@@ -1725,7 +1725,9 @@ impl Event {
             Self::TypingChanged(event) => Some(event.conversation.clone()),
             Self::Redacted(event) => Some(event.conversation.clone()),
             Self::MetadataChanged(event) => match &event.subject {
-                crate::Subject::Channel(channel) => Some(Conversation::Channel(channel.clone())),
+                crate::Subject::Channel(channel) => {
+                    Some(Conversation::Channel(channel.name().clone()))
+                }
                 crate::Subject::User(_) => None,
             },
             Self::History(event) => Some(event.conversation.clone()),
@@ -1743,7 +1745,9 @@ impl Event {
                 Some(Conversation::Channel(event.channel.name().clone()))
             }
             Self::ModeChanged(event) => match &event.subject {
-                crate::Subject::Channel(channel) => Some(Conversation::Channel(channel.clone())),
+                crate::Subject::Channel(channel) => {
+                    Some(Conversation::Channel(channel.name().clone()))
+                }
                 crate::Subject::User(_) => None,
             },
             Self::TopicChanged(event) => Some(Conversation::Channel(event.channel.name().clone())),
@@ -2412,7 +2416,9 @@ pub(crate) fn from_core_with_receipt(
             ..
         } => Event::MetadataChanged(MetadataChanged {
             subject: match subject {
-                papo_core::Subject::Channel(channel) => crate::Subject::Channel(channel),
+                papo_core::Subject::Channel(channel) => {
+                    crate::Subject::Channel(channel_handle(channel, None))
+                }
                 papo_core::Subject::User(nick) => crate::Subject::User(nick),
                 _ => return CoreEvent::Unknown,
             },
@@ -2779,7 +2785,9 @@ pub(crate) fn from_core_with_receipt(
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 subject: match subject {
-                    papo_core::Subject::Channel(channel) => crate::Subject::Channel(channel),
+                    papo_core::Subject::Channel(channel) => {
+                        crate::Subject::Channel(channel_handle(channel, None))
+                    }
                     papo_core::Subject::User(nick) => crate::Subject::User(nick),
                     _ => return CoreEvent::Unknown,
                 },
@@ -5945,11 +5953,18 @@ mod tests {
                 crate::Prefix::__new('v', '+'),
             )),
         );
-        let channel = mode_event(Subject::Channel(mapping.channel("#papo")), Some("emily"));
-        assert_eq!(channel.about(&own), Authorship::Own);
-        assert_eq!(channel.about(&other), Authorship::Other);
+        let channel_mode = mode_event(
+            Subject::Channel(channel_handle(mapping.channel("#papo"))),
+            Some("emily"),
+        );
+        assert_eq!(channel_mode.about(&own), Authorship::Own);
+        assert_eq!(channel_mode.about(&other), Authorship::Other);
         assert_eq!(
-            mode_event(Subject::Channel(mapping.channel("#papo")), None).about(&own),
+            mode_event(
+                Subject::Channel(channel_handle(mapping.channel("#papo"))),
+                None,
+            )
+            .about(&own),
             Authorship::Unknown
         );
 
@@ -5958,7 +5973,7 @@ mod tests {
             mode_event(Subject::User(mapping.nick("emily")), Some("emily")).about(&user_mode),
             Authorship::Own
         );
-        assert_eq!(channel.about(&user_mode), Authorship::Other);
+        assert_eq!(channel_mode.about(&user_mode), Authorship::Other);
     }
 
     #[test]
