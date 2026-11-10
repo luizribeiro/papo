@@ -34,7 +34,7 @@ impl ServerClock {
 #[cfg(test)]
 mod tests {
     use super::ServerClock;
-    use std::time::{Duration, Instant};
+    use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
     #[test]
     fn estimate_uses_only_monotonic_elapsed_time_and_tolerance() {
@@ -44,5 +44,23 @@ mod tests {
         assert_eq!(clock.estimated_now(now).as_millis(), 42_250);
         let later = now.checked_add(Duration::from_secs(3)).unwrap();
         assert_eq!(clock.estimated_now(later).as_millis(), 45_250);
+    }
+
+    #[test]
+    fn device_wall_clock_skew_cannot_change_the_estimate() {
+        let device_millis = i64::try_from(
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_millis(),
+        )
+        .unwrap();
+        let six_hours = 6 * 60 * 60 * 1_000;
+        for server_millis in [device_millis - six_hours, device_millis + six_hours] {
+            let now = Instant::now();
+            let server_time = papo_proto::ServerTime::from_stored_millis(server_millis).unwrap();
+            let estimate = ServerClock::new(server_time, now).estimated_now(now);
+            assert_eq!(estimate.as_millis(), server_millis + 250);
+        }
     }
 }

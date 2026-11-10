@@ -5,7 +5,9 @@ mod support;
 
 use support::within;
 
-use papo::{Client, Endpoint, Event, Feature, Message as ChatMessage};
+use std::time::Duration;
+
+use papo::{Client, Endpoint, Event, Feature, Message as ChatMessage, Reconnect};
 use papo_test_server::{OPER_NAME, OPER_PASSWORD, from_env, unique};
 
 #[tokio::test(flavor = "current_thread")]
@@ -25,6 +27,7 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
         .disable(Feature::EventPlayback)
         .disable(Feature::Multiline)
         .autojoin([&channel])
+        .reconnect(Reconnect::exponential().max_delay(Duration::from_millis(10)))
         .connect()
         .await
         .unwrap();
@@ -76,9 +79,25 @@ async fn pages_messages_by_id_and_round_trips_a_read_marker() {
         );
 
         let newest = newest.expect("Ergo supplies server time");
+        let stored = newest.to_string();
+        client
+            .send_raw(papo::Line::new("QUIT").param("test stored read marker"))
+            .await
+            .unwrap();
+        loop {
+            if matches!(events.next().await.map(|(event, _)| event), Some(Event::Connected(connected)) if connected.reconnected) {
+                break;
+            }
+        }
+        wait_synced(&mut events, &channel).await;
+        let restored = papo::ServerTime::from_stored(&stored).unwrap();
         assert_eq!(
-            client.mark_read(&channel).await.unwrap(),
-            papo::MarkReadOutcome::Advanced(newest)
+            client
+                .mark_read(&channel)
+                .up_to_time(restored)
+                .await
+                .unwrap(),
+            papo::MarkReadOutcome::Advanced(restored)
         );
         assert_eq!(
             client.fetch_read_marker(&channel).await.unwrap(),
