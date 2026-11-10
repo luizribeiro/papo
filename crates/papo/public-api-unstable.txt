@@ -881,7 +881,7 @@ impl core::panic::unwind_safe::UnwindSafe for papo::event::NickChanged
 #[non_exhaustive] pub struct papo::event::Notice
 pub papo::event::Notice::actor: papo::UserSource
 pub papo::event::Notice::authorship: papo::Authorship
-pub papo::event::Notice::channel_context: core::option::Option<papo::ChannelName>
+pub papo::event::Notice::channel_context: core::option::Option<papo::ChannelHandle>
 pub papo::event::Notice::conversation: papo::Conversation
 pub papo::event::Notice::in_reply_to: core::option::Option<papo::MessageId>
 pub papo::event::Notice::kind: papo::MessageKind
@@ -2904,7 +2904,7 @@ pub papo::Message::server_time: core::option::Option<papo_proto::time::ServerTim
 pub papo::Message::tags: papo::Tags
 pub papo::Message::text: alloc::string::String
 impl papo::Message
-pub const fn papo::Message::channel_context(&self) -> core::option::Option<&papo::ChannelName>
+pub const fn papo::Message::channel_context(&self) -> core::option::Option<&papo::ChannelHandle>
 pub const fn papo::Message::conversation(&self) -> &papo::Conversation
 pub fn papo::Message::is_own(&self) -> bool
 pub const fn papo::Message::msgid(&self) -> core::option::Option<&papo::MessageId>

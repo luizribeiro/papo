@@ -142,9 +142,10 @@ async fn assert_shared_context(
         .wait_for(|event| message_text(event, "private thread reply"))
         .await?;
     if context_tag_allowed {
-        assert_eq!(
-            threaded.channel_context().map(papo::ChannelName::as_str),
-            Some(channel.as_str())
+        assert!(
+            threaded
+                .channel_context()
+                .is_some_and(|context| context == channel.as_str())
         );
     } else {
         assert_eq!(threaded.channel_context(), None);

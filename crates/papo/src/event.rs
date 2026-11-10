@@ -310,7 +310,7 @@ pub struct Message {
     ///
     /// This proves that the actor and client shared the channel at receipt, not that the actor
     /// held any channel rank. Unverified context remains available in [`Self::tags`].
-    pub(crate) channel_context: Option<ChannelName>,
+    pub(crate) channel_context: Option<crate::ChannelHandle>,
     /// Nickname of the client that submitted a relayed message.
     #[cfg(feature = "unstable")]
     pub relayed_by: Option<Nick>,
@@ -356,7 +356,7 @@ pub struct Notice {
     ///
     /// This proves that the actor and client shared the channel at receipt, not that the actor
     /// held any channel rank. Unverified context remains available in [`Self::tags`].
-    pub channel_context: Option<ChannelName>,
+    pub channel_context: Option<crate::ChannelHandle>,
     /// Nickname of the client that submitted a relayed notice.
     #[cfg(feature = "unstable")]
     pub relayed_by: Option<Nick>,
@@ -646,9 +646,18 @@ pub(crate) fn incoming_from_core(
     account_tag_enabled: bool,
     prove_not_bot: bool,
     received_at: SystemTime,
+    handle_state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
 ) -> Event {
     let reply_token = received.__reply_token();
-    let channel_guard = received.__channel_guard().cloned();
+    let channel_guard = received.__channel_guard().cloned().filter(|guard| {
+        handle_state.is_some_and(|state| {
+            state
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .resolve_channel(guard)
+                .is_some()
+        })
+    });
     if received.batch_type().is_some_and(|kind| {
         kind != crate::cap::LABELED_RESPONSE.as_str()
             && kind != crate::cap::MULTILINE.as_str()
@@ -658,7 +667,17 @@ pub(crate) fn incoming_from_core(
     }
     let conversation = received.conversation().cloned();
     let status = received.status();
-    let channel_context = received.channel_context().cloned();
+    let channel_context = received.channel_context().cloned().map(|channel| {
+        let channel = origin.__channel(channel.casemapping(), channel.into_string());
+        let guard = handle_state.map(|state| {
+            state
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .core
+                .__channel_guard(&channel)
+        });
+        crate::ChannelHandle::from_parts(channel, None, guard, handle_state)
+    });
     let authorship = Authorship::from_core(received.authorship());
     let (raw, batch_type) = received.into_parts();
     let Some(conversation) = conversation else {
@@ -758,7 +777,7 @@ impl Message {
 
     /// Returns the channel whose shared membership was verified at receipt.
     #[must_use]
-    pub const fn channel_context(&self) -> Option<&ChannelName> {
+    pub const fn channel_context(&self) -> Option<&crate::ChannelHandle> {
         self.channel_context.as_ref()
     }
 
@@ -813,7 +832,7 @@ impl Message {
         authorship: Authorship,
         conversation: Conversation,
         status: Option<Prefix>,
-        channel_context: Option<ChannelName>,
+        channel_context: Option<crate::ChannelHandle>,
         isupport: &Isupport,
         account_tag_enabled: bool,
         prove_not_bot: bool,
@@ -935,7 +954,7 @@ impl Notice {
         authorship: Authorship,
         conversation: Conversation,
         status: Option<Prefix>,
-        channel_context: Option<ChannelName>,
+        channel_context: Option<crate::ChannelHandle>,
         isupport: &Isupport,
         account_tag_enabled: bool,
         prove_not_bot: bool,
@@ -1136,7 +1155,7 @@ fn message_event_from_line(
     authorship: Authorship,
     conversation: Conversation,
     status: Option<Prefix>,
-    channel_context: Option<ChannelName>,
+    channel_context: Option<crate::ChannelHandle>,
     isupport: &Isupport,
     account_tag_enabled: bool,
     prove_not_bot: bool,
@@ -3224,6 +3243,7 @@ mod tests {
                 false,
                 false,
                 UNIX_EPOCH,
+                None,
             ),
             _ => panic!("line did not produce a public event"),
         }
@@ -4309,6 +4329,7 @@ mod tests {
                     session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
                     false,
                     received_at,
+                    None,
                 ),
                 _ => panic!("live line did not produce an event"),
             }
@@ -4411,6 +4432,7 @@ mod tests {
                     false,
                     false,
                     UNIX_EPOCH,
+                    None,
                 ),
                 _ => panic!("live line did not produce an event"),
             }
@@ -4819,6 +4841,7 @@ mod tests {
             false,
             false,
             UNIX_EPOCH,
+            None,
         )
     }
 
@@ -4841,6 +4864,7 @@ mod tests {
             false,
             false,
             UNIX_EPOCH,
+            None,
         );
         if incomplete {
             super::mark_incomplete(event).unwrap()
@@ -4936,6 +4960,7 @@ mod tests {
             false,
             false,
             UNIX_EPOCH,
+            None,
         );
         assert!(matches!(event, Event::Other(line) if line.as_ref().command_is("TAGMSG")));
     }

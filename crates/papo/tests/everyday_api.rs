@@ -5,7 +5,7 @@ fn inspect_event(event: papo::Event) {
         papo::Event::Message(message) => {
             let _: &papo::Conversation = message.conversation();
             let _: Option<&papo::MessageId> = message.msgid();
-            let _: Option<&papo::ChannelName> = message.channel_context();
+            let _: Option<&papo::ChannelHandle> = message.channel_context();
         }
         papo::Event::Joined(joined) => {
             let _: &papo::ChannelHandle = &joined.channel;

@@ -22,7 +22,7 @@ struct ReceiptIdentity {
     recipient_guard: Option<RecipientGuard>,
     channel: Option<crate::ChannelHandle>,
     msgids: Vec<MessageId>,
-    channel_context: Option<ChannelName>,
+    channel_context: Option<crate::ChannelHandle>,
 }
 
 impl Receipt {
@@ -138,7 +138,7 @@ impl Receipt {
     pub(crate) fn set_reference(
         &mut self,
         msgids: impl IntoIterator<Item = MessageId>,
-        channel_context: Option<ChannelName>,
+        channel_context: Option<crate::ChannelHandle>,
     ) {
         self.identity.msgids = msgids.into_iter().collect();
         self.identity.channel_context = channel_context;
@@ -246,7 +246,7 @@ pub struct MessageRef {
     address: String,
     msgids: Vec<MessageId>,
     origin: crate::Origin,
-    channel_context: Option<ChannelName>,
+    channel_context: Option<crate::ChannelHandle>,
     recipient: Option<RecipientGuard>,
     channel: Option<crate::ChannelHandle>,
     conversation: Option<Conversation>,
@@ -271,7 +271,7 @@ impl MessageRef {
         address: String,
         msgids: Vec<MessageId>,
         origin: crate::Origin,
-        channel_context: Option<ChannelName>,
+        channel_context: Option<crate::ChannelHandle>,
         recipient: Option<RecipientGuard>,
         channel: Option<crate::ChannelHandle>,
     ) -> Self {
@@ -299,7 +299,7 @@ impl MessageRef {
         self.origin
     }
 
-    pub(crate) fn channel_context(&self) -> Option<&ChannelName> {
+    pub(crate) fn channel_context(&self) -> Option<&crate::ChannelHandle> {
         self.channel_context.as_ref()
     }
 
@@ -671,7 +671,7 @@ mod tests {
             address: "@#ops".into(),
             msgids: vec!["RfcBTzyxY120004".into()],
             origin,
-            channel_context: Some(origin.__channel(mapping, "#context")),
+            channel_context: Some(channel_handle(origin.__channel(mapping, "#context"))),
             recipient: Some(RecipientGuard::from_core(&recipient)),
             channel: Some(channel_handle(origin.__channel(mapping, "#ops"))),
             conversation: Some(Conversation::Channel(origin.__channel(mapping, "#ops"))),

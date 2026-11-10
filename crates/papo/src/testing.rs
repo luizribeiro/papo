@@ -49,6 +49,7 @@ pub fn exercise_session_mapping(input: &[u8], mut observe: impl FnMut(crate::Eve
                     false,
                     false,
                     SystemTime::UNIX_EPOCH,
+                    None,
                 );
                 if incomplete {
                     if let Some(event) = crate::event_impl::mark_incomplete(event) {

@@ -7101,8 +7101,8 @@ async fn message_accessors_report_the_wire_audience() {
     assert_eq!(
         channel_message
             .channel_context()
-            .map(crate::ChannelName::as_str),
-        Some("#review")
+            .map(crate::ChannelHandle::name),
+        Some(test_channel("#review"))
     );
 
     within(server.shutdown()).await.unwrap();

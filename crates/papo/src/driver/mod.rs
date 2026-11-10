@@ -1449,6 +1449,7 @@ where
                     session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
                     can_prove_non_bot(session),
                     crate::rt::now_wall(),
+                    Some(&events.state),
                 );
                 if let Some(mut event) = crate::event_impl::mark_incomplete(event) {
                     let state = events
@@ -1661,6 +1662,7 @@ where
                     session.caps().contains_key(&crate::cap::ACCOUNT_TAG),
                     can_prove_non_bot(session),
                     crate::rt::now_wall(),
+                    Some(&events.state),
                 );
                 if incomplete {
                     let Some(marked) = crate::event_impl::mark_incomplete(event) else {

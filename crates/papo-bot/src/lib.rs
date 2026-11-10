@@ -376,12 +376,12 @@ impl Command {
             Conversation::Private(_) => self
                 .message
                 .channel_context()
-                .map(papo::ChannelName::as_str),
-            Conversation::Channel(channel) => Some(channel.as_str()),
+                .map(|channel| channel.name().to_string()),
+            Conversation::Channel(channel) => Some(channel.to_string()),
             _ => None,
         };
         if let Some(context) = context {
-            request = request.channel_context(context);
+            request = request.channel_context(&context);
         }
         request.await?;
         Ok(ReplyStatus::Sent)
