@@ -829,7 +829,9 @@ mod tests {
         );
         message.conversation = Conversation::Private(mapping.nick("emily"));
         message.receipt = Receipt::new(
-            crate::Source::User(message.actor.clone()),
+            crate::Source::User(crate::event_impl::source::message_actor(
+                message.actor.clone(),
+            )),
             message.authorship,
             &message.conversation,
             None,

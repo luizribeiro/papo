@@ -522,7 +522,7 @@ fn ctcp_from_line(
     };
     if reply {
         Ok(Event::CtcpReply(CtcpReply {
-            actor,
+            actor: source::message_actor(actor),
             authorship: metadata.authorship,
             conversation: metadata.conversation,
             status: metadata.status,
@@ -536,7 +536,7 @@ fn ctcp_from_line(
         }))
     } else {
         Ok(Event::CtcpQuery(CtcpQuery {
-            actor,
+            actor: source::message_actor(actor),
             authorship: metadata.authorship,
             conversation: metadata.conversation,
             status: metadata.status,
@@ -607,7 +607,7 @@ fn broadcast_from_line(
     let tags = Tags::from_message(&message);
     if message.command_is("TAGMSG") {
         return Ok(Event::BroadcastTagMsg(BroadcastTagMsg {
-            actor,
+            actor: source::message_actor(actor),
             authorship,
             to,
             msgid: tag_owned(&message, &["msgid"]).map(MessageId::from),
@@ -619,7 +619,7 @@ fn broadcast_from_line(
         return Err(raw);
     };
     Ok(Event::BroadcastCtcp(BroadcastCtcp {
-        actor,
+        actor: source::message_actor(actor),
         authorship,
         to,
         command,
@@ -866,7 +866,7 @@ impl Message {
             .set_reference(metadata.msgid.iter().cloned(), channel_context.clone());
         let conversation = metadata.conversation;
         Ok(Self {
-            actor,
+            actor: source::message_actor(actor),
             authorship: metadata.authorship,
             conversation,
             status: metadata.status,
@@ -988,7 +988,7 @@ impl Notice {
             .set_reference(metadata.msgid.iter().cloned(), channel_context.clone());
         let conversation = metadata.conversation;
         Ok(Self {
-            actor,
+            actor: source::message_actor(actor),
             authorship: metadata.authorship,
             conversation,
             status: metadata.status,
@@ -2222,7 +2222,7 @@ pub(crate) fn from_core_with_receipt(
             let authorship = Authorship::from_core(change.authorship);
             let receipt = guard_receipt(
                 crate::message_ref::Receipt::new(
-                    Source::User(actor.clone()),
+                    Source::User(source::message_actor(actor.clone())),
                     authorship,
                     &conversation,
                     reply_token,
@@ -2233,7 +2233,7 @@ pub(crate) fn from_core_with_receipt(
             Event::TypingChanged(TypingChanged {
                 server_time: change.server_time,
                 received_at,
-                actor,
+                actor: source::message_actor(actor),
                 authorship,
                 conversation,
                 status: change.status,
@@ -2254,7 +2254,7 @@ pub(crate) fn from_core_with_receipt(
             let conversation = conversation_handle(message.conversation, message.status);
             let mut receipt = guard_receipt(
                 crate::message_ref::Receipt::new(
-                    Source::User(actor.clone()),
+                    Source::User(source::message_actor(actor.clone())),
                     authorship,
                     &conversation,
                     reply_token,
@@ -2267,7 +2267,7 @@ pub(crate) fn from_core_with_receipt(
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
-                actor,
+                actor: source::message_actor(actor),
                 authorship,
                 conversation,
                 status: message.status,
@@ -2851,7 +2851,7 @@ pub(crate) fn from_core_with_receipt(
             let reply_token =
                 reply_state.map(|state| state.__reply_token_for(subject.nick().as_str()));
             let receipt = crate::message_ref::Receipt::without_recipient(
-                Source::User(subject.clone()),
+                Source::User(source::message_actor(subject.clone())),
                 reply_token,
                 subject.nick().to_string(),
                 origin,

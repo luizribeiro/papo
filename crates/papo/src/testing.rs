@@ -197,7 +197,7 @@ pub fn message(
     let actor = actor
         .unwrap_or_else(|| user_source(crate::Casemapping::default().nick("unknown"), None, None));
     let receipt = crate::message_ref::Receipt::new(
-        crate::Source::User(actor.clone()),
+        crate::Source::User(crate::event_impl::source::message_actor(actor.clone())),
         Authorship::Other,
         &conversation,
         None,
@@ -244,7 +244,9 @@ pub fn set_message_actor(message: &mut Message, actor: crate::UserSource) {
     }
     message.actor = actor;
     message.receipt.update_actor(
-        crate::Source::User(message.actor.clone()),
+        crate::Source::User(crate::event_impl::source::message_actor(
+            message.actor.clone(),
+        )),
         &message.conversation,
     );
 }
