@@ -97,6 +97,10 @@ impl UserHandle {
         })
     }
 
+    pub(crate) fn message_source_mut(&mut self) -> Option<&mut crate::UserSource> {
+        Arc::get_mut(&mut self.0)?.legacy.as_mut()
+    }
+
     pub(crate) fn from_current_state(
         nick: crate::Nick,
         state: Option<&Arc<RwLock<Arc<crate::State>>>>,

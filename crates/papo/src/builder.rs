@@ -975,7 +975,7 @@ mod tests {
             msgid: None,
             server_time: None,
             received_at: std::time::SystemTime::UNIX_EPOCH,
-            actor: actor.clone(),
+            actor: crate::event_impl::source::message_actor(actor.clone()),
             authorship: crate::Authorship::Other,
             conversation,
             status: None,

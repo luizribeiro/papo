@@ -4,7 +4,7 @@ use crate::ServerTime;
 
 use crate::{Conversation, Mask, MessageId, Prefix, Typing};
 
-use super::{Authorship, Source, Tags, TypingReason, UserSource};
+use super::{Authorship, Source, Tags, TypingReason};
 
 /// A server-wide audience addressed by `*` or a server mask.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -21,7 +21,7 @@ pub enum Broadcast {
 #[non_exhaustive]
 pub struct BroadcastCtcp {
     /// The user or server that sent the CTCP message.
-    pub actor: UserSource,
+    pub actor: crate::UserHandle,
     /// Whether the actor is this client's user.
     pub authorship: Authorship,
     /// The server-wide audience addressed by the message.
@@ -45,7 +45,7 @@ pub struct BroadcastCtcp {
 #[non_exhaustive]
 pub struct BroadcastTagMsg {
     /// The user or server that sent the message.
-    pub actor: UserSource,
+    pub actor: crate::UserHandle,
     /// Whether the actor is this client's user.
     pub authorship: Authorship,
     /// The server-wide audience addressed by the message.
@@ -57,10 +57,10 @@ pub struct BroadcastTagMsg {
     pub received_at: SystemTime,
 }
 
-fn broadcast_origin(to: &Broadcast, actor: &UserSource) -> crate::Origin {
+fn broadcast_origin(to: &Broadcast, actor: &crate::UserHandle) -> crate::Origin {
     match to {
         Broadcast::Mask(mask) => mask.origin(),
-        Broadcast::Everyone => actor.nick().origin(),
+        Broadcast::Everyone => actor.origin(),
     }
 }
 
@@ -109,7 +109,7 @@ pub struct Reacted {
     /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The user that changed the reaction.
-    pub actor: UserSource,
+    pub actor: crate::UserHandle,
     /// Whether the actor is this client's user.
     pub authorship: Authorship,
     /// The IRC conversation containing the message.
@@ -174,7 +174,7 @@ pub struct TypingChanged {
     /// Time from this device's clock at which the line was received or a local timeout was observed.
     pub received_at: SystemTime,
     /// The user or server that sent the notification.
-    pub actor: UserSource,
+    pub actor: crate::UserHandle,
     /// Whether the actor is this client's user.
     pub authorship: Authorship,
     /// The IRC conversation where typing is occurring.
@@ -203,7 +203,7 @@ pub struct TagMsg {
     /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The user or server that sent the message.
-    pub actor: UserSource,
+    pub actor: crate::UserHandle,
     /// Whether the actor is this client's user.
     pub authorship: Authorship,
     /// The IRC conversation addressed by the message.

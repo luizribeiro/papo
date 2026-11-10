@@ -310,7 +310,7 @@ async fn ctcp_playback_has_no_automatic_reply(s: Scenario) -> papo_testing::Resu
         .expect_none(|event| {
             event
                 .as_ctcp_reply()
-                .filter(|ctcp| ctcp.command == "VERSION" && ctcp.actor.nick() == &bob_nick)
+                .filter(|ctcp| ctcp.command == "VERSION" && ctcp.actor.nick() == bob_nick)
         })
         .await?;
     Ok(())

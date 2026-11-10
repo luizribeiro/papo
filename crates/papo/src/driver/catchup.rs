@@ -306,7 +306,7 @@ mod tests {
             msgid: Some("RfcBTzyxY120010".into()),
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
-            actor,
+            actor: crate::event_impl::source::message_actor(actor),
             authorship: crate::Authorship::Other,
             conversation,
             status: None,

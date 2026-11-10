@@ -351,7 +351,7 @@ impl core::marker::UnsafeUnpin for papo::event::BouncerNetworkChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::BouncerNetworkChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::BouncerNetworkChanged
 #[non_exhaustive] pub struct papo::event::BroadcastCtcp
-pub papo::event::BroadcastCtcp::actor: papo::UserSource
+pub papo::event::BroadcastCtcp::actor: papo::UserHandle
 pub papo::event::BroadcastCtcp::authorship: papo::Authorship
 pub papo::event::BroadcastCtcp::command: papo::Command
 pub papo::event::BroadcastCtcp::msgid: core::option::Option<papo::MessageId>
@@ -378,7 +378,7 @@ impl core::marker::UnsafeUnpin for papo::event::BroadcastCtcp
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::BroadcastCtcp
 impl core::panic::unwind_safe::UnwindSafe for papo::event::BroadcastCtcp
 #[non_exhaustive] pub struct papo::event::BroadcastTagMsg
-pub papo::event::BroadcastTagMsg::actor: papo::UserSource
+pub papo::event::BroadcastTagMsg::actor: papo::UserHandle
 pub papo::event::BroadcastTagMsg::authorship: papo::Authorship
 pub papo::event::BroadcastTagMsg::received_at: std::time::SystemTime
 pub papo::event::BroadcastTagMsg::tags: papo::Tags
@@ -522,7 +522,7 @@ impl core::marker::UnsafeUnpin for papo::event::Connecting
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Connecting
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Connecting
 #[non_exhaustive] pub struct papo::event::CtcpQuery
-pub papo::event::CtcpQuery::actor: papo::UserSource
+pub papo::event::CtcpQuery::actor: papo::UserHandle
 pub papo::event::CtcpQuery::authorship: papo::Authorship
 pub papo::event::CtcpQuery::command: papo::Command
 pub papo::event::CtcpQuery::params: core::option::Option<alloc::string::String>
@@ -554,7 +554,7 @@ impl core::marker::UnsafeUnpin for papo::event::CtcpQuery
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::CtcpQuery
 impl core::panic::unwind_safe::UnwindSafe for papo::event::CtcpQuery
 #[non_exhaustive] pub struct papo::event::CtcpReply
-pub papo::event::CtcpReply::actor: papo::UserSource
+pub papo::event::CtcpReply::actor: papo::UserHandle
 pub papo::event::CtcpReply::authorship: papo::Authorship
 pub papo::event::CtcpReply::command: papo::Command
 pub papo::event::CtcpReply::params: core::option::Option<alloc::string::String>
@@ -878,7 +878,7 @@ impl core::marker::UnsafeUnpin for papo::event::NickChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::NickChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::NickChanged
 #[non_exhaustive] pub struct papo::event::Notice
-pub papo::event::Notice::actor: papo::UserSource
+pub papo::event::Notice::actor: papo::UserHandle
 pub papo::event::Notice::authorship: papo::Authorship
 pub papo::event::Notice::channel_context: core::option::Option<papo::ChannelHandle>
 pub papo::event::Notice::conversation: papo::Conversation
@@ -961,7 +961,7 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Quit
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Quit
 #[non_exhaustive] pub struct papo::event::Reacted
 pub papo::event::Reacted::action: papo::event::ReactionAction
-pub papo::event::Reacted::actor: papo::UserSource
+pub papo::event::Reacted::actor: papo::UserHandle
 pub papo::event::Reacted::authorship: papo::Authorship
 pub papo::event::Reacted::reaction: alloc::string::String
 pub papo::event::Reacted::reacts_to: papo::MessageId
@@ -1134,7 +1134,7 @@ impl core::marker::UnsafeUnpin for papo::event::StandardReply
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::StandardReply
 impl core::panic::unwind_safe::UnwindSafe for papo::event::StandardReply
 #[non_exhaustive] pub struct papo::event::TagMsg
-pub papo::event::TagMsg::actor: papo::UserSource
+pub papo::event::TagMsg::actor: papo::UserHandle
 pub papo::event::TagMsg::authorship: papo::Authorship
 pub papo::event::TagMsg::received_at: std::time::SystemTime
 pub papo::event::TagMsg::server_time: core::option::Option<papo_proto::time::ServerTime>
@@ -1187,7 +1187,7 @@ impl core::marker::UnsafeUnpin for papo::event::TopicChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::TopicChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::TopicChanged
 #[non_exhaustive] pub struct papo::event::TypingChanged
-pub papo::event::TypingChanged::actor: papo::UserSource
+pub papo::event::TypingChanged::actor: papo::UserHandle
 pub papo::event::TypingChanged::authorship: papo::Authorship
 pub papo::event::TypingChanged::conversation: papo::Conversation
 pub papo::event::TypingChanged::reason: papo::event::TypingReason
@@ -2919,7 +2919,7 @@ impl core::marker::UnsafeUnpin for papo::MarkReadRequest
 impl core::panic::unwind_safe::RefUnwindSafe for papo::MarkReadRequest
 impl core::panic::unwind_safe::UnwindSafe for papo::MarkReadRequest
 #[non_exhaustive] pub struct papo::Message
-pub papo::Message::actor: papo::UserSource
+pub papo::Message::actor: papo::UserHandle
 pub papo::Message::authorship: papo::Authorship
 pub papo::Message::in_reply_to: core::option::Option<papo::MessageId>
 pub papo::Message::kind: papo::MessageKind

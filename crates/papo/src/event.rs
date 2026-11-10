@@ -99,7 +99,7 @@ pub enum Audience {
 #[non_exhaustive]
 pub struct CtcpQuery {
     /// The user that sent the CTCP message.
-    pub actor: UserSource,
+    pub actor: crate::UserHandle,
     /// Whether the actor is this client's user.
     pub authorship: Authorship,
     /// The IRC conversation to which the CTCP message belongs.
@@ -133,7 +133,7 @@ pub struct CtcpQuery {
 #[non_exhaustive]
 pub struct CtcpReply {
     /// The user that sent the CTCP reply.
-    pub actor: UserSource,
+    pub actor: crate::UserHandle,
     /// Whether the actor is this client's user.
     pub authorship: Authorship,
     /// The IRC conversation to which the CTCP reply belongs.
@@ -278,7 +278,7 @@ impl Authorship {
 #[non_exhaustive]
 pub struct Message {
     /// The user that sent the message.
-    pub actor: UserSource,
+    pub actor: crate::UserHandle,
     /// Whether the actor is this client's user.
     pub authorship: Authorship,
     /// The chat conversation to which the message belongs.
@@ -324,7 +324,7 @@ pub struct Message {
 #[non_exhaustive]
 pub struct Notice {
     /// The user that sent the notice.
-    pub actor: UserSource,
+    pub actor: crate::UserHandle,
     /// Whether the actor is this client's user.
     pub authorship: Authorship,
     /// The chat conversation to which the notice belongs.
@@ -1988,16 +1988,16 @@ pub(crate) fn attach_historical_peer_key(event: &mut Event, state: &crate::State
 fn private_actor_mut(event: &mut Event) -> Option<&mut UserSource> {
     match event {
         Event::Message(event) | Event::Incomplete(Incomplete::Message(event)) => {
-            Some(&mut event.actor)
+            event.actor.message_source_mut()
         }
         Event::Notice(event) | Event::Incomplete(Incomplete::Notice(event)) => {
-            Some(&mut event.actor)
+            event.actor.message_source_mut()
         }
-        Event::CtcpQuery(event) => Some(&mut event.actor),
-        Event::CtcpReply(event) => Some(&mut event.actor),
-        Event::TagMsg(event) => Some(&mut event.actor),
-        Event::Reacted(event) => Some(&mut event.actor),
-        Event::TypingChanged(event) => Some(&mut event.actor),
+        Event::CtcpQuery(event) => event.actor.message_source_mut(),
+        Event::CtcpReply(event) => event.actor.message_source_mut(),
+        Event::TagMsg(event) => event.actor.message_source_mut(),
+        Event::Reacted(event) => event.actor.message_source_mut(),
+        Event::TypingChanged(event) => event.actor.message_source_mut(),
         Event::Redacted(event) => match &mut event.actor {
             Source::User(actor) => Some(actor),
             Source::Server(_) => None,
@@ -3025,7 +3025,7 @@ mod tests {
             Broadcast::Mask(origin.__mask(mapping, "$*.example.org")),
         ] {
             let event = BroadcastTagMsg {
-                actor: actor.clone(),
+                actor: super::source::message_actor(actor.clone()),
                 authorship: Authorship::Other,
                 to,
                 tags: Tags::default(),
@@ -3035,7 +3035,7 @@ mod tests {
             assert_eq!(event.origin(), origin);
         }
         let ctcp = BroadcastCtcp {
-            actor,
+            actor: super::source::message_actor(actor),
             authorship: Authorship::Other,
             to: Broadcast::Mask(origin.__mask(mapping, "$*.example.org")),
             command: "VERSION".into(),

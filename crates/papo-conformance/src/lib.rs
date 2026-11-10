@@ -38,24 +38,41 @@ pub type ScenarioFuture = Pin<Box<dyn Future<Output = FixtureResult>>>;
 
 #[doc(hidden)]
 pub trait SourceNick {
-    fn source_nick(&self) -> Option<&str>;
+    fn source_nick(&self) -> Option<papo::Nick>;
+}
+
+#[derive(Debug)]
+#[doc(hidden)]
+pub struct SourceNickValue(Option<papo::Nick>);
+
+#[allow(clippy::ref_option_ref)]
+impl PartialEq<Option<&str>> for SourceNickValue {
+    fn eq(&self, other: &Option<&str>) -> bool {
+        self.0.as_ref().map(papo::Nick::as_str) == *other
+    }
 }
 
 impl SourceNick for papo::Source {
-    fn source_nick(&self) -> Option<&str> {
-        self.nick().map(papo::Nick::as_str)
+    fn source_nick(&self) -> Option<papo::Nick> {
+        self.nick().cloned()
     }
 }
 
 impl SourceNick for papo::UserSource {
-    fn source_nick(&self) -> Option<&str> {
-        Some(self.nick().as_str())
+    fn source_nick(&self) -> Option<papo::Nick> {
+        Some(self.nick().clone())
+    }
+}
+
+impl SourceNick for papo::UserHandle {
+    fn source_nick(&self) -> Option<papo::Nick> {
+        Some(self.nick())
     }
 }
 
 #[doc(hidden)]
-pub fn source_nick(source: &(impl SourceNick + ?Sized)) -> Option<&str> {
-    source.source_nick()
+pub fn source_nick(source: &(impl SourceNick + ?Sized)) -> SourceNickValue {
+    SourceNickValue(source.source_nick())
 }
 
 #[derive(Clone, Copy)]

@@ -772,7 +772,7 @@ async fn ctcp_soju_backlog(s: Scenario) -> papo_testing::Result<()> {
         .expect_none(|event| {
             event
                 .as_ctcp_reply()
-                .filter(|ctcp| ctcp.actor.nick() == &bob_nick)
+                .filter(|ctcp| ctcp.actor.nick() == bob_nick)
         })
         .await?;
 
@@ -788,7 +788,7 @@ async fn ctcp_soju_backlog(s: Scenario) -> papo_testing::Result<()> {
         .expect_none(|event| {
             event
                 .as_ctcp_reply()
-                .filter(|ctcp| ctcp.actor.nick() == &bob_nick)
+                .filter(|ctcp| ctcp.actor.nick() == bob_nick)
         })
         .await?;
     Ok(())

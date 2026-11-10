@@ -51,7 +51,7 @@ use web_time::Instant;
 
 use papo::{
     Account, AccountName, Client, Conversation, InvalidRateLimit, Message as ChatMessage,
-    MessageKind, State, UserSource,
+    MessageKind, State, UserHandle,
 };
 
 const MAX_RATE_TARGETS: usize = 1024;
@@ -200,7 +200,7 @@ pub enum ReplyStatus {
 #[derive(Clone, Debug)]
 pub struct Command {
     /// The user that sent the command.
-    pub actor: UserSource,
+    pub actor: UserHandle,
     client: Client,
     message: ChatMessage,
     name: String,
@@ -937,8 +937,8 @@ mod tests {
     #[test]
     fn reports_actor_and_rejects_non_commands() {
         let channel = parse(&message("#papo", "!ping"), &BotConfig::new("!")).unwrap();
-        let actor: Option<&Nick> = Some(channel.actor.nick());
-        assert_eq!(actor, Some(&nick("emily")));
+        let actor = channel.actor.nick();
+        assert_eq!(actor, nick("emily"));
 
         let config = BotConfig::new("!").mention(false);
         assert!(parse(&message("#papo", "papo: ping"), &config).is_none());
