@@ -8169,6 +8169,100 @@ async fn chat_text_returns_a_labelled_numeric_refusal() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn channel_sends_preserve_membership_and_refuse_expired_handles() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let task = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b":papo-driver!papo@localhost JOIN #review * :Papo Driver\r\n",
+    )
+    .await;
+    let Some(Event::Joined(joined)) = next_event(&mut events).await else {
+        panic!("expected own join")
+    };
+    let channel = joined.channel;
+
+    let send_task = tokio::spawn({
+        let client = client.clone();
+        async move { client.privmsg("#review", "release approved").await }
+    });
+    client_line(&mut server, b"PRIVMSG #review :release approved\r\n").await;
+    let sent = within(send_task).await.unwrap().unwrap();
+    assert_eq!(
+        sent.conversation,
+        crate::Conversation::Channel(channel.clone())
+    );
+
+    server_line(
+        &mut server,
+        b":papo-driver!papo@localhost PART #review :Review complete\r\n",
+    )
+    .await;
+    assert!(matches!(
+        next_event(&mut events).await,
+        Some(Event::Parted(_))
+    ));
+    assert!(matches!(
+        within(client.privmsg(channel, "late follow-up")).await,
+        Err(Error::TargetGone)
+    ));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(1), server.read_u8())
+            .await
+            .is_err()
+    );
+
+    task.abort();
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn send_text_retains_an_injected_channel_guard() {
+    let mut session = Session::new(config());
+    session.handle_connected(crate::rt::now_mono());
+    let channel = session.isupport().casemapping().channel("#review");
+    let guard = session.state().__channel_guard(&channel);
+    let expected = crate::ChannelHandle::from_parts(
+        session
+            .state()
+            .nick()
+            .origin()
+            .__channel(session.isupport().casemapping(), channel.as_str()),
+        None,
+        Some(guard.clone()),
+        None,
+    );
+    let channels = super::channels(1, &session);
+    *channels
+        .event_sink
+        .state
+        .write()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) =
+        Arc::new(crate::State::from_session(&session, true));
+    let client = channels.client;
+    let mut commands = channels.commands;
+    let send = tokio::spawn(async move {
+        client
+            .send_text(
+                papo_core::TextKind::Privmsg,
+                "#review",
+                "release approved",
+                Vec::new(),
+                Vec::new(),
+                false,
+                Some(papo_core::TargetGuard::Channel(guard)),
+            )
+            .await
+    });
+
+    let Some(super::Command::SendText { conversation, .. }) = commands.recv().await else {
+        panic!("expected text command")
+    };
+    assert_eq!(conversation, crate::Conversation::Channel(expected));
+    send.abort();
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn reactions_obey_clienttagdeny() {
     assert_reaction_wire(
         "",
