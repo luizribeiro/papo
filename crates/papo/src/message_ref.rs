@@ -20,7 +20,7 @@ struct ReceiptIdentity {
     actor_token: Option<papo_core::ReplyToken>,
     recipient: Option<Nick>,
     recipient_guard: Option<RecipientGuard>,
-    channel: Option<Box<papo_core::ChannelGuard>>,
+    channel: Option<crate::ChannelHandle>,
     msgids: Vec<MessageId>,
     channel_context: Option<ChannelName>,
 }
@@ -126,7 +126,9 @@ impl Receipt {
     }
 
     pub(crate) fn set_channel(&mut self, channel: Option<papo_core::ChannelGuard>) {
-        self.identity.channel = channel.map(Box::new);
+        self.identity.channel = channel.map(|guard| {
+            crate::ChannelHandle::from_parts(guard.__channel().clone(), None, Some(guard), None)
+        });
     }
 
     pub(crate) fn set_actor_token(&mut self, token: Option<papo_core::ReplyToken>) {
@@ -246,7 +248,7 @@ pub struct MessageRef {
     origin: crate::Origin,
     channel_context: Option<ChannelName>,
     recipient: Option<RecipientGuard>,
-    channel: Option<Box<papo_core::ChannelGuard>>,
+    channel: Option<crate::ChannelHandle>,
     conversation: Option<Conversation>,
     server_time: Option<crate::ServerTime>,
 }
@@ -271,7 +273,7 @@ impl MessageRef {
         origin: crate::Origin,
         channel_context: Option<ChannelName>,
         recipient: Option<RecipientGuard>,
-        channel: Option<Box<papo_core::ChannelGuard>>,
+        channel: Option<crate::ChannelHandle>,
     ) -> Self {
         Self {
             address,
@@ -346,7 +348,12 @@ impl crate::Target for MessageRef {
             text: std::borrow::Cow::Borrowed(&self.address),
             origin: self.origin,
             recipient: self.recipient.clone(),
-            channel: self.channel.clone(),
+            channel: self
+                .channel
+                .as_ref()
+                .and_then(crate::ChannelHandle::guard)
+                .cloned()
+                .map(Box::new),
             user: None,
         }
     }
@@ -363,7 +370,7 @@ pub struct NoticeRef {
     address: String,
     origin: crate::Origin,
     recipient: Option<RecipientGuard>,
-    channel: Option<Box<papo_core::ChannelGuard>>,
+    channel: Option<crate::ChannelHandle>,
 }
 
 impl fmt::Display for NoticeRef {
@@ -398,7 +405,12 @@ impl crate::Target for NoticeRef {
             text: std::borrow::Cow::Borrowed(&self.address),
             origin: self.origin,
             recipient: self.recipient.clone(),
-            channel: self.channel.clone(),
+            channel: self
+                .channel
+                .as_ref()
+                .and_then(crate::ChannelHandle::guard)
+                .cloned()
+                .map(Box::new),
             user: None,
         }
     }
@@ -557,6 +569,25 @@ macro_rules! typed_address_pairs {
 
 typed_address_pairs!(ChannelName, &ChannelName);
 
+impl<I: Into<MessageId>> From<(crate::ChannelHandle, I)> for MessageRef {
+    fn from((channel, msgid): (crate::ChannelHandle, I)) -> Self {
+        Self::from((&channel, msgid))
+    }
+}
+
+impl<I: Into<MessageId>> From<(&crate::ChannelHandle, I)> for MessageRef {
+    fn from((channel, msgid): (&crate::ChannelHandle, I)) -> Self {
+        Self::new(
+            crate::Target::__parts(channel).text.into_owned(),
+            vec![msgid.into()],
+            channel.origin(),
+            None,
+            None,
+            Some(channel.clone()),
+        )
+    }
+}
+
 impl<I: Into<MessageId>> From<(crate::DirectRef, I)> for MessageRef {
     fn from((direct, msgid): (crate::DirectRef, I)) -> Self {
         Self::from((&direct, msgid))
@@ -618,6 +649,10 @@ mod tests {
 
     use super::*;
 
+    fn channel_handle(value: crate::ChannelName) -> crate::ChannelHandle {
+        crate::ChannelHandle::from_parts(value, None, None, None)
+    }
+
     #[test]
     fn reference_equality_compares_identity_fields_but_not_read_marker_metadata() {
         let mapping = crate::Casemapping::default();
@@ -625,9 +660,6 @@ mod tests {
         let mut session = Session::new(Config::default().nick("papo"));
         session.handle_line(crate::rt::now_mono(), b":papo!p@localhost JOIN #ops");
         session.handle_line(crate::rt::now_mono(), b":alice!a@localhost JOIN #ops");
-        let channel = session
-            .state()
-            .__channel_guard(session.state().channel("#ops").unwrap().name());
         let recipient = session
             .state()
             .__capture_recipient(
@@ -641,7 +673,7 @@ mod tests {
             origin,
             channel_context: Some(origin.__channel(mapping, "#context")),
             recipient: Some(RecipientGuard::from_core(&recipient)),
-            channel: Some(Box::new(channel)),
+            channel: Some(channel_handle(origin.__channel(mapping, "#ops"))),
             conversation: Some(Conversation::Channel(origin.__channel(mapping, "#ops"))),
             server_time: Some(crate::ServerTime::from_stored_millis(42_000).unwrap()),
         };

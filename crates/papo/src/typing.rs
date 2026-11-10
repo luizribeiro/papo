@@ -60,8 +60,17 @@ impl Typer {
                     None,
                 )
             }
-            Conversation::Channel(channel) => {
-                (None, Some(Box::new(state.__channel_guard(channel))))
+            papo_core::Conversation::Channel(channel) => {
+                let guard = state.__channel_guard(channel);
+                (
+                    None,
+                    Some(crate::ChannelHandle::from_parts(
+                        channel.clone(),
+                        core.status(),
+                        Some(guard),
+                        None,
+                    )),
+                )
             }
             _ => unreachable!("papo-core returned an unknown conversation kind"),
         };
