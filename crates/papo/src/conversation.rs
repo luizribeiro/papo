@@ -78,6 +78,17 @@ pub(crate) fn public_channel_handle(
     None
 }
 
+pub(crate) fn public_channel_name(value: &crate::PublicConversation) -> Option<crate::ChannelName> {
+    match value {
+        crate::PublicConversation::Channel(channel) => Some(channel.clone()),
+        _ => None,
+    }
+}
+
+pub(crate) fn public_channel(channel: &crate::ChannelHandle) -> crate::PublicConversation {
+    crate::PublicConversation::Channel(channel.name())
+}
+
 pub(crate) fn public_to_handle(
     value: &crate::PublicConversation,
     origin: crate::Origin,

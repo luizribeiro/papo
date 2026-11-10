@@ -1322,11 +1322,7 @@ fn message_metadata(
     received_at: SystemTime,
     reply_token: Option<papo_core::ReplyToken>,
 ) -> Option<MessageMetadata> {
-    let origin = match &conversation {
-        Conversation::Channel(channel) => channel.origin(),
-        Conversation::Private(nick) => nick.origin(),
-        _ => crate::Origin::NONE,
-    };
+    let origin = crate::conversation::public_origin(&conversation);
     let envelope = line_envelope_with_account_tag(
         message,
         isupport.casemapping(),
@@ -1372,12 +1368,14 @@ fn message_metadata(
 }
 
 pub(crate) fn return_address(message: &LineRef<'_>, conversation: &Conversation) -> String {
-    match conversation {
-        Conversation::Channel(channel) => message
+    if let Some(channel) = crate::conversation::public_channel_name(conversation) {
+        message
             .param(0)
-            .map_or_else(|| channel.to_string(), str::to_owned),
-        Conversation::Private(nick) => nick.to_string(),
-        _ => message.param(0).unwrap_or("*").to_owned(),
+            .map_or_else(|| channel.to_string(), str::to_owned)
+    } else if let Some(nick) = crate::conversation::public_private(conversation) {
+        nick.to_string()
+    } else {
+        message.param(0).unwrap_or("*").to_owned()
     }
 }
 
@@ -1748,7 +1746,7 @@ impl Event {
             Self::Notice(event) => Some(event.conversation.clone()),
             Self::Incomplete(event) => Some(event.conversation().clone()),
             Self::ServerNotice(event) => match &event.to {
-                Audience::Channel(channel) => Some(Conversation::Channel(channel.name().clone())),
+                Audience::Channel(channel) => Some(crate::conversation::public_channel(channel)),
                 Audience::Me | Audience::Broadcast(_) => None,
             },
             Self::CtcpQuery(event) => Some(event.conversation.clone()),
@@ -1759,33 +1757,33 @@ impl Event {
             Self::Redacted(event) => Some(event.conversation.clone()),
             Self::MetadataChanged(event) => match &event.subject {
                 crate::Subject::Channel(channel) => {
-                    Some(Conversation::Channel(channel.name().clone()))
+                    Some(crate::conversation::public_channel(channel))
                 }
                 crate::Subject::User(_) => None,
             },
             Self::History(event) => Some(event.conversation.clone()),
             Self::ReadMarkerChanged(event) => Some(event.conversation.clone()),
             Self::AutoJoinFailed(event) => {
-                Some(Conversation::Channel(event.channel.name().clone()))
+                Some(crate::conversation::public_channel(&event.channel))
             }
-            Self::Joined(event) => Some(Conversation::Channel(event.channel.name().clone())),
-            Self::ChannelSynced(event) => Some(Conversation::Channel(event.channel.name().clone())),
+            Self::Joined(event) => Some(crate::conversation::public_channel(&event.channel)),
+            Self::ChannelSynced(event) => Some(crate::conversation::public_channel(&event.channel)),
             Self::MembersRefreshed(event) => {
-                Some(Conversation::Channel(event.channel.name().clone()))
+                Some(crate::conversation::public_channel(&event.channel))
             }
-            Self::Parted(event) => Some(Conversation::Channel(event.channel.name().clone())),
-            Self::Kicked(event) => Some(Conversation::Channel(event.channel.name().clone())),
-            Self::Invited(event) => Some(Conversation::Channel(event.channel.name().clone())),
+            Self::Parted(event) => Some(crate::conversation::public_channel(&event.channel)),
+            Self::Kicked(event) => Some(crate::conversation::public_channel(&event.channel)),
+            Self::Invited(event) => Some(crate::conversation::public_channel(&event.channel)),
             Self::ChannelRenamed(event) => {
-                Some(Conversation::Channel(event.channel.name().clone()))
+                Some(crate::conversation::public_channel(&event.channel))
             }
             Self::ModeChanged(event) => match &event.subject {
                 crate::Subject::Channel(channel) => {
-                    Some(Conversation::Channel(channel.name().clone()))
+                    Some(crate::conversation::public_channel(channel))
                 }
                 crate::Subject::User(_) => None,
             },
-            Self::TopicChanged(event) => Some(Conversation::Channel(event.channel.name().clone())),
+            Self::TopicChanged(event) => Some(crate::conversation::public_channel(&event.channel)),
             Self::Connecting(_)
             | Self::Connected(_)
             | Self::Lagged(_)

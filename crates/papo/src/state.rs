@@ -217,22 +217,16 @@ impl State {
         &self,
         conversation: &crate::PublicConversation,
     ) -> Option<papo_core::ReplyToken> {
-        match conversation {
-            crate::PublicConversation::Private(nick) => {
-                Some(self.core.__reply_token_for(nick.as_str()))
-            }
-            _ => None,
-        }
+        crate::conversation::public_private(conversation)
+            .map(|nick| self.core.__reply_token_for(nick.as_str()))
     }
 
     pub(crate) fn channel_guard(
         &self,
         conversation: &crate::PublicConversation,
     ) -> Option<papo_core::ChannelGuard> {
-        match conversation {
-            crate::PublicConversation::Channel(channel) => Some(self.core.__channel_guard(channel)),
-            _ => None,
-        }
+        crate::conversation::public_channel_name(conversation)
+            .map(|channel| self.core.__channel_guard(&channel))
     }
 
     pub(crate) fn sent_receipt(
