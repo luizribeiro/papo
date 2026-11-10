@@ -814,6 +814,13 @@ impl Message {
         else {
             return Err(raw);
         };
+        let conversation = crate::conversation::public_from_core(
+            conversation,
+            status,
+            crate::Origin::NONE,
+            None,
+            None,
+        );
         Self::new_with_context(
             raw,
             None,
@@ -1078,13 +1085,14 @@ impl ServerNotice {
         let Some(raw_text) = message.param(usize::from(!wallops)) else {
             return Err(raw);
         };
-        let to = if let Some(Conversation::Channel(channel)) = conversation {
-            Audience::Channel(crate::ChannelHandle::from_parts(
-                channel.clone(),
-                status,
-                None,
-                None,
-            ))
+        let to = if let Some(channel) = conversation
+            .and_then(crate::conversation::public_channel_handle)
+            .or_else(|| {
+                conversation
+                    .and_then(crate::conversation::public_channel_name)
+                    .map(|channel| crate::ChannelHandle::from_parts(channel, status, None, None))
+            }) {
+            Audience::Channel(channel)
         } else if wallops || message.param(0) == Some("*") {
             Audience::Broadcast(Broadcast::Everyone)
         } else if let Some(target) = message.param(0).filter(|target| target.starts_with('$')) {
@@ -1127,7 +1135,7 @@ impl ServerNotice {
             Audience::Channel(channel) => crate::message_ref::Receipt::new(
                 actor.clone(),
                 authorship,
-                &Conversation::Channel(channel.name().clone()),
+                &crate::conversation::public_channel(channel),
                 reply_token,
                 message
                     .param(0)
@@ -2197,12 +2205,11 @@ pub(crate) fn from_core_with_receipt(
     };
     let conversation_handle = |conversation, status| match conversation {
         papo_core::Conversation::Channel(channel) => {
-            Conversation::Channel(channel_handle(channel, status).name().clone())
+            crate::conversation::public_channel(&channel_handle(channel, status))
         }
-        papo_core::Conversation::Private(nick) => {
-            Conversation::Private(origin.__nick(nick.casemapping(), nick.into_string()))
+        conversation => {
+            crate::conversation::public_from_core(conversation, status, origin, handle_state, None)
         }
-        _ => unreachable!("core conversations have channel and private variants"),
     };
     let user_from_raw =
         |prefix: &str, envelope: &EventEnvelope| match actor_from_raw(prefix, envelope) {
@@ -2210,11 +2217,12 @@ pub(crate) fn from_core_with_receipt(
             Some(Source::Server(_)) | None => None,
         };
     let guard_receipt = |mut receipt: crate::message_ref::Receipt, conversation: &Conversation| {
-        let guard = reply_state.and_then(|state| match conversation {
-            Conversation::Channel(channel) => state
-                .channel(channel)
-                .map(|_| state.__channel_guard(channel)),
-            _ => None,
+        let guard = reply_state.and_then(|state| {
+            crate::conversation::public_channel_name(conversation).and_then(|channel| {
+                state
+                    .channel(&channel)
+                    .map(|_| state.__channel_guard(&channel))
+            })
         });
         let actor_token = receipt.actor_recipient().and_then(|actor| {
             reply_state.map(|state| state.__reply_token_for(actor.nick.as_str()))

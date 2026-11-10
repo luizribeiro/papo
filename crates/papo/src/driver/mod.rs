@@ -1700,14 +1700,19 @@ where
                     origin: session.state().nick().origin(),
                     network_builder: None,
                 };
-                let _guard = match &conversation {
+                let guard = match &conversation {
                     papo_core::Conversation::Channel(channel) => {
                         Some(client.state().core.__channel_guard(channel))
                     }
                     _ => None,
                 };
-                let conversation =
-                    crate::message_ref::stamp_conversation(conversation, client.origin());
+                let conversation = crate::conversation::public_from_core(
+                    conversation,
+                    None,
+                    client.origin(),
+                    Some(&client.state),
+                    guard,
+                );
                 let items = items
                     .into_iter()
                     .map(|item| {

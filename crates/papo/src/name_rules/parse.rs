@@ -19,6 +19,15 @@ impl NameRules<'_> {
     pub fn conversation(&self, text: &str) -> Result<Conversation, InvalidInput> {
         self.state
             .conversation_inner(text)
+            .map(|conversation| {
+                crate::conversation::public_from_core(
+                    conversation,
+                    None,
+                    self.state.nick().origin(),
+                    None,
+                    None,
+                )
+            })
             .map_err(|reason| InvalidInput::invalid_name(text, reason))
     }
 
@@ -40,6 +49,18 @@ impl NameRules<'_> {
     pub fn target(&self, target: &str) -> Result<(Option<Prefix>, Conversation), InvalidInput> {
         self.state
             .parse_target_inner(target)
+            .map(|(status, conversation)| {
+                (
+                    status,
+                    crate::conversation::public_from_core(
+                        conversation,
+                        status,
+                        self.state.nick().origin(),
+                        None,
+                        None,
+                    ),
+                )
+            })
             .map_err(|reason| InvalidInput::invalid_name(target, reason))
     }
 }

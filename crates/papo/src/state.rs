@@ -349,14 +349,14 @@ impl State {
     pub(crate) fn parse_target_inner(
         &self,
         target: impl AsRef<str>,
-    ) -> Result<(Option<crate::Prefix>, crate::PublicConversation), crate::InvalidIdentifier> {
+    ) -> Result<(Option<crate::Prefix>, papo_core::Conversation), crate::InvalidIdentifier> {
         self.core.parse_target(target)
     }
 
     pub(crate) fn conversation_inner(
         &self,
         text: impl AsRef<str>,
-    ) -> Result<crate::PublicConversation, crate::InvalidIdentifier> {
+    ) -> Result<papo_core::Conversation, crate::InvalidIdentifier> {
         self.core.conversation(text)
     }
 

@@ -643,10 +643,10 @@ fn quit(
             .param(0)
             .filter(|reason| !reason.is_empty())
             .map(str::to_owned),
-        channels: match history_conversation {
-            Some(crate::PublicConversation::Channel(channel)) => vec![channel.clone()],
-            _ => Vec::new(),
-        },
+        channels: history_conversation
+            .and_then(crate::conversation::public_channel_name)
+            .into_iter()
+            .collect(),
         authorship,
         netsplit: None,
     }))
@@ -729,10 +729,10 @@ fn nick_changed(
         actor,
         authorship,
         new: state.known_name_rules()?.nick(message.param(0)?),
-        channels: match history_conversation {
-            Some(crate::PublicConversation::Channel(channel)) => vec![channel.clone()],
-            _ => Vec::new(),
-        },
+        channels: history_conversation
+            .and_then(crate::conversation::public_channel_name)
+            .into_iter()
+            .collect(),
     }))
 }
 

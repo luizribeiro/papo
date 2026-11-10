@@ -105,13 +105,19 @@ pub(super) fn advance_catchup(
         origin: session.state().nick().origin(),
         network_builder: None,
     };
-    let _guard = match &core_conversation {
+    let guard = match &core_conversation {
         papo_core::Conversation::Channel(channel) => {
             Some(client.state().core.__channel_guard(channel))
         }
         _ => None,
     };
-    let conversation = crate::message_ref::stamp_conversation(core_conversation, client.origin());
+    let conversation = crate::conversation::public_from_core(
+        core_conversation,
+        None,
+        client.origin(),
+        Some(&client.state),
+        guard,
+    );
     let items = catchup
         .items
         .into_iter()
@@ -286,7 +292,13 @@ mod tests {
             Some("~e".into()),
             Some("cloak.example".into()),
         );
-        let conversation = crate::PublicConversation::Channel(mapping.channel("#papo"));
+        let conversation = crate::conversation::public_from_core(
+            papo_core::Conversation::Channel(mapping.channel("#papo")),
+            None,
+            crate::Origin::NONE,
+            None,
+            None,
+        );
         let receipt = crate::message_ref::Receipt::new(
             crate::Source::User(actor.clone()),
             crate::Authorship::Other,

@@ -186,7 +186,13 @@ pub fn message(
             .map_or(target.as_str(), |actor| actor.nick().as_str());
         crate::PublicConversation::Private(crate::Casemapping::default().nick(other))
     } else {
-        crate::PublicConversation::Channel(crate::Casemapping::default().channel(&target))
+        crate::conversation::public_from_core(
+            papo_core::Conversation::Channel(crate::Casemapping::default().channel(&target)),
+            None,
+            crate::Origin::NONE,
+            None,
+            None,
+        )
     };
     let return_address = conversation.to_string();
     let actor = actor

@@ -124,9 +124,11 @@ impl Receipt {
     }
 
     pub(crate) fn set_channel(&mut self, channel: Option<papo_core::ChannelGuard>) {
-        self.identity.channel = channel.map(|guard| {
-            crate::ChannelHandle::from_parts(guard.__channel().clone(), None, Some(guard), None)
-        });
+        if self.identity.channel.is_none() {
+            self.identity.channel = channel.map(|guard| {
+                crate::ChannelHandle::from_parts(guard.__channel().clone(), None, Some(guard), None)
+            });
+        }
     }
 
     pub(crate) fn set_actor_token(&mut self, token: Option<papo_core::ReplyToken>) {
@@ -641,7 +643,7 @@ pub(crate) fn conversation_origin(conversation: &Conversation) -> crate::Origin 
 }
 
 pub(crate) fn stamp_conversation(
-    conversation: Conversation,
+    conversation: papo_core::Conversation,
     origin: crate::Origin,
 ) -> Conversation {
     crate::conversation::public_from_core(conversation, None, origin, None, None)

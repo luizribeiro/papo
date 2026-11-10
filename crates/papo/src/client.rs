@@ -579,7 +579,7 @@ impl Client {
         let result = match role {
             crate::target::Role::Send(_) => {
                 state.parse_target_inner(&text).and_then(|(_, target)| {
-                    if matches!(target, crate::PublicConversation::Channel(_))
+                    if matches!(target, papo_core::Conversation::Channel(_))
                         || parts.recipient.is_some()
                     {
                         Ok(())
@@ -1246,9 +1246,25 @@ impl Client {
         guard: Option<papo_core::TargetGuard>,
     ) -> Result<Sent, Error> {
         let state = self.state();
-        let (status, conversation) = state
+        let (status, core_conversation) = state
             .parse_target_inner(target)
             .map_err(|reason| InvalidInput::invalid_name(target, reason))?;
+        let channel_guard = match (&core_conversation, guard.as_ref()) {
+            (_, Some(papo_core::TargetGuard::Channel(channel))) => Some(channel.clone()),
+            (papo_core::Conversation::Channel(channel), _)
+                if state.channel_local(channel).is_some() =>
+            {
+                Some(state.core.__channel_guard(channel))
+            }
+            _ => None,
+        };
+        let conversation = crate::conversation::public_from_core(
+            core_conversation,
+            status,
+            self.origin,
+            Some(&self.state),
+            channel_guard,
+        );
         let receipt = state.sent_receipt(&conversation, target.to_owned(), guard.as_ref());
         if !state.is_connected() {
             let text = if action {
