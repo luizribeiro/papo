@@ -2088,7 +2088,7 @@ pub(crate) enum CoreEvent {
     StsUpgrade(u16),
     StsPolicy(StsAction),
     History {
-        conversation: crate::Conversation,
+        conversation: papo_core::Conversation,
         items: Vec<papo_core::HistoryItem>,
         end: bool,
     },
@@ -2148,10 +2148,10 @@ pub(crate) fn from_core(
 
 fn conversation_reply_token(
     state: Option<&papo_core::State>,
-    conversation: &Conversation,
+    conversation: &papo_core::Conversation,
 ) -> Option<papo_core::ReplyToken> {
     state.and_then(|state| match conversation {
-        Conversation::Private(nick) => Some(state.__reply_token_for(nick.as_str())),
+        papo_core::Conversation::Private(nick) => Some(state.__reply_token_for(nick.as_str())),
         _ => None,
     })
 }
@@ -2194,6 +2194,15 @@ pub(crate) fn from_core_with_receipt(
         });
         crate::ChannelHandle::from_parts(channel, status, guard, handle_state)
     };
+    let conversation_handle = |conversation, status| match conversation {
+        papo_core::Conversation::Channel(channel) => {
+            Conversation::Channel(channel_handle(channel, status).name().clone())
+        }
+        papo_core::Conversation::Private(nick) => {
+            Conversation::Private(origin.__nick(nick.casemapping(), nick.into_string()))
+        }
+        _ => unreachable!("core conversations have channel and private variants"),
+    };
     let user_from_raw =
         |prefix: &str, envelope: &EventEnvelope| match actor_from_raw(prefix, envelope) {
             Some(Source::User(user)) => Some(user),
@@ -2229,6 +2238,7 @@ pub(crate) fn from_core_with_receipt(
         papo_core::Event::TypingChanged(change) => {
             let return_address = change.return_address();
             let reply_token = conversation_reply_token(reply_state, &change.conversation);
+            let conversation = conversation_handle(change.conversation, change.status);
             let envelope = EventEnvelope {
                 msgid: None,
                 server_time: change.server_time,
@@ -2245,18 +2255,18 @@ pub(crate) fn from_core_with_receipt(
                 crate::message_ref::Receipt::new(
                     Source::User(actor.clone()),
                     authorship,
-                    &change.conversation,
+                    &conversation,
                     reply_token,
                     return_address,
                 ),
-                &change.conversation,
+                &conversation,
             );
             Event::TypingChanged(TypingChanged {
                 server_time: change.server_time,
                 received_at,
                 actor,
                 authorship,
-                conversation: change.conversation,
+                conversation,
                 status: change.status,
                 receipt,
                 state: change.state,
@@ -2272,15 +2282,16 @@ pub(crate) fn from_core_with_receipt(
                 return CoreEvent::Unknown;
             };
             let authorship = Authorship::from_core(message.authorship);
+            let conversation = conversation_handle(message.conversation, message.status);
             let mut receipt = guard_receipt(
                 crate::message_ref::Receipt::new(
                     Source::User(actor.clone()),
                     authorship,
-                    &message.conversation,
+                    &conversation,
                     reply_token,
                     return_address,
                 ),
-                &message.conversation,
+                &conversation,
             );
             receipt.set_reference(envelope.msgid.iter().cloned(), None);
             let tag = TagMsg {
@@ -2289,7 +2300,7 @@ pub(crate) fn from_core_with_receipt(
                 received_at: envelope.received_at,
                 actor,
                 authorship,
-                conversation: message.conversation,
+                conversation,
                 status: message.status,
                 receipt,
                 tags,
@@ -2356,15 +2367,16 @@ pub(crate) fn from_core_with_receipt(
                 return CoreEvent::Unknown;
             };
             let authorship = Authorship::from_core(redacted.authorship);
+            let conversation = conversation_handle(redacted.conversation, redacted.status);
             let mut receipt = guard_receipt(
                 crate::message_ref::Receipt::new(
                     actor.clone(),
                     authorship,
-                    &redacted.conversation,
+                    &conversation,
                     reply_token,
                     return_address,
                 ),
-                &redacted.conversation,
+                &conversation,
             );
             receipt.set_reference(envelope.msgid.iter().cloned(), None);
             Event::Redacted(Redacted {
@@ -2373,7 +2385,7 @@ pub(crate) fn from_core_with_receipt(
                 received_at: envelope.received_at,
                 actor,
                 authorship,
-                conversation: redacted.conversation,
+                conversation,
                 status: redacted.status,
                 receipt,
                 redacts: redacted.msgid.into(),
