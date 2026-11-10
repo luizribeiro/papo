@@ -10,23 +10,48 @@ enum UserIdentity {
 }
 
 /// A live identity for one IRC user.
+///
+/// For a handle carried by an event, read mutable user facts from that event's paired
+/// [`crate::State`] with [`crate::State::user`].
 #[derive(Clone)]
 pub struct UserHandle(Arc<UserInner>);
 
+#[allow(dead_code)]
 struct UserInner {
     identity: UserIdentity,
     nick: crate::Nick,
     account: crate::Account,
     proof: OnceLock<papo_core::Proven>,
-    state: Arc<RwLock<Arc<crate::State>>>,
+    state: Option<Arc<RwLock<Arc<crate::State>>>>,
+    historical: bool,
 }
 
+#[allow(dead_code)]
 impl UserHandle {
     pub(crate) fn new(
         client: &crate::Client,
         nick: crate::Nick,
         account: crate::Account,
         proof: Option<papo_core::Proven>,
+    ) -> Self {
+        Self::from_parts(nick, account, proof, Some(&client.state))
+    }
+
+    pub(crate) fn from_parts(
+        nick: crate::Nick,
+        account: crate::Account,
+        proof: Option<papo_core::Proven>,
+        state: Option<&Arc<RwLock<Arc<crate::State>>>>,
+    ) -> Self {
+        Self::from_parts_kind(nick, account, proof, state, false)
+    }
+
+    fn from_parts_kind(
+        nick: crate::Nick,
+        account: crate::Account,
+        proof: Option<papo_core::Proven>,
+        state: Option<&Arc<RwLock<Arc<crate::State>>>>,
+        historical: bool,
     ) -> Self {
         let identity = proof
             .as_ref()
@@ -44,8 +69,60 @@ impl UserHandle {
             nick,
             account,
             proof: stored,
-            state: Arc::clone(&client.state),
+            state: state.map(Arc::clone),
+            historical,
         }))
+    }
+
+    pub(crate) fn from_current_state(
+        nick: crate::Nick,
+        state: Option<&Arc<RwLock<Arc<crate::State>>>>,
+    ) -> Self {
+        let Some(shared) = state else {
+            return Self::from_parts(nick, crate::Account::Unknown, None, None);
+        };
+        let snapshot = shared
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let account = snapshot
+            .user(&nick)
+            .map_or(crate::Account::Unknown, |user| user.account().clone());
+        let token = snapshot.core.__reply_token_for(nick.as_str());
+        let proof = snapshot
+            .core
+            .__prove_event_user(token, nick.clone(), account.clone())
+            .ok();
+        drop(snapshot);
+        Self::from_parts(nick, account, proof, Some(shared))
+    }
+
+    pub(crate) fn from_event(
+        nick: crate::Nick,
+        account: crate::Account,
+        token: Option<papo_core::ReplyToken>,
+        state: Option<&Arc<RwLock<Arc<crate::State>>>>,
+        historical: bool,
+    ) -> Self {
+        let proof = state.and_then(|shared| {
+            let snapshot = shared
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let token = if historical {
+                let crate::Account::LoggedIn(expected) = &account else {
+                    return None;
+                };
+                let user = snapshot.user(&nick)?;
+                (user.account().name() == Some(expected))
+                    .then(|| snapshot.core.__reply_token_for(nick.as_str()))
+            } else {
+                token.or_else(|| Some(snapshot.core.__reply_token_for(nick.as_str())))
+            }?;
+            snapshot
+                .core
+                .__prove_event_user(token, nick.clone(), account.clone())
+                .ok()
+        });
+        Self::from_parts_kind(nick, account, proof, state, historical)
     }
 
     pub(crate) fn proof(&self) -> Option<&papo_core::Proven> {
@@ -60,12 +137,21 @@ impl UserHandle {
         &self.0.account
     }
 
+    pub(crate) fn origin(&self) -> crate::Origin {
+        self.0.nick.origin()
+    }
+
+    pub(crate) fn is_unproven_history(&self) -> bool {
+        self.0.historical && self.proof().is_none()
+    }
+
     /// Returns the current nickname, or the last known nickname after departure.
     #[must_use]
     pub fn nick(&self) -> crate::Nick {
-        let state = self
-            .0
-            .state
+        let Some(state) = self.0.state.as_ref() else {
+            return self.0.nick.clone();
+        };
+        let state = state
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         self.proof()
@@ -77,14 +163,19 @@ impl UserHandle {
     #[must_use]
     pub fn key(&self) -> crate::PeerKey {
         let nick = self.nick();
-        let state = self
-            .0
-            .state
+        let Some(state) = self.0.state.as_ref() else {
+            return crate::PeerKey::unverified(None, &nick);
+        };
+        let state = state
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let account = state
-            .user(&nick)
-            .map_or(&self.0.account, crate::User::account);
+        let account = if self.0.account == crate::Account::Unknown {
+            state
+                .user(&nick)
+                .map_or(&self.0.account, crate::User::account)
+        } else {
+            &self.0.account
+        };
         crate::PeerKey::live(
             state.peer_scope().as_ref(),
             &nick,
@@ -112,6 +203,24 @@ impl PartialEq for UserHandle {
 }
 
 impl Eq for UserHandle {}
+
+impl std::fmt::Display for UserHandle {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.nick().fmt(formatter)
+    }
+}
+
+impl PartialEq<str> for UserHandle {
+    fn eq(&self, other: &str) -> bool {
+        self.nick() == other
+    }
+}
+
+impl PartialEq<&str> for UserHandle {
+    fn eq(&self, other: &&str) -> bool {
+        self == *other
+    }
+}
 
 impl Hash for UserHandle {
     fn hash<H: Hasher>(&self, state: &mut H) {

@@ -3465,7 +3465,13 @@ pub fn papo::UserHandle::clone(&self) -> Self
 impl core::cmp::Eq for papo::UserHandle
 impl core::cmp::PartialEq for papo::UserHandle
 pub fn papo::UserHandle::eq(&self, &Self) -> bool
+impl core::cmp::PartialEq<&str> for papo::UserHandle
+pub fn papo::UserHandle::eq(&self, &&str) -> bool
+impl core::cmp::PartialEq<str> for papo::UserHandle
+pub fn papo::UserHandle::eq(&self, &str) -> bool
 impl core::fmt::Debug for papo::UserHandle
+pub fn papo::UserHandle::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo::UserHandle
 pub fn papo::UserHandle::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::hash::Hash for papo::UserHandle
 pub fn papo::UserHandle::hash<H: core::hash::Hasher>(&self, &mut H)
