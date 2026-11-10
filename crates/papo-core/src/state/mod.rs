@@ -66,6 +66,7 @@ pub struct State {
     isupport: Isupport,
     channels: HashMap<NameKey<String>, Arc<Channel>>,
     users: HashMap<NameKey<String>, User>,
+    message_users: VecDeque<NameKey<String>>,
     monitored: Vec<Nick>,
     who_sweeps: HashMap<ChannelName, WhoSweep>,
     who_on_join: WhoOnJoin,
@@ -131,6 +132,7 @@ impl Clone for State {
             isupport: self.isupport.clone(),
             channels: self.channels.clone(),
             users: self.users.clone(),
+            message_users: self.message_users.clone(),
             monitored: self.monitored.clone(),
             who_sweeps: self.who_sweeps.clone(),
             who_on_join: self.who_on_join,
@@ -467,6 +469,7 @@ impl State {
             isupport: Isupport::default(),
             channels: HashMap::new(),
             users,
+            message_users: VecDeque::new(),
             monitored: Vec::new(),
             who_sweeps: HashMap::new(),
             who_on_join: config.who_on_join,
@@ -836,6 +839,7 @@ impl State {
                 .retain(|_, member| member.nick == own);
         }
         self.users.retain(|_, user| user.nick == own);
+        self.message_users.clear();
         if let Some(user) = self.users.get_mut(own.key()) {
             user.reply_epoch = self.reply_epoch;
         }
@@ -1536,6 +1540,10 @@ impl State {
             }
         }
         self.users = users;
+        self.message_users = std::mem::take(&mut self.message_users)
+            .into_iter()
+            .map(|nick| NameKey::new(nick.original().to_owned(), mapping))
+            .collect();
         let mut who_sweeps = HashMap::new();
         for (channel, mut sweep) in std::mem::take(&mut self.who_sweeps) {
             sweep.prefix_changes = std::mem::take(&mut sweep.prefix_changes)
