@@ -437,7 +437,7 @@ mod tests {
     }
 
     #[test]
-    fn statusmsg_handle_uses_prefix_only_for_chat() {
+    fn statusmsg_handle_reply_stays_ops_only() {
         let mut session = Session::new(Config::default().nick("papo"));
         for line in [
             b":ergo.test 005 papo CASEMAPPING=rfc1459 CHANTYPES=# STATUSMSG=@+ :are supported"
@@ -454,6 +454,45 @@ mod tests {
         assert_eq!(crate::AsChannel::__parts(&handle).text(), "#ops");
         assert_eq!(crate::AsConversation::__parts(&handle).text(), "#ops");
         assert_eq!(crate::Target::__parts(&handle).text(), "@#ops");
+        let reference = crate::MessageRef::from((handle, "RfcBTzyxY120004"));
+        assert_eq!(crate::Target::__parts(&reference).text(), "@#ops");
+    }
+
+    #[test]
+    fn channel_name_round_trips_as_saved_form() {
+        let client = client_with_joined_users();
+        let handle = client.channel("#release").unwrap();
+        let saved = handle.name().into_string();
+        let restored = client.channel(saved).unwrap();
+
+        assert_eq!(restored, handle);
+        assert_eq!(restored.name(), "#release");
+        assert_eq!(restored.status(), None);
+    }
+
+    #[test]
+    fn foreign_channel_lookup_is_typed() {
+        let mut source_config = Config::default().nick("papo");
+        source_config.origin = crate::Origin::__new(73);
+        let mut source = Session::new(source_config);
+        for line in [
+            b":ergo.test 005 papo CASEMAPPING=rfc1459 CHANTYPES=# :are supported".as_slice(),
+            b":papo!papo@localhost JOIN #release * :Papo Client".as_slice(),
+        ] {
+            source.handle_line(crate::rt::now_mono(), line);
+        }
+        let source = crate::driver::test_support::client_with_commands(&source).0;
+        let handle = source.channel("#release").unwrap();
+
+        let mut destination_config = Config::default().nick("papo");
+        destination_config.origin = crate::Origin::__new(91);
+        let destination = Session::new(destination_config);
+        let destination = crate::driver::test_support::client_with_commands(&destination).0;
+
+        assert_eq!(
+            destination.state().channel(&handle),
+            Err(crate::ForeignReference)
+        );
     }
 
     #[test]
