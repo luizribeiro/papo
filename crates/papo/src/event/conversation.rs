@@ -2,7 +2,7 @@ use std::time::SystemTime;
 
 use crate::ServerTime;
 
-use crate::{Conversation, Mask, MessageId, Prefix, Typing};
+use crate::{Mask, MessageId, Prefix, PublicConversation as Conversation, Typing};
 
 use super::{Authorship, Source, Tags, TypingReason, UserSource};
 

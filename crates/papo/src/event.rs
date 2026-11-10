@@ -12,7 +12,10 @@ use papo_proto::{
     Prefix, strip_formatting, time,
 };
 
-use crate::{Client, Conversation, Disconnected, ModeAction, ModeArg, ModeChange, ServerTime};
+use crate::{
+    Client, Disconnected, ModeAction, ModeArg, ModeChange, PublicConversation as Conversation,
+    ServerTime,
+};
 
 pub(crate) const fn can_prove_non_bot(message_tags: bool, bot_mode: bool) -> bool {
     message_tags && bot_mode

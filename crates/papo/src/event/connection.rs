@@ -1,6 +1,8 @@
 use crate::ServerTime;
 
-use crate::{Capabilities, Casemapping, Conversation, Feature, MessageId, Nick};
+use crate::{
+    Capabilities, Casemapping, Feature, MessageId, Nick, PublicConversation as Conversation,
+};
 
 /// A phase of establishing an IRC connection.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]

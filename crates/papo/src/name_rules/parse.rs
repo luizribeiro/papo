@@ -1,5 +1,5 @@
 use super::NameRules;
-use crate::{Conversation, InvalidInput, Prefix};
+use crate::{InvalidInput, Prefix, PublicConversation as Conversation};
 
 impl NameRules<'_> {
     /// Builds a checked private or channel conversation from user input.
