@@ -2210,7 +2210,9 @@ pub(crate) fn from_core_with_receipt(
         };
     let guard_receipt = |mut receipt: crate::message_ref::Receipt, conversation: &Conversation| {
         let guard = reply_state.and_then(|state| match conversation {
-            Conversation::Channel(channel) => Some(state.__channel_guard(channel)),
+            Conversation::Channel(channel) => state
+                .channel(channel)
+                .map(|_| state.__channel_guard(channel)),
             _ => None,
         });
         let actor_token = receipt.actor_recipient().and_then(|actor| {

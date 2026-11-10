@@ -271,6 +271,17 @@ impl AsConversation for crate::Conversation {
     }
 }
 
+impl sealed::Sealed for crate::HandleConversation {}
+
+impl AsConversation for crate::HandleConversation {
+    fn __parts(&self) -> sealed::Parts<'_> {
+        match self {
+            Self::Channel(channel) => AsConversation::__parts(channel),
+            Self::Private(nick) => AsConversation::__parts(nick),
+        }
+    }
+}
+
 impl<T: sealed::Sealed + ?Sized> sealed::Sealed for &T {}
 
 macro_rules! reference_role {

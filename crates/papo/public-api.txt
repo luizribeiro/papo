@@ -3602,6 +3602,7 @@ impl papo::AsConversation for alloc::rcs::arc::Arc<str>
 impl papo::AsConversation for alloc::string::String
 impl papo::AsConversation for papo::ChannelHandle
 impl papo::AsConversation for papo::UserHandle
+impl papo::AsConversation for papo::conversation::Conversation
 impl papo::AsConversation for papo::Conversation
 impl papo::AsConversation for papo::ChannelName
 impl papo::AsConversation for papo::Nick
