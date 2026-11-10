@@ -1,6 +1,6 @@
 use std::collections::vec_deque;
 
-use crate::{Conversation, Nick, Prefix};
+use crate::{HandleConversation as Conversation, Nick, Prefix};
 
 /// A user currently composing a message in a conversation.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -44,7 +44,7 @@ impl Typer {
     fn new(core: &papo_core::Typer, state: &papo_core::State) -> Self {
         let conversation = core.__conversation();
         let (recipient, channel) = match conversation {
-            Conversation::Private(nick) => {
+            papo_core::Conversation::Private(nick) => {
                 let account = state
                     .user(nick)
                     .map_or(papo_core::Account::Unknown, |user| user.account().clone());
@@ -74,12 +74,25 @@ impl Typer {
             }
             _ => unreachable!("papo-core returned an unknown conversation kind"),
         };
+        let conversation = Conversation::from_core(
+            conversation.clone(),
+            core.status(),
+            state.nick().origin(),
+            None,
+            channel
+                .as_ref()
+                .and_then(crate::ChannelHandle::guard)
+                .cloned(),
+        );
         Self {
             core: core.clone(),
             return_address: crate::MessageRef::new(
                 core.__return_address().to_owned(),
                 Vec::new(),
-                crate::message_ref::conversation_origin(conversation),
+                match &conversation {
+                    Conversation::Channel(channel) => channel.origin(),
+                    Conversation::Private(nick) => nick.origin(),
+                },
                 None,
                 recipient,
                 channel,
@@ -97,7 +110,24 @@ impl TypingTable {
     pub(crate) fn new(table: &papo_core::TypingTable, state: &papo_core::State) -> Self {
         let entries = table
             .__entries()
-            .map(|(conversation, typer)| (conversation.clone(), Typer::new(typer, state)))
+            .map(|(conversation, typer)| {
+                let guard = match conversation {
+                    papo_core::Conversation::Channel(channel) => {
+                        Some(state.__channel_guard(channel))
+                    }
+                    _ => None,
+                };
+                (
+                    Conversation::from_core(
+                        conversation.clone(),
+                        typer.status(),
+                        state.nick().origin(),
+                        None,
+                        guard,
+                    ),
+                    Typer::new(typer, state),
+                )
+            })
             .collect();
         Self { entries }
     }

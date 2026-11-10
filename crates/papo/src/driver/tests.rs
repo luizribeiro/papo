@@ -8630,13 +8630,8 @@ async fn redacting_a_multiline_send_stops_at_the_first_refusal() {
     client_line(&mut server, b"CAP END\r\n").await;
     finish_registration(&mut server).await;
 
-    let conversation = crate::Conversation::Channel(
-        client
-            .state()
-            .name_rules()
-            .expect("server advertised CASEMAPPING")
-            .channel("#papo"),
-    );
+    let conversation =
+        crate::Conversation::Channel(client.channel("#papo").unwrap().name().clone());
     let mut sent = crate::Sent {
         receipt: client
             .state()

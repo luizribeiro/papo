@@ -68,7 +68,7 @@ pub(super) fn advance_catchup(
     response: Response,
 ) -> Option<Event> {
     let page = response.history?;
-    let conversation = page.conversation;
+    let core_conversation = page.conversation;
     let page_end = page.end;
     let previous_len = catchup.items.len();
     let next = extend_catchup(&mut catchup, page.items);
@@ -105,6 +105,13 @@ pub(super) fn advance_catchup(
         origin: session.state().nick().origin(),
         network_builder: None,
     };
+    let _guard = match &core_conversation {
+        papo_core::Conversation::Channel(channel) => {
+            Some(client.state().core.__channel_guard(channel))
+        }
+        _ => None,
+    };
+    let conversation = crate::message_ref::stamp_conversation(core_conversation, client.origin());
     let items = catchup
         .items
         .into_iter()
