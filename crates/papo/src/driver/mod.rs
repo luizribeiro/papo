@@ -1740,7 +1740,12 @@ where
                     if let PendingRequest::AutoJoin { channel } = result {
                         if let Some(error) = response.error() {
                             let event = Event::AutoJoinFailed(crate::event::AutoJoinFailed {
-                                channel,
+                                channel: crate::ChannelHandle::from_parts(
+                                    channel,
+                                    None,
+                                    None,
+                                    Some(&events.state),
+                                ),
                                 error: crate::ServerError::from_core(error),
                             });
                             enqueue_event(events, pending_events, event);

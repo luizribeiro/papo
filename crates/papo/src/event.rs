@@ -1732,7 +1732,9 @@ impl Event {
             },
             Self::History(event) => Some(event.conversation.clone()),
             Self::ReadMarkerChanged(event) => Some(event.conversation.clone()),
-            Self::AutoJoinFailed(event) => Some(Conversation::Channel(event.channel.clone())),
+            Self::AutoJoinFailed(event) => {
+                Some(Conversation::Channel(event.channel.name().clone()))
+            }
             Self::Joined(event) => Some(Conversation::Channel(event.channel.name().clone())),
             Self::ChannelSynced(event) => Some(Conversation::Channel(event.channel.name().clone())),
             Self::MembersRefreshed(event) => {
@@ -2475,7 +2477,7 @@ pub(crate) fn from_core_with_receipt(
             created_at,
             ..
         } => Event::Warning(Warning::ChannelRecreated {
-            channel,
+            channel: channel_handle(channel, None),
             previous_created_at,
             created_at,
         }),

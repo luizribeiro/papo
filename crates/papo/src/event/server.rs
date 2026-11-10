@@ -18,7 +18,8 @@ pub struct BouncerNetworkChanged {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct MetadataChanged {
-    /// User or channel whose metadata changed.
+    /// User or channel whose metadata changed. See [`crate::Conversation`] for status-prefixed
+    /// line guidance.
     pub subject: Subject,
     /// Metadata key.
     pub key: MetadataKey,
@@ -30,8 +31,9 @@ pub struct MetadataChanged {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct AutoJoinFailed {
-    /// The channel papo tried to join.
-    pub channel: crate::ChannelName,
+    /// The channel papo tried to join. See [`crate::Conversation`] for status-prefixed line
+    /// guidance.
+    pub channel: crate::ChannelHandle,
     /// The server's typed refusal.
     pub error: crate::ServerError,
 }
@@ -65,8 +67,9 @@ pub enum Warning {
     /// A rejoined channel has a different server creation time.
     #[non_exhaustive]
     ChannelRecreated {
-        /// The channel that was rejoined.
-        channel: crate::ChannelName,
+        /// The channel that was rejoined. See [`crate::Conversation`] for status-prefixed line
+        /// guidance.
+        channel: crate::ChannelHandle,
         /// Creation time observed before reconnecting.
         previous_created_at: crate::ServerTime,
         /// Creation time reported after rejoining.
@@ -149,7 +152,12 @@ mod tests {
                 reason: "SASL mechanism unavailable".to_owned(),
             },
             Warning::ChannelRecreated {
-                channel: crate::Casemapping::default().channel("#release"),
+                channel: crate::ChannelHandle::from_parts(
+                    crate::Casemapping::default().channel("#release"),
+                    None,
+                    None,
+                    None,
+                ),
                 previous_created_at: crate::ServerTime::from_stored_millis(0).unwrap(),
                 created_at: crate::ServerTime::from_stored_millis(1_000).unwrap(),
             },

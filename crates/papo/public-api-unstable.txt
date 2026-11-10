@@ -244,7 +244,7 @@ pub papo::event::Warning::BatchAbandoned::batch_type: papo::BatchType
 pub papo::event::Warning::BatchAbandoned::id: papo::BatchId
 pub papo::event::Warning::BatchAbandoned::reason: papo::BatchAbandonReason
 #[non_exhaustive] pub papo::event::Warning::ChannelRecreated
-pub papo::event::Warning::ChannelRecreated::channel: papo::ChannelName
+pub papo::event::Warning::ChannelRecreated::channel: papo::ChannelHandle
 pub papo::event::Warning::ChannelRecreated::created_at: papo_proto::time::ServerTime
 pub papo::event::Warning::ChannelRecreated::previous_created_at: papo_proto::time::ServerTime
 #[non_exhaustive] pub papo::event::Warning::Malformed
@@ -295,7 +295,7 @@ impl core::marker::UnsafeUnpin for papo::event::AccountChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::AccountChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::AccountChanged
 #[non_exhaustive] pub struct papo::event::AutoJoinFailed
-pub papo::event::AutoJoinFailed::channel: papo::ChannelName
+pub papo::event::AutoJoinFailed::channel: papo::ChannelHandle
 pub papo::event::AutoJoinFailed::error: papo::ServerError
 impl core::clone::Clone for papo::event::AutoJoinFailed
 pub fn papo::event::AutoJoinFailed::clone(&self) -> Self
