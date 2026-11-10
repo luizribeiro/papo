@@ -145,20 +145,10 @@ fn other(line: Line, received_at: SystemTime) -> Event {
     crate::event_impl::unparsed_from_line(line, received_at)
 }
 
-fn conversation_from_core(
-    conversation: papo_core::Conversation,
-    status: Option<crate::Prefix>,
-    origin: crate::Origin,
-    state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
-    guard: Option<papo_core::ChannelGuard>,
-) -> crate::PublicConversation {
-    crate::conversation::public_from_core(conversation, status, origin, state, guard)
-}
-
 #[allow(clippy::too_many_lines)]
 pub(crate) fn history_item(
     item: papo_core::HistoryItem,
-    history_conversation: Option<&crate::PublicConversation>,
+    history_conversation: Option<&crate::Conversation>,
     client: &Client,
     received_at: SystemTime,
 ) -> Event {
@@ -315,7 +305,7 @@ pub(crate) fn history_item(
 fn historical_tagmsg(
     message: &papo_proto::LineRef<'_>,
     authorship: crate::Authorship,
-    history_conversation: Option<&crate::PublicConversation>,
+    history_conversation: Option<&crate::Conversation>,
     client: &Client,
     received_at: SystemTime,
 ) -> Option<Event> {
@@ -331,7 +321,7 @@ fn historical_tagmsg(
         papo_core::Conversation::Channel(channel) => Some(state.core.__channel_guard(channel)),
         _ => None,
     };
-    let conversation = conversation_from_core(
+    let conversation = crate::Conversation::from_core(
         conversation,
         status,
         client.origin(),
@@ -419,7 +409,7 @@ fn reaction(
     origin: crate::Origin,
     own_nick: &crate::Nick,
     isupport: &papo_proto::Isupport,
-    history_conversation: Option<&crate::PublicConversation>,
+    history_conversation: Option<&crate::Conversation>,
     account_tag_enabled: bool,
     prove_not_bot: bool,
     received_at: SystemTime,
@@ -432,7 +422,7 @@ fn reaction(
         papo_core::Conversation::Channel(channel) => Some(state.core.__channel_guard(channel)),
         _ => None,
     });
-    let conversation = conversation_from_core(conversation, status, origin, None, guard);
+    let conversation = crate::Conversation::from_core(conversation, status, origin, None, guard);
     let conversation = crate::event_impl::historical_conversation(
         message,
         authorship,
@@ -455,14 +445,13 @@ fn reaction(
     );
     let return_address = crate::event_impl::return_address(message, &conversation);
     let actor = user_from_line(message, &envelope, mapping, origin, prove_not_bot)?;
-    let mut receipt = crate::message_ref::Receipt::new(
+    let receipt = crate::message_ref::Receipt::new(
         crate::Source::User(actor.clone()),
         authorship,
         &conversation,
         state.and_then(|state| state.reply_token(&conversation)),
         return_address,
     );
-    receipt.set_channel(state.and_then(|state| state.channel_guard(&conversation)));
     Some(Event::Reacted(Reacted {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
@@ -490,7 +479,7 @@ fn redaction(
     origin: crate::Origin,
     own_nick: &crate::Nick,
     isupport: &papo_proto::Isupport,
-    history_conversation: Option<&crate::PublicConversation>,
+    history_conversation: Option<&crate::Conversation>,
     account_tag_enabled: bool,
     prove_not_bot: bool,
     received_at: SystemTime,
@@ -502,7 +491,7 @@ fn redaction(
         papo_core::Conversation::Channel(channel) => Some(state.core.__channel_guard(channel)),
         _ => None,
     });
-    let conversation = conversation_from_core(conversation, status, origin, None, guard);
+    let conversation = crate::Conversation::from_core(conversation, status, origin, None, guard);
     let conversation = crate::event_impl::historical_conversation(
         message,
         authorship,
@@ -520,14 +509,13 @@ fn redaction(
     );
     let return_address = crate::event_impl::return_address(message, &conversation);
     let actor = actor_from_line(message, &envelope, mapping, origin, prove_not_bot)?;
-    let mut receipt = crate::message_ref::Receipt::new(
+    let receipt = crate::message_ref::Receipt::new(
         actor.clone(),
         authorship,
         &conversation,
         state.and_then(|state| state.reply_token(&conversation)),
         return_address,
     );
-    receipt.set_channel(state.and_then(|state| state.channel_guard(&conversation)));
     Some(Event::Redacted(Redacted {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
@@ -610,7 +598,7 @@ fn parted(
 fn quit(
     message: &papo_proto::LineRef<'_>,
     authorship: crate::Authorship,
-    history_conversation: Option<&crate::PublicConversation>,
+    history_conversation: Option<&crate::Conversation>,
     client: &Client,
     received_at: SystemTime,
 ) -> Option<Event> {
@@ -643,10 +631,10 @@ fn quit(
             .param(0)
             .filter(|reason| !reason.is_empty())
             .map(str::to_owned),
-        channels: history_conversation
-            .and_then(crate::conversation::public_channel_name)
-            .into_iter()
-            .collect(),
+        channels: match history_conversation {
+            Some(crate::Conversation::Channel(channel)) => vec![channel.name()],
+            _ => Vec::new(),
+        },
         authorship,
         netsplit: None,
     }))
@@ -699,7 +687,7 @@ fn nick_changed(
     message: &papo_proto::LineRef<'_>,
     authorship: crate::Authorship,
     client: &Client,
-    history_conversation: Option<&crate::PublicConversation>,
+    history_conversation: Option<&crate::Conversation>,
     received_at: SystemTime,
 ) -> Option<Event> {
     source_nick(message)?;
@@ -729,10 +717,10 @@ fn nick_changed(
         actor,
         authorship,
         new: state.known_name_rules()?.nick(message.param(0)?),
-        channels: history_conversation
-            .and_then(crate::conversation::public_channel_name)
-            .into_iter()
-            .collect(),
+        channels: match history_conversation {
+            Some(crate::Conversation::Channel(channel)) => vec![channel.name()],
+            _ => Vec::new(),
+        },
     }))
 }
 
@@ -890,7 +878,7 @@ pub enum HistoryReason {
 #[non_exhaustive]
 pub struct HistoryPage {
     /// Conversation whose history was requested.
-    pub conversation: crate::PublicConversation,
+    pub conversation: crate::Conversation,
     /// Replayed entries in server delivery order, normally oldest to newest.
     ///
     /// The server is allowed to use a different order; papo does not sort the entries.
@@ -915,7 +903,7 @@ pub struct HistoryPage {
 #[non_exhaustive]
 pub struct RecentConversation {
     /// Conversation with available history.
-    pub conversation: crate::PublicConversation,
+    pub conversation: crate::Conversation,
     /// Server timestamp of the newest available entry.
     pub latest_server_time: ServerTime,
 }
@@ -1248,8 +1236,13 @@ impl Client {
             }
             _ => None,
         };
-        let conversation =
-            conversation_from_core(conversation, None, self.origin(), Some(&self.state), guard);
+        let conversation = crate::Conversation::from_core(
+            conversation,
+            None,
+            self.origin(),
+            Some(&self.state),
+            guard,
+        );
         let items = items
             .into_iter()
             .map(|item| history_item(item, Some(&conversation), self, crate::rt::now_wall()))
@@ -1303,7 +1296,7 @@ impl Client {
                     targets
                         .into_iter()
                         .map(|(conversation, latest_server_time)| RecentConversation {
-                            conversation: conversation_from_core(
+                            conversation: crate::Conversation::from_core(
                                 conversation,
                                 None,
                                 client.origin(),
@@ -1400,8 +1393,7 @@ mod tests {
     use crate::{Event as PageEvent, MarkReadOutcome};
 
     use super::{
-        HistoryPage, HistoryReason, HistoryReference, RecentConversation, conversation_from_core,
-        history_item, reaction,
+        HistoryPage, HistoryReason, HistoryReference, RecentConversation, history_item, reaction,
     };
 
     fn name_rules(state: &crate::State) -> crate::NameRules<'_> {
@@ -1511,7 +1503,7 @@ mod tests {
         );
         let origin = crate::Origin::__new(73);
         let page = HistoryPage {
-            conversation: crate::PublicConversation::Channel(channel(
+            conversation: crate::Conversation::Channel(channel(
                 origin.__channel(Casemapping::default(), "#papo"),
             )),
             items: vec![Event::Message(oldest), Event::Message(newest)],
@@ -1529,7 +1521,7 @@ mod tests {
     #[test]
     fn incomplete_history_item_stays_out_of_complete_chat_messages() {
         let page = HistoryPage {
-            conversation: crate::PublicConversation::Channel(channel(
+            conversation: crate::Conversation::Channel(channel(
                 Casemapping::default().channel("#papo"),
             )),
             items: vec![history_item(
@@ -1570,7 +1562,7 @@ mod tests {
         );
         let (client, _) = client_with_commands(&session);
         let conversation =
-            crate::PublicConversation::Private(client.state().name_rules().unwrap().nick("alice"));
+            crate::Conversation::Private(client.state().name_rules().unwrap().nick("alice"));
         let event = history_item(
             papo_core::HistoryItem::Message(core_item(
                 "@account=alice;time=2026-10-19T14:31:11.456Z :alice!~alice@cloak.example PRIVMSG papo :looks good",
@@ -1626,7 +1618,7 @@ mod tests {
             .casemapping(Casemapping::default())
             .build();
         for conversation in [
-            crate::PublicConversation::Channel(
+            crate::Conversation::Channel(
                 first
                     .channel(
                         first
@@ -1637,7 +1629,7 @@ mod tests {
                     )
                     .unwrap(),
             ),
-            crate::PublicConversation::Private(
+            crate::Conversation::Private(
                 first
                     .state()
                     .name_rules()
@@ -1662,7 +1654,7 @@ mod tests {
             .casemapping(Casemapping::default())
             .build();
         let page = HistoryPage {
-            conversation: crate::PublicConversation::Channel(
+            conversation: crate::Conversation::Channel(
                 first
                     .channel(
                         first
@@ -1678,7 +1670,7 @@ mod tests {
             end: false,
         };
         let recent = RecentConversation {
-            conversation: crate::PublicConversation::Private(
+            conversation: crate::Conversation::Private(
                 first
                     .state()
                     .name_rules()
@@ -1777,7 +1769,7 @@ mod tests {
         let items: Vec<_> = items
             .into_iter()
             .map(|item| {
-                let conversation = conversation_from_core(
+                let conversation = crate::Conversation::from_core(
                     conversation.clone(),
                     None,
                     crate::Origin::NONE,
@@ -1820,7 +1812,7 @@ mod tests {
             papo_core::HistoryItem::Message(core_item(
                 "@time=2026-10-20T18:44:00.250Z :emily!~e@cloak.example PRIVMSG #papo :soju backlog",
             )),
-            Some(&crate::PublicConversation::Channel(channel(
+            Some(&crate::Conversation::Channel(channel(
                 Casemapping::default().channel("#papo"),
             ))),
             &client,
@@ -1854,7 +1846,7 @@ mod tests {
         let state = client.state();
         for (conversation, expected) in [
             (
-                crate::PublicConversation::Channel(channel(
+                crate::Conversation::Channel(channel(
                     state
                         .name_rules()
                         .expect("server advertised CASEMAPPING")
@@ -1863,7 +1855,7 @@ mod tests {
                 "#Papo[dev]",
             ),
             (
-                crate::PublicConversation::Private(
+                crate::Conversation::Private(
                     state
                         .name_rules()
                         .expect("server advertised CASEMAPPING")
@@ -1899,7 +1891,7 @@ mod tests {
             &reacted,
             PageEvent::Reacted(event)
                 if event.actor.nick() == "emily"
-                    && matches!(&event.conversation, crate::PublicConversation::Channel(channel) if channel == "#papo")
+                    && matches!(&event.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
                     && event.status.is_none()
                     && event.reacts_to == "RfcBTzyxY120004"
                     && event.reaction == "👍"
@@ -1926,7 +1918,7 @@ mod tests {
         assert!(matches!(
             &removal,
             PageEvent::Redacted(event)
-                if matches!(&event.conversation, crate::PublicConversation::Channel(channel) if channel == "#papo")
+                if matches!(&event.conversation, crate::Conversation::Channel(channel) if channel == "#papo")
                     && event.status.is_none()
                     && event.redacts == "RfcBTzyxY120004"
                     && matches!(event.actor.user().unwrap().account(), crate::Account::LoggedIn(account) if account == "alice")
@@ -1988,7 +1980,7 @@ mod tests {
             papo_core::HistoryItem::Message(core_item(
                 "@msgid=RfcBTzyxY120009 :emily!~e@localhost PRIVMSG papo :\u{1}VERSION\u{1}",
             )),
-            Some(&crate::PublicConversation::Private(
+            Some(&crate::Conversation::Private(
                 Casemapping::default().nick("emily"),
             )),
             &crate::Client::disconnected_for_test(),
@@ -2338,7 +2330,7 @@ mod tests {
             client.history("$opers").latest().await,
             Err(Error::InvalidInput(_))
         ));
-        let conversation = crate::PublicConversation::Channel(
+        let conversation = crate::Conversation::Channel(
             client
                 .channel(name_rules(&client.state()).channel("#papo"))
                 .unwrap(),
@@ -2429,7 +2421,7 @@ mod tests {
         let message = page.chat_messages().next().unwrap();
         assert!(matches!(
             message.conversation,
-            crate::PublicConversation::Private(ref nick) if nick == "alice"
+            crate::Conversation::Private(ref nick) if nick == "alice"
         ));
         assert_eq!(message.return_address(), "alice");
         let reaction = tokio::spawn({
@@ -2637,7 +2629,7 @@ mod tests {
         assert_eq!(targets.len(), 1);
         assert_eq!(
             targets[0].conversation,
-            crate::PublicConversation::Channel(crate::ChannelHandle::from_parts(
+            crate::Conversation::Channel(crate::ChannelHandle::from_parts(
                 channel, None, None, None,
             ))
         );
@@ -2665,7 +2657,7 @@ mod tests {
             Err(Error::InvalidInput(_))
         ));
         assert_eq!(client.state().read_marker("#papo"), None);
-        let channel = crate::PublicConversation::Channel(
+        let channel = crate::Conversation::Channel(
             client
                 .channel(
                     client
@@ -2717,7 +2709,7 @@ mod tests {
             MarkReadOutcome::Advanced(server_time(1_760_529_342, 123))
         );
         assert!(
-            matches!(next_event(&mut events).await, Some(Event::ReadMarkerChanged(marker)) if matches!(&marker.conversation, crate::PublicConversation::Channel(channel) if channel == "#papo"))
+            matches!(next_event(&mut events).await, Some(Event::ReadMarkerChanged(marker)) if matches!(&marker.conversation, crate::Conversation::Channel(channel) if channel == "#papo"))
         );
 
         let request_client = client.clone();
@@ -2927,7 +2919,7 @@ mod tests {
             client.fetch_read_marker("$opers").await,
             Err(Error::InvalidInput(_))
         ));
-        let channel = crate::PublicConversation::Channel(
+        let channel = crate::Conversation::Channel(
             client
                 .channel(
                     client

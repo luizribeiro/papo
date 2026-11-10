@@ -221,14 +221,6 @@ impl State {
             .map(|nick| self.core.__reply_token_for(nick.as_str()))
     }
 
-    pub(crate) fn channel_guard(
-        &self,
-        conversation: &crate::PublicConversation,
-    ) -> Option<papo_core::ChannelGuard> {
-        crate::conversation::public_channel_name(conversation)
-            .map(|channel| self.core.__channel_guard(&channel))
-    }
-
     pub(crate) fn sent_receipt(
         &self,
         conversation: &crate::PublicConversation,
