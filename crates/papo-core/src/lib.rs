@@ -7081,6 +7081,39 @@ mod tests {
     }
 
     #[test]
+    fn channel_guards_compare_by_membership_identity() {
+        let now = std::time::Instant::now();
+        let mut session = Session::new(Config::default().nick("papo"));
+        let pending_review = session
+            .state()
+            .__channel_guard(&session.isupport().casemapping().channel("#review"));
+        let same_pending = pending_review.clone();
+        let pending_operations = session
+            .state()
+            .__channel_guard(&session.isupport().casemapping().channel("#operations"));
+        session.handle_line(now, b":papo!papo@localhost JOIN #release");
+        let release = session
+            .state()
+            .__channel_guard(session.state().channel("#release").unwrap().name());
+        session.handle_line(
+            now,
+            b":oper!oper@staff.example RENAME #release #release-archive :Archived",
+        );
+        let renamed = session
+            .state()
+            .__channel_guard(session.state().channel("#release-archive").unwrap().name());
+
+        for (left, right, equal) in [
+            (&pending_review, &same_pending, true),
+            (&pending_review, &pending_operations, false),
+            (&release, &renamed, true),
+            (&release, &pending_review, false),
+        ] {
+            assert_eq!(left == right, equal);
+        }
+    }
+
+    #[test]
     fn monitor_updates_do_not_clone_full_state() {
         let mut session = Session::new(Config::default());
         super::state::reset_clone_count();
