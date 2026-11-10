@@ -1117,6 +1117,9 @@ pub papo_core::RequestError::InvalidMetadataKey::reason: papo::InvalidIdentifier
 pub papo_core::RequestError::MetadataValueTooLong::actual: usize
 pub papo_core::RequestError::MetadataValueTooLong::maximum: usize
 pub papo_core::RequestError::PendingLimit
+#[non_exhaustive] pub papo_core::RequestError::ServerTimeInFuture
+pub papo_core::RequestError::ServerTimeInFuture::estimated_now: papo_proto::time::ServerTime
+pub papo_core::RequestError::ServerTimeInFuture::requested: papo_proto::time::ServerTime
 pub papo_core::RequestError::StateLimit(papo_core::StateLimit)
 #[non_exhaustive] pub papo_core::RequestError::TooManyMetadataSubscriptions
 pub papo_core::RequestError::TooManyMetadataSubscriptions::actual: usize

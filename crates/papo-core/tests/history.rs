@@ -500,6 +500,34 @@ fn sends_read_marker_set_and_query_commands() {
 }
 
 #[test]
+fn mark_read_rejects_future_server_time_and_estimate_advances_monotonically() {
+    let (mut session, now) = read_marker_session();
+    let observed = server_time(1_760_529_342, 0);
+    session.handle_line(
+        now,
+        b"@time=2025-10-15T11:55:42.000Z :ergo.test TAGMSG #papo",
+    );
+    session.mark_read(now, "#papo", observed).unwrap();
+    assert_eq!(
+        transmitted(&mut session),
+        "@label=0 MARKREAD #papo timestamp=2025-10-15T11:55:42.000Z"
+    );
+    assert!(matches!(
+        session.mark_read(now, "#papo", server_time(1_760_529_343, 0),),
+        Err(RequestError::ServerTimeInFuture { .. })
+    ));
+
+    let later = now.checked_add(Duration::from_secs(1)).unwrap();
+    session
+        .mark_read(later, "#papo", server_time(1_760_529_343, 0))
+        .unwrap();
+    assert_eq!(
+        transmitted(&mut session),
+        "@label=1 MARKREAD #papo timestamp=2025-10-15T11:55:43.000Z"
+    );
+}
+
+#[test]
 fn mark_read_refuses_new_targets_when_the_marker_store_is_full() {
     let (mut below, now) = read_marker_session_with(Config::default().max_read_markers(1));
     below.mark_read(now, "#papo", server_time(0, 0)).unwrap();

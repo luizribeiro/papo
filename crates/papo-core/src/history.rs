@@ -157,10 +157,32 @@ impl Session {
     ) -> Result<RequestId, RequestError> {
         self.require_feature(Feature::ReadMarkers)?;
         self.validate_target(target)?;
+        self.ensure_state_capacity(StateGrowth::ReadMarker(target))?;
+        if let Some(clock) = self.server_clock {
+            return self.queue_mark_read(now, target, read_until, clock.estimated_now(now));
+        }
         let line = Line::new("MARKREAD")
             .param(target.to_owned())
             .param(format!("timestamp={read_until}"));
-        self.ensure_state_capacity(StateGrowth::ReadMarker(target))?;
+        self.request_for_feature(now, line, Feature::ReadMarkers)
+    }
+
+    fn queue_mark_read(
+        &mut self,
+        now: Instant,
+        target: &str,
+        read_until: ServerTime,
+        estimated_now: ServerTime,
+    ) -> Result<RequestId, RequestError> {
+        if read_until > estimated_now {
+            return Err(RequestError::ServerTimeInFuture {
+                requested: read_until,
+                estimated_now,
+            });
+        }
+        let line = Line::new("MARKREAD")
+            .param(target.to_owned())
+            .param(format!("timestamp={read_until}"));
         self.request_for_feature(now, line, Feature::ReadMarkers)
     }
 

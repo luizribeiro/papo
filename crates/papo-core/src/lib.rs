@@ -145,6 +145,7 @@ mod replies;
     reason = "SASL indexes fixed-size cryptographic outputs and infallible ASCII encodings"
 )]
 mod sasl;
+mod server_clock;
 #[doc(hidden)]
 pub mod server_url;
 #[allow(
@@ -2340,6 +2341,14 @@ pub enum RequestError {
     InvalidMessageReference,
     /// The request would grow a bounded state collection past its configured limit.
     StateLimit(StateLimit),
+    /// A supplied server time is later than the estimated current server time.
+    #[non_exhaustive]
+    ServerTimeInFuture {
+        /// The rejected timestamp.
+        requested: ServerTime,
+        /// Papo's monotonic estimate of the current server time, including its tolerance.
+        estimated_now: ServerTime,
+    },
     /// Account creation requires an email address.
     EmailRequired,
     /// The server requires the account name to match the current nickname.
@@ -2436,6 +2445,9 @@ impl std::fmt::Display for RequestError {
             Self::StateLimit(limit) => {
                 write!(formatter, "request would exceed the {limit:?} state limit")
             }
+            Self::ServerTimeInFuture { .. } => {
+                formatter.write_str("server time is later than the estimated server time")
+            }
             Self::EmailRequired => formatter.write_str("account registration requires an email"),
             Self::CustomAccountNameUnsupported => {
                 formatter.write_str("server does not support a custom account name")
@@ -2469,6 +2481,7 @@ impl std::error::Error for RequestError {
             | Self::Unsupported(_)
             | Self::InvalidMessageReference
             | Self::StateLimit(_)
+            | Self::ServerTimeInFuture { .. }
             | Self::EmailRequired
             | Self::CustomAccountNameUnsupported
             | Self::MetadataValueTooLong { .. }
@@ -3494,6 +3507,7 @@ pub struct Session {
     framer: Framer,
     isupport: IsupportState,
     keepalive: Keepalive,
+    server_clock: Option<server_clock::ServerClock>,
     monitor: Monitor,
     nick_regain: NickRegain,
     metadata_subscriptions_sent: bool,
@@ -3530,6 +3544,7 @@ impl std::fmt::Debug for Session {
             .field("framer", &self.framer)
             .field("isupport", &self.isupport)
             .field("keepalive", &self.keepalive)
+            .field("server_clock", &self.server_clock)
             .field("monitor", &self.monitor)
             .field("nick_regain", &self.nick_regain)
             .field(
@@ -3862,6 +3877,7 @@ impl Session {
             framer: Framer::default(),
             isupport,
             keepalive: Keepalive::default(),
+            server_clock: None,
             monitor: Monitor::new(origin),
             nick_regain: NickRegain::default(),
             metadata_subscriptions_sent: false,
@@ -3897,6 +3913,7 @@ impl Session {
     /// Marks a transport with connection-specific context as connected at `now`.
     pub fn handle_connected_with(&mut self, now: Instant, connection: Connection) {
         self.connection = connection;
+        self.server_clock = None;
         self.framer.reset();
         self.outbox
             .reset_connection(secure_credentials_allowed(&self.config, &self.connection));
@@ -3994,6 +4011,7 @@ impl Session {
                 let message = redacted
                     .as_ref()
                     .map_or(message, |redacted| redacted.as_ref());
+                self.observe_server_time(now, &message);
                 let multiline_max_bytes = outgoing::multiline_limits(self.caps.enabled())
                     .map_or(usize::MAX, |limits| limits.max_bytes);
                 match self.batches.handle(
@@ -5420,6 +5438,24 @@ impl Session {
         self.requests.retain(|_, pending| pending.id != id);
         self.unlabelled_requests.retain(|pending| pending.id != id);
         self.away_messages.remove(&id);
+    }
+
+    fn observe_server_time(&mut self, now: Instant, message: &LineRef<'_>) {
+        let Some(newest) = message
+            .tag("time")
+            .or_else(|| message.tag("znc.in/server-time-iso"))
+            .and_then(|value| papo_proto::time::parse(&value))
+        else {
+            return;
+        };
+        if self
+            .server_clock
+            .is_some_and(|clock| clock.newest() >= newest)
+        {
+            return;
+        }
+        let clock = server_clock::ServerClock::new(newest, now);
+        self.server_clock = Some(clock);
     }
 
     fn reserve_request_id(&mut self) -> RequestId {
