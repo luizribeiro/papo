@@ -108,7 +108,7 @@ impl Scenario {
     ///
     /// The key can be passed to [`Self::configure_account_session`] to attach more clients,
     /// including when the selected profile uses a bouncer network. Bouncer profiles wait until
-    /// the upstream account is reflected downstream before returning.
+    /// the upstream network is attached before returning.
     ///
     /// # Errors
     ///
@@ -139,15 +139,10 @@ impl Scenario {
                 Account::LoggedIn(current) if current.as_str() == account
             )
         {
-            peer.wait_for(|event| {
-                event.as_account_changed().filter(|changed| {
-                    matches!(
-                        &changed.new,
-                        Account::LoggedIn(current) if current.as_str() == account
-                    )
-                })
-            })
-            .await?;
+            // soju can remove downstream SASL while the upstream connects, suppressing its
+            // mirrored 900; this service notice is soju's explicit attachment signal.
+            peer.wait_for(|event| soju_connected_network(event, &account))
+                .await?;
         }
         Ok((peer, account))
     }
@@ -298,6 +293,18 @@ impl Scenario {
     }
 }
 
+fn soju_connected_network<'event>(
+    event: &'event papo::Event,
+    network: &str,
+) -> Option<&'event papo::event::Notice> {
+    event.as_notice().filter(|notice| {
+        notice.actor.nick().as_str() == "BouncerServ"
+            && notice.actor.username() == Some("BouncerServ")
+            && notice.actor.host() == Some("BouncerServ")
+            && notice.raw_text.strip_prefix("connected to ") == Some(network)
+    })
+}
+
 fn unique_name(label: &str) -> String {
     let label: String = label
         .chars()
@@ -308,7 +315,9 @@ fn unique_name(label: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::unique_name;
+    use papo::Event;
+
+    use super::{Peer, soju_connected_network, unique_name};
 
     #[test]
     fn names_are_readable_unique_and_bounded() {
@@ -317,5 +326,33 @@ mod tests {
         assert!(first.starts_with("alice-"));
         assert_ne!(first, second);
         assert!(unique_name("a very long display label with spaces").len() <= 32);
+    }
+
+    #[tokio::test]
+    async fn accepts_only_sojus_connected_notice_for_the_selected_network() {
+        let (client, events, mut wire) =
+            papo_testing::wire(papo::Client::builder("irc://offline.test", "papo-fixture"));
+        wire.register(&[]).await;
+        let mut peer = Peer::new(client, events);
+        peer.wait_for(Event::as_connected).await.unwrap();
+
+        wire.server(
+            ":BouncerServ!service@BouncerServ NOTICE papo-fixture :connected to alice-1469-266",
+        )
+        .await;
+        wire.server(
+            ":BouncerServ!BouncerServ@BouncerServ NOTICE papo-fixture :connected to another-network",
+        )
+        .await;
+        wire.server(
+            ":BouncerServ!BouncerServ@BouncerServ NOTICE papo-fixture :connected to alice-1469-266",
+        )
+        .await;
+
+        let notice = peer
+            .wait_for(|event| soju_connected_network(event, "alice-1469-266"))
+            .await
+            .unwrap();
+        assert_eq!(notice.raw_text, "connected to alice-1469-266");
     }
 }
