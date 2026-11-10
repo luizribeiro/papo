@@ -3234,8 +3234,16 @@ pub struct ChannelGuard {
 
 impl PartialEq for ChannelGuard {
     fn eq(&self, other: &Self) -> bool {
-        (&self.origin, &self.channel, self.epoch, self.created_at)
-            == (&other.origin, &other.channel, other.epoch, other.created_at)
+        match (self.epoch, other.epoch) {
+            (Some(left), Some(right)) => {
+                (&self.origin, left, self.created_at) == (&other.origin, right, other.created_at)
+            }
+            (None, None) => {
+                (&self.origin, &self.channel, self.created_at)
+                    == (&other.origin, &other.channel, other.created_at)
+            }
+            _ => false,
+        }
     }
 }
 
@@ -3243,7 +3251,12 @@ impl Eq for ChannelGuard {}
 
 impl std::hash::Hash for ChannelGuard {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        (&self.origin, &self.channel, self.epoch, self.created_at).hash(state);
+        self.origin.hash(state);
+        self.created_at.hash(state);
+        match self.epoch {
+            Some(epoch) => (true, epoch).hash(state),
+            None => (false, &self.channel).hash(state),
+        }
     }
 }
 
@@ -7055,6 +7068,16 @@ mod tests {
 
         assert_eq!(hash(&release), hash(&release.clone()));
         assert_ne!(hash(&release), hash(&operations));
+
+        session.handle_line(
+            now,
+            b":oper!oper@staff.example RENAME #release #release-archive :Archived",
+        );
+        let renamed = session
+            .state()
+            .__channel_guard(session.state().channel("#release-archive").unwrap().name());
+        assert_eq!(release, renamed);
+        assert_eq!(hash(&release), hash(&renamed));
     }
 
     #[test]
