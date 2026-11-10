@@ -126,7 +126,7 @@ pub struct ChannelHandle((Arc<ChannelInner>, Option<crate::Prefix>));
 struct ChannelInner {
     channel: crate::ChannelName,
     guard: Option<papo_core::ChannelGuard>,
-    state: Arc<RwLock<Arc<crate::State>>>,
+    state: Option<Arc<RwLock<Arc<crate::State>>>>,
 }
 
 impl ChannelHandle {
@@ -137,11 +137,20 @@ impl ChannelHandle {
         joined: bool,
     ) -> Self {
         let guard = joined.then(|| client.state().core.__channel_guard(&channel));
+        Self::from_parts(channel, status, guard, Some(&client.state))
+    }
+
+    pub(crate) fn from_parts(
+        channel: crate::ChannelName,
+        status: Option<crate::Prefix>,
+        guard: Option<papo_core::ChannelGuard>,
+        state: Option<&Arc<RwLock<Arc<crate::State>>>>,
+    ) -> Self {
         Self((
             Arc::new(ChannelInner {
                 channel,
                 guard,
-                state: Arc::clone(&client.state),
+                state: state.map(Arc::clone),
             }),
             status,
         ))
@@ -154,14 +163,16 @@ impl ChannelHandle {
     /// Returns the channel's current name without a status prefix.
     #[must_use]
     pub fn name(&self) -> crate::ChannelName {
-        let state = self
-            .0
+        self.0
             .0
             .state
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        self.guard()
-            .and_then(|guard| state.resolve_channel(guard))
+            .as_ref()
+            .and_then(|state| {
+                let state = state
+                    .read()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                self.guard().and_then(|guard| state.resolve_channel(guard))
+            })
             .unwrap_or_else(|| self.0.0.channel.clone())
     }
 
@@ -169,6 +180,11 @@ impl ChannelHandle {
     #[must_use]
     pub const fn status(&self) -> Option<crate::Prefix> {
         self.0.1
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn origin(&self) -> crate::Origin {
+        self.0.0.channel.origin()
     }
 }
 
@@ -178,6 +194,12 @@ impl std::fmt::Debug for ChannelHandle {
             .debug_struct("ChannelHandle")
             .field("name", &self.name())
             .finish_non_exhaustive()
+    }
+}
+
+impl std::fmt::Display for ChannelHandle {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.name().fmt(formatter)
     }
 }
 
@@ -192,6 +214,18 @@ impl PartialEq for ChannelHandle {
 }
 
 impl Eq for ChannelHandle {}
+
+impl PartialEq<str> for ChannelHandle {
+    fn eq(&self, other: &str) -> bool {
+        self.name() == other
+    }
+}
+
+impl PartialEq<&str> for ChannelHandle {
+    fn eq(&self, other: &&str) -> bool {
+        self == *other
+    }
+}
 
 impl Hash for ChannelHandle {
     fn hash<H: Hasher>(&self, state: &mut H) {

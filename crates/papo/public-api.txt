@@ -2199,7 +2199,13 @@ pub fn papo::ChannelHandle::clone(&self) -> Self
 impl core::cmp::Eq for papo::ChannelHandle
 impl core::cmp::PartialEq for papo::ChannelHandle
 pub fn papo::ChannelHandle::eq(&self, &Self) -> bool
+impl core::cmp::PartialEq<&str> for papo::ChannelHandle
+pub fn papo::ChannelHandle::eq(&self, &&str) -> bool
+impl core::cmp::PartialEq<str> for papo::ChannelHandle
+pub fn papo::ChannelHandle::eq(&self, &str) -> bool
 impl core::fmt::Debug for papo::ChannelHandle
+pub fn papo::ChannelHandle::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::fmt::Display for papo::ChannelHandle
 pub fn papo::ChannelHandle::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
 impl core::hash::Hash for papo::ChannelHandle
 pub fn papo::ChannelHandle::hash<H: core::hash::Hasher>(&self, &mut H)
