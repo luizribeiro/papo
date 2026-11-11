@@ -5484,6 +5484,149 @@ mod tests {
         );
     }
 
+    fn live_message_handle_event(line: &str) -> (Event, Arc<std::sync::RwLock<Arc<crate::State>>>) {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().nick("papo"));
+        for setup in [
+            ":ergo.test 005 papo CASEMAPPING=rfc1459 CHANTYPES=# :are supported",
+            ":papo!papo@localhost JOIN #review",
+            ":alice!alice@staff.example JOIN #review",
+        ] {
+            session.handle_line(now, setup.as_bytes());
+        }
+        while session.poll_event().is_some() {}
+        session.handle_line(now, line.as_bytes());
+        let core = session.poll_event().expect("message event");
+        let state = Arc::new(std::sync::RwLock::new(Arc::new(
+            crate::State::from_session(&session, true),
+        )));
+        let event = match super::from_core_with_receipt(
+            core,
+            session.isupport().casemapping(),
+            crate::Origin::NONE,
+            false,
+            false,
+            UNIX_EPOCH,
+            Some(session.state()),
+            Some(&state),
+        ) {
+            CoreEvent::Forward(event) => event,
+            CoreEvent::Line(super::CoreLine::Complete(line)) => super::incoming_from_core(
+                line,
+                crate::Origin::NONE,
+                session.isupport(),
+                false,
+                false,
+                UNIX_EPOCH,
+                Some(&state),
+            ),
+            _ => panic!("unexpected mapped event"),
+        };
+        (event, state)
+    }
+
+    fn message_handle_actor(
+        event: &Event,
+    ) -> (&'static str, &crate::UserHandle, Option<&Conversation>) {
+        match event {
+            Event::Message(event) => ("Message", &event.actor, Some(&event.conversation)),
+            Event::Incomplete(Incomplete::Message(event)) => {
+                ("IncompleteMessage", &event.actor, Some(&event.conversation))
+            }
+            Event::Notice(event) => ("Notice", &event.actor, Some(&event.conversation)),
+            Event::Incomplete(Incomplete::Notice(event)) => {
+                ("IncompleteNotice", &event.actor, Some(&event.conversation))
+            }
+            Event::CtcpQuery(event) => ("CtcpQuery", &event.actor, Some(&event.conversation)),
+            Event::CtcpReply(event) => ("CtcpReply", &event.actor, Some(&event.conversation)),
+            Event::TagMsg(event) => ("TagMsg", &event.actor, Some(&event.conversation)),
+            Event::Reacted(event) => ("Reacted", &event.actor, Some(&event.conversation)),
+            Event::TypingChanged(event) => {
+                ("TypingChanged", &event.actor, Some(&event.conversation))
+            }
+            Event::Redacted(event) => (
+                "Redacted",
+                event.actor.user().unwrap(),
+                Some(&event.conversation),
+            ),
+            Event::ServerNotice(event) => ("ServerNotice", event.actor.user().unwrap(), None),
+            Event::BroadcastCtcp(event) => ("BroadcastCtcp", &event.actor, None),
+            Event::BroadcastTagMsg(event) => ("BroadcastTagMsg", &event.actor, None),
+            event => panic!("unexpected event: {event:?}"),
+        }
+    }
+
+    #[test]
+    fn every_message_event_actor_carries_a_live_handle() {
+        let lines = [
+            (
+                "Message",
+                "@msgid=ErgoHandle1 :alice!alice@staff.example PRIVMSG papo :release approved",
+            ),
+            (
+                "Notice",
+                "@msgid=ErgoHandle2 :alice!alice@staff.example NOTICE papo :deployment complete",
+            ),
+            (
+                "CtcpQuery",
+                ":alice!alice@staff.example PRIVMSG papo :\u{1}VERSION\u{1}",
+            ),
+            (
+                "CtcpReply",
+                ":alice!alice@staff.example NOTICE papo :\u{1}VERSION papo 0.1\u{1}",
+            ),
+            (
+                "TagMsg",
+                "@msgid=ErgoHandle3;+example/status=ready :alice!alice@staff.example TAGMSG papo",
+            ),
+            (
+                "Reacted",
+                "@+draft/react=✅;+draft/reply=ErgoHandle1 :alice!alice@staff.example TAGMSG papo",
+            ),
+            (
+                "TypingChanged",
+                "@+typing=active :alice!alice@staff.example TAGMSG papo",
+            ),
+            (
+                "Redacted",
+                ":alice!alice@staff.example REDACT papo ErgoHandle1 :superseded",
+            ),
+            (
+                "ServerNotice",
+                ":alice!alice@staff.example WALLOPS :scheduled maintenance",
+            ),
+            (
+                "BroadcastCtcp",
+                ":alice!alice@staff.example PRIVMSG * :\u{1}VERSION\u{1}",
+            ),
+            (
+                "BroadcastTagMsg",
+                "@+example/status=ready :alice!alice@staff.example TAGMSG *",
+            ),
+        ];
+        let cases = lines
+            .into_iter()
+            .map(|(name, line)| {
+                let (mut event, state) = live_message_handle_event(line);
+                let token = state.read().unwrap().core.__reply_token_for("alice");
+                super::attach_message_handles(&mut event, Some(token), Some(&state), false);
+                (name, event)
+            })
+            .collect::<Vec<_>>();
+
+        for (expected, event) in cases {
+            let (actual, actor, conversation) = message_handle_actor(&event);
+            assert_eq!(actual, expected);
+            assert!(actor.proof().is_some(), "{expected}");
+            assert!(actor == "ALICE", "{expected}");
+            assert!(actor != "mallory", "{expected}");
+            assert_eq!(crate::Target::__parts(actor).user.as_ref(), Some(actor));
+            if let Some(Conversation::Private(peer)) = conversation {
+                assert_eq!(peer, actor, "{expected}");
+            }
+        }
+    }
+
     #[test]
     fn classifies_an_own_message() {
         let now = Instant::now();
