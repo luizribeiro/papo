@@ -43,11 +43,8 @@ fn moderate_message(client: &papo::Client, event: papo::Event) {
 }
 
 fn inspect_source(source: &papo::Source) {
-    let _: Option<papo::Mask> = papo::Mask::exact(source);
-    let _: Option<papo::Mask> = papo::Mask::for_host(source);
-    let _: Option<papo::Mask> = papo::Mask::for_user_host(source);
     if let Some(nick) = source.nick() {
-        let _: papo::Mask = papo::Mask::for_nick(nick);
+        let _: papo::Mask = papo::Mask::for_nick(&nick.to_owned());
     }
 }
 

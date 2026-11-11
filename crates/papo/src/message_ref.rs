@@ -737,7 +737,7 @@ mod tests {
             Some("cloak.example".into()),
         );
         let receipt = Receipt::new(
-            crate::Source::User(actor),
+            crate::Source::User(crate::event_impl::source::message_actor(actor)),
             Authorship::Other,
             &Conversation::Channel(channel_handle(mapping.channel("#ops"))),
             None,
@@ -792,11 +792,9 @@ mod tests {
             conversation: Conversation::Channel(channel_handle(origin.__channel(mapping, "#ops"))),
             status: Some(crate::Prefix::__new('o', '@')),
             receipt: Receipt::new(
-                crate::Source::User(crate::__testing::user_source(
+                crate::Source::User(crate::event_impl::source::message_actor(user_handle(
                     origin.__nick(mapping, "papo"),
-                    None,
-                    None,
-                )),
+                ))),
                 Authorship::Own,
                 &Conversation::Channel(channel_handle(origin.__channel(mapping, "#ops"))),
                 None,
@@ -877,11 +875,9 @@ mod tests {
         let guard = session
             .state()
             .__channel_guard(session.state().channel("#ops").unwrap().name());
-        let actor = crate::Source::User(crate::__testing::user_source(
+        let actor = crate::Source::User(crate::event_impl::source::message_actor(user_handle(
             mapping.nick("alice"),
-            Some("~alice".into()),
-            Some("cloak.example".into()),
-        ));
+        )));
         let mut receipt = Receipt::new(
             actor.clone(),
             Authorship::Other,

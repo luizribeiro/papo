@@ -1229,7 +1229,11 @@ async fn list_modes_returns_entries_and_updates_joined_channel_state() {
     assert_eq!(entries[0].mask, "*!*@gateway.example");
     let actor: &crate::Source = entries[0].actor().unwrap();
     let expected = client.state().name_rules().unwrap().nick("oper");
-    assert_eq!(actor.nick(), Some(&expected));
+    assert!(
+        actor
+            .nick()
+            .is_some_and(|nick| nick.as_str() == expected.as_str())
+    );
     assert_eq!(
         client
             .state()
@@ -1745,10 +1749,8 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             channel: test_channel_handle("#systems"),
             old: crate::Origin::__new(73).__channel(crate::Casemapping::default(), "#RUST"),
             new: crate::Origin::__new(73).__channel(crate::Casemapping::default(), "#systems"),
-            actor: crate::Source::User(crate::__testing::user_source(
-                test_nick("oper"),
-                None,
-                None,
+            actor: crate::Source::User(crate::event_impl::source::message_actor(
+                crate::__testing::user_source(test_nick("oper"), None, None),
             )),
             authorship: crate::Authorship::Other,
             reason: Some("Community renamed".into()),
@@ -10337,10 +10339,9 @@ async fn every_state_change_replaces_the_snapshot() {
         .unwrap()
         .topic_set_by()
         .unwrap();
-    assert_eq!(
-        actor.nick().unwrap(),
-        &previous.name_rules().unwrap().nick("emily")
-    );
+    assert!(actor.nick().is_some_and(|nick| {
+        nick.as_str() == previous.name_rules().unwrap().nick("emily").as_str()
+    }));
 
     server_line(
         &mut server,

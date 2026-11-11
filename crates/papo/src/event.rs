@@ -3275,7 +3275,7 @@ mod tests {
     }
 
     #[test]
-    fn incomplete_messages_and_notices_keep_display_metadata() {
+    fn incomplete_message_has_no_return_address() {
         let now = Instant::now();
         let cases = [
             (
@@ -6327,11 +6327,7 @@ mod tests {
         use crate::message_ref::Receipt;
         let mapping = Casemapping::Rfc1459;
         let actor = Source::from_proto(papo_proto::Source::Server("ergo.test"), mapping);
-        let Source::User(own_actor) =
-            Source::from_proto(papo_proto::Source::__user("Papo[Bot]", None, None), mapping)
-        else {
-            unreachable!()
-        };
+        let own_actor = crate::__testing::user_source(mapping.nick("Papo[Bot]"), None, None);
         let events = [
             Event::Joined(super::Joined {
                 msgid: None,

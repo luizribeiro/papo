@@ -303,8 +303,6 @@ fn address_check_matches_types_not_names() {
     );
 }
 
-fn assert_mask_source<T: papo::MaskSource + ?Sized>() {}
-
 #[test]
 fn raw_line_reexports_are_nameable() {
     let line =
@@ -313,8 +311,6 @@ fn raw_line_reexports_are_nameable() {
     let _: &papo::Param = &line.params()[1];
     let _: papo::LineSource<'_> = line.source().unwrap();
     let _: papo::WireLine = line.encode().unwrap();
-
-    assert_mask_source::<papo::Source>();
 }
 
 #[test]
