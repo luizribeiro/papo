@@ -2267,6 +2267,69 @@ fn each_message_user_fact_change_advances_the_snapshot() {
 }
 
 #[test]
+fn message_actor_bound_preserves_each_durable_user_kind() {
+    for protected in ["papo", "monitored", "member"] {
+        let transcript = match protected {
+            "papo" => Transcript::new(Config::default().nick("papo"))
+                .server(":papo!papo@localhost PRIVMSG #review :release started"),
+            "monitored" => Transcript::new(Config::default().nick("papo"))
+                .server(":ergo.test 005 papo MONITOR=100 :are supported")
+                .update(|session| session.monitor_add(["monitored"]))
+                .server(":ergo.test 730 papo :monitored!watch@users.example")
+                .server(":monitored!watch@users.example PRIVMSG papo :deployment status requested"),
+            "member" => Transcript::new(Config::default().nick("papo"))
+                .server(":papo!papo@localhost JOIN #review")
+                .server(":member!review@staff.example JOIN #review")
+                .server(":member!review@staff.example PRIVMSG #review :release approved"),
+            _ => unreachable!(),
+        };
+        transcript
+            .update(|session| {
+                for index in 0..1_000 {
+                    session.handle_line(
+                        Instant::now(),
+                        format!(
+                            ":reviewer{index:04}!review@users.example PRIVMSG papo :deployment status"
+                        )
+                        .as_bytes(),
+                    );
+                }
+            })
+            .inspect(|session| {
+                assert!(session.state().user(protected).is_some(), "{protected}");
+            })
+            .ignore_rest();
+    }
+}
+
+#[test]
+fn message_actor_eviction_advances_the_snapshot_at_literal_1000() {
+    let generation = Cell::new(0);
+    Transcript::new(Config::default().nick("papo"))
+        .server(":alice!review@staff.example JOIN #review")
+        .update(|session| {
+            for index in 0..1_000 {
+                session.handle_line(
+                    Instant::now(),
+                    format!(
+                        ":reviewer{index:04}!review@users.example PRIVMSG papo :deployment status"
+                    )
+                    .as_bytes(),
+                );
+            }
+        })
+        .inspect(|session| generation.set(session.state_generation()))
+        .server(":alice!review@staff.example PRIVMSG #review :release approved")
+        .inspect(|session| {
+            assert_ne!(session.state_generation(), generation.get());
+            assert!(session.state().user("reviewer0000").is_none());
+            assert!(session.state().user("reviewer0999").is_some());
+            assert!(session.state().user("alice").is_some());
+        })
+        .ignore_rest();
+}
+
+#[test]
 fn sweeps_joined_channels_with_a_rate_limited_whox_query() {
     Transcript::rate_limited(
         Config::default()
