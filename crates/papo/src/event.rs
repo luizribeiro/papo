@@ -3823,8 +3823,10 @@ mod tests {
             Audience::Broadcast(Broadcast::Mask(_))
         ));
         assert_eq!(broadcast.authorship, Authorship::Other);
-        assert!(matches!(broadcast.actor.user().map(UserSource::account),
-            Some(Account::LoggedIn(account)) if account == "network-admin"));
+        assert!(
+            matches!(broadcast.actor.user().map(|actor| actor.account().clone()),
+            Some(Account::LoggedIn(account)) if account == "network-admin")
+        );
         assert!(broadcast.return_address().is_none());
     }
 
@@ -4375,6 +4377,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn event_metadata_survives_live_line_conversion() {
         let received_at = UNIX_EPOCH + Duration::from_secs(42);
         let server_time = crate::ServerTime::from_stored_millis(1_770_091_506_789).unwrap();
@@ -4454,16 +4457,20 @@ mod tests {
             );
             assert_event_times(&event, expected_variant, server_time, received_at);
             let account = match &event {
-                Event::Parted(event) => Some(event.actor.account()),
-                Event::Kicked(event) => event.actor.user().map(UserSource::account),
-                Event::Quit(event) => Some(event.actor.account()),
-                Event::NickChanged(event) => Some(event.actor.account()),
-                Event::ModeChanged(event) => event.actor.user().map(UserSource::account),
-                Event::TopicChanged(event) => event.actor.user().map(UserSource::account),
+                Event::Parted(event) => Some(event.actor.account().clone()),
+                Event::Kicked(event) => event.actor.user().map(|actor| actor.account().clone()),
+                Event::Quit(event) => Some(event.actor.account().clone()),
+                Event::NickChanged(event) => Some(event.actor.account().clone()),
+                Event::ModeChanged(event) => {
+                    event.actor.user().map(|actor| actor.account().clone())
+                }
+                Event::TopicChanged(event) => {
+                    event.actor.user().map(|actor| actor.account().clone())
+                }
                 _ => None,
             };
             if let Some(account) = account {
-                assert_eq!(account, &Account::Unknown, "{expected_variant}");
+                assert_eq!(account, Account::Unknown, "{expected_variant}");
             }
             match &event {
                 Event::Reacted(event) => assert_eq!(event.actor.account(), &Account::Unknown),
@@ -5862,7 +5869,7 @@ mod tests {
         assert!(matches!(
             mode.as_mode_changed()
                 .and_then(|event| event.actor.user())
-                .map(UserSource::account),
+                .map(|actor| actor.account().clone()),
             Some(Account::LoggedIn(account)) if account == "services"
         ));
     }
