@@ -679,6 +679,16 @@ fn kicked(
             state.isupport().bot_mode().is_some(),
         ),
     )?;
+    let actor = match actor {
+        crate::Source::User(user) => crate::Source::User(crate::UserHandle::from_event(
+            user.nick(),
+            user.account().clone(),
+            None,
+            Some(&client.state),
+            true,
+        )),
+        crate::Source::Server(server) => crate::Source::Server(server),
+    };
     Some(Event::Kicked(Kicked {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
@@ -823,6 +833,16 @@ fn mode_changed(
             state.isupport().bot_mode().is_some(),
         ),
     )?;
+    let actor = match actor {
+        crate::Source::User(user) => crate::Source::User(crate::UserHandle::from_event(
+            user.nick(),
+            user.account().clone(),
+            None,
+            Some(&client.state),
+            true,
+        )),
+        crate::Source::Server(server) => crate::Source::Server(server),
+    };
     Some(Event::ModeChanged(ModeChanged {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
@@ -830,7 +850,7 @@ fn mode_changed(
         subject: if state.isupport().inner().is_channel(message.param(0)?) {
             crate::Subject::Channel(client.channel(message.param(0)?).ok()?)
         } else {
-            crate::Subject::User(state.known_name_rules()?.nick(message.param(0)?))
+            crate::Subject::User(client.query(message.param(0)?).ok()?)
         },
         actor,
         authorship,

@@ -157,7 +157,7 @@ impl ModeChanged {
         let affected = match change.arg.as_ref() {
             Some(crate::ModeArg::Member { nick, .. }) => Some(nick),
             _ => match &self.subject {
-                Subject::User(nick) => Some(nick),
+                Subject::User(user) => return self.about_nick(&user.nick()),
                 Subject::Channel(_) => return Authorship::Other,
             },
         };
@@ -165,6 +165,14 @@ impl ModeChanged {
             (Some(own), Some(affected)) if own == affected => Authorship::Own,
             (Some(_), Some(_)) => Authorship::Other,
             _ => Authorship::Unknown,
+        }
+    }
+
+    fn about_nick(&self, affected: &Nick) -> Authorship {
+        match self.own_nick.as_ref() {
+            Some(own) if own == affected => Authorship::Own,
+            Some(_) => Authorship::Other,
+            None => Authorship::Unknown,
         }
     }
 }

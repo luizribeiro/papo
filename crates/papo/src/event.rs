@@ -1969,6 +1969,16 @@ fn event_handle(
     )
 }
 
+fn current_source(
+    source: Source,
+    state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
+) -> Source {
+    match source {
+        Source::User(user) => Source::User(event_handle(&user, None, state, false)),
+        Source::Server(server) => Source::Server(server),
+    }
+}
+
 fn attach_user_message_handle(
     actor: &mut crate::UserHandle,
     authorship: Authorship,
@@ -2498,7 +2508,9 @@ pub(crate) fn from_core_with_receipt(
                 papo_core::Subject::Channel(channel) => {
                     crate::Subject::Channel(channel_handle(channel, None))
                 }
-                papo_core::Subject::User(nick) => crate::Subject::User(nick),
+                papo_core::Subject::User(nick) => {
+                    crate::Subject::User(crate::UserHandle::from_current_state(nick, handle_state))
+                }
                 _ => return CoreEvent::Unknown,
             },
             key: crate::MetadataKey::new(key),
@@ -2635,6 +2647,7 @@ pub(crate) fn from_core_with_receipt(
             ) else {
                 return CoreEvent::Unknown;
             };
+            let actor = current_source(actor, handle_state);
             Event::Kicked(Kicked {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
@@ -2845,6 +2858,7 @@ pub(crate) fn from_core_with_receipt(
             ) else {
                 return CoreEvent::Unknown;
             };
+            let actor = current_source(actor, handle_state);
             Event::ModeChanged(ModeChanged {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
@@ -2853,7 +2867,9 @@ pub(crate) fn from_core_with_receipt(
                     papo_core::Subject::Channel(channel) => {
                         crate::Subject::Channel(channel_handle(channel, None))
                     }
-                    papo_core::Subject::User(nick) => crate::Subject::User(nick),
+                    papo_core::Subject::User(nick) => crate::Subject::User(
+                        crate::UserHandle::from_current_state(nick, handle_state),
+                    ),
                     _ => return CoreEvent::Unknown,
                 },
                 actor,
@@ -6040,7 +6056,11 @@ mod tests {
 
         let user_mode = ModeChange::__new('i', ModeAction::Add, None);
         assert_eq!(
-            mode_event(Subject::User(mapping.nick("emily")), Some("emily")).about(&user_mode),
+            mode_event(
+                Subject::User(user_handle(mapping.nick("emily"))),
+                Some("emily"),
+            )
+            .about(&user_mode),
             Authorship::Own
         );
         assert_eq!(channel_mode.about(&user_mode), Authorship::Other);

@@ -2058,10 +2058,11 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::StreamSecurity
 impl core::panic::unwind_safe::UnwindSafe for papo::StreamSecurity
 #[non_exhaustive] pub enum papo::Subject
 pub papo::Subject::Channel(papo::ChannelHandle)
-pub papo::Subject::User(papo::Nick)
+pub papo::Subject::User(papo::UserHandle)
 impl papo::Subject
 pub const fn papo::Subject::channel(&self) -> core::option::Option<&papo::ChannelHandle>
-pub const fn papo::Subject::nick(&self) -> core::option::Option<&papo::Nick>
+pub fn papo::Subject::nick(&self) -> core::option::Option<papo::Nick>
+pub const fn papo::Subject::user(&self) -> core::option::Option<&papo::UserHandle>
 impl core::clone::Clone for papo::Subject
 pub fn papo::Subject::clone(&self) -> Self
 impl core::cmp::Eq for papo::Subject

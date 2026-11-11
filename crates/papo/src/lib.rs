@@ -437,15 +437,24 @@ pub enum Subject {
     /// A channel acted on by the event. See [`Conversation`] for status-prefixed line guidance.
     Channel(ChannelHandle),
     /// A user acted on by the event.
-    User(Nick),
+    User(UserHandle),
 }
 
 impl Subject {
     /// Returns the user nickname when this subject is a user.
     #[must_use]
-    pub const fn nick(&self) -> Option<&Nick> {
+    pub fn nick(&self) -> Option<Nick> {
         match self {
-            Self::User(nick) => Some(nick),
+            Self::User(user) => Some(user.nick()),
+            Self::Channel(_) => None,
+        }
+    }
+
+    /// Returns the user handle when this subject is a user.
+    #[must_use]
+    pub const fn user(&self) -> Option<&UserHandle> {
+        match self {
+            Self::User(user) => Some(user),
             Self::Channel(_) => None,
         }
     }
@@ -464,7 +473,7 @@ impl PartialEq<str> for Subject {
     fn eq(&self, other: &str) -> bool {
         match self {
             Self::Channel(channel) => channel == other,
-            Self::User(nick) => nick == other,
+            Self::User(user) => user == other,
         }
     }
 }
