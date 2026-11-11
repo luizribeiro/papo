@@ -221,10 +221,9 @@ impl Command {
             || message.kind != MessageKind::Text
             || message.origin() != papo::Origin::NONE && message.origin() != client.origin()
             || config.ignore_bots
-                && (message.actor.is_bot() == Some(true)
-                    || state
-                        .user(message.actor.nick())
-                        .is_some_and(|user| user.is_bot() == Some(true)))
+                && state
+                    .user(&message.actor)
+                    .is_some_and(|user| user.is_bot() == Some(true))
         {
             return None;
         }
@@ -235,7 +234,12 @@ impl Command {
             return None;
         }
         let rest = body[name_end..].trim_start();
-        let account = message.actor.account().clone();
+        let account = message
+            .tags
+            .get("account")
+            .filter(|account| *account != "*")
+            .and_then(|account| state.name_rules().map(|names| names.account(account)))
+            .map_or(Account::Unknown, Account::LoggedIn);
         Some(Self {
             actor: message.actor.clone(),
             client: client.clone(),
@@ -646,7 +650,7 @@ mod tests {
             .build();
         let command = parse(&tagged, &BotConfig::new("!")).unwrap();
         let account: Option<&AccountName> = command.account();
-        assert_eq!(account, Some(&self::account("Emily")));
+        assert!(account.is_some_and(|account| account == "Emily"));
         assert!(command.account_in(["emily", "alice"]));
         assert!(!command.account_in(["carol"]));
 
@@ -822,8 +826,20 @@ mod tests {
         }
 
         let config = BotConfig::new("!");
-        assert!(client.snapshot().user("weatherbot").is_some());
-        assert_eq!(messages[0].actor.is_bot(), Some(true));
+        assert_eq!(
+            client
+                .snapshot()
+                .user("weatherbot")
+                .and_then(papo::User::is_bot),
+            Some(true)
+        );
+        assert_eq!(
+            messages[0]
+                .state
+                .user(&messages[0].actor)
+                .and_then(papo::User::is_bot),
+            Some(true)
+        );
         assert!(
             config
                 .command(&client, &messages[0].state, &messages[0])
@@ -839,7 +855,13 @@ mod tests {
             client.snapshot().user("emily").unwrap().is_bot(),
             Some(true)
         );
-        assert_eq!(messages[2].actor.is_bot(), None);
+        assert_eq!(
+            messages[2]
+                .state
+                .user(&messages[2].actor)
+                .and_then(papo::User::is_bot),
+            Some(true)
+        );
         assert!(
             config
                 .command(&client, &messages[2].state, &messages[2])

@@ -45,7 +45,10 @@ impl MessageBuilder {
     /// Sets the actor's authenticated account.
     #[must_use]
     pub fn account(mut self, account: impl Into<AccountName>) -> Self {
-        papo::__testing::set_message_account(&mut self.message, Account::LoggedIn(account.into()));
+        let account = account.into();
+        papo::__testing::set_message_account(&mut self.message, Account::LoggedIn(account.clone()));
+        self.tags
+            .push(("account".into(), Some(account.as_str().into())));
         self
     }
 
@@ -114,11 +117,10 @@ mod tests {
 
         assert_eq!(message.return_address(), "alice");
         assert_eq!(message.kind, MessageKind::Text);
-        assert!(
-            matches!(message.actor.account(), papo::Account::LoggedIn(account) if account == "alice")
-        );
+        assert_eq!(message.actor.nick(), "alice");
         assert_eq!(message.msgid().map(AsRef::as_ref), Some("ergo-42"));
-        assert_eq!(message.tags.iter().count(), 2);
+        assert_eq!(message.tags.iter().count(), 3);
+        assert_eq!(message.tags.get("account"), Some("alice"));
         assert_eq!(message.tags.get("bot"), Some(""));
     }
 }
