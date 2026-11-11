@@ -64,6 +64,8 @@ Message-like events now expose `UserHandle` actors, and private `Conversation` v
 
 `WhoEntry` now exposes user and channel handles and reports the WHO operator flag as `is_oper`.
 
+`Joined` events now carry a `UserHandle`; joined-user facts are read from the paired `State`.
+
 `Source::User` now contains a `UserHandle` and no longer implements `MaskSource`; historical actors without account proof cannot authorize a send to a later holder of the same nickname.
 
 `PeerKey` is now the persistable network-and-nickname thread key; equality and hashing ignore private proof upgrades, and its display form preserves verified or explicitly unverified proof state.

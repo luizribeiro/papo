@@ -16,12 +16,10 @@ pub struct Joined {
     pub server_time: Option<ServerTime>,
     /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
-    /// The joining user's real name, when supplied by the server.
-    pub realname: Option<String>,
     /// The joined channel. See [`crate::Conversation`] for status-prefixed line guidance.
     pub channel: ChannelHandle,
     /// The joining user.
-    pub actor: UserSource,
+    pub actor: crate::UserHandle,
     /// Whether the joining user is this client's user.
     pub authorship: Authorship,
     /// The netjoin batch that carried this join, when applicable.

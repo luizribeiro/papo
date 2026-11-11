@@ -651,12 +651,11 @@ impl core::marker::UnsafeUnpin for papo::event::Invited
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Invited
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Invited
 #[non_exhaustive] pub struct papo::event::Joined
-pub papo::event::Joined::actor: papo::UserSource
+pub papo::event::Joined::actor: papo::UserHandle
 pub papo::event::Joined::authorship: papo::Authorship
 pub papo::event::Joined::channel: papo::ChannelHandle
 pub papo::event::Joined::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Joined::netjoin: core::option::Option<papo::event::SplitServers>
-pub papo::event::Joined::realname: core::option::Option<alloc::string::String>
 pub papo::event::Joined::received_at: std::time::SystemTime
 pub papo::event::Joined::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl core::clone::Clone for papo::event::Joined

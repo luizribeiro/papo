@@ -100,13 +100,13 @@ async fn extended_join(s: Scenario) -> papo_testing::Result<()> {
     bob.join(&channel).await?;
     let joined = bob.wait_for(Event::as_joined).await?;
     assert_eq!(joined.channel.name().as_str(), channel);
-    assert_eq!(joined.actor.nick(), &bob_nick);
+    assert_eq!(joined.actor.nick(), bob_nick);
     assert_eq!(joined.authorship, papo::Authorship::Own);
 
     alice.join(&channel).await?;
     let joined = alice.wait_for(Event::as_joined).await?;
     assert_eq!(joined.channel.name().as_str(), channel);
-    assert_eq!(joined.actor.nick(), &alice_nick);
+    assert_eq!(joined.actor.nick(), alice_nick);
     assert_eq!(joined.authorship, papo::Authorship::Own);
     let joined = bob.wait_for(Event::as_joined).await?;
 
@@ -290,7 +290,7 @@ async fn no_implicit_names(s: Scenario) -> papo_testing::Result<()> {
     let joined = alice.wait_for(Event::as_joined).await?;
     let synced = alice.wait_for(Event::as_channel_synced).await?;
     assert_eq!(joined.channel.name().as_str(), channel);
-    assert_eq!(joined.actor.nick(), &alice_nick);
+    assert_eq!(joined.actor.nick(), alice_nick);
     assert_eq!(joined.authorship, papo::Authorship::Own);
     assert_eq!(synced.channel.name().as_str(), channel);
     let state = alice.snapshot();

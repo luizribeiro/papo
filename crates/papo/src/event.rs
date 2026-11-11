@@ -1465,18 +1465,20 @@ pub(crate) fn joined_from_line(
     let envelope =
         line_envelope_with_account_tag(line, casemapping, origin, account_tag_enabled, received_at)
             .with_account(account);
-    let actor = source::user_source_from_line(
+    let actor = source::from_line(
         source::LinePrefix::Raw(line.raw_source()?),
         &envelope,
         casemapping,
         origin,
         prove_not_bot,
     )?;
+    let Source::User(actor) = actor else {
+        return None;
+    };
     Some(Joined {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
-        realname: join.realname.map(str::to_owned),
         channel: crate::ChannelHandle::from_parts(
             origin.__channel(casemapping, join.channel),
             None,
@@ -2592,28 +2594,20 @@ pub(crate) fn from_core_with_receipt(
         papo_core::Event::StsPolicy(action) => return CoreEvent::StsPolicy(action),
         papo_core::Event::Joined {
             envelope,
-            actor,
-            realname,
+            actor: _,
+            realname: _,
             channel,
+            nick,
             authorship,
             netjoin,
             ..
         } => {
             let envelope = map_envelope(&envelope);
-            let Some(actor) = source::user_source_from_line(
-                source::LinePrefix::Raw(&actor),
-                &envelope,
-                channel.casemapping(),
-                origin,
-                prove_not_bot,
-            ) else {
-                return CoreEvent::Unknown;
-            };
+            let actor = crate::UserHandle::from_current_state(nick, handle_state);
             Event::Joined(Joined {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
-                realname,
                 channel: channel_handle(channel, None),
                 actor,
                 authorship: Authorship::from_core(authorship),
@@ -4820,9 +4814,7 @@ mod tests {
 
         assert_eq!(joined.channel.origin(), origin);
         assert_eq!(joined.actor.nick().origin(), origin);
-        assert_eq!(joined.actor.username(), Some("~a"));
-        assert_eq!(joined.actor.host(), Some("cloak.example"));
-        assert!(matches!(joined.actor.account(), Account::LoggedIn(account) if account == "alice"));
+        assert_eq!(joined.actor, "alice");
         session.handle_line(
             Instant::now(),
             b"@account=alice :alice!~a@cloak.example PART #papo :deploying",
@@ -5689,14 +5681,11 @@ mod tests {
         let joined = event.as_joined().unwrap();
         assert_eq!(joined.channel, "#papo");
         assert_eq!(joined.actor.nick(), "alice");
-        assert_eq!(joined.realname.as_deref(), Some("Alice Liddell"));
-        assert_eq!(joined.actor.account(), &Account::LoggedOut);
         assert_eq!(joined.netjoin, None);
     }
 
     fn identity_actor(event: &Event) -> Option<(&'static str, &UserSource)> {
         match event {
-            Event::Joined(event) => Some(("Joined", &event.actor)),
             Event::Parted(event) => Some(("Parted", &event.actor)),
             Event::Quit(event) => Some(("Quit", &event.actor)),
             Event::NickChanged(event) => Some(("NickChanged", &event.actor)),
@@ -5712,11 +5701,6 @@ mod tests {
     #[allow(clippy::too_many_lines)]
     fn lifecycle_user_sources_keep_all_identity_tags() {
         let cases = [
-            (
-                "Joined",
-                false,
-                "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example JOIN #papo alice :Alice Example",
-            ),
             (
                 "Parted",
                 true,
@@ -5828,7 +5812,7 @@ mod tests {
         let joined_event = Event::Joined(joined.clone());
         assert_eq!(joined_event.server_time(), None);
         assert_eq!(joined_event.received_at(), Some(received_at));
-        assert!(matches!(joined.actor.account(), Account::LoggedIn(account) if account == "emily"));
+        assert_eq!(joined.actor, "emily");
     }
 
     #[test]
@@ -6475,14 +6459,14 @@ mod tests {
         let mapping = Casemapping::Rfc1459;
         let actor = Source::from_proto(papo_proto::Source::Server("ergo.test"), mapping);
         let own_actor = crate::__testing::user_source(mapping.nick("Papo[Bot]"), None, None);
+        let own_handle = crate::__testing::user_handle(mapping.nick("Papo[Bot]"));
         let events = [
             Event::Joined(super::Joined {
                 msgid: None,
                 server_time: None,
                 received_at: UNIX_EPOCH,
-                realname: None,
                 channel: channel_handle(mapping.channel("#papo")),
-                actor: own_actor.clone(),
+                actor: own_handle.clone(),
                 authorship: Authorship::Own,
                 netjoin: None,
             }),
@@ -6535,9 +6519,8 @@ mod tests {
                 msgid: None,
                 server_time: None,
                 received_at: UNIX_EPOCH,
-                realname: None,
                 channel: channel_handle(mapping.channel("#papo")),
-                actor: own_actor,
+                actor: own_handle,
                 authorship: Authorship::Own,
                 netjoin: Some(super::SplitServers {
                     batch: crate::BatchId::from("join"),

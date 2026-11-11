@@ -162,6 +162,12 @@ pub fn user_source(
     )
 }
 
+/// Constructs a user handle without network I/O.
+#[must_use]
+pub fn user_handle(nick: impl Into<Nick>) -> crate::UserHandle {
+    crate::UserHandle::from_nick(nick.into())
+}
+
 /// Constructs owned message tags in wire order.
 #[must_use]
 pub fn tags(values: Vec<(String, Option<String>)>) -> Tags {
@@ -281,9 +287,8 @@ pub fn joined(channel: impl Into<ChannelName>, nick: impl Into<Nick>, own: bool)
         msgid: None,
         server_time: None,
         received_at: SystemTime::UNIX_EPOCH,
-        realname: None,
         channel: crate::ChannelHandle::from_parts(channel.into(), None, None, None),
-        actor: user_source(nick, None, None),
+        actor: user_handle(nick),
         authorship: if own {
             Authorship::Own
         } else {

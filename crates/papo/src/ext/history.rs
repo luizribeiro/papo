@@ -2063,7 +2063,6 @@ mod tests {
                     && event.channel.origin() == client.origin()
                     && event.actor.nick().origin() == client.origin()
                     && matches!(event.actor.account(), crate::Account::LoggedIn(account) if account == "emily" && account.origin() == client.origin())
-                    && event.realname.as_deref() == Some("Emily Smith")
                     && event.authorship == crate::Authorship::Unknown
         ));
 
@@ -2074,8 +2073,7 @@ mod tests {
             UNIX_EPOCH,
         );
         assert!(matches!(joined, PageEvent::Joined(event)
-            if event.actor.account() == &crate::Account::LoggedOut
-                && event.realname.as_deref() == Some("Bob")));
+            if event.actor.account() == &crate::Account::LoggedOut));
 
         let joined = history_item(
             papo_core::HistoryItem::Joined(core_item(":carol!~c@host JOIN #papo")),
@@ -2084,7 +2082,7 @@ mod tests {
             UNIX_EPOCH,
         );
         assert!(matches!(joined, PageEvent::Joined(event)
-            if event.actor.account() == &crate::Account::Unknown && event.realname.is_none()));
+            if event.actor.account() == &crate::Account::Unknown));
     }
 
     #[test]
