@@ -772,7 +772,7 @@ impl core::marker::UnsafeUnpin for papo::event::ModeChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ModeChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::ModeChanged
 #[non_exhaustive] pub struct papo::event::MonitorOffline
-pub papo::event::MonitorOffline::subject: papo::Nick
+pub papo::event::MonitorOffline::subject: papo::UserHandle
 impl core::clone::Clone for papo::event::MonitorOffline
 pub fn papo::event::MonitorOffline::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::MonitorOffline
@@ -789,7 +789,7 @@ impl core::marker::UnsafeUnpin for papo::event::MonitorOffline
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::MonitorOffline
 impl core::panic::unwind_safe::UnwindSafe for papo::event::MonitorOffline
 #[non_exhaustive] pub struct papo::event::MonitorOnline
-pub papo::event::MonitorOnline::subject: papo::UserSource
+pub papo::event::MonitorOnline::subject: papo::UserHandle
 impl core::clone::Clone for papo::event::MonitorOnline
 pub fn papo::event::MonitorOnline::clone(&self) -> Self
 impl core::cmp::Eq for papo::event::MonitorOnline

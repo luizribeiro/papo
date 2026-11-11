@@ -132,7 +132,7 @@ pub struct RealnameChanged {
 #[non_exhaustive]
 pub struct MonitorOnline {
     /// The monitored user reported online.
-    pub subject: UserSource,
+    pub subject: crate::UserHandle,
     pub(crate) receipt: crate::message_ref::Receipt,
 }
 
@@ -140,8 +140,8 @@ pub struct MonitorOnline {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct MonitorOffline {
-    /// The monitored nickname.
-    pub subject: Nick,
+    /// The monitored user reported offline.
+    pub subject: crate::UserHandle,
 }
 
 /// A netsplit or netjoin batch and its server names, in wire order.

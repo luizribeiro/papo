@@ -1839,7 +1839,7 @@ fn resolve_direct_waiters(session: &mut Session, waiters: &mut Vec<PendingDirect
             resolve_direct_waiter(session, waiters, online.subject.nick().as_str(), None);
         }
         Event::MonitorOffline(offline) => {
-            resolve_direct_waiter(session, waiters, offline.subject.as_str(), None);
+            resolve_direct_waiter(session, waiters, offline.subject.nick().as_str(), None);
         }
         Event::Warning(event::Warning::MonitorListFull { maximum, nicks }) => {
             for nick in nicks {

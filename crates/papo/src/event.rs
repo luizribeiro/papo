@@ -2910,13 +2910,8 @@ pub(crate) fn from_core_with_receipt(
         papo_core::Event::StateLimitReached { limit, .. } => {
             Event::Warning(Warning::StateLimitReached { kind: limit })
         }
-        papo_core::Event::MonitorOnline {
-            nick,
-            username,
-            host,
-            ..
-        } => {
-            let subject = UserSource::from_state(&nick, username, host, Account::Unknown, origin);
+        papo_core::Event::MonitorOnline { nick, .. } => {
+            let subject = crate::UserHandle::from_current_state(nick, handle_state);
             let reply_token =
                 reply_state.map(|state| state.__reply_token_for(subject.nick().as_str()));
             let receipt = crate::message_ref::Receipt::without_recipient(
@@ -2930,9 +2925,9 @@ pub(crate) fn from_core_with_receipt(
             );
             Event::MonitorOnline(MonitorOnline { subject, receipt })
         }
-        papo_core::Event::MonitorOffline { nick, .. } => {
-            Event::MonitorOffline(MonitorOffline { subject: nick })
-        }
+        papo_core::Event::MonitorOffline { nick, .. } => Event::MonitorOffline(MonitorOffline {
+            subject: crate::UserHandle::from_current_state(nick, handle_state),
+        }),
         papo_core::Event::MonitorListFull { limit, nicks, .. } => {
             Event::Warning(Warning::MonitorListFull {
                 maximum: limit,
@@ -6176,17 +6171,16 @@ mod tests {
     }
 
     #[test]
-    fn maps_monitor_online_with_and_without_userhost() {
+    fn monitor_online_carries_only_handle() {
         assert!(matches!(
             forwarded(papo_core::Event::__monitor_online(Casemapping::default().nick("alice"), Some("~alice".into()), Some("cloak.example".into()))),
             Event::MonitorOnline(online)
-                if online.subject.nick() == "alice" && online.subject.username() == Some("~alice")
-                    && online.subject.host() == Some("cloak.example")
+                if online.subject.nick() == "alice"
         ));
         assert!(matches!(
             forwarded(papo_core::Event::__monitor_online(Casemapping::default().nick("bob"), None, None)),
             Event::MonitorOnline(online)
-                if online.subject.nick() == "bob" && online.subject.username().is_none() && online.subject.host().is_none()
+                if online.subject.nick() == "bob"
         ));
     }
 

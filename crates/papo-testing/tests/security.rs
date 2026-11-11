@@ -117,8 +117,6 @@ async fn bare_dotted_monitor_entry_reports_online_without_panicking() {
         panic!("expected monitor-online event")
     };
     assert_eq!(online.subject.nick(), "bot.v2");
-    assert_eq!(online.subject.username(), None);
-    assert_eq!(online.subject.host(), None);
 }
 
 #[tokio::test]

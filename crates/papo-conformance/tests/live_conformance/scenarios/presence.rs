@@ -343,8 +343,9 @@ async fn monitor(s: Scenario) -> papo_testing::Result<()> {
     let monitored = state.monitor_online().collect::<Vec<_>>();
     assert_eq!(monitored.len(), 1);
     assert_eq!(monitored[0].nick(), bob_nick.as_str());
-    assert_eq!(monitored[0].username(), online.subject.username());
-    assert_eq!(monitored[0].host(), online.subject.host());
+    let online_user = state.user(&online.subject).expect("monitored user");
+    assert_eq!(monitored[0].username(), online_user.username());
+    assert_eq!(monitored[0].host(), online_user.host());
 
     let away = "reading the monitor specification";
     bob.set_away(away).await?;
@@ -361,7 +362,7 @@ async fn monitor(s: Scenario) -> papo_testing::Result<()> {
     bob.set_nick(new_nick.clone()).await?;
     let offline = alice.wait_for(Event::as_monitor_offline).await?;
 
-    assert_eq!(offline.subject, bob_nick.as_str());
+    assert_eq!(offline.subject.nick(), bob_nick);
     assert_eq!(bob.snapshot().nick(), new_nick.as_str());
     assert!(
         alice
