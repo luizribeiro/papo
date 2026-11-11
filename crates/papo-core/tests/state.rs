@@ -2184,6 +2184,89 @@ fn user_tags_advance_the_snapshot_generation() {
 }
 
 #[test]
+fn message_bot_facts_require_message_tags_and_bot_isupport() {
+    for (message_tags, bot_mode, expected) in [
+        (true, false, None),
+        (false, true, None),
+        (true, true, Some(false)),
+        (false, false, None),
+    ] {
+        let wanted = message_tags.then_some("message-tags");
+        let mut transcript = Transcript::new(Config::default().wanted_caps(wanted))
+            .connect_default()
+            .server(if message_tags {
+                "CAP * LS :message-tags"
+            } else {
+                "CAP * LS :"
+            });
+        if message_tags {
+            transcript = transcript
+                .client("CAP REQ :message-tags")
+                .server("CAP * ACK :message-tags");
+        }
+        transcript
+            .client("CAP END")
+            .welcome(":ergo.test 001 papo :Welcome to Ergo")
+            .server(if bot_mode {
+                ":ergo.test 005 papo BOT=B :are supported"
+            } else {
+                ":ergo.test 005 papo :are supported"
+            })
+            .server(":emily!~emily@localhost PRIVMSG #papo :release ready")
+            .server("@bot :relay!~relay@localhost PRIVMSG #papo :build complete")
+            .inspect(|session| {
+                assert_eq!(session.state().user("emily").unwrap().is_bot(), expected);
+                assert_eq!(session.state().user("relay").unwrap().is_bot(), Some(true));
+            })
+            .ignore_rest();
+    }
+}
+
+#[test]
+fn each_message_user_fact_change_advances_the_snapshot() {
+    let generation = Cell::new(0);
+    Transcript::new(Config::default().wanted_caps(["message-tags"]))
+        .connect_default()
+        .server("CAP * LS :message-tags")
+        .client("CAP REQ :message-tags")
+        .server("CAP * ACK :message-tags")
+        .client("CAP END")
+        .welcome(":ergo.test 001 papo :Welcome to Ergo")
+        .server(":ergo.test 005 papo BOT=B :are supported")
+        .server(":alice!old@cloak.example PRIVMSG papo :release ready")
+        .inspect(|session| generation.set(session.state_generation()))
+        .server(":alice!new@cloak.example PRIVMSG papo :review started")
+        .inspect(|session| {
+            assert_eq!(
+                session.state().user("alice").unwrap().username(),
+                Some("new")
+            );
+            assert_ne!(session.state_generation(), generation.get());
+            generation.set(session.state_generation());
+        })
+        .server(":alice!new@staff.example PRIVMSG papo :review complete")
+        .inspect(|session| {
+            assert_eq!(
+                session.state().user("alice").unwrap().host(),
+                Some("staff.example")
+            );
+            assert_ne!(session.state_generation(), generation.get());
+            generation.set(session.state_generation());
+        })
+        .server("@bot :alice!new@staff.example PRIVMSG papo :deploying")
+        .inspect(|session| {
+            assert_eq!(session.state().user("alice").unwrap().is_bot(), Some(true));
+            generation.set(session.state_generation());
+        })
+        .server(":alice!new@staff.example PRIVMSG papo :deployment complete")
+        .inspect(|session| {
+            assert_eq!(session.state().user("alice").unwrap().is_bot(), Some(false));
+            assert_ne!(session.state_generation(), generation.get());
+        })
+        .ignore_rest();
+}
+
+#[test]
 fn sweeps_joined_channels_with_a_rate_limited_whox_query() {
     Transcript::rate_limited(
         Config::default()
