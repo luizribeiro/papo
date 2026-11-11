@@ -2607,21 +2607,26 @@ pub(crate) fn from_core_with_receipt(
         }
         papo_core::Event::Parted {
             envelope,
-            actor,
+            nick,
+            token,
+            facts,
             channel,
             reason,
             authorship,
             ..
         } => {
             let envelope = map_envelope(&envelope);
-            let Some(actor) = user_from_raw(&actor, &envelope) else {
-                return CoreEvent::Unknown;
-            };
+            let account = facts
+                .as_ref()
+                .map_or_else(|| envelope.account.clone(), |user| user.account().clone());
+            let actor =
+                crate::UserHandle::from_event(nick, account, Some(token), handle_state, false);
             Event::Parted(Parted {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 actor,
+                facts,
                 channel: channel_handle(channel, None),
                 reason: reason.map(|reason| papo_proto::display_text(&reason).into_owned()),
                 authorship: Authorship::from_core(authorship),
@@ -2698,7 +2703,6 @@ pub(crate) fn from_core_with_receipt(
         papo_core::Event::Quit {
             envelope,
             actor,
-            nick: _,
             reason,
             channels,
             authorship,
@@ -2973,8 +2977,8 @@ mod tests {
         Audience, Authorship, Broadcast, BroadcastCtcp, BroadcastTagMsg, Conversation, CoreEvent,
         Event, Incomplete, Message as ChatMessage, MessageId, MessageKind, MetadataChanged,
         ModeAction, ModeArg, ModeChange, ServerNoticeKind, Source, StandardReplyKind, Tags,
-        UserSource, Warning, ctcp_parts, from_core as from_core_with_mapping,
-        historical_message_event, message_event_from_line,
+        Warning, ctcp_parts, from_core as from_core_with_mapping, historical_message_event,
+        message_event_from_line,
     };
     use crate::{Subject, Visibility};
     use papo_core::{
@@ -5608,31 +5612,23 @@ mod tests {
         assert_eq!(joined.netjoin, None);
     }
 
-    fn identity_actor(event: &Event) -> Option<(&'static str, &UserSource)> {
+    fn departure_actor(
+        event: &Event,
+    ) -> Option<(&'static str, &crate::UserHandle, &papo_core::User)> {
         match event {
-            Event::Parted(event) => Some(("Parted", &event.actor)),
-            Event::Quit(event) => Some(("Quit", &event.actor)),
+            Event::Parted(event) => Some(("Parted", &event.actor, event.facts.as_ref()?)),
             _ => None,
         }
     }
 
     #[test]
-    #[allow(clippy::too_many_lines)]
-    fn lifecycle_user_sources_keep_all_identity_tags() {
-        let cases = [
-            (
-                "Parted",
-                true,
-                "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example PART #papo :Deploying release",
-            ),
-            (
-                "Quit",
-                true,
-                "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example QUIT :Client exited",
-            ),
-        ];
+    fn departure_events_keep_facts_removed_from_state() {
+        let cases = [(
+            "Parted",
+            "@account=alice;bot :alice!~a@staff.example PART #papo :Deploying release",
+        )];
 
-        for (expected, member, line) in cases {
+        for (expected, line) in cases {
             let now = Instant::now();
             let mut session = Session::new(Config::default().nick("papo"));
             session.handle_line(
@@ -5640,19 +5636,15 @@ mod tests {
                 b":ergo.test 005 papo BOT=B CHANMODES=Ibe,k,fl,CEMRUimnstu PREFIX=(ov)@+ :are supported",
             );
             session.handle_line(now, b":papo!~p@client.example JOIN #papo");
-            if member {
-                session.handle_line(
-                    now,
-                    b"@account=alice :alice!~a@staff.example JOIN #papo alice :Alice Example",
-                );
-            }
+            session.handle_line(
+                now,
+                b"@account=alice :alice!~a@staff.example JOIN #papo alice :Alice Example",
+            );
             while session.poll_event().is_some() {}
 
             session.handle_line(now, line.as_bytes());
             let mapped = from_core_with_mapping(
-                session
-                    .poll_event()
-                    .unwrap_or_else(|| panic!("{expected} produced no event")),
+                session.poll_event().expect("departure event"),
                 session.isupport().casemapping(),
                 crate::Origin::NONE,
                 true,
@@ -5662,17 +5654,15 @@ mod tests {
             let CoreEvent::Forward(event) = mapped else {
                 panic!("{expected} was not forwarded")
             };
-            let Some((actual, actor)) = identity_actor(&event) else {
-                panic!("{expected} had no user actor: {event:?}")
+            let Some((actual, actor, facts)) = departure_actor(&event) else {
+                panic!("{expected} had no departure facts: {event:?}")
             };
             assert_eq!(actual, expected);
-            assert!(matches!(actor.account(), Account::LoggedIn(account) if account == "alice"));
-            assert_eq!(actor.is_bot(), Some(true), "{expected}");
-            assert_eq!(
-                actor.oper().and_then(|oper| oper.name.as_deref()),
-                Some("network-admin"),
-                "{expected}"
-            );
+            assert_eq!(actor.nick(), "alice");
+            assert_eq!(facts.username(), Some("~a"));
+            assert_eq!(facts.host(), Some("staff.example"));
+            assert!(matches!(facts.account(), Account::LoggedIn(account) if account == "alice"));
+            assert_eq!(facts.realname(), Some("Alice Example"));
         }
     }
 
@@ -6338,7 +6328,6 @@ mod tests {
         use crate::message_ref::Receipt;
         let mapping = Casemapping::Rfc1459;
         let actor = Source::from_proto(papo_proto::Source::Server("ergo.test"), mapping);
-        let own_actor = crate::__testing::user_source(mapping.nick("Papo[Bot]"), None, None);
         let own_handle = crate::__testing::user_handle(mapping.nick("Papo[Bot]"));
         let events = [
             Event::Joined(super::Joined {
@@ -6354,7 +6343,8 @@ mod tests {
                 msgid: None,
                 server_time: None,
                 received_at: UNIX_EPOCH,
-                actor: own_actor.clone(),
+                actor: own_handle.clone(),
+                facts: None,
                 channel: channel_handle(mapping.channel("#papo")),
                 reason: None,
                 authorship: Authorship::Own,

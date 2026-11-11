@@ -4,7 +4,7 @@ use crate::ServerTime;
 
 use crate::{Authorship, ChannelHandle, ChannelName, MessageId, Nick, Subject};
 
-use super::{Source, UserSource};
+use super::Source;
 
 /// A user joined a channel shared with the client.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -53,7 +53,9 @@ pub struct Parted {
     /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The departing user.
-    pub actor: UserSource,
+    pub actor: crate::UserHandle,
+    /// User facts removed by this event, or `None` when the paired state still knows the user.
+    pub facts: Option<crate::User>,
     /// The departed channel. See [`crate::Conversation`] for status-prefixed line guidance.
     pub channel: ChannelHandle,
     /// The optional part reason.

@@ -76,6 +76,8 @@ KICK and INVITE events now identify their affected user with a `UserHandle`.
 
 MONITOR online and offline events now carry only a `UserHandle`; online facts are read from the paired `State`.
 
+PART events now carry a `UserHandle` and preserve user facts only when the paired state forgets the departing user.
+
 `Source::User` now contains a `UserHandle` and no longer implements `MaskSource`; historical actors without account proof cannot authorize a send to a later holder of the same nickname.
 
 `PeerKey` is now the persistable network-and-nickname thread key; equality and hashing ignore private proof upgrades, and its display form preserves verified or explicitly unverified proof state.

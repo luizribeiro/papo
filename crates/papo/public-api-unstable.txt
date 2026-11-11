@@ -911,9 +911,10 @@ impl core::marker::UnsafeUnpin for papo::event::Notice
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Notice
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Notice
 #[non_exhaustive] pub struct papo::event::Parted
-pub papo::event::Parted::actor: papo::UserSource
+pub papo::event::Parted::actor: papo::UserHandle
 pub papo::event::Parted::authorship: papo::Authorship
 pub papo::event::Parted::channel: papo::ChannelHandle
+pub papo::event::Parted::facts: core::option::Option<papo::User>
 pub papo::event::Parted::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Parted::reason: core::option::Option<alloc::string::String>
 pub papo::event::Parted::received_at: std::time::SystemTime

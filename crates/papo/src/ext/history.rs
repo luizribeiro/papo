@@ -583,7 +583,7 @@ fn parted(
         state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
         received_at,
     );
-    let actor = legacy_user_from_line(
+    let actor = user_from_line(
         message,
         &envelope,
         mapping,
@@ -593,11 +593,19 @@ fn parted(
             state.isupport().bot_mode().is_some(),
         ),
     )?;
+    let actor = crate::UserHandle::from_event(
+        actor.nick(),
+        actor.account().clone(),
+        None,
+        Some(&client.state),
+        true,
+    );
     Some(Event::Parted(Parted {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         actor,
+        facts: None,
         channel: client.channel(message.param(0)?).ok()?,
         authorship,
         reason: message

@@ -57,8 +57,8 @@ async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
         })
         .await?;
     assert!(matches!(
-        parted.actor.account(),
-        Account::LoggedIn(observed) if observed == account.as_str()
+        parted.facts.as_ref().map(papo::User::account),
+        Some(Account::LoggedIn(observed)) if observed == account.as_str()
     ));
     bob.expect_none(|event| event.as_message().filter(|message| message.text == text))
         .await?;

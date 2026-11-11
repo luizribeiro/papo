@@ -439,7 +439,7 @@ async fn multiple_joins(s: Scenario) -> papo_testing::Result<()> {
     for ((own, observed), channel) in own.iter().zip(&observed).zip(channels) {
         assert_eq!(own.channel.name().as_str(), channel);
         assert_eq!(observed.channel.name().as_str(), channel);
-        assert_eq!(own.actor.nick(), &bob_nick);
+        assert_eq!(own.actor.nick(), bob_nick);
         assert_eq!(observed.actor.nick(), bob_nick.as_str());
         assert_eq!(own.authorship, papo::Authorship::Own);
         assert_eq!(observed.authorship, papo::Authorship::Other);
@@ -879,7 +879,7 @@ async fn part_multiple_and_refusal(s: Scenario) -> papo_testing::Result<()> {
     for ((own, observed), channel) in own.iter().zip(&observed).zip(expected) {
         assert_eq!(own.channel.name().as_str(), channel);
         assert_eq!(observed.channel.name().as_str(), channel);
-        assert_eq!(own.actor.nick(), &alice_nick);
+        assert_eq!(own.actor.nick(), alice_nick);
         assert_eq!(observed.actor.nick(), alice_nick.as_str());
         assert_eq!(own.reason.as_deref(), Some(reason));
         assert_eq!(observed.reason.as_deref(), Some(reason));
