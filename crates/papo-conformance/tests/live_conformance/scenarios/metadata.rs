@@ -199,7 +199,9 @@ async fn metadata_does_not_cross_nick_handoffs(s: Scenario) -> papo_testing::Res
     observer
         .wait_for(|event| {
             event.as_nick_changed().filter(|changed| {
-                changed.actor.nick() == mallory_nick.as_str() && changed.new == alice_nick.as_str()
+                changed.actor.nick() == alice_nick.as_str()
+                    && changed.old == mallory_nick.as_str()
+                    && changed.new == alice_nick.as_str()
             })
         })
         .await?;

@@ -48,7 +48,9 @@ async fn private_reply_after_nick_takeover(s: Scenario) -> papo_testing::Result<
     mallory.set_nick(alice_nick.as_str()).await?;
     bot.wait_for(|event| {
         event.as_nick_changed().filter(|changed| {
-            changed.actor.nick() == mallory_nick.as_str() && changed.new == alice_nick.as_str()
+            changed.actor.nick() == alice_nick.as_str()
+                && changed.old == mallory_nick.as_str()
+                && changed.new == alice_nick.as_str()
         })
     })
     .await?;

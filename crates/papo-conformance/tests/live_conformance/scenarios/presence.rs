@@ -480,9 +480,11 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
         .find(|entry| entry.user == alice_nick.as_str())
         .unwrap();
 
-    assert_eq!(
-        alice_who.channel.as_ref().map(papo::ChannelHandle::name),
-        Some(channel_name.clone())
+    assert!(
+        alice_who
+            .channel
+            .as_ref()
+            .is_some_and(|observed| observed.name() == channel.as_str())
     );
     assert!(!alice_who.username.is_empty());
     assert!(!alice_who.host.is_empty());
