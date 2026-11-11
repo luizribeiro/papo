@@ -711,6 +711,7 @@ fn kicked(
             Some(&client.state),
             true,
         ),
+        facts: None,
         actor,
         reason: message
             .param(2)

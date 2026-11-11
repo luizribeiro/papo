@@ -78,6 +78,8 @@ pub struct Kicked {
     pub channel: ChannelHandle,
     /// The removed user.
     pub subject: crate::UserHandle,
+    /// User facts removed by this event, or `None` when the paired state still knows the user.
+    pub facts: Option<crate::User>,
     /// The user or server that issued the kick.
     pub actor: Source,
     /// Whether the actor is this client's user.

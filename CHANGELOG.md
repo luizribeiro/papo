@@ -72,9 +72,9 @@ Account, away, host, and real-name change events now identify the affected user 
 
 `Subject::User` and user-originated mode actors now carry `UserHandle` identities.
 
-KICK and INVITE events now identify their affected user with a `UserHandle`.
+KICK and INVITE events now identify their affected user with a `UserHandle`; KICK preserves user facts only when the paired state forgets the removed user.
 
-MONITOR online and offline events now carry only a `UserHandle`; online facts are read from the paired `State`.
+MONITOR online and offline events now carry a `UserHandle`; online facts are read from the paired `State`, while offline preserves facts only when that state forgets the user.
 
 PART events now carry a `UserHandle` and preserve user facts only when the paired state forgets the departing user.
 
@@ -367,7 +367,7 @@ User lifecycle payloads were normalized as follows:
 
 | Earlier fields | 0.1.0 fields |
 |---|---|
-| `NickChanged { old, actor, account, ... }` | `actor: UserSource` describes the old identity, `new` is the new nick, and `channels` lists shared channels |
+| `NickChanged { old, actor, account, ... }` | `actor: UserHandle` identifies the renamed user, `new` is the new nick, and `channels` lists shared channels |
 | `AwayChanged { nick, away, actor }` | `actor: UserSource`, `new: Away`, `authorship`, and timestamps |
 | `AccountChanged { nick, account, actor }` | `actor: UserSource`, `new: Account`, `authorship`, and timestamps |
 | `HostChanged { nick, username, host, actor }` | `actor: UserSource`, `new_username`, `new_host`, `authorship`, and timestamps |

@@ -142,6 +142,8 @@ pub struct MonitorOnline {
 pub struct MonitorOffline {
     /// The monitored user reported offline.
     pub subject: crate::UserHandle,
+    /// User facts removed by this event, or `None` when the paired state still knows the user.
+    pub facts: Option<crate::User>,
 }
 
 /// A netsplit or netjoin batch and its server names, in wire order.

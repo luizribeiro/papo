@@ -1806,6 +1806,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             received_at: SystemTime::UNIX_EPOCH,
             channel: test_channel_handle("#staff"),
             subject: crate::__testing::user_handle(test_nick("alice")),
+            facts: None,
             actor: crate::Source::from_proto(
                 papo_proto::Source::__user("chanserv", None, None),
                 papo_proto::Casemapping::default(),
@@ -1841,6 +1842,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             received_at: SystemTime::UNIX_EPOCH,
             channel: test_channel_handle("#staff"),
             subject: crate::__testing::user_handle(test_nick("papo-driver")),
+            facts: None,
             actor: crate::Source::from_proto(
                 papo_proto::Source::__user("chanserv", None, None),
                 papo_proto::Casemapping::default(),

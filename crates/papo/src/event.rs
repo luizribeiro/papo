@@ -2636,6 +2636,8 @@ pub(crate) fn from_core_with_receipt(
             envelope,
             channel,
             subject,
+            token,
+            facts,
             actor,
             authorship,
             subject_authorship,
@@ -2658,7 +2660,16 @@ pub(crate) fn from_core_with_receipt(
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 channel: channel_handle(channel, None),
-                subject: crate::UserHandle::from_current_state(subject, handle_state),
+                subject: crate::UserHandle::from_event(
+                    subject,
+                    facts
+                        .as_ref()
+                        .map_or(crate::Account::Unknown, |user| user.account().clone()),
+                    Some(token),
+                    handle_state,
+                    false,
+                ),
+                facts,
                 actor,
                 authorship: Authorship::from_core(authorship),
                 subject_authorship: Authorship::from_core(subject_authorship),
@@ -2929,8 +2940,19 @@ pub(crate) fn from_core_with_receipt(
             );
             Event::MonitorOnline(MonitorOnline { subject, receipt })
         }
-        papo_core::Event::MonitorOffline { nick, .. } => Event::MonitorOffline(MonitorOffline {
-            subject: crate::UserHandle::from_current_state(nick, handle_state),
+        papo_core::Event::MonitorOffline {
+            nick, token, facts, ..
+        } => Event::MonitorOffline(MonitorOffline {
+            subject: crate::UserHandle::from_event(
+                nick,
+                facts
+                    .as_ref()
+                    .map_or(crate::Account::Unknown, |user| user.account().clone()),
+                Some(token),
+                handle_state,
+                false,
+            ),
+            facts,
         }),
         papo_core::Event::MonitorListFull { limit, nicks, .. } => {
             Event::Warning(Warning::MonitorListFull {
@@ -5755,6 +5777,7 @@ mod tests {
             Event::Kicked(kicked)
                 if kicked.channel == "#papo"
                     && kicked.subject == "emily"
+                    && kicked.facts.is_none()
                     && kicked.actor.nick().is_some_and(|nick| nick == "alice")
                     && kicked.reason.as_deref() == Some("Flooding")
         ));
@@ -6194,7 +6217,8 @@ mod tests {
                 papo_core::ReplyToken::__unknown(papo_proto::Origin::NONE),
                 None,
             )),
-            Event::MonitorOffline(offline) if offline.subject == "alice"
+            Event::MonitorOffline(offline)
+                if offline.subject == "alice" && offline.facts.is_none()
         ));
     }
 
@@ -6355,6 +6379,7 @@ mod tests {
                 received_at: UNIX_EPOCH,
                 channel: channel_handle(mapping.channel("#papo")),
                 subject: own_handle.clone(),
+                facts: None,
                 actor: actor.clone(),
                 authorship: Authorship::Other,
                 subject_authorship: Authorship::Own,
