@@ -714,11 +714,7 @@ mod tests {
     #[test]
     fn received_reference_text_matches_each_return_address() {
         let mapping = crate::Casemapping::default();
-        let actor = crate::__testing::user_source(
-            mapping.nick("alice"),
-            Some("~alice".into()),
-            Some("cloak.example".into()),
-        );
+        let actor = crate::__testing::user_handle(mapping.nick("alice"));
         let channel =
             crate::__testing::message(Some(actor.clone()), "#papo", "release approved", false);
         let mut operators =
@@ -751,11 +747,7 @@ mod tests {
     #[test]
     fn notice_reference_text_matches_exactly() {
         let mapping = crate::Casemapping::default();
-        let actor = crate::__testing::user_source(
-            mapping.nick("alice"),
-            Some("~alice".into()),
-            Some("cloak.example".into()),
-        );
+        let actor = crate::__testing::user_handle(mapping.nick("alice"));
         let receipt = Receipt::new(
             crate::Source::User(crate::UserHandle::from_parts(
                 actor.nick().clone(),
@@ -783,10 +775,8 @@ mod tests {
         let mapping = crate::Casemapping::default();
         let origin = crate::Origin::__new(73);
         let mut received = crate::__testing::message(
-            Some(crate::__testing::user_source(
+            Some(crate::__testing::user_handle(
                 origin.__nick(mapping, "emily"),
-                Some("~emily".into()),
-                Some("cloak.example".into()),
             )),
             "#ops",
             "deploy complete",
@@ -850,11 +840,7 @@ mod tests {
     fn explicit_pairs_replace_an_existing_references_id_and_keep_its_guard() {
         let mapping = crate::Casemapping::default();
         let mut message = crate::__testing::message(
-            Some(crate::__testing::user_source(
-                mapping.nick("emily"),
-                Some("~emily".into()),
-                Some("cloak.example".into()),
-            )),
+            Some(crate::__testing::user_handle(mapping.nick("emily"))),
             "papo",
             "deploy complete",
             false,

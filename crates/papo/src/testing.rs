@@ -7,7 +7,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::{
     AccountName, Authorship, Capabilities, Casemapping, ChannelName, Mask, Message, MessageKind,
-    Nick, State, Tags, UserSource,
+    Nick, State, Tags, UserHandle,
     event::{AwayChanged, Connected, Joined},
 };
 
@@ -145,23 +145,6 @@ pub async fn client_line(server: &mut tokio::io::DuplexStream, expected: &[u8]) 
     assert_eq!(actual, expected);
 }
 
-/// Constructs a user event source.
-#[must_use]
-pub fn user_source(
-    nick: impl Into<Nick>,
-    username: Option<String>,
-    host: Option<String>,
-) -> UserSource {
-    let nick = nick.into();
-    UserSource::from_state(
-        &nick,
-        username,
-        host,
-        crate::Account::Unknown,
-        nick.origin(),
-    )
-}
-
 /// Constructs a user handle without network I/O.
 #[must_use]
 pub fn user_handle(nick: impl Into<Nick>) -> crate::UserHandle {
@@ -177,7 +160,7 @@ pub fn tags(values: Vec<(String, Option<String>)>) -> Tags {
 /// Constructs the minimal message payload extended by `papo-testing`.
 #[must_use]
 pub fn message(
-    actor: Option<UserSource>,
+    actor: Option<UserHandle>,
     target: impl Into<String>,
     text: impl Into<String>,
     private: bool,
@@ -187,7 +170,7 @@ pub fn message(
     let conversation = if private {
         let other = actor
             .as_ref()
-            .map_or(target.as_str(), |actor| actor.nick().as_str());
+            .map_or_else(|| target.clone(), |actor| actor.nick().to_string());
         crate::Conversation::Private(crate::UserHandle::from_nick(
             crate::Casemapping::default().nick(other),
         ))
@@ -200,10 +183,7 @@ pub fn message(
         ))
     };
     let return_address = conversation.to_string();
-    let actor = actor
-        .unwrap_or_else(|| user_source(crate::Casemapping::default().nick("unknown"), None, None));
-    let actor =
-        crate::UserHandle::from_parts(actor.nick().clone(), actor.account().clone(), None, None);
+    let actor = actor.unwrap_or_else(|| user_handle(crate::Casemapping::default().nick("unknown")));
     let receipt = crate::message_ref::Receipt::new(
         crate::Source::User(actor.clone()),
         Authorship::Other,
@@ -252,9 +232,8 @@ pub fn set_message_id(message: &mut Message, id: crate::MessageId) {
 }
 
 /// Sets the actor and matching private conversation on a test message.
-pub fn set_message_actor(message: &mut Message, actor: &crate::UserSource) {
-    let actor =
-        crate::UserHandle::from_parts(actor.nick().clone(), actor.account().clone(), None, None);
+pub fn set_message_actor(message: &mut Message, actor: &crate::UserHandle) {
+    let actor = actor.clone();
     if matches!(message.conversation, crate::Conversation::Private(_)) {
         message.conversation = crate::Conversation::Private(actor.clone());
     }
@@ -323,7 +302,7 @@ mod tests {
 
     use super::{
         connected, exercise_session_mapping, exercise_session_mapping_invariants, joined, message,
-        set_message_account, set_message_actor, set_message_id, state, user_source,
+        set_message_account, set_message_actor, set_message_id, state, user_handle,
     };
 
     #[test]
@@ -437,11 +416,7 @@ mod tests {
 
     #[test]
     fn constructs_payloads_and_state_without_network_io() {
-        let source = user_source(
-            crate::Casemapping::default().nick("alice"),
-            Some("a".into()),
-            Some("cloak.example".into()),
-        );
+        let source = user_handle(crate::Casemapping::default().nick("alice"));
         let channel = message(Some(source.clone()), "#papo", "release ready", false);
         assert!(matches!(
             &channel.conversation,
@@ -478,20 +453,9 @@ mod tests {
     #[test]
     fn sets_message_actor_account() {
         let mapping = crate::Casemapping::default();
-        let source = user_source(
-            mapping.nick("alice"),
-            Some("~alice".into()),
-            Some("localhost".into()),
-        );
+        let source = user_handle(mapping.nick("alice"));
         let mut message = message(Some(source), "papo", "release ready", true);
-        set_message_actor(
-            &mut message,
-            &user_source(
-                mapping.nick("emily"),
-                Some("~emily".into()),
-                Some("cloak.example".into()),
-            ),
-        );
+        set_message_actor(&mut message, &user_handle(mapping.nick("emily")));
 
         set_message_account(
             &mut message,

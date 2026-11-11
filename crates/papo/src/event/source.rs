@@ -16,24 +16,6 @@ pub struct UserSource {
 }
 
 impl UserSource {
-    pub(crate) fn from_state(
-        nick: &Nick,
-        username: Option<String>,
-        host: Option<String>,
-        account: Account,
-        origin: crate::Origin,
-    ) -> Self {
-        Self {
-            nick: origin.__nick(nick.casemapping(), nick.as_str()),
-            username: username.filter(|_| host.is_some()),
-            host,
-            account,
-            peer_key: None,
-            is_bot: None,
-            oper: None,
-        }
-    }
-
     /// Returns the user's nickname.
     #[must_use]
     pub const fn nick(&self) -> &Nick {

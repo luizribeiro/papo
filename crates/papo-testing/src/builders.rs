@@ -30,7 +30,8 @@ impl MessageBuilder {
         host: Option<String>,
     ) -> Self {
         let nick = nick.into();
-        let actor = papo::__testing::user_source(nick, username, host);
+        let _ = (username, host);
+        let actor = papo::__testing::user_handle(nick);
         papo::__testing::set_message_actor(&mut self.message, &actor);
         self
     }

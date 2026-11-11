@@ -537,11 +537,7 @@ mod tests {
         session.monitor_add(["alice"]);
         session.handle_line(now, b":ergo.test 730 papo :alice!~alice@cloak.example");
         let (client, mut commands) = crate::driver::test_support::client_with_commands(&session);
-        let actor = crate::__testing::user_source(
-            session.isupport().casemapping().nick("alice"),
-            Some("~alice".into()),
-            Some("cloak.example".into()),
-        );
+        let actor = crate::__testing::user_handle(session.isupport().casemapping().nick("alice"));
         let mut message = crate::__testing::message(Some(actor), "papo", "release approved", true);
         crate::__testing::set_message_account(
             &mut message,

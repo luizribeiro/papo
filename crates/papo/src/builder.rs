@@ -918,14 +918,12 @@ mod tests {
             ))
         ));
 
-        let actor = crate::__testing::user_source(
+        let actor = crate::__testing::user_handle(
             first
                 .state()
                 .name_rules()
                 .expect("server advertised CASEMAPPING")
                 .nick("emily"),
-            Some("~emily".into()),
-            Some("cloak.example".into()),
         );
         let mut private = crate::__testing::message(
             Some(actor.clone()),

@@ -284,11 +284,7 @@ mod tests {
             items: Vec::new(),
             seen: std::collections::HashSet::new(),
         };
-        let actor = crate::__testing::user_source(
-            mapping.nick("emily"),
-            Some("~e".into()),
-            Some("cloak.example".into()),
-        );
+        let actor = crate::__testing::user_handle(mapping.nick("emily"));
         let conversation = crate::Conversation::Channel(crate::ChannelHandle::from_parts(
             mapping.channel("#papo"),
             None,
