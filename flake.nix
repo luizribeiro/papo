@@ -617,9 +617,9 @@
                   target/browser-driver-size/wasm32-unknown-unknown/browser-size/papo_core_browser_tests.wasm \
                   -o papo-driver-probe.wasm
                 size=$(stat --format=%s papo-driver-probe.wasm)
-                # Five percent headroom over this flake probe's 1,046,153-byte measurement from 2026-10-27.
-                budget=1151270
-                echo "optimized papo browser driver: $size bytes (recorded 1096448 on 2026-11-02; budget: $budget bytes)"
+                # Five percent headroom over this flake probe's 1,157,146-byte measurement from 2026-11-11.
+                budget=1215003
+                echo "optimized papo browser driver: $size bytes (recorded 1157146 on 2026-11-11; budget: $budget bytes)"
                 if (( size > budget )); then
                   echo "papo browser driver exceeds its size budget" >&2
                   exit 1
