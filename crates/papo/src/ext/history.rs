@@ -397,6 +397,22 @@ fn user_from_line(
     }
 }
 
+fn legacy_user_from_line(
+    message: &papo_proto::LineRef<'_>,
+    envelope: &crate::event_impl::EventEnvelope,
+    mapping: crate::Casemapping,
+    origin: crate::Origin,
+    prove_not_bot: bool,
+) -> Option<crate::UserSource> {
+    crate::event_impl::source::user_source_from_line(
+        crate::event_impl::source::LinePrefix::Raw(message.raw_source()?),
+        envelope,
+        mapping,
+        origin,
+        prove_not_bot,
+    )
+}
+
 #[allow(clippy::too_many_arguments)]
 fn reaction(
     message: &papo_proto::LineRef<'_>,
@@ -567,7 +583,7 @@ fn parted(
         state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
         received_at,
     );
-    let actor = user_from_line(
+    let actor = legacy_user_from_line(
         message,
         &envelope,
         mapping,
@@ -608,7 +624,7 @@ fn quit(
         state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
         received_at,
     );
-    let actor = user_from_line(
+    let actor = legacy_user_from_line(
         message,
         &envelope,
         mapping,
@@ -696,7 +712,7 @@ fn nick_changed(
         state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
         received_at,
     );
-    let actor = user_from_line(
+    let actor = legacy_user_from_line(
         message,
         &envelope,
         mapping,
