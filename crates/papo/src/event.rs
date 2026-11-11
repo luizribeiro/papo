@@ -5721,9 +5721,13 @@ mod tests {
         assert_eq!(changed.new, "em");
         assert_eq!(changed.channels, ["#papo"]);
 
-        changed.actor.set_account(Account::LoggedIn(
-            Casemapping::default().account("emily-account"),
-        ));
+        changed.actor = UserSource::from_state(
+            changed.actor.nick(),
+            changed.actor.username().map(str::to_owned),
+            changed.actor.host().map(str::to_owned),
+            Account::LoggedIn(Casemapping::default().account("emily-account")),
+            changed.actor.nick().origin(),
+        );
         let scope = crate::peer_key::PeerScope::server("irc.example");
         let pin =
             crate::PeerKey::historical(Some(&scope), changed.actor.nick(), changed.actor.account())

@@ -16,10 +16,6 @@ pub struct UserSource {
 }
 
 impl UserSource {
-    pub(crate) fn set_account(&mut self, account: Account) {
-        self.account = account;
-    }
-
     pub(crate) fn set_peer_key(&mut self, peer_key: crate::peer_key::PeerKey) {
         self.peer_key = Some(Arc::new(peer_key));
     }
@@ -88,45 +84,6 @@ impl UserSource {
     pub const fn oper(&self) -> Option<&Oper> {
         self.oper.as_ref()
     }
-}
-
-#[allow(dead_code)]
-pub(crate) trait FromMessageActor: Sized {
-    fn from_message_actor(actor: UserSource) -> Self;
-}
-
-#[allow(dead_code)]
-pub(crate) trait IntoMessageSource {
-    fn into_message_source(self) -> UserSource;
-}
-
-impl IntoMessageSource for UserSource {
-    fn into_message_source(self) -> UserSource {
-        self
-    }
-}
-
-impl IntoMessageSource for crate::UserHandle {
-    fn into_message_source(self) -> UserSource {
-        crate::UserHandle::into_message_source(self)
-    }
-}
-
-impl FromMessageActor for UserSource {
-    fn from_message_actor(actor: UserSource) -> Self {
-        actor
-    }
-}
-
-impl FromMessageActor for crate::UserHandle {
-    fn from_message_actor(actor: UserSource) -> Self {
-        crate::UserHandle::from_message_source(actor)
-    }
-}
-
-#[allow(dead_code)]
-pub(crate) fn message_actor<S: IntoMessageSource, T: FromMessageActor>(actor: S) -> T {
-    T::from_message_actor(actor.into_message_source())
 }
 
 impl PartialEq for UserSource {

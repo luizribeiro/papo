@@ -3625,14 +3625,8 @@ impl<'a> core::panic::unwind_safe::RefUnwindSafe for papo::Typers<'a>
 impl<'a> core::panic::unwind_safe::UnwindSafe for papo::Typers<'a>
 pub struct papo::UserHandle(_)
 impl papo::UserHandle
-pub fn papo::UserHandle::account(&self) -> &papo::Account
-pub fn papo::UserHandle::host(&self) -> core::option::Option<&str>
-pub fn papo::UserHandle::is_bot(&self) -> core::option::Option<bool>
 pub fn papo::UserHandle::key(&self) -> papo::PeerKey
 pub fn papo::UserHandle::nick(&self) -> papo::Nick
-pub fn papo::UserHandle::oper(&self) -> core::option::Option<&papo::Oper>
-pub fn papo::UserHandle::peer_key(&self) -> core::option::Option<&papo::PeerKey>
-pub fn papo::UserHandle::username(&self) -> core::option::Option<&str>
 impl core::clone::Clone for papo::UserHandle
 pub fn papo::UserHandle::clone(&self) -> Self
 impl core::cmp::Eq for papo::UserHandle
