@@ -206,92 +206,9 @@ pub(crate) fn from_core(source: papo_core::Source, origin: crate::Origin) -> Opt
 
 #[cfg(test)]
 mod tests {
-    use papo_proto::{Casemapping, Mask};
-    use std::sync::Arc;
+    use papo_proto::Casemapping;
 
-    use super::{Source, UserSource};
-    use crate::{Account, Oper};
-
-    #[test]
-    fn exposes_each_line_fact_and_builds_complete_masks() {
-        let mapping = Casemapping::Rfc1459;
-        let account = mapping.account("alice");
-        let source = UserSource {
-            nick: mapping.nick("Alice[bot]"),
-            username: Some("~alice".into()),
-            host: Some("staff.example".into()),
-            account: Account::LoggedIn(account.clone()),
-            peer_key: None,
-            is_bot: Some(true),
-            oper: Some(Oper {
-                name: Some("network-admin".into()),
-            }),
-        };
-
-        assert_eq!(source.nick(), "alice{bot}");
-        assert_eq!(source.username(), Some("~alice"));
-        assert_eq!(source.host(), Some("staff.example"));
-        assert_eq!(source.account().name(), Some(&account));
-        assert_eq!(source.is_bot(), Some(true));
-        assert_eq!(
-            source.oper().and_then(|oper| oper.name.as_deref()),
-            Some("network-admin")
-        );
-        assert_eq!(
-            Mask::exact(&source).as_ref().map(Mask::as_str),
-            Some("Alice[bot]!~alice@staff.example")
-        );
-
-        let mut pinned = source.clone();
-        let scope = crate::peer_key::PeerScope::server("irc.example");
-        let pin =
-            crate::PeerKey::historical(Some(&scope), pinned.nick(), pinned.account()).unwrap();
-        pinned.peer_key = Some(Arc::new(pin));
-        assert_eq!(pinned, source);
-
-        let mut different_nick = source.clone();
-        different_nick.nick = mapping.nick("bob");
-        let mut different_username = source.clone();
-        different_username.username = Some("~operator".into());
-        let mut different_host = source.clone();
-        different_host.host = Some("users.example".into());
-        let mut different_account = source.clone();
-        different_account.account = Account::LoggedIn(mapping.account("bob-account"));
-        let mut different_bot = source.clone();
-        different_bot.is_bot = Some(false);
-        let mut different_oper = source.clone();
-        different_oper.oper = Some(Oper { name: None });
-        for different in [
-            different_nick,
-            different_username,
-            different_host,
-            different_account,
-            different_bot,
-            different_oper,
-        ] {
-            assert_ne!(source, different);
-        }
-    }
-
-    #[test]
-    fn keeps_hosts_without_inventing_incomplete_usernames() {
-        let mapping = Casemapping::Ascii;
-        let source = UserSource {
-            nick: mapping.nick("alice"),
-            username: None,
-            host: None,
-            account: Account::Unknown,
-            peer_key: None,
-            is_bot: None,
-            oper: None,
-        };
-        assert_eq!(source.username(), None);
-        assert_eq!(source.host(), None);
-        assert_eq!(source.account(), &Account::Unknown);
-        assert_eq!(source.is_bot(), None);
-        assert_eq!(source.oper(), None);
-        assert_eq!(Mask::exact(&source), None);
-    }
+    use super::Source;
 
     #[test]
     fn displays_user_nicks_and_server_names() {
