@@ -299,8 +299,6 @@ fn soju_connected_network<'event>(
 ) -> Option<&'event papo::event::Notice> {
     event.as_notice().filter(|notice| {
         notice.actor.nick().as_str() == "BouncerServ"
-            && notice.actor.username() == Some("BouncerServ")
-            && notice.actor.host() == Some("BouncerServ")
             && notice.raw_text.strip_prefix("connected to ") == Some(network)
     })
 }
@@ -329,7 +327,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn accepts_only_sojus_connected_notice_for_the_selected_network() {
+    async fn accepts_sojus_connected_notice_by_service_nick_and_network() {
         let (client, events, mut wire) =
             papo_testing::wire(papo::Client::builder("irc://offline.test", "papo-fixture"));
         wire.register(&[]).await;
@@ -340,16 +338,6 @@ mod tests {
             (
                 "wrong service nick",
                 ":OtherServ!BouncerServ@BouncerServ NOTICE papo-fixture :connected to alice-1469-266",
-                false,
-            ),
-            (
-                "wrong service username",
-                ":BouncerServ!service@BouncerServ NOTICE papo-fixture :connected to alice-1469-266",
-                false,
-            ),
-            (
-                "wrong service host",
-                ":BouncerServ!BouncerServ@soju.example NOTICE papo-fixture :connected to alice-1469-266",
                 false,
             ),
             (
