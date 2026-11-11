@@ -149,10 +149,18 @@ impl Receipt {
     pub(crate) fn actor_recipient(&self) -> Option<RecipientGuard> {
         let actor = self.identity.actor.user()?;
         Some(RecipientGuard {
-            nick: actor.nick().clone(),
+            nick: actor.nick(),
             account: actor.account().clone(),
-            receipt: self.identity.actor_token,
-            validated: None,
+            receipt: actor
+                .proof()
+                .and_then(papo_core::Proven::__recipient)
+                .map(papo_core::RecipientGuard::__token)
+                .or(self.identity.actor_token),
+            validated: actor
+                .proof()
+                .and_then(papo_core::Proven::__recipient)
+                .cloned()
+                .map(Box::new),
         })
     }
 
@@ -170,6 +178,13 @@ impl Receipt {
         conversation: &Conversation,
     ) {
         self.identity.actor = actor;
+        self.identity.actor_token = self
+            .identity
+            .actor
+            .user()
+            .and_then(crate::UserHandle::proof)
+            .and_then(papo_core::Proven::__recipient)
+            .map(papo_core::RecipientGuard::__token);
         self.identity.actor_account = if authorship == Authorship::Own {
             Account::Unknown
         } else {

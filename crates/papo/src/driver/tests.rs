@@ -8507,6 +8507,91 @@ async fn typing_state_appears_refreshes_without_a_snapshot_and_expires() {
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
 
+#[tokio::test(flavor = "current_thread")]
+async fn message_sender_is_event_proven_handle() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let task = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+
+    server_line(
+        &mut server,
+        b":alice!~alice@cloak.example PRIVMSG papo-driver :release is ready\r\n",
+    )
+    .await;
+    let (message, state) = next_message_with_state(&mut events).await;
+
+    assert!(message.actor.proof().is_some());
+    assert_eq!(message.actor, client.query("alice").unwrap());
+    let actor = state.user(&message.actor).unwrap();
+    assert_eq!(actor.username(), Some("~alice"));
+    assert_eq!(actor.host(), Some("cloak.example"));
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn typing_changed_facts_come_from_paired_state() {
+    let (mut server, _client, mut events, driver) = scripted(config());
+    let task = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+
+    server_line(
+        &mut server,
+        b"@+typing=active :alice!~alice@cloak.example TAGMSG #papo\r\n",
+    )
+    .await;
+    let Some((Event::TypingChanged(change), state)) = events.next().await else {
+        panic!("expected typing event with its paired state")
+    };
+
+    assert!(change.actor.proof().is_some());
+    let actor = state.user(&change.actor).unwrap();
+    assert_eq!(actor.username(), Some("~alice"));
+    assert_eq!(actor.host(), Some("cloak.example"));
+    assert_eq!(
+        state.typing(&change.conversation).next().unwrap().nick(),
+        "alice"
+    );
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn message_ref_keeps_fixed_message_pointer() {
+    let (mut server, _client, mut events, driver) = scripted(config());
+    let task = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+    server_line(
+        &mut server,
+        b"@msgid=RfcBTzyxY120004 :alice!~alice@cloak.example PRIVMSG papo-driver :release is ready\r\n",
+    )
+    .await;
+    let (message, _) = next_message_with_state(&mut events).await;
+    let reference = message.return_address();
+
+    server_line(&mut server, b":alice!~alice@cloak.example NICK alice_\r\n").await;
+    let Some((Event::NickChanged(_), state)) = events.next().await else {
+        panic!("expected nickname change")
+    };
+    let parts = crate::Target::__parts(&reference);
+    let recipient = parts.recipient.as_ref().unwrap().to_core(&state).unwrap();
+
+    assert_eq!(
+        reference.msgid().map(AsRef::as_ref),
+        Some("RfcBTzyxY120004")
+    );
+    assert_eq!(reference.as_ref(), "alice");
+    assert!(matches!(
+        state.resolve_recipient(&recipient),
+        papo_core::RecipientStatus::Current(nick) if nick == "alice_"
+    ));
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
 #[tokio::test(flavor = "current_thread", start_paused = true)]
 async fn typing_events_report_every_transition_reason() {
     use crate::event::TypingReason;

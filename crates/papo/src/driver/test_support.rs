@@ -633,10 +633,19 @@ pub(crate) async fn confirm_away(
 }
 
 pub(crate) async fn next_message(events: &mut super::Events) -> ChatMessage {
-    let Some(Event::Message(message)) = events.next().await.map(|(event, _)| event) else {
-        panic!("expected message event")
-    };
-    message
+    next_message_with_state(events).await.0
+}
+
+pub(crate) async fn next_message_with_state(
+    events: &mut super::Events,
+) -> (ChatMessage, Arc<crate::State>) {
+    loop {
+        match events.next().await {
+            Some((Event::Message(message), state)) => return (message, state),
+            Some((Event::AccountChanged(_), _)) => {}
+            _ => panic!("expected message event"),
+        }
+    }
 }
 
 pub(crate) async fn assert_connect_output(
