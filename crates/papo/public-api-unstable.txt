@@ -632,7 +632,7 @@ pub papo::event::Invited::channel: papo::ChannelHandle
 pub papo::event::Invited::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Invited::received_at: std::time::SystemTime
 pub papo::event::Invited::server_time: core::option::Option<papo_proto::time::ServerTime>
-pub papo::event::Invited::subject: papo::Nick
+pub papo::event::Invited::subject: papo::UserHandle
 pub papo::event::Invited::subject_authorship: papo::Authorship
 impl core::clone::Clone for papo::event::Invited
 pub fn papo::event::Invited::clone(&self) -> Self
@@ -681,7 +681,7 @@ pub papo::event::Kicked::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Kicked::reason: core::option::Option<alloc::string::String>
 pub papo::event::Kicked::received_at: std::time::SystemTime
 pub papo::event::Kicked::server_time: core::option::Option<papo_proto::time::ServerTime>
-pub papo::event::Kicked::subject: papo::Nick
+pub papo::event::Kicked::subject: papo::UserHandle
 pub papo::event::Kicked::subject_authorship: papo::Authorship
 impl core::clone::Clone for papo::event::Kicked
 pub fn papo::event::Kicked::clone(&self) -> Self

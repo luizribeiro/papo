@@ -2653,7 +2653,7 @@ pub(crate) fn from_core_with_receipt(
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 channel: channel_handle(channel, None),
-                subject,
+                subject: crate::UserHandle::from_current_state(subject, handle_state),
                 actor,
                 authorship: Authorship::from_core(authorship),
                 subject_authorship: Authorship::from_core(subject_authorship),
@@ -2673,6 +2673,7 @@ pub(crate) fn from_core_with_receipt(
             let Some(actor) = actor_from_raw(&actor, &envelope) else {
                 return CoreEvent::Unknown;
             };
+            let actor = current_source(actor, handle_state);
             let reply_token = actor.user().and_then(|user| {
                 reply_state.map(|state| state.__reply_token_for(user.nick().as_str()))
             });
@@ -2687,7 +2688,7 @@ pub(crate) fn from_core_with_receipt(
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 channel: channel_handle(channel, None),
-                subject,
+                subject: crate::UserHandle::from_current_state(subject, handle_state),
                 actor,
                 authorship: Authorship::from_core(authorship),
                 subject_authorship: Authorship::from_core(subject_authorship),
@@ -6353,7 +6354,7 @@ mod tests {
                 server_time: None,
                 received_at: UNIX_EPOCH,
                 channel: channel_handle(mapping.channel("#papo")),
-                subject: mapping.nick("Papo[Bot]"),
+                subject: own_handle.clone(),
                 actor: actor.clone(),
                 authorship: Authorship::Other,
                 subject_authorship: Authorship::Own,
@@ -6364,7 +6365,7 @@ mod tests {
                 server_time: None,
                 received_at: UNIX_EPOCH,
                 channel: channel_handle(mapping.channel("#papo")),
-                subject: mapping.nick("Papo[Bot]"),
+                subject: own_handle.clone(),
                 receipt: Receipt::without_recipient(
                     actor.clone(),
                     None,

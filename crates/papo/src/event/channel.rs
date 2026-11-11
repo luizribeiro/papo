@@ -75,7 +75,7 @@ pub struct Kicked {
     /// The affected channel. See [`crate::Conversation`] for status-prefixed line guidance.
     pub channel: ChannelHandle,
     /// The removed user.
-    pub subject: Nick,
+    pub subject: crate::UserHandle,
     /// The user or server that issued the kick.
     pub actor: Source,
     /// Whether the actor is this client's user.
@@ -99,7 +99,7 @@ pub struct Invited {
     /// The invited channel. See [`crate::Conversation`] for status-prefixed line guidance.
     pub channel: ChannelHandle,
     /// The invited user.
-    pub subject: Nick,
+    pub subject: crate::UserHandle,
     /// The user or server that sent the invitation.
     pub actor: Source,
     /// Whether the actor is this client's user.

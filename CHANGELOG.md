@@ -72,6 +72,8 @@ Account, away, host, and real-name change events now identify the affected user 
 
 `Subject::User` and user-originated mode actors now carry `UserHandle` identities.
 
+KICK and INVITE events now identify their affected user with a `UserHandle`.
+
 `Source::User` now contains a `UserHandle` and no longer implements `MaskSource`; historical actors without account proof cannot authorize a send to a later holder of the same nickname.
 
 `PeerKey` is now the persistable network-and-nickname thread key; equality and hashing ignore private proof upgrades, and its display form preserves verified or explicitly unverified proof state.

@@ -696,7 +696,13 @@ fn kicked(
         channel: client.channel(message.param(0)?).ok()?,
         authorship,
         subject_authorship,
-        subject: state.known_name_rules()?.nick(nick),
+        subject: crate::UserHandle::from_event(
+            state.known_name_rules()?.nick(nick),
+            crate::Account::Unknown,
+            None,
+            Some(&client.state),
+            true,
+        ),
         actor,
         reason: message
             .param(2)

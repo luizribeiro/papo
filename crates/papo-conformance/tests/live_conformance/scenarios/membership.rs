@@ -693,11 +693,11 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
     let observer = bob.wait_for(Event::as_invited).await?;
 
     assert_eq!(target.channel.name().as_str(), channel);
-    assert_eq!(target.subject.as_str(), carol_nick.as_str());
+    assert_eq!(target.subject.nick(), carol_nick);
     assert_eq!(crate::source_nick(&target.actor), Some(alice_nick.as_str()));
     assert_eq!(target.subject_authorship, papo::Authorship::Own);
     assert_eq!(observer.channel.name().as_str(), channel);
-    assert_eq!(observer.subject.as_str(), carol_nick.as_str());
+    assert_eq!(observer.subject.nick(), carol_nick);
     assert_eq!(
         crate::source_nick(&observer.actor),
         Some(alice_nick.as_str())
@@ -762,7 +762,7 @@ async fn invite_rules(s: Scenario) -> papo_testing::Result<()> {
     alice.invite(carol_nick.as_str(), &channel).await?;
     let invited = carol.wait_for(Event::as_invited).await?;
     assert_eq!(invited.channel.name().as_str(), channel);
-    assert_eq!(invited.subject, carol_nick);
+    assert_eq!(invited.subject.nick(), carol_nick);
     assert_eq!(invited.subject_authorship, papo::Authorship::Own);
     match carol.join(&channel).await {
         Ok(_) => {
@@ -1000,7 +1000,7 @@ async fn kickban(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     first.kick?;
     let kicked = bob.wait_for(Event::as_kicked).await?;
-    assert_eq!(kicked.subject, bob_nick);
+    assert_eq!(kicked.subject.nick(), bob_nick);
 
     join_seen_by(&bob, &mut alice, &channel).await?;
     let duplicate = alice
@@ -1011,7 +1011,7 @@ async fn kickban(s: Scenario) -> papo_testing::Result<()> {
         .await?;
     duplicate.kick?;
     let kicked = bob.wait_for(Event::as_kicked).await?;
-    assert_eq!(kicked.subject, bob_nick);
+    assert_eq!(kicked.subject.nick(), bob_nick);
     assert_eq!(kicked.reason.as_deref(), Some("ban already present"));
     assert!(
         alice
@@ -1066,7 +1066,7 @@ async fn kick_rules(s: Scenario) -> papo_testing::Result<()> {
     for _ in 0..target_count {
         observed.push(alice.wait_for(Event::as_kicked).await?);
     }
-    observed.sort_unstable_by(|left, right| left.subject.cmp(&right.subject));
+    observed.sort_unstable_by_key(|event| event.subject.nick());
     let mut own = vec![
         bob.wait_for(|event| {
             event
@@ -1086,7 +1086,7 @@ async fn kick_rules(s: Scenario) -> papo_testing::Result<()> {
                 .await?,
         );
     }
-    own.sort_unstable_by(|left, right| left.subject.cmp(&right.subject));
+    own.sort_unstable_by_key(|event| event.subject.nick());
     let mut expected = vec![&bob_nick];
     if target_count == 2 {
         expected.push(&carol_nick);
@@ -1766,7 +1766,7 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
     );
     alice.invite(carol_nick.as_str(), &channel).await?;
     let invited = carol.wait_for(Event::as_invited).await?;
-    assert_eq!(invited.subject, carol_nick);
+    assert_eq!(invited.subject.nick(), carol_nick);
     assert_eq!(invited.channel.name().as_str(), channel);
     carol.join(&channel).key(channel_key()).await?;
 
