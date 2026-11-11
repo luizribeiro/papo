@@ -522,7 +522,7 @@ fn ctcp_from_line(
     };
     if reply {
         Ok(Event::CtcpReply(CtcpReply {
-            actor: source::message_actor(actor),
+            actor,
             authorship: metadata.authorship,
             conversation: metadata.conversation,
             status: metadata.status,
@@ -536,7 +536,7 @@ fn ctcp_from_line(
         }))
     } else {
         Ok(Event::CtcpQuery(CtcpQuery {
-            actor: source::message_actor(actor),
+            actor,
             authorship: metadata.authorship,
             conversation: metadata.conversation,
             status: metadata.status,
@@ -607,7 +607,7 @@ fn broadcast_from_line(
     let tags = Tags::from_message(&message);
     if message.command_is("TAGMSG") {
         return Ok(Event::BroadcastTagMsg(BroadcastTagMsg {
-            actor: source::message_actor(actor),
+            actor,
             authorship,
             to,
             msgid: tag_owned(&message, &["msgid"]).map(MessageId::from),
@@ -619,7 +619,7 @@ fn broadcast_from_line(
         return Err(raw);
     };
     Ok(Event::BroadcastCtcp(BroadcastCtcp {
-        actor: source::message_actor(actor),
+        actor,
         authorship,
         to,
         command,
@@ -699,7 +699,7 @@ pub(crate) fn incoming_from_core(
         if !is_server_notice_line(&raw.as_ref()) {
             return unparsed_from_line(raw, received_at);
         }
-        return ServerNotice::from_line(
+        let mut event = ServerNotice::from_line(
             raw,
             authorship,
             None,
@@ -715,6 +715,8 @@ pub(crate) fn incoming_from_core(
             |line| unparsed_from_line(line, received_at),
             Event::ServerNotice,
         );
+        attach_message_handles(&mut event, Some(reply_token), handle_state, false);
+        return event;
     };
     let conversation = Conversation::from_core(
         conversation,
@@ -871,7 +873,7 @@ impl Message {
             .set_reference(metadata.msgid.iter().cloned(), channel_context.clone());
         let conversation = metadata.conversation;
         Ok(Self {
-            actor: source::message_actor(actor),
+            actor,
             authorship: metadata.authorship,
             conversation,
             status: metadata.status,
@@ -993,7 +995,7 @@ impl Notice {
             .set_reference(metadata.msgid.iter().cloned(), channel_context.clone());
         let conversation = metadata.conversation;
         Ok(Self {
-            actor: source::message_actor(actor),
+            actor,
             authorship: metadata.authorship,
             conversation,
             status: metadata.status,
@@ -1949,16 +1951,7 @@ pub(crate) fn attach_live_peer_key(event: &mut Event, state: &crate::State) {
     if let Event::NickChanged(changed) = event {
         let nick = changed.new.clone();
         attach_actor_peer_key(&mut changed.actor, &nick, state);
-        return;
     }
-    if !matches!(event.conversation(), Some(Conversation::Private(_))) {
-        return;
-    }
-    let Some(actor) = private_actor_mut(event) else {
-        return;
-    };
-    let nick = actor.nick().clone();
-    attach_actor_peer_key(actor, &nick, state);
 }
 
 fn event_handle(
@@ -2028,6 +2021,35 @@ pub(crate) fn attach_message_handles(
         Event::TagMsg(event) => user_event!(event),
         Event::Reacted(event) => user_event!(event),
         Event::TypingChanged(event) => user_event!(event),
+        Event::Redacted(event) => {
+            if let Source::User(actor) = &mut event.actor {
+                *actor = event_handle(actor, token, state, historical);
+                if let Conversation::Private(peer) = &mut event.conversation
+                    && event.authorship != Authorship::Own
+                {
+                    *peer = actor.clone();
+                }
+                event.receipt.update_event_actor(
+                    Source::User(actor.clone()),
+                    event.authorship,
+                    &event.conversation,
+                );
+            }
+        }
+        Event::ServerNotice(event) => {
+            if let Source::User(actor) = &mut event.actor {
+                *actor = event_handle(actor, token, state, historical);
+                let conversation = match &event.to {
+                    Audience::Channel(channel) => Conversation::Channel(channel.clone()),
+                    Audience::Me | Audience::Broadcast(_) => return,
+                };
+                event.receipt.update_event_actor(
+                    Source::User(actor.clone()),
+                    event.authorship,
+                    &conversation,
+                );
+            }
+        }
         Event::BroadcastCtcp(event) => {
             event.actor = event_handle(&event.actor, token, state, historical);
         }
@@ -2056,42 +2078,6 @@ fn attach_actor_peer_key(actor: &mut UserSource, nick: &Nick, state: &crate::Sta
     );
     if let Some(peer_key) = peer_key {
         actor.set_peer_key(peer_key);
-    }
-}
-
-pub(crate) fn attach_historical_peer_key(event: &mut Event, state: &crate::State) {
-    if !matches!(event.conversation(), Some(Conversation::Private(_))) {
-        return;
-    }
-    let Some(actor) = private_actor_mut(event) else {
-        return;
-    };
-    let scope = state.peer_scope();
-    if let Some(peer_key) =
-        crate::peer_key::PeerKey::historical(scope.as_ref(), actor.nick(), actor.account())
-    {
-        actor.set_peer_key(peer_key);
-    }
-}
-
-fn private_actor_mut(event: &mut Event) -> Option<&mut UserSource> {
-    match event {
-        Event::Message(event) | Event::Incomplete(Incomplete::Message(event)) => {
-            event.actor.message_source_mut()
-        }
-        Event::Notice(event) | Event::Incomplete(Incomplete::Notice(event)) => {
-            event.actor.message_source_mut()
-        }
-        Event::CtcpQuery(event) => event.actor.message_source_mut(),
-        Event::CtcpReply(event) => event.actor.message_source_mut(),
-        Event::TagMsg(event) => event.actor.message_source_mut(),
-        Event::Reacted(event) => event.actor.message_source_mut(),
-        Event::TypingChanged(event) => event.actor.message_source_mut(),
-        Event::Redacted(event) => match &mut event.actor {
-            Source::User(actor) => actor.message_source_mut(),
-            Source::Server(_) => None,
-        },
-        _ => None,
     }
 }
 
@@ -2952,7 +2938,10 @@ pub(crate) fn from_core_with_receipt(
             let reply_token =
                 reply_state.map(|state| state.__reply_token_for(subject.nick().as_str()));
             let receipt = crate::message_ref::Receipt::without_recipient(
-                Source::User(source::message_actor(subject.clone())),
+                Source::User(crate::UserHandle::from_current_state(
+                    subject.nick().clone(),
+                    handle_state,
+                )),
                 reply_token,
                 subject.nick().to_string(),
                 origin,
@@ -5419,10 +5408,11 @@ mod tests {
             None,
         );
 
-        super::attach_live_peer_key(&mut event, &state);
+        let shared = std::sync::Arc::new(std::sync::RwLock::new(std::sync::Arc::new(state)));
+        super::attach_message_handles(&mut event, None, Some(&shared), false);
         let actor = &event.as_message().unwrap().actor;
         assert_eq!(
-            actor.peer_key().and_then(crate::PeerKey::as_verified_str),
+            actor.key().as_verified_str(),
             Some(
                 "papo-peer:1;server=irc.example;nick-casemap=rfc1459;nick=alice;proof=account;account-casemap=rfc1459;account=fresh-account"
             )

@@ -299,7 +299,6 @@ pub(crate) fn history_item(
         }
     };
     crate::event_impl::attach_message_handles(&mut event, None, Some(&client.state), true);
-    crate::event_impl::attach_historical_peer_key(&mut event, &state);
     event
 }
 
