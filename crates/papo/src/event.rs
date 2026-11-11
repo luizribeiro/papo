@@ -5426,6 +5426,65 @@ mod tests {
     }
 
     #[test]
+    fn live_nick_change_attaches_the_renamed_peer_key() {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().nick("papo"));
+        session.handle_connected_with(
+            now,
+            Connection {
+                host: "irc.example".into(),
+                security: ConnectionSecurity::Secure,
+                authenticated_server_name: Some("irc.example".into()),
+            },
+        );
+        for line in [
+            ":irc.example 005 papo CASEMAPPING=rfc1459 :are supported",
+            ":papo!~papo@localhost JOIN #review * :Papo",
+            ":alice!~alice@cloak.example JOIN #review",
+            ":alice!~alice@cloak.example ACCOUNT alice-account",
+            ":alice!~alice@cloak.example NICK alicia",
+        ] {
+            session.handle_line(now, line.as_bytes());
+        }
+        let state = crate::State::from_session(&session, true);
+        assert!(matches!(
+            state.user("alicia").map(crate::User::account),
+            Some(Account::LoggedIn(account)) if account == "alice-account"
+        ));
+        assert!(state.peer_scope().is_some());
+        let mut event = forwarded(papo_core::Event::__nick_changed(
+            papo_core::LineEnvelope::default(),
+            "alice!~alice@cloak.example".into(),
+            Casemapping::default().nick("alice"),
+            Casemapping::default().nick("alicia"),
+            vec![Casemapping::default().channel("#review")],
+            papo_core::Authorship::Other,
+        ));
+        let Event::NickChanged(changed) = &mut event else {
+            unreachable!()
+        };
+        changed.actor = UserSource::from_state(
+            changed.actor.nick(),
+            changed.actor.username().map(str::to_owned),
+            changed.actor.host().map(str::to_owned),
+            Account::Unknown,
+            changed.actor.nick().origin(),
+        );
+
+        super::attach_live_peer_key(&mut event, &state);
+
+        let Event::NickChanged(changed) = event else {
+            panic!("expected nickname change")
+        };
+        assert_eq!(
+            changed.peer_key().and_then(crate::PeerKey::as_verified_str),
+            Some(
+                "papo-peer:1;server=irc.example;nick-casemap=rfc1459;nick=alicia;proof=account;account-casemap=rfc1459;account=alice-account"
+            )
+        );
+    }
+
+    #[test]
     fn classifies_an_own_message() {
         let now = Instant::now();
         let mut session = Session::new(Config::default().nick("Papo[bot]"));
