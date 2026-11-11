@@ -438,6 +438,7 @@ impl Monitor {
         message: &LineRef<'_>,
         isupport: &Isupport,
         internal_nick: Option<&str>,
+        state: &crate::State,
         outbox: &mut Outbox,
     ) -> Handled {
         self.update_casemapping(isupport.casemapping());
@@ -455,7 +456,7 @@ impl Monitor {
                 let Some(entries) = message.param(1) else {
                     return Handled::No;
                 };
-                if !self.handle_offline(entries, isupport, internal_nick, outbox) {
+                if !self.handle_offline(entries, isupport, internal_nick, state, outbox) {
                     return Handled::No;
                 }
             }
@@ -584,6 +585,7 @@ impl Monitor {
         entries: &str,
         isupport: &Isupport,
         internal_nick: Option<&str>,
+        state: &crate::State,
         outbox: &mut Outbox,
     ) -> bool {
         let mut handled = false;
@@ -596,8 +598,18 @@ impl Monitor {
                 continue;
             }
             if self.replace_presence(nick, Presence::Offline(nick.to_owned()), isupport) {
+                let token = state.__reply_token_for(nick);
+                let facts = state.user(nick).and_then(|user| {
+                    let watched_directly = self
+                        .direct()
+                        .any(|known| crate::names_equal(isupport.casemapping(), known, nick));
+                    (!watched_directly && user.channels().len() == 0 && user.nick() != state.nick())
+                        .then(|| user.clone())
+                });
                 outbox.event(Event::MonitorOffline {
                     nick: self.casemapping.nick(nick),
+                    token,
+                    facts,
                 });
             }
         }

@@ -17,6 +17,8 @@ impl State {
         };
         let ours = crate::names_equal(self.casemapping, nick, self.nick.as_str());
         let authorship = self.nick_authorship(nick);
+        let token = self.__reply_token_for(nick);
+        let facts = self.user(nick).cloned();
         let channels = if ours {
             self.channels
                 .values()
@@ -32,6 +34,8 @@ impl State {
             envelope: crate::LineEnvelope::from_line(message),
             actor: message.raw_source().unwrap_or(nick).to_owned(),
             nick: self.casemapping.nick(nick),
+            token,
+            facts,
             reason: message
                 .param(0)
                 .filter(|reason| !reason.is_empty())
@@ -252,8 +256,12 @@ impl State {
         }
         if let Some(user) = self.users.get_mut(nick_key.as_ref()) {
             user.channels.remove(&channel_name);
-            if user.channels.is_empty() && !user.monitored && nick_name != self.nick {
-                self.users.remove(nick_key.as_ref());
+            if user.channels.is_empty()
+                && !user.monitored
+                && nick_name != self.nick
+                && let Some(user) = self.users.remove(nick_key.as_ref())
+            {
+                self.remember_departed(&user);
             }
         }
         if self

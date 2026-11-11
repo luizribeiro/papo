@@ -2068,6 +2068,26 @@ fn our_part_and_kick_remove_channels_and_orphaned_users() {
 }
 
 #[test]
+fn departure_events_carry_facts_removed_from_state() {
+    Transcript::new(Config::default().nick("papo"))
+        .server(":papo!papo@127.0.0.1 JOIN #papo")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "papo"))
+        .server("@account=alice :alice!~alice@staff.example JOIN #papo alice :Alice Example")
+        .event(|event| matches!(event, Event::Joined { nick, .. } if nick == "alice"))
+        .server(":alice!~alice@staff.example PART #papo :Deploying release")
+        .event(|event| matches!(event,
+            Event::Parted { nick, token, facts: Some(user), .. }
+                if nick == "alice" && token.__is_known()
+                    && user.username() == Some("~alice")
+                    && user.host() == Some("staff.example")
+                    && matches!(user.account(), Account::LoggedIn(account) if account == "alice")
+                    && user.realname() == Some("Alice Example")
+        ))
+        .inspect(|session| assert!(session.state().user("alice").is_none()))
+        .ignore_rest();
+}
+
+#[test]
 fn rekeys_another_users_nick_across_shared_channels() {
     Transcript::new(Config::default().nick("emily"))
         .server(":emily!em@127.0.0.1 JOIN #papo")

@@ -581,9 +581,11 @@ pub papo_core::Event::Kicked::actor: papo_core::Source
 pub papo_core::Event::Kicked::authorship: papo_core::Authorship
 pub papo_core::Event::Kicked::channel: papo::ChannelName
 pub papo_core::Event::Kicked::envelope: papo_core::LineEnvelope
+pub papo_core::Event::Kicked::facts: core::option::Option<papo_core::User>
 pub papo_core::Event::Kicked::reason: core::option::Option<alloc::string::String>
 pub papo_core::Event::Kicked::subject: papo::Nick
 pub papo_core::Event::Kicked::subject_authorship: papo_core::Authorship
+pub papo_core::Event::Kicked::token: ReplyToken
 pub papo_core::Event::Line(papo_core::ReceivedLine)
 #[non_exhaustive] pub papo_core::Event::Malformed
 pub papo_core::Event::Malformed::line: alloc::vec::Vec<u8>
@@ -608,7 +610,9 @@ pub papo_core::Event::ModeChanged::subject_authorship: papo_core::Authorship
 pub papo_core::Event::MonitorListFull::limit: usize
 pub papo_core::Event::MonitorListFull::nicks: alloc::vec::Vec<papo::Nick>
 #[non_exhaustive] pub papo_core::Event::MonitorOffline
+pub papo_core::Event::MonitorOffline::facts: core::option::Option<papo_core::User>
 pub papo_core::Event::MonitorOffline::nick: papo::Nick
+pub papo_core::Event::MonitorOffline::token: ReplyToken
 #[non_exhaustive] pub papo_core::Event::MonitorOnline
 pub papo_core::Event::MonitorOnline::host: core::option::Option<alloc::string::String>
 pub papo_core::Event::MonitorOnline::nick: papo::Nick
@@ -628,16 +632,20 @@ pub papo_core::Event::Parted::actor: alloc::string::String
 pub papo_core::Event::Parted::authorship: papo_core::Authorship
 pub papo_core::Event::Parted::channel: papo::ChannelName
 pub papo_core::Event::Parted::envelope: papo_core::LineEnvelope
+pub papo_core::Event::Parted::facts: core::option::Option<papo_core::User>
 pub papo_core::Event::Parted::nick: papo::Nick
 pub papo_core::Event::Parted::reason: core::option::Option<alloc::string::String>
+pub papo_core::Event::Parted::token: ReplyToken
 #[non_exhaustive] pub papo_core::Event::Quit
 pub papo_core::Event::Quit::actor: alloc::string::String
 pub papo_core::Event::Quit::authorship: papo_core::Authorship
 pub papo_core::Event::Quit::channels: alloc::vec::Vec<papo::ChannelName>
 pub papo_core::Event::Quit::envelope: papo_core::LineEnvelope
+pub papo_core::Event::Quit::facts: core::option::Option<papo_core::User>
 pub papo_core::Event::Quit::netsplit: core::option::Option<papo_core::SplitServers>
 pub papo_core::Event::Quit::nick: papo::Nick
 pub papo_core::Event::Quit::reason: core::option::Option<alloc::string::String>
+pub papo_core::Event::Quit::token: ReplyToken
 pub papo_core::Event::ReadMarkerChanged(papo_core::ReadMarker)
 #[non_exhaustive] pub papo_core::Event::RealnameChanged
 pub papo_core::Event::RealnameChanged::actor: alloc::string::String

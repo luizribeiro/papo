@@ -4086,6 +4086,8 @@ mod tests {
             Casemapping::default().channel("#papo"),
             "alice!~alice@cloak.example".into(),
             Casemapping::default().nick("alice"),
+            papo_core::ReplyToken::__unknown(papo_proto::Origin::NONE),
+            None,
             Some(payload.into()),
             papo_core::Authorship::Other,
         )) else {
@@ -4095,6 +4097,8 @@ mod tests {
             papo_core::LineEnvelope::default(),
             Casemapping::default().channel("#papo"),
             Casemapping::default().nick("alice"),
+            papo_core::ReplyToken::__unknown(papo_proto::Origin::NONE),
+            None,
             papo_core::Source::from_proto(
                 papo_proto::Source::Server("ergo.test"),
                 Casemapping::default(),
@@ -4109,6 +4113,8 @@ mod tests {
             papo_core::LineEnvelope::default(),
             "alice!~alice@cloak.example".into(),
             Casemapping::default().nick("alice"),
+            papo_core::ReplyToken::__unknown(papo_proto::Origin::NONE),
+            None,
             Some(payload.into()),
             vec![Casemapping::default().channel("#papo")],
             papo_core::Authorship::Other,
@@ -5722,6 +5728,8 @@ mod tests {
                 Casemapping::default().channel("#papo"),
                 "emily!~emily@cloak.example".into(),
                 Casemapping::default().nick("emily"),
+                papo_core::ReplyToken::__unknown(papo_proto::Origin::NONE),
+                None,
                 Some("Leaving for lunch".into()),
                 papo_core::Authorship::Other,
             )),
@@ -5740,6 +5748,8 @@ mod tests {
                 papo_core::LineEnvelope::default(),
                 Casemapping::default().channel("#papo"),
                 Casemapping::default().nick("emily"),
+                papo_core::ReplyToken::__unknown(papo_proto::Origin::NONE),
+                None,
                 papo_core::Source::from_proto(
                     papo_proto::Source::__user(
                         "alice",
@@ -5767,6 +5777,8 @@ mod tests {
                 papo_core::LineEnvelope::default(),
                 "emily!~emily@cloak.example".into(),
                 Casemapping::default().nick("emily"),
+                papo_core::ReplyToken::__unknown(papo_proto::Origin::NONE),
+                None,
                 Some("Client exited".into()),
                 vec![
                     Casemapping::default().channel("#papo"),
@@ -6187,7 +6199,11 @@ mod tests {
     #[test]
     fn maps_monitor_offline() {
         assert!(matches!(
-            forwarded(papo_core::Event::__monitor_offline(Casemapping::default().nick("alice"))),
+            forwarded(papo_core::Event::__monitor_offline(
+                Casemapping::default().nick("alice"),
+                papo_core::ReplyToken::__unknown(papo_proto::Origin::NONE),
+                None,
+            )),
             Event::MonitorOffline(offline) if offline.subject == "alice"
         ));
     }

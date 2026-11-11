@@ -765,7 +765,12 @@ fn extended_monitor_updates_an_unshared_users_record() {
             assert_eq!(alice.realname(), Some("Alice Smith"));
         })
         .server(":ergo.test 731 papo :alice")
-        .event(|event| matches!(event, Event::MonitorOffline { nick, .. } if nick == "alice"))
+        .event(|event| matches!(event,
+            Event::MonitorOffline { nick, token, facts: Some(user), .. }
+                if nick == "alice" && token.__is_known()
+                    && user.host() == Some("account/alice")
+                    && user.realname() == Some("Alice Smith")
+        ))
         .inspect(|session| assert!(session.state().user("alice").is_none()))
         .no_event();
 }

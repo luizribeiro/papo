@@ -1094,11 +1094,18 @@ impl State {
             };
             for channel in channels.split(',') {
                 let authorship = self.nick_authorship(nick);
+                let token = self.__reply_token_for(nick);
+                let facts = self.user(nick).and_then(|user| {
+                    (authorship != Authorship::Own && user.channels.len() == 1 && !user.monitored)
+                        .then(|| user.clone())
+                });
                 outbox.event(Event::Parted {
                     envelope: crate::LineEnvelope::from_line(message),
                     actor: message.raw_source().unwrap_or(nick).to_owned(),
                     channel: mapping.channel(channel),
                     nick: mapping.nick(nick),
+                    token,
+                    facts,
                     reason: message
                         .param(1)
                         .filter(|reason| !reason.is_empty())
@@ -1121,10 +1128,19 @@ impl State {
             };
             let authorship = self.source_authorship(message);
             let subject_authorship = self.nick_authorship(nick);
+            let token = self.__reply_token_for(nick);
+            let facts = self.user(nick).and_then(|user| {
+                (subject_authorship != Authorship::Own
+                    && user.channels.len() == 1
+                    && !user.monitored)
+                    .then(|| user.clone())
+            });
             outbox.event(Event::Kicked {
                 envelope: crate::LineEnvelope::from_line(message),
                 channel: mapping.channel(channel),
                 subject: mapping.nick(nick),
+                token,
+                facts,
                 actor: Source::from_proto_with_names(source, mapping),
                 authorship,
                 subject_authorship,

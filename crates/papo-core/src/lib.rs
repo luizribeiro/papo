@@ -2806,6 +2806,10 @@ pub enum Event {
     MonitorOffline {
         /// The monitored nickname.
         nick: Nick,
+        /// Identity captured before the offline transition was applied.
+        token: ReplyToken,
+        /// User facts removed by this transition, when the user is no longer known.
+        facts: Option<User>,
     },
     /// The server rejected nicknames because its monitor list was full.
     #[non_exhaustive]
@@ -2858,6 +2862,10 @@ pub enum Event {
         channel: ChannelName,
         /// The departing user's nickname.
         nick: Nick,
+        /// Identity captured before the part was applied.
+        token: ReplyToken,
+        /// User facts removed by this transition, when the user is no longer known.
+        facts: Option<User>,
         /// The optional part reason.
         reason: Option<String>,
         /// Whether the departing user is this session's user.
@@ -2872,6 +2880,10 @@ pub enum Event {
         channel: ChannelName,
         /// The removed user.
         subject: Nick,
+        /// Identity captured before the kick was applied.
+        token: ReplyToken,
+        /// User facts removed by this transition, when the user is no longer known.
+        facts: Option<User>,
         /// The user or server that issued the kick.
         actor: Source,
         /// Whether the actor is this session's user.
@@ -2906,6 +2918,10 @@ pub enum Event {
         actor: String,
         /// The disconnected user's nickname.
         nick: Nick,
+        /// Identity captured before the quit was applied.
+        token: ReplyToken,
+        /// User facts removed by this transition, when the user was known.
+        facts: Option<User>,
         /// The optional quit reason.
         reason: Option<String>,
         /// Shared channels captured before the user was removed.
@@ -3067,9 +3083,9 @@ hidden_event_constructors! {
     __metadata_sync_later(target: String, retry_after: Option<Duration>) => MetadataSyncLater;
     __channel_synced(channel: ChannelName) => ChannelSynced;
     __members_refreshed(channel: ChannelName) => MembersRefreshed;
-    __parted(envelope: LineEnvelope, channel: ChannelName, actor: String, nick: Nick, reason: Option<String>, authorship: Authorship) => Parted;
-    __kicked(envelope: LineEnvelope, channel: ChannelName, subject: Nick, actor: Source, authorship: Authorship, subject_authorship: Authorship, reason: Option<String>) => Kicked;
-    __quit(envelope: LineEnvelope, actor: String, nick: Nick, reason: Option<String>, channels: Vec<ChannelName>, authorship: Authorship, netsplit: Option<SplitServers>) => Quit;
+    __parted(envelope: LineEnvelope, channel: ChannelName, actor: String, nick: Nick, token: ReplyToken, facts: Option<User>, reason: Option<String>, authorship: Authorship) => Parted;
+    __kicked(envelope: LineEnvelope, channel: ChannelName, subject: Nick, token: ReplyToken, facts: Option<User>, actor: Source, authorship: Authorship, subject_authorship: Authorship, reason: Option<String>) => Kicked;
+    __quit(envelope: LineEnvelope, actor: String, nick: Nick, token: ReplyToken, facts: Option<User>, reason: Option<String>, channels: Vec<ChannelName>, authorship: Authorship, netsplit: Option<SplitServers>) => Quit;
     __nick_changed(envelope: LineEnvelope, actor: String, old: Nick, new: Nick, channels: Vec<ChannelName>, authorship: Authorship) => NickChanged;
     __account_changed(envelope: LineEnvelope, actor: String, nick: Nick, account: Account, authorship: Authorship) => AccountChanged;
     __away_changed(envelope: LineEnvelope, actor: String, nick: Nick, away: Away, authorship: Authorship) => AwayChanged;
@@ -3079,7 +3095,7 @@ hidden_event_constructors! {
     __topic_changed(envelope: LineEnvelope, channel: ChannelName, topic: Option<String>, actor: Source, authorship: Authorship) => TopicChanged;
     __state_limit_reached(limit: StateLimit) => StateLimitReached;
     __monitor_online(nick: Nick, username: Option<String>, host: Option<String>) => MonitorOnline;
-    __monitor_offline(nick: Nick) => MonitorOffline;
+    __monitor_offline(nick: Nick, token: ReplyToken, facts: Option<User>) => MonitorOffline;
     __monitor_list_full(limit: usize, nicks: Vec<Nick>) => MonitorListFull;
     __history(conversation: Conversation, items: Vec<HistoryItem>, end: bool) => History;
     __batch_abandoned(reference: BatchId, batch_type: BatchType, reason: BatchAbandonReason) => BatchAbandoned;
@@ -3187,6 +3203,16 @@ pub struct ReplyToken {
 }
 
 impl ReplyToken {
+    /// Builds a token without a concrete user identity for offline test construction.
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn __unknown(origin: papo_proto::Origin) -> Self {
+        Self {
+            origin,
+            identity: None,
+        }
+    }
+
     /// Reports whether a received line carried proof of a concrete IRC user.
     #[doc(hidden)]
     #[must_use]
@@ -5812,6 +5838,7 @@ impl Session {
             message,
             self.isupport.value(),
             self.nick_regain.monitored_nick(&self.config.nick),
+            &self.state,
             &mut self.outbox,
         ) == Handled::Yes;
         self.send_pending_registration(now);
