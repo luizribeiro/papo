@@ -191,59 +191,6 @@ pub(crate) fn from_line(
     )))
 }
 
-pub(crate) fn user_source_from_line(
-    prefix: LinePrefix<'_>,
-    envelope: &super::EventEnvelope,
-    casemapping: Casemapping,
-    origin: crate::Origin,
-    prove_not_bot: bool,
-) -> Option<UserSource> {
-    let source = match prefix {
-        LinePrefix::Raw(prefix) => {
-            let line = papo_proto::Line::new("TAGMSG")
-                .param("*")
-                .with_source(prefix);
-            let source = line.as_ref().source()?;
-            let papo_proto::Source::User {
-                nick,
-                username,
-                host,
-                ..
-            } = source
-            else {
-                return None;
-            };
-            (
-                nick.to_owned(),
-                username.map(str::to_owned),
-                host.map(str::to_owned),
-            )
-        }
-        LinePrefix::Core(source) => match source {
-            papo_core::Source::User {
-                nick,
-                username,
-                host,
-                ..
-            } => (nick.into_string(), username, host),
-            _ => return None,
-        },
-    };
-    Some(UserSource {
-        nick: origin.__nick(casemapping, source.0),
-        username: source.1.filter(|_| source.2.is_some()),
-        host: source.2,
-        account: envelope.account.clone(),
-        peer_key: None,
-        is_bot: if envelope.bot {
-            Some(true)
-        } else {
-            prove_not_bot.then_some(false)
-        },
-        oper: envelope.oper.clone(),
-    })
-}
-
 pub(crate) fn from_core(source: papo_core::Source, origin: crate::Origin) -> Option<Source> {
     match source {
         papo_core::Source::User { nick, .. } => Some(Source::User(crate::UserHandle::from_parts(

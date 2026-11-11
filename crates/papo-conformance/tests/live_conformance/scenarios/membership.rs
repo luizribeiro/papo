@@ -931,7 +931,7 @@ async fn quit(s: Scenario) -> papo_testing::Result<()> {
     let observed_reason = observed.reason.as_deref().unwrap();
     assert!(observed_reason == reason || observed_reason == format!("Quit: {reason}"));
     assert_eq!(observed.channels.len(), 1);
-    assert_eq!(observed.channels[0].as_str(), channel);
+    assert_eq!(observed.channels[0].name().as_str(), channel);
     assert!(
         bob.snapshot()
             .__channel_local(&channel)

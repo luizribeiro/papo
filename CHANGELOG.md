@@ -78,6 +78,8 @@ MONITOR online and offline events now carry a `UserHandle`; online facts are rea
 
 PART events now carry a `UserHandle` and preserve user facts only when the paired state forgets the departing user.
 
+QUIT events now carry user and channel handles and preserve departed user facts.
+
 `Source::User` now contains a `UserHandle` and no longer implements `MaskSource`; historical actors without account proof cannot authorize a send to a later holder of the same nickname.
 
 `PeerKey` is now the persistable network-and-nickname thread key; equality and hashing ignore private proof upgrades, and its display form preserves verified or explicitly unverified proof state.

@@ -937,9 +937,10 @@ impl core::marker::UnsafeUnpin for papo::event::Parted
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Parted
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Parted
 #[non_exhaustive] pub struct papo::event::Quit
-pub papo::event::Quit::actor: papo::UserSource
+pub papo::event::Quit::actor: papo::UserHandle
 pub papo::event::Quit::authorship: papo::Authorship
-pub papo::event::Quit::channels: alloc::vec::Vec<papo::ChannelName>
+pub papo::event::Quit::channels: alloc::vec::Vec<papo::ChannelHandle>
+pub papo::event::Quit::facts: core::option::Option<papo::User>
 pub papo::event::Quit::msgid: core::option::Option<papo::MessageId>
 pub papo::event::Quit::netsplit: core::option::Option<papo::event::SplitServers>
 pub papo::event::Quit::reason: core::option::Option<alloc::string::String>

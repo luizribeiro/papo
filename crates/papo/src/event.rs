@@ -1407,8 +1407,6 @@ pub(crate) struct EventEnvelope {
     pub(crate) server_time: Option<ServerTime>,
     pub(crate) received_at: SystemTime,
     pub(crate) account: Account,
-    pub(crate) bot: bool,
-    pub(crate) oper: Option<Oper>,
 }
 
 impl EventEnvelope {
@@ -1436,13 +1434,6 @@ pub(crate) fn line_envelope_with_account_tag(
         server_time,
         received_at,
         account: account_from_tag(line, casemapping, origin, account_tag_enabled),
-        bot: line.tags().any(|(key, _)| key == "bot"),
-        oper: line
-            .tags()
-            .find(|(key, _)| *key == "draft/oper")
-            .map(|(_, value)| Oper {
-                name: value.map(std::borrow::Cow::into_owned),
-            }),
     }
 }
 
@@ -1511,10 +1502,6 @@ fn core_envelope(
             },
             |account| Account::LoggedIn(origin.__account(casemapping, account)),
         ),
-        bot: envelope.bot(),
-        oper: envelope.oper().map(|name| Oper {
-            name: name.map(str::to_owned),
-        }),
     }
 }
 
@@ -2249,15 +2236,6 @@ pub(crate) fn from_core_with_receipt(
             Some(Source::User(user)) => Some(user),
             Some(Source::Server(_)) | None => None,
         };
-    let user_from_raw = |prefix: &str, envelope: &EventEnvelope| {
-        source::user_source_from_line(
-            source::LinePrefix::Raw(prefix),
-            envelope,
-            casemapping,
-            origin,
-            prove_not_bot,
-        )
-    };
     let guard_receipt = |mut receipt: crate::message_ref::Receipt, _conversation: &Conversation| {
         let actor_token = receipt.actor_recipient().and_then(|actor| {
             reply_state.map(|state| state.__reply_token_for(actor.nick.as_str()))
@@ -2289,8 +2267,6 @@ pub(crate) fn from_core_with_receipt(
                 server_time: change.server_time,
                 received_at,
                 account: Account::Unknown,
-                bot: false,
-                oper: None,
             };
             let Some(actor) = handle_from_raw(&change.actor, &envelope) else {
                 return CoreEvent::Unknown;
@@ -2713,7 +2689,10 @@ pub(crate) fn from_core_with_receipt(
         }
         papo_core::Event::Quit {
             envelope,
-            actor,
+            actor: _,
+            nick,
+            token,
+            facts,
             reason,
             channels,
             authorship,
@@ -2721,16 +2700,22 @@ pub(crate) fn from_core_with_receipt(
             ..
         } => {
             let envelope = map_envelope(&envelope);
-            let Some(actor) = user_from_raw(&actor, &envelope) else {
-                return CoreEvent::Unknown;
-            };
+            let account = facts
+                .as_ref()
+                .map_or_else(|| envelope.account.clone(), |user| user.account().clone());
+            let actor =
+                crate::UserHandle::from_event(nick, account, Some(token), handle_state, false);
             Event::Quit(Quit {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 actor,
+                facts,
                 reason: reason.map(|reason| papo_proto::display_text(&reason).into_owned()),
-                channels,
+                channels: channels
+                    .into_iter()
+                    .map(|channel| channel_handle(channel, None))
+                    .collect(),
                 authorship: Authorship::from_core(authorship),
                 netsplit: netsplit.map(SplitServers::from_core),
             })

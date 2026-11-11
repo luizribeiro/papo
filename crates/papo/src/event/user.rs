@@ -2,9 +2,7 @@ use std::time::SystemTime;
 
 use crate::ServerTime;
 
-use crate::{Account, Authorship, Away, BatchId, ChannelName, MessageId, Nick, ServerName};
-
-use super::UserSource;
+use crate::{Account, Authorship, Away, BatchId, MessageId, Nick, ServerName};
 
 /// A user disconnected from the network.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -17,11 +15,13 @@ pub struct Quit {
     /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The disconnected user.
-    pub actor: UserSource,
+    pub actor: crate::UserHandle,
+    /// User facts removed by this event.
+    pub facts: Option<crate::User>,
     /// The optional quit reason.
     pub reason: Option<String>,
     /// Shared channels where papo knows the user is a member.
-    pub channels: Vec<ChannelName>,
+    pub channels: Vec<crate::ChannelHandle>,
     /// Whether the disconnected user is this client's user.
     pub authorship: Authorship,
     /// The netsplit batch that carried this quit, when applicable.
