@@ -1336,12 +1336,11 @@ async fn topic(s: Scenario) -> papo_testing::Result<()> {
     let state = carol.snapshot();
     let synchronized = state.__channel_local(&channel).unwrap();
     assert_eq!(synchronized.topic(), Some(text));
-    assert_eq!(
+    assert!(
         synchronized
             .topic_set_by()
             .and_then(papo::Source::nick)
-            .map(papo::Nick::as_str),
-        Some(alice_nick.as_str())
+            .is_some_and(|nick| nick.as_str() == alice_nick.as_str())
     );
     assert!(synchronized.topic_set_at().is_some());
 
