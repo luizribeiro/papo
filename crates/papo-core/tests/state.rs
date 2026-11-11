@@ -2212,7 +2212,7 @@ fn message_bot_facts_require_message_tags_and_bot_isupport() {
             } else {
                 ":ergo.test 005 papo :are supported"
             })
-            .server(":emily!~emily@localhost PRIVMSG #papo :release ready")
+            .server("@+example/status=ready :emily!~emily@localhost PRIVMSG #papo :release ready")
             .server("@bot :relay!~relay@localhost PRIVMSG #papo :build complete")
             .inspect(|session| {
                 assert_eq!(session.state().user("emily").unwrap().is_bot(), expected);
