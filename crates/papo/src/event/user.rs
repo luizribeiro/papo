@@ -48,17 +48,6 @@ pub struct NickChanged {
     pub authorship: Authorship,
 }
 
-impl NickChanged {
-    /// Returns the pin that remained with the user from [`Self::actor`]'s old nickname to
-    /// [`Self::new`].
-    ///
-    /// This is present only when papo observed enough identity continuity or account proof.
-    #[must_use]
-    pub fn peer_key(&self) -> Option<&crate::PeerKey> {
-        self.actor.peer_key()
-    }
-}
-
 /// A user's away state changed.
 ///
 /// This derived event keeps the triggering line's time but not its message identifier, so it

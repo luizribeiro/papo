@@ -16,10 +16,6 @@ pub struct UserSource {
 }
 
 impl UserSource {
-    pub(crate) fn set_peer_key(&mut self, peer_key: crate::peer_key::PeerKey) {
-        self.peer_key = Some(Arc::new(peer_key));
-    }
-
     pub(crate) fn from_state(
         nick: &Nick,
         username: Option<String>,
@@ -281,6 +277,7 @@ pub(crate) fn from_core(source: papo_core::Source, origin: crate::Origin) -> Opt
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
     use std::time::SystemTime;
 
     use papo_proto::{Casemapping, Mask};
@@ -322,7 +319,7 @@ mod tests {
         let scope = crate::peer_key::PeerScope::server("irc.example");
         let pin =
             crate::PeerKey::historical(Some(&scope), pinned.nick(), pinned.account()).unwrap();
-        pinned.set_peer_key(pin);
+        pinned.peer_key = Some(Arc::new(pin));
         assert_eq!(pinned, source);
 
         let mut different_nick = source.clone();

@@ -6,7 +6,6 @@
 use papo_core::{Account, RequestId, Response, Welcome, sts::StsAction};
 use std::time::SystemTime;
 
-use papo_proto::Nick;
 use papo_proto::{
     Casemapping, ChannelName, Ctcp as ProtoCtcp, Isupport, Line as ProtoLine, LineRef, MessageId,
     Prefix, strip_formatting, time,
@@ -313,7 +312,7 @@ pub struct Message {
     pub(crate) channel_context: Option<crate::ChannelHandle>,
     /// Nickname of the client that submitted a relayed message.
     #[cfg(feature = "unstable")]
-    pub relayed_by: Option<Nick>,
+    pub relayed_by: Option<papo_proto::Nick>,
     /// All message tags in wire order.
     pub tags: Tags,
     pub(crate) receipt: crate::message_ref::Receipt,
@@ -359,7 +358,7 @@ pub struct Notice {
     pub channel_context: Option<crate::ChannelHandle>,
     /// Nickname of the client that submitted a relayed notice.
     #[cfg(feature = "unstable")]
-    pub relayed_by: Option<Nick>,
+    pub relayed_by: Option<papo_proto::Nick>,
     /// All message tags in wire order.
     pub tags: Tags,
     pub(crate) receipt: crate::message_ref::Receipt,
@@ -488,7 +487,7 @@ struct MessageMetadata {
     received_at: SystemTime,
     reply_to: Option<MessageId>,
     #[cfg(feature = "unstable")]
-    relayed_by: Option<Nick>,
+    relayed_by: Option<papo_proto::Nick>,
     tags: Tags,
 }
 
@@ -1955,12 +1954,7 @@ impl Event {
     }
 }
 
-pub(crate) fn attach_live_peer_key(event: &mut Event, state: &crate::State) {
-    if let Event::NickChanged(changed) = event {
-        let nick = changed.new.clone();
-        attach_actor_peer_key(&mut changed.actor, &nick, state);
-    }
-}
+pub(crate) fn attach_live_peer_key(_event: &mut Event, _state: &crate::State) {}
 
 fn event_handle(
     handle: &crate::UserHandle,
@@ -2065,27 +2059,6 @@ pub(crate) fn attach_message_handles(
             event.actor = event_handle(&event.actor, token, state, historical);
         }
         _ => {}
-    }
-}
-
-fn attach_actor_peer_key(actor: &mut UserSource, nick: &Nick, state: &crate::State) {
-    let account = if actor.account() == &Account::Unknown {
-        state
-            .user(nick)
-            .map_or_else(|| Account::Unknown, |user| user.account().clone())
-    } else {
-        actor.account().clone()
-    };
-    let scope = state.peer_scope();
-    let peer_key = crate::peer_key::PeerKey::live(
-        scope.as_ref(),
-        nick,
-        &account,
-        state.peer_account_id(nick, &account),
-        state.peer_token(nick),
-    );
-    if let Some(peer_key) = peer_key {
-        actor.set_peer_key(peer_key);
     }
 }
 
@@ -5417,65 +5390,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn live_nick_change_attaches_the_renamed_peer_key() {
-        let now = Instant::now();
-        let mut session = Session::new(Config::default().nick("papo"));
-        session.handle_connected_with(
-            now,
-            Connection {
-                host: "irc.example".into(),
-                security: ConnectionSecurity::Secure,
-                authenticated_server_name: Some("irc.example".into()),
-            },
-        );
-        for line in [
-            ":irc.example 005 papo CASEMAPPING=rfc1459 :are supported",
-            ":papo!~papo@localhost JOIN #review * :Papo",
-            ":alice!~alice@cloak.example JOIN #review",
-            ":alice!~alice@cloak.example ACCOUNT alice-account",
-            ":alice!~alice@cloak.example NICK alicia",
-        ] {
-            session.handle_line(now, line.as_bytes());
-        }
-        let state = crate::State::from_session(&session, true);
-        assert!(matches!(
-            state.user("alicia").map(crate::User::account),
-            Some(Account::LoggedIn(account)) if account == "alice-account"
-        ));
-        assert!(state.peer_scope().is_some());
-        let mut event = forwarded(papo_core::Event::__nick_changed(
-            papo_core::LineEnvelope::default(),
-            "alice!~alice@cloak.example".into(),
-            Casemapping::default().nick("alice"),
-            Casemapping::default().nick("alicia"),
-            vec![Casemapping::default().channel("#review")],
-            papo_core::Authorship::Other,
-        ));
-        let Event::NickChanged(changed) = &mut event else {
-            unreachable!()
-        };
-        changed.actor = UserSource::from_state(
-            changed.actor.nick(),
-            changed.actor.username().map(str::to_owned),
-            changed.actor.host().map(str::to_owned),
-            Account::Unknown,
-            changed.actor.nick().origin(),
-        );
-
-        super::attach_live_peer_key(&mut event, &state);
-
-        let Event::NickChanged(changed) = event else {
-            panic!("expected nickname change")
-        };
-        assert_eq!(
-            changed.peer_key().and_then(crate::PeerKey::as_verified_str),
-            Some(
-                "papo-peer:1;server=irc.example;nick-casemap=rfc1459;nick=alicia;proof=account;account-casemap=rfc1459;account=alice-account"
-            )
-        );
-    }
-
     fn live_message_handle_event(line: &str) -> (Event, Arc<std::sync::RwLock<Arc<crate::State>>>) {
         let now = Instant::now();
         let mut session = Session::new(Config::default().nick("papo"));
@@ -5937,7 +5851,7 @@ mod tests {
 
     #[test]
     fn maps_nick_changed() {
-        let Event::NickChanged(mut changed) = forwarded(papo_core::Event::__nick_changed(
+        let Event::NickChanged(changed) = forwarded(papo_core::Event::__nick_changed(
             papo_core::LineEnvelope::default(),
             "emily!~emily@cloak.example".into(),
             Casemapping::default().nick("emily"),
@@ -5950,25 +5864,6 @@ mod tests {
         assert_eq!(changed.actor.nick(), "emily");
         assert_eq!(changed.new, "em");
         assert_eq!(changed.channels, ["#papo"]);
-
-        changed.actor = UserSource::from_state(
-            changed.actor.nick(),
-            changed.actor.username().map(str::to_owned),
-            changed.actor.host().map(str::to_owned),
-            Account::LoggedIn(Casemapping::default().account("emily-account")),
-            changed.actor.nick().origin(),
-        );
-        let scope = crate::peer_key::PeerScope::server("irc.example");
-        let pin =
-            crate::PeerKey::historical(Some(&scope), changed.actor.nick(), changed.actor.account())
-                .unwrap();
-        changed.actor.set_peer_key(pin);
-        assert_eq!(
-            changed.peer_key().and_then(crate::PeerKey::as_verified_str),
-            Some(
-                "papo-peer:1;server=irc.example;nick-casemap=rfc1459;nick=emily;proof=account;account-casemap=rfc1459;account=emily-account"
-            )
-        );
     }
 
     #[test]

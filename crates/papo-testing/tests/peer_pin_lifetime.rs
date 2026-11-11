@@ -96,11 +96,6 @@ async fn session_keys_change_on_rename_and_expire_on_reuse_and_logout() {
     };
     assert_eq!(changed.actor.nick(), "bob");
     assert_eq!(changed.new, "robert");
-    assert_mismatch(
-        &bob_pin,
-        changed.peer_key().unwrap(),
-        papo::PeerKeyMismatch::CannotVerify,
-    );
     let renamed = client.direct("robert").await.unwrap();
     assert_ne!(renamed.nick().key(), bob_thread);
     assert_mismatch(
