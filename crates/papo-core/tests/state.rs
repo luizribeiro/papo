@@ -2306,6 +2306,7 @@ fn message_actor_bound_preserves_each_durable_user_kind() {
 fn message_actor_eviction_advances_the_snapshot_at_literal_1000() {
     let generation = Cell::new(0);
     Transcript::new(Config::default().nick("papo"))
+        .server(":papo!papo@localhost JOIN #review")
         .server(":alice!review@staff.example JOIN #review")
         .update(|session| {
             for index in 0..1_000 {
