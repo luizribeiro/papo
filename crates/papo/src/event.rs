@@ -1993,11 +1993,7 @@ fn attach_user_message_handle(
             actor.clone()
         };
     }
-    receipt.update_event_actor(
-        Source::User(actor.clone().into_message_source()),
-        authorship,
-        conversation,
-    );
+    receipt.update_event_actor(Source::User(actor.clone()), authorship, conversation);
 }
 
 pub(crate) fn attach_message_handles(
@@ -2092,7 +2088,7 @@ fn private_actor_mut(event: &mut Event) -> Option<&mut UserSource> {
         Event::Reacted(event) => event.actor.message_source_mut(),
         Event::TypingChanged(event) => event.actor.message_source_mut(),
         Event::Redacted(event) => match &mut event.actor {
-            Source::User(actor) => Some(actor),
+            Source::User(actor) => actor.message_source_mut(),
             Source::Server(_) => None,
         },
         _ => None,
@@ -2273,11 +2269,20 @@ pub(crate) fn from_core_with_receipt(
         }
         _ => unreachable!("core conversations have channel and private variants"),
     };
-    let user_from_raw =
+    let handle_from_raw =
         |prefix: &str, envelope: &EventEnvelope| match actor_from_raw(prefix, envelope) {
             Some(Source::User(user)) => Some(user),
             Some(Source::Server(_)) | None => None,
         };
+    let user_from_raw = |prefix: &str, envelope: &EventEnvelope| {
+        source::user_source_from_line(
+            source::LinePrefix::Raw(prefix),
+            envelope,
+            casemapping,
+            origin,
+            prove_not_bot,
+        )
+    };
     let guard_receipt = |mut receipt: crate::message_ref::Receipt, _conversation: &Conversation| {
         let actor_token = receipt.actor_recipient().and_then(|actor| {
             reply_state.map(|state| state.__reply_token_for(actor.nick.as_str()))
@@ -2312,13 +2317,13 @@ pub(crate) fn from_core_with_receipt(
                 bot: false,
                 oper: None,
             };
-            let Some(actor) = user_from_raw(&change.actor, &envelope) else {
+            let Some(actor) = handle_from_raw(&change.actor, &envelope) else {
                 return CoreEvent::Unknown;
             };
             let authorship = Authorship::from_core(change.authorship);
             let receipt = guard_receipt(
                 crate::message_ref::Receipt::new(
-                    Source::User(source::message_actor(actor.clone())),
+                    Source::User(actor.clone()),
                     authorship,
                     &conversation,
                     reply_token,
@@ -2329,7 +2334,7 @@ pub(crate) fn from_core_with_receipt(
             Event::TypingChanged(TypingChanged {
                 server_time: change.server_time,
                 received_at,
-                actor: source::message_actor(actor),
+                actor,
                 authorship,
                 conversation,
                 status: change.status,
@@ -2343,14 +2348,14 @@ pub(crate) fn from_core_with_receipt(
             let reply_token = conversation_reply_token(reply_state, &message.conversation);
             let envelope = map_envelope(&message.envelope);
             let tags = Tags::from_pairs(message.tags);
-            let Some(actor) = user_from_raw(&message.actor, &envelope) else {
+            let Some(actor) = handle_from_raw(&message.actor, &envelope) else {
                 return CoreEvent::Unknown;
             };
             let authorship = Authorship::from_core(message.authorship);
             let conversation = conversation_handle(message.conversation, message.status);
             let mut receipt = guard_receipt(
                 crate::message_ref::Receipt::new(
-                    Source::User(source::message_actor(actor.clone())),
+                    Source::User(actor.clone()),
                     authorship,
                     &conversation,
                     reply_token,
@@ -2363,7 +2368,7 @@ pub(crate) fn from_core_with_receipt(
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
-                actor: source::message_actor(actor),
+                actor,
                 authorship,
                 conversation,
                 status: message.status,
@@ -2603,7 +2608,7 @@ pub(crate) fn from_core_with_receipt(
             ..
         } => {
             let envelope = map_envelope(&envelope);
-            let Some(Source::User(actor)) = source::from_line(
+            let Some(actor) = source::user_source_from_line(
                 source::LinePrefix::Raw(&actor),
                 &envelope,
                 channel.casemapping(),

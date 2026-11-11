@@ -391,7 +391,7 @@ fn user_from_line(
     mapping: crate::Casemapping,
     origin: crate::Origin,
     prove_not_bot: bool,
-) -> Option<crate::UserSource> {
+) -> Option<crate::UserHandle> {
     match actor_from_line(message, envelope, mapping, origin, prove_not_bot)? {
         crate::Source::User(user) => Some(user),
         crate::Source::Server(_) => None,

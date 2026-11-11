@@ -2014,10 +2014,10 @@ impl core::panic::unwind_safe::RefUnwindSafe for papo::SentOutcome
 impl core::panic::unwind_safe::UnwindSafe for papo::SentOutcome
 #[non_exhaustive] pub enum papo::Source
 pub papo::Source::Server(papo::ServerName)
-pub papo::Source::User(papo::UserSource)
+pub papo::Source::User(papo::UserHandle)
 impl papo::Source
-pub const fn papo::Source::nick(&self) -> core::option::Option<&papo::Nick>
-pub const fn papo::Source::user(&self) -> core::option::Option<&papo::UserSource>
+pub fn papo::Source::nick(&self) -> core::option::Option<papo::Nick>
+pub const fn papo::Source::user(&self) -> core::option::Option<&papo::UserHandle>
 impl core::clone::Clone for papo::Source
 pub fn papo::Source::clone(&self) -> Self
 impl core::cmp::Eq for papo::Source
