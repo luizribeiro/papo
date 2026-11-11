@@ -941,9 +941,7 @@ mod tests {
                 .nick("emily"),
         ));
         private.receipt = crate::message_ref::Receipt::new(
-            crate::Source::User(crate::event_impl::source::message_actor(
-                private.actor.clone(),
-            )),
+            crate::Source::User(private.actor.clone()),
             private.authorship,
             &private.conversation,
             None,
@@ -964,8 +962,14 @@ mod tests {
                 .expect("server advertised CASEMAPPING")
                 .nick("emily"),
         ));
+        let actor = crate::UserHandle::from_parts(
+            actor.nick().clone(),
+            actor.account().clone(),
+            None,
+            None,
+        );
         let receipt = crate::message_ref::Receipt::new(
-            crate::Source::User(crate::event_impl::source::message_actor(actor.clone())),
+            crate::Source::User(actor.clone()),
             crate::Authorship::Other,
             &conversation,
             None,
@@ -975,7 +979,7 @@ mod tests {
             msgid: None,
             server_time: None,
             received_at: std::time::SystemTime::UNIX_EPOCH,
-            actor: crate::event_impl::source::message_actor(actor.clone()),
+            actor: actor.clone(),
             authorship: crate::Authorship::Other,
             conversation,
             status: None,

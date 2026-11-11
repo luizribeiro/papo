@@ -3121,7 +3121,7 @@ mod tests {
             Broadcast::Mask(origin.__mask(mapping, "$*.example.org")),
         ] {
             let event = BroadcastTagMsg {
-                actor: super::source::message_actor(actor.clone()),
+                actor: actor.clone(),
                 authorship: Authorship::Other,
                 to,
                 tags: Tags::default(),
@@ -3131,7 +3131,7 @@ mod tests {
             assert_eq!(event.origin(), origin);
         }
         let ctcp = BroadcastCtcp {
-            actor: super::source::message_actor(actor),
+            actor,
             authorship: Authorship::Other,
             to: Broadcast::Mask(origin.__mask(mapping, "$*.example.org")),
             command: "VERSION".into(),

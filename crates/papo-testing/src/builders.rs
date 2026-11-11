@@ -31,7 +31,7 @@ impl MessageBuilder {
     ) -> Self {
         let nick = nick.into();
         let actor = papo::__testing::user_source(nick, username, host);
-        papo::__testing::set_message_actor(&mut self.message, actor);
+        papo::__testing::set_message_actor(&mut self.message, &actor);
         self
     }
 

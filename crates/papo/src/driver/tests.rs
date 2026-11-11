@@ -1696,9 +1696,7 @@ fn rejoin_set_tracks_our_joins_parts_and_kicks() {
             channel: test_channel_handle("#systems"),
             old: crate::Origin::__new(73).__channel(crate::Casemapping::default(), "#RUST"),
             new: crate::Origin::__new(73).__channel(crate::Casemapping::default(), "#systems"),
-            actor: crate::Source::User(crate::event_impl::source::message_actor(
-                crate::__testing::user_source(test_nick("oper"), None, None),
-            )),
+            actor: crate::Source::User(crate::UserHandle::from_nick(test_nick("oper"))),
             authorship: crate::Authorship::Other,
             reason: Some("Community renamed".into()),
         }),

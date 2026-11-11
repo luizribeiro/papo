@@ -234,14 +234,12 @@ impl State {
         address: String,
         guard: Option<&papo_core::TargetGuard>,
     ) -> crate::message_ref::Receipt {
-        let actor = crate::UserSource::from_state(
-            self.nick(),
-            None,
-            None,
+        let actor = crate::Source::User(crate::UserHandle::from_parts(
+            self.nick().clone(),
             self.account().clone(),
-            self.nick().origin(),
-        );
-        let actor = crate::Source::User(crate::event_impl::source::message_actor(actor));
+            None,
+            None,
+        ));
         let mut receipt = crate::message_ref::Receipt::new(
             actor,
             crate::Authorship::Own,

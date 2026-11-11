@@ -38,8 +38,8 @@ async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(message.msgid(), Some(id));
     assert_eq!(message.server_time, server_time);
     assert!(matches!(
-        message.actor.account(),
-        Account::LoggedIn(observed) if observed == account.as_str()
+        bob.snapshot().user(&message.actor).map(papo::User::account),
+        Some(Account::LoggedIn(observed)) if observed == account.as_str()
     ));
     assert!(sent.fallbacks.is_empty());
     assert!(matches!(
@@ -437,7 +437,12 @@ async fn bot_mode(s: Scenario) -> papo_testing::Result<()> {
         Some(channel.clone())
     );
     assert_eq!(message.text, text);
-    assert_eq!(message.actor.is_bot(), Some(true));
+    assert_eq!(
+        bob.snapshot()
+            .user(&message.actor)
+            .and_then(papo::User::is_bot),
+        Some(true)
+    );
     bob.expect_none(|event| event.as_message().filter(|message| message.text == text))
         .await?;
     Ok(())

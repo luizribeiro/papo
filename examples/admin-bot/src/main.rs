@@ -29,7 +29,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
             [command, nick]
                 if command.eq_ignore_ascii_case("op")
-                    && matches!(message.actor.account(), Account::LoggedIn(account) if account == admin.as_str()) =>
+                    && matches!(
+                        state.user(&message.actor).map(papo::User::account),
+                        Some(Account::LoggedIn(account)) if account == admin.as_str()
+                    ) =>
             {
                 let result = match client.direct(*nick).await {
                     Ok(direct) => client.mode(&channel).op(&direct).await.map(|_| ()),

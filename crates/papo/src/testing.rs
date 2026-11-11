@@ -196,15 +196,17 @@ pub fn message(
     let return_address = conversation.to_string();
     let actor = actor
         .unwrap_or_else(|| user_source(crate::Casemapping::default().nick("unknown"), None, None));
+    let actor =
+        crate::UserHandle::from_parts(actor.nick().clone(), actor.account().clone(), None, None);
     let receipt = crate::message_ref::Receipt::new(
-        crate::Source::User(crate::event_impl::source::message_actor(actor.clone())),
+        crate::Source::User(actor.clone()),
         Authorship::Other,
         &conversation,
         None,
         return_address,
     );
     Message {
-        actor: crate::event_impl::source::message_actor(actor),
+        actor,
         authorship: Authorship::Other,
         conversation,
         status: None,
@@ -225,14 +227,13 @@ pub fn message(
 
 /// Sets the account fact on a test message actor.
 pub fn set_message_account(message: &mut Message, account: crate::Account) {
-    message.actor.set_account(account.clone());
+    message.actor =
+        crate::UserHandle::from_parts(message.actor.nick(), account.clone(), None, None);
     if let crate::Conversation::Private(user) = &mut message.conversation {
-        user.set_account(account.clone());
+        *user = message.actor.clone();
     }
     message.receipt.update_actor(
-        crate::Source::User(crate::event_impl::source::message_actor(
-            message.actor.clone(),
-        )),
+        crate::Source::User(message.actor.clone()),
         &message.conversation,
     );
     message.receipt.update_account(account);
@@ -247,16 +248,15 @@ pub fn set_message_id(message: &mut Message, id: crate::MessageId) {
 }
 
 /// Sets the actor and matching private conversation on a test message.
-pub fn set_message_actor(message: &mut Message, actor: crate::UserSource) {
+pub fn set_message_actor(message: &mut Message, actor: &crate::UserSource) {
+    let actor =
+        crate::UserHandle::from_parts(actor.nick().clone(), actor.account().clone(), None, None);
     if matches!(message.conversation, crate::Conversation::Private(_)) {
-        message.conversation =
-            crate::Conversation::Private(crate::UserHandle::from_nick(actor.nick().clone()));
+        message.conversation = crate::Conversation::Private(actor.clone());
     }
-    message.actor = crate::event_impl::source::message_actor(actor);
+    message.actor = actor;
     message.receipt.update_actor(
-        crate::Source::User(crate::event_impl::source::message_actor(
-            message.actor.clone(),
-        )),
+        crate::Source::User(message.actor.clone()),
         &message.conversation,
     );
 }
@@ -483,7 +483,7 @@ mod tests {
         let mut message = message(Some(source), "papo", "release ready", true);
         set_message_actor(
             &mut message,
-            user_source(
+            &user_source(
                 mapping.nick("emily"),
                 Some("~emily".into()),
                 Some("cloak.example".into()),

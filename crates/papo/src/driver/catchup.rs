@@ -295,8 +295,14 @@ mod tests {
             None,
             None,
         ));
+        let actor = crate::UserHandle::from_parts(
+            actor.nick().clone(),
+            actor.account().clone(),
+            None,
+            None,
+        );
         let receipt = crate::message_ref::Receipt::new(
-            crate::Source::User(crate::event_impl::source::message_actor(actor.clone())),
+            crate::Source::User(actor.clone()),
             crate::Authorship::Other,
             &conversation,
             None,
@@ -306,7 +312,7 @@ mod tests {
             msgid: Some("RfcBTzyxY120010".into()),
             server_time: None,
             received_at: SystemTime::UNIX_EPOCH,
-            actor: crate::event_impl::source::message_actor(actor),
+            actor,
             authorship: crate::Authorship::Other,
             conversation,
             status: None,

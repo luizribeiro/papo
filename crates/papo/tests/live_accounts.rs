@@ -102,13 +102,12 @@ async fn tls_account_proof_produces_the_same_pin_on_refs_and_messages() {
         let message =
             wait_account_message(&bob_client, &mut bob_events, &alice, "peer key live proof").await;
         let alice_ref = bob_client.direct(&alice).await.unwrap();
+        let message_key = message.actor.key();
         assert!(matches!(
-            alice_ref
-                .peer_key()
-                .check(message.actor.peer_key().unwrap()),
+            alice_ref.peer_key().check(&message_key),
             papo::PeerKeyCheck::Match
         ));
-        let stored = message.actor.peer_key().unwrap().as_verified_str().unwrap();
+        let stored = message_key.as_verified_str().unwrap();
         assert!(matches!(
             stored
                 .parse::<papo::PeerKey>()

@@ -189,9 +189,6 @@ impl Receipt {
     }
 
     pub(crate) fn update_account(&mut self, account: Account) {
-        if let Source::User(actor) = &mut self.identity.actor {
-            actor.set_account(account.clone());
-        }
         self.identity.actor_account = account;
     }
 }
@@ -749,7 +746,12 @@ mod tests {
             Some("cloak.example".into()),
         );
         let receipt = Receipt::new(
-            crate::Source::User(crate::event_impl::source::message_actor(actor)),
+            crate::Source::User(crate::UserHandle::from_parts(
+                actor.nick().clone(),
+                actor.account().clone(),
+                None,
+                None,
+            )),
             Authorship::Other,
             &Conversation::Channel(channel_handle(mapping.channel("#ops"))),
             None,
@@ -783,9 +785,7 @@ mod tests {
             Conversation::Channel(channel_handle(origin.__channel(mapping, "#ops")));
         received.status = Some(crate::Prefix::__new('o', '@'));
         received.receipt = Receipt::new(
-            crate::Source::User(crate::event_impl::source::message_actor(
-                received.actor.clone(),
-            )),
+            crate::Source::User(received.actor.clone()),
             received.authorship,
             &received.conversation,
             None,
@@ -804,9 +804,7 @@ mod tests {
             conversation: Conversation::Channel(channel_handle(origin.__channel(mapping, "#ops"))),
             status: Some(crate::Prefix::__new('o', '@')),
             receipt: Receipt::new(
-                crate::Source::User(crate::event_impl::source::message_actor(user_handle(
-                    origin.__nick(mapping, "papo"),
-                ))),
+                crate::Source::User(user_handle(origin.__nick(mapping, "papo"))),
                 Authorship::Own,
                 &Conversation::Channel(channel_handle(origin.__channel(mapping, "#ops"))),
                 None,
@@ -852,9 +850,7 @@ mod tests {
         );
         message.conversation = Conversation::Private(user_handle(mapping.nick("emily")));
         message.receipt = Receipt::new(
-            crate::Source::User(crate::event_impl::source::message_actor(
-                message.actor.clone(),
-            )),
+            crate::Source::User(message.actor.clone()),
             message.authorship,
             &message.conversation,
             None,
@@ -887,9 +883,7 @@ mod tests {
         let guard = session
             .state()
             .__channel_guard(session.state().channel("#ops").unwrap().name());
-        let actor = crate::Source::User(crate::event_impl::source::message_actor(user_handle(
-            mapping.nick("alice"),
-        )));
+        let actor = crate::Source::User(user_handle(mapping.nick("alice")));
         let mut receipt = Receipt::new(
             actor.clone(),
             Authorship::Other,

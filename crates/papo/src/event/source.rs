@@ -90,10 +90,12 @@ impl UserSource {
     }
 }
 
+#[allow(dead_code)]
 pub(crate) trait FromMessageActor: Sized {
     fn from_message_actor(actor: UserSource) -> Self;
 }
 
+#[allow(dead_code)]
 pub(crate) trait IntoMessageSource {
     fn into_message_source(self) -> UserSource;
 }
@@ -122,6 +124,7 @@ impl FromMessageActor for crate::UserHandle {
     }
 }
 
+#[allow(dead_code)]
 pub(crate) fn message_actor<S: IntoMessageSource, T: FromMessageActor>(actor: S) -> T {
     T::from_message_actor(actor.into_message_source())
 }
