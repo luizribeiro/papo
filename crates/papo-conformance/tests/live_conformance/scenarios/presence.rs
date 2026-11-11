@@ -362,7 +362,7 @@ async fn monitor(s: Scenario) -> papo_testing::Result<()> {
     bob.set_nick(new_nick.clone()).await?;
     let offline = alice.wait_for(Event::as_monitor_offline).await?;
 
-    assert_eq!(offline.subject.nick(), bob_nick);
+    assert_eq!(offline.subject.nick(), bob_nick.as_str());
     assert_eq!(bob.snapshot().nick(), new_nick.as_str());
     assert!(
         alice

@@ -697,7 +697,7 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(crate::source_nick(&target.actor), Some(alice_nick.as_str()));
     assert_eq!(target.subject_authorship, papo::Authorship::Own);
     assert_eq!(observer.channel.name().as_str(), channel);
-    assert_eq!(observer.subject.nick(), carol_nick);
+    assert_eq!(observer.subject.nick(), carol_nick.as_str());
     assert_eq!(
         crate::source_nick(&observer.actor),
         Some(alice_nick.as_str())
