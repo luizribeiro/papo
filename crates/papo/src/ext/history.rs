@@ -1449,6 +1449,53 @@ mod tests {
     }
 
     #[test]
+    fn history_and_live_build_equal_handles() {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().nick("papo"));
+        for line in [
+            b":ergo.test 005 papo CASEMAPPING=rfc1459 CHANTYPES=# :are supported".as_slice(),
+            b":papo!papo@localhost JOIN #release * :Papo Client".as_slice(),
+            b":alice!~alice@cloak.example JOIN #release alice-account :Alice Example".as_slice(),
+        ] {
+            session.handle_line(now, line);
+        }
+        while session.poll_event().is_some() {}
+        let raw = "@account=alice-account;msgid=RfcBTzyxY120004 :alice!~alice@cloak.example PRIVMSG #release :release is ready";
+        session.handle_line(now, raw.as_bytes());
+        let received = std::iter::from_fn(|| session.poll_event())
+            .find_map(|event| match event {
+                papo_core::Event::Line(line) => Some(line),
+                _ => None,
+            })
+            .unwrap();
+        let (client, _) = client_with_commands(&session);
+        let live_event = crate::event_impl::incoming_from_core(
+            received,
+            client.origin(),
+            session.isupport(),
+            false,
+            false,
+            UNIX_EPOCH,
+            Some(&client.state),
+        );
+        let conversation = crate::Conversation::Channel(client.channel("#release").unwrap());
+        let historical = history_item(
+            papo_core::HistoryItem::Message(core_item(raw)),
+            Some(&conversation),
+            &client,
+            UNIX_EPOCH,
+        );
+        let (PageEvent::Message(live), PageEvent::Message(historical)) = (live_event, historical)
+        else {
+            panic!("expected live and historical messages")
+        };
+
+        assert!(live.actor.proof().is_some());
+        assert!(historical.actor.proof().is_some());
+        assert_eq!(historical.actor, live.actor);
+    }
+
+    #[test]
     fn live_and_history_build_the_same_actor_from_one_line() {
         let raw = "@account=alice;bot;draft/oper=network-admin;msgid=RfcBTzyxY120019 :alice!~a@staff.example PART #papo :Deploying release";
         let now = Instant::now();

@@ -371,6 +371,12 @@ pub struct Notice {
 /// It therefore has no return address or [`crate::MessageRef`], including for selecting an
 /// explicit [`crate::MarkReadRequest::up_to`] boundary. Its server time still contributes to the
 /// conversation boundary used by [`crate::Client::mark_read`] without `up_to`.
+///
+/// ```compile_fail
+/// # fn reply(incomplete: &papo::Incomplete) {
+/// let _ = incomplete.return_address();
+/// # }
+/// ```
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Incomplete {
