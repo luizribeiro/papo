@@ -214,15 +214,16 @@ pub(crate) fn from_proto_with_origin(
             username,
             host,
             ..
-        } => Source::User(UserSource {
-            nick: origin.__nick(casemapping, nick),
-            username: username.filter(|_| host.is_some()).map(str::to_owned),
-            host: host.map(str::to_owned),
-            account: Account::Unknown,
-            peer_key: None,
-            is_bot: None,
-            oper: None,
-        }),
+        } => {
+            let nick = origin.__nick(casemapping, nick);
+            Source::User(UserSource::from_state(
+                &nick,
+                username.filter(|_| host.is_some()).map(str::to_owned),
+                host.map(str::to_owned),
+                Account::Unknown,
+                origin,
+            ))
+        }
         papo_proto::Source::Server(server) => Source::Server(server.into()),
     }
 }
@@ -321,15 +322,16 @@ pub(crate) fn from_core(source: papo_core::Source, origin: crate::Origin) -> Opt
             username,
             host,
             ..
-        } => Some(Source::User(UserSource {
-            nick: origin.__nick(nick.casemapping(), nick.as_str()),
-            username: username.filter(|_| host.is_some()),
-            host,
-            account: Account::Unknown,
-            peer_key: None,
-            is_bot: None,
-            oper: None,
-        })),
+        } => {
+            let nick = origin.__nick(nick.casemapping(), nick.as_str());
+            Some(Source::User(UserSource::from_state(
+                &nick,
+                username.filter(|_| host.is_some()),
+                host,
+                Account::Unknown,
+                origin,
+            )))
+        }
         papo_core::Source::Server { name, .. } => Some(Source::Server(name)),
         _ => None,
     }
