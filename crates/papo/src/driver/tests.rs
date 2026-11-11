@@ -581,30 +581,73 @@ async fn later_snapshot_does_not_change_event_identity() {
 
     server_line(
         &mut server,
-        b":papo-driver!papo@localhost JOIN #papo * :Papo Driver\r\n:papo-driver!papo@localhost NICK :papo-away\r\n",
+        b":papo-driver!papo@localhost JOIN #papo * :Papo Driver\r\n",
     )
     .await;
-    let (joined, joined_state) = events.next().await.unwrap();
-    assert!(matches!(joined, Event::Joined(_)));
-    assert_eq!(joined_state.nick(), "papo-driver");
-    let (renamed, renamed_state) = events.next().await.unwrap();
-    assert!(matches!(renamed, Event::NickChanged(_)));
-    assert_eq!(renamed_state.nick(), "papo-away");
+    let (Event::Joined(own_joined), joined_state) = events.next().await.unwrap() else {
+        panic!("expected own join event")
+    };
     assert_eq!(joined_state.nick(), "papo-driver");
 
     server_line(
         &mut server,
-        b":alice!~alice@cloak.example JOIN #papo * :Alice Example\r\n:alice!~alice@cloak.example NICK alice_\r\n",
+        b":papo-driver!papo@localhost NICK :papo-away\r\n",
+    )
+    .await;
+    let (Event::NickChanged(renamed), renamed_state) = events.next().await.unwrap() else {
+        panic!("expected own nickname event")
+    };
+    assert_eq!(renamed.old, "papo-driver");
+    assert_eq!(renamed.new, "papo-away");
+    assert_eq!(renamed_state.nick(), "papo-away");
+    assert_eq!(joined_state.nick(), "papo-driver");
+    assert_eq!(own_joined.actor, renamed.actor);
+    assert_eq!(renamed.actor.nick(), "papo-away");
+
+    server_line(
+        &mut server,
+        b":papo-away!papo@bouncer.papo.test NICK :papo-mobile\r\n",
+    )
+    .await;
+    let Some((Event::NickChanged(mobile), _)) = events.next().await else {
+        panic!("expected bouncer-shaped own nickname event")
+    };
+    assert_eq!(mobile.old, "papo-away");
+    assert_eq!(mobile.new, "papo-mobile");
+    assert_eq!(own_joined.actor.nick(), "papo-mobile");
+    assert_eq!(renamed.actor.nick(), "papo-mobile");
+    assert_eq!(mobile.actor.nick(), "papo-mobile");
+
+    server_line(
+        &mut server,
+        b":alice!~alice@cloak.example JOIN #papo * :Alice Example\r\n",
     )
     .await;
     let Some((Event::Joined(joined), _)) = events.next().await else {
         panic!("expected Alice's join event")
     };
+
+    server_line(&mut server, b":alice!~alice@cloak.example NICK alice_\r\n").await;
     let Some((Event::NickChanged(changed), _)) = events.next().await else {
         panic!("expected Alice's nickname event")
     };
+    assert_eq!(changed.actor.nick(), "alice_");
+
+    server_line(
+        &mut server,
+        b":alice_!~alice@bouncer.papo.test NICK alice-mobile\r\n",
+    )
+    .await;
+    let Some((Event::NickChanged(foreign_mobile), _)) = events.next().await else {
+        panic!("expected bouncer-shaped foreign nickname event")
+    };
     assert_eq!(joined.actor, changed.actor);
-    assert_eq!(joined.actor.nick(), "alice_");
+    assert_eq!(changed.actor, foreign_mobile.actor);
+    assert_eq!(changed.old, "alice");
+    assert_eq!(changed.new, "alice_");
+    assert_eq!(foreign_mobile.old, "alice_");
+    assert_eq!(foreign_mobile.new, "alice-mobile");
+    assert_eq!(joined.actor.nick(), "alice-mobile");
 
     server_line(
         &mut server,
@@ -616,7 +659,7 @@ async fn later_snapshot_does_not_change_event_identity() {
         panic!("expected replacement nickname event")
     };
     assert_ne!(joined.actor, replacement.actor);
-    assert_eq!(joined.actor.nick(), "alice_");
+    assert_eq!(joined.actor.nick(), "alice-mobile");
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));

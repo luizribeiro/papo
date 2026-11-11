@@ -78,7 +78,8 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
     let alice_nick = format!("{base}[x]");
     alice.set_nick(alice_nick.clone()).await?;
     let changed = alice.wait_for(Event::as_nick_changed).await?;
-    assert_eq!(changed.actor.nick().as_str(), base);
+    assert_eq!(changed.old.as_str(), base);
+    assert_eq!(changed.actor.nick().as_str(), alice_nick);
     assert_eq!(changed.new.as_str(), alice_nick);
     assert_eq!(changed.authorship, papo::Authorship::Own);
 
