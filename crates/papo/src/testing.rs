@@ -227,8 +227,7 @@ pub fn message(
 
 /// Sets the account fact on a test message actor.
 pub fn set_message_account(message: &mut Message, account: crate::Account) {
-    message.actor =
-        crate::UserHandle::from_parts(message.actor.nick(), account.clone(), None, None);
+    message.actor = crate::UserHandle::from_parts(message.actor.nick(), account, None, None);
     if let crate::Conversation::Private(user) = &mut message.conversation {
         *user = message.actor.clone();
     }
@@ -236,7 +235,6 @@ pub fn set_message_account(message: &mut Message, account: crate::Account) {
         crate::Source::User(message.actor.clone()),
         &message.conversation,
     );
-    message.receipt.update_account(account);
 }
 
 /// Sets the message identifier and the matching immutable receipt evidence.

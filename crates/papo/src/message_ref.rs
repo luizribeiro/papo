@@ -202,10 +202,6 @@ impl Receipt {
             self.identity.channel = None;
         }
     }
-
-    pub(crate) fn update_account(&mut self, account: Account) {
-        self.identity.actor_account = account;
-    }
 }
 
 pub(crate) trait ReplyReference {
