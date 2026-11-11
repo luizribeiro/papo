@@ -60,6 +60,10 @@ Channel-bearing events and conversations now expose `ChannelHandle` values, so h
 
 Channel message and notice references now retain channel handles; a `STATUSMSG` handle keeps its prefix for replies while channel commands and saved names stay bare.
 
+Message-like events now expose `UserHandle` actors, and private `Conversation` values hold the same identity; mutable account, host, away, and bot facts come from the event's paired `State`.
+
+`Source::User` now contains a `UserHandle` and no longer implements `MaskSource`; historical actors without account proof cannot authorize a send to a later holder of the same nickname.
+
 `PeerKey` is now the persistable network-and-nickname thread key; equality and hashing ignore private proof upgrades, and its display form preserves verified or explicitly unverified proof state.
 
 `Client::mark_read(conversation)` now uses the newest server time papo observed, supports

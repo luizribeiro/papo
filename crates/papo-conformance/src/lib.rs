@@ -53,9 +53,8 @@ impl PartialEq<Option<&str>> for SourceNickValue {
 }
 
 impl SourceNick for papo::Source {
-    #[allow(clippy::implicit_clone, clippy::redundant_closure_for_method_calls)]
     fn source_nick(&self) -> Option<papo::Nick> {
-        self.nick().map(|nick| nick.to_owned())
+        self.nick()
     }
 }
 

@@ -87,12 +87,12 @@ enum PeerProof {
 /// identity that cannot be verified.
 ///
 /// ```no_run
-/// fn inspect_incoming(stored: &papo::PeerKey, sender: &papo::UserSource) {
-///     let Some(current) = sender.peer_key() else { return };
-///     match stored.check(current) {
+/// fn inspect_incoming(stored: &papo::PeerKey, sender: &papo::UserHandle) {
+///     let current = sender.key();
+///     match stored.check(&current) {
 ///         papo::PeerKeyCheck::Match => {}
 ///         papo::PeerKeyCheck::Upgrade(key) => persist(key),
-///         papo::PeerKeyCheck::Mismatch(reason) => warn(reason, current),
+///         papo::PeerKeyCheck::Mismatch(reason) => warn(reason, &current),
 ///     }
 /// }
 /// # fn persist(_: papo::PeerKey) {}
