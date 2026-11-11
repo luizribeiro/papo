@@ -62,7 +62,7 @@ pub struct AwayChanged {
     /// Time at which the triggering line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The affected user.
-    pub actor: UserSource,
+    pub actor: crate::UserHandle,
     /// The user's new presence state.
     pub new: Away,
     /// Whether the affected user is this client's user.
@@ -81,10 +81,10 @@ pub struct AccountChanged {
     /// Time at which the triggering line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The affected user.
-    pub actor: UserSource,
+    pub actor: crate::UserHandle,
     /// The account state after the change.
     ///
-    /// This is separate from the account fact carried by [`Self::actor`].
+    /// This is retained because it describes the change itself.
     pub new: Account,
     /// Whether the affected user is this client's user.
     pub authorship: Authorship,
@@ -102,7 +102,7 @@ pub struct HostChanged {
     /// Time at which the triggering line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The affected user.
-    pub actor: UserSource,
+    pub actor: crate::UserHandle,
     /// The new username from `nick!user@host`; it may start with `~`.
     pub new_username: String,
     /// The user's new hostname.
@@ -120,7 +120,7 @@ pub struct RealnameChanged {
     /// Time at which the triggering line was received, from this device's clock.
     pub received_at: SystemTime,
     /// The affected user.
-    pub actor: UserSource,
+    pub actor: crate::UserHandle,
     /// The user's new real name.
     pub new: String,
     /// Whether the affected user is this client's user.

@@ -68,6 +68,8 @@ Message-like events now expose `UserHandle` actors, and private `Conversation` v
 
 `NickChanged` now carries a `UserHandle`, the old and new nickname facts, and channel handles; its separate `peer_key` identity pin is removed.
 
+Account, away, host, and real-name change events now identify the affected user with a `UserHandle`; mutable facts come from the paired `State`.
+
 `Source::User` now contains a `UserHandle` and no longer implements `MaskSource`; historical actors without account proof cannot authorize a send to a later holder of the same nickname.
 
 `PeerKey` is now the persistable network-and-nickname thread key; equality and hashing ignore private proof upgrades, and its display form preserves verified or explicitly unverified proof state.

@@ -2758,15 +2758,13 @@ pub(crate) fn from_core_with_receipt(
         }
         papo_core::Event::AccountChanged {
             envelope,
-            actor,
+            nick,
             account,
             authorship,
             ..
         } => {
             let envelope = map_envelope(&envelope);
-            let Some(actor) = user_from_raw(&actor, &envelope) else {
-                return CoreEvent::Unknown;
-            };
+            let actor = crate::UserHandle::from_current_state(nick, handle_state);
             Event::AccountChanged(AccountChanged {
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -2777,15 +2775,13 @@ pub(crate) fn from_core_with_receipt(
         }
         papo_core::Event::AwayChanged {
             envelope,
-            actor,
+            nick,
             away,
             authorship,
             ..
         } => {
             let envelope = map_envelope(&envelope);
-            let Some(actor) = user_from_raw(&actor, &envelope) else {
-                return CoreEvent::Unknown;
-            };
+            let actor = crate::UserHandle::from_current_state(nick, handle_state);
             Event::AwayChanged(AwayChanged {
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -2796,16 +2792,14 @@ pub(crate) fn from_core_with_receipt(
         }
         papo_core::Event::HostChanged {
             envelope,
-            actor,
+            nick,
             username,
             host,
             authorship,
             ..
         } => {
             let envelope = map_envelope(&envelope);
-            let Some(actor) = user_from_raw(&actor, &envelope) else {
-                return CoreEvent::Unknown;
-            };
+            let actor = crate::UserHandle::from_current_state(nick, handle_state);
             Event::HostChanged(HostChanged {
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -2817,15 +2811,13 @@ pub(crate) fn from_core_with_receipt(
         }
         papo_core::Event::RealnameChanged {
             envelope,
-            actor,
+            nick,
             realname,
             authorship,
             ..
         } => {
             let envelope = map_envelope(&envelope);
-            let Some(actor) = user_from_raw(&actor, &envelope) else {
-                return CoreEvent::Unknown;
-            };
+            let actor = crate::UserHandle::from_current_state(nick, handle_state);
             Event::RealnameChanged(RealnameChanged {
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
@@ -5602,10 +5594,6 @@ mod tests {
         match event {
             Event::Parted(event) => Some(("Parted", &event.actor)),
             Event::Quit(event) => Some(("Quit", &event.actor)),
-            Event::AccountChanged(event) => Some(("AccountChanged", &event.actor)),
-            Event::AwayChanged(event) => Some(("AwayChanged", &event.actor)),
-            Event::HostChanged(event) => Some(("HostChanged", &event.actor)),
-            Event::RealnameChanged(event) => Some(("RealnameChanged", &event.actor)),
             _ => None,
         }
     }
@@ -5624,26 +5612,6 @@ mod tests {
                 true,
                 "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example QUIT :Client exited",
             ),
-            (
-                "AccountChanged",
-                false,
-                "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example ACCOUNT alice",
-            ),
-            (
-                "AwayChanged",
-                true,
-                "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example AWAY :Reviewing release",
-            ),
-            (
-                "HostChanged",
-                true,
-                "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example CHGHOST ~alice users/alice",
-            ),
-            (
-                "RealnameChanged",
-                true,
-                "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example SETNAME :Alice Smith",
-            ),
         ];
 
         for (expected, member, line) in cases {
@@ -5658,11 +5626,6 @@ mod tests {
                 session.handle_line(
                     now,
                     b"@account=alice :alice!~a@staff.example JOIN #papo alice :Alice Example",
-                );
-            } else if expected == "AccountChanged" {
-                session.handle_line(
-                    now,
-                    b"@account=legacy :alice!~a@staff.example JOIN #papo legacy :Alice Example",
                 );
             }
             while session.poll_event().is_some() {}
@@ -5905,10 +5868,6 @@ mod tests {
         let away = forwarded(session.poll_event().expect("away event"));
         let away = away.as_away_changed().expect("typed away event");
         assert_eq!(away.actor.nick(), "dan");
-        assert_eq!(away.actor.username(), None);
-        assert_eq!(away.actor.host(), None);
-        assert_eq!(away.actor.account(), &Account::LoggedOut);
-        assert_eq!(away.actor.is_bot(), None);
         assert_eq!(away.authorship, Authorship::Other);
     }
 

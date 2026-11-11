@@ -246,7 +246,7 @@ async fn setname(s: Scenario) -> papo_testing::Result<()> {
         })
         .await?;
 
-    assert_eq!(own.actor.nick(), &alice_nick);
+    assert_eq!(own.actor.nick(), alice_nick);
     assert_eq!(own.new, realname);
     assert_eq!(observed.actor.nick(), alice_nick.as_str());
     assert_eq!(observed.new, realname);
@@ -310,7 +310,7 @@ async fn chghost(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(own.actor.nick(), observed.actor.nick().as_str());
     assert_eq!(own.new_username, observed.new_username);
     assert_eq!(own.new_host, observed.new_host);
-    assert_eq!(own.actor.nick(), &bob_nick);
+    assert_eq!(own.actor.nick(), bob_nick);
     assert!(!own.new_username.is_empty());
     assert_eq!(own.new_host, "conformance.example");
     for peer in [&alice, &bob] {

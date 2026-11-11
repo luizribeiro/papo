@@ -263,7 +263,7 @@ impl core::marker::UnsafeUnpin for papo::event::Warning
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Warning
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Warning
 #[non_exhaustive] pub struct papo::event::AccountChanged
-pub papo::event::AccountChanged::actor: papo::UserSource
+pub papo::event::AccountChanged::actor: papo::UserHandle
 pub papo::event::AccountChanged::authorship: papo::Authorship
 pub papo::event::AccountChanged::new: papo::Account
 pub papo::event::AccountChanged::received_at: std::time::SystemTime
@@ -302,7 +302,7 @@ impl core::marker::UnsafeUnpin for papo::event::AutoJoinFailed
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::AutoJoinFailed
 impl core::panic::unwind_safe::UnwindSafe for papo::event::AutoJoinFailed
 #[non_exhaustive] pub struct papo::event::AwayChanged
-pub papo::event::AwayChanged::actor: papo::UserSource
+pub papo::event::AwayChanged::actor: papo::UserHandle
 pub papo::event::AwayChanged::authorship: papo::Authorship
 pub papo::event::AwayChanged::new: papo::Away
 pub papo::event::AwayChanged::received_at: std::time::SystemTime
@@ -576,7 +576,7 @@ impl core::marker::UnsafeUnpin for papo::event::FeaturesChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::FeaturesChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::FeaturesChanged
 #[non_exhaustive] pub struct papo::event::HostChanged
-pub papo::event::HostChanged::actor: papo::UserSource
+pub papo::event::HostChanged::actor: papo::UserHandle
 pub papo::event::HostChanged::authorship: papo::Authorship
 pub papo::event::HostChanged::new_host: alloc::string::String
 pub papo::event::HostChanged::new_username: alloc::string::String
@@ -981,7 +981,7 @@ impl core::marker::UnsafeUnpin for papo::event::ReadMarkerChanged
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::ReadMarkerChanged
 impl core::panic::unwind_safe::UnwindSafe for papo::event::ReadMarkerChanged
 #[non_exhaustive] pub struct papo::event::RealnameChanged
-pub papo::event::RealnameChanged::actor: papo::UserSource
+pub papo::event::RealnameChanged::actor: papo::UserHandle
 pub papo::event::RealnameChanged::authorship: papo::Authorship
 pub papo::event::RealnameChanged::new: alloc::string::String
 pub papo::event::RealnameChanged::received_at: std::time::SystemTime
