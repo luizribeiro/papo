@@ -565,15 +565,15 @@ async fn whox(s: Scenario) -> papo_testing::Result<()> {
     let entries = alice.who(nick.as_str()).await?;
     let entry = entries
         .iter()
-        .find(|entry| entry.nick == nick)
+        .find(|entry| entry.user == nick.as_str())
         .expect("WHO must include its exact target");
 
-    assert_eq!(entry.nick, nick);
+    assert_eq!(entry.user, nick.as_str());
     assert!(!entry.username.is_empty());
     assert!(!entry.host.is_empty());
     assert_eq!(entry.realname, "Alice Example");
     assert_eq!(entry.away, papo::Away::Present);
-    assert!(entry.oper.is_none());
+    assert!(!entry.is_oper);
     Ok(())
 }
 

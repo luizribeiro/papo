@@ -62,6 +62,8 @@ Channel message and notice references now retain channel handles; a `STATUSMSG` 
 
 Message-like events now expose `UserHandle` actors, and private `Conversation` values hold the same identity; mutable account, host, away, and bot facts come from the event's paired `State`.
 
+`WhoEntry` now exposes user and channel handles and reports the WHO operator flag as `is_oper`.
+
 `Source::User` now contains a `UserHandle` and no longer implements `MaskSource`; historical actors without account proof cannot authorize a send to a later holder of the same nickname.
 
 `PeerKey` is now the persistable network-and-nickname thread key; equality and hashing ignore private proof upgrades, and its display form preserves verified or explicitly unverified proof state.

@@ -5,7 +5,7 @@ use papo_proto::{
     ChannelName, Command, Isupport, Line, Nick, Numeric, ServerName, WhoxPresence, WhoxReply,
 };
 
-use crate::{Error, Oper, Prefix, Rank};
+use crate::{Error, Prefix, Rank};
 
 pub(crate) const WHOX_FIELDS: &str = "%tcuhnfar,152";
 
@@ -64,9 +64,9 @@ impl WhoisChannel {
 #[non_exhaustive]
 pub struct WhoEntry {
     /// Channel associated with this reply, when present.
-    pub channel: Option<ChannelName>,
-    /// Nickname of the user.
-    pub nick: Nick,
+    pub channel: Option<crate::ChannelHandle>,
+    /// User reported by the reply.
+    pub user: crate::UserHandle,
     /// Username from `nick!user@host`; it may start with `~`.
     pub username: String,
     /// Visible hostname of the user.
@@ -77,8 +77,8 @@ pub struct WhoEntry {
     pub realname: String,
     /// The user's presence reported by WHO.
     pub away: Away,
-    /// The user's IRC operator identity, when reported.
-    pub oper: Option<Oper>,
+    /// Whether the reply identifies the user as an IRC operator.
+    pub is_oper: bool,
     /// Whether the server identifies the user as a bot.
     pub is_bot: Option<bool>,
     /// Channel-membership prefixes in wire order.
@@ -249,12 +249,13 @@ fn whois_channel(value: &str, isupport: &Isupport, origin: crate::Origin) -> Who
 pub(crate) fn who(
     response: Response,
     isupport: &Isupport,
-    origin: crate::Origin,
+    client: &crate::Client,
     extended: bool,
 ) -> Result<Vec<WhoEntry>, Error> {
     if let Some(error) = response.error() {
         return Err(Error::server(error));
     }
+    let origin = client.origin();
     let mapping = isupport.casemapping();
     Ok(response
         .lines
@@ -265,10 +266,18 @@ pub(crate) fn who(
                 let reply = WhoxReply::parse(&message, WHOX_FIELDS)?;
                 let flags = reply.flags(isupport)?;
                 Some(WhoEntry {
-                    channel: reply
-                        .channel
-                        .map(|channel| origin.__channel(mapping, channel)),
-                    nick: origin.__nick(mapping, reply.nick?),
+                    channel: reply.channel.map(|channel| {
+                        crate::ChannelHandle::new(
+                            client,
+                            origin.__channel(mapping, channel),
+                            None,
+                            false,
+                        )
+                    }),
+                    user: crate::UserHandle::from_current_state(
+                        origin.__nick(mapping, reply.nick?),
+                        Some(&client.state),
+                    ),
                     username: reply.user?.to_owned(),
                     host: reply.host?.to_owned(),
                     account: reply.account.map_or(Account::LoggedOut, |account| {
@@ -280,7 +289,7 @@ pub(crate) fn who(
                         Some(WhoxPresence::Gone) => Away::__away_value(None),
                         None => Away::Unknown,
                     },
-                    oper: flags.oper.then_some(Oper { name: None }),
+                    is_oper: flags.oper,
                     is_bot: if flags.bot {
                         Some(true)
                     } else {
@@ -292,7 +301,7 @@ pub(crate) fn who(
                     ),
                 })
             } else {
-                plain_who(&message, isupport, origin)
+                plain_who(&message, isupport, client)
             }
         })
         .collect())
@@ -301,19 +310,30 @@ pub(crate) fn who(
 fn plain_who(
     message: &papo_proto::LineRef<'_>,
     isupport: &Isupport,
-    origin: crate::Origin,
+    client: &crate::Client,
 ) -> Option<WhoEntry> {
     (message.command() == Command::Numeric(Numeric::RPL_WHOREPLY)).then_some(())?;
     let flags = message.param(6)?;
     let prefixes = isupport.prefix();
+    let origin = client.origin();
     Some(WhoEntry {
         channel: message
             .param(1)
             .filter(|value| *value != "*")
-            .map(|channel| origin.__channel(isupport.casemapping(), channel)),
+            .map(|channel| {
+                crate::ChannelHandle::new(
+                    client,
+                    origin.__channel(isupport.casemapping(), channel),
+                    None,
+                    false,
+                )
+            }),
         username: message.param(2)?.to_owned(),
         host: message.param(3)?.to_owned(),
-        nick: origin.__nick(isupport.casemapping(), message.param(5)?),
+        user: crate::UserHandle::from_current_state(
+            origin.__nick(isupport.casemapping(), message.param(5)?),
+            Some(&client.state),
+        ),
         account: Account::Unknown,
         realname: message.param(7)?.split_once(' ')?.1.to_owned(),
         away: if flags.contains('G') {
@@ -323,7 +343,7 @@ fn plain_who(
         } else {
             Away::Unknown
         },
-        oper: flags.contains('*').then_some(Oper { name: None }),
+        is_oper: flags.contains('*'),
         is_bot: if flags.contains('B') {
             Some(true)
         } else {
@@ -464,6 +484,7 @@ mod tests {
     #[test]
     fn plain_who_filters_placeholder_channels_and_non_prefix_flags() {
         let isupport = Isupport::default();
+        let client = crate::Client::disconnected_for_test();
         let hidden = Line::new("352").with_params([
             "papo",
             "*",
@@ -485,8 +506,8 @@ mod tests {
             "0 Bob Example",
         ]);
 
-        let hidden = plain_who(&hidden.as_ref(), &isupport, crate::Origin::NONE).unwrap();
-        let visible = plain_who(&visible.as_ref(), &isupport, crate::Origin::NONE).unwrap();
+        let hidden = plain_who(&hidden.as_ref(), &isupport, &client).unwrap();
+        let visible = plain_who(&visible.as_ref(), &isupport, &client).unwrap();
         assert_eq!(
             (&hidden.account, &hidden.away),
             (&Account::Unknown, &Away::Present)
@@ -497,17 +518,14 @@ mod tests {
         );
         assert_eq!(hidden.channel, None);
         assert_eq!(hidden.prefixes[0].symbol(), '@');
-        assert!(hidden.oper.is_some());
+        assert!(hidden.is_oper);
         assert_eq!(hidden.rank(), Some(crate::Rank::Op));
         assert_eq!(
             (
-                visible
-                    .channel
-                    .as_ref()
-                    .map(papo_proto::ChannelName::as_str),
+                visible.channel.as_ref().map(crate::ChannelHandle::name),
                 visible.prefixes[0].symbol()
             ),
-            (Some("#rust"), '+')
+            (Some(client.channel("#rust").unwrap().name()), '+')
         );
         assert_eq!(visible.rank(), Some(crate::Rank::Voice));
     }
@@ -555,7 +573,9 @@ mod tests {
     fn reply_names_capture_the_advertised_casemapping() {
         let mut isupport = Isupport::default();
         isupport.apply_tokens(["CASEMAPPING=ascii"]);
-        let origin = crate::Origin::__new(73);
+        let session = Session::new(Config::default().casemapping(Casemapping::Ascii));
+        let client = crate::driver::test_support::client_with_commands(&session).0;
+        let origin = client.origin();
         let channel = whois_channel("@#Papo[dev]", &isupport, origin);
         let who = Line::new("352").with_params([
             "papo",
@@ -567,12 +587,15 @@ mod tests {
             "H@",
             "0 Alice Example",
         ]);
-        let who = plain_who(&who.as_ref(), &isupport, origin).unwrap();
+        let who = plain_who(&who.as_ref(), &isupport, &client).unwrap();
 
         assert_eq!(channel.name.casemapping(), Casemapping::Ascii);
-        assert_eq!(who.channel.unwrap().casemapping(), Casemapping::Ascii);
-        assert_eq!(who.nick.casemapping(), Casemapping::Ascii);
+        assert_eq!(
+            who.channel.unwrap().name().casemapping(),
+            Casemapping::Ascii
+        );
+        assert_eq!(who.user.nick().casemapping(), Casemapping::Ascii);
         assert_eq!(channel.name.origin(), origin);
-        assert_eq!(who.nick.origin(), origin);
+        assert_eq!(who.user.nick().origin(), origin);
     }
 }

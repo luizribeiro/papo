@@ -53,7 +53,7 @@ async fn typed_requests_round_trip_against_ergo() {
                 .await
                 .unwrap()
                 .iter()
-                .any(|entry| entry.nick == nick.as_str())
+                .any(|entry| entry.user == nick.as_str())
         );
 
         client.mode(&channel).add('t').await.unwrap();

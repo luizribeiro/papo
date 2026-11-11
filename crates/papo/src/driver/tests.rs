@@ -5530,9 +5530,9 @@ async fn raw_request_returns_no_lines_for_an_ack() {
 fn assert_structured_who(who: &[crate::WhoEntry]) {
     assert_eq!(who.len(), 2);
     assert_eq!(
-        (&who[0].nick, &who[0].account),
+        (who[0].user.nick(), &who[0].account),
         (
-            &test_nick("alice"),
+            test_nick("alice"),
             &crate::Account::LoggedIn(test_account("alice"))
         )
     );
@@ -5548,13 +5548,13 @@ fn assert_structured_who(who: &[crate::WhoEntry]) {
         (
             &who[1].account,
             &who[1].away,
-            who[1].oper.as_ref().and_then(|oper| oper.name.as_deref()),
+            who[1].is_oper,
             prefix_symbols(&who[1].prefixes)
         ),
         (
             &crate::Account::LoggedOut,
             &crate::Away::__away_value(None),
-            None,
+            true,
             vec!['+']
         )
     );
@@ -6905,8 +6905,8 @@ async fn typed_requests_match_unlabelled_responses() {
     client_line(&mut server, b"WHO #papo\r\n").await;
     server_line(&mut server, b":ergo.test 352 papo-driver #papo ~alice host ergo.test alice H@ :0 Alice Example\r\n:ergo.test 315 papo-driver #papo :End of WHO list\r\n").await;
     let who = within(who).await.unwrap().unwrap();
-    assert_eq!(who[0].nick, "alice");
-    assert_eq!(who[0].nick.origin(), client.origin());
+    assert_eq!(who[0].user, "alice");
+    assert_eq!(who[0].user.nick().origin(), client.origin());
     assert_eq!(who[0].channel.as_ref().unwrap().origin(), client.origin());
 
     let join = tokio::spawn({
@@ -7076,7 +7076,7 @@ async fn manual_who_refreshes_joined_member_state_at_numeric_315() {
         b":ergo.test 315 papo-driver #papo :End of WHO list\r\n",
     )
     .await;
-    assert_eq!(within(who).await.unwrap().unwrap()[0].nick, "dan");
+    assert_eq!(within(who).await.unwrap().unwrap()[0].user, "dan");
     assert!(matches!(
         next_event(&mut events).await,
         Some(Event::MembersRefreshed(refreshed)) if refreshed.channel == "#papo"

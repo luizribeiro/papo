@@ -476,18 +476,18 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
     let who = bob.who(channel.clone()).await?;
     let alice_who = who
         .iter()
-        .find(|entry| entry.nick == alice_nick.as_str())
+        .find(|entry| entry.user == alice_nick.as_str())
         .unwrap();
 
     assert_eq!(
-        alice_who.channel.as_ref().map(papo::ChannelName::as_str),
-        Some(channel_name.as_str())
+        alice_who.channel.as_ref().map(papo::ChannelHandle::name),
+        Some(channel_name.clone())
     );
     assert!(!alice_who.username.is_empty());
     assert!(!alice_who.host.is_empty());
     assert_eq!(alice_who.realname, "papo test peer");
     assert_eq!(alice_who.away, Away::__away_value(None));
-    assert!(alice_who.oper.is_none());
+    assert!(!alice_who.is_oper);
     assert_eq!(alice_who.is_bot, expected_bot);
     assert_eq!(
         alice_who
@@ -574,13 +574,9 @@ async fn operator_visibility(s: Scenario) -> papo_testing::Result<()> {
     let who = bob.who(alice_nick.as_str()).await?;
     let row = who
         .iter()
-        .find(|entry| entry.nick == alice_nick.as_str())
+        .find(|entry| entry.user == alice_nick.as_str())
         .unwrap();
-    assert_eq!(
-        row.oper.as_ref().and_then(|oper| oper.name.as_deref()),
-        None
-    );
-    assert!(row.oper.is_some());
+    assert!(row.is_oper);
 
     let whois = bob
         .request_raw(papo::Line::new("WHOIS").with_params([alice_nick.as_str()]))

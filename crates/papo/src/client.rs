@@ -1377,12 +1377,7 @@ impl Client {
             let response = client
                 .correlated(message, Some(ResponseMatcher::Who(mask.to_string())))
                 .await?;
-            crate::requests::who(
-                response,
-                state.isupport().inner(),
-                client.origin(),
-                extended,
-            )
+            crate::requests::who(response, state.isupport().inner(), &client, extended)
         })
     }
 
