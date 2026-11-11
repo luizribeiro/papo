@@ -347,7 +347,7 @@ if let Event::AutoJoinFailed(failure) = event { /* ... */ }
 | Inline-field `Event::AutoJoinFailed { channel, error }` | `Event::AutoJoinFailed(event::AutoJoinFailed)` and `as_auto_join_failed()` |
 | `Event::OwnMessage` plus incoming variants | `Event::OwnMessage` was removed; all own lines use their normal variant with `Authorship::Own` |
 | Own sends could also arrive as message events | A correlated send resolves to `Sent`; applications that log chat insert their own sends from that value |
-| `Source` plus repeated `nick`, `account`, `oper`, and `is_bot` fields | `Source::{User(UserSource), Server(ServerName)}`; user facts live on `UserSource` accessors |
+| `Source` plus repeated `nick`, `account`, `oper`, and `is_bot` fields | `Source::{User(UserHandle), Server(ServerName)}`; mutable user facts live in the paired `State` |
 | `Message::reply_to` / `Notice::reply_to` | `in_reply_to` |
 | `Reacted::message` and `removed: bool` | `reacts_to` and `ReactionAction::{Added, Removed}` |
 | `Redacted::message` | `redacts` |
@@ -370,11 +370,11 @@ User lifecycle payloads were normalized as follows:
 | Earlier fields | 0.1.0 fields |
 |---|---|
 | `NickChanged { old, actor, account, ... }` | `actor: UserHandle` identifies the renamed user, `new` is the new nick, and `channels` lists shared channels |
-| `AwayChanged { nick, away, actor }` | `actor: UserSource`, `new: Away`, `authorship`, and timestamps |
-| `AccountChanged { nick, account, actor }` | `actor: UserSource`, `new: Account`, `authorship`, and timestamps |
-| `HostChanged { nick, username, host, actor }` | `actor: UserSource`, `new_username`, `new_host`, `authorship`, and timestamps |
-| `RealnameChanged { nick, realname, actor }` | `actor: UserSource`, `new`, `authorship`, and timestamps |
-| `MonitorOnline { nick, username, host }` / `MonitorOffline { nick }` | `subject: UserSource` / `subject: Nick` |
+| `AwayChanged { nick, away, actor }` | `actor: UserHandle`, `new: Away`, `authorship`, and timestamps |
+| `AccountChanged { nick, account, actor }` | `actor: UserHandle`, `new: Account`, `authorship`, and timestamps |
+| `HostChanged { nick, username, host, actor }` | `actor: UserHandle`, `new_username`, `new_host`, `authorship`, and timestamps |
+| `RealnameChanged { nick, realname, actor }` | `actor: UserHandle`, `new`, `authorship`, and timestamps |
+| `MonitorOnline { nick, username, host }` / `MonitorOffline { nick }` | `subject: UserHandle`; offline facts are retained when removed from state |
 | `ModeChanged::subject_authorship` | `ModeChanged::about(&change)` computes authorship for each member mode change |
 | String netsplit server names | `SplitServers` contains `ServerName` values |
 

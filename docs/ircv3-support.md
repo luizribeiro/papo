@@ -19,7 +19,7 @@ Ratified IRCv3 specifications and drafts published on ircv3.net are part of papo
 | [SASL 3.2](https://ircv3.net/specs/extensions/sasl-3.2) | `sasl` | Opt-in | [`Builder::sasl`](https://docs.rs/papo/latest/papo/struct.Builder.html#method.sasl) | [Yes](conformance-matrix.md) |
 | [SASL mechanisms](https://ircv3.net/docs/sasl-mechs) | `PLAIN, EXTERNAL, SCRAM-SHA-256, OAUTHBEARER` | Yes | [`Sasl`](https://docs.rs/papo/latest/papo/struct.Sasl.html) | [Yes](conformance-matrix.md) |
 | [Account notify](https://ircv3.net/specs/extensions/account-notify) | `account-notify` | Yes | [`Event::AccountChanged`](https://docs.rs/papo/latest/papo/enum.Event.html#variant.AccountChanged) | [Yes](conformance-matrix.md) |
-| [Account tag](https://ircv3.net/specs/extensions/account-tag) | `account-tag` | Yes | [`UserSource::account`](https://docs.rs/papo/latest/papo/struct.UserSource.html#method.account) | [Yes](conformance-matrix.md) |
+| [Account tag](https://ircv3.net/specs/extensions/account-tag) | `account-tag` | Yes | [`User::account`](https://docs.rs/papo/latest/papo/struct.User.html#method.account) | [Yes](conformance-matrix.md) |
 | [Extended join](https://ircv3.net/specs/extensions/extended-join) | `extended-join` | Yes | [`Event::Joined`](https://docs.rs/papo/latest/papo/enum.Event.html#variant.Joined) | [Yes](conformance-matrix.md) |
 | [Away notify](https://ircv3.net/specs/extensions/away-notify) | `away-notify` | Yes | [`Event::AwayChanged`](https://docs.rs/papo/latest/papo/enum.Event.html#variant.AwayChanged) | [Yes](conformance-matrix.md) |
 | [Batch](https://ircv3.net/specs/extensions/batch) | `batch` | Yes | — | [Yes](conformance-matrix.md) |
@@ -62,7 +62,7 @@ Ratified IRCv3 specifications and drafts published on ircv3.net are part of papo
 | [Reply](https://ircv3.net/specs/client-tags/reply) | `+reply` | Yes | [`SendMessage::reply_to`](https://docs.rs/papo/latest/papo/struct.SendMessage.html#method.reply_to) | [Yes](conformance-matrix.md) |
 | [React](https://ircv3.net/specs/client-tags/react) | `+draft/react, +draft/unreact` | Yes | [`Client::react`](https://docs.rs/papo/latest/papo/struct.Client.html#method.react) | [Yes](conformance-matrix.md) |
 | [Typing](https://ircv3.net/specs/client-tags/typing) | `+typing` | Yes | [`Client::typing`](https://docs.rs/papo/latest/papo/struct.Client.html#method.typing) | [Yes](conformance-matrix.md) |
-| [Operator tag](https://ircv3.net/specs/extensions/oper-tag) | `draft/oper-tag, draft/oper` | Yes | [`UserSource::oper`](https://docs.rs/papo/latest/papo/struct.UserSource.html#method.oper) | No |
+| [Operator tag](https://ircv3.net/specs/extensions/oper-tag) | `draft/oper-tag, draft/oper` | Yes | — | No |
 
 ## Batch types
 

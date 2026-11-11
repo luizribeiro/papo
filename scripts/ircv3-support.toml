@@ -10,7 +10,7 @@ specs = [
   { name = "SASL 3.2", url = "https://ircv3.net/specs/extensions/sasl-3.2", caps = ["sasl"], api = "Builder::sasl", coverage = "ircv3.sasl." },
   { name = "SASL mechanisms", url = "https://ircv3.net/docs/sasl-mechs", wire = "PLAIN, EXTERNAL, SCRAM-SHA-256, OAUTHBEARER", support = "Yes", api = "Sasl", coverage = "ircv3.sasl." },
   { name = "Account notify", url = "https://ircv3.net/specs/extensions/account-notify", caps = ["account-notify"], api = "Event::AccountChanged", coverage = "ircv3.account-notify" },
-  { name = "Account tag", url = "https://ircv3.net/specs/extensions/account-tag", caps = ["account-tag"], api = "UserSource::account", coverage = "ircv3.account-tag" },
+  { name = "Account tag", url = "https://ircv3.net/specs/extensions/account-tag", caps = ["account-tag"], api = "User::account", coverage = "ircv3.account-tag" },
   { name = "Extended join", url = "https://ircv3.net/specs/extensions/extended-join", caps = ["extended-join"], api = "Event::Joined", coverage = "ircv3.extended-join" },
   { name = "Away notify", url = "https://ircv3.net/specs/extensions/away-notify", caps = ["away-notify"], api = "Event::AwayChanged", coverage = "ircv3.away-notify" },
   { name = "Batch", url = "https://ircv3.net/specs/extensions/batch", caps = ["batch"], api = "—", coverage = "ircv3.batch." },
@@ -53,7 +53,7 @@ specs = [
   { name = "Reply", url = "https://ircv3.net/specs/client-tags/reply", wire = "+reply", support = "Yes", api = "SendMessage::reply_to", coverage = "tag.reply" },
   { name = "React", url = "https://ircv3.net/specs/client-tags/react", wire = "+draft/react, +draft/unreact", support = "Yes", api = "Client::react", coverage = "tag.react" },
   { name = "Typing", url = "https://ircv3.net/specs/client-tags/typing", wire = "+typing", support = "Yes", api = "Client::typing", coverage = "tag.typing" },
-  { name = "Operator tag", url = "https://ircv3.net/specs/extensions/oper-tag", caps = ["draft/oper-tag"], wire = "draft/oper-tag, draft/oper", api = "UserSource::oper", coverage = "draft.oper-tag" },
+  { name = "Operator tag", url = "https://ircv3.net/specs/extensions/oper-tag", caps = ["draft/oper-tag"], wire = "draft/oper-tag, draft/oper", api = "—", coverage = "draft.oper-tag" },
 ]
 
 [[group]]
