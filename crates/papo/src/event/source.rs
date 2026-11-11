@@ -281,6 +281,8 @@ pub(crate) fn from_core(source: papo_core::Source, origin: crate::Origin) -> Opt
 
 #[cfg(test)]
 mod tests {
+    use std::time::SystemTime;
+
     use papo_proto::{Casemapping, Mask};
 
     use super::{Source, UserSource};
@@ -382,5 +384,39 @@ mod tests {
         assert_eq!(bare.user().unwrap().to_string(), "ChanServ");
         assert_eq!(bare.to_string(), "ChanServ");
         assert_eq!(server.to_string(), "irc.example.net");
+    }
+
+    #[test]
+    fn maps_complete_core_user_sources() {
+        let mapping = Casemapping::Rfc1459;
+        let source = papo_core::Source::from_proto(
+            papo_proto::Source::__user("Alice[bot]", Some("~alice"), Some("staff.example")),
+            mapping,
+        );
+        let envelope = super::super::EventEnvelope {
+            msgid: None,
+            server_time: None,
+            received_at: SystemTime::UNIX_EPOCH,
+            account: Account::LoggedIn(mapping.account("alice-account")),
+            bot: false,
+            oper: None,
+        };
+
+        let mapped = super::user_source_from_line(
+            super::LinePrefix::Core(source),
+            &envelope,
+            mapping,
+            crate::Origin::NONE,
+            true,
+        )
+        .unwrap();
+
+        assert_eq!(mapped.nick(), "alice{bot}");
+        assert_eq!(mapped.username(), Some("~alice"));
+        assert_eq!(mapped.host(), Some("staff.example"));
+        assert!(
+            matches!(mapped.account(), Account::LoggedIn(account) if account == "alice-account")
+        );
+        assert_eq!(mapped.is_bot(), Some(false));
     }
 }
