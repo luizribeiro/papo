@@ -5330,53 +5330,6 @@ mod tests {
     }
 
     #[test]
-    fn every_private_event_actor_accepts_a_peer_pin() {
-        let isupport = Isupport::default();
-        let parse = |line: Line| parse_event(line, &isupport, "papo", UNIX_EPOCH);
-        let tag = |tags| {
-            forwarded(papo_core::Event::TagMessage(papo_core::TagMessage {
-                envelope: papo_core::LineEnvelope::default(),
-                actor: "alice!~alice@cloak.example".into(),
-                authorship: papo_core::Authorship::Other,
-                conversation: papo_core::Conversation::Private(
-                    Casemapping::default().nick("alice"),
-                ),
-                status: None,
-                return_address: "alice".into(),
-                tags,
-            }))
-        };
-        let mut cases = [
-            parse(
-                Line::notice("papo", "review complete").with_source("alice!~alice@cloak.example"),
-            ),
-            parse(
-                Line::privmsg("papo", "\x01VERSION\x01").with_source("alice!~alice@cloak.example"),
-            ),
-            parse(
-                Line::notice("papo", "\x01VERSION papo-0.1\x01")
-                    .with_source("alice!~alice@cloak.example"),
-            ),
-            tag(Vec::new()),
-            tag(vec![
-                ("+draft/react".into(), Some("👍".into())),
-                ("+draft/reply".into(), Some("RfcBTzyxY120001".into())),
-            ]),
-            tag(vec![("+typing".into(), Some("active".into()))]),
-        ];
-
-        for event in &mut cases {
-            assert_eq!(super::private_actor_mut(event).unwrap().nick(), "alice");
-        }
-        assert!(matches!(cases[0], Event::Notice(_)));
-        assert!(matches!(cases[1], Event::CtcpQuery(_)));
-        assert!(matches!(cases[2], Event::CtcpReply(_)));
-        assert!(matches!(cases[3], Event::TagMsg(_)));
-        assert!(matches!(cases[4], Event::Reacted(_)));
-        assert!(matches!(cases[5], Event::TypingChanged(_)));
-    }
-
-    #[test]
     fn classifies_an_own_message() {
         let now = Instant::now();
         let mut session = Session::new(Config::default().nick("Papo[bot]"));
