@@ -363,8 +363,10 @@ impl Command {
         &self,
         text: impl Into<String>,
     ) -> Result<ReplyStatus, papo::Error> {
-        let target = self.message.actor.nick();
-        if !self.replies.check(Conversation::Private(target.clone())) {
+        if !self
+            .replies
+            .check(Conversation::Private(self.message.actor.clone()))
+        {
             return Ok(ReplyStatus::Dropped);
         }
         let target = self.client.direct_to(&self.message).await?;

@@ -10,8 +10,8 @@ use std::fmt;
 pub enum Conversation {
     /// Messages addressed to a channel.
     Channel(crate::ChannelHandle),
-    /// Messages exchanged with the named other party.
-    Private(crate::Nick),
+    /// Messages exchanged with one proven or expected user identity.
+    Private(crate::UserHandle),
 }
 
 impl Conversation {
@@ -48,7 +48,10 @@ impl Conversation {
                 ))
             }
             papo_core::Conversation::Private(nick) => {
-                Self::Private(origin.__nick(nick.casemapping(), nick.into_string()))
+                Self::Private(crate::UserHandle::from_current_state(
+                    origin.__nick(nick.casemapping(), nick.into_string()),
+                    state,
+                ))
             }
             _ => unreachable!("core conversations have channel and private variants"),
         }
@@ -59,7 +62,7 @@ impl fmt::Display for Conversation {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Channel(channel) => channel.name().fmt(formatter),
-            Self::Private(nick) => nick.fmt(formatter),
+            Self::Private(user) => user.nick().fmt(formatter),
         }
     }
 }
@@ -68,7 +71,7 @@ impl PartialEq<str> for Conversation {
     fn eq(&self, other: &str) -> bool {
         match self {
             Self::Channel(channel) => channel.name() == other,
-            Self::Private(nick) => nick == other,
+            Self::Private(user) => user.nick() == other,
         }
     }
 }

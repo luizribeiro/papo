@@ -18,7 +18,7 @@ struct ReceiptIdentity {
     actor_account: Account,
     token: Option<papo_core::ReplyToken>,
     actor_token: Option<papo_core::ReplyToken>,
-    recipient: Option<Nick>,
+    recipient: Option<crate::UserHandle>,
     recipient_guard: Option<RecipientGuard>,
     channel: Option<crate::ChannelHandle>,
     msgids: Vec<MessageId>,
@@ -42,7 +42,7 @@ impl Receipt {
         };
         let origin = conversation_origin(conversation);
         let recipient = match conversation {
-            Conversation::Private(nick) => Some(nick.clone()),
+            Conversation::Private(user) => Some(user.clone()),
             _ => None,
         };
         Self {
@@ -115,8 +115,8 @@ impl Receipt {
         if let Some(recipient) = &self.identity.recipient_guard {
             return Some(recipient.clone());
         }
-        self.identity.recipient.as_ref().map(|nick| RecipientGuard {
-            nick: nick.clone(),
+        self.identity.recipient.as_ref().map(|user| RecipientGuard {
+            nick: user.nick(),
             account: self.identity.actor_account.clone(),
             receipt: self.identity.token,
             validated: None,
@@ -164,10 +164,12 @@ impl Receipt {
             .user()
             .map_or(Account::Unknown, |user| user.account().clone());
         self.identity.recipient = match conversation {
-            Conversation::Private(nick) => Some(nick.clone()),
+            Conversation::Private(user) => Some(user.clone()),
             _ => None,
         };
-        self.address = conversation.to_string();
+        if matches!(conversation, Conversation::Private(_)) {
+            self.address = conversation.to_string();
+        }
         self.origin = conversation_origin(conversation);
         if !matches!(conversation, Conversation::Channel(_)) {
             self.identity.channel = None;
@@ -599,7 +601,7 @@ impl<I: Into<MessageId>> From<(&MessageRef, I)> for MessageRef {
 pub(crate) fn conversation_origin(conversation: &Conversation) -> crate::Origin {
     match conversation {
         Conversation::Channel(channel) => channel.origin(),
-        Conversation::Private(nick) => nick.origin(),
+        Conversation::Private(user) => user.nick().origin(),
     }
 }
 
@@ -609,9 +611,12 @@ pub(crate) fn stamp_conversation(
 ) -> Conversation {
     match conversation {
         Conversation::Channel(channel) => Conversation::Channel(channel),
-        Conversation::Private(nick) => {
-            Conversation::Private(origin.__nick(nick.casemapping(), nick.into_string()))
-        }
+        Conversation::Private(user) => Conversation::Private(crate::UserHandle::from_parts(
+            origin.__nick(user.nick().casemapping(), user.nick().into_string()),
+            user.account().clone(),
+            None,
+            None,
+        )),
     }
 }
 
@@ -623,6 +628,10 @@ mod tests {
 
     fn channel_handle(value: crate::ChannelName) -> crate::ChannelHandle {
         crate::ChannelHandle::from_parts(value, None, None, None)
+    }
+
+    fn user_handle(value: crate::Nick) -> crate::UserHandle {
+        crate::UserHandle::from_nick(value)
     }
 
     #[test]
@@ -652,7 +661,9 @@ mod tests {
             server_time: Some(crate::ServerTime::from_stored_millis(42_000).unwrap()),
         };
         let mut metadata_only = base.clone();
-        metadata_only.conversation = Some(Conversation::Private(origin.__nick(mapping, "bob")));
+        metadata_only.conversation = Some(Conversation::Private(user_handle(
+            origin.__nick(mapping, "bob"),
+        )));
         metadata_only.server_time = Some(crate::ServerTime::from_stored_millis(84_000).unwrap());
         assert_eq!(base, metadata_only);
 
@@ -829,7 +840,7 @@ mod tests {
             "deploy complete",
             false,
         );
-        message.conversation = Conversation::Private(mapping.nick("emily"));
+        message.conversation = Conversation::Private(user_handle(mapping.nick("emily")));
         message.receipt = Receipt::new(
             crate::Source::User(crate::event_impl::source::message_actor(
                 message.actor.clone(),
@@ -887,7 +898,10 @@ mod tests {
 
         receipt.update_actor(actor.clone(), &channel);
         assert!(receipt.identity.channel.is_some());
-        receipt.update_actor(actor, &Conversation::Private(mapping.nick("alice")));
+        receipt.update_actor(
+            actor,
+            &Conversation::Private(user_handle(mapping.nick("alice"))),
+        );
         assert!(receipt.identity.channel.is_none());
     }
 }

@@ -933,13 +933,13 @@ mod tests {
             "release ready",
             true,
         );
-        private.conversation = crate::Conversation::Private(
+        private.conversation = crate::Conversation::Private(crate::UserHandle::from_nick(
             first
                 .state()
                 .name_rules()
                 .expect("server advertised CASEMAPPING")
                 .nick("emily"),
-        );
+        ));
         private.receipt = crate::message_ref::Receipt::new(
             crate::Source::User(crate::event_impl::source::message_actor(
                 private.actor.clone(),
@@ -957,13 +957,13 @@ mod tests {
             ))
         ));
 
-        let conversation = crate::Conversation::Private(
+        let conversation = crate::Conversation::Private(crate::UserHandle::from_nick(
             first
                 .state()
                 .name_rules()
                 .expect("server advertised CASEMAPPING")
                 .nick("emily"),
-        );
+        ));
         let receipt = crate::message_ref::Receipt::new(
             crate::Source::User(actor.clone()),
             crate::Authorship::Other,

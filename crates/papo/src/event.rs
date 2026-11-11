@@ -1281,8 +1281,13 @@ pub(crate) fn historical_conversation(
     if !matches!(conversation, Conversation::Private(_)) {
         return crate::message_ref::stamp_conversation(conversation, own_nick.origin());
     }
-    if let Some(Conversation::Private(nick)) = history_conversation {
-        return Conversation::Private(own_nick.origin().__nick(mapping, nick.as_str()));
+    if let Some(Conversation::Private(user)) = history_conversation {
+        return Conversation::Private(crate::UserHandle::from_parts(
+            own_nick.origin().__nick(mapping, user.nick().as_str()),
+            user.account().clone(),
+            None,
+            None,
+        ));
     }
     if authorship != Authorship::Own
         && message
@@ -1290,7 +1295,9 @@ pub(crate) fn historical_conversation(
             .is_some_and(|target| own_nick.origin().__nick(mapping, target) != *own_nick)
         && let Some(papo_proto::Source::User { nick, .. }) = message.source()
     {
-        return Conversation::Private(own_nick.origin().__nick(mapping, nick));
+        return Conversation::Private(crate::UserHandle::from_nick(
+            own_nick.origin().__nick(mapping, nick),
+        ));
     }
     crate::message_ref::stamp_conversation(conversation, own_nick.origin())
 }
@@ -1310,7 +1317,7 @@ fn message_metadata(
 ) -> Option<MessageMetadata> {
     let origin = match &conversation {
         Conversation::Channel(channel) => channel.origin(),
-        Conversation::Private(nick) => nick.origin(),
+        Conversation::Private(user) => user.origin(),
     };
     let envelope = line_envelope_with_account_tag(
         message,
@@ -1361,7 +1368,7 @@ pub(crate) fn return_address(message: &LineRef<'_>, conversation: &Conversation)
         Conversation::Channel(channel) => message
             .param(0)
             .map_or_else(|| channel.name().to_string(), str::to_owned),
-        Conversation::Private(nick) => nick.to_string(),
+        Conversation::Private(user) => user.nick().to_string(),
     }
 }
 
@@ -2173,7 +2180,10 @@ pub(crate) fn from_core_with_receipt(
             Conversation::Channel(channel_handle(channel, status))
         }
         papo_core::Conversation::Private(nick) => {
-            Conversation::Private(origin.__nick(nick.casemapping(), nick.into_string()))
+            Conversation::Private(crate::UserHandle::from_current_state(
+                origin.__nick(nick.casemapping(), nick.into_string()),
+                handle_state,
+            ))
         }
         _ => unreachable!("core conversations have channel and private variants"),
     };
@@ -2948,6 +2958,10 @@ mod tests {
         crate::ChannelHandle::from_parts(value, None, None, None)
     }
 
+    fn user_handle(value: crate::Nick) -> crate::UserHandle {
+        crate::UserHandle::from_nick(value)
+    }
+
     #[tokio::test(flavor = "current_thread")]
     async fn credential_refusals_produce_typed_request_and_transmit_errors() {
         use crate::driver::test_support::{complete_connect_labelled, config, scripted, within};
@@ -3588,7 +3602,7 @@ mod tests {
             (
                 "private",
                 Line::notice("papo", "hello").with_source("emily!~e@localhost"),
-                Conversation::Private(origin.__nick(mapping, "emily")),
+                Conversation::Private(user_handle(origin.__nick(mapping, "emily"))),
             ),
         ];
 
@@ -3682,7 +3696,7 @@ mod tests {
                 .with_source("irc.example"),
             None,
             Authorship::Other,
-            Conversation::Private(isupport.casemapping().nick("papo")),
+            Conversation::Private(user_handle(isupport.casemapping().nick("papo"))),
             None,
             None,
             &isupport,
@@ -3704,7 +3718,7 @@ mod tests {
                 .with_tag("account", "network-admin"),
             None,
             Authorship::Other,
-            Conversation::Private(isupport.casemapping().nick("papo")),
+            Conversation::Private(user_handle(isupport.casemapping().nick("papo"))),
             None,
             None,
             &isupport,
@@ -4158,7 +4172,7 @@ mod tests {
         );
 
         let private_line = Line::privmsg("papo", "hello from Alice");
-        let private = Conversation::Private(mapping.nick("alice"));
+        let private = Conversation::Private(user_handle(mapping.nick("alice")));
         assert_eq!(
             super::return_address(&private_line.as_ref(), &private),
             "alice"
@@ -5316,7 +5330,7 @@ mod tests {
     #[test]
     fn historical_private_messages_use_the_batch_or_actor_conversation() {
         let client = crate::Client::disconnected_for_test();
-        let batch = Conversation::Private(Casemapping::default().nick("alice"));
+        let batch = Conversation::Private(user_handle(Casemapping::default().nick("alice")));
         for history_conversation in [Some(&batch), None] {
             let Event::Message(message) = historical_message_event(
                 Line::privmsg("papo_away", "can you send me the invoice?")
@@ -5379,7 +5393,8 @@ mod tests {
             session.handle_line(now, line.as_bytes());
         }
         let state = crate::State::from_session(&session, true);
-        let conversation = Conversation::Private(state.name_rules().unwrap().nick("alice"));
+        let conversation =
+            Conversation::Private(user_handle(state.name_rules().unwrap().nick("alice")));
         let mut event = message_event_from_line(
             Line::privmsg("papo", "release ready")
                 .with_source("alice!~alice@cloak.example")

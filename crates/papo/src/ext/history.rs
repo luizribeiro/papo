@@ -1393,6 +1393,10 @@ mod tests {
         crate::ChannelHandle::from_parts(value, None, None, None)
     }
 
+    fn user(value: crate::Nick) -> crate::UserHandle {
+        crate::UserHandle::from_nick(value)
+    }
+
     #[test]
     fn mark_read_request_debug_is_opaque() {
         let secret = "unique-read-marker-target-8462";
@@ -1551,7 +1555,7 @@ mod tests {
         );
         let (client, _) = client_with_commands(&session);
         let conversation =
-            crate::Conversation::Private(client.state().name_rules().unwrap().nick("alice"));
+            crate::Conversation::Private(user(client.state().name_rules().unwrap().nick("alice")));
         let event = history_item(
             papo_core::HistoryItem::Message(core_item(
                 "@account=alice;time=2026-10-19T14:31:11.456Z :alice!~alice@cloak.example PRIVMSG papo :looks good",
@@ -1618,13 +1622,13 @@ mod tests {
                     )
                     .unwrap(),
             ),
-            crate::Conversation::Private(
+            crate::Conversation::Private(user(
                 first
                     .state()
                     .name_rules()
                     .expect("server advertised CASEMAPPING")
                     .nick("emily"),
-            ),
+            )),
         ] {
             assert!(first.history(conversation.clone()).latest().query.is_ok());
             assert!(matches!(
@@ -1659,13 +1663,13 @@ mod tests {
             end: false,
         };
         let recent = RecentConversation {
-            conversation: crate::Conversation::Private(
+            conversation: crate::Conversation::Private(user(
                 first
                     .state()
                     .name_rules()
                     .expect("server advertised CASEMAPPING")
                     .nick("emily"),
-            ),
+            )),
             latest_server_time: server_time(0, 0),
         };
 
@@ -1844,12 +1848,12 @@ mod tests {
                 "#Papo[dev]",
             ),
             (
-                crate::Conversation::Private(
+                crate::Conversation::Private(user(
                     state
                         .name_rules()
                         .expect("server advertised CASEMAPPING")
                         .nick("Emily_"),
-                ),
+                )),
                 "Emily_",
             ),
         ] {
@@ -1969,9 +1973,9 @@ mod tests {
             papo_core::HistoryItem::Message(core_item(
                 "@msgid=RfcBTzyxY120009 :emily!~e@localhost PRIVMSG papo :\u{1}VERSION\u{1}",
             )),
-            Some(&crate::Conversation::Private(
+            Some(&crate::Conversation::Private(user(
                 Casemapping::default().nick("emily"),
-            )),
+            ))),
             &crate::Client::disconnected_for_test(),
             UNIX_EPOCH,
         );
