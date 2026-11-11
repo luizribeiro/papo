@@ -58,12 +58,6 @@ impl SourceNick for papo::Source {
     }
 }
 
-impl SourceNick for papo::UserSource {
-    fn source_nick(&self) -> Option<papo::Nick> {
-        Some(self.nick().clone())
-    }
-}
-
 impl SourceNick for papo::UserHandle {
     fn source_nick(&self) -> Option<papo::Nick> {
         Some(self.nick())

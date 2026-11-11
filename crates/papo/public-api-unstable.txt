@@ -3170,23 +3170,6 @@ impl core::marker::Unpin for papo::NoticeRef
 impl core::marker::UnsafeUnpin for papo::NoticeRef
 impl core::panic::unwind_safe::RefUnwindSafe for papo::NoticeRef
 impl core::panic::unwind_safe::UnwindSafe for papo::NoticeRef
-#[non_exhaustive] pub struct papo::Oper
-pub papo::Oper::name: core::option::Option<alloc::string::String>
-impl core::clone::Clone for papo::Oper
-pub fn papo::Oper::clone(&self) -> Self
-impl core::cmp::Eq for papo::Oper
-impl core::cmp::PartialEq for papo::Oper
-pub fn papo::Oper::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::Oper
-pub fn papo::Oper::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::StructuralPartialEq for papo::Oper
-impl core::marker::Freeze for papo::Oper
-impl core::marker::Send for papo::Oper
-impl core::marker::Sync for papo::Oper
-impl core::marker::Unpin for papo::Oper
-impl core::marker::UnsafeUnpin for papo::Oper
-impl core::panic::unwind_safe::RefUnwindSafe for papo::Oper
-impl core::panic::unwind_safe::UnwindSafe for papo::Oper
 pub struct papo::PeerKey
 impl papo::PeerKey
 pub fn papo::PeerKey::as_verified_str(&self) -> core::option::Option<&str>
@@ -3655,31 +3638,6 @@ impl core::marker::Unpin for papo::UserHandle
 impl core::marker::UnsafeUnpin for papo::UserHandle
 impl core::panic::unwind_safe::RefUnwindSafe for papo::UserHandle
 impl core::panic::unwind_safe::UnwindSafe for papo::UserHandle
-#[non_exhaustive] pub struct papo::UserSource
-impl papo::UserSource
-pub const fn papo::UserSource::account(&self) -> &papo::Account
-pub fn papo::UserSource::host(&self) -> core::option::Option<&str>
-pub const fn papo::UserSource::is_bot(&self) -> core::option::Option<bool>
-pub const fn papo::UserSource::nick(&self) -> &papo::Nick
-pub const fn papo::UserSource::oper(&self) -> core::option::Option<&papo::Oper>
-pub fn papo::UserSource::peer_key(&self) -> core::option::Option<&papo::PeerKey>
-pub fn papo::UserSource::username(&self) -> core::option::Option<&str>
-impl core::clone::Clone for papo::UserSource
-pub fn papo::UserSource::clone(&self) -> Self
-impl core::cmp::Eq for papo::UserSource
-impl core::cmp::PartialEq for papo::UserSource
-pub fn papo::UserSource::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::UserSource
-pub fn papo::UserSource::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for papo::UserSource
-pub fn papo::UserSource::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Freeze for papo::UserSource
-impl core::marker::Send for papo::UserSource
-impl core::marker::Sync for papo::UserSource
-impl core::marker::Unpin for papo::UserSource
-impl core::marker::UnsafeUnpin for papo::UserSource
-impl core::panic::unwind_safe::RefUnwindSafe for papo::UserSource
-impl core::panic::unwind_safe::UnwindSafe for papo::UserSource
 #[non_exhaustive] pub struct papo::WebIrc
 impl papo::WebIrc
 pub fn papo::WebIrc::flag(self, impl core::convert::Into<alloc::string::String>) -> Self

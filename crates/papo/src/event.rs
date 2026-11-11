@@ -52,7 +52,7 @@ pub use papo_core::{BatchAbandonReason, TypingReason};
 #[cfg(feature = "unstable")]
 pub use server::BouncerNetworkChanged;
 pub use server::{AutoJoinFailed, MetadataChanged, Warning};
-pub use source::{Source, UserSource};
+pub use source::Source;
 pub use tags::{Tags, TagsIter};
 pub use user::{
     AccountChanged, AwayChanged, HostChanged, MonitorOffline, MonitorOnline, NickChanged, Quit,
@@ -249,14 +249,6 @@ pub enum Authorship {
     Other,
     /// The protocol did not prove who the actor is relative to this client.
     Unknown,
-}
-
-/// An IRC operator identified by the server.
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[non_exhaustive]
-pub struct Oper {
-    /// The operator name, when the server shows it to this client.
-    pub name: Option<String>,
 }
 
 impl Authorship {
