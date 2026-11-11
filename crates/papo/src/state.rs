@@ -811,9 +811,11 @@ mod name_tests {
         let state = State::from_session(&session, true);
         assert_eq!(state.channels[0].inner.topic(), Some("Release planning"));
         let actor: &crate::Source = state.channels[0].topic_set_by.as_ref().unwrap();
-        assert_eq!(
-            actor.nick(),
-            Some(&origin.__nick(Casemapping::Rfc1459, "Alice[bot]"))
+        let expected = origin.__nick(Casemapping::Rfc1459, "Alice[bot]");
+        assert!(
+            actor
+                .nick()
+                .is_some_and(|nick| nick.as_str() == expected.as_str())
         );
     }
 
