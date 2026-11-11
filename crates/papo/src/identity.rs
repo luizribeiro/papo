@@ -29,6 +29,9 @@ pub(crate) async fn prove(
         )
         .await?;
     let account = crate::direct_runtime::who_account(client, nick.as_str(), &response)?;
+    if handle.is_unproven_history() && !matches!(handle.account(), crate::Account::LoggedIn(_)) {
+        return Err(crate::Error::TargetGone);
+    }
     if let (crate::Account::LoggedIn(expected), crate::Account::LoggedIn(actual)) =
         (handle.account(), &account)
         && expected != actual

@@ -5,7 +5,9 @@ mod support {
     pub mod peer_pin;
 }
 
-use papo::{Event, Reconnect};
+use std::time::Duration;
+
+use papo::{Error, Event, Reconnect};
 use papo_testing::wire;
 use support::{
     direct::connected,
@@ -79,6 +81,7 @@ async fn history_uses_account_pins_without_reusing_live_session_pins() {
     let archived_bob = history_page(&client, &mut wire, 1, "bob", "").await;
     let alice_message = archived_alice.chat_messages().next().unwrap();
     let bob_message = archived_bob.chat_messages().next().unwrap();
+    let bob_actor = bob_message.actor.clone();
     assert_match(&alice, &alice_message.actor.key());
     assert!(alice_message.actor.key().is_verified());
     assert!(!bob_message.actor.key().is_verified());
@@ -100,4 +103,39 @@ async fn history_uses_account_pins_without_reusing_live_session_pins() {
         .unwrap();
     assert_match(&alice, &alice_tag.actor.key());
     assert!(!bob_tag.actor.key().is_verified());
+
+    let sending = tokio::spawn({
+        let client = client.clone();
+        async move {
+            client
+                .privmsg(bob_actor, "current holder must not receive this")
+                .await
+        }
+    });
+    let who = wire.next_sent().await;
+    let label = who
+        .strip_prefix("@label=")
+        .and_then(|tagged| tagged.split_once(' '))
+        .map(|(label, command)| {
+            assert_eq!(command, "WHO bob %na");
+            format!("@label={label} ")
+        })
+        .unwrap_or_default();
+    if label.is_empty() {
+        assert_eq!(who, "WHO bob %na");
+    }
+    wire.server(format!(
+        "{label}:offline.test 354 papo bob current-bob-account"
+    ))
+    .await;
+    wire.server(format!(
+        "{label}:offline.test 315 papo bob :End of WHO list"
+    ))
+    .await;
+    assert!(matches!(sending.await.unwrap(), Err(Error::TargetGone)));
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), wire.next_sent())
+            .await
+            .is_err()
+    );
 }
