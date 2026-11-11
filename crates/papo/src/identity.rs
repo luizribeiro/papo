@@ -63,7 +63,7 @@ pub(crate) fn map_failure(failure: papo_core::ProofFailure) -> crate::Error {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(browser)))]
 mod tests {
     use papo_core::ProofFailure;
     use tokio::io::AsyncWriteExt as _;
