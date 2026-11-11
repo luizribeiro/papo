@@ -1954,8 +1954,6 @@ impl Event {
     }
 }
 
-pub(crate) fn attach_live_peer_key(_event: &mut Event, _state: &crate::State) {}
-
 fn event_handle(
     handle: &crate::UserHandle,
     token: Option<papo_core::ReplyToken>,
@@ -2710,24 +2708,26 @@ pub(crate) fn from_core_with_receipt(
         }
         papo_core::Event::NickChanged {
             envelope,
-            actor,
-            old: _,
+            actor: _,
+            old,
             new,
             channels,
             authorship,
             ..
         } => {
             let envelope = map_envelope(&envelope);
-            let Some(actor) = user_from_raw(&actor, &envelope) else {
-                return CoreEvent::Unknown;
-            };
+            let actor = crate::UserHandle::from_current_state(new.clone(), handle_state);
             Event::NickChanged(NickChanged {
                 msgid: envelope.msgid,
                 server_time: envelope.server_time,
                 received_at: envelope.received_at,
                 actor,
+                old,
                 new,
-                channels,
+                channels: channels
+                    .into_iter()
+                    .map(|channel| channel_handle(channel, None))
+                    .collect(),
                 authorship: Authorship::from_core(authorship),
             })
         }
@@ -5602,7 +5602,6 @@ mod tests {
         match event {
             Event::Parted(event) => Some(("Parted", &event.actor)),
             Event::Quit(event) => Some(("Quit", &event.actor)),
-            Event::NickChanged(event) => Some(("NickChanged", &event.actor)),
             Event::AccountChanged(event) => Some(("AccountChanged", &event.actor)),
             Event::AwayChanged(event) => Some(("AwayChanged", &event.actor)),
             Event::HostChanged(event) => Some(("HostChanged", &event.actor)),
@@ -5624,11 +5623,6 @@ mod tests {
                 "Quit",
                 true,
                 "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example QUIT :Client exited",
-            ),
-            (
-                "NickChanged",
-                true,
-                "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example NICK alice_",
             ),
             (
                 "AccountChanged",
@@ -5861,7 +5855,8 @@ mod tests {
         )) else {
             panic!("expected nickname change")
         };
-        assert_eq!(changed.actor.nick(), "emily");
+        assert_eq!(changed.actor.nick(), "em");
+        assert_eq!(changed.old, "emily");
         assert_eq!(changed.new, "em");
         assert_eq!(changed.channels, ["#papo"]);
     }
@@ -6405,9 +6400,10 @@ mod tests {
                 msgid: None,
                 server_time: None,
                 received_at: UNIX_EPOCH,
-                actor: own_actor.clone(),
+                actor: own_handle.clone(),
+                old: mapping.nick("Papo[Bot]"),
                 new: mapping.nick("papo-away"),
-                channels: vec![mapping.channel("#papo")],
+                channels: vec![channel_handle(mapping.channel("#papo"))],
                 authorship: Authorship::Own,
             }),
             Event::Joined(super::Joined {

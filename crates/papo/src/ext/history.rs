@@ -702,7 +702,6 @@ fn nick_changed(
     history_conversation: Option<&crate::Conversation>,
     received_at: SystemTime,
 ) -> Option<Event> {
-    source_nick(message)?;
     let state = client.state();
     let mapping = state.casemapping();
     let envelope = crate::event_impl::line_envelope_with_account_tag(
@@ -712,7 +711,9 @@ fn nick_changed(
         state.caps().contains_key(&crate::cap::ACCOUNT_TAG),
         received_at,
     );
-    let actor = legacy_user_from_line(
+    let old = state.known_name_rules()?.nick(source_nick(message)?);
+    let new = state.known_name_rules()?.nick(message.param(0)?);
+    let source = user_from_line(
         message,
         &envelope,
         mapping,
@@ -722,15 +723,23 @@ fn nick_changed(
             state.isupport().bot_mode().is_some(),
         ),
     )?;
+    let actor = crate::UserHandle::from_event(
+        new.clone(),
+        source.account().clone(),
+        None,
+        Some(&client.state),
+        true,
+    );
     Some(Event::NickChanged(NickChanged {
         msgid: envelope.msgid,
         server_time: envelope.server_time,
         received_at: envelope.received_at,
         actor,
         authorship,
-        new: state.known_name_rules()?.nick(message.param(0)?),
+        old,
+        new,
         channels: match history_conversation {
-            Some(crate::Conversation::Channel(channel)) => vec![channel.name()],
+            Some(crate::Conversation::Channel(channel)) => vec![channel.clone()],
             _ => Vec::new(),
         },
     }))
@@ -1840,7 +1849,8 @@ mod tests {
         assert!(matches!(&items[2], PageEvent::Message(message)
             if message.authorship == crate::Authorship::Unknown && !message.is_own()));
         assert!(matches!(&items[3], PageEvent::NickChanged(changed)
-            if changed.actor.nick() == "papo-old" && changed.new == "papo"
+            if changed.actor.nick() == "papo" && changed.old == "papo-old"
+                && changed.new == "papo"
                 && changed.channels == ["#papo"]
                 && changed.authorship == crate::Authorship::Own));
         assert!(matches!(&items[4], PageEvent::Quit(quit)
@@ -2135,8 +2145,10 @@ mod tests {
         assert!(matches!(
             renamed,
             PageEvent::NickChanged(event)
-                if event.actor.nick() == "emily" && event.new == "emily_"
+                if event.actor.nick() == "emily_" && event.old == "emily"
+                    && event.new == "emily_"
                     && event.actor.nick().origin() == client.origin()
+                    && event.old.origin() == client.origin()
                     && event.new.origin() == client.origin()
                     && event.authorship == crate::Authorship::Unknown
         ));

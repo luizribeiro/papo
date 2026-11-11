@@ -66,7 +66,7 @@ Message-like events now expose `UserHandle` actors, and private `Conversation` v
 
 `Joined` events now carry a `UserHandle`; joined-user facts are read from the paired `State`.
 
-`NickChanged::peer_key` is removed; nickname events identify the user directly rather than attaching a separate identity pin.
+`NickChanged` now carries a `UserHandle`, the old and new nickname facts, and channel handles; its separate `peer_key` identity pin is removed.
 
 `Source::User` now contains a `UserHandle` and no longer implements `MaskSource`; historical actors without account proof cannot authorize a send to a later holder of the same nickname.
 

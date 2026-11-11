@@ -824,11 +824,12 @@ impl core::marker::UnsafeUnpin for papo::event::Motd
 impl core::panic::unwind_safe::RefUnwindSafe for papo::event::Motd
 impl core::panic::unwind_safe::UnwindSafe for papo::event::Motd
 #[non_exhaustive] pub struct papo::event::NickChanged
-pub papo::event::NickChanged::actor: papo::UserSource
+pub papo::event::NickChanged::actor: papo::UserHandle
 pub papo::event::NickChanged::authorship: papo::Authorship
-pub papo::event::NickChanged::channels: alloc::vec::Vec<papo::ChannelName>
+pub papo::event::NickChanged::channels: alloc::vec::Vec<papo::ChannelHandle>
 pub papo::event::NickChanged::msgid: core::option::Option<papo::MessageId>
 pub papo::event::NickChanged::new: papo::Nick
+pub papo::event::NickChanged::old: papo::Nick
 pub papo::event::NickChanged::received_at: std::time::SystemTime
 pub papo::event::NickChanged::server_time: core::option::Option<papo_proto::time::ServerTime>
 impl core::clone::Clone for papo::event::NickChanged

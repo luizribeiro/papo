@@ -38,12 +38,14 @@ pub struct NickChanged {
     pub server_time: Option<ServerTime>,
     /// Time at which the line was received, from this device's clock.
     pub received_at: SystemTime,
-    /// The renamed user before the change.
-    pub actor: UserSource,
+    /// The renamed user.
+    pub actor: crate::UserHandle,
+    /// The previous nickname.
+    pub old: Nick,
     /// The new nickname.
     pub new: Nick,
     /// Shared channels where papo knows the user is a member.
-    pub channels: Vec<ChannelName>,
+    pub channels: Vec<crate::ChannelHandle>,
     /// Whether the renamed user is this client's user.
     pub authorship: Authorship,
 }

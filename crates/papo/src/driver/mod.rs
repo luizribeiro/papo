@@ -1451,13 +1451,7 @@ where
                     crate::rt::now_wall(),
                     Some(&events.state),
                 );
-                if let Some(mut event) = crate::event_impl::mark_incomplete(event) {
-                    let state = events
-                        .state
-                        .read()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner);
-                    crate::event_impl::attach_live_peer_key(&mut event, &state);
-                    drop(state);
+                if let Some(event) = crate::event_impl::mark_incomplete(event) {
                     enqueue_event(events, &mut pending_events, event);
                 }
             }
@@ -1607,14 +1601,8 @@ where
             Some(session.state()),
             Some(&events.state),
         ) {
-            event::CoreEvent::Forward(mut event) => {
+            event::CoreEvent::Forward(event) => {
                 resolve_direct_waiters(session, direct_waiters, &event);
-                let state = events
-                    .state
-                    .read()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
-                crate::event_impl::attach_live_peer_key(&mut event, &state);
-                drop(state);
                 catchup::remember_live_event(catchups.values_mut(), &event);
                 if let Event::ChannelSynced(synced) = &event {
                     resolve_sync_waiters(session, sync_waiters, synced.channel.name().as_str());
@@ -1670,12 +1658,6 @@ where
                     };
                     event = marked;
                 }
-                let state = events
-                    .state
-                    .read()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
-                crate::event_impl::attach_live_peer_key(&mut event, &state);
-                drop(state);
                 catchup::remember_live_event(catchups.values_mut(), &event);
                 if is_resolved_sent_duplicate(resolved_sent, &event) {
                     continue;

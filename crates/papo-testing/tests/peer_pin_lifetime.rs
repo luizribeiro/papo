@@ -94,7 +94,8 @@ async fn session_keys_change_on_rename_and_expire_on_reuse_and_logout() {
     let Event::NickChanged(changed) = next_active_event(&mut events).await else {
         panic!("expected nickname change");
     };
-    assert_eq!(changed.actor.nick(), "bob");
+    assert_eq!(changed.actor.nick(), "robert");
+    assert_eq!(changed.old, "bob");
     assert_eq!(changed.new, "robert");
     let renamed = client.direct("robert").await.unwrap();
     assert_ne!(renamed.nick().key(), bob_thread);
