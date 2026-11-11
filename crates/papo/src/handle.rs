@@ -662,6 +662,24 @@ mod tests {
     }
 
     #[test]
+    fn user_handles_compare_with_folded_nick_text() {
+        let client = client_with_joined_users();
+        let alice = client.query("Alice").unwrap();
+        let folded = client.query("Alice[ops]").unwrap();
+
+        assert!(<crate::UserHandle as PartialEq<str>>::eq(&alice, "alice"));
+        assert!(!<crate::UserHandle as PartialEq<str>>::eq(&alice, "bob"));
+        assert!(<crate::UserHandle as PartialEq<&str>>::eq(
+            &folded,
+            &"alice{ops}"
+        ));
+        assert!(!<crate::UserHandle as PartialEq<&str>>::eq(
+            &folded,
+            &"alice[dev]"
+        ));
+    }
+
+    #[test]
     fn handle_factories_preserve_invalid_name_errors() {
         let client = client_with_joined_users();
 

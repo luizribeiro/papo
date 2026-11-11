@@ -66,6 +66,7 @@ pub(crate) fn map_failure(failure: papo_core::ProofFailure) -> crate::Error {
 #[cfg(test)]
 mod tests {
     use papo_core::ProofFailure;
+    use tokio::io::AsyncWriteExt as _;
 
     #[test]
     fn foreign_proof_failure_stays_typed() {
@@ -89,5 +90,42 @@ mod tests {
             super::map_failure(ProofFailure::IdentityChanged),
             crate::Error::TargetGone
         ));
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn accountless_history_actor_cannot_be_proved_for_a_reply() {
+        use crate::driver::test_support::{
+            client_line, complete_connect, config, scripted, server_line, within,
+        };
+
+        let (mut server, client, mut events, driver) = scripted(config());
+        let driver = tokio::spawn(driver);
+        complete_connect(&mut server, &mut events).await;
+        let nick = client.state().name_rules().unwrap().nick("alice");
+        let handle = crate::UserHandle::from_event(
+            nick,
+            crate::Account::Unknown,
+            None,
+            Some(&client.state),
+            true,
+        );
+
+        let proving = tokio::spawn({
+            let client = client.clone();
+            async move { super::prove(&client, &handle).await }
+        });
+        client_line(&mut server, b"WHO alice %na\r\n").await;
+        server_line(
+            &mut server,
+            b":ergo.test 354 papo-driver alice current-account\r\n:ergo.test 315 papo-driver alice :End of WHO list\r\n",
+        )
+        .await;
+        assert!(matches!(
+            within(proving).await.unwrap(),
+            Err(crate::Error::TargetGone)
+        ));
+
+        within(server.shutdown()).await.unwrap();
+        assert!(within(driver).await.unwrap().is_err());
     }
 }
