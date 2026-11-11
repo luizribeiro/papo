@@ -455,6 +455,12 @@ impl Client {
         argument: &'static str,
         parts: crate::target::sealed::Parts<'static>,
     ) -> Result<ResolvedSend, Error> {
+        if parts.user.is_none()
+            && parts.origin != crate::Origin::NONE
+            && parts.origin != self.origin
+        {
+            return Err(InvalidInput::ForeignReference.into());
+        }
         if let Some(handle) = parts.user.as_ref() {
             let proven = crate::identity::prove(self, handle).await?;
             return Ok(ResolvedSend {

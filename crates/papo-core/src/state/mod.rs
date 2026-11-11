@@ -2308,11 +2308,11 @@ mod metadata_tests {
     }
 
     #[test]
-    fn message_actor_state_stops_at_literal_1000() {
+    fn private_message_actor_state_stops_at_literal_1000() {
         let mut state = State::new(&Config::default().nick("papo"));
         let mut outbox = Outbox::default();
         for index in 0..=1_000 {
-            let line = Line::privmsg("#release", "deployment status")
+            let line = Line::privmsg("papo", "deployment status")
                 .with_source(format!("reviewer{index:04}!review@users.example"));
             state.handle_message(
                 &line.as_ref(),

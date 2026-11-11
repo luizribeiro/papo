@@ -298,10 +298,8 @@ mod tests {
                 continue;
             };
             if message.text == "!ping" {
-                assert!(matches!(
-                    client.reply(message, "pong").await,
-                    Err(papo::Error::Unsupported(_))
-                ));
+                client.reply(message, "pong").await.unwrap();
+                assert_eq!(wire.next_sent().await, "PRIVMSG alice pong");
                 break;
             }
         }

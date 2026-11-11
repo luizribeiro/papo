@@ -93,10 +93,7 @@ impl State {
         if !matches!(
             message.command(),
             Command::Privmsg | Command::Notice | Command::Tagmsg | Command::Redact
-        ) || !message
-            .param(0)
-            .is_some_and(|target| isupport.is_channel(target))
-        {
+        ) {
             return;
         }
         let Some(ProtoSource::User {

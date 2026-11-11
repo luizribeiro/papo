@@ -899,7 +899,7 @@ async fn own_private_message_uses_the_peers_known_account_guard() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn private_reply_refuses_when_the_recipient_cannot_be_proved() {
+async fn private_reply_uses_message_actor_state() {
     let (mut server, client, mut events, driver) = scripted(config());
     let task = tokio::spawn(driver);
     complete_connect(&mut server, &mut events).await;
@@ -910,13 +910,9 @@ async fn private_reply_refuses_when_the_recipient_cannot_be_proved() {
     .await;
     let message = next_message(&mut events).await;
 
-    assert!(matches!(
-        within(client.reply(&message, "approved")).await,
-        Err(Error::Unsupported(crate::Unsupported {
-            feature: crate::Feature::Monitor,
-            ..
-        }))
-    ));
+    let replying = tokio::spawn(async move { client.reply(&message, "approved").await });
+    client_line(&mut server, b"PRIVMSG alice approved\r\n").await;
+    within(replying).await.unwrap().unwrap();
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
