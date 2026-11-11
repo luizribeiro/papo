@@ -33,7 +33,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             Event::Parted(parted) => println!("part {} {}", parted.channel, parted.actor.nick()),
             Event::Quit(quit) => println!("quit {}", quit.actor.nick()),
             Event::NickChanged(changed) => {
-                println!("nick {} -> {}", changed.actor.nick(), changed.new);
+                println!("nick {} -> {}", changed.old, changed.new);
             }
             _ => continue,
         }
