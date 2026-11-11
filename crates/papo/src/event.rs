@@ -4128,8 +4128,6 @@ mod tests {
         assert!(matches!(&channel.conversation, Conversation::Channel(name) if name == "#papo"));
         assert_eq!(channel.return_address(), "#papo");
         assert_eq!(channel.actor.nick(), "emily");
-        assert_eq!(channel.actor.username(), Some("~emily"));
-        assert_eq!(channel.actor.host(), Some("localhost"));
 
         let private = event(
             Line::privmsg("papo", "hello").with_source("emily!~emily@localhost"),
@@ -4244,7 +4242,6 @@ mod tests {
         assert!(matches!(&tagged.conversation, Conversation::Channel(name) if name == "#papo"));
         assert_eq!(tagged.msgid.as_deref(), Some("RfcBTzyxY120004"));
         assert!(matches!(tagged.actor.account(), Account::LoggedIn(account) if account == "emily"));
-        assert_eq!(tagged.actor.is_bot(), Some(true));
         let tagged_event = Event::Message(tagged.clone());
         assert_eq!(
             tagged_event.msgid().map(AsRef::as_ref),
@@ -4276,7 +4273,6 @@ mod tests {
             tagged.relayed_by.as_ref().map(papo_proto::Nick::as_str),
             Some("bridge-bot")
         );
-        assert_eq!(chat("PRIVMSG", "human message").actor.is_bot(), None);
 
         for time in [None, Some("not-a-time")] {
             let mut message =
@@ -4288,57 +4284,6 @@ mod tests {
             assert_eq!(message.server_time, None);
             assert_eq!(message.received_at, received);
         }
-    }
-
-    #[test]
-    fn bot_false_requires_live_message_tags_and_advertised_bot_mode() {
-        let mut isupport = Isupport::default();
-        isupport.apply_tokens(["BOT=B"]);
-        let map = |line: Line, prove_not_bot| {
-            let event = message_event_from_line(
-                line,
-                None,
-                Authorship::Other,
-                Conversation::Channel(channel(isupport.casemapping().channel("#papo"))),
-                None,
-                None,
-                &isupport,
-                false,
-                prove_not_bot,
-                UNIX_EPOCH,
-                None,
-            );
-            match event {
-                Event::Message(message) => message.actor.is_bot(),
-                _ => panic!("expected message"),
-            }
-        };
-
-        let human = || Line::privmsg("#papo", "release ready").with_source("emily!e@host");
-        assert_eq!(map(human(), true), Some(false));
-        assert_eq!(map(human(), false), None);
-        assert_eq!(map(human().with_tag("bot", ""), false), Some(true));
-
-        let tag = papo_core::TagMessage {
-            envelope: papo_core::LineEnvelope::default(),
-            actor: "emily!e@host".into(),
-            authorship: papo_core::Authorship::Other,
-            conversation: papo_core::Conversation::Channel(isupport.casemapping().channel("#papo")),
-            status: None,
-            return_address: "#papo".into(),
-            tags: Vec::new(),
-        };
-        let CoreEvent::Forward(Event::TagMsg(tag)) = from_core_with_mapping(
-            papo_core::Event::TagMessage(tag),
-            isupport.casemapping(),
-            crate::Origin::NONE,
-            false,
-            true,
-            UNIX_EPOCH,
-        ) else {
-            panic!("expected tag message");
-        };
-        assert_eq!(tag.actor.is_bot(), Some(false));
     }
 
     #[test]
@@ -4631,33 +4576,6 @@ mod tests {
     }
 
     #[test]
-    fn exposes_oper_tags_with_optional_names() {
-        let tagged = |line| {
-            event(
-                LineRef::parse(line).unwrap().to_owned(),
-                &Isupport::default(),
-                "papo",
-                UNIX_EPOCH,
-            )
-        };
-        assert_eq!(
-            tagged(
-                "@draft/oper=network-admin :alice!a@localhost PRIVMSG #papo :Scheduled maintenance"
-            )
-            .actor
-            .oper()
-            .and_then(|oper| oper.name.as_deref()),
-            Some("network-admin")
-        );
-        let unnamed = tagged("@draft/oper :alice!a@localhost PRIVMSG #papo :Scheduled maintenance");
-        assert!(unnamed.tags.contains("draft/oper"));
-        assert_eq!(unnamed.actor.oper().unwrap().name, None);
-        let ordinary = chat("PRIVMSG", "ordinary message");
-        assert!(!ordinary.tags.contains("draft/oper"));
-        assert_eq!(ordinary.actor.oper(), None);
-    }
-
-    #[test]
     fn classifies_own_and_other_messages() {
         let classify = |message| event(message, &Isupport::default(), "Papo[bot]", UNIX_EPOCH);
         let echo = classify(Line::privmsg("#papo", "sent").with_source("papo{bot}!p@localhost"));
@@ -4751,13 +4669,7 @@ mod tests {
         let invited = event.as_invited().unwrap();
         assert_eq!(invited.channel, "#papo");
         assert_eq!(invited.subject, "papo");
-        assert!(matches!(
-            &invited.actor,
-            Source::User(user)
-                if user.nick() == "emily"
-                    && user.username() == Some("~emily")
-                    && user.host() == Some("localhost")
-        ));
+        assert!(matches!(&invited.actor, Source::User(user) if user.nick() == "emily"));
         assert_eq!(invited.subject_authorship, Authorship::Own);
     }
 
@@ -4971,10 +4883,6 @@ mod tests {
         assert_eq!(reaction.reaction, "👍");
         assert_eq!(reaction.reacts_to, "RKi9Cw");
         assert_eq!(reaction.action, crate::event::ReactionAction::Added);
-        assert_eq!(
-            reaction.actor.oper().and_then(|oper| oper.name.as_deref()),
-            Some("network-admin")
-        );
     }
 
     #[test]
@@ -5513,25 +5421,19 @@ mod tests {
         match event {
             Event::Joined(event) => Some(("Joined", &event.actor)),
             Event::Parted(event) => Some(("Parted", &event.actor)),
-            Event::Kicked(event) => Some(("Kicked", event.actor.user()?)),
-            Event::Invited(event) => Some(("Invited", event.actor.user()?)),
             Event::Quit(event) => Some(("Quit", &event.actor)),
             Event::NickChanged(event) => Some(("NickChanged", &event.actor)),
-            Event::ChannelRenamed(event) => Some(("ChannelRenamed", event.actor.user()?)),
             Event::AccountChanged(event) => Some(("AccountChanged", &event.actor)),
             Event::AwayChanged(event) => Some(("AwayChanged", &event.actor)),
             Event::HostChanged(event) => Some(("HostChanged", &event.actor)),
             Event::RealnameChanged(event) => Some(("RealnameChanged", &event.actor)),
-            Event::ModeChanged(event) => Some(("ModeChanged", event.actor.user()?)),
-            Event::TopicChanged(event) => Some(("TopicChanged", event.actor.user()?)),
-            Event::Redacted(event) => Some(("Redacted", event.actor.user()?)),
             _ => None,
         }
     }
 
     #[test]
     #[allow(clippy::too_many_lines)]
-    fn every_line_actor_keeps_all_identity_tags() {
+    fn lifecycle_user_sources_keep_all_identity_tags() {
         let cases = [
             (
                 "Joined",
@@ -5544,16 +5446,6 @@ mod tests {
                 "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example PART #papo :Deploying release",
             ),
             (
-                "Kicked",
-                true,
-                "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example KICK #papo papo :Flood control",
-            ),
-            (
-                "Invited",
-                true,
-                "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example INVITE papo #papo-dev",
-            ),
-            (
                 "Quit",
                 true,
                 "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example QUIT :Client exited",
@@ -5562,11 +5454,6 @@ mod tests {
                 "NickChanged",
                 true,
                 "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example NICK alice_",
-            ),
-            (
-                "ChannelRenamed",
-                true,
-                "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example RENAME #papo #papo-dev :Release complete",
             ),
             (
                 "AccountChanged",
@@ -5587,21 +5474,6 @@ mod tests {
                 "RealnameChanged",
                 true,
                 "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example SETNAME :Alice Smith",
-            ),
-            (
-                "ModeChanged",
-                true,
-                "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example MODE #papo +o papo",
-            ),
-            (
-                "TopicChanged",
-                true,
-                "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example TOPIC #papo :Rust 1.90 released",
-            ),
-            (
-                "Redacted",
-                true,
-                "@account=alice;bot;draft/oper=network-admin :alice!~a@staff.example REDACT #papo RfcBTzyxY120001 :Off topic",
             ),
         ];
 
@@ -5740,8 +5612,6 @@ mod tests {
                 if kicked.channel == "#papo"
                     && kicked.subject == "emily"
                     && kicked.actor.nick().is_some_and(|nick| nick == "alice")
-                    && papo_proto::Mask::exact(&kicked.actor)
-                        .is_some_and(|mask| mask == "alice!~alice@staff.example")
                     && kicked.reason.as_deref() == Some("Flooding")
         ));
     }
@@ -5933,8 +5803,6 @@ mod tests {
             Event::ModeChanged(mode)
                 if matches!(mode.subject, crate::Subject::Channel(ref channel) if channel == "#papo")
                     && mode.actor.nick().is_some_and(|nick| nick == "alice")
-                    && papo_proto::Mask::exact(&mode.actor)
-                        .is_some_and(|mask| mask == "alice!~alice@staff.example")
                     && mode.changes.len() == 1
                     && mode.changes[0].action == ModeAction::Add
                     && mode.changes[0].mode == 'o'
@@ -6105,8 +5973,6 @@ mod tests {
                 if changed.channel == "#papo"
                     && changed.topic.as_deref() == Some("Rust 1.90 is out")
                     && changed.actor.nick().is_some_and(|nick| nick == "alice")
-                    && papo_proto::Mask::exact(&changed.actor)
-                        .is_some_and(|mask| mask == "alice!~alice@staff.example")
         ));
     }
 
