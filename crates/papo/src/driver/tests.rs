@@ -574,7 +574,7 @@ async fn message_fields_use_captured_session_facts() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn events_keep_the_state_after_their_own_line() {
+async fn later_snapshot_does_not_change_event_identity() {
     let (mut server, _client, mut events, driver) = scripted(config());
     let task = tokio::spawn(driver);
     complete_connect(&mut server, &mut events).await;
@@ -591,6 +591,68 @@ async fn events_keep_the_state_after_their_own_line() {
     assert!(matches!(renamed, Event::NickChanged(_)));
     assert_eq!(renamed_state.nick(), "papo-away");
     assert_eq!(joined_state.nick(), "papo-driver");
+
+    server_line(
+        &mut server,
+        b":alice!~alice@cloak.example JOIN #papo * :Alice Example\r\n:alice!~alice@cloak.example NICK alice_\r\n",
+    )
+    .await;
+    let Some((Event::Joined(joined), _)) = events.next().await else {
+        panic!("expected Alice's join event")
+    };
+    let Some((Event::NickChanged(changed), _)) = events.next().await else {
+        panic!("expected Alice's nickname event")
+    };
+    assert_eq!(joined.actor, changed.actor);
+    assert_eq!(joined.actor.nick(), "alice_");
+
+    server_line(
+        &mut server,
+        b":mallory!~mallory@users.example JOIN #papo * :Mallory Example\r\n:mallory!~mallory@users.example NICK alice\r\n",
+    )
+    .await;
+    assert!(matches!(events.next().await, Some((Event::Joined(_), _))));
+    let Some((Event::NickChanged(replacement), _)) = events.next().await else {
+        panic!("expected replacement nickname event")
+    };
+    assert_ne!(joined.actor, replacement.actor);
+    assert_eq!(joined.actor.nick(), "alice_");
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn quit_handle_preserves_facts_when_paired_state_forgets_user() {
+    let (mut server, _client, mut events, driver) = scripted(config());
+    let task = tokio::spawn(driver);
+    complete_connect(&mut server, &mut events).await;
+
+    server_line(
+        &mut server,
+        b":papo-driver!papo@localhost JOIN #papo * :Papo Driver\r\n:alice!~alice@cloak.example JOIN #papo * :Alice Example\r\n",
+    )
+    .await;
+    assert!(matches!(events.next().await, Some((Event::Joined(_), _))));
+    assert!(matches!(events.next().await, Some((Event::Joined(_), _))));
+
+    server_line(
+        &mut server,
+        b":alice!~alice@cloak.example QUIT :Connection reset by peer\r\n",
+    )
+    .await;
+    let Some((Event::Quit(quit), state)) = events.next().await else {
+        panic!("expected quit event with its paired state")
+    };
+    assert!(state.user(&quit.actor).is_none());
+    let facts = quit
+        .facts
+        .as_ref()
+        .expect("quit removed the last user facts");
+    assert_eq!(facts.nick(), "alice");
+    assert_eq!(facts.username(), Some("~alice"));
+    assert_eq!(facts.host(), Some("cloak.example"));
+    assert_eq!(quit.actor.nick(), "alice");
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));

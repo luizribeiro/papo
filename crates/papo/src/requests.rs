@@ -416,7 +416,7 @@ mod tests {
     use papo_core::{Account, Away, Config, Event, ResponseMatcher, Session};
     use papo_proto::{Casemapping, Isupport, Line};
 
-    use super::{empty, list_entries, plain_who, whois, whois_channel};
+    use super::{WHOX_FIELDS, empty, list_entries, plain_who, who, whois, whois_channel};
     use crate::Error;
 
     #[test]
@@ -482,7 +482,7 @@ mod tests {
     }
 
     #[test]
-    fn plain_who_filters_placeholder_channels_and_non_prefix_flags() {
+    fn who_entry_is_oper_for_plain_and_whox() {
         let isupport = Isupport::default();
         let client = crate::Client::disconnected_for_test();
         let hidden = Line::new("352").with_params([
@@ -528,6 +528,32 @@ mod tests {
             (Some(client.channel("#rust").unwrap().name()), '+')
         );
         assert_eq!(visible.rank(), Some(crate::Rank::Voice));
+
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().nick("papo"));
+        session
+            .request_with_matcher(
+                now,
+                Line::new("WHO").with_params(["#rust", WHOX_FIELDS]),
+                ResponseMatcher::Who("#rust".into()),
+            )
+            .unwrap();
+        for line in [
+            ":ergo.test 354 papo 152 #rust ~alice staff.example alice H*@ alice :Alice Example",
+            ":ergo.test 315 papo #rust :End of WHO list",
+        ] {
+            session.handle_line(now, line.as_bytes());
+        }
+        let response = std::iter::from_fn(|| session.poll_event())
+            .find_map(|event| match event {
+                Event::Response(response) => Some(response),
+                _ => None,
+            })
+            .unwrap();
+        let extended = who(response, &isupport, &client, true).unwrap();
+        assert_eq!(extended.len(), 1);
+        assert!(extended[0].is_oper);
+        assert_eq!(extended[0].user.nick(), "alice");
     }
 
     #[test]

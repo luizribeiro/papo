@@ -4358,7 +4358,7 @@ mod tests {
 
     #[test]
     #[allow(clippy::too_many_lines)]
-    fn event_metadata_survives_live_line_conversion() {
+    fn every_person_event_carries_handle() {
         let received_at = UNIX_EPOCH + Duration::from_secs(42);
         let server_time = crate::ServerTime::from_stored_millis(1_770_091_506_789).unwrap();
         let convert = |line: &str| {
@@ -4429,6 +4429,45 @@ mod tests {
                     assert_eq!(broadcast.tags.get("+draft/react"), Some("👍"));
                 }
                 _ => {}
+            }
+            match &event {
+                Event::Message(event) => assert!(!event.actor.nick().as_str().is_empty()),
+                Event::Notice(event) => assert!(!event.actor.nick().as_str().is_empty()),
+                Event::CtcpQuery(event) => assert!(!event.actor.nick().as_str().is_empty()),
+                Event::CtcpReply(event) => assert!(!event.actor.nick().as_str().is_empty()),
+                Event::TagMsg(event) => assert!(!event.actor.nick().as_str().is_empty()),
+                Event::Reacted(event) => assert!(!event.actor.nick().as_str().is_empty()),
+                Event::Joined(event) => assert!(!event.actor.nick().as_str().is_empty()),
+                Event::Parted(event) => assert!(!event.actor.nick().as_str().is_empty()),
+                Event::Kicked(event) => {
+                    assert!(!event.subject.nick().as_str().is_empty());
+                    assert!(event.actor.user().is_some());
+                }
+                Event::Invited(event) => {
+                    assert!(!event.subject.nick().as_str().is_empty());
+                    assert!(event.actor.user().is_some());
+                }
+                Event::Quit(event) => assert!(!event.actor.nick().as_str().is_empty()),
+                Event::NickChanged(event) => assert!(!event.actor.nick().as_str().is_empty()),
+                Event::ChannelRenamed(event) => assert!(event.actor.user().is_some()),
+                Event::ModeChanged(event) => assert!(event.actor.user().is_some()),
+                Event::TopicChanged(event) => assert!(event.actor.user().is_some()),
+                Event::Redacted(event) => {
+                    assert!(event.actor.user().is_some());
+                }
+                Event::ServerNotice(event) => {
+                    if let Some(user) = event.actor.user() {
+                        assert!(!user.nick().as_str().is_empty());
+                    }
+                }
+                Event::BroadcastCtcp(event) => {
+                    assert!(!event.actor.nick().as_str().is_empty());
+                }
+                Event::BroadcastTagMsg(event) => {
+                    assert!(!event.actor.nick().as_str().is_empty());
+                }
+                Event::Other(_) => {}
+                _ => panic!("unexpected event without a person-handle assertion"),
             }
             assert_eq!(
                 event.msgid().map(AsRef::as_ref),
@@ -4592,6 +4631,15 @@ mod tests {
                 .expect("trigger produced the expected derived event");
             assert_eq!(event.msgid(), None, "{expected_variant}");
             assert_event_times(&event, expected_variant, server_time, received_at);
+            let actor = match &event {
+                Event::AccountChanged(event) => &event.actor,
+                Event::AwayChanged(event) => &event.actor,
+                Event::HostChanged(event) => &event.actor,
+                Event::RealnameChanged(event) => &event.actor,
+                Event::TypingChanged(event) => &event.actor,
+                _ => unreachable!("the derived-event table is exhaustive"),
+            };
+            assert_eq!(actor.nick(), "emily", "{expected_variant}");
         }
     }
 
