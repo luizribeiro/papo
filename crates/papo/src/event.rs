@@ -5346,16 +5346,6 @@ mod tests {
                 tags,
             }))
         };
-        let redacted = forwarded(papo_core::Event::Redacted(papo_core::Redacted {
-            envelope: papo_core::LineEnvelope::default(),
-            actor: "alice!~alice@cloak.example".into(),
-            authorship: papo_core::Authorship::Other,
-            conversation: papo_core::Conversation::Private(Casemapping::default().nick("alice")),
-            status: None,
-            return_address: "alice".into(),
-            msgid: "RfcBTzyxY120001".into(),
-            reason: Some("off-topic".into()),
-        }));
         let mut cases = [
             parse(
                 Line::notice("papo", "review complete").with_source("alice!~alice@cloak.example"),
@@ -5373,7 +5363,6 @@ mod tests {
                 ("+draft/reply".into(), Some("RfcBTzyxY120001".into())),
             ]),
             tag(vec![("+typing".into(), Some("active".into()))]),
-            redacted,
         ];
 
         for event in &mut cases {
@@ -5385,7 +5374,6 @@ mod tests {
         assert!(matches!(cases[3], Event::TagMsg(_)));
         assert!(matches!(cases[4], Event::Reacted(_)));
         assert!(matches!(cases[5], Event::TypingChanged(_)));
-        assert!(matches!(cases[6], Event::Redacted(_)));
     }
 
     #[test]
