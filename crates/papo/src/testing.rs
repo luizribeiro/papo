@@ -7,7 +7,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::{
     AccountName, Authorship, Capabilities, Casemapping, ChannelName, Mask, Message, MessageKind,
-    Nick, Source, State, Tags, UserSource,
+    Nick, State, Tags, UserSource,
     event::{AwayChanged, Connected, Joined},
 };
 
@@ -153,15 +153,13 @@ pub fn user_source(
     host: Option<String>,
 ) -> UserSource {
     let nick = nick.into();
-    let source = Source::from_proto(
-        papo_proto::Source::__user(nick.as_str(), username.as_deref(), host.as_deref()),
-        nick.casemapping(),
-    );
-    drop((username, host));
-    let Source::User(source) = source else {
-        unreachable!("a user prefix produces a user source")
-    };
-    source
+    UserSource::from_state(
+        &nick,
+        username,
+        host,
+        crate::Account::Unknown,
+        nick.origin(),
+    )
 }
 
 /// Constructs owned message tags in wire order.
