@@ -5557,6 +5557,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn every_message_event_actor_carries_a_live_handle() {
         let lines = [
             (
@@ -5604,15 +5605,52 @@ mod tests {
                 "@+example/status=ready :alice!alice@staff.example TAGMSG *",
             ),
         ];
-        let cases = lines
+        let mut cases = lines
             .into_iter()
             .map(|(name, line)| {
                 let (mut event, state) = live_message_handle_event(line);
+                if let Event::Redacted(redacted) = &mut event {
+                    let actor = user_handle(redacted.actor.user().unwrap().nick());
+                    redacted.actor = Source::User(actor);
+                    redacted.conversation =
+                        Conversation::Private(user_handle(Casemapping::default().nick("mallory")));
+                }
                 let token = state.read().unwrap().core.__reply_token_for("alice");
                 super::attach_message_handles(&mut event, Some(token), Some(&state), false);
                 (name, event)
             })
             .collect::<Vec<_>>();
+
+        for (name, line) in [
+            (
+                "IncompleteMessage",
+                ":alice!alice@staff.example PRIVMSG papo :partial release note",
+            ),
+            (
+                "IncompleteNotice",
+                ":alice!alice@staff.example NOTICE papo :partial deployment notice",
+            ),
+        ] {
+            let (event, state) = live_message_handle_event(line);
+            let mut event = match event {
+                Event::Message(mut event) => {
+                    event.actor = user_handle(event.actor.nick());
+                    event.conversation =
+                        Conversation::Private(user_handle(Casemapping::default().nick("mallory")));
+                    Event::Incomplete(Incomplete::Message(event))
+                }
+                Event::Notice(mut event) => {
+                    event.actor = user_handle(event.actor.nick());
+                    event.conversation =
+                        Conversation::Private(user_handle(Casemapping::default().nick("mallory")));
+                    Event::Incomplete(Incomplete::Notice(event))
+                }
+                _ => unreachable!(),
+            };
+            let token = state.read().unwrap().core.__reply_token_for("alice");
+            super::attach_message_handles(&mut event, Some(token), Some(&state), false);
+            cases.push((name, event));
+        }
 
         for (expected, event) in cases {
             let (actual, actor, conversation) = message_handle_actor(&event);
