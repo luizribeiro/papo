@@ -110,7 +110,7 @@ async fn bouncer_drop_preserves_account_pin_proved_by_a_new_line() {
             break message;
         }
     };
-    let current = message.actor.peer_key().unwrap();
+    let current = message.actor.key();
     assert!(current.is_verified());
-    assert!(matches!(stored.check(current), PeerKeyCheck::Match));
+    assert!(matches!(stored.check(&current), PeerKeyCheck::Match));
 }

@@ -42,6 +42,6 @@ async fn private_message_notice_and_tagmsg_expose_the_sender_pin() {
             Event::TagMsg(event) => event.actor,
             event => panic!("unexpected event: {event:?}"),
         };
-        assert_match(&expected, actor.peer_key().unwrap());
+        assert_match(&expected, &actor.key());
     }
 }

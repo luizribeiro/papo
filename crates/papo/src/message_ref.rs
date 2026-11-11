@@ -157,19 +157,31 @@ impl Receipt {
     }
 
     pub(crate) fn update_actor(&mut self, actor: Source, conversation: &Conversation) {
+        self.update_event_actor(actor, Authorship::Other, conversation);
+        if matches!(conversation, Conversation::Private(_)) {
+            self.address = conversation.to_string();
+        }
+    }
+
+    pub(crate) fn update_event_actor(
+        &mut self,
+        actor: Source,
+        authorship: Authorship,
+        conversation: &Conversation,
+    ) {
         self.identity.actor = actor;
-        self.identity.actor_account = self
-            .identity
-            .actor
-            .user()
-            .map_or(Account::Unknown, |user| user.account().clone());
+        self.identity.actor_account = if authorship == Authorship::Own {
+            Account::Unknown
+        } else {
+            self.identity
+                .actor
+                .user()
+                .map_or(Account::Unknown, |user| user.account().clone())
+        };
         self.identity.recipient = match conversation {
             Conversation::Private(user) => Some(user.clone()),
             _ => None,
         };
-        if matches!(conversation, Conversation::Private(_)) {
-            self.address = conversation.to_string();
-        }
         self.origin = conversation_origin(conversation);
         if !matches!(conversation, Conversation::Channel(_)) {
             self.identity.channel = None;

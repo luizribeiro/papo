@@ -690,7 +690,10 @@ pub(crate) fn incoming_from_core(
             prove_not_bot,
             received_at,
         ) {
-            Ok(event) => return event,
+            Ok(mut event) => {
+                attach_message_handles(&mut event, Some(reply_token), handle_state, false);
+                return event;
+            }
             Err(raw) => raw,
         };
         if !is_server_notice_line(&raw.as_ref()) {
@@ -720,7 +723,7 @@ pub(crate) fn incoming_from_core(
         handle_state,
         channel_guard.clone(),
     );
-    message_event_from_line(
+    let mut event = message_event_from_line(
         raw,
         batch_type.as_deref(),
         authorship,
@@ -732,7 +735,9 @@ pub(crate) fn incoming_from_core(
         prove_not_bot,
         received_at,
         Some(reply_token),
-    )
+    );
+    attach_message_handles(&mut event, Some(reply_token), handle_state, false);
+    event
 }
 
 pub(crate) fn mark_incomplete(event: Event) -> Option<Event> {
@@ -1956,6 +1961,87 @@ pub(crate) fn attach_live_peer_key(event: &mut Event, state: &crate::State) {
     attach_actor_peer_key(actor, &nick, state);
 }
 
+fn event_handle(
+    handle: &crate::UserHandle,
+    token: Option<papo_core::ReplyToken>,
+    state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
+    historical: bool,
+) -> crate::UserHandle {
+    crate::UserHandle::from_event(
+        handle.nick(),
+        handle.account().clone(),
+        token,
+        state,
+        historical,
+    )
+}
+
+fn attach_user_message_handle(
+    actor: &mut crate::UserHandle,
+    authorship: Authorship,
+    conversation: &mut Conversation,
+    receipt: &mut crate::message_ref::Receipt,
+    token: Option<papo_core::ReplyToken>,
+    state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
+    historical: bool,
+) {
+    *actor = event_handle(actor, token, state, historical);
+    if let Conversation::Private(peer) = conversation {
+        *peer = if authorship == Authorship::Own {
+            event_handle(peer, None, state, historical)
+        } else {
+            actor.clone()
+        };
+    }
+    receipt.update_event_actor(
+        Source::User(actor.clone().into_message_source()),
+        authorship,
+        conversation,
+    );
+}
+
+pub(crate) fn attach_message_handles(
+    event: &mut Event,
+    token: Option<papo_core::ReplyToken>,
+    state: Option<&std::sync::Arc<std::sync::RwLock<std::sync::Arc<crate::State>>>>,
+    historical: bool,
+) {
+    macro_rules! user_event {
+        ($event:expr) => {{
+            let event = $event;
+            attach_user_message_handle(
+                &mut event.actor,
+                event.authorship,
+                &mut event.conversation,
+                &mut event.receipt,
+                token,
+                state,
+                historical,
+            );
+        }};
+    }
+    match event {
+        Event::Message(event) | Event::Incomplete(Incomplete::Message(event)) => {
+            user_event!(event);
+        }
+        Event::Notice(event) | Event::Incomplete(Incomplete::Notice(event)) => {
+            user_event!(event);
+        }
+        Event::CtcpQuery(event) => user_event!(event),
+        Event::CtcpReply(event) => user_event!(event),
+        Event::TagMsg(event) => user_event!(event),
+        Event::Reacted(event) => user_event!(event),
+        Event::TypingChanged(event) => user_event!(event),
+        Event::BroadcastCtcp(event) => {
+            event.actor = event_handle(&event.actor, token, state, historical);
+        }
+        Event::BroadcastTagMsg(event) => {
+            event.actor = event_handle(&event.actor, token, state, historical);
+        }
+        _ => {}
+    }
+}
+
 fn attach_actor_peer_key(actor: &mut UserSource, nick: &Nick, state: &crate::State) {
     let account = if actor.account() == &Account::Unknown {
         state
@@ -2199,7 +2285,7 @@ pub(crate) fn from_core_with_receipt(
         receipt.set_actor_token(actor_token);
         receipt
     };
-    CoreEvent::Forward(match event {
+    let mut mapped = match event {
         papo_core::Event::Connected(welcome) => return CoreEvent::Connected(welcome),
         papo_core::Event::Motd { lines, .. } => Event::Motd(Motd { lines }),
         papo_core::Event::Line(message) => {
@@ -2881,7 +2967,9 @@ pub(crate) fn from_core_with_receipt(
             Event::Warning(Warning::Unsupported(unsupported))
         }
         _ => return CoreEvent::Unknown,
-    })
+    };
+    attach_message_handles(&mut mapped, None, handle_state, false);
+    CoreEvent::Forward(mapped)
 }
 
 pub(crate) fn typed_mode_change(

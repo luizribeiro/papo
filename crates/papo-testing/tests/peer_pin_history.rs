@@ -79,9 +79,9 @@ async fn history_uses_account_pins_without_reusing_live_session_pins() {
     let archived_bob = history_page(&client, &mut wire, 1, "bob", "").await;
     let alice_message = archived_alice.chat_messages().next().unwrap();
     let bob_message = archived_bob.chat_messages().next().unwrap();
-    assert_match(&alice, alice_message.actor.peer_key().unwrap());
-    assert!(alice_message.actor.peer_key().unwrap().is_verified());
-    assert!(bob_message.actor.peer_key().is_none());
+    assert_match(&alice, &alice_message.actor.key());
+    assert!(alice_message.actor.key().is_verified());
+    assert!(!bob_message.actor.key().is_verified());
     let alice_tag = archived_alice
         .items
         .iter()
@@ -98,6 +98,6 @@ async fn history_uses_account_pins_without_reusing_live_session_pins() {
             _ => None,
         })
         .unwrap();
-    assert_match(&alice, alice_tag.actor.peer_key().unwrap());
-    assert!(bob_tag.actor.peer_key().is_none());
+    assert_match(&alice, &alice_tag.actor.key());
+    assert!(!bob_tag.actor.key().is_verified());
 }

@@ -298,6 +298,7 @@ pub(crate) fn history_item(
             other(raw, received_at)
         }
     };
+    crate::event_impl::attach_message_handles(&mut event, None, Some(&client.state), true);
     crate::event_impl::attach_historical_peer_key(&mut event, &state);
     event
 }
@@ -1585,10 +1586,7 @@ mod tests {
         };
 
         assert_eq!(
-            message
-                .actor
-                .peer_key()
-                .and_then(crate::PeerKey::as_verified_str),
+            message.actor.key().as_verified_str(),
             Some(
                 "papo-peer:1;server=irc.example;nick-casemap=rfc1459;nick=alice;proof=account;account-casemap=rfc1459;account=alice"
             )
