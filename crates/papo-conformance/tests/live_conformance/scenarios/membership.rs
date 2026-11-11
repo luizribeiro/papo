@@ -1191,7 +1191,8 @@ async fn nick_change_and_collision(s: Scenario) -> papo_testing::Result<()> {
     let observed = bob.wait_for(Event::as_nick_changed).await?;
 
     for changed in [&own, &observed] {
-        assert_eq!(changed.actor.nick(), old_nick.as_str());
+        assert_eq!(changed.actor.nick(), new_nick.as_str());
+        assert_eq!(changed.old.as_str(), old_nick.as_str());
         assert_eq!(changed.new.as_str(), new_nick);
     }
     assert_eq!(own.authorship, papo::Authorship::Own);
