@@ -476,7 +476,7 @@ async fn message_fields_use_captured_session_facts() {
     let channel = joined.channel;
 
     server_line(&mut server, b"@time=2026-02-03T04:05:06.789Z;msgid=RfcBTzyxY120004;account=emily;bot;+draft/reply=RfcBTzyxY120003 :emily!~e@localhost PRIVMSG #papo :hello \x02from Ergo\x02\r\n").await;
-    let message = next_message(&mut events).await;
+    let (message, state) = next_message_with_state(&mut events).await;
     assert_eq!(message.kind, MessageKind::Text);
     assert_eq!(message.text, "hello from Ergo");
     assert_eq!(message.raw_text, "hello \x02from Ergo\x02");
@@ -489,6 +489,9 @@ async fn message_fields_use_captured_session_facts() {
     ));
     assert_eq!(message.return_address(), "#papo");
     assert_eq!(message.msgid.as_deref(), Some("RfcBTzyxY120004"));
+    let actor = state.user(&message.actor).unwrap();
+    assert!(matches!(actor.account(), crate::Account::LoggedIn(account) if account == "emily"));
+    assert_eq!(actor.is_bot(), Some(true));
     assert_eq!(
         message.in_reply_to.as_ref().map(AsRef::as_ref),
         Some("RfcBTzyxY120003")
@@ -591,6 +594,59 @@ async fn events_keep_the_state_after_their_own_line() {
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn live_bot_facts_require_message_tags_and_bot_mode() {
+    async fn observe(message_tags: bool, bot_mode: bool) -> Vec<Option<bool>> {
+        let settings = config().wanted_caps(message_tags.then_some("message-tags"));
+        let (mut server, _client, mut events, driver) = scripted(settings);
+        let task = tokio::spawn(driver);
+        welcome_burst(&mut server).await;
+        if message_tags {
+            server_line(&mut server, b":ergo.test CAP * LS :message-tags\r\n").await;
+            client_line(&mut server, b"CAP REQ :message-tags\r\n").await;
+            server_line(&mut server, b":ergo.test CAP * ACK :message-tags\r\n").await;
+        } else {
+            server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
+        }
+        client_line(&mut server, b"CAP END\r\n").await;
+        if bot_mode {
+            server_line(
+                &mut server,
+                b":ergo.test 005 papo-driver BOT=B :are supported\r\n",
+            )
+            .await;
+        }
+        server_line(
+            &mut server,
+            b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 422 papo-driver :No MOTD\r\n",
+        )
+        .await;
+        assert_connected(&mut events).await;
+
+        server_line(
+            &mut server,
+            b":emily!~emily@localhost PRIVMSG #papo :release ready\r\n@bot :relay!~relay@localhost PRIVMSG #papo :build complete\r\n",
+        )
+        .await;
+        let (first, first_state) = next_message_with_state(&mut events).await;
+        let (second, second_state) = next_message_with_state(&mut events).await;
+        let facts = vec![
+            first_state.user(&first.actor).and_then(crate::User::is_bot),
+            second_state
+                .user(&second.actor)
+                .and_then(crate::User::is_bot),
+        ];
+        within(server.shutdown()).await.unwrap();
+        assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+        facts
+    }
+
+    assert_eq!(observe(true, false).await, [None, Some(true)]);
+    assert_eq!(observe(false, true).await, [None, Some(true)]);
+    assert_eq!(observe(true, true).await, [Some(false), Some(true)]);
+    assert_eq!(observe(false, false).await, [None, Some(true)]);
 }
 
 #[tokio::test(flavor = "current_thread")]
