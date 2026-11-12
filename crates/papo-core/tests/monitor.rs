@@ -102,12 +102,16 @@ fn removing_an_app_entry_keeps_a_watch_on_the_same_nick() {
     registered()
         .update(|session| session.monitor_add(["alice"]))
         .client("MONITOR + alice")
-        .update(|session| session.__reconcile_watches(vec!["ALICE".into(), "bob".into()]))
-        .client("MONITOR + bob")
-        .inspect(|session| assert_eq!(monitored(session), ["alice", "bob"]))
+        .update(|session| session.__reconcile_watches(vec!["ALICE".into()]))
+        .no_client()
+        .server(":ergo.test 731 papo :alice")
+        .event(|event| matches!(event, Event::MonitorOffline { nick, .. } if nick == "alice"))
         .update(|session| session.monitor_remove(["alice"]))
         .no_client()
-        .inspect(|session| assert_eq!(monitored(session).len(), 2));
+        .inspect(|session| {
+            assert_eq!(monitored(session).len(), 1);
+            assert_eq!(session.state().__monitor_presence("alice"), Some(false));
+        });
 }
 
 #[test]
