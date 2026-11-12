@@ -2,7 +2,7 @@
 
 use std::time::Instant;
 
-use papo_core::{Account, Config, Event, Proven, Session, TextKind};
+use papo_core::{Account, Config, Event, PersonCommand, Proven, Session, TextKind};
 
 fn server(session: &mut Session, line: &str) {
     session.handle_line(Instant::now(), line.as_bytes());
@@ -109,5 +109,30 @@ fn current_name_targets_current_holder() {
     assert_eq!(
         session.poll_transmit().unwrap().as_ref(),
         b"PRIVMSG alice :please review\r\n"
+    );
+}
+
+#[test]
+fn queued_send_rewrites_renamed_recipient() {
+    let mut session = shared_users();
+    let proof = event_proof(&mut session);
+    let command = PersonCommand::__new(papo_proto::Line::tagmsg("alice")).unwrap();
+    session
+        .send_person_tracked(Instant::now(), proof.clone(), command)
+        .unwrap();
+    server(&mut session, ":alice!a@alice.example NICK alicia");
+
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"TAGMSG alicia\r\n"
+    );
+
+    session
+        .send_person_action_detailed(Instant::now(), proof, "waves", &[])
+        .unwrap();
+    server(&mut session, ":alicia!a@alice.example NICK alice-new");
+    assert_eq!(
+        session.poll_transmit().unwrap().as_ref(),
+        b"PRIVMSG alice-new :\x01ACTION waves\x01\r\n"
     );
 }

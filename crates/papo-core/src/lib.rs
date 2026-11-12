@@ -4272,6 +4272,22 @@ impl Session {
         self.send_guarded_tracked(now, message, None)
     }
 
+    /// Queues a line whose person target is filled from validated proof.
+    #[doc(hidden)]
+    pub fn send_person_tracked(
+        &mut self,
+        now: Instant,
+        proof: Proven,
+        command: PersonCommand,
+    ) -> Result<TransmitToken, BuildError> {
+        let target = proof.captured_nick().clone();
+        self.send_target_guarded_tracked(
+            now,
+            command.with_target(&target),
+            Some(TargetGuard::Proven(proof)),
+        )
+    }
+
     /// Queues a line whose private recipient must still match at transmission time.
     #[doc(hidden)]
     pub fn send_guarded_tracked(
@@ -4438,6 +4454,27 @@ impl Session {
         tags: &[(&str, &str)],
     ) -> Result<SendTextResult, RequestError> {
         self.send_composed_text(now, TextKind::Privmsg, target, text, tags, true, None)
+    }
+
+    /// Queues an action to a person target that was validated by session state.
+    #[doc(hidden)]
+    pub fn send_person_action_detailed(
+        &mut self,
+        now: Instant,
+        proof: Proven,
+        text: &str,
+        tags: &[(&str, &str)],
+    ) -> Result<SendTextResult, RequestError> {
+        let target = proof.captured_nick().to_string();
+        self.send_composed_text(
+            now,
+            TextKind::Privmsg,
+            &target,
+            text,
+            tags,
+            true,
+            Some(TargetGuard::Proven(proof)),
+        )
     }
 
     /// Queues an action whose private recipient must still match at transmission time.
