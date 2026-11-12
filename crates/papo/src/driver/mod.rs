@@ -85,6 +85,10 @@ pub(crate) enum CoreRequest {
     #[cfg(feature = "unstable")]
     Unstable(unstable::UnstableRequest),
     Metadata(papo_core::MetadataCommand),
+    MetadataPerson {
+        command: papo_core::MetadataCommand,
+        proof: papo_core::Proven,
+    },
     Rename {
         old: String,
         new: String,
@@ -115,6 +119,9 @@ impl CoreRequest {
             #[cfg(feature = "unstable")]
             Self::Unstable(request) => return request.start(session),
             Self::Metadata(command) => return session.metadata(now(), command),
+            Self::MetadataPerson { command, proof } => {
+                return session.__metadata_person(now(), command, proof);
+            }
             Self::Rename { old, new, reason } => return session.rename(now(), &old, &new, &reason),
         }
         Ok(before)

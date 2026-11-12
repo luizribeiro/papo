@@ -58,6 +58,7 @@ KICK, INVITE, and WHOIS now carry person proof through their final wire write; I
 WHOIS returns `None` when the server reports that the nickname is absent.
 Channel member lookups now report foreign references instead of treating them as missing users.
 Privilege-granting mode helpers now require a `UserHandle` and recheck its person identity at the final write.
+Metadata operations on a person now prove and recheck that identity before transmission.
 
 `UserHandle::key` captures a persistable peer key, and `Client::open` returns `NotSamePerson` with the current key when a saved identity does not match.
 

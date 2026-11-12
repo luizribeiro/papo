@@ -30,38 +30,69 @@ impl Metadata {
         &self,
         target: impl crate::AsConversation,
         argument: &'static str,
-    ) -> (String, Option<crate::InvalidInput>) {
-        let result = self.client.resolve(
-            crate::target::Role::Conversation(argument),
-            crate::AsConversation::__parts(&target),
-        );
+    ) -> (
+        String,
+        Option<crate::UserHandle>,
+        Option<crate::InvalidInput>,
+    ) {
+        let parts = crate::AsConversation::__parts(&target).into_owned();
+        let user = parts.user.clone();
+        let result = self
+            .client
+            .resolve(crate::target::Role::Conversation(argument), parts);
         match result {
-            Ok(target) => (target, None),
-            Err(Error::InvalidInput(error)) => (String::new(), Some(error)),
+            Ok(target) => (target, user, None),
+            Err(Error::InvalidInput(error)) => (String::new(), user, Some(error)),
             Err(error) => unreachable!("address resolution returned {error}"),
         }
     }
 
-    async fn request(&self, command: MetadataCommand) -> Result<(), Error> {
-        let response = self
-            .client
-            .core_request(CoreRequest::Metadata(command))
-            .await?;
+    async fn request(
+        &self,
+        command: MetadataCommand,
+        proof: Option<papo_core::Proven>,
+    ) -> Result<(), Error> {
+        let request = match proof {
+            Some(proof) => CoreRequest::MetadataPerson { command, proof },
+            None => CoreRequest::Metadata(command),
+        };
+        let response = self.client.core_request(request).await?;
         response
             .error()
             .map_or(Ok(()), |error| Err(Error::server(error)))
+    }
+
+    async fn prove_target(
+        &self,
+        target: &str,
+        user: Option<crate::UserHandle>,
+        argument: &'static str,
+    ) -> Result<Option<papo_core::Proven>, Error> {
+        if target == "*" || self.client.state().isupport().is_channel(target) {
+            return Ok(None);
+        }
+        let parts = user.map_or_else(
+            || crate::AsNick::__parts(&target.to_owned()).into_owned(),
+            |user| crate::AsNick::__parts(&user).into_owned(),
+        );
+        Ok(Some(
+            crate::identity::prove_parts(&self.client, parts, argument)
+                .await?
+                .core,
+        ))
     }
 
     fn action(&self, command: MetadataCommand) -> crate::RequestFuture<()> {
         let metadata = Self {
             client: self.client.clone(),
         };
-        crate::RequestFuture::new(async move { metadata.request(command).await })
+        crate::RequestFuture::new(async move { metadata.request(command, None).await })
     }
 
     fn set_target(
         &self,
         target: String,
+        user: Option<crate::UserHandle>,
         invalid_input: Option<crate::InvalidInput>,
         key: crate::MetadataKey,
         value: Option<String>,
@@ -77,8 +108,11 @@ impl Metadata {
             if value.as_ref().is_some_and(String::is_empty) {
                 return Err(crate::InvalidInput::EmptyText.into());
             }
+            let proof = metadata
+                .prove_target(&target, user, "metadata: target")
+                .await?;
             metadata
-                .request(MetadataCommand::__set(target, key, value))
+                .request(MetadataCommand::__set(target, key, value), proof)
                 .await
         })
     }
@@ -86,6 +120,7 @@ impl Metadata {
     fn clear_target(
         &self,
         target: String,
+        user: Option<crate::UserHandle>,
         invalid_input: Option<crate::InvalidInput>,
     ) -> crate::RequestFuture<()> {
         let metadata = Self {
@@ -95,7 +130,12 @@ impl Metadata {
             if let Some(error) = invalid_input {
                 return Err(error.into());
             }
-            metadata.request(MetadataCommand::__clear(target)).await
+            let proof = metadata
+                .prove_target(&target, user, "metadata: target")
+                .await?;
+            metadata
+                .request(MetadataCommand::__clear(target), proof)
+                .await
         })
     }
 
@@ -123,7 +163,7 @@ impl Metadata {
         let metadata = Self {
             client: self.client.clone(),
         };
-        let (target, invalid_input) = self.target(target, "metadata.get: target");
+        let (target, user, invalid_input) = self.target(target, "metadata.get: target");
         let keys = keys.into_iter().map(Into::into).collect::<Vec<_>>();
         crate::RequestFuture::new(async move {
             if let Some(error) = invalid_input {
@@ -144,14 +184,20 @@ impl Metadata {
                         reason,
                     })?;
             }
+            let proof = metadata
+                .prove_target(&target, user, "metadata.get: target")
+                .await?;
             metadata
-                .request(MetadataCommand::__get(
-                    target.clone(),
-                    keys.iter()
-                        .cloned()
-                        .map(crate::MetadataKey::into_string)
-                        .collect(),
-                ))
+                .request(
+                    MetadataCommand::__get(
+                        target.clone(),
+                        keys.iter()
+                            .cloned()
+                            .map(crate::MetadataKey::into_string)
+                            .collect(),
+                    ),
+                    proof,
+                )
                 .await?;
             let state = metadata.client.state();
             let values = state.metadata(&target);
@@ -181,13 +227,16 @@ impl Metadata {
         let metadata = Self {
             client: self.client.clone(),
         };
-        let (target, invalid_input) = self.target(target, "metadata.list: target");
+        let (target, user, invalid_input) = self.target(target, "metadata.list: target");
         crate::RequestFuture::new(async move {
             if let Some(error) = invalid_input {
                 return Err(error.into());
             }
+            let proof = metadata
+                .prove_target(&target, user, "metadata.list: target")
+                .await?;
             metadata
-                .request(MetadataCommand::__list(target.clone()))
+                .request(MetadataCommand::__list(target.clone()), proof)
                 .await?;
             Ok(metadata
                 .client
@@ -221,12 +270,12 @@ impl Metadata {
         key: crate::MetadataKey,
         value: impl Into<String>,
     ) -> crate::RequestFuture<()> {
-        self.set_target("*".into(), None, key, Some(value.into()))
+        self.set_target("*".into(), None, None, key, Some(value.into()))
     }
 
     /// Removes one metadata key for the current nickname.
     pub fn remove(&self, key: crate::MetadataKey) -> crate::RequestFuture<()> {
-        self.set_target("*".into(), None, key, None)
+        self.set_target("*".into(), None, None, key, None)
     }
 
     /// Sets one metadata key on a user or channel.
@@ -248,8 +297,8 @@ impl Metadata {
         key: crate::MetadataKey,
         value: impl Into<String>,
     ) -> crate::RequestFuture<()> {
-        let (target, invalid_input) = self.target(target, "metadata.set_on: target");
-        self.set_target(target, invalid_input, key, Some(value.into()))
+        let (target, user, invalid_input) = self.target(target, "metadata.set_on: target");
+        self.set_target(target, user, invalid_input, key, Some(value.into()))
     }
 
     /// Removes one metadata key from a user or channel.
@@ -258,8 +307,8 @@ impl Metadata {
         target: impl crate::AsConversation,
         key: crate::MetadataKey,
     ) -> crate::RequestFuture<()> {
-        let (target, invalid_input) = self.target(target, "metadata.remove_on: target");
-        self.set_target(target, invalid_input, key, None)
+        let (target, user, invalid_input) = self.target(target, "metadata.remove_on: target");
+        self.set_target(target, user, invalid_input, key, None)
     }
 
     /// Clears all metadata for the current nickname.
@@ -272,13 +321,13 @@ impl Metadata {
     /// [`crate::Refusal::Other`]. Request limits, timeouts, and disconnects retain their matching
     /// [`Error`] variants.
     pub fn clear(&self) -> crate::RequestFuture<()> {
-        self.clear_target("*".into(), None)
+        self.clear_target("*".into(), None, None)
     }
 
     /// Clears all metadata on a user or channel.
     pub fn clear_on(&self, target: impl crate::AsConversation) -> crate::RequestFuture<()> {
-        let (target, invalid_input) = self.target(target, "metadata.clear_on: target");
-        self.clear_target(target, invalid_input)
+        let (target, user, invalid_input) = self.target(target, "metadata.clear_on: target");
+        self.clear_target(target, user, invalid_input)
     }
 
     /// Subscribes to metadata keys.
@@ -340,12 +389,17 @@ impl Metadata {
         let metadata = Self {
             client: self.client.clone(),
         };
-        let (target, invalid_input) = self.target(target, "metadata.sync: target");
+        let (target, user, invalid_input) = self.target(target, "metadata.sync: target");
         crate::RequestFuture::new(async move {
             if let Some(error) = invalid_input {
                 return Err(error.into());
             }
-            metadata.request(MetadataCommand::__sync(target)).await
+            let proof = metadata
+                .prove_target(&target, user, "metadata.sync: target")
+                .await?;
+            metadata
+                .request(MetadataCommand::__sync(target), proof)
+                .await
         })
     }
 }

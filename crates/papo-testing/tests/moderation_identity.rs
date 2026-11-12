@@ -54,6 +54,10 @@ async fn person_method_identity_matrix() {
         Err(papo::Error::TargetGone)
     ));
     assert!(matches!(
+        client.metadata().list(&alice).await,
+        Err(papo::Error::TargetGone)
+    ));
+    assert!(matches!(
         client.mode("#review").op(&alice).await,
         Err(papo::Error::TargetGone)
     ));
