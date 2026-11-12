@@ -148,10 +148,11 @@ mod tests {
         session.handle_line(now, b":ergo.test 315 papo alice :End of WHO list");
         let mut response = std::iter::from_fn(|| session.poll_event())
             .find_map(|event| match event {
-                Event::Response(response) if response.id == id => Some(response),
+                Event::Response(response) => Some(response),
                 _ => None,
             })
             .unwrap();
+        assert_eq!(response.id, id);
         response.lines = lines
             .iter()
             .map(|line| LineRef::parse(line).unwrap().to_owned())
