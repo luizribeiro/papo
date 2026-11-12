@@ -28,7 +28,7 @@ pub(crate) async fn prove(
             Some(papo_core::ResponseMatcher::Who(nick.to_string())),
         )
         .await?;
-    let account = crate::direct_runtime::who_account(client, nick.as_str(), &response)?;
+    let account = who_account(client, nick.as_str(), &response)?;
     if handle.is_unproven_history() && !matches!(handle.account(), crate::Account::LoggedIn(_)) {
         return Err(crate::Error::TargetGone);
     }
@@ -75,6 +75,33 @@ pub(crate) async fn prove_parts(
         .__prove_current_name(nick.clone())
         .ok_or(crate::ForeignReference)?;
     Ok(ProvenUser { core, nick })
+}
+
+pub(crate) fn who_account(
+    client: &crate::Client,
+    nick: &str,
+    response: &papo_core::Response,
+) -> Result<crate::Account, crate::Error> {
+    if let Some(error) = response.error() {
+        return Err(crate::Error::server(error));
+    }
+    let account = response.lines.iter().find_map(|line| {
+        let line = line.as_ref();
+        (line.command_is("354") && line.param(1).is_some_and(|found| found == nick))
+            .then(|| line.param(2))
+            .flatten()
+    });
+    match account {
+        None => Err(crate::Error::TargetGone),
+        Some("0" | "*") => Ok(crate::Account::LoggedOut),
+        Some(account) => Ok(crate::Account::LoggedIn(
+            client
+                .state()
+                .known_name_rules()
+                .ok_or(crate::InvalidInput::NameRulesUnknown)?
+                .account(account),
+        )),
+    }
 }
 
 pub(crate) fn map_failure(failure: papo_core::ProofFailure) -> crate::Error {

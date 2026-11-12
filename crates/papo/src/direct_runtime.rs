@@ -1,4 +1,4 @@
-use crate::{Account, Error};
+use crate::{Account, Error, identity::who_account};
 
 #[derive(Debug)]
 pub(crate) struct Acquired {
@@ -124,33 +124,6 @@ pub(crate) fn require_monitor_slot(state: &crate::State, nick: &str) -> Result<(
         return Err(Error::MonitorFull { limit });
     }
     Ok(())
-}
-
-pub(crate) fn who_account(
-    client: &crate::Client,
-    nick: &str,
-    response: &papo_core::Response,
-) -> Result<Account, Error> {
-    if let Some(error) = response.error() {
-        return Err(Error::server(error));
-    }
-    let account = response.lines.iter().find_map(|line| {
-        let line = line.as_ref();
-        (line.command_is("354") && line.param(1).is_some_and(|found| found == nick))
-            .then(|| line.param(2))
-            .flatten()
-    });
-    match account {
-        None => Err(Error::TargetGone),
-        Some("0" | "*") => Ok(Account::LoggedOut),
-        Some(account) => Ok(Account::LoggedIn(
-            client
-                .state()
-                .known_name_rules()
-                .ok_or(crate::InvalidInput::NameRulesUnknown)?
-                .account(account),
-        )),
-    }
 }
 
 #[cfg(test)]
