@@ -856,6 +856,154 @@ async fn private_reply_refuses_a_nick_taken_after_receipt() {
 }
 
 #[tokio::test(flavor = "current_thread")]
+#[allow(clippy::too_many_lines)]
+async fn chat_person_method_identity_matrix() {
+    #[derive(Clone, Copy, Debug)]
+    enum Method {
+        Privmsg,
+        Notice,
+        Action,
+        Typing,
+        Reply,
+        CtcpReply,
+        React,
+        Unreact,
+        Redact,
+    }
+    const METHODS: [Method; 9] = [
+        Method::Privmsg,
+        Method::Notice,
+        Method::Action,
+        Method::Typing,
+        Method::Reply,
+        Method::CtcpReply,
+        Method::React,
+        Method::Unreact,
+        Method::Redact,
+    ];
+
+    let caps = [
+        "message-tags",
+        "draft/message-redaction",
+        "draft/react",
+        "labeled-response",
+        "typing",
+    ];
+    let (mut server, client, mut events, driver) =
+        scripted(config().wanted_caps(caps).ctcp(crate::CtcpReplies::off()));
+    let task = tokio::spawn(driver);
+    complete_connect_caps(&mut server, &mut events, &caps.join(" "), &caps.join(" ")).await;
+    server_line(
+        &mut server,
+        b":papo-driver!p@localhost JOIN #review\r\n:alice!~a@cloak.example JOIN #review\r\n:mallory!~m@users.example JOIN #review\r\n",
+    )
+    .await;
+    for _ in 0..3 {
+        assert!(matches!(
+            next_active_event(&mut events).await,
+            Event::Joined(_)
+        ));
+    }
+    server_line(
+        &mut server,
+        b"@msgid=Ergo8ZZ9 :alice!~a@cloak.example PRIVMSG papo-driver :release approval\r\n@msgid=Ergo8ZZA :alice!~a@cloak.example PRIVMSG papo-driver :\x01VERSION\x01\r\n",
+    )
+    .await;
+    let message = next_message(&mut events).await;
+    let query = next_active_event(&mut events).await;
+    let query = query.as_ctcp_query().unwrap().clone();
+    let alice = message.actor.clone();
+
+    for expected in ["alice", "alicia"] {
+        if expected == "alicia" {
+            server_line(&mut server, b":alice!~a@cloak.example NICK alicia\r\n").await;
+            assert!(matches!(
+                next_active_event(&mut events).await,
+                Event::NickChanged(_)
+            ));
+        }
+        for method in METHODS {
+            let client = client.clone();
+            let user = alice.clone();
+            let message = message.clone();
+            let query = query.clone();
+            let sending = tokio::spawn(async move {
+                match method {
+                    Method::Privmsg => client.privmsg(user, "release approved").await.map(drop),
+                    Method::Notice => client.notice(user, "release approved").await.map(drop),
+                    Method::Action => client.action(user, "reviews the release").await.map(drop),
+                    Method::Typing => client.typing(user, Typing::Active).await,
+                    Method::Reply => client.reply(&message, "release approved").await.map(drop),
+                    Method::CtcpReply => client.ctcp_reply(&query, "papo 0.1").await,
+                    Method::React => client.react(&message, "✅").await,
+                    Method::Unreact => client.unreact(&message, "✅").await,
+                    Method::Redact => client.redact(&message, "superseded").await,
+                }
+            });
+            let line = String::from_utf8(next_client_line(&mut server).await).unwrap();
+            let fields = line.split_whitespace().collect::<Vec<_>>();
+            let command = usize::from(fields[0].starts_with('@'));
+            assert_eq!(fields[command + 1], expected, "{method:?}: {line:?}");
+            if let Some(label) = fields[0]
+                .strip_prefix('@')
+                .and_then(|tags| tags.split(';').find_map(|tag| tag.strip_prefix("label=")))
+            {
+                server_line(
+                    &mut server,
+                    format!("@label={label} :ergo.test ACK\r\n").as_bytes(),
+                )
+                .await;
+            }
+            within(sending)
+                .await
+                .unwrap()
+                .unwrap_or_else(|error| panic!("{method:?}: {error:?}"));
+        }
+    }
+
+    server_line(
+        &mut server,
+        b":alicia!~a@cloak.example QUIT :Client Quit\r\n:mallory!~m@users.example NICK alice\r\n",
+    )
+    .await;
+    while !matches!(next_active_event(&mut events).await, Event::NickChanged(_)) {}
+    for method in METHODS {
+        let result = match method {
+            Method::Privmsg => client
+                .privmsg(alice.clone(), "payroll attached")
+                .await
+                .map(drop),
+            Method::Notice => client
+                .notice(alice.clone(), "payroll attached")
+                .await
+                .map(drop),
+            Method::Action => client
+                .action(alice.clone(), "shares payroll")
+                .await
+                .map(drop),
+            Method::Typing => client.typing(alice.clone(), Typing::Done).await,
+            Method::Reply => client.reply(&message, "payroll attached").await.map(drop),
+            Method::CtcpReply => client.ctcp_reply(&query, "papo 0.1").await,
+            Method::React => client.react(&message, "✅").await,
+            Method::Unreact => client.unreact(&message, "✅").await,
+            Method::Redact => client.redact(&message, "superseded").await,
+        };
+        assert!(
+            matches!(result, Err(Error::TargetGone)),
+            "{method:?}: {result:?}"
+        );
+    }
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), server.read_u8())
+            .await
+            .is_err()
+    );
+
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn every_private_core_line_refuses_a_nick_taken_after_receipt() {
     let caps = [
         "message-tags",
