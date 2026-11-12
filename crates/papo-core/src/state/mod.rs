@@ -69,6 +69,7 @@ pub struct State {
     users: HashMap<NameKey<String>, User>,
     message_users: VecDeque<NameKey<String>>,
     monitored: Vec<Nick>,
+    monitor_presence: HashMap<NameKey<String>, bool>,
     who_sweeps: HashMap<ChannelName, WhoSweep>,
     who_on_join: WhoOnJoin,
     read_markers: HashMap<NameKey<String>, ReadMarker>,
@@ -135,6 +136,7 @@ impl Clone for State {
             users: self.users.clone(),
             message_users: self.message_users.clone(),
             monitored: self.monitored.clone(),
+            monitor_presence: self.monitor_presence.clone(),
             who_sweeps: self.who_sweeps.clone(),
             who_on_join: self.who_on_join,
             read_markers: self.read_markers.clone(),
@@ -472,6 +474,7 @@ impl State {
             users,
             message_users: VecDeque::new(),
             monitored: Vec::new(),
+            monitor_presence: HashMap::new(),
             who_sweeps: HashMap::new(),
             who_on_join: config.who_on_join,
             read_markers: HashMap::new(),
@@ -918,6 +921,10 @@ impl State {
 
     pub(crate) fn sync_monitored(&mut self, monitor: &Monitor, isupport: &Isupport) {
         self.update_casemapping(isupport.casemapping());
+        self.monitor_presence = monitor
+            .presences()
+            .map(|(nick, online)| (NameKey::new(nick, self.casemapping), online))
+            .collect();
         let monitored = monitor
             .tracked()
             .map(|nick| self.casemapping.nick(nick))
@@ -997,6 +1004,14 @@ impl State {
         nick: &str,
     ) {
         self.update_casemapping(isupport.casemapping());
+        let key = NameKey::new(nick, self.casemapping);
+        match monitor
+            .presences()
+            .find(|(known, _)| crate::names_equal(isupport.casemapping(), known, nick))
+        {
+            Some((_, online)) => _ = self.monitor_presence.insert(key.clone(), online),
+            None => _ = self.monitor_presence.remove(&key),
+        }
         let monitored = monitor
             .tracked()
             .map(|nick| self.casemapping.nick(nick))
@@ -1005,7 +1020,6 @@ impl State {
             self.monitored = monitored;
             self.mark_changed();
         }
-        let key = NameKey::new(nick, self.casemapping);
         if let Some((username, host)) = monitor.online_nick(nick, isupport) {
             if !self.users.contains_key(&key) {
                 self.prepare_identity_arrival(nick);
@@ -1860,6 +1874,15 @@ impl State {
     #[must_use]
     pub fn monitored(&self) -> impl ExactSizeIterator<Item = &Nick> {
         self.monitored.iter()
+    }
+
+    /// Returns explicit server-reported monitor presence for a nickname.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __monitor_presence(&self, nick: &str) -> Option<bool> {
+        self.monitor_presence
+            .get(self.casemapping.fold(nick).as_ref())
+            .copied()
     }
 
     /// Iterates over users currently typing in `conversation`, in start order.

@@ -341,7 +341,10 @@ fn registration_clears_unconfirmed_monitor_presence() {
         .update(|session| session.monitor_add(["alice"]))
         .server(":ergo.test 730 * :alice!~alice@cloak.example")
         .event(|event| matches!(event, Event::MonitorOnline { nick, .. } if nick == "alice"))
-        .inspect(|session| assert_eq!(session.state().monitor_online().count(), 1))
+        .inspect(|session| {
+            assert_eq!(session.state().monitor_online().count(), 1);
+            assert_eq!(session.state().__monitor_presence("alice"), Some(true));
+        })
         .welcome(":ergo.test 001 papo :Welcome")
         .server(":ergo.test 376 papo :End of MOTD")
         .client("MONITOR + alice")
@@ -1004,6 +1007,7 @@ fn plain_monitor_presence_is_removed_after_offline() {
         .event(|event| matches!(event, Event::MonitorOffline { nick, .. } if nick == "alice"))
         .inspect(|session| {
             assert_eq!(session.state().monitor_online().count(), 0);
+            assert_eq!(session.state().__monitor_presence("alice"), Some(false));
             assert!(session.state().user("alice").is_none());
         })
         .no_event();

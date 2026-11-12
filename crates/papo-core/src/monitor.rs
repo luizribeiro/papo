@@ -97,6 +97,13 @@ impl Monitor {
             })
     }
 
+    pub(super) fn presences(&self) -> impl Iterator<Item = (&str, bool)> {
+        self.presence.values().map(|presence| match presence {
+            Presence::Online { nick, .. } => (nick.as_str(), true),
+            Presence::Offline(nick) => (nick.as_str(), false),
+        })
+    }
+
     pub(super) fn online_nick(
         &self,
         nick: &str,
