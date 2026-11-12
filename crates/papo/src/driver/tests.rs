@@ -10942,3 +10942,96 @@ async fn disconnect_clears_monitor_presence_snapshot() {
     ));
     assert_eq!(client.state().monitor_online().count(), 0);
 }
+
+fn reconnecting_monitor_driver() -> ([DuplexStream; 2], super::Client, super::Events, Driver) {
+    let (first_stream, first_server) = tokio::io::duplex(4096);
+    let (second_stream, second_server) = tokio::io::duplex(4096);
+    let streams = Arc::new(Mutex::new(VecDeque::from([
+        Box::new(first_stream) as super::BoxConnection,
+        Box::new(second_stream) as super::BoxConnection,
+    ])));
+    let connector: super::Connector = Arc::new(move |_, _| {
+        let stream = streams.lock().unwrap().pop_front().unwrap();
+        Box::pin(async move { Ok(stream) })
+    });
+    let (client, events, driver) = Driver::with_connector(
+        Ok(ConnectionPlan {
+            address: "irc://irc.example.net".parse().unwrap(),
+            tls: TlsConfig::default(),
+        }),
+        Session::new(config()),
+        super::DEFAULT_CHANNEL_CAPACITY,
+        None,
+        super::PostConnect::default(),
+        Reconnect::exponential()
+            .initial_delay(Duration::ZERO)
+            .max_delay(Duration::ZERO),
+        Box::new(papo_core::sts::MemoryStsStore::new()),
+        connector,
+    );
+    ([first_server, second_server], client, events, driver)
+}
+
+async fn lose_connection(server: &mut DuplexStream, events: &mut super::Events) {
+    within(server.shutdown()).await.unwrap();
+    while !matches!(next_event(events).await, Some(Event::Disconnected(_))) {}
+}
+
+async fn quit_cleanly(
+    server: &mut DuplexStream,
+    client: super::Client,
+    driver: tokio::task::JoinHandle<Result<(), Error>>,
+) {
+    let quit = tokio::spawn(async move { client.quit("").await });
+    client_line(server, b"QUIT\r\n").await;
+    within(server.shutdown()).await.unwrap();
+    within(quit).await.unwrap().unwrap();
+    within(driver).await.unwrap().unwrap();
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn watch_reacquires_after_reconnect() {
+    let ([mut first, mut second], client, mut events, driver) = reconnecting_monitor_driver();
+    let driver = tokio::spawn(driver);
+    complete_connect_monitor(&mut first, &mut events, 100).await;
+    let watch = client.query("alice").unwrap().watch();
+    client_line(&mut first, b"MONITOR + alice\r\n").await;
+    server_line(&mut first, b":ergo.test 731 papo-driver :alice\r\n").await;
+    while !matches!(
+        next_event(&mut events).await,
+        Some(Event::MonitorOffline(_))
+    ) {}
+    assert!(watch.is_live());
+
+    lose_connection(&mut first, &mut events).await;
+    assert!(!watch.is_live());
+    complete_connect_monitor(&mut second, &mut events, 100).await;
+    client_line(&mut second, b"MONITOR + alice\r\n").await;
+    server_line(&mut second, b":ergo.test 731 papo-driver :alice\r\n").await;
+    while !matches!(
+        next_event(&mut events).await,
+        Some(Event::MonitorOffline(_))
+    ) {}
+    assert!(watch.is_live());
+
+    quit_cleanly(&mut second, client, driver).await;
+}
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn drop_while_disconnected_is_not_restored() {
+    let ([mut first, mut second], client, mut events, driver) = reconnecting_monitor_driver();
+    let driver = tokio::spawn(driver);
+    complete_connect_monitor(&mut first, &mut events, 100).await;
+    let alice = client.query("alice").unwrap().watch();
+    let bob = client.query("bob").unwrap().watch();
+    client_line(&mut first, b"MONITOR + alice,bob\r\n").await;
+
+    lose_connection(&mut first, &mut events).await;
+    drop(alice);
+    complete_connect_monitor(&mut second, &mut events, 100).await;
+    client_line(&mut second, b"MONITOR + bob\r\n").await;
+    drop(bob);
+    client_line(&mut second, b"MONITOR - bob\r\n").await;
+
+    quit_cleanly(&mut second, client, driver).await;
+}

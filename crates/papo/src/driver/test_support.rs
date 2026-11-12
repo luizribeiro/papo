@@ -592,6 +592,25 @@ pub(crate) async fn complete_connect_extended_monitor(
     add_monitors(server, client, &["alice", "bob"]).await
 }
 
+pub(crate) async fn complete_connect_monitor(
+    server: &mut DuplexStream,
+    events: &mut super::Events,
+    limit: usize,
+) {
+    welcome_burst(server).await;
+    server_line(server, b":ergo.test CAP * LS :\r\n").await;
+    client_line(server, b"CAP END\r\n").await;
+    server_line(
+        server,
+        format!(":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 005 papo-driver CASEMAPPING=rfc1459 MONITOR={limit} :are supported\r\n:ergo.test 422 papo-driver :MOTD missing\r\n").as_bytes(),
+    )
+    .await;
+    assert!(matches!(
+        next_event(events).await,
+        Some(Event::Connected(_))
+    ));
+}
+
 pub(crate) async fn add_monitors(
     server: &mut DuplexStream,
     client: &super::Client,

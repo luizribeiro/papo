@@ -705,26 +705,6 @@ mod tests {
 
     use papo_core::{Config, Session};
 
-    async fn complete_monitor_connect(
-        server: &mut tokio::io::DuplexStream,
-        events: &mut crate::Events,
-        limit: usize,
-    ) {
-        use crate::driver::test_support::{client_line, next_event, server_line, welcome_burst};
-        welcome_burst(server).await;
-        server_line(server, b":ergo.test CAP * LS :\r\n").await;
-        client_line(server, b"CAP END\r\n").await;
-        server_line(
-            server,
-            format!(":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 005 papo-driver CASEMAPPING=rfc1459 MONITOR={limit} :are supported\r\n:ergo.test 422 papo-driver :MOTD missing\r\n").as_bytes(),
-        )
-        .await;
-        assert!(matches!(
-            next_event(events).await,
-            Some(crate::Event::Connected(_))
-        ));
-    }
-
     fn client_with_joined_users() -> crate::Client {
         let now = crate::rt::now_mono();
         let mut session = Session::new(Config::default().nick("papo"));
@@ -770,7 +750,7 @@ mod tests {
 
         let (mut server, client, mut events, driver) = scripted(config());
         let driver = tokio::spawn(driver);
-        complete_monitor_connect(&mut server, &mut events, 100).await;
+        crate::driver::test_support::complete_connect_monitor(&mut server, &mut events, 100).await;
         let alice = client.query("alice").unwrap();
         let first = alice.watch();
         client_line(&mut server, b"MONITOR + alice\r\n").await;
@@ -797,7 +777,7 @@ mod tests {
 
         let (mut server, client, mut events, driver) = scripted(config());
         let driver = tokio::spawn(driver);
-        complete_monitor_connect(&mut server, &mut events, 1).await;
+        crate::driver::test_support::complete_connect_monitor(&mut server, &mut events, 1).await;
         let alice = client.query("alice").unwrap().watch();
         client_line(&mut server, b"MONITOR + alice\r\n").await;
         server_line(&mut server, b":ergo.test 731 papo-driver :alice\r\n").await;
@@ -824,7 +804,7 @@ mod tests {
 
         let (mut server, client, mut events, driver) = scripted(config());
         let driver = tokio::spawn(driver);
-        complete_monitor_connect(&mut server, &mut events, 100).await;
+        crate::driver::test_support::complete_connect_monitor(&mut server, &mut events, 100).await;
         let watch = client.query("alice").unwrap().watch();
         client_line(&mut server, b"MONITOR + alice\r\n").await;
         server_line(
