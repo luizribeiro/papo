@@ -959,11 +959,6 @@ impl State {
                 user.monitored = true;
             }
         }
-        for nick in monitor.direct() {
-            if let Some(user) = self.users.get_mut(self.casemapping.fold(nick).as_ref()) {
-                user.monitored = true;
-            }
-        }
         let own = self.nick.clone();
         self.users
             .retain(|_, user| user.nick == own || user.monitored || !user.channels.is_empty());
@@ -1039,13 +1034,6 @@ impl State {
                 let user = self.new_user(nick, username, host);
                 self.users.insert(key.clone(), user);
             }
-            if let Some(user) = self.users.get_mut(&key) {
-                user.monitored = true;
-            }
-        } else if monitor
-            .direct()
-            .any(|known| crate::names_equal(isupport.casemapping(), known, nick))
-        {
             if let Some(user) = self.users.get_mut(&key) {
                 user.monitored = true;
             }

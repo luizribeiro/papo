@@ -2,9 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use papo_proto::{Advertised, Casemapping, Isupport, LimitValue, LineRef, MAX_LINE_LEN, Nick};
 
-use crate::{
-    Authorship, Event, Feature, Handled, Names, Outbox, ReplyToken, Unsupported, UnsupportedReason,
-};
+use crate::{Authorship, Event, Feature, Handled, Names, Outbox, Unsupported, UnsupportedReason};
 
 const MAX_DESIRED: usize = 10_000;
 const MONITOR_PAYLOAD_LEN: usize = MAX_LINE_LEN - "MONITOR + \r\n".len();
@@ -14,22 +12,12 @@ type NickKey = Nick;
 pub(super) struct Monitor {
     desired: Vec<String>,
     watched: Vec<String>,
-    direct: HashMap<NickKey, DirectWatch>,
     pending: HashSet<NickKey>,
     tracked: HashSet<NickKey>,
     presence: HashMap<NickKey, Presence>,
     casemapping: Names,
     server_limit: Option<usize>,
     unsupported_warned: bool,
-}
-
-#[derive(Debug)]
-#[allow(dead_code)]
-struct DirectWatch {
-    nick: String,
-    count: usize,
-    added: bool,
-    identity: ReplyToken,
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -54,10 +42,6 @@ impl Monitor {
         self.effective()
             .iter()
             .any(|known| crate::names_equal(isupport.casemapping(), known, nick))
-    }
-
-    pub(super) fn direct(&self) -> impl Iterator<Item = &str> {
-        self.direct.values().map(|watch| watch.nick.as_str())
     }
 
     pub(super) fn tracked(&self) -> impl Iterator<Item = &str> {
@@ -141,29 +125,8 @@ impl Monitor {
         user: Option<&str>,
         host: Option<&str>,
         isupport: &Isupport,
-        outbox: &mut Outbox,
     ) {
         self.update_casemapping(isupport.casemapping());
-        let old_key = self.casemapping.nick(old);
-        if let Some(mut watch) = self.direct.remove(&old_key) {
-            if watch.added
-                && let Some(index) = self
-                    .desired
-                    .iter()
-                    .position(|known| crate::names_equal(isupport.casemapping(), known, old))
-            {
-                new.clone_into(&mut self.desired[index]);
-                if isupport.monitor().is_some() {
-                    transmit_chunks("-", &[old.to_owned()], outbox);
-                    transmit_chunks("+", &[new.to_owned()], outbox);
-                    self.pending.insert(self.casemapping.nick(new));
-                }
-            }
-            self.pending.remove(&old_key);
-            self.tracked.remove(&old_key);
-            new.clone_into(&mut watch.nick);
-            self.direct.insert(self.casemapping.nick(new), watch);
-        }
         self.identity_departed(old, isupport);
         let key = self.casemapping.nick(new);
         if self.desires(new, isupport) {
@@ -502,7 +465,6 @@ impl Monitor {
                         continue;
                     }
                     self.presence.remove(&key);
-                    self.direct.remove(&key);
                     if let Some(index) = self
                         .desired
                         .iter()
@@ -619,11 +581,8 @@ impl Monitor {
             if self.replace_presence(nick, Presence::Offline(nick.to_owned()), isupport) {
                 let token = state.__reply_token_for(nick);
                 let facts = state.user(nick).and_then(|user| {
-                    let watched_directly = self
-                        .direct()
-                        .any(|known| crate::names_equal(isupport.casemapping(), known, nick));
                     state
-                        .departure_removes_user(user, None, watched_directly)
+                        .departure_removes_user(user, None, false)
                         .then(|| user.clone())
                 });
                 outbox.event(Event::MonitorOffline {
