@@ -409,6 +409,47 @@ mod tests {
     use crate::driver::test_support::*;
 
     #[tokio::test(flavor = "current_thread")]
+    async fn metadata_person_target_refuses_a_nickname_handoff() {
+        let settings = config().wanted_caps(["draft/metadata-2", "labeled-response"]);
+        let (mut server, client, mut events, driver) = scripted(settings);
+        let driver = tokio::spawn(driver);
+        complete_connect_caps(
+            &mut server,
+            &mut events,
+            "draft/metadata-2=max-subs=100,max-keys=100 labeled-response",
+            "draft/metadata-2 labeled-response",
+        )
+        .await;
+        server_line(&mut server, b":papo-driver!p@localhost JOIN #review\r\n").await;
+        _ = next_event(&mut events).await;
+        server_line(&mut server, b":alice!a@alice.example JOIN #review\r\n").await;
+        let alice = match next_event(&mut events).await {
+            Some(crate::Event::Joined(joined)) => joined.actor,
+            event => panic!("expected Alice's join, got {event:?}"),
+        };
+        server_line(&mut server, b":mallory!m@mallory.example JOIN #review\r\n").await;
+        _ = next_event(&mut events).await;
+        server_line(
+            &mut server,
+            b":alice!a@alice.example QUIT :Client Quit\r\n:mallory!m@mallory.example NICK alice\r\n",
+        )
+        .await;
+        _ = next_event(&mut events).await;
+        _ = next_event(&mut events).await;
+
+        assert!(matches!(
+            client.metadata().list(&alice).await,
+            Err(crate::Error::TargetGone)
+        ));
+        assert!(
+            tokio::time::timeout(std::time::Duration::from_millis(10), server.read_u8())
+                .await
+                .is_err()
+        );
+        abort_task(driver).await;
+    }
+
+    #[tokio::test(flavor = "current_thread")]
     async fn metadata_enforces_argument_roles() {
         let (first, _, _) = crate::Client::builder("ircs://irc.example.net", "papo-client")
             .casemapping(crate::Casemapping::default())
