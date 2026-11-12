@@ -362,14 +362,14 @@ mod tests {
             crate::target::sealed::Parts {
                 text: std::borrow::Cow::Owned(self.nick.to_string()),
                 origin: self.nick.origin(),
-                recipient: Some(crate::message_ref::RecipientGuard {
-                    nick: self.nick.clone(),
-                    account: self.account.clone(),
-                    receipt: None,
-                    validated: None,
-                }),
+                recipient: None,
                 channel: None,
-                user: None,
+                user: Some(crate::UserHandle::from_parts(
+                    self.nick.clone(),
+                    self.account.clone(),
+                    None,
+                    None,
+                )),
             }
         }
     }
@@ -759,22 +759,6 @@ mod tests {
             async move { client.privmsg(target, "release approved").await }
         });
 
-        let crate::driver::Command::DirectAcquire {
-            commands: release_commands,
-            result,
-            ..
-        } = next_command(&mut commands).await
-        else {
-            panic!("expected MONITOR acquisition")
-        };
-        let acquired = session.__direct_acquire("alice", None, None, account.clone());
-        result
-            .send(Ok(crate::direct_runtime::Acquired::new(
-                acquired,
-                None,
-                release_commands,
-            )))
-            .unwrap();
         let crate::driver::Command::Request {
             message, result, ..
         } = next_command(&mut commands).await
@@ -782,27 +766,23 @@ mod tests {
             panic!("expected WHO request")
         };
         assert_eq!(message.params(), ["alice", "%na"]);
-        result
-            .send(Ok(response_with(&[
-                ":ergo.test 354 papo alice alice-account",
-            ])))
-            .unwrap();
-        let crate::driver::Command::DirectProve {
-            recipient: proof,
-            account: refreshed,
+        let response = response_with(&[":ergo.test 354 papo alice alice-account"]);
+        result.send(Ok(response)).unwrap();
+        let crate::driver::Command::ProveUser {
+            nick,
+            account: actual,
+            lines,
             result,
-            ..
         } = next_command(&mut commands).await
         else {
-            panic!("expected verified recipient refresh")
+            panic!("expected user proof")
         };
-        assert_eq!(refreshed, account);
-        assert_eq!(proof.__account(), &Account::Unknown);
-        let recipient = session.__direct_prove(&proof, refreshed).unwrap();
-        result.send(Ok(recipient)).unwrap();
+        assert_eq!(actual, account);
+        let proof = session.__prove_who_user(nick, actual, &lines).unwrap();
+        result.send(Ok(proof)).unwrap();
         assert!(matches!(
             next_command(&mut commands).await,
-            crate::driver::Command::Send { .. }
+            crate::driver::Command::SendPerson { .. }
         ));
         resolving.abort();
     }
@@ -828,21 +808,6 @@ mod tests {
             async move { client.privmsg(target, "release approved").await }
         });
 
-        let crate::driver::Command::DirectAcquire {
-            commands: release_commands,
-            result,
-            ..
-        } = next_command(&mut commands).await
-        else {
-            panic!("expected MONITOR acquisition")
-        };
-        result
-            .send(Ok(crate::direct_runtime::Acquired::new(
-                session.__direct_acquire("alice", None, None, account),
-                None,
-                release_commands,
-            )))
-            .unwrap();
         let crate::driver::Command::Request { message, .. } = next_command(&mut commands).await
         else {
             panic!("expected WHO request")
