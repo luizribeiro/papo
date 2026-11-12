@@ -814,10 +814,6 @@ fn handle_disconnected_command(
             _ = result.send(Err(Error::disconnected(disconnected.clone())));
             DisconnectedAction::Wait
         }
-        Some(Command::DirectProve { result, .. }) => {
-            _ = result.send(Err(Error::disconnected(disconnected.clone())));
-            DisconnectedAction::Wait
-        }
         Some(Command::ProveUser { result, .. }) => {
             _ = result.send(Err(Error::disconnected(disconnected.clone())));
             DisconnectedAction::Wait

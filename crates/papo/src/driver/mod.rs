@@ -188,12 +188,6 @@ pub(crate) enum Command {
         commands: mpsc::Sender<Command>,
         result: oneshot::Sender<Result<crate::direct_runtime::Acquired, Error>>,
     },
-    #[allow(dead_code)]
-    DirectProve {
-        recipient: papo_core::RecipientGuard,
-        account: crate::Account,
-        result: oneshot::Sender<Result<papo_core::RecipientGuard, Error>>,
-    },
     ProveUser {
         nick: crate::Nick,
         account: crate::Account,
@@ -1296,13 +1290,6 @@ where
                         confirmation,
                         commands,
                     )));
-                }
-                Some(Command::DirectProve { recipient, account, result }) => {
-                    let recipient = session
-                        .__direct_prove(&recipient, account)
-                        .ok_or(Error::TargetGone);
-                    publish_session_state(events, session);
-                    _ = result.send(recipient);
                 }
                 Some(Command::ProveUser { nick, account, lines, result }) => {
                     let proof = session
