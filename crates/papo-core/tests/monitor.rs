@@ -104,6 +104,7 @@ fn removing_an_app_entry_keeps_a_watch_on_the_same_nick() {
         .client("MONITOR + alice")
         .update(|session| session.__reconcile_watches(vec!["ALICE".into()]))
         .no_client()
+        .inspect(|session| assert_eq!(monitored(session), ["alice"]))
         .server(":ergo.test 731 papo :alice")
         .event(|event| matches!(event, Event::MonitorOffline { nick, .. } if nick == "alice"))
         .update(|session| session.monitor_remove(["alice"]))
