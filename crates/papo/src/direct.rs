@@ -27,7 +27,9 @@ struct DirectInner {
     upgraded_peer_key: OnceLock<crate::peer_key::PeerKey>,
     recipient: papo_core::RecipientGuard,
     state: Arc<RwLock<Arc<crate::State>>>,
+    user: Option<crate::UserHandle>,
     _lease: Option<MonitorLease>,
+    _watch: Option<crate::Watch>,
 }
 
 #[derive(Debug)]
@@ -65,21 +67,33 @@ impl DirectRef {
         monitored: bool,
     ) -> Self {
         assert!(!monitored, "monitored references transfer an acquisition");
-        Self::with_lease(client, recipient, None)
+        Self::with_lease(client, recipient, None, None, None)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn acquired(
         client: &crate::Client,
         acquired: crate::direct_runtime::Acquired,
     ) -> Self {
         let (recipient, lease) = acquired.into_parts();
-        Self::with_lease(client, recipient, Some(lease))
+        Self::with_lease(client, recipient, Some(lease), None, None)
+    }
+
+    pub(crate) fn watched(
+        client: &crate::Client,
+        recipient: papo_core::RecipientGuard,
+        user: crate::UserHandle,
+        watch: crate::Watch,
+    ) -> Self {
+        Self::with_lease(client, recipient, None, Some(watch), Some(user))
     }
 
     fn with_lease(
         client: &crate::Client,
         recipient: papo_core::RecipientGuard,
         lease: Option<MonitorLease>,
+        watch: Option<crate::Watch>,
+        user: Option<crate::UserHandle>,
     ) -> Self {
         let identity = recipient.__token();
         let state = client.state();
@@ -91,14 +105,18 @@ impl DirectRef {
             state.peer_account_id(recipient.__nick(), recipient.__account()),
             state.peer_token(recipient.__nick()),
         )
-        .expect("a direct reference captures a tracked IRC user");
+        .unwrap_or_else(|| {
+            crate::peer_key::PeerKey::unverified(scope.as_ref(), recipient.__nick())
+        });
         Self(Arc::new(DirectInner {
             _lease: lease,
+            _watch: watch,
             identity,
             peer_key,
             upgraded_peer_key: OnceLock::new(),
             recipient,
             state: Arc::clone(&client.state),
+            user,
         }))
     }
 
@@ -107,6 +125,9 @@ impl DirectRef {
     }
 
     pub(crate) fn user_handle(&self) -> crate::UserHandle {
+        if let Some(user) = &self.0.user {
+            return user.clone();
+        }
         let state = self
             .0
             .state
@@ -250,9 +271,8 @@ impl crate::Target for DirectRef {
 impl crate::Client {
     /// Captures the identity currently using `nick` for guarded direct messages.
     ///
-    /// A user who shares no channel is added to `MONITOR`; one `WHO nick %na` establishes the
-    /// identity before this future resolves. The monitor entry is removed when the last handle
-    /// owning it is dropped.
+    /// A user who shares no channel is watched while the returned reference lives; one
+    /// `WHO nick %na` establishes the identity before this future resolves.
     ///
     /// ```no_run
     /// # async fn send(client: &papo::Client) -> Result<(), papo::Error> {
@@ -264,10 +284,8 @@ impl crate::Client {
     ///
     /// # Errors
     ///
-    /// Returns [`crate::Error::MonitorFull`] when the server's `MONITOR` limit is already occupied
-    /// or the server refuses this nickname with `ERR_MONLISTFULL`. It also returns an unsupported,
-    /// server, invalid-input, timeout, or disconnected error if the identity cannot be established
-    /// without failing open.
+    /// Returns an unsupported, server, invalid-input, timeout, or disconnected error if the
+    /// identity cannot be established without failing open.
     pub fn direct(&self, nick: impl crate::AsNick) -> crate::RequestFuture<DirectRef> {
         let nick = crate::AsNick::__parts(&nick).into_owned();
         self.direct_parts(nick)
@@ -291,11 +309,20 @@ impl crate::Client {
                 };
                 return Ok(DirectRef::new(&client, recipient, false));
             }
-            crate::direct_runtime::require_monitor_slot(&snapshot, &nick)?;
+            let nick = snapshot
+                .known_name_rules()
+                .ok_or(crate::InvalidInput::NameRulesUnknown)?
+                .nick(nick);
+            let handle = crate::UserHandle::new(&client, nick, crate::Account::Unknown, None);
             drop(snapshot);
-            let recipient = crate::direct_runtime::acquire(&client, nick.clone()).await?;
-            let (acquired, _) = crate::direct_runtime::prove(&client, nick, recipient).await?;
-            Ok(DirectRef::acquired(&client, acquired))
+            let watch = handle.watch();
+            let proven = crate::identity::prove(&client, &handle).await?;
+            let recipient = proven
+                .core
+                .__recipient()
+                .cloned()
+                .ok_or(crate::Error::TargetGone)?;
+            Ok(DirectRef::watched(&client, recipient, handle, watch))
         })
     }
 

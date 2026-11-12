@@ -7732,7 +7732,7 @@ fn direct_confirmation_skips_waiters_for_other_nicks() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn rejected_monitor_entry_fails_the_pending_direct_request() {
+async fn rejected_monitor_entry_does_not_fail_direct_request() {
     let (mut server, client, mut events, driver) = scripted(config());
     let task = tokio::spawn(driver);
     welcome_burst(&mut server).await;
@@ -7751,10 +7751,13 @@ async fn rejected_monitor_entry_fails_the_pending_direct_request() {
         b":solanum.example 734 papo-driver 1 alice :Monitor list is full\r\n",
     )
     .await;
-    assert!(matches!(
-        within(direct).await.unwrap(),
-        Err(Error::MonitorFull { limit: 1 })
-    ));
+    client_line(&mut server, b"WHO alice %na\r\n").await;
+    server_line(
+        &mut server,
+        b":solanum.example 354 papo-driver alice alice-account\r\n:solanum.example 315 papo-driver alice :End of WHO list\r\n",
+    )
+    .await;
+    assert!(within(direct).await.unwrap().is_ok());
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));

@@ -50,8 +50,9 @@ impl WatchRegistry {
     fn acquire(self: &Arc<Self>, user: &UserHandle) -> Watch {
         let identity = user.0.identity.clone();
         let mut entries = lock(&self.entries);
-        if let Some(entry) = entries.get_mut(&identity) {
+        let retained = if let Some(entry) = entries.get_mut(&identity) {
             entry.leases = entry.leases.saturating_add(1);
+            entry.user.upgrade().unwrap_or_else(|| Arc::clone(&user.0))
         } else {
             entries.insert(
                 identity.clone(),
@@ -62,13 +63,14 @@ impl WatchRegistry {
                     order: self.next_order.fetch_add(1, Ordering::Relaxed),
                 },
             );
-        }
+            Arc::clone(&user.0)
+        };
         drop(entries);
         self.wake();
         Watch(Arc::new(WatchLease {
             registry: Arc::clone(self),
             identity,
-            _user: Arc::clone(&user.0),
+            _user: retained,
         }))
     }
 

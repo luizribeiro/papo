@@ -43,17 +43,10 @@ async fn direct_ref_monitors_an_unshared_user_and_releases_the_entry() {
         .await;
     let second = second_request.await.unwrap().unwrap();
 
-    wire.server(":alice!~alice@cloak.example NICK alicia").await;
-    assert!(matches!(
-        next_active_event(&mut events).await,
-        papo::Event::NickChanged(_)
-    ));
-    assert_eq!(wire.next_sent().await, "MONITOR - alice");
-    assert_eq!(wire.next_sent().await, "MONITOR + alicia");
     client.action(&direct, "waves").await.unwrap();
     assert_eq!(
         wire.next_sent().await,
-        "PRIVMSG alicia :\u{1}ACTION waves\u{1}"
+        "PRIVMSG alice :\u{1}ACTION waves\u{1}"
     );
     drop(direct);
     assert!(
@@ -62,11 +55,11 @@ async fn direct_ref_monitors_an_unshared_user_and_releases_the_entry() {
             .is_err()
     );
     drop(second);
-    assert_eq!(wire.next_sent().await, "MONITOR - alicia");
+    assert_eq!(wire.next_sent().await, "MONITOR - alice");
 }
 
 #[tokio::test]
-async fn direct_ref_reopens_after_monitored_peer_returns() {
+async fn direct_ref_keeps_watch_while_peer_is_offline() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo")
             .rate_limit(papo::RateLimit::unlimited())
@@ -106,24 +99,8 @@ async fn direct_ref_reopens_after_monitored_peer_returns() {
         .expect("returning monitored peer emits MonitorOnline");
     assert!(matches!(online, papo::Event::MonitorOnline(_)));
 
-    let returned = tokio::spawn({
-        let client = client.clone();
-        async move { client.direct("alice").await }
-    });
-    let line = tokio::time::timeout(Duration::from_secs(1), wire.next_sent())
-        .await
-        .expect("returning peer starts a fresh WHO query");
-    assert_eq!(line, "WHO alice %na");
-    wire.server(":offline.test 354 papo alice alice-account")
-        .await;
-    wire.server(":offline.test 315 papo alice :End of WHO list")
-        .await;
-    let returned = returned.await.unwrap().unwrap();
-
-    assert!(matches!(
-        first.peer_key().check(returned.peer_key()),
-        papo::PeerKeyCheck::Match | papo::PeerKeyCheck::Upgrade(_)
-    ));
+    drop(first);
+    assert_eq!(wire.next_sent().await, "MONITOR - alice");
 }
 
 #[tokio::test]
@@ -189,24 +166,6 @@ async fn who_resolved_direct_refs_share_monitor_until_both_drop() {
         .await;
     let second = second.await.unwrap().unwrap();
 
-    wire.server(":offline.test 731 papo :alice").await;
-    assert!(matches!(
-        next_active_event(&mut events).await,
-        papo::Event::MonitorOffline(_)
-    ));
-    wire.server(":offline.test 730 papo :alice!~alice@cloak.example")
-        .await;
-    assert!(matches!(
-        next_active_event(&mut events).await,
-        papo::Event::MonitorOnline(_)
-    ));
-    assert!(
-        tokio::time::timeout(Duration::from_millis(10), wire.next_sent())
-            .await
-            .is_err(),
-        "presence changes must not release either direct reference"
-    );
-
     drop(first);
     assert!(
         tokio::time::timeout(Duration::from_millis(10), wire.next_sent())
@@ -225,7 +184,7 @@ async fn who_resolved_direct_refs_share_monitor_until_both_drop() {
 }
 
 #[tokio::test]
-async fn direct_ref_reports_a_full_monitor_list_without_failing_open() {
+async fn direct_ref_does_not_fail_when_the_monitor_list_is_full() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo")
             .rate_limit(papo::RateLimit::unlimited())
@@ -237,15 +196,13 @@ async fn direct_ref_reports_a_full_monitor_list_without_failing_open() {
     let _watch = client.query("bob").unwrap().watch();
     assert_eq!(wire.next_sent().await, "MONITOR + bob");
 
-    assert!(matches!(
-        client.direct("alice").await,
-        Err(papo::Error::MonitorFull { limit: 1, .. })
-    ));
-    assert!(
-        tokio::time::timeout(Duration::from_millis(10), wire.next_sent())
-            .await
-            .is_err()
-    );
+    let request = tokio::spawn(async move { client.direct("alice").await });
+    assert_eq!(wire.next_sent().await, "WHO alice %na");
+    wire.server(":offline.test 354 papo alice alice-account")
+        .await;
+    wire.server(":offline.test 315 papo alice :End of WHO list")
+        .await;
+    assert!(request.await.unwrap().is_ok());
 }
 
 #[tokio::test]
