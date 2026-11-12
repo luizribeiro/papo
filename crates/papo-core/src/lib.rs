@@ -5159,34 +5159,6 @@ impl Session {
         }
     }
 
-    /// Reports whether a nickname occupies or awaits a server-side monitor slot.
-    #[doc(hidden)]
-    #[must_use]
-    pub fn __monitor_reserves(&self, nick: &str) -> bool {
-        self.monitor.reserves(nick)
-    }
-
-    /// Reports whether the server has confirmed a nickname's monitor slot.
-    #[doc(hidden)]
-    #[must_use]
-    pub fn __monitor_confirms(&self, nick: &str) -> bool {
-        self.monitor.confirms(nick)
-    }
-
-    /// Returns the number of occupied and pending server-side monitor slots.
-    #[doc(hidden)]
-    #[must_use]
-    pub fn __monitor_reserved_len(&self) -> usize {
-        self.monitor.reserved_len()
-    }
-
-    /// Returns the effective monitor limit learned from ISUPPORT and server refusals.
-    #[doc(hidden)]
-    #[must_use]
-    pub fn __monitor_limit(&self) -> Option<usize> {
-        self.monitor.limit(self.isupport.value())
-    }
-
     /// Returns the next CRLF-terminated wire line to transmit.
     pub fn poll_transmit(&mut self) -> Option<WireLine> {
         self.poll_transmit_tracked()

@@ -463,8 +463,15 @@ fn rejected_watch_releases_its_monitor_slot() {
 }
 #[test]
 fn slot_status_distinguishes_pending_confirmed_refused_and_disconnected() {
+    let monitored = |session: &papo_core::Session| {
+        session
+            .state()
+            .monitored()
+            .map(Nick::as_str)
+            .map(str::to_owned)
+            .collect::<Vec<_>>()
+    };
     Transcript::new(Config::default())
-        .inspect(|session| assert_eq!(session.__monitor_limit(), None))
         .connect_default()
         .welcome(":ergo.test 001 papo :Welcome")
         .server(":ergo.test 005 papo MONITOR=2 :are supported")
@@ -473,32 +480,24 @@ fn slot_status_distinguishes_pending_confirmed_refused_and_disconnected() {
         .update(|session| session.monitor_add(["alice", "bob"]))
         .client("MONITOR + alice,bob")
         .inspect(|session| {
-            assert!(session.__monitor_reserves("alice"));
-            assert!(!session.__monitor_confirms("alice"));
-            assert_eq!(session.__monitor_reserved_len(), 2);
-            assert_eq!(session.__monitor_limit(), Some(2));
+            assert_eq!(monitored(session), ["alice", "bob"]);
+            assert_eq!(session.state().__monitor_presence("alice"), None);
         })
         .server(":ergo.test 731 papo :alice")
         .event(|event| matches!(event, Event::MonitorOffline { nick, .. } if nick == "alice"))
         .inspect(|session| {
-            assert!(session.__monitor_confirms("alice"));
-            assert!(!session.__monitor_confirms("bob"));
+            assert_eq!(session.state().__monitor_presence("alice"), Some(false));
+            assert_eq!(session.state().__monitor_presence("bob"), None);
         })
         .server(":solanum.example 734 papo 1 bob :Monitor list is full")
         .event(|event| matches!(event, Event::MonitorListFull { nicks, .. } if nicks == &["bob"]))
-        .inspect(|session| {
-            assert!(!session.__monitor_reserves("bob"));
-            assert_eq!(session.__monitor_reserved_len(), 1);
-            assert_eq!(session.__monitor_limit(), Some(1));
-        })
+        .inspect(|session| assert_eq!(monitored(session), ["alice"]))
+        .update(|session| session.monitor_add(["carol"]))
+        .event(|event| matches!(event, Event::MonitorListFull { limit: 1, nicks, .. } if nicks == &["carol"]))
+        .no_client()
         .disconnect()
-        .inspect(|session| {
-            assert!(!session.__monitor_reserves("alice"));
-            assert_eq!(session.__monitor_reserved_len(), 0);
-            assert_eq!(session.__monitor_limit(), Some(2));
-        });
+        .inspect(|session| assert!(monitored(session).is_empty()));
 }
-
 #[test]
 fn monitor_removal_waits_for_registration() {
     Transcript::new(Config::default())

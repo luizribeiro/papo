@@ -55,10 +55,6 @@ impl Monitor {
         self.pending.contains(&key) || self.tracked.contains(&key)
     }
 
-    pub(super) fn confirms(&self, nick: &str) -> bool {
-        self.tracked.contains(&self.casemapping.nick(nick))
-    }
-
     pub(super) fn reserved_len(&self) -> usize {
         self.pending.len() + self.tracked.len()
     }
