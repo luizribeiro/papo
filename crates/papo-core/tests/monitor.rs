@@ -98,6 +98,19 @@ fn watches_wait_for_registration_and_fold_case() {
 }
 
 #[test]
+fn removing_an_app_entry_keeps_a_watch_on_the_same_nick() {
+    registered()
+        .update(|session| session.monitor_add(["alice"]))
+        .client("MONITOR + alice")
+        .update(|session| session.__reconcile_watches(vec!["ALICE".into(), "bob".into()]))
+        .client("MONITOR + bob")
+        .inspect(|session| assert_eq!(monitored(session), ["alice", "bob"]))
+        .update(|session| session.monitor_remove(["alice"]))
+        .no_client()
+        .inspect(|session| assert_eq!(monitored(session).len(), 2));
+}
+
+#[test]
 fn watch_never_removes_an_existing_app_entry() {
     registered()
         .update(|session| session.monitor_add(["alice"]))

@@ -202,12 +202,7 @@ impl Monitor {
         {
             return false;
         }
-        let old: Vec<_> = self
-            .effective()
-            .into_iter()
-            .filter(|nick| self.reserves(nick))
-            .cloned()
-            .collect();
+        let old = self.reserved_effective();
         self.watched = watched;
         let effective: HashSet<_> = self
             .effective()
@@ -217,16 +212,22 @@ impl Monitor {
         self.pending.retain(|nick| effective.contains(nick));
         self.tracked.retain(|nick| effective.contains(nick));
         self.presence.retain(|nick, _| effective.contains(nick));
-        if !registered || isupport.monitor().is_none() {
-            return true;
+        if registered && isupport.monitor().is_some() {
+            self.rebalance(&old, mapping, self.limit(isupport).unwrap_or(0), outbox);
         }
-        let limit = self.limit(isupport).unwrap_or(0);
-        let mut new: Vec<_> = self
-            .effective()
+        true
+    }
+
+    fn reserved_effective(&self) -> Vec<String> {
+        self.effective()
             .into_iter()
             .filter(|nick| self.reserves(nick))
             .cloned()
-            .collect();
+            .collect()
+    }
+
+    fn rebalance(&mut self, old: &[String], mapping: Names, limit: usize, outbox: &mut Outbox) {
+        let mut new = self.reserved_effective();
         let desired: Vec<_> = self.effective().into_iter().cloned().collect();
         for nick in &desired {
             if new.len() == limit {
@@ -237,11 +238,8 @@ impl Monitor {
                 new.push(nick.clone());
             }
         }
-        let removed = difference(&old, &new, mapping);
-        let added = difference(&new, &old, mapping);
-        transmit_chunks("-", &removed, outbox);
-        transmit_chunks("+", &added, outbox);
-        true
+        transmit_chunks("-", &difference(old, &new, mapping), outbox);
+        transmit_chunks("+", &difference(&new, old, mapping), outbox);
     }
 
     pub(super) fn add<I, S>(
@@ -320,17 +318,7 @@ impl Monitor {
     {
         let mapping = self.names(isupport);
         self.update_casemapping(mapping.casemapping());
-        let limit = match isupport.monitor() {
-            Some(LimitValue::Limited(limit)) => limit,
-            Some(LimitValue::Unlimited) => usize::MAX,
-            None => 0,
-        };
-        let old: Vec<_> = self
-            .desired
-            .iter()
-            .filter(|nick| self.reserves(nick))
-            .cloned()
-            .collect();
+        let old = self.reserved_effective();
         for nick in nicks {
             let nick = nick.as_ref();
             if mapping.nick(nick).check(isupport).is_err() {
@@ -352,33 +340,7 @@ impl Monitor {
             }
         }
         if registered && isupport.monitor().is_some() {
-            let mut new: Vec<_> = self
-                .desired
-                .iter()
-                .filter(|nick| self.reserves(nick))
-                .cloned()
-                .collect();
-            for nick in &self.desired {
-                if new.len() == limit {
-                    break;
-                }
-                if !self.reserves(nick) {
-                    self.pending.insert(mapping.nick(nick));
-                    new.push(nick.clone());
-                }
-            }
-            let removed: Vec<_> = old
-                .iter()
-                .filter(|nick| !new.iter().any(|new| crate::names_equal(mapping, nick, new)))
-                .cloned()
-                .collect();
-            let added: Vec<_> = new
-                .iter()
-                .filter(|nick| !old.iter().any(|old| crate::names_equal(mapping, nick, old)))
-                .cloned()
-                .collect();
-            transmit_chunks("-", &removed, outbox);
-            transmit_chunks("+", &added, outbox);
+            self.rebalance(&old, mapping, self.limit(isupport).unwrap_or(0), outbox);
         }
     }
 
