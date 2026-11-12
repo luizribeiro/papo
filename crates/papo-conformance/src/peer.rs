@@ -131,7 +131,7 @@ impl Peer {
     }
 
     /// Requests information about `nick` using this peer's server rules.
-    pub fn whois(&self, nick: impl AsRef<str>) -> papo::RequestFuture<papo::Whois> {
+    pub fn whois(&self, nick: impl AsRef<str>) -> papo::RequestFuture<Option<papo::Whois>> {
         self.client
             .whois(self.with_name_rules(|names| names.nick(nick.as_ref())))
     }

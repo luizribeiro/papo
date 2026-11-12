@@ -169,8 +169,11 @@ pub(crate) fn whois(
     requested_nick: &str,
     isupport: &Isupport,
     origin: crate::Origin,
-) -> Result<Whois, Error> {
+) -> Result<Option<Whois>, Error> {
     if let Some(error) = response.error() {
+        if error.refusal() == crate::Refusal::NoSuchNick {
+            return Ok(None);
+        }
         return Err(Error::server(error));
     }
     let mapping = isupport.casemapping();
@@ -226,7 +229,7 @@ pub(crate) fn whois(
             _ => {}
         }
     }
-    Ok(result)
+    Ok(Some(result))
 }
 
 fn whois_channel(value: &str, isupport: &Isupport, origin: crate::Origin) -> WhoisChannel {
@@ -459,6 +462,7 @@ mod tests {
                 })
                 .unwrap();
             whois(response, "alice", &Isupport::default(), crate::Origin::NONE)
+                .unwrap()
                 .unwrap()
                 .account
         };

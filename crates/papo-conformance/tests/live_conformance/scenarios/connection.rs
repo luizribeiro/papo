@@ -468,8 +468,14 @@ async fn webirc(s: Scenario) -> papo_testing::Result<()> {
         )
         .await?;
     let bob = s.connect("bob").await?;
-    let whois = alice.whois(alice.snapshot().nick().as_str()).await?;
-    let ordinary = alice.whois(bob.snapshot().nick().as_str()).await?;
+    let whois = alice
+        .whois(alice.snapshot().nick().as_str())
+        .await?
+        .expect("WHOIS target exists");
+    let ordinary = alice
+        .whois(bob.snapshot().nick().as_str())
+        .await?
+        .expect("WHOIS target exists");
     assert_eq!(whois.nick, *alice.snapshot().nick());
     assert_eq!(ordinary.nick, bob.snapshot().nick().as_str());
     assert!(whois.host.is_some());

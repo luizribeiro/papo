@@ -218,7 +218,10 @@ async fn authenticate(s: Scenario, scram: bool) -> papo_testing::Result<()> {
         )
     );
 
-    let whois = alice.whois(alice.snapshot().nick().as_str()).await?;
+    let whois = alice
+        .whois(alice.snapshot().nick().as_str())
+        .await?
+        .expect("WHOIS target exists");
     assert_eq!(whois.nick, *alice.snapshot().nick());
     assert_eq!(
         whois.account.name().map(papo::AccountName::as_str),
@@ -315,7 +318,10 @@ async fn account_creation(s: Scenario) -> papo_testing::Result<()> {
         &papo::Account::LoggedIn(account.clone())
     );
 
-    let whois = alice.whois(nick.as_str()).await?;
+    let whois = alice
+        .whois(nick.as_str())
+        .await?
+        .expect("WHOIS target exists");
     assert_eq!(whois.nick, nick);
     assert_eq!(whois.account, papo::Account::LoggedIn(account));
     alice.expect_none(Event::as_account_creation).await?;

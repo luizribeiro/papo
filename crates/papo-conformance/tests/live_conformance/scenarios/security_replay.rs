@@ -259,7 +259,7 @@ async fn early_account_creation_reserves_its_request_id(_s: Scenario) -> papo_te
         .await;
     wire.server(":offline.test 318 papo-wire alice :End of /WHOIS list")
         .await;
-    assert_eq!(whois.await?.nick.as_str(), "alice");
+    assert_eq!(whois.await?.unwrap().nick.as_str(), "alice");
     Ok(())
 }
 

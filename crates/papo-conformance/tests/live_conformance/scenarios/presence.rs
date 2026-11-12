@@ -1,7 +1,7 @@
 use papo::{Account, AccountCreation, Away, Error, Event, NewAccount, Refusal};
 use papo_conformance_macros::scenario;
 
-use super::support::{assert_delivery_tags, assert_refusal, confirmed_line, subject_name};
+use super::support::{assert_delivery_tags, confirmed_line, subject_name};
 use crate::Scenario;
 
 /// delivers an authenticated sender account
@@ -221,7 +221,10 @@ async fn pre_away(s: Scenario) -> papo_testing::Result<()> {
     assert!(connected.caps.contains_key(&papo::cap::PRE_AWAY));
     assert_eq!(alice.snapshot().away(), &Away::__away_value(None));
 
-    let whois = bob.whois(alice.nick().as_str()).await?;
+    let whois = bob
+        .whois(alice.nick().as_str())
+        .await?
+        .expect("WHOIS target exists");
     assert_eq!(whois.nick, alice.nick().as_str());
     assert_eq!(whois.away, Away::__away_value(Some(away.to_owned())));
     alice.expect_none(Event::as_disconnected).await?;
@@ -420,7 +423,10 @@ async fn bot_mode(s: Scenario) -> papo_testing::Result<()> {
 
     alice.join(&channel).await?;
     bob.join(&channel).await?;
-    let whois = bob.whois(alice_nick.as_str()).await?;
+    let whois = bob
+        .whois(alice_nick.as_str())
+        .await?
+        .expect("WHOIS target exists");
 
     assert_eq!(whois.nick, alice_nick.as_str());
     assert!(
@@ -540,7 +546,10 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
                 .is_some_and(|name| mapping.channel(name) == channel_name)
     }));
 
-    let whois = bob.whois(alice_nick.as_str()).await?;
+    let whois = bob
+        .whois(alice_nick.as_str())
+        .await?
+        .expect("WHOIS target exists");
 
     assert_eq!(whois.nick, alice_nick.as_str());
     assert!(
@@ -560,11 +569,7 @@ async fn who_and_whois(s: Scenario) -> papo_testing::Result<()> {
             .any(|joined| joined.name == channel_name.as_str())
     );
 
-    assert_refusal(
-        bob.whois("missing-presence-target").await.unwrap_err(),
-        Refusal::NoSuchNick,
-        "401",
-    );
+    assert_eq!(bob.whois("missing-presence-target").await?, None);
     Ok(())
 }
 
@@ -708,7 +713,10 @@ async fn whois_server(s: Scenario) -> papo_testing::Result<()> {
     let bob = s.connect("bob").await?;
     let alice_nick = alice.nick();
 
-    let whois = bob.whois(alice_nick.as_str()).await?;
+    let whois = bob
+        .whois(alice_nick.as_str())
+        .await?
+        .expect("WHOIS target exists");
 
     assert_eq!(whois.nick, alice_nick.as_str());
     if whois.server.as_ref().is_none_or(|server| server.is_empty()) {

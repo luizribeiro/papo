@@ -5,7 +5,7 @@ mod support;
 
 use support::within;
 
-use papo::{Client, Endpoint, Error, Event};
+use papo::{Client, Endpoint, Event};
 use papo_test_server::{from_env, unique};
 
 #[tokio::test(flavor = "current_thread")]
@@ -34,7 +34,7 @@ async fn typed_requests_round_trip_against_ergo() {
             }
         }
 
-        let whois = client.whois(support::nick(&nick)).await.unwrap();
+        let whois = client.whois(support::nick(&nick)).await.unwrap().unwrap();
         assert_eq!(whois.nick, nick.as_str());
 
         client.join(support::channel(&channel)).await.unwrap();
@@ -70,10 +70,7 @@ async fn typed_requests_round_trip_against_ergo() {
         }));
 
         let missing = unique("papo-missing");
-        assert!(matches!(
-            client.whois(support::nick(&missing)).await,
-            Err(Error::Server(error)) if error.code() == "401"
-        ));
+        assert_eq!(client.whois(support::nick(&missing)).await.unwrap(), None);
         client.quit("live request test complete").await.unwrap();
     })
     .await;

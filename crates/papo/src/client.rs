@@ -1278,7 +1278,7 @@ impl Client {
     ///
     /// # Errors
     ///
-    /// Returns [`Error::Server`] with [`crate::Refusal::NoSuchNick`],
+    /// Returns `None` when the target is not online. Returns [`Error::Server`] with
     /// [`crate::Refusal::NoSuchServer`], [`crate::Refusal::TryAgain`], or
     /// [`crate::Refusal::Other`] when refused. It can also return [`Error::InvalidInput`],
     /// [`Error::TooManyPendingRequests`], [`Error::Timeout`], or [`Error::Disconnected`].
@@ -1287,7 +1287,7 @@ impl Client {
     /// let _ = client.whois(channel);
     /// # }
     /// ```
-    pub fn whois(&self, nick: impl crate::AsNick) -> crate::RequestFuture<crate::Whois> {
+    pub fn whois(&self, nick: impl crate::AsNick) -> crate::RequestFuture<Option<crate::Whois>> {
         let client = self.clone();
         let nick = crate::AsNick::__parts(&nick).into_owned();
         crate::RequestFuture::new(async move {

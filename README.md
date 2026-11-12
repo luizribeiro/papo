@@ -62,7 +62,7 @@ Channel events carry `ChannelHandle`, which follows a joined channel across `REN
 **No guessing.** Guessing feels bad. Being able to report unknown is a good thing so people don't rely on values that aren't guaranteed. When the server replies to a command, papo matches the reply to the request and hands you a typed result:
 
 ```rust
-let whois = client.whois("alice").await?;
+let whois = client.whois("alice").await?.expect("alice is online");
 ```
 
 So an account is `LoggedIn(name)`, `LoggedOut` or `Unknown`, since logged out and we don't know aren't the same thing. And when you send a message it's only `Confirmed` (with the msgids the server assigned) if the server echoed it back. Otherwise it's `Unconfirmed` and you can't react to it or delete it.
