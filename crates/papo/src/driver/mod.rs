@@ -182,11 +182,13 @@ pub(crate) enum Command {
         target: String,
         result: oneshot::Sender<Result<Response, Error>>,
     },
+    #[allow(dead_code)]
     DirectAcquire {
         nick: String,
         commands: mpsc::Sender<Command>,
         result: oneshot::Sender<Result<crate::direct_runtime::Acquired, Error>>,
     },
+    #[allow(dead_code)]
     DirectProve {
         recipient: papo_core::RecipientGuard,
         account: crate::Account,

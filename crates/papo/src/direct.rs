@@ -569,7 +569,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn known_unshared_message_peer_reserves_monitor() {
+    async fn known_unshared_message_peer_uses_watch_registry() {
         let now = crate::rt::now_mono();
         let mut session = Session::new(Config::default().nick("papo"));
         session.handle_line(
@@ -590,32 +590,10 @@ mod tests {
             async move { client.direct_to(&message).await }
         });
 
-        let command = tokio::time::timeout(Duration::from_millis(50), commands.recv())
-            .await
-            .expect("direct_to did not reserve MONITOR")
-            .unwrap();
-        let crate::driver::Command::DirectAcquire {
-            nick,
-            commands: release_commands,
-            result,
-        } = command
-        else {
-            panic!("unexpected direct_to command")
-        };
-        assert_eq!(nick, "alice");
-        let acquired = session.__direct_acquire(
-            "alice",
-            Some("~alice"),
-            Some("cloak.example"),
-            Account::Unknown,
-        );
-        result
-            .send(Ok(crate::direct_runtime::Acquired::new(
-                acquired.clone(),
-                None,
-                release_commands,
-            )))
-            .unwrap();
+        assert!(matches!(
+            next_command(&mut commands).await,
+            crate::driver::Command::Composite { .. }
+        ));
         let crate::driver::Command::Request {
             message, result, ..
         } = next_command(&mut commands).await
@@ -628,17 +606,17 @@ mod tests {
                 ":ergo.test 354 papo alice alice-account",
             ])))
             .unwrap();
-        let crate::driver::Command::DirectProve {
-            recipient: proof,
+        let crate::driver::Command::ProveUser {
+            nick,
             account,
+            lines,
             result,
         } = next_command(&mut commands).await
         else {
             panic!("expected account-tag identity proof")
         };
-        assert_eq!(proof.__nick(), "alice");
-        let recipient = session.__direct_prove(&acquired, account).unwrap();
-        result.send(Ok(recipient)).unwrap();
+        let proof = session.__prove_who_user(nick, account, &lines).unwrap();
+        result.send(Ok(proof)).unwrap();
         assert_eq!(direct.await.unwrap().unwrap().to_string(), "alice");
     }
 

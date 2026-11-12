@@ -7855,43 +7855,48 @@ async fn direct_to_refuses_a_proven_actor_from_another_client() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn monitor_presence_confirms_the_matching_direct_source_lease() {
-    async fn confirmed_by(reply: &'static [u8]) {
-        let (mut server, client, mut events, driver) = scripted(config());
-        let task = tokio::spawn(driver);
-        welcome_burst(&mut server).await;
-        server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
-        client_line(&mut server, b"CAP END\r\n").await;
-        server_line(
-            &mut server,
-            b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 005 papo-driver MONITOR=100 :are supported\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
-        )
-        .await;
-        assert_connected(&mut events).await;
-        server_line(
-            &mut server,
-            b":alice!~alice@cloak.example PRIVMSG papo-driver :release review\r\n",
-        )
-        .await;
-        let message = next_message(&mut events).await;
-        let direct_client = client.clone();
-        let direct = tokio::spawn(async move { direct_client.direct_to(&message).await });
-        client_line(&mut server, b"MONITOR + alice\r\n").await;
-        server_line(&mut server, reply).await;
-        let direct = within(direct).await.unwrap().unwrap();
-        within(client.privmsg(&direct, "confirmation accepted"))
-            .await
-            .unwrap();
-        client_line(&mut server, b"PRIVMSG alice :confirmation accepted\r\n").await;
-        drop(direct);
-        client_line(&mut server, b"MONITOR - alice\r\n").await;
+async fn direct_to_unshared_sender_watches_and_proves_by_who() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let task = tokio::spawn(driver);
+    welcome_burst(&mut server).await;
+    server_line(&mut server, b":ergo.test CAP * LS :\r\n").await;
+    client_line(&mut server, b"CAP END\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 005 papo-driver MONITOR=100 :are supported\r\n:ergo.test 422 papo-driver :MOTD File is missing\r\n",
+    )
+    .await;
+    assert_connected(&mut events).await;
+    server_line(
+        &mut server,
+        b":alice!~alice@cloak.example PRIVMSG papo-driver :release review\r\n",
+    )
+    .await;
+    let message = next_message(&mut events).await;
+    let direct_client = client.clone();
+    let direct = tokio::spawn(async move { direct_client.direct_to(&message).await });
+    client_line(&mut server, b"MONITOR + alice\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test 730 papo-driver :alice!~alice@cloak.example\r\n",
+    )
+    .await;
+    client_line(&mut server, b"WHO alice %na\r\n").await;
+    server_line(
+        &mut server,
+        b":ergo.test 354 papo-driver alice 0\r\n:ergo.test 315 papo-driver alice :End of WHO list\r\n",
+    )
+    .await;
+    let direct = within(direct).await.unwrap().unwrap();
+    within(client.privmsg(&direct, "review accepted"))
+        .await
+        .unwrap();
+    client_line(&mut server, b"PRIVMSG alice :review accepted\r\n").await;
+    drop(direct);
+    client_line(&mut server, b"MONITOR - alice\r\n").await;
 
-        within(server.shutdown()).await.unwrap();
-        assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
-    }
-
-    confirmed_by(b":ergo.test 730 papo-driver :alice!~alice@cloak.example\r\n").await;
-    confirmed_by(b":ergo.test 731 papo-driver :alice\r\n").await;
+    within(server.shutdown()).await.unwrap();
+    assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
 
 #[tokio::test(flavor = "current_thread")]

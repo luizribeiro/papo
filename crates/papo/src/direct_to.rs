@@ -76,22 +76,20 @@ impl crate::Client {
             {
                 return Ok(DirectRef::new(&client, recipient, false));
             }
-            crate::direct_runtime::require_monitor_slot(&snapshot, &nick)?;
+            let nick = snapshot
+                .known_name_rules()
+                .ok_or(crate::InvalidInput::NameRulesUnknown)?
+                .nick(nick);
+            let handle = crate::UserHandle::new(&client, nick, expected, None);
             drop(snapshot);
-            let acquired = crate::direct_runtime::acquire(&client, nick.clone()).await?;
-            if !matches!(expected, crate::Account::LoggedIn(_)) {
-                let acquired = acquired.confirmed().await?;
-                return Ok(DirectRef::acquired(&client, acquired));
-            }
-            let (acquired, actual) = crate::direct_runtime::prove(&client, nick, acquired).await?;
-            if !matches!(
-                (&expected, &actual),
-                (crate::Account::LoggedIn(expected), crate::Account::LoggedIn(actual))
-                    if expected == actual
-            ) {
-                return Err(crate::Error::TargetGone);
-            }
-            Ok(DirectRef::acquired(&client, acquired))
+            let watch = handle.watch();
+            let proven = crate::identity::prove(&client, &handle).await?;
+            let recipient = proven
+                .core
+                .__recipient()
+                .cloned()
+                .ok_or(crate::Error::TargetGone)?;
+            Ok(DirectRef::watched(&client, recipient, handle, watch))
         })
     }
 }
