@@ -504,12 +504,31 @@ impl Monitor {
     }
 
     pub(super) fn clear(&mut self, supported: bool, outbox: &mut Outbox) {
+        let watched: HashSet<_> = self
+            .watched
+            .iter()
+            .map(|nick| self.casemapping.nick(nick))
+            .collect();
+        let removed: Vec<_> = self
+            .desired
+            .iter()
+            .filter(|nick| !watched.contains(&self.casemapping.nick((*nick).clone())))
+            .cloned()
+            .collect();
         self.desired.clear();
-        self.pending.clear();
-        self.tracked.clear();
-        self.presence.clear();
-        if supported {
+        if self.watched.is_empty() {
+            self.pending.clear();
+            self.tracked.clear();
+            self.presence.clear();
+        } else {
+            self.pending.retain(|nick| watched.contains(nick));
+            self.tracked.retain(|nick| watched.contains(nick));
+            self.presence.retain(|nick, _| watched.contains(nick));
+        }
+        if supported && self.watched.is_empty() {
             outbox.transmit("MONITOR", ["C"]);
+        } else if supported {
+            transmit_chunks("-", &removed, outbox);
         }
     }
 

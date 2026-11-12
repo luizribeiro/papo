@@ -66,10 +66,10 @@ fn watch_never_removes_an_existing_app_entry() {
         .client("MONITOR + alice")
         .update(|session| session.__reconcile_watches(vec!["Alice".into()]))
         .no_client()
-        .update(|session| session.__reconcile_watches(Vec::new()))
+        .update(papo_core::Session::monitor_clear)
         .no_client()
-        .update(|session| session.monitor_remove(["alice"]))
-        .client("MONITOR - alice")
+        .update(|session| session.__reconcile_watches(Vec::new()))
+        .client("MONITOR - Alice")
         .no_client();
 }
 
