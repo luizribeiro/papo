@@ -5361,7 +5361,7 @@ async fn account_handle_refuses_a_replacement_nickname_holder() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn empty_who_refuses_without_target_command() {
+async fn query_who_failure_never_sends_chat() {
     let (mut server, client, mut events, driver) = scripted(config());
     let driver = tokio::spawn(driver);
     complete_connect(&mut server, &mut events).await;
@@ -5388,6 +5388,15 @@ async fn empty_who_refuses_without_target_command() {
     assert!(matches!(
         within(driver).await.unwrap(),
         Err(disconnected!())
+    ));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn plain_text_dm_remains_invalid() {
+    let client = crate::Client::disconnected_for_test();
+    assert!(matches!(
+        client.privmsg("alice", "release approved").await,
+        Err(Error::InvalidInput(_))
     ));
 }
 
@@ -8349,6 +8358,10 @@ async fn channel_sends_preserve_membership_and_refuse_expired_handles() {
 async fn send_text_retains_an_injected_channel_guard() {
     let mut session = Session::new(config());
     session.handle_connected(crate::rt::now_mono());
+    session.handle_line(
+        crate::rt::now_mono(),
+        b":papo-driver!papo@localhost JOIN #review",
+    );
     let channel = session.isupport().casemapping().channel("#review");
     let guard = session.state().__channel_guard(&channel);
     let expected = crate::ChannelHandle::from_parts(
@@ -8358,7 +8371,7 @@ async fn send_text_retains_an_injected_channel_guard() {
             .origin()
             .__channel(session.isupport().casemapping(), channel.as_str()),
         None,
-        Some(guard.clone()),
+        Some(guard),
         None,
     );
     let channels = super::channels(1, &session);
@@ -8370,19 +8383,8 @@ async fn send_text_retains_an_injected_channel_guard() {
         Arc::new(crate::State::from_session(&session, true));
     let client = channels.client;
     let mut commands = channels.commands;
-    let send = tokio::spawn(async move {
-        client
-            .send_text(
-                papo_core::TextKind::Privmsg,
-                "#review",
-                "release approved",
-                Vec::new(),
-                Vec::new(),
-                false,
-                Some(papo_core::TargetGuard::Channel(guard)),
-            )
-            .await
-    });
+    let target = expected.clone();
+    let send = tokio::spawn(async move { client.privmsg(target, "release approved").await });
 
     let Some(super::Command::SendText { conversation, .. }) = commands.recv().await else {
         panic!("expected text command")

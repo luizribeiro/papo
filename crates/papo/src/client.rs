@@ -157,6 +157,15 @@ struct ResolvedSend {
     _lease: Option<crate::direct::MonitorLease>,
 }
 
+impl ResolvedSend {
+    fn into_chat_guard(self) -> crate::driver::ChatGuard {
+        self.person.map_or_else(
+            || crate::driver::ChatGuard::Target(self.guard),
+            crate::driver::ChatGuard::Person,
+        )
+    }
+}
+
 impl std::fmt::Debug for SendMessage {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         crate::opaque_debug("SendMessage", formatter)
@@ -362,15 +371,7 @@ impl IntoFuture for SendMessage {
                 fallbacks.extend(channel_context.map(|_| Fallback::ContextTagDropped));
             }
             self.client
-                .send_text(
-                    self.kind,
-                    &target.text,
-                    &self.text,
-                    tags,
-                    fallbacks,
-                    self.action,
-                    target.guard,
-                )
+                .send_text(self.kind, target, &self.text, tags, fallbacks, self.action)
                 .await
         })
     }
@@ -466,7 +467,7 @@ impl Client {
             let proven = crate::identity::prove(self, handle).await?;
             return Ok(ResolvedSend {
                 text: proven.nick.to_string(),
-                guard: Some(papo_core::TargetGuard::Proven(proven.core.clone())),
+                guard: None,
                 person: Some(proven.core),
                 _lease: None,
             });
@@ -1203,9 +1204,9 @@ impl Client {
             client
                 .commands
                 .send(Command::Typing {
-                    target: target.text,
+                    target: target.text.clone(),
                     state,
-                    guard: target.guard,
+                    guard: target.into_chat_guard(),
                     result,
                 })
                 .await
@@ -1283,22 +1284,21 @@ impl Client {
         })
     }
 
-    #[expect(clippy::too_many_arguments)]
-    pub(crate) async fn send_text(
+    async fn send_text(
         &self,
         kind: TextKind,
-        target: &str,
+        target: ResolvedSend,
         text: &str,
         tags: Vec<(String, String)>,
         fallbacks: Vec<Fallback>,
         action: bool,
-        guard: Option<papo_core::TargetGuard>,
     ) -> Result<Sent, Error> {
         let state = self.state();
+        let wire_target = target.text.clone();
         let (status, core_conversation) = state
-            .parse_target_inner(target)
-            .map_err(|reason| InvalidInput::invalid_name(target, reason))?;
-        let channel_guard = match (&core_conversation, guard.as_ref()) {
+            .parse_target_inner(&wire_target)
+            .map_err(|reason| InvalidInput::invalid_name(&wire_target, reason))?;
+        let channel_guard = match (&core_conversation, target.guard.as_ref()) {
             (_, Some(papo_core::TargetGuard::Channel(channel))) => Some(channel.clone()),
             (papo_core::Conversation::Channel(channel), _)
                 if state.channel_local(channel).is_some() =>
@@ -1314,7 +1314,7 @@ impl Client {
             Some(&self.state),
             channel_guard,
         );
-        let receipt = state.sent_receipt(&conversation, target.to_owned(), guard.as_ref());
+        let receipt = state.sent_receipt(&conversation, wire_target.clone(), target.guard.as_ref());
         if !state.is_connected() {
             let text = if action {
                 Ctcp::action(text).ok_or(InvalidInput::InvalidCtcp)?
@@ -1322,20 +1322,20 @@ impl Client {
                 text.to_owned()
             };
             let mut message = match kind {
-                TextKind::Privmsg => Line::privmsg(target, text),
-                TextKind::Notice => Line::notice(target, text),
+                TextKind::Privmsg => Line::privmsg(&wire_target, text),
+                TextKind::Notice => Line::notice(&wire_target, text),
             };
             for (key, value) in tags {
                 message = message.with_tag(key, value);
             }
-            self.send_message_guarded(message, guard).await?;
+            self.send_chat_message(target, message).await?;
             return Ok(Sent::unconfirmed(conversation, status, receipt, fallbacks));
         }
         let (result, receiver) = oneshot::channel();
         self.commands
             .send(Command::SendText {
                 kind,
-                target: target.to_owned(),
+                target: wire_target,
                 conversation,
                 status,
                 receipt,
@@ -1343,7 +1343,7 @@ impl Client {
                 tags,
                 fallbacks,
                 action,
-                guard,
+                guard: target.into_chat_guard(),
                 result,
             })
             .await

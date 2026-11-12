@@ -92,6 +92,11 @@ pub(crate) enum CoreRequest {
     },
 }
 
+pub(crate) enum ChatGuard {
+    Person(papo_core::Proven),
+    Target(Option<papo_core::TargetGuard>),
+}
+
 impl CoreRequest {
     fn start(self, session: &mut Session) -> Result<RequestId, RequestError> {
         let before = session.next_request_id();
@@ -210,13 +215,13 @@ pub(crate) enum Command {
         tags: Vec<(String, String)>,
         fallbacks: Vec<crate::Fallback>,
         action: bool,
-        guard: Option<papo_core::TargetGuard>,
+        guard: ChatGuard,
         result: oneshot::Sender<Result<Sent, Error>>,
     },
     Typing {
         target: String,
         state: Typing,
-        guard: Option<papo_core::TargetGuard>,
+        guard: ChatGuard,
         result: oneshot::Sender<Result<(), Error>>,
     },
     WaitChannelSync {
@@ -1321,10 +1326,19 @@ where
                 }
                 Some(Command::SendText { kind, target, conversation, status, receipt, text, tags, mut fallbacks, action, guard, result }) => {
                     let tags: Vec<_> = tags.iter().map(|(key, value)| (key.as_str(), value.as_str())).collect();
-                    let sent = if action {
-                        session.send_target_guarded_action_detailed(now(), &target, &text, &tags, guard)
-                    } else {
-                        session.send_target_guarded_text_detailed(now(), kind, &target, &text, &tags, guard)
+                    let sent = match (action, guard) {
+                        (true, ChatGuard::Person(proof)) => {
+                            session.send_person_action_detailed(now(), proof, &text, &tags)
+                        }
+                        (false, ChatGuard::Person(proof)) => {
+                            session.send_person_text_detailed(now(), proof, kind, &text, &tags)
+                        }
+                        (true, ChatGuard::Target(guard)) => {
+                            session.send_target_guarded_action_detailed(now(), &target, &text, &tags, guard)
+                        }
+                        (false, ChatGuard::Target(guard)) => {
+                            session.send_target_guarded_text_detailed(now(), kind, &target, &text, &tags, guard)
+                        }
                     };
                     match sent {
                         Ok(sent) => {
@@ -1374,11 +1388,18 @@ where
                             Typing::Paused => "paused",
                             Typing::Done => "done",
                         };
-                        match session.send_target_guarded_tracked(
-                            current,
-                            Line::tagmsg(target).with_tag("+typing", value),
-                            guard,
-                        ) {
+                        let line = Line::tagmsg(&target).with_tag("+typing", value);
+                        let queued = match guard {
+                            ChatGuard::Person(proof) => {
+                                papo_core::PersonCommand::__new(line).and_then(|command| {
+                                    session.send_person_tracked(current, proof, command)
+                                })
+                            }
+                            ChatGuard::Target(guard) => {
+                                session.send_target_guarded_tracked(current, line, guard)
+                            }
+                        };
+                        match queued {
                             Ok(token) => {
                                 if state == Typing::Active {
                                     active_typing.insert(key, current);
