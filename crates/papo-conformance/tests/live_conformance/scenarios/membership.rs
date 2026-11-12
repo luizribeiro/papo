@@ -1141,7 +1141,7 @@ async fn kick_rules(s: Scenario) -> papo_testing::Result<()> {
                 .snapshot()
                 .__channel_local(&channel)
                 .unwrap()
-                .member(nick)
+                .member(nick.as_str())
                 .unwrap()
                 .is_none()
         );
@@ -1232,7 +1232,7 @@ async fn nick_change_and_collision(s: Scenario) -> papo_testing::Result<()> {
             .snapshot()
             .__channel_local(&channel)
             .unwrap()
-            .member(&new_nick)
+            .member(new_nick.as_str())
             .unwrap()
             .is_some()
     );
@@ -1240,7 +1240,7 @@ async fn nick_change_and_collision(s: Scenario) -> papo_testing::Result<()> {
         bob.snapshot()
             .__channel_local(&channel)
             .unwrap()
-            .member(&new_nick)
+            .member(new_nick.as_str())
             .unwrap()
             .is_some()
     );
