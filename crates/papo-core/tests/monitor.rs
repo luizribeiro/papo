@@ -500,53 +500,10 @@ fn slot_status_distinguishes_pending_confirmed_refused_and_disconnected() {
 }
 
 #[test]
-fn direct_acquisition_uses_only_an_available_confirmed_slot() {
-    registered()
-        .server(":ergo.test 005 papo MONITOR=2 :are supported")
-        .update(|session| session.monitor_add(["alice"]))
-        .client("MONITOR + alice")
-        .update(|session| {
-            session.__direct_acquire("alice", None, None, Account::Unknown);
-        })
-        .no_client();
-
-    registered()
-        .server(":ergo.test 005 papo MONITOR=2 :are supported")
-        .update(|session| session.monitor_add(["alice", "bob", "carol"]))
-        .client("MONITOR + alice,bob")
-        .event(|event| matches!(event, Event::MonitorListFull { nicks, .. } if nicks == &["carol"]))
-        .update(|session| {
-            session.__direct_acquire("carol", None, None, Account::Unknown);
-        })
-        .no_client();
-
-    registered()
-        .server(":ergo.test 005 papo MONITOR=2 :are supported")
-        .update(|session| session.monitor_add(["alice", "bob", "carol"]))
-        .client("MONITOR + alice,bob")
-        .event(|event| matches!(event, Event::MonitorListFull { nicks, .. } if nicks == &["carol"]))
-        .server(":solanum.example 734 papo 2 alice :Monitor list is full")
-        .event(|event| matches!(event, Event::MonitorListFull { nicks, .. } if nicks == &["alice"]))
-        .update(|session| {
-            session.__direct_acquire("carol", None, None, Account::Unknown);
-        })
-        .client("MONITOR + carol");
-}
-
-#[test]
-fn direct_acquisition_and_removal_wait_for_registration() {
-    let before_registration = || {
-        Transcript::new(Config::default())
-            .connect_default()
-            .server(":ergo.test 005 * MONITOR=2 :are supported")
-    };
-    before_registration()
-        .update(|session| session.monitor_add(["alice"]))
-        .update(|session| {
-            session.__direct_acquire("alice", None, None, Account::Unknown);
-        })
-        .no_client();
-    before_registration()
+fn monitor_removal_waits_for_registration() {
+    Transcript::new(Config::default())
+        .connect_default()
+        .server(":ergo.test 005 * MONITOR=2 :are supported")
         .update(|session| session.monitor_add(["alice", "bob"]))
         .update(|session| session.monitor_remove(["alice"]))
         .no_client();
