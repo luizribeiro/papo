@@ -435,13 +435,6 @@ impl crate::Target for NoticeRef {
     }
 }
 
-pub(crate) fn actor_recipient(query: &CtcpQuery) -> RecipientGuard {
-    query
-        .receipt
-        .actor_recipient()
-        .expect("a CTCP query has a user actor")
-}
-
 macro_rules! reply_reference {
     ($($ty:ty),+ $(,)?) => {
         $(

@@ -753,6 +753,7 @@ fn handle_disconnected_command(
         }
         Some(
             Command::Request { result, .. }
+            | Command::RequestPerson { result, .. }
             | Command::Join { result, .. }
             | Command::CoreRequest { result, .. }
             | Command::History { result, .. }
@@ -784,6 +785,7 @@ fn handle_disconnected_command(
         }
         Some(
             Command::Send { result, .. }
+            | Command::SendPerson { result, .. }
             | Command::Typing { result, .. }
             | Command::WaitChannelSync { result, .. }
             | Command::MonitorAdd { result, .. }

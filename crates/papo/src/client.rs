@@ -153,6 +153,7 @@ pub struct SendMessage {
 struct ResolvedSend {
     text: String,
     guard: Option<papo_core::TargetGuard>,
+    person: Option<papo_core::Proven>,
     _lease: Option<crate::direct::MonitorLease>,
 }
 
@@ -465,7 +466,8 @@ impl Client {
             let proven = crate::identity::prove(self, handle).await?;
             return Ok(ResolvedSend {
                 text: proven.nick.to_string(),
-                guard: Some(papo_core::TargetGuard::Proven(proven.core)),
+                guard: Some(papo_core::TargetGuard::Proven(proven.core.clone())),
+                person: Some(proven.core),
                 _lease: None,
             });
         }
@@ -530,6 +532,7 @@ impl Client {
             guard: recipient
                 .map(papo_core::TargetGuard::Recipient)
                 .or_else(|| channel.map(papo_core::TargetGuard::Channel)),
+            person: None,
             _lease: lease,
         })
     }
@@ -791,9 +794,9 @@ impl Client {
         let target = crate::target::sealed::Parts {
             text: std::borrow::Cow::Owned(query.actor.nick().to_string()),
             origin: crate::message_ref::conversation_origin(query.conversation()),
-            recipient: Some(crate::message_ref::actor_recipient(query)),
+            recipient: None,
             channel: None,
-            user: None,
+            user: Some(query.actor.clone()),
         };
         let text = text.into();
         let command = query.command.clone();
@@ -808,7 +811,7 @@ impl Client {
                 .resolve_send("ctcp_reply: query", target.into_owned())
                 .await?;
             let reply = Line::notice(&target.text, body);
-            client.send_message_guarded(reply, target.guard).await
+            client.send_chat_message(target, reply).await
         })
     }
 
@@ -858,6 +861,25 @@ impl Client {
         receiver.await.map_err(|_| Error::connection_lost())?
     }
 
+    async fn send_chat_message(&self, target: ResolvedSend, message: Line) -> Result<(), Error> {
+        let Some(proof) = target.person else {
+            return self.send_message_guarded(message, target.guard).await;
+        };
+        let command =
+            papo_core::PersonCommand::__new(message).expect("a chat command has a person target");
+        let (result, receiver) = oneshot::channel();
+        self.commands
+            .send(Command::SendPerson {
+                proof,
+                command,
+                typing_target: target.text,
+                result,
+            })
+            .await
+            .map_err(|_| Error::connection_lost())?;
+        receiver.await.map_err(|_| Error::connection_lost())?
+    }
+
     pub(crate) async fn correlated(
         &self,
         message: Line,
@@ -878,6 +900,31 @@ impl Client {
                 message,
                 matcher,
                 guard,
+                result,
+            })
+            .await
+            .map_err(|_| Error::connection_lost())?;
+        receiver.await.map_err(|_| Error::connection_lost())?
+    }
+
+    async fn correlated_chat(
+        &self,
+        target: &ResolvedSend,
+        message: Line,
+    ) -> Result<Response, Error> {
+        let Some(proof) = target.person.as_ref() else {
+            return self
+                .correlated_guarded(message, None, target.guard.clone())
+                .await;
+        };
+        let command =
+            papo_core::PersonCommand::__new(message).expect("a chat command has a person target");
+        let (result, receiver) = oneshot::channel();
+        self.commands
+            .send(Command::RequestPerson {
+                proof: proof.clone(),
+                command,
+                typing_target: target.text.clone(),
                 result,
             })
             .await
@@ -1121,14 +1168,14 @@ impl Client {
                     UnsupportedReason::TagDenied,
                 )));
             }
-            let line = Line::tagmsg(target.text)
+            let line = Line::tagmsg(&target.text)
                 .with_tag(reply_tag, message_id.as_ref())
                 .with_tag(reaction_tag, emoji);
             if state.supports(Feature::LabeledResponse) {
-                let response = client.correlated_guarded(line, None, target.guard).await?;
+                let response = client.correlated_chat(&target, line).await?;
                 crate::requests::empty(&response)
             } else {
-                client.send_message_guarded(line, target.guard).await
+                client.send_chat_message(target, line).await
             }
         })
     }
@@ -1219,11 +1266,7 @@ impl Client {
                             params.push(reason.clone());
                         }
                         let response = client
-                            .correlated_guarded(
-                                Line::new("REDACT").with_params(params),
-                                None,
-                                target.guard.clone(),
-                            )
+                            .correlated_chat(&target, Line::new("REDACT").with_params(params))
                             .await?;
                         crate::requests::empty(&response)?;
                     }

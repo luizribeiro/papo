@@ -1104,7 +1104,7 @@ async fn broadcasts_are_not_replyable_message_events() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn manual_ctcp_replies_match_automatic_framing_and_target_the_actor() {
+async fn event_reply_needs_no_who() {
     let mut automatic = Session::new(
         config().rate_limit(crate::RateLimit::unlimited()).ctcp(
             crate::CtcpReplies::off()

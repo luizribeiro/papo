@@ -125,10 +125,22 @@ pub(crate) enum Command {
         guard: Option<papo_core::TargetGuard>,
         result: oneshot::Sender<Result<(), Error>>,
     },
+    SendPerson {
+        proof: papo_core::Proven,
+        command: papo_core::PersonCommand,
+        typing_target: String,
+        result: oneshot::Sender<Result<(), Error>>,
+    },
     Request {
         message: Line,
         matcher: Option<ResponseMatcher>,
         guard: Option<papo_core::TargetGuard>,
+        result: oneshot::Sender<Result<Response, Error>>,
+    },
+    RequestPerson {
+        proof: papo_core::Proven,
+        command: papo_core::PersonCommand,
+        typing_target: String,
         result: oneshot::Sender<Result<Response, Error>>,
     },
     Join {
@@ -1136,6 +1148,17 @@ where
                         Err(error) => { _ = result.send(Err(Error::build(error))); }
                     }
                 }
+                Some(Command::SendPerson { proof, command, typing_target, result }) => {
+                    match session.send_person_tracked(now(), proof, command) {
+                        Ok(token) => {
+                            active_typing.remove(
+                                session.isupport().casemapping().fold(&typing_target).as_ref(),
+                            );
+                            transmits.insert(token, PendingTransmit::Empty(result));
+                        }
+                        Err(error) => { _ = result.send(Err(Error::build(error))); }
+                    }
+                }
                 Some(Command::Request { message, matcher, guard, result }) => {
                     let typing_target = text_target(&message)
                         .map(|target| session.isupport().casemapping().fold(target).into_owned());
@@ -1169,6 +1192,17 @@ where
                         Err(error) => {
                             _ = result.send(Err(Error::request(error)));
                         }
+                    }
+                }
+                Some(Command::RequestPerson { proof, command, typing_target, result }) => {
+                    match session.request_person(now(), proof, command) {
+                        Ok(id) => {
+                            active_typing.remove(
+                                session.isupport().casemapping().fold(&typing_target).as_ref(),
+                            );
+                            requests.insert(id, PendingRequest::Response(result));
+                        }
+                        Err(error) => { _ = result.send(Err(Error::request(error))); }
                     }
                 }
                 Some(Command::Join { channel, key, result }) => {
