@@ -293,8 +293,6 @@ mod builder;
 mod client;
 mod conversation;
 mod direct;
-#[allow(dead_code)]
-mod direct_runtime;
 mod direct_to;
 mod driver;
 mod entropy;

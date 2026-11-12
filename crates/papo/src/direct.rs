@@ -39,6 +39,7 @@ pub(crate) struct MonitorLease {
 }
 
 impl MonitorLease {
+    #[allow(dead_code)]
     pub(crate) fn new(
         recipient: papo_core::RecipientGuard,
         commands: mpsc::Sender<crate::driver::Command>,
@@ -68,15 +69,6 @@ impl DirectRef {
     ) -> Self {
         assert!(!monitored, "monitored references transfer an acquisition");
         Self::with_lease(client, recipient, None, None, None)
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn acquired(
-        client: &crate::Client,
-        acquired: crate::direct_runtime::Acquired,
-    ) -> Self {
-        let (recipient, lease) = acquired.into_parts();
-        Self::with_lease(client, recipient, Some(lease), None, None)
     }
 
     pub(crate) fn watched(

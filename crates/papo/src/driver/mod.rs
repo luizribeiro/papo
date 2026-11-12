@@ -182,12 +182,6 @@ pub(crate) enum Command {
         target: String,
         result: oneshot::Sender<Result<Response, Error>>,
     },
-    #[allow(dead_code)]
-    DirectAcquire {
-        nick: String,
-        commands: mpsc::Sender<Command>,
-        result: oneshot::Sender<Result<crate::direct_runtime::Acquired, Error>>,
-    },
     ProveUser {
         nick: crate::Nick,
         account: crate::Account,
@@ -1258,38 +1252,6 @@ where
                         Ok(id) => { requests.insert(id, PendingRequest::Response(result)); }
                         Err(error) => { _ = result.send(Err(Error::request(error))); }
                     }
-                }
-                Some(Command::DirectAcquire {
-                    nick,
-                    commands,
-                    result,
-                }) => {
-                    let already_reserved = session.__monitor_reserves(&nick);
-                    if !already_reserved
-                        && let Some(limit) = session.__monitor_limit()
-                        && session.__monitor_reserved_len() >= limit
-                    {
-                        _ = result.send(Err(Error::MonitorFull { limit }));
-                        continue;
-                    }
-                    let recipient =
-                        session.__direct_acquire(&nick, None, None, crate::Account::Unknown);
-                    publish_session_state(events, session);
-                    let confirmation = if session.__monitor_confirms(&nick) {
-                        None
-                    } else {
-                        let (result, receiver) = oneshot::channel();
-                        direct_waiters.push(PendingDirect {
-                            recipient: recipient.clone(),
-                            result,
-                        });
-                        Some(receiver)
-                    };
-                    _ = result.send(Ok(crate::direct_runtime::Acquired::new(
-                        recipient,
-                        confirmation,
-                        commands,
-                    )));
                 }
                 Some(Command::ProveUser { nick, account, lines, result }) => {
                     let proof = session
