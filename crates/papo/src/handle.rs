@@ -727,6 +727,22 @@ mod tests {
     }
 
     #[test]
+    fn watch_debug_is_opaque_and_equality_is_per_lease() {
+        let client = client_with_joined_users();
+        let alice = client.query("Alice").unwrap();
+        let first = alice.watch();
+        let second = alice.watch();
+
+        assert_eq!(first, first.clone());
+        assert_ne!(first, second);
+        assert_eq!(format!("{first:?}"), "Watch { .. }");
+        assert_eq!(
+            format!("{:?}", client.state().watch_registry()),
+            "WatchRegistry { .. }"
+        );
+    }
+
+    #[test]
     fn watch_leases_share_one_desired_identity() {
         let client = client_with_joined_users();
         let user = client.query("Alice").unwrap();
