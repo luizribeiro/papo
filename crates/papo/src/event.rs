@@ -6050,7 +6050,7 @@ mod tests {
     }
 
     fn mode_event(subject: Subject, own_nick: Option<&str>) -> super::ModeChanged {
-        let mapping = Casemapping::default();
+        let mapping = Casemapping::Rfc1459;
         super::ModeChanged {
             msgid: None,
             server_time: None,
@@ -6068,7 +6068,7 @@ mod tests {
 
     #[test]
     fn mode_about_covers_nick_arguments_user_subjects_and_history() {
-        let mapping = Casemapping::default();
+        let mapping = Casemapping::Rfc1459;
         let own = ModeChange::__new(
             'o',
             ModeAction::Add,
@@ -6101,14 +6101,17 @@ mod tests {
         );
 
         let user_mode = ModeChange::__new('i', ModeAction::Add, None);
-        assert_eq!(
-            mode_event(
-                Subject::User(user_handle(mapping.nick("emily"))),
-                Some("emily"),
-            )
-            .about(&user_mode),
-            Authorship::Own
-        );
+        for (subject, own_nick, expected) in [
+            ("papo{bot}", Some("Papo[Bot]"), Authorship::Own),
+            ("alice", Some("Papo[Bot]"), Authorship::Other),
+            ("alice", None, Authorship::Unknown),
+        ] {
+            assert_eq!(
+                mode_event(Subject::User(user_handle(mapping.nick(subject))), own_nick,)
+                    .about(&user_mode),
+                expected
+            );
+        }
         assert_eq!(channel_mode.about(&user_mode), Authorship::Other);
     }
 
