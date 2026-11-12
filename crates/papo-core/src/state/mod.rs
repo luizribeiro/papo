@@ -937,25 +937,6 @@ impl State {
         )
     }
 
-    pub(crate) fn prove_direct(
-        &mut self,
-        recipient: &crate::RecipientGuard,
-        account: Account,
-    ) -> Option<()> {
-        let nick = recipient.__nick();
-        if self.__reply_token_for(nick.as_str()) != recipient.__token() {
-            return None;
-        }
-        let user = self.users.get_mut(nick.key())?;
-        if user.account != *recipient.__account() && user.account != account {
-            return None;
-        }
-        user.update_account(account);
-        user.monitored = true;
-        self.mark_changed();
-        Some(())
-    }
-
     #[doc(hidden)]
     #[must_use]
     pub fn __recipient_changed(&self, target: &str, token: crate::ReplyToken) -> bool {

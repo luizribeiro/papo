@@ -5199,22 +5199,6 @@ impl Session {
         recipient
     }
 
-    /// Refreshes identity facts for an already acquired direct recipient.
-    #[doc(hidden)]
-    pub fn __direct_prove(
-        &mut self,
-        recipient: &RecipientGuard,
-        account: Account,
-    ) -> Option<RecipientGuard> {
-        self.state.prove_direct(recipient, account.clone())?;
-        self.state_generation = self.state_generation.wrapping_add(1);
-        let nick = recipient.__nick();
-        let recipient = RecipientGuard::new(&self.state, nick.clone(), account);
-        self.monitor
-            .refresh_direct_identity(nick.as_str(), recipient.__token());
-        Some(recipient)
-    }
-
     /// Releases one guarded direct recipient monitor reference.
     #[doc(hidden)]
     pub fn __direct_release(&mut self, recipient: &RecipientGuard) {
