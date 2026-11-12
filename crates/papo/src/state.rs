@@ -184,14 +184,20 @@ impl Channel {
     }
 
     /// Returns a member using the server's current casemapping.
-    #[must_use]
-    pub fn member(&self, nick: impl crate::AsNick) -> Option<&crate::Member> {
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::ForeignReference`] when the user belongs to another client.
+    pub fn member(
+        &self,
+        nick: impl crate::AsNick,
+    ) -> Result<Option<&crate::Member>, crate::ForeignReference> {
         let nick = crate::AsNick::__parts(&nick);
         let origin = self.name().origin();
         if nick.origin != crate::Origin::NONE && nick.origin != origin {
-            return None;
+            return Err(crate::ForeignReference);
         }
-        self.inner.member(nick.text.as_ref())
+        Ok(self.inner.member(nick.text.as_ref()))
     }
 }
 
@@ -989,7 +995,7 @@ mod name_tests {
     }
 
     #[test]
-    fn user_lookup_accepts_local_names_and_refuses_foreign_names() {
+    fn person_lookup_identity_matrix() {
         let local = crate::Origin::__new(73);
         let mut config = Config::default().nick("papo");
         config.origin = local;
@@ -1010,6 +1016,12 @@ mod name_tests {
         );
         assert_eq!(
             state.user(crate::Origin::__new(91).__nick(state.casemapping(), "alice")),
+            Err(crate::ForeignReference)
+        );
+        let channel = state.channel("#review").unwrap().unwrap();
+        assert_eq!(channel.member("ALICE").unwrap().unwrap().nick(), "alice");
+        assert_eq!(
+            channel.member(crate::Origin::__new(91).__nick(state.casemapping(), "alice")),
             Err(crate::ForeignReference)
         );
     }

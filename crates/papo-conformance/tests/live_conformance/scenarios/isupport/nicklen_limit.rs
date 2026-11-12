@@ -43,6 +43,7 @@ async fn nicklen_limit(s: Scenario) -> papo_testing::Result<()> {
             .__channel_local(&channel)
             .unwrap()
             .member(&at_limit)
+            .unwrap()
             .is_some()
     );
     assert!(
@@ -51,6 +52,7 @@ async fn nicklen_limit(s: Scenario) -> papo_testing::Result<()> {
             .__channel_local(&channel)
             .unwrap()
             .member(&original)
+            .unwrap()
             .is_none()
     );
 

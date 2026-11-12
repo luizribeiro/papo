@@ -2215,7 +2215,7 @@ pub const fn papo::Channel::created_at(&self) -> core::option::Option<papo_proto
 pub const fn papo::Channel::is_synced(&self) -> bool
 pub const fn papo::Channel::key(&self) -> core::option::Option<&papo::Secret>
 pub fn papo::Channel::list(&self, papo::ListMode) -> core::option::Option<&[papo::ModeListEntry]>
-pub fn papo::Channel::member(&self, impl papo::AsNick) -> core::option::Option<&papo::Member>
+pub fn papo::Channel::member(&self, impl papo::AsNick) -> core::result::Result<core::option::Option<&papo::Member>, papo::ForeignReference>
 pub fn papo::Channel::members(&self) -> impl core::iter::traits::exact_size::ExactSizeIterator<Item = &papo::Member>
 pub fn papo::Channel::mode(&self, char) -> core::option::Option<papo::ModeValue<'_>>
 pub fn papo::Channel::modes(&self) -> impl core::iter::traits::iterator::Iterator<Item = (char, papo::ModeValue<'_>)>

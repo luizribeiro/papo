@@ -47,12 +47,14 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
             channel_state
                 .member(bob_nick.as_str())
                 .unwrap()
+                .unwrap()
                 .prefixes()
                 .is_empty()
         );
         assert_eq!(
             channel_state
                 .member(alice_nick.as_str())
+                .unwrap()
                 .unwrap()
                 .prefixes(),
             &[papo::Prefix::__new('o', '@')]
@@ -84,6 +86,7 @@ async fn prefix_above_rank_refused(s: Scenario) -> papo_testing::Result<()> {
             .__channel_local(&channel)
             .unwrap()
             .member(bob_nick.as_str())
+            .unwrap()
             .unwrap();
         assert_eq!(member.prefixes(), &[papo::Prefix::__new('o', '@')]);
     }

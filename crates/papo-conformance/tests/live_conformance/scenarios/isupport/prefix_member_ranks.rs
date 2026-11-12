@@ -111,6 +111,7 @@ fn member_prefixes(state: &State, channel: &str, nick: &str) -> Vec<char> {
         .unwrap()
         .member(nick)
         .unwrap()
+        .unwrap()
         .prefixes()
         .iter()
         .map(|prefix| prefix.symbol())
@@ -198,6 +199,7 @@ async fn assert_dave_view(
         .__channel_local(channel)
         .unwrap()
         .member(bob_nick.as_str())
+        .unwrap()
         .unwrap();
     assert_eq!(
         member

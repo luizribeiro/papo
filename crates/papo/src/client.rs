@@ -1548,7 +1548,7 @@ impl Client {
             let already_set = crate::mode::tracked_ban(&state, &channel, &ban);
             let target_was_present = state
                 .channel_local(&channel)
-                .is_some_and(|joined| joined.member(&resolved_nick).is_some());
+                .is_some_and(|joined| joined.member(&resolved_nick).unwrap().is_some());
             drop(state);
             let commands = client.commands.clone();
             let (result, receiver) = oneshot::channel();
@@ -1596,10 +1596,9 @@ impl Client {
                             }
                         }
                         if target_was_present
-                            && client
-                                .state()
-                                .channel_local(&channel)
-                                .is_none_or(|joined| joined.member(&resolved_nick).is_none())
+                            && client.state().channel_local(&channel).is_none_or(|joined| {
+                                joined.member(&resolved_nick).unwrap().is_none()
+                            })
                         {
                             return Ok(crate::KickbanOutcome {
                                 kick: Err(Error::TargetGone),

@@ -6466,7 +6466,7 @@ async fn kickban_stops_when_the_ban_is_unconfirmed_or_the_target_leaves() {
         while client
             .state()
             .channel_local("#papo")
-            .is_none_or(|channel| channel.member("carol").is_none())
+            .is_none_or(|channel| channel.member("carol").unwrap().is_none())
         {
             tokio::task::yield_now().await;
         }
@@ -9801,6 +9801,7 @@ async fn quit_publishes_member_removal_while_reading_ahead() {
             .channel_local("#papo")
             .unwrap()
             .member("alice")
+            .unwrap()
             .is_some()
     );
     saturate_events(&mut server, &events).await;
@@ -9827,6 +9828,7 @@ async fn quit_publishes_member_removal_while_reading_ahead() {
                     .channel_local("#papo")
                     .unwrap()
                     .member("alice")
+                    .unwrap()
                     .is_none()
             );
             break;
@@ -10201,6 +10203,7 @@ async fn overflow_drops_state_events_before_messages() {
             .channel_local("#papo")
             .unwrap()
             .member("alice")
+            .unwrap()
             .is_some()
     );
 
@@ -10245,7 +10248,14 @@ async fn overflow_with_only_state_events_reports_no_message_gaps() {
     assert!(lagged.gaps.is_empty());
     let state = client.state();
     for nick in ["alice", "bob", "carol", "dan"] {
-        assert!(state.channel_local("#papo").unwrap().member(nick).is_some());
+        assert!(
+            state
+                .channel_local("#papo")
+                .unwrap()
+                .member(nick)
+                .unwrap()
+                .is_some()
+        );
     }
 
     drop(events);
@@ -10407,7 +10417,7 @@ async fn client_reads_owned_state_snapshots() {
     let channel = state.channel_local("#papo").unwrap();
     assert!(channel.is_synced());
     assert_eq!(
-        prefix_symbols(channel.member("EMILY").unwrap().prefixes()),
+        prefix_symbols(channel.member("EMILY").unwrap().unwrap().prefixes()),
         ['+']
     );
 
@@ -10509,10 +10519,16 @@ async fn channel_accessors_report_the_join_burst() {
                 .casemapping(crate::Casemapping::default()),
         );
     let foreign = foreign_client.state().name_rules().unwrap().nick("alice");
-    assert_eq!(channel.member(&same_client).unwrap().nick(), "alice");
-    assert!(channel.member(&foreign).is_none());
-    assert_eq!(channel.member(&originless).unwrap().nick(), "alice");
-    assert!(channel.member("missing").is_none());
+    assert_eq!(
+        channel.member(&same_client).unwrap().unwrap().nick(),
+        "alice"
+    );
+    assert_eq!(channel.member(&foreign), Err(crate::ForeignReference));
+    assert_eq!(
+        channel.member(&originless).unwrap().unwrap().nick(),
+        "alice"
+    );
+    assert!(channel.member("missing").unwrap().is_none());
 
     within(server.shutdown()).await.unwrap();
     assert!(matches!(

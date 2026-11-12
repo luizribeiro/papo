@@ -42,8 +42,8 @@ async fn fixture_pair_with(
             .__channel_local(&channel)
             .expect("joined channel is in state");
         assert!(members.is_synced());
-        assert!(members.member(alice.nick().as_str()).is_some());
-        assert!(members.member(bob.nick().as_str()).is_some());
+        assert!(members.member(alice.nick().as_str()).unwrap().is_some());
+        assert!(members.member(bob.nick().as_str()).unwrap().is_some());
     }
     Ok((alice, bob, channel))
 }
@@ -537,7 +537,7 @@ async fn status_message(s: Scenario) -> papo_testing::Result<()> {
     assert!(
         bob.snapshot()
             .__channel_local(&channel)
-            .and_then(|members| members.member(bob.nick()))
+            .and_then(|members| members.member(bob.nick()).unwrap())
             .is_some_and(|member| member
                 .prefixes()
                 .iter()

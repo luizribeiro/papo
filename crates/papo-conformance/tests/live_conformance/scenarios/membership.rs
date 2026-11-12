@@ -122,6 +122,7 @@ async fn extended_join(s: Scenario) -> papo_testing::Result<()> {
             .__channel_local(&channel)
             .unwrap()
             .member(alice_nick.as_str())
+            .unwrap()
             .is_some()
     );
     assert!(
@@ -130,6 +131,7 @@ async fn extended_join(s: Scenario) -> papo_testing::Result<()> {
             .__channel_local(&channel)
             .unwrap()
             .member(bob_nick.as_str())
+            .unwrap()
             .is_some()
     );
     bob.expect_none(Event::as_joined).await?;
@@ -168,6 +170,7 @@ async fn userhost_in_names(s: Scenario) -> papo_testing::Result<()> {
             .__channel_local(&channel)
             .unwrap()
             .member(alice_nick.as_str())
+            .unwrap()
             .is_some()
     );
     assert!(
@@ -176,6 +179,7 @@ async fn userhost_in_names(s: Scenario) -> papo_testing::Result<()> {
             .__channel_local(&channel)
             .unwrap()
             .member(bob_nick.as_str())
+            .unwrap()
             .is_some()
     );
     Ok(())
@@ -296,7 +300,12 @@ async fn no_implicit_names(s: Scenario) -> papo_testing::Result<()> {
     let state = alice.snapshot();
     let joined_channel = state.__channel_local(&channel).unwrap();
     assert!(joined_channel.is_synced());
-    assert!(joined_channel.member(alice_nick.as_str()).is_some());
+    assert!(
+        joined_channel
+            .member(alice_nick.as_str())
+            .unwrap()
+            .is_some()
+    );
     alice.expect_none(Event::as_channel_synced).await?;
     Ok(())
 }
@@ -344,7 +353,12 @@ async fn server_forced_join(s: Scenario) -> papo_testing::Result<()> {
     let state = alice.snapshot();
     let joined_channel = state.__channel_local(&channel).unwrap();
     assert!(joined_channel.is_synced());
-    assert!(joined_channel.member(alice_nick.as_str()).is_some());
+    assert!(
+        joined_channel
+            .member(alice_nick.as_str())
+            .unwrap()
+            .is_some()
+    );
     Ok(())
 }
 
@@ -401,6 +415,7 @@ async fn multiple_joins(s: Scenario) -> papo_testing::Result<()> {
                 .__channel_local(channel)
                 .unwrap()
                 .member(bob_nick.as_str())
+                .unwrap()
                 .is_some()
         );
     }
@@ -450,6 +465,7 @@ async fn multiple_joins(s: Scenario) -> papo_testing::Result<()> {
                 .__channel_local(channel)
                 .unwrap()
                 .member(bob_nick.as_str())
+                .unwrap()
                 .is_none()
         );
     }
@@ -614,7 +630,7 @@ async fn multi_prefix(s: Scenario) -> papo_testing::Result<()> {
     let prefixes = bob
         .snapshot()
         .__channel_local(&channel)
-        .and_then(|channel| channel.member(alice_nick.as_str()))
+        .and_then(|channel| channel.member(alice_nick.as_str()).unwrap())
         .map(|member| member.prefixes().to_vec());
     assert_eq!(
         prefixes.map(|prefixes| {
@@ -631,6 +647,7 @@ async fn multi_prefix(s: Scenario) -> papo_testing::Result<()> {
             .__channel_local(&channel)
             .unwrap()
             .member(bob_nick.as_str())
+            .unwrap()
             .is_some()
     );
     bob.expect_none(|event| {
@@ -684,6 +701,7 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
             .unwrap()
             .member(bob_nick.as_str())
             .unwrap()
+            .unwrap()
             .rank()
             >= Some(Rank::Op)
     );
@@ -709,6 +727,7 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
             .__channel_local(&channel)
             .unwrap()
             .member(carol_nick.as_str())
+            .unwrap()
             .is_none()
     );
     assert!(
@@ -716,6 +735,7 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
             .__channel_local(&channel)
             .unwrap()
             .member(carol_nick.as_str())
+            .unwrap()
             .is_none()
     );
     carol.expect_none(Event::as_invited).await?;
@@ -781,6 +801,7 @@ async fn invite_rules(s: Scenario) -> papo_testing::Result<()> {
                     .__channel_local(&channel)
                     .unwrap()
                     .member(carol_nick.as_str())
+                    .unwrap()
                     .is_some()
             );
             assert!(
@@ -789,6 +810,7 @@ async fn invite_rules(s: Scenario) -> papo_testing::Result<()> {
                     .__channel_local(&channel)
                     .unwrap()
                     .member(carol_nick.as_str())
+                    .unwrap()
                     .is_some()
             );
         }
@@ -800,6 +822,7 @@ async fn invite_rules(s: Scenario) -> papo_testing::Result<()> {
                     .__channel_local(&channel)
                     .unwrap()
                     .member(carol_nick.as_str())
+                    .unwrap()
                     .is_none()
             );
             assert!(carol.snapshot().__channel_local(&channel).is_none());
@@ -836,6 +859,7 @@ async fn part(s: Scenario) -> papo_testing::Result<()> {
             .__channel_local(&channel)
             .unwrap()
             .member(alice_nick.as_str())
+            .unwrap()
             .is_none()
     );
     alice.expect_none(Event::as_parted).await?;
@@ -891,6 +915,7 @@ async fn part_multiple_and_refusal(s: Scenario) -> papo_testing::Result<()> {
                 .__channel_local(channel)
                 .unwrap()
                 .member(alice_nick.as_str())
+                .unwrap()
                 .is_none()
         );
     }
@@ -937,6 +962,7 @@ async fn quit(s: Scenario) -> papo_testing::Result<()> {
             .__channel_local(&channel)
             .unwrap()
             .member(alice_nick.as_str())
+            .unwrap()
             .is_none()
     );
     bob.expect_none(Event::as_quit).await?;
@@ -973,6 +999,7 @@ async fn kick(s: Scenario) -> papo_testing::Result<()> {
             .__channel_local(&channel)
             .unwrap()
             .member(bob_nick.as_str())
+            .unwrap()
             .is_none()
     );
     assert!(bob.snapshot().__channel_local(&channel).is_none());
@@ -1115,6 +1142,7 @@ async fn kick_rules(s: Scenario) -> papo_testing::Result<()> {
                 .__channel_local(&channel)
                 .unwrap()
                 .member(nick)
+                .unwrap()
                 .is_none()
         );
     }
@@ -1139,6 +1167,7 @@ fn assert_kick_membership(
                 .__channel_local(channel)
                 .unwrap()
                 .member(carol_nick)
+                .unwrap()
                 .is_some()
         );
     }
@@ -1204,6 +1233,7 @@ async fn nick_change_and_collision(s: Scenario) -> papo_testing::Result<()> {
             .__channel_local(&channel)
             .unwrap()
             .member(&new_nick)
+            .unwrap()
             .is_some()
     );
     assert!(
@@ -1211,6 +1241,7 @@ async fn nick_change_and_collision(s: Scenario) -> papo_testing::Result<()> {
             .__channel_local(&channel)
             .unwrap()
             .member(&new_nick)
+            .unwrap()
             .is_some()
     );
     assert!(
@@ -1218,6 +1249,7 @@ async fn nick_change_and_collision(s: Scenario) -> papo_testing::Result<()> {
             .__channel_local(&channel)
             .unwrap()
             .member(old_nick.as_str())
+            .unwrap()
             .is_none()
     );
 

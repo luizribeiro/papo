@@ -282,6 +282,7 @@ async fn services(s: Scenario) -> papo_testing::Result<()> {
         .__channel_local(&channel)
         .unwrap()
         .member(state.nick())
+        .unwrap()
         .unwrap();
     assert_eq!(founder.rank(), Some(Rank::Owner));
     assert!(!founder.has(Rank::Op));

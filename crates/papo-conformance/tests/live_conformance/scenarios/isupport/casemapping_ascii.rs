@@ -138,6 +138,7 @@ async fn casemapping_ascii(s: Scenario) -> papo_testing::Result<()> {
             .__channel_local(&chan)
             .unwrap()
             .member(alice_square_nick.as_str().to_ascii_uppercase())
+            .unwrap()
             .is_some()
     );
     Ok(())

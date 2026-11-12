@@ -118,6 +118,7 @@ async fn quiet_by_dialect(s: Scenario) -> papo_testing::Result<()> {
             .__channel_local(&channel)
             .unwrap()
             .member(carol_nick.as_str())
+            .unwrap()
             .unwrap();
         assert!(member.prefixes().is_empty());
     }

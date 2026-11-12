@@ -640,8 +640,8 @@ async fn foreign_names_cannot_read_another_clients_state() {
     assert!(second.snapshot().read_marker(&foreign_channel).is_none());
     let state = second.snapshot();
     let channel = state.__channel_local("#papo").unwrap();
-    assert!(channel.member("alice").is_some());
-    assert!(channel.member(&foreign_nick).is_none());
+    assert!(channel.member("alice").unwrap().is_some());
+    assert_eq!(channel.member(&foreign_nick), Err(papo::ForeignReference));
 }
 
 #[tokio::test]
@@ -1912,9 +1912,9 @@ async fn unknown_playback_is_untyped_and_has_no_side_effects() {
         .__channel_local("#papo")
         .expect("own join remains cached");
     assert_eq!(channel.topic(), Some("current topic"));
-    assert!(channel.member("bob").is_none());
-    assert!(channel.member("alice-away").is_none());
-    assert!(channel.member("alice").is_some());
+    assert!(channel.member("bob").unwrap().is_none());
+    assert!(channel.member("alice-away").unwrap().is_none());
+    assert!(channel.member("alice").unwrap().is_some());
     assert!(
         tokio::time::timeout(Duration::from_millis(1), wire.next_sent())
             .await

@@ -133,6 +133,7 @@ async fn casemapping_rfc1459(s: Scenario) -> papo_testing::Result<()> {
         .__channel_local(&chan)
         .unwrap()
         .member(alice_folded_nick.as_str())
+        .unwrap()
         .unwrap();
     assert_eq!(own_member.nick().as_str(), alice_nick);
     assert_eq!(
