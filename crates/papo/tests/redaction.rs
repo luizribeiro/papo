@@ -113,7 +113,6 @@ fn request_builders_and_extension_handles_have_opaque_debug_output() {
         "HistoryRequest { .. }"
     );
     assert_eq!(format!("{:?}", client.metadata()), "Metadata { .. }");
-    assert_eq!(format!("{:?}", client.monitor()), "Monitor { .. }");
     assert_eq!(
         format!("{:?}", client.rename_channel("#papo").to("#papo-dev")),
         "RenameChannel { .. }"

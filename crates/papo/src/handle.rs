@@ -1,7 +1,10 @@
 use std::{
     collections::HashMap,
     hash::{Hash, Hasher},
-    sync::{Arc, Mutex, OnceLock, RwLock, Weak},
+    sync::{
+        Arc, Mutex, OnceLock, RwLock, Weak,
+        atomic::{AtomicU64, Ordering},
+    },
 };
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -14,6 +17,7 @@ enum UserIdentity {
 pub(crate) struct WatchRegistry {
     entries: Mutex<HashMap<UserIdentity, WatchEntry>>,
     commands: Mutex<Option<tokio::sync::mpsc::WeakSender<crate::driver::Command>>>,
+    next_order: AtomicU64,
 }
 
 impl std::fmt::Debug for WatchRegistry {
@@ -26,6 +30,7 @@ struct WatchEntry {
     user: Weak<UserInner>,
     leases: usize,
     live: bool,
+    order: u64,
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
@@ -54,6 +59,7 @@ impl WatchRegistry {
                     user: Arc::downgrade(&user.0),
                     leases: 1,
                     live: false,
+                    order: self.next_order.fetch_add(1, Ordering::Relaxed),
                 },
             );
         }
@@ -67,10 +73,14 @@ impl WatchRegistry {
     }
 
     pub(crate) fn desired(&self) -> Vec<String> {
-        lock(&self.entries)
+        let mut desired: Vec<_> = lock(&self.entries)
             .values()
-            .filter_map(|entry| entry.user.upgrade())
-            .map(|user| UserHandle(user).nick().to_string())
+            .filter_map(|entry| Some((entry.order, entry.user.upgrade()?)))
+            .collect();
+        desired.sort_unstable_by_key(|(order, _)| *order);
+        desired
+            .into_iter()
+            .map(|(_, user)| UserHandle(user).nick().to_string())
             .collect()
     }
 

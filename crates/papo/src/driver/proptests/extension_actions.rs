@@ -19,14 +19,6 @@ async fn arbitrary_extension_input_is_rejected_or_emits_valid_lines() {
             crate::Casemapping::default().nick(b),
             c
         ));
-        probe!(client, a, b, _c => client.monitor().add([
-            crate::Casemapping::default().nick(a),
-            crate::Casemapping::default().nick(b),
-        ]));
-        probe!(client, a, b, _c => client.monitor().remove([
-            crate::Casemapping::default().nick(a),
-            crate::Casemapping::default().nick(b),
-        ]));
         probe!(client, a, b, c => client.create_account(
             crate::NewAccount::new(crate::Secret::new(c))
                 .account(crate::Casemapping::default().account(a))
@@ -57,6 +49,5 @@ async fn arbitrary_extension_input_is_rejected_or_emits_valid_lines() {
         #[cfg(feature = "unstable")]
         probe!(client, a, _b, _c => client.webpush().unregister(a));
     }
-    check_action(|client| action(client.monitor().clear())).await;
     check_action(|client| action(client.metadata().clear())).await;
 }

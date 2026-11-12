@@ -169,13 +169,6 @@ fn assert_extension_futures_are_send(client: &Client, mapping: papo::Casemapping
             .unsubscribe([papo::MetadataKey::new("pronouns")]),
     );
     assert_send_static(client.metadata().sync("alice"));
-    assert_send_static(
-        client
-            .monitor()
-            .add([mapping.nick("alice"), mapping.nick("bob")]),
-    );
-    assert_send_static(client.monitor().remove([mapping.nick("bob")]));
-    assert_send_static(client.monitor().clear());
     assert_send_static(client.rename_channel("#r").to("#s"));
 }
 

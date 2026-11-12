@@ -54,6 +54,8 @@ User state lookups now return a typed `ForeignReference` error and preserve hand
 
 `State::presence` reports online, offline, or unknown evidence for a `UserHandle` without allocating a monitor slot.
 
+`UserHandle::watch` is now the sole public owner of server-side `MONITOR` entries; its synchronous `Watch` lease reports whether the server accepted the entry.
+
 KICK, INVITE, and WHOIS now carry person proof through their final wire write; INVITE accepts `UserHandle` directly.
 WHOIS returns `None` when the server reports that the nickname is absent.
 Channel member lookups now report foreign references instead of treating them as missing users.

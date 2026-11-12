@@ -182,17 +182,6 @@ pub(crate) enum Command {
         target: String,
         result: oneshot::Sender<Result<Response, Error>>,
     },
-    MonitorAdd {
-        nicks: Vec<String>,
-        result: oneshot::Sender<Result<(), Error>>,
-    },
-    MonitorRemove {
-        nicks: Vec<String>,
-        result: oneshot::Sender<Result<(), Error>>,
-    },
-    MonitorClear {
-        result: oneshot::Sender<Result<(), Error>>,
-    },
     DirectAcquire {
         nick: String,
         commands: mpsc::Sender<Command>,
@@ -1273,18 +1262,6 @@ where
                         Ok(id) => { requests.insert(id, PendingRequest::Response(result)); }
                         Err(error) => { _ = result.send(Err(Error::request(error))); }
                     }
-                }
-                Some(Command::MonitorAdd { nicks, result }) => {
-                    session.monitor_add(nicks);
-                    _ = result.send(Ok(()));
-                }
-                Some(Command::MonitorRemove { nicks, result }) => {
-                    session.monitor_remove(nicks);
-                    _ = result.send(Ok(()));
-                }
-                Some(Command::MonitorClear { result }) => {
-                    session.monitor_clear();
-                    _ = result.send(Ok(()));
                 }
                 Some(Command::DirectAcquire {
                     nick,

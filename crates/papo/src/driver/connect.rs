@@ -787,10 +787,7 @@ fn handle_disconnected_command(
             Command::Send { result, .. }
             | Command::SendPerson { result, .. }
             | Command::Typing { result, .. }
-            | Command::WaitChannelSync { result, .. }
-            | Command::MonitorAdd { result, .. }
-            | Command::MonitorRemove { result, .. }
-            | Command::MonitorClear { result },
+            | Command::WaitChannelSync { result, .. },
         ) => {
             _ = result.send(Err(Error::disconnected(disconnected.clone())));
             DisconnectedAction::Wait

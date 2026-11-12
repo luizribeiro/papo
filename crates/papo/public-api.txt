@@ -2328,8 +2328,6 @@ pub fn papo::Client::mode(&self, impl papo::AsConversation) -> papo::SetModes
 impl papo::Client
 pub fn papo::Client::metadata(&self) -> papo::Metadata
 impl papo::Client
-pub fn papo::Client::monitor(&self) -> papo::Monitor
-impl papo::Client
 pub fn papo::Client::rename_channel(&self, impl papo::AsChannel) -> papo::RenameChannel
 impl core::clone::Clone for papo::Client
 pub fn papo::Client::clone(&self) -> Self
@@ -2971,20 +2969,6 @@ impl core::marker::Unpin for papo::ModesApplied
 impl core::marker::UnsafeUnpin for papo::ModesApplied
 impl !core::panic::unwind_safe::RefUnwindSafe for papo::ModesApplied
 impl !core::panic::unwind_safe::UnwindSafe for papo::ModesApplied
-pub struct papo::Monitor
-impl papo::Monitor
-pub fn papo::Monitor::add<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: papo::AsNick
-pub fn papo::Monitor::clear(&self) -> papo::RequestFuture<()>
-pub fn papo::Monitor::remove<I, S>(&self, I) -> papo::RequestFuture<()> where I: core::iter::traits::collect::IntoIterator<Item = S>, S: papo::AsNick
-impl core::fmt::Debug for papo::Monitor
-pub fn papo::Monitor::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::marker::Freeze for papo::Monitor
-impl core::marker::Send for papo::Monitor
-impl core::marker::Sync for papo::Monitor
-impl core::marker::Unpin for papo::Monitor
-impl core::marker::UnsafeUnpin for papo::Monitor
-impl core::panic::unwind_safe::RefUnwindSafe for papo::Monitor
-impl core::panic::unwind_safe::UnwindSafe for papo::Monitor
 pub struct papo::NameRules<'a>
 impl papo::NameRules<'_>
 pub fn papo::NameRules<'_>::account(&self, impl core::convert::Into<alloc::string::String>) -> papo::AccountName

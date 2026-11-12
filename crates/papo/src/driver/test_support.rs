@@ -570,7 +570,7 @@ pub(crate) async fn complete_connect_extended_monitor(
     server: &mut DuplexStream,
     client: &super::Client,
     events: &mut super::Events,
-) {
+) -> Vec<crate::Watch> {
     welcome_burst(server).await;
     server_line(server, b":ergo.test CAP * LS :extended-monitor\r\n").await;
     client_line(server, b"CAP REQ :extended-monitor\r\n").await;
@@ -589,22 +589,21 @@ pub(crate) async fn complete_connect_extended_monitor(
         next_event(events).await,
         Some(Event::Connected(_))
     ));
-    add_monitors(server, client, &["alice", "bob"]).await;
+    add_monitors(server, client, &["alice", "bob"]).await
 }
 
 pub(crate) async fn add_monitors(
     server: &mut DuplexStream,
     client: &super::Client,
     nicks: &[&str],
-) {
+) -> Vec<crate::Watch> {
     let expected = format!("MONITOR + {}\r\n", nicks.join(","));
-    let nicks: Vec<_> = nicks.iter().map(|nick| (*nick).to_owned()).collect();
-    let add = tokio::spawn({
-        let client = client.clone();
-        async move { client.monitor().add(nicks).await }
-    });
+    let watches = nicks
+        .iter()
+        .map(|nick| client.query(*nick).unwrap().watch())
+        .collect();
     client_line(server, expected.as_bytes()).await;
-    assert!(within(add).await.unwrap().is_ok());
+    watches
 }
 
 pub(crate) async fn confirm_away(

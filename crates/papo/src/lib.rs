@@ -368,7 +368,6 @@ pub use ext::history::{
     MarkReadRequest, RecentConversation,
 };
 pub use ext::metadata::Metadata;
-pub use ext::monitor::Monitor;
 #[cfg(feature = "unstable")]
 pub use ext::{
     bouncer::{AddNetwork, Bouncer, ChangeNetwork},

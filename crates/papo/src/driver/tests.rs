@@ -5666,7 +5666,6 @@ async fn every_name_taking_method_returns_invalid_name() {
         InviteChannel,
         SetNick,
         Topic,
-        Monitor,
         Metadata,
         VerifyAccount,
         History,
@@ -5687,7 +5686,6 @@ async fn every_name_taking_method_returns_invalid_name() {
         (Method::InviteChannel, "invite: channel", "staff"),
         (Method::SetNick, "set_nick: nick", "#staff"),
         (Method::Topic, "topic: channel", "staff"),
-        (Method::Monitor, "monitor: nick", "#staff"),
         (Method::Metadata, "metadata.get: target", "bad target"),
         (Method::VerifyAccount, "verify_account: account", "*"),
         (Method::History, "history: conversation", "@#staff"),
@@ -5714,7 +5712,6 @@ async fn every_name_taking_method_returns_invalid_name() {
             Method::InviteChannel => client.invite(&user, bad).await,
             Method::SetNick => client.set_nick(bad).await,
             Method::Topic => client.set_topic(bad, "Release planning").await,
-            Method::Monitor => client.monitor().add([bad]).await,
             Method::Metadata => client
                 .metadata()
                 .get(bad, std::iter::empty::<crate::MetadataKey>())
@@ -10572,7 +10569,7 @@ async fn public_state_accessors_report_the_registered_session() {
     assert_eq!(client.state().away(), &crate::Away::Present);
     server_line(&mut server, b":ergo.test 005 papo-driver CASEMAPPING=ascii CHANTYPES=# PREFIX=(ov)@+ MONITOR=100 NICKLEN=27 BOUNCER_NETID=42 draft/FILEHOST=https://files.example.net/upload :are supported\r\n").await;
 
-    add_monitors(&mut server, &client, &["bob"]).await;
+    let _watches = add_monitors(&mut server, &client, &["bob"]).await;
 
     server_line(&mut server, b":papo-driver!papo@localhost MODE papo-driver +iw\r\n:papo-driver!papo@localhost JOIN #Papo\r\n:ergo.test 353 papo-driver = #Papo :@papo-driver alice!~alice@cloak.example\r\n:ergo.test 366 papo-driver #Papo :End of NAMES list\r\n:ergo.test 730 papo-driver :bob!bob@users.example\r\n").await;
     while !matches!(
@@ -10657,7 +10654,7 @@ async fn every_state_change_replaces_the_snapshot() {
     let config = config().wanted_caps(["extended-monitor"]);
     let (mut server, client, mut events, driver) = scripted(config);
     let driver = tokio::spawn(driver);
-    complete_connect_extended_monitor(&mut server, &client, &mut events).await;
+    let _watches = complete_connect_extended_monitor(&mut server, &client, &mut events).await;
     let mut previous = client.state();
 
     server_line(&mut server, b":papo-driver!papo@localhost JOIN #Papo\r\n").await;
@@ -10950,7 +10947,7 @@ async fn monitor_offline_snapshot_keeps_other_online_users() {
     let config = config().wanted_caps(["extended-monitor"]);
     let (mut server, client, mut events, driver) = scripted(config);
     let driver = tokio::spawn(driver);
-    complete_connect_extended_monitor(&mut server, &client, &mut events).await;
+    let _watches = complete_connect_extended_monitor(&mut server, &client, &mut events).await;
     server_line(
         &mut server,
         b":ergo.test 730 papo-driver :alice!~alice@cloak.example,bob!bob@users.example\r\n",
@@ -10985,7 +10982,7 @@ async fn disconnect_clears_monitor_presence_snapshot() {
     let config = config().wanted_caps(["extended-monitor"]);
     let (mut server, client, mut events, driver) = scripted(config);
     let driver = tokio::spawn(driver);
-    complete_connect_extended_monitor(&mut server, &client, &mut events).await;
+    let _watches = complete_connect_extended_monitor(&mut server, &client, &mut events).await;
     server_line(
         &mut server,
         b":ergo.test 730 papo-driver :alice!~alice@cloak.example\r\n",
