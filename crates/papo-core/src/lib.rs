@@ -5140,6 +5140,22 @@ impl Session {
         }
     }
 
+    /// Reconciles synchronous watch leases with the desired server-side monitor list.
+    #[doc(hidden)]
+    pub fn __reconcile_watches(&mut self, nicks: Vec<String>) {
+        let before = self.state.change_generation();
+        self.monitor.reconcile_watches(
+            nicks,
+            self.isupport.value(),
+            self.welcome_state.is_connected(),
+            &mut self.outbox,
+        );
+        self.sync_monitored_state();
+        if before != self.state.change_generation() {
+            self.state_generation = self.state_generation.wrapping_add(1);
+        }
+    }
+
     /// Acquires a reference-counted monitor entry for a guarded direct recipient.
     #[doc(hidden)]
     pub fn __direct_acquire(

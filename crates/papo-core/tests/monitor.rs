@@ -60,6 +60,20 @@ fn adds_removes_and_clears_monitored_nicks() {
 }
 
 #[test]
+fn watch_never_removes_an_existing_app_entry() {
+    registered()
+        .update(|session| session.monitor_add(["alice"]))
+        .client("MONITOR + alice")
+        .update(|session| session.__reconcile_watches(vec!["Alice".into()]))
+        .no_client()
+        .update(|session| session.__reconcile_watches(Vec::new()))
+        .no_client()
+        .update(|session| session.monitor_remove(["alice"]))
+        .client("MONITOR - alice")
+        .no_client();
+}
+
+#[test]
 fn guarded_direct_monitor_follows_rename_and_releases_its_watch() {
     let recipient = RefCell::new(None);
     registered()

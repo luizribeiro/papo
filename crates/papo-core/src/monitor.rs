@@ -14,6 +14,7 @@ type NickKey = Nick;
 #[derive(Debug, Default)]
 pub(super) struct Monitor {
     desired: Vec<String>,
+    watched: Vec<String>,
     direct: HashMap<NickKey, DirectWatch>,
     pending: HashSet<NickKey>,
     tracked: HashSet<NickKey>,
@@ -50,7 +51,7 @@ impl Monitor {
     }
 
     pub(super) fn desires(&self, nick: &str, isupport: &Isupport) -> bool {
-        self.desired
+        self.effective()
             .iter()
             .any(|known| crate::names_equal(isupport.casemapping(), known, nick))
     }
@@ -60,8 +61,8 @@ impl Monitor {
     }
 
     pub(super) fn tracked(&self) -> impl Iterator<Item = &str> {
-        self.desired
-            .iter()
+        self.effective()
+            .into_iter()
             .filter_map(|nick| self.reserves(nick).then_some(nick.as_str()))
     }
 
@@ -280,19 +281,78 @@ impl Monitor {
             LimitValue::Limited(limit) => limit,
             LimitValue::Unlimited => usize::MAX,
         };
-        let requested = self.desired[..self.desired.len().min(limit)].to_vec();
+        let desired: Vec<_> = self.effective().into_iter().cloned().collect();
+        let requested = desired[..desired.len().min(limit)].to_vec();
         self.pending
             .extend(requested.iter().map(|nick| self.casemapping.nick(nick)));
         transmit_chunks("+", &requested, outbox);
-        if self.desired.len() > limit {
+        if desired.len() > limit {
             outbox.event(Event::MonitorListFull {
                 limit,
-                nicks: self.desired[limit..]
+                nicks: desired[limit..]
                     .iter()
                     .map(|nick| self.casemapping.nick(nick))
                     .collect(),
             });
         }
+    }
+
+    pub(super) fn reconcile_watches(
+        &mut self,
+        nicks: Vec<String>,
+        isupport: &Isupport,
+        registered: bool,
+        outbox: &mut Outbox,
+    ) {
+        let mapping = self.names(isupport);
+        self.update_casemapping(mapping.casemapping());
+        let old: Vec<_> = self
+            .effective()
+            .into_iter()
+            .filter(|nick| self.reserves(nick))
+            .cloned()
+            .collect();
+        let mut known = HashSet::new();
+        self.watched = nicks
+            .into_iter()
+            .filter(|nick| {
+                let key = mapping.nick(nick);
+                key.check(isupport).is_ok() && known.insert(key)
+            })
+            .take(MAX_DESIRED)
+            .collect();
+        let effective: HashSet<_> = self
+            .effective()
+            .into_iter()
+            .map(|nick| mapping.nick(nick))
+            .collect();
+        self.pending.retain(|nick| effective.contains(nick));
+        self.tracked.retain(|nick| effective.contains(nick));
+        self.presence.retain(|nick, _| effective.contains(nick));
+        if !registered || isupport.monitor().is_none() {
+            return;
+        }
+        let limit = self.limit(isupport).unwrap_or(0);
+        let mut new: Vec<_> = self
+            .effective()
+            .into_iter()
+            .filter(|nick| self.reserves(nick))
+            .cloned()
+            .collect();
+        let desired: Vec<_> = self.effective().into_iter().cloned().collect();
+        for nick in &desired {
+            if new.len() == limit {
+                break;
+            }
+            if !self.reserves(nick) {
+                self.pending.insert(mapping.nick(nick));
+                new.push(nick.clone());
+            }
+        }
+        let removed = difference(&old, &new, mapping);
+        let added = difference(&new, &old, mapping);
+        transmit_chunks("-", &removed, outbox);
+        transmit_chunks("+", &added, outbox);
     }
 
     pub(super) fn add<I, S>(
@@ -394,9 +454,12 @@ impl Monitor {
             {
                 self.desired.remove(index);
                 let key = mapping.nick(nick);
-                self.pending.remove(&key);
-                self.tracked.remove(&key);
-                self.presence.remove(&key);
+                let watched = self.watched.iter().any(|known| mapping.nick(known) == key);
+                if !watched {
+                    self.pending.remove(&key);
+                    self.tracked.remove(&key);
+                    self.presence.remove(&key);
+                }
             }
         }
         if registered && isupport.monitor().is_some() {
@@ -644,6 +707,17 @@ impl Monitor {
         Names::new(isupport.casemapping(), self.casemapping.origin())
     }
 
+    fn effective(&self) -> Vec<&String> {
+        self.desired
+            .iter()
+            .chain(self.watched.iter().filter(|watched| {
+                !self.desired.iter().any(|nick| {
+                    self.casemapping.nick(nick.as_str()) == self.casemapping.nick(watched.as_str())
+                })
+            }))
+            .collect()
+    }
+
     fn update_casemapping(&mut self, mapping: Casemapping) {
         if self.casemapping.casemapping() == mapping {
             return;
@@ -676,6 +750,17 @@ impl Monitor {
             )));
         }
     }
+}
+
+fn difference(left: &[String], right: &[String], mapping: Names) -> Vec<String> {
+    left.iter()
+        .filter(|nick| {
+            !right
+                .iter()
+                .any(|other| mapping.nick(nick.as_str()) == mapping.nick(other.as_str()))
+        })
+        .cloned()
+        .collect()
 }
 
 pub(super) fn presence_nicks<'a>(message: &LineRef<'a>) -> Vec<&'a str> {
