@@ -139,3 +139,58 @@ async fn history_uses_account_pins_without_reusing_live_session_pins() {
             .is_err()
     );
 }
+
+#[tokio::test]
+async fn soju_history_actor_matching_a_shared_user_can_receive_a_reply() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("irc://offline.test", "reader")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&[
+        "account-tag",
+        "batch",
+        "draft/chathistory",
+        "extended-join",
+        "labeled-response",
+        "message-tags",
+        "server-time",
+    ])
+    .await;
+    connected(&mut events).await;
+    for line in [
+        ":reader!~u@mhqynk9w52dpq.irc JOIN #incident * :Papo Reader",
+        ":writer!~u@mhqynk9w52dpq.irc JOIN #incident * :Papo Writer",
+    ] {
+        join(&mut events, &mut wire, line).await;
+    }
+    wire.server(":reader!~u@mhqynk9w52dpq.irc NICK rreader")
+        .await;
+
+    let request = tokio::spawn({
+        let client = client.clone();
+        async move { client.history("writer").latest().limit(10).await }
+    });
+    assert_eq!(
+        wire.next_sent().await,
+        "@label=0 CHATHISTORY LATEST writer * 10"
+    );
+    for line in [
+        "@label=0 BATCH +reply labeled-response",
+        "@batch=reply BATCH +history chathistory writer",
+        "@time=2026-11-12T05:21:06.731Z;msgid=rtaqwb2dxm8u85ap38mvhqxy62;batch=history :writer!~u@mhqynk9w52dpq.irc PRIVMSG reader :can you send the incident report?",
+        "@batch=reply BATCH -history",
+        "BATCH -reply",
+    ] {
+        wire.server(line).await;
+    }
+    let page = request.await.unwrap().unwrap();
+    let message = page.chat_messages().next().unwrap().clone();
+
+    let reply = tokio::spawn(async move { client.reply(&message, "the report is attached").await });
+    assert_eq!(
+        wire.next_sent().await,
+        "@+reply=rtaqwb2dxm8u85ap38mvhqxy62 PRIVMSG writer :the report is attached"
+    );
+    assert!(reply.await.unwrap().is_ok());
+}

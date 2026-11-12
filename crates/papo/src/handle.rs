@@ -112,12 +112,14 @@ impl UserHandle {
                 .read()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             let token = if historical {
-                let crate::Account::LoggedIn(expected) = &account else {
-                    return None;
-                };
-                let user = snapshot.user(&nick)?;
-                (user.account().name() == Some(expected))
-                    .then(|| snapshot.core.__reply_token_for(nick.as_str()))
+                token.or_else(|| {
+                    let crate::Account::LoggedIn(expected) = &account else {
+                        return None;
+                    };
+                    let user = snapshot.user(&nick)?;
+                    (user.account().name() == Some(expected))
+                        .then(|| snapshot.core.__reply_token_for(nick.as_str()))
+                })
             } else {
                 token.or_else(|| Some(snapshot.core.__reply_token_for(nick.as_str())))
             }?;
@@ -625,6 +627,24 @@ mod tests {
             assert!(!debug.contains("alice-account"));
             assert!(!debug.contains("proof"));
         }
+    }
+
+    #[test]
+    fn historical_account_proof_requires_the_current_account() {
+        let client = client_with_joined_users();
+        let alice = client.query("Alice").unwrap();
+        let historical = |account| {
+            crate::UserHandle::from_event(
+                alice.0.nick.clone(),
+                crate::Account::LoggedIn(client.state().casemapping().account(account)),
+                None,
+                Some(&client.state),
+                true,
+            )
+        };
+
+        assert!(historical("alice-account").proof().is_some());
+        assert!(historical("replacement-account").proof().is_none());
     }
 
     #[test]

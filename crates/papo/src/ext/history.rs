@@ -153,6 +153,13 @@ pub(crate) fn history_item(
     received_at: SystemTime,
 ) -> Event {
     let state = client.state();
+    let actor_token = item
+        .as_message()
+        .or_else(|| item.as_incomplete())
+        .or_else(|| item.as_reacted())
+        .or_else(|| item.as_redacted())
+        .or_else(|| item.as_tag_msg())
+        .and_then(|line| shared_history_actor_token(&line.as_ref(), &state));
     let mapping = state.casemapping();
     let origin = client.origin();
     let account_tag_enabled = state.caps().contains_key(&crate::cap::ACCOUNT_TAG);
@@ -298,8 +305,30 @@ pub(crate) fn history_item(
             other(raw, received_at)
         }
     };
-    crate::event_impl::attach_message_handles(&mut event, None, Some(&client.state), true);
+    crate::event_impl::attach_message_handles(&mut event, actor_token, Some(&client.state), true);
     event
+}
+
+fn shared_history_actor_token(
+    message: &papo_proto::LineRef<'_>,
+    state: &crate::State,
+) -> Option<papo_core::ReplyToken> {
+    let papo_proto::Source::User {
+        nick,
+        username: Some(username),
+        host: Some(host),
+        ..
+    } = message.source()?
+    else {
+        return None;
+    };
+    let user = state.user(nick)?;
+    ((
+        user.channels().next().is_some(),
+        user.username(),
+        user.host(),
+    ) == (true, Some(username), Some(host)))
+        .then(|| state.core.__reply_token_for(nick))
 }
 
 fn historical_tagmsg(
@@ -1431,6 +1460,7 @@ mod tests {
 
     use super::{
         HistoryPage, HistoryReason, HistoryReference, RecentConversation, history_item, reaction,
+        shared_history_actor_token,
     };
 
     fn channel(value: crate::ChannelName) -> crate::ChannelHandle {
@@ -1474,6 +1504,28 @@ mod tests {
             panic!("expected a historical message")
         };
         message
+    }
+
+    #[test]
+    fn shared_history_actor_requires_the_current_full_prefix() {
+        let now = Instant::now();
+        let mut session = Session::new(Config::default().nick("reader"));
+        for line in [
+            b":reader!~u@reader.example JOIN #incident".as_slice(),
+            b":writer!~u@mhqynk9w52dpq.irc JOIN #incident".as_slice(),
+        ] {
+            session.handle_line(now, line);
+        }
+        let state = crate::State::from_session(&session, true);
+        let token = |source| {
+            let line = format!(":{source} PRIVMSG reader :can you send the incident report?");
+            shared_history_actor_token(&LineRef::parse(&line).unwrap(), &state)
+        };
+
+        assert!(token("writer!~u@mhqynk9w52dpq.irc").is_some());
+        assert!(token("writer!~other@mhqynk9w52dpq.irc").is_none());
+        assert!(token("writer!~u@replacement.example").is_none());
+        assert!(token("replacement!~u@mhqynk9w52dpq.irc").is_none());
     }
 
     #[test]
