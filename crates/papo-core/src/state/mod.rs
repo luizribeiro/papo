@@ -25,7 +25,7 @@ use crate::monitor::presence_nicks;
 use crate::{
     Authorship, Capabilities, Config, Conversation, Event, Handled, LastSeen, ListMode,
     MetadataValue, ModeArg, ModeChange, ModeListEntry, ModeValue, NameKey, Names, Outbox,
-    ReadMarker, Secret, Source, StateLimit, Subject, WhoOnJoin,
+    ReadMarker, RecipientGuard, Secret, Source, StateLimit, Subject, WhoOnJoin,
     bounded::BoundedCollection,
     cap,
     conversation::{LineTarget, classify_target_with_names},
@@ -39,6 +39,7 @@ const WHOX_FIELDS: &str = "%tcuhnfar,152";
 const WHOX_TOKEN: &str = "152";
 const MAX_LAST_SEEN_TARGETS: usize = 1_000;
 const MAX_DEPARTED_IDENTITIES: usize = 1_000;
+const MAX_PROVEN_IDENTITIES: usize = 1_000;
 const MAX_MESSAGE_USERS: usize = 1_000;
 
 #[derive(Clone, Copy)]
@@ -83,6 +84,7 @@ pub struct State {
     channel_epoch: u64,
     departure_sequence: u64,
     departed_identities: VecDeque<(crate::ReplyIdentity, Nick)>,
+    proven_identities: VecDeque<(crate::ReplyIdentity, Nick, Account)>,
     max_channels: usize,
     max_members_per_channel: usize,
     max_list_entries_per_mode: usize,
@@ -150,6 +152,7 @@ impl Clone for State {
             channel_epoch: self.channel_epoch,
             departure_sequence: self.departure_sequence,
             departed_identities: self.departed_identities.clone(),
+            proven_identities: self.proven_identities.clone(),
             max_channels: self.max_channels,
             max_members_per_channel: self.max_members_per_channel,
             max_list_entries_per_mode: self.max_list_entries_per_mode,
@@ -488,6 +491,7 @@ impl State {
             channel_epoch: 0,
             departure_sequence: 0,
             departed_identities: VecDeque::new(),
+            proven_identities: VecDeque::new(),
             max_channels: config.max_channels,
             max_members_per_channel: config.max_members_per_channel,
             max_list_entries_per_mode: config.max_list_entries_per_mode,
@@ -719,6 +723,22 @@ impl State {
                     }
             })
         });
+        let proven = guard.token.identity.and_then(|expected| {
+            self.proven_identities
+                .iter()
+                .find(|(identity, _, account)| {
+                    *identity == expected
+                        && match &guard.account {
+                            Account::LoggedIn(expected) => {
+                                matches!(account, Account::LoggedIn(actual) if actual == expected)
+                            }
+                            Account::Unknown | Account::LoggedOut => true,
+                        }
+                })
+        });
+        if let Some((_, nick, _)) = proven {
+            return crate::RecipientStatus::Current(nick.clone());
+        }
         let matching = tracked.or_else(|| match &guard.account {
             Account::LoggedIn(expected) => self.users.values().find(
                 |user| matches!(&user.account, Account::LoggedIn(actual) if actual == expected),
@@ -848,6 +868,7 @@ impl State {
             user.reply_epoch = self.reply_epoch;
         }
         self.departed_identities.clear();
+        self.proven_identities.clear();
         self.who_sweeps.clear();
         self.metadata.clear();
         self.typing = TypingTable::new();
@@ -884,6 +905,36 @@ impl State {
         }
         self.mark_changed();
         self.__reply_token_for(nick)
+    }
+
+    pub(crate) fn prove_who_identity(&mut self, nick: Nick, account: Account) -> RecipientGuard {
+        if let Some(user) = self.users.get_mut(nick.key()) {
+            user.update_account(account.clone());
+            let recipient = RecipientGuard::new(self, nick, account);
+            self.mark_changed();
+            return recipient;
+        }
+        self.departure_sequence = self
+            .departure_sequence
+            .checked_add(1)
+            .expect("recipient identity space exhausted");
+        let identity = crate::ReplyIdentity {
+            epoch: self.reply_epoch,
+            sequence: self.departure_sequence,
+        };
+        self.proven_identities
+            .push_back((identity, nick.clone(), account.clone()));
+        if self.proven_identities.len() > MAX_PROVEN_IDENTITIES {
+            self.proven_identities.pop_front();
+        }
+        RecipientGuard::from_parts(
+            nick,
+            account,
+            crate::ReplyToken {
+                origin: self.casemapping.origin(),
+                identity: Some(identity),
+            },
+        )
     }
 
     pub(crate) fn prove_direct(

@@ -1,6 +1,6 @@
 use papo_proto::{Line, Nick};
 
-use crate::{Account, RecipientGuard, Session};
+use crate::{Account, Session};
 
 use super::proof::{ProofFailure, Proven, ProvenKind};
 
@@ -30,21 +30,14 @@ impl Session {
         if !row_matches {
             return Err(ProofFailure::MissingEvidence);
         }
-        if self.state.user(&nick).is_none() {
-            self.state.track_direct(nick.as_str(), None, None);
+        if let Some(user) = self.state.user(&nick)
+            && user.account() != &Account::Unknown
+            && user.account() != &account
+        {
+            return Err(ProofFailure::IdentityChanged);
         }
-        let current_account = self
-            .state
-            .user(&nick)
-            .map_or(Account::Unknown, |user| user.account().clone());
-        let current = RecipientGuard::new(&self.state, nick, current_account);
-        self.state
-            .prove_direct(&current, account.clone())
-            .ok_or(ProofFailure::IdentityChanged)?;
+        let recipient = self.state.prove_who_identity(nick, account);
         self.state_generation = self.state_generation.wrapping_add(1);
-        let recipient = RecipientGuard::new(&self.state, current.nick, account);
-        self.monitor
-            .refresh_direct_identity(recipient.__nick().as_str(), recipient.__token());
         Ok(Proven {
             origin: recipient.token.origin,
             kind: ProvenKind::Person(recipient),
