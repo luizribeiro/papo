@@ -89,7 +89,7 @@ impl UserHandle {
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let account = snapshot
-            .user(&nick)
+            .user_local(&nick)
             .map_or(crate::Account::Unknown, |user| user.account().clone());
         let token = snapshot.core.__reply_token_for(nick.as_str());
         let proof = snapshot
@@ -116,7 +116,7 @@ impl UserHandle {
                     let crate::Account::LoggedIn(expected) = &account else {
                         return None;
                     };
-                    let user = snapshot.user(&nick)?;
+                    let user = snapshot.user_local(&nick)?;
                     (user.account().name() == Some(expected))
                         .then(|| snapshot.core.__reply_token_for(nick.as_str()))
                 })
@@ -177,7 +177,7 @@ impl UserHandle {
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let account = if self.0.account == crate::Account::Unknown {
             state
-                .user(&nick)
+                .user_local(&nick)
                 .map_or(&self.0.account, crate::User::account)
         } else {
             &self.0.account
@@ -387,7 +387,7 @@ impl crate::Client {
             .ok_or(crate::InvalidInput::NameRulesUnknown)?
             .nick(text);
         let account = state
-            .user(&nick)
+            .user_local(&nick)
             .map_or(crate::Account::Unknown, |user| user.account().clone());
         let proof = state
             .capture_recipient(&nick, account.clone())

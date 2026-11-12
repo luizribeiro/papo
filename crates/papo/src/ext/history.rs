@@ -322,7 +322,7 @@ fn shared_history_actor_token(
     else {
         return None;
     };
-    let user = state.user(nick)?;
+    let user = state.user_local(nick)?;
     ((
         user.channels().next().is_some(),
         user.username(),

@@ -150,7 +150,7 @@ impl DirectRef {
         else {
             return;
         };
-        let Some(user) = state.user(&nick) else {
+        let Some(user) = state.user_local(&nick) else {
             return;
         };
         if state
@@ -281,7 +281,7 @@ impl crate::Client {
         crate::RequestFuture::new(async move {
             let nick = client.resolve(crate::target::Role::Nick("direct: nick"), nick)?;
             let snapshot = client.state();
-            if let Some(user) = snapshot.user(&nick)
+            if let Some(user) = snapshot.user_local(&nick)
                 && (user.nick() == snapshot.nick() || user.channels().len() != 0)
             {
                 let Some(recipient) =

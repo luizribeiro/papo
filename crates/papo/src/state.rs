@@ -6,6 +6,20 @@ use papo_proto::{Casemapping, Mask, Nick};
 
 use crate::Isupport;
 
+fn resolve_user_parts(
+    state: &papo_core::State,
+    parts: &crate::target::sealed::Parts<'_>,
+) -> Result<Option<String>, crate::ForeignReference> {
+    let Some(proof) = parts.user.as_ref().and_then(crate::UserHandle::proof) else {
+        return Ok(Some(parts.text().to_owned()));
+    };
+    match state.__resolve_proven(proof) {
+        Ok(nick) => Ok(Some(nick.into_string())),
+        Err(papo_core::ProofFailure::ForeignReference) => Err(crate::ForeignReference),
+        Err(_) => Ok(None),
+    }
+}
+
 /// A read marker value reported by the server.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -615,6 +629,25 @@ impl State {
         self.core.user(nick.text.as_ref())
     }
 
+    pub(crate) fn user_checked(
+        &self,
+        nick: impl crate::AsNick,
+    ) -> Result<Option<&User>, crate::ForeignReference> {
+        let nick = crate::AsNick::__parts(&nick);
+        if nick.origin != crate::Origin::NONE && nick.origin != self.nick().origin() {
+            return Err(crate::ForeignReference);
+        }
+        let Some(nick) = resolve_user_parts(&self.core, &nick)? else {
+            return Ok(None);
+        };
+        Ok(self.core.user(nick))
+    }
+
+    pub(crate) fn user_local(&self, nick: impl crate::AsNick) -> Option<&User> {
+        self.user_checked(nick)
+            .expect("a local nickname cannot be foreign")
+    }
+
     /// Iterates over users currently reported online through `MONITOR`.
     ///
     /// Presence from `730` replies is included without requiring `extended-monitor`.
@@ -877,7 +910,10 @@ mod name_tests {
 
         assert!(!Arc::ptr_eq(&initial.core, &changed.core));
         assert!(!Arc::ptr_eq(&initial.typing, &changed.typing));
-        assert_eq!(changed.user("alice").unwrap().host(), Some("cloak.example"));
+        assert_eq!(
+            changed.user_local("alice").unwrap().host(),
+            Some("cloak.example")
+        );
         let conversation = name_rules(&changed).target("#papo").unwrap().1;
         assert_eq!(changed.typing(&conversation).count(), 1);
         assert_eq!(changed.typing("#PAPO").count(), 1);
@@ -926,10 +962,10 @@ mod name_tests {
         session.handle_line(now, b":alice!~alice@cloak.example JOIN #review");
         let state = State::from_session(&session, true);
 
-        assert_eq!(state.user("ALICE").unwrap().nick(), "alice");
+        assert_eq!(state.user_local("ALICE").unwrap().nick(), "alice");
         assert_eq!(
             state
-                .user(local.__nick(state.casemapping(), "alice"))
+                .user_local(local.__nick(state.casemapping(), "alice"))
                 .unwrap()
                 .nick(),
             "alice"

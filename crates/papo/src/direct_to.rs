@@ -66,14 +66,12 @@ impl crate::Client {
             }) {
                 return Err(crate::Error::TargetGone);
             }
-            let shared = snapshot
-                .user(&nick)
+            let user = snapshot.user_local(&nick);
+            let shared = user
                 .is_some_and(|user| user.nick() == snapshot.nick() || user.channels().len() != 0);
             if shared
                 && let Some(recipient) = core.or_else(|| {
-                    snapshot
-                        .user(&nick)
-                        .and_then(|user| snapshot.capture_recipient(user.nick(), expected.clone()))
+                    user.and_then(|user| snapshot.capture_recipient(user.nick(), expected.clone()))
                 })
             {
                 return Ok(DirectRef::new(&client, recipient, false));

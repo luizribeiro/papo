@@ -489,7 +489,7 @@ async fn message_fields_use_captured_session_facts() {
     ));
     assert_eq!(message.return_address(), "#papo");
     assert_eq!(message.msgid.as_deref(), Some("RfcBTzyxY120004"));
-    let actor = state.user(&message.actor).unwrap();
+    let actor = state.user_local(&message.actor).unwrap();
     assert!(matches!(actor.account(), crate::Account::LoggedIn(account) if account == "emily"));
     assert_eq!(actor.is_bot(), Some(true));
     assert_eq!(
@@ -738,9 +738,11 @@ async fn live_bot_facts_require_message_tags_and_bot_mode() {
         let (first, first_state) = next_message_with_state(&mut events).await;
         let (second, second_state) = next_message_with_state(&mut events).await;
         let facts = vec![
-            first_state.user(&first.actor).and_then(crate::User::is_bot),
+            first_state
+                .user_local(&first.actor)
+                .and_then(crate::User::is_bot),
             second_state
-                .user(&second.actor)
+                .user_local(&second.actor)
                 .and_then(crate::User::is_bot),
         ];
         within(server.shutdown()).await.unwrap();
@@ -6140,7 +6142,7 @@ async fn membership_actions_confirm_success_and_refusal() {
     within(async {
         while client
             .state()
-            .user("carol")
+            .user_local("carol")
             .is_none_or(|user| user.channels().len() == 0)
         {
             tokio::task::yield_now().await;
@@ -6753,7 +6755,7 @@ async fn mode_helpers_await_every_command_and_return_refusals() {
         while ["alice", "carol"].into_iter().any(|nick| {
             client
                 .state()
-                .user(nick)
+                .user_local(nick)
                 .is_none_or(|user| user.channels().len() == 0)
         }) {
             tokio::task::yield_now().await;
@@ -7345,7 +7347,7 @@ async fn manual_who_refreshes_joined_member_state_at_numeric_315() {
         Some(Event::MembersRefreshed(refreshed)) if refreshed.channel == "#papo"
     ));
     let state = client.state();
-    let dan = state.user("dan").unwrap();
+    let dan = state.user_local("dan").unwrap();
     assert!(matches!(dan.account(), crate::Account::LoggedIn(account) if account == "dan"));
     assert_eq!(dan.away(), &crate::Away::__away_value(None));
 
@@ -8858,7 +8860,7 @@ async fn typing_changed_facts_come_from_paired_state() {
     };
 
     assert!(change.actor.proof().is_some());
-    let actor = state.user(&change.actor).unwrap();
+    let actor = state.user_local(&change.actor).unwrap();
     assert_eq!(actor.username(), Some("~alice"));
     assert_eq!(actor.host(), Some("cloak.example"));
     assert_eq!(
@@ -10602,7 +10604,7 @@ async fn public_state_accessors_report_the_registered_session() {
     );
     assert_eq!(
         state
-            .user(state.casemapping().nick("ALICE"))
+            .user_local(state.casemapping().nick("ALICE"))
             .unwrap()
             .username(),
         Some("~alice")
@@ -10692,7 +10694,7 @@ async fn every_state_change_replaces_the_snapshot() {
     ));
     previous = changed_snapshot(&client, &previous, "ACCOUNT");
     assert_eq!(
-        previous.user("papo-driver").unwrap().account(),
+        previous.user_local("papo-driver").unwrap().account(),
         &papo_core::Account::LoggedIn(test_account("emily"))
     );
 
@@ -10707,7 +10709,7 @@ async fn every_state_change_replaces_the_snapshot() {
     ));
     previous = changed_snapshot(&client, &previous, "AWAY");
     assert_eq!(
-        previous.user("papo-driver").unwrap().away(),
+        previous.user_local("papo-driver").unwrap().away(),
         &crate::Away::__away_value(Some("Gone to lunch".into()))
     );
 
