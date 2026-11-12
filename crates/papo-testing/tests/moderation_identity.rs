@@ -30,7 +30,8 @@ async fn moderation_subjects_refuse_a_nickname_takeover() {
             papo::Event::Joined(_)
         ));
     }
-    let alice = client.direct("alice").await.unwrap();
+    let alice = client.query("alice").unwrap();
+    let direct = client.direct("alice").await.unwrap();
 
     wire.server(":alice!~alice@cloak.example QUIT :Client Quit")
         .await;
@@ -50,20 +51,24 @@ async fn moderation_subjects_refuse_a_nickname_takeover() {
         Err(papo::Error::TargetGone)
     ));
     assert!(matches!(
-        client.mode("#review").op(&alice).await,
+        client.whois(&alice).await,
         Err(papo::Error::TargetGone)
     ));
     assert!(matches!(
-        client.mode("#review").halfop(&alice).await,
+        client.mode("#review").op(&direct).await,
         Err(papo::Error::TargetGone)
     ));
     assert!(matches!(
-        client.mode("#review").voice(&alice).await,
+        client.mode("#review").halfop(&direct).await,
+        Err(papo::Error::TargetGone)
+    ));
+    assert!(matches!(
+        client.mode("#review").voice(&direct).await,
         Err(papo::Error::TargetGone)
     ));
     for mode in ['q', 'a'] {
         assert!(matches!(
-            client.mode("#review").prefix(mode, &alice).await,
+            client.mode("#review").prefix(mode, &direct).await,
             Err(papo::Error::TargetGone)
         ));
     }

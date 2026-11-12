@@ -3294,6 +3294,8 @@ pub enum TargetGuard {
     Recipient(RecipientGuard),
     /// A person or current nickname validated by session state.
     Proven(Proven),
+    /// A validated person stored in a non-target parameter.
+    ProvenAt(Proven, usize),
     /// A joined channel identity.
     Channel(ChannelGuard),
 }
@@ -5338,6 +5340,19 @@ impl Session {
                 };
                 (nick != *proof.captured_nick()).then(|| (None, nick.to_string()))
             }
+            Some(TargetGuard::ProvenAt(proof, parameter)) => {
+                let Ok(nick) = self.state.__resolve_proven(proof) else {
+                    self.recipient_gone(queued.token, queued.request);
+                    return None;
+                };
+                if nick != *proof.captured_nick()
+                    && !replace_wire_parameter(&mut queued.line, *parameter, &nick)
+                {
+                    self.recipient_gone(queued.token, queued.request);
+                    return None;
+                }
+                None
+            }
             Some(TargetGuard::Channel(channel)) => {
                 let Some(current) = self.state.__resolve_channel(channel) else {
                     self.recipient_gone(queued.token, queued.request);
@@ -6754,6 +6769,21 @@ fn replace_wire_target(line: &mut WireLine, old: Option<&str>, new: &str) -> boo
     };
     *line = rewritten;
     true
+}
+
+fn replace_wire_parameter(line: &mut WireLine, parameter: usize, new: &Nick) -> bool {
+    let Ok(text) = std::str::from_utf8(line.as_ref()) else {
+        return false;
+    };
+    let Ok(parsed) = papo_proto::LineRef::parse(text) else {
+        return false;
+    };
+    let mut owned = parsed.to_owned();
+    owned.__replace_param(parameter, new.to_string())
+        && owned.encode().is_ok_and(|wire| {
+            *line = wire;
+            true
+        })
 }
 
 fn bypasses_rate_limit(line: &[u8]) -> bool {

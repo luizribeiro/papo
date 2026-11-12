@@ -33,6 +33,16 @@ pub enum ProofFailure {
 }
 
 impl State {
+    /// Mints proof with explicit current-holder nickname semantics.
+    #[doc(hidden)]
+    #[must_use]
+    pub fn __prove_current_name(&self, nick: Nick) -> Option<Proven> {
+        (nick.origin() == self.__reply_token().origin).then(|| Proven {
+            origin: nick.origin(),
+            kind: ProvenKind::CurrentName(nick),
+        })
+    }
+
     fn prove_event_user(
         &self,
         token: ReplyToken,
@@ -134,9 +144,6 @@ impl Session {
     #[doc(hidden)]
     #[must_use]
     pub fn __prove_current_name(&self, nick: Nick) -> Option<Proven> {
-        (nick.origin() == self.state.__reply_token().origin).then(|| Proven {
-            origin: nick.origin(),
-            kind: ProvenKind::CurrentName(nick),
-        })
+        self.state.__prove_current_name(nick)
     }
 }

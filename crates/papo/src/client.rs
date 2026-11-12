@@ -1291,16 +1291,13 @@ impl Client {
         let client = self.clone();
         let nick = crate::AsNick::__parts(&nick).into_owned();
         crate::RequestFuture::new(async move {
-            let nick = client.resolve(crate::target::Role::Nick("whois: nick"), nick)?;
-            let nick = client
-                .state()
-                .known_name_rules()
-                .ok_or(InvalidInput::NameRulesUnknown)?
-                .nick(nick);
+            let proven = crate::identity::prove_parts(&client, nick, "whois: nick").await?;
+            let nick = proven.nick;
             let response = client
-                .correlated(
+                .correlated_guarded(
                     Line::new("WHOIS").with_params([nick.to_string()]),
                     Some(ResponseMatcher::Whois(nick.to_string())),
+                    Some(papo_core::TargetGuard::Proven(proven.core)),
                 )
                 .await?;
             crate::requests::whois(
@@ -1641,14 +1638,14 @@ impl Client {
     /// Returns a typed server refusal, invalid-input error, timeout, or disconnect.
     pub fn invite(
         &self,
-        nick: &crate::DirectRef,
+        nick: &crate::UserHandle,
         channel: impl crate::AsChannel,
     ) -> crate::RequestFuture<()> {
         let client = self.clone();
         let channel = crate::AsChannel::__parts(&channel).into_owned();
         let nick = crate::AsNick::__parts(&nick).into_owned();
         crate::RequestFuture::new(async move {
-            let nick = client.resolve(crate::target::Role::Nick("invite: nick"), nick)?;
+            let proven = crate::identity::prove_parts(&client, nick, "invite: nick").await?;
             let channel =
                 client.resolve(crate::target::Role::Channel("invite: channel"), channel)?;
             let state = client.state();
@@ -1656,14 +1653,15 @@ impl Client {
                 .known_name_rules()
                 .ok_or(InvalidInput::NameRulesUnknown)?;
             let channel = names.channel(channel);
-            let nick = names.nick(nick);
+            let nick = proven.nick;
             let response = client
-                .correlated(
+                .correlated_guarded(
                     Line::new("INVITE").with_params([nick.to_string(), channel.to_string()]),
                     Some(ResponseMatcher::__invite(
                         channel.to_string(),
                         nick.to_string(),
                     )),
+                    Some(papo_core::TargetGuard::Proven(proven.core)),
                 )
                 .await?;
             crate::requests::empty(&response)
@@ -1925,24 +1923,22 @@ async fn kick_resolved(
     nick: crate::target::sealed::Parts<'static>,
     reason: String,
 ) -> Result<(), Error> {
-    let nick = client.resolve(crate::target::Role::Nick("kick: nick"), nick)?;
+    let proven = crate::identity::prove_parts(client, nick, "kick: nick").await?;
     let state = client.state();
-    let nick = state
-        .known_name_rules()
-        .ok_or(InvalidInput::NameRulesUnknown)?
-        .nick(nick);
+    let nick = proven.nick;
     validate_kick_reason(&state, &reason)?;
     let mut params = vec![channel.to_string(), nick.to_string()];
     if !reason.is_empty() {
         params.push(reason);
     }
     let response = client
-        .correlated(
+        .correlated_guarded(
             Line::new("KICK").with_params(params),
             Some(ResponseMatcher::__kick(
                 channel.to_string(),
                 nick.to_string(),
             )),
+            Some(papo_core::TargetGuard::ProvenAt(proven.core, 1)),
         )
         .await?;
     crate::requests::empty(&response)

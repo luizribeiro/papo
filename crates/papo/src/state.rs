@@ -268,7 +268,8 @@ impl State {
             Some(papo_core::TargetGuard::Proven(proof)) => {
                 receipt = receipt.with_recipient(proof.__recipient());
             }
-            Some(papo_core::TargetGuard::Channel(_)) | None => {}
+            Some(papo_core::TargetGuard::ProvenAt(_, _) | papo_core::TargetGuard::Channel(_))
+            | None => {}
         }
         receipt
     }

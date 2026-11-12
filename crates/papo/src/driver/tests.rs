@@ -5694,10 +5694,7 @@ async fn every_name_taking_method_returns_invalid_name() {
     ];
 
     let state = client.state();
-    let recipient = state
-        .capture_recipient(state.nick(), state.account().clone())
-        .unwrap();
-    let direct = crate::DirectRef::new(&client, recipient, false);
+    let user = client.query(state.nick().clone()).unwrap();
     for (method, argument, bad) in cases {
         let result = match method {
             Method::Typing => client.typing(bad, crate::Typing::Active).await,
@@ -5714,7 +5711,7 @@ async fn every_name_taking_method_returns_invalid_name() {
             Method::KickbanNick => kickban(&client, "#staff", bad, "*!*@host", "spam")
                 .await
                 .map(drop),
-            Method::InviteChannel => client.invite(&direct, bad).await,
+            Method::InviteChannel => client.invite(&user, bad).await,
             Method::SetNick => client.set_nick(bad).await,
             Method::Topic => client.set_topic(bad, "Release planning").await,
             Method::Monitor => client.monitor().add([bad]).await,
@@ -6149,7 +6146,7 @@ async fn membership_actions_confirm_success_and_refusal() {
         }
     })
     .await;
-    let carol = client.direct("carol").await.unwrap();
+    let carol = client.query("carol").unwrap();
 
     let invite = tokio::spawn({
         let client = client.clone();

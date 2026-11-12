@@ -56,6 +56,27 @@ pub(crate) async fn prove(
     Ok(ProvenUser { core: proof, nick })
 }
 
+pub(crate) async fn prove_parts(
+    client: &crate::Client,
+    parts: crate::target::sealed::Parts<'static>,
+    argument: &'static str,
+) -> Result<ProvenUser, crate::Error> {
+    if let Some(handle) = parts.user.as_ref() {
+        return prove(client, handle).await;
+    }
+    let nick = client.resolve(crate::target::Role::Nick(argument), parts)?;
+    let state = client.state();
+    let nick = state
+        .known_name_rules()
+        .ok_or(crate::InvalidInput::NameRulesUnknown)?
+        .nick(nick);
+    let core = state
+        .core
+        .__prove_current_name(nick.clone())
+        .ok_or(crate::ForeignReference)?;
+    Ok(ProvenUser { core, nick })
+}
+
 pub(crate) fn map_failure(failure: papo_core::ProofFailure) -> crate::Error {
     match failure {
         papo_core::ProofFailure::ForeignReference => crate::ForeignReference.into(),
