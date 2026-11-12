@@ -113,6 +113,11 @@ fn current_name_targets_current_holder() {
 }
 
 #[test]
+fn text_person_input_uses_current_holder() {
+    current_name_targets_current_holder();
+}
+
+#[test]
 fn queued_send_rewrites_renamed_recipient() {
     let mut session = shared_users();
     let proof = event_proof(&mut session);

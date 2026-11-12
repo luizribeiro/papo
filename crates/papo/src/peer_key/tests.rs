@@ -107,6 +107,11 @@ fn peer_key_proof_is_not_constructible() {
 }
 
 #[test]
+fn proven_and_peer_key_proof_are_private() {
+    peer_key_proof_is_not_constructible();
+}
+
+#[test]
 fn account_proof_checks_every_upgrade_and_mismatch() {
     let name = network_key(
         "irc.example",
