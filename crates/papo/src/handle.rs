@@ -62,6 +62,7 @@ impl WatchRegistry {
         Watch(Arc::new(WatchLease {
             registry: Arc::clone(self),
             identity,
+            _user: Arc::clone(&user.0),
         }))
     }
 
@@ -105,6 +106,7 @@ pub struct Watch(Arc<WatchLease>);
 struct WatchLease {
     registry: Arc<WatchRegistry>,
     identity: UserIdentity,
+    _user: Arc<UserInner>,
 }
 
 impl Watch {
@@ -772,6 +774,60 @@ mod tests {
         );
         drop(second);
         client_line(&mut server, b"MONITOR - alice\r\n").await;
+        within(server.shutdown()).await.unwrap();
+        assert!(within(driver).await.unwrap().is_err());
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn watch_full_is_not_live_and_never_fails() {
+        use crate::driver::test_support::{client_line, config, scripted, server_line, within};
+        use tokio::io::AsyncWriteExt as _;
+
+        let (mut server, client, mut events, driver) = scripted(config());
+        let driver = tokio::spawn(driver);
+        complete_monitor_connect(&mut server, &mut events, 1).await;
+        let alice = client.query("alice").unwrap().watch();
+        client_line(&mut server, b"MONITOR + alice\r\n").await;
+        server_line(&mut server, b":ergo.test 731 papo-driver :alice\r\n").await;
+        assert!(alice.is_live());
+
+        let bob = client.query("bob").unwrap().watch();
+        assert!(!bob.is_live());
+        drop(alice);
+        client_line(&mut server, b"MONITOR - alice\r\n").await;
+        client_line(&mut server, b"MONITOR + bob\r\n").await;
+        server_line(&mut server, b":ergo.test 731 papo-driver :bob\r\n").await;
+        assert!(bob.is_live());
+        drop(bob);
+        within(server.shutdown()).await.unwrap();
+        assert!(within(driver).await.unwrap().is_err());
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn numeric_734_marks_watch_not_live() {
+        use crate::driver::test_support::{
+            client_line, config, next_event, scripted, server_line, within,
+        };
+        use tokio::io::AsyncWriteExt as _;
+
+        let (mut server, client, mut events, driver) = scripted(config());
+        let driver = tokio::spawn(driver);
+        complete_monitor_connect(&mut server, &mut events, 100).await;
+        let watch = client.query("alice").unwrap().watch();
+        client_line(&mut server, b"MONITOR + alice\r\n").await;
+        server_line(
+            &mut server,
+            b":ergo.test 734 papo-driver 100 alice :Monitor list is full\r\n",
+        )
+        .await;
+        assert!(matches!(
+            next_event(&mut events).await,
+            Some(crate::Event::Warning(
+                crate::event::Warning::MonitorListFull { .. }
+            ))
+        ));
+        assert!(!watch.is_live());
+
         within(server.shutdown()).await.unwrap();
         assert!(within(driver).await.unwrap().is_err());
     }
