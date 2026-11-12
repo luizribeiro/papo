@@ -5199,19 +5199,6 @@ impl Session {
         recipient
     }
 
-    /// Releases one guarded direct recipient monitor reference.
-    #[doc(hidden)]
-    pub fn __direct_release(&mut self, recipient: &RecipientGuard) {
-        self.monitor.release_direct(
-            recipient,
-            self.isupport.value(),
-            self.welcome_state.is_connected(),
-            &mut self.outbox,
-        );
-        self.sync_monitored_state();
-        self.state_generation = self.state_generation.wrapping_add(1);
-    }
-
     /// Reports whether a nickname occupies or awaits a server-side monitor slot.
     #[doc(hidden)]
     #[must_use]

@@ -3,8 +3,7 @@ use std::collections::{HashMap, HashSet};
 use papo_proto::{Advertised, Casemapping, Isupport, LimitValue, LineRef, MAX_LINE_LEN, Nick};
 
 use crate::{
-    Authorship, Event, Feature, Handled, Names, Outbox, RecipientGuard, ReplyToken, Unsupported,
-    UnsupportedReason,
+    Authorship, Event, Feature, Handled, Names, Outbox, ReplyToken, Unsupported, UnsupportedReason,
 };
 
 const MAX_DESIRED: usize = 10_000;
@@ -217,38 +216,6 @@ impl Monitor {
                 self.pending.insert(self.casemapping.nick(nick));
                 transmit_chunks("+", &[nick.to_owned()], outbox);
             }
-        }
-    }
-
-    pub(super) fn release_direct(
-        &mut self,
-        recipient: &RecipientGuard,
-        isupport: &Isupport,
-        registered: bool,
-        outbox: &mut Outbox,
-    ) {
-        self.update_casemapping(isupport.casemapping());
-        let nick = recipient.__nick();
-        let mut key = self.casemapping.nick(nick);
-        if !self.direct.contains_key(&key)
-            && let Some(found) = self.direct.iter().find_map(|(key, watch)| {
-                (watch.identity == recipient.__token()).then(|| key.clone())
-            })
-        {
-            key = found;
-        }
-        let Some(watch) = self.direct.get_mut(&key) else {
-            return;
-        };
-        watch.count = watch.count.saturating_sub(1);
-        if watch.count != 0 {
-            return;
-        }
-        let Some(watch) = self.direct.remove(&key) else {
-            return;
-        };
-        if watch.added {
-            self.remove([watch.nick], isupport, registered, outbox);
         }
     }
 

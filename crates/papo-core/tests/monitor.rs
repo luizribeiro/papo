@@ -2,10 +2,7 @@
 
 mod support;
 
-use std::{
-    cell::{Cell, RefCell},
-    time::Instant,
-};
+use std::{cell::Cell, time::Instant};
 
 use papo_core::{Account, Away, Config, Event, Feature, UnsupportedReason};
 use papo_proto::{Casemapping, Line, Nick, Origin};
@@ -446,18 +443,9 @@ fn unsolicited_list_full_does_not_change_other_monitor_entries() {
 }
 
 #[test]
-fn rejected_direct_watch_releases_its_monitor_slot() {
-    let alice = RefCell::new(None);
-    let bob = RefCell::new(None);
+fn rejected_watch_releases_its_monitor_slot() {
     registered()
-        .update(|session| {
-            *alice.borrow_mut() = Some(session.__direct_acquire(
-                "alice",
-                None,
-                None,
-                Account::Unknown,
-            ));
-        })
+        .update(|session| session.__reconcile_watches(vec!["alice".into()]))
         .client("MONITOR + alice")
         .server(":solanum.example 734 papo 1 alice :Monitor list is full")
         .event(|event| matches!(event, Event::MonitorListFull { limit: 1, nicks, .. } if nicks == &["alice"]))
@@ -465,25 +453,14 @@ fn rejected_direct_watch_releases_its_monitor_slot() {
             assert_eq!(session.state().monitored().count(), 0);
             assert!(session.state().user("alice").is_none());
         })
-        .update(|session| {
-            *bob.borrow_mut() = Some(session.__direct_acquire(
-                "bob",
-                None,
-                None,
-                Account::Unknown,
-            ));
-        })
+        .update(|session| session.__reconcile_watches(vec!["bob".into()]))
         .client("MONITOR + bob")
         .server(":solanum.example 731 papo :bob")
         .event(|event| matches!(event, Event::MonitorOffline { nick, .. } if nick == "bob"))
-        .update(|session| {
-            session.__direct_release(alice.borrow().as_ref().unwrap());
-            session.__direct_release(bob.borrow().as_ref().unwrap());
-        })
+        .update(|session| session.__reconcile_watches(Vec::new()))
         .client("MONITOR - bob")
         .no_client();
 }
-
 #[test]
 fn slot_status_distinguishes_pending_confirmed_refused_and_disconnected() {
     Transcript::new(Config::default())
