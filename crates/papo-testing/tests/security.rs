@@ -629,8 +629,11 @@ async fn foreign_names_cannot_read_another_clients_state() {
         second.snapshot().channel(&foreign_channel),
         Err(papo::ForeignReference)
     );
-    assert!(second.snapshot().user("alice").is_some());
-    assert!(second.snapshot().user(&foreign_nick).is_none());
+    assert!(second.snapshot().user("alice").unwrap().is_some());
+    assert_eq!(
+        second.snapshot().user(&foreign_nick),
+        Err(papo::ForeignReference)
+    );
     assert!(second.snapshot().metadata("alice").is_some());
     assert!(second.snapshot().metadata(&foreign_nick).is_none());
     assert!(second.snapshot().read_marker("#papo").is_some());

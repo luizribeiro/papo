@@ -107,10 +107,7 @@ async fn chathistory_multiline(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(replayed.text, text);
     assert_eq!(replayed.authorship, Authorship::Own);
     assert_eq!(
-        writer
-            .snapshot()
-            .user(&replayed.actor)
-            .map(papo::User::account),
+        super::user(&writer.snapshot(), &replayed.actor).map(papo::User::account),
         Some(&expected_account)
     );
     assert_eq!(replayed.msgid(), Some(expected_msgid));

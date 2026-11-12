@@ -3354,7 +3354,7 @@ pub fn papo::State::realname(&self) -> &str
 pub fn papo::State::same_list_entry(&self, &papo::Mask, impl core::convert::AsRef<str>) -> bool
 pub fn papo::State::supports(&self, papo::Feature) -> bool
 pub fn papo::State::typing(&self, impl papo::AsConversation) -> papo::Typers<'_>
-pub fn papo::State::user(&self, impl papo::AsNick) -> core::option::Option<&papo::User>
+pub fn papo::State::user(&self, impl papo::AsNick) -> core::result::Result<core::option::Option<&papo::User>, papo::ForeignReference>
 pub fn papo::State::user_modes(&self) -> impl core::iter::traits::iterator::Iterator<Item = char> + '_
 pub fn papo::State::username(&self) -> &str
 impl core::fmt::Debug for papo::State

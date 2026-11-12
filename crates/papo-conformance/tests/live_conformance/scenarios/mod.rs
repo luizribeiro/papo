@@ -16,3 +16,9 @@ mod security_origin;
 mod security_replay;
 mod security_targeting;
 mod support;
+
+fn user(state: &papo::State, nick: impl papo::AsNick) -> Option<&papo::User> {
+    state
+        .user(nick)
+        .expect("the nickname belongs to this state")
+}

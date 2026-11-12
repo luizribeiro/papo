@@ -50,6 +50,8 @@ The first guarded use of a `UserHandle` proves its identity with WHO, follows ni
 
 All private chat operations now recheck that proof at the final wire write, rewrite a renamed recipient, and refuse a nickname that changed hands.
 
+User state lookups now return a typed `ForeignReference` error and preserve handle identity across nickname changes and handoffs.
+
 `UserHandle::key` captures a persistable peer key, and `Client::open` returns `NotSamePerson` with the current key when a saved identity does not match.
 
 `Client::join` now resolves to the synchronized `ChannelHandle` for the joined channel.

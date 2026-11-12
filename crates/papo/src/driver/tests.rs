@@ -687,7 +687,7 @@ async fn quit_handle_preserves_facts_when_paired_state_forgets_user() {
     let Some((Event::Quit(quit), state)) = events.next().await else {
         panic!("expected quit event with its paired state")
     };
-    assert!(state.user(&quit.actor).is_none());
+    assert!(state.user(&quit.actor).unwrap().is_none());
     let facts = quit
         .facts
         .as_ref()
@@ -8836,7 +8836,7 @@ async fn message_sender_is_event_proven_handle() {
 
     assert!(message.actor.proof().is_some());
     assert_eq!(message.actor, client.query("alice").unwrap());
-    let actor = state.user(&message.actor).unwrap();
+    let actor = state.user(&message.actor).unwrap().unwrap();
     assert_eq!(actor.username(), Some("~alice"));
     assert_eq!(actor.host(), Some("cloak.example"));
 

@@ -223,6 +223,7 @@ impl Command {
             || config.ignore_bots
                 && state
                     .user(&message.actor)
+                    .expect("an event actor belongs to its paired state")
                     .is_some_and(|user| user.is_bot() == Some(true))
         {
             return None;
@@ -679,7 +680,7 @@ mod tests {
         let incoming = next_message(&mut events).await;
 
         assert!(matches!(
-            client.snapshot().user("emily").unwrap().account(),
+            client.snapshot().user("emily").unwrap().unwrap().account(),
             papo::Account::LoggedIn(account) if account == "Emily"
         ));
         let command = BotConfig::new("!")
@@ -830,6 +831,7 @@ mod tests {
             client
                 .snapshot()
                 .user("weatherbot")
+                .unwrap()
                 .and_then(papo::User::is_bot),
             Some(true)
         );
@@ -837,6 +839,7 @@ mod tests {
             messages[0]
                 .state
                 .user(&messages[0].actor)
+                .unwrap()
                 .and_then(papo::User::is_bot),
             Some(true)
         );
@@ -852,13 +855,14 @@ mod tests {
                 .is_some()
         );
         assert_eq!(
-            client.snapshot().user("emily").unwrap().is_bot(),
+            client.snapshot().user("emily").unwrap().unwrap().is_bot(),
             Some(true)
         );
         assert_eq!(
             messages[2]
                 .state
                 .user(&messages[2].actor)
+                .unwrap()
                 .and_then(papo::User::is_bot),
             Some(true)
         );

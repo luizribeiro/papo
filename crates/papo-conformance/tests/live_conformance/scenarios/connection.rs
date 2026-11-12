@@ -236,9 +236,7 @@ async fn whoami(s: Scenario) -> papo_testing::Result<()> {
     alice.join(s.channel_name()).await?;
     let state = alice.snapshot();
     assert!(state.caps().contains_key(&papo::cap::WHOAMI));
-    let identity = state
-        .user(state.nick())
-        .expect("WHOAMI supplies self state");
+    let identity = super::user(&state, state.nick()).expect("WHOAMI supplies self state");
     assert!(identity.username().is_some_and(|user| !user.is_empty()));
     assert!(identity.host().is_some_and(|host| !host.is_empty()));
     assert_eq!(identity.realname(), Some("papo test peer"));

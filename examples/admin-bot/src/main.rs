@@ -30,7 +30,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
             [command, nick]
                 if command.eq_ignore_ascii_case("op")
                     && matches!(
-                        state.user(&message.actor).map(papo::User::account),
+                        state
+                            .user(&message.actor)
+                            .expect("an event actor belongs to its paired state")
+                            .map(papo::User::account),
                         Some(Account::LoggedIn(account)) if account == admin.as_str()
                     ) =>
             {

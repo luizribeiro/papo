@@ -67,7 +67,7 @@ fn everyday_api_is_nameable_from_the_facade() {
         .channel("#papo");
     let _: &papo::Nick = state.nick();
     let _: Result<Option<&papo::Channel>, papo::ForeignReference> = state.channel(&channel);
-    let _: Option<&papo::User> = state.user("emily");
+    let _: Result<Option<&papo::User>, papo::ForeignReference> = state.user("emily");
     let _: papo::ChannelName = state
         .name_rules()
         .expect("server advertised CASEMAPPING")

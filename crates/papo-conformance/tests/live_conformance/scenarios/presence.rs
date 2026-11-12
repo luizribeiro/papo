@@ -38,12 +38,14 @@ async fn account_tag(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(message.msgid(), Some(id));
     assert_eq!(message.server_time, server_time);
     assert!(matches!(
-        bob.snapshot().user(&message.actor).map(papo::User::account),
+        super::user(&bob.snapshot(), &message.actor).map(papo::User::account),
         Some(Account::LoggedIn(observed)) if observed == account.as_str()
     ));
     assert!(sent.fallbacks.is_empty());
     assert!(matches!(
-        bob.snapshot().user(alice_nick.as_str()).unwrap().account(),
+        super::user(&bob.snapshot(), alice_nick.as_str())
+            .unwrap()
+            .account(),
         Account::LoggedIn(observed) if observed == account.as_str()
     ));
     alice
@@ -107,7 +109,9 @@ async fn account_notify(s: Scenario) -> papo_testing::Result<()> {
         &Account::LoggedIn(account.clone())
     );
     assert!(matches!(
-        bob.snapshot().user(alice_nick.as_str()).unwrap().account(),
+        super::user(&bob.snapshot(), alice_nick.as_str())
+            .unwrap()
+            .account(),
         Account::LoggedIn(observed) if observed == account.as_str()
     ));
     alice.wait_for(Event::as_account_creation).await?;
@@ -138,7 +142,9 @@ async fn away_notify(s: Scenario) -> papo_testing::Result<()> {
         &Away::__away_value(Some(away.to_owned()))
     );
     assert_eq!(
-        bob.snapshot().user(alice_nick.as_str()).unwrap().away(),
+        super::user(&bob.snapshot(), alice_nick.as_str())
+            .unwrap()
+            .away(),
         &Away::__away_value(Some(away.to_owned()))
     );
 
@@ -149,7 +155,9 @@ async fn away_notify(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(returned.new, Away::Present);
     assert_eq!(alice.snapshot().away(), &Away::Present);
     assert_eq!(
-        bob.snapshot().user(alice_nick.as_str()).unwrap().away(),
+        super::user(&bob.snapshot(), alice_nick.as_str())
+            .unwrap()
+            .away(),
         &Away::Present
     );
     bob.expect_none(Event::as_away_changed).await?;
@@ -251,15 +259,15 @@ async fn setname(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(observed.actor.nick(), alice_nick.as_str());
     assert_eq!(observed.new, realname);
     assert_eq!(
-        alice
-            .snapshot()
-            .user(alice_nick.as_str())
+        super::user(&alice.snapshot(), alice_nick.as_str())
             .unwrap()
             .realname(),
         Some(realname)
     );
     assert_eq!(
-        bob.snapshot().user(alice_nick.as_str()).unwrap().realname(),
+        super::user(&bob.snapshot(), alice_nick.as_str())
+            .unwrap()
+            .realname(),
         Some(realname)
     );
     alice.expect_none(Event::as_realname_changed).await?;
@@ -315,7 +323,7 @@ async fn chghost(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(own.new_host, "conformance.example");
     for peer in [&alice, &bob] {
         let state = peer.snapshot();
-        let user = state.user(bob_nick.as_str()).unwrap();
+        let user = super::user(&state, bob_nick.as_str()).unwrap();
         assert_eq!(user.username(), Some(own.new_username.as_str()));
         assert_eq!(user.host(), Some("conformance.example"));
     }
@@ -343,7 +351,7 @@ async fn monitor(s: Scenario) -> papo_testing::Result<()> {
     let monitored = state.monitor_online().collect::<Vec<_>>();
     assert_eq!(monitored.len(), 1);
     assert_eq!(monitored[0].nick(), bob_nick.as_str());
-    let online_user = state.user(&online.subject).expect("monitored user");
+    let online_user = super::user(&state, &online.subject).expect("monitored user");
     assert_eq!(monitored[0].username(), online_user.username());
     assert_eq!(monitored[0].host(), online_user.host());
 
@@ -354,7 +362,9 @@ async fn monitor(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(changed.actor.nick(), bob_nick.as_str());
     assert_eq!(changed.new, Away::__away_value(Some(away.to_owned())));
     assert_eq!(
-        alice.snapshot().user(bob_nick.as_str()).unwrap().away(),
+        super::user(&alice.snapshot(), bob_nick.as_str())
+            .unwrap()
+            .away(),
         &Away::__away_value(Some(away.to_owned()))
     );
 
@@ -439,9 +449,7 @@ async fn bot_mode(s: Scenario) -> papo_testing::Result<()> {
     );
     assert_eq!(message.text, text);
     assert_eq!(
-        bob.snapshot()
-            .user(&message.actor)
-            .and_then(papo::User::is_bot),
+        super::user(&bob.snapshot(), &message.actor).and_then(papo::User::is_bot),
         Some(true)
     );
     bob.expect_none(|event| event.as_message().filter(|message| message.text == text))

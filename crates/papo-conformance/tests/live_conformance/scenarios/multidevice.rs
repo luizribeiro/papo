@@ -87,7 +87,9 @@ async fn multidevice_away_shared_state(s: Scenario) -> papo_testing::Result<()> 
         observer.expect_none(Event::as_away_changed).await?;
         assert_eq!(phone.snapshot().away(), &Away::Present);
         assert_eq!(
-            observer.snapshot().user(nick.as_str()).unwrap().away(),
+            super::user(&observer.snapshot(), nick.as_str())
+                .unwrap()
+                .away(),
             &Away::Present
         );
         return Ok(());
@@ -112,7 +114,9 @@ async fn multidevice_away_shared_state(s: Scenario) -> papo_testing::Result<()> 
     assert_eq!(visible.authorship, Authorship::Other);
     assert_eq!(phone.snapshot().away(), &away);
     assert_eq!(
-        observer.snapshot().user(nick.as_str()).unwrap().away(),
+        super::user(&observer.snapshot(), nick.as_str())
+            .unwrap()
+            .away(),
         &away
     );
     phone.expect_none(Event::as_away_changed).await?;

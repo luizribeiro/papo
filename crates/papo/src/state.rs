@@ -619,14 +619,13 @@ impl State {
 
     /// Returns a known user using the server's casemapping.
     ///
-    /// A typed nickname produced by another [`crate::Client`] returns `None`.
-    #[must_use]
-    pub fn user(&self, nick: impl crate::AsNick) -> Option<&User> {
-        let nick = crate::AsNick::__parts(&nick);
-        if nick.origin != crate::Origin::NONE && nick.origin != self.nick().origin() {
-            return None;
-        }
-        self.core.user(nick.text.as_ref())
+    /// A typed nickname produced by another [`crate::Client`] returns an error.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::ForeignReference`] when the nickname belongs to another client.
+    pub fn user(&self, nick: impl crate::AsNick) -> Result<Option<&User>, crate::ForeignReference> {
+        self.user_checked(nick)
     }
 
     pub(crate) fn user_checked(
@@ -962,18 +961,18 @@ mod name_tests {
         session.handle_line(now, b":alice!~alice@cloak.example JOIN #review");
         let state = State::from_session(&session, true);
 
-        assert_eq!(state.user_local("ALICE").unwrap().nick(), "alice");
+        assert_eq!(state.user("ALICE").unwrap().unwrap().nick(), "alice");
         assert_eq!(
             state
-                .user_local(local.__nick(state.casemapping(), "alice"))
+                .user(local.__nick(state.casemapping(), "alice"))
+                .unwrap()
                 .unwrap()
                 .nick(),
             "alice"
         );
-        assert!(
-            state
-                .user(crate::Origin::__new(91).__nick(state.casemapping(), "alice"))
-                .is_none()
+        assert_eq!(
+            state.user(crate::Origin::__new(91).__nick(state.casemapping(), "alice")),
+            Err(crate::ForeignReference)
         );
     }
 

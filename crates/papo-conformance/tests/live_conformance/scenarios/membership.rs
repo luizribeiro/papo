@@ -74,7 +74,7 @@ async fn netsplit_members_are_quits(s: Scenario) -> papo_testing::Result<()> {
     assert!(!split.batch.is_empty());
     assert_eq!(split.first, "irc.papo.test");
     assert_eq!(split.second, "services.papo.test");
-    assert!(alice.snapshot().user("ChanServ").is_none());
+    assert!(super::user(&alice.snapshot(), "ChanServ").is_none());
     alice
         .wait_for(|event| {
             event
@@ -114,7 +114,7 @@ async fn extended_join(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(joined.actor.nick(), alice_nick.as_str());
     assert_eq!(joined.authorship, papo::Authorship::Other);
     let bob_state = bob.snapshot();
-    let observed = bob_state.user(alice_nick.as_str()).unwrap();
+    let observed = super::user(&bob_state, alice_nick.as_str()).unwrap();
     assert_eq!(observed.realname(), Some("papo test peer"));
     assert!(matches!(observed.account(), Account::LoggedIn(name) if name == account.as_str()));
     assert!(
@@ -160,7 +160,7 @@ async fn userhost_in_names(s: Scenario) -> papo_testing::Result<()> {
     assert_eq!(joined.channel.name().as_str(), channel);
 
     let bob_state = bob.snapshot();
-    let observed = bob_state.user(alice_nick.as_str()).unwrap();
+    let observed = super::user(&bob_state, alice_nick.as_str()).unwrap();
     assert!(observed.username().is_some_and(|user| !user.is_empty()));
     assert!(observed.host().is_some_and(|host| !host.is_empty()));
     assert!(
