@@ -1,4 +1,4 @@
-use crate::{Account, Error, identity::who_account};
+use crate::{Account, Error};
 
 #[derive(Debug)]
 pub(crate) struct Acquired {
@@ -100,7 +100,7 @@ pub(crate) async fn prove(
         Ok(response) => response,
         Err(error) => return Err(error),
     };
-    let account = match who_account(client, &nick, &response) {
+    let account = match crate::identity::who_account(client, &nick, &response) {
         Ok(account) => account,
         Err(error) => return Err(error),
     };
@@ -130,8 +130,7 @@ pub(crate) fn require_monitor_slot(state: &crate::State, nick: &str) -> Result<(
 mod tests {
     use std::sync::{Arc, RwLock};
 
-    use papo_core::{Config, Event, ResponseMatcher, Session};
-    use papo_proto::{Casemapping, Line, LineRef};
+    use papo_core::{Config, Session};
 
     use super::*;
 
@@ -145,31 +144,6 @@ mod tests {
             origin: crate::Origin::NONE,
             network_builder: None,
         }
-    }
-
-    fn response_with(lines: &[&str]) -> papo_core::Response {
-        let now = crate::rt::now_mono();
-        let mut session = Session::new(Config::default());
-        let id = session
-            .request_with_matcher(
-                now,
-                Line::new("WHO").with_params(["alice", "%na"]),
-                ResponseMatcher::Who("alice".into()),
-            )
-            .unwrap();
-        _ = session.poll_transmit();
-        session.handle_line(now, b":ergo.test 315 papo alice :End of WHO list");
-        let mut response = std::iter::from_fn(|| session.poll_event())
-            .find_map(|event| match event {
-                Event::Response(response) if response.id == id => Some(response),
-                _ => None,
-            })
-            .unwrap();
-        response.lines = lines
-            .iter()
-            .map(|line| LineRef::parse(line).unwrap().to_owned())
-            .collect();
-        response
     }
 
     #[test]
@@ -216,36 +190,5 @@ mod tests {
             Ok(crate::driver::Command::DirectRelease { recipient: released })
                 if released == recipient
         ));
-    }
-
-    #[test]
-    fn who_account_requires_a_matching_who_account_row() {
-        let session = Session::new(Config::default().casemapping(Casemapping::default()));
-        let client = client(&session);
-        for (line, expected) in [
-            (
-                ":ergo.test 354 papo alice alice-account",
-                Some("alice-account"),
-            ),
-            (":ergo.test 354 papo alice 0", None),
-            (":ergo.test 354 papo alice *", None),
-        ] {
-            let account = who_account(&client, "alice", &response_with(&[line])).unwrap();
-            match expected {
-                Some(expected) => {
-                    assert!(matches!(account, Account::LoggedIn(name) if name == expected));
-                }
-                None => assert_eq!(account, Account::LoggedOut),
-            }
-        }
-        for line in [
-            ":ergo.test 352 papo alice mallory-account",
-            ":ergo.test 354 papo mallory mallory-account",
-        ] {
-            assert!(matches!(
-                who_account(&client, "alice", &response_with(&[line])),
-                Err(Error::TargetGone)
-            ));
-        }
     }
 }

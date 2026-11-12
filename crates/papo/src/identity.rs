@@ -113,8 +113,82 @@ pub(crate) fn map_failure(failure: papo_core::ProofFailure) -> crate::Error {
 
 #[cfg(all(test, not(browser)))]
 mod tests {
-    use papo_core::ProofFailure;
+    use std::sync::{Arc, RwLock};
+
+    use papo_core::{Config, Event, ProofFailure, ResponseMatcher, Session};
+    use papo_proto::{Casemapping, Line, LineRef};
     use tokio::io::AsyncWriteExt as _;
+
+    use super::who_account;
+    use crate::{Account, Error};
+
+    fn client(session: &Session) -> crate::Client {
+        let (commands, _) = tokio::sync::mpsc::channel(1);
+        crate::Client {
+            commands,
+            state: Arc::new(RwLock::new(Arc::new(crate::State::from_session(
+                session, false,
+            )))),
+            origin: crate::Origin::NONE,
+            network_builder: None,
+        }
+    }
+
+    fn response_with(lines: &[&str]) -> papo_core::Response {
+        let now = crate::rt::now_mono();
+        let mut session = Session::new(Config::default());
+        let id = session
+            .request_with_matcher(
+                now,
+                Line::new("WHO").with_params(["alice", "%na"]),
+                ResponseMatcher::Who("alice".into()),
+            )
+            .unwrap();
+        _ = session.poll_transmit();
+        session.handle_line(now, b":ergo.test 315 papo alice :End of WHO list");
+        let mut response = std::iter::from_fn(|| session.poll_event())
+            .find_map(|event| match event {
+                Event::Response(response) if response.id == id => Some(response),
+                _ => None,
+            })
+            .unwrap();
+        response.lines = lines
+            .iter()
+            .map(|line| LineRef::parse(line).unwrap().to_owned())
+            .collect();
+        response
+    }
+
+    #[test]
+    fn who_account_requires_a_matching_who_account_row() {
+        let session = Session::new(Config::default().casemapping(Casemapping::default()));
+        let client = client(&session);
+        for (line, expected) in [
+            (
+                ":ergo.test 354 papo alice alice-account",
+                Some("alice-account"),
+            ),
+            (":ergo.test 354 papo alice 0", None),
+            (":ergo.test 354 papo alice *", None),
+        ] {
+            let account = who_account(&client, "alice", &response_with(&[line])).unwrap();
+            match expected {
+                Some(expected) => {
+                    assert!(matches!(account, Account::LoggedIn(name) if name == expected));
+                }
+                None => assert_eq!(account, Account::LoggedOut),
+            }
+        }
+        for line in [
+            ":ergo.test 352 papo alice mallory-account",
+            ":ergo.test 354 papo mallory mallory-account",
+        ] {
+            assert!(matches!(
+                who_account(&client, "alice", &response_with(&[line])),
+                Err(Error::TargetGone)
+            ));
+        }
+    }
 
     #[test]
     fn foreign_proof_failure_stays_typed() {
