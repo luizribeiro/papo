@@ -1,12 +1,81 @@
 use std::{
+    collections::HashMap,
     hash::{Hash, Hasher},
-    sync::{Arc, OnceLock, RwLock},
+    sync::{Arc, Mutex, OnceLock, RwLock, Weak},
 };
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 enum UserIdentity {
     Expected(crate::Origin, String),
     Proven(papo_core::ReplyToken),
+}
+
+#[allow(dead_code)]
+#[derive(Default)]
+pub(crate) struct WatchRegistry {
+    entries: Mutex<HashMap<UserIdentity, WatchEntry>>,
+    commands: Mutex<Option<tokio::sync::mpsc::WeakSender<crate::driver::Command>>>,
+}
+
+impl std::fmt::Debug for WatchRegistry {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("WatchRegistry { .. }")
+    }
+}
+
+#[allow(dead_code)]
+struct WatchEntry {
+    user: Weak<UserInner>,
+    leases: usize,
+    live: bool,
+}
+
+fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    mutex
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+#[allow(dead_code)]
+impl WatchRegistry {
+    pub(crate) fn set_commands(
+        &self,
+        commands: tokio::sync::mpsc::WeakSender<crate::driver::Command>,
+    ) {
+        *lock(&self.commands) = Some(commands);
+    }
+
+    pub(crate) fn desired(&self) -> Vec<String> {
+        lock(&self.entries)
+            .values()
+            .filter_map(|entry| entry.user.upgrade())
+            .map(|user| UserHandle(user).nick().to_string())
+            .collect()
+    }
+
+    pub(crate) fn update_live(&self, state: &crate::State) {
+        let monitored: Vec<_> = state.monitored().map(ToString::to_string).collect();
+        for entry in lock(&self.entries).values_mut() {
+            entry.live = entry.user.upgrade().is_some_and(|user| {
+                let nick = UserHandle(user).nick();
+                monitored
+                    .iter()
+                    .any(|known| state.same_name(known, nick.as_str()))
+            });
+        }
+    }
+
+    fn wake(&self) {
+        let commands = lock(&self.commands);
+        if let Some(commands) = commands
+            .as_ref()
+            .and_then(tokio::sync::mpsc::WeakSender::upgrade)
+        {
+            _ = commands.try_send(crate::driver::Command::Composite {
+                task: Box::pin(async {}),
+            });
+        }
+    }
 }
 
 /// A live identity for one IRC user.

@@ -239,6 +239,7 @@ pub struct State {
     connected: bool,
     generation: u64,
     typing_generation: u64,
+    watch_registry: Arc<crate::handle::WatchRegistry>,
 }
 
 impl State {
@@ -396,7 +397,7 @@ impl State {
     }
 
     pub(crate) fn from_session(session: &Session, connected: bool) -> Self {
-        Self::from_session_with_core(
+        let mut state = Self::from_session_with_core(
             session,
             connected,
             Arc::new(session.state().clone()),
@@ -404,7 +405,9 @@ impl State {
                 session.state().__typing_table(),
                 session.state(),
             )),
-        )
+        );
+        state.watch_registry = Arc::default();
+        state
     }
 
     pub(crate) fn from_session_reusing(
@@ -425,7 +428,9 @@ impl State {
                 session.state(),
             ))
         };
-        Self::from_session_with_core(session, connected, core, typing)
+        let mut state = Self::from_session_with_core(session, connected, core, typing);
+        state.watch_registry = Arc::clone(&previous.watch_registry);
+        state
     }
 
     fn from_session_with_core(
@@ -468,7 +473,13 @@ impl State {
             connected,
             generation: session.state_generation(),
             typing_generation: session.typing_generation(),
+            watch_registry: Arc::default(),
         }
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn watch_registry(&self) -> Arc<crate::handle::WatchRegistry> {
+        Arc::clone(&self.watch_registry)
     }
 
     /// Reports whether the current connection supports `feature`.
