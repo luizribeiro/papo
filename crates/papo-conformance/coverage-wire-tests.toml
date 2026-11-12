@@ -2,10 +2,10 @@
 "security::cross_client_values_never_reach_either_wire" = [
   "security.origin.cross-client-wire",
 ]
-"security::foreign_monitor_add_never_reaches_either_wire" = [
+"security::foreign_watch_add_never_reaches_either_wire" = [
   "security.x-origin.monitor-add",
 ]
-"security::foreign_monitor_remove_never_reaches_either_wire" = [
+"security::foreign_watch_remove_never_reaches_either_wire" = [
   "security.x-origin.monitor-remove",
 ]
 "security::foreign_account_verification_never_reaches_either_wire" = [

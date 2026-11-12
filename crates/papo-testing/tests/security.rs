@@ -464,6 +464,52 @@ async fn cross_client_values_never_reach_either_wire() {
     );
 }
 
+async fn advertise_monitor(client: &papo::Client, wire: &mut Wire, nick: &str) {
+    wire.server(&format!(
+        ":offline.test 005 {nick} MONITOR=100 :are supported"
+    ))
+    .await;
+    while client.snapshot().isupport().monitor().is_none() {
+        tokio::task::yield_now().await;
+    }
+}
+
+#[tokio::test]
+async fn foreign_watch_add_never_reaches_either_wire() {
+    let ((first, _first_events, mut first_wire), (second, _second_events, mut second_wire)) =
+        client_pair(&[]).await;
+    advertise_monitor(&second, &mut second_wire, "papo-second").await;
+    let alice = first
+        .snapshot()
+        .name_rules()
+        .expect("server advertised CASEMAPPING")
+        .nick("alice");
+
+    assert!(matches!(
+        second.query(alice),
+        Err(papo::InvalidInput::ForeignReference)
+    ));
+    assert!(matches!(
+        second.query(first.query("alice").unwrap()),
+        Err(papo::InvalidInput::ForeignReference)
+    ));
+    assert_no_wire(&mut first_wire, &mut second_wire).await;
+}
+
+#[tokio::test]
+async fn foreign_watch_remove_never_reaches_either_wire() {
+    let ((first, _first_events, mut first_wire), (second, _second_events, mut second_wire)) =
+        client_pair(&[]).await;
+    advertise_monitor(&first, &mut first_wire, "papo-first").await;
+    advertise_monitor(&second, &mut second_wire, "papo-second").await;
+    let watch = first.query("alice").unwrap().watch();
+    assert_eq!(first_wire.next_sent().await, "MONITOR + alice");
+
+    drop(watch);
+    assert_eq!(first_wire.next_sent().await, "MONITOR - alice");
+    assert_no_wire(&mut first_wire, &mut second_wire).await;
+}
+
 #[tokio::test]
 async fn foreign_account_verification_never_reaches_either_wire() {
     let ((first, _first_events, mut first_wire), (second, _second_events, mut second_wire)) =
