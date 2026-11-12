@@ -23,7 +23,6 @@ impl std::fmt::Debug for WatchRegistry {
 }
 
 struct WatchEntry {
-    #[allow(dead_code)]
     user: Weak<UserInner>,
     leases: usize,
     live: bool,
@@ -36,7 +35,6 @@ fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 }
 
 impl WatchRegistry {
-    #[allow(dead_code)]
     pub(crate) fn set_commands(
         &self,
         commands: tokio::sync::mpsc::WeakSender<crate::driver::Command>,
@@ -67,7 +65,6 @@ impl WatchRegistry {
         }))
     }
 
-    #[allow(dead_code)]
     pub(crate) fn desired(&self) -> Vec<String> {
         lock(&self.entries)
             .values()
@@ -76,7 +73,6 @@ impl WatchRegistry {
             .collect()
     }
 
-    #[allow(dead_code)]
     pub(crate) fn update_live(&self, state: &crate::State) {
         let monitored: Vec<_> = state.monitored().map(ToString::to_string).collect();
         for entry in lock(&self.entries).values_mut() {
@@ -695,6 +691,26 @@ mod tests {
 
     use papo_core::{Config, Session};
 
+    async fn complete_monitor_connect(
+        server: &mut tokio::io::DuplexStream,
+        events: &mut crate::Events,
+        limit: usize,
+    ) {
+        use crate::driver::test_support::{client_line, next_event, server_line, welcome_burst};
+        welcome_burst(server).await;
+        server_line(server, b":ergo.test CAP * LS :\r\n").await;
+        client_line(server, b"CAP END\r\n").await;
+        server_line(
+            server,
+            format!(":ergo.test 001 papo-driver :Welcome\r\n:ergo.test 005 papo-driver CASEMAPPING=rfc1459 MONITOR={limit} :are supported\r\n:ergo.test 422 papo-driver :MOTD missing\r\n").as_bytes(),
+        )
+        .await;
+        assert!(matches!(
+            next_event(events).await,
+            Some(crate::Event::Connected(_))
+        ));
+    }
+
     fn client_with_joined_users() -> crate::Client {
         let now = crate::rt::now_mono();
         let mut session = Session::new(Config::default().nick("papo"));
@@ -731,6 +747,33 @@ mod tests {
         assert_eq!(registry.desired(), ["Alice"]);
         drop(second);
         assert!(registry.desired().is_empty());
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn watch_refcounts_one_monitor_entry() {
+        use crate::driver::test_support::{client_line, config, scripted, server_line, within};
+        use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
+
+        let (mut server, client, mut events, driver) = scripted(config());
+        let driver = tokio::spawn(driver);
+        complete_monitor_connect(&mut server, &mut events, 100).await;
+        let alice = client.query("alice").unwrap();
+        let first = alice.watch();
+        client_line(&mut server, b"MONITOR + alice\r\n").await;
+        server_line(&mut server, b":ergo.test 731 papo-driver :alice\r\n").await;
+        assert!(first.is_live());
+
+        let second = alice.watch();
+        drop(first);
+        assert!(
+            tokio::time::timeout(std::time::Duration::from_millis(1), server.read_u8())
+                .await
+                .is_err()
+        );
+        drop(second);
+        client_line(&mut server, b"MONITOR - alice\r\n").await;
+        within(server.shutdown()).await.unwrap();
+        assert!(within(driver).await.unwrap().is_err());
     }
 
     #[test]

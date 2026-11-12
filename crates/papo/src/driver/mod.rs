@@ -836,6 +836,10 @@ pub(crate) fn channels(capacity: usize, session: &Session) -> Channels {
         origin: session.state().nick().origin(),
         network_builder: None,
     };
+    client
+        .state()
+        .watch_registry()
+        .set_commands(client.commands.downgrade());
     let events = EventSink {
         regular: event_sender,
         receiver: Arc::clone(&event_receiver),
@@ -1009,6 +1013,7 @@ where
     let mut pending_write = None;
     let mut drain_after_timeout = false;
     let (reason, error, close_kind, quit_timed_out) = 'connection: loop {
+        reconcile_watches(session, events);
         drop_closed_waiters(
             &mut requests,
             &mut sync_waiters,
@@ -2303,11 +2308,22 @@ fn publish_state(events: &EventSink, session: &Session, connected: bool) {
         return;
     }
     let next = Arc::new(State::from_session_reusing(session, connected, &current));
+    next.watch_registry().update_live(&next);
     let mut slot = events
         .state
         .write()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     *slot = next;
+}
+
+fn reconcile_watches(session: &mut Session, events: &EventSink) {
+    let registry = events
+        .state
+        .read()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .watch_registry();
+    session.__reconcile_watches(registry.desired());
+    publish_session_state(events, session);
 }
 
 fn publish_session_state(events: &EventSink, session: &Session) {

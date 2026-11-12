@@ -303,17 +303,11 @@ impl Monitor {
         isupport: &Isupport,
         registered: bool,
         outbox: &mut Outbox,
-    ) {
+    ) -> bool {
         let mapping = self.names(isupport);
         self.update_casemapping(mapping.casemapping());
-        let old: Vec<_> = self
-            .effective()
-            .into_iter()
-            .filter(|nick| self.reserves(nick))
-            .cloned()
-            .collect();
         let mut known = HashSet::new();
-        self.watched = nicks
+        let watched: Vec<_> = nicks
             .into_iter()
             .filter(|nick| {
                 let key = mapping.nick(nick);
@@ -321,6 +315,21 @@ impl Monitor {
             })
             .take(MAX_DESIRED)
             .collect();
+        if watched.len() == self.watched.len()
+            && watched
+                .iter()
+                .zip(&self.watched)
+                .all(|(left, right)| mapping.nick(left) == mapping.nick(right))
+        {
+            return false;
+        }
+        let old: Vec<_> = self
+            .effective()
+            .into_iter()
+            .filter(|nick| self.reserves(nick))
+            .cloned()
+            .collect();
+        self.watched = watched;
         let effective: HashSet<_> = self
             .effective()
             .into_iter()
@@ -330,7 +339,7 @@ impl Monitor {
         self.tracked.retain(|nick| effective.contains(nick));
         self.presence.retain(|nick, _| effective.contains(nick));
         if !registered || isupport.monitor().is_none() {
-            return;
+            return true;
         }
         let limit = self.limit(isupport).unwrap_or(0);
         let mut new: Vec<_> = self
@@ -353,6 +362,7 @@ impl Monitor {
         let added = difference(&new, &old, mapping);
         transmit_chunks("-", &removed, outbox);
         transmit_chunks("+", &added, outbox);
+        true
     }
 
     pub(super) fn add<I, S>(
