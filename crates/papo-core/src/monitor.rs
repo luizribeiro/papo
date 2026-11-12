@@ -603,7 +603,8 @@ impl Monitor {
                     let watched_directly = self
                         .direct()
                         .any(|known| crate::names_equal(isupport.casemapping(), known, nick));
-                    (!watched_directly && user.channels().len() == 0 && user.nick() != state.nick())
+                    state
+                        .departure_removes_user(user, None, watched_directly)
                         .then(|| user.clone())
                 });
                 outbox.event(Event::MonitorOffline {

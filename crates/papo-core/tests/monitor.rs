@@ -807,6 +807,121 @@ fn member_departures_retain_monitored_or_still_shared_users() {
 }
 
 #[test]
+#[allow(clippy::too_many_lines)]
+fn departure_facts_follow_remaining_user_visibility() {
+    #[derive(Clone, Copy)]
+    enum Kind {
+        Part,
+        Kick,
+        Monitor,
+    }
+
+    #[derive(Clone, Copy)]
+    enum Visibility {
+        Own,
+        Shared,
+        Monitored,
+        Last,
+        MonitorShared,
+        MonitorOwn,
+        MonitorUnknown,
+    }
+
+    const OWN_JOIN: &str = ":papo!papo@127.0.0.1 JOIN #papo";
+    const SHARED: &[&str] = &[
+        OWN_JOIN,
+        ":papo!papo@127.0.0.1 JOIN #rust",
+        ":alice!~alice@staff.example JOIN #papo",
+        ":alice!~alice@staff.example JOIN #rust",
+    ];
+    const LAST: &[&str] = &[OWN_JOIN, ":alice!~alice@staff.example JOIN #papo"];
+    let cases = [
+        ("own part", Kind::Part, Visibility::Own, false),
+        ("own kick", Kind::Kick, Visibility::Own, false),
+        ("shared part", Kind::Part, Visibility::Shared, false),
+        ("shared kick", Kind::Kick, Visibility::Shared, false),
+        ("monitored part", Kind::Part, Visibility::Monitored, false),
+        ("monitored kick", Kind::Kick, Visibility::Monitored, false),
+        ("last-channel part", Kind::Part, Visibility::Last, true),
+        ("last-channel kick", Kind::Kick, Visibility::Last, true),
+        (
+            "shared offline",
+            Kind::Monitor,
+            Visibility::MonitorShared,
+            false,
+        ),
+        ("own offline", Kind::Monitor, Visibility::MonitorOwn, false),
+        (
+            "unknown offline",
+            Kind::Monitor,
+            Visibility::MonitorUnknown,
+            true,
+        ),
+    ];
+
+    for (name, kind, visibility, carries_facts) in cases {
+        let own = matches!(visibility, Visibility::Own | Visibility::MonitorOwn);
+        let watched = matches!(
+            visibility,
+            Visibility::Monitored
+                | Visibility::MonitorShared
+                | Visibility::MonitorOwn
+                | Visibility::MonitorUnknown
+        );
+        let setup = match visibility {
+            Visibility::Own => &[OWN_JOIN][..],
+            Visibility::Shared => SHARED,
+            Visibility::Monitored | Visibility::Last | Visibility::MonitorShared => LAST,
+            Visibility::MonitorOwn | Visibility::MonitorUnknown => &[],
+        };
+        let departure = match (kind, own) {
+            (Kind::Part, true) => ":papo!papo@127.0.0.1 PART #papo :Deploying release",
+            (Kind::Part, false) => ":alice!~alice@staff.example PART #papo :Deploying release",
+            (Kind::Kick, true) => ":ChanServ!service@services.example KICK #papo papo :Requested",
+            (Kind::Kick, false) => ":ChanServ!service@services.example KICK #papo alice :Requested",
+            (Kind::Monitor, true) => ":ergo.test 731 papo :papo",
+            (Kind::Monitor, false) => ":ergo.test 731 papo :alice",
+        };
+        let mut transcript = registered();
+        if watched {
+            let nick = if own { "papo" } else { "alice" };
+            transcript = transcript
+                .update(|session| session.monitor_add([nick]))
+                .client(&format!("MONITOR + {nick}"))
+                .server(&format!(
+                    ":ergo.test 730 papo :{nick}!~{nick}@staff.example"
+                ));
+        }
+        for line in setup {
+            transcript = transcript.server(line);
+        }
+        transcript
+            .server(departure)
+            .event_until(|event| {
+                let actual = match (kind, event) {
+                    (Kind::Part, Event::Parted { nick, facts, .. }) if (nick == "papo") == own => {
+                        facts.is_some()
+                    }
+                    (Kind::Kick, Event::Kicked { subject, facts, .. })
+                        if (subject == "papo") == own =>
+                    {
+                        facts.is_some()
+                    }
+                    (Kind::Monitor, Event::MonitorOffline { nick, facts, .. })
+                        if (nick == "papo") == own =>
+                    {
+                        facts.is_some()
+                    }
+                    _ => return false,
+                };
+                assert_eq!(actual, carries_facts, "{name}");
+                true
+            })
+            .ignore_rest();
+    }
+}
+
+#[test]
 fn leaving_a_channel_retains_only_monitored_or_still_shared_users() {
     extended_registered()
         .update(|session| session.monitor_add(["alice"]))

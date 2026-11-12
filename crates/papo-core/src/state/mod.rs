@@ -1096,7 +1096,7 @@ impl State {
                 let authorship = self.nick_authorship(nick);
                 let token = self.__reply_token_for(nick);
                 let facts = self.user(nick).and_then(|user| {
-                    (authorship != Authorship::Own && user.channels.len() == 1 && !user.monitored)
+                    self.departure_removes_user(user, Some(channel), user.monitored)
                         .then(|| user.clone())
                 });
                 outbox.event(Event::Parted {
@@ -1130,9 +1130,7 @@ impl State {
             let subject_authorship = self.nick_authorship(nick);
             let token = self.__reply_token_for(nick);
             let facts = self.user(nick).and_then(|user| {
-                (subject_authorship != Authorship::Own
-                    && user.channels.len() == 1
-                    && !user.monitored)
+                self.departure_removes_user(user, Some(channel), user.monitored)
                     .then(|| user.clone())
             });
             outbox.event(Event::Kicked {
@@ -1775,6 +1773,24 @@ impl State {
             return None;
         }
         self.users.get(nick.__folded(self.casemapping()).as_ref())
+    }
+
+    /// Returns whether a departure removes `user` from the client's view.
+    ///
+    /// Channel departures are checked before `departing_channel` is removed, while a `MONITOR`
+    /// offline event has no departing channel and reports whether a direct watch remains.
+    pub(crate) fn departure_removes_user(
+        &self,
+        user: &User,
+        departing_channel: Option<&str>,
+        watched_by_monitor: bool,
+    ) -> bool {
+        let shares_another_channel = user.channels.iter().any(|channel| {
+            departing_channel.is_none_or(|departing| {
+                !crate::names_equal(self.casemapping, channel.as_str(), departing)
+            })
+        });
+        user.nick != self.nick && !shares_another_channel && !watched_by_monitor
     }
 
     /// Returns cached metadata using the server's current casemapping.
