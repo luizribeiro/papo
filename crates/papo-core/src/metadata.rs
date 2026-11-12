@@ -185,6 +185,26 @@ impl Session {
         now: Instant,
         command: MetadataCommand,
     ) -> Result<RequestId, RequestError> {
+        self.metadata_inner(now, command, None)
+    }
+
+    /// Queues a metadata request guarded by a validated person target.
+    #[doc(hidden)]
+    pub fn __metadata_person(
+        &mut self,
+        now: Instant,
+        command: MetadataCommand,
+        proof: crate::Proven,
+    ) -> Result<RequestId, RequestError> {
+        self.metadata_inner(now, command, Some(crate::TargetGuard::Proven(proof)))
+    }
+
+    fn metadata_inner(
+        &mut self,
+        now: Instant,
+        command: MetadataCommand,
+        guard: Option<crate::TargetGuard>,
+    ) -> Result<RequestId, RequestError> {
         if matches!(
             &command,
             MetadataCommand::Set {
@@ -239,10 +259,12 @@ impl Session {
             MetadataCommand::Subs => params.extend(["*".into(), "SUBS".into()]),
             MetadataCommand::Sync { target } => params.extend([target, "SYNC".into()]),
         }
-        self.request_for_feature(
+        self.queue_guarded_request(
             now,
             Line::new("METADATA").with_params(params),
-            Feature::Metadata,
+            Some(Feature::Metadata),
+            true,
+            guard,
         )
     }
 }
