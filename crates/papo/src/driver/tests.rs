@@ -2259,7 +2259,6 @@ async fn write_timeout_resumes_before_the_next_line() {
     let mut transmits = std::collections::BTreeMap::new();
     let mut join_keys = std::collections::BTreeMap::new();
     let mut sync_waiters = Vec::new();
-    let mut direct_waiters = Vec::new();
     let mut catchups = std::collections::BTreeMap::new();
     let mut resolved_sent = VecDeque::new();
     let mut registration = super::ConnectWait::default();
@@ -2290,7 +2289,6 @@ async fn write_timeout_resumes_before_the_next_line() {
         &mut transmits,
         &mut join_keys,
         &mut sync_waiters,
-        &mut direct_waiters,
         &mut catchups,
         &mut resolved_sent,
         &mut registration,
@@ -2322,7 +2320,6 @@ async fn write_timeout_resumes_before_the_next_line() {
         &mut transmits,
         &mut join_keys,
         &mut sync_waiters,
-        &mut direct_waiters,
         &mut catchups,
         &mut resolved_sent,
         &mut registration,
@@ -7702,35 +7699,6 @@ async fn typed_channel_and_guarded_direct_destinations_reach_the_wire() {
     assert!(matches!(within(task).await.unwrap(), Err(disconnected!())));
 }
 
-#[test]
-fn direct_confirmation_skips_waiters_for_other_nicks() {
-    let mut session = Session::new(config());
-    let bob = session.__direct_acquire("bob", None, None, crate::Account::Unknown);
-    let alice = session.__direct_acquire("alice", None, None, crate::Account::Unknown);
-    let (bob_result, mut bob_receiver) = tokio::sync::oneshot::channel();
-    let (alice_result, mut alice_receiver) = tokio::sync::oneshot::channel();
-    let mut waiters = vec![
-        super::PendingDirect {
-            recipient: bob,
-            result: bob_result,
-        },
-        super::PendingDirect {
-            recipient: alice,
-            result: alice_result,
-        },
-    ];
-
-    super::resolve_direct_waiter(&mut session, &mut waiters, "alice", None);
-
-    assert!(matches!(alice_receiver.try_recv(), Ok(Ok(()))));
-    assert!(matches!(
-        bob_receiver.try_recv(),
-        Err(tokio::sync::oneshot::error::TryRecvError::Empty)
-    ));
-    assert_eq!(waiters.len(), 1);
-    assert_eq!(waiters.first().unwrap().recipient.__nick(), "bob");
-}
-
 #[tokio::test(flavor = "current_thread")]
 async fn rejected_monitor_entry_does_not_fail_direct_request() {
     let (mut server, client, mut events, driver) = scripted(config());
@@ -9899,15 +9867,9 @@ fn closed_waiters_do_not_enable_read_ahead() {
     let mut sync_waiters = vec![("#papo".to_owned(), sync)];
     let (registration, registration_receiver) = tokio::sync::oneshot::channel();
     let mut registration = super::ConnectWait(Some(registration));
-    let mut direct_waiters = Vec::new();
     drop((request_receiver, sync_receiver, registration_receiver));
 
-    super::drop_closed_waiters(
-        &mut requests,
-        &mut sync_waiters,
-        &mut direct_waiters,
-        &mut registration,
-    );
+    super::drop_closed_waiters(&mut requests, &mut sync_waiters, &mut registration);
 
     assert!(requests.is_empty());
     assert!(sync_waiters.is_empty());
@@ -9919,36 +9881,6 @@ fn closed_waiters_do_not_enable_read_ahead() {
         &registration,
         false,
     ));
-}
-
-#[test]
-fn resolved_by_who_direct_request_leaves_no_confirmation_waiter() {
-    let mut session = Session::new(config());
-    let now = crate::rt::now_mono();
-    for line in [
-        ":ergo.test 001 papo-driver :Welcome to ErgoTest",
-        ":ergo.test 005 papo-driver MONITOR=100 :are supported",
-        ":ergo.test 422 papo-driver :MOTD File is missing",
-    ] {
-        session.handle_line(now, line.as_bytes());
-    }
-    let recipient = session.__direct_acquire("alice", None, None, crate::Account::Unknown);
-    let (result, confirmation) = tokio::sync::oneshot::channel();
-    let mut direct_waiters = vec![super::PendingDirect { recipient, result }];
-    let mut requests = std::collections::BTreeMap::new();
-    let mut sync_waiters = Vec::new();
-    let mut registration = super::ConnectWait::default();
-
-    drop(confirmation);
-    super::drop_closed_waiters(
-        &mut requests,
-        &mut sync_waiters,
-        &mut direct_waiters,
-        &mut registration,
-    );
-
-    assert!(direct_waiters.is_empty());
-    assert!(session.__monitor_reserves("alice"));
 }
 
 #[tokio::test(flavor = "current_thread")]

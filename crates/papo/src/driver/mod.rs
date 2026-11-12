@@ -918,11 +918,6 @@ struct PendingWrite {
     token: Option<TransmitToken>,
 }
 
-struct PendingDirect {
-    recipient: papo_core::RecipientGuard,
-    result: oneshot::Sender<Result<(), Error>>,
-}
-
 impl ConnectionEnd {
     fn login_error(&self, awaiting_registration: bool) -> Error {
         match &self.error {
@@ -980,7 +975,6 @@ where
     let mut join_keys = BTreeMap::new();
     let mut active_typing = BTreeMap::new();
     let mut sync_waiters = Vec::new();
-    let mut direct_waiters = Vec::new();
     let mut catchups = BTreeMap::new();
     let mut resolved_sent = VecDeque::new();
     let mut registered_at = None;
@@ -990,12 +984,7 @@ where
     let mut drain_after_timeout = false;
     let (reason, error, close_kind, quit_timed_out) = 'connection: loop {
         reconcile_watches(session, events);
-        drop_closed_waiters(
-            &mut requests,
-            &mut sync_waiters,
-            &mut direct_waiters,
-            registration,
-        );
+        drop_closed_waiters(&mut requests, &mut sync_waiters, registration);
         let write_deadline = [
             session.poll_timeout(),
             quit.as_ref().and_then(|quit: &Quit| quit.deadline),
@@ -1013,7 +1002,6 @@ where
             &mut transmits,
             &mut join_keys,
             &mut sync_waiters,
-            &mut direct_waiters,
             &mut catchups,
             &mut resolved_sent,
             registration,
@@ -1078,7 +1066,6 @@ where
                                 &mut transmits,
                                 &mut join_keys,
                                 &mut sync_waiters,
-                                &mut direct_waiters,
                                 &mut catchups,
                                 &mut resolved_sent,
                                 registration,
@@ -1455,11 +1442,6 @@ where
     for (_, result) in sync_waiters {
         _ = result.send(Err(Error::disconnected(disconnected.clone())));
     }
-    for waiter in direct_waiters {
-        _ = waiter
-            .result
-            .send(Err(Error::disconnected(disconnected.clone())));
-    }
     publish_session_state(events, session);
     close_stream_before(
         &mut stream,
@@ -1539,7 +1521,6 @@ async fn drain<S>(
     transmits: &mut BTreeMap<TransmitToken, PendingTransmit>,
     join_keys: &mut BTreeMap<RequestId, (crate::ChannelName, Option<crate::Secret>)>,
     sync_waiters: &mut Vec<(String, oneshot::Sender<Result<(), Error>>)>,
-    direct_waiters: &mut Vec<PendingDirect>,
     catchups: &mut BTreeMap<RequestId, Catchup>,
     resolved_sent: &mut VecDeque<String>,
     registration: &mut ConnectWait,
@@ -1572,7 +1553,7 @@ where
             Event::Connecting(crate::event::Connecting { attempt, phase }),
         );
     }
-    drop_closed_waiters(requests, sync_waiters, direct_waiters, registration);
+    drop_closed_waiters(requests, sync_waiters, registration);
     reconcile_pending_events(events, pending_events, requests, resolved_sent);
     let read_ahead = should_read_ahead(requests, sync_waiters, catchups, registration, quitting);
     while (pending_events.is_empty() || read_ahead || after_timeout)
@@ -1590,7 +1571,6 @@ where
             Some(&events.state),
         ) {
             event::CoreEvent::Forward(event) => {
-                resolve_direct_waiters(session, direct_waiters, &event);
                 catchup::remember_live_event(catchups.values_mut(), &event);
                 if let Event::ChannelSynced(synced) = &event {
                     resolve_sync_waiters(session, sync_waiters, synced.channel.name().as_str());
@@ -1819,40 +1799,6 @@ where
     }
     drain_transmit(stream, session, pending_write, transmits, deadline).await?;
     Ok(None)
-}
-
-fn resolve_direct_waiters(session: &mut Session, waiters: &mut Vec<PendingDirect>, event: &Event) {
-    match event {
-        Event::MonitorOnline(online) => {
-            resolve_direct_waiter(session, waiters, online.subject.nick().as_str(), None);
-        }
-        Event::MonitorOffline(offline) => {
-            resolve_direct_waiter(session, waiters, offline.subject.nick().as_str(), None);
-        }
-        Event::Warning(event::Warning::MonitorListFull { maximum, nicks }) => {
-            for nick in nicks {
-                resolve_direct_waiter(session, waiters, nick.as_str(), Some(*maximum));
-            }
-        }
-        _ => {}
-    }
-}
-
-fn resolve_direct_waiter(
-    session: &mut Session,
-    waiters: &mut Vec<PendingDirect>,
-    nick: &str,
-    limit: Option<usize>,
-) {
-    let key = session.isupport().casemapping().fold(nick);
-    while let Some(index) = waiters
-        .iter()
-        .position(|pending| pending.recipient.__nick().key() == key)
-    {
-        let pending = waiters.swap_remove(index);
-        let result = limit.map_or_else(|| Ok(()), |limit| Err(Error::MonitorFull { limit }));
-        _ = pending.result.send(result);
-    }
 }
 
 const RESOLVED_SENT_CAPACITY: usize = 1_024;
@@ -2203,12 +2149,10 @@ fn resolve_sync_waiters(
 fn drop_closed_waiters(
     requests: &mut BTreeMap<RequestId, PendingRequest>,
     sync_waiters: &mut Vec<(String, oneshot::Sender<Result<(), Error>>)>,
-    direct_waiters: &mut Vec<PendingDirect>,
     registration: &mut ConnectWait,
 ) {
     requests.retain(|_, request| !request.is_closed());
     sync_waiters.retain(|(_, result)| !result.is_closed());
-    direct_waiters.retain(|pending| !pending.result.is_closed());
     if registration
         .0
         .as_ref()
