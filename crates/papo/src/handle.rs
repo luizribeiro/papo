@@ -10,7 +10,6 @@ enum UserIdentity {
     Proven(papo_core::ReplyToken),
 }
 
-#[allow(dead_code)]
 #[derive(Default)]
 pub(crate) struct WatchRegistry {
     entries: Mutex<HashMap<UserIdentity, WatchEntry>>,
@@ -23,8 +22,8 @@ impl std::fmt::Debug for WatchRegistry {
     }
 }
 
-#[allow(dead_code)]
 struct WatchEntry {
+    #[allow(dead_code)]
     user: Weak<UserInner>,
     leases: usize,
     live: bool,
@@ -36,8 +35,8 @@ fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
         .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
-#[allow(dead_code)]
 impl WatchRegistry {
+    #[allow(dead_code)]
     pub(crate) fn set_commands(
         &self,
         commands: tokio::sync::mpsc::WeakSender<crate::driver::Command>,
@@ -45,6 +44,30 @@ impl WatchRegistry {
         *lock(&self.commands) = Some(commands);
     }
 
+    fn acquire(self: &Arc<Self>, user: &UserHandle) -> Watch {
+        let identity = user.0.identity.clone();
+        let mut entries = lock(&self.entries);
+        if let Some(entry) = entries.get_mut(&identity) {
+            entry.leases = entry.leases.saturating_add(1);
+        } else {
+            entries.insert(
+                identity.clone(),
+                WatchEntry {
+                    user: Arc::downgrade(&user.0),
+                    leases: 1,
+                    live: false,
+                },
+            );
+        }
+        drop(entries);
+        self.wake();
+        Watch(Arc::new(WatchLease {
+            registry: Arc::clone(self),
+            identity,
+        }))
+    }
+
+    #[allow(dead_code)]
     pub(crate) fn desired(&self) -> Vec<String> {
         lock(&self.entries)
             .values()
@@ -53,6 +76,7 @@ impl WatchRegistry {
             .collect()
     }
 
+    #[allow(dead_code)]
     pub(crate) fn update_live(&self, state: &crate::State) {
         let monitored: Vec<_> = state.monitored().map(ToString::to_string).collect();
         for entry in lock(&self.entries).values_mut() {
@@ -75,6 +99,53 @@ impl WatchRegistry {
                 task: Box::pin(async {}),
             });
         }
+    }
+}
+
+/// A synchronous lease on one desired server-side presence watch.
+#[derive(Clone)]
+pub struct Watch(Arc<WatchLease>);
+
+struct WatchLease {
+    registry: Arc<WatchRegistry>,
+    identity: UserIdentity,
+}
+
+impl Watch {
+    /// Reports whether the server currently accepted this watch.
+    #[must_use]
+    pub fn is_live(&self) -> bool {
+        lock(&self.0.registry.entries)
+            .get(&self.0.identity)
+            .is_some_and(|entry| entry.live)
+    }
+}
+
+impl std::fmt::Debug for Watch {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        crate::opaque_debug("Watch", formatter)
+    }
+}
+
+impl PartialEq for Watch {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl Eq for Watch {}
+
+impl Drop for WatchLease {
+    fn drop(&mut self) {
+        let mut entries = lock(&self.registry.entries);
+        if let Some(entry) = entries.get_mut(&self.identity) {
+            entry.leases = entry.leases.saturating_sub(1);
+            if entry.leases == 0 {
+                entries.remove(&self.identity);
+            }
+        }
+        drop(entries);
+        self.registry.wake();
     }
 }
 
@@ -259,6 +330,23 @@ impl UserHandle {
             state.peer_token(&nick),
         )
         .unwrap_or_else(|| crate::PeerKey::unverified(state.peer_scope().as_ref(), &nick))
+    }
+
+    /// Acquires a synchronous lease requesting server-side presence tracking.
+    #[must_use]
+    pub fn watch(&self) -> Watch {
+        let registry = self
+            .0
+            .state
+            .as_ref()
+            .map(|state| {
+                state
+                    .read()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .watch_registry()
+            })
+            .unwrap_or_default();
+        registry.acquire(self)
     }
 }
 
@@ -626,6 +714,23 @@ mod tests {
         let mut hasher = DefaultHasher::new();
         value.hash(&mut hasher);
         hasher.finish()
+    }
+
+    #[test]
+    fn watch_leases_share_one_desired_identity() {
+        let client = client_with_joined_users();
+        let user = client.query("Alice").unwrap();
+        let registry = client.state().watch_registry();
+        let first = user.watch();
+        let cloned = first.clone();
+        let second = user.watch();
+
+        assert_eq!(registry.desired(), ["Alice"]);
+        drop(first);
+        drop(cloned);
+        assert_eq!(registry.desired(), ["Alice"]);
+        drop(second);
+        assert!(registry.desired().is_empty());
     }
 
     #[test]

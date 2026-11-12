@@ -477,7 +477,6 @@ impl State {
         }
     }
 
-    #[allow(dead_code)]
     pub(crate) fn watch_registry(&self) -> Arc<crate::handle::WatchRegistry> {
         Arc::clone(&self.watch_registry)
     }

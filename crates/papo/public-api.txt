@@ -3469,6 +3469,7 @@ pub struct papo::UserHandle(_)
 impl papo::UserHandle
 pub fn papo::UserHandle::key(&self) -> papo::PeerKey
 pub fn papo::UserHandle::nick(&self) -> papo::Nick
+pub fn papo::UserHandle::watch(&self) -> papo::Watch
 impl core::clone::Clone for papo::UserHandle
 pub fn papo::UserHandle::clone(&self) -> Self
 impl core::cmp::Eq for papo::UserHandle
@@ -3494,6 +3495,23 @@ impl core::marker::Unpin for papo::UserHandle
 impl core::marker::UnsafeUnpin for papo::UserHandle
 impl core::panic::unwind_safe::RefUnwindSafe for papo::UserHandle
 impl core::panic::unwind_safe::UnwindSafe for papo::UserHandle
+pub struct papo::Watch(_)
+impl papo::Watch
+pub fn papo::Watch::is_live(&self) -> bool
+impl core::clone::Clone for papo::Watch
+pub fn papo::Watch::clone(&self) -> Self
+impl core::cmp::Eq for papo::Watch
+impl core::cmp::PartialEq for papo::Watch
+pub fn papo::Watch::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::Watch
+pub fn papo::Watch::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::marker::Freeze for papo::Watch
+impl core::marker::Send for papo::Watch
+impl core::marker::Sync for papo::Watch
+impl core::marker::Unpin for papo::Watch
+impl core::marker::UnsafeUnpin for papo::Watch
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Watch
+impl core::panic::unwind_safe::UnwindSafe for papo::Watch
 #[non_exhaustive] pub struct papo::WebIrc
 impl papo::WebIrc
 pub fn papo::WebIrc::flag(self, impl core::convert::Into<alloc::string::String>) -> Self
