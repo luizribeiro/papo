@@ -11056,3 +11056,40 @@ async fn dropped_wakeup_still_reconciles_registry() {
 
     quit_cleanly(&mut server, client, driver).await;
 }
+
+#[tokio::test(flavor = "current_thread", start_paused = true)]
+async fn query_event_and_reconnect_spend_no_monitor_slot() {
+    let ([mut first, mut second], client, mut events, driver) = reconnecting_monitor_driver();
+    let driver = tokio::spawn(driver);
+    complete_connect_monitor(&mut first, &mut events, 100).await;
+    server_line(
+        &mut first,
+        b":bob!~bob@cloak.example PRIVMSG papo-driver :release checklist ready\r\n",
+    )
+    .await;
+    let message = next_message(&mut events).await;
+    let alice = client.query("alice").unwrap();
+
+    let sent = tokio::spawn({
+        let client = client.clone();
+        async move { client.privmsg(&alice, "deploy window confirmed").await }
+    });
+    client_line(&mut first, b"WHO alice %na\r\n").await;
+    server_line(
+        &mut first,
+        b":ergo.test 354 papo-driver alice 0\r\n:ergo.test 315 papo-driver alice :End of WHO list\r\n",
+    )
+    .await;
+    client_line(&mut first, b"PRIVMSG alice :deploy window confirmed\r\n").await;
+    within(sent).await.unwrap().unwrap();
+    within(client.privmsg(&message.actor, "checklist received"))
+        .await
+        .unwrap();
+    client_line(&mut first, b"PRIVMSG bob :checklist received\r\n").await;
+    assert_eq!(client.state().monitored().count(), 0);
+
+    lose_connection(&mut first, &mut events).await;
+    complete_connect_monitor(&mut second, &mut events, 100).await;
+    assert_eq!(client.state().monitored().count(), 0);
+    quit_cleanly(&mut second, client, driver).await;
+}
