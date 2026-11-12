@@ -354,7 +354,6 @@ impl crate::Target for MessageRef {
         crate::target::sealed::Parts {
             text: std::borrow::Cow::Borrowed(&self.address),
             origin: self.origin,
-            recipient: None,
             channel: self
                 .channel
                 .as_ref()
@@ -411,7 +410,6 @@ impl crate::Target for NoticeRef {
         crate::target::sealed::Parts {
             text: std::borrow::Cow::Borrowed(&self.address),
             origin: self.origin,
-            recipient: None,
             channel: self
                 .channel
                 .as_ref()

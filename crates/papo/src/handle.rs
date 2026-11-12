@@ -450,7 +450,6 @@ impl crate::AsChannel for ChannelHandle {
         crate::target::sealed::Parts {
             text: std::borrow::Cow::Owned(self.name().to_string()),
             origin: self.0.0.channel.origin(),
-            recipient: None,
             channel: self.guard().cloned().map(Box::new),
             user: None,
         }
@@ -464,7 +463,6 @@ impl crate::Target for UserHandle {
         crate::target::sealed::Parts {
             text: std::borrow::Cow::Owned(self.nick().to_string()),
             origin: self.0.nick.origin(),
-            recipient: None,
             channel: None,
             user: Some(self.clone()),
         }

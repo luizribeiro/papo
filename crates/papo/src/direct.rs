@@ -241,7 +241,6 @@ impl crate::Target for DirectRef {
         crate::target::sealed::Parts {
             text: std::borrow::Cow::Owned(nick.to_string()),
             origin: nick.origin(),
-            recipient: None,
             channel: None,
             user: Some(self.user_handle()),
         }
@@ -362,7 +361,6 @@ mod tests {
             crate::target::sealed::Parts {
                 text: std::borrow::Cow::Owned(self.nick.to_string()),
                 origin: self.nick.origin(),
-                recipient: None,
                 channel: None,
                 user: Some(crate::UserHandle::from_parts(
                     self.nick.clone(),
@@ -665,7 +663,6 @@ mod tests {
         let channel_parts = crate::target::sealed::Parts {
             text: std::borrow::Cow::Borrowed("#review"),
             origin: channel.origin(),
-            recipient: None,
             channel: Some(Box::new(channel_guard)),
             user: None,
         };
@@ -678,9 +675,8 @@ mod tests {
         let nick_parts = crate::target::sealed::Parts {
             text: std::borrow::Cow::Borrowed("alice"),
             origin: recipient.__nick().origin(),
-            recipient: Some(crate::message_ref::RecipientGuard::from_core(&recipient)),
             channel: None,
-            user: None,
+            user: Some(direct.user_handle()),
         };
         assert_eq!(
             client
@@ -720,17 +716,18 @@ mod tests {
             .state()
             .__capture_recipient(nick.clone(), Account::LoggedOut)
             .unwrap();
+        let (client, _) = crate::driver::test_support::client_with_commands(&session);
+        let direct = super::DirectRef::new(&client, recipient, false);
         session.handle_line(
             crate::rt::now_mono(),
             b":alice!~alice@cloak.example QUIT :Client exited",
         );
-        let (client, _) = crate::driver::test_support::client_with_commands(&session);
+        *client.state.write().unwrap() = Arc::new(crate::State::from_session(&session, true));
         let parts = crate::target::sealed::Parts {
             text: std::borrow::Cow::Borrowed("alice"),
             origin: nick.origin(),
-            recipient: Some(crate::message_ref::RecipientGuard::from_core(&recipient)),
             channel: None,
-            user: None,
+            user: Some(direct.user_handle()),
         };
 
         assert!(matches!(

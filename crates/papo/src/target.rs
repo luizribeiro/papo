@@ -9,7 +9,6 @@ pub(crate) mod sealed {
     pub struct Parts<'a> {
         pub(crate) text: Cow<'a, str>,
         pub(crate) origin: crate::Origin,
-        pub(crate) recipient: Option<crate::message_ref::RecipientGuard>,
         pub(crate) channel: Option<Box<papo_core::ChannelGuard>>,
         pub(crate) user: Option<crate::UserHandle>,
     }
@@ -23,7 +22,6 @@ pub(crate) mod sealed {
             Parts {
                 text: Cow::Owned(self.text.into_owned()),
                 origin: self.origin,
-                recipient: self.recipient,
                 channel: self.channel,
                 user: self.user,
             }
@@ -35,7 +33,6 @@ pub(crate) mod sealed {
             Self {
                 text: Cow::Owned(parts.text().to_owned()),
                 origin: parts.origin(),
-                recipient: None,
                 channel: None,
                 user: None,
             }
@@ -134,7 +131,6 @@ fn text_parts(text: &str) -> sealed::Parts<'_> {
     sealed::Parts {
         text: Cow::Borrowed(text),
         origin: crate::Origin::NONE,
-        recipient: None,
         channel: None,
         user: None,
     }
@@ -191,7 +187,6 @@ fn name_parts(text: &str, origin: crate::Origin) -> sealed::Parts<'_> {
     sealed::Parts {
         text: Cow::Borrowed(text),
         origin,
-        recipient: None,
         channel: None,
         user: None,
     }

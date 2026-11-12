@@ -154,7 +154,6 @@ struct ResolvedSend {
     text: String,
     guard: Option<papo_core::TargetGuard>,
     person: Option<papo_core::Proven>,
-    _lease: Option<crate::direct::MonitorLease>,
 }
 
 impl ResolvedSend {
@@ -469,72 +468,14 @@ impl Client {
                 text: proven.nick.to_string(),
                 guard: None,
                 person: Some(proven.core),
-                _lease: None,
             });
         }
-        let recipient_input = parts.recipient.clone();
-        let snapshot = self.state();
-        let mut recipient = recipient_input
-            .as_ref()
-            .and_then(|recipient| recipient.to_core(&snapshot));
-        if recipient.is_none()
-            && recipient_input
-                .as_ref()
-                .is_some_and(crate::message_ref::RecipientGuard::has_proof)
-        {
-            return Err(Error::TargetGone);
-        }
         let channel = parts.channel.as_deref().cloned();
-        let mut lease = None;
-        let mut text = self.resolve(crate::target::Role::Send(argument), parts)?;
-        if let Some(guard) = &recipient {
-            match self.state().resolve_recipient(guard) {
-                papo_core::RecipientStatus::Current(nick) => text = nick.to_string(),
-                papo_core::RecipientStatus::Gone => return Err(Error::TargetGone),
-                papo_core::RecipientStatus::Unknown => {
-                    let expected = guard.__account().clone();
-                    crate::direct_runtime::require_monitor_slot(&self.state(), &text)?;
-                    let acquired = crate::direct_runtime::acquire(self, text.clone()).await?;
-                    let (acquired, actual) =
-                        crate::direct_runtime::prove(self, text.clone(), acquired).await?;
-                    if !matches!(
-                        (&expected, &actual),
-                        (crate::Account::LoggedIn(left), crate::Account::LoggedIn(right))
-                            if left == right
-                    ) {
-                        return Err(Error::TargetGone);
-                    }
-                    let (refreshed, acquired_lease) = acquired.into_parts();
-                    lease = Some(acquired_lease);
-                    recipient = Some(refreshed);
-                }
-            }
-        } else if let Some(unproven) = recipient_input {
-            let expected = unproven.account;
-            crate::direct_runtime::require_monitor_slot(&self.state(), &text)?;
-            let acquired = crate::direct_runtime::acquire(self, text.clone()).await?;
-            let (acquired, actual) =
-                crate::direct_runtime::prove(self, text.clone(), acquired).await?;
-            if matches!(expected, crate::Account::LoggedIn(_))
-                && !matches!(
-                    (&expected, &actual),
-                    (crate::Account::LoggedIn(left), crate::Account::LoggedIn(right))
-                        if left == right
-                )
-            {
-                return Err(Error::TargetGone);
-            }
-            let (refreshed, acquired_lease) = acquired.into_parts();
-            lease = Some(acquired_lease);
-            recipient = Some(refreshed);
-        }
+        let text = self.resolve(crate::target::Role::Send(argument), parts)?;
         Ok(ResolvedSend {
             text,
-            guard: recipient
-                .map(papo_core::TargetGuard::Recipient)
-                .or_else(|| channel.map(papo_core::TargetGuard::Channel)),
+            guard: channel.map(papo_core::TargetGuard::Channel),
             person: None,
-            _lease: lease,
         })
     }
 
@@ -570,36 +511,10 @@ impl Client {
                 .map_err(crate::identity::map_failure)?
                 .to_string();
         }
-        if let Some(recipient) = parts.recipient.as_ref() {
-            let resolved = recipient.to_core(&state);
-            if resolved.is_none() && matches!(role, crate::target::Role::Nick(_)) {
-                return Err(Error::TargetGone);
-            }
-            match resolved
-                .as_ref()
-                .map(|recipient| state.resolve_recipient(recipient))
-            {
-                Some(papo_core::RecipientStatus::Current(nick)) => {
-                    if matches!(role, crate::target::Role::Nick(_)) {
-                        text = nick.to_string();
-                    }
-                }
-                Some(papo_core::RecipientStatus::Gone) => {
-                    return Err(Error::TargetGone);
-                }
-                Some(papo_core::RecipientStatus::Unknown)
-                    if matches!(role, crate::target::Role::Nick(_)) =>
-                {
-                    return Err(Error::TargetGone);
-                }
-                Some(papo_core::RecipientStatus::Unknown) | None => {}
-            }
-        }
         let result = match role {
             crate::target::Role::Send(_) => {
                 state.parse_target_inner(&text).and_then(|(_, target)| {
-                    if matches!(target, papo_core::Conversation::Channel(_))
-                        || parts.recipient.is_some()
+                    if matches!(target, papo_core::Conversation::Channel(_)) || parts.user.is_some()
                     {
                         Ok(())
                     } else {
@@ -804,7 +719,6 @@ impl Client {
         let target = crate::target::sealed::Parts {
             text: std::borrow::Cow::Owned(query.actor.nick().to_string()),
             origin: crate::message_ref::conversation_origin(query.conversation()),
-            recipient: None,
             channel: None,
             user: Some(query.actor.clone()),
         };

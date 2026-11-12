@@ -94,7 +94,6 @@ impl Client {
                         crate::target::sealed::Parts {
                             text: std::borrow::Cow::Owned(text),
                             origin,
-                            recipient: None,
                             channel: None,
                             user: None,
                         },
