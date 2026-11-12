@@ -13,12 +13,13 @@ fn departed_identity_history_is_bounded_and_fails_closed() {
     let mut session = Session::new(Config::default().nick("papo"));
     server(&mut session, ":papo!p@localhost JOIN #review");
     server(&mut session, ":alice!~alice@cloak.example JOIN #review");
-    let guard = session.__direct_acquire(
-        "alice",
-        Some("~alice"),
-        Some("cloak.example"),
-        Account::LoggedOut,
-    );
+    let guard = session
+        .state()
+        .__capture_recipient(
+            session.state().casemapping().nick("alice"),
+            Account::Unknown,
+        )
+        .unwrap();
     server(
         &mut session,
         ":alice!~alice@cloak.example QUIT :Client Quit",

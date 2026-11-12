@@ -5190,12 +5190,13 @@ mod tests {
             session.handle_line(now, line.as_bytes());
         }
         while session.poll_event().is_some() {}
-        let guard = session.__direct_acquire(
-            "alice",
-            Some("~alice"),
-            Some("cloak.example"),
-            Account::LoggedOut,
-        );
+        let guard = session
+            .state()
+            .__capture_recipient(
+                session.state().casemapping().nick("alice"),
+                Account::Unknown,
+            )
+            .unwrap();
         if request {
             session
                 .request_guarded_silent(

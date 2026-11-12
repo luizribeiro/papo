@@ -44,12 +44,13 @@ fn multiline_session(now: Instant) -> Session {
 fn queued_multiline_direct_message_rewrites_every_target_after_rename() {
     let now = Instant::now();
     let mut session = multiline_session(now);
-    let guard = session.__direct_acquire(
-        "alice",
-        Some("~alice"),
-        Some("cloak.example"),
-        Account::LoggedOut,
-    );
+    let guard = session
+        .state()
+        .__capture_recipient(
+            session.state().casemapping().nick("alice"),
+            Account::Unknown,
+        )
+        .unwrap();
     session
         .send_guarded_text_detailed(
             now,
@@ -75,12 +76,13 @@ fn queued_multiline_direct_message_rewrites_every_target_after_rename() {
 fn guarded_multiline_closes_its_batch_after_takeover() {
     let now = Instant::now();
     let mut session = multiline_session(now);
-    let guard = session.__direct_acquire(
-        "alice",
-        Some("~alice"),
-        Some("cloak.example"),
-        Account::LoggedOut,
-    );
+    let guard = session
+        .state()
+        .__capture_recipient(
+            session.state().casemapping().nick("alice"),
+            Account::Unknown,
+        )
+        .unwrap();
     let sent = session
         .send_guarded_text_detailed(
             now,

@@ -24,12 +24,13 @@ fn queued_direct_message_follows_the_same_users_nick_change() {
     server(&mut session, ":papo!p@localhost JOIN #review");
     server(&mut session, ":alice!~alice@cloak.example JOIN #review");
     discard_events(&mut session);
-    let guard = session.__direct_acquire(
-        "alice",
-        Some("~alice"),
-        Some("cloak.example"),
-        Account::LoggedOut,
-    );
+    let guard = session
+        .state()
+        .__capture_recipient(
+            session.state().casemapping().nick("alice"),
+            Account::Unknown,
+        )
+        .unwrap();
 
     session.send(now, Line::new("PING").param("fence")).unwrap();
     session
@@ -62,12 +63,13 @@ fn queued_direct_message_is_dropped_after_a_nickname_takeover() {
     server(&mut session, ":alice!~alice@cloak.example JOIN #review");
     server(&mut session, ":mallory!~mallory@users.example JOIN #review");
     discard_events(&mut session);
-    let guard = session.__direct_acquire(
-        "alice",
-        Some("~alice"),
-        Some("cloak.example"),
-        Account::LoggedOut,
-    );
+    let guard = session
+        .state()
+        .__capture_recipient(
+            session.state().casemapping().nick("alice"),
+            Account::Unknown,
+        )
+        .unwrap();
 
     session.send(now, Line::new("PING").param("fence")).unwrap();
     let token = session

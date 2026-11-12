@@ -403,8 +403,14 @@ mod tests {
     fn direct_references_use_stable_captured_identity() {
         let mut session = Session::new(Config::default().nick("papo"));
         let prove = |session: &mut Session, nick: &str, account: Account| {
-            let acquired = session.__direct_acquire(nick, None, None, Account::Unknown);
-            session.__direct_prove(&acquired, account).unwrap()
+            let row = match &account {
+                Account::LoggedIn(name) => format!(":ergo.test 354 papo {nick} {name}"),
+                _ => format!(":ergo.test 354 papo {nick} 0"),
+            };
+            let nick = session.isupport().casemapping().nick(nick);
+            let lines = [LineRef::parse(&row).unwrap().to_owned()];
+            let proof = session.__prove_who_user(nick, account, &lines).unwrap();
+            proof.__recipient().unwrap().clone()
         };
         let account = Account::LoggedIn(session.isupport().casemapping().account("alice-account"));
         let desktop = prove(&mut session, "alice", account.clone());
@@ -570,12 +576,13 @@ mod tests {
         }
         let channel = session.state().channel("#review").unwrap().name().clone();
         let channel_guard = session.state().__channel_guard(&channel);
-        let recipient = session.__direct_acquire(
-            "alice",
-            Some("~alice"),
-            Some("cloak.example"),
-            Account::LoggedOut,
-        );
+        let recipient = session
+            .state()
+            .__capture_recipient(
+                session.state().casemapping().nick("alice"),
+                Account::Unknown,
+            )
+            .unwrap();
         let (client, _) = crate::driver::test_support::client_with_commands(&session);
         let direct = super::DirectRef::new(&client, recipient.clone(), false);
         let original_hash = direct_hash(&direct);
