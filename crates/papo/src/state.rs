@@ -672,19 +672,10 @@ impl State {
     ///
     /// Returns [`crate::ForeignReference`] when `user` belongs to another client.
     pub fn presence(&self, user: &crate::UserHandle) -> Result<Presence, crate::ForeignReference> {
-        let nick = match self.user_checked(user)? {
-            Some(known)
-                if known.nick() == self.core.nick() || known.channels().next().is_some() =>
-            {
-                return Ok(Presence::Online);
-            }
-            Some(known) => known.nick().as_str(),
-            None if self.core.__monitor_presence(user.nick().as_str()).is_some() => {
-                return Ok(Presence::Offline);
-            }
-            None => return Ok(Presence::Unknown),
-        };
-        Ok(match self.core.__monitor_presence(nick) {
+        if self.user_checked(user)?.is_some() {
+            return Ok(Presence::Online);
+        }
+        Ok(match self.core.__monitor_presence(user.nick().as_str()) {
             Some(true) => Presence::Online,
             Some(false) => Presence::Offline,
             None => Presence::Unknown,

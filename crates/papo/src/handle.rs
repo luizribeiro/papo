@@ -510,13 +510,30 @@ mod tests {
 
     #[test]
     fn presence_unknown_without_watch_or_shared_channel() {
-        let client = crate::Client::disconnected_for_test();
-        let alice = client.query("alice").unwrap();
+        let now = crate::rt::now_mono();
+        let mut session = papo_core::Session::new(papo_core::Config::default().nick("papo"));
+        for line in [
+            b":ergo.test 005 papo CASEMAPPING=rfc1459 MONITOR=100 :are supported".as_slice(),
+            b":papo!papo@localhost JOIN #release * :Papo Client".as_slice(),
+            b":Alice!alice@staff.ergo.chat JOIN #release alice-account :Alice Example".as_slice(),
+        ] {
+            session.handle_line(now, line);
+        }
+        session.monitor_add(["bob", "carol"]);
+        session.handle_line(now, b":ergo.test 730 papo :bob!~bob@cloak.example");
+        session.handle_line(now, b":ergo.test 731 papo :carol");
+        let client = crate::driver::test_support::client_with_commands(&session).0;
 
-        assert_eq!(
-            client.state().presence(&alice),
-            Ok(crate::Presence::Unknown)
-        );
+        for (nick, expected) in [
+            ("papo", crate::Presence::Online),
+            ("Alice", crate::Presence::Online),
+            ("bob", crate::Presence::Online),
+            ("carol", crate::Presence::Offline),
+            ("dave", crate::Presence::Unknown),
+        ] {
+            let user = client.query(nick).unwrap();
+            assert_eq!(client.state().presence(&user), Ok(expected), "{nick}");
+        }
     }
 
     use papo_core::{Config, Session};
