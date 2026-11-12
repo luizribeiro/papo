@@ -56,6 +56,47 @@ fn adds_removes_and_clears_monitored_nicks() {
         .no_client();
 }
 
+fn monitored(session: &papo_core::Session) -> Vec<String> {
+    session
+        .state()
+        .monitored()
+        .map(ToString::to_string)
+        .collect()
+}
+
+#[test]
+fn reconciled_watches_publish_monitored_state() {
+    let generation = Cell::new(0);
+    registered()
+        .inspect(|session| generation.set(session.state_generation()))
+        .update(|session| session.__reconcile_watches(vec!["alice".into()]))
+        .client("MONITOR + alice")
+        .inspect(|session| {
+            assert_eq!(monitored(session), ["alice"]);
+            assert_ne!(session.state_generation(), generation.get());
+            generation.set(session.state_generation());
+        })
+        .update(|session| session.__reconcile_watches(vec!["alice".into()]))
+        .no_client()
+        .inspect(|session| assert_eq!(session.state_generation(), generation.get()));
+}
+
+#[test]
+fn watches_wait_for_registration_and_fold_case() {
+    Transcript::new(Config::default())
+        .connect_default()
+        .server(":ergo.test 005 * MONITOR=100 :are supported")
+        .update(|session| {
+            session.__reconcile_watches(vec!["alice".into(), "ALICE".into(), "bob".into()]);
+        })
+        .no_client()
+        .welcome(":ergo.test 001 papo :Welcome to Ergo")
+        .server(":ergo.test 376 papo :End of MOTD")
+        .event(|event| matches!(event, Event::Connected(_)))
+        .client("MONITOR + alice,bob")
+        .no_client();
+}
+
 #[test]
 fn watch_never_removes_an_existing_app_entry() {
     registered()
