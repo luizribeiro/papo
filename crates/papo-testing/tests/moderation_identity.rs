@@ -11,7 +11,7 @@ use papo_testing::wire;
 use support::direct::{connected, next_active_event};
 
 #[tokio::test]
-async fn moderation_subjects_refuse_a_nickname_takeover() {
+async fn person_method_identity_matrix() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo")
             .rate_limit(papo::RateLimit::unlimited())
@@ -31,7 +31,6 @@ async fn moderation_subjects_refuse_a_nickname_takeover() {
         ));
     }
     let alice = client.query("alice").unwrap();
-    let direct = client.direct("alice").await.unwrap();
 
     wire.server(":alice!~alice@cloak.example QUIT :Client Quit")
         .await;
@@ -55,20 +54,20 @@ async fn moderation_subjects_refuse_a_nickname_takeover() {
         Err(papo::Error::TargetGone)
     ));
     assert!(matches!(
-        client.mode("#review").op(&direct).await,
+        client.mode("#review").op(&alice).await,
         Err(papo::Error::TargetGone)
     ));
     assert!(matches!(
-        client.mode("#review").halfop(&direct).await,
+        client.mode("#review").halfop(&alice).await,
         Err(papo::Error::TargetGone)
     ));
     assert!(matches!(
-        client.mode("#review").voice(&direct).await,
+        client.mode("#review").voice(&alice).await,
         Err(papo::Error::TargetGone)
     ));
     for mode in ['q', 'a'] {
         assert!(matches!(
-            client.mode("#review").prefix(mode, &direct).await,
+            client.mode("#review").prefix(mode, &alice).await,
             Err(papo::Error::TargetGone)
         ));
     }

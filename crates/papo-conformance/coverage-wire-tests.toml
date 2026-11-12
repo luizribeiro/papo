@@ -58,7 +58,7 @@
 "direct_reply::concurrent_guarded_sends_reach_the_proven_recipient" = [
   "security.guard-proof.concurrent-genuine",
 ]
-"moderation_identity::moderation_subjects_refuse_a_nickname_takeover" = [
+"moderation_identity::person_method_identity_matrix" = [
   "security.send-path-23-26.guarded-moderation",
 ]
 "security::private_recipient_guard_survives_many_unrelated_departures" = [

@@ -6756,8 +6756,8 @@ async fn mode_helpers_await_every_command_and_return_refusals() {
         }
     })
     .await;
-    let alice = client.direct("alice").await.unwrap();
-    let carol = client.direct("carol").await.unwrap();
+    let alice = client.query("alice").unwrap();
+    let carol = client.query("carol").unwrap();
 
     let modes = tokio::spawn({
         let client = client.clone();

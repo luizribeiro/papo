@@ -35,11 +35,11 @@ fn assert_message_request_futures(client: &Client, message: &ChatMessage) {
 
 fn assert_guarded_request_futures(
     client: &Client,
-    direct: &papo::DirectRef,
+    _direct: &papo::DirectRef,
     user: &papo::UserHandle,
 ) {
     assert_send_static(client.invite(user, "#papo"));
-    assert_send_static(client.mode("#papo").op(direct).into_future());
+    assert_send_static(client.mode("#papo").op(user).into_future());
 }
 
 #[test]

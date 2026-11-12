@@ -37,9 +37,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         Some(Account::LoggedIn(account)) if account == admin.as_str()
                     ) =>
             {
-                let result = match client.direct(*nick).await {
-                    Ok(direct) => client.mode(&channel).op(&direct).await.map(|_| ()),
-                    Err(error) => Err(error),
+                let result = match client.query(*nick) {
+                    Ok(user) => client.mode(&channel).op(&user).await.map(|_| ()),
+                    Err(error) => Err(error.into()),
                 };
                 if let Err(refusal) = result {
                     reply(&client, &message, format!("cannot op {nick}: {refusal}")).await;

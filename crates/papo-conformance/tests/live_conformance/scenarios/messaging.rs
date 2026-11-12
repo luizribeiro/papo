@@ -519,7 +519,7 @@ async fn status_message(s: Scenario) -> papo_testing::Result<()> {
         })
         .await?;
 
-    let bob_direct = alice.direct(bob.nick().as_str()).await?;
+    let bob_direct = alice.query(bob.nick().as_str())?;
     alice.mode(&channel).voice(&bob_direct).await?;
     let sent = alice
         .privmsg(format!("+{channel}"), "voiced members only")
@@ -569,8 +569,8 @@ async fn status_message_or_higher(s: Scenario) -> papo_testing::Result<()> {
     carol.join(channel.as_str()).await?;
     dave.join(channel.as_str()).await?;
 
-    let bob_direct = alice.direct(bob.nick().as_str()).await?;
-    let carol_direct = alice.direct(carol.nick().as_str()).await?;
+    let bob_direct = alice.query(bob.nick().as_str())?;
+    let carol_direct = alice.query(carol.nick().as_str())?;
     alice.mode(&channel).op(&bob_direct).await?;
     alice.mode(&channel).voice(&carol_direct).await?;
     let sent = carol
@@ -945,7 +945,7 @@ async fn typing_status_target(s: Scenario) -> papo_testing::Result<()> {
     bob.join(channel.as_str()).await?;
     carol.join(channel.as_str()).await?;
     dave.join(channel.as_str()).await?;
-    let bob_direct = alice.direct(bob.nick().as_str()).await?;
+    let bob_direct = alice.query(bob.nick().as_str())?;
     alice.mode(&channel).op(&bob_direct).await?;
 
     let target = format!("@{channel}");

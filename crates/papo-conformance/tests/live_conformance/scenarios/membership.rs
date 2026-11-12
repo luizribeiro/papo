@@ -610,7 +610,7 @@ async fn multi_prefix(s: Scenario) -> papo_testing::Result<()> {
     let bob_nick = bob.nick();
     alice.join(&channel).await?;
 
-    let alice_direct = alice.direct(&alice_nick).await?;
+    let alice_direct = alice.query(&alice_nick)?;
     alice.mode(&channel).voice(&alice_direct).await?;
     let changed = wait_channel_mode(&mut alice, &channel, 'v').await?;
 
@@ -680,7 +680,7 @@ async fn invite_notify(s: Scenario) -> papo_testing::Result<()> {
     alice.join(&channel).await?;
     bob.join(&channel).await?;
 
-    let bob_direct = alice.direct(bob_nick.as_str()).await?;
+    let bob_direct = alice.query(bob_nick.as_str())?;
     alice.mode(&channel).op(&bob_direct).await?;
     let promoted = wait_channel_mode(&mut bob, &channel, 'o').await?;
 
@@ -1812,7 +1812,7 @@ async fn channel_modes_and_join_refusals(s: Scenario) -> papo_testing::Result<()
         Refusal::CannotSendToChannel,
         "404",
     );
-    let bob_direct = alice.direct(bob_nick.as_str()).await?;
+    let bob_direct = alice.query(bob_nick.as_str())?;
     alice.mode(&channel).voice(&bob_direct).await?;
     wait_channel_mode(&mut bob, &channel, 'v').await?;
     bob.privmsg(&channel, "allowed after voice").await?;

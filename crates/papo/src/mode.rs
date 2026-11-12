@@ -284,7 +284,7 @@ impl SetModes {
     /// let _ = client.mode("#papo").op(nick);
     /// # }
     /// ```
-    pub fn op(self, nick: &crate::DirectRef) -> Self {
+    pub fn op(self, nick: &crate::UserHandle) -> Self {
         self.prefix_change(true, 'o', nick)
     }
 
@@ -296,7 +296,7 @@ impl SetModes {
     }
 
     /// Grants half-operator privileges to a guarded user identity.
-    pub fn halfop(self, nick: &crate::DirectRef) -> Self {
+    pub fn halfop(self, nick: &crate::UserHandle) -> Self {
         self.optional_prefix(true, crate::Feature::Halfop, nick)
     }
 
@@ -308,7 +308,7 @@ impl SetModes {
     }
 
     /// Grants voice privileges to a guarded user identity.
-    pub fn voice(self, nick: &crate::DirectRef) -> Self {
+    pub fn voice(self, nick: &crate::UserHandle) -> Self {
         self.prefix_change(true, 'v', nick)
     }
 
@@ -323,7 +323,7 @@ impl SetModes {
     ///
     /// This covers server-specific owner and administrator modes such as `q` and `a`; prefer the
     /// named helpers for operator, half-operator, and voice privileges.
-    pub fn prefix(self, mode: char, nick: &crate::DirectRef) -> Self {
+    pub fn prefix(self, mode: char, nick: &crate::UserHandle) -> Self {
         self.prefix_change(true, mode, nick)
     }
 
@@ -951,13 +951,10 @@ mod tests {
             .expect("server advertised CASEMAPPING")
             .channel("#papo");
         let state = first.state();
-        let recipient = state
-            .capture_recipient(state.nick(), state.account().clone())
-            .unwrap();
-        let direct = crate::DirectRef::new(&first, recipient, false);
+        let user = first.query(state.nick()).unwrap();
 
         assert!(matches!(
-            second.mode(channel).op(&direct).await,
+            second.mode(channel).op(&user).await,
             Err(crate::Error::InvalidInput(
                 crate::InvalidInput::ForeignReference
             ))
