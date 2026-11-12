@@ -6770,17 +6770,23 @@ async fn mode_helpers_await_every_command_and_return_refusals() {
                 .await
         }
     });
-    client_line(&mut server, b"@label=0 MODE #papo +ov alice carol\r\n").await;
+    client_line(&mut server, b"@label=0 MODE #papo +o alice\r\n").await;
     server_line(
         &mut server,
-        b"@label=0 :papo-driver!papo@localhost MODE #papo +ov alice carol\r\n",
+        b"@label=0 :papo-driver!papo@localhost MODE #papo +o alice\r\n",
     )
     .await;
-    client_line(&mut server, b"@label=1 MODE #papo +b *!*@spam.example\r\n").await;
+    client_line(&mut server, b"@label=1 MODE #papo +v carol\r\n").await;
+    server_line(
+        &mut server,
+        b"@label=1 :papo-driver!papo@localhost MODE #papo +v carol\r\n",
+    )
+    .await;
+    client_line(&mut server, b"@label=2 MODE #papo +b *!*@spam.example\r\n").await;
     assert!(!modes.is_finished());
     server_line(
         &mut server,
-        b"@label=1 :papo-driver!papo@localhost MODE #papo +b *!*@spam.example\r\n",
+        b"@label=2 :papo-driver!papo@localhost MODE #papo +b *!*@spam.example\r\n",
     )
     .await;
     let result = within(modes).await.unwrap().unwrap();
@@ -6797,10 +6803,10 @@ async fn mode_helpers_await_every_command_and_return_refusals() {
         let client = client.clone();
         async move { client.mode("#papo").deop(test_nick("alice")).await }
     });
-    client_line(&mut server, b"@label=2 MODE #papo -o alice\r\n").await;
+    client_line(&mut server, b"@label=3 MODE #papo -o alice\r\n").await;
     server_line(
         &mut server,
-        b"@label=2 :ergo.test 482 papo-driver #papo :You're not a channel operator\r\n",
+        b"@label=3 :ergo.test 482 papo-driver #papo :You're not a channel operator\r\n",
     )
     .await;
     assert!(matches!(

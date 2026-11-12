@@ -387,24 +387,25 @@ impl IntoFuture for SetModes {
             if let Some(error) = self.invalid_input {
                 return Err(error.into());
             }
-            let state = self.client.state();
-            state
+            self.client
+                .state()
                 .parse_target_inner(&self.target)
                 .map_err(|reason| InvalidInput::invalid_name(self.target.clone(), reason))?;
-            let changes = self
-                .changes
+            let mut proven = Vec::with_capacity(self.changes.len());
+            for change in self.changes {
+                proven.push(change.resolve_nick(&self.client).await?);
+            }
+            let state = self.client.state();
+            let changes = proven
                 .into_iter()
-                .map(|change| {
-                    change
-                        .resolve_nick(&self.client, &state)
-                        .and_then(|change| change.resolve(&state))
-                })
+                .map(|change| change.resolve(&state))
                 .collect::<Result<Vec<_>, _>>()?;
             let messages = encode(state.isupport().inner(), &self.target, &changes)?;
             for message in &messages {
                 message.encode().map_err(Error::build)?;
             }
-            let maximum = state.isupport().modes().unwrap_or(changes.len()).max(1);
+            let maximum = mode_chunk_size(state.isupport().inner(), &changes);
+            let guards = mode_guards(&changes, maximum);
             let requested = changes
                 .iter()
                 .map(|change| change.typed(&state))
@@ -419,14 +420,19 @@ impl IntoFuture for SetModes {
                         unconfirmed: Vec::new(),
                     };
                     let mut first_refusal = None;
-                    for (index, (message, chunk)) in messages
+                    for (index, ((message, chunk), guard)) in messages
                         .into_iter()
                         .zip(requested.chunks(maximum))
+                        .zip(guards)
                         .enumerate()
                     {
                         let response = match self
                             .client
-                            .correlated(message, Some(ResponseMatcher::Mode(self.target.clone())))
+                            .correlated_guarded(
+                                message,
+                                Some(ResponseMatcher::Mode(self.target.clone())),
+                                guard,
+                            )
                             .await
                         {
                             Ok(response) => response,
@@ -559,20 +565,24 @@ pub(crate) struct Change {
 }
 
 impl Change {
-    fn resolve_nick(mut self, client: &Client, state: &crate::State) -> Result<Self, Error> {
+    async fn resolve_nick(mut self, client: &Client) -> Result<Self, Error> {
         self.arg = match self.arg {
             Some(Argument::PendingNick(parts)) => {
-                let nick = client.resolve(crate::target::Role::Nick("mode: nick"), parts)?;
-                Some(Argument::Nick(
-                    state
-                        .known_name_rules()
-                        .ok_or(crate::InvalidInput::NameRulesUnknown)?
-                        .nick(nick),
-                ))
+                let proven = crate::identity::prove_parts(client, parts, "mode: nick").await?;
+                Some(Argument::ProvenNick(proven.nick, proven.core))
             }
             argument => argument,
         };
         Ok(self)
+    }
+
+    fn guard(&self) -> Option<papo_core::TargetGuard> {
+        match &self.arg {
+            Some(Argument::ProvenNick(_, proof)) => {
+                Some(papo_core::TargetGuard::ProvenAt(proof.clone(), 2))
+            }
+            _ => None,
+        }
     }
 
     fn resolve(self, state: &crate::State) -> Result<Self, Error> {
@@ -635,7 +645,7 @@ enum Argument {
     Raw(String),
     Secret(papo_core::Secret),
     PendingNick(crate::target::sealed::Parts<'static>),
-    Nick(Nick),
+    ProvenNick(Nick, papo_core::Proven),
     Mask(Mask),
     Ban(BanTarget),
 }
@@ -645,7 +655,7 @@ impl Argument {
         match self {
             Self::Raw(value) => value,
             Self::Secret(value) => value.expose(),
-            Self::Nick(value) => value.as_str(),
+            Self::ProvenNick(value, _) => value.as_str(),
             Self::Mask(value) => value.as_str(),
             Self::PendingNick(_) | Self::Ban(_) => {
                 unreachable!("arguments are resolved before encoding")
@@ -656,7 +666,7 @@ impl Argument {
     fn check(&self, isupport: &Isupport) -> Result<(), Error> {
         match self {
             Self::Raw(_) | Self::Secret(_) => Ok(()),
-            Self::Nick(value) => value
+            Self::ProvenNick(value, _) => value
                 .check(isupport)
                 .map_err(|reason| InvalidInput::invalid_name(value.to_string(), reason).into()),
             Self::Mask(value) => value
@@ -688,7 +698,7 @@ pub(crate) fn encode(
         .iter()
         .map(|change| validate(isupport, change))
         .collect::<Result<Vec<_>, _>>()?;
-    let chunk = isupport.modes().unwrap_or(changes.len()).max(1);
+    let chunk = mode_chunk_size(isupport, changes);
     changes
         .chunks(chunk)
         .zip(modes.chunks(chunk))
@@ -707,6 +717,21 @@ pub(crate) fn encode(
             params.insert(1, Param::from(mode_string));
             Ok(Line::new("MODE").with_params(params))
         })
+        .collect()
+}
+
+fn mode_chunk_size(isupport: &Isupport, changes: &[Change]) -> usize {
+    if changes.iter().any(|change| change.guard().is_some()) {
+        1
+    } else {
+        isupport.modes().unwrap_or(changes.len()).max(1)
+    }
+}
+
+fn mode_guards(changes: &[Change], chunk: usize) -> Vec<Option<papo_core::TargetGuard>> {
+    changes
+        .chunks(chunk)
+        .map(|changes| changes.iter().find_map(Change::guard))
         .collect()
 }
 
@@ -733,6 +758,15 @@ fn validate(isupport: &Isupport, change: &Change) -> Result<char, Error> {
         argument.check(isupport)?;
     }
     let kind = mode_kind(isupport, mode);
+    if matches!(kind, ModeKind::Prefix(_))
+        && let Some(argument) = &change.arg
+    {
+        isupport
+            .casemapping()
+            .nick(argument.text())
+            .check(isupport)
+            .map_err(|reason| InvalidInput::invalid_name(argument.text(), reason))?;
+    }
     let accepts_arg = matches!(
         kind,
         ModeKind::List | ModeKind::AlwaysArg | ModeKind::Prefix(_)
@@ -1087,12 +1121,12 @@ mod tests {
             Change {
                 set: true,
                 mode: Selector::Prefix('o'),
-                arg: Some(Argument::Nick(support.casemapping().nick("alice"))),
+                arg: Some(Argument::Raw("alice".into())),
             },
             Change {
                 set: true,
                 mode: Selector::Prefix('v'),
-                arg: Some(Argument::Nick(support.casemapping().nick("carol"))),
+                arg: Some(Argument::Raw("carol".into())),
             },
             Change {
                 set: false,
@@ -1127,7 +1161,7 @@ mod tests {
                 let guarded = Change {
                     set,
                     mode: Selector::Prefix(mode),
-                    arg: Some(Argument::Nick(support.casemapping().nick("alice"))),
+                    arg: Some(Argument::Raw("alice".into())),
                 };
                 assert!(encode(&support, "#papo", &[guarded]).is_ok());
             }
@@ -1183,12 +1217,12 @@ mod tests {
             Change {
                 set: true,
                 mode: Selector::Prefix('o'),
-                arg: Some(Argument::Nick(support.casemapping().nick("bad,nick"))),
+                arg: Some(Argument::Raw("bad,nick".into())),
             },
             Change {
                 set: true,
                 mode: Selector::Prefix('y'),
-                arg: Some(Argument::Nick(support.casemapping().nick("alice"))),
+                arg: Some(Argument::Raw("alice".into())),
             },
         ] {
             assert!(encode(&support, target, &[change]).is_err());
@@ -1308,12 +1342,7 @@ mod tests {
         let change = Change {
             set: true,
             mode: Selector::Optional(Feature::Halfop),
-            arg: Some(Argument::Nick(
-                supported
-                    .name_rules()
-                    .expect("server advertised CASEMAPPING")
-                    .nick("alice"),
-            )),
+            arg: Some(Argument::Raw("alice".into())),
         };
         assert!(matches!(
             change.resolve(&supported).unwrap().mode,
@@ -1326,12 +1355,7 @@ mod tests {
         let change = Change {
             set: true,
             mode: Selector::Optional(Feature::Halfop),
-            arg: Some(Argument::Nick(
-                unsupported
-                    .name_rules()
-                    .expect("server advertised CASEMAPPING")
-                    .nick("alice"),
-            )),
+            arg: Some(Argument::Raw("alice".into())),
         };
         assert!(matches!(
             change.resolve(&unsupported),

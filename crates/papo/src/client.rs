@@ -812,7 +812,7 @@ impl Client {
         self.correlated_guarded(message, matcher, None).await
     }
 
-    async fn correlated_guarded(
+    pub(crate) async fn correlated_guarded(
         &self,
         message: Line,
         matcher: Option<ResponseMatcher>,
