@@ -888,25 +888,6 @@ impl State {
         }
     }
 
-    pub(crate) fn track_direct(
-        &mut self,
-        nick: &str,
-        username: Option<&str>,
-        host: Option<&str>,
-    ) -> crate::ReplyToken {
-        let key = NameKey::new(nick, self.casemapping);
-        if !self.users.contains_key(&key) {
-            let user = self.new_user(nick, username, host);
-            self.users.insert(key.clone(), user);
-        }
-        if let Some(user) = self.users.get_mut(&key) {
-            user.update_userhost(username, host);
-            user.monitored = true;
-        }
-        self.mark_changed();
-        self.__reply_token_for(nick)
-    }
-
     pub(crate) fn prove_who_identity(&mut self, nick: Nick, account: Account) -> RecipientGuard {
         if let Some(user) = self.users.get_mut(nick.key()) {
             user.update_account(account.clone());

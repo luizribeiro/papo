@@ -24,6 +24,7 @@ pub(super) struct Monitor {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct DirectWatch {
     nick: String,
     count: usize,
@@ -176,54 +177,6 @@ impl Monitor {
             );
         } else {
             self.presence.remove(&key);
-        }
-    }
-
-    pub(super) fn acquire_direct(
-        &mut self,
-        nick: &str,
-        identity: ReplyToken,
-        isupport: &Isupport,
-        registered: bool,
-        outbox: &mut Outbox,
-    ) {
-        self.update_casemapping(isupport.casemapping());
-        let key = self.casemapping.nick(nick);
-        if let Some(watch) = self.direct.get_mut(&key) {
-            watch.count = watch.count.saturating_add(1);
-            return;
-        }
-        let added = !self.desires(nick, isupport);
-        self.direct.insert(
-            key,
-            DirectWatch {
-                nick: nick.to_owned(),
-                count: 1,
-                added,
-                identity,
-            },
-        );
-        if added {
-            self.add([nick.to_owned()], isupport, registered, outbox);
-        } else if registered && !self.reserves(nick) {
-            let limit = match isupport.monitor() {
-                Some(LimitValue::Limited(limit)) => limit,
-                Some(LimitValue::Unlimited) => usize::MAX,
-                None => 0,
-            };
-            let limit = self.server_limit.unwrap_or(limit).min(limit);
-            if self.reserved_len() < limit {
-                self.pending.insert(self.casemapping.nick(nick));
-                transmit_chunks("+", &[nick.to_owned()], outbox);
-            }
-        }
-    }
-
-    pub(super) fn refresh_direct_identity(&mut self, nick: &str, identity: ReplyToken) {
-        if let Some(watch) = self.direct.get_mut(&self.casemapping.nick(nick))
-            && watch.identity != identity
-        {
-            watch.identity = identity;
         }
     }
 
