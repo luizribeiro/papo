@@ -234,7 +234,7 @@ async fn direct_ref_reports_a_full_monitor_list_without_failing_open() {
     wire.register(&[]).await;
     connected(&mut events).await;
     enable_monitor(&mut events, &mut wire, 1).await;
-    client.monitor().add(["bob"]).await.unwrap();
+    let _watch = client.query("bob").unwrap().watch();
     assert_eq!(wire.next_sent().await, "MONITOR + bob");
 
     assert!(matches!(

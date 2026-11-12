@@ -346,7 +346,7 @@ async fn monitor(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let bob = s.connect("bob").await?;
     let bob_nick = bob.nick();
-    alice.monitor().add([bob_nick.as_str()]).await?;
+    let _watch = alice.query(bob_nick.as_str())?.watch();
     let online = alice.wait_for(Event::as_monitor_online).await?;
 
     assert_eq!(online.subject.nick(), bob_nick.as_str());

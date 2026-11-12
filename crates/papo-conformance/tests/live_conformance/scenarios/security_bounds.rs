@@ -211,12 +211,8 @@ async fn unsolicited_monitor_presence_stays_inert(_s: Scenario) -> papo_testing:
     ping.await.unwrap()?;
     assert_eq!(client.snapshot().monitor_online().count(), 0);
 
-    let add = tokio::spawn({
-        let client = client.clone();
-        async move { client.monitor().add(["alice"]).await }
-    });
+    let _watch = client.query("alice")?.watch();
     assert_eq!(wire.next_sent().await, "MONITOR + alice");
-    add.await.unwrap()?;
     wire.server(":offline.test 730 papo-wire :alice!~alice@cloak.example")
         .await;
     while !matches!(

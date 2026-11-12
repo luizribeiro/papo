@@ -108,7 +108,7 @@ async fn bare_dotted_monitor_entry_reports_online_without_panicking() {
         next_active_event(&mut events).await,
         papo::Event::FeaturesChanged { .. }
     ) {}
-    client.monitor().add(["bot.v2"]).await.unwrap();
+    let _watch = client.query("bot.v2").unwrap().watch();
     assert_eq!(wire.next_sent().await, "MONITOR + bot.v2");
 
     wire.server(":offline.test 730 papo :bot.v2").await;
@@ -462,54 +462,6 @@ async fn cross_client_values_never_reach_either_wire() {
             .await
             .is_err()
     );
-}
-
-#[tokio::test]
-async fn foreign_monitor_add_never_reaches_either_wire() {
-    let ((first, _first_events, mut first_wire), (second, _second_events, mut second_wire)) =
-        client_pair(&[]).await;
-    second_wire
-        .server(":offline.test 005 papo-second MONITOR=100 :are supported")
-        .await;
-    while second.snapshot().isupport().monitor().is_none() {
-        tokio::task::yield_now().await;
-    }
-
-    assert!(is_foreign(
-        &second
-            .monitor()
-            .add([first
-                .snapshot()
-                .name_rules()
-                .expect("server advertised CASEMAPPING")
-                .nick("alice")])
-            .await
-    ));
-    assert_no_wire(&mut first_wire, &mut second_wire).await;
-}
-
-#[tokio::test]
-async fn foreign_monitor_remove_never_reaches_either_wire() {
-    let ((first, _first_events, mut first_wire), (second, _second_events, mut second_wire)) =
-        client_pair(&[]).await;
-    second_wire
-        .server(":offline.test 005 papo-second MONITOR=100 :are supported")
-        .await;
-    while second.snapshot().isupport().monitor().is_none() {
-        tokio::task::yield_now().await;
-    }
-
-    assert!(is_foreign(
-        &second
-            .monitor()
-            .remove([first
-                .snapshot()
-                .name_rules()
-                .expect("server advertised CASEMAPPING")
-                .nick("alice")])
-            .await
-    ));
-    assert_no_wire(&mut first_wire, &mut second_wire).await;
 }
 
 #[tokio::test]
@@ -1044,7 +996,7 @@ async fn monitored_metadata_is_not_inherited_after_a_nickname_handoff() {
         next_active_event(&mut events).await,
         papo::Event::FeaturesChanged { .. }
     ) {}
-    client.monitor().add(["bob"]).await.unwrap();
+    let _watch = client.query("bob").unwrap().watch();
     assert_eq!(wire.next_sent().await, "MONITOR + bob");
     for line in [
         ":papo-wire!p@localhost JOIN #review",
@@ -1689,11 +1641,8 @@ async fn monitor_rejects_invalid_nicks_without_poisoning_the_wire() {
         tokio::task::yield_now().await;
     }
 
-    assert!(matches!(
-        client.monitor().add(["bad\rnick", "alice"]).await,
-        Err(papo::Error::InvalidInput(_))
-    ));
-    client.monitor().add(["bob"]).await.unwrap();
+    assert!(client.query("bad\rnick").is_err());
+    let _watch = client.query("bob").unwrap().watch();
     assert_eq!(wire.next_sent().await, "MONITOR + bob");
 }
 

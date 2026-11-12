@@ -17,7 +17,7 @@ async fn sigterm_sends_quit_and_exits_successfully() {
             .connect()
             .await
             .unwrap();
-        observer.monitor().add([&nick]).await.unwrap();
+        let _watch = observer.query(&nick).unwrap().watch();
 
         let mut child = std::process::Command::new(env!("CARGO_BIN_EXE_graceful-shutdown"))
             .arg(server_url)
