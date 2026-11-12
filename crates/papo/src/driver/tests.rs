@@ -11035,3 +11035,24 @@ async fn drop_while_disconnected_is_not_restored() {
 
     quit_cleanly(&mut second, client, driver).await;
 }
+
+#[tokio::test(flavor = "current_thread")]
+async fn dropped_wakeup_still_reconciles_registry() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let driver = tokio::spawn(driver);
+    complete_connect_monitor(&mut server, &mut events, 100).await;
+    let watch = client.query("alice").unwrap().watch();
+    client_line(&mut server, b"MONITOR + alice\r\n").await;
+
+    while client
+        .commands
+        .try_send(super::Command::Composite {
+            task: Box::pin(async {}),
+        })
+        .is_ok()
+    {}
+    drop(watch);
+    client_line(&mut server, b"MONITOR - alice\r\n").await;
+
+    quit_cleanly(&mut server, client, driver).await;
+}
