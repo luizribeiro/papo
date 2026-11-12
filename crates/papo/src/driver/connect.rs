@@ -814,7 +814,6 @@ fn handle_disconnected_command(
             _ = result.send(Err(Error::disconnected(disconnected.clone())));
             DisconnectedAction::Wait
         }
-        Some(Command::DirectRelease { .. }) => DisconnectedAction::Wait,
         Some(Command::Quit { result, .. }) => {
             _ = result.send(Ok(()));
             DisconnectedAction::Stop

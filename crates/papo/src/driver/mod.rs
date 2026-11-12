@@ -188,9 +188,6 @@ pub(crate) enum Command {
         lines: Vec<Line>,
         result: oneshot::Sender<Result<papo_core::Proven, Error>>,
     },
-    DirectRelease {
-        recipient: papo_core::RecipientGuard,
-    },
     SendText {
         kind: TextKind,
         target: String,
@@ -1259,10 +1256,6 @@ where
                         .map_err(crate::identity::map_failure);
                     publish_session_state(events, session);
                     _ = result.send(proof);
-                }
-                Some(Command::DirectRelease { recipient }) => {
-                    session.__direct_release(&recipient);
-                    publish_session_state(events, session);
                 }
                 Some(Command::SendText { kind, target, conversation, status, receipt, text, tags, mut fallbacks, action, guard, result }) => {
                     let tags: Vec<_> = tags.iter().map(|(key, value)| (key.as_str(), value.as_str())).collect();

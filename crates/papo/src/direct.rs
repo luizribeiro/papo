@@ -3,8 +3,6 @@ use std::{
     sync::{Arc, OnceLock, RwLock},
 };
 
-use tokio::sync::mpsc;
-
 use crate::Nick;
 
 /// A stable, guarded identity for direct messages to one IRC user.
@@ -28,37 +26,7 @@ struct DirectInner {
     recipient: papo_core::RecipientGuard,
     state: Arc<RwLock<Arc<crate::State>>>,
     user: Option<crate::UserHandle>,
-    _lease: Option<MonitorLease>,
     _watch: Option<crate::Watch>,
-}
-
-#[derive(Debug)]
-pub(crate) struct MonitorLease {
-    recipient: papo_core::RecipientGuard,
-    commands: mpsc::Sender<crate::driver::Command>,
-}
-
-impl MonitorLease {
-    #[allow(dead_code)]
-    pub(crate) fn new(
-        recipient: papo_core::RecipientGuard,
-        commands: mpsc::Sender<crate::driver::Command>,
-    ) -> Self {
-        Self {
-            recipient,
-            commands,
-        }
-    }
-}
-
-impl Drop for MonitorLease {
-    fn drop(&mut self) {
-        _ = self
-            .commands
-            .try_send(crate::driver::Command::DirectRelease {
-                recipient: self.recipient.clone(),
-            });
-    }
 }
 
 impl DirectRef {
@@ -68,7 +36,7 @@ impl DirectRef {
         monitored: bool,
     ) -> Self {
         assert!(!monitored, "monitored references transfer an acquisition");
-        Self::with_lease(client, recipient, None, None, None)
+        Self::with_lease(client, recipient, None, None)
     }
 
     pub(crate) fn watched(
@@ -77,13 +45,12 @@ impl DirectRef {
         user: crate::UserHandle,
         watch: crate::Watch,
     ) -> Self {
-        Self::with_lease(client, recipient, None, Some(watch), Some(user))
+        Self::with_lease(client, recipient, Some(watch), Some(user))
     }
 
     fn with_lease(
         client: &crate::Client,
         recipient: papo_core::RecipientGuard,
-        lease: Option<MonitorLease>,
         watch: Option<crate::Watch>,
         user: Option<crate::UserHandle>,
     ) -> Self {
@@ -101,7 +68,6 @@ impl DirectRef {
             crate::peer_key::PeerKey::unverified(scope.as_ref(), recipient.__nick())
         });
         Self(Arc::new(DirectInner {
-            _lease: lease,
             _watch: watch,
             identity,
             peer_key,
@@ -431,28 +397,6 @@ mod tests {
         fn assert_as_nick<T: crate::AsNick>() {}
 
         assert_as_nick::<super::DirectRef>();
-    }
-
-    #[test]
-    fn dropping_a_monitor_lease_releases_its_recipient() {
-        let (commands, mut receiver) = tokio::sync::mpsc::channel(1);
-        let mut session = Session::new(Config::default());
-        let recipient = session.__direct_acquire(
-            "alice",
-            None,
-            None,
-            Account::LoggedIn(Casemapping::default().account("alice-account")),
-        );
-        drop(super::MonitorLease {
-            recipient: recipient.clone(),
-            commands,
-        });
-
-        assert!(matches!(
-            receiver.try_recv(),
-            Ok(crate::driver::Command::DirectRelease { recipient: released })
-                if released == recipient
-        ));
     }
 
     #[test]
