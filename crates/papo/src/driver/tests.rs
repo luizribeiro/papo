@@ -11093,3 +11093,32 @@ async fn query_event_and_reconnect_spend_no_monitor_slot() {
     assert_eq!(client.state().monitored().count(), 0);
     quit_cleanly(&mut second, client, driver).await;
 }
+
+#[tokio::test(flavor = "current_thread")]
+async fn watch_follows_its_users_rename() {
+    let (mut server, client, mut events, driver) = scripted(config());
+    let driver = tokio::spawn(driver);
+    complete_connect_monitor(&mut server, &mut events, 100).await;
+    server_line(
+        &mut server,
+        b":papo-driver!papo@localhost JOIN #papo\r\n:ergo.test 353 papo-driver = #papo :@papo-driver alice\r\n:ergo.test 366 papo-driver #papo :End of /NAMES list\r\n:alice!~alice@cloak.example PRIVMSG #papo :release candidate tagged\r\n",
+    )
+    .await;
+    client_line(&mut server, b"MODE #papo\r\n").await;
+    client_line(&mut server, b"WHO #papo\r\n").await;
+    let message = loop {
+        if let Event::Message(message) = next_active_event(&mut events).await {
+            break message;
+        }
+    };
+    let watch = message.actor.watch();
+    client_line(&mut server, b"MONITOR + alice\r\n").await;
+
+    server_line(&mut server, b":alice!~alice@cloak.example NICK alicia\r\n").await;
+    client_line(&mut server, b"MONITOR - alice\r\n").await;
+    client_line(&mut server, b"MONITOR + alicia\r\n").await;
+    drop(watch);
+    client_line(&mut server, b"MONITOR - alicia\r\n").await;
+
+    quit_cleanly(&mut server, client, driver).await;
+}
