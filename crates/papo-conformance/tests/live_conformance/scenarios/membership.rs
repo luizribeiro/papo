@@ -843,8 +843,8 @@ async fn part(s: Scenario) -> papo_testing::Result<()> {
 
     let reason = "leaving for the specification review";
     alice.part(&channel, reason).await?;
-    let own = alice.wait_for(Event::as_parted).await?;
-    let observed = bob.wait_for(Event::as_parted).await?;
+    let (own, own_state) = alice.wait_for_with_state(Event::as_parted).await?;
+    let (observed, observed_state) = bob.wait_for_with_state(Event::as_parted).await?;
 
     for departed in [&own, &observed] {
         assert_eq!(departed.channel.name().as_str(), channel);
@@ -853,9 +853,9 @@ async fn part(s: Scenario) -> papo_testing::Result<()> {
     }
     assert_eq!(own.authorship, papo::Authorship::Own);
     assert_eq!(observed.authorship, papo::Authorship::Other);
-    assert!(alice.snapshot().__channel_local(&channel).is_none());
+    assert!(own_state.__channel_local(&channel).is_none());
     assert!(
-        bob.snapshot()
+        observed_state
             .__channel_local(&channel)
             .unwrap()
             .member(alice_nick.as_str())

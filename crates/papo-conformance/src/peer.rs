@@ -1,6 +1,6 @@
-use std::{collections::VecDeque, ops::Deref, time::Duration};
+use std::{collections::VecDeque, ops::Deref, sync::Arc, time::Duration};
 
-use papo::{Client, Event, Events};
+use papo::{Client, Event, Events, State};
 use tokio::time::timeout;
 
 use papo_testing::{Error, FixtureError, Result};
@@ -40,11 +40,24 @@ impl Peer {
     /// connection ends, or its driver stops.
     pub async fn wait_for<T: Clone>(
         &mut self,
-        mut extract: impl for<'event> FnMut(&'event Event) -> Option<&'event T>,
+        extract: impl for<'event> FnMut(&'event Event) -> Option<&'event T>,
     ) -> Result<T> {
+        Ok(self.wait_for_with_state(extract).await?.0)
+    }
+
+    /// Waits for an accepted event and returns its paired state snapshot.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error under the same conditions as [`Self::wait_for`].
+    #[doc(hidden)]
+    pub async fn wait_for_with_state<T: Clone>(
+        &mut self,
+        mut extract: impl for<'event> FnMut(&'event Event) -> Option<&'event T>,
+    ) -> Result<(T, Arc<State>)> {
         let result = timeout(DEFAULT_TIMEOUT, async {
             loop {
-                let Some((event, _)) = self.events.next().await else {
+                let Some((event, state)) = self.events.next().await else {
                     return Err(FixtureError::with_events(
                         "driver stopped while waiting for an event",
                         self.recent.make_contiguous(),
@@ -55,7 +68,7 @@ impl Peer {
                 let disconnected = event.as_disconnected().cloned();
                 self.remember(event);
                 if let Some(found) = found {
-                    return Ok(found);
+                    return Ok((found, state));
                 }
                 if let Some(disconnected) = disconnected {
                     return Err(FixtureError::with_events(
