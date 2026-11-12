@@ -106,6 +106,25 @@ impl DirectRef {
         &self.0.recipient
     }
 
+    pub(crate) fn user_handle(&self) -> crate::UserHandle {
+        let state = self
+            .0
+            .state
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let proof = state
+            .core
+            .__prove_recipient(&self.0.recipient)
+            .expect("a direct reference retains validated identity proof");
+        drop(state);
+        crate::UserHandle::from_parts(
+            self.nick(),
+            self.0.recipient.__account().clone(),
+            Some(proof),
+            Some(&self.0.state),
+        )
+    }
+
     /// Returns the current saved key for this direct conversation.
     ///
     /// A Continuity pin captured before account proof upgrades to an Account pin once papo proves
@@ -226,7 +245,7 @@ impl crate::Target for DirectRef {
                 &self.0.recipient,
             )),
             channel: None,
-            user: None,
+            user: Some(self.user_handle()),
         }
     }
 }

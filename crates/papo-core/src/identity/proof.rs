@@ -67,6 +67,18 @@ impl State {
         })
     }
 
+    /// Converts a validated compatibility recipient into opaque person proof.
+    #[doc(hidden)]
+    pub fn __prove_recipient(&self, recipient: &RecipientGuard) -> Result<Proven, ProofFailure> {
+        match self.__resolve_recipient(recipient) {
+            RecipientStatus::Current(_) | RecipientStatus::Gone => Ok(Proven {
+                kind: ProvenKind::Person(recipient.clone()),
+                origin: self.__reply_token().origin,
+            }),
+            RecipientStatus::Unknown => Err(ProofFailure::MissingEvidence),
+        }
+    }
+
     /// Returns a validated compatibility guard for received line evidence.
     #[doc(hidden)]
     #[must_use]

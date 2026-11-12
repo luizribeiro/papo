@@ -948,9 +948,7 @@ mod tests {
         assert_eq!(private.origin(), first.origin());
         assert!(matches!(
             second.reply(&private, "ship it").await,
-            Err(crate::Error::InvalidInput(
-                crate::InvalidInput::ForeignReference
-            ))
+            Err(crate::Error::ForeignReference(crate::ForeignReference))
         ));
 
         let conversation = crate::Conversation::Private(crate::UserHandle::from_nick(
@@ -986,9 +984,7 @@ mod tests {
         };
         assert!(matches!(
             second.reply(&tag, "ship it").await,
-            Err(crate::Error::InvalidInput(
-                crate::InvalidInput::ForeignReference
-            ))
+            Err(crate::Error::ForeignReference(crate::ForeignReference))
         ));
     }
 

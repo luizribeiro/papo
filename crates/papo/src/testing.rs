@@ -470,9 +470,9 @@ mod tests {
             .receipt
             .recipient()
             .expect("private recipient guard");
-        assert_eq!(recipient.nick, "emily");
+        assert_eq!(recipient.nick(), "emily");
         assert!(
-            matches!(recipient.account, crate::Account::LoggedIn(account) if account == "emily")
+            matches!(recipient.account(), crate::Account::LoggedIn(account) if account == "emily")
         );
         let actor = message
             .receipt

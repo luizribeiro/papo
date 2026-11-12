@@ -8740,7 +8740,7 @@ async fn message_ref_keeps_fixed_message_pointer() {
         panic!("expected nickname change")
     };
     let parts = crate::Target::__parts(&reference);
-    let recipient = parts.recipient.as_ref().unwrap().to_core(&state).unwrap();
+    let proof = parts.user.as_ref().unwrap().proof().unwrap();
 
     assert_eq!(
         reference.msgid().map(AsRef::as_ref),
@@ -8748,8 +8748,8 @@ async fn message_ref_keeps_fixed_message_pointer() {
     );
     assert_eq!(reference.as_ref(), "alice");
     assert!(matches!(
-        state.resolve_recipient(&recipient),
-        papo_core::RecipientStatus::Current(nick) if nick == "alice_"
+        state.core.__resolve_proven(proof),
+        Ok(nick) if nick == "alice_"
     ));
 
     within(server.shutdown()).await.unwrap();

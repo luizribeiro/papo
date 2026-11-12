@@ -97,7 +97,7 @@ impl Receipt {
             self.identity.msgids.clone(),
             self.origin,
             self.identity.channel_context.clone(),
-            self.recipient_guard(),
+            self.identity.recipient.clone(),
             self.identity.channel.clone(),
         )
     }
@@ -106,21 +106,9 @@ impl Receipt {
         NoticeRef {
             address: self.address.clone(),
             origin: self.origin,
-            recipient: self.recipient_guard(),
+            recipient: self.identity.recipient.clone(),
             channel: self.identity.channel.clone(),
         }
-    }
-
-    fn recipient_guard(&self) -> Option<RecipientGuard> {
-        if let Some(recipient) = &self.identity.recipient_guard {
-            return Some(recipient.clone());
-        }
-        self.identity.recipient.as_ref().map(|user| RecipientGuard {
-            nick: user.nick(),
-            account: self.identity.actor_account.clone(),
-            receipt: self.identity.token,
-            validated: None,
-        })
     }
 
     pub(crate) fn with_recipient(mut self, recipient: Option<&papo_core::RecipientGuard>) -> Self {
@@ -142,7 +130,7 @@ impl Receipt {
     }
 
     #[allow(dead_code)]
-    pub(crate) fn recipient(&self) -> Option<RecipientGuard> {
+    pub(crate) fn recipient(&self) -> Option<crate::UserHandle> {
         self.reference().recipient
     }
 
@@ -266,7 +254,7 @@ pub struct MessageRef {
     msgids: Vec<MessageId>,
     origin: crate::Origin,
     channel_context: Option<crate::ChannelHandle>,
-    recipient: Option<RecipientGuard>,
+    recipient: Option<crate::UserHandle>,
     channel: Option<crate::ChannelHandle>,
     conversation: Option<Conversation>,
     server_time: Option<crate::ServerTime>,
@@ -291,7 +279,7 @@ impl MessageRef {
         msgids: Vec<MessageId>,
         origin: crate::Origin,
         channel_context: Option<crate::ChannelHandle>,
-        recipient: Option<RecipientGuard>,
+        recipient: Option<crate::UserHandle>,
         channel: Option<crate::ChannelHandle>,
     ) -> Self {
         Self {
@@ -366,14 +354,14 @@ impl crate::Target for MessageRef {
         crate::target::sealed::Parts {
             text: std::borrow::Cow::Borrowed(&self.address),
             origin: self.origin,
-            recipient: self.recipient.clone(),
+            recipient: None,
             channel: self
                 .channel
                 .as_ref()
                 .and_then(crate::ChannelHandle::guard)
                 .cloned()
                 .map(Box::new),
-            user: None,
+            user: self.recipient.clone(),
         }
     }
 }
@@ -388,7 +376,7 @@ impl crate::Target for MessageRef {
 pub struct NoticeRef {
     address: String,
     origin: crate::Origin,
-    recipient: Option<RecipientGuard>,
+    recipient: Option<crate::UserHandle>,
     channel: Option<crate::ChannelHandle>,
 }
 
@@ -423,14 +411,14 @@ impl crate::Target for NoticeRef {
         crate::target::sealed::Parts {
             text: std::borrow::Cow::Borrowed(&self.address),
             origin: self.origin,
-            recipient: self.recipient.clone(),
+            recipient: None,
             channel: self
                 .channel
                 .as_ref()
                 .and_then(crate::ChannelHandle::guard)
                 .cloned()
                 .map(Box::new),
-            user: None,
+            user: self.recipient.clone(),
         }
     }
 }
@@ -592,7 +580,7 @@ impl<I: Into<MessageId>> From<(&crate::DirectRef, I)> for MessageRef {
             vec![msgid.into()],
             direct.recipient().__nick().origin(),
             None,
-            Some(RecipientGuard::from_core(direct.recipient())),
+            Some(direct.user_handle()),
             None,
         )
     }
@@ -654,19 +642,12 @@ mod tests {
         let mut session = Session::new(Config::default().nick("papo"));
         session.handle_line(crate::rt::now_mono(), b":papo!p@localhost JOIN #ops");
         session.handle_line(crate::rt::now_mono(), b":alice!a@localhost JOIN #ops");
-        let recipient = session
-            .state()
-            .__capture_recipient(
-                session.isupport().casemapping().nick("alice"),
-                Account::Unknown,
-            )
-            .unwrap();
         let base = MessageRef {
             address: "@#ops".into(),
             msgids: vec!["RfcBTzyxY120004".into()],
             origin,
             channel_context: Some(channel_handle(origin.__channel(mapping, "#context"))),
-            recipient: Some(RecipientGuard::from_core(&recipient)),
+            recipient: Some(user_handle(origin.__nick(mapping, "alice"))),
             channel: Some(channel_handle(origin.__channel(mapping, "#ops"))),
             conversation: Some(Conversation::Channel(channel_handle(
                 origin.__channel(mapping, "#ops"),

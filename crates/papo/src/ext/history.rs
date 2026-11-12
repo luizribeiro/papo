@@ -2493,22 +2493,28 @@ mod tests {
         server_line(&mut server, b":ergo.test 005 papo-driver CHATHISTORY=100 MSGREFTYPES=msgid,timestamp :supported\r\n").await;
         server_line(
             &mut server,
-            b":papo-driver!p@localhost JOIN #review\r\n:alice!~a@host JOIN #review\r\n",
+            b":papo-driver!p@localhost JOIN #review\r\n:alice!~a@host JOIN #review\r\n:alice!~a@host ACCOUNT alice-account\r\n",
         )
         .await;
-        for _ in 0..2 {
-            assert!(matches!(
-                next_event(&mut events).await,
-                Some(Event::Joined(_))
-            ));
-        }
+        assert!(matches!(
+            next_event(&mut events).await,
+            Some(Event::Joined(_))
+        ));
+        assert!(matches!(
+            next_event(&mut events).await,
+            Some(Event::Joined(_))
+        ));
+        assert!(matches!(
+            next_event(&mut events).await,
+            Some(Event::AccountChanged(_))
+        ));
 
         let request = tokio::spawn({
             let client = client.clone();
             async move { client.history("alice").latest().await }
         });
         client_line(&mut server, b"@label=0 CHATHISTORY LATEST alice * 100\r\n").await;
-        server_line(&mut server, b"@label=0 :soju.example BATCH +reply labeled-response\r\n@batch=reply;draft/chathistory-end :soju.example BATCH +history chathistory alice\r\n@batch=history;time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120004 :alice!~a@host PRIVMSG papo_away :can you send me the invoice?\r\n@batch=reply :soju.example BATCH -history\r\n:soju.example BATCH -reply\r\n").await;
+        server_line(&mut server, b"@label=0 :soju.example BATCH +reply labeled-response\r\n@batch=reply;draft/chathistory-end :soju.example BATCH +history chathistory alice\r\n@batch=history;time=2026-10-15T12:00:00.000Z;msgid=RfcBTzyxY120004;account=alice-account :alice!~a@host PRIVMSG papo_away :can you send me the invoice?\r\n@batch=reply :soju.example BATCH -history\r\n:soju.example BATCH -reply\r\n").await;
 
         let page = within(request).await.unwrap().unwrap();
         let message = page.chat_messages().next().unwrap();

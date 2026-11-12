@@ -48,15 +48,20 @@ impl Typer {
                 let account = state
                     .user(nick)
                     .map_or(papo_core::Account::Unknown, |user| user.account().clone());
-                let guard = state.__recipient_from_event(
-                    state.__reply_token_for(nick.as_str()),
-                    nick.clone(),
-                    account,
-                );
+                let proof = state
+                    .__prove_event_user(
+                        state.__reply_token_for(nick.as_str()),
+                        nick.clone(),
+                        account.clone(),
+                    )
+                    .ok();
                 (
-                    guard
-                        .as_ref()
-                        .map(crate::message_ref::RecipientGuard::from_core),
+                    Some(crate::UserHandle::from_parts(
+                        nick.clone(),
+                        account,
+                        proof,
+                        None,
+                    )),
                     None,
                 )
             }
