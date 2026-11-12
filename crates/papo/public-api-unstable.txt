@@ -1578,8 +1578,6 @@ pub papo::Error::Disconnected(papo::Disconnected)
 pub papo::Error::ForeignReference(papo::ForeignReference)
 pub papo::Error::Interrupted(papo::Disconnected)
 pub papo::Error::InvalidInput(papo::InvalidInput)
-#[non_exhaustive] pub papo::Error::MonitorFull
-pub papo::Error::MonitorFull::limit: usize
 pub papo::Error::NotSamePerson(papo::NotSamePerson)
 pub papo::Error::PeerPinMismatch(papo::PeerPinMismatch)
 pub papo::Error::Server(papo::ServerError)
