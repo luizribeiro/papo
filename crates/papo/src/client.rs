@@ -561,6 +561,15 @@ impl Client {
                 text = format!("{prefix}{current}");
             }
         }
+        if matches!(role, crate::target::Role::Nick(_))
+            && let Some(proof) = parts.user.as_ref().and_then(crate::UserHandle::proof)
+        {
+            text = state
+                .core
+                .__resolve_proven(proof)
+                .map_err(crate::identity::map_failure)?
+                .to_string();
+        }
         if let Some(recipient) = parts.recipient.as_ref() {
             let resolved = recipient.to_core(&state);
             if resolved.is_none() && matches!(role, crate::target::Role::Nick(_)) {

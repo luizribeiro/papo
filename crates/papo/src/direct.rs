@@ -241,9 +241,7 @@ impl crate::Target for DirectRef {
         crate::target::sealed::Parts {
             text: std::borrow::Cow::Owned(nick.to_string()),
             origin: nick.origin(),
-            recipient: Some(crate::message_ref::RecipientGuard::from_core(
-                &self.0.recipient,
-            )),
+            recipient: None,
             channel: None,
             user: Some(self.user_handle()),
         }
