@@ -52,6 +52,8 @@ All private chat operations now recheck that proof at the final wire write, rewr
 
 User state lookups now return a typed `ForeignReference` error and preserve handle identity across nickname changes and handoffs.
 
+`State::presence` reports online, offline, or unknown evidence for a `UserHandle` without allocating a monitor slot.
+
 KICK, INVITE, and WHOIS now carry person proof through their final wire write; INVITE accepts `UserHandle` directly.
 
 `UserHandle::key` captures a persistable peer key, and `Client::open` returns `NotSamePerson` with the current key when a saved identity does not match.

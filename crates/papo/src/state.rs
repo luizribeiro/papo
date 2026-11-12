@@ -30,6 +30,18 @@ pub enum ReadMarker {
     ReadUntil(crate::ServerTime),
 }
 
+/// Whether a user is known to be reachable on the IRC network.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[non_exhaustive]
+pub enum Presence {
+    /// No shared channel or explicit monitor result proves presence.
+    Unknown,
+    /// The server reported the user offline.
+    Offline,
+    /// A shared channel or monitor result proves the user online.
+    Online,
+}
+
 /// One entry reported for a channel list mode.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
@@ -646,6 +658,31 @@ impl State {
     pub(crate) fn user_local(&self, nick: impl crate::AsNick) -> Option<&User> {
         self.user_checked(nick)
             .expect("a local nickname cannot be foreign")
+    }
+
+    /// Returns presence known through a shared channel or explicit monitoring.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`crate::ForeignReference`] when `user` belongs to another client.
+    pub fn presence(&self, user: &crate::UserHandle) -> Result<Presence, crate::ForeignReference> {
+        let nick = match self.user_checked(user)? {
+            Some(known)
+                if known.nick() == self.core.nick() || known.channels().next().is_some() =>
+            {
+                return Ok(Presence::Online);
+            }
+            Some(known) => known.nick().as_str(),
+            None if self.core.__monitor_presence(user.nick().as_str()).is_some() => {
+                return Ok(Presence::Offline);
+            }
+            None => return Ok(Presence::Unknown),
+        };
+        Ok(match self.core.__monitor_presence(nick) {
+            Some(true) => Presence::Online,
+            Some(false) => Presence::Offline,
+            None => Presence::Unknown,
+        })
     }
 
     /// Iterates over users currently reported online through `MONITOR`.

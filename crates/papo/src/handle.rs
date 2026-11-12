@@ -508,6 +508,17 @@ mod tests {
         sync::Arc,
     };
 
+    #[test]
+    fn presence_unknown_without_watch_or_shared_channel() {
+        let client = crate::Client::disconnected_for_test();
+        let alice = client.query("alice").unwrap();
+
+        assert_eq!(
+            client.state().presence(&alice),
+            Ok(crate::Presence::Unknown)
+        );
+    }
+
     use papo_core::{Config, Session};
 
     fn client_with_joined_users() -> crate::Client {

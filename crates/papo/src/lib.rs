@@ -419,7 +419,7 @@ pub use peer_key::{
 };
 pub use reconnect::Reconnect;
 pub use requests::{ListEntry, ListRequest, WhoEntry, Whois, WhoisChannel};
-pub use state::{Channel, ModeListEntry, ReadMarker, State};
+pub use state::{Channel, ModeListEntry, Presence, ReadMarker, State};
 pub use target::{AsCap, AsChannel, AsConversation, AsMask, AsNick, Target};
 pub use token::{Command, ReplyCode};
 #[doc(inline)]

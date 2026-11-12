@@ -2023,6 +2023,28 @@ impl core::marker::Unpin for papo::PeerKeyMismatch
 impl core::marker::UnsafeUnpin for papo::PeerKeyMismatch
 impl core::panic::unwind_safe::RefUnwindSafe for papo::PeerKeyMismatch
 impl core::panic::unwind_safe::UnwindSafe for papo::PeerKeyMismatch
+#[non_exhaustive] pub enum papo::Presence
+pub papo::Presence::Offline
+pub papo::Presence::Online
+pub papo::Presence::Unknown
+impl core::clone::Clone for papo::Presence
+pub fn papo::Presence::clone(&self) -> Self
+impl core::cmp::Eq for papo::Presence
+impl core::cmp::PartialEq for papo::Presence
+pub fn papo::Presence::eq(&self, &Self) -> bool
+impl core::fmt::Debug for papo::Presence
+pub fn papo::Presence::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
+impl core::hash::Hash for papo::Presence
+pub fn papo::Presence::hash<__H: core::hash::Hasher>(&self, &mut __H)
+impl core::marker::Copy for papo::Presence
+impl core::marker::StructuralPartialEq for papo::Presence
+impl core::marker::Freeze for papo::Presence
+impl core::marker::Send for papo::Presence
+impl core::marker::Sync for papo::Presence
+impl core::marker::Unpin for papo::Presence
+impl core::marker::UnsafeUnpin for papo::Presence
+impl core::panic::unwind_safe::RefUnwindSafe for papo::Presence
+impl core::panic::unwind_safe::UnwindSafe for papo::Presence
 #[non_exhaustive] pub enum papo::ReadMarker
 pub papo::ReadMarker::ReadUntil(papo_proto::time::ServerTime)
 pub papo::ReadMarker::Unset
@@ -3516,6 +3538,7 @@ pub fn papo::State::monitored(&self) -> impl core::iter::traits::exact_size::Exa
 pub const fn papo::State::name_rules(&self) -> core::option::Option<papo::NameRules<'_>>
 pub fn papo::State::nick(&self) -> &papo::Nick
 pub fn papo::State::persistence(&self) -> core::option::Option<papo::PersistenceStatus>
+pub fn papo::State::presence(&self, &papo::UserHandle) -> core::result::Result<papo::Presence, papo::ForeignReference>
 pub fn papo::State::read_marker(&self, impl papo::AsConversation) -> core::option::Option<papo::ReadMarker>
 pub fn papo::State::realname(&self) -> &str
 pub fn papo::State::same_list_entry(&self, &papo::Mask, impl core::convert::AsRef<str>) -> bool
