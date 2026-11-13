@@ -1110,7 +1110,6 @@ impl ServerNotice {
         let receipt = match &to {
             Audience::Channel(channel) => crate::message_ref::Receipt::new(
                 actor.clone(),
-                authorship,
                 &Conversation::Channel(channel.clone()),
                 reply_token,
                 message
@@ -1343,13 +1342,8 @@ fn message_metadata(
     let relayed_by = tag_owned(message, &[crate::cap::RELAYMSG.as_str()])
         .map(|nick| origin.__nick(isupport.casemapping(), nick));
     let return_address = return_address(message, &conversation);
-    let mut receipt = crate::message_ref::Receipt::new(
-        actor.clone(),
-        authorship,
-        &conversation,
-        reply_token,
-        return_address,
-    );
+    let mut receipt =
+        crate::message_ref::Receipt::new(actor.clone(), &conversation, reply_token, return_address);
     receipt.set_reference(envelope.msgid.iter().cloned(), None);
     Some(MessageMetadata {
         actor,
@@ -1975,7 +1969,7 @@ fn attach_user_message_handle(
             actor.clone()
         };
     }
-    receipt.update_event_actor(Source::User(actor.clone()), authorship, conversation);
+    receipt.update_event_actor(Source::User(actor.clone()), conversation);
 }
 
 pub(crate) fn attach_message_handles(
@@ -2018,11 +2012,9 @@ pub(crate) fn attach_message_handles(
                 {
                     *peer = actor.clone();
                 }
-                event.receipt.update_event_actor(
-                    Source::User(actor.clone()),
-                    event.authorship,
-                    &event.conversation,
-                );
+                event
+                    .receipt
+                    .update_event_actor(Source::User(actor.clone()), &event.conversation);
             }
         }
         Event::ServerNotice(event) => {
@@ -2032,11 +2024,9 @@ pub(crate) fn attach_message_handles(
                     Audience::Channel(channel) => Conversation::Channel(channel.clone()),
                     Audience::Me | Audience::Broadcast(_) => return,
                 };
-                event.receipt.update_event_actor(
-                    Source::User(actor.clone()),
-                    event.authorship,
-                    &conversation,
-                );
+                event
+                    .receipt
+                    .update_event_actor(Source::User(actor.clone()), &conversation);
             }
         }
         Event::BroadcastCtcp(event) => {
@@ -2259,7 +2249,6 @@ pub(crate) fn from_core_with_receipt(
             let authorship = Authorship::from_core(change.authorship);
             let receipt = crate::message_ref::Receipt::new(
                 Source::User(actor.clone()),
-                authorship,
                 &conversation,
                 reply_token,
                 return_address,
@@ -2288,7 +2277,6 @@ pub(crate) fn from_core_with_receipt(
             let conversation = conversation_handle(message.conversation, message.status);
             let mut receipt = crate::message_ref::Receipt::new(
                 Source::User(actor.clone()),
-                authorship,
                 &conversation,
                 reply_token,
                 return_address,
@@ -2370,7 +2358,6 @@ pub(crate) fn from_core_with_receipt(
             let conversation = conversation_handle(redacted.conversation, redacted.status);
             let mut receipt = crate::message_ref::Receipt::new(
                 actor.clone(),
-                authorship,
                 &conversation,
                 reply_token,
                 return_address,

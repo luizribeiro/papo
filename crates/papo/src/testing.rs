@@ -186,7 +186,6 @@ pub fn message(
     let actor = actor.unwrap_or_else(|| user_handle(crate::Casemapping::default().nick("unknown")));
     let receipt = crate::message_ref::Receipt::new(
         crate::Source::User(actor.clone()),
-        Authorship::Other,
         &conversation,
         None,
         return_address,

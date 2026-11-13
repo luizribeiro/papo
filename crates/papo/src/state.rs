@@ -281,7 +281,6 @@ impl State {
         ));
         crate::message_ref::Receipt::new(
             actor,
-            crate::Authorship::Own,
             conversation,
             self.reply_token(conversation),
             address,

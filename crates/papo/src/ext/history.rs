@@ -371,7 +371,6 @@ fn historical_tagmsg(
     let actor = user_from_line(message, &envelope, mapping, client.origin(), false)?;
     let mut receipt = crate::message_ref::Receipt::new(
         crate::Source::User(actor.clone()),
-        authorship,
         &conversation,
         None,
         crate::event_impl::return_address(message, &conversation),
@@ -472,7 +471,6 @@ fn reaction(
     let actor = user_from_line(message, &envelope, mapping, origin, prove_not_bot)?;
     let receipt = crate::message_ref::Receipt::new(
         crate::Source::User(actor.clone()),
-        authorship,
         &conversation,
         state.and_then(|state| state.reply_token(&conversation)),
         return_address,
@@ -536,7 +534,6 @@ fn redaction(
     let actor = actor_from_line(message, &envelope, mapping, origin, prove_not_bot)?;
     let receipt = crate::message_ref::Receipt::new(
         actor.clone(),
-        authorship,
         &conversation,
         state.and_then(|state| state.reply_token(&conversation)),
         return_address,

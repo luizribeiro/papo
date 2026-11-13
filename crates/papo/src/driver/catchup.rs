@@ -299,7 +299,6 @@ mod tests {
         );
         let receipt = crate::message_ref::Receipt::new(
             crate::Source::User(actor.clone()),
-            crate::Authorship::Other,
             &conversation,
             None,
             "#papo".into(),
