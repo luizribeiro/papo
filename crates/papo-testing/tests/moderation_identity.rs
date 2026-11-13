@@ -140,3 +140,67 @@ async fn person_method_identity_matrix() {
 async fn whois_handle_refuses_handoff() {
     assert_nickname_handoff_is_refused().await;
 }
+
+const UNSTABLE_API: &str = include_str!("../../papo/public-api-unstable.txt");
+
+const PERSON_ARGUMENTS: &[&str] = &[
+    "&papo::UserHandle",
+    "impl papo::AsConversation",
+    "impl papo::AsNick",
+    "impl papo::Target",
+];
+
+const UNGATED_PERSON_INPUTS: &[(&str, &str)] = &[
+    ("papo::Channel::member", "local state lookup"),
+    ("papo::Client::builder", "the client's own nickname"),
+    (
+        "papo::Client::fetch_read_marker",
+        "the conversation's own read marker",
+    ),
+    ("papo::Client::history", "the conversation's stored history"),
+    (
+        "papo::Client::mark_read",
+        "the conversation's own read marker",
+    ),
+    ("papo::Client::mode", "channel or own user modes"),
+    ("papo::Client::query", "local handle constructor"),
+    ("papo::Client::relay", "relayed source label"),
+    ("papo::Client::set_nick", "the client's own nickname"),
+    ("papo::State::metadata", "local state lookup"),
+    ("papo::State::presence", "local state lookup"),
+    ("papo::State::read_marker", "local state lookup"),
+    ("papo::State::typing", "local state lookup"),
+    ("papo::State::user", "local state lookup"),
+];
+
+fn person_taking_methods() -> std::collections::BTreeSet<&'static str> {
+    UNSTABLE_API
+        .lines()
+        .filter_map(|line| {
+            let item = line.strip_prefix("pub ")?;
+            let item = item.strip_prefix("async ").unwrap_or(item);
+            let item = item.strip_prefix("const ").unwrap_or(item);
+            let (path, signature) = item.strip_prefix("fn ")?.split_once('(')?;
+            let arguments = signature.split(" -> ").next()?;
+            PERSON_ARGUMENTS
+                .iter()
+                .any(|argument| arguments.contains(argument))
+                .then(|| path.split('<').next().unwrap_or(path))
+        })
+        .collect()
+}
+
+#[tokio::test]
+async fn all_public_person_methods_are_gated() {
+    let classified: std::collections::BTreeSet<_> = GATED_PERSON_METHODS
+        .iter()
+        .copied()
+        .chain(UNGATED_PERSON_INPUTS.iter().map(|(method, _)| *method))
+        .collect();
+    assert_eq!(
+        classified.len(),
+        GATED_PERSON_METHODS.len() + UNGATED_PERSON_INPUTS.len()
+    );
+    assert_eq!(person_taking_methods(), classified);
+    assert_nickname_handoff_is_refused().await;
+}
