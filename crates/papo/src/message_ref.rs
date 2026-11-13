@@ -207,20 +207,6 @@ pub(crate) struct RecipientGuard {
 }
 
 impl RecipientGuard {
-    pub(crate) fn has_proof(&self) -> bool {
-        self.receipt.is_some_and(papo_core::ReplyToken::__is_known)
-    }
-
-    pub(crate) fn to_core(&self, state: &crate::State) -> Option<papo_core::RecipientGuard> {
-        self.validated.as_deref().cloned().or_else(|| {
-            state.core.__recipient_from_event(
-                self.receipt?,
-                self.nick.clone(),
-                self.account.clone(),
-            )
-        })
-    }
-
     pub(crate) fn from_core(guard: &papo_core::RecipientGuard) -> Self {
         Self {
             nick: guard.__nick().clone(),

@@ -61,6 +61,8 @@ finished; a later `-MONITOR` or `MONITOR=0` reports the feature as unsupported i
 
 `Error::MonitorFull` is removed: opening a direct reference or watching a user never fails for a full `MONITOR` list; `Watch::is_live` reports it instead.
 
+`DirectSource` and `Client::direct_to` are removed; send to a received event's `UserHandle` sender instead.
+
 KICK, INVITE, and WHOIS now carry person proof through their final wire write; INVITE accepts `UserHandle` directly.
 WHOIS returns `None` when the server reports that the nickname is absent.
 Channel member lookups now report foreign references instead of treating them as missing users.
@@ -256,9 +258,8 @@ client.mode("#papo").op(&alice).await?;
 ```
 
 `DirectRef` follows nickname changes, holds a `MONITOR` lease for users who share no channel, and
-refuses with `Error::TargetGone` when the identity leaves or the nickname changes hands. Use
-`direct_to(&event)` accepts messages, notices, CTCP, tag, reaction, invitation, typing, redaction,
-and monitor-online events and captures their sender from the immutable receipt. Clones share the lease.
+refuses with `Error::TargetGone` when the identity leaves or the nickname changes hands. A
+received event's `UserHandle` sender addresses its author from the immutable receipt. Clones share the lease.
 `DirectRef::nick()` returns the current nickname, or the last known nickname after departure.
 Private `MessageRef` values and queued sends carry the same guard. `send_raw` remains the explicit
 unguarded escape hatch. Concurrent guarded sends now wait for server-proven account state and

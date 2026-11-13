@@ -293,7 +293,6 @@ mod builder;
 mod client;
 mod conversation;
 mod direct;
-mod direct_to;
 mod driver;
 mod entropy;
 mod error;
@@ -353,7 +352,6 @@ pub use client::{
 };
 pub use conversation::Conversation;
 pub use direct::DirectRef;
-pub use direct_to::DirectSource;
 pub use driver::{Driver, Events};
 pub use error::{
     ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, ForeignReference,

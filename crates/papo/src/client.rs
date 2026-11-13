@@ -1623,8 +1623,8 @@ impl Client {
 
     /// Invites a guarded user identity to `channel`.
     ///
-    /// Capture a typed nickname with [`Client::direct`], or use [`Client::direct_to`] to retain a
-    /// received message actor's identity.
+    /// Create one from a typed nickname with [`Client::query`], or pass a received event's sender
+    /// handle to retain that identity.
     ///
     /// ```compile_fail
     /// # fn unguarded(client: &papo::Client, nick: &papo::Nick, channel: &papo::ChannelName) {
