@@ -995,6 +995,36 @@ mod tests {
     }
 
     #[test]
+    fn only_a_live_own_line_recaptures_a_failed_event_proof() {
+        let client = client_with_joined_users();
+        let evidence_free_token = client.state().core.__reply_token_for("carol");
+        let event = |nick: &str, historical| {
+            crate::UserHandle::from_event(
+                client.state().casemapping().nick(nick),
+                crate::Account::Unknown,
+                Some(evidence_free_token),
+                Some(&client.state),
+                historical,
+            )
+        };
+
+        for (nick, historical, proven) in [
+            ("papo", false, true),
+            ("papo", true, false),
+            ("bob", false, false),
+            ("bob", true, false),
+        ] {
+            let handle = event(nick, historical);
+            assert_eq!(
+                handle.proof().is_some(),
+                proven,
+                "{nick} historical={historical}"
+            );
+            assert_eq!(handle.is_unproven_history(), historical, "{nick}");
+        }
+    }
+
+    #[test]
     fn handles_compare_and_hash_by_identity() {
         let client = client_with_joined_users();
         let alice = client.query("Alice").unwrap();
