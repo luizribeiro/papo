@@ -3,7 +3,7 @@ use std::time::Duration;
 use papo_proto::{Isupport, LineRef};
 use web_time::Instant;
 
-use crate::{Config, Monitor, Outbox, names_equal};
+use crate::{Config, Monitor, Outbox, monitor::support as monitor_support, names_equal};
 
 const ISON_INTERVAL: Duration = Duration::from_secs(60);
 
@@ -45,7 +45,7 @@ impl NickRegain {
         if !config.regain_nick || !self.primary_taken {
             return;
         }
-        if isupport.monitor().is_none() {
+        if monitor_support(isupport).is_err() {
             self.watch = Watch::Ison {
                 next_poll: crate::deadline(now, ISON_INTERVAL),
                 claim_pending: false,
@@ -72,8 +72,8 @@ impl NickRegain {
     ) {
         let switch = match self.watch {
             Watch::Inactive => false,
-            Watch::Monitor { .. } => isupport.monitor().is_none(),
-            Watch::Ison { .. } => isupport.monitor().is_some(),
+            Watch::Monitor { .. } => monitor_support(isupport).is_err(),
+            Watch::Ison { .. } => monitor_support(isupport).is_ok(),
         };
         if switch {
             self.start(now, config, isupport, monitor, outbox);

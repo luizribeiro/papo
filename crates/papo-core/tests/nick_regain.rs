@@ -7,6 +7,17 @@ use papo_core::{Config, Event};
 use support::Transcript;
 
 fn registered_after_collision(config: Config, monitor: bool) -> Transcript {
+    registered_after_collision_with(
+        config,
+        if monitor {
+            ":ergo.test 005 papo_ MONITOR=100 :are supported by this server"
+        } else {
+            ":irc.solanum.example 005 papo_ CASEMAPPING=rfc1459 :are supported by this server"
+        },
+    )
+}
+
+fn registered_after_collision_with(config: Config, isupport: &str) -> Transcript {
     Transcript::new(config.alt_nicks(["papo_"]))
         .connect_default()
         .server(":ergo.test 433 * papo :Nickname is already in use")
@@ -14,11 +25,7 @@ fn registered_after_collision(config: Config, monitor: bool) -> Transcript {
         .server(":ergo.test CAP * LS :")
         .client("CAP END")
         .welcome(":ergo.test 001 papo_ :Welcome to Ergo")
-        .server(if monitor {
-            ":ergo.test 005 papo_ MONITOR=100 :are supported by this server"
-        } else {
-            ":irc.solanum.example 005 papo_ CASEMAPPING=rfc1459 :are supported by this server"
-        })
+        .server(isupport)
         .server(":ergo.test 422 papo_ :MOTD File is missing")
         .event(|event| matches!(event, Event::Connected(_)))
 }
@@ -286,4 +293,55 @@ fn a_changed_monitor_limit_leaves_the_regain_watch_alone() {
         .advance(Duration::from_secs(60))
         .no_client()
         .ignore_rest();
+}
+
+#[test]
+fn regain_polls_with_ison_when_the_monitor_limit_is_zero() {
+    registered_after_collision_with(
+        ison_config(),
+        ":ergo.test 005 papo_ MONITOR=0 :are supported by this server",
+    )
+    .no_client()
+    .advance(Duration::from_secs(60))
+    .client("ISON papo")
+    .server(":ergo.test 303 papo_ :")
+    .client("NICK papo")
+    .ignore_rest();
+}
+
+#[test]
+fn regain_polls_with_ison_when_the_monitor_limit_drops_to_zero() {
+    registered_after_collision(ison_config(), true)
+        .client("MONITOR + papo")
+        .server(":ergo.test 005 papo_ MONITOR=0 :are supported by this server")
+        .no_client()
+        .advance(Duration::from_secs(60))
+        .client("ISON papo")
+        .ignore_rest();
+}
+
+#[test]
+fn regain_watches_with_monitor_when_the_limit_has_no_value() {
+    registered_after_collision_with(
+        ison_config(),
+        ":ergo.test 005 papo_ MONITOR :are supported by this server",
+    )
+    .client("MONITOR + papo")
+    .advance(Duration::from_secs(60))
+    .no_client()
+    .ignore_rest();
+}
+
+#[test]
+fn regain_watches_with_monitor_when_a_zero_limit_is_raised() {
+    registered_after_collision_with(
+        ison_config(),
+        ":ergo.test 005 papo_ MONITOR=0 :are supported by this server",
+    )
+    .no_client()
+    .server(":ergo.test 005 papo_ MONITOR=100 :are supported by this server")
+    .client("MONITOR + papo")
+    .advance(Duration::from_secs(60))
+    .no_client()
+    .ignore_rest();
 }
