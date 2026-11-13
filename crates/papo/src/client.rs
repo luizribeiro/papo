@@ -1458,7 +1458,7 @@ impl Client {
 
     /// Removes `nick` from `channel`.
     ///
-    /// A [`crate::DirectRef`] follows its captured identity; text or [`crate::Nick`] addresses
+    /// A [`crate::UserHandle`] follows its proven identity; text or [`crate::Nick`] addresses
     /// whoever currently holds that nickname. An empty `reason` means no reason.
     ///
     /// ```compile_fail
@@ -1498,7 +1498,7 @@ impl Client {
 
     /// Sets a channel ban and, only after confirming it, removes `nick` from the channel.
     ///
-    /// A [`crate::DirectRef`] is checked again after ban confirmation. Text or [`crate::Nick`]
+    /// A [`crate::UserHandle`] is checked again after ban confirmation. Text or [`crate::Nick`]
     /// deliberately addresses whoever currently holds that nickname.
     /// The ban remains set when the kick is refused. Leaving or changing nickname during ban
     /// confirmation produces [`Error::TargetGone`] in [`crate::KickbanOutcome::kick`].

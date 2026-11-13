@@ -62,10 +62,6 @@ impl DirectRef {
         }))
     }
 
-    pub(crate) fn recipient(&self) -> &papo_core::RecipientGuard {
-        &self.0.recipient
-    }
-
     pub(crate) fn user_handle(&self) -> crate::UserHandle {
         if let Some(user) = &self.0.user {
             return user.clone();

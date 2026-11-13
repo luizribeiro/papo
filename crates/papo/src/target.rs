@@ -66,7 +66,7 @@ impl Role {
 /// A destination accepted by message-sending operations.
 ///
 /// Plain text is accepted only when it names a channel. Direct user lines require a
-/// [`crate::UserHandle`] or compatibility [`crate::DirectRef`]. Typed handles, channel names, and
+/// [`crate::UserHandle`]. Typed handles, channel names, and
 /// message references retain the client that produced them and are refused by another client.
 /// Status prefixes such as `@#ops` are preserved. [`crate::Client::send_raw`] is the explicit
 /// escape hatch for unguarded targets and server-wide targets such as `*` and `$opers`.
@@ -79,7 +79,7 @@ pub trait Target: sealed::Sealed {
 /// A nickname accepted by user-oriented operations.
 ///
 /// A [`crate::UserHandle`] retains the recipient identity so operations can refuse a nickname
-/// handoff. [`crate::DirectRef`] provides the same protection for the compatibility direct API.
+/// handoff.
 /// Plain text and [`crate::Nick`] identify whoever currently holds that nickname.
 pub trait AsNick: sealed::Sealed {
     /// Returns the nickname and its safety metadata.

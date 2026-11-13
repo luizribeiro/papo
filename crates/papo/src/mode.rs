@@ -290,7 +290,7 @@ impl SetModes {
 
     /// Removes channel-operator privileges from `nick`.
     ///
-    /// A [`crate::DirectRef`] follows its captured identity; text addresses the current holder.
+    /// A [`crate::UserHandle`] follows its proven identity; text addresses the current holder.
     pub fn deop(self, nick: impl crate::AsNick) -> Self {
         self.prefix_change(false, 'o', nick)
     }
@@ -302,7 +302,7 @@ impl SetModes {
 
     /// Removes half-operator privileges from `nick`.
     ///
-    /// A [`crate::DirectRef`] follows its captured identity; text addresses the current holder.
+    /// A [`crate::UserHandle`] follows its proven identity; text addresses the current holder.
     pub fn dehalfop(self, nick: impl crate::AsNick) -> Self {
         self.optional_prefix(false, crate::Feature::Halfop, nick)
     }
@@ -314,7 +314,7 @@ impl SetModes {
 
     /// Removes voice privileges from `nick`.
     ///
-    /// A [`crate::DirectRef`] follows its captured identity; text addresses the current holder.
+    /// A [`crate::UserHandle`] follows its proven identity; text addresses the current holder.
     pub fn devoice(self, nick: impl crate::AsNick) -> Self {
         self.prefix_change(false, 'v', nick)
     }

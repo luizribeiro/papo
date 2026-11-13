@@ -222,9 +222,8 @@ impl RecipientGuard {
 /// A reference preserves the address exactly as it arrived, including a status prefix such as
 /// `@#ops`, together with the originating client and any evidence needed to detect a nickname
 /// changing hands. Construct one from a received [`Message`], a sent [`Sent`], or an explicit
-/// `(channel, message_id)` pair. A private explicit pair requires a [`crate::DirectRef`]. A
-/// [`Conversation`] alone is not a return address; see [`Conversation`] for status-prefixed
-/// audience guidance.
+/// `(channel, message_id)` pair. A [`Conversation`] alone is not a return address; see
+/// [`Conversation`] for status-prefixed audience guidance.
 ///
 /// Some lines, including typing notifications, have no server message identifier. Their references
 /// remain valid send destinations, but [`crate::Client::react`], [`crate::Client::unreact`], and
@@ -547,25 +546,6 @@ impl<I: Into<MessageId>> From<(&crate::ChannelHandle, I)> for MessageRef {
             None,
             None,
             Some(channel.clone()),
-        )
-    }
-}
-
-impl<I: Into<MessageId>> From<(crate::DirectRef, I)> for MessageRef {
-    fn from((direct, msgid): (crate::DirectRef, I)) -> Self {
-        Self::from((&direct, msgid))
-    }
-}
-
-impl<I: Into<MessageId>> From<(&crate::DirectRef, I)> for MessageRef {
-    fn from((direct, msgid): (&crate::DirectRef, I)) -> Self {
-        Self::new(
-            direct.to_string(),
-            vec![msgid.into()],
-            direct.recipient().__nick().origin(),
-            None,
-            Some(direct.user_handle()),
-            None,
         )
     }
 }

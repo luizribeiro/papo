@@ -238,8 +238,8 @@
 //! to the same plain string. Converting a typed name into a string explicitly discards this
 //! protection.
 //!
-//! The sealed [`Target`] trait accepts channel text, channel handles, user handles, guarded direct
-//! handles, and return addresses. Nickname text and typed nicknames are refused as message
+//! The sealed [`Target`] trait accepts channel text, channel handles, user handles, and return
+//! addresses. Nickname text and typed nicknames are refused as message
 //! targets; use [`Client::query`] to create a [`UserHandle`] or [`Client::send_raw`] as the
 //! explicit escape hatch for an unguarded protocol line.
 
