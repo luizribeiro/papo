@@ -24,3 +24,4 @@ if ! grep -q '^stable_build_tests::' <<<"$listed"; then
   exit 1
 fi
 compare papo-core feature_parity disabled_extensions_match_stable_behavior PAPO_FEATURE_PARITY
+compare papo handle_parity stable_and_unstable_replay_identically PAPO_HANDLE_PARITY
