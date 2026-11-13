@@ -2,12 +2,20 @@
 set -euo pipefail
 outputs=$(mktemp -d)
 trap 'rm -rf "$outputs"' EXIT
-run() { local output=$1; shift
-  CARGO_TERM_COLOR=never cargo test --quiet --locked -p papo-core --test feature_parity \
+transcript() { local package=$1 test=$2 name=$3 marker=$4; shift 4
+  CARGO_TERM_COLOR=never cargo test --quiet --locked -p "$package" --test "$test" \
     --no-default-features "$@" \
-    disabled_extensions_match_stable_behavior -- --exact --nocapture \
-    | sed -n '/PAPO_FEATURE_PARITY_BEGIN/,/PAPO_FEATURE_PARITY_END/p' \
-    >"$output"
+    "$name" -- --exact --nocapture \
+    | sed -n "/${marker}_BEGIN/,/${marker}_END/p"
+}
+compare() { local package=$1 test=$2 name=$3 marker=$4
+  transcript "$@" >"$outputs/$test.stable"
+  transcript "$@" --features unstable >"$outputs/$test.unstable"
+  if [ ! -s "$outputs/$test.stable" ]; then
+    echo "$package's $test transcript is empty" >&2
+    exit 1
+  fi
+  diff -u "$outputs/$test.stable" "$outputs/$test.unstable"
 }
 cd "$(dirname "$0")/.."
 listed=$(cargo test --quiet --locked -p papo-core --lib --no-default-features -- --list)
@@ -15,6 +23,4 @@ if ! grep -q '^stable_build_tests::' <<<"$listed"; then
   echo "papo-core's stable-only unit tests are not listed" >&2
   exit 1
 fi
-run "$outputs/stable"
-run "$outputs/unstable" --features unstable
-diff -u "$outputs/stable" "$outputs/unstable"
+compare papo-core feature_parity disabled_extensions_match_stable_behavior PAPO_FEATURE_PARITY
