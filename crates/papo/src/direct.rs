@@ -662,37 +662,6 @@ mod tests {
     }
 
     #[test]
-    fn peer_keys_compare_by_scope_and_canonical_account() {
-        let account = Account::LoggedIn(Casemapping::Rfc1459.account("Alice[Ops]"));
-        let nick = Casemapping::Rfc1459.nick("Alice");
-        let first = crate::peer_key::PeerKey::historical(
-            Some(&crate::peer_key::PeerScope::server("irc.example")),
-            &nick,
-            &account,
-        )
-        .unwrap();
-        let same = crate::peer_key::PeerKey::historical(
-            Some(&crate::peer_key::PeerScope::server("irc.example")),
-            &nick,
-            &account,
-        )
-        .unwrap();
-        let other = crate::peer_key::PeerKey::historical(
-            Some(&crate::peer_key::PeerScope::server("chat.example")),
-            &nick,
-            &account,
-        )
-        .unwrap();
-
-        assert!(first.is_verified());
-        assert!(matches!(first.check(&same), crate::PeerKeyCheck::Match));
-        assert!(matches!(
-            first.check(&other),
-            crate::PeerKeyCheck::Mismatch(crate::PeerKeyMismatch::DifferentAccount)
-        ));
-    }
-
-    #[test]
     fn continuity_peer_keys_only_match_the_same_observed_user() {
         let now = crate::rt::now_mono();
         let mut session = Session::new(Config::default().nick("papo"));
@@ -895,18 +864,6 @@ mod tests {
             carol_name_pin.check(current_carol.peer_key()),
             crate::PeerKeyCheck::Upgrade(_)
         ));
-    }
-
-    #[test]
-    fn unverified_history_has_no_peer_key() {
-        assert!(
-            crate::peer_key::PeerKey::historical(
-                None,
-                &Casemapping::Rfc1459.nick("guest-4821"),
-                &Account::LoggedOut
-            )
-            .is_none()
-        );
     }
 
     #[test]

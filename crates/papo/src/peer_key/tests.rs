@@ -281,3 +281,34 @@ fn stale_continuity_does_not_upgrade_a_strangers_account() {
         PeerKeyCheck::Mismatch(PeerKeyMismatch::CannotVerify)
     ));
 }
+
+#[test]
+fn peer_keys_compare_by_scope_and_canonical_account() {
+    let account = Account::LoggedIn(Casemapping::Rfc1459.account("Alice[Ops]"));
+    let nick = Casemapping::Rfc1459.nick("Alice");
+    let first =
+        PeerKey::historical(Some(&PeerScope::server("irc.example")), &nick, &account).unwrap();
+    let same =
+        PeerKey::historical(Some(&PeerScope::server("irc.example")), &nick, &account).unwrap();
+    let other =
+        PeerKey::historical(Some(&PeerScope::server("chat.example")), &nick, &account).unwrap();
+
+    assert!(first.is_verified());
+    assert!(matches!(first.check(&same), PeerKeyCheck::Match));
+    assert!(matches!(
+        first.check(&other),
+        PeerKeyCheck::Mismatch(PeerKeyMismatch::DifferentAccount)
+    ));
+}
+
+#[test]
+fn unverified_history_has_no_peer_key() {
+    assert!(
+        PeerKey::historical(
+            None,
+            &Casemapping::Rfc1459.nick("guest-4821"),
+            &Account::LoggedOut
+        )
+        .is_none()
+    );
+}
