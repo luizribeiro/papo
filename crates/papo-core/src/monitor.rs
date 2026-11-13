@@ -20,6 +20,8 @@ pub(super) struct Monitor {
     unsupported_warned: bool,
 }
 
+type Support = Result<usize, UnsupportedReason>;
+
 #[derive(Debug, Eq, PartialEq)]
 enum Presence {
     Online {
@@ -144,21 +146,14 @@ impl Monitor {
         self.pending.clear();
         self.tracked.clear();
         self.server_limit = None;
-        if matches!(isupport.get("MONITOR"), Advertised::Value("0")) {
-            if !self.desired.is_empty() {
-                self.warn_unsupported(UnsupportedReason::LimitZero, outbox);
+        let limit = match support(isupport) {
+            Ok(limit) => limit,
+            Err(reason) => {
+                if !self.desired.is_empty() {
+                    self.warn_unsupported(reason, outbox);
+                }
+                return;
             }
-            return;
-        }
-        let Some(limit) = isupport.monitor() else {
-            if !self.desired.is_empty() {
-                self.warn_unsupported(UnsupportedReason::NotOffered, outbox);
-            }
-            return;
-        };
-        let limit = match limit {
-            LimitValue::Limited(limit) => limit,
-            LimitValue::Unlimited => usize::MAX,
         };
         let desired: Vec<_> = self.effective().into_iter().cloned().collect();
         let requested = desired[..desired.len().min(limit)].to_vec();
@@ -615,6 +610,17 @@ impl Monitor {
                 reason,
             )));
         }
+    }
+}
+
+fn support(isupport: &Isupport) -> Support {
+    if matches!(isupport.get("MONITOR"), Advertised::Value("0")) {
+        return Err(UnsupportedReason::LimitZero);
+    }
+    match isupport.monitor() {
+        Some(LimitValue::Limited(limit)) => Ok(limit),
+        Some(LimitValue::Unlimited) => Ok(usize::MAX),
+        None => Err(UnsupportedReason::NotOffered),
     }
 }
 
