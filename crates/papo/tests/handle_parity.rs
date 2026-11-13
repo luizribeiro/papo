@@ -116,6 +116,19 @@ async fn stable_and_unstable_replay_identically() {
     else {
         unreachable!()
     };
+    server.expect("MODE #release").await;
+    server.send(":ergo.test 324 papo #release +Cnt").await;
+    let who = server.expect("WHO #release %").await;
+    let token = who.rsplit(',').next().unwrap().to_owned();
+    for line in [
+        format!(":ergo.test 354 papo {token} #release ~papo 127.0.0.1 papo H@ 0 :papo"),
+        format!(
+            ":ergo.test 354 papo {token} #release ~alice cloak.example alice H alice :Alice Example"
+        ),
+        ":ergo.test 315 papo #release :End of WHO list".to_owned(),
+    ] {
+        server.send(&line).await;
+    }
     let reply = tokio::spawn(
         client
             .privmsg(&request.actor, "approved for release")
@@ -132,6 +145,30 @@ async fn stable_and_unstable_replay_identically() {
         .await;
     until(&mut events, |event| event.as_monitor_online().is_some()).await;
     println!("WATCH live={}", watch.is_live());
+
+    server.send(":alice!~alice@cloak.example NICK alicia").await;
+    until(&mut events, |event| event.as_nick_changed().is_some()).await;
+    println!("PEER {peer:?} nick={}", peer.nick());
+    let follow_up = tokio::spawn(client.privmsg(&peer, "still there?").into_future());
+    server.expect("PRIVMSG alicia :still there?").await;
+    finish("follow-up", follow_up).await.unwrap();
+
+    server
+        .send(":ergo.test 730 papo :alicia!~alice@cloak.example")
+        .await;
+    let key = peer.key();
+    println!("KEY {key:?}");
+    let opened = tokio::spawn(client.open(&key).into_future());
+    let opened = finish("open", opened).await.unwrap();
+    println!("KEY {:?}", opened.key());
+
+    server
+        .send(":alicia!~alice@cloak.example QUIT :Client exited")
+        .await;
+    until(&mut events, |event| event.as_quit().is_some()).await;
+    println!("PEER {peer:?} nick={}", peer.nick());
+    let gone = tokio::spawn(client.privmsg(&peer, "classified").into_future());
+    finish("departed", gone).await.unwrap_err();
 
     let quit = tokio::spawn(client.quit("release shipped").into_future());
     server.expect("QUIT :release shipped").await;
