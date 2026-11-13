@@ -10,6 +10,79 @@ use papo::Reconnect;
 use papo_testing::wire;
 use support::direct::{connected, next_active_event};
 
+const GATED_PERSON_METHODS: &[&str] = &[
+    "papo::Client::action",
+    "papo::Client::invite",
+    "papo::Client::kick",
+    "papo::Client::notice",
+    "papo::Client::privmsg",
+    "papo::Client::typing",
+    "papo::Client::whois",
+    "papo::Kickban::nick",
+    "papo::Metadata::clear_on",
+    "papo::Metadata::get",
+    "papo::Metadata::list",
+    "papo::Metadata::remove_on",
+    "papo::Metadata::set_on",
+    "papo::Metadata::sync",
+    "papo::SetModes::dehalfop",
+    "papo::SetModes::deop",
+    "papo::SetModes::devoice",
+    "papo::SetModes::halfop",
+    "papo::SetModes::op",
+    "papo::SetModes::prefix",
+    "papo::SetModes::voice",
+];
+
+async fn call_with_handed_off_person(
+    client: &papo::Client,
+    method: &str,
+    alice: &papo::UserHandle,
+) -> Result<(), papo::Error> {
+    let display_name = papo::metadata::keys::DISPLAY_NAME;
+    let metadata = client.metadata();
+    let modes = client.mode("#review");
+    match method {
+        "papo::Client::action" => client.action(alice, "waves").await.map(drop),
+        "papo::Client::invite" => client.invite(alice, "#review").await,
+        "papo::Client::kick" => client.kick("#review", alice, "repeated flooding").await,
+        "papo::Client::notice" => client.notice(alice, "classified").await.map(drop),
+        "papo::Client::privmsg" => client.privmsg(alice, "classified").await.map(drop),
+        "papo::Client::typing" => client.typing(alice, papo::Typing::Active).await,
+        "papo::Client::whois" => client.whois(alice).await.map(drop),
+        "papo::Kickban::nick" => client
+            .kickban("#review")
+            .nick(alice)
+            .ban("*!*@cloak.example")
+            .reason("ban evasion")
+            .await
+            .map(drop),
+        "papo::Metadata::clear_on" => metadata.clear_on(alice).await,
+        "papo::Metadata::get" => metadata.get(alice, [display_name]).await.map(drop),
+        "papo::Metadata::list" => metadata.list(alice).await.map(drop),
+        "papo::Metadata::remove_on" => metadata.remove_on(alice, display_name).await,
+        "papo::Metadata::set_on" => metadata.set_on(alice, display_name, "Mallory").await,
+        "papo::Metadata::sync" => metadata.sync(alice).await,
+        "papo::SetModes::dehalfop" => modes.dehalfop(alice).await.map(drop),
+        "papo::SetModes::deop" => modes.deop(alice).await.map(drop),
+        "papo::SetModes::devoice" => modes.devoice(alice).await.map(drop),
+        "papo::SetModes::halfop" => modes.halfop(alice).await.map(drop),
+        "papo::SetModes::op" => modes.op(alice).await.map(drop),
+        "papo::SetModes::prefix" => {
+            let owner = modes.prefix('q', alice).await;
+            let admin = client.mode("#review").prefix('a', alice).await;
+            match (owner, admin) {
+                (Err(papo::Error::TargetGone), Err(papo::Error::TargetGone)) => {
+                    Err(papo::Error::TargetGone)
+                }
+                _ => Ok(()),
+            }
+        }
+        "papo::SetModes::voice" => modes.voice(alice).await.map(drop),
+        other => panic!("{other} has no nickname-handoff check"),
+    }
+}
+
 async fn assert_nickname_handoff_is_refused() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo")
@@ -44,61 +117,13 @@ async fn assert_nickname_handoff_is_refused() {
         papo::Event::NickChanged(_)
     ));
 
-    assert!(matches!(
-        client.invite(&alice, "#review").await,
-        Err(papo::Error::TargetGone)
-    ));
-    assert!(matches!(
-        client.whois(&alice).await,
-        Err(papo::Error::TargetGone)
-    ));
-    assert!(matches!(
-        client.metadata().list(&alice).await,
-        Err(papo::Error::TargetGone)
-    ));
-    assert!(matches!(
-        client.mode("#review").op(&alice).await,
-        Err(papo::Error::TargetGone)
-    ));
-    assert!(matches!(
-        client.mode("#review").halfop(&alice).await,
-        Err(papo::Error::TargetGone)
-    ));
-    assert!(matches!(
-        client.mode("#review").voice(&alice).await,
-        Err(papo::Error::TargetGone)
-    ));
-    for mode in ['q', 'a'] {
-        assert!(matches!(
-            client.mode("#review").prefix(mode, &alice).await,
-            Err(papo::Error::TargetGone)
-        ));
+    for method in GATED_PERSON_METHODS {
+        let result = call_with_handed_off_person(&client, method, &alice).await;
+        assert!(
+            matches!(result, Err(papo::Error::TargetGone)),
+            "{method} did not refuse the handoff: {result:?}"
+        );
     }
-    assert!(matches!(
-        client.kick("#review", &alice, "repeated flooding").await,
-        Err(papo::Error::TargetGone)
-    ));
-    assert!(matches!(
-        client
-            .kickban("#review")
-            .nick(&alice)
-            .ban("*!*@cloak.example")
-            .reason("ban evasion")
-            .await,
-        Err(papo::Error::TargetGone)
-    ));
-    assert!(matches!(
-        client.mode("#review").deop(&alice).await,
-        Err(papo::Error::TargetGone)
-    ));
-    assert!(matches!(
-        client.mode("#review").dehalfop(&alice).await,
-        Err(papo::Error::TargetGone)
-    ));
-    assert!(matches!(
-        client.mode("#review").devoice(&alice).await,
-        Err(papo::Error::TargetGone)
-    ));
     assert!(
         tokio::time::timeout(Duration::from_millis(10), wire.next_sent())
             .await
