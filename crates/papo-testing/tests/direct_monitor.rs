@@ -99,7 +99,7 @@ async fn watch_is_kept_while_peer_is_offline() {
 }
 
 #[tokio::test]
-async fn cancelled_direct_request_releases_monitor_exactly_once() {
+async fn cancelled_query_send_spends_no_monitor_slot() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo")
             .rate_limit(papo::RateLimit::unlimited())
@@ -109,26 +109,24 @@ async fn cancelled_direct_request_releases_monitor_exactly_once() {
     connected(&mut events).await;
     enable_monitor(&mut events, &mut wire, 100).await;
 
-    let request = tokio::spawn(async move { client.direct("alice").await });
-    assert_eq!(wire.next_sent().await, "MONITOR + alice");
+    let alice = client.query("alice").unwrap();
+    let request = tokio::spawn(async move { client.privmsg(&alice, "release approved").await });
     assert_eq!(wire.next_sent().await, "WHO alice %na");
     request.abort();
     assert!(request.await.unwrap_err().is_cancelled());
-    assert_eq!(wire.next_sent().await, "MONITOR - alice");
-
-    wire.server(":offline.test 730 papo :alice!~alice@cloak.example")
+    wire.server(":offline.test 354 papo alice alice-account")
         .await;
-    wire.server(":offline.test 731 papo :alice").await;
-    assert!(
-        tokio::time::timeout(Duration::from_millis(10), wire.next_sent())
-            .await
-            .is_err(),
-        "late monitor replies must not release the cancelled request again"
-    );
+    wire.server(":offline.test 315 papo alice :End of WHO list")
+        .await;
+    assert_silent(
+        &mut wire,
+        "a cancelled send sends neither MONITOR nor PRIVMSG",
+    )
+    .await;
 }
 
 #[tokio::test]
-async fn direct_ref_does_not_fail_when_the_monitor_list_is_full() {
+async fn query_send_does_not_fail_when_the_monitor_list_is_full() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo")
             .rate_limit(papo::RateLimit::unlimited())
@@ -137,20 +135,27 @@ async fn direct_ref_does_not_fail_when_the_monitor_list_is_full() {
     wire.register(&[]).await;
     connected(&mut events).await;
     enable_monitor(&mut events, &mut wire, 1).await;
-    let _watch = client.query("bob").unwrap().watch();
+    let _bob = client.query("bob").unwrap().watch();
     assert_eq!(wire.next_sent().await, "MONITOR + bob");
 
-    let request = tokio::spawn(async move { client.direct("alice").await });
-    assert_eq!(wire.next_sent().await, "WHO alice %na");
-    wire.server(":offline.test 354 papo alice alice-account")
-        .await;
-    wire.server(":offline.test 315 papo alice :End of WHO list")
-        .await;
+    let alice = client.query("alice").unwrap();
+    let watch = alice.watch();
+    let request = tokio::spawn({
+        let client = client.clone();
+        async move { client.privmsg(&alice, "release approved").await }
+    });
+    answer_who(
+        &mut wire,
+        Some(":offline.test 354 papo alice alice-account"),
+    )
+    .await;
+    assert_eq!(wire.next_sent().await, "PRIVMSG alice :release approved");
     assert!(request.await.unwrap().is_ok());
+    assert!(!watch.is_live());
 }
 
 #[tokio::test]
-async fn direct_ref_refuses_when_who_finds_no_user_and_releases_monitor() {
+async fn query_send_refuses_when_who_finds_no_user() {
     let (client, mut events, mut wire) = wire(
         papo::Client::builder("irc://offline.test", "papo")
             .rate_limit(papo::RateLimit::unlimited())
@@ -160,14 +165,12 @@ async fn direct_ref_refuses_when_who_finds_no_user_and_releases_monitor() {
     connected(&mut events).await;
     enable_monitor(&mut events, &mut wire, 100).await;
 
-    let request = tokio::spawn(async move { client.direct("missing-user").await });
-    assert_eq!(wire.next_sent().await, "MONITOR + missing-user");
-    assert_eq!(wire.next_sent().await, "WHO missing-user %na");
-    wire.server(":offline.test 315 papo missing-user :End of WHO list")
-        .await;
+    let alice = client.query("alice").unwrap();
+    let request = tokio::spawn(async move { client.notice(&alice, "release approved").await });
+    answer_who(&mut wire, None).await;
     assert!(matches!(
         request.await.unwrap(),
         Err(papo::Error::TargetGone)
     ));
-    assert_eq!(wire.next_sent().await, "MONITOR - missing-user");
+    assert_silent(&mut wire, "an unprovable recipient gets no NOTICE").await;
 }

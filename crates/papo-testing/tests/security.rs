@@ -758,23 +758,29 @@ async fn line_reference(
     (reference, event)
 }
 
-async fn assert_direct_source_gone(client: &papo::Client, event: &papo::Event) {
-    let result = match event {
-        papo::Event::Message(event) => client.direct_to(event).await,
-        papo::Event::Notice(event) => client.direct_to(event).await,
-        papo::Event::CtcpQuery(event) => client.direct_to(event).await,
-        papo::Event::CtcpReply(event) => client.direct_to(event).await,
-        papo::Event::Invited(event) => client.direct_to(event).await,
-        papo::Event::MonitorOnline(event) => client.direct_to(event).await,
-        papo::Event::Reacted(event) => client.direct_to(event).await,
-        papo::Event::Redacted(event) => client.direct_to(event).await,
-        papo::Event::TagMsg(event) => client.direct_to(event).await,
-        papo::Event::TypingChanged(event) => client.direct_to(event).await,
-        event => panic!("event has no direct sender: {event:?}"),
-    };
+fn event_sender(event: &papo::Event) -> &papo::UserHandle {
+    match event {
+        papo::Event::Message(event) => &event.actor,
+        papo::Event::Notice(event) => &event.actor,
+        papo::Event::CtcpQuery(event) => &event.actor,
+        papo::Event::CtcpReply(event) => &event.actor,
+        papo::Event::MonitorOnline(event) => &event.subject,
+        papo::Event::Reacted(event) => &event.actor,
+        papo::Event::TagMsg(event) => &event.actor,
+        papo::Event::TypingChanged(event) => &event.actor,
+        papo::Event::Invited(papo::event::Invited { actor, .. })
+        | papo::Event::Redacted(papo::event::Redacted { actor, .. }) => {
+            actor.user().expect("a user sent the line")
+        }
+        event => panic!("event has no user sender: {event:?}"),
+    }
+}
+
+async fn assert_event_sender_gone(client: &papo::Client, event: &papo::Event) {
+    let result = client.privmsg(event_sender(event), "classified").await;
     assert!(
         matches!(result, Err(papo::Error::TargetGone)),
-        "direct source did not retain its sender guard: {event:?}: {result:?}"
+        "event sender did not retain its guard: {event:?}: {result:?}"
     );
 }
 
@@ -842,11 +848,11 @@ async fn every_line_reference_refuses_a_stale_target() {
         tokio::task::yield_now().await;
     }
 
-    let direct = client.direct("alice").await.unwrap();
-    let sent = client.privmsg(&direct, "review requested").await.unwrap();
+    let alice = client.query("alice").unwrap();
+    let sent = client.privmsg(&alice, "review requested").await.unwrap();
     assert_eq!(wire.next_sent().await, "PRIVMSG alice :review requested");
     let mut references = vec![("sent message", true, sent.return_address())];
-    let mut direct_sources = Vec::new();
+    let mut sender_events = Vec::new();
     for (name, private, line) in [
         (
             "message",
@@ -901,7 +907,7 @@ async fn every_line_reference_refuses_a_stale_target() {
     ] {
         let (reference, event) = line_reference(&mut events, &mut wire, name, private, line).await;
         references.push((name, private, reference));
-        direct_sources.push(event);
+        sender_events.push(event);
     }
     for line in [
         ":alice!~a@cloak.example NOTICE papo-wire :release notice",
@@ -911,7 +917,7 @@ async fn every_line_reference_refuses_a_stale_target() {
         ":offline.test 730 papo-wire :alice!~a@cloak.example",
     ] {
         wire.server(line).await;
-        direct_sources.push(next_active_event(&mut events).await);
+        sender_events.push(next_active_event(&mut events).await);
     }
     let index = references
         .iter()
@@ -941,15 +947,15 @@ async fn every_line_reference_refuses_a_stale_target() {
     ) {}
 
     for result in [
-        client.privmsg(&direct, "classified").await.map(|_| ()),
-        client.notice(&direct, "classified").await.map(|_| ()),
-        client.action(&direct, "waves").await.map(|_| ()),
-        client.typing(&direct, papo::Typing::Active).await,
+        client.privmsg(&alice, "classified").await.map(|_| ()),
+        client.notice(&alice, "classified").await.map(|_| ()),
+        client.action(&alice, "waves").await.map(|_| ()),
+        client.typing(&alice, papo::Typing::Active).await,
     ] {
         assert!(matches!(result, Err(papo::Error::TargetGone)));
     }
-    for event in &direct_sources {
-        assert_direct_source_gone(&client, event).await;
+    for event in &sender_events {
+        assert_event_sender_gone(&client, event).await;
     }
 
     for (name, _, reference) in private_references {
