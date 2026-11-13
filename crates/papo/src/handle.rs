@@ -1177,4 +1177,64 @@ mod tests {
             "a departed handle must not adopt the new holder's account"
         );
     }
+
+    #[test]
+    fn user_key_upgrades_only_for_the_same_account_holder() {
+        let mut session = secure_session(&[
+            ":papo!p@localhost JOIN #review papo-account :Papo",
+            ":alice!a@cloak.example JOIN #review alice-account :Alice",
+            ":bob!b@cloak.example JOIN #review bob-account :Bob",
+            ":carol!c@cloak.example JOIN #review carol-account :Carol",
+        ]);
+        let (client, _) = crate::driver::test_support::client_with_commands(&session);
+        let [alice, bob, carol] = ["alice", "bob", "carol"].map(|nick| client.query(nick).unwrap());
+        let [alice_name, bob_name, carol_name] = [&alice, &bob, &carol].map(crate::UserHandle::key);
+        assert_eq!(
+            alice_name.to_string(),
+            "papo-peer:1;server=irc.example;nick-casemap=rfc1459;nick=alice;proof=account;account-casemap=rfc1459;account=alice-account"
+        );
+
+        replay(
+            &client,
+            &mut session,
+            &[
+                "@inspircd.org/account-id=AAAAAAAAB;account=alice-account :alice!a@cloak.example PRIVMSG papo :identity proof",
+            ],
+        );
+        let alice_id = alice.key();
+        assert_eq!(
+            alice_id.to_string(),
+            "papo-peer:1;server=irc.example;nick-casemap=rfc1459;nick=alice;proof=account;account-casemap=rfc1459;account=alice-account;id=AAAAAAAAB"
+        );
+        assert!(matches!(
+            alice_name.check(&alice_id),
+            crate::PeerKeyCheck::Upgrade(_)
+        ));
+
+        replay(
+            &client,
+            &mut session,
+            &[
+                "@inspircd.org/account-id=BBBBBBBBB;account=mallory-account :bob!b@cloak.example PRIVMSG papo :different account",
+                ":carol!c@cloak.example QUIT :Client exited",
+                "@inspircd.org/account-id=CCCCCCCCC;account=carol-account :carol!new@new.example JOIN #review carol-account :Carol replacement",
+                "@inspircd.org/account-id=CCCCCCCCC;account=carol-account :carol!new@new.example PRIVMSG papo :replacement proof",
+            ],
+        );
+        assert_eq!(
+            bob.key().to_string(),
+            bob_name.to_string(),
+            "a different account must not upgrade a handle"
+        );
+        assert!(matches!(
+            bob_name.check(&client.query("bob").unwrap().key()),
+            crate::PeerKeyCheck::Mismatch(crate::PeerKeyMismatch::DifferentAccount)
+        ));
+        for current in [carol.key(), client.query("carol").unwrap().key()] {
+            assert!(matches!(
+                carol_name.check(&current),
+                crate::PeerKeyCheck::Upgrade(_)
+            ));
+        }
+    }
 }

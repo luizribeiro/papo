@@ -136,3 +136,51 @@ async fn session_keys_change_on_rename_and_expire_on_reuse_and_logout() {
         papo::PeerKeyMismatch::CannotVerify,
     );
 }
+
+#[tokio::test]
+async fn departed_handle_key_does_not_adopt_the_next_holder() {
+    let (client, mut events, mut wire) = wire(
+        papo::Client::builder("ircs://verified.example", "papo")
+            .rate_limit(papo::RateLimit::unlimited())
+            .reconnect(Reconnect::never()),
+    );
+    wire.register(&["account-notify"]).await;
+    connected(&mut events).await;
+    join(&mut events, &mut wire, ":papo!p@localhost JOIN #review").await;
+    join(
+        &mut events,
+        &mut wire,
+        ":alice!~alice@cloak.example JOIN #review",
+    )
+    .await;
+    let alice = client.query("alice").unwrap();
+    let stored = alice.key();
+    assert!(!stored.is_verified());
+
+    wire.server(":alice!~alice@cloak.example QUIT :Client exited")
+        .await;
+    assert!(matches!(
+        next_active_event(&mut events).await,
+        Event::Quit(_)
+    ));
+    join(
+        &mut events,
+        &mut wire,
+        ":alice!~mallory@visitor.example JOIN #review",
+    )
+    .await;
+    wire.server(":alice!~mallory@visitor.example ACCOUNT mallory-account")
+        .await;
+    assert!(matches!(
+        next_active_event(&mut events).await,
+        Event::AccountChanged(_)
+    ));
+
+    assert!(client.query("alice").unwrap().key().is_verified());
+    assert!(!alice.key().is_verified());
+    assert_mismatch(
+        &stored,
+        &client.query("alice").unwrap().key(),
+        papo::PeerKeyMismatch::CannotVerify,
+    );
+}

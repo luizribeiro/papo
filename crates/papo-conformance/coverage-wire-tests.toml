@@ -43,6 +43,9 @@
 "peer_pin_open::open_with_stored_key_blocks_identity_changes" = [
   "security.dm-direct.peer-pin-mismatch",
 ]
+"peer_pin_lifetime::departed_handle_key_does_not_adopt_the_next_holder" = [
+  "security.dm-direct.peer-pin-mismatch",
+]
 "peer_pin_open::bouncer_upstream_drop_rejects_continuity_pin_and_live_target" = [
   "security.bouncer.upstream-drop-identity",
 ]
