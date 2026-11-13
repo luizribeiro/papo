@@ -65,7 +65,7 @@ finished; a later `-MONITOR` or `MONITOR=0` reports the feature as unsupported i
 
 `Client::direct_pinned`, `PeerPinMismatch`, and `Error::PeerPinMismatch` are removed; `Client::open` returns `Error::NotSamePerson` with the same reason and current key.
 
-`DirectRef::peer_key`, `DirectRef::nick`, and `DirectRef`'s target, equality, and formatting implementations are removed; use `UserHandle`, whose `key` captures the persistable key.
+`DirectRef` and `Client::direct` are removed; `Client::query` creates a `UserHandle` without sending a command, and `UserHandle::key` captures the persistable key.
 
 KICK, INVITE, and WHOIS now carry person proof through their final wire write; INVITE accepts `UserHandle` directly.
 WHOIS returns `None` when the server reports that the nickname is absent.
@@ -122,7 +122,7 @@ values using a monotonic server-clock estimate rather than the device wall clock
 Server-clock values now use `ServerTime`, preventing device receipt times from being used as
 history cursors, read markers, or other values sent back to the server.
 
-`DirectRef` equality and hashing now identify only the tracked IRC user on one connection. Handles
+`UserHandle` equality and hashing identify only the tracked IRC user on one connection. Handles
 for that user stay equal across account discovery and nickname changes; different users remain
 unequal even on the same account or after a departed user's nickname is reused. Handles are per
 connection, so after a reconnect a new handle does not equal an old one.
@@ -255,16 +255,15 @@ After:
 ```rust,ignore
 client.reply(&message, "acknowledged").await?;
 
-let alice = client.direct("alice").await?;
+let alice = client.query("alice")?;
 client.privmsg(&alice, "private update").await?;
 client.invite(&alice, "#papo").await?;
 client.mode("#papo").op(&alice).await?;
 ```
 
-`DirectRef` follows nickname changes, holds a `MONITOR` lease for users who share no channel, and
-refuses with `Error::TargetGone` when the identity leaves or the nickname changes hands. A
-received event's `UserHandle` sender addresses its author from the immutable receipt. Clones share the lease.
-`DirectRef::nick()` returns the current nickname, or the last known nickname after departure.
+`UserHandle` follows nickname changes and refuses with `Error::TargetGone` when the identity leaves
+or the nickname changes hands; `UserHandle::watch` holds a `MONITOR` entry only while its lease
+lives. A received event's `UserHandle` sender addresses its author from the immutable receipt.
 Private `MessageRef` values and queued sends carry the same guard. `send_raw` remains the explicit
 unguarded escape hatch. Concurrent guarded sends now wait for server-proven account state and
 cannot route through an expected account while its `WHO` proof is outstanding.
@@ -273,11 +272,11 @@ cannot route through an expected account while its `WHO` proof is outstanding.
 |---|---|
 | `Chat::{Channel, Private}` plus `Conversation` | Only `Conversation`; event `conversation` fields use it |
 | One `Target` role accepted nicks, masks, channels, conversations, and swapped arguments | Sealed `AsChannel`, `AsNick`, `AsAccount`, `AsMask`, and `AsConversation` roles reject category mistakes and foreign-client typed names |
-| Nick text or `Nick` could be a private message target | Private sends require `DirectRef`, or a guarded `MessageRef`/`NoticeRef`; channels remain ordinary targets |
+| Nick text or `Nick` could be a private message target | Private sends require `UserHandle`, or a guarded `MessageRef`/`NoticeRef`; channels remain ordinary targets |
 | `Conversation: Target` allowed `@#ops` replies to widen to `#ops` | Use `reply`, `react`, `redact`, or the event's `return_address()` so the original audience is retained |
 | `return_address() -> String` | Message-like events return guarded `MessageRef`; notices return `NoticeRef`; server notice addresses are `Option<NoticeRef>` |
 | Notices converted to `MessageRef` and could be passed to `reply` or `react` | `NoticeRef` can be sent with `notice`, but cannot be used for message replies or reactions |
-| `invite`, `op`, `halfop`, `voice`, and arbitrary prefix modes accepted an unguarded nick | Privilege grants require `&DirectRef`; `SetModes::prefix(mode, &direct)` handles advertised custom prefix modes |
+| `invite`, `op`, `halfop`, `voice`, and arbitrary prefix modes accepted an unguarded nick | Privilege grants require `&UserHandle`; `SetModes::prefix(mode, &user)` handles advertised custom prefix modes |
 | `kickban(channel, nick, reason, ban)` | `kickban(channel).nick(nick).ban(ban).reason(reason)` names the nickname and ban roles; `ban` is typed as `BanTarget` |
 | `rename_channel(old, new, reason)` | `rename_channel(old).to(new).reason(reason)` gives the two channel roles distinct positions |
 | Public mutable message-reference fields | `msgid()`, `conversation()`, `status()`, `channel_context()`, and `Sent::outcome()` are read-only accessors backed by receipt evidence |

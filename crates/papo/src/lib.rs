@@ -292,7 +292,6 @@ mod address;
 mod builder;
 mod client;
 mod conversation;
-mod direct;
 mod driver;
 mod entropy;
 mod error;
@@ -351,7 +350,6 @@ pub use client::{
     Client, ConfirmedLines, Fallback, JoinChannel, Kickban, SendMessage, Sent, SentOutcome,
 };
 pub use conversation::Conversation;
-pub use direct::DirectRef;
 pub use driver::{Driver, Events};
 pub use error::{
     ConnectError, ConnectErrorKind, DisconnectCause, Disconnected, Error, ForeignReference,
