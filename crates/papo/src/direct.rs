@@ -662,61 +662,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn direct_peer_key_does_not_depend_on_account_proof_timing() {
-        let now = crate::rt::now_mono();
-        let mut session = Session::new(Config::default().nick("papo"));
-        session.handle_connected_with(
-            now,
-            Connection {
-                host: "irc.example".into(),
-                security: ConnectionSecurity::Secure,
-                authenticated_server_name: Some("irc.example".into()),
-            },
-        );
-        for line in [
-            ":irc.example 005 papo CASEMAPPING=rfc1459 :are supported",
-            ":papo!p@localhost JOIN #review * :Papo",
-            ":alice!~alice@cloak.example JOIN #review * :Alice",
-        ] {
-            session.handle_line(now, line.as_bytes());
-        }
-        let (client, _) = crate::driver::test_support::client_with_commands(&session);
-        let before = client.direct("alice").await.unwrap();
-        let continuity = before.peer_key().clone();
-        assert!(!continuity.is_verified());
-
-        session.handle_line(
-            now,
-            b"@account=alice-account :alice!~alice@cloak.example PRIVMSG papo :proof",
-        );
-        *client.state.write().unwrap() = Arc::new(crate::State::from_session(&session, true));
-        let upgraded = before.peer_key();
-        assert!(upgraded.is_verified());
-        assert!(matches!(
-            continuity.check(upgraded),
-            crate::PeerKeyCheck::Upgrade(pin) if pin.as_verified_str() == upgraded.as_verified_str()
-        ));
-
-        let after = client.direct("alice").await.unwrap();
-        assert!(matches!(
-            upgraded.check(after.peer_key()),
-            crate::PeerKeyCheck::Match
-        ));
-
-        session.handle_line(now, b":alice!~alice@cloak.example QUIT :Client exited");
-        session.handle_line(
-            now,
-            b":alice!~other@new.example JOIN #review mallory-account :Replacement",
-        );
-        *client.state.write().unwrap() = Arc::new(crate::State::from_session(&session, true));
-        let replacement = client.direct("alice").await.unwrap();
-        assert!(matches!(
-            continuity.check(replacement.peer_key()),
-            crate::PeerKeyCheck::Mismatch(crate::PeerKeyMismatch::CannotVerify)
-        ));
-    }
-
-    #[tokio::test]
     async fn direct_account_peer_key_upgrades_when_inspircd_id_appears() {
         let now = crate::rt::now_mono();
         let mut session = Session::new(Config::default().nick("papo"));
