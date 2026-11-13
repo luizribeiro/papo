@@ -2400,21 +2400,8 @@ impl core::marker::UnsafeUnpin for papo::ConnectError
 impl !core::panic::unwind_safe::RefUnwindSafe for papo::ConnectError
 impl !core::panic::unwind_safe::UnwindSafe for papo::ConnectError
 pub struct papo::DirectRef(_)
-impl papo::DirectRef
-pub fn papo::DirectRef::nick(&self) -> papo::Nick
 impl core::clone::Clone for papo::DirectRef
 pub fn papo::DirectRef::clone(&self) -> Self
-impl core::cmp::Eq for papo::DirectRef
-impl core::cmp::PartialEq for papo::DirectRef
-pub fn papo::DirectRef::eq(&self, &Self) -> bool
-impl core::fmt::Debug for papo::DirectRef
-pub fn papo::DirectRef::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::fmt::Display for papo::DirectRef
-pub fn papo::DirectRef::fmt(&self, &mut core::fmt::Formatter<'_>) -> core::fmt::Result
-impl core::hash::Hash for papo::DirectRef
-pub fn papo::DirectRef::hash<H: core::hash::Hasher>(&self, &mut H)
-impl papo::AsNick for papo::DirectRef
-impl papo::Target for papo::DirectRef
 impl core::marker::Freeze for papo::DirectRef
 impl core::marker::Send for papo::DirectRef
 impl core::marker::Sync for papo::DirectRef
@@ -3597,7 +3584,6 @@ impl papo::AsNick for alloc::borrow::Cow<'_, str>
 impl papo::AsNick for alloc::boxed::Box<str>
 impl papo::AsNick for alloc::rcs::arc::Arc<str>
 impl papo::AsNick for alloc::string::String
-impl papo::AsNick for papo::DirectRef
 impl papo::AsNick for papo::UserHandle
 impl papo::AsNick for papo::Nick
 impl papo::AsNick for str
@@ -3613,7 +3599,6 @@ impl papo::Target for alloc::boxed::Box<str>
 impl papo::Target for alloc::rcs::arc::Arc<str>
 impl papo::Target for alloc::string::String
 impl papo::Target for papo::ChannelHandle
-impl papo::Target for papo::DirectRef
 impl papo::Target for papo::MessageRef
 impl papo::Target for papo::NoticeRef
 impl papo::Target for papo::UserHandle

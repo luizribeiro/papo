@@ -323,20 +323,6 @@ impl State {
         }
     }
 
-    pub(crate) fn resolve_recipient(
-        &self,
-        recipient: &papo_core::RecipientGuard,
-    ) -> papo_core::RecipientStatus {
-        self.core.__resolve_recipient(recipient)
-    }
-
-    pub(crate) fn last_recipient_nick(
-        &self,
-        recipient: &papo_core::RecipientGuard,
-    ) -> Option<crate::Nick> {
-        self.core.__last_recipient_nick(recipient)
-    }
-
     pub(crate) fn resolve_channel(
         &self,
         channel: &papo_core::ChannelGuard,

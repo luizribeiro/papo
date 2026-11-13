@@ -65,7 +65,7 @@ finished; a later `-MONITOR` or `MONITOR=0` reports the feature as unsupported i
 
 `Client::direct_pinned`, `PeerPinMismatch`, and `Error::PeerPinMismatch` are removed; `Client::open` returns `Error::NotSamePerson` with the same reason and current key.
 
-`DirectRef::peer_key` is removed; `UserHandle::key` captures the persistable key.
+`DirectRef::peer_key`, `DirectRef::nick`, and `DirectRef`'s target, equality, and formatting implementations are removed; use `UserHandle`, whose `key` captures the persistable key.
 
 KICK, INVITE, and WHOIS now carry person proof through their final wire write; INVITE accepts `UserHandle` directly.
 WHOIS returns `None` when the server reports that the nickname is absent.

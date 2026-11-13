@@ -1,9 +1,4 @@
-use std::{
-    hash::{Hash, Hasher},
-    sync::{Arc, RwLock},
-};
-
-use crate::Nick;
+use std::sync::{Arc, RwLock};
 
 /// A stable, guarded identity for direct messages to one IRC user.
 ///
@@ -17,8 +12,10 @@ use crate::Nick;
 /// connection: after a reconnect, a new handle does not equal an old one.
 /// [`crate::Client::send_raw`] is the explicit escape hatch for deliberately unguarded IRC lines.
 #[derive(Clone)]
+#[allow(dead_code)]
 pub struct DirectRef(Arc<DirectInner>);
 
+#[allow(dead_code)]
 struct DirectInner {
     identity: papo_core::ReplyToken,
     recipient: papo_core::RecipientGuard,
@@ -60,97 +57,6 @@ impl DirectRef {
             state: Arc::clone(&client.state),
             user,
         }))
-    }
-
-    pub(crate) fn user_handle(&self) -> crate::UserHandle {
-        if let Some(user) = &self.0.user {
-            return user.clone();
-        }
-        let state = self
-            .0
-            .state
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let proof = state
-            .core
-            .__prove_recipient(&self.0.recipient)
-            .expect("a direct reference retains validated identity proof");
-        drop(state);
-        crate::UserHandle::from_parts(
-            self.nick(),
-            self.0.recipient.__account().clone(),
-            Some(proof),
-            Some(&self.0.state),
-        )
-    }
-
-    /// Returns the recipient's current nickname.
-    ///
-    /// After the user is gone, this returns their last known nickname. Sends still fail with
-    /// [`crate::Error::TargetGone`].
-    #[must_use]
-    pub fn nick(&self) -> Nick {
-        let state = self
-            .0
-            .state
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        match state.resolve_recipient(&self.0.recipient) {
-            papo_core::RecipientStatus::Current(nick) => nick,
-            papo_core::RecipientStatus::Gone => state
-                .last_recipient_nick(&self.0.recipient)
-                .unwrap_or_else(|| self.0.recipient.__nick().clone()),
-            papo_core::RecipientStatus::Unknown => self.0.recipient.__nick().clone(),
-        }
-    }
-}
-
-impl std::fmt::Debug for DirectRef {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter
-            .debug_struct("DirectRef")
-            .field("nick", &self.nick())
-            .finish_non_exhaustive()
-    }
-}
-
-impl std::fmt::Display for DirectRef {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.nick().fmt(formatter)
-    }
-}
-
-impl PartialEq for DirectRef {
-    fn eq(&self, other: &Self) -> bool {
-        self.0.identity == other.0.identity
-    }
-}
-
-impl Eq for DirectRef {}
-
-impl Hash for DirectRef {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.0.identity.hash(state);
-    }
-}
-
-impl crate::target::sealed::Sealed for DirectRef {}
-
-impl crate::AsNick for DirectRef {
-    fn __parts(&self) -> crate::target::sealed::Parts<'_> {
-        <Self as crate::Target>::__parts(self)
-    }
-}
-
-impl crate::Target for DirectRef {
-    fn __parts(&self) -> crate::target::sealed::Parts<'_> {
-        let nick = self.nick();
-        crate::target::sealed::Parts {
-            text: std::borrow::Cow::Owned(nick.to_string()),
-            origin: nick.origin(),
-            channel: None,
-            user: Some(self.user_handle()),
-        }
     }
 }
 
