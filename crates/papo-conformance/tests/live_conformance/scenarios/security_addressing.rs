@@ -24,7 +24,7 @@ async fn multiline_dm_after_nick_change(s: Scenario) -> papo_testing::Result<()>
     alice.join(&channel).await?;
     bob.join(&channel).await?;
 
-    let bob_direct = alice.direct(old_nick.as_str()).await?;
+    let bob_direct = alice.query(old_nick.as_str())?;
     alice.privmsg(&bob_direct, text).await?;
     bob.set_nick(&new_nick).await?;
     let message = bob.wait_for(|event| message_text(event, text)).await?;
@@ -65,7 +65,7 @@ async fn stale_dm_history_target(s: Scenario) -> papo_testing::Result<()> {
     writer.join(&channel).await?;
     join_seen_by(&reader, &mut writer, &channel).await?;
 
-    let reader_direct = writer.direct(old_nick.as_str()).await?;
+    let reader_direct = writer.query(old_nick.as_str())?;
     writer.privmsg(&reader_direct, text).await?;
     reader.set_nick(&new_nick).await?;
     let page = reader

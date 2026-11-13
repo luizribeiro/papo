@@ -335,8 +335,8 @@ async fn bouncer_upstream_drop_ends_peer_identity(s: Scenario) -> papo_testing::
                 .filter(|joined| joined.actor.nick() == alice_nick.as_str())
         })
         .await?;
-    let direct = observer.direct(&alice_nick).await?;
-    let stored = direct.peer_key().clone();
+    let alice_handle = observer.query(&alice_nick)?;
+    let stored = alice_handle.key();
     assert!(!stored.is_verified());
 
     set_network_enabled(bouncer, login.account_username(), &network, false)?;
@@ -353,7 +353,7 @@ async fn bouncer_upstream_drop_ends_peer_identity(s: Scenario) -> papo_testing::
         .await?;
     assert!(matches!(
         observer
-            .privmsg(&direct, "must not reach a replacement")
+            .privmsg(&alice_handle, "must not reach a replacement")
             .await,
         Err(Error::TargetGone)
     ));
@@ -366,11 +366,7 @@ async fn bouncer_upstream_drop_ends_peer_identity(s: Scenario) -> papo_testing::
     set_network_enabled(bouncer, login.account_username(), &network, true)?;
     observer.wait_for(Event::as_channel_synced).await?;
 
-    let Error::PeerPinMismatch(mismatch) = observer
-        .direct_pinned(&alice_nick, &stored)
-        .await
-        .unwrap_err()
-    else {
+    let Error::NotSamePerson(mismatch) = observer.open(&stored).await.unwrap_err() else {
         panic!("the old continuity pin unexpectedly authorized the replacement");
     };
     assert_eq!(mismatch.reason(), papo::PeerKeyMismatch::CannotVerify);

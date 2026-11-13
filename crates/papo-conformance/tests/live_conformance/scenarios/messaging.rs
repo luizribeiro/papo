@@ -58,7 +58,7 @@ async fn assert_unverified_context(
     context: &str,
     text: &'static str,
 ) -> papo_testing::Result<()> {
-    let direct = sender.direct(recipient.nick().as_str()).await?;
+    let direct = sender.query(recipient.nick().as_str())?;
     let context_tag_allowed = context_tag_allowed(sender);
     let sent = sender
         .privmsg(&direct, text)
@@ -126,7 +126,7 @@ async fn part_for_unverified_context(
 async fn assert_shared_context(
     sender: &Peer,
     recipient: &mut Peer,
-    direct: &papo::DirectRef,
+    direct: &papo::UserHandle,
     channel: &papo::ChannelName,
 ) -> papo_testing::Result<()> {
     let context_tag_allowed = context_tag_allowed(sender);
@@ -319,7 +319,7 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     let mut alice = s.connect("alice").await?;
     let mut bob = s.connect("bob").await?;
 
-    let bob_direct = alice.direct(bob.nick().as_str()).await?;
+    let bob_direct = alice.query(bob.nick().as_str())?;
     let sent = alice.privmsg(&bob_direct, "private hello").await?;
     let received = bob
         .wait_for(|event| message_text(event, "private hello"))
@@ -341,7 +341,7 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
         papo_test_server::DeploymentProfile::from_env()?,
     );
 
-    let alice_direct = bob.direct(alice.nick().as_str()).await?;
+    let alice_direct = bob.query(alice.nick().as_str())?;
     let sent = bob.notice(&alice_direct, "private notice").await?;
     let received = alice
         .wait_for(|event| notice_text(event, "private notice"))
@@ -361,7 +361,7 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
         papo_test_server::DeploymentProfile::from_env()?,
     );
 
-    let own = alice.direct(alice.nick()).await?;
+    let own = alice.query(alice.nick())?;
     let sent = alice.privmsg(own, "note to self").await?;
     assert_eq!(
         conversation_name(&sent.conversation),
@@ -399,9 +399,9 @@ async fn direct_messages(s: Scenario) -> papo_testing::Result<()> {
     )
     .await?;
 
-    let unavailable = papo_test_server::unique("missing-target");
+    let unavailable = alice.query(papo_test_server::unique("missing-target").as_str())?;
     let Error::TargetGone = alice
-        .direct(&unavailable)
+        .privmsg(&unavailable, "note to nobody")
         .await
         .expect_err("a nonexistent target must be refused")
     else {
@@ -901,7 +901,7 @@ async fn message_tags(s: Scenario) -> papo_testing::Result<()> {
     let mut bob = s.connect("bob").await?;
     let alice_nick = alice.nick();
     let bob_nick = bob.nick();
-    let bob_direct = alice.direct(bob_nick.as_str()).await?;
+    let bob_direct = alice.query(bob_nick.as_str())?;
 
     alice.typing(&bob_direct, Typing::Active).await?;
     let typing = bob.wait_for(Event::as_typing_changed).await?;

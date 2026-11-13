@@ -175,7 +175,7 @@ async fn away_private_message(s: Scenario) -> papo_testing::Result<()> {
     alice.set_away(away).await?;
 
     let text = "the review can wait until you return";
-    let alice_direct = bob.direct(alice_nick.as_str()).await?;
+    let alice_direct = bob.query(alice_nick.as_str())?;
     let sent = bob.privmsg(&alice_direct, text).await?;
     let message = alice
         .wait_for(|event| event.as_message().filter(|message| message.text == text))

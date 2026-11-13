@@ -42,7 +42,7 @@ async fn registers_messages_itself_and_quits() {
             }
         }
 
-        let direct = client.direct(&nick).await.unwrap();
+        let direct = client.query(&nick).unwrap();
         let sent = client
             .privmsg(&direct, "hello from papo's live client")
             .await

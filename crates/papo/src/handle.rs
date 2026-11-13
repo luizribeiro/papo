@@ -1039,13 +1039,8 @@ mod tests {
         ] {
             session.handle_line(now, line);
         }
-        let alice = session.isupport().casemapping().nick("alice");
-        let recipient = session
-            .state()
-            .__capture_recipient(alice, crate::Account::Unknown)
-            .unwrap();
         let (client, _) = crate::driver::test_support::client_with_commands(&session);
-        let direct = crate::DirectRef::new(&client, recipient, false);
+        let alice = client.query("alice").unwrap();
         let channel = client.channel("#release").unwrap();
 
         session.handle_line(now, b":alice!alice@staff.ergo.chat QUIT :Client exited");
@@ -1053,7 +1048,7 @@ mod tests {
         *client.state.write().unwrap() = Arc::new(crate::State::from_session(&session, true));
 
         assert!(matches!(
-            client.query(&direct),
+            client.query(&alice),
             Err(crate::InvalidInput::ForeignReference)
         ));
         assert!(matches!(

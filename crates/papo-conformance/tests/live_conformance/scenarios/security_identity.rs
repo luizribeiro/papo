@@ -23,7 +23,7 @@ async fn private_reply_after_nick_takeover(s: Scenario) -> papo_testing::Result<
     alice.join(&channel).await?;
     mallory.join(&channel).await?;
 
-    let bot_direct = alice.direct(bot.nick().as_str()).await?;
+    let bot_direct = alice.query(bot.nick().as_str())?;
     alice.privmsg(&bot_direct, "control request").await?;
     let control = bot
         .wait_for(|event| message_text(event, "control request"))
