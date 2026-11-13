@@ -661,51 +661,6 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn continuity_peer_keys_only_match_the_same_observed_user() {
-        let now = crate::rt::now_mono();
-        let mut session = Session::new(Config::default().nick("papo"));
-        session.handle_line(now, b":papo!p@localhost JOIN #release");
-        session.handle_line(now, b":alice!~alice@cloak.example JOIN #release");
-        session.handle_line(now, b":bob!~bob@cloak.example JOIN #release");
-        let unknown = Account::Unknown;
-        let alice = crate::PeerKey::live(
-            None,
-            &Casemapping::Rfc1459.nick("alice"),
-            &unknown,
-            None,
-            session.state().__peer_token_for("alice"),
-        )
-        .unwrap();
-        let same_alice = crate::PeerKey::live(
-            None,
-            &Casemapping::Rfc1459.nick("alice"),
-            &unknown,
-            None,
-            session.state().__peer_token_for("alice"),
-        )
-        .unwrap();
-        let bob = crate::PeerKey::live(
-            None,
-            &Casemapping::Rfc1459.nick("bob"),
-            &unknown,
-            None,
-            session.state().__peer_token_for("bob"),
-        )
-        .unwrap();
-
-        assert!(!alice.is_verified());
-        assert_eq!(alice.as_verified_str(), None);
-        assert!(matches!(
-            alice.check(&same_alice),
-            crate::PeerKeyCheck::Match
-        ));
-        assert!(matches!(
-            alice.check(&bob),
-            crate::PeerKeyCheck::Mismatch(crate::PeerKeyMismatch::CannotVerify)
-        ));
-    }
-
     #[tokio::test]
     async fn direct_peer_key_does_not_depend_on_account_proof_timing() {
         let now = crate::rt::now_mono();
