@@ -1,6 +1,6 @@
 use std::{
     hash::{Hash, Hasher},
-    sync::{Arc, OnceLock, RwLock},
+    sync::{Arc, RwLock},
 };
 
 use crate::Nick;
@@ -21,8 +21,6 @@ pub struct DirectRef(Arc<DirectInner>);
 
 struct DirectInner {
     identity: papo_core::ReplyToken,
-    peer_key: crate::peer_key::PeerKey,
-    upgraded_peer_key: OnceLock<crate::peer_key::PeerKey>,
     recipient: papo_core::RecipientGuard,
     state: Arc<RwLock<Arc<crate::State>>>,
     user: Option<crate::UserHandle>,
@@ -55,23 +53,9 @@ impl DirectRef {
         user: Option<crate::UserHandle>,
     ) -> Self {
         let identity = recipient.__token();
-        let state = client.state();
-        let scope = state.peer_scope();
-        let peer_key = crate::peer_key::PeerKey::live(
-            scope.as_ref(),
-            recipient.__nick(),
-            recipient.__account(),
-            state.peer_account_id(recipient.__nick(), recipient.__account()),
-            state.peer_token(recipient.__nick()),
-        )
-        .unwrap_or_else(|| {
-            crate::peer_key::PeerKey::unverified(scope.as_ref(), recipient.__nick())
-        });
         Self(Arc::new(DirectInner {
             _watch: watch,
             identity,
-            peer_key,
-            upgraded_peer_key: OnceLock::new(),
             recipient,
             state: Arc::clone(&client.state),
             user,
@@ -102,58 +86,6 @@ impl DirectRef {
             Some(proof),
             Some(&self.0.state),
         )
-    }
-
-    /// Returns the current saved key for this direct conversation.
-    ///
-    /// A Continuity pin captured before account proof upgrades to an Account pin once papo proves
-    /// the account for the same uninterrupted user. Nicknames remain the conversation boundary
-    /// even when two references have equal pins. See [`crate::PeerKey`] for the nickname-keyed
-    /// thread and warning flow.
-    #[must_use]
-    pub fn peer_key(&self) -> &crate::PeerKey {
-        self.refresh_peer_key();
-        self.0.upgraded_peer_key.get().unwrap_or(&self.0.peer_key)
-    }
-
-    fn refresh_peer_key(&self) {
-        if self.0.upgraded_peer_key.get().is_some() {
-            return;
-        }
-        let state = self
-            .0
-            .state
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let papo_core::RecipientStatus::Current(nick) = state.resolve_recipient(&self.0.recipient)
-        else {
-            return;
-        };
-        let Some(user) = state.user_local(&nick) else {
-            return;
-        };
-        if state
-            .capture_recipient(&nick, crate::Account::Unknown)
-            .is_none_or(|recipient| recipient.__token() != self.0.identity)
-        {
-            return;
-        }
-        let scope = state.peer_scope();
-        let Some(current) = crate::peer_key::PeerKey::live(
-            scope.as_ref(),
-            &nick,
-            user.account(),
-            state.peer_account_id(&nick, user.account()),
-            state.peer_token(&nick),
-        ) else {
-            return;
-        };
-        if matches!(
-            self.0.peer_key.check(&current),
-            crate::PeerKeyCheck::Upgrade(_)
-        ) {
-            _ = self.0.upgraded_peer_key.set(current);
-        }
     }
 
     /// Returns the recipient's current nickname.
